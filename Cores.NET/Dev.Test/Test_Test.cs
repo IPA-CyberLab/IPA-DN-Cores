@@ -315,9 +315,12 @@ namespace IPA.TestDev
         {
             if (true)
             {
-                using (DirSuperBackup b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, @"c:\tmp\191208\log\all.log", @"c:\tmp\191208\log\error.log")))
+                using (DirSuperBackup b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, @"C:\TMP\191208_test\log\all.log", @"C:\TMP\191208_test\log\error.log")))
                 {
-                    Dbg.Where();
+                    Async(async () =>
+                    {
+                        await b.DoSingleDirBackupAsync(@"C:\TMP\191208_test\src", @"C:\TMP\191208_test\dst");
+                    });
                 }
                 return;
             }

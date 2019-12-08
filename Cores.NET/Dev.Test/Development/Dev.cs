@@ -85,8 +85,22 @@ namespace IPA.Cores.Basic
     [Flags]
     public enum DirSuperBackupLogType
     {
-        All = 1,
+        Info = 1,
         Error = 2,
+    }
+
+    public class DirSuperBackupStat
+    {
+        public long Copy_NumFiles;
+        public long Copy_TotalSize;
+
+        public long Skip_NumFiles;
+        public long Skip_TotalSize;
+
+        public long Error_Dir;
+
+        public long Error_NumFiles;
+        public long Error_TotalSize;
     }
 
     // ディレクトリ単位の世代対応バックアップユーティリティ
@@ -107,6 +121,8 @@ namespace IPA.Cores.Basic
 
         public const string PrefixMetadata = ".super_metadata_";
         public const string SuffixMetadata = ".metadat.json";
+
+        readonly DirSuperBackupStat Stat = new DirSuperBackupStat();
 
         public DirSuperBackup(DirSuperBackupOptions? options = null)
         {
@@ -130,6 +146,7 @@ namespace IPA.Cores.Basic
                     ErrorLogWriter = new StreamWriter(ErrorLogFileStream);
                 }
 
+                WriteLogAsync(DirSuperBackupLogType.Error, "------------------")._GetResult();
                 WriteLogAsync(DirSuperBackupLogType.Error, "Start")._GetResult();
             }
             catch
@@ -143,6 +160,8 @@ namespace IPA.Cores.Basic
         {
             try
             {
+                WriteStatAsync()._TryGetResult();
+
                 WriteLogAsync(DirSuperBackupLogType.Error, "Finish")._TryGetResult();
 
                 AllLogWriter._DisposeSafe();
@@ -171,6 +190,10 @@ namespace IPA.Cores.Basic
                 await WriteLogMainAsync(this.ErrorLogWriter, line);
             }
 
+            line = line._OneLine();
+
+            Console.WriteLine(line);
+
             await WriteLogMainAsync(this.AllLogWriter, line);
         }
 
@@ -178,157 +201,214 @@ namespace IPA.Cores.Basic
         {
             if (writer == null) return;
 
-            await writer.WriteLineAsync(line._OneLine());
+            await writer.WriteLineAsync(line);
         }
 
-        // 1 つのディレクトリをバックアップする (サブディレクトリの中身はバックアップしないが、サブディレクトリの作成は行なう)
+        // Stat をログに書き込む
+        public async Task WriteStatAsync()
+        {
+            await WriteLogAsync(DirSuperBackupLogType.Error, this.Stat._ObjectToJson(compact: true));
+        }
+
+        // 1 つのディレクトリをバックアップする
         public async Task DoSingleDirBackupAsync(string srcDir, string destDir, CancellationToken cancel = default)
         {
             DateTimeOffset now = DateTimeOffset.Now;
 
-            FileMetadata srcDirMetadata = await Fs.GetDirectoryMetadataAsync(srcDir, cancel: cancel);
+            FileSystemEntity[]? srcDirEnum = null;
 
-            FileSystemEntity[] srcDirEnum = await Fs.EnumDirectoryAsync(srcDir, false, EnumDirectoryFlags.NoGetPhysicalSize, cancel);
-
-            FileSystemEntity[] destDirEnum = new FileSystemEntity[0];
-
-            DirSuperBackupMetadata? destDirOldMetaData = null;
-
-            DirSuperBackupMetadata destDirNewMetaData;
-
-            // 宛先ディレクトリがすでに存在しているかどうか検査する
-            if (await Fs.IsDirectoryExistsAsync(destDir, cancel))
+            try
             {
-                destDirEnum = await Fs.EnumDirectoryAsync(destDir, false, EnumDirectoryFlags.NoGetPhysicalSize, cancel);
+                FileMetadata srcDirMetadata = await Fs.GetDirectoryMetadataAsync(srcDir, cancel: cancel);
 
-                // 宛先ディレクトリに存在するメタデータファイルのうち最新のファイルを取得する
-                destDirOldMetaData = await GetLatestMetaDataFileNameAsync(destDir, destDirEnum, cancel);
-            }
-            else
-            {
-                // 宛先ディレクトリがまだ存在していない場合は作成する
-                await Fs.CreateDirectoryAsync(destDir, FileFlags.BackupMode | FileFlags.AutoCreateDirectory, cancel);
-            }
+                srcDirEnum = (await Fs.EnumDirectoryAsync(srcDir, false, EnumDirectoryFlags.NoGetPhysicalSize, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
 
-            // 新しいメタデータを作成する
-            if (destDirOldMetaData == null)
-            {
-                destDirNewMetaData = new DirSuperBackupMetadata();
-                destDirNewMetaData.FileList = new List<DirSuperBackupMetadataFile>();
-            }
-            else
-            {
-                destDirNewMetaData = destDirOldMetaData._CloneDeep();
-            }
-            destDirNewMetaData.TimeStamp = now;
-            destDirNewMetaData.DirMetadata = srcDirMetadata;
+                FileSystemEntity[] destDirEnum = new FileSystemEntity[0];
 
-            // 元ディレクトリに存在するファイルを 1 つずつバックアップする
-            foreach (FileSystemEntity srcFile in srcDirEnum)
-            {
-                string destFileName = Fs.PathParser.Combine(destDir, srcFile.Name);
+                DirSuperBackupMetadata? destDirOldMetaData = null;
 
-                FileMetadata srcMetadata = await Fs.GetFileMetadataAsync(srcFile.FullPath, cancel: cancel);
+                DirSuperBackupMetadata destDirNewMetaData;
 
-                // このファイルと同一のファイル名がすでに宛先ディレクトリに物理的に存在するかどうか確認する
-                bool exists = await Fs.IsFileExistsAsync(destFileName, cancel);
-
-                bool fileChangedOrNew = false;
-
-                if (exists)
+                // 宛先ディレクトリがすでに存在しているかどうか検査する
+                if (await Fs.IsDirectoryExistsAsync(destDir, cancel))
                 {
-                    // すでに宛先ディレクトリに存在する物理的なファイルのメタデータを取得する
-                    FileMetadata destExistsMetadata = await Fs.GetFileMetadataAsync(destFileName, cancel: cancel);
+                    destDirEnum = await Fs.EnumDirectoryAsync(destDir, false, EnumDirectoryFlags.NoGetPhysicalSize, cancel);
 
-                    // ファイルサイズを比較する
-                    if (destExistsMetadata.Size != srcFile.Size)
-                    {
-                        // ファイルサイズが異なる
-                        fileChangedOrNew = true;
-                    }
-
-                    // 日付を比較する。ただし宛先ディレクトリの物理的なファイルの日付は信用できないので、メタデータ上のファイルサイズと比較する
-                    if (destDirOldMetaData != null)
-                    {
-                        DirSuperBackupMetadataFile existsFileMetadataFromDirMetadata = destDirOldMetaData.FileList.Where(x => x.FileName._IsSamei(srcFile.Name)).SingleOrDefault();
-                        if (existsFileMetadataFromDirMetadata == null)
-                        {
-                            // メタデータ上に存在しない
-                            fileChangedOrNew = true;
-                        }
-                        else
-                        {
-                            if (existsFileMetadataFromDirMetadata.MetaData!.LastWriteTime!.Value.Ticks != srcMetadata.LastWriteTime!.Value.Ticks)
-                            {
-                                // 最終更新日時が異なる
-                                fileChangedOrNew = true;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // 宛先ディレクトリ上にメタデータがない
-                        fileChangedOrNew = true;
-                    }
+                    // 宛先ディレクトリに存在するメタデータファイルのうち最新のファイルを取得する
+                    destDirOldMetaData = await GetLatestMetaDataFileNameAsync(destDir, destDirEnum, cancel);
                 }
                 else
                 {
-                    // 新しいファイルである
-                    fileChangedOrNew = true;
+                    // 宛先ディレクトリがまだ存在していない場合は作成する
+                    await Fs.CreateDirectoryAsync(destDir, FileFlags.BackupMode | FileFlags.AutoCreateDirectory, cancel);
                 }
 
-                if (fileChangedOrNew)
+                // 新しいメタデータを作成する
+                if (destDirOldMetaData == null)
                 {
-                    // ファイルが新しいか、または更新された場合は、そのファイルをバックアップする
-                    // ただし、バックアップ先に同名のファイルがすでに存在する場合は、
-                    // xxxx.0123.old のような形式でまだ存在しない連番に古いファイル名をリネームする
+                    destDirNewMetaData = new DirSuperBackupMetadata();
+                    destDirNewMetaData.FileList = new List<DirSuperBackupMetadataFile>();
+                }
+                else
+                {
+                    destDirNewMetaData = destDirOldMetaData._CloneWithJson();
+                }
+                destDirNewMetaData.TimeStamp = now;
+                destDirNewMetaData.DirMetadata = srcDirMetadata;
 
-                    if (exists)
+                // 元ディレクトリに存在するファイルを 1 つずつバックアップする
+                foreach (FileSystemEntity srcFile in srcDirEnum.Where(x => x.IsFile))
+                {
+                    string destFilePath = Fs.PathParser.Combine(destDir, srcFile.Name);
+
+                    try
                     {
-                        string newOldFileName;
+                        FileMetadata srcMetadata = await Fs.GetFileMetadataAsync(srcFile.FullPath, cancel: cancel);
 
-                        // 連番でかつ存在していないファイル名を決定する
-                        for (int i = 0; ; i++)
+                        // このファイルと同一のファイル名がすでに宛先ディレクトリに物理的に存在するかどうか確認する
+                        bool exists = await Fs.IsFileExistsAsync(destFilePath, cancel);
+
+                        bool fileChangedOrNew = false;
+
+                        if (exists)
                         {
-                            string newOldFileNameCandidate = $"{srcFile.Name}.{i:D4}.old";
+                            // すでに宛先ディレクトリに存在する物理的なファイルのメタデータを取得する
+                            FileMetadata destExistsMetadata = await Fs.GetFileMetadataAsync(destFilePath, cancel: cancel);
 
-                            if (srcDirEnum.Where(x => x.Name._IsSamei(newOldFileNameCandidate)).Any() == false)
+                            // ファイルサイズを比較する
+                            if (destExistsMetadata.Size != srcFile.Size)
                             {
-                                if (await Fs.IsFileExistsAsync(Fs.PathParser.Combine(destDir, newOldFileNameCandidate), cancel) == false)
+                                // ファイルサイズが異なる
+                                fileChangedOrNew = true;
+                            }
+
+                            // 日付を比較する。ただし宛先ディレクトリの物理的なファイルの日付は信用できないので、メタデータ上のファイルサイズと比較する
+                            if (destDirOldMetaData != null)
+                            {
+                                DirSuperBackupMetadataFile existsFileMetadataFromDirMetadata = destDirOldMetaData.FileList.Where(x => x.FileName._IsSamei(srcFile.Name)).SingleOrDefault();
+                                if (existsFileMetadataFromDirMetadata == null)
                                 {
-                                    newOldFileName = newOldFileNameCandidate;
-                                    break;
+                                    // メタデータ上に存在しない
+                                    fileChangedOrNew = true;
+                                }
+                                else
+                                {
+                                    if (existsFileMetadataFromDirMetadata.MetaData!.LastWriteTime!.Value.Ticks != srcMetadata.LastWriteTime!.Value.Ticks)
+                                    {
+                                        // 最終更新日時が異なる
+                                        fileChangedOrNew = true;
+                                    }
                                 }
                             }
+                            else
+                            {
+                                // 宛先ディレクトリ上にメタデータがない
+                                fileChangedOrNew = true;
+                            }
+                        }
+                        else
+                        {
+                            // 新しいファイルである
+                            fileChangedOrNew = true;
                         }
 
-                        // 変更されたファイル名を .old ファイルにリネーム実行する
-                        await Fs.MoveFileAsync(destFileName, newOldFileName, cancel);
+                        if (fileChangedOrNew)
+                        {
+                            // ファイルが新しいか、または更新された場合は、そのファイルをバックアップする
+                            // ただし、バックアップ先に同名のファイルがすでに存在する場合は、
+                            // xxxx.0123.old のような形式でまだ存在しない連番に古いファイル名をリネームする
+
+                            if (exists)
+                            {
+                                string newOldFileName;
+
+                                // 連番でかつ存在していないファイル名を決定する
+                                for (int i = 0; ; i++)
+                                {
+                                    string newOldFileNameCandidate = $"{srcFile.Name}.{i:D4}.old";
+
+                                    if (srcDirEnum.Where(x => x.Name._IsSamei(newOldFileNameCandidate)).Any() == false)
+                                    {
+                                        if (await Fs.IsFileExistsAsync(Fs.PathParser.Combine(destDir, newOldFileNameCandidate), cancel) == false)
+                                        {
+                                            newOldFileName = newOldFileNameCandidate;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                // 変更されたファイル名を .old ファイルにリネーム実行する
+                                await Fs.MoveFileAsync(destFilePath, Fs.PathParser.Combine(destDir, newOldFileName), cancel);
+                            }
+
+                            // ファイルをコピーする
+                            await Fs.CopyFileAsync(srcFile.FullPath, destFilePath, new CopyFileParams(flags: FileFlags.BackupMode, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.None)),
+                                cancel: cancel);
+
+                            // コピーしたファイルを元に新しいメタデータを更新する
+                            // 同一名の古いメタデータがあれば削除する
+                            var existingMetaEntryList = destDirNewMetaData.FileList.Where(x => x.FileName._IsSamei(srcFile.Name)).ToList();
+                            foreach (var existingMetaEntry in existingMetaEntryList)
+                            {
+                                destDirNewMetaData.FileList.Remove(existingMetaEntry);
+                            }
+
+                            // 新しいメタデータを書き込む
+                            destDirNewMetaData.FileList.Add(new DirSuperBackupMetadataFile() { FileName = srcFile.Name, MetaData = srcMetadata });
+
+                            Stat.Copy_NumFiles++;
+                            Stat.Copy_TotalSize += srcFile.Size;
+                        }
+                        else
+                        {
+                            Stat.Skip_NumFiles++;
+                            Stat.Skip_TotalSize += srcFile.Size;
+                        }
                     }
-
-                    // ファイルをコピーする
-                    await Fs.CopyFileAsync(srcFile.FullPath, destFileName, new CopyFileParams(flags: FileFlags.BackupMode, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.None)),
-                        cancel: cancel);
-
-                    // コピーしたファイルを元に新しいメタデータを更新する
-                    // 同一名の古いメタデータがあれば削除する
-                    var existingMetaEntryList = destDirNewMetaData.FileList.Where(x => x.FileName._IsSamei(srcFile.Name));
-                    foreach (var existingMetaEntry in existingMetaEntryList)
+                    catch (Exception ex)
                     {
-                        destDirNewMetaData.FileList.Remove(existingMetaEntry);
-                    }
+                        Stat.Error_NumFiles++;
+                        Stat.Error_TotalSize += srcFile.Size;
 
-                    // 新しいメタデータを書き込む
-                    destDirNewMetaData.FileList.Add(new DirSuperBackupMetadataFile() { FileName = srcFile.Name, MetaData = srcMetadata });
+                        // ファイル単位のエラー発生
+                        await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("FileError", srcFile.FullPath, destFilePath, ex.Message));
+                    }
                 }
+
+                // 新しいメタデータをファイル名でソートする
+                destDirNewMetaData.FileList = destDirNewMetaData.FileList.OrderBy(x => x.FileName, StrComparer.IgnoreCaseComparer).ToList();
+
+                // 新しいメタデータを書き込む
+                string newMetadataFilePath = Fs.PathParser.Combine(destDir, $"{PrefixMetadata}{Str.DateTimeToStrShortWithMilliSecs(now.UtcDateTime)}{SuffixMetadata}");
+                await Fs.WriteJsonToFileAsync(newMetadataFilePath, destDirNewMetaData, FileFlags.BackupMode, cancel: cancel);
+            }
+            catch (Exception ex)
+            {
+                Stat.Error_Dir++;
+
+                // ディレクトリ単位のエラー発生
+                await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError", srcDir, destDir, ex.Message));
             }
 
-            // 新しいメタデータをファイル名でソートする
-            destDirNewMetaData.FileList = destDirNewMetaData.FileList.OrderBy(x => x.FileName, StrComparer.IgnoreCaseComparer).ToList();
+            if (srcDirEnum != null)
+            {
+                try
+                {
+                    // ソースディレクトリの列挙に成功した場合は、サブディレクトリに対して再帰的に実行する
+                    foreach (var subDir in srcDirEnum.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false))
+                    {
+                        await DoSingleDirBackupAsync(Fs.PathParser.Combine(srcDir, subDir.Name), Fs.PathParser.Combine(destDir, subDir.Name), cancel);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // 何らかのディレクトリ単位のエラーで catch されていないものが発生
+                    Stat.Error_Dir++;
 
-            // 新しいメタデータを書き込む
-            string newMetadataFileName = Fs.PathParser.Combine(destDir, $"{PrefixMetadata}{Str.DateTimeToStrShortWithMilliSecs(now.DateTime)}{SuffixMetadata}");
-            await Fs.WriteJsonToFileAsync(newMetadataFileName, destDirNewMetaData, FileFlags.BackupMode, cancel: cancel);
+                    // ディレクトリ単位のエラー発生
+                    await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError", srcDir, destDir, ex.Message));
+                }
+            }
         }
 
         // 指定されたディレクトリに存在するメタデータファイルのうち最新のファイルを取得する

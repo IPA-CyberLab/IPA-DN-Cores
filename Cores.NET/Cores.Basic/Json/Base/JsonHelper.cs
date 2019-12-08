@@ -83,6 +83,14 @@ namespace IPA.Cores.Helper.Basic
         public static T _FileToObject<T>(this string path, FileSystem? fs = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default,
             bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool nullIfError = false)
             => (fs ?? Lfs).ReadJsonFromFile<T>(path, maxSize, flags, cancel, includeNull, maxDepth, nullIfError);
+
+        [return: NotNullIfNotNull("obj")]
+        public static T _CloneWithJson<T>(this T obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null)
+            => Json.CloneWithJson(obj, escapeHtml, maxDepth, referenceHandling, type);
+
+        [return: NotNullIfNotNull("obj")]
+        public static object? _CloneObjectWithJson(this object? obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null)
+            => Json.CloneObjectWithJson(obj, escapeHtml, maxDepth, referenceHandling, type);
     }
 
     public static class JsonConsoleHelper

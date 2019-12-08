@@ -122,6 +122,24 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        [return: NotNullIfNotNull("obj")]
+        public static T CloneWithJson<T>(T obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null)
+        {
+            return (T)CloneObjectWithJson((object?)obj, escapeHtml, maxDepth, referenceHandling, type ?? typeof(T))!;
+        }
+
+        [return: NotNullIfNotNull("obj")]
+        public static object? CloneObjectWithJson(object? obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null)
+        {
+            if (obj == null) return null;
+
+            type = type ?? obj.GetType();
+
+            string data = Serialize(obj, true, escapeHtml, maxDepth, true, referenceHandling, false, type);
+
+            return Deserialize(data, type, true, maxDepth, false);
+        }
+
         [return: MaybeNull]
         public static T Deserialize<T>(string str, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false)
             => (T)Deserialize(str, typeof(T), includeNull, maxDepth, base64url)!;
@@ -155,7 +173,7 @@ namespace IPA.Cores.Basic
 
         public static async Task<bool> DeserializeLargeArrayAsync<T>(TextReader txt, Func<T?, bool> itemReadCallback,
             Func<string, Exception, bool>? parseErrorCallback = null, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
-            where T: class
+            where T : class
         {
             while (true)
             {
@@ -169,7 +187,7 @@ namespace IPA.Cores.Basic
                     object? obj = null;
                     try
                     {
-                        obj = (object ?)Deserialize<T>(line, includeNull, maxDepth);
+                        obj = (object?)Deserialize<T>(line, includeNull, maxDepth);
                     }
                     catch (Exception ex)
                     {
