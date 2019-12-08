@@ -315,13 +315,6 @@ namespace IPA.TestDev
         {
             if (true)
             {
-                DateTimeOffset now = DateTimeOffset.Now;
-                Lfs.SetDirectoryMetadata(@"\\dnbk1\data1\backup\test", new FileMetadata(creationTime: now.AddYears(-1), lastWriteTime: now.AddYears(-2), lastAccessTime: now.AddYears(-3)));
-                return;
-            }
-
-            if (true)
-            {
                 using (DirSuperBackup b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, @"C:\TMP\191208_test\log\all.log", @"C:\TMP\191208_test\log\error.log")))
                 {
                     Async(async () =>
