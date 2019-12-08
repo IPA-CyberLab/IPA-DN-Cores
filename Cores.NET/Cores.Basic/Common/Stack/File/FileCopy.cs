@@ -485,16 +485,19 @@ namespace IPA.Cores.Basic
                                 if (param.Flags.Bit(FileFlags.CopyFile_Verify) && param.IgnoreReadError == false)
                                 {
                                     // Verify を実施する
-                                    await destFile.FlushAsync(cancel);
+                                    // キャッシュを無効にするため、一度ファイルを閉じて再度開く
 
-                                    await destFile.SeekToBeginAsync(cancel);
+                                    await destFile.CloseAsync();
 
-                                    uint destZipCrc = await CalcZipCrc32HandleAsync(destFile, param, cancel);
-
-                                    if (srcZipCrc.Value != destZipCrc)
+                                    using (var destFile2 = await destFileSystem.OpenAsync(destPath, flags: param.Flags, cancel: cancel))
                                     {
-                                        // なんと Verify に失敗したぞ
-                                        throw new CoresException($"CopyFile_Verify error. Src file: '{srcPath}', Dest file: '{destPath}', srcCrc: {srcZipCrc.Value}, destCrc = {destZipCrc}");
+                                        uint destZipCrc = await CalcZipCrc32HandleAsync(destFile2, param, cancel);
+
+                                        if (srcZipCrc.Value != destZipCrc)
+                                        {
+                                            // なんと Verify に失敗したぞ
+                                            throw new CoresException($"CopyFile_Verify error. Src file: '{srcPath}', Dest file: '{destPath}', srcCrc: {srcZipCrc.Value}, destCrc = {destZipCrc}");
+                                        }
                                     }
                                 }
 

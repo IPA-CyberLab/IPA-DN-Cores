@@ -187,18 +187,29 @@ namespace IPA.Cores.Basic
 
         async Task WriteLogAsync(DirSuperBackupLogType type, string str)
         {
-            string line = $"{DateTimeOffset.Now._ToDtStr()},{str}";
-
-            if (type.Bit(DirSuperBackupLogType.Error))
+            try
             {
-                await WriteLogMainAsync(this.ErrorLogWriter, line);
+                string line = $"{DateTimeOffset.Now._ToDtStr()},{str}";
+
+                line = line._OneLine();
+
+                Console.WriteLine(line);
+
+                if (type.Bit(DirSuperBackupLogType.Error))
+                {
+                    await WriteLogMainAsync(this.ErrorLogWriter, line);
+
+                    if (this.ErrorLogWriter != null)
+                    {
+                        await this.ErrorLogWriter.FlushAsync();
+                    }
+                }
+
+                await WriteLogMainAsync(this.InfoLogWriter, line);
             }
-
-            line = line._OneLine();
-
-            Console.WriteLine(line);
-
-            await WriteLogMainAsync(this.InfoLogWriter, line);
+            catch
+            {
+            }
         }
 
         async Task WriteLogMainAsync(StreamWriter? writer, string line)
