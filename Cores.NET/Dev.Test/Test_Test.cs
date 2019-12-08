@@ -319,7 +319,7 @@ namespace IPA.TestDev
                 {
                     Async(async () =>
                     {
-                        await b.DoSingleDirBackupAsync(@"C:\TMP\191208_test\src", @"C:\TMP\191208_test\dst5", default);
+                        await b.DoSingleDirBackupAsync(@"C:\TMP\191208_test\src", @"C:\TMP\191208_test\dst10", default);
                     });
                 }
                 return;
