@@ -478,7 +478,25 @@ namespace IPA.Cores.Basic
                             {
                                 reporter.ReportProgress(new ProgressData(0, srcFileMetadata.Size));
 
-                                long copiedSize = await CopyBetweenHandleAsync(srcFile, destFile, param, reporter, srcFileMetadata.Size, cancel, readErrorIgnored);
+                                Ref<uint> srcZipCrc = new Ref<uint>();
+
+                                long copiedSize = await CopyBetweenHandleAsync(srcFile, destFile, param, reporter, srcFileMetadata.Size, cancel, readErrorIgnored, srcZipCrc);
+
+                                if (param.Flags.Bit(FileFlags.CopyFile_Verify) && param.IgnoreReadError == false)
+                                {
+                                    // Verify を実施する
+                                    await destFile.FlushAsync(cancel);
+
+                                    await destFile.SeekToBeginAsync(cancel);
+
+                                    uint destZipCrc = await CalcZipCrc32HandleAsync(destFile, param, cancel);
+
+                                    if (srcZipCrc.Value != destZipCrc)
+                                    {
+                                        // なんと Verify に失敗したぞ
+                                        throw new CoresException($"CopyFile_Verify error. Src file: '{srcPath}', Dest file: '{destPath}', srcCrc: {srcZipCrc.Value}, destCrc = {destZipCrc}");
+                                    }
+                                }
 
                                 reporter.ReportProgress(new ProgressData(copiedSize, copiedSize, true));
 
@@ -497,6 +515,12 @@ namespace IPA.Cores.Basic
                             {
                                 if (destFileExists == false)
                                 {
+                                    try
+                                    {
+                                        await destFile.CloseAsync();
+                                    }
+                                    catch { }
+
                                     try
                                     {
                                         await destFileSystem.DeleteFileAsync(destPath);
@@ -530,8 +554,33 @@ namespace IPA.Cores.Basic
         public static void CopyFile(FilePath src, FilePath dest, CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null)
             => CopyFileAsync(src, dest, param, state, cancel, readErrorIgnored)._GetResult();
 
-        static async Task<long> CopyBetweenHandleAsync(FileBase src, FileBase dest, CopyFileParams param, ProgressReporterBase reporter, long estimatedSize, CancellationToken cancel, RefBool readErrorIgnored)
+        static async Task<uint> CalcZipCrc32HandleAsync(FileBase src, CopyFileParams param, CancellationToken cancel)
         {
+            ZipCrc32 srcCrc = new ZipCrc32();
+
+            using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer))
+            {
+                while (true)
+                {
+                    int readSize = await src.ReadAsync(buffer, cancel);
+
+                    Debug.Assert(readSize <= buffer.Length);
+
+                    if (readSize <= 0) break;
+
+                    ReadOnlyMemory<byte> sliced = buffer.Slice(0, readSize);
+
+                    srcCrc.Append(sliced.Span);
+                }
+            }
+
+            return srcCrc.Value;
+        }
+
+        static async Task<long> CopyBetweenHandleAsync(FileBase src, FileBase dest, CopyFileParams param, ProgressReporterBase reporter, long estimatedSize, CancellationToken cancel, RefBool readErrorIgnored, Ref<uint> srcZipCrc)
+        {
+            ZipCrc32 srcCrc = new ZipCrc32();
+
             readErrorIgnored.Set(false);
 
             checked
@@ -600,7 +649,15 @@ namespace IPA.Cores.Basic
 
                             if (readSize <= 0) break;
 
-                            await dest.WriteAsync(buffer.Slice(0, readSize), cancel);
+                            ReadOnlyMemory<byte> sliced = buffer.Slice(0, readSize);
+
+
+                            if (param.Flags.Bit(FileFlags.CopyFile_Verify))
+                            {
+                                srcCrc.Append(sliced.Span);
+                            }
+
+                            await dest.WriteAsync(sliced, cancel);
 
                             currentPosition += readSize;
                             reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));
@@ -638,13 +695,23 @@ namespace IPA.Cores.Basic
                                 if (readSize <= 0) break;
 
                                 writeSize = readSize;
-                                lastWriteTask = dest.WriteAsync(buffer.Slice(0, writeSize), cancel);
+
+                                ReadOnlyMemory<byte> sliced = buffer.Slice(0, writeSize);
+
+                                if (param.Flags.Bit(FileFlags.CopyFile_Verify))
+                                {
+                                    srcCrc.Append(sliced.Span);
+                                }
+
+                                lastWriteTask = dest.WriteAsync(sliced, cancel);
                             }
 
                             reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));
                         }
                     }
                 }
+
+                srcZipCrc.Set(srcCrc.Value);
 
                 return currentPosition;
             }

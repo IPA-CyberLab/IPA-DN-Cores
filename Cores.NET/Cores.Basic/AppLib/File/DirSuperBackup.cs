@@ -74,13 +74,13 @@ namespace IPA.Cores.Basic
     public class DirSuperBackupOptions
     {
         public FileSystem Fs { get; }
-        public string? AllLogFileName { get; }
+        public string? InfoLogFileName { get; }
         public string? ErrorLogFileName { get; }
 
-        public DirSuperBackupOptions(FileSystem? fs = null, string? allLogFileName = null, string? errorLogFileName = null)
+        public DirSuperBackupOptions(FileSystem? fs = null, string? infoLogFileName = null, string? errorLogFileName = null)
         {
             Fs = fs ?? Lfs;
-            AllLogFileName = allLogFileName;
+            InfoLogFileName = infoLogFileName;
             ErrorLogFileName = errorLogFileName;
         }
     }
@@ -114,9 +114,9 @@ namespace IPA.Cores.Basic
         readonly FileSystem Lfs;
         readonly FileSystem LfsUtf8;
 
-        readonly FileObject? AllLogFileObj;
-        readonly FileStream? AllLogFileStream;
-        readonly StreamWriter? AllLogWriter;
+        readonly FileObject? InfoLogFileObj;
+        readonly FileStream? InfoLogFileStream;
+        readonly StreamWriter? InfoLogWriter;
 
         readonly FileObject? ErrorLogFileObj;
         readonly FileStream? ErrorLogFileStream;
@@ -125,7 +125,7 @@ namespace IPA.Cores.Basic
         public const string PrefixMetadata = ".super_metadata_";
         public const string SuffixMetadata = ".metadat.json";
 
-        readonly DirSuperBackupStat Stat = new DirSuperBackupStat();
+        public readonly DirSuperBackupStat Stat = new DirSuperBackupStat();
 
         public DirSuperBackup(DirSuperBackupOptions? options = null)
         {
@@ -135,11 +135,11 @@ namespace IPA.Cores.Basic
                 this.Lfs = new LargeFileSystem(new LargeFileSystemParams(this.Fs));
                 this.LfsUtf8 = new Utf8BomFileSystem(new Utf8BomFileSystemParam(this.Lfs));
 
-                if (Options.AllLogFileName._IsFilled())
+                if (Options.InfoLogFileName._IsFilled())
                 {
-                    AllLogFileObj = this.LfsUtf8.OpenOrCreateAppend(Options.AllLogFileName, flags: FileFlags.AutoCreateDirectory | FileFlags.BackupMode | FileFlags.LargeFs_AppendWithoutCrossBorder);
-                    AllLogFileStream = AllLogFileObj.GetStream(true);
-                    AllLogWriter = new StreamWriter(AllLogFileStream);
+                    InfoLogFileObj = this.LfsUtf8.OpenOrCreateAppend(Options.InfoLogFileName, flags: FileFlags.AutoCreateDirectory | FileFlags.BackupMode | FileFlags.LargeFs_AppendWithoutCrossBorder);
+                    InfoLogFileStream = InfoLogFileObj.GetStream(true);
+                    InfoLogWriter = new StreamWriter(InfoLogFileStream);
                 }
 
                 if (Options.ErrorLogFileName._IsFilled())
@@ -167,9 +167,9 @@ namespace IPA.Cores.Basic
 
                 WriteLogAsync(DirSuperBackupLogType.Error, "Finish")._TryGetResult();
 
-                AllLogWriter._DisposeSafe();
-                AllLogFileStream._DisposeSafe();
-                AllLogFileObj._DisposeSafe();
+                InfoLogWriter._DisposeSafe();
+                InfoLogFileStream._DisposeSafe();
+                InfoLogFileObj._DisposeSafe();
 
                 ErrorLogWriter._DisposeSafe();
                 ErrorLogFileStream._DisposeSafe();
@@ -197,7 +197,7 @@ namespace IPA.Cores.Basic
 
             Console.WriteLine(line);
 
-            await WriteLogMainAsync(this.AllLogWriter, line);
+            await WriteLogMainAsync(this.InfoLogWriter, line);
         }
 
         async Task WriteLogMainAsync(StreamWriter? writer, string line)
@@ -341,11 +341,13 @@ namespace IPA.Cores.Basic
                                 }
 
                                 // 変更されたファイル名を .old ファイルにリネーム実行する
+                                await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileRename", destFilePath, Fs.PathParser.Combine(destDir, newOldFileName)));
                                 await Fs.MoveFileAsync(destFilePath, Fs.PathParser.Combine(destDir, newOldFileName), cancel);
                             }
 
                             // ファイルをコピーする
-                            await Fs.CopyFileAsync(srcFile.FullPath, destFilePath, new CopyFileParams(flags: FileFlags.BackupMode, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.None)),
+                            await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileCopy", srcFile.FullPath, destFilePath));
+                            await Fs.CopyFileAsync(srcFile.FullPath, destFilePath, new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.None)),
                                 cancel: cancel);
 
                             // コピーしたファイルを元に新しいメタデータを更新する

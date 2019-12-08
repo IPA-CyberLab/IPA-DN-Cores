@@ -50,6 +50,52 @@ namespace IPA.TestDev
 {
     partial class TestDevCommands
     {
+        // 指定されたディレクトリを DirSuperBackup を用いてバックアップする
+        // 指定されたディレクトリやサブディレクトリを列挙し結果をファイルに書き出す
+        [ConsoleCommand(
+            "DirSuperBackup command",
+            "DirSuperBackup [src] /dst:dst [/errorlog:errorlog] [/infolog:infolog]",
+            "DirSuperBackup command")]
+        static int DirSuperBackup(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[src]", ConsoleService.Prompt, "Source directory path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("dst", ConsoleService.Prompt, "Destination directory path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("errorlog"),
+                new ConsoleParam("infolog"),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string src = vl.DefaultParam.StrValue;
+            string dst = vl["dst"].StrValue;
+            string errorlog = vl["errorlog"].StrValue;
+            string infolog = vl["infolog"].StrValue;
+
+            bool err = false;
+
+            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog)))
+            {
+                Async(async () =>
+                {
+                    await b.DoSingleDirBackupAsync(src, dst);
+                });
+
+                if (b.Stat.Error_Dir != 0 || b.Stat.Error_NumFiles != 0)
+                {
+                    err = true;
+                }
+            }
+
+            if (err)
+            {
+                Con.WriteError("Error occured.");
+            }
+
+            return err ? 1 : 0;
+        }
+
         // 指定されたディレクトリやサブディレクトリを列挙し結果をファイルに書き出す
         [ConsoleCommand(
             "EnumDir command",
