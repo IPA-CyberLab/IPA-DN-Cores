@@ -1,0 +1,14 @@
+Å° Win32 - x64
+
+cd /d C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\
+
+dotnet clean -c Release
+
+dotnet publish -c Release -r win-x64 -o bld\win-x64\Dev.Test
+
+
+
+---
+C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bld\win-x64\
+Ç…ê∂ê¨Ç≥ÇÍÇÈ
+

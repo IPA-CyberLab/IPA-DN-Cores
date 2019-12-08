@@ -214,15 +214,19 @@ namespace IPA.Cores.Basic
         }
 
         // 1 つのディレクトリをバックアップする
-        public async Task DoSingleDirBackupAsync(string srcDir, string destDir, CancellationToken cancel = default)
+        public async Task DoSingleDirBackupAsync(string srcDir, string destDir, CancellationToken cancel, string? ignoreDirNames = null)
         {
             DateTimeOffset now = DateTimeOffset.Now;
 
             FileSystemEntity[]? srcDirEnum = null;
 
+            string[] ignoreDirNamesList = ignoreDirNames._NonNull()._Split(StringSplitOptions.RemoveEmptyEntries, ",", ";");
+
+            FileMetadata? srcDirMetadata = null;
+
             try
             {
-                FileMetadata srcDirMetadata = await Fs.GetDirectoryMetadataAsync(srcDir, cancel: cancel);
+                srcDirMetadata = await Fs.GetDirectoryMetadataAsync(srcDir, cancel: cancel);
 
                 srcDirEnum = (await Fs.EnumDirectoryAsync(srcDir, false, EnumDirectoryFlags.NoGetPhysicalSize, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
 
@@ -244,6 +248,16 @@ namespace IPA.Cores.Basic
                 {
                     // 宛先ディレクトリがまだ存在していない場合は作成する
                     await Fs.CreateDirectoryAsync(destDir, FileFlags.BackupMode | FileFlags.AutoCreateDirectory, cancel);
+                }
+
+                // 宛先ディレクトリの日付情報のみ属性書き込みする
+                try
+                {
+                    await Fs.SetFileMetadataAsync(destDir, srcDirMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
+                }
+                catch
+                {
+                    // 属性書き込みは失敗してもよい
                 }
 
                 // 新しいメタデータを作成する
@@ -346,8 +360,9 @@ namespace IPA.Cores.Basic
                             }
 
                             // ファイルをコピーする
+                            // 属性は、ファイルの日付情報のみコピーする
                             await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileCopy", srcFile.FullPath, destFilePath));
-                            await Fs.CopyFileAsync(srcFile.FullPath, destFilePath, new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.None)),
+                            await Fs.CopyFileAsync(srcFile.FullPath, destFilePath, new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll)),
                                 cancel: cancel);
 
                             // コピーしたファイルを元に新しいメタデータを更新する
@@ -368,6 +383,16 @@ namespace IPA.Cores.Basic
                         {
                             Stat.Skip_NumFiles++;
                             Stat.Skip_TotalSize += srcFile.Size;
+
+                            // ファイルの日付情報のみ更新する
+                            try
+                            {
+                                await Fs.SetFileMetadataAsync(destFilePath, srcMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
+                            }
+                            catch
+                            {
+                                // ファイルの日付情報の更新は失敗してもよい
+                            }
                         }
                     }
                     catch (Exception ex)
@@ -395,6 +420,19 @@ namespace IPA.Cores.Basic
                 await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError", srcDir, destDir, ex.Message));
             }
 
+            // 再度 宛先ディレクトリの日付情報のみ属性書き込みする (Linux の場合、中のファイルを更新するとディレクトリの日時が変ってしまうため)
+            try
+            {
+                if (srcDirMetadata != null)
+                {
+                    await Fs.SetFileMetadataAsync(destDir, srcDirMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
+                }
+            }
+            catch
+            {
+                // 属性書き込みは失敗してもよい
+            }
+
             if (srcDirEnum != null)
             {
                 try
@@ -402,7 +440,15 @@ namespace IPA.Cores.Basic
                     // ソースディレクトリの列挙に成功した場合は、サブディレクトリに対して再帰的に実行する
                     foreach (var subDir in srcDirEnum.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false))
                     {
-                        await DoSingleDirBackupAsync(Fs.PathParser.Combine(srcDir, subDir.Name), Fs.PathParser.Combine(destDir, subDir.Name), cancel);
+                        // シンボリックリンクは無視する
+                        if (subDir.IsSymbolicLink == false)
+                        {
+                            // 無視リストのいずれにも合致しない場合のみ
+                            if (ignoreDirNamesList.Where(x => x._IsSamei(subDir.Name)).Any() == false)
+                            {
+                                await DoSingleDirBackupAsync(Fs.PathParser.Combine(srcDir, subDir.Name), Fs.PathParser.Combine(destDir, subDir.Name), cancel, ignoreDirNames);
+                            }
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -413,6 +459,20 @@ namespace IPA.Cores.Basic
                     // ディレクトリ単位のエラー発生
                     await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError", srcDir, destDir, ex.Message));
                 }
+            }
+
+
+            // 再度 宛先ディレクトリの日付情報のみ属性書き込みする (Linux の場合、中のファイルを更新するとディレクトリの日時が変ってしまうため)
+            try
+            {
+                if (srcDirMetadata != null)
+                {
+                    await Fs.SetFileMetadataAsync(destDir, srcDirMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
+                }
+            }
+            catch
+            {
+                // 属性書き込みは失敗してもよい
             }
         }
 
