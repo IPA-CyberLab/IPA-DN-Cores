@@ -240,7 +240,7 @@ namespace IPA.Cores.Basic
                 // 1. DOTNET_ROOT 環境変数にディレクトリ名が入っていること
                 // 2. DOTNET_ROOT 環境変数 + "\dotnet" というファイル (dotnet の実行可能ファイルである) が存在すること
                 // で判定を行なう
-                // (Windows ではこの方法で判別ができない)
+                // (TODO: Windows ではこの方法で判別ができない)
 
                 if (IsUnix)
                 {

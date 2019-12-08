@@ -54,7 +54,7 @@ namespace IPA.TestDev
         // 指定されたディレクトリやサブディレクトリを列挙し結果をファイルに書き出す
         [ConsoleCommand(
             "DirSuperBackup command",
-            "DirSuperBackup [src] /dst:dst [/errorlog:errorlog] [/infolog:infolog]",
+            "DirSuperBackup [src] /dst:dst [/errorlog:errorlog] [/infolog:infolog] [/ignoredirs:dir1,dir2,...]",
             "DirSuperBackup command")]
         static int DirSuperBackup(ConsoleService c, string cmdName, string str)
         {
@@ -64,6 +64,7 @@ namespace IPA.TestDev
                 new ConsoleParam("dst", ConsoleService.Prompt, "Destination directory path: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("errorlog"),
                 new ConsoleParam("infolog"),
+                new ConsoleParam("ignoredirs"),
             };
 
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
@@ -72,6 +73,7 @@ namespace IPA.TestDev
             string dst = vl["dst"].StrValue;
             string errorlog = vl["errorlog"].StrValue;
             string infolog = vl["infolog"].StrValue;
+            string ignoredirs = vl["ignoredirs"].StrValue;
 
             bool err = false;
 
@@ -79,7 +81,7 @@ namespace IPA.TestDev
             {
                 Async(async () =>
                 {
-                    await b.DoSingleDirBackupAsync(src, dst);
+                    await b.DoSingleDirBackupAsync(src, dst, default, ignoredirs);
                 });
 
                 if (b.Stat.Error_Dir != 0 || b.Stat.Error_NumFiles != 0)

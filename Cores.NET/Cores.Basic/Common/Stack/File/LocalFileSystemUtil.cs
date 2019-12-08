@@ -91,9 +91,9 @@ namespace IPA.Cores.Basic
                     currentDir = currentDir.GetParentDirectory();
                 }
             }
-            catch (Exception ex)
+            catch// (Exception ex)
             {
-                ex._Debug();
+                //ex._Debug();
             }
 
             return null;
