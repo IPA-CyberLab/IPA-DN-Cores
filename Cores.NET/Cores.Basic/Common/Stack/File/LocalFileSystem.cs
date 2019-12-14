@@ -654,7 +654,14 @@ namespace IPA.Cores.Basic
 
             if (flags.Bit(FileMetadataGetFlags.NoAlternateStream) == false)
             {
-                ret.AlternateStream = await GetFileAlternateStreamMetadataAsync(path, cancel);
+                try
+                {
+                    ret.AlternateStream = await GetFileAlternateStreamMetadataAsync(path, cancel);
+                }
+                catch (Exception ex)
+                {
+                    Dbg.WriteError($"{path} - {ex.Message}");
+                }
             }
 
             return ret;
