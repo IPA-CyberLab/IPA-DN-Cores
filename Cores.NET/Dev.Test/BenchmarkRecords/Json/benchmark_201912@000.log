@@ -597,3 +597,85 @@
 {"TimeStamp":"2019-12-17T15:51:38.0601462+09:00","Data":"OS: Microsoft Windows 10.0.18363","Tag":"text"}
 {"TimeStamp":"2019-12-17T15:51:38.0601706+09:00","Data":"Framework: .NET Core 3.1.0","Tag":"text"}
 {"TimeStamp":"2019-12-17T15:51:38.0601751+09:00","Data":"Host: PC38","Tag":"text"}
+{"TimeStamp":"2019-12-17T15:55:07.6678265+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2019-12-17T15:55:07.6873707+09:00","Data":"Commit: 5173981ed33b00dbe5b27a5d0ea677d2c6510f8d","Tag":"text"}
+{"TimeStamp":"2019-12-17T15:55:07.6874074+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\netcoreapp3.1\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2019-12-17T15:55:07.68741+09:00","Data":"OS: Microsoft Windows 10.0.18363","Tag":"text"}
+{"TimeStamp":"2019-12-17T15:55:07.687412+09:00","Data":"Framework: .NET Core 3.1.0","Tag":"text"}
+{"TimeStamp":"2019-12-17T15:55:07.6874149+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2019-12-17T15:55:08.494567+09:00","Data":{"TestName":"CalcCrc32ForZipEncryption","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:09.0102651+09:00","Data":{"TestName":"Sync()","Ret":1.7522267390997137,"PerSecond":570702396},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:09.5411543+09:00","Data":{"TestName":"RateLimiter","Ret":206.0301850570748,"PerSecond":4853657},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:10.0722196+09:00","Data":{"TestName":"ignore case compare string 1","Ret":17.54174548443869,"PerSecond":57006869},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:10.6035428+09:00","Data":{"TestName":"ignore case compare string 2","Ret":16.850453370459515,"PerSecond":59345584},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:11.134905+09:00","Data":{"TestName":"isemptystr #2","Ret":5.4582111179783706,"PerSecond":183210209},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:11.6668317+09:00","Data":{"TestName":"isemptystr #1","Ret":4.570115025317379,"PerSecond":218812873},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:12.1973833+09:00","Data":{"TestName":"string CmpTrim new","Ret":64.91732990460392,"PerSecond":15404207},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:12.7286853+09:00","Data":{"TestName":"string SameTrim new","Ret":44.31669543217327,"PerSecond":22564859},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:13.2599832+09:00","Data":{"TestName":"string SameTrim old","Ret":40.52793679620809,"PerSecond":24674337},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:13.7911403+09:00","Data":{"TestName":"string test","Ret":4.851773122863706,"PerSecond":206110214},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:14.3222717+09:00","Data":{"TestName":"StringWriter","Ret":1355.4889531559497,"PerSecond":737741},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:14.8534565+09:00","Data":{"TestName":"StringBuilder","Ret":1211.868384374374,"PerSecond":825172},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:15.3847824+09:00","Data":{"TestName":"Generic Test","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:15.9160626+09:00","Data":{"TestName":"IpChecksum","Ret":5.454468924744239,"PerSecond":183335905},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:16.4471681+09:00","Data":{"TestName":"CalcIPv4Checksum","Ret":2.769670534813831,"PerSecond":361053774},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:16.9790624+09:00","Data":{"TestName":"BuildPacket #1 - Memory","Ret":53.895521812234676,"PerSecond":18554417},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:17.5118607+09:00","Data":{"TestName":"ParsePacket #7 - 190531_vlan_pppoe_l2tp_udp","Ret":298.9951800276392,"PerSecond":3344535},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:18.0418932+09:00","Data":{"TestName":"ParsePacket #6 - 190531_vlan_pppoe_l2tp_tcp","Ret":297.6457304922137,"PerSecond":3359698},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:18.5731424+09:00","Data":{"TestName":"ParsePacket #5 - 190531_vlan_pppoe_tcp","Ret":171.49242099078953,"PerSecond":5831161},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:19.1044761+09:00","Data":{"TestName":"ParsePacket #4 - 190527_vlan_simple_udp","Ret":114.82852718889772,"PerSecond":8708637},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:19.6350035+09:00","Data":{"TestName":"ParsePacket #3 - 190527_vlan_simple_tcp","Ret":113.08480188906684,"PerSecond":8842921},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:20.1663714+09:00","Data":{"TestName":"ParsePacket #2 - 190527_novlan_simple_udp","Ret":96.92818466319875,"PerSecond":10316916},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:20.6984029+09:00","Data":{"TestName":"ParsePacket #1 - 190527_novlan_simple_tcp","Ret":94.77464814016753,"PerSecond":10551344},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:21.3082517+09:00","Data":{"TestName":"Span memory copy 1600 bytes","Ret":32.731008421052636,"PerSecond":30552068},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:21.9114308+09:00","Data":{"TestName":"Span memory copy 400 bytes","Ret":6.931494078947368,"PerSecond":144269040},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:22.4592844+09:00","Data":{"TestName":"_IsZeroFastStruct","Ret":3.2679915789473686,"PerSecond":305998340},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:23.0243032+09:00","Data":{"TestName":"sizeof(T)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:23.5816559+09:00","Data":{"TestName":"Util.SizeOfStruct(T)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:24.1507971+09:00","Data":{"TestName":"File Write Small - Cores Object - Async","Ret":7800.733191959355,"PerSecond":128193},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:24.6840874+09:00","Data":{"TestName":"File Write Small - .NET Native - Sync","Ret":4462.00405981295,"PerSecond":224114},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:25.2259748+09:00","Data":{"TestName":"SingletonFastArraySlim Get","Ret":1.0940999999999999,"PerSecond":913993236},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:25.7373872+09:00","Data":{"TestName":"SingletonFastArray Get","Ret":1.2942406944444442,"PerSecond":772653807},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:26.3285605+09:00","Data":{"TestName":"SingletonSlim Get","Ret":9.39508403508772,"PerSecond":106438643},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:27.0829256+09:00","Data":{"TestName":"Singleton2 Get","Ret":22.924633684210526,"PerSecond":43621198},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:27.6068562+09:00","Data":{"TestName":"Singleton1 Get","Ret":0.42556443609022554,"PerSecond":2349820415},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:28.1933548+09:00","Data":{"TestName":"New MemoryBuffer","Ret":14.560130789473684,"PerSecond":68680701},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:28.7139392+09:00","Data":{"TestName":"MemoryBuffer Pin Lock / Unlock","Ret":104.39829208472686,"PerSecond":9578700},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:29.314231+09:00","Data":{"TestName":"BitAny","Ret":0.17022500000000007,"PerSecond":5874577764},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:30.1822596+09:00","Data":{"TestName":"Convert Enum to Long","Ret":1.3537735,"PerSecond":738676004},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:30.7131196+09:00","Data":{"TestName":"IsZero - NonSparse","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:31.2308339+09:00","Data":{"TestName":"IsZero - All Zero Sparse","Ret":1.460806962957484,"PerSecond":684553144},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:31.7644202+09:00","Data":{"TestName":"GetSparseChunks - NonSparse","Ret":103853.57176787137,"PerSecond":9628},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:32.3483932+09:00","Data":{"TestName":"GetSparseChunks - Sparse","Ret":1613126.1128184458,"PerSecond":619},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:32.8700094+09:00","Data":{"TestName":"GetSparseChunks - All Zero Sparse","Ret":102372.53967321562,"PerSecond":9768},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:33.4001866+09:00","Data":{"TestName":"Util.Rand()","Ret":249.41834181765662,"PerSecond":4009328},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:33.9314566+09:00","Data":{"TestName":"Secure.Rand()","Ret":245.17026641298546,"PerSecond":4078798},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:34.4637028+09:00","Data":{"TestName":"ParseEnum","Ret":63.251828469956834,"PerSecond":15809819},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:36.1548174+09:00","Data":{"TestName":"GetSparseChunks","Ret":14260581.605415082,"PerSecond":70},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:36.7449329+09:00","Data":{"TestName":"Memory Copy by Array.CopyTo (Util.CopyByte) 10,000,000 bytes","Ret":821435.8452223089,"PerSecond":1217},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:37.3340036+09:00","Data":{"TestName":"Memory Copy by Buffer.BlockCopy 10,000,000 bytes","Ret":809480.6082641344,"PerSecond":1235},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:37.9335673+09:00","Data":{"TestName":"Memory Copy by Span.CopyTo 10,000,000 bytes","Ret":863318.0701574906,"PerSecond":1158},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:38.7218507+09:00","Data":{"TestName":"Memory Copy by Span.ToArray 10,000,000 bytes","Ret":5242407.610870371,"PerSecond":190},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:39.9038056+09:00","Data":{"TestName":"Memory Copy by Span loop 10,000,000 bytes","Ret":9247669.57530022,"PerSecond":108},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:40.6036812+09:00","Data":{"TestName":"Memory Fill by Array loop #1 10,000,000 bytes","Ret":4370985.605087424,"PerSecond":228},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:41.3987871+09:00","Data":{"TestName":"Memory Fill by Array loop #2 10,000,000 bytes","Ret":5292855.597122593,"PerSecond":188},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:42.2160155+09:00","Data":{"TestName":"Memory Fill by Span Loop 10,000,000 bytes","Ret":5489673.570210864,"PerSecond":182},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:42.9139043+09:00","Data":{"TestName":"Memory Fill by unsafe pointer loop 10,000,000 bytes","Ret":4347489.574614957,"PerSecond":230},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:43.4385259+09:00","Data":{"TestName":"Memory Fill by Span.Fill 10,000,000 bytes","Ret":320438.0904048407,"PerSecond":3120},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:44.1534602+09:00","Data":{"TestName":"Memory Fill by Array.Fill 10,000,000 bytes","Ret":4398107.598397841,"PerSecond":227},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:44.6793931+09:00","Data":{"TestName":"CallAsyncWithAwait","Ret":42.976461363313355,"PerSecond":23268551},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:45.1978139+09:00","Data":{"TestName":"CallAsyncWithNonAwait","Ret":19.921950720893292,"PerSecond":50195887},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:45.7357245+09:00","Data":{"TestName":"Rand[16]","Ret":138.6399655964497,"PerSecond":7212927},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:46.251665+09:00","Data":{"TestName":"Guid.NewGuid().ToString()","Ret":194.6165372902312,"PerSecond":5138309},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:46.7850423+09:00","Data":{"TestName":"Read the String_ReadOnly value","Ret":0.40365988888888893,"PerSecond":2477333090},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:47.3371652+09:00","Data":{"TestName":"Read the String_GetOnly value","Ret":0.4136859649122808,"PerSecond":2417292547},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:47.8763741+09:00","Data":{"TestName":"Read the String_Copenhagen_ReadOnly value","Ret":0.13692764705882365,"PerSecond":7303127027},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:48.39521+09:00","Data":{"TestName":"Read the String_Copenhagen_GetOnly value","Ret":0.42608365079365074,"PerSecond":2346956984},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:48.9681748+09:00","Data":{"TestName":"Read the Int_ReadOnly value","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:49.5473265+09:00","Data":{"TestName":"Read the Int_GetOnly value","Ret":0.028032500000000127,"PerSecond":35672879693},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:50.0813934+09:00","Data":{"TestName":"Read the Int_Copenhagen_ReadOnly value","Ret":0.6774993162393164,"PerSecond":1476016249},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:50.6139453+09:00","Data":{"TestName":"Read the Int_Copenhagen_GetOnly value","Ret":0.68420047008547,"PerSecond":1461559942},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:51.1296905+09:00","Data":{"TestName":"AsyncCallMethodFromAsyncMethod","Ret":19.99330013387926,"PerSecond":50016755},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:51.6404311+09:00","Data":{"TestName":"AsyncCallMethodFromSyncMethod","Ret":22.788724135884284,"PerSecond":43881350},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:52.2481504+09:00","Data":{"TestName":"Lock for readonly object","Ret":15.606503157894736,"PerSecond":64075852},"Tag":"result"}
+{"TimeStamp":"2019-12-17T15:55:52.8577958+09:00","Data":{"TestName":"Lock for get property object","Ret":15.688452631578947,"PerSecond":63741149},"Tag":"result"}
