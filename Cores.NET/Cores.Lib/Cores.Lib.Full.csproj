@@ -12,6 +12,8 @@
     <Nullable>enable</Nullable>
     <TieredCompilationQuickJit>false</TieredCompilationQuickJit>
     <TieredCompilation>false</TieredCompilation>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

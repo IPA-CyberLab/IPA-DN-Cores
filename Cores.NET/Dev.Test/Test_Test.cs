@@ -315,18 +315,6 @@ namespace IPA.TestDev
         {
             if (true)
             {
-                using (DirSuperBackup b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, @"C:\TMP\191208_test\log\all.log", @"C:\TMP\191208_test\log\error.log")))
-                {
-                    Async(async () =>
-                    {
-                        await b.DoSingleDirBackupAsync(@"C:\Downloads", @"\\dnbk1\data1\backup\test1", default);
-                    });
-                }
-                return;
-            }
-
-            if (true)
-            {
                 List<TestClass1> o = new List<TestClass1>();
                 o.Add(new TestClass1 { a = "hello", b = "World", c = "a,b,c" });
                 o.Add(new TestClass1 { a = null, b = "neko", c = "x\"y" });
