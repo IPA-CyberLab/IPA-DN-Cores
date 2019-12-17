@@ -951,3 +951,37 @@
 2019/12/17 16:51:27.900 +09:00 AsyncCallMethodFromSyncMethod: 19.87 ns, 50,325,345 / sec
 2019/12/17 16:51:28.520 +09:00 Lock for readonly object: 16.68 ns, 59,947,001 / sec
 2019/12/17 16:51:29.141 +09:00 Lock for get property object: 16.74 ns, 59,740,547 / sec
+2019/12/17 16:54:19.551 +09:00 ----- Start new benchmark -----
+2019/12/17 16:54:19.605 +09:00 Commit: ad9f9c6a898a98642726c0e8b07a6d059fe77779
+2019/12/17 16:54:19.605 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 16:54:19.605 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 16:54:19.605 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 16:54:19.605 +09:00 Host: PC38
+2019/12/17 16:54:20.446 +09:00 CalcCrc32ForZipEncryption: 0.88 ns, 1,134,542,590 / sec
+2019/12/17 16:54:20.948 +09:00 Sync(): 3.37 ns, 297,006,225 / sec
+2019/12/17 16:54:21.451 +09:00 RateLimiter: 332.81 ns, 3,004,688 / sec
+2019/12/17 16:54:21.953 +09:00 ignore case compare string 1: 23.99 ns, 41,682,706 / sec
+2019/12/17 16:54:22.455 +09:00 ignore case compare string 2: 28.36 ns, 35,262,953 / sec
+2019/12/17 16:54:22.957 +09:00 isemptystr #2: 7.08 ns, 141,315,227 / sec
+2019/12/17 16:54:23.459 +09:00 isemptystr #1: 6.41 ns, 155,990,051 / sec
+2019/12/17 16:54:23.961 +09:00 string CmpTrim new: 91.73 ns, 10,901,821 / sec
+2019/12/17 16:54:24.463 +09:00 string SameTrim new: 59.85 ns, 16,707,503 / sec
+2019/12/17 16:54:24.965 +09:00 string SameTrim old: 66.66 ns, 15,002,406 / sec
+2019/12/17 16:54:25.467 +09:00 string test: 5.93 ns, 168,724,448 / sec
+2019/12/17 16:54:25.969 +09:00 StringWriter: 1,626.93 ns, 614,652 / sec
+2019/12/17 16:54:26.471 +09:00 StringBuilder: 1,546.01 ns, 646,827 / sec
+2019/12/17 16:54:26.973 +09:00 Generic Test: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 16:54:27.475 +09:00 IpChecksum: 6.72 ns, 148,912,904 / sec
+2019/12/17 16:54:27.977 +09:00 CalcIPv4Checksum: 3.40 ns, 293,863,431 / sec
+2019/12/17 16:54:28.480 +09:00 BuildPacket #1 - Memory: 51.52 ns, 19,408,464 / sec
+2019/12/17 16:54:28.982 +09:00 ParsePacket #7 - 190531_vlan_pppoe_l2tp_udp: 337.79 ns, 2,960,426 / sec
+2019/12/17 16:54:29.486 +09:00 ParsePacket #6 - 190531_vlan_pppoe_l2tp_tcp: 363.51 ns, 2,750,950 / sec
+2019/12/17 16:54:29.990 +09:00 ParsePacket #5 - 190531_vlan_pppoe_tcp: 181.22 ns, 5,518,184 / sec
+2019/12/17 16:54:30.492 +09:00 ParsePacket #4 - 190527_vlan_simple_udp: 124.59 ns, 8,026,433 / sec
+2019/12/17 16:54:30.997 +09:00 ParsePacket #3 - 190527_vlan_simple_tcp: 122.68 ns, 8,151,537 / sec
+2019/12/17 16:54:31.500 +09:00 ParsePacket #2 - 190527_novlan_simple_udp: 103.77 ns, 9,636,806 / sec
+2019/12/17 16:54:32.003 +09:00 ParsePacket #1 - 190527_novlan_simple_tcp: 110.64 ns, 9,038,656 / sec
+2019/12/17 16:54:32.570 +09:00 Span memory copy 1600 bytes: 29.17 ns, 34,283,194 / sec
+2019/12/17 16:54:33.104 +09:00 Span memory copy 400 bytes: 7.71 ns, 129,700,799 / sec
+2019/12/17 16:54:33.645 +09:00 _IsZeroFastStruct: 4.11 ns, 243,484,425 / sec
+2019/12/17 16:54:34.279 +09:00 sizeof(T): 0.03 ns, 36,116,729,268 / sec
