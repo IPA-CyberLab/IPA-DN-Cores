@@ -71,7 +71,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                LowerAttach = lower.Attach(AttachDirection.B_UpperSide, noCheckDisconnected);
+                LowerAttach = lower.Attach(AttachDirection.B_UpperSide, noCheckDisconnected: noCheckDisconnected);
                 Lower = lower;
 
                 AddIndirectDisposeLink(Lower);
@@ -109,7 +109,7 @@ namespace IPA.Cores.Basic
             {
                 if (StreamCache == null)
                 {
-                    StreamCache = AttachHandle.GetStream(autoFlash);
+                    StreamCache = AttachHandle.GetStream(autoFlash, noCheckDisconnected: this.NoCheckDisconnected);
                 }
 
                 return StreamCache;

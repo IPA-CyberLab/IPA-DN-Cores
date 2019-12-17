@@ -418,8 +418,8 @@ namespace IPA.Cores.Basic
 
         public AttachHandle Attach(AttachDirection attachDirection, object? userState = null, bool noCheckDisconnected = false) => new AttachHandle(this, attachDirection, userState, noCheckDisconnected);
 
-        internal PipeStream _InternalGetStream(bool autoFlush = true)
-            => new PipeStream(this, autoFlush);
+        internal PipeStream _InternalGetStream(bool autoFlush = true, bool noCheckDisconnected = false)
+            => new PipeStream(this, autoFlush, noCheckDisconnected: noCheckDisconnected);
 
         public NetAppStub GetNetAppProtocolStub(CancellationToken cancel = default, bool noCheckDisconnected = false)
             => new NetAppStub(this, cancel, noCheckDisconnected: noCheckDisconnected);
@@ -600,8 +600,8 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public PipeStream GetStream(bool autoFlush = true)
-            => PipePoint._InternalGetStream(autoFlush);
+        public PipeStream GetStream(bool autoFlush = true, bool noCheckDisconnected = false)
+            => PipePoint._InternalGetStream(autoFlush, noCheckDisconnected: noCheckDisconnected);
 
         protected override void CancelImpl(Exception? ex)
         {
@@ -638,9 +638,12 @@ namespace IPA.Cores.Basic
         public bool AutoFlush { get; set; }
         public PipePoint Point { get; private set; }
 
-        public PipeStream(PipePoint pipePoint, bool autoFlush = true)
+        public PipeStream(PipePoint pipePoint, bool autoFlush = true, bool noCheckDisconnected = false)
         {
-            pipePoint.CheckCanceledAndNoMoreData();
+            if (noCheckDisconnected == false)
+            {
+                pipePoint.CheckCanceledAndNoMoreData();
+            }
 
             Point = pipePoint;
             AutoFlush = autoFlush;
