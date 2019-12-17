@@ -80,3 +80,430 @@
 2019/12/17 10:57:08.751 +09:00 AsyncCallMethodFromSyncMethod: 19.36 ns, 51,663,547 / sec
 2019/12/17 10:57:09.377 +09:00 Lock for readonly object: 16.75 ns, 59,711,797 / sec
 2019/12/17 10:57:10.001 +09:00 Lock for get property object: 16.84 ns, 59,377,454 / sec
+2019/12/17 11:08:04.890 +09:00 ----- Start new benchmark -----
+2019/12/17 11:08:04.920 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:08:04.920 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:08:04.920 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:08:04.920 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:08:04.920 +09:00 Host: PC37
+2019/12/17 11:08:05.812 +09:00 BuildPacket #1 - Memory: 183.86 ns, 5,438,982 / sec
+2019/12/17 11:08:06.315 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:08:06.818 +09:00 Sync(): 2.56 ns, 389,949,549 / sec
+2019/12/17 11:08:07.320 +09:00 RateLimiter: 290.91 ns, 3,437,542 / sec
+2019/12/17 11:08:23.049 +09:00 ----- Start new benchmark -----
+2019/12/17 11:08:23.086 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:08:23.086 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:08:23.086 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:08:23.086 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:08:23.086 +09:00 Host: PC37
+2019/12/17 11:08:23.946 +09:00 BuildPacket #1 - Memory: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:08:24.450 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:08:38.018 +09:00 ----- Start new benchmark -----
+2019/12/17 11:08:38.057 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:08:38.057 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:08:38.057 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:08:38.057 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:08:38.057 +09:00 Host: PC37
+2019/12/17 11:08:38.951 +09:00 BuildPacket #1 - Memory: 146.67 ns, 6,818,202 / sec
+2019/12/17 11:08:39.454 +09:00 CalcCrc32ForZipEncryption: 0.35 ns, 2,897,602,749 / sec
+2019/12/17 11:08:52.551 +09:00 ----- Start new benchmark -----
+2019/12/17 11:08:52.581 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:08:52.581 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:08:52.581 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:08:52.581 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:08:52.581 +09:00 Host: PC37
+2019/12/17 11:08:53.428 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:08:53.931 +09:00 Sync(): 2.80 ns, 357,770,168 / sec
+2019/12/17 11:09:03.910 +09:00 ----- Start new benchmark -----
+2019/12/17 11:09:03.943 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:09:03.943 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:09:03.943 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:09:03.943 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:09:03.943 +09:00 Host: PC37
+2019/12/17 11:09:04.835 +09:00 BuildPacket #1 - Memory: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:09:05.337 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:09:12.699 +09:00 ----- Start new benchmark -----
+2019/12/17 11:09:12.732 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:09:12.732 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:09:12.732 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:09:12.732 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:09:12.732 +09:00 Host: PC37
+2019/12/17 11:09:13.624 +09:00 BuildPacket #1 - Memory: 111.92 ns, 8,935,002 / sec
+2019/12/17 11:09:14.128 +09:00 CalcCrc32ForZipEncryption: 0.29 ns, 3,394,372,004 / sec
+2019/12/17 11:10:05.440 +09:00 ----- Start new benchmark -----
+2019/12/17 11:10:05.474 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:10:05.474 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:10:05.474 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:10:05.474 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:10:05.474 +09:00 Host: PC37
+2019/12/17 11:10:06.323 +09:00 BuildPacket #1 - Memory: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:10:06.826 +09:00 CalcCrc32ForZipEncryption: 0.30 ns, 3,323,599,635 / sec
+2019/12/17 11:10:34.125 +09:00 ----- Start new benchmark -----
+2019/12/17 11:10:34.157 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:10:34.157 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:10:34.157 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:10:34.157 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:10:34.158 +09:00 Host: PC37
+2019/12/17 11:10:35.034 +09:00 BuildPacket #1 - Memory: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:10:35.537 +09:00 CalcCrc32ForZipEncryption: 0.20 ns, 5,076,037,886 / sec
+2019/12/17 11:10:49.055 +09:00 ----- Start new benchmark -----
+2019/12/17 11:10:49.087 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:10:49.087 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:10:49.087 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:10:49.087 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:10:49.087 +09:00 Host: PC37
+2019/12/17 11:10:49.992 +09:00 BuildPacket #1 - Memory: 120.72 ns, 8,283,830 / sec
+2019/12/17 11:10:50.494 +09:00 CalcCrc32ForZipEncryption: 0.15 ns, 6,863,933,429 / sec
+2019/12/17 11:11:04.365 +09:00 ----- Start new benchmark -----
+2019/12/17 11:11:04.394 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:11:04.394 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:11:04.394 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:11:04.394 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:11:04.394 +09:00 Host: PC37
+2019/12/17 11:11:05.268 +09:00 BuildPacket #1 - Memory: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:11:05.770 +09:00 CalcCrc32ForZipEncryption: 0.08 ns, 12,290,377,490 / sec
+2019/12/17 11:16:45.244 +09:00 ----- Start new benchmark -----
+2019/12/17 11:16:45.277 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:16:45.277 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:16:45.277 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:16:45.277 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:16:45.277 +09:00 Host: PC37
+2019/12/17 11:16:46.121 +09:00 BuildPacket #1 - Memory: 110.38 ns, 9,060,019 / sec
+2019/12/17 11:16:46.624 +09:00 CalcCrc32ForZipEncryption: 0.26 ns, 3,800,252,991 / sec
+2019/12/17 11:17:07.875 +09:00 ----- Start new benchmark -----
+2019/12/17 11:17:07.905 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:17:07.905 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:17:07.905 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:17:07.905 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:17:07.905 +09:00 Host: PC37
+2019/12/17 11:17:43.157 +09:00 ----- Start new benchmark -----
+2019/12/17 11:17:43.187 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:17:43.187 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:17:43.187 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:17:43.187 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:17:43.187 +09:00 Host: PC37
+2019/12/17 11:17:44.005 +09:00 BuildPacket #1 - Memory: 30.46 ns, 32,834,977 / sec
+2019/12/17 11:17:44.508 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:18:32.172 +09:00 ----- Start new benchmark -----
+2019/12/17 11:18:32.202 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:18:32.203 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:18:32.203 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:18:32.203 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:18:32.203 +09:00 Host: PC37
+2019/12/17 11:18:33.015 +09:00 BuildPacket #1 - Memory: 31.34 ns, 31,911,722 / sec
+2019/12/17 11:18:33.517 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:18:35.917 +09:00 ----- Start new benchmark -----
+2019/12/17 11:18:35.946 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:18:35.946 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:18:35.946 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:18:35.946 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:18:35.946 +09:00 Host: PC37
+2019/12/17 11:18:36.765 +09:00 BuildPacket #1 - Memory: 29.70 ns, 33,666,286 / sec
+2019/12/17 11:18:37.267 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:18:54.646 +09:00 ----- Start new benchmark -----
+2019/12/17 11:18:54.678 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:18:54.678 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:18:54.678 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:18:54.678 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:18:54.678 +09:00 Host: PC37
+2019/12/17 11:18:55.527 +09:00 BuildPacket #1 - Memory: 7.81 ns, 128,081,508 / sec
+2019/12/17 11:18:56.030 +09:00 CalcCrc32ForZipEncryption: 0.40 ns, 2,518,853,422 / sec
+2019/12/17 11:19:00.103 +09:00 ----- Start new benchmark -----
+2019/12/17 11:19:00.132 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:19:00.132 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:19:00.132 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:19:00.132 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:19:00.132 +09:00 Host: PC37
+2019/12/17 11:19:00.964 +09:00 BuildPacket #1 - Memory: 7.84 ns, 127,554,854 / sec
+2019/12/17 11:19:01.466 +09:00 CalcCrc32ForZipEncryption: 0.02 ns, 63,042,081,593 / sec
+2019/12/17 11:19:12.409 +09:00 ----- Start new benchmark -----
+2019/12/17 11:19:12.441 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:19:12.441 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:19:12.441 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:19:12.441 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:19:12.441 +09:00 Host: PC37
+2019/12/17 11:19:13.272 +09:00 BuildPacket #1 - Memory: 8.67 ns, 115,300,226 / sec
+2019/12/17 11:19:13.774 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:19:27.794 +09:00 ----- Start new benchmark -----
+2019/12/17 11:19:27.824 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:19:27.824 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:19:27.824 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:19:27.824 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:19:27.824 +09:00 Host: PC37
+2019/12/17 11:19:28.657 +09:00 BuildPacket #1 - Memory: 7.92 ns, 126,318,436 / sec
+2019/12/17 11:19:29.159 +09:00 CalcCrc32ForZipEncryption: 0.07 ns, 14,803,859,847 / sec
+2019/12/17 11:20:05.266 +09:00 ----- Start new benchmark -----
+2019/12/17 11:20:05.301 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:20:05.301 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:20:05.301 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:20:05.301 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:20:05.301 +09:00 Host: PC37
+2019/12/17 11:20:06.110 +09:00 BuildPacket #1 - Memory: 6.89 ns, 145,118,103 / sec
+2019/12/17 11:20:06.612 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:20:20.926 +09:00 ----- Start new benchmark -----
+2019/12/17 11:20:20.965 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:20:20.965 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:20:20.965 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:20:20.965 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:20:20.965 +09:00 Host: PC37
+2019/12/17 11:20:21.832 +09:00 BuildPacket #1 - Memory: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:20:59.307 +09:00 ----- Start new benchmark -----
+2019/12/17 11:20:59.340 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:20:59.340 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:20:59.340 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:20:59.340 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:20:59.340 +09:00 Host: PC37
+2019/12/17 11:21:00.179 +09:00 BuildPacket #1 - Memory: 68.81 ns, 14,532,657 / sec
+2019/12/17 11:21:00.682 +09:00 CalcCrc32ForZipEncryption: 0.31 ns, 3,198,497,582 / sec
+2019/12/17 11:21:12.433 +09:00 ----- Start new benchmark -----
+2019/12/17 11:21:12.468 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:21:12.468 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:21:12.468 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:21:12.468 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:21:12.468 +09:00 Host: PC37
+2019/12/17 11:21:13.293 +09:00 BuildPacket #1 - Memory: 63.25 ns, 15,811,381 / sec
+2019/12/17 11:21:13.796 +09:00 CalcCrc32ForZipEncryption: 0.26 ns, 3,858,164,495 / sec
+2019/12/17 11:21:30.078 +09:00 ----- Start new benchmark -----
+2019/12/17 11:21:30.108 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:21:30.108 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:21:30.108 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:21:30.108 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:21:30.108 +09:00 Host: PC37
+2019/12/17 11:21:30.965 +09:00 BuildPacket #1 - Memory: 56.44 ns, 17,718,144 / sec
+2019/12/17 11:21:31.467 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:22:00.095 +09:00 ----- Start new benchmark -----
+2019/12/17 11:22:00.126 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:22:00.126 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:22:00.126 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:22:00.126 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:22:00.126 +09:00 Host: PC37
+2019/12/17 11:22:00.967 +09:00 BuildPacket #1 - Memory: 23.31 ns, 42,893,373 / sec
+2019/12/17 11:22:01.470 +09:00 CalcCrc32ForZipEncryption: 0.04 ns, 22,273,622,981 / sec
+2019/12/17 11:22:01.972 +09:00 Sync(): 2.77 ns, 360,530,162 / sec
+2019/12/17 11:22:02.475 +09:00 RateLimiter: 346.72 ns, 2,884,148 / sec
+2019/12/17 11:22:02.977 +09:00 ignore case compare string 1: 28.99 ns, 34,490,417 / sec
+2019/12/17 11:22:03.481 +09:00 ignore case compare string 2: 22.27 ns, 44,909,280 / sec
+2019/12/17 11:22:19.266 +09:00 ----- Start new benchmark -----
+2019/12/17 11:22:19.296 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:22:19.296 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:22:19.297 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:22:19.297 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:22:19.297 +09:00 Host: PC37
+2019/12/17 11:22:20.130 +09:00 BuildPacket #1 - Memory: 7.09 ns, 141,061,494 / sec
+2019/12/17 11:22:20.633 +09:00 CalcCrc32ForZipEncryption: 0.07 ns, 13,390,748,637 / sec
+2019/12/17 11:22:35.496 +09:00 ----- Start new benchmark -----
+2019/12/17 11:22:35.531 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:22:35.531 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:22:35.531 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:22:35.531 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:22:35.531 +09:00 Host: PC37
+2019/12/17 11:22:36.355 +09:00 BuildPacket #1 - Memory: 19.93 ns, 50,179,320 / sec
+2019/12/17 11:22:36.859 +09:00 CalcCrc32ForZipEncryption: 0.10 ns, 10,356,736,410 / sec
+2019/12/17 11:23:19.287 +09:00 ----- Start new benchmark -----
+2019/12/17 11:23:19.328 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:23:19.328 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:23:19.328 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:23:19.328 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:23:19.328 +09:00 Host: PC37
+2019/12/17 11:23:20.166 +09:00 BuildPacket #1 - Memory: 27.19 ns, 36,772,101 / sec
+2019/12/17 11:23:20.668 +09:00 CalcCrc32ForZipEncryption: 0.02 ns, 54,797,972,396 / sec
+2019/12/17 11:23:21.171 +09:00 Sync(): 3.49 ns, 286,788,295 / sec
+2019/12/17 11:23:21.674 +09:00 RateLimiter: 353.42 ns, 2,829,516 / sec
+2019/12/17 11:23:22.176 +09:00 ignore case compare string 1: 28.98 ns, 34,509,204 / sec
+2019/12/17 11:23:22.679 +09:00 ignore case compare string 2: 18.08 ns, 55,318,391 / sec
+2019/12/17 11:23:33.863 +09:00 ----- Start new benchmark -----
+2019/12/17 11:23:33.895 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:23:33.895 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:23:33.895 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:23:33.895 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:23:33.895 +09:00 Host: PC37
+2019/12/17 11:23:34.752 +09:00 BuildPacket #1 - Memory: 70.91 ns, 14,101,956 / sec
+2019/12/17 11:23:35.255 +09:00 CalcCrc32ForZipEncryption: 0.14 ns, 7,175,443,677 / sec
+2019/12/17 11:23:44.812 +09:00 ----- Start new benchmark -----
+2019/12/17 11:23:44.845 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:23:44.845 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:23:44.845 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:23:44.845 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:23:44.845 +09:00 Host: PC37
+2019/12/17 11:23:45.673 +09:00 BuildPacket #1 - Memory: 25.63 ns, 39,024,354 / sec
+2019/12/17 11:23:46.176 +09:00 CalcCrc32ForZipEncryption: 0.01 ns, 118,060,117,198 / sec
+2019/12/17 11:24:10.948 +09:00 ----- Start new benchmark -----
+2019/12/17 11:24:10.980 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:24:10.980 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:24:10.980 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:24:10.980 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:24:10.980 +09:00 Host: PC37
+2019/12/17 11:24:11.828 +09:00 BuildPacket #1 - Memory: 53.27 ns, 18,771,665 / sec
+2019/12/17 11:24:12.331 +09:00 CalcCrc32ForZipEncryption: 0.07 ns, 14,686,688,860 / sec
+2019/12/17 11:24:12.834 +09:00 Sync(): 2.79 ns, 357,867,198 / sec
+2019/12/17 11:24:13.336 +09:00 RateLimiter: 293.74 ns, 3,404,371 / sec
+2019/12/17 11:24:13.839 +09:00 ignore case compare string 1: 29.63 ns, 33,748,160 / sec
+2019/12/17 11:24:14.342 +09:00 ignore case compare string 2: 19.88 ns, 50,293,483 / sec
+2019/12/17 11:24:14.845 +09:00 isemptystr #2: 6.18 ns, 161,896,362 / sec
+2019/12/17 11:24:15.348 +09:00 isemptystr #1: 5.99 ns, 166,860,622 / sec
+2019/12/17 11:24:33.080 +09:00 ----- Start new benchmark -----
+2019/12/17 11:24:33.112 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:24:33.112 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:24:33.112 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:24:33.112 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:24:33.112 +09:00 Host: PC37
+2019/12/17 11:24:33.929 +09:00 BuildPacket #1 - Memory: 69.24 ns, 14,441,570 / sec
+2019/12/17 11:24:34.432 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:24:36.607 +09:00 ----- Start new benchmark -----
+2019/12/17 11:24:36.645 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:24:36.645 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:24:36.646 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:24:36.646 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:24:36.646 +09:00 Host: PC37
+2019/12/17 11:24:37.457 +09:00 BuildPacket #1 - Memory: 79.34 ns, 12,604,582 / sec
+2019/12/17 11:24:37.959 +09:00 CalcCrc32ForZipEncryption: 0.09 ns, 10,700,493,028 / sec
+2019/12/17 11:24:40.254 +09:00 ----- Start new benchmark -----
+2019/12/17 11:24:40.285 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:24:40.285 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:24:40.285 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:24:40.285 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:24:40.285 +09:00 Host: PC37
+2019/12/17 11:24:41.118 +09:00 BuildPacket #1 - Memory: 83.53 ns, 11,971,122 / sec
+2019/12/17 11:24:41.620 +09:00 CalcCrc32ForZipEncryption: 0.03 ns, 32,932,494,368 / sec
+2019/12/17 11:24:42.123 +09:00 Sync(): 3.18 ns, 314,059,176 / sec
+2019/12/17 11:24:42.626 +09:00 RateLimiter: 255.07 ns, 3,920,547 / sec
+2019/12/17 11:24:53.631 +09:00 ----- Start new benchmark -----
+2019/12/17 11:24:53.662 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:24:53.662 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:24:53.662 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:24:53.662 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:24:53.662 +09:00 Host: PC37
+2019/12/17 11:24:54.483 +09:00 BuildPacket #1 - Memory: 79.30 ns, 12,610,292 / sec
+2019/12/17 11:24:54.986 +09:00 CalcCrc32ForZipEncryption: 0.29 ns, 3,485,173,380 / sec
+2019/12/17 11:24:58.559 +09:00 ----- Start new benchmark -----
+2019/12/17 11:24:58.590 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:24:58.591 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:24:58.591 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:24:58.591 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:24:58.591 +09:00 Host: PC37
+2019/12/17 11:24:59.433 +09:00 BuildPacket #1 - Memory: 54.91 ns, 18,210,902 / sec
+2019/12/17 11:24:59.936 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:25:02.234 +09:00 ----- Start new benchmark -----
+2019/12/17 11:25:02.265 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:25:02.265 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:25:02.265 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:25:02.265 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:25:02.265 +09:00 Host: PC37
+2019/12/17 11:25:03.101 +09:00 BuildPacket #1 - Memory: 67.46 ns, 14,824,458 / sec
+2019/12/17 11:25:03.604 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:25:16.035 +09:00 ----- Start new benchmark -----
+2019/12/17 11:25:16.083 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:25:16.083 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:25:16.083 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:25:16.083 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:25:16.083 +09:00 Host: PC37
+2019/12/17 11:25:16.883 +09:00 BuildPacket #1 - Memory: 147.29 ns, 6,789,271 / sec
+2019/12/17 11:25:17.385 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:25:20.139 +09:00 ----- Start new benchmark -----
+2019/12/17 11:25:20.171 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:25:20.171 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:25:20.171 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:25:20.171 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:25:20.171 +09:00 Host: PC37
+2019/12/17 11:25:21.003 +09:00 BuildPacket #1 - Memory: 151.40 ns, 6,605,053 / sec
+2019/12/17 11:25:21.506 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:25:22.008 +09:00 Sync(): 2.89 ns, 345,658,342 / sec
+2019/12/17 11:25:22.511 +09:00 RateLimiter: 338.98 ns, 2,950,026 / sec
+2019/12/17 11:25:23.013 +09:00 ignore case compare string 1: 29.11 ns, 34,353,353 / sec
+2019/12/17 11:25:23.517 +09:00 ignore case compare string 2: 21.85 ns, 45,768,308 / sec
+2019/12/17 11:25:24.021 +09:00 isemptystr #2: 6.38 ns, 156,707,846 / sec
+2019/12/17 11:25:24.523 +09:00 isemptystr #1: 6.10 ns, 164,022,974 / sec
+2019/12/17 11:25:25.026 +09:00 string CmpTrim new: 57.92 ns, 17,265,848 / sec
+2019/12/17 11:25:25.529 +09:00 string SameTrim new: 61.62 ns, 16,227,976 / sec
+2019/12/17 11:25:26.031 +09:00 string SameTrim old: 54.71 ns, 18,276,590 / sec
+2019/12/17 11:25:26.533 +09:00 string test: 6.22 ns, 160,866,066 / sec
+2019/12/17 11:26:48.637 +09:00 ----- Start new benchmark -----
+2019/12/17 11:26:48.667 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:26:48.667 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:26:48.667 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:26:48.667 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:26:48.667 +09:00 Host: PC37
+2019/12/17 11:26:49.509 +09:00 BuildPacket #1 - Memory: 145.15 ns, 6,889,258 / sec
+2019/12/17 11:26:50.012 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 11:27:14.106 +09:00 ----- Start new benchmark -----
+2019/12/17 11:27:14.136 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:27:14.136 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:27:14.136 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:27:14.136 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:27:14.136 +09:00 Host: PC37
+2019/12/17 11:27:15.030 +09:00 BuildPacket #1 - Memory: 237.96 ns, 4,202,459 / sec
+2019/12/17 11:27:15.532 +09:00 CalcCrc32ForZipEncryption: 0.07 ns, 14,181,911,941 / sec
+2019/12/17 11:27:16.035 +09:00 Sync(): 3.44 ns, 290,830,581 / sec
+2019/12/17 11:27:16.538 +09:00 RateLimiter: 344.50 ns, 2,902,778 / sec
+2019/12/17 11:27:20.121 +09:00 ----- Start new benchmark -----
+2019/12/17 11:27:20.152 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:27:20.152 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:27:20.152 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:27:20.152 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:27:20.152 +09:00 Host: PC37
+2019/12/17 11:27:21.039 +09:00 BuildPacket #1 - Memory: 214.94 ns, 4,652,536 / sec
+2019/12/17 11:27:21.541 +09:00 CalcCrc32ForZipEncryption: 0.07 ns, 13,747,353,040 / sec
+2019/12/17 11:27:24.453 +09:00 ----- Start new benchmark -----
+2019/12/17 11:27:24.500 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:27:24.500 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:27:24.500 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:27:24.500 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:27:24.500 +09:00 Host: PC37
+2019/12/17 11:27:25.380 +09:00 BuildPacket #1 - Memory: 189.77 ns, 5,269,624 / sec
+2019/12/17 11:45:47.712 +09:00 ----- Start new benchmark -----
+2019/12/17 11:45:47.744 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:45:47.744 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:45:47.744 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:45:47.744 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:45:47.744 +09:00 Host: PC37
+2019/12/17 11:45:48.591 +09:00 BuildPacket #1 - Memory: 199.56 ns, 5,011,122 / sec
+2019/12/17 11:45:49.094 +09:00 CalcCrc32ForZipEncryption: 0.08 ns, 12,167,581,501 / sec
+2019/12/17 11:46:01.425 +09:00 ----- Start new benchmark -----
+2019/12/17 11:46:01.455 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:46:01.455 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:46:01.455 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:46:01.455 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:46:01.455 +09:00 Host: PC37
+2019/12/17 11:46:02.340 +09:00 BuildPacket #1 - Memory: 200.61 ns, 4,984,847 / sec
+2019/12/17 11:46:02.843 +09:00 CalcCrc32ForZipEncryption: 0.07 ns, 14,266,077,857 / sec
+2019/12/17 11:46:22.077 +09:00 ----- Start new benchmark -----
+2019/12/17 11:46:22.112 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:46:22.112 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:46:22.112 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:46:22.112 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:46:22.112 +09:00 Host: PC37
+2019/12/17 11:46:23.002 +09:00 BuildPacket #1 - Memory: 227.67 ns, 4,392,317 / sec
+2019/12/17 11:46:23.504 +09:00 CalcCrc32ForZipEncryption: 0.11 ns, 9,015,244,409 / sec
+2019/12/17 11:46:26.265 +09:00 ----- Start new benchmark -----
+2019/12/17 11:46:26.294 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:46:26.294 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:46:26.294 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:46:26.294 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:46:26.294 +09:00 Host: PC37
+2019/12/17 11:46:27.166 +09:00 BuildPacket #1 - Memory: 235.52 ns, 4,245,849 / sec
+2019/12/17 11:47:10.773 +09:00 ----- Start new benchmark -----
+2019/12/17 11:47:10.805 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:47:10.805 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:47:10.805 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:47:10.805 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:47:10.805 +09:00 Host: PC37
+2019/12/17 11:47:11.688 +09:00 BuildPacket #1 - Memory: 201.67 ns, 4,958,621 / sec
+2019/12/17 11:47:12.190 +09:00 CalcCrc32ForZipEncryption: 0.23 ns, 4,435,933,630 / sec
+2019/12/17 11:47:14.717 +09:00 ----- Start new benchmark -----
+2019/12/17 11:47:14.750 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 11:47:14.750 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 11:47:14.750 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 11:47:14.750 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 11:47:14.750 +09:00 Host: PC37
+2019/12/17 11:47:15.627 +09:00 BuildPacket #1 - Memory: 133.64 ns, 7,482,628 / sec
+2019/12/17 11:47:16.130 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 2,238,466,486,054 / sec
+2019/12/17 12:08:52.850 +09:00 ----- Start new benchmark -----
+2019/12/17 12:08:52.879 +09:00 Commit: fb5b4d552b6ed44f502eab93e1d917279ff5ebc4
+2019/12/17 12:08:52.879 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2019/12/17 12:08:52.879 +09:00 OS: Microsoft Windows 10.0.18363
+2019/12/17 12:08:52.879 +09:00 Framework: .NET Core 3.1.0
+2019/12/17 12:08:52.879 +09:00 Host: PC37
+2019/12/17 12:08:53.816 +09:00 BuildPacket #1 - Memory: 115.11 ns, 8,687,044 / sec
+2019/12/17 12:08:54.318 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 9,999,999,999,999 / sec
+2019/12/17 12:08:54.822 +09:00 Sync(): 3.05 ns, 328,218,500 / sec
+2019/12/17 12:08:55.325 +09:00 RateLimiter: 263.54 ns, 3,794,535 / sec
