@@ -246,6 +246,7 @@ namespace IPA.Cores.Basic
         public int MaxConnectionPerServer = CoresConfig.DefaultHttpClientSettings.MaxConnectionPerServer;
         public int PooledConnectionLifeTime = CoresConfig.DefaultHttpClientSettings.PooledConnectionLifeTime;
         public bool UseProxy = CoresConfig.DefaultHttpClientSettings.UseProxy;
+        public bool DisableKeepAlive = false;
 
         public bool AllowAutoRedirect = true;
         public int MaxAutomaticRedirections = 10;
@@ -412,6 +413,15 @@ namespace IPA.Cores.Basic
             {
                 string value = this.RequestHeaders[name];
                 requestMessage.Headers.Add(name, value);
+            }
+
+            if (this.Settings.DisableKeepAlive)
+            {
+                try
+                {
+                    requestMessage.Headers.Add("Connection", "close");
+                }
+                catch { }
             }
 
             return requestMessage;

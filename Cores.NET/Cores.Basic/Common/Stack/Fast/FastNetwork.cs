@@ -687,7 +687,7 @@ namespace IPA.Cores.Basic
         {
             Point.StreamWriter.EnqueueAllWithLock(items.Span);
 
-            if (flush) FastFlush(true, false);
+            if (flush) FastFlush(true, false, checkDisconnect: false);
         }
 
         public async Task FastSendAsync(Memory<ReadOnlyMemory<byte>> items, CancellationToken cancel = default, bool flush = true)
@@ -696,7 +696,7 @@ namespace IPA.Cores.Basic
 
             Point.StreamWriter.EnqueueAllWithLock(items.Span);
 
-            if (flush) FastFlush(true, false);
+            if (flush) FastFlush(true, false, checkDisconnect: false);
         }
 
         public void FastSendNonBlock(Memory<byte> item, bool flush = true)
@@ -706,7 +706,7 @@ namespace IPA.Cores.Basic
                 Point.StreamWriter.Enqueue(item);
             }
 
-            if (flush) FastFlush(true, false);
+            if (flush) FastFlush(true, false, checkDisconnect: false);
         }
 
         public async Task FastSendAsync(Memory<byte> item, CancellationToken cancel = default, bool flush = true)
@@ -718,7 +718,7 @@ namespace IPA.Cores.Basic
                 Point.StreamWriter.Enqueue(item);
             }
 
-            if (flush) FastFlush(true, false);
+            if (flush) FastFlush(true, false, checkDisconnect: false);
         }
 
         public async Task SendAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancel = default)
@@ -727,7 +727,7 @@ namespace IPA.Cores.Basic
 
             await FastSendAsync(sendData, cancel);
 
-            if (AutoFlush) FastFlush(true, false);
+            if (AutoFlush) FastFlush(true, false, checkDisconnect: false);
         }
 
         public void Send(ReadOnlyMemory<byte> buffer, CancellationToken cancel = default)
@@ -975,7 +975,7 @@ namespace IPA.Cores.Basic
 
             Point.DatagramWriter.EnqueueAllWithLock(items.Span);
 
-            if (flush) FastFlush(false, true);
+            if (flush) FastFlush(false, true, checkDisconnect: false);
         }
 
         public async Task FastSendToAsync(Datagram item, CancellationToken cancel = default, bool flush = true)
@@ -987,7 +987,7 @@ namespace IPA.Cores.Basic
                 Point.DatagramWriter.Enqueue(item);
             }
 
-            if (flush) FastFlush(false, true);
+            if (flush) FastFlush(false, true, checkDisconnect: false);
         }
 
         public async Task SendToAsync(ReadOnlyMemory<byte> buffer, EndPoint remoteEndPoint, CancellationToken cancel = default)
@@ -996,7 +996,7 @@ namespace IPA.Cores.Basic
 
             await FastSendToAsync(sendData, cancel);
 
-            if (AutoFlush) FastFlush(false, true);
+            if (AutoFlush) FastFlush(false, true, checkDisconnect: false);
         }
 
         public void SendTo(ReadOnlyMemory<byte> buffer, EndPoint remoteEndPoint, CancellationToken cancel = default)
@@ -1065,13 +1065,13 @@ namespace IPA.Cores.Basic
 
         #endregion
 
-        public void FastFlush(bool stream = true, bool datagram = true)
+        public void FastFlush(bool stream = true, bool datagram = true, bool checkDisconnect = true)
         {
             if (stream)
-                Point.StreamWriter.CompleteWrite();
+                Point.StreamWriter.CompleteWrite(checkDisconnect: checkDisconnect);
 
             if (datagram)
-                Point.DatagramWriter.CompleteWrite();
+                Point.DatagramWriter.CompleteWrite(checkDisconnect: checkDisconnect);
         }
 
         public void Disconnect() => Point.Cancel(new DisconnectedException());
@@ -1080,7 +1080,7 @@ namespace IPA.Cores.Basic
 
         protected override Task FlushImplAsync(CancellationToken cancellationToken)
         {
-            FastFlush(true, true);
+            FastFlush(true, true, checkDisconnect: false);
             return Task.CompletedTask;
         }
 
