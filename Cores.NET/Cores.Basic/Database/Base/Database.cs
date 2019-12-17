@@ -521,7 +521,7 @@ namespace IPA.Cores.Basic
         {
             IEnumerable<T> ret = await QueryAsync<T>(selectStr, selectParam);
             T t = ret.SingleOrDefault();
-            if (t == default)
+            if (t._IsNullOrDefault())
             {
                 await ExecuteScalarAsync<T>(insertStr, insertParam);
 

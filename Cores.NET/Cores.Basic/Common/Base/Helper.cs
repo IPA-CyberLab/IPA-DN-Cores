@@ -683,7 +683,7 @@ namespace IPA.Cores.Helper.Basic
 
             T value = d.Where(x => x.Key._IsSameTrim(key, comparison)).FirstOrDefault().Value;
 
-            if (value == default)
+            if (value._IsNullOrDefault())
             {
                 return defaultStr;
             }
@@ -1909,6 +1909,18 @@ namespace IPA.Cores.Helper.Basic
 
         public static string _ObjectDataToCsv<T>(this T obj) where T : notnull
             => Str.ObjectDataToCsv(obj);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool _IsNullOrDefault<T>([NotNullWhen(false)] this T data)
+        {
+            return EqualityComparer<T>.Default.Equals(data, default(T)!);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool _IsNullOrDefault2<T>([NotNullWhen(false)] this T data)
+        {
+            return (data == null || data.Equals(default(T)!));
+        }
     }
 }
 

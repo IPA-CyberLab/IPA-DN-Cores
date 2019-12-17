@@ -77,6 +77,15 @@ namespace IPA.TestDev
 
             bool err = false;
 
+            try
+            {
+                Lfs.EnableBackupPrivilege();
+            }
+            catch (Exception ex)
+            {
+                Con.WriteError(ex);
+            }
+
             using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog)))
             {
                 Async(async () =>

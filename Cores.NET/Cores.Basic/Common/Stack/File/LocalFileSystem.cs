@@ -535,7 +535,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        FileSecurityMetadata GetFileOrDirectorySecurityMetadata(string path, bool isDirectory)
+        FileSecurityMetadata? GetFileOrDirectorySecurityMetadata(string path, bool isDirectory)
         {
             FileSecurityMetadata ret = new FileSecurityMetadata();
             string? sddl;
