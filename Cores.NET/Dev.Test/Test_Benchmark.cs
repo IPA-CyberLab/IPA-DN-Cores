@@ -284,6 +284,19 @@ namespace IPA.TestDev
 
         static void BenchMark_Test1()
         {
+            using (var proc = Process.GetCurrentProcess())
+            {
+                try
+                {
+                    proc.PriorityClass = ProcessPriorityClass.High;
+                    proc.PriorityClass = ProcessPriorityClass.RealTime;
+                }
+                catch
+                {
+                    Con.WriteDebug("Failed to set the process realtime priority.");
+                }
+            }
+
             MemoryBuffer<byte> sparseTest1 = new MemoryBuffer<byte>();
             for (int i = 0; i < 10; i++)
             {
