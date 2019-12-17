@@ -100,7 +100,7 @@ namespace IPA.Cores.Basic
         public fixed byte SrcAddress[6];
         public EthernetProtocolId Protocol;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public void SetDestAddress(ReadOnlySpan<byte> addr)
         {
             fixed (byte* d = this.DestAddress)
@@ -108,7 +108,7 @@ namespace IPA.Cores.Basic
                 Unsafe.CopyBlock(d, s, 6);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public void SetSrcAddress(ReadOnlySpan<byte> addr)
         {
             fixed (byte* d = this.SrcAddress)
@@ -116,7 +116,7 @@ namespace IPA.Cores.Basic
                 Unsafe.CopyBlock(d, s, 6);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public void Set(ReadOnlySpan<byte> dest, ReadOnlySpan<byte> src, EthernetProtocolId protocol_EndianSafe)
         {
             SetDestAddress(dest);
@@ -350,7 +350,7 @@ namespace IPA.Cores.Basic
 
     public static partial class IPUtil
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static EthernetProtocolId ConvertPPPToEthernetProtocolId(this PPPProtocolId id)
         {
             switch (id)
@@ -366,7 +366,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ushort CalcIPv4Checksum(this ref IPv4Header v4Header)
         {
             int headerLen = v4Header.HeaderLen * 4;
@@ -394,7 +394,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ushort CalcTcpUdpPseudoChecksum(void* ipHeaderPtr, void* ipPayloadPtr, int ipPayloadSize)
         {
             ushort pseudoChecksum = IPUtil.CalcPseudoTcpUdpHeaderChecksum(ipHeaderPtr, ipPayloadSize);
@@ -402,13 +402,13 @@ namespace IPA.Cores.Basic
             return IpChecksum(ipPayloadPtr, ipPayloadSize, pseudoChecksum);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ushort CalcTcpUdpPseudoChecksum(this ref IPv4Header v4Header, void* ipPayloadPtr, int ipPayloadSize)
         {
             return CalcTcpUdpPseudoChecksum(Unsafe.AsPointer(ref v4Header), ipPayloadPtr, ipPayloadSize);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ushort CalcTcpUdpPseudoChecksum(this ref TCPHeader tcpHeader, ref IPv4Header v4Header, ReadOnlySpan<byte> tcpPayloadData)
         {
             ushort tcpPayloadChecksum;
@@ -558,7 +558,7 @@ namespace IPA.Cores.Basic
             return (ushort)0xDEAD._Endian16_S();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ushort IpChecksum(ReadOnlySpan<byte> data, ushort initial = 0)
         {
             fixed (byte* ptr = data)

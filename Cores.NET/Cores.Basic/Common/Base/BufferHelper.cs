@@ -96,171 +96,171 @@ namespace IPA.Cores.Helper.Basic
         public static Span<T> _CloneSpan<T>(this ReadOnlyMemory<T> memory) => memory.Span.ToArray();
         public static Span<T> _CloneSpan<T>(this Memory<T> memory) => memory.Span.ToArray();
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ReadOnlyMemory<T> _AsReadOnlyMemory<T>(this Memory<T> memory) => memory;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this Span<T> span) => span;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ReadOnlyMemory<T> _AsReadOnlyMemory<T>(this ArraySegment<T> segment) => segment.AsMemory();
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ReadOnlyMemory<T> _AsReadOnlyMemory<T>(this ArraySegment<T> segment, int start) => segment.AsMemory(start);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ReadOnlyMemory<T> _AsReadOnlyMemory<T>(this ArraySegment<T> segment, int start, int length) => segment.AsMemory(start, length);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ReadOnlyMemory<T> _AsReadOnlyMemory<T>(this T[] array) => array.AsMemory();
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ReadOnlyMemory<T> _AsReadOnlyMemory<T>(this T[] array, int start) => array.AsMemory(start);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ReadOnlyMemory<T> _AsReadOnlyMemory<T>(this T[] array, int start, int length) => array.AsMemory(start, length);
 
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this T[] array, int start) => array.AsSpan(start);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this T[] array) => array.AsSpan();
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this ArraySegment<T> segment, int start, int length) => segment.AsSpan(start, length);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this ArraySegment<T> segment, int start) => segment.AsSpan(start);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this T[] array, int start, int length) => array.AsSpan(start, length);
 
 
         // For BigEndian-standard world
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ushort _Endian16_U(this ushort v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ushort _Endian16_U(this uint v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((ushort)v) : (ushort)v;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ushort _Endian16_U(this ulong v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((ushort)v) : (ushort)v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static short _Endian16_S(this short v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static short _Endian16_S(this int v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((short)v) : (short)v;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static short _Endian16_S(this long v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((short)v) : (short)v;
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ushort _Endian16_U(this short v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((ushort)v) : (ushort)v;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ushort _Endian16_U(this int v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((ushort)v) : (ushort)v;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ushort _Endian16_U(this long v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((ushort)v) : (ushort)v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static uint _Endian32_U(this uint v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static uint _Endian32_U(this ulong v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((uint)v) : (uint)v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _Endian32_S(this int v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _Endian32_S(this long v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((int)v) : (int)v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static uint _Endian32_U(this int v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((uint)v) : (uint)v;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static uint _Endian32_U(this long v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((uint)v) : (uint)v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ulong _Endian64_U(this ulong v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static long _Endian64_S(this long v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ulong _Endian64_U(this long v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((ulong)v) : (ulong)v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static T _Endian16<T>(this T v) where T : unmanaged, Enum => BitConverter.IsLittleEndian ? _ReverseEndian16(v) : v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static T _Endian32<T>(this T v) where T : unmanaged, Enum => BitConverter.IsLittleEndian ? _ReverseEndian32(v) : v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static T _Endian64<T>(this T v) where T : unmanaged, Enum => BitConverter.IsLittleEndian ? _ReverseEndian64(v) : v;
 
 
         // For Little-endian standard world
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ushort _LE_Endian16_U(this ushort v) => (!BitConverter.IsLittleEndian) ? BinaryPrimitives.ReverseEndianness(v) : v;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ushort _LE_Endian16_U(this uint v) => (!BitConverter.IsLittleEndian) ? BinaryPrimitives.ReverseEndianness((ushort)v) : (ushort)v;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ushort _LE_Endian16_U(this ulong v) => (!BitConverter.IsLittleEndian) ? BinaryPrimitives.ReverseEndianness((ushort)v) : (ushort)v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static short _LE_Endian16_S(this short v) => (!BitConverter.IsLittleEndian) ? BinaryPrimitives.ReverseEndianness(v) : v;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static short _LE_Endian16_S(this int v) => (!BitConverter.IsLittleEndian) ? BinaryPrimitives.ReverseEndianness((short)v) : (short)v;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static short _LE_Endian16_S(this long v) => (!BitConverter.IsLittleEndian) ? BinaryPrimitives.ReverseEndianness((short)v) : (short)v;
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ushort _LE_Endian16_U(this short v) => (!BitConverter.IsLittleEndian) ? BinaryPrimitives.ReverseEndianness((ushort)v) : (ushort)v;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ushort _LE_Endian16_U(this int v) => (!BitConverter.IsLittleEndian) ? BinaryPrimitives.ReverseEndianness((ushort)v) : (ushort)v;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ushort _LE_Endian16_U(this long v) => (!BitConverter.IsLittleEndian) ? BinaryPrimitives.ReverseEndianness((ushort)v) : (ushort)v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static uint _LE_Endian32_U(this uint v) => (!BitConverter.IsLittleEndian) ? BinaryPrimitives.ReverseEndianness(v) : v;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static uint _LE_Endian32_U(this ulong v) => (!BitConverter.IsLittleEndian) ? BinaryPrimitives.ReverseEndianness((uint)v) : (uint)v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _LE_Endian32_S(this int v) => (!BitConverter.IsLittleEndian) ? BinaryPrimitives.ReverseEndianness(v) : v;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _LE_Endian32_S(this long v) => (!BitConverter.IsLittleEndian) ? BinaryPrimitives.ReverseEndianness((int)v) : (int)v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static uint _LE_Endian32_U(this int v) => (!BitConverter.IsLittleEndian) ? BinaryPrimitives.ReverseEndianness((uint)v) : (uint)v;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static uint _LE_Endian32_U(this long v) => (!BitConverter.IsLittleEndian) ? BinaryPrimitives.ReverseEndianness((uint)v) : (uint)v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ulong _LE_Endian64_U(this ulong v) => (!BitConverter.IsLittleEndian) ? BinaryPrimitives.ReverseEndianness(v) : v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static long _LE_Endian64_S(this long v) => (!BitConverter.IsLittleEndian) ? BinaryPrimitives.ReverseEndianness(v) : v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ulong _LE_Endian64_U(this long v) => (!BitConverter.IsLittleEndian) ? BinaryPrimitives.ReverseEndianness((ulong)v) : (ulong)v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static T _LE_Endian16<T>(this T v) where T : unmanaged, Enum => (!BitConverter.IsLittleEndian) ? _ReverseEndian16(v) : v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static T _LE_Endian32<T>(this T v) where T : unmanaged, Enum => (!BitConverter.IsLittleEndian) ? _ReverseEndian32(v) : v;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static T _LE_Endian64<T>(this T v) where T : unmanaged, Enum => (!BitConverter.IsLittleEndian) ? _ReverseEndian64(v) : v;
 
 
 
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ushort _ReverseEndian16_U(this ushort v) => BinaryPrimitives.ReverseEndianness(v);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static short _ReverseEndian16_S(this short v) => BinaryPrimitives.ReverseEndianness(v);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static uint _ReverseEndian32_U(this uint v) => BinaryPrimitives.ReverseEndianness(v);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _ReverseEndian32_S(this int v) => BinaryPrimitives.ReverseEndianness(v);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ulong _ReverseEndian64_U(this ulong v) => BinaryPrimitives.ReverseEndianness(v);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static long _ReverseEndian64_S(this long v) => BinaryPrimitives.ReverseEndianness(v);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe T _ReverseEndian16<T>(this T v) where T : unmanaged, Enum
         {
             byte* ptr = (byte*)(Unsafe.AsPointer(ref v));
@@ -268,7 +268,7 @@ namespace IPA.Cores.Helper.Basic
             return v;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe T _ReverseEndian32<T>(this T v) where T : unmanaged, Enum
         {
             byte* ptr = (byte*)(Unsafe.AsPointer(ref v));
@@ -276,7 +276,7 @@ namespace IPA.Cores.Helper.Basic
             return v;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe T _ReverseEndian64<T>(this T v) where T : unmanaged, Enum
         {
             byte* ptr = (byte*)(Unsafe.AsPointer(ref v));
@@ -1415,40 +1415,40 @@ namespace IPA.Cores.Helper.Basic
         public static MemoryStream _ToMemoryStream(this Memory<byte> span)
             => ToMemoryStreamInternal(span.ToArray());
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ref T _AsStruct<T>(this ref byte data) where T : unmanaged
             => ref Unsafe.As<byte, T>(ref data);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ref T _AsStruct<T>(this Span<byte> data) where T : unmanaged
             => ref Unsafe.As<byte, T>(ref data[0]);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ref readonly T _AsStruct<T>(this ReadOnlySpan<byte> data) where T : unmanaged
         {
             fixed (void* ptr = &data[0])
                 return ref Unsafe.AsRef<T>(ptr);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ref T _AsStruct<T>(this Memory<byte> data) where T : unmanaged
             => ref Unsafe.As<byte, T>(ref data.Span[0]);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ref readonly T _AsStruct<T>(this ReadOnlyMemory<byte> data) where T : unmanaged
         {
             fixed (void* ptr = &data.Span[0])
                 return ref Unsafe.AsRef<T>(ptr);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ref T _AsStructSafe<T>(this Span<byte> data, int minSize = 0) where T : unmanaged
         {
             if (minSize <= 0) minSize = sizeof(T);
             return ref Unsafe.As<byte, T>(ref data.Slice(0, minSize)[0]);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ref readonly T _AsStructSafe<T>(this ReadOnlySpan<byte> data, int minSize = 0) where T : unmanaged
         {
             if (minSize <= 0) minSize = sizeof(T);
@@ -1456,14 +1456,14 @@ namespace IPA.Cores.Helper.Basic
                 return ref Unsafe.AsRef<T>(ptr);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ref T _AsStructSafe<T>(this Memory<byte> data, int minSize = 0) where T : unmanaged
         {
             if (minSize <= 0) minSize = sizeof(T);
             return ref Unsafe.As<byte, T>(ref data.Span.Slice(0, minSize)[0]);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ref readonly T _AsStructSafe<T>(this ReadOnlyMemory<byte> data, int minSize = 0) where T : unmanaged
         {
             if (minSize <= 0) minSize = sizeof(T);
@@ -1476,7 +1476,7 @@ namespace IPA.Cores.Helper.Basic
 
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt8<T>(this ref T target, sbyte value, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
@@ -1484,7 +1484,7 @@ namespace IPA.Cores.Helper.Basic
             if (size >= 1) *((sbyte*)ptr) = value;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt16<T>(this ref T target, short value, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
@@ -1493,7 +1493,7 @@ namespace IPA.Cores.Helper.Basic
             else if (size >= 1) *((byte*)ptr) = (byte)value;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt32<T>(this ref T target, int value, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
@@ -1503,7 +1503,7 @@ namespace IPA.Cores.Helper.Basic
             else if (size >= 1) *((byte*)ptr) = (byte)value;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt64<T>(this ref T target, long value, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
@@ -1514,7 +1514,7 @@ namespace IPA.Cores.Helper.Basic
             else if (size >= 1) *((byte*)ptr) = (byte)value;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt8<T>(this ref T target, byte value, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
@@ -1522,7 +1522,7 @@ namespace IPA.Cores.Helper.Basic
             if (size >= 1) *((byte*)ptr) = value;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt16<T>(this ref T target, ushort value, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
@@ -1531,7 +1531,7 @@ namespace IPA.Cores.Helper.Basic
             else if (size >= 1) *((byte*)ptr) = (byte)value;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt32<T>(this ref T target, uint value, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
@@ -1541,7 +1541,7 @@ namespace IPA.Cores.Helper.Basic
             else if (size >= 1) *((byte*)ptr) = (byte)value;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt64<T>(this ref T target, ulong value, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
@@ -1557,7 +1557,7 @@ namespace IPA.Cores.Helper.Basic
 
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt8<T>(this ReadOnlySpan<T> target, sbyte value) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1565,11 +1565,11 @@ namespace IPA.Cores.Helper.Basic
             byte* ptr = (byte*)(Unsafe.AsPointer(ref r));
             if (size >= 1) *((sbyte*)ptr) = (sbyte)value;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt8<T>(this ReadOnlyMemory<T> target, sbyte value) where T : unmanaged
             => _RawWriteValueSInt8(target.Span, value);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt16<T>(this ReadOnlySpan<T> target, short value) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1578,11 +1578,11 @@ namespace IPA.Cores.Helper.Basic
             if (size >= 2) *((short*)ptr) = (short)value;
             else if (size >= 1) *((sbyte*)ptr) = (sbyte)value;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt16<T>(this ReadOnlyMemory<T> target, short value) where T : unmanaged
             => _RawWriteValueSInt16(target.Span, value);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt32<T>(this ReadOnlySpan<T> target, int value) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1592,11 +1592,11 @@ namespace IPA.Cores.Helper.Basic
             else if (size >= 2) *((short*)ptr) = (short)value;
             else if (size >= 1) *((sbyte*)ptr) = (sbyte)value;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt32<T>(this ReadOnlyMemory<T> target, int value) where T : unmanaged
             => _RawWriteValueSInt32(target.Span, value);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt64<T>(this ReadOnlySpan<T> target, long value) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1607,11 +1607,11 @@ namespace IPA.Cores.Helper.Basic
             else if (size >= 2) *((short*)ptr) = (short)value;
             else if (size >= 1) *((sbyte*)ptr) = (sbyte)value;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt64<T>(this ReadOnlyMemory<T> target, long value) where T : unmanaged
             => _RawWriteValueSInt64(target.Span, value);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt8<T>(this ReadOnlySpan<T> target, byte value) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1619,11 +1619,11 @@ namespace IPA.Cores.Helper.Basic
             byte* ptr = (byte*)(Unsafe.AsPointer(ref r));
             if (size >= 1) *((byte*)ptr) = (byte)value;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt8<T>(this ReadOnlyMemory<T> target, byte value) where T : unmanaged
             => _RawWriteValueUInt8(target.Span, value);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt16<T>(this ReadOnlySpan<T> target, ushort value) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1632,11 +1632,11 @@ namespace IPA.Cores.Helper.Basic
             if (size >= 2) *((ushort*)ptr) = (ushort)value;
             else if (size >= 1) *((byte*)ptr) = (byte)value;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt16<T>(this ReadOnlyMemory<T> target, ushort value) where T : unmanaged
             => _RawWriteValueUInt16(target.Span, value);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt32<T>(this ReadOnlySpan<T> target, uint value) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1646,11 +1646,11 @@ namespace IPA.Cores.Helper.Basic
             else if (size >= 2) *((ushort*)ptr) = (ushort)value;
             else if (size >= 1) *((byte*)ptr) = (byte)value;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt32<T>(this ReadOnlyMemory<T> target, uint value) where T : unmanaged
             => _RawWriteValueUInt32(target.Span, value);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt64<T>(this ReadOnlySpan<T> target, ulong value) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1661,13 +1661,13 @@ namespace IPA.Cores.Helper.Basic
             else if (size >= 2) *((ushort*)ptr) = (ushort)value;
             else if (size >= 1) *((byte*)ptr) = (byte)value;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt64<T>(this ReadOnlyMemory<T> target, ulong value) where T : unmanaged
             => _RawWriteValueUInt64(target.Span, value);
 
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt8<T>(this Span<T> target, sbyte value) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1675,11 +1675,11 @@ namespace IPA.Cores.Helper.Basic
             byte* ptr = (byte*)(Unsafe.AsPointer(ref r));
             if (size >= 1) *((sbyte*)ptr) = (sbyte)value;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt8<T>(this Memory<T> target, sbyte value) where T : unmanaged
             => _RawWriteValueSInt8(target.Span, value);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt16<T>(this Span<T> target, short value) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1688,11 +1688,11 @@ namespace IPA.Cores.Helper.Basic
             if (size >= 2) *((short*)ptr) = (short)value;
             else if (size >= 1) *((sbyte*)ptr) = (sbyte)value;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt16<T>(this Memory<T> target, short value) where T : unmanaged
             => _RawWriteValueSInt16(target.Span, value);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt32<T>(this Span<T> target, int value) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1702,11 +1702,11 @@ namespace IPA.Cores.Helper.Basic
             else if (size >= 2) *((short*)ptr) = (short)value;
             else if (size >= 1) *((sbyte*)ptr) = (sbyte)value;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt32<T>(this Memory<T> target, int value) where T : unmanaged
             => _RawWriteValueSInt32(target.Span, value);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt64<T>(this Span<T> target, long value) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1717,11 +1717,11 @@ namespace IPA.Cores.Helper.Basic
             else if (size >= 2) *((short*)ptr) = (short)value;
             else if (size >= 1) *((sbyte*)ptr) = (sbyte)value;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueSInt64<T>(this Memory<T> target, long value) where T : unmanaged
             => _RawWriteValueSInt64(target.Span, value);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt8<T>(this Span<T> target, byte value) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1729,11 +1729,11 @@ namespace IPA.Cores.Helper.Basic
             byte* ptr = (byte*)(Unsafe.AsPointer(ref r));
             if (size >= 1) *((byte*)ptr) = (byte)value;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt8<T>(this Memory<T> target, byte value) where T : unmanaged
             => _RawWriteValueUInt8(target.Span, value);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt16<T>(this Span<T> target, ushort value) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1742,11 +1742,11 @@ namespace IPA.Cores.Helper.Basic
             if (size >= 2) *((ushort*)ptr) = (ushort)value;
             else if (size >= 1) *((byte*)ptr) = (byte)value;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt16<T>(this Memory<T> target, ushort value) where T : unmanaged
             => _RawWriteValueUInt16(target.Span, value);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt32<T>(this Span<T> target, uint value) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1756,11 +1756,11 @@ namespace IPA.Cores.Helper.Basic
             else if (size >= 2) *((ushort*)ptr) = (ushort)value;
             else if (size >= 1) *((byte*)ptr) = (byte)value;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt32<T>(this Memory<T> target, uint value) where T : unmanaged
             => _RawWriteValueUInt32(target.Span, value);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt64<T>(this Span<T> target, ulong value) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1771,14 +1771,14 @@ namespace IPA.Cores.Helper.Basic
             else if (size >= 2) *((ushort*)ptr) = (ushort)value;
             else if (size >= 1) *((byte*)ptr) = (byte)value;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _RawWriteValueUInt64<T>(this Memory<T> target, ulong value) where T : unmanaged
             => _RawWriteValueUInt64(target.Span, value);
 
 
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe sbyte _RawReadValueSInt8<T>(this T target, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
@@ -1787,7 +1787,7 @@ namespace IPA.Cores.Helper.Basic
             return 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe short _RawReadValueSInt16<T>(this T target, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
@@ -1797,7 +1797,7 @@ namespace IPA.Cores.Helper.Basic
             return 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe int _RawReadValueSInt32<T>(this T target, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
@@ -1808,7 +1808,7 @@ namespace IPA.Cores.Helper.Basic
             return 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe long _RawReadValueSInt64<T>(this T target, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
@@ -1820,7 +1820,7 @@ namespace IPA.Cores.Helper.Basic
             return 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe byte _RawReadValueUInt8<T>(this T target, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
@@ -1829,7 +1829,7 @@ namespace IPA.Cores.Helper.Basic
             return 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ushort _RawReadValueUInt16<T>(this T target, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
@@ -1839,7 +1839,7 @@ namespace IPA.Cores.Helper.Basic
             return 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe uint _RawReadValueUInt32<T>(this T target, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
@@ -1850,7 +1850,7 @@ namespace IPA.Cores.Helper.Basic
             return 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ulong _RawReadValueUInt64<T>(this T target, long pointerOffset = 0) where T : unmanaged
         {
             int size = sizeof(T);
@@ -1866,7 +1866,7 @@ namespace IPA.Cores.Helper.Basic
 
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe sbyte _RawReadValueSInt8<T>(this Span<T> target) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1876,7 +1876,7 @@ namespace IPA.Cores.Helper.Basic
             return 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe short _RawReadValueSInt16<T>(this Span<T> target) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1887,7 +1887,7 @@ namespace IPA.Cores.Helper.Basic
             return 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe int _RawReadValueSInt32<T>(this Span<T> target) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1899,7 +1899,7 @@ namespace IPA.Cores.Helper.Basic
             return 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe long _RawReadValueSInt64<T>(this Span<T> target) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1912,7 +1912,7 @@ namespace IPA.Cores.Helper.Basic
             return 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe byte _RawReadValueUInt8<T>(this Span<T> target) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1922,7 +1922,7 @@ namespace IPA.Cores.Helper.Basic
             return 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ushort _RawReadValueUInt16<T>(this Span<T> target) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1933,7 +1933,7 @@ namespace IPA.Cores.Helper.Basic
             return 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe uint _RawReadValueUInt32<T>(this Span<T> target) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1945,7 +1945,7 @@ namespace IPA.Cores.Helper.Basic
             return 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ulong _RawReadValueUInt64<T>(this Span<T> target) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1959,7 +1959,7 @@ namespace IPA.Cores.Helper.Basic
         }
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe sbyte _RawReadValueSInt8<T>(this ReadOnlySpan<T> target) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1968,11 +1968,11 @@ namespace IPA.Cores.Helper.Basic
             if (size >= 1) return *((sbyte*)ptr);
             return 0;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe sbyte _RawReadValueSInt8<T>(this ReadOnlyMemory<T> target) where T : unmanaged
             => _RawReadValueSInt8(target.Span);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe short _RawReadValueSInt16<T>(this ReadOnlySpan<T> target) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1982,11 +1982,11 @@ namespace IPA.Cores.Helper.Basic
             if (size >= 1) return *((sbyte*)ptr);
             return 0;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe short _RawReadValueSInt16<T>(this ReadOnlyMemory<T> target) where T : unmanaged
             => _RawReadValueSInt16(target.Span);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe int _RawReadValueSInt32<T>(this ReadOnlySpan<T> target) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -1997,11 +1997,11 @@ namespace IPA.Cores.Helper.Basic
             if (size >= 1) return *((sbyte*)ptr);
             return 0;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe int _RawReadValueSInt32<T>(this ReadOnlyMemory<T> target) where T : unmanaged
             => _RawReadValueSInt32(target.Span);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe long _RawReadValueSInt64<T>(this ReadOnlySpan<T> target) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -2013,11 +2013,11 @@ namespace IPA.Cores.Helper.Basic
             if (size >= 1) return *((sbyte*)ptr);
             return 0;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe long _RawReadValueSInt64<T>(this ReadOnlyMemory<T> target) where T : unmanaged
             => _RawReadValueSInt64(target.Span);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe byte _RawReadValueUInt8<T>(this ReadOnlySpan<T> target) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -2026,11 +2026,11 @@ namespace IPA.Cores.Helper.Basic
             if (size >= 1) return *((byte*)ptr);
             return 0;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe byte _RawReadValueUInt8<T>(this ReadOnlyMemory<T> target) where T : unmanaged
             => _RawReadValueUInt8(target.Span);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ushort _RawReadValueUInt16<T>(this ReadOnlySpan<T> target) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -2040,11 +2040,11 @@ namespace IPA.Cores.Helper.Basic
             if (size >= 1) return *((byte*)ptr);
             return 0;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ushort _RawReadValueUInt16<T>(this ReadOnlyMemory<T> target) where T : unmanaged
             => _RawReadValueUInt16(target.Span);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe uint _RawReadValueUInt32<T>(this ReadOnlySpan<T> target) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -2055,11 +2055,11 @@ namespace IPA.Cores.Helper.Basic
             if (size >= 1) return *((byte*)ptr);
             return 0;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe uint _RawReadValueUInt32<T>(this ReadOnlyMemory<T> target) where T : unmanaged
             => _RawReadValueUInt32(target.Span);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ulong _RawReadValueUInt64<T>(this ReadOnlySpan<T> target) where T : unmanaged
         {
             int size = sizeof(T) * target.Length;
@@ -2071,122 +2071,122 @@ namespace IPA.Cores.Helper.Basic
             if (size >= 1) return *((byte*)ptr);
             return 0;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ulong _RawReadValueUInt64<T>(this ReadOnlyMemory<T> target) where T : unmanaged
             => _RawReadValueUInt64(target.Span);
 
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void* _AsPointer<T>(this ref T target) where T : unmanaged
             => Unsafe.AsPointer(ref target);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe Span<byte> _AsByteSpan<T>(this ref T target) where T : unmanaged
         {
             void* ptr = Unsafe.AsPointer(ref target);
             return new Span<byte>(ptr, sizeof(T));
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ReadOnlySpan<byte> _AsReadOnlyByteSpan<T>(this ref T target) where T : unmanaged
         {
             void* ptr = Unsafe.AsPointer(ref target);
             return new ReadOnlySpan<byte>(ptr, sizeof(T));
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe byte _GetBitsUInt8(this byte src, byte bitMask)
             => (byte)(src & bitMask);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ushort _GetBitsUInt16(this ushort src, ushort bitMask)
             => (ushort)(src & bitMask);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe uint _GetBitsUInt32(this uint src, uint bitMask)
             => (uint)(src & bitMask);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ulong _GetBitsUInt64(this ulong src, ulong bitMask)
             => (ulong)(src & bitMask);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe sbyte _GetBitsSInt8(this sbyte src, sbyte bitMask)
             => (sbyte)(src & bitMask);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe short _GetBitsSInt16(this short src, short bitMask)
             => (short)(src & bitMask);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe int _GetBitsSInt32(this int src, int bitMask)
             => (int)(src & bitMask);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe long _GetBitsSInt64(this long src, long bitMask)
             => (long)(src & bitMask);
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ushort _GetBitsUInt16_EndianSafe(this ushort src, ushort bitMask)
             => (ushort)(src._Endian16_U() & bitMask);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe uint _GetBitsUInt32_EndianSafe(this uint src, uint bitMask)
             => (uint)(src._Endian32_U() & bitMask);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe ulong _GetBitsUInt64_EndianSafe(this ulong src, ulong bitMask)
             => (ulong)(src._Endian64_U() & bitMask);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe short _GetBitsSInt16_EndianSafe(this short src, short bitMask)
             => (short)(src._Endian16_S() & bitMask);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe int _GetBitsSInt32_EndianSafe(this int src, int bitMask)
             => (int)(src._Endian32_S() & bitMask);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe long _GetBitsSInt64_EndianSafe(this long src, long bitMask)
             => (long)(src._Endian64_S() & bitMask);
 
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _UpdateBitsUInt8(this ref byte src, byte bitMask, byte value)
             => src = (byte)((src & ~bitMask) | (value & bitMask));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _UpdateBitsUInt16(this ref ushort src, ushort bitMask, ushort value)
             => src = (ushort)((src & ~bitMask) | (value & bitMask));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _UpdateBitsUInt32(this ref uint src, uint bitMask, uint value)
             => src = (uint)((src & ~bitMask) | (value & bitMask));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _UpdateBitsUInt64(this ref ulong src, ulong bitMask, ulong value)
             => src = (ulong)((src & ~bitMask) | (value & bitMask));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _UpdateBitsSInt8(this ref sbyte src, sbyte bitMask, sbyte value)
             => src = (sbyte)((src & ~bitMask) | (value & bitMask));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _UpdateBitsSInt16(this ref short src, short bitMask, short value)
             => src = (short)((src & ~bitMask) | (value & bitMask));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _UpdateBitsSInt32(this ref int src, int bitMask, int value)
             => src = (int)((src & ~bitMask) | (value & bitMask));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _UpdateBitsSInt64(this ref long src, long bitMask, long value)
             => src = (long)((src & ~bitMask) | (value & bitMask));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _UpdateBitsUInt16_EndianSafe(this ref ushort src, ushort bitMask, ushort value)
         {
             src = src._Endian16_U();
@@ -2194,7 +2194,7 @@ namespace IPA.Cores.Helper.Basic
             src = src._Endian16_U();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _UpdateBitsUInt32_EndianSafe(this ref uint src, uint bitMask, uint value)
         {
             src = src._Endian32_U();
@@ -2202,7 +2202,7 @@ namespace IPA.Cores.Helper.Basic
             src = src._Endian32_U();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _UpdateBitsUInt64_EndianSafe(this ref ulong src, ulong bitMask, ulong value)
         {
             src = src._Endian64_U();
@@ -2210,7 +2210,7 @@ namespace IPA.Cores.Helper.Basic
             src = src._Endian64_U();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _UpdateBitsSInt16_EndianSafe(this ref short src, short bitMask, short value)
         {
             src = src._Endian16_S();
@@ -2218,7 +2218,7 @@ namespace IPA.Cores.Helper.Basic
             src = src._Endian16_S();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _UpdateBitsSInt32_EndianSafe(this ref int src, int bitMask, int value)
         {
             src = src._Endian32_S();
@@ -2226,7 +2226,7 @@ namespace IPA.Cores.Helper.Basic
             src = src._Endian32_S();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void _UpdateBitsSInt64_EndianSafe(this ref long src, long bitMask, long value)
         {
             src = src._Endian64_S();
@@ -2234,7 +2234,7 @@ namespace IPA.Cores.Helper.Basic
             src = src._Endian64_S();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe bool _IsZeroStruct<T>(this ref T value, int size = DefaultSize) where T : unmanaged
         {
             if (size == DefaultSize)
@@ -2253,7 +2253,7 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe Memory<byte> _CopyToMemory<T>(this ref T data, int size = DefaultSize) where T : unmanaged
         {
             size = size._DefaultSize(sizeof(T));

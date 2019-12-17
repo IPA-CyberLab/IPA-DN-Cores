@@ -65,7 +65,7 @@ namespace IPA.Cores.Basic
         [FieldOffset(8)]
         public readonly PacketSpan<EthernetHeader> Ethernet;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public L2(PacketSpan<EthernetHeader> etherSpan)
         {
             this.Ethernet = default;
@@ -108,7 +108,7 @@ namespace IPA.Cores.Basic
         [FieldOffset(8)]
         public readonly PacketSpan<PPPoESessionHeader> PPPoE;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public L3(PacketSpan<IPv4Header> ipv4Span)
         {
             this.IPv4 = default;
@@ -118,7 +118,7 @@ namespace IPA.Cores.Basic
             this.Generic = ipv4Span.ToGenericSpan();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public L3(PacketSpan<PPPoESessionHeader> pppoeSpan)
         {
             this.IPv4 = default;
@@ -142,7 +142,7 @@ namespace IPA.Cores.Basic
         [FieldOffset(8)]
         public readonly PacketSpan<UDPHeader> UDP;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public L4(PacketSpan<TCPHeader> tcpSpan)
         {
             this.TCP = default;
@@ -152,7 +152,7 @@ namespace IPA.Cores.Basic
             this.Generic = tcpSpan.ToGenericSpan();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public L4(PacketSpan<UDPHeader> udpSpan)
         {
             this.TCP = default;
@@ -184,7 +184,7 @@ namespace IPA.Cores.Basic
         [FieldOffset(16)]
         public readonly PacketSpan<GenericHeader> Generic;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public L7(PacketSpan<GenericHeader> payloadSpan, L7Type type)
         {
             this.L2TPPacketParsed = null;
@@ -193,7 +193,7 @@ namespace IPA.Cores.Basic
             this.Type = type;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public L7(PacketSpan<GenericHeader> l2tpPayloadSpan, L2TPPacketParsed l2tpPacketParsed)
         {
             this.L2TPPacketParsed = l2tpPacketParsed;
@@ -359,7 +359,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         bool ParseL3(ref Packet pkt, PacketSpan<GenericHeader> prevSpan, EthernetProtocolId tpid)
         {
             switch (tpid)

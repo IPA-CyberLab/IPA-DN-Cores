@@ -379,7 +379,7 @@ namespace IPA.Cores.Basic
         /// <summary>
         /// True if the given character is a directory separator.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         internal static bool IsDirectorySeparator(char c)
         {
             return c == DirectorySeparatorChar || c == AltDirectorySeparatorChar;

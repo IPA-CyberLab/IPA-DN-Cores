@@ -61,27 +61,27 @@ namespace IPA.Cores.Helper.Basic
 {
     public static class HashMarvinHelper
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _HashMarvin(this ReadOnlySpan<byte> data)
             => Marvin.ComputeHash32(data);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _HashMarvin(this Span<byte> data)
             => Marvin.ComputeHash32(data);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _HashMarvin(this byte[] data, int offset, int size)
             => Marvin.ComputeHash32(data._AsReadOnlySpan(offset, size));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _HashMarvin(this byte[] data, int offset)
             => Marvin.ComputeHash32(data._AsReadOnlySpan(offset));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _HashMarvin(this byte[] data)
             => Marvin.ComputeHash32(data._AsReadOnlySpan());
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _HashMarvin<TStruct>(this ref TStruct data) where TStruct : unmanaged
         {
             unsafe
@@ -92,35 +92,35 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _HashMarvin<TStruct>(this ReadOnlySpan<TStruct> data) where TStruct : unmanaged
         {
             ReadOnlySpan<byte> span = MemoryMarshal.Cast<TStruct, byte>(data);
             return _HashMarvin(span);
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _HashMarvin<TStruct>(this ReadOnlyMemory<TStruct> data) where TStruct : unmanaged
             => _HashMarvin(data.Span);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _HashMarvin<TStruct>(this Span<TStruct> data) where TStruct : unmanaged
         {
             Span<byte> span = MemoryMarshal.Cast<TStruct, byte>(data);
             return _HashMarvin(span);
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _HashMarvin<TStruct>(this Memory<TStruct> data) where TStruct : unmanaged
             => _HashMarvin(data.Span);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _HashMarvin<TStruct>(this TStruct[] data, int offset, int size) where TStruct : unmanaged
             => _HashMarvin(data._AsReadOnlySpan(offset, size));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _HashMarvin<TStruct>(this TStruct[] data, int offset) where TStruct : unmanaged
             => _HashMarvin(data._AsReadOnlySpan(offset));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _HashMarvin<TStruct>(this TStruct[] data) where TStruct : unmanaged
             => _HashMarvin(data._AsReadOnlySpan());
     }
@@ -1045,15 +1045,15 @@ namespace IPA.Cores.Helper.Basic
         }
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static T If<T>(this T value, bool condition) where T : unmanaged, Enum
             => (condition ? value : default);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool Bit<T>(this T value, T flag) where T : unmanaged, Enum
             => value.HasFlag(flag);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool BitAny<T>(this T value, T flags) where T : unmanaged, Enum
         {
             ulong value1 = value._RawReadValueUInt64();
@@ -1063,7 +1063,7 @@ namespace IPA.Cores.Helper.Basic
             return ((value1 & value2) == 0) ? false : true;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static T BitRemove<T>(this T value, T removingBit) where T : unmanaged, Enum
         {
             ulong value1 = value._RawReadValueUInt64();
@@ -1087,7 +1087,7 @@ namespace IPA.Cores.Helper.Basic
             return Str.ParseEnum<T>(str, defaultValue, exactOnly, noMatchError);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool IsAnyOfThem<T>(T value, params T[] flags) where T : unmanaged, Enum
         {
             if (flags == null || flags.Length == 0) return false;
@@ -1101,55 +1101,55 @@ namespace IPA.Cores.Helper.Basic
             return false;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool EqualsAny<T>(this T value, T v1) where T : unmanaged, Enum
             => IsAnyOfThem(value, v1);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool EqualsAny<T>(this T value, T v1, T v2) where T : unmanaged, Enum
             => IsAnyOfThem(value, v1, v2);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool EqualsAny<T>(this T value, T v1, T v2, T v3) where T : unmanaged, Enum
             => IsAnyOfThem(value, v1, v2, v3);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool EqualsAny<T>(this T value, T v1, T v2, T v3, T v4) where T : unmanaged, Enum
             => IsAnyOfThem(value, v1, v2, v3, v4);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool EqualsAny<T>(this T value, T v1, T v2, T v3, T v4, T v5) where T : unmanaged, Enum
             => IsAnyOfThem(value, v1, v2, v3, v4, v5);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool EqualsAny<T>(this T value, T v1, T v2, T v3, T v4, T v5, T v6) where T : unmanaged, Enum
             => IsAnyOfThem(value, v1, v2, v3, v4, v5, v6);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool EqualsAny<T>(this T value, T v1, T v2, T v3, T v4, T v5, T v6, T v7) where T : unmanaged, Enum
             => IsAnyOfThem(value, v1, v2, v3, v4, v5, v6, v7);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool EqualsAny<T>(this T value, T v1, T v2, T v3, T v4, T v5, T v6, T v7, T v8) where T : unmanaged, Enum
             => IsAnyOfThem(value, v1, v2, v3, v4, v5, v6, v7, v8);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool EqualsAny<T>(this T value, T v1, T v2, T v3, T v4, T v5, T v6, T v7, T v8, T v9) where T : unmanaged, Enum
             => IsAnyOfThem(value, v1, v2, v3, v4, v5, v6, v7, v8, v9);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool EqualsAny<T>(this T value, T v1, T v2, T v3, T v4, T v5, T v6, T v7, T v8, T v9, T v10) where T : unmanaged, Enum
             => IsAnyOfThem(value, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static T[] GetEnumValuesList<T>(this T sampleValue) where T : unmanaged, Enum
             => Util.GetEnumValuesList<T>();
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static T GetMaxEnumValue<T>(this T sampleValue) where T : unmanaged, Enum
             => Util.GetMaxEnumValue<T>();
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int GetMaxEnumValueSInt32<T>(this T sampleValue) where T : unmanaged, Enum
             => Util.GetMaxEnumValueSInt32<T>();
 
@@ -1210,15 +1210,15 @@ namespace IPA.Cores.Helper.Basic
         public static string[] _Split(this string str, StringSplitOptions options, params string[] separators) => str.Split(separators, options);
         public static string[] _Split(this string str, StringSplitOptions options, params char[] separators) => str.Split(separators, options);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         [return: NotNullIfNotNull("defaultValue")]
         public static string? _FilledOrDefault(this string? str, string? defaultValue = null) => (str._IsFilled() ? str : defaultValue);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         [return: NotNullIfNotNull("defaultValue")]
         public static T _FilledOrDefault<T>(this T obj, T defaultValue = default, bool zeroValueIsEmpty = true) => (obj._IsFilled(zeroValueIsEmpty) ? obj : defaultValue);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         [return: NotNull]
         public static T _FilledOrException<T>(this T obj, Exception? exception = null, bool zeroValueIsEmpty = true)
         {
@@ -1228,7 +1228,7 @@ namespace IPA.Cores.Helper.Basic
             throw exception ?? new CoresEmptyException();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static string _FilledOrException(this string? str, Exception? exception = null, bool zeroValueIsEmpty = true)
         {
             if (str._IsFilled(zeroValueIsEmpty))
@@ -1237,7 +1237,7 @@ namespace IPA.Cores.Helper.Basic
             throw exception ?? new CoresEmptyException();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static T _NullCheck<T>([NotNull] this T? obj, string? paramName = null, Exception? exception = null)
             where T : class
         {
@@ -1260,7 +1260,7 @@ namespace IPA.Cores.Helper.Basic
             return obj;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static T _NotEmptyCheck<T>([NotNull] this T? obj, string? paramName = null, Exception? exception = null)
             where T : class
         {
@@ -1299,7 +1299,7 @@ namespace IPA.Cores.Helper.Basic
             return obj;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static string _NotEmptyCheck([NotNull] string obj, Exception? ex = null)
         {
             if (obj == null)
@@ -1317,7 +1317,7 @@ namespace IPA.Cores.Helper.Basic
             return obj;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static T _MarkNotNull<T>([NotNull] this T? obj)
             where T : class
         {
@@ -1345,10 +1345,10 @@ namespace IPA.Cores.Helper.Basic
         public static Task<bool> _WaitUntilCanceledAsync(this CancellationTokenSource cancel, int timeout = Timeout.Infinite)
             => _WaitUntilCanceledAsync(cancel.Token, timeout);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static DateTime _OverwriteKind(this DateTime dt, DateTimeKind kind) => new DateTime(dt.Ticks, kind);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static DateTimeOffset _AsDateTimeOffset(this DateTime dt, bool isLocalTime) => new DateTimeOffset(dt._OverwriteKind(isLocalTime ? DateTimeKind.Local : DateTimeKind.Utc));
 
         public static async Task _LeakCheck(this Task t, bool noCheck = false, LeakCounterKind kind = LeakCounterKind.TaskLeak, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
@@ -1630,50 +1630,50 @@ namespace IPA.Cores.Helper.Basic
         public static async Task<long> ReceiveSInt64Async(this Stream stream, CancellationToken cancel = default)
             => (await stream._ReadAllAsync(8, cancel))._GetSInt64();
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _DefaultSize(this int target, int defaultValue) => target != DefaultSize ? target : defaultValue;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _ComputeGoldenHash32(this int src) => Util.ComputeGoldenHash32(src);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static uint _ComputeGoldenHash32(this uint src) => Util.ComputeGoldenHash32(src);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static long _ComputeGoldenHash64(this long src) => Util.ComputeGoldenHash64(src);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ulong _ComputeGoldenHash64(this ulong src) => Util.ComputeGoldenHash64(src);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int _ComputeGoldenHash32(this int src, int bits) => Util.ComputeGoldenHash32(src, bits);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static uint _ComputeGoldenHash32(this uint src, int bits) => Util.ComputeGoldenHash32(src, bits);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static long _ComputeGoldenHash64(this long src, int bits) => Util.ComputeGoldenHash64(src, bits);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ulong _ComputeGoldenHash64(this ulong src, int bits) => Util.ComputeGoldenHash64(src, bits);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe int _ComputeGoldenHash<T>(this ref T data, int size = DefaultSize) where T : unmanaged
             => Util.ComputeGoldenHash(in data, size);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe int _ComputeGoldenHash<T>(ReadOnlySpan<T> span) where T : unmanaged
             => Util.ComputeGoldenHash(span);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe int _ComputeGoldenHash<T>(this T[] array, int start, int length) where T : unmanaged
             => Util.ComputeGoldenHash(array._AsReadOnlySpan(start, length));
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe int _ComputeGoldenHash<T>(this T[] array) where T : unmanaged
             => Util.ComputeGoldenHash(array._AsReadOnlySpan());
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe int _ComputeGoldenHash<T>(Span<T> span) where T : unmanaged
             => Util.ComputeGoldenHash(span._AsReadOnlySpan());
 
@@ -1910,13 +1910,13 @@ namespace IPA.Cores.Helper.Basic
         public static string _ObjectDataToCsv<T>(this T obj) where T : notnull
             => Str.ObjectDataToCsv(obj);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool _IsNullOrDefault<T>([NotNullWhen(false)] this T data)
         {
             return EqualityComparer<T>.Default.Equals(data, default(T)!);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool _IsNullOrDefault2<T>([NotNullWhen(false)] this T data)
         {
             return (data == null || data.Equals(default(T)!));

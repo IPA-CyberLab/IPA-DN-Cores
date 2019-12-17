@@ -950,7 +950,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static void ZeroMemory(Memory<byte> dst)
         {
             checked
@@ -959,7 +959,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static void ZeroMemory(Span<byte> dst)
         {
             checked
@@ -968,7 +968,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static void ZeroMemory(byte[] dst, int offset = 0, int size = DefaultSize)
         {
             checked
@@ -990,7 +990,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static byte[] CopyByte(byte[] src)
         {
             if (src == null) return new byte[0];
@@ -1002,13 +1002,13 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static byte[] CopyByte(byte[] src, int srcOffset)
         {
             return CopyByte(src, srcOffset, src.Length - srcOffset);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static byte[] CopyByte(byte[] src, int srcOffset, int size)
         {
             byte[] ret = new byte[size];
@@ -1016,19 +1016,19 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static void CopyByte(byte[] dst, byte[] src, int srcOffset, int size)
         {
             CopyByte(dst, 0, src, srcOffset, size);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static void CopyByte(byte[] dst, int dstOffset, byte[] src)
         {
             CopyByte(dst, dstOffset, src, 0, src.Length);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static void CopyByte(byte[] dst, int dstOffset, byte[] src, int srcOffset, int size)
         {
             Span<byte> dstSpan = dst.AsSpan(dstOffset, size);
@@ -1036,13 +1036,13 @@ namespace IPA.Cores.Basic
             srcSpan.CopyTo(dstSpan);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static void CopyByte(ref byte dst, in byte src, int size)
         {
             Unsafe.CopyBlock(ref dst, ref Unsafe.AsRef(in src), (uint)size);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void CopyByte(ref byte dst, byte* src, int size)
         {
             ref byte srcref = ref Unsafe.AsRef<byte>((void*)src);
@@ -1050,7 +1050,7 @@ namespace IPA.Cores.Basic
             Unsafe.CopyBlock(ref dst, ref srcref, (uint)size);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void CopyByte(byte* dst, in byte src, int size)
         {
             ref byte dstref = ref Unsafe.AsRef<byte>((void*)dst);
@@ -1058,28 +1058,28 @@ namespace IPA.Cores.Basic
             Unsafe.CopyBlock(ref dstref, ref Unsafe.AsRef(src), (uint)size);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void CopyByte(byte* dst, ReadOnlySpan<byte> src)
         {
             Span<byte> dstSpan = new Span<byte>(dst, src.Length);
             src.CopyTo(dstSpan);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void CopyByte(ref byte dst, ReadOnlySpan<byte> src)
         {
             Span<byte> dstSpan = new Span<byte>(Unsafe.AsPointer(ref dst), src.Length);
             src.CopyTo(dstSpan);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void CopyByte(Span<byte> dst, byte* src)
         {
             ReadOnlySpan<byte> srcSpan = new ReadOnlySpan<byte>(src, dst.Length);
             srcSpan.CopyTo(dst);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe void CopyByte(Span<byte> dst, in byte src)
         {
             ReadOnlySpan<byte> srcSpan = new ReadOnlySpan<byte>(Unsafe.AsPointer(ref Unsafe.AsRef(in src)), dst.Length);
@@ -1170,21 +1170,21 @@ namespace IPA.Cores.Basic
         }
 
         // byte[] 配列がオールゼロかどうか検査する
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool IsZero(byte[] data)
         {
             if (data == null) return true;
             return IsZero(data, 0, data.Length);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool IsZero(byte[] data, int offset, int size)
         {
             if (data == null) return true;
             return IsZero(new ReadOnlySpan<byte>(data, offset, size));
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool IsZero(ReadOnlySpan<byte> data)
         {
             int i;
@@ -1200,10 +1200,10 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool IsZero(ReadOnlyMemory<byte> data) => IsZero(data.Span);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe bool IsZero(byte* ptr, int size)
         {
             int i;
@@ -1219,7 +1219,7 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe bool IsZeroStruct<T>(in T value, int size = DefaultSize) where T : unmanaged
         {
             size = size._DefaultSize(sizeof(T));
@@ -1227,7 +1227,7 @@ namespace IPA.Cores.Basic
             return IsZero(ptr, size);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         /// <summary>Recommended to byte array more than 16 bytes.</summary>
         public static unsafe bool IsZeroFast(byte* ptr, int size)
         {
@@ -1277,7 +1277,7 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         /// <summary>Recommended to byte array more than 16 bytes.</summary>
         public static unsafe bool IsZeroFast(ReadOnlySpan<byte> srcMemory)
         {
@@ -1287,11 +1287,11 @@ namespace IPA.Cores.Basic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         /// <summary>Recommended to byte array more than 16 bytes.</summary>
         public static bool IsZeroFast(ReadOnlyMemory<byte> data) => IsZeroFast(data.Span);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         /// <summary>Recommended to byte array more than 16 bytes.</summary>
         public static bool IsZeroFast(byte[] data)
         {
@@ -1299,7 +1299,7 @@ namespace IPA.Cores.Basic
             return IsZeroFast(data, 0, data.Length);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         /// <summary>Recommended to byte array more than 16 bytes.</summary>
         public static bool IsZeroFast(byte[] data, int offset, int size)
         {
@@ -1307,7 +1307,7 @@ namespace IPA.Cores.Basic
             return IsZeroFast(new ReadOnlySpan<byte>(data, offset, size));
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         /// <summary>Recommended to byte array more than 16 bytes.</summary>
         public static unsafe bool IsZeroFastStruct<T>(in T value, int size = DefaultSize) where T : unmanaged
         {
@@ -1316,19 +1316,19 @@ namespace IPA.Cores.Basic
             return IsZeroFast(ptr, size);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool MemEquals(ReadOnlySpan<byte> b1, ReadOnlySpan<byte> b2)
         {
             return b1.SequenceEqual(b2);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool MemEquals(ReadOnlyMemory<byte> b1, ReadOnlyMemory<byte> b2)
         {
             return b1.Span.SequenceEqual(b2.Span);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool MemEquals(byte[] a, byte[] b)
         {
             long lenA = a.Length;
@@ -1337,31 +1337,31 @@ namespace IPA.Cores.Basic
             return MemEquals(in a[0], in b[0], lenA);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool MemEquals(in byte b1, in byte b2, long length)
         {
             return FastMemOperations.SequenceEqual(ref Unsafe.AsRef(in b1), ref Unsafe.AsRef(in b2), length);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int MemCompare(ReadOnlySpan<byte> b1, ReadOnlySpan<byte> b2)
         {
             return b1.SequenceCompareTo(b2);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int MemCompare(ReadOnlyMemory<byte> b1, ReadOnlyMemory<byte> b2)
         {
             return b1.Span.SequenceCompareTo(b2.Span);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int MemCompare(byte[] a, byte[] b)
         {
             return MemCompare(in a[0], a.Length, in b[0], b.Length);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int MemCompare(in byte b1, int b1Length, in byte b2, int b2Length)
         {
             return FastMemOperations.SequenceCompareTo(ref Unsafe.AsRef(in b1), b1Length, ref Unsafe.AsRef(in b2), b2Length);
@@ -1372,19 +1372,19 @@ namespace IPA.Cores.Basic
 
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool MemEquals<T>(ReadOnlySpan<T> b1, ReadOnlySpan<T> b2) where T : IEquatable<T>
         {
             return b1.SequenceEqual(b2);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool MemEquals<T>(ReadOnlyMemory<T> b1, ReadOnlyMemory<T> b2) where T : IEquatable<T>
         {
             return b1.Span.SequenceEqual(b2.Span);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool MemEquals<T>(T[] a, T[] b) where T : IEquatable<T>
         {
             int lenA = a.Length;
@@ -1393,37 +1393,37 @@ namespace IPA.Cores.Basic
             return MemEquals<T>(in a[0], in b[0], lenA);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static bool MemEquals<T>(in T b1, in T b2, int length) where T : IEquatable<T>
         {
             return FastMemOperations.SequenceEqual<T>(ref Unsafe.AsRef(in b1), ref Unsafe.AsRef(in b2), length);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int MemCompare<T>(ReadOnlySpan<T> b1, ReadOnlySpan<T> b2) where T : IComparable<T>
         {
             return b1.SequenceCompareTo(b2);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int MemCompare<T>(ReadOnlyMemory<T> b1, ReadOnlyMemory<T> b2) where T : IComparable<T>
         {
             return b1.Span.SequenceCompareTo(b2.Span);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int MemCompare<T>(T[] a, T[] b) where T : IComparable<T>
         {
             return MemCompare(in a[0], a.Length, in b[0], b.Length);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int MemCompare<T>(in T b1, int b1Length, in T b2, int b2Length) where T : IComparable<T>
         {
             return FastMemOperations.SequenceCompareTo(ref Unsafe.AsRef(in b1), b1Length, ref Unsafe.AsRef(in b2), b2Length);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         [Obsolete]
         public static bool CompareByte(byte[] b1, byte[] b2)
         {
@@ -1431,7 +1431,7 @@ namespace IPA.Cores.Basic
         }
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe bool StructBitEquals<T>(in T s1, in T s2) where T : unmanaged
         {
             int size = sizeof(T);
@@ -1446,7 +1446,7 @@ namespace IPA.Cores.Basic
         }
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe int StructBitCompare<T>(in T s1, in T s2) where T : unmanaged
         {
             int size = sizeof(T);
@@ -1463,7 +1463,7 @@ namespace IPA.Cores.Basic
 
 
         // byte[] 配列同士を比較する
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         [Obsolete]
         public static int CompareByteRetInt(byte[] b1, byte[] b2)
         {
@@ -1897,15 +1897,15 @@ namespace IPA.Cores.Basic
         }
 
         // 構造体のサイズの取得
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int SizeOfStruct(object obj)
             => Marshal.SizeOf(obj);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int SizeOfStruct(Type type)
             => Marshal.SizeOf(type);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe int SizeOfStruct<T>() where T : unmanaged
             => sizeof(T);
 
@@ -2938,46 +2938,46 @@ namespace IPA.Cores.Basic
             catch { }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int ComputeGoldenHash32(int src) => src * Consts.GoldenRatioPrime.S32;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static uint ComputeGoldenHash32(uint src) => src * Consts.GoldenRatioPrime.U32;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int ComputeGoldenHash32(int src, int bits) => (src * Consts.GoldenRatioPrime.S32) >> (32 - bits);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static uint ComputeGoldenHash32(uint src, int bits) => (src * Consts.GoldenRatioPrime.U32) >> (32 - bits);
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static long ComputeGoldenHash64(long src) => src * Consts.GoldenRatioPrime.S64;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ulong ComputeGoldenHash64(ulong src) => src * Consts.GoldenRatioPrime.U64;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static long ComputeGoldenHash64(long src, int bits) => (src * Consts.GoldenRatioPrime.S64) >> (64 - bits);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ulong ComputeGoldenHash64(ulong src, int bits) => (src * Consts.GoldenRatioPrime.U64) >> (64 - bits);
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe int ComputeGoldenHash(void* src, int size)
         {
             return ComputeGoldenHash32(IPUtil.IpChecksum(src, size, 0xdead));
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe int ComputeGoldenHash<T>(in T data, int size = DefaultSize) where T : unmanaged
         {
             size = size._DefaultSize(sizeof(T));
             return ComputeGoldenHash(Unsafe.AsPointer(ref Unsafe.AsRef(in data)), size);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static unsafe int ComputeGoldenHash<T>(ReadOnlySpan<T> span) where T : unmanaged
         {
             fixed (T* ptr = span)
@@ -2986,7 +2986,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static ulong GetNextPowerOf2(ulong n)
         {
             --n;
@@ -2994,7 +2994,7 @@ namespace IPA.Cores.Basic
             return n + 1;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static uint GetNextPowerOf2(uint n)
         {
             --n;
@@ -3002,7 +3002,7 @@ namespace IPA.Cores.Basic
             return n + 1;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int GetGreaterOrEqualOptimiedSizePowerOf2(int equalOrLargeThan)
         {
             if (equalOrLargeThan >= 1073741824) return 2147483647;
@@ -3098,7 +3098,7 @@ namespace IPA.Cores.Basic
          * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
          * SOFTWARE. */
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static int ComputeHash32(ReadOnlySpan<byte> data, ulong seed = DefaultSeed)
         {
             if (data.Length <= sizeof(uint))
@@ -3156,7 +3156,7 @@ namespace IPA.Cores.Basic
 
         public static long ComputeHash(ReadOnlySpan<byte> data) => ComputeHash(data, DefaultSeed);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         private static void Block(ref uint rp0, ref uint rp1)
         {
             uint p0 = rp0;
@@ -3178,7 +3178,7 @@ namespace IPA.Cores.Basic
             rp1 = p1;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         private static uint _rotl(uint value, int shift)
         {
             return (value << shift) | (value >> (32 - shift));
@@ -3198,32 +3198,32 @@ namespace IPA.Cores.Basic
 
         #region AutoGenerated
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a) => (a);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b) => (a ^ b);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c) => (a ^ b ^ c);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d) => (a ^ b ^ c ^ d);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e) => (a ^ b ^ c ^ d ^ e);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f) => (a ^ b ^ c ^ d ^ e ^ f);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g) => (a ^ b ^ c ^ d ^ e ^ f ^ g);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t, int u) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t ^ u);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t, int u, int v) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t ^ u ^ v);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t, int u, int v, int w) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t ^ u ^ v ^ w);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t, int u, int v, int w, int x) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t ^ u ^ v ^ w ^ x);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t, int u, int v, int w, int x, int y) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t ^ u ^ v ^ w ^ x ^ y);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t, int u, int v, int w, int x, int y, int z) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t ^ u ^ v ^ w ^ x ^ y ^ z);
+        [MethodImpl(Inline)] public static int Xor(int a) => (a);
+        [MethodImpl(Inline)] public static int Xor(int a, int b) => (a ^ b);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c) => (a ^ b ^ c);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d) => (a ^ b ^ c ^ d);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e) => (a ^ b ^ c ^ d ^ e);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f) => (a ^ b ^ c ^ d ^ e ^ f);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g) => (a ^ b ^ c ^ d ^ e ^ f ^ g);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t, int u) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t ^ u);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t, int u, int v) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t ^ u ^ v);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t, int u, int v, int w) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t ^ u ^ v ^ w);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t, int u, int v, int w, int x) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t ^ u ^ v ^ w ^ x);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t, int u, int v, int w, int x, int y) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t ^ u ^ v ^ w ^ x ^ y);
+        [MethodImpl(Inline)] public static int Xor(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o, int p, int q, int r, int s, int t, int u, int v, int w, int x, int y, int z) => (a ^ b ^ c ^ d ^ e ^ f ^ g ^ h ^ i ^ j ^ k ^ l ^ m ^ n ^ o ^ p ^ q ^ r ^ s ^ t ^ u ^ v ^ w ^ x ^ y ^ z);
 
         #endregion
 
@@ -3422,16 +3422,16 @@ namespace IPA.Cores.Basic
         volatile private int flag;
         public void Set() => IsFirstCall();
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public bool IsFirstCall() => (Interlocked.CompareExchange(ref this.flag, 1, 0) == 0);
 
         public bool IsSet
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            [MethodImpl(Inline)]
             get => (this.flag != 0);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static implicit operator bool(Once once) => once.flag != 0;
         public void Reset() => this.flag = 0;
 
@@ -3650,7 +3650,7 @@ namespace IPA.Cores.Basic
 
         public TObject this[TKey key] => CreateOrGet(key);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public TObject CreateOrGet(TKey key)
         {
             ulong value = key._RawReadValueUInt64();
@@ -3713,7 +3713,7 @@ namespace IPA.Cores.Basic
 
         public TObject this[TKey key] => CreateOrGet(key);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public TObject CreateOrGet(TKey key)
         {
             ulong value = key._RawReadValueUInt64();
@@ -3781,7 +3781,7 @@ namespace IPA.Cores.Basic
 
         public static implicit operator TObject(SingletonSlim<TObject> singleton) => singleton.CreateOrGet();
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public TObject CreateOrGet()
         {
             if (this.Object != null)
@@ -3817,7 +3817,7 @@ namespace IPA.Cores.Basic
 
         public static implicit operator TObject(Singleton<TObject> singleton) => singleton.CreateOrGet();
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public TObject CreateOrGet()
         {
             if (DisposeFlag) throw new ObjectDisposedException("Singleton");
@@ -5410,7 +5410,7 @@ namespace IPA.Cores.Basic
 
         public static unsafe ref readonly T Value
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            [MethodImpl(Inline)]
             get
             {
                 return ref ZeroedValue;

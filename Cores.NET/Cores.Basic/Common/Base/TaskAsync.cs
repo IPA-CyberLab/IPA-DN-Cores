@@ -374,10 +374,10 @@ namespace IPA.Cores.Basic
         public static async Task<T> StartAsyncTaskAsync<T>(Func<object?, Task<T>> action, object? param, bool yieldOnStart = YieldOnStartDefault, bool leakCheck = true)
         { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await action(param)._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static void Sync(Action action) { action(); }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static T Sync<T>(Func<T> func) { T ret = func(); return ret; }
 
         public static int WaitUntilAllPendingAsyncTasksFinish(int? timeout = null, CancellationToken cancel = default, int targetCount = 0)
@@ -1998,7 +1998,7 @@ namespace IPA.Cores.Basic
 
         static readonly bool FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public ValueHolder(Action disposeProc, LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
         {
             this.DisposeProc = disposeProc;

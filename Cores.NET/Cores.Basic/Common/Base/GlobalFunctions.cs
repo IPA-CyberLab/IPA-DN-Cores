@@ -62,6 +62,8 @@ namespace IPA.Cores.Globals
             return 0;
         }
 
+        public const MethodImplOptions Inline = MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization;
+
         public static int DoNothing() => NoOp();
 
         public static void Sleep(int msecs) => Kernel.SleepThread(msecs);
@@ -70,25 +72,25 @@ namespace IPA.Cores.Globals
 
         public static T UnixOrWindows<T>(T unix, T windows) => Env.IsUnix ? unix : windows;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static void Sync(Action action) => TaskUtil.Sync(action);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static T Sync<T>(Func<T> func) => TaskUtil.Sync(func);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static void Async(Func<Task> asyncFunc) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: false)._GetResult();
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static T Async<T>(Func<Task<T>> asyncFunc) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: false)._GetResult();
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static Task AsyncAwait(Func<Task> asyncFunc) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: true);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static Task<T> AsyncAwait<T>(Func<Task<T>> asyncFunc) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: true);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static IAsyncDisposable AsyncAwaitScoped<T>(Func<CancellationToken, Task<T>> asyncFunc, bool noErrorMessage = false)
         {
             CancellationTokenSource cts = new CancellationTokenSource();
@@ -192,7 +194,7 @@ namespace IPA.Cores.Globals
 
         public const int DefaultSize = int.MinValue;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static Task<TResult> TR<TResult>(TResult result) => Task.FromResult(result);
 
         public static void For(int count, Action<int> action)

@@ -336,12 +336,12 @@ namespace IPA.Cores.Basic
 
         public uint Value
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            [MethodImpl(Inline)]
             get => GetValue();
         }
 
         // CRC32 計算対象データの追加
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public void Append(ReadOnlySpan<byte> data)
         {
             if (IsNotFirst == false)
@@ -362,7 +362,7 @@ namespace IPA.Cores.Basic
             CurrentInternal = ret;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public uint GetValue()
         {
             if (IsNotFirst == false)
@@ -376,7 +376,7 @@ namespace IPA.Cores.Basic
         }
 
         // 一発計算
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static uint Calc(ReadOnlySpan<byte> data)
         {
             ZipCrc32 c = new ZipCrc32();
@@ -385,7 +385,7 @@ namespace IPA.Cores.Basic
         }
 
         // ZIP 暗号化に使用する CRC
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static uint CalcCrc32ForZipEncryption(uint n1, byte n2)
         {
             return Table[(int)((n1 ^ n2) & 0xFF)] ^ (n1 >> 8);
@@ -477,7 +477,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         void UpdateKeys(byte c)
         {
             Key0 = ZipCrc32.CalcCrc32ForZipEncryption(Key0, c);
@@ -486,14 +486,14 @@ namespace IPA.Cores.Basic
             Key2 = ZipCrc32.CalcCrc32ForZipEncryption(Key2, (byte)(Key1 >> 24));
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         byte GetNextXorByte()
         {
             uint temp = (ushort)((Key2 & 0xFFFF) | 2);
             return (byte)((temp * (temp ^ 1)) >> 8);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public void Encrypt(Span<byte> dst, ReadOnlySpan<byte> src)
         {
             if (dst.Length != src.Length) throw new CoresException("dst.Length != src.Length");

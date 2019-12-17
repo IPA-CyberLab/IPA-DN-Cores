@@ -2088,7 +2088,7 @@ namespace IPA.Cores.Basic
 
         public PipePoint this[int index]
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            [MethodImpl(Inline)]
             get => this.PipePointList[(int)((uint)index % (uint)NumPipes)];
         }
     }

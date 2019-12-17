@@ -3206,7 +3206,7 @@ namespace IPA.Cores.Basic
 
         public Span<T> Span
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            [MethodImpl(Inline)]
             get => InternalBuffer.Slice(PreAllocSize, Length);
         }
 
@@ -3218,14 +3218,14 @@ namespace IPA.Cores.Basic
             PostAllocSize = 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public unsafe void PrependWithData(ReadOnlySpan<T> data, int size = DefaultSize)
         {
             fixed (T* src = data)
                 PrependWithData(src, data.Length, size);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public unsafe void PrependWithData(T* data, int dataLength, int size = DefaultSize)
         {
             size = size._DefaultSize(dataLength);
@@ -3245,7 +3245,7 @@ namespace IPA.Cores.Basic
             Length += size;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public ref T Prepend(int size)
         {
             if (size == 0) return ref this.InternalBuffer[PreAllocSize];
@@ -3260,14 +3260,14 @@ namespace IPA.Cores.Basic
             return ref this.InternalBuffer[PreAllocSize];
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public unsafe void AppendWithData(ReadOnlySpan<T> data, int size = DefaultSize)
         {
             fixed (T* src = data)
                 AppendWithData(src, data.Length, size);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public unsafe void AppendWithData(T* data, int dataLength, int size = DefaultSize)
         {
             size = size._DefaultSize(dataLength);
@@ -3287,7 +3287,7 @@ namespace IPA.Cores.Basic
             Length += size;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public ref T Append(int size)
         {
             if (size == 0) return ref this.InternalBuffer[PreAllocSize + Length];
@@ -3402,7 +3402,7 @@ namespace IPA.Cores.Basic
             return ref this.InternalBuffer[pos];
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         void EnsurePreSize(int newPreSize)
         {
             if (PreAllocSize >= newPreSize) return;
@@ -3421,7 +3421,7 @@ namespace IPA.Cores.Basic
             InternalBuffer = newBuffer;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         void EnsurePostSize(int newPostSize)
         {
             if (PostAllocSize >= newPostSize) return;
@@ -3451,7 +3451,7 @@ namespace IPA.Cores.Basic
         int BufferSize;
         Span<T> Buffer;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public SpanBasedQueue(EnsureCtor yes, int initialBufferLength = DefaultSize, int maxQueueLength = DefaultSize)
         {
             this.MaxQueueLength = maxQueueLength._DefaultSize(CoresConfig.SpanBasedQueueSettings.DefaultMaxQueueLength);
@@ -3464,7 +3464,7 @@ namespace IPA.Cores.Basic
             this.Count = 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public unsafe void Enqueue(T item) /* 5 ns */
         {
             if (this.MaxQueueLength >= 1 && this.Count >= this.MaxQueueLength) return;
@@ -3479,7 +3479,7 @@ namespace IPA.Cores.Basic
             this.Count++;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public Span<T> DequeueAll()
         {
             var ret = this.Buffer.Slice(0, this.Count);
@@ -3728,48 +3728,48 @@ namespace IPA.Cores.Basic
         public readonly TStruct Value;
         public readonly int HashCode;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public BitStructKey(TStruct value)
         {
             this.Value = value;
             this.HashCode = this.Value._HashMarvin();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public int CompareTo(BitStructKey<TStruct> other)
         {
             return Util.StructBitCompare(in this.Value, in other.Value);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public bool Equals(BitStructKey<TStruct> other)
         {
             if (this.HashCode != other.HashCode) return false;
             return Util.StructBitEquals(in this.Value, in other.Value);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public override bool Equals(object? obj)
         {
             return Equals((BitStructKey<TStruct>)obj!);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public override int GetHashCode()
         {
             return this.HashCode;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public override string? ToString()
         {
             return this.Value.ToString();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static implicit operator TStruct(BitStructKey<TStruct> key) => key.Value;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static implicit operator BitStructKey<TStruct>(TStruct key) => new BitStructKey<TStruct>(key);
     }
 

@@ -395,7 +395,7 @@ namespace IPA.Cores.Basic
 
         public static readonly ReadOnlyMemory<byte> StandardPCapNgHeader = GenerateStandardPCapNgHeader().Span.ToArray();
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public unsafe static ref T _PCapEncapsulateHeader<T>(this ref Packet pkt, out PacketSpan<T> retSpan, PCapBlockType blockType, ReadOnlySpan<byte> options = default) where T : unmanaged
         {
             int currentSize = pkt.Span.Length;
@@ -506,11 +506,11 @@ namespace IPA.Cores.Basic
 
         public static long FastNow_TimeStampUsec
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            [MethodImpl(Inline)]
             get => ConvertSystemTimeToTimeStampUsec(FastTick64.SystemTimeNow_Fast);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public static long ConvertSystemTimeToTimeStampUsec(long systemTime)
         {
             if (systemTime <= 0) return 0;

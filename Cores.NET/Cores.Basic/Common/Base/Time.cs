@@ -206,7 +206,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         public long Tick64ToTime64Latest(long tick)
         {
             long ret = 0;
@@ -273,25 +273,25 @@ namespace IPA.Cores.Basic
 
         public static long SystemTimeNow_Fast
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            [MethodImpl(Inline)]
             get => History.Tick64ToTime64Latest(Now);
         }
 
         public static DateTime DateTimeNow_Fast
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            [MethodImpl(Inline)]
             get => Time.Time64ToDateTime(History.Tick64ToTime64Latest(Now));
         }
 
         public static DateTimeOffset DateTimeOffsetUtcNow_Fast
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            [MethodImpl(Inline)]
             get => Time.Time64ToDateTime(History.Tick64ToTime64Latest(Now))._AsDateTimeOffset(false);
         }
 
         public static DateTimeOffset DateTimeOffsetLocalNow_Fast
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            [MethodImpl(Inline)]
             get => Time.Time64ToDateTime(History.Tick64ToTime64Latest(Now))._AsDateTimeOffset(true);
         }
 

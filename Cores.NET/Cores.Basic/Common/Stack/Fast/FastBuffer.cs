@@ -461,7 +461,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         FastLinkedListNode<ReadOnlyMemory<T>>? GetNodeWithPin(long pin, out int offsetInSegment, out long nodePin)
         {
             checked
@@ -511,7 +511,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(Inline)]
         void GetOverlappedNodes(long pinStart, long pinEnd,
             out FastLinkedListNode<ReadOnlyMemory<T>> firstNode, out int firstNodeOffsetInSegment, out long firstNodePin,
             out FastLinkedListNode<ReadOnlyMemory<T>> lastNode, out int lastNodeOffsetInSegment, out long lastNodePin,
