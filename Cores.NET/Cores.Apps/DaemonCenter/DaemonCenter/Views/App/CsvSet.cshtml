@@ -4,9 +4,9 @@
 @{
     App app = Model.Data;
 
-    string appId = Model.Id;
+    string appId = Model.Id!;
 
-    Page.Title = $"App 「{app.Settings.AppName}」 のインスタンスの起動引数の一括設定";
+    Page.Title = $"App 「{app.Settings!.AppName}」 のインスタンスの起動引数の一括設定";
 }
 
 <h2 class="title is-4">@Page.Title</h2>

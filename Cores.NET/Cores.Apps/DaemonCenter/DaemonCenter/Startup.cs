@@ -33,8 +33,8 @@ namespace DaemonCenter
         readonly HttpServerStartupHelper StartupHelper;
         readonly AspNetLib AspNetLib;
 
-        Server DaemonCenterServer = null;
-        DaemonCenterServerRpcHttpHost DaemonCenterRpcHost = null;
+        Server? DaemonCenterServer = null;
+        DaemonCenterServerRpcHttpHost? DaemonCenterRpcHost = null;
 
         public Startup(IConfiguration configuration)
         {

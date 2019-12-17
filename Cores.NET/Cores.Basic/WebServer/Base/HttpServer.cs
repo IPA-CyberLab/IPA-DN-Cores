@@ -50,6 +50,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Http.Extensions;
 using Newtonsoft.Json;
 using System.Linq;
@@ -186,7 +188,7 @@ namespace IPA.Cores.Basic
 
             if (this.ServerOptions.AutomaticRedirectToHttpsIfPossible)
             {
-                services.AddEnforceHttps(_ => { } );
+                services.AddEnforceHttps(_ => { });
             }
 
             services.AddRouting();
@@ -197,53 +199,53 @@ namespace IPA.Cores.Basic
                 services.AddBasicAuth(opt => opt.PasswordValidatorAsync = this.SimpleBasicAuthenticationPasswordValidator);
             }
 
-        //    if (ServerOptions.RequireBasicAuthenticationToAllRequests)
-        //    {
-        //        services.AddAuthorization(options =>
-        //        {
-        //            options.AddPolicy(nameof(HttpServerAnyAuthenticationRequired), policy => policy.Requirements.Add(new HttpServerAnyAuthenticationRequired()));
-        //        });
-        //    }
+            //    if (ServerOptions.RequireBasicAuthenticationToAllRequests)
+            //    {
+            //        services.AddAuthorization(options =>
+            //        {
+            //            options.AddPolicy(nameof(HttpServerAnyAuthenticationRequired), policy => policy.Requirements.Add(new HttpServerAnyAuthenticationRequired()));
+            //        });
+            //    }
 
-        //    if (ServerOptions.UseSimpleBasicAuthentication)
-        //    {
-        //        // Simple BASIC authentication
-        //        services.AddAuthentication(BasicAuthDefaults.AuthenticationScheme)
-        //            .AddBasic(options =>
-        //            {
-        //                options.AllowInsecureProtocol = true;
-        //                options.Realm = this.ServerOptions.SimpleBasicAuthenticationRealm._FilledOrDefault("Auth");
+            //    if (ServerOptions.UseSimpleBasicAuthentication)
+            //    {
+            //        // Simple BASIC authentication
+            //        services.AddAuthentication(BasicAuthDefaults.AuthenticationScheme)
+            //            .AddBasic(options =>
+            //            {
+            //                options.AllowInsecureProtocol = true;
+            //                options.Realm = this.ServerOptions.SimpleBasicAuthenticationRealm._FilledOrDefault("Auth");
 
-        //                options.Events = new BasicAuthEvents
-        //                {
-        //                    OnValidateCredentials = async (context) =>
-        //                    {
-        //                        if (await this.SimpleBasicAuthenticationPasswordValidator(context.Username, context.Password))
-        //                        {
-        //                            var claims = new[]
-        //                            {
-        //                            new Claim(
-        //                                ClaimTypes.NameIdentifier,
-        //                                context.Username,
-        //                                ClaimValueTypes.String,
-        //                                context.Options.ClaimsIssuer),
+            //                options.Events = new BasicAuthEvents
+            //                {
+            //                    OnValidateCredentials = async (context) =>
+            //                    {
+            //                        if (await this.SimpleBasicAuthenticationPasswordValidator(context.Username, context.Password))
+            //                        {
+            //                            var claims = new[]
+            //                            {
+            //                            new Claim(
+            //                                ClaimTypes.NameIdentifier,
+            //                                context.Username,
+            //                                ClaimValueTypes.String,
+            //                                context.Options.ClaimsIssuer),
 
-        //                            new Claim(
-        //                                ClaimTypes.Name,
-        //                                context.Username,
-        //                                ClaimValueTypes.String,
-        //                                context.Options.ClaimsIssuer)
-        //                            };
+            //                            new Claim(
+            //                                ClaimTypes.Name,
+            //                                context.Username,
+            //                                ClaimValueTypes.String,
+            //                                context.Options.ClaimsIssuer)
+            //                            };
 
-        //                            context.Principal = new ClaimsPrincipal(
-        //                                new ClaimsIdentity(claims, context.Scheme.Name));
+            //                            context.Principal = new ClaimsPrincipal(
+            //                                new ClaimsIdentity(claims, context.Scheme.Name));
 
-        //                            context.Success();
-        //                        }
-        //                    }
-        //                };
-        //            });
-        //    }
+            //                            context.Success();
+            //                        }
+            //                    }
+            //                };
+            //            });
+            //    }
         }
 
         public void AddStaticFileProvider(string physicalDirectoryPath)
@@ -443,6 +445,26 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class StaticOptionsMonitor<T> : IOptionsMonitor<T>
+    {
+        public T CurrentValue { get; }
+
+        public StaticOptionsMonitor(T value)
+        {
+            this.CurrentValue = value;
+        }
+
+        public T Get(string name)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IDisposable OnChange(Action<T, string> listener)
+        {
+            return new EmptyDisposable();
+        }
+    }
+
     public class HttpServerOptions
     {
         // Settings which can be saved on the Hive
@@ -515,7 +537,9 @@ namespace IPA.Cores.Basic
                 {
                     if (this.DebugKestrelToConsole)
                     {
-                        logging.AddConsole();
+                        ConsoleLoggerOptions opt = new ConsoleLoggerOptions { DisableColors = false, IncludeScopes = true };
+
+                        logging.AddProvider(new ConsoleLoggerProvider(new StaticOptionsMonitor<ConsoleLoggerOptions>(opt)));
                     }
 
                     if (this.DebugKestrelToLog)
@@ -681,7 +705,10 @@ namespace IPA.Cores.Basic
 
         protected override async Task CleanupImplAsync(Exception? ex)
         {
-            await HostTask;
+            if (HostTask != null)
+            {
+                await HostTask;
+            }
 
             GlobalObjectExchange.TryWithdraw(ParamToken, out _);
             GlobalObjectExchange.TryWithdraw(CancelToken, out _);

@@ -2,7 +2,7 @@
 @model IReadOnlyList<KeyValuePair<string, App>>
 
 @{
-    IEnumerable<AppSettings> appList = Model.Select(x => x.Value).Select(x => x.Settings);
+    IEnumerable<AppSettings?> appList = Model.Select(x => x.Value).Select(x => x.Settings);
 }
 
 <h2 class="title is-4">DaemonCenter で管理されている App 一覧</h2>
@@ -10,7 +10,7 @@
 <table class="table is-hoverable is-bordered is-striped is-narrow is-fullwidth">
     <thead>
         <tr>
-            <th>@Html.DisplayNameFor(model => model.First().Value.Settings.AppName)</th>
+            <th>@Html.DisplayNameFor(model => model.First().Value.Settings!.AppName)</th>
             <th align="right">アクティブ</th>
             <th align="right">非アクティブ</th>
         </tr>
@@ -20,7 +20,7 @@
         {
             string appId = kv.Key;
             App app = kv.Value;
-            AppSettings settings = app.Settings;
+            AppSettings settings = app.Settings!;
 
             <tr>
                 <td><a asp-action="Status" asp-route-id="@appId"><b>@settings.AppName</b></a></td>

@@ -5,9 +5,9 @@
     App app = Model.Data;
     List<Instance> instanceList = Model.Data2;
 
-    string appId = Model.Id;
+    string appId = Model.Id!;
 
-    Page.Title = $"App 「{app.Settings.AppName}」 のインスタンス一覧";
+    Page.Title = $"App 「{app.Settings!.AppName}」 のインスタンス一覧";
 }
 
 <h2 class="title is-4">@Page.Title</h2>
@@ -66,7 +66,7 @@
                         {
                             if (inst.IsRestarting == false)
                             {
-                                if (inst.LastStat.PauseFlag == PauseFlag.Pause)
+                                if (inst.LastStat!.PauseFlag == PauseFlag.Pause)
                                 {
                                     // 停止中
                                     <span class="icon"><i class="fas fa-pause"></i></span>
@@ -90,7 +90,7 @@
                         }
                     </td>
                     <td nowrap>
-                        @inst.LastStat.PauseFlag._GetFriendlyString()
+                        @inst.LastStat!.PauseFlag._GetFriendlyString()
                         @if (inst.NextPauseFlag != PauseFlag.None)
                         {
                             <BR /><text>次回: @inst.NextPauseFlag._GetFriendlyString()</text>
@@ -104,7 +104,7 @@
                     <td>
                         @if (inst.IsActive(app.Settings, Page.Now))
                         {
-                            if (inst.LastStat.MetaStatusDictionary.TryGetValue(Consts.DaemonMetaStatKeys.CurrentLogFileBrowserUrl, out string browseUrl))
+                            if (inst.LastStat.MetaStatusDictionary.TryGetValue(Consts.DaemonMetaStatKeys.CurrentLogFileBrowserUrl, out string? browseUrl))
                             {
                                 <a href="@browseUrl" target="_blank"><b>ブラウズ</b></a>
                             }
@@ -113,7 +113,7 @@
                     <td>
                         @if (inst.IsActive(settings, Page.Now))
                         {
-                            @inst.LastStat.EnvInfo.BootTime.LocalDateTime._ToDtStr()<BR />@Str.GetTimeSpanStr(Page.Now - inst.LastStat.EnvInfo.BootTime)<text> 前</text>
+                            @inst.LastStat.EnvInfo!.BootTime.LocalDateTime._ToDtStr()<BR />@Str.GetTimeSpanStr(Page.Now - inst.LastStat.EnvInfo.BootTime)<text> 前</text>
                         }
                     </td>
                     <td nowrap>@inst.LastAlive.LocalDateTime._ToDtStr()<BR />@Str.GetTimeSpanStr(Page.Now - inst.LastAlive) 前</td>
