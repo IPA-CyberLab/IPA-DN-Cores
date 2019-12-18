@@ -333,6 +333,7 @@ namespace IPA.Cores.ClientApi.GoogleApi
 
     public class GoogleMapsDurationResult : GoogleMapsResultBase
     {
+        public string? RouteSummary;
         public double DistanceKm;
         public TimeSpan Duration;
         public string? EndAddress;
@@ -388,6 +389,8 @@ namespace IPA.Cores.ClientApi.GoogleApi
                     {
                         result.Duration = new TimeSpan(0, 0, (int)d.routes[0].legs[0].duration.value);
                     }
+
+                    result.RouteSummary = d.routes[0].summary;
 
                     result.StartAddress = d.routes[0].legs[0].start_address;
                     result.EndAddress = d.routes[0].legs[0].end_address;

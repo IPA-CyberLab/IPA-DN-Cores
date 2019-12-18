@@ -57,6 +57,7 @@ namespace IPA.TestDev
 
             public TimeSpan Duration;
             public double DistanceKm;
+            public string? RouteSummary;
         }
 
         [ConsoleCommand(
@@ -111,7 +112,9 @@ namespace IPA.TestDev
                             r.Error = "";
                             r.Duration = result.Duration;
                             r.DistanceKm = result.DistanceKm;
-                            $"  {r.Duration} - {r.DistanceKm} km"._Print();
+                            r.RouteSummary = result.RouteSummary;
+
+                            $"  {r.Duration} - {r.DistanceKm} km ({r.RouteSummary})"._Print();
                         }
                         else
                         {
