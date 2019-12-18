@@ -1,5 +1,4 @@
 ﻿
-#nullable disable
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -17,6 +16,128 @@ using Newtonsoft.Json.Linq;
 
 using IPA.Cores.Helper.Basic;
 using IPA.Cores.Basic;
+
+
+using System.Net;
+using System.Net.Sockets;
+using System.Runtime.Serialization.Json;
+using System.Security.AccessControl;
+using System.Runtime.CompilerServices;
+using System.Runtime.Serialization;
+using System.Diagnostics;
+using System.Reflection;
+
+using static IPA.Cores.Globals.Basic;
+using System.Runtime.InteropServices;
+using IPA.Cores.ClientApi.Acme;
+using Newtonsoft.Json.Converters;
+using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Http;
+
+using Microsoft.Extensions.FileProviders;
+using System.Web;
+using IPA.Cores.Basic.App.DaemonCenterLib;
+using IPA.Cores.ClientApi.GoogleApi;
+
+
+namespace IPA.TestDev
+{
+    partial class TestDevCommands
+    {
+        public class DirectionCrossResults
+        {
+            public string? Start;
+            public string? End;
+            public string? Error;
+            public string? StartAddress;
+            public string? EndAddress;
+
+            public TimeSpan Duration;
+            public double DistanceKm;
+        }
+
+        [ConsoleCommand(
+            "Google Maps 所要時間クロス表の作成",
+            "GoogleMapsDirectionCross [dir]",
+            "Google Maps 所要時間クロス表の作成",
+            "[dir]:You can specify the directory.")]
+        static int GoogleMapsDirectionCross(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[dir]", ConsoleService.Prompt, "Directory path: ", ConsoleService.EvalNotEmpty, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string dir = vl.DefaultParam.StrValue;
+
+            string apiKey = Lfs.ReadStringFromFile(dir._CombinePath("ApiKey.txt"), oneLine: true);
+
+            string srcListText = Lfs.ReadStringFromFile(dir._CombinePath("Source.txt"));
+            string destListText = Lfs.ReadStringFromFile(dir._CombinePath("Destination.txt"));
+
+            string[] srcList = srcListText._GetLines();
+            string[] destList = destListText._GetLines();
+
+            using var googleMapsApi = new GoogleMapsApi(new GoogleMapsApiSettings(apiKey: apiKey));
+
+            DateTimeOffset departure = Util.GetStartOfDay(DateTime.Now.AddDays(2))._AsDateTimeOffset(isLocalTime: true);
+
+            List<DirectionCrossResults> csv = new List<DirectionCrossResults>();
+
+            foreach (string src in srcList)
+            {
+                foreach (string dest in destList)
+                {
+                    Console.WriteLine($"「{src}」 → 「{dest}」 ...");
+
+                    DirectionCrossResults r = new DirectionCrossResults();
+
+                    r.Start = src;
+                    r.End = dest;
+
+                    try
+                    {
+                        var result = googleMapsApi.CalcDurationAsync(src, dest, departure)._GetResult();
+
+                        if (result.IsError == false)
+                        {
+                            r.StartAddress = result.StartAddress;
+                            r.EndAddress = result.EndAddress;
+                            r.Error = "";
+                            r.Duration = result.Duration;
+                            r.DistanceKm = result.DistanceKm;
+                            $"  {r.Duration} - {r.DistanceKm} km"._Print();
+                        }
+                        else
+                        {
+                            r.Error = result.ErrorString;
+                            r.Error._Print();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                        r.Error = ex.Message;
+                    }
+
+                    csv.Add(r);
+                }
+            }
+
+            string csvText = csv._ObjectArrayToCsv(withHeader: true);
+
+            Lfs.WriteStringToFile(dir._CombinePath("Result.csv"), csvText, writeBom: true);
+
+            return 0;
+        }
+    }
+}
+
 
 class LetsEncryptClient
 {
@@ -61,6 +182,12 @@ class LetsEncryptClient
             return value;
         }
     }
+
+
+
+
+
+#nullable disable
 
     /// <summary>
     ///     In our scenario, we assume a single single wizard progressing

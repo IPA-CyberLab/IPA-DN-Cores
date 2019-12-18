@@ -285,6 +285,123 @@ namespace IPA.Cores.ClientApi.GoogleApi
             return profile;
         }
     }
+
+    public class GoogleMapsApiSettings
+    {
+        public string Language { get; }
+        public string ApiKey { get; }
+
+        public GoogleMapsApiSettings(string apiKey, string language = "ja")
+        {
+            ApiKey = apiKey;
+            Language = language;
+        }
+    }
+
+    public enum GoogleMapsMethod
+    {
+        driving,
+        walking,
+        transit,
+    }
+
+    public enum GoogleMapsTrafficModel
+    {
+        best_guess,
+        optimistic,
+        pessimistic,
+    }
+
+    public abstract class GoogleMapsResultBase
+    {
+        public bool IsOk { get; set; } = true;
+        public bool IsError => !IsOk;
+        public string ErrorString { get; set; } = "";
+
+        public void SetError(string errorString)
+        {
+            this.IsOk = false;
+            this.ErrorString = errorString;
+        }
+
+        public void ClearError()
+        {
+            this.IsOk = true;
+            this.ErrorString = "";
+        }
+    }
+
+    public class GoogleMapsDurationResult : GoogleMapsResultBase
+    {
+        public double DistanceKm;
+        public TimeSpan Duration;
+        public string? EndAddress;
+        public string? StartAddress;
+    }
+
+    public class GoogleMapsApi : WebApi
+    {
+        public GoogleMapsApiSettings Settings { get; }
+
+        public GoogleMapsApi(GoogleMapsApiSettings settings)
+        {
+            this.Settings = settings;
+        }
+
+        public async Task<GoogleMapsDurationResult> CalcDurationAsync(string start, string end,
+            DateTimeOffset departureTime = default,
+            GoogleMapsMethod method = GoogleMapsMethod.driving,
+            GoogleMapsTrafficModel trafficModel = GoogleMapsTrafficModel.best_guess, CancellationToken cancel = default)
+        {
+            if (departureTime == default) departureTime = DateTimeOffset.Now;
+
+            WebRet ret = await this.SimpleQueryAsync(WebMethods.GET, "https://maps.googleapis.com/maps/api/directions/json", cancel, null,
+                ("key", this.Settings.ApiKey),
+                ("language", this.Settings.Language),
+                ("origin", start),
+                ("destination", end),
+                ("mode", method.ToString()),
+                ("departure_time", departureTime.ToUnixTimeSeconds().ToString()),
+                ("traffic_model", trafficModel.ToString()));
+
+            dynamic d = ret.JsonDynamic!;
+
+            //ret.Data._GetString_UTF8()._Print();
+
+            GoogleMapsDurationResult result = new GoogleMapsDurationResult();
+
+            if (d.status != "OK")
+            {
+                result.SetError((string)d.status);
+            }
+            else
+            {
+                try
+                {
+                    result.DistanceKm = (double)d.routes[0].legs[0].distance.value / 1000.0;
+
+                    if (d.routes[0].legs[0].duration_in_traffic != null)
+                    {
+                        result.Duration = new TimeSpan(0, 0, (int)d.routes[0].legs[0].duration_in_traffic.value);
+                    }
+                    else
+                    {
+                        result.Duration = new TimeSpan(0, 0, (int)d.routes[0].legs[0].duration.value);
+                    }
+
+                    result.StartAddress = d.routes[0].legs[0].start_address;
+                    result.EndAddress = d.routes[0].legs[0].end_address;
+                }
+                catch
+                {
+                    ret.Data._GetString_UTF8()._Debug();
+                    throw;
+                }
+            }
+
+            return result!;
+        }
+    }
 }
 
 #endif  // CORES_BASIC_JSON
