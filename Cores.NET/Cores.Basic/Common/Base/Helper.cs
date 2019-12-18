@@ -327,7 +327,7 @@ namespace IPA.Cores.Helper.Basic
         public static bool _IsAscii(this char c) => Str.IsAscii(c);
         public static bool _IsAscii(this string str) => Str.IsAscii(str);
 
-        public static string[] _GetLines(this string s) => Str.GetLines(s);
+        public static string[] _GetLines(this string s, bool removeEmpty = false) => Str.GetLines(s, removeEmpty);
         public static bool _GetKeyAndValue(this string s, out string key, out string value, string splitStr = Consts.Strings.DefaultKeyAndValueSplitStr) => Str.GetKeyAndValue(s, out key, out value, splitStr);
         public static void _SplitUrlAndQueryString(this string src, out string url, out string queryString) => Str.SplitUrlAndQueryString(src, out url, out queryString);
         public static bool _IsDouble(this string s) => Str.IsDouble(s);

@@ -81,8 +81,8 @@ namespace IPA.TestDev
             string srcListText = Lfs.ReadStringFromFile(dir._CombinePath("Source.txt"));
             string destListText = Lfs.ReadStringFromFile(dir._CombinePath("Destination.txt"));
 
-            string[] srcList = srcListText._GetLines();
-            string[] destList = destListText._GetLines();
+            string[] srcList = srcListText._GetLines(removeEmpty: true);
+            string[] destList = destListText._GetLines(removeEmpty: true);
 
             using var googleMapsApi = new GoogleMapsApi(new GoogleMapsApiSettings(apiKey: apiKey));
 

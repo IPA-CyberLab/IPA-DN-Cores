@@ -5405,7 +5405,7 @@ namespace IPA.Cores.Basic
         }
 
         // テキストから複数行を取り出す
-        public static string[] GetLines(string str)
+        public static string[] GetLines(string str, bool removeEmpty = false)
         {
             List<string> a = new List<string>();
             StringReader sr = new StringReader(str);
@@ -5416,7 +5416,10 @@ namespace IPA.Cores.Basic
                 {
                     break;
                 }
-                a.Add(s);
+                if (removeEmpty == false || s._IsFilled())
+                {
+                    a.Add(s);
+                }
             }
             return a.ToArray();
         }
