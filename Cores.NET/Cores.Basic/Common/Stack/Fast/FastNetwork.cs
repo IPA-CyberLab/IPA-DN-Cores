@@ -633,6 +633,8 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // test
+
     public class PipeStream : StreamImplBase
     {
         public bool AutoFlush { get; set; }
