@@ -3238,6 +3238,10 @@ namespace IPA.Cores.Basic
         {
             Type t = replaceClass.GetType();
 
+            List<KeyValuePair<string, string>> list = new List<KeyValuePair<string, string>>();
+
+            // 要素を抽出
+
             MemberInfo[] members = t.GetMembers(BindingFlags.Instance | BindingFlags.Public);
             foreach (MemberInfo member in members)
             {
@@ -3261,8 +3265,22 @@ namespace IPA.Cores.Basic
                 if (from._IsFilled())
                 {
                     to = to._NonNull();
-                    str = str._ReplaceStr(from, to, caseSensitive);
+
+                    list.Add(new KeyValuePair<string, string>(from, to));
                 }
+            }
+
+            // 要素の文字列長順 (長い順) にソート (同じ場合は、文字列でソート)
+            list.Sort((x, y) =>
+            {
+                int r = -x.Key.Length.CompareTo(y.Key.Length);
+                if (r != 0) return r;
+                return string.Compare(x.Key, y.Key);
+            });
+
+            foreach (var kv in list)
+            {
+                str = str._ReplaceStr(kv.Key, kv.Value, caseSensitive);
             }
 
             return str;
