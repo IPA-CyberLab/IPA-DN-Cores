@@ -350,6 +350,8 @@ namespace IPA.Cores.Basic
         public string Extension { get; }
         public bool DiscardPendingDataOnDispose { get; set; } = false;
 
+        readonly static ConcurrentHashSet<string> DebugFileErrorPrintHashSet = new ConcurrentHashSet<string>(StrComparer.IgnoreCaseComparer);
+
         public int MaxPendingRecords { get; set; } = CoresConfig.Logger.DefaultMaxPendingRecords;
 
         LogInfoOptions InfoOptions { get; }
@@ -653,7 +655,12 @@ namespace IPA.Cores.Basic
                                 catch (Exception ex)
                                 {
                                     if (Dbg.IsConsoleDebugMode)
-                                        Console.WriteLine($"IO.FileCreate('{fileName}') failed. {ex.Message}");
+                                    {
+                                        if (DebugFileErrorPrintHashSet.Add(fileName))
+                                        {
+                                            Console.WriteLine($"IO.FileCreate('{fileName}') failed. {ex.Message}");
+                                        }
+                                    }
                                 }
                                 this.CurrentFilePointer = 0;
                             }
@@ -690,7 +697,13 @@ namespace IPA.Cores.Basic
                             catch (Exception ex)
                             {
                                 if (Dbg.IsConsoleDebugMode)
-                                    Console.WriteLine($"IO.FileCreate('{fileName}') failed. {ex.Message}");
+                                {
+                                    if (DebugFileErrorPrintHashSet.Add(fileName))
+                                    {
+                                        Console.WriteLine($"IO.FileCreate('{fileName}') failed. {ex.Message}");
+                                    }
+                                }
+
                                 await Task.Delay(30);
                             }
                         }
