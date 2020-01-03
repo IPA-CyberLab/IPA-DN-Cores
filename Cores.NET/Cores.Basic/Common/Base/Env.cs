@@ -431,10 +431,10 @@ namespace IPA.Cores.Basic
         // 現在のユーザーが管理者権限を有するかどうか確認をする
         static bool CheckIsAdmin()
         {
-            if (Env.IsUnix)
+            if (Env.IsUnix == false)
             {
-                // Windows: TODO
-                return true;
+                // Windows
+                return Win32ApiUtil.IsUserAnAdmin();
             }
             else
             {

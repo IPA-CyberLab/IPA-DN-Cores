@@ -86,6 +86,11 @@ namespace IPA.Cores.Basic
     {
         static readonly PathParser WindowsPathParser = PathParser.GetInstance(FileSystemStyle.Windows);
 
+        public static bool IsUserAnAdmin()
+        {
+            return Win32Api.Shell32.IsUserAnAdmin();
+        }
+
         public static bool IsUncServerRootPath(string path, [NotNullWhen(true)] out string? normalizedPath)
         {
             normalizedPath = null;
@@ -366,6 +371,17 @@ namespace IPA.Cores.Basic
             ReadOnlyMemoryBuffer<byte> inBuffer = ReadOnlyMemoryBuffer<byte>.FromStruct(data);
 
             await Win32Api.Kernel32.DeviceIoControlAsync(handle, Win32Api.Kernel32.EIOControlCode.FsctlSetZeroData, inBuffer, null, pathForReference, cancel);
+        }
+
+        public static async Task<Win32Api.Kernel32.DISK_GEOMETRY> DiskGetDriveGeometryAsync(SafeFileHandle handle, string pathForReference, CancellationToken cancel = default)
+        {
+            if (Env.IsWindows == false) throw new PlatformNotSupportedException();
+
+            MemoryBuffer<byte> outBuffer = new MemoryBuffer<byte>(Util.SizeOfStruct<Win32Api.Kernel32.DISK_GEOMETRY>());
+
+            await Win32Api.Kernel32.DeviceIoControlAsync(handle, Win32Api.Kernel32.EIOControlCode.DiskGetDriveGeometry, null, outBuffer, pathForReference, cancel);
+
+            return outBuffer.Memory._AsStructSafe<Win32Api.Kernel32.DISK_GEOMETRY>();
         }
 
         public static async Task SetSparseFileAsync(SafeFileHandle handle, string pathForReference, CancellationToken cancel = default)

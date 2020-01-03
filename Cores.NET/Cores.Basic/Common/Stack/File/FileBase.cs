@@ -850,12 +850,23 @@ namespace IPA.Cores.Basic
 
         readonly bool AutoDisposeBase;
 
-        public SeekableStreamBasedRandomAccess(Stream baseStream, bool autoDisposeBase = false)
+        readonly bool IsFileSizeFixed = false;
+
+        public SeekableStreamBasedRandomAccess(Stream baseStream, bool autoDisposeBase = false, long? fixedFileSize = null)
         {
             this.BaseStream = baseStream;
             this.AutoDisposeBase = autoDisposeBase;
 
-            this.InternalFileSize = GetFileSize(true);
+            if (fixedFileSize.HasValue)
+            {
+                IsFileSizeFixed = true;
+                this.InternalFileSize = fixedFileSize.Value;
+            }
+            else
+            {
+                this.InternalFileSize = GetFileSize(true);
+            }
+
             this.InternalPosition = 0;
         }
 
@@ -893,8 +904,9 @@ namespace IPA.Cores.Basic
             CheckIsOpened();
             cancel.ThrowIfCancellationRequested();
 
-            if (refresh)
-                InternalFileSize = BaseStream.Length;
+            if (this.IsFileSizeFixed == false)
+                if (refresh)
+                    InternalFileSize = BaseStream.Length;
 
             return InternalFileSize;
         }
@@ -925,7 +937,7 @@ namespace IPA.Cores.Basic
 
                 return r2;
             },
-            data, MicroOperationSize, position, cancel);
+            data, MicroOperationSize, position, cancel, this.IsFileSizeFixed ? this.InternalFileSize : -1);
 
             return r;
         }
@@ -935,6 +947,14 @@ namespace IPA.Cores.Basic
             if (size < 0) throw new ArgumentOutOfRangeException("size < 0");
             CheckIsOpened();
             cancel.ThrowIfCancellationRequested();
+
+            if (this.IsFileSizeFixed)
+            {
+                if (this.InternalFileSize != size)
+                {
+                    throw new CoresException($"File size is fixed with {this.InternalFileSize}. You cannot change the filesize to {size}.");
+                }
+            }
 
             BaseStream.SetLength(size);
 
@@ -952,6 +972,14 @@ namespace IPA.Cores.Basic
             {
                 // Append mode
                 position = this.InternalFileSize;
+            }
+
+            if (this.IsFileSizeFixed)
+            {
+                if (this.InternalFileSize < (position + data.Length))
+                {
+                    throw new CoresException($"File size is fixed with {this.InternalFileSize}. You cannot write beyond. Your write request was: pos = {position}, size = {data.Length}.");
+                }
             }
 
             if (this.InternalFileSize < position)
@@ -1208,7 +1236,7 @@ namespace IPA.Cores.Basic
         async Task DisposeInternalAsync()
         {
             this.Leak._DisposeSafe();
-            
+
             if (this.AutoDispose)
             {
                 await BaseStream._DisposeSafeAsync();

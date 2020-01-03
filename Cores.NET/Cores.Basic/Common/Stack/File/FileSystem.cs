@@ -77,6 +77,8 @@ namespace IPA.Cores.Basic
         public RandomAccessFileObject(FileSystem fileSystem, FileParameters fileParams, IRandomAccess<byte> baseRandomAccess) : base(fileSystem, fileParams)
         {
             this.Access = baseRandomAccess;
+
+            InitAndCheckFileSizeAndPosition(0, Access.GetFileSize(true));
         }
 
         Once Once;

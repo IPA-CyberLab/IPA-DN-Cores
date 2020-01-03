@@ -212,7 +212,7 @@ namespace IPA.Cores.Basic
             ProgressReporterFactoryBase? reporterFactory = null)
         {
             if (metadataCopier == null) metadataCopier = DefaultFileMetadataCopier;
-            if (bufferSize <= 0) bufferSize = CoresConfig.FileUtilSettings.DefaultSectorSize;
+            if (bufferSize <= 0) bufferSize = CoresConfig.FileUtilSettings.FileCopyBufferSize;
             if (reporterFactory == null) reporterFactory = NullReporterFactory;
             if (ignoreReadErrorSectorSize <= 0) ignoreReadErrorSectorSize = CoresConfig.FileUtilSettings.DefaultSectorSize;
 
@@ -480,7 +480,7 @@ namespace IPA.Cores.Basic
 
                                 Ref<uint> srcZipCrc = new Ref<uint>();
 
-                                long copiedSize = await CopyBetweenHandleAsync(srcFile, destFile, param, reporter, srcFileMetadata.Size, cancel, readErrorIgnored, srcZipCrc);
+                                long copiedSize = await CopyBetweenFileBaseAsync(srcFile, destFile, param, reporter, srcFileMetadata.Size, cancel, readErrorIgnored, srcZipCrc);
 
                                 if (param.Flags.Bit(FileFlags.CopyFile_Verify) && param.IgnoreReadError == false)
                                 {
@@ -580,8 +580,15 @@ namespace IPA.Cores.Basic
             return srcCrc.Value;
         }
 
-        static async Task<long> CopyBetweenHandleAsync(FileBase src, FileBase dest, CopyFileParams param, ProgressReporterBase reporter, long estimatedSize, CancellationToken cancel, RefBool readErrorIgnored, Ref<uint> srcZipCrc)
+        public static async Task<long> CopyBetweenFileBaseAsync(FileBase src, FileBase dest, CopyFileParams? param = null, ProgressReporterBase? reporter = null,
+            long estimatedSize = -1, CancellationToken cancel = default, RefBool? readErrorIgnored = null, Ref<uint>? srcZipCrc = null, long truncateSize = -1)
         {
+            if (param == null) param = new CopyFileParams();
+            if (reporter == null) reporter = new NullProgressReporter(null);
+            if (readErrorIgnored == null) readErrorIgnored = new RefBool();
+            if (srcZipCrc == null) srcZipCrc = new Ref<uint>();
+            if (estimatedSize < 0) estimatedSize = src.Size;
+
             ZipCrc32 srcCrc = new ZipCrc32();
 
             readErrorIgnored.Set(false);
@@ -594,6 +601,9 @@ namespace IPA.Cores.Basic
                 {
                     long fileSize = src.Size;
                     int errorCounter = 0;
+
+                    if (truncateSize >= 0)
+                        fileSize = truncateSize; // Truncate
 
                     // Ignore read error mode
                     using (MemoryHelper.FastAllocMemoryWithUsing(param.IgnoreReadErrorSectorSize, out Memory<byte> buffer))
@@ -646,14 +656,28 @@ namespace IPA.Cores.Basic
                     {
                         while (true)
                         {
-                            int readSize = await src.ReadAsync(buffer, cancel);
+                            Memory<byte> thisTimeBuffer = buffer;
 
-                            Debug.Assert(readSize <= buffer.Length);
+                            if (truncateSize >= 0)
+                            {
+                                // Truncate
+                                long remainSize = Math.Max(truncateSize - currentPosition, 0);
+
+                                if (thisTimeBuffer.Length > remainSize)
+                                {
+                                    thisTimeBuffer = thisTimeBuffer.Slice(0, (int)remainSize);
+                                }
+
+                                if (remainSize == 0) break;
+                            }
+
+                            int readSize = await src.ReadAsync(thisTimeBuffer, cancel);
+
+                            Debug.Assert(readSize <= thisTimeBuffer.Length);
 
                             if (readSize <= 0) break;
 
-                            ReadOnlyMemory<byte> sliced = buffer.Slice(0, readSize);
-
+                            ReadOnlyMemory<byte> sliced = thisTimeBuffer.Slice(0, readSize);
 
                             if (param.Flags.Bit(FileFlags.CopyFile_Verify))
                             {
@@ -678,13 +702,30 @@ namespace IPA.Cores.Basic
                             int number = 0;
                             int writeSize = 0;
 
+                            long currentReadPosition = 0;
+
                             Memory<byte>[] buffers = new Memory<byte>[2] { buffer1, buffer2 };
 
                             while (true)
                             {
                                 Memory<byte> buffer = buffers[(number++) % 2];
 
-                                int readSize = await src.ReadAsync(buffer, cancel);
+                                Memory<byte> thisTimeBuffer = buffer;
+
+                                if (truncateSize >= 0)
+                                {
+                                    // Truncate
+                                    long remainSize = Math.Max(truncateSize - currentReadPosition, 0);
+
+                                    if (thisTimeBuffer.Length > remainSize)
+                                    {
+                                        thisTimeBuffer = thisTimeBuffer.Slice(0, (int)remainSize);
+                                    }
+
+                                    if (remainSize == 0) break;
+                                }
+
+                                int readSize = await src.ReadAsync(thisTimeBuffer, cancel);
 
                                 Debug.Assert(readSize <= buffer.Length);
 
@@ -696,6 +737,8 @@ namespace IPA.Cores.Basic
                                 }
 
                                 if (readSize <= 0) break;
+
+                                currentReadPosition += readSize;
 
                                 writeSize = readSize;
 

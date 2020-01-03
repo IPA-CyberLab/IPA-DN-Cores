@@ -316,6 +316,56 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                using (var fs = new LocalRawDiskFileSystem())
+                {
+                    //fs.EnumDirectory("/").Where(x=>x.Name.EndsWith("11"))._PrintAsJson();
+
+                    //using (var f = fs.Open("/PhysicalDrive11"))
+                    //{
+                    //    Memory<byte> data = new byte[4096 * 16];
+                    //    long totalReadSize = 0;
+
+                    //    // skip
+                    //    long skipSize = f.Size - 4096 * 16 * 812;
+
+                    //    f.Seek(skipSize, SeekOrigin.Begin);
+                    //    totalReadSize = skipSize;
+
+                    //    while (true)
+                    //    {
+                    //        totalReadSize._Print();
+                    //        int r = f.Read(data);
+                    //        if (r == 0) break;
+                    //        totalReadSize += r;
+                    //    }
+                    //}
+
+                    //if (false)
+                    //{
+                    //    using (var disk = fs.Open("/PhysicalDrive11"))
+                    //    {
+                    //        using (var file = Lfs.Create(@"c:\tmp\200103\test1.dat", flags: FileFlags.AutoCreateDirectory))
+                    //        {
+                    //            FileUtil.CopyBetweenFileBaseAsync(disk, file, truncateSize: 140 * 1024 * 1024, param: new CopyFileParams(asyncCopy: true))._GetResult();
+                    //        }
+                    //    }
+                    //}
+                    //else
+                    //{
+                    //    using (var disk = fs.Open("/PhysicalDrive11", writeMode: true))
+                    //    {
+                    //        using (var file = Lfs.Open(@"C:\Downloads\2019-09-26-raspbian-buster-lite.ddi"))
+                    //        {
+                    //            FileUtil.CopyBetweenFileBaseAsync(file, disk, param: new CopyFileParams(asyncCopy: true))._GetResult();
+                    //        }
+                    //    }
+                    //}
+                }
+                return;
+            }
+
+            if (true)
+            {
                 List<TestClass1> o = new List<TestClass1>();
                 o.Add(new TestClass1 { a = "hello", b = "World", c = "a,b,c" });
                 o.Add(new TestClass1 { a = null, b = "neko", c = "x\"y" });

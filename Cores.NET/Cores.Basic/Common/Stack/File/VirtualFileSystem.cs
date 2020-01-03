@@ -44,6 +44,7 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Collections.Immutable;
 using Microsoft.Extensions.FileProviders;
+using System.Diagnostics.CodeAnalysis;
 
 #pragma warning disable CS1998
 
@@ -724,7 +725,7 @@ namespace IPA.Cores.Basic
 
         public delegate Task<VfsFile> CreateFileCallback(string newFilename, FileParameters newFileOption, CancellationToken cancel);
 
-        protected async Task<FileObject> AddFileAsync(FileParameters option, CreateFileCallback createFileCallback, CancellationToken cancel = default)
+        protected async Task<FileObject> AddFileAsync(FileParameters option, CreateFileCallback createFileCallback, CancellationToken cancel = default, bool noOpen = false)
         {
             using (VfsPathParserContext ctx = await ParsePathInternalAsync(option.Path, cancel))
             {
@@ -738,7 +739,14 @@ namespace IPA.Cores.Basic
                             throw new VfsException(option.Path, $"The file already exists.");
                         }
 
-                        return await file.OpenAsync(option, ctx.NormalizedPath, cancel);
+                        if (noOpen == false)
+                        {
+                            return await file.OpenAsync(option, ctx.NormalizedPath, cancel);
+                        }
+                        else
+                        {
+                            return null!;
+                        }
                     }
                     else
                     {
@@ -768,7 +776,14 @@ namespace IPA.Cores.Basic
                         throw;
                     }
 
-                    return await newFile.OpenAsync(option, fullPath, cancel);
+                    if (noOpen == false)
+                    {
+                        return await newFile.OpenAsync(option, fullPath, cancel);
+                    }
+                    else
+                    {
+                        return null!;
+                    }
                 }
                 else
                 {

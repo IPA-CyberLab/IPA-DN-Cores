@@ -989,13 +989,26 @@ namespace IPA.Cores.Basic
             LeakCounterKind.EnterCriticalCounter);
         }
 
-        public static async Task<int> DoMicroReadOperations(Func<Memory<byte>, long, CancellationToken, Task<int>> microWriteOperation, Memory<byte> data, int maxSingleSize, long currentPosition, CancellationToken cancel = default)
+        public static async Task<int> DoMicroReadOperations(Func<Memory<byte>, long, CancellationToken, Task<int>> microWriteOperation, Memory<byte> data, int maxSingleSize,
+            long startPosition, CancellationToken cancel = default, long fixedTotalSize = -1)
         {
             checked
             {
                 if (data.Length == 0) return 0;
+
                 maxSingleSize = Math.Max(maxSingleSize, 1);
-                int totalSize = 0;
+                int totalProcessedSize = 0;
+
+                if (fixedTotalSize >= 0)
+                {
+                    long remainSize = Math.Max(fixedTotalSize - startPosition, 0);
+                    if (remainSize == 0) return 0;
+
+                    if (data.Length > remainSize)
+                    {
+                        data = data.Slice(0, (int)remainSize);
+                    }
+                }
 
                 while (data.Length >= 1)
                 {
@@ -1004,7 +1017,7 @@ namespace IPA.Cores.Basic
                     int targetSize = Math.Min(maxSingleSize, data.Length);
                     Memory<byte> target = data.Slice(0, targetSize);
 
-                    int r = await microWriteOperation(target, currentPosition + totalSize, cancel);
+                    int r = await microWriteOperation(target, startPosition + totalProcessedSize, cancel);
 
                     if (r < 0)
                         throw new ApplicationException($"microWriteOperation returned '{r}'.");
@@ -1014,10 +1027,10 @@ namespace IPA.Cores.Basic
 
                     data = data.Slice(r);
 
-                    totalSize += r;
+                    totalProcessedSize += r;
                 }
 
-                return totalSize;
+                return totalProcessedSize;
             }
         }
 

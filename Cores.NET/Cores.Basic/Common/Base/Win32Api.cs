@@ -89,6 +89,7 @@ namespace IPA.Cores.Basic
             internal const string BCrypt = "BCrypt.dll";
             internal const string Crypt32 = "crypt32.dll";
             internal const string Kernel32 = "kernel32.dll";
+            internal const string Shell32 = "shell32.dll";
             internal const string NetApi32 = "Netapi32.dll";
             internal const string Ole32 = "ole32.dll";
             internal const string OleAut32 = "oleaut32.dll";
@@ -341,6 +342,13 @@ namespace IPA.Cores.Basic
                 else
                     return ((ulong)high << 32) + low;
             }
+        }
+
+        internal static partial class Shell32
+        {
+            [DllImport(Libraries.Shell32, SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool IsUserAnAdmin();
         }
 
         internal static partial class NetApi32
@@ -1038,6 +1046,54 @@ namespace IPA.Cores.Basic
                     ftLastWriteTimeHigh = findData.ftLastWriteTime.dwHighDateTime;
                     fileSizeHigh = findData.nFileSizeHigh;
                     fileSizeLow = findData.nFileSizeLow;
+                }
+            }
+
+            internal enum NativeDiskType : uint
+            {
+                Unknown,
+                F5_1Pt2_512,
+                F3_1Pt44_512,
+                F3_2Pt88_512,
+                F3_20Pt8_512,
+                F3_720_512,
+                F5_360_512,
+                F5_320_512,
+                F5_320_1024,
+                F5_180_512,
+                F5_160_512,
+                RemovableMedia,
+                FixedMedia,
+                F3_120M_512,
+                F3_640_512,
+                F5_640_512,
+                F5_720_512,
+                F3_1Pt2_512,
+                F3_1Pt23_1024,
+                F5_1Pt23_1024,
+                F3_128Mb_512,
+                F3_230Mb_512,
+                F8_256_128,
+                F3_200Mb_512,
+                F3_240M_512,
+                F3_32M_512
+            }
+
+            [StructLayout(LayoutKind.Sequential)]
+            internal struct DISK_GEOMETRY
+            {
+                public long Cylinders;
+                public NativeDiskType MediaType;
+                public int TracksPerCylinder;
+                public int SectorsPerTrack;
+                public int BytesPerSector;
+
+                public long DiskSize
+                {
+                    get
+                    {
+                        return Cylinders * (long)TracksPerCylinder * (long)SectorsPerTrack * (long)BytesPerSector;
+                    }
                 }
             }
 
