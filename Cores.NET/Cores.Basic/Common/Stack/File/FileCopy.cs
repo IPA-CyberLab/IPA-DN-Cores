@@ -589,6 +589,11 @@ namespace IPA.Cores.Basic
             if (srcZipCrc == null) srcZipCrc = new Ref<uint>();
             if (estimatedSize < 0) estimatedSize = src.Size;
 
+            if (truncateSize >= 0)
+            {
+                estimatedSize = Math.Min(estimatedSize, truncateSize);
+            }
+
             ZipCrc32 srcCrc = new ZipCrc32();
 
             readErrorIgnored.Set(false);
@@ -721,8 +726,6 @@ namespace IPA.Cores.Basic
                                     {
                                         thisTimeBuffer = thisTimeBuffer.Slice(0, (int)remainSize);
                                     }
-
-                                    if (remainSize == 0) break;
                                 }
 
                                 int readSize = await src.ReadAsync(thisTimeBuffer, cancel);

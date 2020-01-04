@@ -50,6 +50,118 @@ namespace IPA.TestDev
 {
     partial class TestDevCommands
     {
+        // Backup Physical Disk
+        [ConsoleCommand(
+            "RawDiskBackup command",
+            "RawDiskBackup [diskName] /dst:filename [/truncate:size]",
+            "RawDiskBackup command")]
+        static int RawDiskBackup(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[diskName]", ConsoleService.Prompt, "Physical disk name: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("dst", ConsoleService.Prompt, "Destination file name: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("truncate"),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string diskName = vl.DefaultParam.StrValue;
+            string dstFileName = vl["dst"].StrValue;
+            long truncate = vl["truncate"].StrValue._ToLong();
+            if (truncate <= 0)
+            {
+                truncate = -1;
+            }
+            else
+            {
+                truncate = (truncate + 4095L) / 4096L * 4096L;
+            }
+
+            using (var rawFs = new LocalRawDiskFileSystem())
+            {
+                using (var disk = rawFs.Open($"/{diskName}"))
+                {
+                    using (var file = Lfs.Create(dstFileName, flags: FileFlags.AutoCreateDirectory))
+                    {
+                        using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true), null))
+                        {
+                            FileUtil.CopyBetweenFileBaseAsync(disk, file, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024), reporter: reporter)._GetResult();
+                        }
+                    }
+                }
+            }
+
+            return 0;
+        }
+
+        // Restore Physical Disk
+        [ConsoleCommand(
+            "RawDiskRestore command",
+            "RawDiskRestore [diskName] /src:filename [/truncate:size]",
+            "RawDiskRestore command")]
+        static int RawDiskRestore(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[diskName]", ConsoleService.Prompt, "Physical disk name: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("src", ConsoleService.Prompt, "Source file name: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("truncate"),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string diskName = vl.DefaultParam.StrValue;
+            string dstFileName = vl["src"].StrValue;
+            long truncate = vl["truncate"].StrValue._ToLong();
+            if (truncate <= 0)
+            {
+                truncate = -1;
+            }
+            else
+            {
+                truncate = (truncate + 4095L) / 4096L * 4096L;
+            }
+
+            using (var rawFs = new LocalRawDiskFileSystem())
+            {
+                using (var disk = rawFs.Open($"/{diskName}", writeMode: true))
+                {
+                    using (var file = Lfs.Open(dstFileName, flags: FileFlags.AutoCreateDirectory))
+                    {
+                        using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true), null))
+                        {
+                            FileUtil.CopyBetweenFileBaseAsync(file, disk, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024), reporter: reporter)._GetResult();
+                        }
+                    }
+                }
+            }
+
+            return 0;
+        }
+
+        // Enum Physical Disks
+        [ConsoleCommand(
+            "RawDiskEnum command",
+            "RawDiskEnum",
+            "RawDiskEnum command")]
+        static void RawDiskEnum()
+        {
+            using (var rawFs = new LocalRawDiskFileSystem())
+            {
+                Con.WriteLine();
+
+                var items = rawFs.EnumDirectory("/");
+
+                foreach (var item in items.Where(x => x.IsFile))
+                {
+                    Con.WriteLine($"{item.Name}    -  {item.Size._ToString3()} bytes");
+                }
+
+                Con.WriteLine();
+            }
+        }
+
         // 指定されたディレクトリを DirSuperBackup を用いてバックアップする
         // 指定されたディレクトリやサブディレクトリを列挙し結果をファイルに書き出す
         [ConsoleCommand(
