@@ -4956,7 +4956,7 @@ namespace IPA.Cores.Basic
         public long? TotalCount { get; }
         public bool IsFinish { get; }
 
-        public ProgressData(long currentCount, long? totalCount, bool isFinish = false)
+        public ProgressData(long currentCount, long? totalCount = null, bool isFinish = false)
         {
             this.CurrentCount = currentCount;
             this.TotalCount = totalCount;
@@ -5339,7 +5339,7 @@ namespace IPA.Cores.Basic
                 try
                 {
                     if (outputs.Bit(ProgressReporterOutputs.Console))
-                        Con.WriteLine(str);
+                        Console.WriteLine(str);
                 }
                 catch { }
 

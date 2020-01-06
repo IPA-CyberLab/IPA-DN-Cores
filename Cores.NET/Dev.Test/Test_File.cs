@@ -50,6 +50,97 @@ namespace IPA.TestDev
 {
     partial class TestDevCommands
     {
+        // 指定されたサブディレクトリにあるすべてのファイルを読む
+        [ConsoleCommand(
+            "ReadAllFiles command",
+            "ReadAllFiles [dirName]",
+            "ReadAllFiles command")]
+        static int ReadAllFiles(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[dirName]", ConsoleService.Prompt, "Directory name: ", ConsoleService.EvalNotEmpty, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string dirName = vl.DefaultParam.StrValue;
+
+            using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: false,
+                reportTimingSetting: new ProgressReportTimingSetting(false, 250)
+                ), null))
+            {
+                ReadAllFilesCtx ctx = new ReadAllFilesCtx();
+
+                ctx.DoMainAsync(reporter, dirName)._GetResult();
+            }
+
+            return 0;
+        }
+
+        class ReadAllFilesCtx
+        {
+            public long TotalReadSize = 0;
+            public long TotalReadNum = 0;
+            public long TotalErrorNum = 0;
+
+            readonly Memory<byte> TmpBuffer = new byte[4 * 1024 * 1024];
+
+            public async Task DoMainAsync(ProgressReporterBase r, string dirName)
+            {
+                await ProcessDirectoryAsync(r, dirName);
+
+                r.ReportProgress(new ProgressData(TotalReadSize));
+            }
+
+            async Task ProcessDirectoryAsync(ProgressReporterBase r, string dirName)
+            {
+                var entities = await Lfs.EnumDirectoryAsync(dirName, false, EnumDirectoryFlags.None);
+
+                foreach (var file in entities.Where(x => x.IsFile && x.IsSymbolicLink == false))
+                {
+                    TotalReadNum++;
+
+                    try
+                    {
+                        Con.WriteLine($"File '{file.FullPath}'");
+
+                        using (var f = Lfs.Open(file.FullPath))
+                        {
+                            while (true)
+                            {
+                                int readSize = await f.ReadAsync(this.TmpBuffer);
+                                if (readSize == 0) break;
+
+                                TotalReadSize += readSize;
+
+                                r.ReportProgress(new ProgressData(TotalReadSize));
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Con.WriteError($"Reading the file '{file.FullPath}' error. {ex.Message}");
+                        TotalErrorNum++;
+                    }
+                }
+
+                foreach (var dir in entities.Where(x => x.IsDirectory && x.Attributes.Bit(FileAttributes.ReparsePoint) == false && x.IsSymbolicLink == false))
+                {
+                    try
+                    {
+                        Con.WriteLine($"Directory '{dir.FullPath}'");
+
+                        await ProcessDirectoryAsync(r, dir.FullPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        Con.WriteError($"Processing the directory '{dir.FullPath}' error. {ex.Message}");
+                    }
+                }
+            }
+        }
+
         // Backup Physical Disk
         [ConsoleCommand(
             "RawDiskBackup command",
