@@ -67,7 +67,7 @@ namespace IPA.TestDev
             string dirName = vl.DefaultParam.StrValue;
 
             using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: false,
-                reportTimingSetting: new ProgressReportTimingSetting(false, 250)
+                reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
                 ), null))
             {
                 ReadAllFilesCtx ctx = new ReadAllFilesCtx();
@@ -105,7 +105,7 @@ namespace IPA.TestDev
 
                     try
                     {
-                        Con.WriteLine($"File '{file.FullPath}'");
+                        //Con.WriteLine($"File '{file.FullPath}'");
 
                         using (var f = Lfs.Open(file.FullPath))
                         {
@@ -131,7 +131,7 @@ namespace IPA.TestDev
                 {
                     try
                     {
-                        Con.WriteLine($"Directory '{dir.FullPath}'");
+                        //Con.WriteLine($"Directory '{dir.FullPath}'");
 
                         await ProcessDirectoryAsync(r, dir.FullPath);
                     }
