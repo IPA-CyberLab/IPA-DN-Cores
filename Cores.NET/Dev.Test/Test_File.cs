@@ -91,6 +91,8 @@ namespace IPA.TestDev
                 await ProcessDirectoryAsync(r, dirName);
 
                 r.ReportProgress(new ProgressData(TotalReadSize));
+
+                Con.WriteLine($"Finished!  TotalReadSize = {TotalReadSize._ToString3()}, TotalReadNum = {TotalReadNum._ToString3()}, TotalErrorNum = {TotalErrorNum._ToString3()}");
             }
 
             async Task ProcessDirectoryAsync(ProgressReporterBase r, string dirName)
