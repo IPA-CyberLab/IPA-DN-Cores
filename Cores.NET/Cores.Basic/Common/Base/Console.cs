@@ -2159,7 +2159,7 @@ namespace IPA.Cores.Basic
 
                         if ((token[0] == '-' && token[1] != '-') ||
                             (Str.StrCmpi(token, "--help")) ||
-                            (token[0] == '/' && token.Substring(1)._InStr("/") == false))
+                            (token[0] == '/' && (token.Substring(1)._InStr("/") == false && token.Substring(1)._InStr(".") == false)))
                         {
                             int j;
                             // 名前付き引数
