@@ -40,6 +40,8 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Data;
+using System.Data.Common;
 using System.Net.Sockets;
 using System.Runtime.Serialization.Json;
 using System.Security.AccessControl;
@@ -60,6 +62,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Http;
+
+using Microsoft.Data.Sqlite;
 
 using Microsoft.Extensions.FileProviders;
 using System.Web;
@@ -314,6 +318,33 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                string filename = @"\\server\share\200108dbtest\dbtest.sqlite";
+
+                Lfs.CreateDirectory(filename._GetDirectoryName()!);
+                using (var db = new Database($"Data Source='{filename}'", serverType: DatabaseServerType.SQLite))
+                {
+                    db.Execute("CREATE TABLE if not exists favorite_beers  (name VARCHAR(50))");
+
+                    using (var tran = db.UsingTran(IsolationLevel.ReadCommitted))
+                    {
+                        int i = 0;
+
+                        i++;
+                        db.Execute($"INSERT INTO favorite_beers VALUES('test {i}')");
+
+                        Con.ReadLine("wait>");
+
+                        i++;
+                        db.Execute($"INSERT INTO favorite_beers VALUES('test {i}')");
+
+                        db.Commit();
+                    }
+                }
+                return;
+            }
+
             if (true)
             {
                 using (var fs = new LocalRawDiskFileSystem())

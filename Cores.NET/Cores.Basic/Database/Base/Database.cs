@@ -36,6 +36,7 @@ using System;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
+using Microsoft.Data.Sqlite;
 using System.Text;
 using System.Collections;
 using System.Collections.Generic;
@@ -362,6 +363,14 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // データベースの種類
+    [Flags]
+    public enum DatabaseServerType
+    {
+        SQLServer = 0,
+        SQLite,
+    }
+
     // データベースアクセス
     public sealed class Database : AsyncService
     {
@@ -386,12 +395,33 @@ namespace IPA.Cores.Basic
         public IsolationLevel DefaultIsolationLevel { get; } = CoresConfig.Database.DefaultIsolationLevel;
 
         // コンストラクタ
-        public Database(string sqlServerConnectionString, IsolationLevel? defaultIsolationLevel = null, DeadlockRetryConfig? deadlockRetryConfig = null)
+        public Database(string dbServerConnectionString, IsolationLevel? defaultIsolationLevel = null, DeadlockRetryConfig? deadlockRetryConfig = null, DatabaseServerType serverType = DatabaseServerType.SQLServer)
         {
-            if (deadlockRetryConfig != null) this.DeadlockRetryConfig = deadlockRetryConfig;
-            if (defaultIsolationLevel != null) this.DefaultIsolationLevel = defaultIsolationLevel.Value;
+            try
+            {
+                if (deadlockRetryConfig != null) DeadlockRetryConfig = deadlockRetryConfig;
+                if (defaultIsolationLevel != null) this.DefaultIsolationLevel = defaultIsolationLevel.Value;
 
-            Connection = new SqlConnection(sqlServerConnectionString);
+                DbConnection? conn;
+
+                switch (serverType)
+                {
+                    case DatabaseServerType.SQLite:
+                        conn = new SqliteConnection(dbServerConnectionString);
+                        break;
+
+                    default:
+                        conn = new SqlConnection(dbServerConnectionString);
+                        break;
+                }
+
+                this.Connection = conn;
+            }
+            catch (Exception ex)
+            {
+                this._DisposeSafe(ex);
+                throw;
+            }
         }
 
         public Database(DbConnection dbConnection, IsolationLevel? defaultIsolationLevel = null, DeadlockRetryConfig? deadlockRetryConfig = null)
