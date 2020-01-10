@@ -744,6 +744,116 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class HttpFqdnReverseStrComparer : IEqualityComparer<string?>, IComparer<string?>
+    {
+        public int Compare(string? x, string? y)
+        {
+            x = x._NonNullTrim();
+            y = y._NonNullTrim();
+
+            if ((IgnoreCase)x == y) return 0;
+
+            if (x._TryParseUrl(out Uri? url_x, out _, null) == false ||
+                y._TryParseUrl(out Uri? url_y, out _, null) == false)
+            {
+                return string.Compare(x, y, StringComparison.OrdinalIgnoreCase);
+            }
+
+            url_x._MarkNotNull();
+            url_y._MarkNotNull();
+
+            string fqdn_x = url_x.DnsSafeHost._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
+            string fqdn_y = url_y.DnsSafeHost._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
+
+            int r = string.Compare(fqdn_x, fqdn_y, StringComparison.OrdinalIgnoreCase);
+            if (r != 0) return r;
+
+            r = string.Compare(url_x.PathAndQuery, url_y.PathAndQuery, StringComparison.OrdinalIgnoreCase);
+            if (r != 0) return r;
+
+            r = string.Compare(url_x.Scheme, url_y.Scheme, StringComparison.OrdinalIgnoreCase);
+            if (r != 0) return r;
+
+            r = url_x.Port.CompareTo(url_y.Port);
+
+            return r;
+        }
+
+        public bool Equals(string? x, string? y)
+        {
+            x = x._NonNullTrim();
+            y = y._NonNullTrim();
+
+            if ((IgnoreCase)x == y) return true;
+
+            if (x._TryParseUrl(out Uri? url_x, out _, null) == false ||
+                y._TryParseUrl(out Uri? url_y, out _, null) == false)
+            {
+                return string.Equals(x, y, StringComparison.OrdinalIgnoreCase);
+            }
+
+            url_x._MarkNotNull();
+            url_y._MarkNotNull();
+
+            string fqdn_x = url_x.DnsSafeHost._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
+            string fqdn_y = url_y.DnsSafeHost._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
+
+            if (string.Equals(fqdn_x, fqdn_y, StringComparison.OrdinalIgnoreCase) == false)
+                return false;
+
+            if (string.Equals(url_x.PathAndQuery, url_y.PathAndQuery, StringComparison.OrdinalIgnoreCase) == false)
+                return false;
+
+            if (string.Equals(url_x.Scheme, url_y.Scheme, StringComparison.OrdinalIgnoreCase) == false)
+                return false;
+
+            return url_x.Port.Equals(url_y.Port);
+        }
+
+        public int GetHashCode(string? obj)
+        {
+            obj = obj._NonNullTrim();
+
+            return obj.GetHashCode();
+        }
+    }
+
+    public class FqdnReverseStrComparer : IEqualityComparer<string?>, IComparer<string?>
+    {
+        public int Compare(string? x, string? y)
+        {
+            x = x._NonNullTrim();
+            y = y._NonNullTrim();
+
+            if ((IgnoreCase)x == y) return 0;
+
+            x = x._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
+            y = y._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
+
+            return string.Compare(x, y, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public bool Equals(string? x, string? y)
+        {
+            x = x._NonNullTrim();
+            y = y._NonNullTrim();
+
+            if ((IgnoreCase)x == y) return true;
+
+            x = x._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
+            y = y._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
+
+            return string.Equals(x, y, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public int GetHashCode(string? obj)
+        {
+            obj = obj._NonNullTrim();
+
+            return obj.GetHashCode();
+        }
+    }
+
     public class StrComparer : IEqualityComparer<string?>, IComparer<string?>
     {
         public static StrComparer IgnoreCaseComparer { get; } = new StrComparer(false);
@@ -753,6 +863,9 @@ namespace IPA.Cores.Basic
         public static ExtendedStrComparer SensitiveCaseTrimComparer { get; } = new ExtendedStrComparer(StringComparison.Ordinal);
 
         public static IpAddressStrComparer IpAddressStrComparer { get; } = new IpAddressStrComparer();
+
+        public static FqdnReverseStrComparer FqdnReverseStrComparer { get; } = new FqdnReverseStrComparer();
+        public static HttpFqdnReverseStrComparer HttpFqdnReverseStrComparer { get; } = new HttpFqdnReverseStrComparer();
 
         readonly static Singleton<StringComparison, StrComparer> FromComparisonCache = new Singleton<StringComparison, StrComparer>(x => new StrComparer(x));
 
@@ -3863,16 +3976,10 @@ namespace IPA.Cores.Basic
         }
 
         // オブジェクトのデータを CSV に変換する
-        public static string ObjectDataToCsv<T>(T obj)
-            where T: notnull
+        public static string ObjectDataToCsv<T>(T obj, FieldReaderWriter? rw = null) where T : notnull
         {
-            FieldReaderWriter rw = obj._GetFieldReaderWriter(false);
+            if (rw == null) rw = obj._GetFieldReaderWriter(false);
 
-            return ObjectDataToCsv(obj, rw);
-        }
-
-        private static string ObjectDataToCsv<T>(T obj, FieldReaderWriter rw) where T : notnull
-        {
             List<string> o = new List<string>();
 
             foreach (string name in rw.FieldOrPropertyNamesList)
@@ -3890,6 +3997,49 @@ namespace IPA.Cores.Basic
             }
 
             return CombineStringArrayForCsv(o);
+        }
+
+        // 1 行の CSV をオブジェクトデータに変換する
+        public static T CsvToObjectData<T>(string csvLine, bool trimStr = false, FieldReaderWriter? rw = null) where T : notnull, new()
+        {
+            T obj = new T();
+
+            if (rw == null) rw = obj._GetFieldReaderWriter(false);
+
+            string[] tokens = SplitCsvToStringArray(csvLine);
+
+            int i = 0;
+            foreach (string name in rw.FieldOrPropertyNamesList)
+            {
+                string str;
+
+                if (i < tokens.Length)
+                    str = tokens[i];
+                else
+                    str = "";
+
+                str = str._NonNull();
+
+                if (trimStr) str = str.Trim();
+
+                rw.SetValue(obj, name, str);
+
+                i++;
+            }
+
+            return obj;
+        }
+
+        // 1 行の CSV を複数の文字列に分割する
+        public static string[] SplitCsvToStringArray(string csvLine)
+        {
+            csvLine = csvLine._NonNull();
+
+            // TODO: 後で CombineStringArrayForCsv と同じルールをちゃんと適用すること
+
+            string[] tokens = csvLine._Split(StringSplitOptions.None, ",");
+
+            return tokens;
         }
 
         // 複数の文字列を CSV 結合する
@@ -6134,6 +6284,24 @@ namespace IPA.Cores.Basic
             queryString = uri.Query._ParseQueryString(encoding);
         }
 
+        public static bool TryParseUrl(string urlString, out Uri uri, out QueryStringList queryString, Encoding? encoding = null)
+        {
+            if (encoding == null) encoding = Str.Utf8Encoding;
+            if (urlString._IsEmpty()) throw new ApplicationException("url_string is empty.");
+            if (urlString.StartsWith("/")) urlString = "http://null" + urlString;
+            if (Uri.TryCreate(urlString, UriKind.Absolute, out uri!))
+            {
+                queryString = uri.Query._ParseQueryString(encoding);
+                return true;
+            }
+            else
+            {
+                uri = null!;
+                queryString = null!;
+                return false;
+            }
+        }
+
         public static string NormalizeFqdn(string fqdn)
         {
             fqdn = fqdn._NonNullTrim().ToLower();
@@ -6581,7 +6749,7 @@ namespace IPA.Cores.Basic
     {
         public char Delimiter { get; }
 
-        public OneLineParams(string oneLine = "", char delimiter = ';')
+        public OneLineParams(string oneLine = "", char delimiter = ';', bool treatDoubleDelimiterAsEscape = true)
         {
             oneLine = oneLine._NonNullTrim();
 
@@ -6590,7 +6758,12 @@ namespace IPA.Cores.Basic
 
             oneLine = Str.DecodeCEscape(oneLine);
 
-            IReadOnlyList<string> list = Str.SplitBySpecialChar(oneLine, this.Delimiter);
+            IReadOnlyList<string> list;
+
+            if (treatDoubleDelimiterAsEscape)
+                list = Str.SplitBySpecialChar(oneLine, this.Delimiter);
+            else
+                list = oneLine._Split(StringSplitOptions.RemoveEmptyEntries, delimiter);
 
             foreach (string token in list)
             {
