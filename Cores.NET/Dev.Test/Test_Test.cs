@@ -320,6 +320,57 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                // HDD Seek test
+                string hddName = "PhysicalDrive2";
+
+                using (var fs = new LocalRawDiskFileSystem())
+                {
+                    using (var disk = fs.Open("/" + hddName))
+                    {
+                        int size = 4096;
+                        long diskSize = disk.Size;
+                        Memory<byte> tmp = new byte[size];
+
+                        int numSeek = 0;
+
+                        long startTick = Time.HighResTick64;
+
+                        long last = 0;
+
+                        while (true)
+                        {
+                            long pos = (Util.RandSInt63() % (diskSize - (long)size)) / 4096L * 4096L;
+
+                            disk.ReadRandom(pos, tmp);
+                            numSeek++;
+
+                            if ((numSeek % 10) == 0)
+                            {
+                                long now = Time.HighResTick64;
+
+                                if (now > startTick)
+                                {
+                                    if (last == 0 || (last + 1000) <= now)
+                                    {
+                                        last = now;
+
+                                        double secs = (double)(now - startTick) / 1000.0;
+
+                                        double averageSeekTime = secs / (double)numSeek;
+
+                                        Con.WriteLine(averageSeekTime);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                return;
+            }
+
+            if (true)
+            {
                 string filename = @"\\server\share\200108dbtest\dbtest.sqlite";
 
                 Lfs.CreateDirectory(filename._GetDirectoryName()!);
