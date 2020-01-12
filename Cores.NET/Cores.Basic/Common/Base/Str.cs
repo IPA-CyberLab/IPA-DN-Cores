@@ -1668,35 +1668,34 @@ namespace IPA.Cores.Basic
         // 指定したデータに BOM が付いているかどうか判別する
         public static Encoding? CheckBOM(ReadOnlySpan<byte> data)
         {
-            int i;
-            return CheckBOM(data, out i);
+            return CheckBOM(data, out _);
         }
         public static Encoding? CheckBOM(ReadOnlySpan<byte> data, out int bomNumBytes)
         {
             bomNumBytes = 0;
             try
             {
-                if (data[0] == 0x00 && data[1] == 0x00 && data[2] == 0xfe && data[3] == 0xff)
+                if (data.Length >= 3 && data[0] == 0x00 && data[1] == 0x00 && data[2] == 0xfe && data[3] == 0xff)
                 {
                     bomNumBytes = 3;
                     return Encoding.GetEncoding("utf-32BE");
                 }
-                else if (data[0] == 0xff && data[1] == 0xfe && data[2] == 0x00 && data[3] == 0x00)
-                {//
+                else if (data.Length >= 4 && data[0] == 0xff && data[1] == 0xfe && data[2] == 0x00 && data[3] == 0x00)
+                {
                     bomNumBytes = 4;
                     return Encoding.GetEncoding("utf-32");
                 }
-                else if (data[0] == 0xff && data[1] == 0xfe)
+                else if (data.Length >= 2 && data[0] == 0xff && data[1] == 0xfe)
                 {
                     bomNumBytes = 2;
                     return Encoding.GetEncoding("utf-16");
                 }
-                else if (data[0] == 0xfe && data[1] == 0xff)
+                else if (data.Length >= 2 && data[0] == 0xfe && data[1] == 0xff)
                 {
                     bomNumBytes = 2;
                     return Encoding.GetEncoding("utf-16BE");
                 }
-                else if (data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf)
+                else if (data.Length >= 3 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf)
                 {
                     bomNumBytes = 3;
                     return Encoding.GetEncoding("utf-8");

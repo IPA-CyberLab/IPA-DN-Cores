@@ -6729,6 +6729,196 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // Stream からバイナリを読み込み、CR, LF を検出して行に分解する。高速化のためにバッファリングを使用する
+    public class BinaryLineReader
+    {
+        public int BufferSize { get; }
+        public Stream Stream { get; }
+
+        public long CurrentPosition { get; private set; }
+
+        readonly Memory<byte> Buffer;
+        int CurrentPositionInBuffer = 0;
+        int CurrentSizeInBuffer = 0;
+
+        MemoryStream CurrentLine = new MemoryStream();
+
+        public BinaryLineReader(Stream stream, int bufferSize = Consts.Numbers.DefaultLargeBufferSize)
+        {
+            this.BufferSize = bufferSize;
+            this.Stream = stream;
+
+            this.Buffer = new byte[bufferSize + 1]; // 最後の文字が CR の場合は追加で 1 文字読むため、1 バイト多めにしてある
+        }
+
+        public async Task<List<Memory<byte>>?> ReadLinesAsync(int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, CancellationToken cancel = default)
+        {
+            List<Memory<byte>> ret = new List<Memory<byte>>();
+
+            while (true)
+            {
+                bool isEof = false;
+
+                Debug.Assert(CurrentSizeInBuffer >= CurrentPositionInBuffer);
+                int remain = CurrentSizeInBuffer - CurrentPositionInBuffer;
+                if (remain <= 0)
+                {
+                    // バッファが空の場合は読み込む
+                    CurrentPositionInBuffer = 0;
+
+                    int r = await Stream.ReadAsync(this.Buffer.Slice(0, this.BufferSize), cancel);
+
+                    if (r == 0)
+                    {
+                        // 最後まで読んだ
+                        isEof = true;
+                    }
+
+                    CurrentSizeInBuffer = r;
+
+                    if (r >= 1)
+                    {
+                        if (this.Buffer.Span[r - 1] == 13)
+                        {
+                            // 最後の文字が CR の場合は次の 1 文字を追加で読む
+                            int r2 = await Stream.ReadAsync(this.Buffer.Slice(r, 1), cancel);
+                            CurrentSizeInBuffer += r2;
+                        }
+                    }
+                }
+
+                // EOF 処理
+                if (isEof)
+                {
+                    // 現在バッファに入っているデータ全体の取得
+                    Debug.Assert(CurrentSizeInBuffer <= CurrentPositionInBuffer);
+                    int remain2 = CurrentSizeInBuffer - CurrentPositionInBuffer;
+
+                    if (remain2 <= 0)
+                    {
+                        // バッファには 1 バイトも入っていない。
+                    }
+                    else
+                    {
+                        // バッファに入っている最後のデータには改行は含まれていないはずである。
+                        // したがってこのデータをそのまま最後の行として出力する。
+
+                        if (((long)CurrentLine.Length + (long)remain2) > maxBytesPerLine)
+                        {
+                            // 1 行あたり最大読み取り可能文字数を超えた
+                            throw new CoresException($"Line character length overflow. {((long)CurrentLine.Length + (long)remain2)} > {maxBytesPerLine}");
+                        }
+                    }
+
+                    // 読み取ったデータを CurrentLine に追記する
+                    CurrentLine.Write(this.Buffer.Span.Slice(CurrentPositionInBuffer, remain2));
+
+                    CurrentPositionInBuffer += remain2;
+
+                    if (CurrentLine.Length >= 1)
+                    {
+                        // 行の終わりとみなし、この行をリストに追加する
+                        ret.Add(CurrentLine.ToArray());
+
+                        CurrentPosition += CurrentLine.Length;
+
+                        CurrentLine = new MemoryStream();
+                    }
+
+                    break;
+                }
+
+                Sync(() =>
+                {
+                    Span<byte> bufferSpan = this.Buffer.Span;
+
+                    while (true)
+                    {
+                        // 現在バッファに入っているデータ全体の Span の取得
+                        Debug.Assert(CurrentSizeInBuffer >= CurrentPositionInBuffer);
+                        int remain3 = CurrentSizeInBuffer - CurrentPositionInBuffer;
+
+                        if (remain3 <= 0)
+                        {
+                            // バッファが空になった。一旦 Sync を出て、再度バッファを読み直す
+                            return;
+                        }
+
+                        Span<byte> bufferCurrentRange = bufferSpan.Slice(CurrentPositionInBuffer, CurrentSizeInBuffer - CurrentPositionInBuffer);
+
+                        // 最初の改行コードにぶつかるまで 1 文字ずつ読む
+                        bool newLineFound = false;
+                        int sizeRead = 0;
+                        int sizeOfLineData = 0;
+                        int crlfSize = 0;
+
+                        for (int i = 0; i < bufferCurrentRange.Length; i++)
+                        {
+                            byte c = bufferCurrentRange[i];
+
+                            if (c == 13 || c == 10)
+                            {
+                                // 改行コードを発見
+                                newLineFound = true;
+                                sizeOfLineData = i;
+                                sizeRead = i + 1;
+                                crlfSize = 1;
+                                if (c == 13 && (i < (bufferCurrentRange.Length - 1)) && bufferCurrentRange[i + 1] == 10)
+                                {
+                                    sizeRead = i + 2;
+                                    crlfSize = 2;
+                                }
+                                break;
+                            }
+                        }
+
+                        if (newLineFound == false)
+                        {
+                            sizeOfLineData = sizeRead = bufferCurrentRange.Length;
+                        }
+
+                        // 現在のバッファ中の position を進める
+                        CurrentPositionInBuffer += sizeRead;
+
+                        if (((long)CurrentLine.Length + (long)sizeOfLineData) > maxBytesPerLine)
+                        {
+                            // 1 行あたり最大読み取り可能文字数を超えた
+                            throw new CoresException($"Line character length overflow. {((long)CurrentLine.Length + (long)sizeOfLineData)} > {maxBytesPerLine}");
+                        }
+
+                        // 読み取ったデータを CurrentLine に追記する
+                        CurrentLine.Write(bufferCurrentRange.Slice(0, sizeOfLineData));
+
+                        if (newLineFound)
+                        {
+                            // 行の終わりに達していたらこの行をリストに追加する
+                            byte[] data = CurrentLine.ToArray();
+                            ret.Add(data);
+
+                            CurrentPosition += data.Length + crlfSize;
+
+                            CurrentLine = new MemoryStream();
+                        }
+                    }
+                });
+
+                // バッファが空になったらここに飛んでくる。
+                // 1 行以上読み取りに成功している場合は関数を抜ける。
+                if (ret.Count >= 1) break;
+
+                // まだ 1 行も読み取りに成功していない場合はループしてバッファの読み出しを試行する。
+            }
+
+            if (ret.Count == 0)
+            {
+                // 1 行も読み取ることができなかった場合は EOF を意味するので null を返す。
+                return null;
+            }
+
+            return ret;
+        }
+    }
+
     public static class EmptyEnumerable<T>
     {
         public static IEnumerable<T> Empty { get; } = new List<T>();

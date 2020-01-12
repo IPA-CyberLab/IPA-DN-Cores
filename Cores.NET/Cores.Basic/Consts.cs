@@ -80,6 +80,10 @@ namespace IPA.Cores.Basic
             public static readonly int MinYear = Util.ZeroDateTimeValue.Year;
 
             public const int DefaultSendPingSize = 32;
+
+            public const int DefaultBufferLines = 1024;
+
+            public const int DefaultMaxBytesPerLine = 10 * 1024 * 1024;
         }
 
         public static partial class MaxLens

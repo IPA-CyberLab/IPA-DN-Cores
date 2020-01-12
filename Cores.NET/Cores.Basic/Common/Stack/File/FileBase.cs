@@ -1813,6 +1813,17 @@ namespace IPA.Cores.Basic
         public abstract Task<int> ReadAsync(Memory<byte> data, CancellationToken cancel = default);
         public abstract Task<int> ReadRandomAsync(long position, Memory<byte> data, CancellationToken cancel = default);
 
+        public async Task<Memory<byte>> ReadAsync(int maxSize, CancellationToken cancel = default)
+        {
+            Memory<byte> ret = new byte[maxSize];
+
+            int r = await this.ReadAsync(ret, cancel);
+
+            ret = ret.Slice(0, r);
+
+            return ret;
+        }
+
         public abstract Task WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancel = default);
         public abstract Task WriteRandomAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default);
 
@@ -1848,6 +1859,9 @@ namespace IPA.Cores.Basic
         public int Read(Memory<byte> data) => ReadAsync(data)._GetResult();
         public int ReadRandom(long position, Memory<byte> data, CancellationToken cancel = default)
             => ReadRandomAsync(position, data, cancel)._GetResult();
+
+        public Memory<byte> Read(int maxSize, CancellationToken cancel = default)
+            => ReadAsync(maxSize, cancel)._GetResult();
 
         public void Write(ReadOnlyMemory<byte> data, CancellationToken cancel = default) => WriteAsync(data, cancel)._GetResult();
         public void WriteRandom(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)

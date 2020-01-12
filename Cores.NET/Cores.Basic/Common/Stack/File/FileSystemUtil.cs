@@ -251,6 +251,48 @@ namespace IPA.Cores.Basic
         public Memory<byte> ReadDataFromFile(string path, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
             => ReadDataFromFileAsync(path, maxSize, flags, cancel)._GetResult();
 
+        public async Task ReadTextLinesFromFileAsync(string path, Func<IEnumerable<string>, long, long, bool> proc, Encoding? encoding = null, long startPosition = 0, FileFlags flags = FileFlags.None, int bufferNumLines = Consts.Numbers.DefaultBufferLines, int bufferMemorySize = Consts.Numbers.DefaultLargeBufferSize, CancellationToken cancel = default)
+        {
+            bufferNumLines = Math.Max(bufferNumLines, 1);
+            bufferMemorySize = Math.Max(bufferMemorySize, 1);
+
+            using (var file = await OpenAsync(path, false, false, false, flags, cancel))
+            {
+                try
+                {
+                    if (encoding == null)
+                    {
+                        Memory<byte> bomData = await file.ReadAsync(4);
+
+                        encoding = Str.CheckBOM(bomData.Span, out int skipBytes);
+
+                        if (encoding == null)
+                        {
+                            encoding = Str.Utf8Encoding;
+                        }
+
+                        if (startPosition < skipBytes)
+                            startPosition = skipBytes;
+                    }
+
+                    startPosition = Math.Max(startPosition, 0);
+                    startPosition = Math.Min(startPosition, file.Size);
+
+                    await file.SeekAsync(startPosition, SeekOrigin.Begin, cancel);
+
+                    using var rawStream = file.GetStream(false);
+                    using var stream = new BufferedStream(rawStream, bufferMemorySize);
+
+                    // TODO
+                    //stream._ReadToEnd
+                }
+                finally
+                {
+                    await file.CloseAsync();
+                }
+            }
+        }
+
         public async Task<string> ReadStringFromFileAsync(string path, Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
         {
             Memory<byte> data = await ReadDataFromFileAsync(path, maxSize, flags, cancel);
