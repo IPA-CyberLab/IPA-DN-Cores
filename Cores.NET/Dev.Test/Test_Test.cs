@@ -318,7 +318,7 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (true)
+            if (false)
             {
                 // HDD Seek test
                 string hddName = "PhysicalDrive2";
@@ -371,12 +371,23 @@ namespace IPA.TestDev
 
             if (true)
             {
-                string filename = @"\\server\share\200108dbtest\dbtest.sqlite";
+                // SQLite 実験 結論: ネットワーク越しの場合、ファイルロックがかけられていないとトランザクションはおかしくなります
+                string filename = @"\\dn-smbtest1\share\nfse\tmp\dbtest.sqlite";
+
+                if (Con.ReadLine("2?>")._ToBool())
+                {
+                    filename = @"\\dn-smbtest2\share\nfse\tmp\dbtest.sqlite";
+                }
 
                 Lfs.CreateDirectory(filename._GetDirectoryName()!);
+
+                Con.WriteLine("Opening db...");
                 using (var db = new Database($"Data Source='{filename}'", serverType: DatabaseServerType.SQLite))
                 {
+                    Con.WriteLine("Creating table...");
                     db.Execute("CREATE TABLE if not exists favorite_beers  (name VARCHAR(50))");
+
+                    Con.WriteLine("Starting tran...");
 
                     using (var tran = db.UsingTran(IsolationLevel.ReadCommitted))
                     {
