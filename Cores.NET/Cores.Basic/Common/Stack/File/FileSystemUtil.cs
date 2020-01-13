@@ -251,11 +251,8 @@ namespace IPA.Cores.Basic
         public Memory<byte> ReadDataFromFile(string path, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
             => ReadDataFromFileAsync(path, maxSize, flags, cancel)._GetResult();
 
-        public async Task ReadTextLinesFromFileAsync(string path, Func<IEnumerable<string>, long, long, bool> proc, Encoding? encoding = null, long startPosition = 0, FileFlags flags = FileFlags.None, int bufferNumLines = Consts.Numbers.DefaultBufferLines, int bufferMemorySize = Consts.Numbers.DefaultLargeBufferSize, CancellationToken cancel = default)
+        public async Task ReadTextLinesFromFileAsync(string path, Func<List<string>, long, long, bool> proc, Encoding? encoding = null, long startPosition = 0, FileFlags flags = FileFlags.None, int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, CancellationToken cancel = default)
         {
-            bufferNumLines = Math.Max(bufferNumLines, 1);
-            bufferMemorySize = Math.Max(bufferMemorySize, 1);
-
             using (var file = await OpenAsync(path, false, false, false, flags, cancel))
             {
                 try
@@ -281,10 +278,27 @@ namespace IPA.Cores.Basic
                     await file.SeekAsync(startPosition, SeekOrigin.Begin, cancel);
 
                     using var rawStream = file.GetStream(false);
-                    using var stream = new BufferedStream(rawStream, bufferMemorySize);
 
-                    // TODO
-                    //stream._ReadToEnd
+                    var reader = new BinaryLineReader(rawStream, bufferSize);
+
+                    long lastPosition = 0;
+
+                    while (true)
+                    {
+                        var lines = await reader.ReadLinesAsync(maxBytesPerLine, cancel);
+                        if (lines == null) break;
+
+                        List<string> strList = new List<string>();
+
+                        lines.ForEach(x => strList.Add(encoding.GetString(x.Span)));
+
+                        if (proc(strList, lastPosition + startPosition, reader.CurrentRelativePosition + startPosition) == false)
+                        {
+                            break;
+                        }
+
+                        lastPosition = reader.CurrentRelativePosition;
+                    }
                 }
                 finally
                 {

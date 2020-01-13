@@ -6735,7 +6735,7 @@ namespace IPA.Cores.Basic
         public int BufferSize { get; }
         public Stream Stream { get; }
 
-        public long CurrentPosition { get; private set; }
+        public long CurrentRelativePosition { get; private set; }
 
         readonly Memory<byte> Buffer;
         int CurrentPositionInBuffer = 0;
@@ -6820,7 +6820,7 @@ namespace IPA.Cores.Basic
                         // 行の終わりとみなし、この行をリストに追加する
                         ret.Add(CurrentLine.ToArray());
 
-                        CurrentPosition += CurrentLine.Length;
+                        CurrentRelativePosition += CurrentLine.Length;
 
                         CurrentLine = new MemoryStream();
                     }
@@ -6895,7 +6895,7 @@ namespace IPA.Cores.Basic
                             byte[] data = CurrentLine.ToArray();
                             ret.Add(data);
 
-                            CurrentPosition += data.Length + crlfSize;
+                            CurrentRelativePosition += data.Length + crlfSize;
 
                             CurrentLine = new MemoryStream();
                         }
@@ -6917,6 +6917,9 @@ namespace IPA.Cores.Basic
 
             return ret;
         }
+
+        public List<Memory<byte>>? ReadLines(int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, CancellationToken cancel = default)
+            => this.ReadLinesAsync(maxBytesPerLine, cancel)._GetResult();
     }
 
     public static class EmptyEnumerable<T>

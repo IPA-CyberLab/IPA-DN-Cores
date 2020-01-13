@@ -173,7 +173,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _GetString_ShiftJis(this Memory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.ShiftJisEncoding, out _);
         public static string _GetString_Ascii(this Memory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.AsciiEncoding, out _);
         public static string _GetString_Euc(this Memory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.EucJpEncoding, out _);
-        public static string _GetString(this Memory<byte> byteArray, Encoding default_encoding) => Str.DecodeString(byteArray.Span, default_encoding, out _);
+        public static string _GetString(this Memory<byte> byteArray, Encoding defaultEncoding) => Str.DecodeString(byteArray.Span, defaultEncoding, out _);
         public static string _GetString(this Memory<byte> byteArray) => Str.DecodeStringAutoDetect(byteArray.Span, out _);
 
         public static string _GetHexString(this byte[] byteArray, string padding = "") => Str.ByteToHex(byteArray, padding);
