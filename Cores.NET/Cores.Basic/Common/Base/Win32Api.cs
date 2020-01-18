@@ -80,35 +80,35 @@ using System.Threading;
 
 namespace IPA.Cores.Basic
 {
-    internal static class Win32Api
+    public static class Win32Api
     {
         // DLL names
-        internal static partial class Libraries
+        public static partial class Libraries
         {
-            internal const string Advapi32 = "advapi32.dll";
-            internal const string BCrypt = "BCrypt.dll";
-            internal const string Crypt32 = "crypt32.dll";
-            internal const string Kernel32 = "kernel32.dll";
-            internal const string Shell32 = "shell32.dll";
-            internal const string NetApi32 = "Netapi32.dll";
-            internal const string Ole32 = "ole32.dll";
-            internal const string OleAut32 = "oleaut32.dll";
-            internal const string User32 = "user32.dll";
-            internal const string NtDll = "ntdll.dll";
+            public const string Advapi32 = "advapi32.dll";
+            public const string BCrypt = "BCrypt.dll";
+            public const string Crypt32 = "crypt32.dll";
+            public const string Kernel32 = "kernel32.dll";
+            public const string Shell32 = "shell32.dll";
+            public const string NetApi32 = "Netapi32.dll";
+            public const string Ole32 = "ole32.dll";
+            public const string OleAut32 = "oleaut32.dll";
+            public const string User32 = "user32.dll";
+            public const string NtDll = "ntdll.dll";
         }
 
         // DLL import functions
-        internal static partial class Kernel32
+        public static partial class Kernel32
         {
             [DllImport(Libraries.Kernel32, SetLastError = true)]
-            internal static extern bool CloseHandle(IntPtr handle);
+            public static extern bool CloseHandle(IntPtr handle);
 
             [DllImport(Libraries.Kernel32, SetLastError = true)]
-            internal static extern SafeProcessHandle GetCurrentProcess();
+            public static extern SafeProcessHandle GetCurrentProcess();
 
             [DllImport(Libraries.Kernel32, SetLastError = true, ExactSpelling = true)]
 
-            internal static extern bool SetThreadErrorMode(uint dwNewMode, out uint lpOldMode);
+            public static extern bool SetThreadErrorMode(uint dwNewMode, out uint lpOldMode);
 
             [DllImport(Libraries.Kernel32, EntryPoint = "CreateFileW", SetLastError = true, CharSet = CharSet.Unicode, BestFitMapping = false, ExactSpelling = true)]
             private unsafe static extern IntPtr CreateFilePrivate(
@@ -120,7 +120,7 @@ namespace IPA.Cores.Basic
                 int dwFlagsAndAttributes,
                 IntPtr hTemplateFile);
 
-            internal unsafe static SafeFileHandle CreateFile(
+            public unsafe static SafeFileHandle CreateFile(
                 string lpFileName,
                 int dwDesiredAccess,
                 FileShare dwShareMode,
@@ -145,7 +145,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            internal unsafe static SafeFileHandle CreateFile(
+            public unsafe static SafeFileHandle CreateFile(
                 string lpFileName,
                 int dwDesiredAccess,
                 FileShare dwShareMode,
@@ -164,7 +164,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            internal unsafe static IntPtr CreateFile_IntPtr(
+            public unsafe static IntPtr CreateFile_IntPtr(
                 string lpFileName,
                 int dwDesiredAccess,
                 FileShare dwShareMode,
@@ -176,17 +176,17 @@ namespace IPA.Cores.Basic
             }
 
             [DllImport(Libraries.Kernel32, SetLastError = true)]
-            internal static extern unsafe bool CancelIoEx(SafeHandle handle, NativeOverlapped* lpOverlapped);
+            public static extern unsafe bool CancelIoEx(SafeHandle handle, NativeOverlapped* lpOverlapped);
 
             [DllImport(Libraries.Kernel32, SetLastError = true, CharSet = CharSet.Auto)]
-            unsafe internal static extern bool GetOverlappedResult(
+            unsafe public static extern bool GetOverlappedResult(
                 SafeFileHandle hFile,
                 NativeOverlapped* lpOverlapped,
                 ref int lpNumberOfBytesTransferred,
                 bool bWait);
 
             [DllImport(Libraries.Kernel32, CharSet = CharSet.Unicode, SetLastError = true)]
-            internal static extern bool DeviceIoControl
+            public static extern bool DeviceIoControl
             (
                 SafeFileHandle fileHandle,
                 EIOControlCode ioControlCode,
@@ -199,7 +199,7 @@ namespace IPA.Cores.Basic
             );
 
             [DllImport(Libraries.Kernel32, CharSet = CharSet.Unicode, SetLastError = true)]
-            internal unsafe static extern bool DeviceIoControl(SafeFileHandle fileHandle, EIOControlCode ioControlCode, IntPtr inBuffer, uint cbInBuffer, IntPtr outBuffer, uint cbOutBuffer,
+            public unsafe static extern bool DeviceIoControl(SafeFileHandle fileHandle, EIOControlCode ioControlCode, IntPtr inBuffer, uint cbInBuffer, IntPtr outBuffer, uint cbOutBuffer,
                 out uint cbBytesReturned, IntPtr overlapped);
 
             public static async Task<bool> DeviceIoControlAsync(
@@ -257,10 +257,10 @@ namespace IPA.Cores.Basic
             //}
 
             [DllImport(Libraries.Kernel32, SetLastError = true, ExactSpelling = true)]
-            internal static extern bool SetFileInformationByHandle(SafeFileHandle hFile, FILE_INFO_BY_HANDLE_CLASS FileInformationClass, ref FILE_BASIC_INFO lpFileInformation, uint dwBufferSize);
+            public static extern bool SetFileInformationByHandle(SafeFileHandle hFile, FILE_INFO_BY_HANDLE_CLASS FileInformationClass, ref FILE_BASIC_INFO lpFileInformation, uint dwBufferSize);
 
             // Default values indicate "no change".  Use defaults so that we don't force callsites to be aware of the default values
-            internal static unsafe bool SetFileTime(
+            public static unsafe bool SetFileTime(
                 SafeFileHandle hFile,
                 long creationTime = -1,
                 long lastAccessTime = -1,
@@ -283,7 +283,7 @@ namespace IPA.Cores.Basic
             [DllImport(Libraries.Kernel32, EntryPoint = "SetFileAttributesW", SetLastError = true, CharSet = CharSet.Unicode, BestFitMapping = false)]
             private static extern bool SetFileAttributesPrivate(string name, int attr);
 
-            internal static bool SetFileAttributes(string name, int attr)
+            public static bool SetFileAttributes(string name, int attr)
             {
                 name = Win32PathInternal.EnsureExtendedPrefixIfNeeded(name);
                 return SetFileAttributesPrivate(name, attr);
@@ -292,19 +292,19 @@ namespace IPA.Cores.Basic
             [DllImport(Libraries.Kernel32, EntryPoint = "GetFileAttributesExW", SetLastError = true, CharSet = CharSet.Unicode)]
             private static extern bool GetFileAttributesExPrivate(string name, GET_FILEEX_INFO_LEVELS fileInfoLevel, ref WIN32_FILE_ATTRIBUTE_DATA lpFileInformation);
 
-            internal static bool GetFileAttributesEx(string name, GET_FILEEX_INFO_LEVELS fileInfoLevel, ref WIN32_FILE_ATTRIBUTE_DATA lpFileInformation)
+            public static bool GetFileAttributesEx(string name, GET_FILEEX_INFO_LEVELS fileInfoLevel, ref WIN32_FILE_ATTRIBUTE_DATA lpFileInformation)
             {
                 name = Win32PathInternal.EnsureExtendedPrefixOverMaxPath(name);
                 return GetFileAttributesExPrivate(name, fileInfoLevel, ref lpFileInformation);
             }
 
             [DllImport(Libraries.Kernel32, SetLastError = true)]
-            internal static extern bool FindClose(IntPtr hFindFile);
+            public static extern bool FindClose(IntPtr hFindFile);
 
             [DllImport(Libraries.Kernel32, EntryPoint = "FindFirstFileExW", SetLastError = true, CharSet = CharSet.Unicode)]
             private static extern SafeFindHandle FindFirstFileExPrivate(string lpFileName, FINDEX_INFO_LEVELS fInfoLevelId, ref WIN32_FIND_DATA lpFindFileData, FINDEX_SEARCH_OPS fSearchOp, IntPtr lpSearchFilter, int dwAdditionalFlags);
 
-            internal static SafeFindHandle FindFirstFile(string fileName, ref WIN32_FIND_DATA data)
+            public static SafeFindHandle FindFirstFile(string fileName, ref WIN32_FIND_DATA data)
             {
                 fileName = Win32PathInternal.EnsureExtendedPrefixIfNeeded(fileName);
 
@@ -315,7 +315,7 @@ namespace IPA.Cores.Basic
             [DllImport(Libraries.Kernel32, EntryPoint = "FindFirstStreamW", SetLastError = true, CharSet = CharSet.Unicode, BestFitMapping = false)]
             private static extern SafeFindHandle FindFirstStreamWPrivate(string lpFileName, STREAM_INFO_LEVELS InfoLevel, out WIN32_FIND_STREAM_DATA lpFindStreamData, int dwFlags);
 
-            internal static SafeFindHandle FindFirstStreamW(string lpFileName, out WIN32_FIND_STREAM_DATA lpFindStreamData)
+            public static SafeFindHandle FindFirstStreamW(string lpFileName, out WIN32_FIND_STREAM_DATA lpFindStreamData)
             {
                 lpFileName = Win32PathInternal.EnsureExtendedPrefixIfNeeded(lpFileName);
 
@@ -344,14 +344,236 @@ namespace IPA.Cores.Basic
             }
         }
 
-        internal static partial class Shell32
+        public static partial class User32
+        {
+            [StructLayout(LayoutKind.Sequential)]
+            public struct HWND
+            {
+                public IntPtr h;
+
+                public static HWND Cast(IntPtr h)
+                {
+                    HWND hTemp = new HWND();
+                    hTemp.h = h;
+                    return hTemp;
+                }
+
+                public static implicit operator IntPtr(HWND h)
+                {
+                    return h.h;
+                }
+
+                public static HWND NULL
+                {
+                    get
+                    {
+                        HWND hTemp = new HWND();
+                        hTemp.h = IntPtr.Zero;
+                        return hTemp;
+                    }
+                }
+
+                public bool IsNull => this.h == IntPtr.Zero;
+
+                public static bool operator ==(HWND hl, HWND hr)
+                {
+                    return hl.h == hr.h;
+                }
+
+                public static bool operator !=(HWND hl, HWND hr)
+                {
+                    return hl.h != hr.h;
+                }
+
+                override public bool Equals(object? oCompare)
+                {
+                    HWND hr = Cast((HWND)oCompare!);
+                    return h == hr.h;
+                }
+
+                public override int GetHashCode()
+                {
+                    return (int)h;
+                }
+
+                public override string ToString()
+                {
+                    return $"0x{this.h.ToString("X")}";
+                }
+            }
+
+
+            [StructLayout(LayoutKind.Sequential)]
+            public struct RECT
+            {
+                public int left;
+                public int top;
+                public int right;
+                public int bottom;
+
+                public RECT(int left, int top, int right, int bottom)
+                {
+                    this.left = left;
+                    this.top = top;
+                    this.right = right;
+                    this.bottom = bottom;
+                }
+
+                public bool IsEmpty
+                {
+                    get
+                    {
+                        return left >= right || top >= bottom;
+                    }
+                }
+            }
+
+            [StructLayout(LayoutKind.Sequential)]
+            public struct POINT
+            {
+                public int x;
+                public int y;
+
+                public POINT(int x, int y)
+                {
+                    this.x = x;
+                    this.y = y;
+                }
+            }
+
+            // Window Messages
+            public const int WM_COMMAND = 0x0111;
+            public const int WM_SETTEXT = 0x000C;
+            public const int WM_GETTEXT = 0x000D;
+            public const int WM_GETTEXTLENGTH = 0x000E;
+
+            // Window navigation
+            public const int GW_HWNDFIRST = 0;
+            public const int GW_HWNDLAST = 1;
+            public const int GW_HWNDNEXT = 2;
+            public const int GW_HWNDPREV = 3;
+            public const int GW_OWNER = 4;
+            public const int GW_CHILD = 5;
+
+            public delegate bool EnumThreadWindowsCallback(HWND hWnd, IntPtr lParam);
+
+            [DllImport(Libraries.User32)]
+            public static extern bool EnumWindows(EnumThreadWindowsCallback callback, IntPtr extraData);
+
+            [DllImport(Libraries.User32)]
+            public static extern HWND GetParent(HWND hWnd);
+
+            [DllImport(Libraries.User32, CharSet = CharSet.Auto, SetLastError = true)]
+            public static extern int GetClassName(HWND hWnd, StringBuilder classname, int nMax);
+
+            [DllImport(Libraries.User32, ExactSpelling = true, CharSet = CharSet.Auto)]
+            public static extern HWND GetDlgItem(HWND hWnd, int nIDDlgItem);
+
+            [DllImport(Libraries.User32, CharSet = CharSet.Unicode, ExactSpelling = true)]
+            public static extern bool PostMessageW(HWND hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+            [DllImport(Libraries.User32, ExactSpelling = true, CharSet = CharSet.Unicode)]
+            public static extern IntPtr SendMessageW(HWND hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+            [DllImport(Libraries.User32, ExactSpelling = true, CharSet = CharSet.Unicode)]
+            public static extern IntPtr SendMessageW(HWND hWnd, int msg, IntPtr wParam, StringBuilder text);
+
+            [DllImport(Libraries.User32, ExactSpelling = true, CharSet = CharSet.Unicode)]
+            private static extern int GetWindowTextW(HWND hWnd, StringBuilder text, int nMaxCount);
+
+            [DllImport(Libraries.User32, ExactSpelling = true)]
+            public static extern int GetWindowTextLengthW(HWND hWnd);
+
+            [DllImport(Libraries.User32, CharSet = CharSet.Unicode)]
+            public static extern int SetWindowTextW(HWND hWnd, string text);
+
+            [DllImport(Libraries.User32, ExactSpelling = true)]
+            public static extern int GetWindowThreadProcessId(HWND hWnd, out int processId);
+
+            [DllImport(Libraries.User32)]
+            public static extern HWND GetWindow(HWND hWnd, int uCmd);
+
+            public static void SetWindowTextWithSM(HWND hWnd, string text)
+            {
+                StringBuilder sb = new StringBuilder(text);
+
+                SendMessageW(hWnd, WM_SETTEXT, IntPtr.Zero, sb);
+            }
+
+            public static string GetWindowText(HWND hWnd)
+            {
+                checked
+                {
+                    int len = GetWindowTextLengthW(hWnd);
+
+                    StringBuilder tmp = new StringBuilder(len + 8);
+                    if (GetWindowTextW(hWnd, tmp, len + 1) == 0)
+                    {
+                        return "";
+                    }
+                    return tmp.ToString();
+                }
+            }
+
+            public static string GetWindowTextWithSM(HWND hWnd)
+            {
+                checked
+                {
+                    int len = (int)SendMessageW(hWnd, WM_GETTEXTLENGTH, IntPtr.Zero, IntPtr.Zero);
+
+                    StringBuilder tmp = new StringBuilder(len + 8);
+                    if (SendMessageW(hWnd, WM_GETTEXT, (IntPtr)(len + 1), tmp) == (IntPtr)0)
+                    {
+                        return "";
+                    }
+
+                    return tmp.ToString();
+                }
+            }
+
+            public static string GetClassName(HWND hWnd)
+            {
+                StringBuilder tmp = new StringBuilder(260);
+                if (GetClassName(hWnd, tmp, tmp.Capacity) == 0) return "";
+                return tmp.ToString();
+            }
+
+            public static HashSet<HWND> EnumAllTopWindow()
+            {
+                HashSet<HWND> o = new HashSet<HWND>();
+
+                EnumWindows((hWnd, param) =>
+                {
+                    HWND hParent = GetParent(hWnd);
+
+                    string? c1 = GetClassName(hWnd);
+                    string? c2 = null;
+
+                    if (hParent != HWND.NULL)
+                    {
+                        c2 = GetClassName(hParent);
+                    }
+
+                    if (c1._IsSamei("SysIPAddress32") == false && (c2._IsEmpty() || c2._IsSamei("SysIPAddress32") == false))
+                    {
+                        o.Add(hWnd);
+                    }
+
+                    return true;
+                }, IntPtr.Zero);
+
+                return o;
+            }
+        }
+
+        public static partial class Shell32
         {
             [DllImport(Libraries.Shell32, SetLastError = true)]
             [return: MarshalAs(UnmanagedType.Bool)]
             public static extern bool IsUserAnAdmin();
         }
 
-        internal static partial class NetApi32
+        public static partial class NetApi32
         {
             // From http://www.pinvoke.net/default.aspx/netapi32/netshareenum.html
 
@@ -437,10 +659,10 @@ namespace IPA.Cores.Basic
             }
         }
 
-        internal static partial class NtDll
+        public static partial class NtDll
         {
             [DllImport(Libraries.NtDll, ExactSpelling = true)]
-            unsafe internal static extern int NtQueryInformationFile(
+            unsafe public static extern int NtQueryInformationFile(
                 SafeFileHandle FileHandle,
                 out IO_STATUS_BLOCK IoStatusBlock,
                 void* FileInformation,
@@ -478,7 +700,7 @@ namespace IPA.Cores.Basic
                         intPtr = Marshal.AllocHGlobal(fileInfoPtrLength);
 
                         errCode = (uint)NtQueryInformationFile(FileHandle, out ioStatusBlock,
-                            (void *)intPtr, (uint)fileInfoPtrLength, (uint)FILE_INFORMATION_CLASS.FileStreamInformation);
+                            (void*)intPtr, (uint)fileInfoPtrLength, (uint)FILE_INFORMATION_CLASS.FileStreamInformation);
                     }
                     while (errCode != 0 || errCode == 0x80000005);
 
@@ -533,16 +755,16 @@ namespace IPA.Cores.Basic
             }
         }
 
-        internal static partial class Advapi32
+        public static partial class Advapi32
         {
             [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true)]
-            internal static extern bool OpenProcessToken(SafeProcessHandle ProcessHandle, int DesiredAccess, out SafeTokenHandle TokenHandle);
+            public static extern bool OpenProcessToken(SafeProcessHandle ProcessHandle, int DesiredAccess, out SafeTokenHandle TokenHandle);
 
             [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true, BestFitMapping = false, EntryPoint = "LookupPrivilegeValueW")]
-            internal static extern bool LookupPrivilegeValue([MarshalAs(UnmanagedType.LPTStr)] string? lpSystemName, [MarshalAs(UnmanagedType.LPTStr)] string lpName, out LUID lpLuid);
+            public static extern bool LookupPrivilegeValue([MarshalAs(UnmanagedType.LPTStr)] string? lpSystemName, [MarshalAs(UnmanagedType.LPTStr)] string lpName, out LUID lpLuid);
 
             [DllImport(Libraries.Advapi32, SetLastError = true)]
-            internal unsafe static extern bool AdjustTokenPrivileges(
+            public unsafe static extern bool AdjustTokenPrivileges(
                 SafeTokenHandle TokenHandle,
                 bool DisableAllPrivileges,
                 TOKEN_PRIVILEGE* NewState,
@@ -551,10 +773,10 @@ namespace IPA.Cores.Basic
                 uint* ReturnLength);
 
             [DllImport(Libraries.Advapi32, EntryPoint = "OpenSCManagerW", CharSet = CharSet.Unicode, SetLastError = true)]
-            internal extern static SafeServiceHandle OpenSCManager(string? machineName, string? databaseName, int access);
+            public extern static SafeServiceHandle OpenSCManager(string? machineName, string? databaseName, int access);
 
             [DllImport(Libraries.Advapi32, EntryPoint = "OpenSCManagerW", CharSet = CharSet.Unicode, SetLastError = true)]
-            internal extern static IntPtr OpenSCManager2(string machineName, string databaseName, int access);
+            public extern static IntPtr OpenSCManager2(string machineName, string databaseName, int access);
 
             [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true)]
             public extern static SafeServiceHandle CreateService(SafeServiceHandle databaseHandle, string serviceName, string displayName, int access, int serviceType,
@@ -571,16 +793,16 @@ namespace IPA.Cores.Basic
             public static extern bool ChangeServiceConfig2(SafeServiceHandle serviceHandle, uint infoLevel, ref SERVICE_FAILURE_ACTIONS failureActions);
 
             [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true)]
-            internal extern static bool CloseServiceHandle(IntPtr handle);
+            public extern static bool CloseServiceHandle(IntPtr handle);
 
             [DllImport(Libraries.Advapi32, EntryPoint = "OpenServiceW", CharSet = CharSet.Unicode, SetLastError = true)]
-            internal extern static SafeServiceHandle OpenService(SafeServiceHandle databaseHandle, string serviceName, int access);
+            public extern static SafeServiceHandle OpenService(SafeServiceHandle databaseHandle, string serviceName, int access);
 
             [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true)]
-            internal static extern unsafe bool QueryServiceStatus(SafeServiceHandle serviceHandle, out SERVICE_STATUS pStatus);
+            public static extern unsafe bool QueryServiceStatus(SafeServiceHandle serviceHandle, out SERVICE_STATUS pStatus);
 
             [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true)]
-            internal extern unsafe static bool ControlService(SafeServiceHandle serviceHandle, int control, out SERVICE_STATUS pStatus);
+            public extern unsafe static bool ControlService(SafeServiceHandle serviceHandle, int control, out SERVICE_STATUS pStatus);
 
             [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true)]
             public unsafe extern static bool SetServiceStatus(SafeServiceHandle serviceStatusHandle, in SERVICE_STATUS status);
@@ -589,98 +811,98 @@ namespace IPA.Cores.Basic
             public extern static bool DeleteService(SafeServiceHandle serviceHandle);
 
             [DllImport(Libraries.Advapi32, EntryPoint = "StartServiceW", CharSet = CharSet.Unicode, SetLastError = true)]
-            internal extern static bool StartService(SafeServiceHandle serviceHandle, int argNum, IntPtr argPtrs);
+            public extern static bool StartService(SafeServiceHandle serviceHandle, int argNum, IntPtr argPtrs);
         }
 
         // Win32 types
-        internal enum BOOL : int
+        public enum BOOL : int
         {
             FALSE = 0,
             TRUE = 1,
         }
 
-        internal static partial class Errors
+        public static partial class Errors
         {
-            internal const int ERROR_SUCCESS = 0x0;
-            internal const int ERROR_INVALID_FUNCTION = 0x1;
-            internal const int ERROR_FILE_NOT_FOUND = 0x2;
-            internal const int ERROR_PATH_NOT_FOUND = 0x3;
-            internal const int ERROR_ACCESS_DENIED = 0x5;
-            internal const int ERROR_INVALID_HANDLE = 0x6;
-            internal const int ERROR_NOT_ENOUGH_MEMORY = 0x8;
-            internal const int ERROR_INVALID_DATA = 0xD;
-            internal const int ERROR_INVALID_DRIVE = 0xF;
-            internal const int ERROR_NO_MORE_FILES = 0x12;
-            internal const int ERROR_NOT_READY = 0x15;
-            internal const int ERROR_BAD_COMMAND = 0x16;
-            internal const int ERROR_BAD_LENGTH = 0x18;
-            internal const int ERROR_SHARING_VIOLATION = 0x20;
-            internal const int ERROR_LOCK_VIOLATION = 0x21;
-            internal const int ERROR_HANDLE_EOF = 0x26;
-            internal const int ERROR_BAD_NETPATH = 0x35;
-            internal const int ERROR_NETWORK_ACCESS_DENIED = 0x41;
-            internal const int ERROR_BAD_NET_NAME = 0x43;
-            internal const int ERROR_FILE_EXISTS = 0x50;
-            internal const int ERROR_INVALID_PARAMETER = 0x57;
-            internal const int ERROR_BROKEN_PIPE = 0x6D;
-            internal const int ERROR_SEM_TIMEOUT = 0x79;
-            internal const int ERROR_CALL_NOT_IMPLEMENTED = 0x78;
-            internal const int ERROR_INSUFFICIENT_BUFFER = 0x7A;
-            internal const int ERROR_INVALID_NAME = 0x7B;
-            internal const int ERROR_NEGATIVE_SEEK = 0x83;
-            internal const int ERROR_DIR_NOT_EMPTY = 0x91;
-            internal const int ERROR_BAD_PATHNAME = 0xA1;
-            internal const int ERROR_LOCK_FAILED = 0xA7;
-            internal const int ERROR_BUSY = 0xAA;
-            internal const int ERROR_ALREADY_EXISTS = 0xB7;
-            internal const int ERROR_BAD_EXE_FORMAT = 0xC1;
-            internal const int ERROR_ENVVAR_NOT_FOUND = 0xCB;
-            internal const int ERROR_FILENAME_EXCED_RANGE = 0xCE;
-            internal const int ERROR_EXE_MACHINE_TYPE_MISMATCH = 0xD8;
-            internal const int ERROR_PIPE_BUSY = 0xE7;
-            internal const int ERROR_NO_DATA = 0xE8;
-            internal const int ERROR_PIPE_NOT_CONNECTED = 0xE9;
-            internal const int ERROR_MORE_DATA = 0xEA;
-            internal const int ERROR_NO_MORE_ITEMS = 0x103;
-            internal const int ERROR_DIRECTORY = 0x10B;
-            internal const int ERROR_PARTIAL_COPY = 0x12B;
-            internal const int ERROR_ARITHMETIC_OVERFLOW = 0x216;
-            internal const int ERROR_PIPE_CONNECTED = 0x217;
-            internal const int ERROR_PIPE_LISTENING = 0x218;
-            internal const int ERROR_OPERATION_ABORTED = 0x3E3;
-            internal const int ERROR_IO_INCOMPLETE = 0x3E4;
-            internal const int ERROR_IO_PENDING = 0x3E5;
-            internal const int ERROR_NO_TOKEN = 0x3f0;
-            internal const int ERROR_SERVICE_DOES_NOT_EXIST = 0x424;
-            internal const int ERROR_DLL_INIT_FAILED = 0x45A;
-            internal const int ERROR_COUNTER_TIMEOUT = 0x461;
-            internal const int ERROR_NO_ASSOCIATION = 0x483;
-            internal const int ERROR_DDE_FAIL = 0x484;
-            internal const int ERROR_DLL_NOT_FOUND = 0x485;
-            internal const int ERROR_NOT_FOUND = 0x490;
-            internal const int ERROR_NETWORK_UNREACHABLE = 0x4CF;
-            internal const int ERROR_NON_ACCOUNT_SID = 0x4E9;
-            internal const int ERROR_NOT_ALL_ASSIGNED = 0x514;
-            internal const int ERROR_UNKNOWN_REVISION = 0x519;
-            internal const int ERROR_INVALID_OWNER = 0x51B;
-            internal const int ERROR_INVALID_PRIMARY_GROUP = 0x51C;
-            internal const int ERROR_NO_SUCH_PRIVILEGE = 0x521;
-            internal const int ERROR_PRIVILEGE_NOT_HELD = 0x522;
-            internal const int ERROR_INVALID_ACL = 0x538;
-            internal const int ERROR_INVALID_SECURITY_DESCR = 0x53A;
-            internal const int ERROR_INVALID_SID = 0x539;
-            internal const int ERROR_BAD_IMPERSONATION_LEVEL = 0x542;
-            internal const int ERROR_CANT_OPEN_ANONYMOUS = 0x543;
-            internal const int ERROR_NO_SECURITY_ON_OBJECT = 0x546;
-            internal const int ERROR_CLASS_ALREADY_EXISTS = 0x582;
-            internal const int ERROR_EVENTLOG_FILE_CHANGED = 0x5DF;
-            internal const int ERROR_TRUSTED_RELATIONSHIP_FAILURE = 0x6FD;
-            internal const int ERROR_RESOURCE_LANG_NOT_FOUND = 0x717;
-            internal const int EFail = unchecked((int)0x80004005);
-            internal const int E_FILENOTFOUND = unchecked((int)0x80070002);
+            public const int ERROR_SUCCESS = 0x0;
+            public const int ERROR_INVALID_FUNCTION = 0x1;
+            public const int ERROR_FILE_NOT_FOUND = 0x2;
+            public const int ERROR_PATH_NOT_FOUND = 0x3;
+            public const int ERROR_ACCESS_DENIED = 0x5;
+            public const int ERROR_INVALID_HANDLE = 0x6;
+            public const int ERROR_NOT_ENOUGH_MEMORY = 0x8;
+            public const int ERROR_INVALID_DATA = 0xD;
+            public const int ERROR_INVALID_DRIVE = 0xF;
+            public const int ERROR_NO_MORE_FILES = 0x12;
+            public const int ERROR_NOT_READY = 0x15;
+            public const int ERROR_BAD_COMMAND = 0x16;
+            public const int ERROR_BAD_LENGTH = 0x18;
+            public const int ERROR_SHARING_VIOLATION = 0x20;
+            public const int ERROR_LOCK_VIOLATION = 0x21;
+            public const int ERROR_HANDLE_EOF = 0x26;
+            public const int ERROR_BAD_NETPATH = 0x35;
+            public const int ERROR_NETWORK_ACCESS_DENIED = 0x41;
+            public const int ERROR_BAD_NET_NAME = 0x43;
+            public const int ERROR_FILE_EXISTS = 0x50;
+            public const int ERROR_INVALID_PARAMETER = 0x57;
+            public const int ERROR_BROKEN_PIPE = 0x6D;
+            public const int ERROR_SEM_TIMEOUT = 0x79;
+            public const int ERROR_CALL_NOT_IMPLEMENTED = 0x78;
+            public const int ERROR_INSUFFICIENT_BUFFER = 0x7A;
+            public const int ERROR_INVALID_NAME = 0x7B;
+            public const int ERROR_NEGATIVE_SEEK = 0x83;
+            public const int ERROR_DIR_NOT_EMPTY = 0x91;
+            public const int ERROR_BAD_PATHNAME = 0xA1;
+            public const int ERROR_LOCK_FAILED = 0xA7;
+            public const int ERROR_BUSY = 0xAA;
+            public const int ERROR_ALREADY_EXISTS = 0xB7;
+            public const int ERROR_BAD_EXE_FORMAT = 0xC1;
+            public const int ERROR_ENVVAR_NOT_FOUND = 0xCB;
+            public const int ERROR_FILENAME_EXCED_RANGE = 0xCE;
+            public const int ERROR_EXE_MACHINE_TYPE_MISMATCH = 0xD8;
+            public const int ERROR_PIPE_BUSY = 0xE7;
+            public const int ERROR_NO_DATA = 0xE8;
+            public const int ERROR_PIPE_NOT_CONNECTED = 0xE9;
+            public const int ERROR_MORE_DATA = 0xEA;
+            public const int ERROR_NO_MORE_ITEMS = 0x103;
+            public const int ERROR_DIRECTORY = 0x10B;
+            public const int ERROR_PARTIAL_COPY = 0x12B;
+            public const int ERROR_ARITHMETIC_OVERFLOW = 0x216;
+            public const int ERROR_PIPE_CONNECTED = 0x217;
+            public const int ERROR_PIPE_LISTENING = 0x218;
+            public const int ERROR_OPERATION_ABORTED = 0x3E3;
+            public const int ERROR_IO_INCOMPLETE = 0x3E4;
+            public const int ERROR_IO_PENDING = 0x3E5;
+            public const int ERROR_NO_TOKEN = 0x3f0;
+            public const int ERROR_SERVICE_DOES_NOT_EXIST = 0x424;
+            public const int ERROR_DLL_INIT_FAILED = 0x45A;
+            public const int ERROR_COUNTER_TIMEOUT = 0x461;
+            public const int ERROR_NO_ASSOCIATION = 0x483;
+            public const int ERROR_DDE_FAIL = 0x484;
+            public const int ERROR_DLL_NOT_FOUND = 0x485;
+            public const int ERROR_NOT_FOUND = 0x490;
+            public const int ERROR_NETWORK_UNREACHABLE = 0x4CF;
+            public const int ERROR_NON_ACCOUNT_SID = 0x4E9;
+            public const int ERROR_NOT_ALL_ASSIGNED = 0x514;
+            public const int ERROR_UNKNOWN_REVISION = 0x519;
+            public const int ERROR_INVALID_OWNER = 0x51B;
+            public const int ERROR_INVALID_PRIMARY_GROUP = 0x51C;
+            public const int ERROR_NO_SUCH_PRIVILEGE = 0x521;
+            public const int ERROR_PRIVILEGE_NOT_HELD = 0x522;
+            public const int ERROR_INVALID_ACL = 0x538;
+            public const int ERROR_INVALID_SECURITY_DESCR = 0x53A;
+            public const int ERROR_INVALID_SID = 0x539;
+            public const int ERROR_BAD_IMPERSONATION_LEVEL = 0x542;
+            public const int ERROR_CANT_OPEN_ANONYMOUS = 0x543;
+            public const int ERROR_NO_SECURITY_ON_OBJECT = 0x546;
+            public const int ERROR_CLASS_ALREADY_EXISTS = 0x582;
+            public const int ERROR_EVENTLOG_FILE_CHANGED = 0x5DF;
+            public const int ERROR_TRUSTED_RELATIONSHIP_FAILURE = 0x6FD;
+            public const int ERROR_RESOURCE_LANG_NOT_FOUND = 0x717;
+            public const int EFail = unchecked((int)0x80004005);
+            public const int E_FILENOTFOUND = unchecked((int)0x80070002);
         }
 
-        internal static partial class Kernel32
+        public static partial class Kernel32
         {
             [Flags]
             public enum FinalPathFlags : uint
@@ -928,70 +1150,70 @@ namespace IPA.Cores.Basic
                 VideoQueryDisplayBrightness = (EFileDevice.Video << 16) | (0x0126 << 2) | EMethod.Buffered | (0 << 14),
                 VideoSetDisplayBrightness = (EFileDevice.Video << 16) | (0x0127 << 2) | EMethod.Buffered | (0 << 14)
             }
-            internal const uint SEM_FAILCRITICALERRORS = 1;
+            public const uint SEM_FAILCRITICALERRORS = 1;
 
-            internal const int FSCTL_SET_COMPRESSION = 0x9C040;
-            internal const short COMPRESSION_FORMAT_NONE = 0;
-            internal const short COMPRESSION_FORMAT_DEFAULT = 1;
-            
-            internal static partial class GenericOperations
+            public const int FSCTL_SET_COMPRESSION = 0x9C040;
+            public const short COMPRESSION_FORMAT_NONE = 0;
+            public const short COMPRESSION_FORMAT_DEFAULT = 1;
+
+            public static partial class GenericOperations
             {
-                internal const int GENERIC_READ = unchecked((int)0x80000000);
-                internal const int GENERIC_WRITE = 0x40000000;
+                public const int GENERIC_READ = unchecked((int)0x80000000);
+                public const int GENERIC_WRITE = 0x40000000;
             }
 
-            internal static partial class HandleOptions
+            public static partial class HandleOptions
             {
-                internal const int DUPLICATE_SAME_ACCESS = 2;
-                internal const int STILL_ACTIVE = 0x00000103;
-                internal const int TOKEN_ADJUST_PRIVILEGES = 0x20;
+                public const int DUPLICATE_SAME_ACCESS = 2;
+                public const int STILL_ACTIVE = 0x00000103;
+                public const int TOKEN_ADJUST_PRIVILEGES = 0x20;
             }
 
-            internal static partial class IOReparseOptions
+            public static partial class IOReparseOptions
             {
-                internal const uint IO_REPARSE_TAG_FILE_PLACEHOLDER = 0x80000015;
-                internal const uint IO_REPARSE_TAG_MOUNT_POINT = 0xA0000003;
+                public const uint IO_REPARSE_TAG_FILE_PLACEHOLDER = 0x80000015;
+                public const uint IO_REPARSE_TAG_MOUNT_POINT = 0xA0000003;
             }
 
-            internal static partial class FileOperations
+            public static partial class FileOperations
             {
-                internal const int OPEN_EXISTING = 3;
-                internal const int COPY_FILE_FAIL_IF_EXISTS = 0x00000001;
+                public const int OPEN_EXISTING = 3;
+                public const int COPY_FILE_FAIL_IF_EXISTS = 0x00000001;
 
-                internal const int FILE_FLAG_BACKUP_SEMANTICS = 0x02000000;
-                internal const int FILE_FLAG_FIRST_PIPE_INSTANCE = 0x00080000;
-                internal const int FILE_FLAG_OVERLAPPED = 0x40000000;
+                public const int FILE_FLAG_BACKUP_SEMANTICS = 0x02000000;
+                public const int FILE_FLAG_FIRST_PIPE_INSTANCE = 0x00080000;
+                public const int FILE_FLAG_OVERLAPPED = 0x40000000;
 
-                internal const int FILE_LIST_DIRECTORY = 0x0001;
+                public const int FILE_LIST_DIRECTORY = 0x0001;
             }
 
             [StructLayout(LayoutKind.Sequential)]
-            internal struct SECURITY_ATTRIBUTES
+            public struct SECURITY_ATTRIBUTES
             {
-                internal uint nLength;
-                internal IntPtr lpSecurityDescriptor;
-                internal BOOL bInheritHandle;
+                public uint nLength;
+                public IntPtr lpSecurityDescriptor;
+                public BOOL bInheritHandle;
             }
 
-            internal static partial class SecurityOptions
+            public static partial class SecurityOptions
             {
-                internal const int SECURITY_SQOS_PRESENT = 0x00100000;
-                internal const int SECURITY_ANONYMOUS = 0 << 16;
-                internal const int SECURITY_IDENTIFICATION = 1 << 16;
-                internal const int SECURITY_IMPERSONATION = 2 << 16;
-                internal const int SECURITY_DELEGATION = 3 << 16;
+                public const int SECURITY_SQOS_PRESENT = 0x00100000;
+                public const int SECURITY_ANONYMOUS = 0 << 16;
+                public const int SECURITY_IDENTIFICATION = 1 << 16;
+                public const int SECURITY_IMPERSONATION = 2 << 16;
+                public const int SECURITY_DELEGATION = 3 << 16;
             }
 
-            internal struct FILE_BASIC_INFO
+            public struct FILE_BASIC_INFO
             {
-                internal long CreationTime;
-                internal long LastAccessTime;
-                internal long LastWriteTime;
-                internal long ChangeTime;
-                internal uint FileAttributes;
+                public long CreationTime;
+                public long LastAccessTime;
+                public long LastWriteTime;
+                public long ChangeTime;
+                public uint FileAttributes;
             }
 
-            internal enum FILE_INFO_BY_HANDLE_CLASS : uint
+            public enum FILE_INFO_BY_HANDLE_CLASS : uint
             {
                 FileBasicInfo = 0x0u,
                 FileStandardInfo = 0x1u,
@@ -1016,25 +1238,25 @@ namespace IPA.Cores.Basic
                 FileIdExtdDirectoryRestartInfo = 0x14u,
                 MaximumFileInfoByHandleClass = 0x15u,
             }
-            internal enum GET_FILEEX_INFO_LEVELS : uint
+            public enum GET_FILEEX_INFO_LEVELS : uint
             {
                 GetFileExInfoStandard = 0x0u,
                 GetFileExMaxInfoLevel = 0x1u,
             }
 
-            internal struct WIN32_FILE_ATTRIBUTE_DATA
+            public struct WIN32_FILE_ATTRIBUTE_DATA
             {
-                internal int dwFileAttributes;
-                internal uint ftCreationTimeLow;
-                internal uint ftCreationTimeHigh;
-                internal uint ftLastAccessTimeLow;
-                internal uint ftLastAccessTimeHigh;
-                internal uint ftLastWriteTimeLow;
-                internal uint ftLastWriteTimeHigh;
-                internal uint fileSizeHigh;
-                internal uint fileSizeLow;
+                public int dwFileAttributes;
+                public uint ftCreationTimeLow;
+                public uint ftCreationTimeHigh;
+                public uint ftLastAccessTimeLow;
+                public uint ftLastAccessTimeHigh;
+                public uint ftLastWriteTimeLow;
+                public uint ftLastWriteTimeHigh;
+                public uint fileSizeHigh;
+                public uint fileSizeLow;
 
-                internal void PopulateFrom(ref WIN32_FIND_DATA findData)
+                public void PopulateFrom(ref WIN32_FIND_DATA findData)
                 {
                     // Copy the information to data
                     dwFileAttributes = (int)findData.dwFileAttributes;
@@ -1049,7 +1271,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            internal enum NativeDiskType : uint
+            public enum NativeDiskType : uint
             {
                 Unknown,
                 F5_1Pt2_512,
@@ -1080,7 +1302,7 @@ namespace IPA.Cores.Basic
             }
 
             [StructLayout(LayoutKind.Sequential)]
-            internal struct DISK_GEOMETRY
+            public struct DISK_GEOMETRY
             {
                 public long Cylinders;
                 public NativeDiskType MediaType;
@@ -1098,7 +1320,7 @@ namespace IPA.Cores.Basic
             }
 
             [StructLayout(LayoutKind.Sequential)]
-            internal struct FILE_ZERO_DATA_INFORMATION
+            public struct FILE_ZERO_DATA_INFORMATION
             {
                 public FILE_ZERO_DATA_INFORMATION(long offset, long count)
                 {
@@ -1115,20 +1337,20 @@ namespace IPA.Cores.Basic
 
             [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
             [BestFitMapping(false)]
-            internal unsafe struct WIN32_FIND_DATA
+            public unsafe struct WIN32_FIND_DATA
             {
-                internal uint dwFileAttributes;
-                internal FILE_TIME ftCreationTime;
-                internal FILE_TIME ftLastAccessTime;
-                internal FILE_TIME ftLastWriteTime;
-                internal uint nFileSizeHigh;
-                internal uint nFileSizeLow;
-                internal uint dwReserved0;
-                internal uint dwReserved1;
+                public uint dwFileAttributes;
+                public FILE_TIME ftCreationTime;
+                public FILE_TIME ftLastAccessTime;
+                public FILE_TIME ftLastWriteTime;
+                public uint nFileSizeHigh;
+                public uint nFileSizeLow;
+                public uint dwReserved0;
+                public uint dwReserved1;
                 [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
-                internal string cFileName;
+                public string cFileName;
                 [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 14)]
-                internal string cAlternateFileName;
+                public string cAlternateFileName;
             }
 
             public enum STREAM_INFO_LEVELS
@@ -1138,16 +1360,16 @@ namespace IPA.Cores.Basic
             }
 
             [StructLayout(LayoutKind.Explicit)]
-            internal unsafe struct LARGE_INTEGER
+            public unsafe struct LARGE_INTEGER
             {
                 [FieldOffset(0)]
-                internal int LowPart;
+                public int LowPart;
 
                 [FieldOffset(4)]
-                internal int HighPart;
+                public int HighPart;
 
                 [FieldOffset(0)]
-                internal long QuadPart;
+                public long QuadPart;
             }
 
             [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -1158,31 +1380,31 @@ namespace IPA.Cores.Basic
                 public string cStreamName;
             }
 
-            internal struct FILE_TIME
+            public struct FILE_TIME
             {
-                internal uint dwLowDateTime;
-                internal uint dwHighDateTime;
+                public uint dwLowDateTime;
+                public uint dwHighDateTime;
 
-                internal FILE_TIME(long fileTime)
+                public FILE_TIME(long fileTime)
                 {
                     dwLowDateTime = (uint)fileTime;
                     dwHighDateTime = (uint)(fileTime >> 32);
                 }
 
-                internal long ToTicks()
+                public long ToTicks()
                 {
                     return ((long)dwHighDateTime << 32) + dwLowDateTime;
                 }
             }
 
-            internal enum FINDEX_INFO_LEVELS : uint
+            public enum FINDEX_INFO_LEVELS : uint
             {
                 FindExInfoStandard = 0x0u,
                 FindExInfoBasic = 0x1u,
                 FindExInfoMaxInfoLevel = 0x2u,
             }
 
-            internal enum FINDEX_SEARCH_OPS : uint
+            public enum FINDEX_SEARCH_OPS : uint
             {
                 FindExSearchNameMatch = 0x0u,
                 FindExSearchLimitToDirectories = 0x1u,
@@ -1191,10 +1413,10 @@ namespace IPA.Cores.Basic
             }
         }
 
-        internal static partial class NtDll
+        public static partial class NtDll
         {
             [StructLayout(LayoutKind.Sequential)]
-            internal struct IO_STATUS_BLOCK
+            public struct IO_STATUS_BLOCK
             {
                 IO_STATUS Status;
                 IntPtr Information;
@@ -1203,7 +1425,7 @@ namespace IPA.Cores.Basic
             // This isn't an actual Windows type, we have to separate it out as the size of IntPtr varies by architecture
             // and we can't specify the size at compile time to offset the Information pointer in the status block.
             [StructLayout(LayoutKind.Explicit)]
-            internal struct IO_STATUS
+            public struct IO_STATUS
             {
                 [FieldOffset(0)]
                 int Status;
@@ -1212,13 +1434,13 @@ namespace IPA.Cores.Basic
                 IntPtr Pointer;
             }
 
-            internal const uint FileModeInformation = 16;
-            internal const uint FILE_SYNCHRONOUS_IO_ALERT = 0x00000010;
-            internal const uint FILE_SYNCHRONOUS_IO_NONALERT = 0x00000020;
+            public const uint FileModeInformation = 16;
+            public const uint FILE_SYNCHRONOUS_IO_ALERT = 0x00000010;
+            public const uint FILE_SYNCHRONOUS_IO_NONALERT = 0x00000020;
 
-            internal const int STATUS_INVALID_HANDLE = unchecked((int)0xC0000008);
+            public const int STATUS_INVALID_HANDLE = unchecked((int)0xC0000008);
 
-            internal struct FILE_STREAM_INFORMATION
+            public struct FILE_STREAM_INFORMATION
             {
                 public uint NextEntryOffset;
                 public uint StreamNameLength;
@@ -1301,79 +1523,79 @@ namespace IPA.Cores.Basic
             }
         }
 
-        internal static partial class Advapi32
+        public static partial class Advapi32
         {
-            internal const string SeDebugPrivilege = "SeDebugPrivilege";
-            internal const string SeBackupPrivilege = "SeBackupPrivilege";
-            internal const string SeRestorePrivilege = "SeRestorePrivilege";
-            internal const string SeShutdownPrivilege = "SeShutdownPrivilege";
-            internal const string SeRemoteShutdownPrivilege = "SeRemoteShutdownPrivilege";
-            internal const string SeTakeOwnershipPrivilege = "SeTakeOwnershipPrivilege";
+            public const string SeDebugPrivilege = "SeDebugPrivilege";
+            public const string SeBackupPrivilege = "SeBackupPrivilege";
+            public const string SeRestorePrivilege = "SeRestorePrivilege";
+            public const string SeShutdownPrivilege = "SeShutdownPrivilege";
+            public const string SeRemoteShutdownPrivilege = "SeRemoteShutdownPrivilege";
+            public const string SeTakeOwnershipPrivilege = "SeTakeOwnershipPrivilege";
 
-            internal static partial class SEPrivileges
+            public static partial class SEPrivileges
             {
-                internal const uint SE_PRIVILEGE_DISABLED = 0;
-                internal const int SE_PRIVILEGE_ENABLED = 2;
+                public const uint SE_PRIVILEGE_DISABLED = 0;
+                public const int SE_PRIVILEGE_ENABLED = 2;
             }
 
-            internal static partial class PerfCounterOptions
+            public static partial class PerfCounterOptions
             {
-                internal const int NtPerfCounterSizeLarge = 0x00000100;
+                public const int NtPerfCounterSizeLarge = 0x00000100;
             }
 
-            internal static partial class ProcessOptions
+            public static partial class ProcessOptions
             {
-                internal const int PROCESS_TERMINATE = 0x0001;
-                internal const int PROCESS_VM_READ = 0x0010;
-                internal const int PROCESS_SET_QUOTA = 0x0100;
-                internal const int PROCESS_SET_INFORMATION = 0x0200;
-                internal const int PROCESS_QUERY_INFORMATION = 0x0400;
-                internal const int PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
-                internal const int PROCESS_ALL_ACCESS = STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | 0xFFF;
+                public const int PROCESS_TERMINATE = 0x0001;
+                public const int PROCESS_VM_READ = 0x0010;
+                public const int PROCESS_SET_QUOTA = 0x0100;
+                public const int PROCESS_SET_INFORMATION = 0x0200;
+                public const int PROCESS_QUERY_INFORMATION = 0x0400;
+                public const int PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+                public const int PROCESS_ALL_ACCESS = STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | 0xFFF;
 
 
-                internal const int STANDARD_RIGHTS_REQUIRED = 0x000F0000;
-                internal const int SYNCHRONIZE = 0x00100000;
+                public const int STANDARD_RIGHTS_REQUIRED = 0x000F0000;
+                public const int SYNCHRONIZE = 0x00100000;
             }
 
-            internal static partial class RPCStatus
+            public static partial class RPCStatus
             {
-                internal const int RPC_S_SERVER_UNAVAILABLE = 1722;
-                internal const int RPC_S_CALL_FAILED = 1726;
+                public const int RPC_S_SERVER_UNAVAILABLE = 1722;
+                public const int RPC_S_CALL_FAILED = 1726;
             }
 
-            internal static partial class StartupInfoOptions
+            public static partial class StartupInfoOptions
             {
-                internal const int STARTF_USESTDHANDLES = 0x00000100;
-                internal const int CREATE_UNICODE_ENVIRONMENT = 0x00000400;
-                internal const int CREATE_NO_WINDOW = 0x08000000;
-                internal const uint STATUS_INFO_LENGTH_MISMATCH = 0xC0000004;
-            }
-
-            [StructLayout(LayoutKind.Sequential)]
-            internal struct LUID
-            {
-                internal int LowPart;
-                internal int HighPart;
+                public const int STARTF_USESTDHANDLES = 0x00000100;
+                public const int CREATE_UNICODE_ENVIRONMENT = 0x00000400;
+                public const int CREATE_NO_WINDOW = 0x08000000;
+                public const uint STATUS_INFO_LENGTH_MISMATCH = 0xC0000004;
             }
 
             [StructLayout(LayoutKind.Sequential)]
-            internal partial struct LUID_AND_ATTRIBUTES
+            public struct LUID
+            {
+                public int LowPart;
+                public int HighPart;
+            }
+
+            [StructLayout(LayoutKind.Sequential)]
+            public partial struct LUID_AND_ATTRIBUTES
             {
                 public LUID Luid;
                 public uint Attributes;
             }
 
-            internal struct TOKEN_PRIVILEGE
+            public struct TOKEN_PRIVILEGE
             {
                 public uint PrivilegeCount;
                 public LUID_AND_ATTRIBUTES Privileges /*[ANYSIZE_ARRAY]*/;
             }
 
 
-            internal sealed class SafeServiceHandle : SafeHandleZeroOrMinusOneIsInvalid
+            public sealed class SafeServiceHandle : SafeHandleZeroOrMinusOneIsInvalid
             {
-                internal SafeServiceHandle() : base(true) { }
+                public SafeServiceHandle() : base(true) { }
 
                 override protected bool ReleaseHandle()
                 {
@@ -1394,7 +1616,7 @@ namespace IPA.Cores.Basic
             }
 
             [StructLayout(LayoutKind.Sequential)]
-            internal struct SERVICE_STATUS
+            public struct SERVICE_STATUS
             {
                 public int serviceType;
                 public int currentState;
@@ -1406,46 +1628,46 @@ namespace IPA.Cores.Basic
             }
 
 
-            internal partial class AcceptOptions
+            public partial class AcceptOptions
             {
-                internal const int ACCEPT_POWEREVENT = 0x00000040;
-                internal const int ACCEPT_PAUSE_CONTINUE = 0x00000002;
-                internal const int ACCEPT_SESSIONCHANGE = 0x00000080;
-                internal const int ACCEPT_SHUTDOWN = 0x00000004;
-                internal const int ACCEPT_STOP = 0x00000001;
+                public const int ACCEPT_POWEREVENT = 0x00000040;
+                public const int ACCEPT_PAUSE_CONTINUE = 0x00000002;
+                public const int ACCEPT_SESSIONCHANGE = 0x00000080;
+                public const int ACCEPT_SHUTDOWN = 0x00000004;
+                public const int ACCEPT_STOP = 0x00000001;
             }
 
-            internal partial class ControlOptions
+            public partial class ControlOptions
             {
-                internal const int CONTROL_CONTINUE = 0x00000003;
-                internal const int CONTROL_INTERROGATE = 0x00000004;
-                internal const int CONTROL_PAUSE = 0x00000002;
-                internal const int CONTROL_POWEREVENT = 0x0000000D;
-                internal const int CONTROL_SESSIONCHANGE = 0x0000000E;
-                internal const int CONTROL_SHUTDOWN = 0x00000005;
-                internal const int CONTROL_STOP = 0x00000001;
+                public const int CONTROL_CONTINUE = 0x00000003;
+                public const int CONTROL_INTERROGATE = 0x00000004;
+                public const int CONTROL_PAUSE = 0x00000002;
+                public const int CONTROL_POWEREVENT = 0x0000000D;
+                public const int CONTROL_SESSIONCHANGE = 0x0000000E;
+                public const int CONTROL_SHUTDOWN = 0x00000005;
+                public const int CONTROL_STOP = 0x00000001;
             }
 
-            internal partial class ServiceConfigOptions
+            public partial class ServiceConfigOptions
             {
-                internal const int SERVICE_CONFIG_DESCRIPTION = 0x00000001;
-                internal const int SERVICE_CONFIG_FAILURE_ACTIONS = 0x00000002;
-                internal const int SERVICE_CONFIG_DELAYED_AUTO_START_INFO = 0x00000003;
+                public const int SERVICE_CONFIG_DESCRIPTION = 0x00000001;
+                public const int SERVICE_CONFIG_FAILURE_ACTIONS = 0x00000002;
+                public const int SERVICE_CONFIG_DELAYED_AUTO_START_INFO = 0x00000003;
             }
 
-            internal partial class ServiceOptions
+            public partial class ServiceOptions
             {
-                internal const int SERVICE_QUERY_CONFIG = 0x0001;
-                internal const int SERVICE_CHANGE_CONFIG = 0x0002;
-                internal const int SERVICE_QUERY_STATUS = 0x0004;
-                internal const int SERVICE_ENUMERATE_DEPENDENTS = 0x0008;
-                internal const int SERVICE_START = 0x0010;
-                internal const int SERVICE_STOP = 0x0020;
-                internal const int SERVICE_PAUSE_CONTINUE = 0x0040;
-                internal const int SERVICE_INTERROGATE = 0x0080;
-                internal const int SERVICE_USER_DEFINED_CONTROL = 0x0100;
+                public const int SERVICE_QUERY_CONFIG = 0x0001;
+                public const int SERVICE_CHANGE_CONFIG = 0x0002;
+                public const int SERVICE_QUERY_STATUS = 0x0004;
+                public const int SERVICE_ENUMERATE_DEPENDENTS = 0x0008;
+                public const int SERVICE_START = 0x0010;
+                public const int SERVICE_STOP = 0x0020;
+                public const int SERVICE_PAUSE_CONTINUE = 0x0040;
+                public const int SERVICE_INTERROGATE = 0x0080;
+                public const int SERVICE_USER_DEFINED_CONTROL = 0x0100;
 
-                internal const int SERVICE_ALL_ACCESS =
+                public const int SERVICE_ALL_ACCESS =
                     STANDARD_RIGHTS_REQUIRED |
                     SERVICE_QUERY_CONFIG |
                     SERVICE_CHANGE_CONFIG |
@@ -1457,45 +1679,45 @@ namespace IPA.Cores.Basic
                     SERVICE_INTERROGATE |
                     SERVICE_USER_DEFINED_CONTROL;
 
-                internal const int STANDARD_RIGHTS_DELETE = 0x00010000;
-                internal const int STANDARD_RIGHTS_REQUIRED = 0x000F0000;
+                public const int STANDARD_RIGHTS_DELETE = 0x00010000;
+                public const int STANDARD_RIGHTS_REQUIRED = 0x000F0000;
             }
 
-            internal partial class ServiceTypeOptions
+            public partial class ServiceTypeOptions
             {
-                internal const int SERVICE_TYPE_ADAPTER = 0x00000004;
-                internal const int SERVICE_TYPE_FILE_SYSTEM_DRIVER = 0x00000002;
-                internal const int SERVICE_TYPE_INTERACTIVE_PROCESS = 0x00000100;
-                internal const int SERVICE_TYPE_KERNEL_DRIVER = 0x00000001;
-                internal const int SERVICE_TYPE_RECOGNIZER_DRIVER = 0x00000008;
-                internal const int SERVICE_TYPE_WIN32_OWN_PROCESS = 0x00000010;
-                internal const int SERVICE_TYPE_WIN32_SHARE_PROCESS = 0x00000020;
-                internal const int SERVICE_TYPE_WIN32 =
+                public const int SERVICE_TYPE_ADAPTER = 0x00000004;
+                public const int SERVICE_TYPE_FILE_SYSTEM_DRIVER = 0x00000002;
+                public const int SERVICE_TYPE_INTERACTIVE_PROCESS = 0x00000100;
+                public const int SERVICE_TYPE_KERNEL_DRIVER = 0x00000001;
+                public const int SERVICE_TYPE_RECOGNIZER_DRIVER = 0x00000008;
+                public const int SERVICE_TYPE_WIN32_OWN_PROCESS = 0x00000010;
+                public const int SERVICE_TYPE_WIN32_SHARE_PROCESS = 0x00000020;
+                public const int SERVICE_TYPE_WIN32 =
                     SERVICE_TYPE_WIN32_OWN_PROCESS |
                     SERVICE_TYPE_WIN32_SHARE_PROCESS;
-                internal const int SERVICE_TYPE_DRIVER =
+                public const int SERVICE_TYPE_DRIVER =
                     SERVICE_TYPE_KERNEL_DRIVER |
                     SERVICE_TYPE_FILE_SYSTEM_DRIVER |
                     SERVICE_TYPE_RECOGNIZER_DRIVER;
-                internal const int SERVICE_TYPE_ALL =
+                public const int SERVICE_TYPE_ALL =
                     SERVICE_TYPE_WIN32 |
                     SERVICE_TYPE_ADAPTER |
                     SERVICE_TYPE_DRIVER |
                     SERVICE_TYPE_INTERACTIVE_PROCESS;
             }
 
-            internal partial class ServiceAccessOptions
+            public partial class ServiceAccessOptions
             {
-                internal const int ACCESS_TYPE_CHANGE_CONFIG = 0x0002;
-                internal const int ACCESS_TYPE_ENUMERATE_DEPENDENTS = 0x0008;
-                internal const int ACCESS_TYPE_INTERROGATE = 0x0080;
-                internal const int ACCESS_TYPE_PAUSE_CONTINUE = 0x0040;
-                internal const int ACCESS_TYPE_QUERY_CONFIG = 0x0001;
-                internal const int ACCESS_TYPE_QUERY_STATUS = 0x0004;
-                internal const int ACCESS_TYPE_START = 0x0010;
-                internal const int ACCESS_TYPE_STOP = 0x0020;
-                internal const int ACCESS_TYPE_USER_DEFINED_CONTROL = 0x0100;
-                internal const int ACCESS_TYPE_ALL =
+                public const int ACCESS_TYPE_CHANGE_CONFIG = 0x0002;
+                public const int ACCESS_TYPE_ENUMERATE_DEPENDENTS = 0x0008;
+                public const int ACCESS_TYPE_INTERROGATE = 0x0080;
+                public const int ACCESS_TYPE_PAUSE_CONTINUE = 0x0040;
+                public const int ACCESS_TYPE_QUERY_CONFIG = 0x0001;
+                public const int ACCESS_TYPE_QUERY_STATUS = 0x0004;
+                public const int ACCESS_TYPE_START = 0x0010;
+                public const int ACCESS_TYPE_STOP = 0x0020;
+                public const int ACCESS_TYPE_USER_DEFINED_CONTROL = 0x0100;
+                public const int ACCESS_TYPE_ALL =
                     ServiceOptions.STANDARD_RIGHTS_REQUIRED |
                     ACCESS_TYPE_QUERY_CONFIG |
                     ACCESS_TYPE_CHANGE_CONFIG |
@@ -1508,59 +1730,59 @@ namespace IPA.Cores.Basic
                     ACCESS_TYPE_USER_DEFINED_CONTROL;
             }
 
-            internal partial class ServiceStartModes
+            public partial class ServiceStartModes
             {
-                internal const int START_TYPE_BOOT = 0x00000000;
-                internal const int START_TYPE_SYSTEM = 0x00000001;
-                internal const int START_TYPE_AUTO = 0x00000002;
-                internal const int START_TYPE_DEMAND = 0x00000003;
-                internal const int START_TYPE_DISABLED = 0x00000004;
+                public const int START_TYPE_BOOT = 0x00000000;
+                public const int START_TYPE_SYSTEM = 0x00000001;
+                public const int START_TYPE_AUTO = 0x00000002;
+                public const int START_TYPE_DEMAND = 0x00000003;
+                public const int START_TYPE_DISABLED = 0x00000004;
             }
 
-            internal partial class ServiceState
+            public partial class ServiceState
             {
-                internal const int SERVICE_ACTIVE = 1;
-                internal const int SERVICE_INACTIVE = 2;
-                internal const int SERVICE_STATE_ALL = SERVICE_ACTIVE | SERVICE_INACTIVE;
+                public const int SERVICE_ACTIVE = 1;
+                public const int SERVICE_INACTIVE = 2;
+                public const int SERVICE_STATE_ALL = SERVICE_ACTIVE | SERVICE_INACTIVE;
             }
 
-            internal partial class StatusOptions
+            public partial class StatusOptions
             {
-                internal const int STATUS_ACTIVE = 0x00000001;
-                internal const int STATUS_INACTIVE = 0x00000002;
-                internal const int STATUS_ALL = STATUS_ACTIVE | STATUS_INACTIVE;
+                public const int STATUS_ACTIVE = 0x00000001;
+                public const int STATUS_INACTIVE = 0x00000002;
+                public const int STATUS_ALL = STATUS_ACTIVE | STATUS_INACTIVE;
             }
 
-            internal partial class ServiceControlStatus
+            public partial class ServiceControlStatus
             {
-                internal const int STATE_CONTINUE_PENDING = 0x00000005;
-                internal const int STATE_PAUSED = 0x00000007;
-                internal const int STATE_PAUSE_PENDING = 0x00000006;
-                internal const int STATE_RUNNING = 0x00000004;
-                internal const int STATE_START_PENDING = 0x00000002;
-                internal const int STATE_STOPPED = 0x00000001;
-                internal const int STATE_STOP_PENDING = 0x00000003;
-                internal const int ERROR_EXCEPTION_IN_SERVICE = 0x00000428;
+                public const int STATE_CONTINUE_PENDING = 0x00000005;
+                public const int STATE_PAUSED = 0x00000007;
+                public const int STATE_PAUSE_PENDING = 0x00000006;
+                public const int STATE_RUNNING = 0x00000004;
+                public const int STATE_START_PENDING = 0x00000002;
+                public const int STATE_STOPPED = 0x00000001;
+                public const int STATE_STOP_PENDING = 0x00000003;
+                public const int ERROR_EXCEPTION_IN_SERVICE = 0x00000428;
             }
 
-            internal partial class ServiceStartErrorModes
+            public partial class ServiceStartErrorModes
             {
-                internal const int ERROR_CONTROL_CRITICAL = 0x00000003;
-                internal const int ERROR_CONTROL_IGNORE = 0x00000000;
-                internal const int ERROR_CONTROL_NORMAL = 0x00000001;
-                internal const int ERROR_CONTROL_SEVERE = 0x00000002;
+                public const int ERROR_CONTROL_CRITICAL = 0x00000003;
+                public const int ERROR_CONTROL_IGNORE = 0x00000000;
+                public const int ERROR_CONTROL_NORMAL = 0x00000001;
+                public const int ERROR_CONTROL_SEVERE = 0x00000002;
             }
 
-            internal partial class ServiceControllerOptions
+            public partial class ServiceControllerOptions
             {
-                internal const int SC_ENUM_PROCESS_INFO = 0;
-                internal const int SC_MANAGER_CONNECT = 0x0001;
-                internal const int SC_MANAGER_CREATE_SERVICE = 0x0002;
-                internal const int SC_MANAGER_ENUMERATE_SERVICE = 0x0004;
-                internal const int SC_MANAGER_LOCK = 0x0008;
-                internal const int SC_MANAGER_MODIFY_BOOT_CONFIG = 0x0020;
-                internal const int SC_MANAGER_QUERY_LOCK_STATUS = 0x0010;
-                internal const int SC_MANAGER_ALL =
+                public const int SC_ENUM_PROCESS_INFO = 0;
+                public const int SC_MANAGER_CONNECT = 0x0001;
+                public const int SC_MANAGER_CREATE_SERVICE = 0x0002;
+                public const int SC_MANAGER_ENUMERATE_SERVICE = 0x0004;
+                public const int SC_MANAGER_LOCK = 0x0008;
+                public const int SC_MANAGER_MODIFY_BOOT_CONFIG = 0x0020;
+                public const int SC_MANAGER_QUERY_LOCK_STATUS = 0x0010;
+                public const int SC_MANAGER_ALL =
                     ServiceOptions.STANDARD_RIGHTS_REQUIRED |
                     SC_MANAGER_CONNECT |
                     SC_MANAGER_CREATE_SERVICE |
@@ -1570,30 +1792,30 @@ namespace IPA.Cores.Basic
                     SC_MANAGER_MODIFY_BOOT_CONFIG;
             }
 
-            internal partial class PowerBroadcastStatus
+            public partial class PowerBroadcastStatus
             {
-                internal const int PBT_APMBATTERYLOW = 0x0009;
-                internal const int PBT_APMOEMEVENT = 0x000B;
-                internal const int PBT_APMPOWERSTATUSCHANGE = 0x000A;
-                internal const int PBT_APMQUERYSUSPEND = 0x0000;
-                internal const int PBT_APMQUERYSUSPENDFAILED = 0x0002;
-                internal const int PBT_APMRESUMEAUTOMATIC = 0x0012;
-                internal const int PBT_APMRESUMECRITICAL = 0x0006;
-                internal const int PBT_APMRESUMESUSPEND = 0x0007;
-                internal const int PBT_APMSUSPEND = 0x0004;
+                public const int PBT_APMBATTERYLOW = 0x0009;
+                public const int PBT_APMOEMEVENT = 0x000B;
+                public const int PBT_APMPOWERSTATUSCHANGE = 0x000A;
+                public const int PBT_APMQUERYSUSPEND = 0x0000;
+                public const int PBT_APMQUERYSUSPENDFAILED = 0x0002;
+                public const int PBT_APMRESUMEAUTOMATIC = 0x0012;
+                public const int PBT_APMRESUMECRITICAL = 0x0006;
+                public const int PBT_APMRESUMESUSPEND = 0x0007;
+                public const int PBT_APMSUSPEND = 0x0004;
             }
 
-            internal partial class SessionStateChange
+            public partial class SessionStateChange
             {
-                internal const int WTS_CONSOLE_CONNECT = 0x1;
-                internal const int WTS_CONSOLE_DISCONNECT = 0x2;
-                internal const int WTS_REMOTE_CONNECT = 0x3;
-                internal const int WTS_REMOTE_DISCONNECT = 0x4;
-                internal const int WTS_SESSION_LOGON = 0x5;
-                internal const int WTS_SESSION_LOGOFF = 0x6;
-                internal const int WTS_SESSION_LOCK = 0x7;
-                internal const int WTS_SESSION_UNLOCK = 0x8;
-                internal const int WTS_SESSION_REMOTE_CONTROL = 0x9;
+                public const int WTS_CONSOLE_CONNECT = 0x1;
+                public const int WTS_CONSOLE_DISCONNECT = 0x2;
+                public const int WTS_REMOTE_CONNECT = 0x3;
+                public const int WTS_REMOTE_DISCONNECT = 0x4;
+                public const int WTS_SESSION_LOGON = 0x5;
+                public const int WTS_SESSION_LOGOFF = 0x6;
+                public const int WTS_SESSION_LOCK = 0x7;
+                public const int WTS_SESSION_UNLOCK = 0x8;
+                public const int WTS_SESSION_REMOTE_CONTROL = 0x9;
             }
 
             // From https://github.com/cloudfoundry/garden-windows-release/blob/754d9b0c6b3c60a1ee23028e25213e849274562d/GardenWindowsRelease/ServiceConfigurator/ServiceConfigurator.cs
@@ -1602,7 +1824,7 @@ namespace IPA.Cores.Basic
             private const int DELAY_IN_MILLISECONDS = 0;
 
             [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-            internal struct SERVICE_FAILURE_ACTIONS
+            public struct SERVICE_FAILURE_ACTIONS
             {
                 public int dwResetPeriod;
                 [MarshalAs(UnmanagedType.LPWStr)]
@@ -1614,9 +1836,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        internal sealed class SafeFindHandle : SafeHandleZeroOrMinusOneIsInvalid
+        public sealed class SafeFindHandle : SafeHandleZeroOrMinusOneIsInvalid
         {
-            internal SafeFindHandle() : base(true) { }
+            public SafeFindHandle() : base(true) { }
 
             override protected bool ReleaseHandle()
             {
@@ -1625,15 +1847,15 @@ namespace IPA.Cores.Basic
         }
 
         // Support routines
-        internal sealed class SafeTokenHandle : SafeHandle
+        public sealed class SafeTokenHandle : SafeHandle
         {
             private const int DefaultInvalidHandleValue = 0;
 
-            internal static readonly SafeTokenHandle InvalidHandle = new SafeTokenHandle(new IntPtr(DefaultInvalidHandleValue));
+            public static readonly SafeTokenHandle InvalidHandle = new SafeTokenHandle(new IntPtr(DefaultInvalidHandleValue));
 
-            internal SafeTokenHandle() : base(new IntPtr(DefaultInvalidHandleValue), true) { }
+            public SafeTokenHandle() : base(new IntPtr(DefaultInvalidHandleValue), true) { }
 
-            internal SafeTokenHandle(IntPtr handle)
+            public SafeTokenHandle(IntPtr handle)
                 : base(new IntPtr(DefaultInvalidHandleValue), true)
             {
                 SetHandle(handle);
@@ -1699,7 +1921,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        internal struct Win32DisableMediaInsertionPrompt : IDisposable
+        public struct Win32DisableMediaInsertionPrompt : IDisposable
         {
             private bool _disableSuccess;
             private uint _oldMode;
@@ -1720,12 +1942,12 @@ namespace IPA.Cores.Basic
         }
     }
 
-    internal static class PalWin32FileStream
+    public static class PalWin32FileStream
     {
         private const int FILE_ATTRIBUTE_NORMAL = 0x00000080;
         private const int FILE_ATTRIBUTE_ENCRYPTED = 0x00004000;
         private const int FILE_FLAG_OVERLAPPED = 0x40000000;
-        internal const int GENERIC_READ = unchecked((int)0x80000000);
+        public const int GENERIC_READ = unchecked((int)0x80000000);
         private const int GENERIC_WRITE = 0x40000000;
 
         public static FileStream Create(string path, FileMode mode, FileAccess access, FileShare share, int bufferSize, FileOptions options)
@@ -1863,7 +2085,7 @@ namespace IPA.Cores.Basic
             return fileHandle;
         }
 
-        internal static Exception GetExceptionForLastWin32Error(string path = "")
+        public static Exception GetExceptionForLastWin32Error(string path = "")
             => GetExceptionForWin32Error(Marshal.GetLastWin32Error(), path);
 
         public static Exception GetExceptionForWin32Error(int errorCode, string? argument = "")

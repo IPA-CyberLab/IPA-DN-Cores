@@ -227,6 +227,8 @@ namespace IPA.Cores.Basic
 
             public const string Zip = ".zip";
 
+            public const string Win32Executable = ".exe";
+
             public const string Filter_SourceCodes = "*.c;*.cpp;*.h;*.rc;*.stb;*.cs;*.fx;*.hlsl;*.cxx;*.cc;*.hh;*.hpp;*.hxx;*.hh;*.txt";
         }
 
@@ -316,6 +318,8 @@ namespace IPA.Cores.Basic
             public const int JsonRpcClientEndPointInfoUpdateInterval = 60 * 1000;
 
             public const int AutoArchivePollingInterval = 12 * 60 * 1000;
+
+            public const int UiAutomationDefaultInterval = 50;
         }
 
         public static partial class Timeouts

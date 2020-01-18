@@ -63,6 +63,7 @@ namespace IPA.Cores.Basic
         Recursive = 64,
         SetAclProtectionFlagOnRootDir = 128,
         IgnoreReadError = 256,
+        SilenceSuccessfulReport = 512,
 
         Default = CopyDirectoryCompressionFlag | CopyFileCompressionFlag | CopyFileSparseFlag | AsyncCopy | Overwrite | Recursive | SetAclProtectionFlagOnRootDir,
     }
@@ -132,7 +133,10 @@ namespace IPA.Cores.Basic
 
         async Task<bool> DefaultProgressCallback(CopyDirectoryStatus status, FileSystemEntity entity)
         {
-            Con.WriteError($"Copying: '{entity.FullPath}'");
+            if (this.CopyDirFlags.Bit(CopyDirectoryFlags.SilenceSuccessfulReport) == false)
+            {
+                Con.WriteInfo($"Copying: '{entity.FullPath}'");
+            }
 
             await Task.CompletedTask;
             return true;

@@ -82,7 +82,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace IPA.Cores.Basic
 {
-    internal static partial class Win32ApiUtil
+    public static partial class Win32ApiUtil
     {
         static readonly PathParser WindowsPathParser = PathParser.GetInstance(FileSystemStyle.Windows);
 

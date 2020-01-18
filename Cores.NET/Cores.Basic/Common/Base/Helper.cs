@@ -343,8 +343,8 @@ namespace IPA.Cores.Helper.Basic
         public static string _FormatC(this string s, params object[] args) => Str.FormatC(s, args);
         public static void _Printf(this string s) => Str.Printf(s, new object[0]);
         public static void _Printf(this string s, params object[] args) => Str.Printf(s, args);
-        public static string _Print(this string s) { Con.WriteLine(s); return s; }
-        public static string _Debug(this string s) { Dbg.WriteLine(s); return s; }
+        public static string? _Print(this string? s) { Con.WriteLine(s); return s; }
+        public static string? _Debug(this string? s) { Dbg.WriteLine(s); return s; }
         public static int _Search(this string s, string keyword, int start = 0, bool caseSenstive = false) => Str.SearchStr(s, keyword, start, caseSenstive);
         public static long _CalcKeywordMatchPoint(this string targetStr, string keyword, StringComparison comparison = StringComparison.OrdinalIgnoreCase) => Str.CalcKeywordMatchPoint(targetStr, keyword, comparison);
         public static string _TrimCrlf(this string? s) => Str.TrimCrlf(s);
@@ -1899,7 +1899,7 @@ namespace IPA.Cores.Helper.Basic
         public static int _CompareHex(this string? hex1, string? hex2) => Str.CompareHex(hex1, hex2);
         public static bool _IsSameHex(this string? hex1, string? hex2) => Str.IsSameHex(hex1, hex2);
 
-        public static string _ObjectArrayToCsv<T>(this IEnumerable<T> array, bool withHeader = false)where T : notnull
+        public static string _ObjectArrayToCsv<T>(this IEnumerable<T> array, bool withHeader = false) where T : notnull
             => Str.ObjectArrayToCsv(array, withHeader);
 
         public static string _ObjectHeaderToCsv(this Type objType)
@@ -1922,6 +1922,15 @@ namespace IPA.Cores.Helper.Basic
         {
             return (data == null || data.Equals(default(T)!));
         }
+
+        public static Memory<byte> _Load(this string path, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, FileSystem? fs = null, CancellationToken cancel = default) =>
+            (fs ?? Lfs).ReadDataFromFile(path, maxSize, flags, cancel);
+
+        public static void _Save(this ReadOnlyMemory<byte> data, string path, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, FileSystem? fs = null, CancellationToken cancel = default) =>
+            (fs ?? Lfs).WriteDataToFile(path, data, flags, doNotOverwrite, cancel);
+
+        public static void _Save(this Memory<byte> data, string path, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, FileSystem? fs = null, CancellationToken cancel = default) =>
+            _Save((ReadOnlyMemory<byte>)data, path, flags, doNotOverwrite, fs, cancel);
     }
 }
 
