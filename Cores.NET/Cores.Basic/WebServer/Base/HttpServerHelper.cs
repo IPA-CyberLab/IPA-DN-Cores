@@ -65,7 +65,7 @@ namespace IPA.Cores.Helper.Basic
         {
             result.Stream.Seek(result.Offset, SeekOrigin.Begin);
 
-            await h._SendStreamContents(result.Stream, result.Length, result.ContentType, cancel, result.PreData, result.PostData);
+            await h._SendStreamContents(result.Stream, result.Length, result.ContentType, cancel, result.PreData, result.PostData, result.StatusCode);
         }
 
         public static Task _SendStringContents(this HttpResponse h, string body, string contentsType = Consts.MimeTypes.TextUtf8, Encoding? encoding = null, CancellationToken cancel = default(CancellationToken))
@@ -101,10 +101,11 @@ namespace IPA.Cores.Helper.Basic
         }
 
         public static async Task _SendStreamContents(this HttpResponse h, Stream sourceStream, long? count, string? contentsType = Consts.MimeTypes.OctetStream, CancellationToken cancel = default,
-            ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default)
+            ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default, int statusCode = Consts.HttpStatusCodes.Ok)
         {
             h.ContentType = contentsType;
             h.ContentLength = count + preData.Length + postData.Length;
+            h.StatusCode = statusCode;
 
             if (preData.IsEmpty == false) await h.Body.WriteAsync(preData, cancel);
 
