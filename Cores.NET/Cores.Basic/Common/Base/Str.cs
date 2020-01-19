@@ -4864,6 +4864,7 @@ namespace IPA.Cores.Basic
                 int hour = -1;
                 int minute = 0;
                 int second = 0;
+                int msec = 0;
 
                 if ((hourStr.Length == 1 || hourStr.Length == 2) && IsNumber(hourStr))
                 {
@@ -4887,14 +4888,24 @@ namespace IPA.Cores.Basic
                         minute = ((i % 10000) / 100);
                         second = i % 100;
                     }
+                    else if ((hourStr.Length == 10 && hourStr[6] == '.'))
+                    {
+                        // hhmmss.abc
+                        int i = StrToInt(hourStr.Substring(0, 6));
+                        hour = i / 10000;
+                        minute = ((i % 10000) / 100);
+                        second = i % 100;
+
+                        msec = StrToInt(hourStr.Substring(7));
+                    }
                 }
 
-                if (hour < 0 || hour >= 25 || minute < 0 || minute >= 60 || second < 0 || second >= 60)
+                if (hour < 0 || hour >= 25 || minute < 0 || minute >= 60 || second < 0 || second >= 60 || msec < 0 || msec >= 1000)
                 {
                     throw new ArgumentException(str);
                 }
 
-                ret = new DateTime(2000, 1, 1, hour, minute, second);
+                ret = new DateTime(2000, 1, 1, hour, minute, second, msec);
             }
             else
             {

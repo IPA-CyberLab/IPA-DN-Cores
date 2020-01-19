@@ -86,6 +86,8 @@ namespace IPA.Cores.Basic
             public const int DefaultMaxBytesPerLine = 10 * 1024 * 1024;
 
             public const int DefaultMaxNetworkRecvSize = 100 * 1024 * 1024; // 100 MB
+
+            public const int GcTempFreq = 100;
         }
 
         public static partial class MaxLens
@@ -332,6 +334,8 @@ namespace IPA.Cores.Basic
             public const int Rapid = 5 * 1000;
 
             public const int DefaultSendPingTimeout = 1 * 1000;
+
+            public const int GcTempDefaultFileLifeTime = 60 * 1000;
         }
 
         public static partial class LinuxCommands

@@ -135,10 +135,20 @@ namespace IPA.Cores.Basic
 
         static int TempFileSeqNo = 0;
 
-        public string SaveToTempFile(string ext, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        public string SaveToTempFile(string ext, ReadOnlyMemory<byte> data, long lifeTimeMsecs = Consts.Timeouts.GcTempDefaultFileLifeTime, CancellationToken cancel = default)
         {
             string tmpDirPath = Env.MyGlobalTempDir._CombinePath("_tmpfiles");
             DateTime now = DateTime.Now;
+            DateTime expires;
+
+            if (lifeTimeMsecs <= 0)
+            {
+                expires = Util.MaxDateTimeValue;
+            }
+            else
+            {
+                expires = now.AddMilliseconds(lifeTimeMsecs);
+            }
 
             if (ext._IsEmpty()) ext = "dat";
 
@@ -146,13 +156,62 @@ namespace IPA.Cores.Basic
 
             int seqNo = Interlocked.Increment(ref TempFileSeqNo);
 
-            string fn = $"{seqNo:D8}-{Str.DateTimeToStrShortWithMilliSecs(now)}{ext}";
+            if ((seqNo % 100) == 0)
+            {
+                try
+                {
+                    GcTempFile();
+                }
+                catch { }
+            }
+
+            string fn = $"{seqNo:D8}-{Str.DateTimeToStrShortWithMilliSecs(expires)}{ext}";
 
             string filePath = tmpDirPath._CombinePath(fn);
 
             this.WriteDataToFile(filePath, data, flags: FileFlags.AutoCreateDirectory, cancel: cancel);
 
             return filePath;
+        }
+
+        void GcTempFile()
+        {
+            string tmpDirPath = Env.MyGlobalTempDir._CombinePath("_tmpfiles");
+
+            if (this.IsDirectoryExists(tmpDirPath) == false) return;
+
+            DateTime now = DateTime.Now;
+
+            List<string> deleteList = new List<string>();
+
+            foreach (var e in this.EnumDirectory(tmpDirPath, flags: EnumDirectoryFlags.NoGetPhysicalSize).Where(x => x.IsFile))
+            {
+                try
+                {
+                    string fn = e.Name;
+                    if (Str.GetKeyAndValue(fn, out _, out string dateTimeAndExt, "-"))
+                    {
+                        string dateTimeStr = this.PathParser.GetFileNameWithoutExtension(dateTimeAndExt, false);
+
+                        DateTime expires = Str.StrToDateTime(dateTimeStr);
+
+                        if (now >= expires)
+                        {
+                            deleteList.Add(e.FullPath);
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            foreach (var path in deleteList)
+            {
+                try
+                {
+                    this.DeleteFile(path);
+                }
+                catch { }
+            }
         }
     }
 }
