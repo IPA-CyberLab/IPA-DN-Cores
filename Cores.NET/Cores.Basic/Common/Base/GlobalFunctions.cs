@@ -211,6 +211,12 @@ namespace IPA.Cores.Globals
 
         public static Memory<byte> Load(string path, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, FileSystem? fs = null, CancellationToken cancel = default) =>
             path._Load(maxSize, flags, fs, cancel);
+
+        public static Memory<byte> Load(string path, FileSystem? fs, FileFlags flags = FileFlags.None, int maxSize = int.MaxValue, CancellationToken cancel = default) =>
+            path._Load(maxSize, flags, fs, cancel);
+
+        public static Memory<byte> Load(string path, FileFlags flags, FileSystem? fs = null, int maxSize = int.MaxValue, CancellationToken cancel = default) =>
+            path._Load(maxSize, flags, fs, cancel);
     }
 }
 
