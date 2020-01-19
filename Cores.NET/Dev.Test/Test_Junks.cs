@@ -48,6 +48,44 @@ namespace IPA.TestDev
     partial class TestDevCommands
     {
         [ConsoleCommand(
+            "Authenticode 署名の実施 (内部用)",
+            "SignAuthenticodeInternal [filename] [/out:output] [/comment:string] [/driver:yes] [/cert:type]",
+            "Authenticode 署名の実施 (内部用)")]
+        static int SignAuthenticodeInternal(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[filename]", ConsoleService.Prompt, "Input Filename: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("out"),
+                new ConsoleParam("comment"),
+                new ConsoleParam("driver"),
+                new ConsoleParam("cert"),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string srcPath = vl.DefaultParam.StrValue;
+
+            string dstPath = vl["out"].StrValue;
+            if (dstPath._IsEmpty()) dstPath = srcPath;
+
+            string comment = vl["comment"].StrValue;
+            bool driver = vl["driver"].BoolValue;
+            string cert = vl["cert"].StrValue;
+
+            using (AuthenticodeSignClient ac = new AuthenticodeSignClient("https://127.0.0.1:7006/sign", "7BDBCA40E9C4CE374C7889CD3A26EE8D485B94153C2943C09765EEA309FCA13D"))
+            {
+                var srcData = Load(srcPath);
+
+                var dstData = ac.SignSeInternalAsync(srcData, cert, driver ? "Driver" : "", comment._FilledOrDefault("Authenticode"))._GetResult();
+
+                dstData._Save(dstPath, flags: FileFlags.AutoCreateDirectory);
+            }
+
+            return 0;
+        }
+
+        [ConsoleCommand(
             "自己署名証明書の作成",
             "CertSelfSignedGenerate [filename] /cn:hostName",
             "自己署名証明書の作成")]
@@ -439,9 +477,9 @@ class LetsEncryptClient
 
         var response = await webapi.Client.SendAsync(request, token).ConfigureAwait(false);
 
-        
 
-        
+
+
         //_nonce = response.Headers.GetValues("Replay-Nonce").First();
 
         if (response.Content.Headers.ContentType.MediaType == "application/problem+json")

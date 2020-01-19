@@ -322,7 +322,8 @@ namespace IPA.TestDev
             {
                 using (AuthenticodeSignClient ac = new AuthenticodeSignClient("https://127.0.0.1:7006/sign", "7BDBCA40E9C4CE374C7889CD3A26EE8D485B94153C2943C09765EEA309FCA13D"))
                 {
-                    byte[] ret = ac.SignAsync(Load(@"C:\TMP\200101_signtest\src\src.exe"), "SoftEtherEv", "Driver", "Hello")._GetResult();
+                    byte[] ret = ac.SignAsync(Lfs.ReadStringFromFile(@"\\fss\share\tmp\signserver\password.txt", oneLine: true),
+                        Load(@"C:\TMP\200101_signtest\src\src.exe"), "DaiyuuNoboriFile", "Driver", "Hello")._GetResult();
 
                     ret._Save(@"c:\tmp\200119\dst.exe", FileFlags.AutoCreateDirectory);
                 }

@@ -61,9 +61,13 @@ namespace IPA.Cores.Basic
 {
     public class AuthenticodeSignClient : AsyncService
     {
+        const string SeInternalPasswordFilePath = @"\\fss\share\tmp\signserver\password.txt";
+
         readonly string Url;
 
         readonly WebApi Web;
+
+        string? SeInternalPasswordCache = null;
 
         public AuthenticodeSignClient(string url, string sslSha, TcpIpSystem? tcpIp = null)
         {
@@ -80,10 +84,29 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<byte[]> SignAsync(ReadOnlyMemory<byte> srcData, string certName, string flags, string comment, int numRetry = 5, CancellationToken cancel = default)
+        public async Task<byte[]> SignSeInternalAsync(ReadOnlyMemory<byte> srcData, string certName, string flags, string comment, int numRetry = 5, CancellationToken cancel = default)
+        {
+            try
+            {
+                if (SeInternalPasswordCache._IsEmpty())
+                {
+                    SeInternalPasswordCache = await Lfs.ReadStringFromFileAsync(SeInternalPasswordFilePath, oneLine: true);
+                }
+            }
+            catch
+            {
+                Con.WriteInfo("Skipping authenticode.");
+                return srcData.ToArray();
+            }
+
+            return await SignAsync(SeInternalPasswordCache, srcData, certName, flags, comment, numRetry, cancel);
+        }
+
+        public async Task<byte[]> SignAsync(string password, ReadOnlyMemory<byte> srcData, string certName, string flags, string comment, int numRetry = 5, CancellationToken cancel = default)
         {
             QueryStringList qs = new QueryStringList();
 
+            qs.Add("password", password);
             qs.Add("cert", certName);
             qs.Add("flags", flags);
             qs.Add("comment", comment);
