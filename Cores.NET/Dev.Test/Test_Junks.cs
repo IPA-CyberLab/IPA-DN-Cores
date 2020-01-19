@@ -47,6 +47,60 @@ namespace IPA.TestDev
 {
     partial class TestDevCommands
     {
+        [ConsoleCommand(
+            "自己署名証明書の作成",
+            "CertSelfSignedGenerate [filename] /cn:hostName",
+            "自己署名証明書の作成")]
+        static int CertSelfSignedGenerate(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[filename]", ConsoleService.Prompt, "Output filename: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("cn", ConsoleService.Prompt, "Common name: ", ConsoleService.EvalNotEmpty, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string path = vl.DefaultParam.StrValue;
+            string cn = vl["cn"].StrValue;
+
+            PkiUtil.GenerateRsaKeyPair(2048, out PrivKey newKey, out _);
+
+            Certificate newCert = new Certificate(newKey, new CertificateOptions(PkiAlgorithm.RSA, cn: cn.Trim(), c: "JP"));
+            CertificateStore newCertStore = new CertificateStore(newCert, newKey);
+
+            newCertStore.ExportPkcs12()._Save(path, FileFlags.AutoCreateDirectory);
+
+            return 0;
+        }
+
+        [ConsoleCommand(
+            "開発用証明書の作成",
+            "CertDevSignedGenerate [filename] /cn:hostName",
+            "開発用証明書の作成")]
+        static int CertDevSignedGenerate(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[filename]", ConsoleService.Prompt, "Output filename: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("cn", ConsoleService.Prompt, "Common name: ", ConsoleService.EvalNotEmpty, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string path = vl.DefaultParam.StrValue;
+            string cn = vl["cn"].StrValue;
+
+            PkiUtil.GenerateRsaKeyPair(2048, out PrivKey newKey, out _);
+
+            Certificate newCert = new Certificate(newKey, DevTools.CoresDebugCACert.PkiCertificateStore, new CertificateOptions(PkiAlgorithm.RSA, cn: cn.Trim(), c: "JP"));
+            CertificateStore newCertStore = new CertificateStore(newCert, newKey);
+
+            newCertStore.ExportPkcs12()._Save(path, FileFlags.AutoCreateDirectory);
+
+            return 0;
+        }
+
         public class DirectionCrossResults
         {
             public string? Start;
