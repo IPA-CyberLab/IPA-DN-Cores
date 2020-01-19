@@ -335,7 +335,7 @@ namespace IPA.Cores.Basic
 
             public const int DefaultSendPingTimeout = 1 * 1000;
 
-            public const int GcTempDefaultFileLifeTime = 60 * 1000;
+            public const int GcTempDefaultFileLifeTime = 5 * 60 * 1000;
         }
 
         public static partial class LinuxCommands
