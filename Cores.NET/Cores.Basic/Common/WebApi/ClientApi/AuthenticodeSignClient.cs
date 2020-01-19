@@ -75,7 +75,7 @@ namespace IPA.Cores.Basic
             {
                 this.Url = url;
 
-                this.Web = new WebApi(new WebApiOptions(new WebApiSettings { MaxRecvSize = Consts.Numbers.DefaultMaxNetworkRecvSize, SslAcceptCertSHAHashList = sslSha._SingleList() }, tcpIp));
+                this.Web = new WebApi(new WebApiOptions(new WebApiSettings { MaxRecvSize = Consts.Numbers.SignCodeServerMaxFileSize, SslAcceptCertSHAHashList = sslSha._SingleList() }, tcpIp));
             }
             catch (Exception ex)
             {

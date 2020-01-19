@@ -85,7 +85,9 @@ namespace IPA.Cores.Basic
 
             public const int DefaultMaxBytesPerLine = 10 * 1024 * 1024;
 
-            public const int DefaultMaxNetworkRecvSize = 100 * 1024 * 1024; // 100 MB
+            public const int DefaultMaxNetworkRecvSize = 30 * 1000 * 1000; // 30 MB (Kestrel default)
+
+            public const int SignCodeServerMaxFileSize = 300 * 1024 * 1024; // 300 MB
 
             public const int GcTempFreq = 100;
         }

@@ -490,6 +490,8 @@ namespace IPA.Cores.Basic
 
         public bool HideKestrelServerHeader { get; set; } = true;
 
+        public int MaxRequestBodySize { get; set; } = Consts.Numbers.DefaultMaxNetworkRecvSize; // Kestrel default
+
         public string HiveName { get; set; } = Consts.HiveNames.DefaultWebServer;
         public bool DisableHiveBasedSetting = false;
 
@@ -571,6 +573,8 @@ namespace IPA.Cores.Basic
                 foreach (int port in this.HttpPortsList) opt.ListenAnyIP(port);
                 foreach (int port in this.HttpsPortsList) opt.ListenAnyIP(port, lo => EnableHttps(lo));
             }
+
+            opt.Limits.MaxRequestBodySize = this.MaxRequestBodySize;
 
             if (withStackOpt != null)
             {
