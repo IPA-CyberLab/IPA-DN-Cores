@@ -150,7 +150,7 @@ namespace IPA.Cores.Basic
 
             string filePath = tmpDirPath._CombinePath(fn);
 
-            this.WriteDataToFile(filePath, data, cancel: cancel);
+            this.WriteDataToFile(filePath, data, flags: FileFlags.AutoCreateDirectory, cancel: cancel);
 
             return filePath;
         }
