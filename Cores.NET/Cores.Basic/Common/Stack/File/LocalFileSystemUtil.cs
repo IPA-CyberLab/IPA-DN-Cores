@@ -132,6 +132,28 @@ namespace IPA.Cores.Basic
                 return tmp;
             }
         }
+
+        static int TempFileSeqNo = 0;
+
+        public string SaveToTempFile(string ext, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        {
+            string tmpDirPath = Env.MyGlobalTempDir._CombinePath("_tmpfiles");
+            DateTime now = DateTime.Now;
+
+            if (ext._IsEmpty()) ext = "dat";
+
+            if (ext.StartsWith(".") == false) ext = "." + ext;
+
+            int seqNo = Interlocked.Increment(ref TempFileSeqNo);
+
+            string fn = $"{seqNo:D8}-{Str.DateTimeToStrShortWithMilliSecs(now)}{ext}";
+
+            string filePath = tmpDirPath._CombinePath(fn);
+
+            this.WriteDataToFile(filePath, data, cancel: cancel);
+
+            return filePath;
+        }
     }
 }
 

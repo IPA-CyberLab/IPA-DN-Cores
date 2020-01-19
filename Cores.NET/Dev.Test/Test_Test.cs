@@ -318,6 +318,11 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                return;
+            }
+
             if (false)
             {
                 // HDD Seek test

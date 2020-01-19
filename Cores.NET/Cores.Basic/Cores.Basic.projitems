@@ -35,6 +35,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\RawDiskFs.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Network\InternetChecker.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Ui\UiAutomation.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\WebApi\ClientApi\AuthenticodeSignClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Consts.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\SourceCodeCounter\SourceCodeCounter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Legacy\Csv.cs" />
