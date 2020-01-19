@@ -704,6 +704,27 @@ namespace IPA.Cores.Helper.Basic
             return ret!;
         }
 
+        public static string _QStr<T>(this IEnumerable<KeyValuePair<string, T>> d, string key, string defaultStr = "", StringComparison comparison = StringComparison.OrdinalIgnoreCase, bool autoTrim = true)
+            => _GetStrFirst(d, key, defaultStr, comparison, autoTrim);
+
+        public static E _QEnum<T, E>(this IEnumerable<KeyValuePair<string, T>> d, string key, E defaultValue = default, StringComparison comparison = StringComparison.OrdinalIgnoreCase,
+            bool exactOnly = false, bool noMatchError = false)
+            where E : unmanaged, Enum
+        {
+            string strValue = _QStr(d, key, "", comparison, true);
+
+            return strValue._ParseEnum<E>(defaultValue, exactOnly, noMatchError);
+        }
+
+        public static E _QEnumBits<T, E>(this IEnumerable<KeyValuePair<string, T>> d, string key, E defaultValue = default, StringComparison comparison = StringComparison.OrdinalIgnoreCase,
+            params char[] separaters)
+            where E : unmanaged, Enum
+        {
+            string strValue = _QStr(d, key, "", comparison, true);
+
+            return strValue._ParseEnumBits<E>(defaultValue, separaters);
+        }
+
         public static bool _IsNullable(this Type t) => Nullable.GetUnderlyingType(t) != null;
 
         public static void _TryCloseNonBlock(this Stream stream)
@@ -1086,6 +1107,16 @@ namespace IPA.Cores.Helper.Basic
         public static T _ParseEnum<T>(this string? str, T defaultValue, bool exactOnly = false, bool noMatchError = false) where T : unmanaged, Enum
         {
             return Str.ParseEnum<T>(str, defaultValue, exactOnly, noMatchError);
+        }
+
+        public static T _ParseEnumBits<T>(this string? str, T defaultValue, params char[] separators) where T : unmanaged, Enum
+        {
+            if (separators == null || separators.Length == 0)
+            {
+                separators = Consts.Strings.DefaultEnumBitsSeparaters.ToArray();
+            }
+
+            return Str.StrToEnumBits<T>(str, defaultValue, separators);
         }
 
         [MethodImpl(Inline)]
@@ -1931,6 +1962,19 @@ namespace IPA.Cores.Helper.Basic
 
         public static void _Save(this Memory<byte> data, string path, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, FileSystem? fs = null, CancellationToken cancel = default) =>
             _Save((ReadOnlyMemory<byte>)data, path, flags, doNotOverwrite, fs, cancel);
+
+        public static IEnumerable<WebMethods> _GetWebMethodListFromBits(this WebMethodBits bits)
+        {
+            List<WebMethods> ret = new List<WebMethods>();
+
+            if (bits.Bit(WebMethodBits.GET)) ret.Add(WebMethods.GET);
+            if (bits.Bit(WebMethodBits.DELETE)) ret.Add(WebMethods.DELETE);
+            if (bits.Bit(WebMethodBits.POST)) ret.Add(WebMethods.POST);
+            if (bits.Bit(WebMethodBits.PUT)) ret.Add(WebMethods.PUT);
+            if (bits.Bit(WebMethodBits.HEAD)) ret.Add(WebMethods.HEAD);
+
+            return ret;
+        }
     }
 }
 

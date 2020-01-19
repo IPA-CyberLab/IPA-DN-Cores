@@ -111,6 +111,9 @@ namespace IPA.Cores.Basic
 
             return ret;
         }
+
+        public static implicit operator X509Certificate2(PalX509Certificate cert) => (X509Certificate2)cert.NativeCertificate;
+        public static implicit operator X509Certificate(PalX509Certificate cert) => (X509Certificate)cert.NativeCertificate;
     }
 
     public struct PalSocketReceiveFromResult

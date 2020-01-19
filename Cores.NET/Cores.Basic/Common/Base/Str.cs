@@ -4406,6 +4406,25 @@ namespace IPA.Cores.Basic
             return StrToEnum(str, defaultValue, exactOnly, noMatchError);
         }
 
+        static class EnumCacheRawValue<T> where T : unmanaged, Enum
+        {
+            public static Dictionary<string, ulong> DictCastSensitive = new Dictionary<string, ulong>();
+            public static Dictionary<string, ulong> DictCastIgnore = new Dictionary<string, ulong>(StrComparer.IgnoreCaseComparer);
+
+            static EnumCacheRawValue()
+            {
+                Type t = typeof(T);
+                string[] names = Enum.GetNames(t);
+
+                foreach (string name in names)
+                {
+                    T value = (T)Enum.Parse(t, name);
+                    DictCastSensitive.Add(name, value._RawReadValueUInt64());
+                    DictCastIgnore.Add(name, value._RawReadValueUInt64());
+                }
+            }
+        }
+
         static Singleton<Type, Dictionary<string, object>> EnumCacheCaseSensitive = new Singleton<Type, Dictionary<string, object>>(t =>
         {
             string[] names = Enum.GetNames(t);
@@ -4427,6 +4446,45 @@ namespace IPA.Cores.Basic
             }
             return d;
         });
+
+        public static T StrToEnumBits<T>(string? str, T defaultValue, params char[] separators)
+             where T : unmanaged, Enum
+        {
+            if (str._IsNullOrZeroLen()) return defaultValue;
+
+            string[] strs = str._Split(StringSplitOptions.RemoveEmptyEntries, separators);
+
+            Type type = defaultValue.GetType();
+
+            var dict1 = EnumCacheRawValue<T>.DictCastSensitive;
+            var dict2 = EnumCacheRawValue<T>.DictCastIgnore;
+
+            ulong ret = 0;
+
+            foreach (string token in strs)
+            {
+                if (token[0] >= '0' && token[0] <= '9')
+                {
+                    ret |= token._ToULong();
+                }
+                else
+                {
+                    if (dict1.TryGetValue(token, out ulong value))
+                    {
+                        ret |= value;
+                    }
+                    else if (dict2.TryGetValue(token, out ulong value2))
+                    {
+                        ret |= value2;
+                    }
+                }
+            }
+
+            T ret2 = default;
+            ret2._RawWriteValueUInt64(ret);
+
+            return ret2;
+        }
 
         public static object StrToEnum(string? str, object defaultValue, bool exactOnly = false, bool noMatchError = false)
         {

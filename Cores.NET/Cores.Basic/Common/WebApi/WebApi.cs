@@ -238,6 +238,16 @@ namespace IPA.Cores.Basic
         HEAD,
     }
 
+    [Flags]
+    public enum WebMethodBits
+    {
+        GET = 1,
+        DELETE = 2,
+        POST = 4,
+        PUT = 8,
+        HEAD = 16,
+    }
+
     [Serializable]
     public class WebApiSettings
     {

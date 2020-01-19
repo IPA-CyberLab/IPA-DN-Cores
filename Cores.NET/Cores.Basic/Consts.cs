@@ -84,6 +84,8 @@ namespace IPA.Cores.Basic
             public const int DefaultBufferLines = 1024;
 
             public const int DefaultMaxBytesPerLine = 10 * 1024 * 1024;
+
+            public const int DefaultMaxNetworkRecvSize = 100 * 1024 * 1024; // 100 MB
         }
 
         public static partial class MaxLens
@@ -144,6 +146,8 @@ namespace IPA.Cores.Basic
         {
             public const string DefaultCertCN = "DefaultCertificate";
             public const string DefaultSplitStr = " ,\t\r\n";
+
+            public static readonly IEnumerable<char> DefaultEnumBitsSeparaters = new char[] { ',', '|', ' ', ';', '+', ':', '.', '/', '-', '　', };
 
             public const string DefaultKeyAndValueSplitStr = " \t";
 
