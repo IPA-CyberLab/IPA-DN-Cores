@@ -1963,6 +1963,9 @@ namespace IPA.Cores.Helper.Basic
         public static void _Save(this Memory<byte> data, string path, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, FileSystem? fs = null, CancellationToken cancel = default) =>
             _Save((ReadOnlyMemory<byte>)data, path, flags, doNotOverwrite, fs, cancel);
 
+        public static void _Save(this byte[] data, string path, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, FileSystem? fs = null, CancellationToken cancel = default) =>
+            _Save((ReadOnlyMemory<byte>)data, path, flags, doNotOverwrite, fs, cancel);
+
         public static IEnumerable<WebMethods> _GetWebMethodListFromBits(this WebMethodBits bits)
         {
             List<WebMethods> ret = new List<WebMethods>();

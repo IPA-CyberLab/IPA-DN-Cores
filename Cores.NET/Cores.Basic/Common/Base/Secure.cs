@@ -365,7 +365,7 @@ namespace IPA.Cores.Basic
             return IsKernelModeSignedFile(IO.ReadFile(fileName));
         }
 
-        public static bool IsKernelModeSignedFile(byte[] data)
+        public static bool IsKernelModeSignedFile(ReadOnlySpan<byte> data)
         {
             string str = Str.AsciiEncoding.GetString(data);
 
@@ -567,6 +567,22 @@ namespace IPA.Cores.Basic
             }
 
             return true;
+        }
+
+        public static bool CheckFileDigitalSignature(ReadOnlyMemory<byte> data, bool checkDriverSignature = false)
+        {
+            string tmpPath = Lfs.SaveToTempFile("dat", data);
+
+            bool b1 = CheckFileDigitalSignature(tmpPath);
+
+            bool b2 = true;
+
+            if (checkDriverSignature)
+            {
+                b2 = IsKernelModeSignedFile(data.Span);
+            }
+
+            return b1 && b2;
         }
     }
 

@@ -82,14 +82,26 @@ namespace IPA.Cores.Basic
 
         public async Task<byte[]> SignAsync(ReadOnlyMemory<byte> srcData, string certName, string flags, string comment, int numRetry = 5, CancellationToken cancel = default)
         {
-            WebRet ret = await this.Web.SimplePostDataAsync(this.Url, srcData.ToArray(), cancel, Consts.MimeTypes.OctetStream);
+            QueryStringList qs = new QueryStringList();
+
+            qs.Add("cert", certName);
+            qs.Add("flags", flags);
+            qs.Add("comment", comment);
+            qs.Add("numretry", numRetry.ToString());
+
+            WebRet ret = await this.Web.SimplePostDataAsync(this.Url + "?" + qs, srcData.ToArray(), cancel, Consts.MimeTypes.OctetStream);
 
             if (ret.Data.Length <= (srcData.Length * 9L / 10L))
             {
                 throw new CoresException("ret.Data.Length <= (srcData.Length * 9L / 10L)");
             }
 
-            return null!;
+            if (ExeSignChecker.CheckFileDigitalSignature(ret.Data, flags._InStr("driver", true)) == false)
+            {
+                throw new CoresException("CheckFileDigitalSignature failed.");
+            }
+
+            return ret.Data;
         }
 
         protected override void DisposeImpl(Exception? ex)
