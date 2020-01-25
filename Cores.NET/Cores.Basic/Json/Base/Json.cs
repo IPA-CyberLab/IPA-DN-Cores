@@ -105,6 +105,7 @@ namespace IPA.Cores.Basic
                 ReferenceLoopHandling = ReferenceLoopHandling.Error,
                 PreserveReferencesHandling = referenceHandling ? PreserveReferencesHandling.All : PreserveReferencesHandling.None,
                 StringEscapeHandling = escapeHtml ? StringEscapeHandling.EscapeHtml : StringEscapeHandling.Default,
+                Formatting = compact ? Formatting.None : Formatting.Indented,
             };
 
             if (type != null)
@@ -120,6 +121,26 @@ namespace IPA.Cores.Basic
             }
 
             return ret;
+        }
+
+        public static void Serialize(TextWriter destTextWriter, object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type? type = null)
+        {
+            JsonSerializerSettings setting = new JsonSerializerSettings()
+            {
+                MaxDepth = maxDepth,
+                NullValueHandling = includeNull ? NullValueHandling.Include : NullValueHandling.Ignore,
+                ReferenceLoopHandling = ReferenceLoopHandling.Error,
+                PreserveReferencesHandling = referenceHandling ? PreserveReferencesHandling.All : PreserveReferencesHandling.None,
+                StringEscapeHandling = escapeHtml ? StringEscapeHandling.EscapeHtml : StringEscapeHandling.Default,
+                Formatting = compact ? Formatting.None : Formatting.Indented,
+            };
+
+            if (type != null)
+            {
+                setting.ContractResolver = new InterfaceContractResolver(type);
+            }
+
+            JsonSerializer.Create(setting).Serialize(destTextWriter, obj);
         }
 
         [return: NotNullIfNotNull("obj")]
@@ -160,6 +181,23 @@ namespace IPA.Cores.Basic
             };
             return JsonConvert.DeserializeObject(str, type, setting);
         }
+
+        public static object? Deserialize(TextReader srcTextReader, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
+        {
+            JsonSerializerSettings setting = new JsonSerializerSettings()
+            {
+                MaxDepth = maxDepth,
+                NullValueHandling = includeNull ? NullValueHandling.Include : NullValueHandling.Ignore,
+                ObjectCreationHandling = ObjectCreationHandling.Replace,
+                ReferenceLoopHandling = ReferenceLoopHandling.Error,
+            };
+
+            return JsonSerializer.Create(setting).Deserialize(srcTextReader, type);
+        }
+
+        [return: MaybeNull]
+        public static T Deserialize<T>(TextReader srcTextReader, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
+            => (T)Deserialize(srcTextReader, typeof(T), includeNull, maxDepth)!;
 
         [return: MaybeNull]
         public static T ConvertObject<T>(object? src, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false)

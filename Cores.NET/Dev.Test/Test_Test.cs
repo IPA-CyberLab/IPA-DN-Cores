@@ -320,6 +320,48 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                string fn1 = @"c:\tmp\200125\json.txt";
+                string fn2 = @"c:\tmp\200125\json2.txt";
+
+                DirSuperBackupMetadata o = Lfs.ReadJsonFromFile<DirSuperBackupMetadata>(fn1, maxSize: long.MaxValue);
+
+                Lfs.WriteJsonToFile(fn2, o, flags: FileFlags.AutoCreateDirectory);
+
+                return;
+            }
+
+            if (true)
+            {
+                DirSuperBackupMetadata o = new DirSuperBackupMetadata();
+
+                o.DirMetadata = Lfs.GetDirectoryMetadata(@"c:\tmp\");
+
+                o.FileList = new List<DirSuperBackupMetadataFile>();
+
+                o.DirList = new List<string>();
+
+                var fileMeta = Lfs.GetFileMetadata(@"xxxxx");
+
+                Dbg.Where();
+
+                for (int i = 0; i < 1000000; i++)
+                {
+                    o.FileList.Add(new DirSuperBackupMetadataFile
+                    {
+                        FileName = "aaaaa12345aaaaa12345aaaaa12345aaaaa12345aaaaa12345aaaaa12345",
+                        MetaData = fileMeta,
+                    });
+                }
+
+                string fn = @"c:\tmp\200125\json.txt";
+
+                Lfs.WriteJsonToFile(fn, o, flags: FileFlags.AutoCreateDirectory);
+
+                return;
+            }
+
+            if (true)
+            {
                 using (AuthenticodeSignClient ac = new AuthenticodeSignClient("https://127.0.0.1:7006/sign", "7BDBCA40E9C4CE374C7889CD3A26EE8D485B94153C2943C09765EEA309FCA13D"))
                 {
                     byte[] ret = ac.SignAsync(Lfs.ReadStringFromFile(@"\\fss\share\tmp\signserver\password.txt", oneLine: true),

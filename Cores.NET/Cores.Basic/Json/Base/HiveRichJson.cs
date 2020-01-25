@@ -62,6 +62,7 @@ namespace IPA.Cores.Basic
                     ReferenceLoopHandling = ReferenceLoopHandling.Error,
                     PreserveReferencesHandling = PreserveReferencesHandling.None,
                     StringEscapeHandling = StringEscapeHandling.Default,
+                    Formatting = Formatting.Indented,
                 };
             }
 

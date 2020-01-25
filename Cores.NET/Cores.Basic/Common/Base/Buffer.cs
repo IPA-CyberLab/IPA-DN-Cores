@@ -2237,7 +2237,7 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                Debug.Assert(ret.Select(x => x.Size).Sum() == size);
+                Debug.Assert(ret.Select(x => (long)x.Size).Sum() == size);
 
                 readSize = size;
 

@@ -93,6 +93,34 @@ namespace IPA.Cores.Basic
             return false;
         }
 
+        public async Task<long> WriteHugeMemoryBufferToFileAsync(string path, HugeMemoryBuffer<byte> hugeMemoryBuffer, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+        {
+            if (flags.Bit(FileFlags.WriteOnlyIfChanged)) throw new ArgumentException(nameof(flags));
+
+            long size = hugeMemoryBuffer.LongLength;
+
+            using (var file = await CreateAsync(path, false, flags & ~FileFlags.WriteOnlyIfChanged, doNotOverwrite, cancel))
+            {
+                try
+                {
+                    IReadOnlyList<SparseChunk<byte>> dataList = hugeMemoryBuffer.ReadRandomFast(0, size, out long readSize, false);
+
+                    foreach (SparseChunk<byte> chunk in dataList)
+                    {
+                        await file.WriteRandomAsync(chunk.Offset, chunk.GetMemoryOrGenerateSparse(), cancel);
+                    }
+                }
+                finally
+                {
+                    await file.CloseAsync();
+                }
+            }
+
+            return size;
+        }
+        public long WriteHugeMemoryBufferToFile(string path, HugeMemoryBuffer<byte> hugeMemoryBuffer, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+            => WriteHugeMemoryBufferToFileAsync(path, hugeMemoryBuffer, flags, doNotOverwrite, cancel)._GetResult();
+
         public async Task<int> WriteDataToFileAsync(string path, ReadOnlyMemory<byte> srcMemory, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
         {
             if (flags.Bit(FileFlags.WriteOnlyIfChanged))
@@ -250,6 +278,47 @@ namespace IPA.Cores.Basic
         }
         public Memory<byte> ReadDataFromFile(string path, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
             => ReadDataFromFileAsync(path, maxSize, flags, cancel)._GetResult();
+
+        public async Task<HugeMemoryBuffer<byte>> ReadHugeMemoryBufferFromFileAsync(string path, long maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+        {
+            using (var file = await OpenAsync(path, false, false, false, flags, cancel))
+            {
+                try
+                {
+                    HugeMemoryBuffer<byte> ret = new HugeMemoryBuffer<byte>();
+
+                    byte[] tmp = MemoryHelper.FastAllocMoreThan<byte>(Consts.Numbers.DefaultVeryLargeBufferSize);
+                    try
+                    {
+                        while (true)
+                        {
+                            cancel.ThrowIfCancellationRequested();
+                            int r = await file.ReadAsync(tmp, cancel);
+                            if (r == 0)
+                            {
+                                break;
+                            }
+                            ret.Write(tmp, 0, r);
+                            if (ret.Length > maxSize) throw new OverflowException("ReadHugeMemoryBufferFromFileAsync: too large data");
+                        }
+                    }
+                    finally
+                    {
+                        MemoryHelper.FastFree(tmp);
+                    }
+
+                    ret.SeekToBegin();
+
+                    return ret;
+                }
+                finally
+                {
+                    await file.CloseAsync();
+                }
+            }
+        }
+        public HugeMemoryBuffer<byte> ReadHugeMemoryBufferFromFile(string path, long maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+            => ReadHugeMemoryBufferFromFileAsync(path, maxSize, flags, cancel)._GetResult();
 
         public async Task ReadTextLinesFromFileAsync(string path, Func<List<string>, long, long, bool> proc, Encoding? encoding = null, long startPosition = 0, FileFlags flags = FileFlags.None, int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, CancellationToken cancel = default)
         {

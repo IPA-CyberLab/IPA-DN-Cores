@@ -35,12 +35,14 @@
 using System.Diagnostics.CodeAnalysis;
 
 using System;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.IO;
 
 namespace IPA.Cores.Helper.Basic
 {
@@ -52,12 +54,25 @@ namespace IPA.Cores.Helper.Basic
         public static string _ObjectToJson<T>(this T obj, EnsurePresentInterface yes, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false)
             => _ObjectToJson(obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, typeof(T));
 
+        public static void _ObjectToJsonTextWriter(this object? obj, TextWriter destTextWriter, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type? type = null)
+            => Json.Serialize(destTextWriter, obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling, type);
+
+        public static void _ObjectToJsonTextWriter<T>(this T obj, TextWriter destTextWriter, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
+            => _ObjectToJsonTextWriter(obj, destTextWriter, includeNull, escapeHtml, maxDepth, compact, referenceHandling, typeof(T));
+
         [return: MaybeNull]
         public static T _JsonToObject<T>(this string str, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false)
             => Json.Deserialize<T>(str, includeNull, maxDepth, base64url);
 
         public static object? _JsonToObject(this string str, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false)
             => Json.Deserialize(str, type, includeNull, maxDepth, base64url);
+
+        [return: MaybeNull]
+        public static T _JsonToObject<T>(this TextReader srcTextReader, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
+            => Json.Deserialize<T>(srcTextReader, includeNull, maxDepth);
+
+        public static object? _JsonToObject(this TextReader srcTextReader, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
+            => Json.Deserialize(srcTextReader, type, includeNull, maxDepth);
 
         [return: MaybeNull]
         public static T _ConvertJsonObject<T>(this object obj, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false)
@@ -75,7 +90,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _JsonNormalize(this string s)
             => Json.Normalize(s);
 
-        public static int _ObjectToFile<T>(this T obj, string path, FileSystem? fs = null, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
+        public static long _ObjectToFile<T>(this T obj, string path, FileSystem? fs = null, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
             bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
             => (fs ?? Lfs).WriteJsonToFile<T>(path, obj, flags, doNotOverwrite, cancel, includeNull, escapeHtml, maxDepth, compact, referenceHandling);
 
@@ -145,18 +160,30 @@ namespace IPA.Cores.Basic
 
     public abstract partial class FileSystem
     {
-        public Task<int> WriteJsonToFileAsync<T>(string path, [AllowNull] T obj, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
+        public async Task<long> WriteJsonToFileAsync<T>(string path, [AllowNull] T obj, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
             bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
         {
-            string jsonStr = obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling);
+            //string jsonStr = obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling);
 
-            return this.WriteStringToFileAsync(path, jsonStr, flags, doNotOverwrite, writeBom: true, cancel: cancel);
+            //return this.WriteStringToFileAsync(path, jsonStr, flags, doNotOverwrite, writeBom: true, cancel: cancel);
+
+            HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
+
+            using (BufferBasedStream stream = new BufferBasedStream(mem))
+            {
+                using (StreamWriter w = new StreamWriter(stream, new UTF8Encoding(true), Consts.Numbers.DefaultVeryLargeBufferSize))
+                {
+                    obj._ObjectToJsonTextWriter(w, includeNull, escapeHtml, maxDepth, compact, referenceHandling);
+                }
+            }
+
+            return await this.WriteHugeMemoryBufferToFileAsync(path, mem, flags, doNotOverwrite, cancel);
         }
-        public int WriteJsonToFile<T>(string path, T obj, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
+        public long WriteJsonToFile<T>(string path, T obj, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
             bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
             => WriteJsonToFileAsync(path, obj, flags, doNotOverwrite, cancel, includeNull, escapeHtml, maxDepth, compact, referenceHandling)._GetResult();
 
-        public async Task<T> ReadJsonFromFileAsync<T>(string path, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default,
+        public async Task<T> ReadJsonFromFileAsync<T>(string path, long maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default,
             bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool nullIfError = false)
         {
             try
@@ -169,9 +196,19 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                string jsonStr = await this.ReadStringFromFileAsync(path, null, maxSize, flags, false, cancel);
+                //string jsonStr = await this.ReadStringFromFileAsync(path, null, maxSize, flags, false, cancel);
 
-                return jsonStr._JsonToObject<T>(includeNull, maxDepth, false);
+                //return jsonStr._JsonToObject<T>(includeNull, maxDepth, false);
+
+                HugeMemoryBuffer<byte> mem = await this.ReadHugeMemoryBufferFromFileAsync(path, maxSize, flags, cancel);
+
+                using (BufferBasedStream stream = new BufferBasedStream(mem))
+                {
+                    using (StreamReader r = new StreamReader(stream, Str.Utf8Encoding, true, Consts.Numbers.DefaultVeryLargeBufferSize))
+                    {
+                        return r._JsonToObject<T>(includeNull, maxDepth);
+                    }
+                }
             }
             catch
             {
@@ -181,7 +218,7 @@ namespace IPA.Cores.Basic
                 throw;
             }
         }
-        public T ReadJsonFromFile<T>(string path, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default,
+        public T ReadJsonFromFile<T>(string path, long maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default,
             bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool nullIfError = false)
             => ReadJsonFromFileAsync<T>(path, maxSize, flags, cancel, includeNull, maxDepth, nullIfError)._GetResult();
     }

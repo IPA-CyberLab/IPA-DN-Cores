@@ -516,7 +516,7 @@ namespace IPA.Cores.Basic
             {
                 string fullPath = Fs.PathParser.Combine(dirPath, fileName);
 
-                DirSuperBackupMetadata? ret = await Fs.ReadJsonFromFileAsync<DirSuperBackupMetadata>(fullPath, nullIfError: true, flags: FileFlags.BackupMode);
+                DirSuperBackupMetadata? ret = await Fs.ReadJsonFromFileAsync<DirSuperBackupMetadata>(fullPath, nullIfError: true, flags: FileFlags.BackupMode, maxSize: long.MaxValue);
 
                 if (ret != null) return ret;
             }
