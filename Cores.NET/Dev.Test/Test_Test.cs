@@ -320,6 +320,20 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                string src = "SignAuthenticodeInternal a b /comment:\"SE File\" /driver:no /cert:SoftEtherFile";
+
+                string[] dst = Str.ParseCmdLine(src);
+
+                foreach (var tmp1 in dst)
+                {
+                    tmp1._Print();
+                }
+
+                return;
+            }
+
+            if (true)
+            {
                 string fn1 = @"c:\tmp\200125\json.txt";
                 string fn2 = @"c:\tmp\200125\json2.txt";
 
@@ -362,7 +376,7 @@ namespace IPA.TestDev
 
             if (true)
             {
-                using (AuthenticodeSignClient ac = new AuthenticodeSignClient("https://127.0.0.1:7006/sign", "7BDBCA40E9C4CE374C7889CD3A26EE8D485B94153C2943C09765EEA309FCA13D"))
+                using (AuthenticodeSignClient ac = new AuthenticodeSignClient("https://codesignserver:7006/sign", "7BDBCA40E9C4CE374C7889CD3A26EE8D485B94153C2943C09765EEA309FCA13D"))
                 {
                     byte[] ret = ac.SignAsync(Lfs.ReadStringFromFile(@"\\fss\share\tmp\signserver\password.txt", oneLine: true),
                         Load(@"C:\TMP\200101_signtest\src\src.exe"), "SoftEtherEv", "Driver", "Hello")._GetResult();

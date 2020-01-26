@@ -6158,6 +6158,7 @@ namespace IPA.Cores.Basic
             int i, len, mode;
             string tmp;
             bool ignoreSpace = false;
+            bool ignoreSpace2 = false;
 
             o = new List<string>();
             mode = 0;
@@ -6194,6 +6195,20 @@ namespace IPA.Cores.Basic
                                     ignoreSpace = true;
                                 }
                             }
+                            else if (c == '\'')
+                            {
+                                if ((i != (len - 1)) && str[i + 1] == '\'')
+                                {
+                                    // 2 重の ' は 1 個の ' 文字として見なす
+                                    tmp += '\'';
+                                    i++;
+                                }
+                                else
+                                {
+                                    // 1 個の ' はスペース無視フラグを有効にする
+                                    ignoreSpace2 = true;
+                                }
+                            }
                             else
                             {
                                 tmp += c;
@@ -6204,7 +6219,7 @@ namespace IPA.Cores.Basic
                         break;
 
                     case 1:
-                        if (ignoreSpace == false && (c == ' ' || c == '\t'))
+                        if (ignoreSpace == false && ignoreSpace2 == false && (c == ' ' || c == '\t'))
                         {
                             // トークンの終了
                             o.Add(tmp);
@@ -6232,6 +6247,28 @@ namespace IPA.Cores.Basic
                                     {
                                         // スペース無視フラグを無効にする
                                         ignoreSpace = false;
+                                    }
+                                }
+                            }
+                            else if (c == '\'')
+                            {
+                                if ((i != (len - 1)) && str[i + 1] == '\'')
+                                {
+                                    // 2 重の ' は 1 個の ' 文字として見なす
+                                    tmp += '\'';
+                                    i++;
+                                }
+                                else
+                                {
+                                    if (ignoreSpace2 == false)
+                                    {
+                                        // 1 個の ' はスペース無視フラグを有効にする
+                                        ignoreSpace2 = true;
+                                    }
+                                    else
+                                    {
+                                        // スペース無視フラグを無効にする
+                                        ignoreSpace2 = false;
                                     }
                                 }
                             }

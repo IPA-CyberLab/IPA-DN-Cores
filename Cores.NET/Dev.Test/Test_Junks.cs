@@ -73,13 +73,16 @@ namespace IPA.TestDev
             bool driver = vl["driver"].BoolValue;
             string cert = vl["cert"].StrValue;
 
-            using (AuthenticodeSignClient ac = new AuthenticodeSignClient("https://127.0.0.1:7006/sign", "7BDBCA40E9C4CE374C7889CD3A26EE8D485B94153C2943C09765EEA309FCA13D"))
+            using (AuthenticodeSignClient ac = new AuthenticodeSignClient("https://codesignserver:7006/sign", "7BDBCA40E9C4CE374C7889CD3A26EE8D485B94153C2943C09765EEA309FCA13D"))
             {
                 var srcData = Load(srcPath);
 
                 var dstData = ac.SignSeInternalAsync(srcData, cert, driver ? "Driver" : "", comment._FilledOrDefault("Authenticode"))._GetResult();
 
                 dstData._Save(dstPath, flags: FileFlags.AutoCreateDirectory);
+
+                Con.WriteInfo();
+                Con.WriteInfo($"Code sign OK. Written to: '{dstPath}'");
             }
 
             return 0;
