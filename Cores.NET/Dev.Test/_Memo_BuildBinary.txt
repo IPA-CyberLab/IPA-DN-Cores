@@ -4,11 +4,22 @@ cd /d C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\
 
 dotnet clean -c Release
 
-dotnet publish -c Release -r win-x64 -o bld\win-x64\Dev.Test
-
-
+dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:IncludeSymbolsInSingleFile=true --self-contained -o bld\win-x64\Dev.Test
 
 ---
 C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bld\win-x64\
+Ç…ê∂ê¨Ç≥ÇÍÇÈ
+
+
+Å° Linux - arm64
+
+cd /d C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\
+
+dotnet clean -c Release
+
+dotnet publish -c Release -r linux-arm64 -p:PublishSingleFile=true -p:PublishReadyToRun=false -p:IncludeSymbolsInSingleFile=true --self-contained -o bld\linux-arm64\Dev.Test
+
+---
+C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bld\linux-arm64\
 Ç…ê∂ê¨Ç≥ÇÍÇÈ
 

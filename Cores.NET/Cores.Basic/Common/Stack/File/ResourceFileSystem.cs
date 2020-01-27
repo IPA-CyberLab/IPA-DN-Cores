@@ -73,11 +73,15 @@ namespace IPA.Cores.Basic
 
             foreach (SourceCodePathAndMarkerFileName srcInfo in sourceInfoList)
             {
-                DirectoryPath? root = Lfs.DetermineRootPathWithMarkerFile(srcInfo.SourceCodePath, srcInfo.MarkerFileName);
-                if (root != null)
+                try
                 {
-                    srcRootList.Add(root);
+                    DirectoryPath? root = Lfs.DetermineRootPathWithMarkerFile(srcInfo.SourceCodePath, srcInfo.MarkerFileName);
+                    if (root != null)
+                    {
+                        srcRootList.Add(root);
+                    }
                 }
+                catch { }
             }
 
             this.SourceRootList = srcRootList;

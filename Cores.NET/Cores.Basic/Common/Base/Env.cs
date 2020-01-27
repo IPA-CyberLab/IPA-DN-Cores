@@ -276,6 +276,15 @@ namespace IPA.Cores.Basic
                 // プログラムのあるディレクトリから 1 つずつ遡ってアプリケーションの root ディレクトリを取得する
                 string tmp = AppExecutableExeOrDllFileDir;
 
+                string tmp2 = AppExecutableExeOrDllFileDir._ReplaceStr("\\", "/");
+                if (tmp2._InStr("/tmp/.net/", true) || tmp2._InStr("/temp/.net/", true))
+                {
+                    // dotnet publish で -p:PublishSingleFile=true で生成されたファイルである。
+                    // この場合、AppExecutableExeOrDllFileDir は一時ディレクトリを指しているので、
+                    // AppRootDir は代わりに EXE ファイルのある本物のディレクトリを指すようにする。
+                    AppRootDir = tmp = Path.GetDirectoryName(AppRealProcessExeFileName) ?? AppRootDir;
+                }
+
                 IEnumerable<string> markerFiles = Env.IsHostedByDotNetProcess ? Consts.FileNames.AppRootMarkerFileNames : Consts.FileNames.AppRootMarkerFileNamesForBinary;
                 
                 while (true)
