@@ -211,6 +211,12 @@ namespace IPA.Cores.Basic
         }
         public ConnSock ConnectIPv4v6Dual(TcpConnectParam param, CancellationToken cancel = default)
             => ConnectIPv4v6DualAsync(param, cancel)._GetResult();
+
+        // FQDN を入力し、サフィックスをパースする
+        public void ParseDomainBySuffixList(string fqdn, out string suffix, out string suffixPlusOneToken, out string hostnames)
+        {
+            MasterData.DomainSuffixList.ParseDomainBySuffixList(fqdn, out suffix, out suffixPlusOneToken, out hostnames);
+        }
     }
 
     public class MiddleSock : NetSock

@@ -44,7 +44,7 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    public class AmbiguousMasterData<T> : AmbiguousSearch<T> where T: class
+    public class AmbiguousMasterData<T> : AmbiguousSearch<T> where T : class
     {
         public AmbiguousMasterData(string body, Func<string, T?> parser, bool allowWildcard = false) : base(allowWildcard)
         {
@@ -100,6 +100,12 @@ namespace IPA.Cores.Basic
                 body: CoresRes["MasterData/MimeLookup/MimeList.txt"].String
                 ));
 
+        public static PublicSuffixList DomainSuffixList => PublicSuffixListSingleton;
+        static readonly Singleton<PublicSuffixList> PublicSuffixListSingleton =
+            new Singleton<PublicSuffixList>(() => new PublicSuffixList(
+                body: CoresRes["MasterData/DomainPublicSuffixList/public_suffix_list.txt"].String
+                ));
+
         public static Tuple<string, string> GetFasIconFromExtension(string extensionOrMimeType)
         {
             // Mime type search
@@ -112,6 +118,68 @@ namespace IPA.Cores.Basic
 
             // Last resort
             return new Tuple<string, string>("fas", "fa-file-download");
+        }
+
+        public class PublicSuffixList
+        {
+            readonly HashSet<string> SuffixList = new HashSet<string>(StrComparer.IgnoreCaseComparer);
+
+            public PublicSuffixList(string body)
+            {
+                string[] lines = body._GetLines();
+
+                foreach (string line in lines)
+                {
+                    string line2 = line._StripCommentFromLine()._NonNullTrim();
+                    if (line2._IsFilled())
+                    {
+                        string[] tokens = line2._Split(StringSplitOptions.RemoveEmptyEntries, ' ', '　', '\t');
+                        if (tokens.Length == 1)
+                        {
+                            string suffix = tokens[0].ToLower();
+
+                            suffix = suffix._Split(StringSplitOptions.RemoveEmptyEntries, '.')._Combine(".");
+
+                            if (suffix._IsFilled())
+                            {
+                                this.SuffixList.Add(suffix);
+                            }
+                        }
+                    }
+                }
+            }
+
+            public void ParseDomainBySuffixList(string fqdn, out string suffix, out string suffixPlusOneToken, out string hostnames)
+            {
+                if (fqdn._IsEmpty()) fqdn = "";
+
+                string[] tokens = fqdn._Split(StringSplitOptions.RemoveEmptyEntries, '.').Reverse().ToArray();
+
+                if (tokens.Length == 0)
+                {
+                    suffix = "";
+                    suffixPlusOneToken = "";
+                    hostnames = "";
+                    return;
+                }
+
+                for (int i = tokens.Length; i >= 0; i--)
+                {
+                    string suffixTmp = tokens.Take(i).Reverse()._Combine(".");
+
+                    if (SuffixList.Contains(suffixTmp))
+                    {
+                        suffix = suffixTmp;
+                        suffixPlusOneToken = tokens.Take(Math.Min(i + 1, tokens.Length)).Reverse()._Combine(".");
+                        hostnames = tokens.Skip(Math.Min(i + 1, tokens.Length)).Reverse()._Combine(".");
+                        return;
+                    }
+                }
+
+                suffix = tokens.Take(1).Reverse()._Combine(".");
+                suffixPlusOneToken = tokens.Take(Math.Min(2, tokens.Length)).Reverse()._Combine(".");
+                hostnames = tokens.Skip(Math.Min(2, tokens.Length)).Reverse()._Combine(".");
+            }
         }
 
         public class MimeList
