@@ -626,7 +626,25 @@ namespace IPA.Cores.Helper.Basic
         }
 
         public static TValue _GetOrNew<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key, Func<TValue> newProc)
+            where TKey : notnull
+        {
+            if (d.ContainsKey(key)) return d[key];
+            TValue n = newProc();
+            d.Add(key, n);
+            return n;
+        }
+
+        public static TValue _GetOrNew<TKey, TValue>(this SortedDictionary<TKey, TValue> d, TKey key)
             where TValue : new()
+            where TKey : notnull
+        {
+            if (d.ContainsKey(key)) return d[key];
+            TValue n = new TValue();
+            d.Add(key, n);
+            return n;
+        }
+
+        public static TValue _GetOrNew<TKey, TValue>(this SortedDictionary<TKey, TValue> d, TKey key, Func<TValue> newProc)
             where TKey : notnull
         {
             if (d.ContainsKey(key)) return d[key];
