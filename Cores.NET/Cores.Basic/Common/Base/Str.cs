@@ -3971,7 +3971,7 @@ namespace IPA.Cores.Basic
                 o.Add(name);
             }
 
-            return CombineStringArrayForCsv(o);
+            return CombineStringArrayForCsv(o, "#");
         }
 
         // オブジェクトのデータを CSV に変換する
@@ -4046,7 +4046,7 @@ namespace IPA.Cores.Basic
         {
             return CombineStringArrayForCsv((IEnumerable<string?>?)strs);
         }
-        public static string CombineStringArrayForCsv(IEnumerable<string?>? strs)
+        public static string CombineStringArrayForCsv(IEnumerable<string?>? strs, string prefix = "")
         {
             if (strs == null) strs = new string[0];
 
@@ -4063,7 +4063,7 @@ namespace IPA.Cores.Basic
                     str2 = "\"" + str2._ReplaceStr("\"", "\"\"") + "\"";
                 }
 
-                tmp.Add(str2);
+                tmp.Add(prefix + str2);
             }
 
             return tmp._Combine(",");

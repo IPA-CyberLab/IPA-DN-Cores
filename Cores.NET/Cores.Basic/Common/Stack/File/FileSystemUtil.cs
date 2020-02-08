@@ -320,6 +320,62 @@ namespace IPA.Cores.Basic
         public HugeMemoryBuffer<byte> ReadHugeMemoryBufferFromFile(string path, long maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
             => ReadHugeMemoryBufferFromFileAsync(path, maxSize, flags, cancel)._GetResult();
 
+        public async Task ReadCsvFromFileAsync<T>(string path, Func<List<T>, bool> proc, Encoding? encoding = null, long startPosition = 0, bool trimStr = false, FileFlags flags = FileFlags.None, int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, CancellationToken cancel = default)
+             where T : notnull, new()
+        {
+            T obj = new T();
+            FieldReaderWriter rw = obj._GetFieldReaderWriter(false);
+
+            await ReadTextLinesFromFileAsync(path,
+                (lineList, pos1, pos2) =>
+                {
+                    List<T> list = new List<T>();
+
+                    foreach (string line in lineList)
+                    {
+                        if (line._IsFilled())
+                        {
+                            T data = Str.CsvToObjectData<T>(line, trimStr, rw);
+
+                            list.Add(data);
+                        }
+                    }
+
+                    return proc(list);
+                },
+                encoding, startPosition, flags, maxBytesPerLine, bufferSize, cancel);
+        }
+
+        public void ReadCsvFromFile<T>(string path, Func<List<T>, bool> proc, Encoding? encoding = null, long startPosition = 0, bool trimStr = false, FileFlags flags = FileFlags.None, int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, CancellationToken cancel = default)
+            where T : notnull, new()
+            => ReadCsvFromFileAsync<T>(path, proc, encoding, startPosition, trimStr, flags, maxBytesPerLine, bufferSize, cancel)._GetResult();
+
+        public async Task<List<T>> ReadCsvFromFileAsync<T>(string path, Encoding? encoding = null, long startPosition = 0, bool trimStr = false, FileFlags flags = FileFlags.None, int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, CancellationToken cancel = default)
+             where T : notnull, new()
+        {
+            List<T> ret = new List<T>();
+
+            await ReadCsvFromFileAsync<T>(path,
+                (list) =>
+                {
+                    ret.AddRange(list);
+                    return true;
+                },
+                encoding, startPosition, trimStr, flags, maxBytesPerLine, bufferSize, cancel);
+
+            return ret;
+        }
+
+        public List<T> ReadCsvFromFile<T>(string path, Encoding? encoding = null, long startPosition = 0, bool trimStr = false, FileFlags flags = FileFlags.None, int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, CancellationToken cancel = default)
+            where T : notnull, new()
+            => ReadCsvFromFileAsync<T>(path, encoding, startPosition, trimStr, flags, maxBytesPerLine, bufferSize, cancel)._GetResult();
+
+        public CsvWriter<T> WriteCsv<T>(string path, bool printToConsole = true, bool writeHeader = true, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, FileFlags flags = FileFlags.None, Encoding? encoding = null, bool writeBom = true)
+            where T : notnull, new()
+        {
+            return new CsvWriter<T>(path, printToConsole, writeHeader, this, bufferSize, flags, encoding, writeBom);
+        }
+
         public async Task ReadTextLinesFromFileAsync(string path, Func<List<string>, long, long, bool> proc, Encoding? encoding = null, long startPosition = 0, FileFlags flags = FileFlags.None, int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, CancellationToken cancel = default)
         {
             using (var file = await OpenAsync(path, false, false, false, flags, cancel))
@@ -1579,4 +1635,90 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // CSV ライター
+    public class CsvWriter<T> : AsyncService where T : notnull, new()
+    {
+        readonly FieldReaderWriter Rw;
+        readonly FileStream FileStream;
+        readonly BufferedStream BufferedStream;
+        readonly Encoding Encoding;
+        readonly bool PrintToConsole;
+
+        public CsvWriter(string path, bool printToConsole = true, bool writeHeader = true, FileSystem? fs = null, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, FileFlags flags = FileFlags.None, Encoding? encoding = null, bool writeBom = true)
+        {
+            try
+            {
+                if (fs == null) fs = Lfs;
+                if (encoding == null) encoding = Str.Utf8Encoding;
+
+                PrintToConsole = printToConsole;
+
+                Encoding = encoding;
+
+                T sample = new T();
+
+                Rw = sample._GetFieldReaderWriter();
+
+                var file = fs.Create(path, false, flags);
+
+                FileStream = file.GetStream(true);
+
+                BufferedStream = new BufferedStream(FileStream, bufferSize);
+
+                if (writeBom)
+                {
+                    var bom = Str.GetBOMSpan(encoding);
+
+                    if (bom.IsEmpty == false)
+                        BufferedStream.Write(bom);
+                }
+
+                if (writeHeader)
+                {
+                    string line = Str.ObjectHeaderToCsv<T>();
+
+                    WriteLine(line);
+                }
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+        public void WriteData(T data)
+        {
+            string line = Str.ObjectDataToCsv(data, this.Rw);
+
+            WriteLine(line);
+        }
+
+        void WriteLine(string line)
+        {
+            if (PrintToConsole)
+            {
+                Console.WriteLine(line);
+            }
+
+            line = line + Env.NewLine;
+
+            var data = line._GetBytes(this.Encoding);
+
+            this.BufferedStream.Write(data);
+        }
+
+        protected override void DisposeImpl(Exception? ex)
+        {
+            try
+            {
+                BufferedStream._DisposeSafe();
+                FileStream._DisposeSafe();
+            }
+            finally
+            {
+                base.DisposeImpl(ex);
+            }
+        }
+    }
 }
