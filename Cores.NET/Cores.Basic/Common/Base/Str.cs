@@ -50,6 +50,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 
 namespace IPA.Cores.Basic
 {
@@ -937,6 +938,7 @@ namespace IPA.Cores.Basic
         public static Encoding EucJpEncoding { get; }
         public static Encoding ISO88591Encoding { get; }
         public static Encoding GB2312Encoding { get; }
+        public static Encoding EucKrEncoding { get; }
         public static Encoding Utf8Encoding { get; }
         public static Encoding UniEncoding { get; }
 
@@ -999,6 +1001,7 @@ namespace IPA.Cores.Basic
             EucJpEncoding = Encoding.GetEncoding("euc-jp");
             ISO88591Encoding = Encoding.GetEncoding("iso-8859-1");
             GB2312Encoding = Encoding.GetEncoding("gb2312");
+            EucKrEncoding = Encoding.GetEncoding("euc-kr");
             Utf8Encoding = Encoding.UTF8;
             UniEncoding = Encoding.Unicode;
             BomUtf8 = Str.GetBOM(Str.Utf8Encoding)!;
@@ -2681,6 +2684,126 @@ namespace IPA.Cores.Basic
             if (encoding == null) encoding = Str.Utf8Encoding;
             Str.NormalizeString(ref str);
             return HttpUtility.UrlDecode(str, encoding);
+        }
+
+        // URL デコード (バイト配列に)
+        public static byte[] DecodeUrlToBytes(string? str)
+        {
+            str = str._NonNull();
+            return HttpUtility.UrlDecodeToBytes(str);
+        }
+
+        // URL デコードが可能であると考えられるエンコーディングの一覧を取得
+        public static List<Encoding> GetSuitableUrlDecodeEncodings(string? str)
+        {
+            byte[] data = DecodeUrlToBytes(str);
+
+            return GetSuitableEncodings(data);
+        }
+
+        // URL に含まれる任意のキーワードの抽出
+        public static List<string> ExtractKeywordsFromUrl(string url, bool recursive = true)
+        {
+            if (url.StartsWith("/") == false && url.StartsWith("http://") == false && url.StartsWith("https://") == false && url.StartsWith("ftp://") == false)
+            {
+                url = "/" + url;
+            }
+
+            var encodingCandidates = GetSuitableUrlDecodeEncodings(url);
+
+            HashSet<string> keywords = new HashSet<string>(StrComparer.IgnoreCaseComparer);
+
+            foreach (var enc in encodingCandidates)
+            {
+                if (url._TryParseUrl(out Uri? uri, out QueryStringList qs, enc))
+                {
+                    uri._MarkNotNull();
+
+                    // URL パスセグメント
+                    uri.Segments._DoForEach(x => keywords.Add(x._DecodeUrl(enc)._NonNullTrim()));
+
+                    // クエリ
+                    foreach (var kv in qs)
+                    {
+                        keywords.Add(kv.Key._NonNullTrim());
+                        keywords.Add(kv.Value._NonNullTrim());
+                    }
+                }
+            }
+
+            if (recursive)
+            {
+                foreach (var keyword in keywords._ToArrayList())
+                {
+                    // キーワードをもう一重デコードしてみる
+                    var encodingCandidates2 = GetSuitableUrlDecodeEncodings(keyword);
+
+                    string url2 = keyword;
+
+                    if (url2.StartsWith("http://") || url2.StartsWith("https://"))
+                    {
+                        StringBuilder sb = new StringBuilder();
+                        bool f = false;
+                        for (int i = 0; i < url2.Length; i++)
+                        {
+                            char c = url2[i];
+
+                            if (c == '?')
+                            {
+                                f = true;
+                                c = '&';
+                            }
+
+                            if (f == false)
+                            {
+                                if (c == '/') c = '&';
+                            }
+
+                            sb.Append(c);
+                        }
+
+                        url2 = sb.ToString();
+                    }
+
+                    foreach (var enc in encodingCandidates2)
+                    {
+                        QueryStringList qs2 = new QueryStringList(url2);
+
+                        foreach (var kv in qs2)
+                        {
+                            keywords.Add(kv.Key._NonNullTrim());
+                            keywords.Add(kv.Value._NonNullTrim());
+                        }
+                    }
+                }
+            }
+
+            return keywords
+                .Where(x => x._IsFilled())
+                .Where(x => x.Where(c => (c >= 128 || c == '\r' || c == '\n' || c == ' ' || c == '　' || c == '\t')).Any())
+                .Where(x => IsPossiblyBase64(x) == false)
+                .ToList();
+        }
+
+        // 文字列が Base64 っぽいかどうか検出
+        public static bool IsPossiblyBase64(string str)
+        {
+            if (str.Where(c => c >= 0x80).Any()) return false;
+
+            string[] tokens = str._Split(StringSplitOptions.RemoveEmptyEntries, ' ');
+
+            foreach (string token in tokens)
+            {
+                if (token.Length >= 8)
+                {
+                    if (token._Split(StringSplitOptions.RemoveEmptyEntries, '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '/').Length >= 2)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         // HTML デコード
@@ -6407,6 +6530,11 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public static List<string> ParseUrlQueryKeywords(string urlString)
+        {
+            return null!;
+        }
+
         public static string NormalizeFqdn(string fqdn)
         {
             fqdn = fqdn._NonNullTrim().ToLower();
@@ -6620,6 +6748,100 @@ namespace IPA.Cores.Basic
             if (t._IsFilled())
             {
                 ret.Add(t);
+            }
+
+            return ret;
+        }
+
+        // 文字コード自動判別機
+        private static class StrEncodingAutoDetectorInternal
+        {
+            public readonly static string UnknownStr = "{" + Str.NewGuid().ToLower() + "}";
+
+            public readonly static List<Encoding> EncodingsWithUnknownStrReplacement = new List<Encoding>();
+            public readonly static List<Encoding> EncodingsNormal = new List<Encoding>();
+
+            static StrEncodingAutoDetectorInternal()
+            {
+                string[] names = Consts.StrEncodingAutoDetector.Candidates._Split(StringSplitOptions.RemoveEmptyEntries, " ", "　", ",", "/", "\t", "\r", "\n");
+
+                foreach (string name in names)
+                {
+                    Encoding encWithError = Encoding.GetEncoding(name, new EncoderReplacementFallback(UnknownStr), new DecoderReplacementFallback(UnknownStr));
+                    Encoding enc = Encoding.GetEncoding(name);
+
+                    EncodingsWithUnknownStrReplacement.Add(encWithError);
+                    EncodingsNormal.Add(enc);
+                }
+            }
+        }
+
+        public static List<Encoding> GetSuitableEncodings(ReadOnlySpan<byte> data)
+        {
+            List<Encoding> ret = new List<Encoding>();
+
+            for (int i = 0; i < StrEncodingAutoDetectorInternal.EncodingsWithUnknownStrReplacement.Count; i++)
+            {
+                try
+                {
+                    var encWithError = StrEncodingAutoDetectorInternal.EncodingsWithUnknownStrReplacement[i];
+                    var encNormal = StrEncodingAutoDetectorInternal.EncodingsNormal[i];
+
+                    bool isShiftJis = encWithError.WebName._IsSamei("shift_jis");
+
+                    string tmp = encWithError.GetString(data);
+
+                    if (tmp.IndexOf(StrEncodingAutoDetectorInternal.UnknownStr) == -1)
+                    {
+                        char[] charArray = tmp.ToCharArray();
+                        bool ok = true;
+
+                        foreach (var c in charArray)
+                        {
+                            if (c <= 127)
+                            {
+                                continue;
+                            }
+
+                            if (Char.IsControl(c))
+                            {
+                                ok = false;
+                            }
+
+                            var category = Char.GetUnicodeCategory(c);
+                            if (category == UnicodeCategory.Control || category == UnicodeCategory.OtherNotAssigned || category == UnicodeCategory.Surrogate)
+                            {
+                                ok = false;
+                            }
+
+                            if (isShiftJis)
+                            {
+                                if (c > 0x9FCF && c < 0xff00)
+                                {
+                                    ok = false;
+                                }
+                            }
+
+                            if (ok == false) break;
+                        }
+
+                        var data2 = NormalizeCrlf(data, CrlfStyle.Lf);
+
+                        string test = encWithError.GetString(data2.Span);
+                        byte[] data3 = encNormal.GetBytes(test);
+
+                        if (data2._MemCompare(data3) != 0)
+                        {
+                            ok = false;
+                        }
+
+                        if (ok)
+                        {
+                            ret.Add(StrEncodingAutoDetectorInternal.EncodingsNormal[i]);
+                        }
+                    }
+                }
+                catch { }
             }
 
             return ret;
@@ -7234,6 +7456,65 @@ namespace IPA.Cores.Basic
             }
 
             return sb.ToString();
+        }
+    }
+
+
+    // ユニークな文字列のリスト。StartWith による包含関係なしが保証されている
+    public class LongestDistinctStrList
+    {
+        readonly StringComparison Comparison;
+
+        readonly List<string> List = new List<string>();
+
+        public LongestDistinctStrList(StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        {
+            Comparison = comparison;
+        }
+
+        public void Add(string str)
+        {
+            str = str._NonNullTrim();
+
+            // 全く同一の文字列がリストに含まれるか?
+            if (List.Where(t => string.Equals(t, str, Comparison)).Any()) return;
+
+            // 追加しようとする文字列よりも長く、追加しようとする文字列を包含する文字列がリストに含まれるか?
+            foreach (var s in List)
+            {
+                if (s.Length > str.Length)
+                {
+                    if (s.StartsWith(str, Comparison)) return;
+                }
+            }
+
+            // 追加しようとする文字列よりも短く、追加しようとする文字列によって包含される文字列がリストに含まれるか?
+            for (int i = 0; i < List.Count; i++)
+            {
+                if (List[i].Length < str.Length)
+                {
+                    if (str.StartsWith(List[i], Comparison))
+                    {
+                        // 置換
+                        List[i] = str;
+                        return;
+                    }
+                }
+            }
+
+            // いずれにも該当しない
+            List.Add(str);
+        }
+
+        public IReadOnlyList<string> GetList() => this.List;
+
+        public static IReadOnlyList<string> Normalize(IEnumerable<string> srcList, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        {
+            LongestDistinctStrList o = new LongestDistinctStrList(comparison);
+
+            srcList._DoForEach(x => o.Add(x));
+
+            return o.GetList();
         }
     }
 }

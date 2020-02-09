@@ -354,6 +354,11 @@ namespace IPA.Cores.Basic
             public const string Ping = "/bin/ping";
             public const string IpTables = "/sbin/iptables";
         }
+
+        public static partial class StrEncodingAutoDetector
+        {
+            public const string Candidates = "utf-8 euc-jp shift_jis gb2312 euc-kr iso-8859-1 big5 iso-2022-jp";
+        }
     }
 
     public static partial class CoresConfig

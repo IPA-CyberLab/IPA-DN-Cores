@@ -372,6 +372,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _Normalize(this string? str, bool space = true, bool toHankaku = true, bool toZenkaku = false, bool toZenkakuKana = true) { Str.NormalizeString(ref str, space, toHankaku, toZenkaku, toZenkakuKana); return str; }
         public static string _EncodeUrl(this string? str, Encoding? e = null) => Str.EncodeUrl(str, e);
         public static string _DecodeUrl(this string? str, Encoding? e = null) => Str.DecodeUrl(str, e);
+        public static byte[] _DecodeUrlToBytes(this string? str) => Str.DecodeUrlToBytes(str);
         public static string _EncodeUrlPath(this string? str, Encoding? e = null) => Str.EncodeUrlPath(str, e);
         public static string _DecodeUrlPath(this string? str, Encoding? e = null) => Str.DecodeUrlPath(str, e);
         public static string _EncodeHtml(this string? str, bool forceAllSpaceToTag = false) => Str.EncodeHtml(str, forceAllSpaceToTag);
