@@ -84,6 +84,9 @@ namespace IPA.Cores.Basic
         public int PktLossTryCount = 0;
 
         [DataMember]
+        public int PktLossIntervalMsec = 0;
+
+        [DataMember]
         public int PktLossTimeoutMsecs = 0;
 
 
@@ -97,6 +100,7 @@ namespace IPA.Cores.Basic
             if (SpeedTryCount <= 0) SpeedTryCount = SnmpWorkConfig.DefaultSpeedTryCount;
             if (PktLossTryCount <= 0) PktLossTryCount = SnmpWorkConfig.DefaultPktLossTryCount;
             if (PktLossTimeoutMsecs <= 0) PktLossTimeoutMsecs = SnmpWorkConfig.DefaultPktLossTimeoutMsecs;
+            if (PktLossIntervalMsec <= 0) PktLossIntervalMsec = SnmpWorkConfig.DefaultPktLossIntervalMsec;
         }
     }
 
@@ -111,6 +115,7 @@ namespace IPA.Cores.Basic
         public static readonly Copenhagen<int> DefaultSpeedSpanSecs = 10;
         public static readonly Copenhagen<int> DefaultSpeedTryCount = 5;
         public static readonly Copenhagen<int> DefaultPktLossTryCount = 100;
+        public static readonly Copenhagen<int> DefaultPktLossIntervalMsec = 10;
         public static readonly Copenhagen<int> DefaultPktLossTimeoutMsecs = 500;
     }
 
@@ -276,6 +281,8 @@ namespace IPA.Cores.Basic
                 {
                     fetcher._DisposeSafe();
                 }
+
+                this.SettingsHive._DisposeSafe();
             }
             finally
             {

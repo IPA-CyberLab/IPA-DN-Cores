@@ -91,17 +91,21 @@ namespace IPA.Cores.Basic
 
             List<Task<double>> taskList = new List<Task<double>>();
 
+            int interval = 0;
+
             // SpeedTest が動作中の場合は SpeedTest が完了するまで待機する
             numPerform++;
             if (numPerform >= 2)
             {
+                interval = settings.PktLossIntervalMsec;
+
                 await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 10, () => !SpeedTestClient.IsInProgress, cancel);
             }
 
             // 並列実行の開始
             foreach (var kv in kvList)
             {
-                taskList.Add(PerformOneAsync(kv.Value, settings.PktLossTryCount, settings.PktLossTimeoutMsecs, cancel));
+                taskList.Add(PerformOneAsync(kv.Value, settings.PktLossTryCount, settings.PktLossTimeoutMsecs, interval, cancel));
             }
 
             // すべて終了するまで待機し、結果を整理
@@ -116,7 +120,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        async Task<double> PerformOneAsync(IPAddress ipAddress, int count, int timeout, CancellationToken cancel = default)
+        async Task<double> PerformOneAsync(IPAddress ipAddress, int count, int timeout, int interval, CancellationToken cancel = default)
         {
             await LocalNet.SendPingAsync(ipAddress, timeout: timeout, pingCancel: cancel);
 
@@ -129,6 +133,11 @@ namespace IPA.Cores.Basic
                 var result = await LocalNet.SendPingAsync(ipAddress, timeout: timeout, pingCancel: cancel);
 
                 if (result.Ok) numOk++;
+
+                if (interval >= 1)
+                {
+                    await cancel._WaitUntilCanceledAsync(interval);
+                }
             }
 
             return (double)(count - numOk) / (double)count;
@@ -195,26 +204,43 @@ namespace IPA.Cores.Basic
 
                     try
                     {
-                        var downloadResult_1 = await SpeedTestClient.RunSpeedTestWithMultiTryAsync(LocalNet, ipAddress, port, 1, span, SpeedTestModeFlag.Download, numTry, intervalBetween, cancel);
-
                         var downloadResult_32 = await SpeedTestClient.RunSpeedTestWithMultiTryAsync(LocalNet, ipAddress, port, 32, span, SpeedTestModeFlag.Download, numTry, intervalBetween, cancel);
 
-                        downloadBps_1 = downloadResult_1.Select(x => x.BpsDownload).OrderByDescending(x => x).FirstOrDefault();
                         downloadBps_32 = downloadResult_32.Select(x => x.BpsDownload).OrderByDescending(x => x).FirstOrDefault();
                     }
                     catch (Exception ex)
                     {
                         ex._Debug();
                     }
+                    try
+                    {
+                        var uploadResult_32 = await SpeedTestClient.RunSpeedTestWithMultiTryAsync(LocalNet, ipAddress, port, 32, span, SpeedTestModeFlag.Upload, numTry, intervalBetween, cancel);
+
+                        uploadBps_32 = uploadResult_32.Select(x => x.BpsUpload).OrderByDescending(x => x).FirstOrDefault();
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+
+
+                    try
+                    {
+                        var downloadResult_1 = await SpeedTestClient.RunSpeedTestWithMultiTryAsync(LocalNet, ipAddress, port, 1, span, SpeedTestModeFlag.Download, numTry, intervalBetween, cancel);
+
+                        downloadBps_1 = downloadResult_1.Select(x => x.BpsDownload).OrderByDescending(x => x).FirstOrDefault();
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+
 
                     try
                     {
                         var uploadResult_1 = await SpeedTestClient.RunSpeedTestWithMultiTryAsync(LocalNet, ipAddress, port, 1, span, SpeedTestModeFlag.Upload, numTry, intervalBetween, cancel);
 
-                        var uploadResult_32 = await SpeedTestClient.RunSpeedTestWithMultiTryAsync(LocalNet, ipAddress, port, 32, span, SpeedTestModeFlag.Upload, numTry, intervalBetween, cancel);
-
                         uploadBps_1 = uploadResult_1.Select(x => x.BpsUpload).OrderByDescending(x => x).FirstOrDefault();
-                        uploadBps_32 = uploadResult_32.Select(x => x.BpsUpload).OrderByDescending(x => x).FirstOrDefault();
                     }
                     catch (Exception ex)
                     {
@@ -226,11 +252,11 @@ namespace IPA.Cores.Basic
                     ex._Debug();
                 }
 
-                ret.TryAdd($"{host}/32_RX", ((double)downloadBps_32 / 1000.0 / 1000.0).ToString("F3"));
-                ret.TryAdd($"{host}/32_TX", ((double)uploadBps_32 / 1000.0 / 1000.0).ToString("F3"));
+                ret.TryAdd($"{host} - 32_RX", ((double)downloadBps_32 / 1000.0 / 1000.0).ToString("F3"));
+                ret.TryAdd($"{host} - 32_TX", ((double)uploadBps_32 / 1000.0 / 1000.0).ToString("F3"));
 
-                ret.TryAdd($"{host}/01_RX", ((double)downloadBps_1 / 1000.0 / 1000.0).ToString("F3"));
-                ret.TryAdd($"{host}/01_TX", ((double)uploadBps_1 / 1000.0 / 1000.0).ToString("F3"));
+                ret.TryAdd($"{host} - 01_RX", ((double)downloadBps_1 / 1000.0 / 1000.0).ToString("F3"));
+                ret.TryAdd($"{host} - 01_TX", ((double)uploadBps_1 / 1000.0 / 1000.0).ToString("F3"));
             }
         }
     }
