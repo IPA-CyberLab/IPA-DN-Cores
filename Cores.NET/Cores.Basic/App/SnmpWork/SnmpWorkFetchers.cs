@@ -240,12 +240,14 @@ namespace IPA.Cores.Basic
             List<Task<double>> taskList = new List<Task<double>>();
 
             int interval = 0;
+            int count = 3;
 
             // SpeedTest が動作中の場合は SpeedTest が完了するまで待機する
             numPerform++;
             if (numPerform >= 2)
             {
                 interval = settings.PktLossIntervalMsec;
+                count = settings.PktLossTryCount;
 
                 await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 10, () => !SpeedTestClient.IsInProgress, cancel);
             }
@@ -253,7 +255,7 @@ namespace IPA.Cores.Basic
             // 並列実行の開始
             foreach (var kv in kvList)
             {
-                taskList.Add(PerformOneAsync(kv.Value, settings.PktLossTryCount, settings.PktLossTimeoutMsecs, interval, cancel));
+                taskList.Add(PerformOneAsync(kv.Value, count, settings.PktLossTimeoutMsecs, interval, cancel));
             }
 
             // すべて終了するまで待機し、結果を整理

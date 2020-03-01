@@ -120,16 +120,16 @@ namespace IPA.Cores.Basic
 
     public static partial class SnmpWorkConfig
     {
-        public static readonly Copenhagen<int> DefaultPollingIntervalSecs = 10;
+        public static readonly Copenhagen<int> DefaultPollingIntervalSecs = 60;
         public static readonly Copenhagen<int> TruncatedNameStrLen = 14;
 
         public static readonly Copenhagen<string> DefaultPingTarget = "ping4.test.sehosts.com,ping6.test.sehosts.com";
         public static readonly Copenhagen<string> DefaultSpeedTarget = "speed4.test.sehosts.com,speed6.test.sehosts.com";
         public static readonly Copenhagen<int> DefaultSpeedIntervalSecs = 3600;
-        public static readonly Copenhagen<int> DefaultSpeedSpanSecs = 10;
+        public static readonly Copenhagen<int> DefaultSpeedSpanSecs = 600;
         public static readonly Copenhagen<int> DefaultSpeedTryCount = 4;
         public static readonly Copenhagen<int> DefaultPktLossTryCount = 100;
-        public static readonly Copenhagen<int> DefaultPktLossIntervalMsec = 10;
+        public static readonly Copenhagen<int> DefaultPktLossIntervalMsec = 100;
         public static readonly Copenhagen<int> DefaultPktLossTimeoutMsecs = 500;
     }
 
@@ -220,7 +220,8 @@ namespace IPA.Cores.Basic
                 noAuth.AddAction("/", WebMethodBits.GET | WebMethodBits.HEAD, async (ctx) =>
                 {
                     await Task.CompletedTask;
-                    return new HttpStringResult(Host.GetSnmpBody()._NormalizeCrlf(CrlfStyle.Lf, true));
+                    var method = ctx.QueryString._GetStrFirst("method")._ParseEnum(SnmpWorkGetMethod.Get);
+                    return new HttpStringResult(Host.GetSnmpBody(method, ctx.QueryString._GetStrFirst("oid"))._NormalizeCrlf(CrlfStyle.Lf, true));
                 });
             }
             catch
@@ -229,6 +230,13 @@ namespace IPA.Cores.Basic
                 throw;
             }
         }
+    }
+
+    [Flags]
+    public enum SnmpWorkGetMethod
+    {
+        Get = 0,
+        GetNext,
     }
 
     // SNMP Worker ホストクラス
@@ -273,6 +281,7 @@ namespace IPA.Cores.Basic
                     DisableHiveBasedSetting = true,
                     DenyRobots = true,
                     UseGlobalCertVault = false,
+                    LocalHostOnly = true,
                     HttpPortsList = new int[] { Settings.HttpPort }.ToList(),
                     HttpsPortsList = new List<int>(),
                 },
@@ -285,45 +294,75 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public string GetSnmpBody()
+        public string GetSnmpBody(SnmpWorkGetMethod method, string requestedOid)
         {
             SortedDictionary<string, KeyValuePair<string, int>> values = GetValues();
 
-            KeyValueList<string, string> oids1 = new KeyValueList<string, string>();
-            KeyValueList<string, string> oids2 = new KeyValueList<string, string>();
+            KeyValueList<int, string> namesList = new KeyValueList<int, string>();
+            KeyValueList<int, string> valuesList = new KeyValueList<int, string>();
 
+            // index 順にソート
             foreach (var kv in values.OrderBy(x => x.Value.Value))
             {
                 int index = kv.Value.Value;
                 string name = kv.Key;
                 string value = kv.Value.Key;
 
-                // 名前一覧
-                oids1.Add(".1.3.9900.697061.2020.301.1." + index, name);
-
-                // 値一覧
-                oids2.Add(".1.3.9900.697061.2020.301.2." + index, value);
+                namesList.Add(index, name);
+                valuesList.Add(index, value);
             }
 
-            StringWriter w = new StringWriter();
+            KeyValueList<int, string>? list = null;
 
-            // 名前一覧
-            foreach (var kv in oids1)
+            int specifiedIndex = -1;
+
+            string oidPrefix = "";
+
+            if (requestedOid.StartsWith(Consts.SnmpOids.SnmpWorkNames))
             {
-                w.WriteLine(kv.Key);
-                w.WriteLine("string");
-                w.WriteLine(kv.Value);
+                list = namesList;
+                specifiedIndex = requestedOid.Substring(Consts.SnmpOids.SnmpWorkNames.Length)._ToInt();
+                oidPrefix = Consts.SnmpOids.SnmpWorkNames;
             }
-
-            // 値一覧
-            foreach (var kv in oids2)
+            else if (requestedOid.StartsWith(Consts.SnmpOids.SnmpWorkValues))
             {
-                w.WriteLine(kv.Key);
-                w.WriteLine("string");
-                w.WriteLine(kv.Value);
+                list = valuesList;
+                specifiedIndex = requestedOid.Substring(Consts.SnmpOids.SnmpWorkValues.Length)._ToInt();
+                oidPrefix = Consts.SnmpOids.SnmpWorkValues;
             }
 
-            return w.ToString();
+            if (specifiedIndex < 0 || list == null)
+            {
+                // 不正
+                return "";
+            }
+
+            if (method == SnmpWorkGetMethod.GetNext)
+            {
+                // 指定された index よりも 1 つ次のオブジェクトを返す
+                for (int i = 0; i < list.Count; i++)
+                {
+                    if (list[i].Key > specifiedIndex)
+                    {
+                        return oidPrefix + list[i].Key + "\nstring\n" + list[i].Value;
+                    }
+                }
+
+                return "";
+            }
+            else
+            {
+                // 指定された index のオブジェクトを返す
+                for (int i = 0; i < list.Count; i++)
+                {
+                    if (list[i].Key == specifiedIndex)
+                    {
+                        return oidPrefix + list[i].Key + "\nstring\n" + list[i].Value;
+                    }
+                }
+
+                return "";
+            }
         }
 
         public int GetOrCreateIndex(int baseIndex, string str)

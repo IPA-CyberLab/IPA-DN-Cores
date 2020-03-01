@@ -334,7 +334,7 @@ namespace IPA.TestDev
 
                     while (true)
                     {
-                        host.GetValues()._PrintAsJson();
+                        //host.GetValues()._PrintAsJson();
 
                         Sleep(300);
                     }

@@ -372,6 +372,12 @@ namespace IPA.Cores.Basic
         {
             public const string Candidates = "utf-8 euc-jp shift_jis gb2312 euc-kr iso-8859-1 big5 iso-2022-jp";
         }
+
+        public static partial class SnmpOids
+        {
+            public const string SnmpWorkNames = ".1.3.6.1.4.1.16.5.29.1.1.";
+            public const string SnmpWorkValues = ".1.3.6.1.4.1.16.5.29.1.2.";
+        }
     }
 
     public static partial class CoresConfig
