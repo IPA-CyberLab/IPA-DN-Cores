@@ -328,17 +328,18 @@ namespace IPA.TestDev
                     host.Register("NetStat", new SnmpWorkFetcherNetwork(host));
 
                     host.Register("NetPing", new SnmpWorkFetcherPing(host));
-                    host.Register("NetSpeed", new SnmpWorkFetcherSpeed(host));
+                    //host.Register("NetSpeed", new SnmpWorkFetcherSpeed(host));
                     host.Register("NetPktLoss", new SnmpWorkFetcherPktLoss(host));
+                    host.Register("Bird", new SnmpWorkFetcherBird(host));
 
-                    /*while (true)
+                    while (true)
                     {
                         host.GetValues()._PrintAsJson();
 
                         Sleep(300);
-                    }*/
+                    }
 
-                    Con.ReadLine(">");
+                    //Con.ReadLine(">");
                 }
                 return;
             }

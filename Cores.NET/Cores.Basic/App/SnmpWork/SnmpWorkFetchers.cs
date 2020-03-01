@@ -59,6 +59,154 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    public class SnmpWorkFetcherBird : SnmpWorkFetcherBase
+    {
+        bool isBirdcExists = false;
+        bool isBirdc6Exists = false;
+
+        public SnmpWorkFetcherBird(SnmpWorkHost host) : base(host)
+        {
+        }
+
+        protected override void InitImpl()
+        {
+            isBirdcExists = Lfs.IsFileExists(Consts.LinuxCommands.Birdc);
+            isBirdc6Exists = Lfs.IsFileExists(Consts.LinuxCommands.Birdc6);
+        }
+
+        protected override async Task GetValueAsync(SortedDictionary<string, string> ret, RefInt nextPollingInterval, CancellationToken cancel = default)
+        {
+            if (isBirdcExists)
+            {
+                await RunAndParseBirdAsync(Consts.LinuxCommands.Birdc, ret, 4, cancel)._TryAwait();
+            }
+
+            if (isBirdc6Exists)
+            {
+                await RunAndParseBirdAsync(Consts.LinuxCommands.Birdc6, ret, 6, cancel)._TryAwait();
+            }
+        }
+
+        async Task RunAndParseBirdAsync(string birdExeName, SortedDictionary<string, string> ret, int cmdIpVersion, CancellationToken cancel = default)
+        {
+            var result = await EasyExec.ExecAsync(birdExeName, "show protocol all", cancel: cancel);
+
+            string body = result.OutputStr;
+
+            string[] lines = body._GetLines(true);
+
+            string first = lines.FirstOrDefault()._NonNullTrim();
+
+            if (first.StartsWith("BIRD", StringComparison.OrdinalIgnoreCase) == false)
+            {
+                // BIRD 文字列が見つからない
+                return;
+            }
+
+            if (first.StartsWith("BIRD 1.", StringComparison.OrdinalIgnoreCase))
+            {
+                // BIRD 1.x
+            }
+            else
+            {
+                // BIRD 2.x or later
+                cmdIpVersion = 0;
+            }
+
+            string name = "";
+            string protocol = "";
+            string table = "";
+            int ipVer = 0;
+
+            foreach (string line in lines)
+            {
+                string[] tokens = line._Split(StringSplitOptions.RemoveEmptyEntries, " ", "\t");
+
+                if (line.StartsWith(" ") == false)
+                {
+                    bool ok = false;
+                    // あるプロトコルの開始
+                    if (tokens.Length >= 5)
+                    {
+                        if (tokens[3]._IsSamei("up") || tokens[3]._IsSamei("start"))
+                        {
+                            name = tokens[0];
+                            protocol = tokens[1];
+                            table = tokens[2];
+
+                            if (cmdIpVersion != 0)
+                            {
+                                ipVer = cmdIpVersion;
+                            }
+
+                            ok = true;
+                        }
+                    }
+
+                    if (ok == false)
+                    {
+                        name = protocol = table = "";
+                        ipVer = 0;
+                    }
+                }
+                else
+                {
+                    // プロトコルに関する情報
+                    if (name._IsFilled())
+                    {
+                        if (tokens.Length >= 2)
+                        {
+                            if (cmdIpVersion == 0)
+                            {
+                                if (tokens[0]._IsSamei("Channel"))
+                                {
+                                    string verstr = tokens[1];
+
+                                    if (verstr._IsSamei("ipv4"))
+                                    {
+                                        ipVer = 4;
+                                    }
+                                    else if (verstr._IsSamei("ipv6"))
+                                    {
+                                        ipVer = 6;
+                                    }
+                                    else
+                                    {
+                                        ipVer = 0;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (tokens.Length >= 5)
+                        {
+                            if (tokens[0]._IsSamei("Routes:"))
+                            {
+                                int imported = tokens[1]._ToInt();
+                                int exported = tokens[3]._ToInt();
+                                int preferred = 0;
+
+                                if (tokens.Length >= 7)
+                                {
+                                    preferred = tokens[5]._ToInt();
+                                }
+
+                                if (ipVer != 0)
+                                {
+                                    string key = $"{protocol} - {name} - ipv{ipVer}";
+
+                                    ret.TryAdd($"{key} - import", imported.ToString());
+                                    ret.TryAdd($"{key} - export", exported.ToString());
+                                    ret.TryAdd($"{key} - prefer", preferred.ToString());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     public class SnmpWorkFetcherPktLoss : SnmpWorkFetcherBase
     {
         public SnmpWorkFetcherPktLoss(SnmpWorkHost host) : base(host)
