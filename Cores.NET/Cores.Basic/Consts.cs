@@ -133,6 +133,7 @@ namespace IPA.Cores.Basic
             public const int LogServerDefaultServicePort = 7003;
             public const int DaemonCenterHttps = 7004;
             public const int CodeSignServer = 7006;
+            public const int SnmpWorkHttp = 7007;
         }
 
         public static partial class DaemonArgKeys

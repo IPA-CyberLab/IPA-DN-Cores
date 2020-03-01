@@ -89,6 +89,8 @@ namespace IPA.Cores.Basic
         [DataMember]
         public int PktLossTimeoutMsecs = 0;
 
+        [DataMember]
+        public int HttpPort = 0;
 
         public void Normalize()
         {
@@ -101,19 +103,31 @@ namespace IPA.Cores.Basic
             if (PktLossTryCount <= 0) PktLossTryCount = SnmpWorkConfig.DefaultPktLossTryCount;
             if (PktLossTimeoutMsecs <= 0) PktLossTimeoutMsecs = SnmpWorkConfig.DefaultPktLossTimeoutMsecs;
             if (PktLossIntervalMsec <= 0) PktLossIntervalMsec = SnmpWorkConfig.DefaultPktLossIntervalMsec;
+            if (HttpPort <= 0) HttpPort = Consts.Ports.SnmpWorkHttp;
+        }
+    }
+
+    // 内部データ
+    public class SnmpWorkInternalDb : INormalizable
+    {
+        public Dictionary<string, int> IndexTable = new Dictionary<string, int>();
+
+        public void Normalize()
+        {
+            if (this.IndexTable == null) this.IndexTable = new Dictionary<string, int>();
         }
     }
 
     public static partial class SnmpWorkConfig
     {
-        public static readonly Copenhagen<int> DefaultPollingIntervalSecs = 1;
+        public static readonly Copenhagen<int> DefaultPollingIntervalSecs = 10;
         public static readonly Copenhagen<int> TruncatedNameStrLen = 14;
 
         public static readonly Copenhagen<string> DefaultPingTarget = "ping4.test.sehosts.com,ping6.test.sehosts.com";
         public static readonly Copenhagen<string> DefaultSpeedTarget = "speed4.test.sehosts.com,speed6.test.sehosts.com";
-        public static readonly Copenhagen<int> DefaultSpeedIntervalSecs = 1;
+        public static readonly Copenhagen<int> DefaultSpeedIntervalSecs = 3600;
         public static readonly Copenhagen<int> DefaultSpeedSpanSecs = 10;
-        public static readonly Copenhagen<int> DefaultSpeedTryCount = 5;
+        public static readonly Copenhagen<int> DefaultSpeedTryCount = 4;
         public static readonly Copenhagen<int> DefaultPktLossTryCount = 100;
         public static readonly Copenhagen<int> DefaultPktLossIntervalMsec = 10;
         public static readonly Copenhagen<int> DefaultPktLossTimeoutMsecs = 500;
@@ -189,7 +203,35 @@ namespace IPA.Cores.Basic
         public virtual string TruncateName(string src, int maxLen = 0) => src._TruncStrMiddle(maxLen == 0 ? SnmpWorkConfig.TruncatedNameStrLen.Value : maxLen);
     }
 
-    // SNMP 用に各種の値を常に取得し続けるプロセス
+    // SNMP Worker CGI ハンドラ
+    public class SnmpWorkCgiHandler : CgiHandlerBase
+    {
+        public readonly SnmpWorkHost Host;
+
+        public SnmpWorkCgiHandler(SnmpWorkHost host)
+        {
+            this.Host = host;
+        }
+
+        protected override void InitActionListImpl(CgiActionList noAuth, CgiActionList reqAuth)
+        {
+            try
+            {
+                noAuth.AddAction("/", WebMethodBits.GET | WebMethodBits.HEAD, async (ctx) =>
+                {
+                    await Task.CompletedTask;
+                    return new HttpStringResult(Host.GetSnmpBody()._NormalizeCrlf(CrlfStyle.Lf, true));
+                });
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+    }
+
+    // SNMP Worker ホストクラス
     public class SnmpWorkHost : AsyncService
     {
         readonly HiveData<SnmpWorkSettings> SettingsHive;
@@ -197,16 +239,44 @@ namespace IPA.Cores.Basic
         // 'Config\SnmpWork' のデータ
         public SnmpWorkSettings Settings => SettingsHive.GetManagedDataSnapshot();
 
+        // 内部データベース (index 管理)
+        readonly HiveData<SnmpWorkInternalDb> InternalDbHive;
+
+        // データベースへのアクセスを容易にするための自動プロパティ
+        CriticalSection InternalDbLock => InternalDbHive.DataLock;
+        SnmpWorkInternalDb InternalDb => InternalDbHive.ManagedData;
+        SnmpWorkInternalDb InternalDbSnapshot => InternalDbHive.GetManagedDataSnapshot();
+
         readonly CriticalSection LockList = new CriticalSection();
 
-        readonly SortedDictionary<string, SnmpWorkFetcherBase> CurrentFetcherList = new SortedDictionary<string, SnmpWorkFetcherBase>(StrComparer.IgnoreCaseTrimComparer);
+        readonly SortedDictionary<string, KeyValuePair<SnmpWorkFetcherBase, int>> CurrentFetcherList = new SortedDictionary<string, KeyValuePair<SnmpWorkFetcherBase, int>>(StrComparer.IgnoreCaseTrimComparer);
+
+        readonly CgiHttpServer Cgi;
 
         public SnmpWorkHost()
         {
             try
             {
-                // DaemonSettings を読み込む
+                // SnmpWorkSettings を読み込む
                 this.SettingsHive = new HiveData<SnmpWorkSettings>(Hive.SharedLocalConfigHive, $"SnmpWork", null, HiveSyncPolicy.AutoReadFromFile);
+
+                // データベース
+                this.InternalDbHive = new HiveData<SnmpWorkInternalDb>(Hive.SharedLocalConfigHive, "InternalDatabase/SnmpWorkInternalDb",
+                    getDefaultDataFunc: () => new SnmpWorkInternalDb(),
+                    policy: HiveSyncPolicy.AutoReadWriteFile,
+                    serializer: HiveSerializerSelection.RichJson);
+
+                // HTTP サーバーを立ち上げる
+                this.Cgi = new CgiHttpServer(new SnmpWorkCgiHandler(this), new HttpServerOptions()
+                {
+                    AutomaticRedirectToHttpsIfPossible = false,
+                    DisableHiveBasedSetting = true,
+                    DenyRobots = true,
+                    UseGlobalCertVault = false,
+                    HttpPortsList = new int[] { Settings.HttpPort }.ToList(),
+                    HttpsPortsList = new List<int>(),
+                },
+                true);
             }
             catch
             {
@@ -215,9 +285,77 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public SortedDictionary<string, string> GetValues()
+        public string GetSnmpBody()
         {
-            SortedDictionary<string, string> ret = new SortedDictionary<string, string>();
+            SortedDictionary<string, KeyValuePair<string, int>> values = GetValues();
+
+            KeyValueList<string, string> oids1 = new KeyValueList<string, string>();
+            KeyValueList<string, string> oids2 = new KeyValueList<string, string>();
+
+            foreach (var kv in values.OrderBy(x => x.Value.Value))
+            {
+                int index = kv.Value.Value;
+                string name = kv.Key;
+                string value = kv.Value.Key;
+
+                // 名前一覧
+                oids1.Add(".1.3.9900.697061.2020.301.1." + index, name);
+
+                // 値一覧
+                oids2.Add(".1.3.9900.697061.2020.301.2." + index, value);
+            }
+
+            StringWriter w = new StringWriter();
+
+            // 名前一覧
+            foreach (var kv in oids1)
+            {
+                w.WriteLine(kv.Key);
+                w.WriteLine("string");
+                w.WriteLine(kv.Value);
+            }
+
+            // 値一覧
+            foreach (var kv in oids2)
+            {
+                w.WriteLine(kv.Key);
+                w.WriteLine("string");
+                w.WriteLine(kv.Value);
+            }
+
+            return w.ToString();
+        }
+
+        public int GetOrCreateIndex(int baseIndex, string str)
+        {
+            str = str.ToLower().Trim();
+
+            lock (InternalDbLock)
+            {
+                if (InternalDb.IndexTable.TryGetValue(str, out int index))
+                {
+                    // すでに存在
+                    return index;
+                }
+
+                // まだ存在しない
+                // baseIndex 以上で重複しない 1 つの値を選定する
+                for (int i = baseIndex + 1; ; i++)
+                {
+                    if (InternalDb.IndexTable.Values.Where(x => x == i).Any() == false)
+                    {
+                        // 選定した
+                        InternalDb.IndexTable.Add(str, i);
+
+                        return i;
+                    }
+                }
+            }
+        }
+
+        public SortedDictionary<string, KeyValuePair<string, int>> GetValues()
+        {
+            SortedDictionary<string, KeyValuePair<string, int>> ret = new SortedDictionary<string, KeyValuePair<string, int>>();
 
             lock (LockList)
             {
@@ -225,17 +363,14 @@ namespace IPA.Cores.Basic
                 {
                     var fetcher = CurrentFetcherList[name];
 
-                    IEnumerable<KeyValuePair<string, string>> values = fetcher.CurrentValues;
+                    IEnumerable<KeyValuePair<string, string>> values = fetcher.Key.CurrentValues;
 
                     foreach (var kv in values)
                     {
-//                        if (kv.Value._IsFilled())
-                        {
-                            string name2 = $"{name} - {kv.Key}";
-                            string value2 = kv.Value;
+                        string name2 = $"{name} - {kv.Key}";
+                        string value2 = kv.Value;
 
-                            ret.Add(name2, value2);
-                        }
+                        ret.Add(name2, new KeyValuePair<string, int>(value2, GetOrCreateIndex(fetcher.Value, name2)));
                     }
                 }
             }
@@ -243,7 +378,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public void Register(string name, SnmpWorkFetcherBase fetcher)
+        public void Register(string name, int snmpIndexBase, SnmpWorkFetcherBase fetcher)
         {
             using (EnterCriticalCounter())
             {
@@ -253,7 +388,7 @@ namespace IPA.Cores.Basic
 
                     lock (LockList)
                     {
-                        CurrentFetcherList.Add(name, fetcher);
+                        CurrentFetcherList.Add(name, new KeyValuePair<SnmpWorkFetcherBase, int>(fetcher, snmpIndexBase));
                     }
                 }
                 catch
@@ -269,11 +404,13 @@ namespace IPA.Cores.Basic
         {
             try
             {
+                this.Cgi._DisposeSafe();
+
                 List<SnmpWorkFetcherBase> o = new List<SnmpWorkFetcherBase>();
 
                 lock (LockList)
                 {
-                    o = CurrentFetcherList.Values.ToList();
+                    o = CurrentFetcherList.Values.Select(x => x.Key).ToList();
                     CurrentFetcherList.Clear();
                 }
 
@@ -283,6 +420,8 @@ namespace IPA.Cores.Basic
                 }
 
                 this.SettingsHive._DisposeSafe();
+
+                this.InternalDbHive._DisposeSafe();
             }
             finally
             {

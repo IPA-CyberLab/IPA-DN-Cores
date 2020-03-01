@@ -322,15 +322,15 @@ namespace IPA.TestDev
             {
                 using (SnmpWorkHost host = new SnmpWorkHost())
                 {
-                    host.Register("Hot", new SnmpWorkFetcherTemperature(host));
-                    host.Register("Ram", new SnmpWorkFetcherMemory(host));
-                    host.Register("Disk", new SnmpWorkFetcherDisk(host));
-                    host.Register("NetStat", new SnmpWorkFetcherNetwork(host));
+                    host.Register("Temperature", 101_00000, new SnmpWorkFetcherTemperature(host));
+                    host.Register("Ram", 102_00000, new SnmpWorkFetcherMemory(host));
+                    host.Register("Disk", 103_00000, new SnmpWorkFetcherDisk(host));
+                    host.Register("NetStat", 104_00000, new SnmpWorkFetcherNetwork(host));
 
-                    host.Register("NetPing", new SnmpWorkFetcherPing(host));
-                    //host.Register("NetSpeed", new SnmpWorkFetcherSpeed(host));
-                    host.Register("NetPktLoss", new SnmpWorkFetcherPktLoss(host));
-                    host.Register("Bird", new SnmpWorkFetcherBird(host));
+                    host.Register("NetPing", 105_00000, new SnmpWorkFetcherPing(host));
+                    //host.Register("NetSpeed", 106_00000, new SnmpWorkFetcherSpeed(host));
+                    host.Register("NetPktLoss", 107_00000, new SnmpWorkFetcherPktLoss(host));
+                    host.Register("Bird", 108_00000, new SnmpWorkFetcherBird(host));
 
                     while (true)
                     {
