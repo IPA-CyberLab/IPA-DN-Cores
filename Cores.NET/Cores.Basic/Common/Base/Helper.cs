@@ -588,7 +588,9 @@ namespace IPA.Cores.Helper.Basic
 
         public static void _TryWait(this Task? t, bool noDebugMessage = false) => TaskUtil.TryWait(t, noDebugMessage);
         public static Task _TryWaitAsync(this Task? t, bool noDebugMessage = false) => TaskUtil.TryWaitAsync(t, noDebugMessage);
+        public static Task<T> _TryWaitAsync<T>(this Task<T>? t, bool noDebugMessage = false) => TaskUtil.TryWaitAsync(t, noDebugMessage);
         public static Task _TryAwait(this Task? t, bool noDebugMessage = false) => _TryWaitAsync(t, noDebugMessage);
+        public static Task<T> _TryAwait<T>(this Task<T>? t, bool noDebugMessage = false) => _TryWaitAsync(t, noDebugMessage);
 
         public static T[] _ToArrayList<T>(this IEnumerable<T> i) => Util.IEnumerableToArrayList<T>(i);
 

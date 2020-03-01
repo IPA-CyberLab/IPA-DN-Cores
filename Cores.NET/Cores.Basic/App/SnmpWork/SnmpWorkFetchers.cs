@@ -59,16 +59,86 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    public static partial class SnmpWorkConfig
+    public class SnmpWorkFetcherPktLoss : SnmpWorkFetcherBase
     {
-        public static readonly Copenhagen<string> DefaultPingTarget = "8.8.8.8";
-        public static readonly Copenhagen<string> DefaultSpeedTarget = "speed2.open.ad.jp";
-        public static readonly Copenhagen<int> DefaultSpeedIntervalSecs = 1;
+        public SnmpWorkFetcherPktLoss(SnmpWorkHost host) : base(host)
+        {
+        }
+
+        protected override void InitImpl()
+        {
+        }
+
+        int numPerform = 0;
+
+        protected override async Task GetValueAsync(SortedDictionary<string, string> ret, RefInt nextPollingInterval, CancellationToken cancel = default)
+        {
+            SnmpWorkSettings settings = Host.Settings;
+
+            string[] pingTargets = settings.PingTargets._Split(StringSplitOptions.RemoveEmptyEntries, ",", "/", " ", "\t");
+
+            KeyValueList<string, IPAddress> kvList = new KeyValueList<string, IPAddress>();
+
+            // 名前解決
+            foreach (string pingTarget in pingTargets)
+            {
+                cancel.ThrowIfCancellationRequested();
+
+                IPAddress ip = await LocalNet.GetIpAsync(pingTarget, cancel: cancel);
+
+                kvList.Add(pingTarget, ip);
+            }
+
+            List<Task<double>> taskList = new List<Task<double>>();
+
+            // SpeedTest が動作中の場合は SpeedTest が完了するまで待機する
+            numPerform++;
+            if (numPerform >= 2)
+            {
+                await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 10, () => !SpeedTestClient.IsInProgress, cancel);
+            }
+
+            // 並列実行の開始
+            foreach (var kv in kvList)
+            {
+                taskList.Add(PerformOneAsync(kv.Value, settings.PktLossTryCount, settings.PktLossTimeoutMsecs, cancel));
+            }
+
+            // すべて終了するまで待機し、結果を整理
+            for (int i = 0; i < kvList.Count; i++)
+            {
+                var kv = kvList[i];
+                var task = taskList[i];
+
+                double lossRate = await task._TryAwait();
+
+                ret.TryAdd($"{kv.Key}", ((double)lossRate * 100.0).ToString("F3"));
+            }
+        }
+
+        async Task<double> PerformOneAsync(IPAddress ipAddress, int count, int timeout, CancellationToken cancel = default)
+        {
+            await LocalNet.SendPingAsync(ipAddress, timeout: timeout, pingCancel: cancel);
+
+            int numOk = 0;
+
+            for (int i = 0; i < count; i++)
+            {
+                cancel.ThrowIfCancellationRequested();
+
+                var result = await LocalNet.SendPingAsync(ipAddress, timeout: timeout, pingCancel: cancel);
+
+                if (result.Ok) numOk++;
+            }
+
+            return (double)(count - numOk) / (double)count;
+        }
     }
 
     public class SnmpWorkFetcherSpeed : SnmpWorkFetcherBase
     {
-        public SnmpWorkFetcherSpeed(SnmpWorkHost host, int pollingInterval = 0) : base(host, pollingInterval)
+
+        public SnmpWorkFetcherSpeed(SnmpWorkHost host) : base(host)
         {
         }
 
@@ -80,11 +150,17 @@ namespace IPA.Cores.Basic
 
         protected override async Task GetValueAsync(SortedDictionary<string, string> ret, RefInt nextPollingInterval, CancellationToken cancel = default)
         {
-            count++;
-
             SnmpWorkSettings settings = Host.Settings;
 
+            if (settings.SpeedTargets._IsSamei("none") || settings.SpeedTargets._IsSamei("null"))
+            {
+                return;
+            }
+
             string[] speedTargets = settings.SpeedTargets._Split(StringSplitOptions.RemoveEmptyEntries, ",", "/", " ", "\t");
+
+            count++;
+
 
             foreach (string target in speedTargets)
             {
@@ -104,20 +180,27 @@ namespace IPA.Cores.Basic
                 long downloadBps_32 = 0;
                 long uploadBps_32 = 0;
 
+                int intervalBetween = settings.SpeedIntervalsSec * 1000;
+                if (count <= 1) intervalBetween = 0;
+
+                int numTry = settings.SpeedTryCount;
+                if (count <= 1) numTry = 1;
+
+                int span = settings.SpeedSpanSec * 1000;
+                if (count <= 1) span = 2000;
+
                 try
                 {
                     IPAddress ipAddress = await LocalNet.GetIpAsync(host, cancel: cancel);
 
                     try
                     {
-                        var downloadResult_1 = await SpeedTestClient.RunSpeedTestWithRetryAsync(LocalNet, ipAddress, port, 1, 2000, SpeedTestModeFlag.Download, 5, cancel);
-                        if (count >= 2) await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(settings.SpeedIntervalsSec * 1000));
+                        var downloadResult_1 = await SpeedTestClient.RunSpeedTestWithMultiTryAsync(LocalNet, ipAddress, port, 1, span, SpeedTestModeFlag.Download, numTry, intervalBetween, cancel);
 
-                        var downloadResult_32 = await SpeedTestClient.RunSpeedTestWithRetryAsync(LocalNet, ipAddress, port, 32, 2000, SpeedTestModeFlag.Download, 5, cancel);
-                        if (count >= 2) await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(settings.SpeedIntervalsSec * 1000));
+                        var downloadResult_32 = await SpeedTestClient.RunSpeedTestWithMultiTryAsync(LocalNet, ipAddress, port, 32, span, SpeedTestModeFlag.Download, numTry, intervalBetween, cancel);
 
-                        downloadBps_1 = downloadResult_1?.BpsDownload ?? 0;
-                        downloadBps_32 = downloadResult_32?.BpsDownload ?? 0;
+                        downloadBps_1 = downloadResult_1.Select(x => x.BpsDownload).OrderByDescending(x => x).FirstOrDefault();
+                        downloadBps_32 = downloadResult_32.Select(x => x.BpsDownload).OrderByDescending(x => x).FirstOrDefault();
                     }
                     catch (Exception ex)
                     {
@@ -126,14 +209,12 @@ namespace IPA.Cores.Basic
 
                     try
                     {
-                        var uploadResult_1 = await SpeedTestClient.RunSpeedTestWithRetryAsync(LocalNet, ipAddress, port, 1, 2000, SpeedTestModeFlag.Upload, 5, cancel);
-                        if (count >= 2) await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(settings.SpeedIntervalsSec * 1000));
+                        var uploadResult_1 = await SpeedTestClient.RunSpeedTestWithMultiTryAsync(LocalNet, ipAddress, port, 1, span, SpeedTestModeFlag.Upload, numTry, intervalBetween, cancel);
 
-                        var uploadResult_32 = await SpeedTestClient.RunSpeedTestWithRetryAsync(LocalNet, ipAddress, port, 32, 2000, SpeedTestModeFlag.Upload, 5, cancel);
-                        if (count >= 2) await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(settings.SpeedIntervalsSec * 1000));
+                        var uploadResult_32 = await SpeedTestClient.RunSpeedTestWithMultiTryAsync(LocalNet, ipAddress, port, 32, span, SpeedTestModeFlag.Upload, numTry, intervalBetween, cancel);
 
-                        uploadBps_1 = uploadResult_1?.BpsUpload ?? 0;
-                        uploadBps_32 = uploadResult_32?.BpsUpload ?? 0;
+                        uploadBps_1 = uploadResult_1.Select(x => x.BpsUpload).OrderByDescending(x => x).FirstOrDefault();
+                        uploadBps_32 = uploadResult_32.Select(x => x.BpsUpload).OrderByDescending(x => x).FirstOrDefault();
                     }
                     catch (Exception ex)
                     {
@@ -145,11 +226,11 @@ namespace IPA.Cores.Basic
                     ex._Debug();
                 }
 
-                ret.Add($"{TruncateName(host, 20)}/x32_DownloadMbps", ((double)downloadBps_32 / 1000.0 / 1000.0).ToString("F3"));
-                ret.Add($"{TruncateName(host, 20)}/x32_UploadMbps", ((double)uploadBps_32 / 1000.0 / 1000.0).ToString("F3"));
+                ret.TryAdd($"{host}/32_RX", ((double)downloadBps_32 / 1000.0 / 1000.0).ToString("F3"));
+                ret.TryAdd($"{host}/32_TX", ((double)uploadBps_32 / 1000.0 / 1000.0).ToString("F3"));
 
-                ret.Add($"{TruncateName(host, 20)}/x1_DownloadMbps", ((double)downloadBps_1 / 1000.0 / 1000.0).ToString("F3"));
-                ret.Add($"{TruncateName(host, 20)}/x1_UploadMbps", ((double)uploadBps_1 / 1000.0 / 1000.0).ToString("F3"));
+                ret.TryAdd($"{host}/01_RX", ((double)downloadBps_1 / 1000.0 / 1000.0).ToString("F3"));
+                ret.TryAdd($"{host}/01_TX", ((double)uploadBps_1 / 1000.0 / 1000.0).ToString("F3"));
             }
         }
     }
@@ -158,22 +239,23 @@ namespace IPA.Cores.Basic
     {
         static readonly Once FirstPing = new Once();
 
-        IPAddress PingTargetAddress = null!;
-
-        public SnmpWorkFetcherPing(SnmpWorkHost host, int pollingInterval = 0) : base(host, pollingInterval)
+        public SnmpWorkFetcherPing(SnmpWorkHost host) : base(host)
         {
         }
 
         protected override void InitImpl()
         {
-            PingTargetAddress = IPUtil.StrToIP(SnmpWorkConfig.DefaultPingTarget)!;
         }
+
+        int numPerform = 0;
 
         protected override async Task GetValueAsync(SortedDictionary<string, string> ret, RefInt nextPollingInterval, CancellationToken cancel = default)
         {
             SnmpWorkSettings settings = Host.Settings;
 
             string[] pingTargets = settings.PingTargets._Split(StringSplitOptions.RemoveEmptyEntries, ",", "/", " ", "\t");
+
+            numPerform++;
 
             foreach (string pingTarget in pingTargets)
             {
@@ -195,7 +277,13 @@ namespace IPA.Cores.Basic
                         catch { }
                     }
 
-                    SendPingReply reply = await LocalNet.SendPingAsync(ipAddress, pingCancel: cancel);
+                    if (numPerform >= 2)
+                    {
+                        // SpeedTest が動作中の場合は SpeedTest が完了するまで待機する
+                        await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 10, () => !SpeedTestClient.IsInProgress, cancel);
+                    }
+
+                    SendPingReply reply = await LocalNet.SendPingAndGetBestResultAsync(ipAddress, pingCancel: cancel, numTry: 3);
 
                     if (reply.Ok)
                     {
@@ -235,8 +323,8 @@ namespace IPA.Cores.Basic
                             }
                         }
 
-                        ret.Add($"Ping ms - {TruncateName(pingTarget, 20)}", (rtt * 1000.0).ToString("F3"));
-                        ret.Add($"Ttl - {TruncateName(pingTarget, 20)}", ttl.ToString());
+                        ret.TryAdd($"Latency - {pingTarget}", (rtt * 1000.0).ToString("F3"));
+                        ret.TryAdd($"TTL - {pingTarget}", ttl.ToString());
 
                         ok = true;
                     }
@@ -248,11 +336,9 @@ namespace IPA.Cores.Basic
 
                 if (ok == false)
                 {
-                    ret.Add($"Ping ms - {TruncateName(pingTarget, 20)}", "");
-                    ret.Add($"Ttl - {TruncateName(pingTarget, 20)}", "0");
+                    ret.TryAdd($"Latency - {pingTarget}", "");
+                    ret.TryAdd($"TTL - {pingTarget}", "0");
                 }
-
-                await cancel._WaitUntilCanceledAsync(100);
             }
         }
     }
@@ -261,7 +347,7 @@ namespace IPA.Cores.Basic
     {
         bool IsConnTrackOk = false;
 
-        public SnmpWorkFetcherNetwork(SnmpWorkHost host, int pollingInterval = 0) : base(host, pollingInterval)
+        public SnmpWorkFetcherNetwork(SnmpWorkHost host) : base(host)
         {
         }
 
@@ -285,7 +371,7 @@ namespace IPA.Cores.Basic
 
                     string valueStr = result.OutputStr._GetFirstFilledLineFromLines();
 
-                    ret.Add($"ConnTrack Sessions", valueStr._ToInt().ToString());
+                    ret.TryAdd($"ConnTrack Sessions", valueStr._ToInt().ToString());
                 }
                 catch (Exception ex)
                 {
@@ -329,9 +415,9 @@ namespace IPA.Cores.Basic
 
                     if (numSockets >= 0 && numTcp >= 0 && numUdp >= 0)
                     {
-                        ret.Add($"Sockets", numSockets.ToString());
-                        ret.Add($"TCP", numTcp.ToString());
-                        ret.Add($"UDP", numUdp.ToString());
+                        ret.TryAdd($"Sockets", numSockets.ToString());
+                        ret.TryAdd($"TCP", numTcp.ToString());
+                        ret.TryAdd($"UDP", numUdp.ToString());
                     }
                 }
                 catch (Exception ex)
@@ -344,7 +430,7 @@ namespace IPA.Cores.Basic
 
     public class SnmpWorkFetcherDisk : SnmpWorkFetcherBase
     {
-        public SnmpWorkFetcherDisk(SnmpWorkHost host, int pollingInterval = 0) : base(host, pollingInterval)
+        public SnmpWorkFetcherDisk(SnmpWorkHost host) : base(host)
         {
         }
 
@@ -376,7 +462,7 @@ namespace IPA.Cores.Basic
                         if (total >= 0 && available >= 0)
                         {
                             available = Math.Min(available, total);
-                            ret.Add($"available - {TruncateName(path)}", NormalizeValue(((double)available * 100.0 / (double)total).ToString("F3")));
+                            ret.TryAdd($"available - {path}", NormalizeDoubleValue(((double)available * 100.0 / (double)total).ToString("F3")));
                         }
                     }
                 }
@@ -386,7 +472,7 @@ namespace IPA.Cores.Basic
 
     public class SnmpWorkFetcherMemory : SnmpWorkFetcherBase
     {
-        public SnmpWorkFetcherMemory(SnmpWorkHost host, int pollingInterval = 0) : base(host, pollingInterval)
+        public SnmpWorkFetcherMemory(SnmpWorkHost host) : base(host)
         {
         }
 
@@ -443,7 +529,7 @@ namespace IPA.Cores.Basic
             if (total >= 0 && available >= 0)
             {
                 available = Math.Min(available, total);
-                ret.Add($"available", NormalizeValue(((double)available * 100.0 / (double)total).ToString("F3")));
+                ret.TryAdd($"available", NormalizeDoubleValue(((double)available * 100.0 / (double)total).ToString("F3")));
             }
         }
     }
@@ -454,7 +540,7 @@ namespace IPA.Cores.Basic
 
         readonly KeyValueList<string, string> ThermalFiles = new KeyValueList<string, string>();
 
-        public SnmpWorkFetcherTemperature(SnmpWorkHost host, int pollingInterval = 0) : base(host, pollingInterval)
+        public SnmpWorkFetcherTemperature(SnmpWorkHost host) : base(host)
         {
         }
 
@@ -505,7 +591,7 @@ namespace IPA.Cores.Basic
 
                 double d = ((double)value._ToInt()) / 1000.0;
 
-                ret.Add($"{TruncateName(thermalFile.Key)}", NormalizeValue(d.ToString("F3")));
+                ret.TryAdd($"{thermalFile.Key}", NormalizeDoubleValue(d.ToString("F3")));
             }
 
             if (IsSensorsCommandOk)
@@ -542,7 +628,7 @@ namespace IPA.Cores.Basic
 
                             if (key.EndsWith("_input", StringComparison.OrdinalIgnoreCase))
                             {
-                                ret.Add($"{TruncateName(groupName)}/{TruncateName(fieldName)}", NormalizeValue(value));
+                                ret.TryAdd($"{groupName}/{fieldName}", NormalizeDoubleValue(value));
                             }
                         }
                     }

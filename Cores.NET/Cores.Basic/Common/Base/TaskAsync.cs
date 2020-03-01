@@ -949,6 +949,22 @@ namespace IPA.Cores.Basic
         public static void TryCancelNoBlock(CancellationTokenSource? cts)
             => cts._TryCancelAsync()._LaissezFaire(true);
 
+        public static async Task<T> TryWaitAsync<T>(Task<T>? t, bool noDebugMessage = false)
+        {
+            if (t == null) return default!;
+            try
+            {
+                return await t;
+            }
+            catch (Exception ex)
+            {
+                if (noDebugMessage == false)
+                    Dbg.WriteLine("Task exception: " + ex._GetSingleException().ToString());
+
+                return default!;
+            }
+        }
+
         public static async Task TryWaitAsync(Task? t, bool noDebugMessage = false)
         {
             if (t == null) return;

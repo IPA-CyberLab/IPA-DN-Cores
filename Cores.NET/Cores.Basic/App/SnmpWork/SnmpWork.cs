@@ -71,26 +71,52 @@ namespace IPA.Cores.Basic
         [DataMember]
         public int SpeedIntervalsSec = 0;
 
+        [DataMember]
+        public int SpeedSpanSec = 0;
+
+        [DataMember]
+        public int SpeedTryCount = 0;
+
+        [DataMember]
+        public int PollingIntervalsSec = 0;
+
+        [DataMember]
+        public int PktLossTryCount = 0;
+
+        [DataMember]
+        public int PktLossTimeoutMsecs = 0;
+
 
         public void Normalize()
         {
             if (PingTargets._IsEmpty()) PingTargets = SnmpWorkConfig.DefaultPingTarget;
             if (SpeedTargets._IsEmpty()) SpeedTargets = SnmpWorkConfig.DefaultSpeedTarget;
             if (SpeedIntervalsSec <= 0) SpeedIntervalsSec = SnmpWorkConfig.DefaultSpeedIntervalSecs;
+            if (PollingIntervalsSec <= 0) PollingIntervalsSec = SnmpWorkConfig.DefaultPollingIntervalSecs;
+            if (SpeedSpanSec <= 0) SpeedSpanSec = SnmpWorkConfig.DefaultSpeedSpanSecs;
+            if (SpeedTryCount <= 0) SpeedTryCount = SnmpWorkConfig.DefaultSpeedTryCount;
+            if (PktLossTryCount <= 0) PktLossTryCount = SnmpWorkConfig.DefaultPktLossTryCount;
+            if (PktLossTimeoutMsecs <= 0) PktLossTimeoutMsecs = SnmpWorkConfig.DefaultPktLossTimeoutMsecs;
         }
     }
 
     public static partial class SnmpWorkConfig
     {
-        public static readonly Copenhagen<int> DefaultPollingIntervalMsecs = 1000;
+        public static readonly Copenhagen<int> DefaultPollingIntervalSecs = 1;
         public static readonly Copenhagen<int> TruncatedNameStrLen = 14;
+
+        public static readonly Copenhagen<string> DefaultPingTarget = "ping4.test.sehosts.com,ping6.test.sehosts.com";
+        public static readonly Copenhagen<string> DefaultSpeedTarget = "speed4.test.sehosts.com,speed6.test.sehosts.com";
+        public static readonly Copenhagen<int> DefaultSpeedIntervalSecs = 1;
+        public static readonly Copenhagen<int> DefaultSpeedSpanSecs = 10;
+        public static readonly Copenhagen<int> DefaultSpeedTryCount = 5;
+        public static readonly Copenhagen<int> DefaultPktLossTryCount = 100;
+        public static readonly Copenhagen<int> DefaultPktLossTimeoutMsecs = 500;
     }
 
     // SNMP 用に、ある特定の値を取得するための抽象クラス
     public abstract class SnmpWorkFetcherBase : AsyncServiceWithMainLoop
     {
-        public readonly int PollingIntervalMsecs = 0;
-
         protected abstract Task GetValueAsync(SortedDictionary<string, string> ret, RefInt nextPollingInterval, CancellationToken cancel = default);
 
         public IEnumerable<KeyValuePair<string, string>> CurrentValues { get; private set; }
@@ -99,17 +125,13 @@ namespace IPA.Cores.Basic
 
         public readonly SnmpWorkHost Host;
 
-        public SnmpWorkFetcherBase(SnmpWorkHost host, int pollingInterval = 0)
+        public SnmpWorkFetcherBase(SnmpWorkHost host)
         {
             try
             {
                 this.Host = host;
 
                 this.CurrentValues = new SortedDictionary<string, string>();
-
-                if (pollingInterval <= 0) pollingInterval = SnmpWorkConfig.DefaultPollingIntervalMsecs;
-
-                this.PollingIntervalMsecs = pollingInterval;
 
                 InitImpl();
 
@@ -126,7 +148,7 @@ namespace IPA.Cores.Basic
         {
             while (cancel.IsCancellationRequested == false)
             {
-                RefInt nextPollingInterval = this.PollingIntervalMsecs;
+                RefInt nextPollingInterval = Host.Settings.PollingIntervalsSec * 1000;
 
                 try
                 {
@@ -144,14 +166,14 @@ namespace IPA.Cores.Basic
                 }
 
                 int interval = nextPollingInterval;
-                if (interval <= 0) interval = this.PollingIntervalMsecs;
+                if (interval <= 0) interval = Host.Settings.PollingIntervalsSec * 1000;
 
                 await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(interval));
             }
         }
 
         // 値を正規化する (一旦 double に変換してから、小数点以下 3 桁の数値に変換する)
-        public virtual string NormalizeValue(string src)
+        public virtual string NormalizeDoubleValue(string src)
         {
             double d = double.Parse(src);
 

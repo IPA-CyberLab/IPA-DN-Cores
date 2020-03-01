@@ -396,6 +396,25 @@ namespace IPA.Cores.Basic
         public SendPingReply SendPing(IPAddress target, byte[]? data = null, int timeout = Consts.Timeouts.DefaultSendPingTimeout)
             => SendPingAsync(target, data, timeout)._GetResult();
 
+        public async Task<SendPingReply> SendPingAndGetBestResultAsync(IPAddress target, byte[]? data = null, int timeout = Consts.Timeouts.DefaultSendPingTimeout, CancellationToken pingCancel = default, int numTry = 5)
+        {
+            numTry = Math.Max(numTry, 1);
+
+            List<SendPingReply> o = new List<SendPingReply>();
+
+            for (int i = 0; i < numTry; i++)
+            {
+                SendPingReply r = await SendPingAsync(target, data, timeout, pingCancel);
+
+                o.Add(r);
+            }
+
+            SendPingReply best = o.Where(x => x.Ok).OrderBy(x => x.RttDouble).FirstOrDefault();
+            if (best != default) return best;
+
+            return o.Last();
+        }
+
         public async Task<ConnSock> ConnectAsync(TcpConnectParam param, CancellationToken cancel = default)
         {
             using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))

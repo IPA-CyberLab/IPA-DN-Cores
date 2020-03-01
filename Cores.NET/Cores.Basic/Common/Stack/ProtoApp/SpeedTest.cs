@@ -247,23 +247,33 @@ namespace IPA.Cores.Basic
         int ConnectTimeout = 10 * 1000;
         int RecvTimeout = 5000;
 
+        static readonly RefInt CurrentCount = new RefInt();
 
-        static public async Task<SpeedTestClient.Result?> RunSpeedTestWithRetryAsync(TcpIpSystem system, IPAddress ip, int port, int numConnection, int timespan, SpeedTestModeFlag mode, int numTry, CancellationToken cancel = default)
+        public static bool IsInProgress => CurrentCount.Get() >= 1;
+
+        static public async Task<List<SpeedTestClient.Result>> RunSpeedTestWithMultiTryAsync(TcpIpSystem system, IPAddress ip, int port, int numConnection, int timespan, SpeedTestModeFlag mode, int numTry, int interval, CancellationToken cancel = default)
         {
+            List<SpeedTestClient.Result> ret = new List<Result>();
+
             numTry = Math.Max(numTry, 1);
 
             for (int i = 0; i < numTry; i++)
             {
-                if (cancel.IsCancellationRequested) return null;
+                if (cancel.IsCancellationRequested) return new List<Result>();
 
                 SpeedTestClient tc = new SpeedTestClient(system, ip, port, numConnection, timespan, mode, cancel);
 
                 var result = await tc.RunClientAsync();
 
-                if (result != null) return result;
+                if (result != null)
+                {
+                    ret.Add(result);
+                }
+
+                await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(interval));
             }
 
-            return null;
+            return ret;
         }
 
         public SpeedTestClient(TcpIpSystem system, IPAddress ip, int port, int numConnection, int timespan, SpeedTestModeFlag mode, CancellationToken cancel = default)
@@ -299,109 +309,118 @@ namespace IPA.Cores.Basic
 
         public async Task<Result?> RunClientAsync()
         {
-            if (Once.IsFirstCall() == false)
-                throw new ApplicationException("You cannot reuse the object.");
+            CurrentCount.Increment();
 
-            Con.WriteLine("Client mode start");
-
-            ExceptionQueue = new ExceptionQueue();
-            SessionId = Util.RandUInt64();
-
-            List<Task<Result>> tasks = new List<Task<Result>>();
-            List<AsyncManualResetEvent> readyEvents = new List<AsyncManualResetEvent>();
-
-            using (CancelWatcher cancelWatcher = new CancelWatcher(this.Cancel))
+            try
             {
-                for (int i = 0; i < NumConnection; i++)
-                {
-                    Direction dir;
-                    if (Mode == SpeedTestModeFlag.Download)
-                        dir = Direction.Recv;
-                    else if (Mode == SpeedTestModeFlag.Upload)
-                        dir = Direction.Send;
-                    else
-                        dir = ((i % 2) == 0) ? Direction.Recv : Direction.Send;
+                if (Once.IsFirstCall() == false)
+                    throw new ApplicationException("You cannot reuse the object.");
 
-                    AsyncManualResetEvent readyEvent = new AsyncManualResetEvent();
-                    var t = ClientSingleConnectionAsync(dir, readyEvent, cancelWatcher.CancelToken);
-                    ExceptionQueue.RegisterWatchedTask(t);
-                    tasks.Add(t);
-                    readyEvents.Add(readyEvent);
-                }
+                Con.WriteLine("Client mode start");
 
-                try
+                ExceptionQueue = new ExceptionQueue();
+                SessionId = Util.RandUInt64();
+
+                List<Task<Result>> tasks = new List<Task<Result>>();
+                List<AsyncManualResetEvent> readyEvents = new List<AsyncManualResetEvent>();
+
+                using (CancelWatcher cancelWatcher = new CancelWatcher(this.Cancel))
                 {
-                    using (var whenAllReady = new WhenAll(readyEvents.Select(x => x.WaitAsync())))
+                    for (int i = 0; i < NumConnection; i++)
                     {
-                        await TaskUtil.WaitObjectsAsync(
-                            tasks: tasks.Append(whenAllReady.WaitMe).ToArray(),
-                            cancels: cancelWatcher.CancelToken._SingleArray(),
-                            manualEvents: ExceptionQueue.WhenExceptionAdded._SingleArray());
+                        Direction dir;
+                        if (Mode == SpeedTestModeFlag.Download)
+                            dir = Direction.Recv;
+                        else if (Mode == SpeedTestModeFlag.Upload)
+                            dir = Direction.Send;
+                        else
+                            dir = ((i % 2) == 0) ? Direction.Recv : Direction.Send;
+
+                        AsyncManualResetEvent readyEvent = new AsyncManualResetEvent();
+                        var t = ClientSingleConnectionAsync(dir, readyEvent, cancelWatcher.CancelToken);
+                        ExceptionQueue.RegisterWatchedTask(t);
+                        tasks.Add(t);
+                        readyEvents.Add(readyEvent);
                     }
 
-                    Cancel.ThrowIfCancellationRequested();
-                    ExceptionQueue.ThrowFirstExceptionIfExists();
-
-                    ExceptionQueue.WhenExceptionAdded.CallbackList.AddSoftCallback(x =>
-                    {
-                        cancelWatcher.Cancel();
-                    });
-
-                    using (new DelayAction(TimeSpan * 3 + 180 * 1000, x =>
-                    {
-                        cancelWatcher.Cancel();
-                    }))
-                    {
-                        ClientStartEvent.Set(true);
-
-                        using (var whenAllCompleted = new WhenAll(tasks))
-                        {
-                            await TaskUtil.WaitObjectsAsync(
-                                tasks: whenAllCompleted.WaitMe._SingleArray(),
-                                cancels: cancelWatcher.CancelToken._SingleArray()
-                                );
-
-                            await whenAllCompleted.WaitMe;
-                        }
-                    }
-
-                    Result ret = new Result();
-
-                    ret.Span = TimeSpan;
-
-                    foreach (var r in tasks.Select(x => x._GetResult()))
-                    {
-                        ret.NumBytesDownload += r.NumBytesDownload;
-                        ret.NumBytesUpload += r.NumBytesUpload;
-                    }
-
-                    ret.NumBytesTotal = ret.NumBytesUpload + ret.NumBytesDownload;
-
-                    ret.BpsUpload = (long)((double)ret.NumBytesUpload * 1000.0 * 8.0 / (double)ret.Span * 1514.0 / 1460.0);
-                    ret.BpsDownload = (long)((double)ret.NumBytesDownload * 1000.0 * 8.0 / (double)ret.Span * 1514.0 / 1460.0);
-                    ret.BpsTotal = ret.BpsUpload + ret.BpsDownload;
-
-                    return ret;
-                }
-                catch (Exception ex)
-                {
-                    await Task.Yield();
-                    ExceptionQueue.Add(ex);
-                }
-                finally
-                {
-                    cancelWatcher.Cancel();
                     try
                     {
-                        await Task.WhenAll(tasks);
+                        using (var whenAllReady = new WhenAll(readyEvents.Select(x => x.WaitAsync())))
+                        {
+                            await TaskUtil.WaitObjectsAsync(
+                                tasks: tasks.Append(whenAllReady.WaitMe).ToArray(),
+                                cancels: cancelWatcher.CancelToken._SingleArray(),
+                                manualEvents: ExceptionQueue.WhenExceptionAdded._SingleArray());
+                        }
+
+                        Cancel.ThrowIfCancellationRequested();
+                        ExceptionQueue.ThrowFirstExceptionIfExists();
+
+                        ExceptionQueue.WhenExceptionAdded.CallbackList.AddSoftCallback(x =>
+                        {
+                            cancelWatcher.Cancel();
+                        });
+
+                        using (new DelayAction(TimeSpan * 3 + 180 * 1000, x =>
+                        {
+                            cancelWatcher.Cancel();
+                        }))
+                        {
+                            ClientStartEvent.Set(true);
+
+                            using (var whenAllCompleted = new WhenAll(tasks))
+                            {
+                                await TaskUtil.WaitObjectsAsync(
+                                    tasks: whenAllCompleted.WaitMe._SingleArray(),
+                                    cancels: cancelWatcher.CancelToken._SingleArray()
+                                    );
+
+                                await whenAllCompleted.WaitMe;
+                            }
+                        }
+
+                        Result ret = new Result();
+
+                        ret.Span = TimeSpan;
+
+                        foreach (var r in tasks.Select(x => x._GetResult()))
+                        {
+                            ret.NumBytesDownload += r.NumBytesDownload;
+                            ret.NumBytesUpload += r.NumBytesUpload;
+                        }
+
+                        ret.NumBytesTotal = ret.NumBytesUpload + ret.NumBytesDownload;
+
+                        ret.BpsUpload = (long)((double)ret.NumBytesUpload * 1000.0 * 8.0 / (double)ret.Span * 1514.0 / 1460.0);
+                        ret.BpsDownload = (long)((double)ret.NumBytesDownload * 1000.0 * 8.0 / (double)ret.Span * 1514.0 / 1460.0);
+                        ret.BpsTotal = ret.BpsUpload + ret.BpsDownload;
+
+                        return ret;
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        await Task.Yield();
+                        ExceptionQueue.Add(ex);
+                    }
+                    finally
+                    {
+                        cancelWatcher.Cancel();
+                        try
+                        {
+                            await Task.WhenAll(tasks);
+                        }
+                        catch { }
+                    }
+
+                    ExceptionQueue.ThrowFirstExceptionIfExists();
                 }
 
-                ExceptionQueue.ThrowFirstExceptionIfExists();
+                return null;
             }
-
-            return null;
+            finally
+            {
+                CurrentCount.Decrement();
+            }
         }
 
         async Task<Result> ClientSingleConnectionAsync(Direction dir, AsyncManualResetEvent fireMeWhenReady, CancellationToken cancel)
