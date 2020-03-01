@@ -334,14 +334,14 @@ namespace IPA.Cores.Basic
 
                         TimeSpan span = endDateTime - startDateTime;
 
-                        SendPingReply r = new SendPingReply(ret.Status, span, null);
+                        SendPingReply r = new SendPingReply(ret.Status, span, null, ret.Options?.Ttl ?? 0);
 
                         return r;
                     }
                 }
                 catch (Exception ex)
                 {
-                    return new SendPingReply(IPStatus.Unknown, default, ex);
+                    return new SendPingReply(IPStatus.Unknown, default, ex, 0);
                 }
             }
             public static SendPingReply Send(IPAddress target, byte[]? data = null, int timeout = Consts.Timeouts.DefaultSendPingTimeout)

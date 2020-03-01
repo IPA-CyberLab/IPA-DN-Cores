@@ -320,13 +320,19 @@ namespace IPA.TestDev
         {
             if (true)
             {
-                using (SnmpWorkProcess proc = new SnmpWorkProcess())
+                using (SnmpWorkHost host = new SnmpWorkHost())
                 {
-                    proc.Register("temp", new SnmpWorkFetcherTemperature());
+                    //host.Register("temp", new SnmpWorkFetcherTemperature(host));
+                    //host.Register("RAM", new SnmpWorkFetcherMemory(host));
+                    //host.Register("DISK", new SnmpWorkFetcherDisk(host));
+                    //host.Register("NET", new SnmpWorkFetcherNetwork(host));
+
+                    //host.Register("Net_Ping", new SnmpWorkFetcherPing(host));
+                    host.Register("Net_Speed", new SnmpWorkFetcherSpeed(host));
 
                     while (true)
                     {
-                        proc.GetValues()._PrintAsJson();
+                        host.GetValues()._PrintAsJson();
 
                         Sleep(300);
                     }

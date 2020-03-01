@@ -352,13 +352,17 @@ namespace IPA.Cores.Basic
             public const string Reboot = "/sbin/reboot";
             public const string Sync = "/bin/sync";
             public const string Ping = "/bin/ping";
+            public const string Ping6 = "/bin/ping6";
             public const string IpTables = "/sbin/iptables";
             public const string Sensors = "/usr/bin/sensors";
+            public const string Free = "/usr/bin/free";
+            public const string Df = "/bin/df";
         }
 
         public static partial class LinuxPaths
         {
             public const string SysThermal = "/sys/class/thermal/";
+            public const string SockStat = "/proc/net/sockstat";
         }
 
         public static partial class StrEncodingAutoDetector

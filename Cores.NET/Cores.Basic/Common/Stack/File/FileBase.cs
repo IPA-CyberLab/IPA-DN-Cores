@@ -457,6 +457,7 @@ namespace IPA.Cores.Basic
         DeleteFileOnClose = 4096,
         DeleteParentDirOnClose = 8192,
         CopyFile_Verify = 16384,
+        NoCheckFileSize = 32768,
     }
 
     public class FileBaseStream : FileStream

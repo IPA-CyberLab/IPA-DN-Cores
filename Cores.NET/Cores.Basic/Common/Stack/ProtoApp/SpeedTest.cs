@@ -247,6 +247,25 @@ namespace IPA.Cores.Basic
         int ConnectTimeout = 10 * 1000;
         int RecvTimeout = 5000;
 
+
+        static public async Task<SpeedTestClient.Result?> RunSpeedTestWithRetryAsync(TcpIpSystem system, IPAddress ip, int port, int numConnection, int timespan, SpeedTestModeFlag mode, int numTry, CancellationToken cancel = default)
+        {
+            numTry = Math.Max(numTry, 1);
+
+            for (int i = 0; i < numTry; i++)
+            {
+                if (cancel.IsCancellationRequested) return null;
+
+                SpeedTestClient tc = new SpeedTestClient(system, ip, port, numConnection, timespan, mode, cancel);
+
+                var result = await tc.RunClientAsync();
+
+                if (result != null) return result;
+            }
+
+            return null;
+        }
+
         public SpeedTestClient(TcpIpSystem system, IPAddress ip, int port, int numConnection, int timespan, SpeedTestModeFlag mode, CancellationToken cancel = default)
         {
             this.System = system;

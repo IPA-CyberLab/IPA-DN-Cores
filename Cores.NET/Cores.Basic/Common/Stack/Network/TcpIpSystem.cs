@@ -376,7 +376,7 @@ namespace IPA.Cores.Basic
                         }
                         catch (Exception ex)
                         {
-                            return new SendPingReply(IPStatus.Unknown, default, ex);
+                            return new SendPingReply(IPStatus.Unknown, default, ex, 0);
                         }
                     }
                 }
@@ -580,9 +580,11 @@ namespace IPA.Cores.Basic
 
         public bool Ok { get; }
 
+        public int Ttl { get; }
+
         public Exception? OptionalException { get; }
 
-        public SendPingReply(IPStatus status, TimeSpan span, Exception? optionalException)
+        public SendPingReply(IPStatus status, TimeSpan span, Exception? optionalException, int ttl)
         {
             this.Status = status;
 
@@ -590,6 +592,7 @@ namespace IPA.Cores.Basic
             {
                 this.RttTimeSpan = span;
                 this.RttDouble = span.Ticks / 10000000.0;
+                this.Ttl = ttl;
                 Ok = true;
             }
             else

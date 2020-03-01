@@ -184,13 +184,16 @@ namespace IPA.Cores.Basic
 
                             CheckAccessBit(FileAccess.Read);
 
-                            if (this.InternalFileSize < this.InternalPosition)
+                            if (this.FileParams.Flags.Bit(FileFlags.NoCheckFileSize) == false)
                             {
-                                await GetFileSizeInternalAsync(true, operationCancel);
                                 if (this.InternalFileSize < this.InternalPosition)
                                 {
                                     await GetFileSizeInternalAsync(true, operationCancel);
-                                    throw new FileException(this.FileParams.Path, $"Current position is out of range. Current position: {this.InternalPosition}, File size: {this.InternalFileSize}.");
+                                    if (this.InternalFileSize < this.InternalPosition)
+                                    {
+                                        await GetFileSizeInternalAsync(true, operationCancel);
+                                        throw new FileException(this.FileParams.Path, $"Current position is out of range. Current position: {this.InternalPosition}, File size: {this.InternalFileSize}.");
+                                    }
                                 }
                             }
 

@@ -58,7 +58,29 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    public static class SnmpWorkConfig
+    [Serializable]
+    [DataContract]
+    public class SnmpWorkSettings : INormalizable
+    {
+        [DataMember]
+        public string PingTargets = "";
+
+        [DataMember]
+        public string SpeedTargets = "";
+
+        [DataMember]
+        public int SpeedIntervalsSec = 0;
+
+
+        public void Normalize()
+        {
+            if (PingTargets._IsEmpty()) PingTargets = SnmpWorkConfig.DefaultPingTarget;
+            if (SpeedTargets._IsEmpty()) SpeedTargets = SnmpWorkConfig.DefaultSpeedTarget;
+            if (SpeedIntervalsSec <= 0) SpeedIntervalsSec = SnmpWorkConfig.DefaultSpeedIntervalSecs;
+        }
+    }
+
+    public static partial class SnmpWorkConfig
     {
         public static readonly Copenhagen<int> DefaultPollingIntervalMsecs = 1000;
         public static readonly Copenhagen<int> TruncatedNameStrLen = 14;
@@ -73,15 +95,23 @@ namespace IPA.Cores.Basic
 
         public IEnumerable<KeyValuePair<string, string>> CurrentValues { get; private set; }
 
-        public SnmpWorkFetcherBase(int pollingInterval = 0)
+        protected abstract void InitImpl();
+
+        public readonly SnmpWorkHost Host;
+
+        public SnmpWorkFetcherBase(SnmpWorkHost host, int pollingInterval = 0)
         {
             try
             {
+                this.Host = host;
+
                 this.CurrentValues = new SortedDictionary<string, string>();
 
                 if (pollingInterval <= 0) pollingInterval = SnmpWorkConfig.DefaultPollingIntervalMsecs;
 
                 this.PollingIntervalMsecs = pollingInterval;
+
+                InitImpl();
 
                 this.StartMainLoop(MainLoopAsync);
             }
@@ -108,13 +138,15 @@ namespace IPA.Cores.Basic
                 }
                 catch (Exception ex)
                 {
+                    this.CurrentValues = new SortedDictionary<string, string>();
+
                     ex._Debug();
                 }
 
                 int interval = nextPollingInterval;
                 if (interval <= 0) interval = this.PollingIntervalMsecs;
 
-                await cancel._WaitUntilCanceledAsync(interval);
+                await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(interval));
             }
         }
 
@@ -127,20 +159,27 @@ namespace IPA.Cores.Basic
         }
 
         // 長すぎる名前を短くする
-        public virtual string TruncateName(string src) => src._TruncStrMiddle(SnmpWorkConfig.TruncatedNameStrLen);
+        public virtual string TruncateName(string src, int maxLen = 0) => src._TruncStrMiddle(maxLen == 0 ? SnmpWorkConfig.TruncatedNameStrLen.Value : maxLen);
     }
 
     // SNMP 用に各種の値を常に取得し続けるプロセス
-    public class SnmpWorkProcess : AsyncService
+    public class SnmpWorkHost : AsyncService
     {
+        readonly HiveData<SnmpWorkSettings> SettingsHive;
+
+        // 'Config\SnmpWork' のデータ
+        public SnmpWorkSettings Settings => SettingsHive.GetManagedDataSnapshot();
+
         readonly CriticalSection LockList = new CriticalSection();
 
         readonly SortedDictionary<string, SnmpWorkFetcherBase> CurrentFetcherList = new SortedDictionary<string, SnmpWorkFetcherBase>(StrComparer.IgnoreCaseTrimComparer);
 
-        public SnmpWorkProcess()
+        public SnmpWorkHost()
         {
             try
             {
+                // DaemonSettings を読み込む
+                this.SettingsHive = new HiveData<SnmpWorkSettings>(Hive.SharedLocalConfigHive, $"SnmpWork", null, HiveSyncPolicy.AutoReadFromFile);
             }
             catch
             {
@@ -163,7 +202,7 @@ namespace IPA.Cores.Basic
 
                     foreach (var kv in values)
                     {
-                        if (kv.Value._IsFilled())
+//                        if (kv.Value._IsFilled())
                         {
                             string name2 = $"{name} - {kv.Key}";
                             string value2 = kv.Value;
