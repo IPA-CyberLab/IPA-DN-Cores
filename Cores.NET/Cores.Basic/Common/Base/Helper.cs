@@ -339,6 +339,7 @@ namespace IPA.Cores.Helper.Basic
         public static object _Old_XmlToObjectPublic(this string s, Type t) => Str.XMLToObjectSimple_PublicLegacy(s, t);
         public static StrToken _ToToken(this string s, string splitStr = " ,\t\r\n") => new StrToken(s, splitStr);
         public static string _OneLine(this string s, string splitter = " / ") => Str.OneLine(s, splitter);
+        public static string _GetFirstFilledLineFromLines(this string src) => Str.GetFirstFilledLineFromLines(src);
         public static string _FormatC(this string s) => Str.FormatC(s);
         public static string _FormatC(this string s, params object[] args) => Str.FormatC(s, args);
         public static void _Printf(this string s) => Str.Printf(s, new object[0]);
@@ -406,6 +407,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _MakeSafeFileName(this string str) => Str.MakeSafeFileName(str);
         public static string _TruncStr(this string? str, int len) => Str.TruncStr(str, len);
         public static string _TruncStrEx(this string? str, int len, string? appendCode = "...") => Str.TruncStrEx(str, len, appendCode);
+        public static string _TruncStrMiddle(this string? str, int maxLen, string appendCode = "..") => Str.TruncStrMiddle(str, maxLen, appendCode);
         public static string? _NullIfEmpty(this string? str) => Str.IsFilledStr(str) ? str : null;
         public static string? _NullIfZeroLen(this string? str) => str == null ? null : (str.Length == 0 ? null : str);
         public static T _NullIfEmpty<T>(this T obj) => Util.IsFilled(obj) ? obj : default;

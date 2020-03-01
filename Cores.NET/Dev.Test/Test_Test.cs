@@ -320,6 +320,22 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                using (SnmpWorkProcess proc = new SnmpWorkProcess())
+                {
+                    proc.Register("temp", new SnmpWorkFetcherTemperature());
+
+                    while (true)
+                    {
+                        proc.GetValues()._PrintAsJson();
+
+                        Sleep(300);
+                    }
+                }
+                return;
+            }
+
+            if (true)
+            {
                 string src = "SignAuthenticodeInternal a b /comment:\"SE File\" /driver:no /cert:SoftEtherFile";
 
                 string[] dst = Str.ParseCmdLine(src);

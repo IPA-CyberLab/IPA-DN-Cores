@@ -353,6 +353,12 @@ namespace IPA.Cores.Basic
             public const string Sync = "/bin/sync";
             public const string Ping = "/bin/ping";
             public const string IpTables = "/sbin/iptables";
+            public const string Sensors = "/usr/bin/sensors";
+        }
+
+        public static partial class LinuxPaths
+        {
+            public const string SysThermal = "/sys/class/thermal/";
         }
 
         public static partial class StrEncodingAutoDetector

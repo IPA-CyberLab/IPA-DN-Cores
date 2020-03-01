@@ -4293,6 +4293,29 @@ namespace IPA.Cores.Basic
             }
         }
 
+        // 文字列が最大長を超える時は中間を省略する
+        public static string TruncStrMiddle(string? str, int maxLen, string appendCode = "..")
+        {
+            str = str._NonNullTrim();
+            if (str._IsEmpty()) return str;
+
+            appendCode._NotEmptyCheck();
+
+            appendCode = appendCode.Trim();
+
+            int appendCodeLen = appendCode.Length;
+            maxLen = Math.Max(maxLen, appendCodeLen + 2);
+
+            int strLen = str.Length;
+
+            if (strLen <= maxLen) return str;
+
+            int leftLen = maxLen / 2;
+            int rightLen = maxLen - leftLen;
+
+            return str.Substring(0, leftLen) + appendCode + str.Substring(strLen - rightLen, rightLen);
+        }
+
         // 新しい GUID を生成
         public static string NewGuid() => System.Guid.NewGuid().ToString("N");
 
@@ -6411,6 +6434,12 @@ namespace IPA.Cores.Basic
             }
 
             return o.ToArray();
+        }
+
+        public static string GetFirstFilledLineFromLines(string src)
+        {
+            string[] lines = src._GetLines(true);
+            return (lines.FirstOrDefault())._NonNullTrim();
         }
 
         public static string OneLine(string s, string splitter = " / ")
