@@ -221,7 +221,7 @@ namespace IPA.Cores.Basic
                 {
                     await Task.CompletedTask;
                     var method = ctx.QueryString._GetStrFirst("method")._ParseEnum(SnmpWorkGetMethod.Get);
-                    return new HttpStringResult(Host.GetSnmpBody(method, ctx.QueryString._GetStrFirst("oid"))._NormalizeCrlf(CrlfStyle.Lf, true));
+                    return new HttpStringResult(Host.GetSnmpBody(method, ctx.QueryString._GetStrFirst("oid"), ctx.QueryString._GetStrFirst("retnone")._ToBool())._NormalizeCrlf(CrlfStyle.Lf, true));
                 });
             }
             catch
@@ -294,8 +294,10 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public string GetSnmpBody(SnmpWorkGetMethod method, string requestedOid)
+        public string GetSnmpBody(SnmpWorkGetMethod method, string requestedOid, bool returnNone)
         {
+            string nullReturnStr = returnNone ? "NONE" : "";
+
             SortedDictionary<string, KeyValuePair<string, int>> values = GetValues();
 
             KeyValueList<int, string> namesList = new KeyValueList<int, string>();
@@ -321,20 +323,30 @@ namespace IPA.Cores.Basic
             if (requestedOid.StartsWith(Consts.SnmpOids.SnmpWorkNames))
             {
                 list = namesList;
-                specifiedIndex = requestedOid.Substring(Consts.SnmpOids.SnmpWorkNames.Length)._ToInt();
+                string remain = requestedOid.Substring(Consts.SnmpOids.SnmpWorkNames.Length);
+                specifiedIndex = 0;
+                if (remain.StartsWith("."))
+                {
+                    specifiedIndex = remain.Substring(1)._ToInt();
+                }
                 oidPrefix = Consts.SnmpOids.SnmpWorkNames;
             }
             else if (requestedOid.StartsWith(Consts.SnmpOids.SnmpWorkValues))
             {
                 list = valuesList;
-                specifiedIndex = requestedOid.Substring(Consts.SnmpOids.SnmpWorkValues.Length)._ToInt();
+                string remain = requestedOid.Substring(Consts.SnmpOids.SnmpWorkValues.Length);
+                specifiedIndex = 0;
+                if (remain.StartsWith("."))
+                {
+                    specifiedIndex = remain.Substring(1)._ToInt();
+                }
                 oidPrefix = Consts.SnmpOids.SnmpWorkValues;
             }
 
             if (specifiedIndex < 0 || list == null)
             {
                 // 不正
-                return "";
+                return nullReturnStr;
             }
 
             if (method == SnmpWorkGetMethod.GetNext)
@@ -344,11 +356,12 @@ namespace IPA.Cores.Basic
                 {
                     if (list[i].Key > specifiedIndex)
                     {
-                        return oidPrefix + list[i].Key + "\nstring\n" + list[i].Value;
+                        //                        return oidPrefix + "." + list[i].Key + "\nobjectid\n" + oidPrefix + "." + list[i].Key;
+                        return oidPrefix + "." + list[i].Key + "\nstring\n" + list[i].Value;
                     }
                 }
 
-                return "";
+                return nullReturnStr;
             }
             else
             {
@@ -357,11 +370,11 @@ namespace IPA.Cores.Basic
                 {
                     if (list[i].Key == specifiedIndex)
                     {
-                        return oidPrefix + list[i].Key + "\nstring\n" + list[i].Value;
+                        return oidPrefix + "." + list[i].Key + "\nstring\n" + list[i].Value;
                     }
                 }
 
-                return "";
+                return nullReturnStr;
             }
         }
 

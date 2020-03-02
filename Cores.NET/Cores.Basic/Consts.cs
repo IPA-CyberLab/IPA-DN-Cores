@@ -375,8 +375,8 @@ namespace IPA.Cores.Basic
 
         public static partial class SnmpOids
         {
-            public const string SnmpWorkNames = ".1.3.6.1.4.1.16.5.29.1.1.";
-            public const string SnmpWorkValues = ".1.3.6.1.4.1.16.5.29.1.2.";
+            public const string SnmpWorkNames = ".1.3.6.1.4.1.9801.5.29.1.1";
+            public const string SnmpWorkValues = ".1.3.6.1.4.1.9801.5.29.1.2";
         }
     }
 
