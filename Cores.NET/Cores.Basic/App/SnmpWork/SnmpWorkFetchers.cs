@@ -193,11 +193,11 @@ namespace IPA.Cores.Basic
 
                                 if (ipVer != 0)
                                 {
-                                    string key = $"{protocol} - {name} - ipv{ipVer}";
+                                    string key = $"{protocol} - {name} - IPv{ipVer}";
 
-                                    ret.TryAdd($"{key} - import", imported.ToString());
-                                    ret.TryAdd($"{key} - export", exported.ToString());
-                                    ret.TryAdd($"{key} - prefer", preferred.ToString());
+                                    ret.TryAdd($"{key} - Import", imported.ToString());
+                                    ret.TryAdd($"{key} - Export", exported.ToString());
+                                    ret.TryAdd($"{key} - Prefer", preferred.ToString());
                                 }
                             }
                         }
@@ -207,9 +207,9 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class SnmpWorkFetcherPktLoss : SnmpWorkFetcherBase
+    public class SnmpWorkFetcherPktQuality : SnmpWorkFetcherBase
     {
-        public SnmpWorkFetcherPktLoss(SnmpWorkHost host) : base(host)
+        public SnmpWorkFetcherPktQuality(SnmpWorkHost host) : base(host)
         {
         }
 
@@ -266,7 +266,12 @@ namespace IPA.Cores.Basic
 
                 double lossRate = await task._TryAwait();
 
-                ret.TryAdd($"{kv.Key}", ((double)lossRate * 100.0).ToString("F3"));
+                double quality = 1.0 - lossRate;
+
+                quality = Math.Max(quality, 0.0);
+                quality = Math.Min(quality, 100.0);
+
+                ret.TryAdd($"{kv.Key}", ((double)quality * 100.0).ToString("F3"));
             }
         }
 
