@@ -489,7 +489,17 @@ namespace IPA.Cores.Basic
                     {
                         this.Daemon.Start(DaemonStartupMode.ForegroundTestMode, this.Param);
 
-                        Con.ReadLine($"[ Press Enter key to stop the {this.Daemon.Name} daemon ]\n");
+                        if (CoresLib.Options.NohupMode == false)
+                        {
+                            // 通常モード
+                            Con.ReadLine($"[ Press Enter key to stop the {this.Daemon.Name} daemon ]\n");
+                        }
+                        else
+                        {
+                            Con.WriteLine("Running forever...");
+                            // NoHup モード
+                            Sleep(Timeout.Infinite);
+                        }
 
                         this.Daemon.Stop(false);
                     }

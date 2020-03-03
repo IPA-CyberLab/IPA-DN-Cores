@@ -36,6 +36,7 @@ namespace IPA.Cores.Basic
         public DebugMode DebugMode { get; private set; }
         public bool PrintStatToConsole { get; private set; }
         public bool RecordLeakFullStack { get; private set; }
+        public bool NohupMode { get; private set; }
         public CoresMode Mode { get; private set; }
         public string AppName { get; }
 
@@ -66,6 +67,7 @@ namespace IPA.Cores.Basic
             procs.Add(("debugmode", true, (name, next) => { this.DebugMode = next._ParseEnum(DebugMode.Debug, true, true); }));
             procs.Add(("printstat", false, (name, next) => { this.PrintStatToConsole = true; }));
             procs.Add(("fullleak", false, (name, next) => { this.RecordLeakFullStack = true; }));
+            procs.Add(("nohup", false, (name, next) => { this.NohupMode = true; }));
 
             for (int i = 0; i < args.Length; i++)
             {
