@@ -223,7 +223,7 @@ namespace IPA.Cores.Basic
         {
             SnmpWorkSettings settings = Host.Settings;
 
-            string[] pingTargets = settings.PingTargets._Split(StringSplitOptions.RemoveEmptyEntries, ",", "/", " ", "\t");
+            string[] pingTargets = settings.PingTargets._Split(StringSplitOptions.RemoveEmptyEntries, ",");
 
             KeyValueList<string, IPAddress> kvList = new KeyValueList<string, IPAddress>();
 
@@ -232,9 +232,11 @@ namespace IPA.Cores.Basic
             {
                 cancel.ThrowIfCancellationRequested();
 
-                IPAddress ip = await LocalNet.GetIpAsync(pingTarget, cancel: cancel);
+                ParseTargetString(pingTarget, out string hostname, out string alias);
 
-                kvList.Add(pingTarget, ip);
+                IPAddress ip = await LocalNet.GetIpAsync(hostname, cancel: cancel);
+
+                kvList.Add(alias, ip);
             }
 
             List<Task<double>> taskList = new List<Task<double>>();
@@ -321,16 +323,18 @@ namespace IPA.Cores.Basic
                 return;
             }
 
-            string[] speedTargets = settings.SpeedTargets._Split(StringSplitOptions.RemoveEmptyEntries, ",", "/", " ", "\t");
+            string[] speedTargets = settings.SpeedTargets._Split(StringSplitOptions.RemoveEmptyEntries, ",");
 
             count++;
 
 
             foreach (string target in speedTargets)
             {
+                ParseTargetString(target, out string hostnameAndPort, out string alias);
+
                 cancel.ThrowIfCancellationRequested();
 
-                string[] tokens = target._Split(StringSplitOptions.RemoveEmptyEntries, ':');
+                string[] tokens = hostnameAndPort._Split(StringSplitOptions.RemoveEmptyEntries, '|');
                 string host;
                 int port = 9821;
                 host = tokens[0];
@@ -407,11 +411,11 @@ namespace IPA.Cores.Basic
                     ex._Debug();
                 }
 
-                ret.TryAdd($"{host} - 32_RX", ((double)downloadBps_32 / 1000.0 / 1000.0).ToString("F3"));
-                ret.TryAdd($"{host} - 32_TX", ((double)uploadBps_32 / 1000.0 / 1000.0).ToString("F3"));
+                ret.TryAdd($"{alias} - 32_RX", ((double)downloadBps_32 / 1000.0 / 1000.0).ToString("F3"));
+                ret.TryAdd($"{alias} - 32_TX", ((double)uploadBps_32 / 1000.0 / 1000.0).ToString("F3"));
 
-                ret.TryAdd($"{host} - 01_RX", ((double)downloadBps_1 / 1000.0 / 1000.0).ToString("F3"));
-                ret.TryAdd($"{host} - 01_TX", ((double)uploadBps_1 / 1000.0 / 1000.0).ToString("F3"));
+                ret.TryAdd($"{alias} - 01_RX", ((double)downloadBps_1 / 1000.0 / 1000.0).ToString("F3"));
+                ret.TryAdd($"{alias} - 01_TX", ((double)uploadBps_1 / 1000.0 / 1000.0).ToString("F3"));
             }
         }
     }
@@ -434,7 +438,7 @@ namespace IPA.Cores.Basic
         {
             SnmpWorkSettings settings = Host.Settings;
 
-            string[] pingTargets = settings.PingTargets._Split(StringSplitOptions.RemoveEmptyEntries, ",", "/", " ", "\t");
+            string[] pingTargets = settings.PingTargets._Split(StringSplitOptions.RemoveEmptyEntries, ",");
 
             numPerform++;
 
@@ -442,11 +446,13 @@ namespace IPA.Cores.Basic
             {
                 cancel.ThrowIfCancellationRequested();
 
+                ParseTargetString(pingTarget, out string hostname, out string alias);
+
                 bool ok = false;
 
                 try
                 {
-                    IPAddress ipAddress = await LocalNet.GetIpAsync(pingTarget, cancel: cancel);
+                    IPAddress ipAddress = await LocalNet.GetIpAsync(hostname, cancel: cancel);
 
                     if (FirstPing.IsFirstCall())
                     {
@@ -504,8 +510,14 @@ namespace IPA.Cores.Basic
                             }
                         }
 
-                        ret.TryAdd($"Latency - {pingTarget}", (rtt * 1000.0).ToString("F3"));
-                        ret.TryAdd($"TTL - {pingTarget}", ttl.ToString());
+                        ret.TryAdd($"Time - {alias}", (rtt * 1000.0).ToString("F3"));
+
+                        int hops = 64 - ttl;
+
+                        hops._SetMax(0);
+                        hops._SetMin(64);
+
+                        ret.TryAdd($"Hops - {alias}", hops.ToString());
 
                         ok = true;
                     }
@@ -517,8 +529,8 @@ namespace IPA.Cores.Basic
 
                 if (ok == false)
                 {
-                    ret.TryAdd($"Latency - {pingTarget}", "");
-                    ret.TryAdd($"TTL - {pingTarget}", "0");
+                    ret.TryAdd($"Time - {alias}", "");
+                    ret.TryAdd($"Hops - {alias}", "0");
                 }
             }
         }

@@ -123,11 +123,11 @@ namespace IPA.Cores.Basic
         public static readonly Copenhagen<int> DefaultPollingIntervalSecs = 60;
         public static readonly Copenhagen<int> TruncatedNameStrLen = 14;
 
-        public static readonly Copenhagen<string> DefaultPingTarget = "ping4.test.sehosts.com,ping6.test.sehosts.com";
-        public static readonly Copenhagen<string> DefaultSpeedTarget = "speed4.test.sehosts.com,speed6.test.sehosts.com";
-        public static readonly Copenhagen<int> DefaultSpeedIntervalSecs = 3600;
-        public static readonly Copenhagen<int> DefaultSpeedSpanSecs = 600;
-        public static readonly Copenhagen<int> DefaultSpeedTryCount = 4;
+        public static readonly Copenhagen<string> DefaultPingTarget = "ping4.test.sehosts.com=IPv4 Internet,ping6.test.sehosts.com=IPv6 Internet";
+        public static readonly Copenhagen<string> DefaultSpeedTarget = "speed4.test.sehosts.com|9821=IPv4 Internet,speed6.test.sehosts.com|9821=IPv6 Internet";
+        public static readonly Copenhagen<int> DefaultSpeedIntervalSecs = 600;
+        public static readonly Copenhagen<int> DefaultSpeedSpanSecs = 7;
+        public static readonly Copenhagen<int> DefaultSpeedTryCount = 5;
         public static readonly Copenhagen<int> DefaultPktLossTryCount = 100;
         public static readonly Copenhagen<int> DefaultPktLossIntervalMsec = 100;
         public static readonly Copenhagen<int> DefaultPktLossTimeoutMsecs = 500;
@@ -201,6 +201,41 @@ namespace IPA.Cores.Basic
 
         // 長すぎる名前を短くする
         public virtual string TruncateName(string src, int maxLen = 0) => src._TruncStrMiddle(maxLen == 0 ? SnmpWorkConfig.TruncatedNameStrLen.Value : maxLen);
+
+        // ターゲット文字列からホスト名とエイリアスを導出する
+        public virtual void ParseTargetString(string src, out string hostname, out string alias)
+        {
+            hostname = "";
+            alias = "";
+
+            string[] tokens = src._NonNullTrim()._Split(StringSplitOptions.RemoveEmptyEntries, "=");
+
+            string a, b;
+
+            if (tokens.Length == 0) return;
+
+            if (tokens.Length == 1)
+            {
+                a = tokens[0];
+                b = tokens[0];
+            }
+            else
+            {
+                a = tokens[0];
+                b = tokens[1];
+            }
+
+            if (a._IsEmpty()) a = b;
+
+            hostname = a;
+            alias = b;
+
+            tokens = alias._Split(StringSplitOptions.RemoveEmptyEntries, "|");
+            if (tokens.Length >= 1 && tokens[0]._IsFilled())
+            {
+                alias = tokens[0];
+            }
+        }
     }
 
     // SNMP Worker CGI ハンドラ

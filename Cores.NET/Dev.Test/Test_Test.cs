@@ -316,6 +316,41 @@ namespace IPA.TestDev
             public string? a { get; set; }
         }
 
+        // ターゲット文字列からホスト名とエイリアスを導出する
+        public static void ParseTargetString(string src, out string hostname, out string alias)
+        {
+            hostname = "";
+            alias = "";
+
+            string[] tokens = src._NonNullTrim()._Split(StringSplitOptions.RemoveEmptyEntries, "=");
+
+            string a, b;
+
+            if (tokens.Length == 0) return;
+
+            if (tokens.Length == 1)
+            {
+                a = tokens[0];
+                b = tokens[0];
+            }
+            else
+            {
+                a = tokens[0];
+                b = tokens[1];
+            }
+
+            if (a._IsEmpty()) a = b;
+
+            hostname = a;
+            alias = b;
+
+            tokens = alias._Split(StringSplitOptions.RemoveEmptyEntries, "|");
+            if (tokens.Length >= 1 && tokens[0]._IsFilled())
+            {
+                alias = tokens[0];
+            }
+        }
+
         public static void Test_Generic()
         {
             if (true)
@@ -328,7 +363,7 @@ namespace IPA.TestDev
                     host.Register("Net", 104_00000, new SnmpWorkFetcherNetwork(host));
 
                     host.Register("Ping", 105_00000, new SnmpWorkFetcherPing(host));
-                    //host.Register("Speed", 106_00000, new SnmpWorkFetcherSpeed(host));
+                    host.Register("Speed", 106_00000, new SnmpWorkFetcherSpeed(host));
                     host.Register("Quality", 107_00000, new SnmpWorkFetcherPktQuality(host));
                     host.Register("Bird", 108_00000, new SnmpWorkFetcherBird(host));
 
