@@ -657,15 +657,18 @@ namespace IPA.Cores.Basic
                     string availableStr = tokens[3];
                     string path = tokens[5];
 
-                    if (path.StartsWith("/") && ignores.Where(x => path.StartsWith(x, StringComparison.OrdinalIgnoreCase)).Any() == false)
+                    if (totalStr != "-" && availableStr != "-")
                     {
-                        long total = totalStr._ToLong();
-                        long available = availableStr._ToLong();
-
-                        if (total >= 0 && available >= 0)
+                        if (path.StartsWith("/") && ignores.Where(x => path.StartsWith(x, StringComparison.OrdinalIgnoreCase)).Any() == false)
                         {
-                            available = Math.Min(available, total);
-                            ret.TryAdd($"available - {path}", NormalizeDoubleValue(((double)available * 100.0 / (double)total).ToString("F3")));
+                            long total = totalStr._ToLong();
+                            long available = availableStr._ToLong();
+
+                            if (total > 0 && available >= 0)
+                            {
+                                available = Math.Min(available, total);
+                                ret.TryAdd($"available - {path}", NormalizeDoubleValue(((double)available * 100.0 / (double)total).ToString("F3")));
+                            }
                         }
                     }
                 }
