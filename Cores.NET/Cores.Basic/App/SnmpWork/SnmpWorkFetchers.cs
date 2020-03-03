@@ -223,6 +223,11 @@ namespace IPA.Cores.Basic
         {
             SnmpWorkSettings settings = Host.Settings;
 
+            if (settings.PingTargets._IsSamei("none") || settings.PingTargets._IsSamei("null"))
+            {
+                return;
+            }
+
             string[] pingTargets = settings.PingTargets._Split(StringSplitOptions.RemoveEmptyEntries, ",");
 
             KeyValueList<string, IPAddress> kvList = new KeyValueList<string, IPAddress>();
@@ -343,8 +348,8 @@ namespace IPA.Cores.Basic
                     port = tokens[1]._ToInt();
                 }
 
-                long downloadBps_1 = 0;
-                long uploadBps_1 = 0;
+                //long downloadBps_1 = 0;
+                //long uploadBps_1 = 0;
                 long downloadBps_32 = 0;
                 long uploadBps_32 = 0;
 
@@ -383,39 +388,39 @@ namespace IPA.Cores.Basic
                     }
 
 
-                    try
-                    {
-                        var downloadResult_1 = await SpeedTestClient.RunSpeedTestWithMultiTryAsync(LocalNet, ipAddress, port, 1, span, SpeedTestModeFlag.Download, numTry, intervalBetween, cancel);
+                    //try
+                    //{
+                    //    var downloadResult_1 = await SpeedTestClient.RunSpeedTestWithMultiTryAsync(LocalNet, ipAddress, port, 1, span, SpeedTestModeFlag.Download, numTry, intervalBetween, cancel);
 
-                        downloadBps_1 = downloadResult_1.Select(x => x.BpsDownload).OrderByDescending(x => x).FirstOrDefault();
-                    }
-                    catch (Exception ex)
-                    {
-                        ex._Debug();
-                    }
+                    //    downloadBps_1 = downloadResult_1.Select(x => x.BpsDownload).OrderByDescending(x => x).FirstOrDefault();
+                    //}
+                    //catch (Exception ex)
+                    //{
+                    //    ex._Debug();
+                    //}
 
 
-                    try
-                    {
-                        var uploadResult_1 = await SpeedTestClient.RunSpeedTestWithMultiTryAsync(LocalNet, ipAddress, port, 1, span, SpeedTestModeFlag.Upload, numTry, intervalBetween, cancel);
+                    //try
+                    //{
+                    //    var uploadResult_1 = await SpeedTestClient.RunSpeedTestWithMultiTryAsync(LocalNet, ipAddress, port, 1, span, SpeedTestModeFlag.Upload, numTry, intervalBetween, cancel);
 
-                        uploadBps_1 = uploadResult_1.Select(x => x.BpsUpload).OrderByDescending(x => x).FirstOrDefault();
-                    }
-                    catch (Exception ex)
-                    {
-                        ex._Debug();
-                    }
+                    //    uploadBps_1 = uploadResult_1.Select(x => x.BpsUpload).OrderByDescending(x => x).FirstOrDefault();
+                    //}
+                    //catch (Exception ex)
+                    //{
+                    //    ex._Debug();
+                    //}
                 }
                 catch (Exception ex)
                 {
                     ex._Debug();
                 }
 
-                ret.TryAdd($"{alias} - 32_RX", ((double)downloadBps_32 / 1000.0 / 1000.0).ToString("F3"));
-                ret.TryAdd($"{alias} - 32_TX", ((double)uploadBps_32 / 1000.0 / 1000.0).ToString("F3"));
+                ret.TryAdd($"{alias} - RX (Mbps)", ((double)downloadBps_32 / 1000.0 / 1000.0).ToString("F3"));
+                ret.TryAdd($"{alias} - TX (Mbps)", ((double)uploadBps_32 / 1000.0 / 1000.0).ToString("F3"));
 
-                ret.TryAdd($"{alias} - 01_RX", ((double)downloadBps_1 / 1000.0 / 1000.0).ToString("F3"));
-                ret.TryAdd($"{alias} - 01_TX", ((double)uploadBps_1 / 1000.0 / 1000.0).ToString("F3"));
+                //ret.TryAdd($"{alias} - 01_RX (Mbps)", ((double)downloadBps_1 / 1000.0 / 1000.0).ToString("F3"));
+                //ret.TryAdd($"{alias} - 01_TX (Mbps)", ((double)uploadBps_1 / 1000.0 / 1000.0).ToString("F3"));
             }
         }
     }
@@ -437,6 +442,11 @@ namespace IPA.Cores.Basic
         protected override async Task GetValueAsync(SortedDictionary<string, string> ret, RefInt nextPollingInterval, CancellationToken cancel = default)
         {
             SnmpWorkSettings settings = Host.Settings;
+
+            if (settings.PingTargets._IsSamei("none") || settings.PingTargets._IsSamei("null"))
+            {
+                return;
+            }
 
             string[] pingTargets = settings.PingTargets._Split(StringSplitOptions.RemoveEmptyEntries, ",");
 
