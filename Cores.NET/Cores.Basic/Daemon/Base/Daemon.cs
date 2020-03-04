@@ -473,7 +473,7 @@ namespace IPA.Cores.Basic
 
             TelnetLocalLogWatcher? telnetWatcher = null;
 
-            if (this.Settings.DaemonTelnetLogWatcherPort != 0)
+            if (this.Settings.DaemonTelnetLogWatcherPort != 0 && CoresLib.Options.NoTelnetMode == false)
             {
                 telnetWatcher = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions((ip) => ip._GetIPAddressType().BitAny(IPAddressType.LocalUnicast | IPAddressType.Loopback), null,
                     new IPEndPoint(IPAddress.Any, this.Settings.DaemonTelnetLogWatcherPort),
@@ -525,7 +525,7 @@ namespace IPA.Cores.Basic
                     this.Daemon.Name,
                     () => this.Daemon.Start(DaemonStartupMode.BackgroundServiceMode, this.Param),
                     () => this.Daemon.Stop(true),
-                    this.Settings.DaemonTelnetLogWatcherPort);
+                     CoresLib.Options.NoTelnetMode == false ? this.Settings.DaemonTelnetLogWatcherPort : 0);
             }
             else
             {
@@ -534,7 +534,7 @@ namespace IPA.Cores.Basic
                     this.Daemon.Name,
                     () => this.Daemon.Start(DaemonStartupMode.BackgroundServiceMode, this.Param),
                     () => this.Daemon.Stop(true),
-                    this.Settings.DaemonTelnetLogWatcherPort);
+                    CoresLib.Options.NoTelnetMode == false ? this.Settings.DaemonTelnetLogWatcherPort : 0);
             }
 
             return service;
