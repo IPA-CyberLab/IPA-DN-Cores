@@ -871,7 +871,7 @@ namespace IPA.Cores.Basic
             Status = ListenStatus.Trying;
             _InternalSelfCancelSource = new CancellationTokenSource();
 
-            _InternalTask = ListenLoop();
+            _InternalTask = ListenLoopAsync();
         }
 
         static internal string MakeHashKey(IPVersion ipVer, IPAddress ipAddress, int port)
@@ -879,17 +879,13 @@ namespace IPA.Cores.Basic
             return $"{port} / {ipAddress} / {ipAddress.AddressFamily} / {ipVer}";
         }
 
-        async Task ListenLoop()
+        async Task ListenLoopAsync()
         {
-            AsyncAutoResetEvent networkChangedEvent = new AsyncAutoResetEvent();
-            int eventRegisterId = BackgroundState<PalHostNetInfo>.EventListener.RegisterAsyncEvent(networkChangedEvent);
-
             Status = ListenStatus.Trying;
 
             bool reportError = true;
 
             int numRetry = 0;
-            int lastNetworkInfoVer = BackgroundState<PalHostNetInfo>.Current.Version;
 
             try
             {
@@ -902,16 +898,8 @@ namespace IPA.Cores.Basic
                     if (sleepDelay >= 1)
                         sleepDelay = Util.RandSInt31() % sleepDelay;
                     await TaskUtil.WaitObjectsAsync(timeout: sleepDelay,
-                        cancels: new CancellationToken[] { _InternalSelfCancelToken },
-                        events: new AsyncAutoResetEvent[] { networkChangedEvent });
+                        cancels: new CancellationToken[] { _InternalSelfCancelToken });
                     numRetry++;
-
-                    int networkInfoVer = BackgroundState<PalHostNetInfo>.Current.Version;
-                    if (lastNetworkInfoVer != networkInfoVer)
-                    {
-                        lastNetworkInfoVer = networkInfoVer;
-                        numRetry = 0;
-                    }
 
                     _InternalSelfCancelToken.ThrowIfCancellationRequested();
 
@@ -920,6 +908,8 @@ namespace IPA.Cores.Basic
                     try
                     {
                         listenTcp.Listen(new IPEndPoint(IPAddress, Port));
+
+                        numRetry = 0;
 
                         reportError = true;
                         Status = ListenStatus.Listening;
@@ -956,7 +946,6 @@ namespace IPA.Cores.Basic
             }
             finally
             {
-                BackgroundState<PalHostNetInfo>.EventListener.UnregisterAsyncEvent(eventRegisterId);
                 Status = ListenStatus.Stopped;
             }
         }
