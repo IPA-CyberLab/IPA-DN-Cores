@@ -237,11 +237,18 @@ namespace IPA.Cores.Basic
             {
                 cancel.ThrowIfCancellationRequested();
 
-                ParseTargetString(pingTarget, out string hostname, out string alias);
+                try
+                {
+                    ParseTargetString(pingTarget, out string hostname, out string alias);
 
-                IPAddress ip = await LocalNet.GetIpAsync(hostname, cancel: cancel);
+                    IPAddress ip = await LocalNet.GetIpAsync(hostname, cancel: cancel);
 
-                kvList.Add(alias, ip);
+                    kvList.Add(alias, ip);
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
             }
 
             List<Task<double>> taskList = new List<Task<double>>();
@@ -276,7 +283,7 @@ namespace IPA.Cores.Basic
                 double quality = 1.0 - lossRate;
 
                 quality = Math.Max(quality, 0.0);
-                quality = Math.Min(quality, 100.0);
+                quality = Math.Min(quality, 1.0);
 
                 ret.TryAdd($"{kv.Key}", ((double)quality * 100.0).ToString("F3"));
             }

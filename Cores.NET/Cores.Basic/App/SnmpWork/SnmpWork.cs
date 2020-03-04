@@ -392,7 +392,7 @@ namespace IPA.Cores.Basic
                     if (list[i].Key > specifiedIndex)
                     {
                         //                        return oidPrefix + "." + list[i].Key + "\nobjectid\n" + oidPrefix + "." + list[i].Key;
-                        return oidPrefix + "." + list[i].Key + "\nstring\n" + list[i].Value;
+                        return oidPrefix + "." + list[i].Key + "\nstring\n" + list[i].Value._FilledOrDefault("-");
                     }
                 }
 
@@ -405,7 +405,7 @@ namespace IPA.Cores.Basic
                 {
                     if (list[i].Key == specifiedIndex)
                     {
-                        return oidPrefix + "." + list[i].Key + "\nstring\n" + list[i].Value;
+                        return oidPrefix + "." + list[i].Key + "\nstring\n" + list[i].Value._FilledOrDefault("-");
                     }
                 }
 
