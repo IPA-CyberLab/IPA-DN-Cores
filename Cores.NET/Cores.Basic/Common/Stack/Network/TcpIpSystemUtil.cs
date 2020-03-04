@@ -161,7 +161,7 @@ namespace IPA.Cores.Basic
             }
 
             // Hostname is specified
-            var hostInfo = system.GetHostInfo();
+            var hostInfo = system.GetHostInfo(true);
 
             if (hostInfo.IsIPv4Supported)
             {

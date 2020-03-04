@@ -261,7 +261,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                 RuntimeStat = runtimeStat,
                 EnvInfo = new EnvInfoSnapshot(),
                 StatFlag = this.Variables.StatFlag,
-                TcpIpHostData = LocalNet.GetTcpIpHostDataJsonSafe(),
+                TcpIpHostData = LocalNet.GetTcpIpHostDataJsonSafe(true),
                 GlobalIpList = globalIpList,
                 PauseFlag = Variables.PauseFlag,
                 MetaStatusDictionary = GlobalDaemonStateManager.MetaStatusDictionary,

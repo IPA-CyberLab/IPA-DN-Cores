@@ -601,7 +601,7 @@ namespace IPA.Cores.Basic
         {
             if (IsDaemonCenterEnabled() == false) return new EmptyDisposable();
 
-            TcpIpHostDataJsonSafe hostData = new TcpIpHostDataJsonSafe(getThisHostInfo: EnsureSpecial.Yes);
+            TcpIpHostDataJsonSafe hostData = new TcpIpHostDataJsonSafe(getThisHostInfo: EnsureSpecial.Yes, true);
 
             ClientSettings cs = new ClientSettings
             {

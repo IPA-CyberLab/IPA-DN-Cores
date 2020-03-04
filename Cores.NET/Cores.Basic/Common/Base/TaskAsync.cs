@@ -3621,6 +3621,11 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public static TData GetOnce()
+        {
+            return new TData();
+        }
+
         static volatile TData? CacheData = null;
 
         static volatile int NumRead = 0;

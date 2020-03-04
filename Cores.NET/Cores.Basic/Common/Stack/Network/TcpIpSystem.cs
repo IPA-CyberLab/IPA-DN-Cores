@@ -295,9 +295,9 @@ namespace IPA.Cores.Basic
 
         public TcpIpHostDataJsonSafe() { }
 
-        public TcpIpHostDataJsonSafe(EnsureSpecial getThisHostInfo)
+        public TcpIpHostDataJsonSafe(EnsureSpecial getThisHostInfo, bool once)
         {
-            TcpIpSystemHostInfo info = LocalNet.GetHostInfo();
+            TcpIpSystemHostInfo info = LocalNet.GetHostInfo(once);
 
             this.HostName = info.HostName;
             this.DomainName = info.DomainName;
@@ -333,7 +333,7 @@ namespace IPA.Cores.Basic
     {
         protected new TcpIpSystemParam Param => (TcpIpSystemParam)base.Param;
 
-        protected abstract TcpIpSystemHostInfo GetHostInfoImpl();
+        protected abstract TcpIpSystemHostInfo GetHostInfoImpl(bool once);
         protected abstract int RegisterHostInfoChangedEventImpl(AsyncAutoResetEvent ev);
         protected abstract void UnregisterHostInfoChangedEventImpl(int registerId);
         protected abstract NetTcpProtocolStubBase CreateTcpProtocolStubImpl(TcpConnectParam param, CancellationToken cancel);
@@ -351,7 +351,7 @@ namespace IPA.Cores.Basic
                 GetLocalHostPossibleGlobalIpAddressListMainAsync);
         }
 
-        public TcpIpSystemHostInfo GetHostInfo() => GetHostInfoImpl();
+        public TcpIpSystemHostInfo GetHostInfo(bool once) => GetHostInfoImpl(once);
 
         public int RegisterHostInfoChangedEvent(AsyncAutoResetEvent ev) => RegisterHostInfoChangedEventImpl(ev);
         public void UnregisterHostInfoChangedEvent(int registerId) => UnregisterHostInfoChangedEventImpl(registerId);
@@ -457,7 +457,7 @@ namespace IPA.Cores.Basic
         // 注意: param.AcceptCallback == null の場合は NetTcpListener.AcceptNextSocketFromQueueUtilAsync() で通常のソケット Accept() 動作と同様の動作が可能となる
         public NetTcpListener CreateListener(TcpListenParam param)
         {
-            var hostInfo = GetHostInfo();
+            var hostInfo = GetHostInfo(true);
 
             // ユーザーが Callback を指定していないので GenericAcceptQueueUtil キューユーティリティを初期化する
             GenericAcceptQueueUtil<ConnSock>? acceptQueueUtil = null;
@@ -541,7 +541,7 @@ namespace IPA.Cores.Basic
         {
             HashSet<IPAddress> ret = new HashSet<IPAddress>();
 
-            TcpIpSystemHostInfo info = this.GetHostInfo();
+            TcpIpSystemHostInfo info = this.GetHostInfo(true);
 
             foreach (IPAddress addr in info.IPAddressList)
             {

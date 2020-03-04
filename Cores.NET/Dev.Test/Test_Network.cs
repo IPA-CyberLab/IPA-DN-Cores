@@ -238,7 +238,7 @@ namespace IPA.TestDev
             ConsoleParam[] args = { };
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            TcpIpSystemHostInfo hostInfo = LocalNet.GetHostInfo();
+            TcpIpSystemHostInfo hostInfo = LocalNet.GetHostInfo(true);
 
             //Net_Test1_PlainTcp_Client();
             //return 0;

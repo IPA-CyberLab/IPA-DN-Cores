@@ -1,4 +1,4 @@
-﻿Windows マシン上で以下を慎重に実行します。
+﻿rem Windows マシン上で以下を慎重に実行します。
 
 
 cd /d C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\

@@ -197,7 +197,7 @@ namespace IPA.Cores.Basic
                 FirstConnectedEvent.Set(true);
                 EventListener.FireSoftly(this, NonsenseEventType.Nonsense, true);
 
-                int lastNetworkVersion = TcpIp.GetHostInfo().InfoVersion;
+                int lastNetworkVersion = TcpIp.GetHostInfo(false).InfoVersion;
 
                 AsyncAutoResetEvent networkChangedEvent = new AsyncAutoResetEvent();
                 int eventRegisterId = TcpIp.RegisterHostInfoChangedEvent(networkChangedEvent);
@@ -279,7 +279,7 @@ namespace IPA.Cores.Basic
         // 1 つでも成功した場合は true、成功するまでにネットワークの状態が変化した場合は false を返す
         async Task<bool> StartEveryTestAsync(CancellationToken cancel, AsyncAutoResetEvent? networkChangedEvent)
         {
-            int startNetworkVersion = (networkChangedEvent == null) ? 0 : TcpIp.GetHostInfo().InfoVersion;
+            int startNetworkVersion = (networkChangedEvent == null) ? 0 : TcpIp.GetHostInfo(false).InfoVersion;
 
             CancellationTokenSource cts = new CancellationTokenSource();
 

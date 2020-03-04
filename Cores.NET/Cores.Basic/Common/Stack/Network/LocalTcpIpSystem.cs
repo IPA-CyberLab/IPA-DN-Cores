@@ -61,12 +61,25 @@ namespace IPA.Cores.Basic
             public override bool IsIPv6Supported { get; protected set; }
             public override IReadOnlyList<IPAddress> IPAddressList { get; protected set; }
 
-            public HostInfo()
+            public HostInfo(bool once)
             {
-                var current = BackgroundState<PalHostNetInfo>.Current;
-                var data = current.Data._NullCheck();
+                PalHostNetInfo data;
 
-                this.InfoVersion = current.Version;
+                if (once == false)
+                {
+                    // Background 定期的チェックを開始してそこから取得する
+                    // 本来軽量であるが、フルルート BGP ルータなどで動作すると大変重くなる
+                    var current = BackgroundState<PalHostNetInfo>.Current;
+                    this.InfoVersion = current.Version;
+                    data = current.Data._NullCheck();
+                }
+                else
+                {
+                    // 単発で取得する
+                    this.InfoVersion = -1;
+                    data = BackgroundState<PalHostNetInfo>.GetOnce();
+                }
+
                 this.HostName = data.HostName;
                 this.DomainName = data.DomainName;
                 this.IsIPv4Supported = data.IsIPv4Supported;
@@ -97,7 +110,7 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override TcpIpSystemHostInfo GetHostInfoImpl() => new HostInfo();
+        protected override TcpIpSystemHostInfo GetHostInfoImpl(bool once) => new HostInfo(once);
 
         protected override int RegisterHostInfoChangedEventImpl(AsyncAutoResetEvent ev)
         {
@@ -137,7 +150,7 @@ namespace IPA.Cores.Basic
             throw new NotImplementedException();
         }
 
-        public TcpIpHostDataJsonSafe GetTcpIpHostDataJsonSafe() => new TcpIpHostDataJsonSafe(EnsureSpecial.Yes);
+        public TcpIpHostDataJsonSafe GetTcpIpHostDataJsonSafe(bool once) => new TcpIpHostDataJsonSafe(EnsureSpecial.Yes, once);
 
         protected override Task<SendPingReply> SendPingImplAsync(IPAddress target, byte[] data, int timeout, CancellationToken cancel)
         {

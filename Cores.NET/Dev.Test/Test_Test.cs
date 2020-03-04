@@ -212,7 +212,7 @@ namespace IPA.TestDev
 
         static void Test_DaemonCenterClient()
         {
-            TcpIpHostDataJsonSafe hostData = new TcpIpHostDataJsonSafe(getThisHostInfo: EnsureSpecial.Yes);
+            TcpIpHostDataJsonSafe hostData = new TcpIpHostDataJsonSafe(getThisHostInfo: EnsureSpecial.Yes, true);
 
             ClientSettings settings = new ClientSettings
             {
@@ -609,7 +609,7 @@ namespace IPA.TestDev
 
             if (true)
             {
-                var info = LocalNet.GetTcpIpHostDataJsonSafe();
+                var info = LocalNet.GetTcpIpHostDataJsonSafe(true);
 
                 info._PrintAsJson();
 
