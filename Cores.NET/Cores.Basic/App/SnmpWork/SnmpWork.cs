@@ -92,6 +92,9 @@ namespace IPA.Cores.Basic
         [DataMember]
         public int HttpPort = 0;
 
+        [DataMember]
+        public int PingNumTry = 0;
+
         public void Normalize()
         {
             if (PingTargets._IsEmpty()) PingTargets = SnmpWorkConfig.DefaultPingTarget;
@@ -104,6 +107,7 @@ namespace IPA.Cores.Basic
             if (PktLossTimeoutMsecs <= 0) PktLossTimeoutMsecs = SnmpWorkConfig.DefaultPktLossTimeoutMsecs;
             if (PktLossIntervalMsec <= 0) PktLossIntervalMsec = SnmpWorkConfig.DefaultPktLossIntervalMsec;
             if (HttpPort <= 0) HttpPort = Consts.Ports.SnmpWorkHttp;
+            if (PingNumTry <= 0) PingNumTry = SnmpWorkConfig.DefaultPingNumTry;
         }
     }
 
@@ -131,6 +135,7 @@ namespace IPA.Cores.Basic
         public static readonly Copenhagen<int> DefaultPktLossTryCount = 100;
         public static readonly Copenhagen<int> DefaultPktLossIntervalMsec = 100;
         public static readonly Copenhagen<int> DefaultPktLossTimeoutMsecs = 500;
+        public static readonly Copenhagen<int> DefaultPingNumTry = 3;
     }
 
     // SNMP 用に、ある特定の値を取得するための抽象クラス

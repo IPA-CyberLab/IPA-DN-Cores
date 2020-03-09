@@ -481,13 +481,18 @@ namespace IPA.Cores.Basic
                         catch { }
                     }
 
+                    int numTry = 3;
+
                     if (numPerform >= 2)
                     {
                         // SpeedTest が動作中の場合は SpeedTest が完了するまで待機する
                         await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 10, () => !SpeedTestClient.IsInProgress, cancel);
+
+                        // 試行回数を指定する
+                        numTry = Math.Min(Math.Max(settings.PingNumTry, 1), 100);
                     }
 
-                    SendPingReply reply = await LocalNet.SendPingAndGetBestResultAsync(ipAddress, pingCancel: cancel, numTry: 3);
+                    SendPingReply reply = await LocalNet.SendPingAndGetBestResultAsync(ipAddress, pingCancel: cancel, numTry: numTry);
 
                     if (reply.Ok)
                     {
