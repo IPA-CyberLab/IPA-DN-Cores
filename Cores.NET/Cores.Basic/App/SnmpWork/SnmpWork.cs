@@ -95,6 +95,9 @@ namespace IPA.Cores.Basic
         [DataMember]
         public int PingNumTry = 0;
 
+        [DataMember]
+        public bool HopsToTTL = false;
+
         public void Normalize()
         {
             if (PingTargets._IsEmpty()) PingTargets = SnmpWorkConfig.DefaultPingTarget;

@@ -455,6 +455,13 @@ namespace IPA.Cores.Basic
                 return;
             }
 
+            string hopsStr = "Hops";
+
+            if (settings.HopsToTTL)
+            {
+                hopsStr = "TTL";
+            }
+
             string[] pingTargets = settings.PingTargets._Split(StringSplitOptions.RemoveEmptyEntries, ",");
 
             numPerform++;
@@ -502,6 +509,8 @@ namespace IPA.Cores.Basic
 
                         int ttl = reply.Ttl;
 
+                        bool ttl_ok = false;
+
                         if (ttl == 0)
                         {
                             // Use ping command to get TTL
@@ -521,6 +530,7 @@ namespace IPA.Cores.Basic
                                     if (ttlStr._IsFilled())
                                     {
                                         ttl = ttlStr._ToInt();
+                                        ttl_ok = true;
                                         break;
                                     }
                                 }
@@ -531,15 +541,24 @@ namespace IPA.Cores.Basic
                                 ex._Debug();
                             }
                         }
+                        else
+                        {
+                            ttl_ok = true;
+                        }
 
                         ret.TryAdd($"Time - {alias}", (rtt * 1000.0).ToString("F3"));
 
                         int hops = 64 - ttl;
 
+                        if (ttl_ok == false)
+                        {
+                            hops = 0;
+                        }
+
                         hops._SetMax(0);
                         hops._SetMin(64);
 
-                        ret.TryAdd($"Hops - {alias}", hops.ToString());
+                        ret.TryAdd($"{hopsStr} - {alias}", hops.ToString());
 
                         ok = true;
                     }
@@ -552,7 +571,7 @@ namespace IPA.Cores.Basic
                 if (ok == false)
                 {
                     ret.TryAdd($"Time - {alias}", "");
-                    ret.TryAdd($"Hops - {alias}", "0");
+                    ret.TryAdd($"{hopsStr} - {alias}", "0");
                 }
             }
         }
