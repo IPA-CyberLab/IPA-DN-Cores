@@ -94,6 +94,7 @@ namespace IPA.Cores.Basic
                         LogMinimalInfoLevel.Set(LogPriority.Info);
                         LogMinimalErrorLevel.Set(LogPriority.Error);
                         LogMinimalStatLevel.Set(LogPriority.Trace);
+                        LogMinimalSocketLevel.Set(LogPriority.Trace);
 
                         ConsoleMinimalLevel.Set(LogPriority.Trace);
                         break;
@@ -103,6 +104,7 @@ namespace IPA.Cores.Basic
                         LogMinimalInfoLevel.Set(LogPriority.Info);
                         LogMinimalErrorLevel.Set(LogPriority.Error);
                         LogMinimalStatLevel.Set(LogPriority.Debug);
+                        LogMinimalSocketLevel.Set(LogPriority.Debug);
 
                         ConsoleMinimalLevel.Set(LogPriority.Debug);
                         break;
@@ -112,6 +114,7 @@ namespace IPA.Cores.Basic
                         LogMinimalInfoLevel.Set(LogPriority.Info);
                         LogMinimalErrorLevel.Set(LogPriority.Error);
                         LogMinimalStatLevel.Set(LogPriority.Debug);
+                        LogMinimalSocketLevel.Set(LogPriority.Debug);
 
                         ConsoleMinimalLevel.Set(LogPriority.Debug);
                         break;
@@ -121,6 +124,7 @@ namespace IPA.Cores.Basic
                         LogMinimalInfoLevel.Set(LogPriority.Info);
                         LogMinimalErrorLevel.Set(LogPriority.Error);
                         LogMinimalStatLevel.Set(LogPriority.Debug);
+                        LogMinimalSocketLevel.Set(LogPriority.None);
 
                         ConsoleMinimalLevel.Set(LogPriority.Info);
                         break;
@@ -130,6 +134,7 @@ namespace IPA.Cores.Basic
                         LogMinimalInfoLevel.Set(LogPriority.None);
                         LogMinimalErrorLevel.Set(LogPriority.None);
                         LogMinimalStatLevel.Set(LogPriority.None);
+                        LogMinimalSocketLevel.Set(LogPriority.None);
 
                         ConsoleMinimalLevel.Set(LogPriority.Info);
                         break;
