@@ -299,14 +299,15 @@ namespace IPA.Cores.Basic
                 {
                     try
                     {
-                        ev();
+                        // ev();
+                        TaskUtil.StartSyncTaskAsync(ev, true)._LaissezFaire(true);
                     }
                     catch { }
                 }
-                EventReadReady?.Set();
-                EventWriteReady?.Set();
+                EventReadReady?.Set(softly: true);
+                EventWriteReady?.Set(softly: true);
 
-                EventListeners.Fire(this, FastBufferCallbackEventType.Disconnected);
+                EventListeners.FireSoftly(this, FastBufferCallbackEventType.Disconnected);
             }
         }
 

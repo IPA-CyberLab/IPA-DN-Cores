@@ -364,7 +364,7 @@ namespace IPA.Cores.Basic
                         using (new DelayAction(TimeSpan * 3 + 180 * 1000, x =>
                         {
                             cancelWatcher.Cancel();
-                        }))
+                        }, doNotBlockOnDispose: true))
                         {
                             ClientStartEvent.Set(true);
 

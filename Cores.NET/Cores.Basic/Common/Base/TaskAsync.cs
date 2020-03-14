@@ -2749,13 +2749,15 @@ namespace IPA.Cores.Basic
 
         public bool IsCompleted = false;
         public bool IsCompletedSuccessfully = false;
+        public bool DoNotBlockOnDispose = false;
 
         public Exception? Exception { get; private set; } = null;
 
-        public DelayAction(int timeout, Action<object?> action, object? userState = null)
+        public DelayAction(int timeout, Action<object?> action, object? userState = null, bool doNotBlockOnDispose = false)
         {
             if (timeout < 0 || timeout == int.MaxValue) timeout = System.Threading.Timeout.Infinite;
 
+            this.DoNotBlockOnDispose = doNotBlockOnDispose;
             this.Timeout = timeout;
             this.Action = action;
             this.UserState = userState;
@@ -2803,7 +2805,10 @@ namespace IPA.Cores.Basic
 
         protected override async Task CleanupImplAsync(Exception? ex)
         {
-            await this.MainTask;
+            if (this.DoNotBlockOnDispose == false)
+            {
+                await this.MainTask;
+            }
         }
     }
 
