@@ -355,6 +355,30 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                var start = IPAddr.FromString("1.2.0.0");
+
+                var current = start;
+
+                for (int i = 1; i <= 4000; i++)
+                {
+                    if (i <= 4 || i >= 3998)
+                        $"VLAN SW0-{i:D4}: {current}/30"._Print();
+                    current = current.Add(4);
+                }
+
+                for (int i = 1; i <= 4000; i++)
+                {
+                    if (i <= 4 || i >= 3998)
+                        $"VLAN SW1-{i:D4}: {current}/30"._Print();
+                    current = current.Add(4);
+                }
+
+
+                return;
+            }
+
+            if (true)
+            {
                 using (SnmpWorkHost host = new SnmpWorkHost())
                 {
                     host.Register("Temperature", 101_00000, new SnmpWorkFetcherTemperature(host));
