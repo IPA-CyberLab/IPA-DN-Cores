@@ -47,6 +47,44 @@ namespace IPA.TestDev
 {
     partial class TestDevCommands
     {
+        [ConsoleCommand]
+        static int MergeResourceHeader(ConsoleService c, string cmdName, string str)
+        {
+            string baseFile = @"C:\git\IPA-DNP-DeskVPN\src\PenCore\resource.h";
+            string targetFile = @"C:\sec\Desk\current\Desk\DeskVPN\PenCore\resource.h";
+            string destFile = @"c:\tmp\200404\resource.h";
+            int minId = 2500;
+
+            var baseDict = DevTools.ParseHeaderConstants(Lfs.ReadStringFromFile(baseFile));
+            var targetDict = DevTools.ParseHeaderConstants(Lfs.ReadStringFromFile(targetFile));
+
+            KeyValueList<string, int> adding = new KeyValueList<string, int>();
+
+            // 利用可能な ID の最小値
+            int newId = Math.Max(baseDict.Values.Where(x => x < 40000).Max(), minId);
+
+            foreach (var kv in targetDict.OrderBy(x => x.Value))
+            {
+                if (baseDict.ContainsKey(kv.Key) == false)
+                {
+                    adding.Add(kv.Key, ++newId);
+                }
+            }
+
+            // 結果を出力
+            StringWriter w = new StringWriter();
+            foreach (var kv in adding)
+            {
+                int paddingCount = Math.Max(31 - kv.Key.Length, 0);
+
+                w.WriteLine($"#define {kv.Key}{Str.MakeCharArray(' ', paddingCount)} {kv.Value}");
+            }
+
+            Lfs.WriteStringToFile(destFile, w.ToString(), FileFlags.AutoCreateDirectory);
+
+            return 0;
+        }
+
         [ConsoleCommand(
         "テキストファイルの変換",
         "ConvertTextFiles [srcdir] [/dst:destdir] [/encode:sjis|euc|utf8] [/bom:yes|no] [/newline:crlf|lf|platform]",
