@@ -74,6 +74,32 @@ namespace IPA.Cores.Basic
         // SHA256: D9413D2F2E278BCDB277CD9321E5B9F0CB5EC468AF645C3EFD4942F9238FCE8F
         static readonly Singleton<PalX509Certificate> CoresDebugCACert_Singleton = new Singleton<PalX509Certificate>(() => new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert/190804CoresDebugCA.p12")));
         public static PalX509Certificate CoresDebugCACert => CoresDebugCACert_Singleton;
+
+        // .h ファイルの定数一覧を読み込む
+        public static Dictionary<string, int> ParseHeaderConstants(string body)
+        {
+            string[] lines = body._GetLines();
+
+            Dictionary<string, int> ret = new Dictionary<string, int>();
+
+            foreach (string line in lines)
+            {
+                string[] tokens = line._Split(StringSplitOptions.RemoveEmptyEntries, ' ', '\t');
+
+                if (tokens.Length >= 3)
+                {
+                    if (tokens[0] == "#define")
+                    {
+                        if (tokens[2]._IsNumber())
+                        {
+                            ret.TryAdd(tokens[1], tokens[2]._ToInt());
+                        }
+                    }
+                }
+            }
+
+            return ret;
+        }
     }
 }
 

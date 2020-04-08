@@ -47,6 +47,134 @@ namespace IPA.TestDev
 {
     partial class TestDevCommands
     {
+        [ConsoleCommand]
+        static int MergeResourceHeader(ConsoleService c, string cmdName, string str)
+        {
+            string baseFile = @"C:\git\IPA-DNP-DeskVPN\src\PenCore\resource.h";
+            string targetFile = @"C:\sec\Desk\current\Desk\DeskVPN\PenCore\resource.h";
+            string destFile = @"c:\tmp\200404\resource.h";
+            int minId = 2500;
+
+            var baseDict = DevTools.ParseHeaderConstants(Lfs.ReadStringFromFile(baseFile));
+            var targetDict = DevTools.ParseHeaderConstants(Lfs.ReadStringFromFile(targetFile));
+
+            KeyValueList<string, int> adding = new KeyValueList<string, int>();
+
+            // 利用可能な ID の最小値
+            int newId = Math.Max(baseDict.Values.Where(x => x < 40000).Max(), minId);
+
+            foreach (var kv in targetDict.OrderBy(x => x.Value))
+            {
+                if (baseDict.ContainsKey(kv.Key) == false)
+                {
+                    adding.Add(kv.Key, ++newId);
+                }
+            }
+
+            // 結果を出力
+            StringWriter w = new StringWriter();
+            foreach (var kv in adding)
+            {
+                int paddingCount = Math.Max(31 - kv.Key.Length, 0);
+
+                w.WriteLine($"#define {kv.Key}{Str.MakeCharArray(' ', paddingCount)} {kv.Value}");
+            }
+
+            Lfs.WriteStringToFile(destFile, w.ToString(), FileFlags.AutoCreateDirectory);
+
+            return 0;
+        }
+
+        [ConsoleCommand(
+        "テキストファイルの変換",
+        "ConvertTextFiles [srcdir] [/dst:destdir] [/encode:sjis|euc|utf8] [/bom:yes|no] [/newline:crlf|lf|platform]",
+        "テキストファイルの変換")]
+        static int ConvertTextFiles(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[srcdir]", ConsoleService.Prompt, "Input source directory: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("dst", ConsoleService.Prompt, "Input destination directory: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("encode"),
+                new ConsoleParam("bom"),
+                new ConsoleParam("newline"),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string srcdir = vl.DefaultParam.StrValue;
+
+            string dstdir = vl["dst"].StrValue;
+
+            string encode = vl["encode"].StrValue._FilledOrDefault("utf8");
+
+            bool bom = vl["bom"].BoolValue;
+
+            string newline = vl["newline"].StrValue._FilledOrDefault("crlf");
+
+            Encoding? encoding = null;
+
+            switch (encode.ToLower())
+            {
+                case "sjis":
+                    encoding = Str.ShiftJisEncoding;
+                    break;
+
+                case "euc":
+                    encoding = Str.EucJpEncoding;
+                    break;
+
+                case "utf8":
+                    encoding = Str.Utf8Encoding;
+                    break;
+
+                default:
+                    throw new CoresException("encode param is invalid.");
+            }
+
+            CrlfStyle crlfStyle = CrlfStyle.CrLf;
+
+            switch (newline.ToLower())
+            {
+                case "crlf":
+                    crlfStyle = CrlfStyle.CrLf;
+                    break;
+
+                case "lf":
+                    crlfStyle = CrlfStyle.Lf;
+                    break;
+
+                case "platform":
+                    crlfStyle = CrlfStyle.LocalPlatform;
+                    break;
+
+                default:
+                    throw new CoresException("newline param is invalid.");
+            }
+
+            var srcFileList = Lfs.EnumDirectory(srcdir, true);
+
+            foreach (var srcFile in srcFileList)
+            {
+                if (srcFile.IsFile)
+                {
+                    string relativeFileName = Lfs.PathParser.GetRelativeFileName(srcFile.FullPath, srcdir);
+
+                    string destFileName = Lfs.PathParser.Combine(dstdir, relativeFileName);
+
+                    string body = Lfs.ReadStringFromFile(srcFile.FullPath);
+
+                    body = Str.NormalizeCrlf(body, crlfStyle);
+
+                    Con.WriteLine(relativeFileName);
+
+                    Lfs.WriteStringToFile(destFileName, body, FileFlags.AutoCreateDirectory, encoding: encoding, writeBom: bom);
+                }
+            }
+
+            return 0;
+        }
+
         [ConsoleCommand(
             "Authenticode 署名の実施 (内部用)",
             "SignAuthenticodeInternal [filename] [/out:output] [/comment:string] [/driver:yes] [/cert:type]",
