@@ -548,6 +548,16 @@ namespace IPA.Cores.Basic
 
                         ret.TryAdd($"Time - {alias}", (rtt * 1000.0).ToString("F3"));
 
+
+                        if (ttl > 128)
+                        {
+                            ttl -= 128;
+                        }
+                        else if (ttl > 64)
+                        {
+                            ttl -= 64;
+                        }
+
                         int hops = 64 - ttl;
 
                         if (ttl_ok == false)
