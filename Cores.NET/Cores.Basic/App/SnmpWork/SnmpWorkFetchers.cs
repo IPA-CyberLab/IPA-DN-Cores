@@ -627,6 +627,23 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
+                    // Threads
+                    var result = EasyExec.ExecBashAsync("ps -eo nlwp | tail -n +2 | awk '{ num_threads += $1 } END { print num_threads }'")._GetResult();
+
+                    string valueStr = result.OutputStr._GetFirstFilledLineFromLines();
+
+                    ret.TryAdd($"Threads", valueStr._ToInt().ToString());
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
+            }
+
+            if (true)
+            {
+                try
+                {
                     // Sockets
                     string[] lines = (await Lfs.ReadStringFromFileAsync(Consts.LinuxPaths.SockStat, flags: FileFlags.NoCheckFileSize))._GetLines();
 

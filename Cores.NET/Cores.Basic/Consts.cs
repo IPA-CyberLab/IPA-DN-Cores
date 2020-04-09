@@ -344,6 +344,7 @@ namespace IPA.Cores.Basic
 
         public static partial class LinuxCommands
         {
+            public const string Bash = "/bin/bash";
             public const string Ip = "/sbin/ip";
             public const string Ifconfig = "/sbin/ifconfig";
             public const string ConnTrack = "/usr/sbin/conntrack";

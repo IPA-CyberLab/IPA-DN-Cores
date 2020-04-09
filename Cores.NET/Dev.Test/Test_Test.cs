@@ -355,6 +355,17 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                var result = EasyExec.ExecBashAsync("ps -eo nlwp | tail -n +2 | awk '{ num_threads += $1 } END { print num_threads }'")._GetResult();
+
+                string valueStr = result.OutputStr._GetFirstFilledLineFromLines();
+
+                Con.WriteLine(valueStr);
+
+                return;
+            }
+
+            if (true)
+            {
                 var start = IPAddr.FromString("1.2.0.0");
 
                 var current = start;

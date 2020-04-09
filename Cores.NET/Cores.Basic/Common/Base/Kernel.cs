@@ -224,6 +224,59 @@ namespace IPA.Cores.Basic
     // 簡易実行
     public static class EasyExec
     {
+        public static async Task<EasyExecResult> ExecBashAsync(string command, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default | ExecFlags.EasyInputOutputMode,
+            int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, int? timeout = null,
+            CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true)
+        {
+            if (timeout <= 0) timeout = Timeout.Infinite;
+
+            List<string> args = new List<string>();
+            args.Add("-c");
+            args.Add(command);
+
+            ExecOptions opt = new ExecOptions(Consts.LinuxCommands.Bash, args, currentDirectory, flags, easyOutputMaxSize, easyInputStr);
+
+            if (debug)
+            {
+                Dbg.WriteLine($"ExecBashAsync: --- Starting bash command \"{command}\" ---");
+            }
+
+            EasyExecResult result;
+
+            try
+            {
+                using ExecInstance exec = new ExecInstance(opt);
+
+                try
+                {
+                    await exec.WaitForExitAsync(timeout._NormalizeTimeout(CoresConfig.Timeouts.DefaultEasyExecTimeout), cancel);
+                }
+                finally
+                {
+                    exec.Cancel();
+                }
+
+                result = new EasyExecResult(exec);
+            }
+            catch (Exception ex)
+            {
+                Dbg.WriteLine($"Error on bash process \"{command}\". Exception: {ex.Message}");
+                throw;
+            }
+
+            if (debug)
+            {
+                Dbg.WriteLine($"ExecAsync: The result of bash \"{command}\": " + result.ToString(Str.GetCrlfStr(), false));
+            }
+
+            if (throwOnErrorExitCode)
+            {
+                result.ThrowExceptionIfError();
+            }
+
+            return result;
+        }
+
         public static async Task<EasyExecResult> ExecAsync(string fileName, string? arguments = null, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default | ExecFlags.EasyInputOutputMode,
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, int? timeout = null,
             CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true)
