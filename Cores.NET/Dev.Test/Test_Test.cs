@@ -364,12 +364,12 @@ namespace IPA.TestDev
 
                 CertificateStore store = new CertificateStore(cert, priv);
 
-                Lfs.WriteStringToFile(@"S:\NTTVPN\Certs\200413_Certs\00_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", doNotOverwrite: true, writeBom: true);
+                Lfs.WriteStringToFile(@"S:\NTTVPN\Certs\200413_Certs\00_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
 
                 Lfs.WriteDataToFile(@"S:\NTTVPN\Certs\200413_Certs\00_Master.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
                 Lfs.WriteDataToFile(@"S:\NTTVPN\Certs\200413_Certs\00_Master_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
 
-                Lfs.WriteDataToFile(@"S:\NTTVPN\Certs\200413_Certs\00_Master.cer", store.X509Certificate.ExportCertificate(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+                Lfs.WriteDataToFile(@"S:\NTTVPN\Certs\200413_Certs\00_Master.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
 
                 Lfs.WriteDataToFile(@"S:\NTTVPN\Certs\200413_Certs\00_Master.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
 
@@ -395,7 +395,7 @@ namespace IPA.TestDev
                     Lfs.WriteDataToFile(fileNameBase + ".pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
                     Lfs.WriteDataToFile(fileNameBase + "_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
 
-                    Lfs.WriteDataToFile(fileNameBase + ".cer", store.X509Certificate.ExportCertificate(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+                    Lfs.WriteDataToFile(fileNameBase + ".cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
 
                     Lfs.WriteDataToFile(fileNameBase + ".key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
                 }
