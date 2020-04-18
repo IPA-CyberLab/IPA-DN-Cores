@@ -355,13 +355,49 @@ namespace IPA.TestDev
         {
             if (true)
             {
-                var start = IPAddr.FromString("202.222.12.225");
+                string password = "microsoft";
 
-                for (int i = 0; i < 32; i++)
+                // 2020/4/13 NTTVPN Master Cert
+                PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+                var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "VPN Servers PKI Authority", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
+
+                CertificateStore store = new CertificateStore(cert, priv);
+
+                Lfs.WriteStringToFile(@"S:\NTTVPN\Certs\200413_Certs\00_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+
+                Lfs.WriteDataToFile(@"S:\NTTVPN\Certs\200413_Certs\00_Master.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+                Lfs.WriteDataToFile(@"S:\NTTVPN\Certs\200413_Certs\00_Master_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(@"S:\NTTVPN\Certs\200413_Certs\00_Master.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(@"S:\NTTVPN\Certs\200413_Certs\00_Master.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                //return;
+            }
+
+            if (true)
+            {
+                // 2020/4/13 NTTVPN Sub Certs
+                string password = "microsoft";
+
+                PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
+
+                CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(@"S:\NTTVPN\Certs\200413_Certs\00_Master.pfx").Span);
+
+                IssueCert("controller.ntt.open.ad.jp", @"S:\NTTVPN\Certs\200413_Certs\01_Controller");
+                IssueCert("gates001.ntt.open.ad.jp", @"S:\NTTVPN\Certs\200413_Certs\02_Gates_001");
+
+                void IssueCert(string cn, string fileNameBase)
                 {
-                    var x = start.Add(i);
+                    var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, cn, c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA256));
+                    var store = new CertificateStore(cert, priv);
+                    Lfs.WriteDataToFile(fileNameBase + ".pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+                    Lfs.WriteDataToFile(fileNameBase + "_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
 
-                    x.ToString()._Print();
+                    Lfs.WriteDataToFile(fileNameBase + ".cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                    Lfs.WriteDataToFile(fileNameBase + ".key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
                 }
 
                 return;

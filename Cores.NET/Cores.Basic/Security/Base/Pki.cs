@@ -721,7 +721,7 @@ namespace IPA.Cores.Basic
         }
 
         // 上位 CA によって署名されている証明書の作成
-        public Certificate(PrivKey signKey, CertificateStore parentCertificate, CertificateOptions options)
+        public Certificate(PrivKey thisCertPrivateKey, CertificateStore parentCertificate, CertificateOptions options)
         {
             X509Name name = options.GenerateName();
             X509V3CertificateGenerator gen = new X509V3CertificateGenerator();
@@ -731,7 +731,7 @@ namespace IPA.Cores.Basic
             gen.SetSubjectDN(name);
             gen.SetNotBefore(DateTime.Now.AddDays(-1));
             gen.SetNotAfter(options.Expires.UtcDateTime);
-            gen.SetPublicKey(signKey.PublicKey.PublicKeyData);
+            gen.SetPublicKey(thisCertPrivateKey.PublicKey.PublicKeyData);
 
             X509Extension extConst = new X509Extension(true, new DerOctetString(new BasicConstraints(false)));
             gen.AddExtension(X509Extensions.BasicConstraints, true, extConst.GetParsedValue());
