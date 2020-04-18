@@ -386,7 +386,7 @@ namespace IPA.TestDev
                 CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(@"S:\NTTVPN\Certs\200418_Certs\00_Master.pfx").Span);
 
                 IssueCert("*.controller.dynamic-ip.thin.cyber.ipa.go.jp", @"S:\NTTVPN\Certs\200418_Certs\01_Controller");
-                IssueCert("*.gates.dynamic-ip.thin.cyber.ipa.go.jp", @"S:\NTTVPN\Certs\200418_Certs\02_Gates_001");
+                IssueCert("*.gates.dynamic-ip.thin.v4.cyber.ipa.go.jp", @"S:\NTTVPN\Certs\200418_Certs\02_Gates_001");
 
                 void IssueCert(string cn, string fileNameBase)
                 {
