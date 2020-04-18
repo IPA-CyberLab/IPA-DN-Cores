@@ -521,10 +521,13 @@ namespace IPA.Cores.Basic
         public SortedSet<string> SubjectAlternativeNames = new SortedSet<string>();
         public PkiShaSize ShaSize;
         public PkiAlgorithm Algorithm;
+        public int KeyUsages;
+        public KeyPurposeID[] ExtendedKeyUsages;
 
         public CertificateOptions(PkiAlgorithm algorithm, string? cn = null, string? o = null, string? ou = null, string? c = null,
             string? st = null, string? l = null, string? e = null,
-            Memory<byte> serial = default, DateTimeOffset? expires = null, string[]? subjectAltNames = null, PkiShaSize shaSize = PkiShaSize.SHA256)
+            Memory<byte> serial = default, DateTimeOffset? expires = null, string[]? subjectAltNames = null, PkiShaSize shaSize = PkiShaSize.SHA256,
+            int keyUsages = 0, KeyPurposeID[]? extendedKeyUsages = null)
         {
             this.Algorithm = algorithm;
             this.CN = cn._NonNullTrim();
@@ -543,6 +546,23 @@ namespace IPA.Cores.Basic
             }
             this.Expires = expires ?? Util.MaxDateTimeOffsetValue;
             this.SubjectAlternativeNames.Add(this.CN);
+
+
+            if (keyUsages == 0)
+            {
+                keyUsages = KeyUsage.DigitalSignature | KeyUsage.NonRepudiation | KeyUsage.KeyEncipherment | KeyUsage.DataEncipherment | KeyUsage.KeyCertSign | KeyUsage.CrlSign;
+            }
+
+            this.KeyUsages = keyUsages;
+
+
+            if (extendedKeyUsages == null)
+            {
+                extendedKeyUsages = new KeyPurposeID[] { KeyPurposeID.IdKPServerAuth, KeyPurposeID.IdKPClientAuth, KeyPurposeID.IdKPCodeSigning, KeyPurposeID.IdKPEmailProtection,
+                    KeyPurposeID.IdKPIpsecEndSystem, KeyPurposeID.IdKPIpsecTunnel, KeyPurposeID.IdKPIpsecUser, KeyPurposeID.IdKPTimeStamping, KeyPurposeID.IdKPOcspSigning };
+            }
+            this.ExtendedKeyUsages = extendedKeyUsages;
+
 
             if (subjectAltNames != null)
             {
@@ -736,11 +756,10 @@ namespace IPA.Cores.Basic
             X509Extension extConst = new X509Extension(true, new DerOctetString(new BasicConstraints(false)));
             gen.AddExtension(X509Extensions.BasicConstraints, true, extConst.GetParsedValue());
 
-            X509Extension extBasicUsage = new X509Extension(false, new DerOctetString(new KeyUsage(KeyUsage.DigitalSignature | KeyUsage.NonRepudiation | KeyUsage.KeyEncipherment | KeyUsage.DataEncipherment | KeyUsage.KeyCertSign | KeyUsage.CrlSign)));
+            X509Extension extBasicUsage = new X509Extension(false, new DerOctetString(new KeyUsage(options.KeyUsages)));
             gen.AddExtension(X509Extensions.KeyUsage, false, extBasicUsage.GetParsedValue());
 
-            X509Extension extExtendedUsage = new X509Extension(false, new DerOctetString(new ExtendedKeyUsage(KeyPurposeID.IdKPServerAuth, KeyPurposeID.IdKPClientAuth, KeyPurposeID.IdKPCodeSigning, KeyPurposeID.IdKPEmailProtection,
-                KeyPurposeID.IdKPIpsecEndSystem, KeyPurposeID.IdKPIpsecTunnel, KeyPurposeID.IdKPIpsecUser, KeyPurposeID.IdKPTimeStamping, KeyPurposeID.IdKPOcspSigning)));
+            X509Extension extExtendedUsage = new X509Extension(false, new DerOctetString(new ExtendedKeyUsage(options.ExtendedKeyUsages)));
             gen.AddExtension(X509Extensions.ExtendedKeyUsage, false, extExtendedUsage.GetParsedValue());
 
             X509Extension altName = new X509Extension(false, new DerOctetString(options.GenerateAltNames()));
@@ -767,11 +786,10 @@ namespace IPA.Cores.Basic
             X509Extension extConst = new X509Extension(true, new DerOctetString(new BasicConstraints(true)));
             gen.AddExtension(X509Extensions.BasicConstraints, true, extConst.GetParsedValue());
 
-            X509Extension extBasicUsage = new X509Extension(false, new DerOctetString(new KeyUsage(KeyUsage.DigitalSignature | KeyUsage.NonRepudiation | KeyUsage.KeyEncipherment | KeyUsage.DataEncipherment | KeyUsage.KeyCertSign | KeyUsage.CrlSign)));
+            X509Extension extBasicUsage = new X509Extension(false, new DerOctetString(new KeyUsage(options.KeyUsages)));
             gen.AddExtension(X509Extensions.KeyUsage, false, extBasicUsage.GetParsedValue());
 
-            X509Extension extExtendedUsage = new X509Extension(false, new DerOctetString(new ExtendedKeyUsage(KeyPurposeID.IdKPServerAuth, KeyPurposeID.IdKPClientAuth, KeyPurposeID.IdKPCodeSigning, KeyPurposeID.IdKPEmailProtection,
-                KeyPurposeID.IdKPIpsecEndSystem, KeyPurposeID.IdKPIpsecTunnel, KeyPurposeID.IdKPIpsecUser, KeyPurposeID.IdKPTimeStamping, KeyPurposeID.IdKPOcspSigning)));
+            X509Extension extExtendedUsage = new X509Extension(false, new DerOctetString(new ExtendedKeyUsage(options.ExtendedKeyUsages)));
             gen.AddExtension(X509Extensions.ExtendedKeyUsage, false, extExtendedUsage.GetParsedValue());
 
             X509Extension altName = new X509Extension(false, new DerOctetString(options.GenerateAltNames()));

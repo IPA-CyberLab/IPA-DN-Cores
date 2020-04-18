@@ -360,18 +360,18 @@ namespace IPA.TestDev
                 // 2020/4/13 NTTVPN Master Cert
                 PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
 
-                var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "VPN Servers PKI Authority", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
+                var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "Thin Telework System Root Certificate", c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA512));
 
                 CertificateStore store = new CertificateStore(cert, priv);
 
-                Lfs.WriteStringToFile(@"S:\NTTVPN\Certs\200413_Certs\00_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+                Lfs.WriteStringToFile(@"S:\NTTVPN\Certs\200418_Certs\00_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
 
-                Lfs.WriteDataToFile(@"S:\NTTVPN\Certs\200413_Certs\00_Master.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
-                Lfs.WriteDataToFile(@"S:\NTTVPN\Certs\200413_Certs\00_Master_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+                Lfs.WriteDataToFile(@"S:\NTTVPN\Certs\200418_Certs\00_Master.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+                Lfs.WriteDataToFile(@"S:\NTTVPN\Certs\200418_Certs\00_Master_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
 
-                Lfs.WriteDataToFile(@"S:\NTTVPN\Certs\200413_Certs\00_Master.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+                Lfs.WriteDataToFile(@"S:\NTTVPN\Certs\200418_Certs\00_Master.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
 
-                Lfs.WriteDataToFile(@"S:\NTTVPN\Certs\200413_Certs\00_Master.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+                Lfs.WriteDataToFile(@"S:\NTTVPN\Certs\200418_Certs\00_Master.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
 
                 //return;
             }
@@ -383,14 +383,20 @@ namespace IPA.TestDev
 
                 PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
 
-                CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(@"S:\NTTVPN\Certs\200413_Certs\00_Master.pfx").Span);
+                CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(@"S:\NTTVPN\Certs\200418_Certs\00_Master.pfx").Span);
 
-                IssueCert("controller.ntt.open.ad.jp", @"S:\NTTVPN\Certs\200413_Certs\01_Controller");
-                IssueCert("gates001.ntt.open.ad.jp", @"S:\NTTVPN\Certs\200413_Certs\02_Gates_001");
+                IssueCert("*.controller.dynamic-ip.thin.cyber.ipa.go.jp", @"S:\NTTVPN\Certs\200418_Certs\01_Controller");
+                IssueCert("*.gates.dynamic-ip.thin.cyber.ipa.go.jp", @"S:\NTTVPN\Certs\200418_Certs\02_Gates_001");
 
                 void IssueCert(string cn, string fileNameBase)
                 {
-                    var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, cn, c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA256));
+                    var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, cn, c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA256,
+                        keyUsages: Org.BouncyCastle.Asn1.X509.KeyUsage.DigitalSignature | Org.BouncyCastle.Asn1.X509.KeyUsage.KeyEncipherment | Org.BouncyCastle.Asn1.X509.KeyUsage.DataEncipherment,
+                        extendedKeyUsages:
+                            new Org.BouncyCastle.Asn1.X509.KeyPurposeID[] {
+                                Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPServerAuth, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPClientAuth,
+                                Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecEndSystem, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecTunnel, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecUser }));
+
                     var store = new CertificateStore(cert, priv);
                     Lfs.WriteDataToFile(fileNameBase + ".pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
                     Lfs.WriteDataToFile(fileNameBase + "_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
