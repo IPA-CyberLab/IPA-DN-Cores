@@ -741,13 +741,20 @@ namespace IPA.Cores.Basic
         }
 
         // 上位 CA によって署名されている証明書の作成
-        public Certificate(PrivKey thisCertPrivateKey, CertificateStore parentCertificate, CertificateOptions options)
+        public Certificate(PrivKey thisCertPrivateKey, CertificateStore parentCertificate, CertificateOptions options, CertificateOptions? alternativeIssuerDN = null)
         {
             X509Name name = options.GenerateName();
             X509V3CertificateGenerator gen = new X509V3CertificateGenerator();
 
             gen.SetSerialNumber(new BigInteger(options.Serial.ToArray()));
-            gen.SetIssuerDN(parentCertificate.PrimaryCertificate.CertData.IssuerDN);
+            if (alternativeIssuerDN == null)
+            {
+                gen.SetIssuerDN(parentCertificate.PrimaryCertificate.CertData.IssuerDN);
+            }
+            else
+            {
+                gen.SetIssuerDN(alternativeIssuerDN.GenerateName());
+            }
             gen.SetSubjectDN(name);
             gen.SetNotBefore(DateTime.Now.AddDays(-1));
             gen.SetNotAfter(options.Expires.UtcDateTime);
