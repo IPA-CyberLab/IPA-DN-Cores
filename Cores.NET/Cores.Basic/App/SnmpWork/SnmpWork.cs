@@ -280,6 +280,7 @@ namespace IPA.Cores.Basic
     {
         Get = 0,
         GetNext,
+        GetAll,
     }
 
     // SNMP Worker ホストクラス
@@ -384,6 +385,17 @@ namespace IPA.Cores.Basic
                     specifiedIndex = remain.Substring(1)._ToInt();
                 }
                 oidPrefix = Consts.SnmpOids.SnmpWorkValues;
+            }
+
+            if (method == SnmpWorkGetMethod.GetAll)
+            {
+                // すべてのオブジェクトを列挙する
+                StringWriter w = new StringWriter();
+                for (int i = 0; i < namesList.Count; i++)
+                {
+                    w.WriteLine($"{namesList[i].Value} ({namesList[i].Key}): {valuesList[i].Value}");
+                }
+                return w.ToString();
             }
 
             if (specifiedIndex < 0 || list == null)

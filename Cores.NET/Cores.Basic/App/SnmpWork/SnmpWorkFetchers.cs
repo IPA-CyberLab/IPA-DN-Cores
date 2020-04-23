@@ -904,6 +904,79 @@ namespace IPA.Cores.Basic
             }
         }
     }
+
+    public class SnmpWorkFetcherHttpKeyValue : SnmpWorkFetcherBase
+    {
+        public string Url { get; }
+
+        readonly WebApi Web;
+
+        public SnmpWorkFetcherHttpKeyValue(SnmpWorkHost host, string url) : base(host)
+        {
+            try
+            {
+                this.Url = url;
+
+                this.Web = new WebApi();
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+        protected override async Task GetValueAsync(SortedDictionary<string, string> ret, RefInt nextPollingInterval, CancellationToken cancel = default)
+        {
+            if (this.Web == null)
+            {
+                nextPollingInterval.Set(100);
+                return;
+            }
+
+            var webret = await this.Web.SimpleQueryAsync(WebMethods.GET, this.Url, cancel);
+
+            string body = webret.Data._GetString_UTF8();
+
+            string[] lines = body._GetLines(true);
+
+            foreach (string line in lines)
+            {
+                string line2 = line.Trim();
+                if (line2.StartsWith("#") == false)
+                {
+                    if (line2._GetKeyAndValue(out string key, out string value, ":"))
+                    {
+                        key = key.Trim();
+                        value = value.Trim();
+
+                        if (key._IsFilled() && value._IsFilled())
+                        {
+                            ret.TryAdd(key, value);
+                        }
+                    }
+                }
+            }
+
+            DoNothing();
+        }
+
+        protected override void InitImpl()
+        {
+        }
+
+        protected override void DisposeImpl(Exception? ex)
+        {
+            try
+            {
+                this.Web._DisposeSafe();
+            }
+            catch
+            {
+                base.DisposeImpl(ex);
+            }
+        }
+    }
 }
 
 #endif
