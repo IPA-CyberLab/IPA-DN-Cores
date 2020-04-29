@@ -149,6 +149,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\ClientApi\SlackApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\Jws.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\WebApiJson.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Misc\HtmlParser\HtmlParser.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Misc\HtmlParser\HtmlParserHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Security\Base\Pki.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Security\Base\Crypto.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Security\Base\CryptoLegacy.cs" />

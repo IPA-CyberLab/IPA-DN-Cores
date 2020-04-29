@@ -30,7 +30,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DefineConstants>TRACE;DEBUG;CORES_BASIC_DAEMON;CORES_BASIC_DATABASE;CORES_BASIC_GIT;CORES_BASIC_JSON;CORES_BASIC_SECURITY;CORES_BASIC_HTTPSERVER;CORES_BASIC_GRAPHICS;</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;CORES_BASIC_DAEMON;CORES_BASIC_DATABASE;CORES_BASIC_GIT;CORES_BASIC_JSON;CORES_BASIC_SECURITY;CORES_BASIC_HTTPSERVER;CORES_BASIC_MISC;</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -70,8 +70,9 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication" Version="2.2.0" Condition="$(DefineConstants.Contains('CORES_BASIC_HTTPSERVER;'))" />
     <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="2.2.0" Condition="$(DefineConstants.Contains('CORES_BASIC_HTTPSERVER;'))" />
 
-    <!-- Cores.Basic.Graphics -->
-    <PackageReference Include="System.Drawing.Common" Version="4.7.0" Condition="$(DefineConstants.Contains('CORES_BASIC_GRAPHICS;'))" />
+    <!-- Cores.Basic.Misc -->
+    <PackageReference Include="System.Drawing.Common" Version="4.7.0" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
+    <PackageReference Include="HtmlAgilityPack " Version="1.11.23" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
 
   </ItemGroup>
 
