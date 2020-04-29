@@ -51,6 +51,7 @@ using System.Net.Sockets;
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace IPA.Cores.Basic
 {
@@ -1022,6 +1023,61 @@ namespace IPA.Cores.Basic
 
         static CriticalSection LockNewId = new CriticalSection();
         static ulong LastNewIdMSecs = 0;
+
+        // ワイルドカード一致検査
+        public static bool WildcardMatch(string targetStr, string wildcard, bool ignoreCase = false)
+        {
+            if (wildcard._IsEmpty()) return false;
+
+            if (ignoreCase)
+            {
+                targetStr = targetStr.ToUpper();
+                wildcard = wildcard.ToUpper();
+            }
+
+            try
+            {
+                string pattern = WildcardToRegex(wildcard);
+
+                if (new Regex(pattern).IsMatch(targetStr))
+                {
+                    return true;
+                }
+
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        // ワイルドカード文字列を正規表現に変換
+        public static string WildcardToRegex(string wildcard)
+        {
+            // https://qiita.com/kazuhirox/items/5e314d5e7732041a3fe7 を参考にいたしました
+
+            var regexPattern = System.Text.RegularExpressions.Regex.Replace(wildcard, ".",
+              m =>
+              {
+                  string s = m.Value;
+                  if (s.Equals("?"))
+                  {
+                      return ".";
+                  }
+                  else if (s.Equals("*"))
+                  {
+                      return ".*";
+                  }
+                  else
+                  {
+                      return System.Text.RegularExpressions.Regex.Escape(s);
+                  }
+              }
+              );
+
+            return "^" + regexPattern + "$";
+        }
 
         // ランダム MAC アドレスを生成
         public static string GenRandomMacStr(string seedStr, byte firstByte = 0xAE, string paddingStr = "-", bool lowerStr = false)

@@ -2001,6 +2001,8 @@ namespace IPA.Cores.Helper.Basic
 
             return ret;
         }
+
+        public static bool _WildcardMatch(this string targetStr, string wildcard, bool ignoreCase = false) => Str.WildcardMatch(targetStr, wildcard, ignoreCase);
     }
 }
 

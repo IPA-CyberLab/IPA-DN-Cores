@@ -73,6 +73,27 @@ namespace IPA.Cores.Helper.Basic
         public static HtmlParsedTableWithHeader ParseTable(this HtmlNode node, HtmlTableParseOption? option = null) => new HtmlParsedTableWithHeader(node, option);
 
         public static HtmlDocument _ParseHtml(this string body) => HtmlParser.ParseHtml(body);
+
+        public static List<HtmlNode> GetAllChildren(this HtmlNode root)
+        {
+            List<HtmlNode> ret = new List<HtmlNode>();
+
+            ret.Add(root);
+
+            EnumerateChilds(ret, root);
+
+            void EnumerateChilds(List<HtmlNode> list, HtmlNode parent)
+            {
+                foreach (var c in parent.ChildNodes)
+                {
+                    list.Add(c);
+
+                    EnumerateChilds(list, c);
+                }
+            }
+
+            return ret;
+        }
     }
 }
 
