@@ -47,6 +47,53 @@ namespace IPA.TestDev
 {
     partial class TestDevCommands
     {
+
+        [ConsoleCommand(
+        "Cacti ホスト登録",
+        "CactiRegisterHosts [taskFileName]",
+        "Cacti ホスト登録")]
+        static int CactiRegisterHosts(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[taskFileName]", ConsoleService.Prompt, "Input task file name: ", ConsoleService.EvalNotEmpty, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            CactiClientApp.ExecuteRegisterTasksAsync(vl.DefaultParam.StrValue)._GetResult();
+
+            return 0;
+        }
+
+        [ConsoleCommand(
+        "Cacti グラフダウンロード",
+        "CactiDownloadGraphs [destdir] [/cacti:baseUrl] [/username:username] [/password:password] [/graphs:id1,id2,id3,...]",
+        "Cacti グラフダウンロード")]
+        static int CactiDownloadGraphs(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[destdir]", ConsoleService.Prompt, "Input destination directory: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("cacti", ConsoleService.Prompt, "Input Cacti Base Dir: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("username", ConsoleService.Prompt, "Input Cacti Username: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("password", ConsoleService.Prompt, "Input Cacti Password: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("graphs", ConsoleService.Prompt, "Input Graph ID List (id1,id2,id3,...): ", ConsoleService.EvalNotEmpty, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string[] ids = vl["graphs"].StrValue._Split(StringSplitOptions.RemoveEmptyEntries, ' ', '\t', ',', '/', ';');
+
+            List<int> idList = new List<int>();
+            ids._DoForEach(s => idList.Add(s._ToInt()));
+            idList.Sort();
+
+            CactiClientApp.DownloadGraphsAsync(vl.DefaultParam.StrValue, vl["cacti"].StrValue, vl["username"].StrValue, vl["password"].StrValue, idList)._GetResult();
+
+            return 0;
+        }
+
         [ConsoleCommand]
         static int MergeResourceHeader(ConsoleService c, string cmdName, string str)
         {

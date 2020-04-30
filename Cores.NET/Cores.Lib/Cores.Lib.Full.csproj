@@ -24,7 +24,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DefineConstants>CORES_BASIC_DAEMON;CORES_BASIC_DATABASE;CORES_BASIC_GIT;CORES_BASIC_JSON;CORES_BASIC_SECURITY;CORES_BASIC_HTTPSERVER;CORES_BASIC_GRAPHICS;CORES_BASIC_MISC;</DefineConstants>
+    <DefineConstants>CORES_BASIC_DAEMON;CORES_BASIC_DATABASE;CORES_BASIC_GIT;CORES_BASIC_JSON;CORES_BASIC_SECURITY;CORES_BASIC_HTTPSERVER;CORES_BASIC_MISC;</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

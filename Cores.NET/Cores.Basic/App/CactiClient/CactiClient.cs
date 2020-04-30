@@ -33,7 +33,7 @@
 // Author: Daiyuu Nobori
 // Description
 
-#if true
+#if CORES_BASIC_MISC
 
 #pragma warning disable CA2235 // Mark all non-serializable fields
 
@@ -779,7 +779,7 @@ namespace IPA.Cores.Basic
     // App
     public static class CactiClientApp
     {
-        public static async Task DownloadGraphsAsync(string destDir, string baseUrl, string username, string password, IEnumerable<int> targetGraphIdList)
+        public static async Task DownloadGraphsAsync(string destDir, string baseUrl, string username, string password, IEnumerable<int> targetGraphIdList, CancellationToken cancel = default)
         {
             using var r = new CactiSession(baseUrl, username, password);
 
@@ -787,11 +787,13 @@ namespace IPA.Cores.Basic
 
             foreach (int id in targetGraphIdList.Distinct())
             {
+                await r.EnsureLoginAsync(cancel);
+
                 Con.WriteLine($"Downloading id = {id} ...");
 
                 try
                 {
-                    var tmp = await r.DownloadGraphAsync(id, 1, 6);
+                    var tmp = await r.DownloadGraphAsync(id, 1, 6, cancel);
 
                     tmp._DoForEach(x => list.Add(x));
                 }
