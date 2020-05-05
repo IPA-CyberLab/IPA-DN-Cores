@@ -367,6 +367,7 @@ namespace IPA.Cores.Basic
         {
             public const string SysThermal = "/sys/class/thermal/";
             public const string SockStat = "/proc/net/sockstat";
+            public const string FileNr = "/proc/sys/fs/file-nr";
         }
 
         public static partial class StrEncodingAutoDetector

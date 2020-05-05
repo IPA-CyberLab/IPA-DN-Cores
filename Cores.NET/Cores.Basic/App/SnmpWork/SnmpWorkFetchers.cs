@@ -644,6 +644,32 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
+                    // FDs
+                    string result = await Lfs.ReadStringFromFileAsync(Consts.LinuxPaths.FileNr, flags: FileFlags.NoCheckFileSize);
+
+                    string valueStr = result._GetFirstFilledLineFromLines();
+
+                    string[] tokens = valueStr._Split(StringSplitOptions.RemoveEmptyEntries, " ", "\t");
+
+                    int numFd = -1;
+
+                    if (tokens.Length >= 1)
+                    {
+                        numFd = tokens[0]._ToInt();
+                    }
+
+                    ret.TryAdd($"FDs", numFd.ToString());
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
+            }
+
+            if (true)
+            {
+                try
+                {
                     // Sockets
                     string[] lines = (await Lfs.ReadStringFromFileAsync(Consts.LinuxPaths.SockStat, flags: FileFlags.NoCheckFileSize))._GetLines();
 
