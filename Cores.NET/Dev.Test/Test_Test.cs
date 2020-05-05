@@ -353,6 +353,21 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                List<int> o = new List<int>();
+                o.Add(3);
+                for (int i = 5; i <= 87; i++)
+                {
+                    o.Add(i);
+                }
+                foreach (var i in o)
+                {
+                    Con.WriteLine($"vpn-thing2-{i:D3}        163.220.246.{i}");
+                }
+                return;
+            }
+
             if (false)
             {
                 string password = "microsoft";
