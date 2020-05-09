@@ -264,6 +264,46 @@ namespace IPA.TestDev
         }
 
         [ConsoleCommand(
+            "Authenticode 署名の実施 (内部用)",
+            "SignAuthenticodeLabInternal [filename] [/out:output] [/comment:string] [/driver:yes] [/cert:type]",
+            "Authenticode 署名の実施 (内部用)")]
+        static int SignAuthenticodeLabInternal(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[filename]", ConsoleService.Prompt, "Input Filename: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("out"),
+                new ConsoleParam("comment"),
+                new ConsoleParam("driver"),
+                new ConsoleParam("cert"),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string srcPath = vl.DefaultParam.StrValue;
+
+            string dstPath = vl["out"].StrValue;
+            if (dstPath._IsEmpty()) dstPath = srcPath;
+
+            string comment = vl["comment"].StrValue;
+            bool driver = vl["driver"].BoolValue;
+            string cert = vl["cert"].StrValue;
+
+            using (AuthenticodeSignClient ac = new AuthenticodeSignClient("https://10.40.0.243:7006/sign", "3CCE0F1B9F61AE5114E77C3A306DCBF7A96D22A22BBFC761FB762F2C295FAA5B"))
+            {
+                var srcData = Load(srcPath);
+
+                var dstData = ac.SignSeInternalAsync(srcData, cert, driver ? "Driver" : "", comment._FilledOrDefault("Authenticode"), passwordFilePath: @"\\10.40.0.13\share\TMP\signserver\password.txt")._GetResult();
+
+                dstData._Save(dstPath, flags: FileFlags.AutoCreateDirectory);
+
+                Con.WriteInfo();
+                Con.WriteInfo($"Code sign OK. Written to: '{dstPath}'");
+            }
+
+            return 0;
+        }
+        [ConsoleCommand(
             "自己署名証明書の作成",
             "CertSelfSignedGenerate [filename] /cn:hostName",
             "自己署名証明書の作成")]

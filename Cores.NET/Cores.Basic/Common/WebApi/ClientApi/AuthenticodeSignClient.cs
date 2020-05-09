@@ -61,7 +61,7 @@ namespace IPA.Cores.Basic
 {
     public class AuthenticodeSignClient : AsyncService
     {
-        const string SeInternalPasswordFilePath = @"\\192.168.3.2\share\tmp\signserver\password.txt";
+        const string SeInternalPasswordFilePathDefault = @"\\192.168.3.2\share\tmp\signserver\password.txt";
 
         readonly string Url;
 
@@ -84,11 +84,12 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<byte[]> SignSeInternalAsync(ReadOnlyMemory<byte> srcData, string certName, string flags, string comment, int numRetry = 5, CancellationToken cancel = default)
+        public async Task<byte[]> SignSeInternalAsync(ReadOnlyMemory<byte> srcData, string certName, string flags, string comment, int numRetry = 5, CancellationToken cancel = default,
+            string passwordFilePath = SeInternalPasswordFilePathDefault)
         {
             if (SeInternalPasswordCache._IsEmpty())
             {
-                SeInternalPasswordCache = await Lfs.ReadStringFromFileAsync(SeInternalPasswordFilePath, oneLine: true);
+                SeInternalPasswordCache = await Lfs.ReadStringFromFileAsync(passwordFilePath, oneLine: true);
             }
 
             return await SignAsync(SeInternalPasswordCache, srcData, certName, flags, comment, numRetry, cancel);
