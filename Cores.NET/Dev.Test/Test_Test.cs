@@ -353,17 +353,18 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (false)
+            if (true)
             {
                 List<int> o = new List<int>();
-                o.Add(3);
-                for (int i = 5; i <= 87; i++)
+                for (int i = 32; i <= 82; i++)
                 {
                     o.Add(i);
                 }
+                o.Remove(74);
+
                 foreach (var i in o)
                 {
-                    Con.WriteLine($"vpn-thing2-{i:D3}        163.220.246.{i}");
+                    Con.WriteLine($"vpn-thing4-{i:D3}        219.100.39.{i}");
                 }
                 return;
             }
