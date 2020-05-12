@@ -355,6 +355,21 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                for (int i = 0; i <= 15; i++)
+                {
+                    Con.WriteLine($"SECONDARY:[https://163-220-245-{i}.thin-secure.v4.cyber.ipa.go.jp/widecontrol/?flag=limited]");
+                }
+
+                for (int i = 32; i <= 47; i++)
+                {
+                    Con.WriteLine($"SECONDARY:[https://219-100-39-{i}.thin-secure.v4.cyber.ipa.go.jp/widecontrol/?flag=limited]");
+                }
+
+                return;
+            }
+
+            if (true)
+            {
                 List<int> o = new List<int>();
                 for (int i = 32; i <= 82; i++)
                 {
