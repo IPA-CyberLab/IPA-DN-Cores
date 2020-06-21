@@ -64,15 +64,18 @@ namespace IPA.TestDev
 
             await Task.CompletedTask;
 
-            host.Register("Temperature", 101_00000, new SnmpWorkFetcherTemperature(host));
-            host.Register("Ram", 102_00000, new SnmpWorkFetcherMemory(host));
-            host.Register("Disk", 103_00000, new SnmpWorkFetcherDisk(host));
-            host.Register("Net", 104_00000, new SnmpWorkFetcherNetwork(host));
+            for (int i = 0; i < 100; i++)
+            {
+                host.Register($"Temperature {i}", 101_00000 + i, new SnmpWorkFetcherTemperature(host));
+                host.Register($"Ram {i}", 102_00000 + i, new SnmpWorkFetcherMemory(host));
+                host.Register($"Disk {i}", 103_00000 + i, new SnmpWorkFetcherDisk(host));
+                host.Register($"Net {i}", 104_00000 + i, new SnmpWorkFetcherNetwork(host));
 
-            host.Register("Ping", 105_00000, new SnmpWorkFetcherPing(host));
-            host.Register("Speed", 106_00000, new SnmpWorkFetcherSpeed(host));
-            host.Register("Quality", 107_00000, new SnmpWorkFetcherPktQuality(host));
-            host.Register("Bird", 108_00000, new SnmpWorkFetcherBird(host));
+                host.Register($"Ping {i}", 105_00000 + i, new SnmpWorkFetcherPing(host));
+                host.Register($"Speed {i}", 106_00000 + i, new SnmpWorkFetcherSpeed(host));
+                host.Register($"Quality {i}", 107_00000 + i, new SnmpWorkFetcherPktQuality(host));
+                host.Register($"Bird {i}", 108_00000 + i, new SnmpWorkFetcherBird(host));
+            }
 
             Con.WriteLine("SnmpWorkDaemon: Started.");
         }

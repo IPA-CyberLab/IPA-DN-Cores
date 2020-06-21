@@ -291,7 +291,7 @@ namespace IPA.Cores.Basic
 
         async Task<double> PerformOneAsync(IPAddress ipAddress, int count, int timeout, int interval, CancellationToken cancel = default)
         {
-            await LocalNet.SendPingAsync(ipAddress, timeout: timeout, pingCancel: cancel);
+            await LocalNet.SendPingAsync(ipAddress, timeout: 30, pingCancel: cancel);
 
             int numOk = 0;
 
@@ -299,13 +299,13 @@ namespace IPA.Cores.Basic
             {
                 cancel.ThrowIfCancellationRequested();
 
-                var result = await LocalNet.SendPingAsync(ipAddress, timeout: timeout, pingCancel: cancel);
+                var result = await LocalNet.SendPingAsync(ipAddress, timeout: 30, pingCancel: cancel);
 
                 if (result.Ok) numOk++;
 
                 if (interval >= 1)
                 {
-                    await cancel._WaitUntilCanceledAsync(interval);
+                    //await cancel._WaitUntilCanceledAsync(interval);
                 }
             }
 

@@ -195,7 +195,7 @@ namespace IPA.Cores.Basic
                 int interval = nextPollingInterval;
                 if (interval <= 0) interval = Host.Settings.PollingIntervalsSec * 1000;
 
-                await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(interval));
+                await cancel._WaitUntilCanceledAsync(10);
             }
         }
 
