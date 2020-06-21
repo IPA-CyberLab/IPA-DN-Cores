@@ -26,6 +26,11 @@ TimeoutStopSec=_TIMEOUTSTOP_
 Restart=on-abort
 Environment=HOME=/root
 Environment=DOTNET_CLI_TELEMETRY_OPTOUT=1
+Environment=MALLOC_ARENA_MAX=2
+Environment=MALLOC_MMAP_THRESHOLD_=131072
+Environment=MALLOC_TRIM_THRESHOLD_=131072
+Environment=MALLOC_TOP_PAD_=131072
+Environment=MALLOC_MMAP_MAX_=65536
 _ADDITIONAL_ENV_
 
 [Install]
