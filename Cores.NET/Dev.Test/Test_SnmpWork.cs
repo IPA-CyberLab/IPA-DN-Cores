@@ -64,7 +64,7 @@ namespace IPA.TestDev
 
             await Task.CompletedTask;
 
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 1; i++)
             {
                 host.Register($"Temperature {i}", 101_00000 + i, new SnmpWorkFetcherTemperature(host));
                 host.Register($"Ram {i}", 102_00000 + i, new SnmpWorkFetcherMemory(host));
