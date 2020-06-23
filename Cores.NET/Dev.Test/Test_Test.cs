@@ -355,6 +355,80 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                for (int i = 0; ; i++)
+                {
+                    if ((i % 100) == 0)
+                    {
+                        Dbg.GcCollect();
+                        i._Print();
+                    }
+
+                    try
+                    {
+                        ProcessStartInfo info = new ProcessStartInfo()
+                        {
+                            FileName = "/bin/uname",
+                            UseShellExecute = false,
+
+                            RedirectStandardOutput = false,
+                            RedirectStandardError = false,
+                            RedirectStandardInput = false,
+
+                            CreateNoWindow = false,
+                            Arguments = "-a",
+                            WorkingDirectory = "/",
+                        };
+
+                        using var Proc = Process.Start(info);
+
+//                        Proc.StandardOutput.ReadToEnd();
+//                        Proc.StandardOutput.Close();
+                        Proc.WaitForExit();
+
+                        Proc.Close();
+
+                        //                        Proc.Close();
+                        //Proc.StandardOutput._DisposeSafe();
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+                }
+                return;
+            }
+
+            if (true)
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+                var cancel = cts.Token;
+                Async(async () =>
+                {
+                    for (int i = 0; ; i++)
+                    {
+                        if ((i % 100) == 0)
+                        {
+                            Dbg.GcCollect();
+                            i._Print();
+                        }
+
+                        try
+                        {
+                            var result = await EasyExec.ExecAsync(Consts.LinuxCommands.Sensors, "-u", cancel: cancel);
+
+                            string[] lines = result.OutputStr._GetLines(true);
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Debug();
+                        }
+                    }
+                });
+                return;
+            }
+
+            if (true)
+            {
                 for (int i = 0; i <= 15; i++)
                 {
                     Con.WriteLine($"SECONDARY:[https://163-220-245-{i}.thin-secure.v4.cyber.ipa.go.jp/widecontrol/?flag=limited]");
@@ -460,7 +534,7 @@ namespace IPA.TestDev
                             new Org.BouncyCastle.Asn1.X509.KeyPurposeID[] {
                                 Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPServerAuth, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPClientAuth,
                                 Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecEndSystem, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecTunnel, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecUser }),
-                                
+
                                 new CertificateOptions(PkiAlgorithm.RSA, cn: issuerName, c: "JP"));
 
                     var store = new CertificateStore(cert, priv);
