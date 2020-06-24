@@ -365,7 +365,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
             var res = ret.Deserialize<UserePrefsResponse>(true);
 
-            return res!.prefs!.muted_channels!.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            return res?.prefs?.muted_channels?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? new string[0];
         }
 
         public async Task<WebSocket> RealtimeConnectAsync(CancellationToken cancel = default)
