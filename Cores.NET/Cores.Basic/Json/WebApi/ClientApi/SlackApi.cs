@@ -361,11 +361,11 @@ namespace IPA.Cores.ClientApi.SlackApi
 
         public async Task<string[]> GetMutedChannels(CancellationToken cancel = default)
         {
-            WebRet ret = await SimpleQueryAsync(WebMethods.GET, "https://slack.com/api/users.prefs.set", cancel, null);
+            WebRet ret = await SimpleQueryAsync(WebMethods.GET, "https://slack.com/api/users.prefs.get", cancel, null);
 
             var res = ret.Deserialize<UserePrefsResponse>(true);
 
-            return res?.prefs?.muted_channels?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? new string[0];
+            return res!.prefs!.muted_channels!.Split(',', StringSplitOptions.RemoveEmptyEntries);
         }
 
         public async Task<WebSocket> RealtimeConnectAsync(CancellationToken cancel = default)
