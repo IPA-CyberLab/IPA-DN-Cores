@@ -152,6 +152,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\WebApiJson.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Misc\HtmlParser\HtmlParser.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Misc\HtmlParser\HtmlParserHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Misc\ShellClient\ShellClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Security\Base\Pki.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Security\Base\Crypto.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Security\Base\CryptoLegacy.cs" />

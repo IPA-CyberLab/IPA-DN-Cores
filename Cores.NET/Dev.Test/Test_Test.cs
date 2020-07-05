@@ -357,6 +357,42 @@ namespace IPA.TestDev
             {
                 for (int i = 0; ; i++)
                 {
+                    //if ((i % 100) == 0)
+                    {
+                        $"count = {i}"._Print();
+                        GC.Collect();
+                    }
+                    SecureShellClientSettings s = new SecureShellClientSettings("dnlinux.sec.softether.co.jp", 22, "root", "xxxxxxxx");
+
+                    using (var ssh = new SecureShellClient(s))
+                    {
+                        using var pp = ssh.ConnectAsync()._GetResult();
+                        using var stub = pp.GetNetAppProtocolStub();
+                        using var st = stub.GetStream();
+                        //using var r = new StreamReader(st);
+                        Dbg.Where();
+                        while (true)
+                        {
+                            //string? line = r.ReadLine();
+                            //line._Print();
+                            byte c = (byte)st.ReadByte();
+                            char ch = (char)c;
+                            ch._Print();
+                            //c._Print();
+                            if (ch == '#')
+                            {
+                                break;
+                            }
+                        }
+                    }
+                }
+                return;
+            }
+
+            if (true)
+            {
+                for (int i = 0; ; i++)
+                {
                     if ((i % 100) == 0)
                     {
                         i._Print();

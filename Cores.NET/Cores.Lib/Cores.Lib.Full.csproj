@@ -73,6 +73,7 @@
     <!-- Cores.Basic.Misc -->
     <PackageReference Include="System.Drawing.Common" Version="4.7.0" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
     <PackageReference Include="HtmlAgilityPack " Version="1.11.23" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
+    <PackageReference Include="SSH.NET" Version="2020.0.0-beta1" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
 
   </ItemGroup>
 
