@@ -302,7 +302,7 @@ namespace IPA.Cores.Basic
                     var handle = await Options.DestFileSystem.GetRandomAccessHandleAsync(fileName, true, this.Options.FileFlags | FileFlags.AutoCreateDirectory);
                     var concurrentHandle = handle.GetConcurrentRandomAccess();
 
-                    await concurrentHandle.AppendAsync(buffer.Memory);
+                    await concurrentHandle.AppendWithLargeFsAutoPaddingAsync(buffer.Memory);
 
                     await concurrentHandle.FlushAsync();
                 }

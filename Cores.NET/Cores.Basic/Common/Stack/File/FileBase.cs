@@ -446,8 +446,8 @@ namespace IPA.Cores.Basic
         BackupMode = 2,
         AutoCreateDirectory = 4,
         RandomAccessOnly = 8,
-        LargeFs_AppendWithoutCrossBorder = 16,
-        LargeFs_AppendNewLineForCrossBorder = 32,
+        [Obsolete] LargeFs_AppendWithoutCrossBorder = 16,
+        [Obsolete] LargeFs_AppendNewLineForCrossBorder = 32,
         ForceClearReadOnlyOrHiddenBitsOnNeed = 64,
         OnCreateSetCompressionFlag = 128,
         OnCreateRemoveCompressionFlag = 256,
@@ -458,6 +458,7 @@ namespace IPA.Cores.Basic
         DeleteParentDirOnClose = 8192,
         CopyFile_Verify = 16384,
         NoCheckFileSize = 32768,
+        LargeFs_ProhibitWriteWithCrossBorder = 65536,
     }
 
     public class FileBaseStream : FileStream
@@ -540,10 +541,42 @@ namespace IPA.Cores.Basic
         {
             using (cancellationToken.Register(() => File.Close()))
             {
-                if (File.FileParams.Flags.Bit(FileFlags.RandomAccessOnly))
-                    await File.AppendAsync(buffer._AsReadOnlyMemory(offset, count));
-                else
-                    await File.WriteAsync(buffer._AsReadOnlyMemory(offset, count));
+                try
+                {
+                    if (File.FileParams.Flags.Bit(FileFlags.RandomAccessOnly))
+                        await File.AppendAsync(buffer._AsReadOnlyMemory(offset, count));
+                    else
+                        await File.WriteAsync(buffer._AsReadOnlyMemory(offset, count));
+                }
+                catch (LargeFsWriteWithCrossBorderException padding)
+                {
+                    checked
+                    {
+                        var padData = new byte[(int)padding.RequiredPaddingSize];
+
+                        if (padData.Length >= 2)
+                        {
+                            padData[0] = 13;
+                            padData[1] = 10;
+                        }
+                        else if (padData.Length >= 1)
+                        {
+                            padData[0] = 10;
+                        }
+
+                        // パディング
+                            if (File.FileParams.Flags.Bit(FileFlags.RandomAccessOnly))
+                            await File.AppendAsync(padData);
+                        else
+                            await File.WriteAsync(padData);
+
+                        // データ本体
+                        if (File.FileParams.Flags.Bit(FileFlags.RandomAccessOnly))
+                            await File.AppendAsync(buffer._AsReadOnlyMemory(offset, count));
+                        else
+                            await File.WriteAsync(buffer._AsReadOnlyMemory(offset, count));
+                    }
+                }
             }
         }
 
@@ -1078,6 +1111,27 @@ namespace IPA.Cores.Basic
                 }
             }
         }
+
+        public async Task AppendWithLargeFsAutoPaddingAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default)
+        {
+            using (await TargetLock.LockWithAwait(cancel))
+            {
+                CheckState();
+
+                try
+                {
+                    await Target.AppendWithLargeFsAutoPaddingAsync(data, cancel);
+                }
+                catch (Exception ex)
+                {
+                    SetError(ex);
+                    throw;
+                }
+            }
+        }
+
+        public void AppendWithLargeFsAutoPadding(ReadOnlyMemory<T> data, CancellationToken cancel = default)
+            => AppendWithLargeFsAutoPaddingAsync(data, cancel)._GetResult();
 
         public async Task FlushAsync(CancellationToken cancel = default)
         {
@@ -1702,6 +1756,39 @@ namespace IPA.Cores.Basic
         Task AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default);
         void Append(ReadOnlyMemory<T> data, CancellationToken cancel = default)
             => AppendAsync(data, cancel)._GetResult();
+
+        async Task AppendWithLargeFsAutoPaddingAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default)
+        {
+            try
+            {
+                await AppendAsync(data, cancel);
+            }
+            catch (LargeFsWriteWithCrossBorderException padding)
+            {
+                checked
+                {
+                    T[] padData = new T[(int)padding.RequiredPaddingSize];
+
+                    if (typeof(T) == typeof(byte))
+                    {
+                        if (padData.Length >= 2)
+                        {
+                            padData[0] = (T)Convert.ChangeType(13, typeof(T));
+                            padData[1] = (T)Convert.ChangeType(10, typeof(T));
+                        }
+                        else if (padData.Length == 1)
+                        {
+                            padData[0] = (T)Convert.ChangeType(10, typeof(T));
+                        }
+                    }
+
+                    await AppendAsync(padData, cancel);
+                    await AppendAsync(data, cancel);
+                }
+            }
+        }
+        void AppendWithLargeFsAutoPadding(ReadOnlyMemory<T> data, CancellationToken cancel = default)
+            => AppendWithLargeFsAutoPaddingAsync(data, cancel)._GetResult();
 
         Task<long> GetFileSizeAsync(bool refresh = false, CancellationToken cancel = default);
         long GetFileSize(bool refresh = false, CancellationToken cancel = default)

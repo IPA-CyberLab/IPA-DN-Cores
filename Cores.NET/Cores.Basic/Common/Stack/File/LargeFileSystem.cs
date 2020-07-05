@@ -58,6 +58,16 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class LargeFsWriteWithCrossBorderException : CoresException
+    {
+        public long RequiredPaddingSize { get; }
+
+        public LargeFsWriteWithCrossBorderException(string? message, long requiredPaddingSize) : base(message)
+        {
+            this.RequiredPaddingSize = requiredPaddingSize;
+        }
+    }
+
     public class LargeFileObject : FileObject
     {
         public class Cursor
@@ -356,6 +366,7 @@ namespace IPA.Cores.Basic
 
         Cursor? lastWriteCursor = null;
 
+#pragma warning disable CS0612 // 型またはメンバーが旧型式です
         protected override async Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
         {
             checked
@@ -363,7 +374,7 @@ namespace IPA.Cores.Basic
                 if (data.Length == 0) return;
 
                 List<Cursor> cursorList = GenerateCursorList(position, data.Length, true);
-
+                
                 if (cursorList.Count >= 1 && lastWriteCursor != null)
                 {
                     if (cursorList[0].PhysicalFileNumber != lastWriteCursor.PhysicalFileNumber)
@@ -377,6 +388,29 @@ namespace IPA.Cores.Basic
                     }
                 }
 
+                if (this.FileParams.Flags.Bit(FileFlags.LargeFs_ProhibitWriteWithCrossBorder) && cursorList.Count >= 2)
+                {
+                    if (cursorList.Count >= 3)
+                    {
+                        // Write fails because it beyonds two borders
+                        throw new FileException(this.FileParams.Path, $"LargeFileSystemDoNotAppendBeyondBorder error: pos = {position}, data = {data.Length}");
+                    }
+                    else
+                    {
+                        Debug.Assert(data.Length <= this.LargeFileSystem.Params.MaxSinglePhysicalFileSize);
+
+                        var firstCursor = cursorList[0];
+                        var secondCursor = cursorList[1];
+
+                        Debug.Assert(firstCursor.LogicalPosition == position);
+                        Debug.Assert(secondCursor.LogicalPosition == (firstCursor.LogicalPosition + firstCursor.PhysicalRemainingLength));
+
+                        long requiredPaddingSize = firstCursor.PhysicalRemainingLength;
+
+                        throw new LargeFsWriteWithCrossBorderException($"LargeFs_ProhibitWriteWithCrossBorder. pos = {position}, data = {data.Length}, requiredPaddingSize = {requiredPaddingSize}", requiredPaddingSize);
+                    }
+                }
+                
                 if (this.FileParams.Flags.BitAny(FileFlags.LargeFs_AppendWithoutCrossBorder | FileFlags.LargeFs_AppendNewLineForCrossBorder)
                     && position == this.CurrentFileSize && cursorList.Count >= 2)
                 {
@@ -451,6 +485,7 @@ namespace IPA.Cores.Basic
                 }
             }
         }
+#pragma warning restore CS0612 // 型またはメンバーが旧型式です
 
         protected override async Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
         {

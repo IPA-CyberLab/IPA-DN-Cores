@@ -138,14 +138,14 @@ namespace IPA.Cores.Basic
 
                 if (Options.InfoLogFileName._IsFilled())
                 {
-                    InfoLogFileObj = this.LfsUtf8.OpenOrCreateAppend(Options.InfoLogFileName, flags: FileFlags.AutoCreateDirectory | FileFlags.BackupMode | FileFlags.LargeFs_AppendWithoutCrossBorder);
+                    InfoLogFileObj = this.LfsUtf8.OpenOrCreateAppend(Options.InfoLogFileName, flags: FileFlags.AutoCreateDirectory | FileFlags.BackupMode | FileFlags.LargeFs_ProhibitWriteWithCrossBorder);
                     InfoLogFileStream = InfoLogFileObj.GetStream(true);
                     InfoLogWriter = new StreamWriter(InfoLogFileStream);
                 }
 
                 if (Options.ErrorLogFileName._IsFilled())
                 {
-                    ErrorLogFileObj = this.LfsUtf8.OpenOrCreateAppend(Options.ErrorLogFileName, flags: FileFlags.AutoCreateDirectory | FileFlags.BackupMode | FileFlags.LargeFs_AppendWithoutCrossBorder);
+                    ErrorLogFileObj = this.LfsUtf8.OpenOrCreateAppend(Options.ErrorLogFileName, flags: FileFlags.AutoCreateDirectory | FileFlags.BackupMode | FileFlags.LargeFs_ProhibitWriteWithCrossBorder);
                     ErrorLogFileStream = ErrorLogFileObj.GetStream(true);
                     ErrorLogWriter = new StreamWriter(ErrorLogFileStream);
                 }
