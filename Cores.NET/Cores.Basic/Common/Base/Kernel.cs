@@ -633,6 +633,8 @@ namespace IPA.Cores.Basic
 
                 Proc = Process.Start(info);
 
+                Proc._FixProcessObjectHandleLeak(); // メモリリーク解消
+
                 this.ProcessId = Proc.Id;
 
                 // 標準入出力を接続する
