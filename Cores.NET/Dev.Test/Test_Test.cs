@@ -355,6 +355,33 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                for (int i = 0; ; i++)
+                {
+                    if ((i % 100) == 0)
+                    {
+                        i._Print();
+                        GC.Collect();
+                    }
+
+                    try
+                    {
+                        using (var proc = Process.Start(Env.IsWindows ? @"c:\windows\System32\cacls.exe" : "/bin/true"))
+                        {
+                            proc._FixProcessObjectHandleLeak();
+                            proc.WaitForExit();
+                            proc.Kill(false);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.ToString());
+                    }
+                }
+                return;
+            }
+
+            if (true)
+            {
                 for (int i = 0; i <= 15; i++)
                 {
                     Con.WriteLine($"SECONDARY:[https://163-220-245-{i}.thin-secure.v4.cyber.ipa.go.jp/widecontrol/?flag=limited]");
@@ -460,7 +487,7 @@ namespace IPA.TestDev
                             new Org.BouncyCastle.Asn1.X509.KeyPurposeID[] {
                                 Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPServerAuth, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPClientAuth,
                                 Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecEndSystem, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecTunnel, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecUser }),
-                                
+
                                 new CertificateOptions(PkiAlgorithm.RSA, cn: issuerName, c: "JP"));
 
                     var store = new CertificateStore(cert, priv);

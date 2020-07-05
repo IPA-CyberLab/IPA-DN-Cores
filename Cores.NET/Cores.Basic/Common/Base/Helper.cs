@@ -2003,6 +2003,26 @@ namespace IPA.Cores.Helper.Basic
         }
 
         public static bool _WildcardMatch(this string targetStr, string wildcard, bool ignoreCase = false) => Str.WildcardMatch(targetStr, wildcard, ignoreCase);
+
+        public static void _FixProcessObjectHandleLeak(this Process proc)
+        {
+            try
+            {
+                if ((bool)proc._PrivateGet("_haveProcessHandle")!)
+                {
+                    Microsoft.Win32.SafeHandles.SafeProcessHandle? processHandle = (Microsoft.Win32.SafeHandles.SafeProcessHandle?)proc._PrivateGet("_processHandle");
+                    if (processHandle != null)
+                    {
+                        bool ownsHandle = (bool)processHandle._PrivateGet<SafeHandle>("_ownsHandle")!;
+                        if (ownsHandle == false)
+                        {
+                            processHandle._PrivateSet<SafeHandle>("_ownsHandle", true);
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
     }
 }
 
