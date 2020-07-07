@@ -355,6 +355,18 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                for (int i = 2; i < 4094; i++)
+                {
+                    if ((i % 2) == 0)
+                    {
+                        Con.WriteLine($"switchport trunk allowed vlan add {i}");
+                    }
+                }
+                return;
+            }
+
+            if (true)
+            {
                 for (int i = 0; ; i++)
                 {
                     //if ((i % 100) == 0)
