@@ -2004,8 +2004,12 @@ namespace IPA.Cores.Helper.Basic
 
         public static bool _WildcardMatch(this string targetStr, string wildcard, bool ignoreCase = false) => Str.WildcardMatch(targetStr, wildcard, ignoreCase);
 
+        static bool NoFixProcessObjectHandleLeak = false;
+
         public static void _FixProcessObjectHandleLeak(this Process proc)
         {
+            if (NoFixProcessObjectHandleLeak) return;
+
             try
             {
                 if ((bool)proc._PrivateGet("_haveProcessHandle")!)
@@ -2021,7 +2025,11 @@ namespace IPA.Cores.Helper.Basic
                     }
                 }
             }
-            catch { }
+            catch
+            {
+                // エラーが発生した場合は次回から実施しない
+                NoFixProcessObjectHandleLeak = true;
+            }
         }
     }
 }
