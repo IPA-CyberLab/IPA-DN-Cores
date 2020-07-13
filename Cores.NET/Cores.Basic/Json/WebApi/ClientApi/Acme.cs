@@ -587,7 +587,7 @@ namespace IPA.Cores.ClientApi.Acme
             //webret.Headers._DebugHeaders();
             //webret.ToString()._Debug();
 
-            return webret.CreateUserRet(ret);
+            return webret.CreateUserRet(ret!);
         }
 
         public async Task<AcmeAccount> LoginAccountAsync(PrivKey key, string[] contacts, CancellationToken cancel = default)

@@ -678,7 +678,7 @@ namespace IPA.Cores.Basic
 
         class ByteComparer : IComparer<byte[]>
         {
-            public int Compare(byte[] x, byte[] y) => x.AsSpan().SequenceCompareTo(y.AsSpan());
+            public int Compare(byte[]? x, byte[]? y) => x!.AsSpan().SequenceCompareTo(y!.AsSpan());
         }
 
         public static IPGlobalProperties GetHostNameAndDomainNameInfo(out string hostName, out string domainName)
@@ -791,9 +791,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public override bool Equals(BackgroundStateDataBase otherArg)
+        public override bool Equals(BackgroundStateDataBase? otherArg)
         {
-            PalHostNetInfo other = (PalHostNetInfo)otherArg;
+            PalHostNetInfo other = (PalHostNetInfo)otherArg!;
             if (string.Equals(this.HostName, other.HostName) == false) return false;
             if (string.Equals(this.DomainName, other.DomainName) == false) return false;
             if (this.IsIPv4Supported != other.IsIPv4Supported) return false;

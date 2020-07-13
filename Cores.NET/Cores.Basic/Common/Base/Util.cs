@@ -225,8 +225,8 @@ namespace IPA.Cores.Basic
         public override bool Equals(object? obj) => obj is RefInt x && this.Value == x.Value;
         public override int GetHashCode() => Value.GetHashCode();
 
-        public bool Equals(RefInt other) => this.Value.Equals(other.Value);
-        public int CompareTo(RefInt other) => this.Value.CompareTo(other.Value);
+        public bool Equals(RefInt? other) => this.Value.Equals(other!.Value);
+        public int CompareTo(RefInt? other) => this.Value.CompareTo(other!.Value);
 
         public static bool operator ==(RefInt left, int right) => left.Value == right;
         public static bool operator !=(RefInt left, int right) => left.Value != right;
@@ -252,8 +252,8 @@ namespace IPA.Cores.Basic
         public override bool Equals(object? obj) => obj is RefLong x && this.Value == x.Value;
         public override int GetHashCode() => Value.GetHashCode();
 
-        public bool Equals(RefLong other) => this.Value.Equals(other.Value);
-        public int CompareTo(RefLong other) => this.Value.CompareTo(other.Value);
+        public bool Equals(RefLong? other) => this.Value.Equals(other!.Value);
+        public int CompareTo(RefLong? other) => this.Value.CompareTo(other!.Value);
 
         public static bool operator ==(RefLong left, long right) => left.Value == right;
         public static bool operator !=(RefLong left, long right) => left.Value != right;
@@ -276,8 +276,8 @@ namespace IPA.Cores.Basic
         public override bool Equals(object? obj) => obj is RefBool x && this.Value == x.Value;
         public override int GetHashCode() => Value.GetHashCode();
 
-        public bool Equals(RefBool other) => this.Value.Equals(other.Value);
-        public int CompareTo(RefBool other) => this.Value.CompareTo(other.Value);
+        public bool Equals(RefBool? other) => this.Value.Equals(other!.Value);
+        public int CompareTo(RefBool? other) => this.Value.CompareTo(other!.Value);
 
         public static bool operator ==(RefBool left, bool right) => left.Value == right;
         public static bool operator !=(RefBool left, bool right) => left.Value != right;
@@ -331,7 +331,7 @@ namespace IPA.Cores.Basic
 
         public override int GetHashCode()
         {
-            return -1937169414 + EqualityComparer<T>.Default.GetHashCode(Value);
+            return -1937169414 + EqualityComparer<T>.Default.GetHashCode(Value!);
         }
 
         public static bool operator true(Ref<T> r) { return r.IsTrue(); }
@@ -423,7 +423,7 @@ namespace IPA.Cores.Basic
                    EqualityComparer<T>.Default.Equals(Value, refObj.Value);
         }
 
-        public override int GetHashCode() => -1937169414 + EqualityComparer<T>.Default.GetHashCode(Value);
+        public override int GetHashCode() => -1937169414 + EqualityComparer<T>.Default.GetHashCode(Value!);
 
         public override string? ToString() => Value?.ToString() ?? null;
 
@@ -6408,6 +6408,7 @@ namespace IPA.Cores.Basic
     // 戻り値とエラー (戻り値およびエラーは独立しており、エラーの場合も戻り値は返すことができる)
     public class ResultAndError<T>
     {
+        [AllowNull]
         readonly T ResultInternal = default!;
         readonly bool IsErrorInternal = false;
 
@@ -6450,6 +6451,7 @@ namespace IPA.Cores.Basic
     // 戻り値またはエラー (エラーのときは戻り値がなく、戻り値があるときはエラーはない)
     public class ResultOrError<T>
     {
+        [AllowNull]
         readonly T ResultInternal = default!;
         readonly bool IsErrorInternal = false;
 
@@ -6499,7 +6501,9 @@ namespace IPA.Cores.Basic
 
     public class ResultOrExeption<T>
     {
+        [AllowNull]
         readonly T ResultInternal = default!;
+
         readonly Exception ExceptionInternal = null!;
 
         [MaybeNull]

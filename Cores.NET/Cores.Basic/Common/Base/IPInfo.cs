@@ -50,13 +50,13 @@ namespace IPA.Cores.Basic
         public uint Assigned = 0;
         public string Country2 = "", Country3 = "", CountryFull = "";
 
-        public int CompareTo(FullRouteIPInfoEntry other)
+        public int CompareTo(FullRouteIPInfoEntry? other)
         {
-            if (this.From > other.From)
+            if (this.From > other!.From)
             {
                 return 1;
             }
-            else if (this.From < other.From)
+            else if (this.From < other!.From)
             {
                 return -1;
             }

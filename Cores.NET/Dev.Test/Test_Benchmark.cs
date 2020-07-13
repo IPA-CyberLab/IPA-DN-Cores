@@ -187,9 +187,9 @@ namespace IPA.TestDev
             this.Data = data;
         }
 
-        public bool Equals(TestSt1 other)
+        public bool Equals(TestSt1? other)
         {
-            return Data._MemEquals(other.Data);
+            return Data._MemEquals(other!.Data);
         }
 
         public override int GetHashCode()
@@ -215,10 +215,10 @@ namespace IPA.TestDev
         public long v3;
         public long v4;
 
-        public int CompareTo(TestSt5 other)
+        public int CompareTo(TestSt5? other)
         {
             int r;
-            if ((r = this.v1.CompareTo(other.v1)) != 0) return r;
+            if ((r = this.v1.CompareTo(other!.v1)) != 0) return r;
             if ((r = this.v2.CompareTo(other.v2)) != 0) return r;
             if ((r = this.v3.CompareTo(other.v3)) != 0) return r;
             if ((r = this.v4.CompareTo(other.v4)) != 0) return r;
@@ -226,7 +226,7 @@ namespace IPA.TestDev
             return 0;
         }
 
-        public bool Equals(TestSt5 other)
+        public bool Equals(TestSt5? other)
         {
             return
                 this.v1.Equals(other!.v1) &&

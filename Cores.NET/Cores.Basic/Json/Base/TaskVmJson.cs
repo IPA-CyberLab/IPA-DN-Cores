@@ -104,7 +104,7 @@ namespace IPA.Cores.Basic
             Type oldTaskType = t.GetType();
             object? resultOld = oldTaskType.GetProperty("Result")!.GetValue(t);
             TNewResult resultNew = Json.ConvertObject<TNewResult>(resultOld);
-            return resultNew;
+            return resultNew!;
         }
     }
 }

@@ -45,6 +45,7 @@ using static IPA.Cores.Globals.Basic;
 using System.Net.Http;
 using System.IO;
 using System.Security.Cryptography;
+using Castle.Core.Internal;
 
 namespace IPA.Cores.Basic
 {
@@ -140,11 +141,11 @@ namespace IPA.Cores.Basic
             StreamReader tmpReader = new StreamReader(LowerStream);
             while (true)
             {
-                string line = await TaskUtil.DoAsyncWithTimeout((procCancel) => tmpReader.ReadLineAsync(),
+                string? line = await TaskUtil.DoAsyncWithTimeout((procCancel) => tmpReader.ReadLineAsync(),
                     timeout: Options.TimeoutOpen,
                     cancel: cancel);
 
-                if (line == "")
+                if (line._IsNullOrZeroLen())
                 {
                     break;
                 }

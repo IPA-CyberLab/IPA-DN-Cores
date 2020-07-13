@@ -220,14 +220,14 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public int CompareTo(IPAddr other)
+        public int CompareTo(IPAddr? other)
         {
-            return Util.MemCompare(this.Bytes, other.Bytes);
+            return Util.MemCompare(this.Bytes, other!.Bytes);
         }
 
-        public bool Equals(IPAddr other)
+        public bool Equals(IPAddr? other)
         {
-            return Util.MemEquals(this.Bytes, other.Bytes);
+            return Util.MemEquals(this.Bytes, other!.Bytes);
         }
 
         public static int GetAddressSizeFromAddressFamily(AddressFamily family)
@@ -598,14 +598,14 @@ namespace IPA.Cores.Basic
             return Util.MemCompare(this.Address.GetBytes(), ((FullRouteEntry)obj!).Address.GetBytes());
         }
 
-        int IComparable<FullRouteEntry>.CompareTo(FullRouteEntry other)
+        int IComparable<FullRouteEntry>.CompareTo(FullRouteEntry? other)
         {
-            return Util.MemCompare(this.Address.GetBytes(), other.Address.GetBytes());
+            return Util.MemCompare(this.Address.GetBytes(), other!.Address.GetBytes());
         }
 
-        bool IEquatable<FullRouteEntry>.Equals(FullRouteEntry other)
+        bool IEquatable<FullRouteEntry>.Equals(FullRouteEntry? other)
         {
-            return Util.MemEquals(this.Address.GetBytes(), other.Address.GetBytes());
+            return Util.MemEquals(this.Address.GetBytes(), other!.Address.GetBytes());
         }
 
         public string GetBinaryString()
@@ -721,14 +721,14 @@ namespace IPA.Cores.Basic
             return this.Number;
         }
 
-        public bool Equals(FullRouteAsNumber other)
+        public bool Equals(FullRouteAsNumber? other)
         {
-            return this.Number.Equals(other.Number);
+            return this.Number.Equals(other!.Number);
         }
 
-        public int CompareTo(FullRouteAsNumber other)
+        public int CompareTo(FullRouteAsNumber? other)
         {
-            return this.Number.CompareTo(other.Number);
+            return this.Number.CompareTo(other!.Number);
         }
 
         public static FullRouteAsNumber NewDummyAs(int num)
@@ -958,14 +958,14 @@ namespace IPA.Cores.Basic
             buf.WriteAsciiStr(this.CountryFull);
         }
 
-        public int CompareTo(FullRouteCountryEntry other)
+        public int CompareTo(FullRouteCountryEntry? other)
         {
-            return this.Country2.CompareTo(other.Country2);
+            return this.Country2.CompareTo(other!.Country2);
         }
 
-        public bool Equals(FullRouteCountryEntry other)
+        public bool Equals(FullRouteCountryEntry? other)
         {
-            return this.Country2.Equals(other.Country2, StringComparison.OrdinalIgnoreCase);
+            return this.Country2.Equals(other!.Country2, StringComparison.OrdinalIgnoreCase);
         }
 
         public override bool Equals(object? obj)
@@ -1719,9 +1719,9 @@ namespace IPA.Cores.Basic
             this.Value = value;
         }
 
-        public int CompareTo(FullRouteSpaceEntry other)
+        public int CompareTo(FullRouteSpaceEntry? other)
         {
-            return this.IPStart.CompareTo(other.IPStart);
+            return this.IPStart.CompareTo(other!.IPStart);
         }
     }
 

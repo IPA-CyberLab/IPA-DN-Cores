@@ -157,9 +157,9 @@ namespace IPA.Cores.Basic
             return e;
         }
 
-        public int CompareTo(MailUser other)
+        public int CompareTo(MailUser? other)
         {
-            return this.MailAddress.CompareTo(other.MailAddress);
+            return this.MailAddress.CompareTo(other!.MailAddress);
         }
     }
 
@@ -312,9 +312,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public int CompareTo(MailItem other)
+        public int CompareTo(MailItem? other)
         {
-            return this.DestMailUser.CompareTo(other.DestMailUser);
+            return this.DestMailUser.CompareTo(other!.DestMailUser);
         }
 
         public bool Send(string server)

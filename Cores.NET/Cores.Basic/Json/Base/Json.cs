@@ -144,7 +144,7 @@ namespace IPA.Cores.Basic
         }
 
         [return: NotNullIfNotNull("obj")]
-        public static T CloneWithJson<T>(T obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null)
+        public static T CloneWithJson<T>([AllowNull] T obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null)
         {
             return (T)CloneObjectWithJson((object?)obj, escapeHtml, maxDepth, referenceHandling, type ?? typeof(T))!;
         }

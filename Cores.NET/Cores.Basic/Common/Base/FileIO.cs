@@ -253,9 +253,9 @@ namespace IPA.Cores.Basic
             public Buf? CompressedData;
             public int Offset = 0;
 
-            int IComparable<HamCoreBuilderFileEntry>.CompareTo(HamCoreBuilderFileEntry other)
+            int IComparable<HamCoreBuilderFileEntry>.CompareTo(HamCoreBuilderFileEntry? other)
             {
-                return this.Name!.CompareTo(other.Name);
+                return this.Name!.CompareTo(other!.Name);
             }
         }
 
@@ -625,13 +625,13 @@ namespace IPA.Cores.Basic
             internal DateTime updateDate;
             public DateTime UpdateDate => updateDate;
 
-            public int CompareTo(DirEntry other)
+            public int CompareTo(DirEntry? other)
             {
                 int i;
-                i = Str.StrCmpiRetInt(this.fileName, other.fileName);
+                i = Str.StrCmpiRetInt(this.fileName, other!.fileName);
                 if (i == 0)
                 {
-                    i = Str.StrCmpRetInt(this.fileName, other.fileName);
+                    i = Str.StrCmpRetInt(this.fileName, other!.fileName);
                 }
 
                 return i;

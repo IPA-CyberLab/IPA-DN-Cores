@@ -2076,7 +2076,9 @@ namespace IPA.Cores.Basic
 
     public class Holder<T> : IHolder
     {
+        [AllowNull]
         public T Value { get; }
+
         Action<T> DisposeProc;
         IHolder? Leak = null;
         LeakCounterKind LeakKind;
@@ -2130,7 +2132,9 @@ namespace IPA.Cores.Basic
 
     public class AsyncHolder<T> : IAsyncHolder
     {
+        [AllowNull]
         public T Value { get; }
+
         Func<T, Task> DisposeProcAsync;
         IHolder? Leak = null;
         LeakCounterKind LeakKind;
@@ -2186,7 +2190,9 @@ namespace IPA.Cores.Basic
 
     public struct ValueHolder<T> : IHolder
     {
+        [AllowNull]
         public T Value { get; }
+
         Action<T>? DisposeProc;
         IHolder? Leak;
         LeakCounterKind LeakKind;
@@ -2829,7 +2835,7 @@ namespace IPA.Cores.Basic
 
     public class AsyncBulkReceiver<TUserReturnElement, TUserState>
     {
-        public delegate Task<ValueOrClosed<TUserReturnElement>> AsyncReceiveCallback(TUserState state, CancellationToken cancel);
+        public delegate Task<ValueOrClosed<TUserReturnElement>> AsyncReceiveCallback([AllowNull] TUserState state, CancellationToken cancel);
 
         public int DefaultMaxCount { get; } = 1024;
 
@@ -3042,6 +3048,7 @@ namespace IPA.Cores.Basic
                 this.First.GetLast().Enqueue(value, Distinct);
         }
 
+        [return: MaybeNull]
         public T Dequeue()
         {
             lock (GlobalLock)
@@ -3227,8 +3234,8 @@ namespace IPA.Cores.Basic
                 this.Value = value;
             }
 
-            public int CompareTo(HierarchyBodyItem other) => this.Position.CompareTo(other.Position);
-            public bool Equals(HierarchyBodyItem other) => this.Position.Equals(other.Position);
+            public int CompareTo(HierarchyBodyItem? other) => this.Position.CompareTo(other!.Position);
+            public bool Equals(HierarchyBodyItem? other) => this.Position.Equals(other!.Position);
             public override bool Equals(object? obj) => (obj is HierarchyBodyItem) ? this.Position.Equals(obj as HierarchyBodyItem) : false;
             public override int GetHashCode() => this.Position.GetHashCode();
         }
@@ -3601,7 +3608,7 @@ namespace IPA.Cores.Basic
 
         public abstract BackgroundStateDataUpdatePolicy DataUpdatePolicy { get; }
 
-        public abstract bool Equals(BackgroundStateDataBase other);
+        public abstract bool Equals(BackgroundStateDataBase? other);
 
         public abstract void RegisterSystemStateChangeNotificationCallbackOnlyOnceImpl(Action callMe);
     }
@@ -3855,7 +3862,7 @@ namespace IPA.Cores.Basic
 
     public static class TaskVar<T>
     {
-        public static T Value { get => TaskVar.Get<T>(); set => TaskVar.Set<T>(value); }
+        public static T Value { get => TaskVar.Get<T>()!; set => TaskVar.Set<T>(value); }
     }
 
     public static class TaskVar
@@ -4344,7 +4351,7 @@ namespace IPA.Cores.Basic
             Leak = LeakChecker.Enter(LeakCounterKind.SingleThreadWorker);
         }
 
-        public async Task<TResult> ExecAsync<TResult, TParam>(Func<TParam, TResult> proc, TParam param, int timeout = Timeout.Infinite, CancellationToken cancel = default)
+        public async Task<TResult> ExecAsync<TResult, TParam>(Func<TParam, TResult> proc, [AllowNull] TParam param, int timeout = Timeout.Infinite, CancellationToken cancel = default)
         {
             if (DisposeFlag.IsSet) throw new ObjectDisposedException("SingleWorkerThread");
 
@@ -4354,7 +4361,7 @@ namespace IPA.Cores.Basic
                 if (cancel.CanBeCanceled) throw new ArgumentException("this.SelfThread == true && cancel.CanBeCanceled == true");
                 if (this.SelfThreadId != Environment.CurrentManagedThreadId) throw new ApplicationException("this.SelfThreadId != Environment.CurrentManagedThreadId");
 
-                return proc(param);
+                return proc(param!);
             }
 
             Job job = new Job((p) => proc((TParam)p!), param);

@@ -3736,16 +3736,16 @@ namespace IPA.Cores.Basic
         }
 
         [MethodImpl(Inline)]
-        public int CompareTo(BitStructKey<TStruct> other)
+        public int CompareTo(BitStructKey<TStruct>? other)
         {
-            return Util.StructBitCompare(in this.Value, in other.Value);
+            return Util.StructBitCompare(in this.Value, in other!.Value);
         }
 
         [MethodImpl(Inline)]
-        public bool Equals(BitStructKey<TStruct> other)
+        public bool Equals(BitStructKey<TStruct>? other)
         {
-            if (this.HashCode != other.HashCode) return false;
-            return Util.StructBitEquals(in this.Value, in other.Value);
+            if (this.HashCode != other!.HashCode) return false;
+            return Util.StructBitEquals(in this.Value, in other!.Value);
         }
 
         [MethodImpl(Inline)]
@@ -3855,14 +3855,14 @@ namespace IPA.Cores.Basic
         {
             internal ArrayComparerImpl(EnsureInternal yes) { }
 
-            public int Compare(T[] x, T[] y)
+            public int Compare(T[]? x, T[]? y)
             {
-                return x._MemCompare(y);
+                return x!._MemCompare(y!);
             }
 
-            public bool Equals(T[] x, T[] y)
+            public bool Equals(T[]? x, T[]? y)
             {
-                return x._MemEquals(y);
+                return x!._MemEquals(y!);
             }
 
             public int GetHashCode(T[] obj)

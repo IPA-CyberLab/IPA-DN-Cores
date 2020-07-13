@@ -492,9 +492,9 @@ namespace IPA.Cores.Basic
             return this.Equals(privateKey.PublicKey);
         }
 
-        public bool Equals(PubKey other)
+        public bool Equals(PubKey? other)
         {
-            return this.PublicKeyData.Equals(other.PublicKeyData);
+            return this.PublicKeyData.Equals(other!.PublicKeyData);
         }
 
         public ISigner GetVerifier(PkiShaSize? shaSize = null)

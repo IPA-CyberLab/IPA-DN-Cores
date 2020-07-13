@@ -505,14 +505,14 @@ namespace IPA.Cores.Basic
             this.IsEmpty = Str.IsEmptyStr(strValue);
         }
 
-        public int CompareTo(ConsoleParamValue other)
+        public int CompareTo(ConsoleParamValue? other)
         {
-            return Str.StrCmpiRetInt(this.Name, other.Name);
+            return Str.StrCmpiRetInt(this.Name, other!.Name);
         }
 
-        public bool Equals(ConsoleParamValue other)
+        public bool Equals(ConsoleParamValue? other)
         {
-            return Str.StrCmpi(this.Name, other.Name);
+            return Str.StrCmpi(this.Name, other!.Name);
         }
     }
 

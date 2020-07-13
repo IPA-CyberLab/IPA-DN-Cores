@@ -832,7 +832,13 @@ namespace IPA.Cores.Basic
             try
             {
                 GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            }
+            catch
+            {
+            }
 
+            try
+            {
                 GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true, true);
             }
             catch

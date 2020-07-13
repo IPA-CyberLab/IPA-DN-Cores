@@ -410,7 +410,10 @@ namespace IPA.Cores.Helper.Basic
         public static string _TruncStrMiddle(this string? str, int maxLen, string appendCode = "..") => Str.TruncStrMiddle(str, maxLen, appendCode);
         public static string? _NullIfEmpty(this string? str) => Str.IsFilledStr(str) ? str : null;
         public static string? _NullIfZeroLen(this string? str) => str == null ? null : (str.Length == 0 ? null : str);
+
+        [return: MaybeNull]
         public static T _NullIfEmpty<T>(this T obj) => Util.IsFilled(obj) ? obj : default;
+
         public static byte[] _HashSHA256(this string? str) => Str.HashStrSHA256(str);
         public static string _CombinePath(this string str, string p1) => Path.Combine(str, p1);
         public static string _CombinePath(this string str, string p1, string p2) => Path.Combine(str, p1, p2);
@@ -1388,6 +1391,7 @@ namespace IPA.Cores.Helper.Basic
             return obj;
         }
 
+        [return: MaybeNull]
         public static T _DequeueOrNull<T>(this Queue<T> queue) => (queue.TryDequeue(out T ret) ? ret : default);
 
         public static async Task<bool> _WaitUntilCanceledAsync(this CancellationToken cancel, int timeout = Timeout.Infinite)
@@ -1891,7 +1895,7 @@ namespace IPA.Cores.Helper.Basic
             }
             else
             {
-                value = tmp.First().Value;
+                value = tmp.First().Value!;
                 return true;
             }
         }

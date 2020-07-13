@@ -170,7 +170,10 @@ namespace IPA.Cores.Basic
 
         object ResultLock = new object();
         public Exception? Error { get; private set; } = null;
-        public TResult Result => this.GetResult(out _);
+
+        public TResult Result => this.GetResult(out _)!;
+
+        [AllowNull]
         TResult result = default(TResult)!;
         public bool IsCompleted { get; private set; } = false;
         public bool IsAborted { get; private set; } = false;
@@ -209,7 +212,7 @@ namespace IPA.Cores.Basic
 
         TResult GetResultSimple()
         {
-            return this.GetResult();
+            return this.GetResult()!;
         }
 
         public bool Abort(bool noWait = false)

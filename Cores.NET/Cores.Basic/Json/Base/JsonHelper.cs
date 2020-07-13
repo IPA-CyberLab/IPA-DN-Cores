@@ -51,13 +51,13 @@ namespace IPA.Cores.Helper.Basic
         public static string _ObjectToJson(this object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null)
             => Json.Serialize(obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type);
 
-        public static string _ObjectToJson<T>(this T obj, EnsurePresentInterface yes, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false)
+        public static string _ObjectToJson<T>([AllowNull] this T obj, EnsurePresentInterface yes, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false)
             => _ObjectToJson(obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, typeof(T));
 
         public static void _ObjectToJsonTextWriter(this object? obj, TextWriter destTextWriter, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type? type = null)
             => Json.Serialize(destTextWriter, obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling, type);
 
-        public static void _ObjectToJsonTextWriter<T>(this T obj, TextWriter destTextWriter, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
+        public static void _ObjectToJsonTextWriter<T>([AllowNull] this T obj, TextWriter destTextWriter, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
             => _ObjectToJsonTextWriter(obj, destTextWriter, includeNull, escapeHtml, maxDepth, compact, referenceHandling, typeof(T));
 
         [return: MaybeNull]
@@ -90,7 +90,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _JsonNormalize(this string s)
             => Json.Normalize(s);
 
-        public static long _ObjectToFile<T>(this T obj, string path, FileSystem? fs = null, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
+        public static long _ObjectToFile<T>([AllowNull] this T obj, string path, FileSystem? fs = null, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
             bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
             => (fs ?? Lfs).WriteJsonToFile<T>(path, obj, flags, doNotOverwrite, cancel, includeNull, escapeHtml, maxDepth, compact, referenceHandling);
 
@@ -100,7 +100,7 @@ namespace IPA.Cores.Helper.Basic
             => (fs ?? Lfs).ReadJsonFromFile<T>(path, maxSize, flags, cancel, includeNull, maxDepth, nullIfError);
 
         [return: NotNullIfNotNull("obj")]
-        public static T _CloneWithJson<T>(this T obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null)
+        public static T _CloneWithJson<T>([AllowNull] this T obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null)
             => Json.CloneWithJson(obj, escapeHtml, maxDepth, referenceHandling, type);
 
         [return: NotNullIfNotNull("obj")]
@@ -179,7 +179,7 @@ namespace IPA.Cores.Basic
 
             return await this.WriteHugeMemoryBufferToFileAsync(path, mem, flags, doNotOverwrite, cancel);
         }
-        public long WriteJsonToFile<T>(string path, T obj, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
+        public long WriteJsonToFile<T>(string path, [AllowNull] T obj, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
             bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
             => WriteJsonToFileAsync(path, obj, flags, doNotOverwrite, cancel, includeNull, escapeHtml, maxDepth, compact, referenceHandling)._GetResult();
 
@@ -206,7 +206,7 @@ namespace IPA.Cores.Basic
                 {
                     using (StreamReader r = new StreamReader(stream, Str.Utf8Encoding, true, Consts.Numbers.DefaultVeryLargeBufferSize))
                     {
-                        return r._JsonToObject<T>(includeNull, maxDepth);
+                        return r._JsonToObject<T>(includeNull, maxDepth)!;
                     }
                 }
             }

@@ -67,8 +67,8 @@ namespace IPA.Cores.Basic
                 this.HashCode = address.GetHashCode();
             }
 
-            public bool Equals(SingleIPAddress other)
-                => this.IPAddress.Equals(other.IPAddress);
+            public bool Equals(SingleIPAddress? other)
+                => this.IPAddress.Equals(other!.IPAddress);
 
             public override bool Equals(object? obj)
                 => Equals((SingleIPAddress)obj._NullCheck());
