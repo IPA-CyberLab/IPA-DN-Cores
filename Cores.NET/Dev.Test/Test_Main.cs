@@ -58,7 +58,7 @@ namespace IPA.TestDev
             IsDebugBuild = (debugChecker >= 1);
         }
     }
-
+    
     class TestDevAppMain
     {
         static int Main(string[] args)

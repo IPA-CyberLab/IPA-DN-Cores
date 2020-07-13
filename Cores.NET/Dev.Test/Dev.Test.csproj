@@ -7,7 +7,7 @@
     <PackageId>Dev.Test</PackageId>
     <Authors>IPA-CyberLab</Authors>
     <ServerGarbageCollection>false</ServerGarbageCollection>
-    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
     <Nullable>enable</Nullable>
     <TieredCompilationQuickJit>false</TieredCompilationQuickJit>

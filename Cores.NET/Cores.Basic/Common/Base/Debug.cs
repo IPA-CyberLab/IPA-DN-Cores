@@ -50,6 +50,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.IO.Pipes;
+using System.Runtime;
 
 namespace IPA.Cores.Basic
 {
@@ -826,7 +827,18 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void GcCollect() => GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true, true);
+        public static void GcCollect()
+        {
+            try
+            {
+                GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true, true);
+            }
+            catch
+            {
+            }
+        }
 
         public static void Suspend() => Kernel.SuspendForDebug();
 
