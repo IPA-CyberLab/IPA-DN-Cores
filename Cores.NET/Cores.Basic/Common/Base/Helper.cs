@@ -2035,6 +2035,12 @@ namespace IPA.Cores.Helper.Basic
                 NoFixProcessObjectHandleLeak = true;
             }
         }
+
+        public static long _ToTime64(this DateTime dt) => Time.DateTimeToTime64(dt);
+        public static long _ToTime64(this DateTimeOffset dt) => Time.DateTimeToTime64(dt.UtcDateTime);
+        public static DateTime _Time64ToDateTime(this long value) => Time.Time64ToDateTime(value);
+        public static DateTimeOffset _Time64ToDateTimeOffsetUtc(this long value) => Time.Time64ToDateTimeOffsetUtc(value);
+        public static DateTimeOffset _Time64ToDateTimeOffsetLocal(this long value) => Time.Time64ToDateTimeOffsetLocal(value);
     }
 }
 

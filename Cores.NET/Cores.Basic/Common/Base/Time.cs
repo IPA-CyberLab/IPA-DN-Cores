@@ -323,7 +323,8 @@ namespace IPA.Cores.Basic
 
         public static long DateTimeToTime64(DateTime dt) => (long)Util.ConvertDateTime(dt);
         public static DateTime Time64ToDateTime(long time64) => Util.ConvertDateTime((ulong)time64);
-        public static DateTimeOffset Time64ToDateTimeOffsetUtc(long time64) => Time64ToDateTime(time64);
+        public static DateTimeOffset Time64ToDateTimeOffsetUtc(long time64) => Time64ToDateTime(time64)._AsDateTimeOffset(false);
+        public static DateTimeOffset Time64ToDateTimeOffsetLocal(long time64) => Time64ToDateTime(time64).ToLocalTime()._AsDateTimeOffset(true);
 
         public static long SystemTime64 => DateTimeToTime64(DateTime.UtcNow);
         public static long LocalTime64 => DateTimeToTime64(DateTime.Now);
