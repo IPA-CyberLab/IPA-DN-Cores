@@ -59,7 +59,7 @@ namespace IPA.Cores.Basic
         public static partial class DefaultHttpClientSettings
         {
             public static readonly Copenhagen<int> MaxConnectionPerServer = 512;
-            public static readonly Copenhagen<int> PooledConnectionLifeTime = 60 * 1000;
+            public static readonly Copenhagen<int> PooledConnectionLifeTime = 15 * 1000;
             public static readonly Copenhagen<int> Timeout = 60 * 1000;
             public static readonly Copenhagen<int> MaxRecvSize = 100 * 1024 * 1024;
             public static readonly Copenhagen<bool> UseProxy = true;
@@ -415,7 +415,10 @@ namespace IPA.Cores.Basic
 
             try
             {
-                this.ClientHandler.UseProxy = this.Settings.UseProxy;
+                if (this.ClientHandler.UseProxy != this.Settings.UseProxy)
+                {
+                    this.ClientHandler.UseProxy = this.Settings.UseProxy;
+                }
             }
             catch { }
 

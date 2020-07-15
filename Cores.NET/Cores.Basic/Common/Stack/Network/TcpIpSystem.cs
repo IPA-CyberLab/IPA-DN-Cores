@@ -51,6 +51,7 @@ namespace IPA.Cores.Basic
         public static partial class TcpIpSystemSettings
         {
             public static readonly Copenhagen<int> LocalHostPossibleGlobalIpAddressListCacheLifetime = 5 * 60 * 1000;
+            public static readonly Copenhagen<int> LocalHostHostInfoCacheLifetime = 60 * 1000; // UNIX のみ
         }
 
         public static partial class TcpIpStackDefaultSettings
@@ -333,7 +334,7 @@ namespace IPA.Cores.Basic
     {
         protected new TcpIpSystemParam Param => (TcpIpSystemParam)base.Param;
 
-        protected abstract TcpIpSystemHostInfo GetHostInfoImpl(bool once);
+        protected abstract TcpIpSystemHostInfo GetHostInfoImpl(bool doNotStartBackground);
         protected abstract int RegisterHostInfoChangedEventImpl(AsyncAutoResetEvent ev);
         protected abstract void UnregisterHostInfoChangedEventImpl(int registerId);
         protected abstract NetTcpProtocolStubBase CreateTcpProtocolStubImpl(TcpConnectParam param, CancellationToken cancel);
@@ -351,7 +352,7 @@ namespace IPA.Cores.Basic
                 GetLocalHostPossibleGlobalIpAddressListMainAsync);
         }
 
-        public TcpIpSystemHostInfo GetHostInfo(bool once) => GetHostInfoImpl(once);
+        public TcpIpSystemHostInfo GetHostInfo(bool doNotStartBackground) => GetHostInfoImpl(doNotStartBackground);
 
         public int RegisterHostInfoChangedEvent(AsyncAutoResetEvent ev) => RegisterHostInfoChangedEventImpl(ev);
         public void UnregisterHostInfoChangedEvent(int registerId) => UnregisterHostInfoChangedEventImpl(registerId);

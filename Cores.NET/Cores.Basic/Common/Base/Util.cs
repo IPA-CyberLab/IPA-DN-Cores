@@ -4487,18 +4487,30 @@ namespace IPA.Cores.Basic
     public class CachedProperty<T>
     {
         object LockObj = new object();
-        bool IsCached = false;
+        volatile bool IsCached = false;
         T CachedValue = default!;
 
-        Func<T>? Getter;
-        Func<T, T>? Setter;
-        Func<T, T>? Normalizer;
+        readonly Func<T>? Getter;
+        readonly Func<T, T>? Setter;
+        readonly Func<T, T>? Normalizer;
 
-        public CachedProperty(Func<T, T>? setter = null, Func<T>? getter = null, Func<T, T>? normalizer = null)
+        public long ExpiresInterval { get; }
+        public bool HasLifeTime { get; }
+        public long CurrentLifeTime { get; private set; }
+
+        public CachedProperty(Func<T, T>? setter = null, Func<T>? getter = null, Func<T, T>? normalizer = null, int expiresLifeTimeMsecs = Timeout.Infinite)
         {
+            if (expiresLifeTimeMsecs <= 0) expiresLifeTimeMsecs = Timeout.Infinite;
+
             Setter = setter;
             Getter = getter;
             Normalizer = normalizer;
+
+            if (expiresLifeTimeMsecs != Timeout.Infinite)
+            {
+                HasLifeTime = true;
+                this.ExpiresInterval = expiresLifeTimeMsecs;
+            }
         }
 
         public bool TrySet(T value)
@@ -4525,17 +4537,22 @@ namespace IPA.Cores.Basic
                 value = Setter(value);
                 CachedValue = value;
                 IsCached = true;
+
+                if (this.HasLifeTime)
+                {
+                    this.CurrentLifeTime = Time.Tick64 + this.ExpiresInterval;
+                }
             }
         }
 
         public T Get()
         {
-            if (IsCached)
+            if (IsCached && (this.HasLifeTime == false || Time.Tick64 <= this.CurrentLifeTime))
                 return CachedValue;
 
             lock (LockObj)
             {
-                if (IsCached)
+                if (IsCached && (this.HasLifeTime == false || Time.Tick64 <= this.CurrentLifeTime))
                     return CachedValue;
 
                 if (Getter == null) throw new NotImplementedException("The value is undefined yet.");
@@ -4548,6 +4565,11 @@ namespace IPA.Cores.Basic
                 CachedValue = value;
                 IsCached = true;
 
+                if (this.HasLifeTime)
+                {
+                    this.CurrentLifeTime = Time.Tick64 + this.ExpiresInterval;
+                }
+
                 return value;
             }
         }
@@ -4558,6 +4580,11 @@ namespace IPA.Cores.Basic
             {
                 IsCached = false;
                 CachedValue = default!;
+
+                if (this.HasLifeTime)
+                {
+                    this.CurrentLifeTime = 0;
+                }
             }
         }
 

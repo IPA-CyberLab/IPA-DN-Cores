@@ -61,11 +61,11 @@ namespace IPA.Cores.Basic
             public override bool IsIPv6Supported { get; protected set; }
             public override IReadOnlyList<IPAddress> IPAddressList { get; protected set; }
 
-            public HostInfo(bool once)
+            public HostInfo(bool doNotStartBackground)
             {
                 PalHostNetInfo data;
 
-                if (once == false)
+                if (doNotStartBackground == false)
                 {
                     // Background 定期的チェックを開始してそこから取得する
                     // 本来軽量であるが、フルルート BGP ルータなどで動作すると大変重くなる
@@ -110,7 +110,21 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override TcpIpSystemHostInfo GetHostInfoImpl(bool once) => new HostInfo(once);
+        static readonly CachedProperty<TcpIpSystemHostInfo> CachedSystemHostInfo = new CachedProperty<TcpIpSystemHostInfo>(getter: () => new HostInfo(true), expiresLifeTimeMsecs: CoresConfig.TcpIpSystemSettings.LocalHostHostInfoCacheLifetime);
+
+        protected override TcpIpSystemHostInfo GetHostInfoImpl(bool doNotStartBackground)
+        {
+            if (doNotStartBackground == false || Env.IsWindows)
+            {
+                // Windows の場合は、doNotStartBackground が true でもバックグラウンドを起動する。
+                // これは、UNIX (Linux) と異なり、パフォーマンス上の問題がないためである。
+                return new HostInfo(false);
+            }
+            else
+            {
+                return CachedSystemHostInfo;
+            }
+        }
 
         protected override int RegisterHostInfoChangedEventImpl(AsyncAutoResetEvent ev)
         {
