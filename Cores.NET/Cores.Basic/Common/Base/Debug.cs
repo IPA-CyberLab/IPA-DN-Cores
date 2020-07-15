@@ -86,6 +86,8 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<StatisticsReporterLogTypes> CoresStatLogType = StatisticsReporterLogTypes.Snapshot;
             public static readonly Copenhagen<bool> CoresStatPrintToConsole = false;
 
+            public static readonly Copenhagen<int> AutoGcCollectIntervalSecs = 5 * 60; // 単位: 秒
+
             public static void SetDebugModeInternal(DebugMode mode = DebugMode.Debug, bool printStatToConsole = false, bool leakFullStack = false)
             {
                 switch (mode)
@@ -1357,10 +1359,11 @@ namespace IPA.Cores.Basic
 
         public void Refresh()
         {
+            long mem = GC.GetTotalMemory(false);
+
             ThreadPool.GetAvailableThreads(out int avail_workers, out int avail_ports);
             ThreadPool.GetMaxThreads(out int max_workers, out int max_ports);
             ThreadPool.GetMinThreads(out int min_workers, out int min_ports);
-            long mem = GC.GetTotalMemory(false);
             int num_queued = TaskUtil.GetQueuedTasksCount();
             int num_timered = TaskUtil.GetScheduledTimersCount();
 
@@ -1386,8 +1389,12 @@ namespace IPA.Cores.Basic
 
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
+        public static readonly RefInt CurrentCounter = 0;
+
         static void ModuleInit()
         {
+            CurrentCounter.Set(0);
+
             Reporter = new StatisticsReporter<CoresRuntimeStat>(1000,
                 CoresConfig.DebugSettings.CoresStatLogType,
                 async (snapshot, diff, velocity)
@@ -1401,7 +1408,20 @@ namespace IPA.Cores.Basic
                 },
                 (current, nonsense, userState) =>
                 {
+                    int r = CurrentCounter.Increment();
+                    int x = CoresConfig.DebugSettings.AutoGcCollectIntervalSecs;
+
+                    if (x >= 1)
+                    {
+                        if ((r % x) == 0)
+                        {
+                            // 定期的 GC
+                            Dbg.GcCollect();
+                        }
+                    }
+
                     current.Refresh();
+
                     return Task.CompletedTask;
                 });
         }
