@@ -351,8 +351,26 @@ namespace IPA.TestDev
             }
         }
 
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                var data = LogStatMemoryLeakAnalyzer.AnalyzeLogFiles(@"C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\Log\Stat");
+
+                data._ObjectArrayToCsv(true)._WriteTextFile(@"c:\tmp\test.csv");
+                return;
+            }
+
+            if (true)
+            {
+                string testStr = "{\"TimeStamp\":\"2020-07-13T13:15:07.0557759+09:00\",\"Data\":{\"Task\":1,\"D\":19,\"Q\":34,\"S\":2,\"Obj\":359,\"IO\":0,\"Cpu\":6,\"Mem\":26022,\"Task2\":32766},\"TypeName\":\"CoresRuntimeStat\",\"Kind\":\"Stat\",\"Priority\":\"Info\",\"Tag\":\"Snapshot\",\"AppName\":\"PPPoEServer\",\"MachineName\":\"mist-pppoe-server1.lab.coe.ad.jp\",\"Guid\":\"9271e0b0186f4bad83920044f950c2ad\"}";
+
+                var x = testStr._JsonToObject<LogJsonParseAsRuntimeStat>();
+
+                return;
+            }
+
             if (true)
             {
                 for (int i = 2; i < 4094; i++)

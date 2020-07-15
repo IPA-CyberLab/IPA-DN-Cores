@@ -47,6 +47,26 @@ namespace IPA.TestDev
 {
     partial class TestDevCommands
     {
+        [ConsoleCommand(
+        "ログ stat データからメモリリーク分析",
+        "AnalyzeLogStatMemoryLeak [srcDir] [/dest:csvfilename]",
+        "ログ stat データからメモリリーク分析")]
+        static int AnalyzeLogStatMemoryLeak(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[srcDir]", ConsoleService.Prompt, "Input source log directory: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("dest", ConsoleService.Prompt, "Input dest CSV file name: ", ConsoleService.EvalNotEmpty, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            var csvData = LogStatMemoryLeakAnalyzer.AnalyzeLogFiles(vl.DefaultParam.StrValue);
+
+            csvData._ObjectArrayToCsv(true)._WriteTextFile(vl["dest"].StrValue);
+
+            return 0;
+        }
 
         [ConsoleCommand(
         "Cacti ホスト登録",

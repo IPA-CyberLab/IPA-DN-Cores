@@ -55,7 +55,6 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-
 }
 
 #endif
