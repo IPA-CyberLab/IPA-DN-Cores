@@ -48,6 +48,111 @@ namespace IPA.TestDev
     partial class TestDevCommands
     {
         [ConsoleCommand(
+        "ファイルシステム ストレステスト",
+        "FileSystemStressTest [dir] [/num:NUM]",
+        "ファイルシステム ストレステスト")]
+        static int FileSystemStressTest(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[dir]", ConsoleService.Prompt, "Directory: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("num"),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string dir = vl.DefaultParam.StrValue;
+
+            Lfs.CreateDirectory(dir);
+
+            int numThreads = vl["num"].IntValue;
+
+            if (numThreads <= 0) numThreads = 1;
+
+            RefBool stopFlag = new RefBool();
+
+            RefInt numWrittenFiles = new RefInt();
+
+            Event startEvent = new Event(true);
+
+            ThreadObj[] threadList = ThreadObj.StartMany(numThreads, (param) =>
+            {
+                int index = ThreadObj.Current.Index;
+                startEvent.Wait();
+
+                try
+                {
+                    string subdir = Lfs.PathParser.Combine(dir, index.ToString("D4"));
+
+                    try
+                    {
+                        Lfs.CreateDirectory(subdir);
+
+                        while (stopFlag.Value == false)
+                        {
+                            string filename = Str.GenRandStr() + ".test";
+                            string fileFillPath = Lfs.PathParser.Combine(subdir, filename);
+                            int size = Util.RandSInt31() % 1_000_000 + 128;
+                            int numCount = Util.RandSInt31() % 64;
+
+                            try
+                            {
+                                numWrittenFiles.Increment();
+
+                                Con.WriteLine($"File #{numWrittenFiles}");
+
+                                using (var file = Lfs.Create(fileFillPath, flags: FileFlags.SparseFile))
+                                {
+                                    for (int i = 0; i < numCount; i++)
+                                    {
+                                        file.WriteRandom(Util.RandSInt31() % size, Util.Rand(64));
+                                    }
+                                }
+                            }
+                            finally
+                            {
+                                try
+                                {
+                                    Lfs.DeleteFile(fileFillPath);
+                                }
+                                catch { }
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            if (Lfs.EnumDirectory(subdir).Where(x => x.IsCurrentOrParentDirectory == false).All(x => x.IsFile && x.Name.EndsWith(".test", StringComparison.OrdinalIgnoreCase)))
+                            {
+                                Lfs.DeleteDirectory(subdir, true);
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Con.WriteLine("*** ERROR !!! ***");
+
+                    ex._Print();
+
+                    stopFlag.Set(true);
+                }
+            });
+
+            startEvent.Set();
+
+            Con.ReadLine();
+
+            stopFlag.Set(true);
+
+            threadList._DoForEach(x => x.WaitForEnd());
+
+            return 0;
+        }
+
+        [ConsoleCommand(
         "ログ stat データからメモリリーク分析",
         "AnalyzeLogStatMemoryLeak [srcDir] [/dest:csvfilename]",
         "ログ stat データからメモリリーク分析")]
