@@ -535,9 +535,17 @@ namespace IPA.Cores.Helper.Basic
 
         public static object? _Print(this object? o, Type type)
         {
-            if (o is Exception ex) o = o.ToString();
+            if (o is Exception ex)
+            {
+                string? s = o.ToString();
+                if (s == null) s = "null";
+                Con.WriteLine(s);
+            }
+            else
+            {
+                Con.WriteLine(o, type);
+            }
 
-            Con.WriteLine(o, type);
             return o;
         }
         public static object? _Debug(this object? o)
