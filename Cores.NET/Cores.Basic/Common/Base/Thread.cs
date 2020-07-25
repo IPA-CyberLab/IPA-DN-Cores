@@ -1216,7 +1216,7 @@ namespace IPA.Cores.Basic
         public int Index { get; }
         public string Name { get; }
 
-        public ThreadObj(ThreadProc threadProc, object? userObject = null, int stacksize = 0, int index = 0, string? name = null, bool isBackground = false)
+        public ThreadObj(ThreadProc threadProc, object? userObject = null, int stacksize = 0, int index = 0, string? name = null, bool isBackground = false, ThreadPriority priority = ThreadPriority.Normal)
         {
             if (stacksize == 0)
             {
@@ -1257,6 +1257,10 @@ namespace IPA.Cores.Basic
                 this.Thread.Name = this.Name;
             }
             this.Thread.IsBackground = isBackground;
+            if (priority != ThreadPriority.Normal)
+            {
+                this.Thread.Priority = priority;
+            }
             this.Thread.Start(this);
         }
 

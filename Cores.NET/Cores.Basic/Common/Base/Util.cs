@@ -4777,16 +4777,12 @@ namespace IPA.Cores.Basic
 
             ManualResetEventSlim ev = new ManualResetEventSlim();
 
-            Thread thread = new Thread(() =>
+            ThreadObj thread = new ThreadObj((par) =>
             {
                 ev.Wait();
                 Thread.Sleep(duration);
                 StopFlag = true;
-            });
-
-            thread.IsBackground = true;
-            thread.Priority = ThreadPriority.Highest;
-            thread.Start();
+            }, isBackground: true, priority: ThreadPriority.Highest);
 
             long count = 0;
             Stopwatch sw = new Stopwatch();
@@ -4811,7 +4807,7 @@ namespace IPA.Cores.Basic
             }
             TimeSpan ts2 = sw.Elapsed;
             TimeSpan ts = ts2 - ts1;
-            thread.Join();
+            thread.WaitForEnd();
 
             double nano = (double)ts.Ticks * 100.0;
             double nanoPerCall = nano / (double)count;
