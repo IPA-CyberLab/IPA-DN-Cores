@@ -4773,16 +4773,22 @@ namespace IPA.Cores.Basic
 
         double MeasureInternal(int duration, TUserVariable state, Action<TUserVariable, int> proc, int interationsPassValue)
         {
+            bool useThread = !CoresLib.Caps.Bit(CoresCaps.BlazorApp);
             StopFlag = false;
 
             ManualResetEventSlim ev = new ManualResetEventSlim();
 
-            ThreadObj thread = new ThreadObj((par) =>
+            ThreadObj thread = null!;
+
+            if (useThread)
             {
-                ev.Wait();
-                Thread.Sleep(duration);
-                StopFlag = true;
-            }, isBackground: true, priority: ThreadPriority.Highest);
+                thread = new ThreadObj((par) =>
+                {
+                    ev.Wait();
+                    Thread.Sleep(duration);
+                    StopFlag = true;
+                }, isBackground: true, priority: ThreadPriority.Highest);
+            }
 
             long count = 0;
             Stopwatch sw = new Stopwatch();
@@ -4804,16 +4810,30 @@ namespace IPA.Cores.Basic
                     }
                 }
                 count += Iterations;
+
+                if (useThread == false)
+                {
+                    if (sw.ElapsedMilliseconds >= duration)
+                    {
+                        StopFlag = true;
+                    }
+                }
             }
             TimeSpan ts2 = sw.Elapsed;
             TimeSpan ts = ts2 - ts1;
-            thread.WaitForEnd();
+
+            if (useThread)
+            {
+                thread.WaitForEnd();
+            }
 
             double nano = (double)ts.Ticks * 100.0;
             double nanoPerCall = nano / (double)count;
 
             if (nanoPerCall < 0.001)
                 nanoPerCall = 0.0;
+
+            Dbg.GcCollect();
 
             return nanoPerCall;
         }
