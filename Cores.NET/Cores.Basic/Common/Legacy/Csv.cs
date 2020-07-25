@@ -33,7 +33,6 @@
 using System;
 using System.Threading;
 using System.Data;
-using System.Data.Sql;
 using System.Data.SqlClient;
 using System.Data.SqlTypes;
 using System.Text;

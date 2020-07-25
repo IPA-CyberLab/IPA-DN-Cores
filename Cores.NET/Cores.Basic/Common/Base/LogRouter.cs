@@ -372,7 +372,14 @@ namespace IPA.Cores.Basic
             // Determine the Unique Log Process Id
             if (UniqueLogProcessId == -1)
             {
-                UniqueLogProcessId = DetermineUniqueLogProcessId();
+                if (CoresLib.Caps.Bit(CoresCaps.BlazorApp) == false)
+                {
+                    UniqueLogProcessId = DetermineUniqueLogProcessId();
+                }
+                else
+                {
+                    UniqueLogProcessId = Consts.BlazorApp.DummyProcessId;
+                }
             }
 
             // Determine the destination directory

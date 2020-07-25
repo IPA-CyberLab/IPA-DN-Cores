@@ -759,7 +759,11 @@ namespace IPA.Cores.Basic
                     {
                         try
                         {
+#if !NETSTANDARD
                             Proc.Kill(Options.Flags.Bit(ExecFlags.KillProcessGroup));
+#else
+                            Proc.Kill();
+#endif
                             _TimeoutedFlag = true;
                         }
                         catch

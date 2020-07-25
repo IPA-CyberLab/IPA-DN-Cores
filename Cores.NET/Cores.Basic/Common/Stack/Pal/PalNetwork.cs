@@ -683,19 +683,32 @@ namespace IPA.Cores.Basic
 
         public static IPGlobalProperties GetHostNameAndDomainNameInfo(out string hostName, out string domainName)
         {
-            IPGlobalProperties prop = IPGlobalProperties.GetIPGlobalProperties();
+            IPGlobalProperties prop;
 
-            if (prop.DomainName._IsSamei("(none)") || prop.DomainName._IsEmpty())
+            if (CoresLib.Caps.Bit(CoresCaps.BlazorApp) == false)
             {
-                string fqdn = prop.HostName;
+                prop = IPGlobalProperties.GetIPGlobalProperties();
 
-                hostName = Str.GetHostNameFromFqdn(fqdn);
-                domainName = Str.GetDomainFromFqdn(fqdn);
+                if (prop.DomainName._IsSamei("(none)") || prop.DomainName._IsEmpty())
+                {
+                    string fqdn = prop.HostName;
+
+                    hostName = Str.GetHostNameFromFqdn(fqdn);
+                    domainName = Str.GetDomainFromFqdn(fqdn);
+                }
+                else
+                {
+                    hostName = prop.HostName;
+                    domainName = prop.DomainName;
+                }
             }
             else
             {
-                hostName = prop.HostName;
-                domainName = prop.DomainName;
+                string fqdn = Consts.BlazorApp.DummyFqdn;
+                hostName = Str.GetHostNameFromFqdn(fqdn);
+                domainName = Str.GetDomainFromFqdn(fqdn);
+
+                prop = null!;
             }
 
             hostName = hostName._NonNullTrim();

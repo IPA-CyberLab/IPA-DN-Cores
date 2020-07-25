@@ -11,6 +11,14 @@ using System.Diagnostics;
 
 namespace IPA.Cores.Basic
 {
+    public static partial class CoresConfig
+    {
+        public static partial class CoresLibConfig
+        {
+            public static readonly Copenhagen<CoresCaps> Caps = CoresCaps.None;
+        }
+    }
+
     public class CoresLibraryShutdowningException : ApplicationException { }
 
     public class CoresLibraryResult
@@ -29,6 +37,13 @@ namespace IPA.Cores.Basic
         Application = 0,
         Daemon,
         Library,
+    }
+
+    [Flags]
+    public enum CoresCaps : long
+    {
+        None = 0,
+        BlazorApp = 1,
     }
 
     public class CoresLibOptions : ICloneable
@@ -116,6 +131,7 @@ namespace IPA.Cores.Basic
 
         public static IReadOnlyList<string> Args { get; private set; } = null!;
         public static CoresLibOptions Options { get; private set; } = null!;
+        public static CoresCaps Caps => CoresConfig.CoresLibConfig.Caps;
 
         public static string AppName { get; private set; } = null!;
         public static string AppNameFnSafe { get; private set; } = null!;

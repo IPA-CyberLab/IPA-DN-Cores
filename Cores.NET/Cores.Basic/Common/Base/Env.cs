@@ -167,7 +167,7 @@ namespace IPA.Cores.Basic
         public static bool Is64BitProcess => (IntPtr.Size == 8);
         public static bool Is64BitWindows => (Is64BitProcess || Kernel.InternalCheckIsWow64());
         public static bool IsWow64 => Kernel.InternalCheckIsWow64();
-        
+
         public static Architecture CpuInfo { get; } = RuntimeInformation.ProcessArchitecture;
         public static string FrameworkInfoString = RuntimeInformation.FrameworkDescription.Trim();
         public static string OsInfoString = RuntimeInformation.OSDescription.Trim();
@@ -286,7 +286,7 @@ namespace IPA.Cores.Basic
                 }
 
                 IEnumerable<string> markerFiles = Env.IsHostedByDotNetProcess ? Consts.FileNames.AppRootMarkerFileNames : Consts.FileNames.AppRootMarkerFileNamesForBinary;
-                
+
                 while (true)
                 {
                     try
@@ -331,6 +331,13 @@ namespace IPA.Cores.Basic
                 AppExecutableExeOrDllFileName = "/tmp/dummyexe";
                 AppExecutableExeOrDllFileDir = "/tmp";
                 AppRootDir = IO.RemoveLastEnMark(Environment.CurrentDirectory);
+            }
+
+            if (CoresLib.Caps.Bit(CoresCaps.BlazorApp))
+            {
+                AppExecutableExeOrDllFileName = Consts.BlazorApp.DummyImageFileName;
+                AppExecutableExeOrDllFileDir = Consts.BlazorApp.DummyImageDirName;
+                AppRootDir = Consts.BlazorApp.DummyImageDirName;
             }
 
             HomeDir = IO.RemoveLastEnMark(Kernel.GetEnvStr("HOME"));
@@ -489,6 +496,11 @@ namespace IPA.Cores.Basic
 
         static string GetBuildConfigurationNameInternal()
         {
+            if (CoresLib.Caps.Bit(CoresCaps.BlazorApp))
+            {
+                return Consts.BlazorApp.DummyBuildConfigurationName;
+            }
+
             Assembly mainAssembly = Assembly.GetEntryAssembly()!;
             return (string)mainAssembly.CustomAttributes.Where(x => x.AttributeType == typeof(AssemblyConfigurationAttribute))
                 .First()
@@ -497,6 +509,11 @@ namespace IPA.Cores.Basic
 
         static string GetAppExeOrDllImageFilePathInternal()
         {
+            if (CoresLib.Caps.Bit(CoresCaps.BlazorApp))
+            {
+                return Consts.BlazorApp.DummyImageFileName;
+            }
+
             Assembly mainAssembly = Assembly.GetEntryAssembly()!;
             Module[] modules = mainAssembly.GetModules();
             return modules[0].FullyQualifiedName;
@@ -555,11 +572,14 @@ namespace IPA.Cores.Basic
 
             _MyLocalTempDir = "";
 
-            // Global app temp dir
-            if (MyGlobalTempDir._IsEmpty())
+            if (CoresLib.Caps.Bit(CoresCaps.BlazorApp) == false)
             {
-                SystemUniqueDirectoryProvider myGlobalTempDirProvider = new SystemUniqueDirectoryProvider(Path.Combine(Env.TempDir, "Cores.NET.Temp"), $"{dirPrefix}_{CoresLib.AppNameFnSafe}");
-                MyGlobalTempDir = myGlobalTempDirProvider.CurrentDirPath;
+                // Global app temp dir
+                if (MyGlobalTempDir._IsEmpty())
+                {
+                    SystemUniqueDirectoryProvider myGlobalTempDirProvider = new SystemUniqueDirectoryProvider(Path.Combine(Env.TempDir, "Cores.NET.Temp"), $"{dirPrefix}_{CoresLib.AppNameFnSafe}");
+                    MyGlobalTempDir = myGlobalTempDirProvider.CurrentDirPath;
+                }
             }
         }
 

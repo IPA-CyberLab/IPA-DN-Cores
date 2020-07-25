@@ -225,6 +225,16 @@ namespace IPA.Cores.Basic
             public const string AutoArchiveSubDirName = ".AutoBackup";
         }
 
+        public static partial class BlazorApp
+        {
+            public const string DummyImageFileName = "/tmp/dummy/webasm.exe";
+            public const string DummyImageDirName = "/tmp/dummy";
+            public const string DummyBuildConfigurationName = "Debug";
+
+            public const string DummyFqdn = "webasm.example.org";
+            public const int DummyProcessId = 12345;
+        }
+
         public static partial class Extensions
         {
             public const string Certificate = ".cer";
