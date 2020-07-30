@@ -55,6 +55,50 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // 指定した数までタスクを並行して実行するクラス。
+    // 指定した数以上のタスクがすでに実行されている場合は、実行数が指定数以下になるまで新しいタスクの登録を待機する。
+    public class AsyncConcurrentTask
+    {
+        public int MaxConcurrentTasks { get; }
+
+        readonly SemaphoreSlim Sem;
+
+        public AsyncConcurrentTask(int maxConcurrentTasks)
+        {
+            this.MaxConcurrentTasks = Math.Max(maxConcurrentTasks, 1);
+
+            this.Sem = new SemaphoreSlim(this.MaxConcurrentTasks, this.MaxConcurrentTasks);
+        }
+
+        readonly CriticalSection Lock = new CriticalSection();
+
+        readonly AsyncPulse Pulse = new AsyncPulse();
+
+        public int CurrentConcurrentTasks { get; private set; } = 0;
+
+        // タスクを新たに追加し実行開始する。ただし、すでに実行中のタスク数が上限以上の場合は、上限以下になるまで非同期ブロックする
+        public async Task<Task<TResult>> StartTaskAsync<TParam, TResult>(Func<TParam, CancellationToken, Task<TResult>> targetTask, TParam param, CancellationToken cancel = default)
+        {
+            await this.Sem.WaitAsync(cancel);
+
+            // ターゲットタスクを開始する。
+            // ターゲットタスクが完了したら、セマフォを解放するようにする。
+            Task<TResult> ret = TaskUtil.StartAsyncTaskAsync<TResult>(async () =>
+            {
+                try
+                {
+                    return await targetTask(param, cancel);
+                }
+                finally
+                {
+                    this.Sem.Release();
+                }
+            });
+
+            return ret;
+        }
+    }
+
     // 複数のタスクが非同期に待機することができるパルス。パルスは誰でも Fire することができ、Fire がある毎に、待機しているすべてのタスクの待機が解除される。
     public class AsyncPulse
     {
