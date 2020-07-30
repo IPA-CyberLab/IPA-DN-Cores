@@ -2320,6 +2320,20 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        public static int FindStrings(string str, int findStartIndex, StringComparison comparison, out string foundString, params string[] keys)
+        {
+            int r = FindStrings(str, findStartIndex, comparison, out int foundIndex, keys: keys);
+            if (r == -1)
+            {
+                foundString = "";
+                return -1;
+            }
+
+            foundString = keys[foundIndex];
+
+            return r;
+        }
+
         // URL として使用可能な文字かどうか
         public static bool IsValidForUrl(char c)
         {

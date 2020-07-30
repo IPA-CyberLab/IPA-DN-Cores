@@ -150,6 +150,65 @@ namespace IPA.Cores.Basic
             return ret;
         }
     }
+
+    public static class UrlListedFileDownloader
+    {
+        public static async Task DownloadAsync(string urlListedFileUrl, string destDir, string extensions, int numRetrt = 5, CancellationToken cancel = default)
+        {
+            // ファイル一覧のファイルをダウンロードする
+            using var web = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true }));
+
+            List<string> fileUrlList = new List<string>();
+
+            var urlFileBody = await web.SimpleQueryAsync(WebMethods.GET, urlListedFileUrl, cancel);
+            string body = urlFileBody.Data._GetString_UTF8();
+            int currentPos = 0;
+
+            while (true)
+            {
+                int r = body._FindStringsMulti2(currentPos, StringComparison.OrdinalIgnoreCase, out _, "http://", "https://");
+                if (r == -1) break;
+                currentPos = r + 1;
+
+                string fileUrl = body.Substring(r);
+                int t = fileUrl._FindStringsMulti2(0, StringComparison.OrdinalIgnoreCase, out _, " ", "　", "\t", "'", "\"", "\r", "\n", "]", ">");
+                if (t != -1)
+                {
+                    fileUrl = fileUrl.Substring(0, t);
+                }
+
+                if (fileUrl._IsExtensionMatch(extensions))
+                {
+                    fileUrlList.Add(fileUrl);
+                }
+            }
+
+            foreach (string fileUrl in fileUrlList)
+            {
+                RetryHelper<int> h = new RetryHelper<int>(1000, numRetrt);
+
+                await h.RunAsync(async c =>
+                {
+                    using var down = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true }));
+
+                    using var res = await down.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, fileUrl, cancel));
+
+                    string destFileFullPath = Lfs.PathParser.Combine(destDir, PathParser.Mac.GetFileName(fileUrl));
+
+                    Con.WriteLine(destFileFullPath);
+
+                    using var file = await Lfs.CreateAsync(destFileFullPath, flags: FileFlags.AutoCreateDirectory, cancel: cancel);
+
+                    using var fileStream = file.GetStream();
+
+                    await res.DownloadStream.CopyBetweenStreamAsync(fileStream);
+
+                    return 0;
+                },
+                cancel: cancel);
+            }
+        }
+    }
 }
 
 #endif

@@ -356,6 +356,62 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                AsyncConcurrentTask t = new AsyncConcurrentTask(5);
+
+                RefInt c = new RefInt();
+
+                func1(0)._GetResult();
+
+                async Task<int> func1(int a)
+                {
+                    while (true)
+                    {
+                        await t.StartTaskAsync<int, int>(async (p1, c1) =>
+                        {
+                            c.Increment()._Print();
+                            await c1._WaitUntilCanceledAsync(300);
+                            c.Decrement()._Print();
+                            return 0;
+                        }, 0);
+                    }
+                }
+                return;
+            }
+
+            if (true)
+            {
+                AsyncPulse p = new AsyncPulse();
+                RefInt c = new RefInt();
+
+                for (int i = 0; i < 20; i++)
+                {
+                    Task t = TaskUtil.StartAsyncTaskAsync(async () =>
+                    {
+                        while (true)
+                        {
+                            await p.WaitAsync();
+                            Console.WriteLine(c.Increment());
+                        }
+                    });
+                }
+
+                while (true)
+                {
+                    Con.ReadLine();
+                    p.FirePulse(true);
+                }
+
+                return;
+            }
+
+            if (true)
+            {
+                UrlListedFileDownloader.DownloadAsync("https://raw.githubusercontent.com/dotnet/core/master/release-notes/3.1/3.1.6/3.1.6.md", @"c:\tmp\down1", "tar.gz,zip,exe")._GetResult();
+                return;
+            }
+
+            if (true)
+            {
                 var data = LogStatMemoryLeakAnalyzer.AnalyzeLogFiles(@"C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\Log\Stat");
 
                 data._ObjectArrayToCsv(true)._WriteTextFile(@"c:\tmp\test.csv");

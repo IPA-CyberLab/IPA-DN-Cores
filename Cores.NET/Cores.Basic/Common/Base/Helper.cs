@@ -366,6 +366,7 @@ namespace IPA.Cores.Helper.Basic
         public static void _WriteTextFile(this string s, string filename, Encoding? encoding = null, bool writeBom = false) { if (encoding == null) encoding = Str.Utf8Encoding; Str.WriteTextFile(filename, s, encoding, writeBom); }
         public static bool _StartsWithMulti(this string str, StringComparison comparison, params string[] keys) => Str.StartsWithMulti(str, comparison, keys);
         public static int _FindStringsMulti(this string str, int findStartIndex, StringComparison comparison, out int foundKeyIndex, params string[] keys) => Str.FindStrings(str, findStartIndex, comparison, out foundKeyIndex, keys);
+        public static int _FindStringsMulti2(this string str, int findStartIndex, StringComparison comparison, out string foundString, params string[] keys) => Str.FindStrings(str, findStartIndex, comparison, out foundString, keys);
         public static int _GetCountSearchKeywordInStr(this string str, string keyword, bool caseSensitive = false) => Str.GetCountSearchKeywordInStr(str, keyword, caseSensitive);
         public static int[] _FindStringIndexes(this string str, string keyword, bool caseSensitive = false) => Str.FindStringIndexes(str, keyword, caseSensitive);
         public static string _StripCommentFromLine(this string str, IEnumerable<string>? commentStartStrList = null) => Str.StripCommentFromLine(str, commentStartStrList);
@@ -2049,6 +2050,10 @@ namespace IPA.Cores.Helper.Basic
         public static DateTime _Time64ToDateTime(this long value) => Time.Time64ToDateTime(value);
         public static DateTimeOffset _Time64ToDateTimeOffsetUtc(this long value) => Time.Time64ToDateTimeOffsetUtc(value);
         public static DateTimeOffset _Time64ToDateTimeOffsetLocal(this long value) => Time.Time64ToDateTimeOffsetLocal(value);
+
+        public static Task<long> CopyBetweenStreamAsync(this Stream src, Stream dest, CopyFileParams? param = null, ProgressReporterBase? reporter = null,
+            long estimatedSize = -1, CancellationToken cancel = default, Ref<uint>? srcZipCrc = null, long truncateSize = -1)
+            => Util.CopyBetweenStreamAsync(src, dest, param, reporter, estimatedSize, cancel, srcZipCrc, truncateSize);
     }
 }
 

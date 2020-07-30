@@ -55,6 +55,70 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // 複数のタスクが非同期に待機することができるパルス。パルスは誰でも Fire することができ、Fire がある毎に、待機しているすべてのタスクの待機が解除される。
+    public class AsyncPulse
+    {
+        readonly CriticalSection Lock = new CriticalSection();
+
+        readonly HashSet<AsyncManualResetEvent> EventList = new HashSet<AsyncManualResetEvent>();
+
+        volatile int Version = 0;
+
+        public Holder<AsyncManualResetEvent> RegisterAndObtainEvent()
+        {
+            AsyncManualResetEvent newEvent = new AsyncManualResetEvent();
+
+            lock (Lock)
+            {
+                EventList.Add(newEvent);
+            }
+
+            return new Holder<AsyncManualResetEvent>(x =>
+            {
+                lock (Lock)
+                {
+                    EventList.Remove(x);
+                }
+            },
+            newEvent,
+            LeakCounterKind.AsyncPulseRegisteredEvent);
+        }
+
+        public async Task<bool> WaitAsync(int timeout = Timeout.Infinite, CancellationToken cancel = default)
+        {
+            int oldVersion = this.Version;
+
+            using (var eventHolder = RegisterAndObtainEvent())
+            {
+                int newVersion = this.Version;
+
+                if (oldVersion != newVersion)
+                {
+                    // Register 処理中に 1 回でも Fire された場合
+                    return true;
+                }
+
+                return await eventHolder.Value.WaitAsync(timeout, cancel);
+            }
+        }
+
+        public void FirePulse(bool softly = false)
+        {
+            AsyncManualResetEvent[] eventArray;
+
+            lock (Lock)
+            {
+                eventArray = this.EventList.ToArray();
+                this.Version++;
+            }
+
+            foreach (AsyncManualResetEvent e in eventArray)
+            {
+                e.Set(softly);
+            }
+        }
+    }
+
     public sealed class AsyncLock : IDisposable
     {
         public sealed class LockHolder : IDisposable
@@ -1151,7 +1215,7 @@ namespace IPA.Cores.Basic
             return await retry.RunAsync(proc, cancel: cancel);
         }
 
-        public static async Task ForEachAsync<T>(IEnumerable<T> targetList, Func<T, CancellationToken, Task> eachProc, int maxConcurrent = int.MaxValue, 
+        public static async Task ForEachAsync<T>(IEnumerable<T> targetList, Func<T, CancellationToken, Task> eachProc, int maxConcurrent = int.MaxValue,
             ForEachAsyncFlags flags = ForEachAsyncFlags.None, CancellationToken cancel = default)
         {
             maxConcurrent = Math.Max(maxConcurrent, 1);
@@ -2644,7 +2708,7 @@ namespace IPA.Cores.Basic
     }
 
     public class GroupManager<TKey, TGroupContext> : IDisposable
-        where TKey: notnull
+        where TKey : notnull
     {
         public class GroupHandle : Holder<GroupInstance>
         {

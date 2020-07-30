@@ -1467,6 +1467,7 @@ namespace IPA.Cores.Basic
         StreamBasedSequentialWritable,
         IpConnectionRateLimiterTryEnterHolder,
         AsyncAwaitScoped,
+        AsyncPulseRegisteredEvent,
     }
 
     public class LeakCheckerResult

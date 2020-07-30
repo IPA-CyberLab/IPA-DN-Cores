@@ -2870,6 +2870,138 @@ namespace IPA.Cores.Basic
             return ms.ToArray();
         }
 
+        // Stream から Stream へのコピー (ファイルのダウンロードなど)
+        public static async Task<long> CopyBetweenStreamAsync(Stream src, Stream dest, CopyFileParams? param = null, ProgressReporterBase? reporter = null,
+            long estimatedSize = -1, CancellationToken cancel = default, Ref<uint>? srcZipCrc = null, long truncateSize = -1)
+        {
+            if (param == null) param = new CopyFileParams();
+            if (reporter == null) reporter = new NullProgressReporter(null);
+            if (param.IgnoreReadError) throw new ArgumentException(nameof(param.IgnoreReadError));
+            if (srcZipCrc == null) srcZipCrc = new Ref<uint>();
+
+            if (truncateSize >= 0)
+            {
+                estimatedSize = Math.Min(estimatedSize, truncateSize);
+            }
+
+            ZipCrc32 srcCrc = new ZipCrc32();
+
+            checked
+            {
+                long currentPosition = 0;
+
+                if (param.AsyncCopy == false)
+                {
+                    // Normal copy
+                    using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer))
+                    {
+                        while (true)
+                        {
+                            Memory<byte> thisTimeBuffer = buffer;
+
+                            if (truncateSize >= 0)
+                            {
+                                // Truncate
+                                long remainSize = Math.Max(truncateSize - currentPosition, 0);
+
+                                if (thisTimeBuffer.Length > remainSize)
+                                {
+                                    thisTimeBuffer = thisTimeBuffer.Slice(0, (int)remainSize);
+                                }
+
+                                if (remainSize == 0) break;
+                            }
+
+                            int readSize = await src.ReadAsync(thisTimeBuffer, cancel);
+
+                            Debug.Assert(readSize <= thisTimeBuffer.Length);
+
+                            if (readSize <= 0) break;
+
+                            ReadOnlyMemory<byte> sliced = thisTimeBuffer.Slice(0, readSize);
+
+                            if (param.Flags.Bit(FileFlags.CopyFile_Verify))
+                            {
+                                srcCrc.Append(sliced.Span);
+                            }
+
+                            await dest.WriteAsync(sliced, cancel);
+
+                            currentPosition += readSize;
+                            reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));
+                        }
+                    }
+                }
+                else
+                {
+                    // Async copy
+                    using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer1))
+                    {
+                        using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer2))
+                        {
+                            Task? lastWriteTask = null;
+                            int number = 0;
+                            int writeSize = 0;
+
+                            long currentReadPosition = 0;
+
+                            Memory<byte>[] buffers = new Memory<byte>[2] { buffer1, buffer2 };
+
+                            while (true)
+                            {
+                                Memory<byte> buffer = buffers[(number++) % 2];
+
+                                Memory<byte> thisTimeBuffer = buffer;
+
+                                if (truncateSize >= 0)
+                                {
+                                    // Truncate
+                                    long remainSize = Math.Max(truncateSize - currentReadPosition, 0);
+
+                                    if (thisTimeBuffer.Length > remainSize)
+                                    {
+                                        thisTimeBuffer = thisTimeBuffer.Slice(0, (int)remainSize);
+                                    }
+                                }
+
+                                int readSize = await src.ReadAsync(thisTimeBuffer, cancel);
+
+                                Debug.Assert(readSize <= buffer.Length);
+
+                                if (lastWriteTask != null)
+                                {
+                                    await lastWriteTask;
+                                    currentPosition += writeSize;
+                                    reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));
+                                }
+
+                                if (readSize <= 0) break;
+
+                                currentReadPosition += readSize;
+
+                                writeSize = readSize;
+
+                                ReadOnlyMemory<byte> sliced = buffer.Slice(0, writeSize);
+
+                                if (param.Flags.Bit(FileFlags.CopyFile_Verify))
+                                {
+                                    srcCrc.Append(sliced.Span);
+                                }
+
+                                lastWriteTask = AsyncAwait(async () => { await dest.WriteAsync(sliced, cancel); });
+                            }
+
+                            reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));
+                        }
+                    }
+                }
+
+                srcZipCrc.Set(srcCrc.Value);
+
+                return currentPosition;
+            }
+        }
+
         public static IReadOnlyList<ReadOnlyMemory<T>> DefragmentMemoryArrays<T>(IEnumerable<ReadOnlyMemory<T>> srcDataList, int minBlockSize = 0)
         {
             minBlockSize = Math.Max(minBlockSize, 1);
