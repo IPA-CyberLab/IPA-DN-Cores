@@ -49,6 +49,7 @@ using static IPA.Cores.Globals.Basic;
 using IPA.Cores.Basic.HttpClientCore;
 using System.Security.Cryptography;
 using System.Linq;
+using Org.BouncyCastle.Ocsp;
 
 #pragma warning disable CA2235 // Mark all non-serializable fields
 
@@ -105,10 +106,25 @@ namespace IPA.Cores.Basic
         public CancellationToken Cancel { get; }
         public string UploadContentType { get; }
         public Stream? UploadStream { get; }
+        public long? RangeStart { get; }
+        public long? RangeLength { get; }
 
         public WebSendRecvRequest(WebMethods method, string url, CancellationToken cancel = default,
-            string uploadContentType = Consts.MimeTypes.OctetStream, Stream? uploadStream = null)
+            string uploadContentType = Consts.MimeTypes.OctetStream, Stream? uploadStream = null,
+            long? rangeStart = null, long? rangeLength = null)
         {
+            if (rangeStart == null && rangeLength != null) throw new ArgumentOutOfRangeException("rangeStart == null && rangeLength != null");
+            if ((rangeStart ?? 0) < 0) throw new ArgumentOutOfRangeException(nameof(rangeStart));
+            if ((rangeLength ?? 0) < 0) throw new ArgumentOutOfRangeException(nameof(rangeLength));
+
+            this.RangeStart = rangeStart;
+            this.RangeLength = rangeLength;
+
+            checked
+            {
+                Limbo.SInt64 = this.RangeStart ?? 0 + this.RangeLength ?? 0;
+            }
+
             this.Method = method;
             this.Url = url;
             this.Cancel = cancel;
@@ -527,6 +543,11 @@ namespace IPA.Cores.Basic
         public virtual async Task<WebSendRecvResponse> HttpSendRecvDataAsync(WebSendRecvRequest request)
         {
             HttpRequestMessage r = CreateWebRequest(request.Method, request.Url);
+
+            if (request.RangeStart != null)
+            {
+                r.Headers.Range = new RangeHeaderValue(request.RangeStart, request.RangeLength.HasValue ? request.RangeStart + request.RangeLength : null);
+            }
 
             if (request.Method.EqualsAny(WebMethods.POST, WebMethods.PUT))
             {

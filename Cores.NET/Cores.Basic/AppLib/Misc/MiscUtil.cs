@@ -55,6 +55,7 @@ using System.Runtime.Serialization;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using Castle.Core.Logging;
 
 namespace IPA.Cores.Basic
 {
@@ -151,9 +152,261 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public static class UrlListedFileDownloader
+    public static partial class CoresConfig
     {
-        public static async Task DownloadAsync(string urlListedFileUrl, string destDir, string extensions, int numRetrt = 5, CancellationToken cancel = default)
+        public static partial class FileDownloader
+        {
+            public static readonly Copenhagen<int> DefaultMaxConcurrentThreads = 20;
+            public static readonly Copenhagen<int> DefaultRetryIntervalMsecs = 1000;
+            public static readonly Copenhagen<int> DefaultTryCount = 5;
+        }
+    }
+
+    // ファイルダウンロードオプション
+    public class FileDownloadOption
+    {
+        public int MaxConcurrentThreads { get; }
+        public int RetryIntervalMsecs { get; }
+        public int TryCount { get; }
+        public WebApiOptions WebApiOptions { get; }
+
+        public FileDownloadOption(int maxConcurrentThreads = -1, int retryIntervalMsecs = -1, int tryCount = -1, WebApiOptions? webApiOptions = null)
+        {
+            if (maxConcurrentThreads <= 0) maxConcurrentThreads = CoresConfig.FileDownloader.DefaultMaxConcurrentThreads;
+            if (retryIntervalMsecs < 0) retryIntervalMsecs = CoresConfig.FileDownloader.DefaultRetryIntervalMsecs;
+            if (tryCount <= 0) tryCount = CoresConfig.FileDownloader.DefaultTryCount;
+            if (webApiOptions == null) webApiOptions = new WebApiOptions();
+
+            MaxConcurrentThreads = maxConcurrentThreads;
+            RetryIntervalMsecs = retryIntervalMsecs;
+            TryCount = tryCount;
+            WebApiOptions = webApiOptions;
+        }
+    }
+
+    // 並行ダウンロードのようなタスクの部分マップの管理
+    public class ConcurrentDownloadPartialMaps
+    {
+        public long TotalSize { get; }
+
+        public readonly CriticalSection Lock = new CriticalSection();
+
+        internal readonly SortedList<long, ConcurrentDownloadPartial> List = new SortedList<long, ConcurrentDownloadPartial>();
+
+        public ConcurrentDownloadPartialMaps(long totalSize)
+        {
+            if (totalSize < 0) throw new ArgumentOutOfRangeException(nameof(totalSize));
+
+            this.TotalSize = totalSize;
+        }
+
+        // 現在未完了の領域のうち最小の部分の中心を返す (ない場合は null を返す)
+        public long? GetMaxUnfinishedPartialStartCenterPosison()
+        {
+            lock (Lock)
+            {
+                if (List.Count == 0) return 0;
+
+                long maxDistance = long.MinValue;
+                int maxDistancePartialIndex = -1;
+
+                for (int i = 0; i < List.Count; i++)
+                {
+                    // この partial の後に続く partial までの空白距離を計算する
+                    ConcurrentDownloadPartial thisPartial = List[i];
+                    long nextPartialStartPos = this.TotalSize;
+
+                    if ((i + 1) < List.Count)
+                    {
+                        nextPartialStartPos = List[i + 1].StartPosition;
+                    }
+
+                    long distance = nextPartialStartPos - (thisPartial.StartPosition + thisPartial.CurrentLength);
+                    if (distance < 0) distance = 0;
+
+                    if (distance > maxDistance)
+                    {
+                        maxDistancePartialIndex = i;
+                        maxDistance = distance;
+                    }
+                }
+
+                Debug.Assert(maxDistancePartialIndex != -1);
+
+                if (maxDistance < 2)
+                {
+                    // もうない
+                    return null;
+                }
+
+                var maxDistancePartial = List[maxDistancePartialIndex];
+
+                return maxDistancePartial.StartPosition + maxDistancePartial.CurrentLength + maxDistance / 2;
+            }
+        }
+
+        // 部分を開始する。startPosition が null の場合は、現在未完了の領域のうち最長の部分の中心を startPartial とする。
+        // もうこれ以上部分を開始することができない場合は、null を返す。
+        public ConcurrentDownloadPartial? StartPartial(long? startPosition = null)
+        {
+            lock (Lock)
+            {
+                if (startPosition == null) startPosition = GetMaxUnfinishedPartialStartCenterPosison();
+
+                if (startPosition == null) return null; // もうない
+
+                var newPartial = new ConcurrentDownloadPartial(this, startPosition.Value);
+
+                this.List.Add(newPartial.StartPosition, newPartial);
+
+                return newPartial;
+            }
+        }
+    }
+    public class ConcurrentDownloadPartial : IComparable<ConcurrentDownloadPartial>
+    {
+        public ConcurrentDownloadPartialMaps Maps { get; }
+        public long StartPosition { get; }
+        public long CurrentLength { get; private set; }
+
+        public ConcurrentDownloadPartial(ConcurrentDownloadPartialMaps maps, long startPosition)
+        {
+            this.Maps = maps;
+            this.StartPosition = startPosition;
+            this.CurrentLength = 0;
+        }
+
+        // CurrentLength を変更する。先の Partial の先頭とぶつかったら、すべて完了したということであるので false を返す。
+        public bool UpdateCurrentLength(long currentLength)
+        {
+            if (currentLength < 0) throw new ArgumentOutOfRangeException(nameof(currentLength));
+
+            lock (Maps.Lock)
+            {
+                if (currentLength < this.CurrentLength) throw new ArgumentException("currentLength < this.CurrentLength");
+                this.CurrentLength = currentLength;
+
+                int thisIndex = Maps.List.IndexOfKey(this.StartPosition);
+                Debug.Assert(thisIndex != -1);
+
+                long nextPartialStartPos;
+
+                int nextIndex = thisIndex + 1;
+                if (nextIndex >= this.Maps.List.Count)
+                {
+                    nextPartialStartPos = this.Maps.TotalSize;
+                }
+                else
+                {
+                    nextPartialStartPos = this.Maps.List[nextIndex].StartPosition;
+                }
+
+                if (this.CurrentLength >= nextPartialStartPos)
+                {
+                    // 次とぶつかった
+                    return false;
+                }
+
+                // まだぶつかっていない
+                return true;
+            }
+        }
+
+        // CurrentLength を増加する。先の Partial の先頭とぶつかったら、すべて完了したということであるので false を返す。
+        public bool AdvanceCurrentLength(long size)
+        {
+            if (size < 0) throw new ArgumentOutOfRangeException(nameof(size));
+
+            lock (Maps.Lock)
+            {
+                return UpdateCurrentLength(this.CurrentLength + size);
+            }
+        }
+
+        public int CompareTo(ConcurrentDownloadPartial? other)
+        {
+            return this.StartPosition.CompareTo(other!.StartPosition);
+        }
+    }
+
+    public static class FileDownloader
+    {
+        // 指定されたファイルを分割ダウンロードする
+        public static async Task DownloadFileAsync(string url, Stream destStream, FileDownloadOption? option = null, Ref<WebSendRecvResponse>? responseHeader = null, CancellationToken cancel = default)
+        {
+            if (option == null) option = new FileDownloadOption();
+            if (responseHeader == null) responseHeader = new Ref<WebSendRecvResponse>();
+
+            // まずファイルサイズを取得してみる
+            RetryHelper<int> h = new RetryHelper<int>(option.RetryIntervalMsecs, option.TryCount);
+
+            long fileSize = -1;
+            bool supportPartialDownload = false;
+
+            await h.RunAsync(async c =>
+            {
+                using var http = new WebApi(option.WebApiOptions);
+
+                using var res = await http.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.HEAD, url, cancel));
+
+                fileSize = res.DownloadContentLength ?? -1;
+
+                // ヘッダ情報を参考情報として呼び出し元に返す
+                responseHeader.Set(res);
+
+                if (res.HttpResponseMessage.Headers.AcceptRanges.Where(x => x._IsSamei("bytes")).Any())
+                {
+                    supportPartialDownload = true;
+                }
+
+                return 0;
+            });
+
+            if (fileSize >= 0 && supportPartialDownload)
+            {
+                // 分割ダウンロードが可能な場合は、分割ダウンロードを開始する
+                destStream.SetLength(fileSize);
+
+                ConcurrentDownloadPartialMaps maps = new ConcurrentDownloadPartialMaps(fileSize);
+
+                AsyncConcurrentTask concurrent = new AsyncConcurrentTask(option.MaxConcurrentThreads);
+
+                List<Task<bool>> runningTasks = new List<Task<bool>>();
+
+                Ref<bool> noMoreNeedNewTask = false;
+
+                while (noMoreNeedNewTask == false)
+                {
+                    // 同時に一定数までタスクを作成する
+                    var newTask = await concurrent.StartTaskAsync<int, bool>(async (p1, c1) =>
+                    {
+                        // 新しい部分を開始
+                        var partial = maps.StartPartial();
+                        if (partial == null)
+                        {
+                            // もう新しい部分を開始する必要がない
+                            noMoreNeedNewTask.Set(true);
+                            return false;
+                        }
+
+                        // ダウンロードの実施
+                        using var http = new WebApi(option.WebApiOptions);
+
+                        using var res = await http.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, url, cancel));
+                    },
+                    0,
+                    cancel);
+
+                    lock (runningTasks)
+                        runningTasks.Add(newTask);
+                }
+
+                await concurrent.WaitAllTasksFinishAsync();
+            }
+        }
+
+        // 指定された URL (のテキストファイル) をダウンロードし、その URL に記載されているすべてのファイルをダウンロードする
+        public static async Task DownloadUrlListedAsync(string urlListedFileUrl, string destDir, string extensions, int numRetrt = 5, CancellationToken cancel = default)
         {
             // ファイル一覧のファイルをダウンロードする
             using var web = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true }));

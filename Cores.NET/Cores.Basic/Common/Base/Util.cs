@@ -3586,9 +3586,9 @@ namespace IPA.Cores.Basic
         public int DefaultRetryInterval { get; set; }
         public int DefaultTryCount { get; set; }
 
-        public RetryHelper(int defaultRetry_interval, int defaultTryCount)
+        public RetryHelper(int defaultRetryInterval, int defaultTryCount)
         {
-            this.DefaultRetryInterval = defaultRetry_interval;
+            this.DefaultRetryInterval = defaultRetryInterval;
             this.DefaultTryCount = defaultTryCount;
         }
 
@@ -3621,13 +3621,13 @@ namespace IPA.Cores.Basic
 
                     if (i < (tryCount - 1))
                     {
-                        Dbg.WriteLine($"RetryHelper: round {i} error. Retrying in {retryInterval} msecs...");
+                        Dbg.WriteLine($"RetryHelper: round {i} error. {ex._GetSingleException().Message} Retrying in {retryInterval} msecs...");
 
                         await Task.Delay((int)retryInterval);
                     }
                     else
                     {
-                        Dbg.WriteLine($"RetryHelper: round {i} error.");
+                        Dbg.WriteLine($"RetryHelper: round {i} error. {ex._GetSingleException().Message}");
                     }
                 }
             }

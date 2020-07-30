@@ -74,28 +74,67 @@ namespace IPA.Cores.Basic
 
         readonly AsyncPulse Pulse = new AsyncPulse();
 
-        public int CurrentConcurrentTasks { get; private set; } = 0;
+        public int CurrentConcurrentTasks => this.MaxConcurrentTasks - this.Sem.CurrentCount;
+
+        readonly AsyncPulse CurrentRunningTasksChangedInternal = new AsyncPulse();
+        volatile int CurrentRunningTasksInternal = 0;
+
+        // すべての動作中のタスクが終了するまで待機する
+        public async Task<bool> WaitAllTasksFinishAsync(int timeout = Timeout.Infinite, CancellationToken cancel = default)
+        {
+            while (this.CurrentConcurrentTasks >= 1)
+            {
+                if (await CurrentRunningTasksChangedInternal.WaitAsync(timeout, cancel) == false)
+                {
+                    // タイムアウト
+                    break;
+                }
+            }
+
+            if (this.CurrentConcurrentTasks >= 1)
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
 
         // タスクを新たに追加し実行開始する。ただし、すでに実行中のタスク数が上限以上の場合は、上限以下になるまで非同期ブロックする
         public async Task<Task<TResult>> StartTaskAsync<TParam, TResult>(Func<TParam, CancellationToken, Task<TResult>> targetTask, TParam param, CancellationToken cancel = default)
         {
-            await this.Sem.WaitAsync(cancel);
+            CurrentRunningTasksInternal++;
 
-            // ターゲットタスクを開始する。
-            // ターゲットタスクが完了したら、セマフォを解放するようにする。
-            Task<TResult> ret = TaskUtil.StartAsyncTaskAsync<TResult>(async () =>
+            try
             {
-                try
-                {
-                    return await targetTask(param, cancel);
-                }
-                finally
-                {
-                    this.Sem.Release();
-                }
-            });
+                await this.Sem.WaitAsync(cancel);
 
-            return ret;
+                // ターゲットタスクを開始する。
+                // ターゲットタスクが完了したら、セマフォを解放するようにする。
+                Task<TResult> ret = TaskUtil.StartAsyncTaskAsync<TResult>(async () =>
+                {
+                    CurrentRunningTasksInternal++;
+
+                    try
+                    {
+                        return await targetTask(param, cancel);
+                    }
+                    finally
+                    {
+                        this.Sem.Release();
+                        CurrentRunningTasksInternal--;
+                        CurrentRunningTasksChangedInternal.FirePulse();
+                    }
+                });
+
+                return ret;
+            }
+            finally
+            {
+                CurrentRunningTasksInternal--;
+                CurrentRunningTasksChangedInternal.FirePulse();
+            }
         }
     }
 

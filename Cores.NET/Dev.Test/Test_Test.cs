@@ -356,6 +356,12 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                FileDownloader.DownloadFileAsync("http://speed.softether.com/004.1Gbytes.dat", null!)._GetResult();
+                return;
+            }
+
+            if (true)
+            {
                 AsyncConcurrentTask t = new AsyncConcurrentTask(5);
 
                 RefInt c = new RefInt();
@@ -406,7 +412,7 @@ namespace IPA.TestDev
 
             if (true)
             {
-                UrlListedFileDownloader.DownloadAsync("https://raw.githubusercontent.com/dotnet/core/master/release-notes/3.1/3.1.6/3.1.6.md", @"c:\tmp\down1", "tar.gz,zip,exe")._GetResult();
+                FileDownloader.DownloadUrlListedAsync("https://raw.githubusercontent.com/dotnet/core/master/release-notes/3.1/3.1.6/3.1.6.md", @"c:\tmp\down1", "tar.gz,zip,exe")._GetResult();
                 return;
             }
 
