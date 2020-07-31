@@ -207,10 +207,8 @@ namespace IPA.Cores.Basic
         }
 
         // 現在未完了の領域のうち最小の部分の中心を返す (ない場合は null を返す)
-        public long? GetMaxUnfinishedPartialStartCenterPosison(int minDistance = 2)
+        public long? GetMaxUnfinishedPartialStartCenterPosison()
         {
-            minDistance = Math.Max(minDistance, 1);
-
             lock (Lock)
             {
                 if (List.Count == 0) return 0;
@@ -241,7 +239,9 @@ namespace IPA.Cores.Basic
 
                 Debug.Assert(maxDistancePartialIndex != -1);
 
-                if (maxDistance < minDistance)
+                Debug.Assert(maxDistance >= 0);
+
+                if (maxDistance <= 0)
                 {
                     // もうない
                     return null;
@@ -249,7 +249,7 @@ namespace IPA.Cores.Basic
 
                 var maxDistancePartial = List.Values[maxDistancePartialIndex];
 
-                return maxDistancePartial.StartPosition + maxDistancePartial.CurrentLength + maxDistance / 2;
+                return maxDistancePartial.StartPosition + maxDistancePartial.CurrentLength + Math.Max(maxDistance / 2, 1);
             }
         }
 
@@ -280,7 +280,7 @@ namespace IPA.Cores.Basic
         // すべて完了しているかどうか
         public bool IsAllFinished()
         {
-            if (GetMaxUnfinishedPartialStartCenterPosison(1) == null)
+            if (GetMaxUnfinishedPartialStartCenterPosison() == null)
             {
                 return true;
             }
