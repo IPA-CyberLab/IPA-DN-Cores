@@ -221,6 +221,8 @@ namespace IPA.Cores.Basic
         public override string ToString() => this.Value.ToString();
         public int Increment() => Interlocked.Increment(ref this.Value);
         public int Decrement() => Interlocked.Decrement(ref this.Value);
+        public long Add(int v) => Interlocked.Add(ref this.Value, v);
+        public long Sub(int v) => Interlocked.Add(ref this.Value, -v);
 
         public override bool Equals(object? obj) => obj is RefInt x && this.Value == x.Value;
         public override int GetHashCode() => Value.GetHashCode();
@@ -248,6 +250,8 @@ namespace IPA.Cores.Basic
         public override string ToString() => this.Value.ToString();
         public long Increment() => Interlocked.Increment(ref this._value);
         public long Decrement() => Interlocked.Decrement(ref this._value);
+        public long Add(long v) => Interlocked.Add(ref this._value, v);
+        public long Sub(long v) => Interlocked.Add(ref this._value, -v);
 
         public override bool Equals(object? obj) => obj is RefLong x && this.Value == x.Value;
         public override int GetHashCode() => Value.GetHashCode();

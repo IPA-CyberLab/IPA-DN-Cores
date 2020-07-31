@@ -115,7 +115,7 @@ namespace IPA.Cores.Basic
         {
             if (rangeStart == null && rangeLength != null) throw new ArgumentOutOfRangeException("rangeStart == null && rangeLength != null");
             if ((rangeStart ?? 0) < 0) throw new ArgumentOutOfRangeException(nameof(rangeStart));
-            if ((rangeLength ?? 0) < 0) throw new ArgumentOutOfRangeException(nameof(rangeLength));
+            if ((rangeLength ?? 1) <= 0) throw new ArgumentOutOfRangeException(nameof(rangeLength));
 
             this.RangeStart = rangeStart;
             this.RangeLength = rangeLength;
@@ -546,7 +546,8 @@ namespace IPA.Cores.Basic
 
             if (request.RangeStart != null)
             {
-                r.Headers.Range = new RangeHeaderValue(request.RangeStart, request.RangeLength.HasValue ? request.RangeStart + request.RangeLength : null);
+                // 一部分のみ指定してダウンロード
+                r.Headers.Range = new RangeHeaderValue(request.RangeStart, request.RangeLength.HasValue ? request.RangeStart + request.RangeLength - 1 : null);
             }
 
             if (request.Method.EqualsAny(WebMethods.POST, WebMethods.PUT))

@@ -91,6 +91,34 @@ namespace IPA.Cores.Globals
         public static Task<T> AsyncAwait<T>(Func<Task<T>> asyncFunc) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: true);
 
         [MethodImpl(Inline)]
+        public static IAsyncDisposable AsyncAwaitScoped(Func<CancellationToken, Task> asyncFunc, bool noErrorMessage = false)
+        {
+            CancellationTokenSource cts = new CancellationTokenSource();
+
+            Task task = asyncFunc(cts.Token);
+
+            AsyncHolder h = new AsyncHolder(async () =>
+            {
+                cts._TryCancelNoBlock();
+
+                try
+                {
+                    await task;
+                }
+                catch (Exception ex)
+                {
+                    if (noErrorMessage == false)
+                    {
+                        ex._Debug();
+                    }
+                }
+            },
+            LeakCounterKind.AsyncAwaitScoped);
+
+            return h;
+        }
+
+        [MethodImpl(Inline)]
         public static IAsyncDisposable AsyncAwaitScoped<T>(Func<CancellationToken, Task<T>> asyncFunc, bool noErrorMessage = false)
         {
             CancellationTokenSource cts = new CancellationTokenSource();

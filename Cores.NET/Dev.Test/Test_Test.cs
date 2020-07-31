@@ -354,9 +354,139 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (false)
+            {
+                AsyncPulse p = new AsyncPulse();
+                RefInt c = new RefInt();
+
+                for (int i = 0; i < 20; i++)
+                {
+                    Task t = TaskUtil.StartAsyncTaskAsync(async () =>
+                    {
+                        var waiter = p.GetPulseWaiter();
+                        while (true)
+                        {
+                            await waiter.WaitAsync();
+                            Console.WriteLine(c.Increment());
+                        }
+                    });
+                }
+
+                while (true)
+                {
+                    Con.ReadLine();
+                    p.FirePulse(false);
+                }
+
+                return;
+            }
+
+            if (false)
+            {
+                RefInt counter = new RefInt();
+
+                for (int i = 0; i < 10000; i++)
+                {
+                    AsyncAwait(async () =>
+                    {
+                        while (true)
+                        {
+                            AsyncPulse p = new AsyncPulse();
+                            AsyncManualResetEvent e1 = new AsyncManualResetEvent();
+                            AsyncManualResetEvent e2 = new AsyncManualResetEvent();
+
+                            Task t1 = AsyncAwait(async () =>
+                            {
+                                await e1.WaitAsync();
+
+                                p.FirePulse();
+                            });
+
+                            Task t2 = AsyncAwait(async () =>
+                            {
+                                var waiter = p.GetPulseWaiter();
+
+                                await e2.WaitAsync();
+
+                                if (await waiter.WaitAsync(1000) == false)
+                                {
+                                    Dbg.Where();
+                                }
+                            });
+
+
+                            if (Util.RandBool())
+                            {
+                                e2.Set(true);
+                                await Task.Delay(10);
+                                e1.Set(true);
+                            }
+                            else
+                            {
+                                e1.Set(true);
+                                await Task.Delay(10);
+                                e2.Set(true);
+                            }
+
+                            await t1;
+                            await t2;
+
+                            //counter.Increment()._Debug();
+                        }
+                    });
+                }
+
+                Thread.Sleep(Timeout.Infinite);
+
+                return;
+            }
+
+            if (false)
+            {
+                Async(async () =>
+                {
+                    using var http = new WebApi();
+
+                    using var res = await http.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, "https://jp.softether-download.com/files/softether/v4.34-9745-rtm-2020.04.05-tree/Windows/SoftEther_VPN_Client/softether-vpnclient-v4.34-9745-rtm-2020.04.05-windows-x86_x64-intel.exe",
+                        rangeStart: 78, rangeLength: null));
+
+                    using var file = await Lfs.CreateAsync(@"c:\tmp\test1.dat", flags: FileFlags.AutoCreateDirectory);
+
+                    using var fileStream = file.GetStream();
+
+                    await res.DownloadStream.CopyBetweenStreamAsync(fileStream);
+                });
+                return;
+            }
+
             if (true)
             {
-                FileDownloader.DownloadFileAsync("http://speed.softether.com/004.1Gbytes.dat", null!)._GetResult();
+                using CancelWatcher c = new CancelWatcher();
+
+                var task1 = AsyncAwait(async () =>
+                {
+                    for (int i = 0; ; i++)
+                    {
+                        await Task.Yield();
+
+                        c.ThrowIfCancellationRequested();
+
+                        $"----------- {i}"._Debug();
+
+                        using var file = Lfs.Create(@"c:\tmp\test1.dat");
+                        using var stream = file.GetStream();
+
+                        await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
+                            new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
+                    }
+                });
+
+                Con.ReadLine();
+
+                c.Cancel();
+
+                task1._TryGetResult();
+
                 return;
             }
 
@@ -381,32 +511,6 @@ namespace IPA.TestDev
                         }, 0);
                     }
                 }
-                return;
-            }
-
-            if (true)
-            {
-                AsyncPulse p = new AsyncPulse();
-                RefInt c = new RefInt();
-
-                for (int i = 0; i < 20; i++)
-                {
-                    Task t = TaskUtil.StartAsyncTaskAsync(async () =>
-                    {
-                        while (true)
-                        {
-                            await p.WaitAsync();
-                            Console.WriteLine(c.Increment());
-                        }
-                    });
-                }
-
-                while (true)
-                {
-                    Con.ReadLine();
-                    p.FirePulse(true);
-                }
-
                 return;
             }
 

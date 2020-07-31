@@ -986,6 +986,15 @@ namespace IPA.Cores.Helper.Basic
             catch { }
         }
 
+        public static void _DisposeSafeSync(this IAsyncDisposable? obj)
+        {
+            try
+            {
+                if (obj != null) obj.DisposeAsync()._GetResult();
+            }
+            catch { }
+        }
+
         public static void _DisposeSafe(this IDisposable? obj)
         {
             try

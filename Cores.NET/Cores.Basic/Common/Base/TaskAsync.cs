@@ -82,9 +82,11 @@ namespace IPA.Cores.Basic
         // すべての動作中のタスクが終了するまで待機する
         public async Task<bool> WaitAllTasksFinishAsync(int timeout = Timeout.Infinite, CancellationToken cancel = default)
         {
+            var pulseWaiter = CurrentRunningTasksChangedInternal.GetPulseWaiter();
+
             while (this.CurrentConcurrentTasks >= 1)
             {
-                if (await CurrentRunningTasksChangedInternal.WaitAsync(timeout, cancel) == false)
+                if (await pulseWaiter.WaitAsync(timeout, cancel) == false)
                 {
                     // タイムアウト
                     break;
@@ -138,6 +140,44 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // Pulse Waiter
+    public class AsyncPulseWaiter
+    {
+        volatile int LastVersion = 0;
+
+        public AsyncPulse Pulse {get;}
+
+        internal AsyncPulseWaiter(AsyncPulse pulse)
+        {
+            this.Pulse = pulse;
+        }
+
+        public async Task<bool> WaitAsync(int timeout = Timeout.Infinite, CancellationToken cancel = default)
+        {
+            using (var eventHolder = Pulse.RegisterAndObtainEventInternal())
+            {
+                if (LastVersion != Pulse.Version)
+                {
+                    // Register 処理中に 1 回でも Fire された場合
+                    LastVersion = Pulse.Version;
+                    return true;
+                }
+
+                bool ret = await eventHolder.Value.WaitAsync(timeout, cancel);
+
+                bool changed = false;
+
+                if (LastVersion != Pulse.Version)
+                {
+                    LastVersion = Pulse.Version;
+                    changed = true;
+                }
+
+                return changed;
+            }
+        }
+    }
+
     // 複数のタスクが非同期に待機することができるパルス。パルスは誰でも Fire することができ、Fire がある毎に、待機しているすべてのタスクの待機が解除される。
     public class AsyncPulse
     {
@@ -145,9 +185,16 @@ namespace IPA.Cores.Basic
 
         readonly HashSet<AsyncManualResetEvent> EventList = new HashSet<AsyncManualResetEvent>();
 
-        volatile int Version = 0;
+        volatile int _Version = 0;
 
-        public Holder<AsyncManualResetEvent> RegisterAndObtainEvent()
+        public int Version => _Version;
+
+        public AsyncPulseWaiter GetPulseWaiter()
+        {
+            return new AsyncPulseWaiter(this);
+        }
+
+        internal Holder<AsyncManualResetEvent> RegisterAndObtainEventInternal()
         {
             AsyncManualResetEvent newEvent = new AsyncManualResetEvent();
 
@@ -167,24 +214,6 @@ namespace IPA.Cores.Basic
             LeakCounterKind.AsyncPulseRegisteredEvent);
         }
 
-        public async Task<bool> WaitAsync(int timeout = Timeout.Infinite, CancellationToken cancel = default)
-        {
-            int oldVersion = this.Version;
-
-            using (var eventHolder = RegisterAndObtainEvent())
-            {
-                int newVersion = this.Version;
-
-                if (oldVersion != newVersion)
-                {
-                    // Register 処理中に 1 回でも Fire された場合
-                    return true;
-                }
-
-                return await eventHolder.Value.WaitAsync(timeout, cancel);
-            }
-        }
-
         public void FirePulse(bool softly = false)
         {
             AsyncManualResetEvent[] eventArray;
@@ -192,7 +221,7 @@ namespace IPA.Cores.Basic
             lock (Lock)
             {
                 eventArray = this.EventList.ToArray();
-                this.Version++;
+                this._Version++;
             }
 
             foreach (AsyncManualResetEvent e in eventArray)
@@ -2554,6 +2583,7 @@ namespace IPA.Cores.Basic
         public CancellationToken CancelToken { get; }
 
         public bool Canceled => this.CancelToken.IsCancellationRequested;
+        public bool IsCancellationRequested => this.CancelToken.IsCancellationRequested;
 
         public CancelWatcher(params CancellationToken[] cancels)
         {
@@ -2588,6 +2618,10 @@ namespace IPA.Cores.Basic
             this.LeakHolder._DisposeSafe();
 
         }
+
+        public static implicit operator CancellationToken(CancelWatcher c) => c.CancelToken;
+
+        public void ThrowIfCancellationRequested() => this.CancelToken.ThrowIfCancellationRequested();
     }
 
     public delegate bool TimeoutDetectorCallback(TimeoutDetector detector);
