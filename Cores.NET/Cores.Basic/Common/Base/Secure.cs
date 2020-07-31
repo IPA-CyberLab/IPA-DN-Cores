@@ -40,6 +40,10 @@ using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Diagnostics;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Buffers;
 
 namespace IPA.Cores.Basic
 {
@@ -221,7 +225,7 @@ namespace IPA.Cores.Basic
 
         public static int HashSHA1(ReadOnlySpan<byte> src, Span<byte> dest)
         {
-            SHA1 sha = new SHA1Managed();
+            using SHA1 sha = new SHA1Managed();
 
             if (sha.TryComputeHash(src, dest, out int ret) == false)
                 throw new ApplicationException("TryComputeHash error.");
@@ -241,7 +245,7 @@ namespace IPA.Cores.Basic
 
         public static int HashSHA256(ReadOnlySpan<byte> src, Span<byte> dest)
         {
-            SHA256 sha = new SHA256Managed();
+            using SHA256 sha = new SHA256Managed();
 
             if (sha.TryComputeHash(src, dest, out int ret) == false)
                 throw new ApplicationException("TryComputeHash error.");
@@ -260,7 +264,7 @@ namespace IPA.Cores.Basic
 
         public static int HashSHA512(ReadOnlySpan<byte> src, Span<byte> dest)
         {
-            SHA512 sha = new SHA512Managed();
+            using SHA512 sha = new SHA512Managed();
 
             if (sha.TryComputeHash(src, dest, out int ret) == false)
                 throw new ApplicationException("TryComputeHash error.");
@@ -274,6 +278,54 @@ namespace IPA.Cores.Basic
             long ret = hash._GetSInt64();
             if (ret == 0) ret = 1;
             return ret;
+        }
+
+        public static async Task<byte[]> CalcStreamHashAsync(Stream stream, HashAlgorithm hash, long truncateSize = long.MaxValue, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, CancellationToken cancel = default)
+        {
+            checked
+            {
+                hash.Initialize();
+
+                byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+
+                long currentSize = 0;
+
+                while (true)
+                {
+                    cancel.ThrowIfCancellationRequested();
+
+                    int tryReadSize = buffer.Length;
+
+                    if ((currentSize + tryReadSize) >= truncateSize)
+                    {
+                        tryReadSize = (int)(truncateSize - currentSize);
+                    }
+
+                    int readSize = await stream.ReadAsync(buffer, 0, tryReadSize);
+                    if (readSize == 0)
+                    {
+                        break;
+                    }
+                    
+                    Debug.Assert(readSize <= tryReadSize);
+
+                    hash.TransformBlock(buffer, 0, readSize, null, 0);
+                    currentSize += readSize;
+
+                    Debug.Assert(currentSize <= truncateSize);
+
+                    if (currentSize == truncateSize)
+                    {
+                        break;
+                    }
+                }
+
+                hash.TransformFinalBlock(buffer, 0, 0);
+
+                ArrayPool<byte>.Shared.Return(buffer);
+
+                return hash.Hash;
+            }
         }
 
         // PKCS パディング

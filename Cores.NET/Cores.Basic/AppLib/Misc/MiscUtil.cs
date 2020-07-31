@@ -480,7 +480,7 @@ namespace IPA.Cores.Basic
 
                                 // ダウンロードの実施
                                 using var http = new WebApi(option.WebApiOptions);
-                                using var res = await http.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, url + "_", cancel2, rangeStart: partial.StartPosition));
+                                using var res = await http.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, url + "", cancel2, rangeStart: partial.StartPosition));
                                 using var src = res.DownloadStream;
 
                                 // Normal copy
@@ -543,7 +543,7 @@ namespace IPA.Cores.Basic
                     0,
                     cancel2.CancelToken);
 
-                    await noMoreNeedNewTaskEvent.WaitAsync(300, cancel2);
+                    await noMoreNeedNewTaskEvent.WaitAsync(30, cancel2);
                 }
 
                 Dbg.Where();
@@ -556,10 +556,17 @@ namespace IPA.Cores.Basic
 
                 if (isTimeout) lastException.Set(new TimeoutException());
 
-                if (lastException.Value != null)
+                if (maps.IsAllFinished() == false)
                 {
-                    // エラーが発生していた
-                    lastException.Value._ReThrow();
+                    if (lastException.Value != null)
+                    {
+                        // エラーが発生していた
+                        lastException.Value._ReThrow();
+                    }
+                    else
+                    {
+                        throw new CoresException("maps.IsAllFinished() == false");
+                    }
                 }
 
                 $"File Size = {fileSize._ToString3()}, Total Down Size = {totalDownloadSize.Value._ToString3()}"._Debug();

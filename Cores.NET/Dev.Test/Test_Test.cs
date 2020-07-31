@@ -70,6 +70,7 @@ using System.Web;
 using System.Text;
 using IPA.Cores.Basic.App.DaemonCenterLib;
 using IPA.Cores.ClientApi.GoogleApi;
+using System.Security.Cryptography;
 
 
 
@@ -465,19 +466,40 @@ namespace IPA.TestDev
 
                 var task1 = AsyncAwait(async () =>
                 {
-                    for (int i = 0; ; i++)
+                    try
                     {
-                        await Task.Yield();
+                        for (int i = 0; ; i++)
+                        {
+                            await Task.Yield();
 
-                        c.ThrowIfCancellationRequested();
+                            c.ThrowIfCancellationRequested();
 
-                        $"----------- {i}"._Debug();
+                            $"----------- {i}"._Debug();
 
-                        using var file = Lfs.Create(@"c:\tmp\test1.dat");
-                        using var stream = file.GetStream();
+                            HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
 
-                        await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
-                            new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
+                            //using var file = Lfs.Create(@"c:\tmp\test1.dat");
+                            using var stream = new BufferBasedStream(mem);
+
+                            await FileDownloader.DownloadFileParallelAsync(
+                                "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
+                                stream,
+                                new FileDownloadOption(maxConcurrentThreads: Util.GetRandWithPercentageInt(30), bufferSize: Util.GetRandWithPercentageInt(123457), webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })), cancel: c);
+                            //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
+                            //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
+
+                            using SHA1Managed sha1 = new SHA1Managed();
+                            stream._SeekToBegin();
+                            byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
+                            if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
+                            {
+                                throw new CoresException($"Hash different: {hash._GetHexString()}");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
                     }
                 });
 

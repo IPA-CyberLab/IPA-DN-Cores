@@ -2128,6 +2128,24 @@ namespace IPA.Cores.Basic
             return (RandUInt32() % 2) == 0;
         }
 
+        public static int GetRandWithPercentageInt(int standard, double plusMinusPercentage = 30.0)
+        {
+            if (standard == 0) return 0;
+            if (standard < 0) throw new ArgumentOutOfRangeException(nameof(standard));
+            double rate = plusMinusPercentage / 100.0;
+            int v = (int)((double)standard * rate);
+            if (v == 0) return standard;
+            bool b = Util.RandBool();
+            v = Util.RandSInt31() % v;
+            long ret;
+            if (b)
+                ret = standard + v;
+            else
+                ret = standard - v;
+            ret = Math.Min(ret, int.MaxValue);
+            return Math.Max((int)ret, 1);
+        }
+
         public static int GenRandIntervalWithRetry(int standard, int numRetry, int max, double plusMinusPercentage = 30.0)
         {
             numRetry = Math.Max(numRetry, 1);
