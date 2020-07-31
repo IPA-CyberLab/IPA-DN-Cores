@@ -249,7 +249,7 @@ namespace IPA.Cores.Basic
 
                 var maxDistancePartial = List.Values[maxDistancePartialIndex];
 
-                return maxDistancePartial.StartPosition + maxDistancePartial.CurrentLength + Math.Max(maxDistance / 2, 1);
+                return maxDistancePartial.StartPosition + maxDistancePartial.CurrentLength + maxDistance / 2;
             }
         }
 
@@ -267,6 +267,12 @@ namespace IPA.Cores.Basic
                 {
                     // これ以上作成できない
                     throw new CoresException("this.List.Count >= this.MaxPartialFragments");
+                }
+
+                if (this.List.ContainsKey(startPosition.Value))
+                {
+                    // もうある
+                    return null;
                 }
 
                 var newPartial = new ConcurrentDownloadPartial(this, startPosition.Value);
