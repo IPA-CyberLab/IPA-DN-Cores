@@ -470,6 +470,8 @@ namespace IPA.TestDev
                     {
                         for (int i = 0; ; i++)
                         {
+                            Dbg.GcCollect();
+
                             await Task.Yield();
 
                             c.ThrowIfCancellationRequested();
@@ -484,7 +486,7 @@ namespace IPA.TestDev
                             await FileDownloader.DownloadFileParallelAsync(
                                 "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
                                 stream,
-                                new FileDownloadOption(maxConcurrentThreads: Util.GetRandWithPercentageInt(30), bufferSize: Util.GetRandWithPercentageInt(123457), webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })), cancel: c);
+                                new FileDownloadOption(maxConcurrentThreads: Util.GetRandWithPercentageInt(90), bufferSize: Util.GetRandWithPercentageInt(123457), webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })), cancel: c);
                             //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
                             //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
 
@@ -493,6 +495,13 @@ namespace IPA.TestDev
                             byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
                             if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
                             {
+                                stream._SeekToBegin();
+
+                                using var file = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
+                                using var filest = file.GetStream();
+
+                                await stream.CopyBetweenStreamAsync(filest);
+
                                 throw new CoresException($"Hash different: {hash._GetHexString()}");
                             }
                         }

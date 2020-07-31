@@ -192,21 +192,25 @@ namespace IPA.Cores.Basic
     public class ConcurrentDownloadPartialMaps
     {
         public long TotalSize { get; }
+        public int MaxPartialFragments { get; }
 
         public readonly CriticalSection Lock = new CriticalSection();
 
         internal readonly SortedList<long, ConcurrentDownloadPartial> List = new SortedList<long, ConcurrentDownloadPartial>();
 
-        public ConcurrentDownloadPartialMaps(long totalSize)
+        public ConcurrentDownloadPartialMaps(long totalSize, int maxPartialFragments = Consts.Numbers.DefaultMaxPartialFragments)
         {
             if (totalSize < 0) throw new ArgumentOutOfRangeException(nameof(totalSize));
 
             this.TotalSize = totalSize;
+            this.MaxPartialFragments = maxPartialFragments;
         }
 
         // 現在未完了の領域のうち最小の部分の中心を返す (ない場合は null を返す)
-        public long? GetMaxUnfinishedPartialStartCenterPosison()
+        public long? GetMaxUnfinishedPartialStartCenterPosison(int minDistance = 2)
         {
+            minDistance = Math.Max(minDistance, 1);
+
             lock (Lock)
             {
                 if (List.Count == 0) return 0;
@@ -237,7 +241,7 @@ namespace IPA.Cores.Basic
 
                 Debug.Assert(maxDistancePartialIndex != -1);
 
-                if (maxDistance < 2)
+                if (maxDistance < minDistance)
                 {
                     // もうない
                     return null;
@@ -259,6 +263,12 @@ namespace IPA.Cores.Basic
 
                 if (startPosition == null) return null; // もうない
 
+                if (this.List.Count >= this.MaxPartialFragments)
+                {
+                    // これ以上作成できない
+                    throw new CoresException("this.List.Count >= this.MaxPartialFragments");
+                }
+
                 var newPartial = new ConcurrentDownloadPartial(this, startPosition.Value);
 
                 this.List.Add(newPartial.StartPosition, newPartial);
@@ -270,7 +280,7 @@ namespace IPA.Cores.Basic
         // すべて完了しているかどうか
         public bool IsAllFinished()
         {
-            if (GetMaxUnfinishedPartialStartCenterPosison() == null)
+            if (GetMaxUnfinishedPartialStartCenterPosison(1) == null)
             {
                 return true;
             }
@@ -469,8 +479,13 @@ namespace IPA.Cores.Basic
                             {
                                 // もう新しい部分を開始する必要がない
                                 $"Task {taskId}: No more partial"._Debug();
-                                noMoreNeedNewTask.Set(true);
-                                noMoreNeedNewTaskEvent.Set(true);
+                                if (maps.IsAllFinished())
+                                {
+                                    // IsAllFinished() は必ずチェックする。
+                                    // そうしないと、1 バイトの空白領域が残っているときに取得未了になるおそれがあるためである。
+                                    noMoreNeedNewTask.Set(true);
+                                    noMoreNeedNewTaskEvent.Set(true);
+                                }
                                 return false;
                             }
 

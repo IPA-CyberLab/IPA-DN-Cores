@@ -91,6 +91,8 @@ namespace IPA.Cores.Basic
             public const int SignCodeServerMaxFileSize = 300 * 1024 * 1024; // 300 MB
 
             public const int GcTempFreq = 100;
+
+            public const int DefaultMaxPartialFragments = 4096;
         }
 
         public static partial class MaxLens
