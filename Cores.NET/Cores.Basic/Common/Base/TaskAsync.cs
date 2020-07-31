@@ -145,7 +145,7 @@ namespace IPA.Cores.Basic
     {
         volatile int LastVersion = 0;
 
-        public AsyncPulse Pulse {get;}
+        public AsyncPulse Pulse { get; }
 
         internal AsyncPulseWaiter(AsyncPulse pulse)
         {
@@ -647,6 +647,53 @@ namespace IPA.Cores.Basic
                     // Canceled
                     return false;
                 }
+            }
+        }
+
+        // ForEach 非同期実行。1 つでも失敗したら例外を発生させ、すべてキャンセルする
+        public static async Task ForEachAsync<T>(int maxConcurrentTasks, IEnumerable<T> items, Func<T, CancellationToken, Task> func, CancellationToken cancel = default)
+        {
+            AsyncConcurrentTask at = new AsyncConcurrentTask(maxConcurrentTasks);
+
+            using var cancel2 = new CancelWatcher(cancel);
+
+            List<Exception> exceptionList = new List<Exception>();
+
+            RefBool hasError = false;
+
+            foreach (var item in items)
+            {
+                var task = await at.StartTaskAsync<int, int>(async (x, c) =>
+                 {
+                     try
+                     {
+                         await func(item, c);
+                     }
+                     catch (Exception ex)
+                     {
+                         lock (exceptionList)
+                            exceptionList.Add(ex);
+
+                         hasError.Set(true);
+                         cancel2.Cancel();
+                     }
+                     return 0;
+                 },
+                0,
+                cancel2);
+
+                if (hasError)
+                {
+                    break;
+                }
+            }
+
+            await at.WaitAllTasksFinishAsync();
+
+            if (hasError)
+            {
+                lock (exceptionList)
+                    throw new AggregateException(exceptionList.ToArray());
             }
         }
 

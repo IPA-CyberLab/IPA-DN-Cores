@@ -185,6 +185,8 @@ namespace IPA.Cores.Basic
             }
         }
 
+        readonly AsyncLock WriteLogLock = new AsyncLock();
+
         async Task WriteLogAsync(DirSuperBackupLogType type, string str)
         {
             try
@@ -193,19 +195,22 @@ namespace IPA.Cores.Basic
 
                 line = line._OneLine();
 
-                Console.WriteLine(line);
-
-                if (type.Bit(DirSuperBackupLogType.Error))
+                using (await WriteLogLock.LockWithAwait())
                 {
-                    await WriteLogMainAsync(this.ErrorLogWriter, line);
+                    Console.WriteLine(line);
 
-                    if (this.ErrorLogWriter != null)
+                    if (type.Bit(DirSuperBackupLogType.Error))
                     {
-                        await this.ErrorLogWriter.FlushAsync();
-                    }
-                }
+                        await WriteLogMainAsync(this.ErrorLogWriter, line);
 
-                await WriteLogMainAsync(this.InfoLogWriter, line);
+                        if (this.ErrorLogWriter != null)
+                        {
+                            await this.ErrorLogWriter.FlushAsync();
+                        }
+                    }
+
+                    await WriteLogMainAsync(this.InfoLogWriter, line);
+                }
             }
             catch
             {
@@ -294,10 +299,20 @@ namespace IPA.Cores.Basic
                 }
 
                 // 元ディレクトリに存在するファイルを 1 つずつバックアップする
-                foreach (FileSystemEntity srcFile in srcDirEnum.Where(x => x.IsFile))
+                var fileEntries = srcDirEnum.Where(x => x.IsFile);
+
+                RefInt concurrentNum = new RefInt();
+
+                AsyncLock SafeLock = new AsyncLock();
+
+                await TaskUtil.ForEachAsync(32, fileEntries, async (srcFile, cancel) =>
                 {
+                    await Task.Yield();
+
                     string destFilePath = Fs.PathParser.Combine(destDir, srcFile.Name);
                     FileMetadata? srcFileMetadata = null;
+
+                    concurrentNum.Increment();
 
                     try
                     {
@@ -358,32 +373,35 @@ namespace IPA.Cores.Basic
 
                             if (exists)
                             {
-                                string newOldFileName;
-
-                                // 連番でかつ存在していないファイル名を決定する
-                                for (int i = 0; ; i++)
+                                using (await SafeLock.LockWithAwait(cancel))
                                 {
-                                    string newOldFileNameCandidate = $"{srcFile.Name}.{i:D4}.old";
+                                    string newOldFileName;
 
-                                    if (srcDirEnum.Where(x => x.Name._IsSamei(newOldFileNameCandidate)).Any() == false)
+                                    // 連番でかつ存在していないファイル名を決定する
+                                    for (int i = 0; ; i++)
                                     {
-                                        if (await Fs.IsFileExistsAsync(Fs.PathParser.Combine(destDir, newOldFileNameCandidate), cancel) == false)
+                                        string newOldFileNameCandidate = $"{srcFile.Name}.{i:D4}.old";
+
+                                        if (srcDirEnum.Where(x => x.Name._IsSamei(newOldFileNameCandidate)).Any() == false)
                                         {
-                                            newOldFileName = newOldFileNameCandidate;
-                                            break;
+                                            if (await Fs.IsFileExistsAsync(Fs.PathParser.Combine(destDir, newOldFileNameCandidate), cancel) == false)
+                                            {
+                                                newOldFileName = newOldFileNameCandidate;
+                                                break;
+                                            }
                                         }
                                     }
-                                }
 
-                                // 変更されたファイル名を .old ファイルにリネーム実行する
-                                await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileRename", destFilePath, Fs.PathParser.Combine(destDir, newOldFileName)));
-                                await Fs.MoveFileAsync(destFilePath, Fs.PathParser.Combine(destDir, newOldFileName), cancel);
+                                    // 変更されたファイル名を .old ファイルにリネーム実行する
+                                    await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileRename", destFilePath, Fs.PathParser.Combine(destDir, newOldFileName)));
+                                    await Fs.MoveFileAsync(destFilePath, Fs.PathParser.Combine(destDir, newOldFileName), cancel);
+                                }
                             }
 
                             // ファイルをコピーする
                             // 属性は、ファイルの日付情報のみコピーする
                             await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileCopy", srcFile.FullPath, destFilePath));
-                            await Fs.CopyFileAsync(srcFile.FullPath, destFilePath, new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll)),
+                            await Fs.CopyFileAsync(srcFile.FullPath, destFilePath, new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify | FileFlags.Async, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll)),
                                 cancel: cancel);
 
                             Stat.Copy_NumFiles++;
@@ -413,13 +431,17 @@ namespace IPA.Cores.Basic
                         // ファイル単位のエラー発生
                         await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("FileError", srcFile.FullPath, destFilePath, ex.Message));
                     }
+                    finally
+                    {
+                        concurrentNum.Decrement();
+                    }
 
                     // このファイルに関するメタデータを追加する
                     if (srcFileMetadata != null)
                     {
                         destDirNewMetaData.FileList.Add(new DirSuperBackupMetadataFile() { FileName = srcFile.Name, MetaData = srcFileMetadata });
                     }
-                }
+                }, cancel: cancel);
 
                 // 新しいメタデータをファイル名でソートする
                 destDirNewMetaData.FileList = destDirNewMetaData.FileList.OrderBy(x => x.FileName, StrComparer.IgnoreCaseComparer).ToList();
