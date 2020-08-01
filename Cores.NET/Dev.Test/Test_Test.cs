@@ -460,7 +460,7 @@ namespace IPA.TestDev
                 return;
             }
 
-            if (true)
+            if (false)
             {
                 using CancelWatcher c = new CancelWatcher();
 
@@ -482,10 +482,10 @@ namespace IPA.TestDev
 
                             HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
 
-                            //using var stream = new BufferBasedStream(mem);
+                            using var stream = new BufferBasedStream(mem);
 
-                            using var file = Lfs.Create(@"c:\tmp\test1.dat", flags: FileFlags.SparseFile);
-                            using var stream = file.GetStream();
+                            //using var file = Lfs.Create(@"c:\tmp\test1.dat", flags: FileFlags.SparseFile);
+                            //using var stream = file.GetStream();
 
                             await FileDownloader.DownloadFileParallelAsync(
                                 "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
@@ -527,7 +527,7 @@ namespace IPA.TestDev
                 return;
             }
 
-            if (true)
+            if (false)
             {
                 AsyncConcurrentTask t = new AsyncConcurrentTask(5);
 
@@ -553,7 +553,9 @@ namespace IPA.TestDev
 
             if (true)
             {
-                FileDownloader.DownloadUrlListedAsync("https://raw.githubusercontent.com/dotnet/core/master/release-notes/3.1/3.1.6/3.1.6.md", @"c:\tmp\down1", "tar.gz,zip,exe")._GetResult();
+                FileDownloader.DownloadUrlListedAsync("https://raw.githubusercontent.com/dotnet/core/master/release-notes/3.1/3.1.6/3.1.6.md", @"c:\tmp\down1", "tar.gz,zip,exe",
+                    reporterFactory: new ProgressFileDownloadingReporterFactory(ProgressReporterOutputs.Console)
+                    )._GetResult();
                 return;
             }
 

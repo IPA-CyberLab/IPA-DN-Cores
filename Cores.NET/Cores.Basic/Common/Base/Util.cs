@@ -5569,6 +5569,13 @@ namespace IPA.Cores.Basic
             : base(new ProgressReporterSetting(outputs, listener, title, "", false, true, true, reportTimingSetting), state) { }
     }
 
+    public class ProgressFileDownloadingReporter : ProgressReporter
+    {
+        public ProgressFileDownloadingReporter(object? state, ProgressReporterOutputs outputs, ProgressReportListener? listener = null,
+            string title = "Downloading a file", ProgressReportTimingSetting? reportTimingSetting = null)
+            : base(new ProgressReporterSetting(outputs, listener, title, "", false, true, true, reportTimingSetting), state) { }
+    }
+
     public abstract class ProgressReporterFactoryBase
     {
         public ProgressReporterOutputs Outputs { get; set; }
@@ -5582,7 +5589,7 @@ namespace IPA.Cores.Basic
             this.ReportTimingSetting = reportTimingSetting;
         }
 
-        public abstract ProgressReporterBase CreateNewReporter(string title, object? state);
+        public abstract ProgressReporterBase CreateNewReporter(string title, object? state = null);
     }
 
     public class ProgressFileProcessingReporterFactory : ProgressReporterFactoryBase
@@ -5590,9 +5597,20 @@ namespace IPA.Cores.Basic
         public ProgressFileProcessingReporterFactory(ProgressReporterOutputs outputs, ProgressReportListener? listener = null, ProgressReportTimingSetting? reportTimingSetting = null)
             : base(outputs, listener, reportTimingSetting) { }
 
-        public override ProgressReporterBase CreateNewReporter(string title, object? state)
+        public override ProgressReporterBase CreateNewReporter(string title, object? state = null)
         {
             return new ProgressFileProcessingReporter(state, this.Outputs, this.Listener, title, this.ReportTimingSetting);
+        }
+    }
+
+    public class ProgressFileDownloadingReporterFactory : ProgressReporterFactoryBase
+    {
+        public ProgressFileDownloadingReporterFactory(ProgressReporterOutputs outputs, ProgressReportListener? listener = null, ProgressReportTimingSetting? reportTimingSetting = null)
+            : base(outputs, listener, reportTimingSetting) { }
+
+        public override ProgressReporterBase CreateNewReporter(string title, object? state = null)
+        {
+            return new ProgressFileDownloadingReporter(state, this.Outputs, this.Listener, title, this.ReportTimingSetting);
         }
     }
 
@@ -5601,7 +5619,7 @@ namespace IPA.Cores.Basic
         public NullReporterFactory()
             : base(ProgressReporterOutputs.None, null, null) { }
 
-        public override ProgressReporterBase CreateNewReporter(string title, object? state)
+        public override ProgressReporterBase CreateNewReporter(string title, object? state = null)
         {
             return new NullProgressReporter(state);
         }

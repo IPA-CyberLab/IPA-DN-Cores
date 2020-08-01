@@ -71,6 +71,33 @@ namespace IPA.TestDev
     partial class TestDevCommands
     {
         [ConsoleCommand(
+        "指定された URL (のテキストファイル) をダウンロードし、その URL に記載されているすべてのファイルをダウンロードする",
+        "DownloadUrlListedAsync [url] [/dest:dir] [/ext:tar.gz,zip,exe,...]",
+        "指定された URL (のテキストファイル) をダウンロードし、その URL に記載されているすべてのファイルをダウンロードする")]
+        static int DownloadUrlListedAsync(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[url]", ConsoleService.Prompt, "Input URL: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("dest", ConsoleService.Prompt, "Input dest directory: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("ext", ConsoleService.Prompt),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string extList = vl["ext"].StrValue;
+            if (extList._IsEmpty()) extList = "tar.gz,zip,exe";
+
+            FileDownloader.DownloadUrlListedAsync(vl.DefaultParam.StrValue,
+                vl["dest"].StrValue,
+                extList,
+                reporterFactory: new ProgressFileDownloadingReporterFactory(ProgressReporterOutputs.Console)
+                )._GetResult();
+
+            return 0;
+        }
+
+        [ConsoleCommand(
             "SslCertListCollector command",
             "SslCertListCollector [dnsZonesDir] [/OUT:outDir]",
             "SslCertListCollector command")]

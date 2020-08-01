@@ -160,6 +160,7 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<int> DefaultRetryIntervalMsecs = 1000;
             public static readonly Copenhagen<int> DefaultTryCount = 5;
             public static readonly Copenhagen<int> DefaultBufferSize = 1 * 1024 * 1024; // 1MB
+            public static readonly Copenhagen<int> DefaultAdditionalConnectionIntervalMsecs = 1000;
         }
     }
 
@@ -171,20 +172,23 @@ namespace IPA.Cores.Basic
         public int TryCount { get; }
         public WebApiOptions WebApiOptions { get; }
         public int BufferSize { get; }
+        public int AdditionalConnectionIntervalMsecs { get; }
 
-        public FileDownloadOption(int maxConcurrentThreads = -1, int retryIntervalMsecs = -1, int tryCount = -1, int bufferSize = 0, WebApiOptions? webApiOptions = null)
+        public FileDownloadOption(int maxConcurrentThreads = -1, int retryIntervalMsecs = -1, int tryCount = -1, int bufferSize = 0, int additionalConnectionIntervalMsecs = -1, WebApiOptions? webApiOptions = null)
         {
             if (maxConcurrentThreads <= 0) maxConcurrentThreads = CoresConfig.FileDownloader.DefaultMaxConcurrentThreads;
             if (retryIntervalMsecs < 0) retryIntervalMsecs = CoresConfig.FileDownloader.DefaultRetryIntervalMsecs;
             if (tryCount <= 0) tryCount = CoresConfig.FileDownloader.DefaultTryCount;
             if (webApiOptions == null) webApiOptions = new WebApiOptions();
             if (bufferSize <= 0) bufferSize = CoresConfig.FileDownloader.DefaultBufferSize;
+            if (additionalConnectionIntervalMsecs <= 0) additionalConnectionIntervalMsecs = CoresConfig.FileDownloader.DefaultAdditionalConnectionIntervalMsecs;
 
             MaxConcurrentThreads = maxConcurrentThreads;
             RetryIntervalMsecs = retryIntervalMsecs;
             TryCount = tryCount;
             WebApiOptions = webApiOptions;
             BufferSize = bufferSize;
+            AdditionalConnectionIntervalMsecs = additionalConnectionIntervalMsecs;
         }
     }
 
@@ -510,6 +514,7 @@ namespace IPA.Cores.Basic
                     // 同時に一定数までタスクを作成する
                     var newTask = await concurrent.StartTaskAsync<int, bool>(async (p1, c1) =>
                     {
+                        //maps.CalcUnfinishedTotalSize()._Debug();
                         bool started = false;
                         int taskId = taskIdSeed.Increment();
 
@@ -605,7 +610,7 @@ namespace IPA.Cores.Basic
                     0,
                     cancel2.CancelToken);
 
-                    await noMoreNeedNewTaskEvent.WaitAsync(100, cancel2);
+                    await noMoreNeedNewTaskEvent.WaitAsync(option.AdditionalConnectionIntervalMsecs, cancel2);
                 }
 
                 //Dbg.Where();
@@ -651,8 +656,11 @@ namespace IPA.Cores.Basic
         }
 
         // 指定された URL (のテキストファイル) をダウンロードし、その URL に記載されているすべてのファイルをダウンロードする
-        public static async Task DownloadUrlListedAsync(string urlListedFileUrl, string destDir, string extensions, int numRetrt = 5, CancellationToken cancel = default)
+        public static async Task DownloadUrlListedAsync(string urlListedFileUrl, string destDir, string extensions, FileDownloadOption? option = null, ProgressReporterFactoryBase? reporterFactory = null, CancellationToken cancel = default)
         {
+            if (option == null) option = new FileDownloadOption();
+            if (reporterFactory == null) reporterFactory = new NullReporterFactory();
+
             // ファイル一覧のファイルをダウンロードする
             using var web = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true }));
 
@@ -683,27 +691,15 @@ namespace IPA.Cores.Basic
 
             foreach (string fileUrl in fileUrlList)
             {
-                RetryHelper<int> h = new RetryHelper<int>(1000, numRetrt);
+                string destFileName = PathParser.Mac.GetFileName(fileUrl);
+                string destFileFullPath = Lfs.PathParser.Combine(destDir, destFileName);
 
-                await h.RunAsync(async c =>
-                {
-                    using var down = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true }));
+                using var reporter = reporterFactory.CreateNewReporter(destFileName);
 
-                    using var res = await down.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, fileUrl, cancel));
+                using var file = await Lfs.CreateAsync(destFileFullPath, false, FileFlags.AutoCreateDirectory, cancel: cancel);
+                using var fileStream = file.GetStream();
 
-                    string destFileFullPath = Lfs.PathParser.Combine(destDir, PathParser.Mac.GetFileName(fileUrl));
-
-                    Con.WriteLine(destFileFullPath);
-
-                    using var file = await Lfs.CreateAsync(destFileFullPath, flags: FileFlags.AutoCreateDirectory, cancel: cancel);
-
-                    using var fileStream = file.GetStream();
-
-                    await res.DownloadStream.CopyBetweenStreamAsync(fileStream);
-
-                    return 0;
-                },
-                cancel: cancel);
+                await DownloadFileParallelAsync(fileUrl, fileStream, option, progressReporter: reporter, cancel: cancel);
             }
         }
     }
