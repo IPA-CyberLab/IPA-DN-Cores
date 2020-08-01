@@ -16,12 +16,12 @@ ASP.NET Core Web アプリケーション (C#) を追加する。
 「ブラウザーの起動」を OFF にする。
 
 
-■ Cores.Lib.Basic.AspNet3.0.Full の追加
+■ Cores.Web の追加
 ソリューションに
-「Cores.Lib.Basic.AspNet3.0.Full\Cores.Lib.Basic.AspNet3.0.Full.csproj」
+「Cores.Web\Cores.Web.csproj」
 を追加する。
 
-ASP.NET プロジェクトから Cores.Lib.Basic.AspNet3.0.Full に依存設定をする。
+ASP.NET プロジェクトから Cores.Web に依存設定をする。
 
 
 ■ Cores.Basic.shproj の追加
@@ -42,8 +42,10 @@ ASP.NET プロジェクトから Cores.Lib.Basic.AspNet3.0.Full に依存設定�
 以下のプロパティを <PropertyGroup> に追加
 ---
     <LangVersion>8.0</LangVersion>
-    <ServerGarbageCollection>true</ServerGarbageCollection>
-    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <BlazorWebAssemblyEnableLinking>false</BlazorWebAssemblyEnableLinking>
+    <BlazorWebAssemblyI18NAssemblies>all</BlazorWebAssemblyI18NAssemblies>
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
 ---
 
@@ -53,13 +55,13 @@ ASP.NET プロジェクトから Cores.Lib.Basic.AspNet3.0.Full に依存設定�
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DefineConstants>CORES_CODES_ASPNETMVC;</DefineConstants>
+    <DefineConstants></DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DefineConstants>TRACE;DEBUG;CORES_CODES_ASPNETMVC;</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;</DefineConstants>
   </PropertyGroup>
 ---
 
