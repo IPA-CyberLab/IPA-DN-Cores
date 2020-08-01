@@ -355,6 +355,22 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                LogBrowserSecureJson json = new LogBrowserSecureJson
+                {
+                    AuthRequired = true,
+                    AuthDatabase = new KeyValueList<string, string>(),
+                    AuthSubject = "IPA の皆様",
+                };
+
+                json.AuthDatabase.Add("a", "b");
+
+                json._ObjectToFile(@"C:\git\IPA-DN-FileCenter\IPA-DN-FileCenter\Local\DataRoot\test1\_secure.json");
+
+                return;
+            }
+
             if (false)
             {
                 AsyncPulse p = new AsyncPulse();

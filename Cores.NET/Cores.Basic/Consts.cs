@@ -93,6 +93,8 @@ namespace IPA.Cores.Basic
             public const int GcTempFreq = 100;
 
             public const int DefaultMaxPartialFragments = 4096;
+
+            public const int NormalJsonMaxSize = 1 * 1024 * 1024; // 1MB
         }
 
         public static partial class MaxLens
@@ -225,6 +227,8 @@ namespace IPA.Cores.Basic
             public const string MyDynamicTempSubDirName = "_dynamic";
 
             public const string AutoArchiveSubDirName = ".AutoBackup";
+
+            public const string LogBrowserSecureJson = "_secure.json";
         }
 
         public static partial class BlazorApp
@@ -291,6 +295,11 @@ namespace IPA.Cores.Basic
             public const string Slack_User = "Slack_as_Per_User_Token";
 
             public const string Slack_Old = "Slack";
+        }
+
+        public static partial class HttpHeaders
+        {
+            public const string WWWAuthenticate = "WWW-Authenticate";
         }
 
         public static partial class HttpStatusCodes

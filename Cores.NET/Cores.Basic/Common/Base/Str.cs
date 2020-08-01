@@ -4042,7 +4042,7 @@ namespace IPA.Cores.Basic
 
         // パスを安全にする
         static readonly char[] InvalidPathChars = Win32PathInternal.GetInvalidPathChars();
-        public static string MakeSafePathName(string name)
+        public static string MakeSafePathName(string name, PathParser? pathParser = null)
         {
             char[] a = name.ToCharArray();
             StringBuilder sb = new StringBuilder();
@@ -4065,7 +4065,14 @@ namespace IPA.Cores.Basic
                 if (a[i] == '\\' || a[i] == '/')
                 {
                     ok = true;
-                    a[i] = Env.PathSeparatorChar;
+                    if (pathParser == null)
+                    {
+                        a[i] = Env.PathSeparatorChar;
+                    }
+                    else
+                    {
+                        a[i] = pathParser.DirectorySeparator;
+                    }
                 }
 
                 if (i == 1 && a[i] == ':')

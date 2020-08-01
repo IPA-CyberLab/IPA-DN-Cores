@@ -594,8 +594,10 @@ namespace IPA.Cores.Basic
 
         public bool DisposeStream { get; }
 
+        public IReadOnlyList<KeyValuePair<string, string>>? AdditionalHeaders { get; }
+
         public HttpResult(Stream stream, long offset, long? length, string? contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, bool disposeStream = true,
-            ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default)
+            ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
         {
             if (stream == null) throw new ArgumentNullException(nameof(stream));
             if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
@@ -613,6 +615,7 @@ namespace IPA.Cores.Basic
             this.PostData = postData;
 
             this.DisposeStream = disposeStream;
+            this.AdditionalHeaders = additionalHeaders;
         }
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
@@ -631,23 +634,23 @@ namespace IPA.Cores.Basic
     // すでに用意されたメモリ配列を HTTP 応答するクラス
     public class HttpMemoryResult : HttpResult
     {
-        public HttpMemoryResult(ReadOnlySpan<byte> data, string contentType = Consts.MimeTypes.OctetStream, int statusCode = Consts.HttpStatusCodes.Ok)
-            : base(data._ToMemoryStream(), 0, data.Length, contentType, statusCode) { }
+        public HttpMemoryResult(ReadOnlySpan<byte> data, string contentType = Consts.MimeTypes.OctetStream, int statusCode = Consts.HttpStatusCodes.Ok, IReadOnlyList<KeyValuePair<string, string>>? additionalHeadersList = null)
+            : base(data._ToMemoryStream(), 0, data.Length, contentType, statusCode, additionalHeaders: additionalHeadersList) { }
     }
 
     // すでに用意された文字列データを HTTP 応答するクラス
     public class HttpStringResult : HttpMemoryResult
     {
-        public HttpStringResult(string str, string contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, Encoding? encoding = null)
-            : base(str._NonNull()._GetBytes(encoding ?? Str.Utf8Encoding), contentType, statusCode) { }
+        public HttpStringResult(string str, string contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, Encoding? encoding = null, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
+            : base(str._NonNull()._GetBytes(encoding ?? Str.Utf8Encoding), contentType, statusCode, additionalHeaders) { }
     }
 
     // 指定されたファイルを HTTP 応答するクラス
     public class HttpFileResult : HttpResult
     {
         public HttpFileResult(FileBase file, long offset, long? length, string contentType = Consts.MimeTypes.OctetStream, int statusCode = Consts.HttpStatusCodes.Ok, bool disposeFile = true,
-            ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default)
-            : base(file.GetStream(disposeFile), offset, length, contentType, statusCode, true, preData, postData) { }
+            ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
+            : base(file.GetStream(disposeFile), offset, length, contentType, statusCode, true, preData, postData, additionalHeaders) { }
     }
 }
 

@@ -52,6 +52,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Hosting;
+using System.Globalization;
 
 #if CORES_BASIC_HTTPSERVER
 // ASP.NET Core 3.0 用の型名を無理やり ASP.NET Core 2.2 でコンパイルするための型エイリアスの設定
@@ -61,6 +62,22 @@ using IHostApplicationLifetime = Microsoft.AspNetCore.Hosting.IApplicationLifeti
 
 namespace IPA.Cores.Basic
 {
+    // _secure.json ファイルの定義
+    public class LogBrowserSecureJson : INormalizable
+    {
+        public bool AuthRequired;
+        public KeyValueList<string, string> AuthDatabase = null!;
+        public string AuthSubject = null!;
+        public DateTimeOffset Expires = Util.MaxDateTimeOffsetValue;
+
+        public void Normalize()
+        {
+            if (this.AuthDatabase == null) this.AuthDatabase = new KeyValueList<string, string>();
+            this.AuthSubject = this.AuthSubject._NonNullTrimSe();
+            if (this.Expires._IsZeroDateTime()) this.Expires = Util.MaxDateTimeOffsetValue;
+        }
+    }
+
     // LogBrowser を含んだ HttpServer のオプション
     public class LogBrowserHttpServerOptions
     {
@@ -83,6 +100,7 @@ namespace IPA.Cores.Basic
         None = 0,
         NoPreview = 1, // プレビューボタンなし
         NoRootDirectory = 2, // 最上位ディレクトリへのアクセス不可
+        SecureJson = 4, // _secure.json ファイルを必要とし、色々なセキュリティ処理を実施する
     }
 
     // LogBrowser のオプション
@@ -193,6 +211,39 @@ namespace IPA.Cores.Basic
                     return new HttpStringResult("403 Forbidden", statusCode: 403);
                 }
 
+                if (this.Options.Flags.Bit(LogBrowserFlags.SecureJson))
+                {
+                    // _secure.json ファイルの読み込みを試行する
+                    string[] dirNames = PathParser.Linux.SplitAbsolutePathToElementsUnixStyle(relativePath);
+                    string firstDirName = "/" + dirNames[0];
+                    string secureJsonPath = PathParser.Linux.Combine(firstDirName, Consts.FileNames.LogBrowserSecureJson);
+
+                    // このファイルはあるかな?
+                    LogBrowserSecureJson? secureJson = secureJsonPath._FileToObject<LogBrowserSecureJson>(RootFs, Consts.Numbers.NormalJsonMaxSize, cancel: cancel, nullIfError: true);
+
+                    if (secureJson == null)
+                    {
+                        // _secure.json がありません！！
+                        return new HttpStringResult("404 Not Found", statusCode: 404);
+                    }
+
+                    if (secureJson.AuthRequired)
+                    {
+                        // 認証が必要とされている場合、パスが  /任意の名前/auth/ である場合は Basic 認証を経由して実ファイルにアクセスさせる。
+                        // それ以外の場合は、認証要求を出す。
+
+                        if (true)
+                        {
+                            KeyValueList<string, string> headers = new KeyValueList<string, string>();
+                            headers.Add(Consts.HttpHeaders.WWWAuthenticate, $"Basic realm=\"User Authentication for {firstDirName._MakeSafePath(PathParser.Linux) + "/."}\"");
+                            return new HttpStringResult(
+                                $"User authentication is required for {firstDirName._MakeSafePath(PathParser.Linux) + "/"}.\r\nLogging in by non-authorized users is a violation of the Japanese Act on Prohibition of Unauthorized Computer Access\r\nand is subject to severe criminal penalties.\r\n\r\n" +
+                                $"{firstDirName._MakeSafePath(PathParser.Linux) + "/"} にアクセスするためには、ユーザー認証が必要です。\r\n不正ユーザーによるログインは日本国の不正アクセス禁止法違反であり、重大な刑事罰の対象となります。\r\n\r\n"
+                                , statusCode: 401, additionalHeaders: headers);
+                        }
+                    }
+                }
+
                 if (RootFs.IsDirectoryExists(relativePath, cancel))
                 {
                     // Directory
@@ -213,6 +264,12 @@ namespace IPA.Cores.Basic
 
                         long head = qsList._GetStrFirst("head")._ToInt()._NonNegative();
                         long tail = qsList._GetStrFirst("tail")._ToInt()._NonNegative();
+
+                        if (this.Options.Flags.Bit(LogBrowserFlags.NoPreview))
+                        {
+                            // プレビュー機能は禁止です！！
+                            head = tail = 0;
+                        }
 
                         if (head != 0 && tail != 0) throw new ApplicationException("You can specify either head or tail.");
 
