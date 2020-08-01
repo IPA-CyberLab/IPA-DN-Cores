@@ -5152,12 +5152,15 @@ namespace IPA.Cores.Basic
         public long CurrentCount { get; }
         public long? TotalCount { get; }
         public bool IsFinish { get; }
+        public string AdditionalInfo { get; }
 
-        public ProgressData(long currentCount, long? totalCount = null, bool isFinish = false)
+        public ProgressData(long currentCount, long? totalCount = null, bool isFinish = false, string additionalInfo = "")
         {
+            if (totalCount.HasValue && totalCount.Value < 0) totalCount = null;
             this.CurrentCount = currentCount;
             this.TotalCount = totalCount;
             this.IsFinish = isFinish;
+            this.AdditionalInfo = additionalInfo;
             if (this.IsFinish && this.TotalCount != null)
             {
                 this.CurrentCount = Math.Max((long)this.TotalCount, this.CurrentCount);
@@ -5210,8 +5213,11 @@ namespace IPA.Cores.Basic
                 }
             }
 
+            string addInfo2 = "";
+            if (this.AdditionalInfo._IsFilled()) addInfo2 = " " + this.AdditionalInfo;
+
             return $"{setting.Title}{statusStr} {GetPercentageStr(setting, report.Percentage)} " +
-                $"({LongValueToString(report.Data.CurrentCount, setting.ToStr3, "", setting.FileSizeStr)} / {LongValueToString(report.Data.TotalCount, setting.ToStr3, setting.Unit, setting.FileSizeStr)}).{etaStr}";
+                $"({LongValueToString(report.Data.CurrentCount, setting.ToStr3, "", setting.FileSizeStr)} / {LongValueToString(report.Data.TotalCount, setting.ToStr3, setting.Unit, setting.FileSizeStr)}).{etaStr}{addInfo2}";
         }
     }
 
@@ -5279,7 +5285,7 @@ namespace IPA.Cores.Basic
 
     public class NullProgressReporter : ProgressReporterBase
     {
-        public NullProgressReporter(object? state) : base(new ProgressReporterSettingBase(), state) { }
+        public NullProgressReporter(object? state = null) : base(new ProgressReporterSettingBase(), state) { }
 
         public override void ReportProgress(ProgressData data) { }
 
@@ -5521,7 +5527,7 @@ namespace IPA.Cores.Basic
     {
         public ProgressReporterSetting MySetting => (ProgressReporterSetting)this.Setting;
 
-        public ProgressReporter(ProgressReporterSetting setting, object? state) : base(setting, state)
+        public ProgressReporter(ProgressReporterSetting setting, object? state = null) : base(setting, state)
         {
         }
 

@@ -206,6 +206,39 @@ namespace IPA.Cores.Basic
             this.MaxPartialFragments = maxPartialFragments;
         }
 
+        // 未完了のバイト数を取得する
+        public long CalcUnfinishedTotalSize()
+        {
+            lock (Lock)
+            {
+                if (List.Count == 0) return this.TotalSize;
+
+                long calcDistanceTotal = 0;
+
+                for (int i = 0; i < List.Count; i++)
+                {
+                    // この partial の後に続く partial までの空白距離を計算する
+                    ConcurrentDownloadPartial thisPartial = List.Values[i];
+                    long nextPartialStartPos = this.TotalSize;
+
+                    if ((i + 1) < List.Count)
+                    {
+                        nextPartialStartPos = List.Values[i + 1].StartPosition;
+                    }
+
+                    long distance = nextPartialStartPos - (thisPartial.StartPosition + thisPartial.CurrentLength);
+                    if (distance < 0) distance = 0;
+
+                    calcDistanceTotal += distance;
+                }
+
+                return Math.Min(this.TotalSize, calcDistanceTotal);
+            }
+        }
+
+        // 完了したバイト数を取得する
+        public long CalcFinishedTotalSize() => this.TotalSize - CalcUnfinishedTotalSize();
+
         // 現在未完了の領域のうち最小の部分の中心を返す (ない場合は null を返す)
         public long? GetMaxUnfinishedPartialStartCenterPosison()
         {
@@ -377,10 +410,11 @@ namespace IPA.Cores.Basic
     public static class FileDownloader
     {
         // 指定されたファイルを分割ダウンロードする
-        public static async Task DownloadFileParallelAsync(string url, Stream destStream, FileDownloadOption? option = null, Ref<WebSendRecvResponse>? responseHeader = null, CancellationToken cancel = default)
+        public static async Task DownloadFileParallelAsync(string url, Stream destStream, FileDownloadOption? option = null, Ref<WebSendRecvResponse>? responseHeader = null, ProgressReporterBase? progressReporter = null, CancellationToken cancel = default)
         {
             if (option == null) option = new FileDownloadOption();
             if (responseHeader == null) responseHeader = new Ref<WebSendRecvResponse>();
+            if (progressReporter == null) progressReporter = new NullProgressReporter();
             AsyncLock streamLock = new AsyncLock();
 
             // まずファイルサイズを取得してみる
@@ -422,14 +456,16 @@ namespace IPA.Cores.Basic
                 RefBool noMoreNeedNewTask = false;
                 AsyncManualResetEvent noMoreNeedNewTaskEvent = new AsyncManualResetEvent();
 
-                RefInt TaskIdSeed = 0;
+                RefInt taskIdSeed = 0;
                 RefLong totalDownloadSize = 0;
+
+                RefInt currentNumConcurrentTasks = new RefInt();
 
                 Ref<Exception?> lastException = new Ref<Exception?>(null);
 
                 using var cancel2 = new CancelWatcher(cancel);
                 AsyncManualResetEvent finishedEvent = new AsyncManualResetEvent();
-                bool isTimeout = false;
+                //bool isTimeout = false;
 
                 // 一定時間経ってもダウンロードサイズが全く増えないことを検知するタスク
                 Task monitorTask = AsyncAwait(async () =>
@@ -457,7 +493,7 @@ namespace IPA.Cores.Basic
                             // タイムアウト発生
                             cancel2.Cancel();
                             Dbg.Where();
-                            isTimeout = true;
+                            //isTimeout = true;
                             lastException.Set(new TimeoutException());
 
                             break;
@@ -475,7 +511,7 @@ namespace IPA.Cores.Basic
                     var newTask = await concurrent.StartTaskAsync<int, bool>(async (p1, c1) =>
                     {
                         bool started = false;
-                        int taskId = TaskIdSeed.Increment();
+                        int taskId = taskIdSeed.Increment();
 
                         try
                         {
@@ -484,7 +520,7 @@ namespace IPA.Cores.Basic
                             if (partial == null)
                             {
                                 // もう新しい部分を開始する必要がない
-                                $"Task {taskId}: No more partial"._Debug();
+                                //$"Task {taskId}: No more partial"._Debug();
                                 if (maps.IsAllFinished())
                                 {
                                     // IsAllFinished() は必ずチェックする。
@@ -497,7 +533,9 @@ namespace IPA.Cores.Basic
 
                             try
                             {
-                                $"Task {taskId}: Start from {partial.StartPosition}"._Debug();
+                                currentNumConcurrentTasks.Increment();
+
+                                //$"Task {taskId}: Start from {partial.StartPosition}"._Debug();
 
                                 // ダウンロードの実施
                                 using var http = new WebApi(option.WebApiOptions);
@@ -519,7 +557,7 @@ namespace IPA.Cores.Basic
 
                                         if (readSize <= 0)
                                         {
-                                            $"Task {taskId}: No more recv data"._Debug();
+                                            //$"Task {taskId}: No more recv data"._Debug();
                                             break;
                                         }
 
@@ -534,20 +572,23 @@ namespace IPA.Cores.Basic
                                             totalDownloadSize.Add(sliced.Length);
                                         }
 
+                                        progressReporter.ReportProgress(new ProgressData(maps.CalcFinishedTotalSize(), maps.TotalSize, false, $"{currentNumConcurrentTasks} connections"));
+
                                         if (partial.AdvanceCurrentLength(sliced.Length) == false)
                                         {
                                             // 次の partial または末尾にぶつかった
-                                            $"Task {taskId}: Reached to the next partial"._Debug();
+                                            //$"Task {taskId}: Reached to the next partial"._Debug();
                                             break;
                                         }
                                     }
                                 }
 
-                                $"Task {taskId}: Finished. Position: {partial.StartPosition + partial.CurrentLength}, size: {partial.CurrentLength}"._Debug();
+                                //$"Task {taskId}: Finished. Position: {partial.StartPosition + partial.CurrentLength}, size: {partial.CurrentLength}"._Debug();
                                 return false;
                             }
                             finally
                             {
+                                currentNumConcurrentTasks.Decrement();
                                 partial.FinishOrCancelPartial();
                             }
                         }
@@ -555,7 +596,7 @@ namespace IPA.Cores.Basic
                         {
                             if (started == false)
                             {
-                                $"Task {taskId}: error. {ex._GetSingleException().Message}"._Debug();
+                                //$"Task {taskId}: error. {ex._GetSingleException().Message}"._Debug();
                             }
                             lastException.Set(ex);
                             return false;
@@ -564,18 +605,18 @@ namespace IPA.Cores.Basic
                     0,
                     cancel2.CancelToken);
 
-                    await noMoreNeedNewTaskEvent.WaitAsync(30, cancel2);
+                    await noMoreNeedNewTaskEvent.WaitAsync(100, cancel2);
                 }
 
-                Dbg.Where();
+                //Dbg.Where();
                 await concurrent.WaitAllTasksFinishAsync();
-                Dbg.Where();
+                //Dbg.Where();
 
                 finishedEvent.Set(true);
 
                 await monitorTask._TryAwait(false);
 
-                if (isTimeout) lastException.Set(new TimeoutException());
+                //if (isTimeout) lastException.Set(new TimeoutException());
 
                 if (maps.IsAllFinished() == false)
                 {
@@ -589,8 +630,23 @@ namespace IPA.Cores.Basic
                         throw new CoresException("maps.IsAllFinished() == false");
                     }
                 }
+                else
+                {
+                    progressReporter.ReportProgress(new ProgressData(maps.TotalSize, maps.TotalSize, true));
+                }
 
-                $"File Size = {fileSize._ToString3()}, Total Down Size = {totalDownloadSize.Value._ToString3()}"._Debug();
+                //$"File Size = {fileSize._ToString3()}, Total Down Size = {totalDownloadSize.Value._ToString3()}"._Debug();
+            }
+            else
+            {
+                // 分割ダウンロード NG の場合は、通常の方法でダウンロードする
+                using var http = new WebApi(option.WebApiOptions);
+
+                using var res = await http.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, url, cancel));
+
+                long totalSize = await res.DownloadStream.CopyBetweenStreamAsync(destStream, reporter: progressReporter, cancel: cancel);
+
+                progressReporter.ReportProgress(new ProgressData(totalSize, isFinish: true));
             }
         }
 

@@ -478,15 +478,21 @@ namespace IPA.TestDev
 
                             $"----------- {i}"._Debug();
 
+                            using var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, title: "Downloading", unit: "bytes", toStr3: true));
+
                             HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
 
-                            //using var file = Lfs.Create(@"c:\tmp\test1.dat");
-                            using var stream = new BufferBasedStream(mem);
+                            //using var stream = new BufferBasedStream(mem);
+
+                            using var file = Lfs.Create(@"c:\tmp\test1.dat", flags: FileFlags.SparseFile);
+                            using var stream = file.GetStream();
 
                             await FileDownloader.DownloadFileParallelAsync(
                                 "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
                                 stream,
-                                new FileDownloadOption(maxConcurrentThreads: Util.GetRandWithPercentageInt(90), bufferSize: Util.GetRandWithPercentageInt(123457), webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })), cancel: c);
+                                new FileDownloadOption(maxConcurrentThreads: Util.GetRandWithPercentageInt(90), bufferSize: Util.GetRandWithPercentageInt(123457), webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
+                                progressReporter: reporter,
+                                cancel: c);
                             //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
                             //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
 
@@ -497,8 +503,8 @@ namespace IPA.TestDev
                             {
                                 stream._SeekToBegin();
 
-                                using var file = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
-                                using var filest = file.GetStream();
+                                using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
+                                using var filest = file2.GetStream();
 
                                 await stream.CopyBetweenStreamAsync(filest);
 
