@@ -1009,7 +1009,7 @@ namespace IPA.Cores.Basic
 
         public bool IsRootDirectory => this.PathParser.IsRootDirectory(this.PathString);
 
-        public IReadOnlyList<DirectoryPath> GetBreadCrumbList()
+        public List<DirectoryPath> GetBreadCrumbList()
         {
             DirectoryPath current = this;
 

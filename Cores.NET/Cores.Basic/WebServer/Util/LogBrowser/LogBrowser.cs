@@ -76,6 +76,15 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // LogBrowser の動作フラグ
+    [Flags]
+    public enum LogBrowserFlags
+    {
+        None = 0,
+        NoPreview = 1, // プレビューボタンなし
+        NoRootDirectory = 2, // 最上位ディレクトリへのアクセス不可
+    }
+
     // LogBrowser のオプション
     public class LogBrowserOptions
     {
@@ -83,11 +92,13 @@ namespace IPA.Cores.Basic
         public string SystemTitle { get; }
         public long TailSize { get; }
         public Func<IPAddress, bool> ClientIpAcl { get; }
+        public LogBrowserFlags Flags { get; }
 
         public LogBrowserOptions(DirectoryPath rootDir,
             string systemTitle = Consts.Strings.LogBrowserDefaultSystemTitle,
             long tailSize = Consts.Numbers.LogBrowserDefaultTailSize,
-            Func<IPAddress, bool>? clientIpAcl = null)
+            Func<IPAddress, bool>? clientIpAcl = null,
+            LogBrowserFlags flags = LogBrowserFlags.None)
         {
             this.SystemTitle = systemTitle._FilledOrDefault(Consts.Strings.LogBrowserDefaultSystemTitle);
             this.RootDir = rootDir;
@@ -97,6 +108,7 @@ namespace IPA.Cores.Basic
             if (clientIpAcl == null) clientIpAcl = (ip) => true;
 
             this.ClientIpAcl = clientIpAcl;
+            this.Flags = flags;
         }
     }
 
@@ -109,7 +121,7 @@ namespace IPA.Cores.Basic
 
         public string AbsolutePathPrefix { get; }
 
-        public LogBrowser(LogBrowserOptions options, string absolutePathPrefix)
+        public LogBrowser(LogBrowserOptions options, string absolutePathPrefix = "")
         {
             if (absolutePathPrefix._IsFilled())
             {
@@ -124,7 +136,7 @@ namespace IPA.Cores.Basic
 
             this.RootFs = new ChrootFileSystem(new ChrootFileSystemParam(Options.RootDir.FileSystem, Options.RootDir.PathString, FileSystemMode.ReadOnly));
         }
-        
+
         public async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
         {
             CancellationToken cancel = request._GetRequestCancellationToken();
@@ -172,6 +184,14 @@ namespace IPA.Cores.Basic
                 if (relativePath.StartsWith("/") == false) relativePath = "/" + relativePath;
 
                 relativePath = PathParser.Linux.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(relativePath);
+
+                relativePath = relativePath._DecodeUrlPath();
+
+                if (this.Options.Flags.Bit(LogBrowserFlags.NoRootDirectory) && PathParser.Linux.IsRootDirectory(relativePath))
+                {
+                    // トップディレクトリはアクセス不能
+                    return new HttpStringResult("403 Forbidden", statusCode: 403);
+                }
 
                 if (RootFs.IsDirectoryExists(relativePath, cancel))
                 {
@@ -269,6 +289,12 @@ namespace IPA.Cores.Basic
             var breadCrumbList = dir.GetBreadCrumbList();
             StringWriter breadCrumbsHtml = new StringWriter();
 
+            if (this.Options.Flags.Bit(LogBrowserFlags.NoRootDirectory))
+            {
+                // ルートディレクトリをパン屑リストから消します
+                breadCrumbList.RemoveAt(0);
+            }
+
             foreach (var crumb in breadCrumbList)
             {
                 var iconInfo = MasterData.GetFasIconFromExtension(Consts.MimeTypes.DirectoryOpening);
@@ -294,6 +320,15 @@ namespace IPA.Cores.Basic
 
             foreach (FileSystemEntity e in fileListSorted)
             {
+                if (this.Options.Flags.Bit(LogBrowserFlags.NoRootDirectory))
+                {
+                    if (e.IsParentDirectory && RootFs.PathParser.IsRootDirectory(e.FullPath))
+                    {
+                        // ルートディレクトリへのリンクは消します
+                        continue;
+                    }
+                }
+
                 string absolutePath = e.FullPath;
                 if (e.IsDirectory && absolutePath.Last() != '/')
                 {
@@ -323,7 +358,10 @@ namespace IPA.Cores.Basic
 
                 if (e.IsDirectory == false)
                 {
-                    dirHtml.WriteLine($@"<a href=""{AbsolutePathPrefix}{absolutePath._EncodeUrlPath()}?tail={Options.TailSize}""><i class=""far fa-eye""></i></a>&nbsp;");
+                    if (this.Options.Flags.Bit(LogBrowserFlags.NoPreview) == false)
+                    {
+                        dirHtml.WriteLine($@"<a href=""{AbsolutePathPrefix}{absolutePath._EncodeUrlPath()}?tail={Options.TailSize}""><i class=""far fa-eye""></i></a>&nbsp;");
+                    }
                 }
 
                 dirHtml.WriteLine($@"<a href=""{AbsolutePathPrefix}{absolutePath._EncodeUrlPath()}""><span class=""icon\""><i class=""{iconInfo.Item1} {iconInfo.Item2}""></i></span> {printName._EncodeHtml(true)}</a>");
