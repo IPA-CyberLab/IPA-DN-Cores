@@ -56,6 +56,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using Castle.Core.Logging;
+using Microsoft.Extensions.Options;
 
 namespace IPA.Cores.Basic
 {
@@ -161,6 +162,7 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<int> DefaultTryCount = 5;
             public static readonly Copenhagen<int> DefaultBufferSize = 1 * 1024 * 1024; // 1MB
             public static readonly Copenhagen<int> DefaultAdditionalConnectionIntervalMsecs = 1000;
+            public static readonly Copenhagen<int> DefaultMaxConcurrentFiles = 20;
         }
     }
 
@@ -168,15 +170,17 @@ namespace IPA.Cores.Basic
     public class FileDownloadOption
     {
         public int MaxConcurrentThreads { get; }
+        public int MaxConcurrentFiles { get; }
         public int RetryIntervalMsecs { get; }
         public int TryCount { get; }
         public WebApiOptions WebApiOptions { get; }
         public int BufferSize { get; }
         public int AdditionalConnectionIntervalMsecs { get; }
 
-        public FileDownloadOption(int maxConcurrentThreads = -1, int retryIntervalMsecs = -1, int tryCount = -1, int bufferSize = 0, int additionalConnectionIntervalMsecs = -1, WebApiOptions? webApiOptions = null)
+        public FileDownloadOption(int maxConcurrentThreads = -1, int maxConcurrentFiles = -1, int retryIntervalMsecs = -1, int tryCount = -1, int bufferSize = 0, int additionalConnectionIntervalMsecs = -1, WebApiOptions? webApiOptions = null)
         {
             if (maxConcurrentThreads <= 0) maxConcurrentThreads = CoresConfig.FileDownloader.DefaultMaxConcurrentThreads;
+            if (maxConcurrentFiles <= 0) maxConcurrentFiles = CoresConfig.FileDownloader.DefaultMaxConcurrentFiles;
             if (retryIntervalMsecs < 0) retryIntervalMsecs = CoresConfig.FileDownloader.DefaultRetryIntervalMsecs;
             if (tryCount <= 0) tryCount = CoresConfig.FileDownloader.DefaultTryCount;
             if (webApiOptions == null) webApiOptions = new WebApiOptions();
@@ -184,6 +188,7 @@ namespace IPA.Cores.Basic
             if (additionalConnectionIntervalMsecs <= 0) additionalConnectionIntervalMsecs = CoresConfig.FileDownloader.DefaultAdditionalConnectionIntervalMsecs;
 
             MaxConcurrentThreads = maxConcurrentThreads;
+            MaxConcurrentFiles = maxConcurrentFiles;
             RetryIntervalMsecs = retryIntervalMsecs;
             TryCount = tryCount;
             WebApiOptions = webApiOptions;
@@ -444,7 +449,7 @@ namespace IPA.Cores.Basic
                 }
 
                 return 0;
-            });
+            }, retryInterval: option.RetryIntervalMsecs, tryCount: option.TryCount, cancel: cancel);
 
             if (fileSize >= 0 && supportPartialDownload)
             {
@@ -689,7 +694,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            foreach (string fileUrl in fileUrlList)
+            await TaskUtil.ForEachAsync(option.MaxConcurrentFiles, fileUrlList, async (fileUrl, cancel) =>
             {
                 string destFileName = PathParser.Mac.GetFileName(fileUrl);
                 string destFileFullPath = Lfs.PathParser.Combine(destDir, destFileName);
@@ -700,7 +705,7 @@ namespace IPA.Cores.Basic
                 using var fileStream = file.GetStream();
 
                 await DownloadFileParallelAsync(fileUrl, fileStream, option, progressReporter: reporter, cancel: cancel);
-            }
+            }, cancel: cancel);
         }
     }
 }
