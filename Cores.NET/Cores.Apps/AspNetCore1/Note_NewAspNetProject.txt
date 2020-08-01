@@ -36,6 +36,12 @@ ASP.NET プロジェクトから Cores.Web に依存設定をする。
 を追加する。
 
 
+■ Cores.Web.csproj の追加
+ソリューションに
+「Cores.Web.csproj」
+を追加する。
+
+
 ■ ASP.NET Core プロジェクトの編集
 ・ csproj
 
@@ -47,6 +53,13 @@ ASP.NET プロジェクトから Cores.Web に依存設定をする。
     <BlazorWebAssemblyEnableLinking>false</BlazorWebAssemblyEnableLinking>
     <BlazorWebAssemblyI18NAssemblies>all</BlazorWebAssemblyI18NAssemblies>
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <TieredCompilationQuickJit>false</TieredCompilationQuickJit>
+    <TieredCompilation>false</TieredCompilation>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <PublishReadyToRunShowWarnings>true</PublishReadyToRunShowWarnings>
+    <PublishTrimmed>false</PublishTrimmed>
 ---
 
 既存の </PropertyGroup> の下に以下を追加
@@ -93,10 +106,14 @@ ASP.NET プロジェクトから Cores.Web に依存設定をする。
   </Target>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="3.0.0-preview8.19405.7" />
-    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="3.0.0-preview8.19405.4" />
-    <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="3.0.0-preview8.19405.4" />
-    <PackageReference Include="Microsoft.Extensions.FileProviders.Composite" Version="3.0.0-preview8.19405.4" />
+    <ProjectReference Include="$(ProjectDir)..\..\..\..\Cores.NET\Cores.Web\Cores.Web.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="3.1.0" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="3.1.0" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="3.1.0" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Composite" Version="3.1.0" />
   </ItemGroup>
 ---
 
@@ -129,10 +146,14 @@ ASP.NET プロジェクトから Cores.Web に依存設定をする。
   </Target>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="3.0.0-preview8.19405.7" />
-    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="3.0.0-preview8.19405.4" />
-    <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="3.0.0-preview8.19405.4" />
-    <PackageReference Include="Microsoft.Extensions.FileProviders.Composite" Version="3.0.0-preview8.19405.4" />
+    <ProjectReference Include="..\submodules\IPA-DN-Cores\Cores.NET\Cores.Web\Cores.Web.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="3.1.0" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="3.1.0" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="3.1.0" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Composite" Version="3.1.0" />
   </ItemGroup>
 ---
 
@@ -185,7 +206,7 @@ using static IPA.Cores.Globals.Basic;
 
 Main の内容を以下のように変更
 ---
-            const string appName = "AspNetCore1";
+            const string appName = "APP_NAME_HERE";
 
             return StandardMainFunctions.DaemonMain.DoMain(
                 new CoresLibOptions(CoresMode.Application,
@@ -216,6 +237,10 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
+using IPA.Cores.Web;
+using IPA.Cores.Helper.Web;
+using static IPA.Cores.Globals.Web;
+
 using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
@@ -230,9 +255,11 @@ readonly AspNetLib AspNetLib;
 
 コンストラクタ:
 ---
+// HttpServer ヘルパーの初期化
 StartupHelper = new HttpServerStartupHelper(configuration);
 
-AspNetLib = new AspNetLib(configuration);
+// AspNetLib の初期化: 必要な機能のみ ON にすること
+AspNetLib = new AspNetLib(configuration, AspNetLibFeatures.None);
 ---
 
 
@@ -254,10 +281,7 @@ ConfigureServices()
 
             // MVC 機能を追加
             services.AddControllersWithViews()
-                .AddViewOptions(opt => opt.HtmlHelperOptions.ClientValidationEnabled = false)
-                .AddRazorOptions(opt => AspNetLib.ConfigureRazorOptions(opt))
-                .AddRazorRuntimeCompilation(opt => AspNetLib.ConfigureRazorRuntimeCompilationOptions(opt))
-                .SetCompatibilityVersion(CompatibilityVersion.Version_3_0);
+                .ConfigureMvcWithAspNetLib(AspNetLib);
 
             // シングルトンサービスの注入
             //services.AddSingleton(new Server());
@@ -337,6 +361,10 @@ Views/_ViewImports.cshtml に以下を追加。
 @using IPA.Cores.Basic;
 @using IPA.Cores.Helper.Basic;
 @using static IPA.Cores.Globals.Basic;
+
+@using IPA.Cores.Web;
+@using IPA.Cores.Helper.Web;
+@using static IPA.Cores.Globals.Web;
 
 @using IPA.Cores.Codes;
 @using IPA.Cores.Helper.Codes;
