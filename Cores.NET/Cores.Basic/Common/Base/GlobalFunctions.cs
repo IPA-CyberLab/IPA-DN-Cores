@@ -68,6 +68,8 @@ namespace IPA.Cores.Globals
 
         public static void Sleep(int msecs) => Kernel.SleepThread(msecs);
 
+        public static void SleepInfinite() => Kernel.SleepThreadInfinite();
+
         public static Task SleepAsync(int msecs) => Task.Delay(msecs);
 
         public static T UnixOrWindows<T>(T unix, T windows) => Env.IsUnix ? unix : windows;

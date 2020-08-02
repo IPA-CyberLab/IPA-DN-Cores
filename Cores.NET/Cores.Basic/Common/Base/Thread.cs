@@ -1352,6 +1352,8 @@ namespace IPA.Cores.Basic
             Thread.Sleep(millisec);
         }
 
+        public static void SleepInfinite() => Sleep(Timeout.Infinite);
+
         public static void Yield()
         {
             Thread.Sleep(0);

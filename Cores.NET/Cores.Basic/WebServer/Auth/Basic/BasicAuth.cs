@@ -107,7 +107,7 @@ namespace IPA.Cores.Basic
 
         public async Task Invoke(HttpContext context)
         {
-            ResultAndError<string> result = await DoAuthenticateInternalAsync(context);
+            ResultAndError<string> result = await BasicAuthImpl.TryAuthenticateAsync(context.Request, Settings.PasswordValidatorAsync);
 
             context.Items[BasicAuthResultItemName] = result;
 
@@ -125,10 +125,14 @@ namespace IPA.Cores.Basic
                 await Next(context);
             }
         }
+    }
 
-        async Task<ResultAndError<string>> DoAuthenticateInternalAsync(HttpContext context)
+    // BASIC 認証の細かい実装 (static クラス)
+    public static class BasicAuthImpl
+    {
+        public static async Task<ResultAndError<string>> TryAuthenticateAsync(HttpRequest request, Func<string, string, Task<bool>>? passwordAuthCallback)
         {
-            string header = context.Request.Headers["Authorization"];
+            string header = request.Headers["Authorization"];
 
             if (header._IsEmpty()) return false;
 
@@ -149,9 +153,9 @@ namespace IPA.Cores.Basic
             // ユーザー認証を実施
             bool ok = false;
 
-            if (Settings.PasswordValidatorAsync != null)
+            if (passwordAuthCallback != null)
             {
-                ok = await Settings.PasswordValidatorAsync(username, password);
+                ok = await passwordAuthCallback(username, password);
             }
 
             return new ResultAndError<string>(username, ok);

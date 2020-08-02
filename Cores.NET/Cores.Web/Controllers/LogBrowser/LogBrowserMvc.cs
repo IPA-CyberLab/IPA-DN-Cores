@@ -76,6 +76,8 @@ namespace IPA.Cores.Web
             {
                 HttpResult result = await logBrowser.ProcessRequestAsync(HttpContext.Connection.LocalIpAddress._UnmapIPv4(),
                     Request._GetRequestPathAndQueryString(),
+                    Request,
+                    Response,
                     this._GetRequestCancellationToken());
 
                 return result.GetHttpActionResult();

@@ -53,6 +53,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Hosting;
 using System.Globalization;
+using Microsoft.AspNetCore.Http.Extensions;
+using System.Security.Policy;
+using System.Diagnostics.Eventing.Reader;
 
 #if CORES_BASIC_HTTPSERVER
 // ASP.NET Core 3.0 用の型名を無理やり ASP.NET Core 2.2 でコンパイルするための型エイリアスの設定
@@ -69,12 +72,16 @@ namespace IPA.Cores.Basic
         public KeyValueList<string, string> AuthDatabase = null!;
         public string AuthSubject = null!;
         public DateTimeOffset Expires = Util.MaxDateTimeOffsetValue;
+        public string AuthSubDirName = "";
+        public bool DisableAccessLog = false;
+        public bool AllowAccessToAccessLog = false;
 
         public void Normalize()
         {
             if (this.AuthDatabase == null) this.AuthDatabase = new KeyValueList<string, string>();
             this.AuthSubject = this.AuthSubject._NonNullTrimSe();
             if (this.Expires._IsZeroDateTime()) this.Expires = Util.MaxDateTimeOffsetValue;
+            if (this.AuthSubDirName._IsEmpty()) this.AuthSubDirName = "auth";
         }
     }
 
@@ -161,13 +168,16 @@ namespace IPA.Cores.Basic
 
             using (HttpResult result = await ProcessRequestAsync(request.HttpContext.Connection.RemoteIpAddress._UnmapIPv4(),
                 request._GetRequestPathAndQueryString(),
-                cancel))
+                request,
+                response,
+                cancel
+                ))
             {
                 await response._SendHttpResultAsync(result, cancel);
             }
         }
 
-        public async Task<HttpResult> ProcessRequestAsync(IPAddress clientIpAddress, string requestPathAndQueryString, CancellationToken cancel = default)
+        public async Task<HttpResult> ProcessRequestAsync(IPAddress clientIpAddress, string requestPathAndQueryString, HttpRequest request, HttpResponse response, CancellationToken cancel = default)
         {
             clientIpAddress = clientIpAddress._UnmapIPv4();
 
@@ -183,12 +193,13 @@ namespace IPA.Cores.Basic
                 // URL のチェック
                 requestPathAndQueryString._ParseUrl(out Uri uri, out QueryStringList qsList);
 
-                string relativePath;
+                string physicalPath;
+                string? logicalPath = null;
 
                 if (this.AbsolutePathPrefix._IsFilled())
                 {
                     // AbsolutePathPrefix の検査
-                    if (uri.AbsolutePath._TryTrimStartWith(out relativePath, StringComparison.OrdinalIgnoreCase, this.AbsolutePathPrefix) == false)
+                    if (uri.AbsolutePath._TryTrimStartWith(out physicalPath, StringComparison.OrdinalIgnoreCase, this.AbsolutePathPrefix) == false)
                     {
                         // Not found
                         return new HttpStringResult("404 Not Found", statusCode: 404);
@@ -196,16 +207,16 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    relativePath = uri.AbsolutePath;
+                    physicalPath = uri.AbsolutePath;
                 }
 
-                if (relativePath.StartsWith("/") == false) relativePath = "/" + relativePath;
+                if (physicalPath.StartsWith("/") == false) physicalPath = "/" + physicalPath;
 
-                relativePath = PathParser.Linux.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(relativePath);
+                physicalPath = PathParser.Linux.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(physicalPath);
 
-                relativePath = relativePath._DecodeUrlPath();
+                physicalPath = physicalPath._DecodeUrlPath();
 
-                if (this.Options.Flags.Bit(LogBrowserFlags.NoRootDirectory) && PathParser.Linux.IsRootDirectory(relativePath))
+                if (this.Options.Flags.Bit(LogBrowserFlags.NoRootDirectory) && PathParser.Linux.IsRootDirectory(physicalPath))
                 {
                     // トップディレクトリはアクセス不能
                     return new HttpStringResult("403 Forbidden", statusCode: 403);
@@ -214,7 +225,7 @@ namespace IPA.Cores.Basic
                 if (this.Options.Flags.Bit(LogBrowserFlags.SecureJson))
                 {
                     // _secure.json ファイルの読み込みを試行する
-                    string[] dirNames = PathParser.Linux.SplitAbsolutePathToElementsUnixStyle(relativePath);
+                    string[] dirNames = PathParser.Linux.SplitAbsolutePathToElementsUnixStyle(physicalPath);
                     string firstDirName = "/" + dirNames[0];
                     string secureJsonPath = PathParser.Linux.Combine(firstDirName, Consts.FileNames.LogBrowserSecureJson);
 
@@ -227,37 +238,80 @@ namespace IPA.Cores.Basic
                         return new HttpStringResult("404 Not Found", statusCode: 404);
                     }
 
+                    secureJson.Normalize();
+
                     if (secureJson.AuthRequired)
                     {
-                        // 認証が必要とされている場合、パスが  /任意の名前/auth/ である場合は Basic 認証を経由して実ファイルにアクセスさせる。
-                        // それ以外の場合は、認証要求を出す。
+                        // 認証が必要とされている場合、パスが  /任意の名前/authsubdirname/ である場合は Basic 認証を経由して実ファイルにアクセスさせる。
+                        // それ以外の場合は、認証案内ページを出す。
+                        request.GetDisplayUrl()._ParseUrl(out Uri fullUri, out _);
+                        var thisDirFullUrl = new Uri(fullUri, this.AbsolutePathPrefix + firstDirName + "/");
+                        var authFullUrl = new Uri(thisDirFullUrl, secureJson.AuthSubDirName + "/");
 
-                        if (true)
+                        if (dirNames.ElementAtOrDefault(1)._IsSamei(secureJson.AuthSubDirName))
                         {
-                            KeyValueList<string, string> headers = new KeyValueList<string, string>();
-                            headers.Add(Consts.HttpHeaders.WWWAuthenticate, $"Basic realm=\"User Authentication for {firstDirName._MakeSafePath(PathParser.Linux) + "/."}\"");
+                            // 認証を実施する
+                            var authResult = await BasicAuthImpl.TryAuthenticateAsync(request, (username, password) =>
+                            {
+                                // ユーザー名とパスワードが一致するものが 1 つ以上あるかどうか
+                                bool ok = secureJson.AuthDatabase
+                                    .Where(db => db.Key._IsFilled() && db.Value._IsFilled())
+                                    .Where(db => db.Key._IsSamei(username) && db.Value._IsSame(password))
+                                    .Any();
+
+                                return TR(ok);
+                            });
+
+                            if (authResult.IsError)
+                            {
+                                // 認証失敗
+                                KeyValueList<string, string> headers = new KeyValueList<string, string>();
+                                headers.Add(Consts.HttpHeaders.WWWAuthenticate, $"Basic realm=\"User Authentication for {firstDirName._MakeSafePath(PathParser.Linux) + "/."}\"");
+                                return new HttpStringResult(
+                                    $"User authentication is required for {authFullUrl}.\r\nLogging in by non-authorized users is a violation of the Japanese Act on Prohibition of Unauthorized Computer Access\r\nand is subject to severe criminal penalties.\r\n\r\n" +
+                                    $"{authFullUrl} にアクセスするためには、ユーザー認証が必要です。\r\n不正ユーザーによるログインは日本国の不正アクセス禁止法違反であり、重大な刑事罰の対象となります。\r\n\r\n"
+                                    , statusCode: 401, additionalHeaders: headers);
+                            }
+                            else
+                            {
+                                // 認証成功
+                                // パスをリライト (1 階層減らす) する
+                                physicalPath = "/" + dirNames.Where((s, index) => index != 1)._Combine("/");
+
+                                logicalPath = firstDirName + "/" + secureJson.AuthSubDirName + "/" + dirNames.Skip(2)._Combine("/");
+                            }
+                        }
+                        else
+                        {
+
                             return new HttpStringResult(
-                                $"User authentication is required for {firstDirName._MakeSafePath(PathParser.Linux) + "/"}.\r\nLogging in by non-authorized users is a violation of the Japanese Act on Prohibition of Unauthorized Computer Access\r\nand is subject to severe criminal penalties.\r\n\r\n" +
-                                $"{firstDirName._MakeSafePath(PathParser.Linux) + "/"} にアクセスするためには、ユーザー認証が必要です。\r\n不正ユーザーによるログインは日本国の不正アクセス禁止法違反であり、重大な刑事罰の対象となります。\r\n\r\n"
-                                , statusCode: 401, additionalHeaders: headers);
+                                $"認証案内:\r\n{authFullUrl}\r\n\r\n{secureJson.AuthSubject}\r\n");
                         }
                     }
                 }
 
-                if (RootFs.IsDirectoryExists(relativePath, cancel))
+                if (logicalPath._IsEmpty()) logicalPath = physicalPath;
+
+                if (RootFs.IsDirectoryExists(physicalPath, cancel))
                 {
                     // Directory
-                    string htmlBody = BuildDirectoryHtml(new DirectoryPath(relativePath, RootFs));
+                    string htmlBody = BuildDirectoryHtml(new DirectoryPath(physicalPath, RootFs), logicalPath);
 
                     return new HttpStringResult(htmlBody, contentType: Consts.MimeTypes.HtmlUtf8);
                 }
-                else if (RootFs.IsFileExists(relativePath, cancel))
+                else if (RootFs.IsFileExists(physicalPath, cancel))
                 {
+                    if (this.Options.Flags.Bit(LogBrowserFlags.SecureJson) && RootFs.PathParser.GetFileName(physicalPath)._IsSamei(Consts.FileNames.LogBrowserSecureJson))
+                    {
+                        // _secure.json そのものにはアクセスできません
+                        return new HttpStringResult("403 Forbidden", statusCode: 403);
+                    }
+
                     // File
-                    string extension = RootFs.PathParser.GetExtension(relativePath);
+                    string extension = RootFs.PathParser.GetExtension(physicalPath);
                     string mimeType = MasterData.ExtensionToMime.Get(extension);
 
-                    FileObject file = await RootFs.OpenAsync(relativePath, cancel: cancel);
+                    FileObject file = await RootFs.OpenAsync(physicalPath, cancel: cancel);
                     try
                     {
                         long fileSize = file.Size;
@@ -335,7 +389,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        string BuildDirectoryHtml(DirectoryPath dir)
+        string BuildDirectoryHtml(DirectoryPath dir, string logicalPath)
         {
             string body = CoresRes["LogBrowser/Html/Directory.html"].String;
 
@@ -343,7 +397,7 @@ namespace IPA.Cores.Basic
             List<FileSystemEntity> list = dir.EnumDirectory(flags: EnumDirectoryFlags.NoGetPhysicalSize | EnumDirectoryFlags.IncludeParentDirectory).ToList();
 
             // Bread crumbs
-            var breadCrumbList = dir.GetBreadCrumbList();
+            var breadCrumbList = new DirectoryPath(logicalPath, dir.FileSystem).GetBreadCrumbList();
             StringWriter breadCrumbsHtml = new StringWriter();
 
             if (this.Options.Flags.Bit(LogBrowserFlags.NoRootDirectory))
@@ -377,16 +431,28 @@ namespace IPA.Cores.Basic
 
             foreach (FileSystemEntity e in fileListSorted)
             {
+                // ルートディレクトリへのリンクは消します
                 if (this.Options.Flags.Bit(LogBrowserFlags.NoRootDirectory))
-                {
                     if (e.IsParentDirectory && RootFs.PathParser.IsRootDirectory(e.FullPath))
-                    {
-                        // ルートディレクトリへのリンクは消します
                         continue;
-                    }
-                }
+
+                // _secure.json ファイルは非表示とする
+                if (this.Options.Flags.Bit(LogBrowserFlags.SecureJson))
+                    if (e.IsFile && e.Name._IsSamei(Consts.FileNames.LogBrowserSecureJson))
+                        continue;
 
                 string absolutePath = e.FullPath;
+
+                if (e.IsParentDirectory == false)
+                {
+                    string relativePath = RootFs.PathParser.GetRelativeDirectoryName(absolutePath, dir);
+                    absolutePath = RootFs.PathParser.Combine(logicalPath, relativePath);
+                }
+                else
+                {
+                    absolutePath = RootFs.PathParser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(RootFs.PathParser.Combine(logicalPath, "../"));
+                }
+
                 if (e.IsDirectory && absolutePath.Last() != '/')
                 {
                     absolutePath += "/";
@@ -439,7 +505,7 @@ namespace IPA.Cores.Basic
 
             body = body._ReplaceStrWithReplaceClass(new
             {
-                __FULLPATH__ = RootFs.PathParser.AppendDirectorySeparatorTail(dir.PathString)._EncodeHtml(true),
+                __FULLPATH__ = RootFs.PathParser.AppendDirectorySeparatorTail(logicalPath)._EncodeHtml(true),
                 __TITLE__ = $"{this.Options.SystemTitle} - {RootFs.PathParser.AppendDirectorySeparatorTail(dir.PathString)}"._EncodeHtml(true),
                 __TITLE2__ = $"{this.Options.SystemTitle} - {RootFs.PathParser.AppendDirectorySeparatorTail(dir.PathString)}"._EncodeHtml(true),
                 __BREADCRUMB__ = breadCrumbsHtml,

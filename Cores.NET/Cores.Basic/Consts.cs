@@ -229,6 +229,7 @@ namespace IPA.Cores.Basic
             public const string AutoArchiveSubDirName = ".AutoBackup";
 
             public const string LogBrowserSecureJson = "_secure.json";
+            public const string LogBrowserAccessLogDirName = "_accesslog";
         }
 
         public static partial class BlazorApp

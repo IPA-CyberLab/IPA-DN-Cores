@@ -231,6 +231,102 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public sealed class NamedAsyncLocks
+    {
+        readonly Dictionary<string, AsyncLock> List;
+        readonly CriticalSection LockObj = new CriticalSection();
+
+        readonly RefInt CurrentProcessing = new RefInt();
+
+        int currentLockCountToGc = 0;
+
+        public NamedAsyncLocks(IEqualityComparer<string>? comparer = null)
+        {
+            if (comparer == null) comparer = StrComparer.SensitiveCaseComparer;
+
+            List = new Dictionary<string, AsyncLock>(comparer);
+        }
+
+        public async Task<AsyncLock.LockHolder> LockWithAwait(string name, CancellationToken cancel = default)
+        {
+            AsyncLock targetLock;
+
+            currentLockCountToGc++;
+            if (currentLockCountToGc >= 1000)
+            {
+                // 1000 回のロック試行ごとに Gc を実行する。適当ちゃん!
+                if (Gc())
+                {
+                    currentLockCountToGc = 0;
+                }
+            }
+
+            CurrentProcessing.Increment();
+            try
+            {
+                lock (LockObj)
+                {
+                    if (this.List.ContainsKey(name) == false)
+                    {
+                        targetLock = new AsyncLock();
+                        this.List.Add(name, targetLock);
+                    }
+                    else
+                    {
+                        targetLock = this.List[name];
+                    }
+                }
+
+                return await targetLock.LockWithAwait(cancel);
+            }
+            finally
+            {
+                CurrentProcessing.Decrement();
+            }
+        }
+
+        bool Gc()
+        {
+            List<AsyncLock> deleteObjects = new List<AsyncLock>();
+
+            if (CurrentProcessing != 0)
+            {
+                return false;
+            }
+
+            lock (LockObj)
+            {
+                if (CurrentProcessing != 0)
+                {
+                    return false;
+                }
+
+                List<string> deleteNames = new List<string>();
+
+                foreach (var kv in this.List)
+                {
+                    if (kv.Value.IsLocked == false)
+                    {
+                        deleteNames.Add(kv.Key);
+                        deleteObjects.Add(kv.Value);
+                    }
+                }
+
+                foreach (string name in deleteNames)
+                {
+                    this.List.Remove(name);
+                }
+            }
+
+            foreach (AsyncLock obj in deleteObjects)
+            {
+                obj._DisposeSafe();
+            }
+
+            return true;
+        }
+    }
+
     public sealed class AsyncLock : IDisposable
     {
         public sealed class LockHolder : IDisposable
@@ -270,6 +366,8 @@ namespace IPA.Cores.Basic
         public Task _LockAsync(CancellationToken cancel = default) => Semaphone!.WaitAsync(cancel);
         public void _Lock(CancellationToken cancel = default) => Semaphone!.Wait(cancel);
         public void Unlock() => Semaphone!.Release();
+
+        public bool IsLocked => ((Semaphone?.CurrentCount ?? 1) == 0);
 
         public void Dispose()
         {
@@ -672,7 +770,7 @@ namespace IPA.Cores.Basic
                      catch (Exception ex)
                      {
                          lock (exceptionList)
-                            exceptionList.Add(ex);
+                             exceptionList.Add(ex);
 
                          hasError.Set(true);
                          cancel2.Cancel();

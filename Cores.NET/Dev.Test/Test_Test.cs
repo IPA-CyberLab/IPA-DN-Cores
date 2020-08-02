@@ -357,6 +357,51 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                NamedAsyncLocks named = new NamedAsyncLocks();
+
+                RefInt concurrent = new RefInt();
+
+                for (int j = 0; j < 1; j++)
+                {
+                    var t = AsyncAwait(async () =>
+                     {
+                         try
+                         {
+                             int taskId = j;
+
+                             for (int i = 0; ; i++)
+                             {
+                                 string name = $"{i}/{taskId}"; i.ToString();
+                                 using (await named.LockWithAwait(name))
+                                 {
+                                     concurrent.Increment();
+                                     try
+                                     {
+                                         //Con.WriteLine(taskId + " : " + i + "   (" + concurrent + ")");
+                                         await Task.Yield();
+                                     }
+                                     finally
+                                     {
+                                         concurrent.Decrement();
+                                     }
+                                 }
+                                 await Task.Yield();
+                             }
+                         }
+                         catch (Exception ex)
+                         {
+                             ex._Debug();
+                         }
+                     });
+                }
+
+                ThreadObj.SleepInfinite();
+
+                return;
+            }
+
+            if (true)
+            {
                 LogBrowserSecureJson json = new LogBrowserSecureJson
                 {
                     AuthRequired = true,
