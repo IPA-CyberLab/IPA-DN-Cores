@@ -56,6 +56,7 @@ using System.Globalization;
 using Microsoft.AspNetCore.Http.Extensions;
 using System.Security.Policy;
 using System.Diagnostics.Eventing.Reader;
+using Org.BouncyCastle.Ocsp;
 
 #if CORES_BASIC_HTTPSERVER
 // ASP.NET Core 3.0 用の型名を無理やり ASP.NET Core 2.2 でコンパイルするための型エイリアスの設定
@@ -82,7 +83,24 @@ namespace IPA.Cores.Basic
             this.AuthSubject = this.AuthSubject._NonNullTrimSe();
             if (this.Expires._IsZeroDateTime()) this.Expires = Util.MaxDateTimeOffsetValue;
             if (this.AuthSubDirName._IsEmpty()) this.AuthSubDirName = "auth";
+            this.AuthSubDirName = this.AuthSubDirName._MakeSafeFileName();
         }
+    }
+
+    // アクセスログ
+    public class LogBrowserAccessLog
+    {
+        public DateTimeOffset Timestamp;
+        public string? IP;
+        public int Port;
+        public string? Url;
+        public string? PhysicalPath;
+        public string? UserAgent;
+        public string? Referer;
+        public string? Username;
+        public string? Password;
+        public int StatusCode;
+        public bool? PasswordMatched;
     }
 
     // LogBrowser を含んだ HttpServer のオプション
@@ -114,7 +132,7 @@ namespace IPA.Cores.Basic
     public class LogBrowserOptions
     {
         public DirectoryPath RootDir { get; }
-        public string SystemTitle { get; }
+        public string SystemTitle { get; private set; }
         public long TailSize { get; }
         public Func<IPAddress, bool> ClientIpAcl { get; }
         public LogBrowserFlags Flags { get; }
@@ -135,6 +153,11 @@ namespace IPA.Cores.Basic
             this.ClientIpAcl = clientIpAcl;
             this.Flags = flags;
         }
+
+        public void SetSystemTitle(string title)
+        {
+            this.SystemTitle = title;
+        }
     }
 
     // 汎用的に任意の Kestrel App から利用できる LogBrowser
@@ -145,6 +168,8 @@ namespace IPA.Cores.Basic
         public ChrootFileSystem RootFs;
 
         public string AbsolutePathPrefix { get; }
+
+        readonly NamedAsyncLocks AccessLogLock = new NamedAsyncLocks(StrComparer.IgnoreCaseTrimComparer);
 
         public LogBrowser(LogBrowserOptions options, string absolutePathPrefix = "")
         {
@@ -159,7 +184,7 @@ namespace IPA.Cores.Basic
 
             this.Options = options;
 
-            this.RootFs = new ChrootFileSystem(new ChrootFileSystemParam(Options.RootDir.FileSystem, Options.RootDir.PathString, FileSystemMode.ReadOnly));
+            this.RootFs = new ChrootFileSystem(new ChrootFileSystemParam(Options.RootDir.FileSystem, Options.RootDir.PathString, FileSystemMode.Writeable));
         }
 
         public async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
@@ -167,6 +192,7 @@ namespace IPA.Cores.Basic
             CancellationToken cancel = request._GetRequestCancellationToken();
 
             using (HttpResult result = await ProcessRequestAsync(request.HttpContext.Connection.RemoteIpAddress._UnmapIPv4(),
+                request.HttpContext.Connection.RemotePort,
                 request._GetRequestPathAndQueryString(),
                 request,
                 response,
@@ -177,9 +203,71 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<HttpResult> ProcessRequestAsync(IPAddress clientIpAddress, string requestPathAndQueryString, HttpRequest request, HttpResponse response, CancellationToken cancel = default)
+        // アクセスログ記録指令
+        class InternalAccessLogResults
         {
+            public LogBrowserAccessLog AccessLogData = new LogBrowserAccessLog() { Timestamp = DateTimeOffset.Now };
+
+            public string? PhysicalAccessLogDirPath; // アクセスログを書き込む際には指定すること
+        }
+
+        public async Task<HttpResult> ProcessRequestAsync(IPAddress clientIpAddress, int clientPort, string requestPathAndQueryString, HttpRequest request, HttpResponse response, CancellationToken cancel = default)
+        {
+            InternalAccessLogResults alog = new InternalAccessLogResults();
+
+            try
+            {
+                HttpResult result = await ProcessRequestInternalAsync(clientIpAddress, clientPort, requestPathAndQueryString, request, response, cancel, alog);
+
+                alog.AccessLogData.StatusCode = result.StatusCode;
+
+                return result;
+            }
+            finally
+            {
+                if (alog.PhysicalAccessLogDirPath._IsFilled())
+                {
+                    try
+                    {
+                        // アクセスログ保存
+                        string alogDir = alog.PhysicalAccessLogDirPath;
+
+                        using (await AccessLogLock.LockWithAwait(alogDir, cancel))
+                        {
+                            // ファイル名を決定
+                            string filename = alog.AccessLogData.Timestamp.ToString("yyyyMMdd") + ".log";
+
+                            string filepath = RootFs.PathParser.Combine(alogDir, filename);
+
+                            // アクセスログを JSON 文字列に変更
+                            string json = alog.AccessLogData._ObjectToJson(compact: true) + "\r\n";
+
+                            // 書き込み
+                            await RootFs.AppendStringToFileAsync(filepath, json, FileFlags.AutoCreateDirectory, writeBom: true, cancel: cancel);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Error();
+                    }
+                }
+            }
+        }
+
+        async Task<HttpResult> ProcessRequestInternalAsync(IPAddress clientIpAddress, int clientPort, string requestPathAndQueryString, HttpRequest request, HttpResponse response, CancellationToken cancel,
+            InternalAccessLogResults accessLogResults)
+        {
+            string footer = "";
+
             clientIpAddress = clientIpAddress._UnmapIPv4();
+
+            var alog = accessLogResults.AccessLogData;
+
+            alog.IP = clientIpAddress.ToString();
+            alog.Port = clientPort;
+            alog.Url = request.GetDisplayUrl();
+            alog.UserAgent = request.Headers[Consts.HttpHeaders.UserAgent];
+            alog.Referer = request.Headers[Consts.HttpHeaders.Referer];
 
             try
             {
@@ -240,9 +328,17 @@ namespace IPA.Cores.Basic
 
                     secureJson.Normalize();
 
+                    if (secureJson.DisableAccessLog == false)
+                    {
+                        // アクセスログを書き込む指令をいたします
+                        accessLogResults.PhysicalAccessLogDirPath = PathParser.Linux.Combine(firstDirName, Consts.FileNames.LogBrowserAccessLogDirName);
+                    }
+
+                    bool isAccessToAccessLog = false;
+
                     if (secureJson.AuthRequired)
                     {
-                        // 認証が必要とされている場合、パスが  /任意の名前/authsubdirname/ である場合は Basic 認証を経由して実ファイルにアクセスさせる。
+                        // 認証が必要とされている場合、パスが  /任意の名前/<authsubdirname>/ である場合は Basic 認証を経由して実ファイルにアクセスさせる。
                         // それ以外の場合は、認証案内ページを出す。
                         request.GetDisplayUrl()._ParseUrl(out Uri fullUri, out _);
                         var thisDirFullUrl = new Uri(fullUri, this.AbsolutePathPrefix + firstDirName + "/");
@@ -253,11 +349,16 @@ namespace IPA.Cores.Basic
                             // 認証を実施する
                             var authResult = await BasicAuthImpl.TryAuthenticateAsync(request, (username, password) =>
                             {
+                                alog.Username = username;
+                                alog.Password = Str.MakeCharArray('*', password.Length);
+
                                 // ユーザー名とパスワードが一致するものが 1 つ以上あるかどうか
                                 bool ok = secureJson.AuthDatabase
                                     .Where(db => db.Key._IsFilled() && db.Value._IsFilled())
                                     .Where(db => db.Key._IsSamei(username) && db.Value._IsSame(password))
                                     .Any();
+
+                                alog.PasswordMatched = ok;
 
                                 return TR(ok);
                             });
@@ -272,14 +373,13 @@ namespace IPA.Cores.Basic
                                     $"{authFullUrl} にアクセスするためには、ユーザー認証が必要です。\r\n不正ユーザーによるログインは日本国の不正アクセス禁止法違反であり、重大な刑事罰の対象となります。\r\n\r\n"
                                     , statusCode: 401, additionalHeaders: headers);
                             }
-                            else
-                            {
-                                // 認証成功
-                                // パスをリライト (1 階層減らす) する
-                                physicalPath = "/" + dirNames.Where((s, index) => index != 1)._Combine("/");
 
-                                logicalPath = firstDirName + "/" + secureJson.AuthSubDirName + "/" + dirNames.Skip(2)._Combine("/");
-                            }
+                            // 認証成功
+
+                            // パスをリライト (1 階層減らす) する
+                            physicalPath = "/" + dirNames.Where((s, index) => index != 1)._Combine("/");
+
+                            logicalPath = firstDirName + "/" + secureJson.AuthSubDirName + "/" + dirNames.Skip(2)._Combine("/");
                         }
                         else
                         {
@@ -288,6 +388,33 @@ namespace IPA.Cores.Basic
                                 $"認証案内:\r\n{authFullUrl}\r\n\r\n{secureJson.AuthSubject}\r\n");
                         }
                     }
+
+                    // アクセスログディレクトリに対するアクセスかどうかを検査
+                    if (dirNames.ElementAtOrDefault(secureJson.AuthRequired ? 2 : 1)._IsSameTrimi(Consts.FileNames.LogBrowserAccessLogDirName))
+                    {
+                        // アクセスログディレクトリに対するアクセスである
+                        if (secureJson.AllowAccessToAccessLog == false)
+                        {
+                            // アクセスログディレクトリに対するアクセスは禁止されている
+                            return new HttpStringResult("403 Forbidden", statusCode: 403);
+                        }
+
+                        // アクセスログディレクトリに対するアクセスはログを記録しない
+                        accessLogResults.PhysicalAccessLogDirPath = "";
+
+                        isAccessToAccessLog = true;
+
+                    }
+
+                    if (isAccessToAccessLog == false)
+                    {
+                        // フッターにアクセスログへのリンクを付ける
+                        footer = $@"
+        <hr>
+        <p><a href=""{this.AbsolutePathPrefix}/{dirNames.Take(2)._Combine("/")}/{Consts.FileNames.LogBrowserAccessLogDirName}/""><strong><i class=""far fa-eye""></i> アクセスログの参照</strong></a></p>
+        <p>　</p>
+";
+                    }
                 }
 
                 if (logicalPath._IsEmpty()) logicalPath = physicalPath;
@@ -295,7 +422,7 @@ namespace IPA.Cores.Basic
                 if (RootFs.IsDirectoryExists(physicalPath, cancel))
                 {
                     // Directory
-                    string htmlBody = BuildDirectoryHtml(new DirectoryPath(physicalPath, RootFs), logicalPath);
+                    string htmlBody = BuildDirectoryHtml(new DirectoryPath(physicalPath, RootFs), logicalPath, footer);
 
                     return new HttpStringResult(htmlBody, contentType: Consts.MimeTypes.HtmlUtf8);
                 }
@@ -389,7 +516,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        string BuildDirectoryHtml(DirectoryPath dir, string logicalPath)
+        string BuildDirectoryHtml(DirectoryPath dir, string logicalPath, string footer = "")
         {
             string body = CoresRes["LogBrowser/Html/Directory.html"].String;
 
@@ -439,6 +566,11 @@ namespace IPA.Cores.Basic
                 // _secure.json ファイルは非表示とする
                 if (this.Options.Flags.Bit(LogBrowserFlags.SecureJson))
                     if (e.IsFile && e.Name._IsSamei(Consts.FileNames.LogBrowserSecureJson))
+                        continue;
+
+                // アクセスログフォルダは非表示とする
+                if (this.Options.Flags.Bit(LogBrowserFlags.SecureJson))
+                    if (e.IsDirectory && e.Name._IsSamei(Consts.FileNames.LogBrowserAccessLogDirName))
                         continue;
 
                 string absolutePath = e.FullPath;
@@ -510,6 +642,7 @@ namespace IPA.Cores.Basic
                 __TITLE2__ = $"{this.Options.SystemTitle} - {RootFs.PathParser.AppendDirectorySeparatorTail(dir.PathString)}"._EncodeHtml(true),
                 __BREADCRUMB__ = breadCrumbsHtml,
                 __FILENAMES__ = dirHtml,
+                __FOOTER__ = footer,
             });
 
             return body;

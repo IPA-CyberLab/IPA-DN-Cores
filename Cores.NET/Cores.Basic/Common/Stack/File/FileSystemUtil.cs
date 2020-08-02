@@ -179,13 +179,42 @@ namespace IPA.Cores.Basic
         public int WriteStringToFile(string path, string srcString, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default)
             => WriteStringToFileAsync(path, srcString, flags, doNotOverwrite, encoding, writeBom, cancel)._GetResult();
 
-        public async Task AppendDataToFileAsync(string path, ReadOnlyMemory<byte> srcMemory, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+        public Task<int> AppendStringToFileAsync(string path, string srcString, FileFlags flags = FileFlags.None, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default)
+        {
+            checked
+            {
+                if (encoding == null) encoding = Str.Utf8Encoding;
+                MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+
+                ReadOnlyMemory<byte> bomSpan = default;
+
+                if (writeBom)
+                    bomSpan = Str.GetBOM(encoding);
+
+                int sizeReserved = srcString.Length * 4 + 128;
+                int encodedSize = encoding.GetBytes(srcString, buf.Walk(sizeReserved));
+                buf.SetLength(encodedSize);
+
+                return AppendDataToFileAsync(path, buf.Memory, flags, cancel, bomSpan);
+            }
+        }
+        public int AppendStringToFile(string path, string srcString, FileFlags flags = FileFlags.None, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default)
+            => AppendStringToFileAsync(path, srcString, flags, encoding, writeBom, cancel)._GetResult();
+
+        public async Task<int> AppendDataToFileAsync(string path, ReadOnlyMemory<byte> srcMemory, FileFlags flags = FileFlags.None, CancellationToken cancel = default, ReadOnlyMemory<byte> prefixDataForNewFile = default)
         {
             using (var file = await OpenOrCreateAppendAsync(path, false, flags, cancel))
             {
                 try
                 {
+                    if (file.Size == 0)
+                    {
+                        await file.WriteAsync(prefixDataForNewFile, cancel);
+                    }
+
                     await file.WriteAsync(srcMemory, cancel);
+
+                    return checked(srcMemory.Length + prefixDataForNewFile.Length);
                 }
                 finally
                 {
@@ -193,8 +222,8 @@ namespace IPA.Cores.Basic
                 }
             }
         }
-        public void AppendDataToFile(string path, ReadOnlyMemory<byte> srcMemory, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
-            => AppendDataToFileAsync(path, srcMemory, flags, cancel)._GetResult();
+        public int AppendDataToFile(string path, ReadOnlyMemory<byte> srcMemory, FileFlags flags = FileFlags.None, CancellationToken cancel = default, ReadOnlyMemory<byte> prefixDataForNewFile = default)
+            => AppendDataToFileAsync(path, srcMemory, flags, cancel, prefixDataForNewFile)._GetResult();
 
         public async Task<T> ReadAndParseDataFileAsync<T>(string path, ReadParseFlags readParseFlags, Func<ReadOnlyMemory<byte>, T> parseProc, Func<ReadOnlyMemory<byte>> createProc, Func<T, ReadOnlyMemory<byte>>? serializeProc = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         {

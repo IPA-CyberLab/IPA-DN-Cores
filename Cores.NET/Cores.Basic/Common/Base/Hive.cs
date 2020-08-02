@@ -45,6 +45,7 @@ using System.Diagnostics.CodeAnalysis;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using Microsoft.AspNetCore.Server.IIS.Core;
 
 namespace IPA.Cores.Basic
 {
@@ -747,6 +748,12 @@ namespace IPA.Cores.Basic
         void Normalize();
     }
 
+    [Flags]
+    public enum HiveDataEventType
+    {
+        DataChanged = 4,
+    }
+
     public class HiveData<T> : IHiveData, IDisposable where T : class, new()
     {
         public HiveSyncPolicy Policy { get; private set; }
@@ -768,6 +775,8 @@ namespace IPA.Cores.Basic
 
         readonly IHolder? Leak = null;
 
+        public AsyncEventListenerList<HiveData<T>, HiveDataEventType> EventListener { get; }
+
         class HiveDataState
         {
             public T? Data;
@@ -777,6 +786,8 @@ namespace IPA.Cores.Basic
 
         public HiveData(Hive hive, string dataName, Func<T>? getDefaultDataFunc = null, HiveSyncPolicy policy = HiveSyncPolicy.None, HiveSerializerSelection serializer = HiveSerializerSelection.DefaultRuntimeJson, HiveSerializer? customSerializer = null)
         {
+            this.EventListener = new AsyncEventListenerList<HiveData<T>, HiveDataEventType>();
+
             if (getDefaultDataFunc == null)
                 getDefaultDataFunc = () => new T();
 
@@ -947,37 +958,56 @@ namespace IPA.Cores.Basic
             if (this.IsReadOnly && flag.Bit(HiveSyncFlags.SaveToFile))
                 throw new ApplicationException("IsReadOnly is set.");
 
-            using (await StorageAsyncLock.LockWithAwait(cancel))
+            bool dataChanged = false;
+
+            try
             {
-                T dataSnapshot = GetManagedDataSnapshot();
-                HiveDataState dataSnapshotState = GetDataState(dataSnapshot);
-
-                bool skipLoadFromFile = false;
-
-                if (flag.Bit(HiveSyncFlags.SaveToFile))
+                using (await StorageAsyncLock.LockWithAwait(cancel))
                 {
-                    if (this.StorageHash != dataSnapshotState.Hash || flag.Bit(HiveSyncFlags.ForceUpdate))
+                    T dataSnapshot = GetManagedDataSnapshot();
+                    HiveDataState dataSnapshotState = GetDataState(dataSnapshot);
+
+                    bool skipLoadFromFile = false;
+
+                    if (flag.Bit(HiveSyncFlags.SaveToFile) && this.Policy.Bit(HiveSyncPolicy.AutoWriteToFile))
                     {
-                        await SaveDataCoreAsync(dataSnapshotState.SerializedData, false, cancel);
-
-                        this.StorageHash = dataSnapshotState.Hash;
-
-                        skipLoadFromFile = true;
-                    }
-                }
-
-                if (flag.Bit(HiveSyncFlags.LoadFromFile) && skipLoadFromFile == false)
-                {
-                    HiveDataState loadDataState = await LoadDataCoreAsync(cancel);
-
-                    if (loadDataState.Hash != dataSnapshotState.Hash || flag.Bit(HiveSyncFlags.ForceUpdate))
-                    {
-                        lock (DataLock)
+                        if (this.StorageHash != dataSnapshotState.Hash || flag.Bit(HiveSyncFlags.ForceUpdate))
                         {
-                            this.DataInternal = loadDataState.Data;
-                            this.StorageHash = loadDataState.Hash;
+                            dataChanged = true;
+
+                            await SaveDataCoreAsync(dataSnapshotState.SerializedData, false, cancel);
+
+                            this.StorageHash = dataSnapshotState.Hash;
+
+                            skipLoadFromFile = true;
+
+                            dataChanged = true;
                         }
                     }
+
+                    if (flag.Bit(HiveSyncFlags.LoadFromFile) && this.Policy.Bit(HiveSyncPolicy.AutoReadFromFile) && skipLoadFromFile == false)
+                    {
+                        HiveDataState loadDataState = await LoadDataCoreAsync(cancel);
+
+                        if (loadDataState.Hash != dataSnapshotState.Hash || flag.Bit(HiveSyncFlags.ForceUpdate))
+                        {
+                            dataChanged = true;
+
+                            lock (DataLock)
+                            {
+                                this.DataInternal = loadDataState.Data;
+                                this.StorageHash = loadDataState.Hash;
+                            }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                if (dataChanged)
+                {
+                    // データが変化したらイベントを叩く
+                    await this.EventListener.FireAsync(this, HiveDataEventType.DataChanged);
                 }
             }
         }

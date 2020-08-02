@@ -74,7 +74,8 @@ namespace IPA.Cores.Web
             }
             else
             {
-                HttpResult result = await logBrowser.ProcessRequestAsync(HttpContext.Connection.LocalIpAddress._UnmapIPv4(),
+                HttpResult result = await logBrowser.ProcessRequestAsync(HttpContext.Connection.RemoteIpAddress._UnmapIPv4(),
+                    HttpContext.Connection.RemotePort,
                     Request._GetRequestPathAndQueryString(),
                     Request,
                     Response,

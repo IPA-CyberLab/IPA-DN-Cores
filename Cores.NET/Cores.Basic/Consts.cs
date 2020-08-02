@@ -301,6 +301,8 @@ namespace IPA.Cores.Basic
         public static partial class HttpHeaders
         {
             public const string WWWAuthenticate = "WWW-Authenticate";
+            public const string UserAgent = "User-Agent";
+            public const string Referer = "Referer";
         }
 
         public static partial class HttpStatusCodes
