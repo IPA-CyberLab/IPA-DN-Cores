@@ -2138,6 +2138,38 @@ namespace IPA.Cores.Basic
             this.B._DisposeSafe();
         }
     }
+
+    // 片方の Stream から書き込むともう 1 つの Stream から出てくるペア。不要になった場合は 2 回リリースすること!!
+    public class StreamPair
+    {
+        readonly RefInt Counter = new RefInt(2);
+
+        readonly PipePoint Pp1, Pp2;
+
+        public Stream Stream1 { get; }
+        public Stream Stream2 { get; }
+
+        public StreamPair(bool autoFlush = true)
+        {
+            Pp1 = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide);
+            Pp2 = Pp1.CounterPart!;
+
+            Stream1 = Pp1._InternalGetStream(autoFlush);
+            Stream2 = Pp2!._InternalGetStream(autoFlush);
+        }
+
+        public void Release()
+        {
+            if (Counter.Decrement() == 0)
+            {
+                this.Pp1._DisposeSafe();
+                this.Pp2._DisposeSafe();
+
+                this.Stream1._DisposeSafe();
+                this.Stream2._DisposeSafe();
+            }
+        }
+    }
 }
 
 

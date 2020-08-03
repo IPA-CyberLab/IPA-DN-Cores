@@ -220,6 +220,8 @@ namespace IPA.Cores.Basic
         None = 0,
         KillProcessGroup = 1,                   // Kill する場合はプロセスグループを Kill する
         EasyInputOutputMode = 2,                // 標準出力およびエラー出力の結果を簡易的に受信し、標準入力の結果を簡易的に送信する (結果を確認しながらの対話はできない)
+        PrintRealtimeStdout = 4,                // stdout データをリアルタイムで表示する
+        PrintRealtimeStderr = 8,                // stderr データをリアルタイムで表示する
 
         Default = KillProcessGroup | ExecFlags.EasyInputOutputMode,
     }
@@ -227,9 +229,11 @@ namespace IPA.Cores.Basic
     // 簡易実行
     public static class EasyExec
     {
-        public static async Task<EasyExecResult> ExecBashAsync(string command, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default | ExecFlags.EasyInputOutputMode,
+        public static async Task<EasyExecResult> ExecBashAsync(string command, string? currentDirectory = null,
+            ExecFlags flags = ExecFlags.Default | ExecFlags.EasyInputOutputMode,
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, int? timeout = null,
-            CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true)
+            CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true,
+            string printTag = "")
         {
             if (timeout <= 0) timeout = Timeout.Infinite;
 
@@ -237,7 +241,7 @@ namespace IPA.Cores.Basic
             args.Add("-c");
             args.Add(command);
 
-            ExecOptions opt = new ExecOptions(Consts.LinuxCommands.Bash, args, currentDirectory, flags, easyOutputMaxSize, easyInputStr);
+            ExecOptions opt = new ExecOptions(Consts.LinuxCommands.Bash, args, currentDirectory, flags, easyOutputMaxSize, easyInputStr, printTag);
 
             if (debug)
             {
@@ -280,13 +284,14 @@ namespace IPA.Cores.Basic
             return result;
         }
 
-        public static async Task<EasyExecResult> ExecAsync(string fileName, string? arguments = null, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default | ExecFlags.EasyInputOutputMode,
+        public static async Task<EasyExecResult> ExecAsync(string fileName, string? arguments = null, string? currentDirectory = null,
+            ExecFlags flags = ExecFlags.Default | ExecFlags.EasyInputOutputMode,
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, int? timeout = null,
-            CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true)
+            CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true, string printTag = "")
         {
             if (timeout <= 0) timeout = Timeout.Infinite;
 
-            ExecOptions opt = new ExecOptions(fileName, arguments, currentDirectory, flags, easyOutputMaxSize, easyInputStr);
+            ExecOptions opt = new ExecOptions(fileName, arguments, currentDirectory, flags, easyOutputMaxSize, easyInputStr, printTag);
 
             if (debug)
             {
@@ -443,9 +448,10 @@ namespace IPA.Cores.Basic
         public ExecFlags Flags { get; }
         public int EasyOutputMaxSize { get; }
         public string? EasyInputStr { get; }
+        public string PrintTag { get; }
 
         public ExecOptions(string fileName, string? arguments = null, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default,
-            int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null)
+            int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, string printTag = "")
         {
             this.FileName = fileName._NullCheck();
             this.Arguments = arguments._NonNull();
@@ -454,10 +460,11 @@ namespace IPA.Cores.Basic
             this.Flags = flags;
             this.EasyOutputMaxSize = easyOutputMaxSize._Max(1);
             this.EasyInputStr = easyInputStr._NullIfZeroLen();
+            this.PrintTag = printTag;
         }
 
         public ExecOptions(string fileName, IEnumerable<string> argumentsList, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default,
-            int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null)
+            int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, string printTag = "")
         {
             this.FileName = fileName._NullCheck();
             this.Arguments = "";
@@ -466,6 +473,7 @@ namespace IPA.Cores.Basic
             this.Flags = flags;
             this.EasyOutputMaxSize = easyOutputMaxSize._Max(1);
             this.EasyInputStr = easyInputStr._NullIfZeroLen();
+            this.PrintTag = printTag;
         }
     }
 
@@ -665,10 +673,12 @@ namespace IPA.Cores.Basic
                     }
 
                     // 標準出力の読み出しタスク
-                    this.EasyOutputTask = this.EasyInputOutputStream._ReadWithMaxBufferSizeAsync(this.Options.EasyOutputMaxSize, this.GrandCancel)._LeakCheck();
+                    this.EasyOutputTask = this.EasyInputOutputStream._ReadWithMaxBufferSizeAsync(this.Options.EasyOutputMaxSize, this.GrandCancel,
+                        async (data, cancel) => await RealTimeRecvDataCallbackAsync(data, false, cancel))._LeakCheck();
 
                     // 標準エラー出力の読み出しタスク
-                    this.EasyErrorTask = this.EasyErrorStream._ReadWithMaxBufferSizeAsync(this.Options.EasyOutputMaxSize, this.GrandCancel)._LeakCheck();
+                    this.EasyErrorTask = this.EasyErrorStream._ReadWithMaxBufferSizeAsync(this.Options.EasyOutputMaxSize, this.GrandCancel,
+                        async (data, cancel) => await RealTimeRecvDataCallbackAsync(data, true, cancel))._LeakCheck();
                 }
 
                 this.StartMainLoop(MainLoopAsync);
@@ -678,6 +688,33 @@ namespace IPA.Cores.Basic
                 this._DisposeSafe();
                 throw;
             }
+        }
+
+        PipePoint? RealTime_StdOut = null;
+
+        PipePoint? RealTime_StdErr = null;
+
+        // リアルタイムでデータが届いたときに呼ばれるコールバック関数
+        async Task RealTimeRecvDataCallbackAsync(ReadOnlyMemory<byte> data, bool stderr, CancellationToken cancel)
+        {
+            await Task.CompletedTask;
+
+            //if (stderr == false)
+            //{
+            //    if (RealTime_StdOut == null)
+            //    {
+            //        RealTime_StdOut = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide, cancel);
+
+            //        new StreamReader(RealTime_StdOut.CounterPart.GetNetAppProtocolStub(cancel).GetStream());
+            //    }
+            //}
+            //else
+            //{
+            //    if (RealTime_StdErr == null)
+            //    {
+            //        RealTime_StdErr = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide, cancel);
+            //    }
+            //}
         }
 
         async Task MainLoopAsync(CancellationToken cancel)
@@ -794,6 +831,9 @@ namespace IPA.Cores.Basic
 
             this.StandardPipePoint_MySide._DisposeSafe();
             this.ErrorPipePoint_MySide._DisposeSafe();
+
+            this.RealTime_StdOut._DisposeSafe();
+            this.RealTime_StdErr._DisposeSafe();
 
             base.DisposeImpl(ex);
         }

@@ -708,6 +708,74 @@ namespace IPA.Cores.Basic
             }, cancel: cancel);
         }
     }
+
+    public static partial class CoresConfig
+    {
+        public static partial class GitParallelUpdater
+        {
+            public static readonly Copenhagen<int> GitCommandTimeoutMsecs = 10 * 60 * 1000;
+            public static readonly Copenhagen<int> GitCommandOutputMaxSize = 10 * 1024 * 1024;
+        }
+    }
+
+    public static class GitParallelUpdater
+    {
+        class Entry
+        {
+            public string DirPath = null!;
+            public string OriginName = "origin";
+            public string BranchName = "master";
+        }
+
+        public static async Task ExecGitParallelUpdaterAsync(string rootDirPath, CancellationToken cancel = default)
+        {
+            List<Entry> entryList = new List<Entry>();
+
+            // 指定されたディレクトリにあるサブディレクトリの一覧を列挙し、その中に .git サブディレクトリがあるものを git ローカルリポジトリとして列挙する
+            var subDirList = await Lfs.EnumDirectoryAsync(rootDirPath);
+
+            foreach (var subDir in subDirList.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false))
+            {
+                string gitDirPath = Lfs.PathParser.Combine(subDir.FullPath, ".git");
+
+                if ((await Lfs.IsDirectoryExistsAsync(gitDirPath, cancel)))
+                {
+                    subDir.FullPath._Debug();
+
+                    entryList.Add(new Entry { DirPath = subDir.FullPath });
+                }
+            }
+
+            using SemaphoreSlim sem = new SemaphoreSlim(8, 8);
+            foreach (var entry in entryList)
+            {
+                Task t = AsyncAwait(async () =>
+                {
+                    var target = entry;
+
+                    try
+                    {
+                        var result1 = await EasyExec.ExecAsync("git", $"pull {target.OriginName} {target.BranchName}", target.DirPath,
+                            timeout: CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
+                            easyOutputMaxSize: CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
+                            cancel: cancel,
+                            debug: true);
+
+                        var result2 = await EasyExec.ExecAsync("git", $"submodule update --init --recursive", target.DirPath,
+                            timeout: CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
+                            easyOutputMaxSize: CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
+                            cancel: cancel,
+                            debug: true);
+                    }
+                    catch
+                    {
+                    }
+                });
+
+                await t._TryWaitAsync(false);
+            }
+        }
+    }
 }
 
 #endif

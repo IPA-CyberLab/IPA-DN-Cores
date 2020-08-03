@@ -357,6 +357,61 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                var pair = new StreamPair();
+
+                var task = AsyncAwait(async () =>
+                {
+                    try
+                    {
+                        var r = new StreamReader(pair.Stream1);
+                        while (true)
+                        {
+                            string? line = await r.ReadLineAsync();
+                            if (line == null)
+                            {
+                                Con.WriteLine("[EOF]");
+                                break;
+                            }
+                            Con.WriteLine(line);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+                });
+
+                while (true)
+                {
+                    StreamWriter w = new StreamWriter(pair.Stream2);
+                    w.AutoFlush = true;
+                    string line = Con.ReadLine("IN>")!;
+                    if (line._IsEmpty())
+                    {
+                        pair.Stream2._DisposeSafe();
+                        break;
+                    }
+                    w.WriteLine(line);
+                }
+
+                task._TryGetResult();
+
+                pair.Release();
+                pair.Release();
+                return;
+            }
+
+            if (true)
+            {
+                Async(async () =>
+                {
+                    await GitParallelUpdater.ExecGitParallelUpdaterAsync(@"c:\git");
+                });
+                return;
+            }
+
+            if (false)
+            {
                 NamedAsyncLocks named = new NamedAsyncLocks();
 
                 RefInt concurrent = new RefInt();
@@ -400,7 +455,7 @@ namespace IPA.TestDev
                 return;
             }
 
-            if (true)
+            if (false)
             {
                 LogBrowserSecureJson json = new LogBrowserSecureJson
                 {
@@ -521,7 +576,7 @@ namespace IPA.TestDev
                 return;
             }
 
-            if (false)
+            if (true)
             {
                 using CancelWatcher c = new CancelWatcher();
 
@@ -2409,10 +2464,6 @@ ZIP ファイルのパスワード:
 
         public static unsafe void Test01()
         {
-            if (true)
-            {
-
-            }
 
             if (true)
             {
