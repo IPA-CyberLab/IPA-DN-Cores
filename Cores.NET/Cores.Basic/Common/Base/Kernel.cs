@@ -690,31 +690,24 @@ namespace IPA.Cores.Basic
             }
         }
 
-        PipePoint? RealTime_StdOut = null;
-
-        PipePoint? RealTime_StdErr = null;
+        PipeStreamPair? RealTimeStdout = null;
+        PipeStreamPair? RealTimeErrout = null;
 
         // リアルタイムでデータが届いたときに呼ばれるコールバック関数
         async Task RealTimeRecvDataCallbackAsync(ReadOnlyMemory<byte> data, bool stderr, CancellationToken cancel)
         {
             await Task.CompletedTask;
 
-            //if (stderr == false)
-            //{
-            //    if (RealTime_StdOut == null)
-            //    {
-            //        RealTime_StdOut = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide, cancel);
+            PipeStreamPair? pair;
 
-            //        new StreamReader(RealTime_StdOut.CounterPart.GetNetAppProtocolStub(cancel).GetStream());
-            //    }
-            //}
-            //else
-            //{
-            //    if (RealTime_StdErr == null)
-            //    {
-            //        RealTime_StdErr = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide, cancel);
-            //    }
-            //}
+            if (stderr == false)
+            {
+                pair = (this.RealTimeErrout ??= new PipeStreamPair(true));
+            }
+            else
+            {
+                pair = (this.RealTimeStdout ??= new PipeStreamPair(true));
+            }
         }
 
         async Task MainLoopAsync(CancellationToken cancel)
@@ -831,9 +824,6 @@ namespace IPA.Cores.Basic
 
             this.StandardPipePoint_MySide._DisposeSafe();
             this.ErrorPipePoint_MySide._DisposeSafe();
-
-            this.RealTime_StdOut._DisposeSafe();
-            this.RealTime_StdErr._DisposeSafe();
 
             base.DisposeImpl(ex);
         }

@@ -357,13 +357,11 @@ namespace IPA.TestDev
         {
             if (true)
             {
-                var pair = new StreamPair();
-
-                var task = AsyncAwait(async () =>
+                var pair = new PipeStreamPairWithSubTask(async (st) =>
                 {
                     try
                     {
-                        var r = new StreamReader(pair.Stream1);
+                        var r = new StreamReader(st);
                         while (true)
                         {
                             string? line = await r.ReadLineAsync();
@@ -383,21 +381,16 @@ namespace IPA.TestDev
 
                 while (true)
                 {
-                    StreamWriter w = new StreamWriter(pair.Stream2);
+                    StreamWriter w = new StreamWriter(pair.StreamA);
                     w.AutoFlush = true;
                     string line = Con.ReadLine("IN>")!;
                     if (line._IsEmpty())
                     {
-                        pair.Stream2._DisposeSafe();
+                        pair.Dispose();
                         break;
                     }
                     w.WriteLine(line);
                 }
-
-                task._TryGetResult();
-
-                pair.Release();
-                pair.Release();
                 return;
             }
 
