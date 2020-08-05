@@ -725,7 +725,7 @@ namespace IPA.Cores.Basic
         {
             public string DirPath = null!;
             public string OriginName = "origin";
-            public string BranchName = "master";
+            public string BranchName = "";
             public bool Ignore = false;
         }
 
@@ -770,7 +770,7 @@ namespace IPA.Cores.Basic
                             else
                             {
                                 e.OriginName = e.OriginName._FilledOrDefault("origin");
-                                e.BranchName = e.BranchName._FilledOrDefault("master");
+                                e.BranchName = e.BranchName._FilledOrDefault("");
                             }
 
                             settingsList.Add(e);
