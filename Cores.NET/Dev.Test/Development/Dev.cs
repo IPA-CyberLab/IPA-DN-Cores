@@ -49,13 +49,12 @@ using System.Text;
 using System.Runtime.InteropServices;
 using System.Diagnostics.CodeAnalysis;
 
+using Microsoft.Win32;
+
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-
-namespace IPA.Cores.Basic
-{
-}
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 #endif
 

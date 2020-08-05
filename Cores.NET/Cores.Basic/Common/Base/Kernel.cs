@@ -690,23 +690,53 @@ namespace IPA.Cores.Basic
             }
         }
 
-        PipeStreamPair? RealTimeStdout = null;
-        PipeStreamPair? RealTimeErrout = null;
+        PipeStreamPairWithSubTask? RealTimeStdout = null;
+        PipeStreamPairWithSubTask? RealTimeErrout = null;
 
         // リアルタイムでデータが届いたときに呼ばれるコールバック関数
         async Task RealTimeRecvDataCallbackAsync(ReadOnlyMemory<byte> data, bool stderr, CancellationToken cancel)
         {
             await Task.CompletedTask;
 
-            PipeStreamPair? pair;
+            PipeStreamPairWithSubTask? pair;
 
             if (stderr == false)
             {
-                pair = (this.RealTimeErrout ??= new PipeStreamPair(true));
+                pair = (this.RealTimeErrout ??= new PipeStreamPairWithSubTask(RealTimeRecvDataPrintCallbackAsync));
             }
             else
             {
-                pair = (this.RealTimeStdout ??= new PipeStreamPair(true));
+                pair = (this.RealTimeStdout ??= new PipeStreamPairWithSubTask(RealTimeRecvDataPrintCallbackAsync));
+            }
+
+            if (pair.StreamA.IsReadyToSend())
+            {
+                pair.StreamA.FastSendNonBlock(data._CloneMemory(), true);
+            }
+        }
+
+        readonly AsyncLock WriteLineLocker = new AsyncLock();
+
+        async Task RealTimeRecvDataPrintCallbackAsync(PipeStream st)
+        {
+            using var r = new StreamReader(st);
+            while (true)
+            {
+                string? line = await r.ReadLineAsync();
+                if (line == null)
+                {
+                    break;
+                }
+
+                string tagStr = "";
+                if (this.Options.PrintTag._IsFilled()) tagStr = $"{this.Options.PrintTag}: ";
+
+                string str = tagStr + line;
+
+                using (await WriteLineLocker.LockWithAwait())
+                {
+                    Con.WriteLine(str);
+                }
             }
         }
 

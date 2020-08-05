@@ -48,6 +48,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Win32;
 
 #pragma warning disable 0618
 
@@ -80,6 +81,29 @@ using System.Diagnostics.CodeAnalysis;
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+
+namespace IPA.Cores.Helper.Basic
+{
+    public static class MsRegHelper
+    {
+        public static RegistryKey GetKey(this RegRoot root)
+        {
+            switch (root)
+            {
+                case RegRoot.ClassesRoot:
+                    return Registry.ClassesRoot;
+                case RegRoot.LocalMachine:
+                    return Registry.LocalMachine;
+                case RegRoot.CurrentUser:
+                    return Registry.CurrentUser;
+                case RegRoot.Users:
+                    return Registry.Users;
+                default:
+                    throw new ArgumentException(nameof(root));
+            }
+        }
+    }
+}
 namespace IPA.Cores.Basic
 {
     public static partial class Win32ApiUtil
@@ -898,8 +922,285 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [Flags]
+    public enum RegRoot
+    {
+        ClassesRoot = 0,
+        LocalMachine = 1,
+        CurrentUser = 2,
+        Users = 3,
+    }
+
+    // レジストリアクセスクラスライブラリ
+    public static class MsReg
+    {
+        public static bool WriteBin(RegRoot root, string keyName, string valueName, ReadOnlyMemory<byte> data)
+        {
+            return WriteValue(root, keyName, valueName, RegistryValueKind.Binary, data.ToArray());
+        }
+
+        public static bool WriteInt64(RegRoot root, string keyName, string valueName, long data)
+        {
+            return WriteValue(root, keyName, valueName, RegistryValueKind.QWord, data);
+        }
+
+        public static bool WriteInt32(RegRoot root, string keyName, string valueName, int data)
+        {
+            return WriteValue(root, keyName, valueName, RegistryValueKind.DWord, data);
+        }
+
+        public static bool WriteStr(RegRoot root, string keyName, string valueName, string data)
+        {
+            return WriteValue(root, keyName, valueName, RegistryValueKind.String, data);
+        }
+
+        public static bool WriteValue(RegRoot root, string keyName, string valueName, RegistryValueKind type, object data)
+        {
+            try
+            {
+                CreateKey(root, keyName);
+
+                using (var key = root.GetKey().OpenSubKey(keyName, true))
+                {
+                    if (key == null) return false;
+
+                    key.SetValue(valueName, data, type);
+
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static bool DeleteValue(RegRoot root, string keyName, string valueName)
+        {
+            try
+            {
+                using (var key = root.GetKey().OpenSubKey(keyName, true))
+                {
+                    if (key == null) return false;
+
+                    key.DeleteValue(valueName);
+
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static bool DeleteKey(RegRoot root, string keyName)
+        {
+            try
+            {
+                root.GetKey().DeleteSubKey(keyName, true);
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static bool CreateKey(RegRoot root, string keyName)
+        {
+            try
+            {
+                using (var key = root.GetKey().OpenSubKey(keyName, true))
+                {
+                    if (key != null) return true;
+                }
+                using (var key = root.GetKey().CreateSubKey(keyName, true))
+                {
+                    if (key == null) return false;
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static Memory<byte> ReadBin(RegRoot root, string keyName, string valueName, ReadOnlyMemory<byte> defaultValue = default)
+        {
+            object? o = ReadValue(root, keyName, valueName);
+
+            if (o is byte[])
+            {
+                return (byte[])o;
+            }
+            else
+            {
+                return defaultValue._CloneMemory();
+            }
+        }
+
+        public static long ReadInt64(RegRoot root, string keyName, string valueName, long defaultValue = 0)
+        {
+            object? o = ReadValue(root, keyName, valueName);
+
+            if (o is long)
+            {
+                return (long)o;
+            }
+            else
+            {
+                return defaultValue;
+            }
+        }
+
+        public static int ReadInt32(RegRoot root, string keyName, string valueName, int defaultValue = 0)
+        {
+            object? o = ReadValue(root, keyName, valueName);
+
+            if (o is int)
+            {
+                return (int)o;
+            }
+            else
+            {
+                return defaultValue;
+            }
+        }
+
+        public static string ReadStr(RegRoot root, string keyName, string valueName, string defaultValue = "")
+        {
+            object? o = ReadValue(root, keyName, valueName);
+
+            if (o is string)
+            {
+                return (string)o;
+            }
+            else if (o is string[])
+            {
+                string s = ((string[])o).FirstOrDefault();
+                return s ?? defaultValue;
+            }
+            else
+            {
+                return defaultValue;
+            }
+        }
+
+        public static object? ReadValue(RegRoot root, string keyName, string valueName, object? defaultValue = null)
+        {
+            try
+            {
+                using (var key = root.GetKey().OpenSubKey(keyName, false))
+                {
+                    if (key == null) return defaultValue;
+
+                    object? value = key.GetValue(valueName);
+
+                    if (value == null) return defaultValue;
+
+                    return value;
+                }
+            }
+            catch
+            {
+                return defaultValue;
+            }
+        }
+
+        public static RegistryValueKind GetValueType(RegRoot root, string keyName, string valueName)
+        {
+            try
+            {
+                using (var key = root.GetKey().OpenSubKey(keyName, false))
+                {
+                    if (key == null) return RegistryValueKind.Unknown;
+
+                    return key.GetValueKind(valueName);
+                }
+            }
+            catch
+            {
+                return RegistryValueKind.Unknown;
+            }
+        }
+
+        public static bool IsValue(RegRoot root, string keyName, string valueName)
+        {
+            try
+            {
+                using (var key = root.GetKey().OpenSubKey(keyName, false))
+                {
+                    if (key == null) return false;
+
+                    if (key.GetValue(valueName) == null)
+                    {
+                        return false;
+                    }
+
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static string[]? EnumValue(RegRoot root, string keyName)
+        {
+            try
+            {
+                using (var key = root.GetKey().OpenSubKey(keyName, false))
+                {
+                    return key.GetValueNames();
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public static string[]? EnumKey(RegRoot root, string keyName)
+        {
+            try
+            {
+                using (var key = root.GetKey().OpenSubKey(keyName, false))
+                {
+                    return key.GetSubKeyNames();
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public static bool IsKey(RegRoot root, string keyName)
+        {
+            try
+            {
+                using (var key = root.GetKey().OpenSubKey(keyName, false))
+                {
+                    if (key == null) return false;
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+
     public delegate int Win32CallOverlappedMainProc(IntPtr inPtr, int inSize, IntPtr outPtr, int outSize, RefInt outReturnedSize, IntPtr overlapped);
     public delegate TResult Win32CallOverlappedCompleteProc<TResult>(int errorCode, int numReturnedSize);
+
+
+
 }
 
 

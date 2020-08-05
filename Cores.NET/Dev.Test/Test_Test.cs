@@ -355,7 +355,7 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (true)
+            if (false)
             {
                 var pair = new PipeStreamPairWithSubTask(async (st) =>
                 {
@@ -391,6 +391,43 @@ namespace IPA.TestDev
                     }
                     w.WriteLine(line);
                 }
+                return;
+            }
+
+            if (true)
+            {
+                //MsReg.IsValue(RegRoot.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion", "")._Debug();
+                //MsReg.GetValueType(RegRoot.LocalMachine, @"SOFTWARE\Microsoft\Windows\Dwm", "AnimationAttributionHashingEnabled")._Debug();
+                //var x = MsReg.ReadValue(RegRoot.LocalMachine, @"SOFTWARE\Microsoft\Windows\Dwm", "test1");
+                MsReg.WriteStr(RegRoot.CurrentUser, @"SOFTWARE\Microsoft\Windows\Test1", "str", "Hello");
+                MsReg.WriteInt32(RegRoot.CurrentUser, @"SOFTWARE\Microsoft\Windows\Test1", "int32", 32);
+                MsReg.WriteInt64(RegRoot.CurrentUser, @"SOFTWARE\Microsoft\Windows\Test1", "int64", 64);
+                MsReg.WriteBin(RegRoot.CurrentUser, @"SOFTWARE\Microsoft\Windows\Test1", "bin", "Hello World"._GetBytes_UTF8());
+                MsReg.EnumKey(RegRoot.CurrentUser, @"SOFTWARE\Microsoft\Windows\")._DebugAsJson();
+                MsReg.EnumValue(RegRoot.CurrentUser, @"SOFTWARE\Microsoft\Windows\Test1")._DebugAsJson();
+                MsReg.DeleteValue(RegRoot.CurrentUser, @"SOFTWARE\Microsoft\Windows\Test1", "int64");
+                MsReg.DeleteKey(RegRoot.CurrentUser, @"SOFTWARE\Microsoft\Windows\Test1");
+                return;
+            }
+
+            if (true)
+            {
+                Async(async () =>
+                {
+                    try
+                    {
+                        var result1 = await EasyExec.ExecAsync("git", $"pull origin master", @"C:\git\IPA-DNP-DeskVPN",
+                            timeout: CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
+                            easyOutputMaxSize: CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
+                            flags: ExecFlags.Default | ExecFlags.PrintRealtimeStderr | ExecFlags.PrintRealtimeStdout,
+                            cancel: default,
+                            debug: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+                });
                 return;
             }
 
