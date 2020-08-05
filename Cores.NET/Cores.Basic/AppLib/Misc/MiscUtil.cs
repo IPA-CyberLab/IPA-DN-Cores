@@ -748,38 +748,97 @@ namespace IPA.Cores.Basic
                 }
             }
 
+            List<Tuple<Entry, Task>> RunningTasksList = new List<Tuple<Entry, Task>>();
+
             using SemaphoreSlim sem = new SemaphoreSlim(8, 8);
+            int index = 0;
             foreach (var entry in entryList)
             {
+                index++;
                 Task t = AsyncAwait(async () =>
                 {
+                    int thisIndex = index;
                     var target = entry;
 
-                    string printTag = "<" + Lfs.PathParser.GetFileName(target.DirPath) + ">";
+                    await sem.WaitAsync(cancel);
 
                     try
                     {
-                        var result1 = await EasyExec.ExecAsync(gitExePath, $"pull {target.OriginName} {target.BranchName}", target.DirPath,
-                            timeout: CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
-                            easyOutputMaxSize: CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
-                            cancel: cancel,
-                            printTag: printTag,
-                            flags: ExecFlags.Default | ExecFlags.PrintRealtimeStdErr | ExecFlags.PrintRealtimeStdOut);
 
-                        var result2 = await EasyExec.ExecAsync(gitExePath, $"submodule update --init --recursive", target.DirPath,
-                            timeout: CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
-                            easyOutputMaxSize: CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
-                            cancel: cancel,
-                            printTag: printTag,
-                            flags: ExecFlags.Default | ExecFlags.PrintRealtimeStdErr | ExecFlags.PrintRealtimeStdOut);
+                        string printTag = "[" + thisIndex + ": " + Lfs.PathParser.GetFileName(target.DirPath) + "]";
+
+                        try
+                        {
+                            var result1 = await EasyExec.ExecAsync(gitExePath, $"pull {target.OriginName} {target.BranchName}", target.DirPath,
+                                timeout: CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
+                                easyOutputMaxSize: CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
+                                cancel: cancel,
+                                printTag: printTag,
+                                flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdErr | ExecFlags.EasyPrintRealtimeStdOut);
+
+                            var result2 = await EasyExec.ExecAsync(gitExePath, $"submodule update --init --recursive", target.DirPath,
+                                timeout: CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
+                                easyOutputMaxSize: CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
+                                cancel: cancel,
+                                printTag: printTag,
+                                flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdErr | ExecFlags.EasyPrintRealtimeStdOut);
+                        }
+                        catch (Exception ex)
+                        {
+                            string error = $"*** Error - {Lfs.PathParser.GetFileName(target.DirPath)} ***\n{ex.Message}\n\n";
+
+                            Con.WriteError(error);
+                        }
                     }
-                    catch (Exception ex)
+                    finally
                     {
-                        ex._Debug();
+                        sem.Release();
                     }
                 });
 
-                await t._TryWaitAsync(false);
+                RunningTasksList.Add(new Tuple<Entry, Task>(entry, t));
+            }
+
+            while (true)
+            {
+                if (cancel.IsCancellationRequested)
+                {
+                    // キャンセルされた
+                    // すべてのタスクが終了するまで待機する
+                    RunningTasksList.ForEach(x => x.Item2._TryWait());
+                    return;
+                }
+
+                if (RunningTasksList.Select(x => x.Item2).All(x => x.IsCompleted))
+                {
+                    // すべてのタスクが完了した
+                    break;
+                }
+
+                // 未完了タスク数を表示する
+                int numCompleted = RunningTasksList.Where(x => x.Item2.IsCompleted).Count();
+
+                string str = $"\n--- Completed: {numCompleted} / {RunningTasksList.Count}\n" +
+                    $"Running tasks: {RunningTasksList.Where(x=>x.Item2.IsCompleted == false).Select(x=>x.Item1.DirPath)._Combine(", ")}\n";
+
+                Con.WriteLine(str);
+
+                await TaskUtil.WaitObjectsAsync(tasks: RunningTasksList.Select(x => x.Item2).Where(x=>x.IsCompleted == false), cancels: cancel._SingleArray(), timeout: 1000);
+            }
+
+            Con.WriteLine($"\n--- All tasks completed.");
+            if (RunningTasksList.Select(x => x.Item2).All(x => x.IsCompletedSuccessfully))
+            {
+                Con.WriteLine($"All {RunningTasksList.Count} tasks completed with OK.");
+            }
+            else
+            {
+                Con.WriteLine($"Error tasks: ");
+
+                foreach (var item in RunningTasksList.Where(x => x.Item2.IsCompletedSuccessfully == false))
+                {
+                    Con.WriteLine($"  {Lfs.PathParser.GetFileName(item.Item1.DirPath)}: {(item.Item2.Exception?._GetSingleException().Message ?? "Unknown")}\n");
+                }
             }
         }
     }

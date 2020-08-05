@@ -1727,7 +1727,10 @@ namespace IPA.Cores.Basic
         {
             if (PrintToConsole)
             {
-                Console.WriteLine(line);
+                lock (Con.ConsoleWriteLock)
+                {
+                    Console.WriteLine(line);
+                }
             }
 
             line = line + Env.NewLine;

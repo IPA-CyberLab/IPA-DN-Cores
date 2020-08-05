@@ -220,8 +220,8 @@ namespace IPA.Cores.Basic
         None = 0,
         KillProcessGroup = 1,                   // Kill する場合はプロセスグループを Kill する
         EasyInputOutputMode = 2,                // 標準出力およびエラー出力の結果を簡易的に受信し、標準入力の結果を簡易的に送信する (結果を確認しながらの対話はできない)
-        PrintRealtimeStdOut = 4,                // stdout データをリアルタイムで表示する
-        PrintRealtimeStdErr = 8,                // stderr データをリアルタイムで表示する
+        EasyPrintRealtimeStdOut = 4,                // stdout データをリアルタイムで表示する
+        EasyPrintRealtimeStdErr = 8,                // stderr データをリアルタイムで表示する
 
         Default = KillProcessGroup | ExecFlags.EasyInputOutputMode,
     }
@@ -674,11 +674,11 @@ namespace IPA.Cores.Basic
 
                     // 標準出力の読み出しタスク
                     this.EasyOutputTask = this.EasyInputOutputStream._ReadWithMaxBufferSizeAsync(this.Options.EasyOutputMaxSize, this.GrandCancel,
-                        async (data, cancel) => await RealTimeRecvDataCallbackAsync(data, false, cancel))._LeakCheck();
+                        async (data, cancel) => await EasyPrintRealTimeRecvDataCallbackAsync(data, false, cancel))._LeakCheck();
 
                     // 標準エラー出力の読み出しタスク
                     this.EasyErrorTask = this.EasyErrorStream._ReadWithMaxBufferSizeAsync(this.Options.EasyOutputMaxSize, this.GrandCancel,
-                        async (data, cancel) => await RealTimeRecvDataCallbackAsync(data, true, cancel))._LeakCheck();
+                        async (data, cancel) => await EasyPrintRealTimeRecvDataCallbackAsync(data, true, cancel))._LeakCheck();
                 }
 
                 this.StartMainLoop(MainLoopAsync);
@@ -690,26 +690,26 @@ namespace IPA.Cores.Basic
             }
         }
 
-        PipeStreamPairWithSubTask? RealTimeStdOut = null;
-        PipeStreamPairWithSubTask? RealTimeStdErr = null;
+        PipeStreamPairWithSubTask? EasyRealTimeStdOut = null;
+        PipeStreamPairWithSubTask? EasyRealTimeStdErr = null;
 
         // リアルタイムでデータが届いたときに呼ばれるコールバック関数
-        Task RealTimeRecvDataCallbackAsync(ReadOnlyMemory<byte> data, bool stderr, CancellationToken cancel)
+        Task EasyPrintRealTimeRecvDataCallbackAsync(ReadOnlyMemory<byte> data, bool stderr, CancellationToken cancel)
         {
             PipeStreamPairWithSubTask? pair = null;
 
             if (stderr == false)
             {
-                if (this.Options.Flags.Bit(ExecFlags.PrintRealtimeStdOut))
+                if (this.Options.Flags.Bit(ExecFlags.EasyPrintRealtimeStdOut))
                 {
-                    pair = (this.RealTimeStdErr ??= new PipeStreamPairWithSubTask(RealTimeRecvDataPrintCallbackAsync));
+                    pair = (this.EasyRealTimeStdErr ??= new PipeStreamPairWithSubTask(EasyPrintRealTimeRecvDataPrintCallbackAsync));
                 }
             }
             else
             {
-                if (this.Options.Flags.Bit(ExecFlags.PrintRealtimeStdErr))
+                if (this.Options.Flags.Bit(ExecFlags.EasyPrintRealtimeStdErr))
                 {
-                    pair = (this.RealTimeStdOut ??= new PipeStreamPairWithSubTask(RealTimeRecvDataPrintCallbackAsync));
+                    pair = (this.EasyRealTimeStdOut ??= new PipeStreamPairWithSubTask(EasyPrintRealTimeRecvDataPrintCallbackAsync));
                 }
             }
 
@@ -726,25 +726,34 @@ namespace IPA.Cores.Basic
 
         readonly AsyncLock WriteLineLocker = new AsyncLock();
 
-        async Task RealTimeRecvDataPrintCallbackAsync(PipeStream st)
+        async Task EasyPrintRealTimeRecvDataPrintCallbackAsync(PipeStream st)
         {
-            using var r = new StreamReader(st);
+            var r = new BinaryLineReader(st);
             while (true)
             {
-                string? line = await r.ReadLineAsync();
-                if (line == null)
+                List<Tuple<Memory<byte>, bool>>? lines = await r.ReadLinesWithTimeoutAsync(1000);
+
+                if (lines == null)
                 {
                     break;
                 }
 
-                string tagStr = "";
-                if (this.Options.PrintTag._IsFilled()) tagStr = $"{this.Options.PrintTag}: ";
-
-                string str = tagStr + line;
-
-                using (await WriteLineLocker.LockWithAwait())
+                foreach (var line in lines)
                 {
-                    Con.WriteLine(str);
+                    string tagStr = "";
+                    if (this.Options.PrintTag._IsFilled()) tagStr = $"{this.Options.PrintTag}: ";
+
+                    string str = tagStr + line.Item1._GetString(this.OutputEncoding);
+
+                    if (line.Item2 == false)
+                    {
+                        str += " [...!!pending!!...]";
+                    }
+
+                    using (await WriteLineLocker.LockWithAwait())
+                    {
+                        Con.WriteLine(str);
+                    }
                 }
             }
         }
@@ -864,8 +873,8 @@ namespace IPA.Cores.Basic
             this.StandardPipePoint_MySide._DisposeSafe();
             this.ErrorPipePoint_MySide._DisposeSafe();
 
-            this.RealTimeStdOut._DisposeSafe();
-            this.RealTimeStdErr._DisposeSafe();
+            this.EasyRealTimeStdOut._DisposeSafe();
+            this.EasyRealTimeStdErr._DisposeSafe();
 
             base.DisposeImpl(ex);
         }

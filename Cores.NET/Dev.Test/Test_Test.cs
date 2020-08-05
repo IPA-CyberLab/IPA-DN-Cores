@@ -419,7 +419,7 @@ namespace IPA.TestDev
                         var result1 = await EasyExec.ExecAsync(GitUtil.GetGitForWindowsExeFileName(), $"pull origin master", @"C:\git\IPA-DNP-DeskVPN",
                             timeout: CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
                             easyOutputMaxSize: CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
-                            flags: ExecFlags.Default | ExecFlags.PrintRealtimeStdErr | ExecFlags.PrintRealtimeStdOut,
+                            flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdErr | ExecFlags.EasyPrintRealtimeStdOut,
                             cancel: default,
                             debug: false,
                             printTag: "Git");
@@ -432,11 +432,36 @@ namespace IPA.TestDev
                 return;
             }
 
+            if (false)
+            {
+                Async(async () =>
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            var result1 = await EasyExec.ExecAsync("cmd.exe", "/k ipconfig", @"C:\TMP2\gitneko\IPA-DNP-Hotate",
+                                timeout: CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
+                                easyOutputMaxSize: CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
+                                flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdErr | ExecFlags.EasyPrintRealtimeStdOut,
+                                cancel: default,
+                                debug: false,
+                                printTag: "CMD");
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Debug();
+                        }
+                    }
+                });
+                return;
+            }
+
             if (true)
             {
                 Async(async () =>
                 {
-                    await GitParallelUpdater.ExecGitParallelUpdaterAsync(@"c:\git");
+                    await GitParallelUpdater.ExecGitParallelUpdaterAsync(@"C:\TMP2\gitneko");
                 });
                 return;
             }

@@ -1483,7 +1483,10 @@ namespace IPA.Cores.Basic
 
         public void Print()
         {
-            Console.WriteLine(this.InformationString);
+            lock (Con.ConsoleWriteLock)
+            {
+                Console.WriteLine(this.InformationString);
+            }
         }
     }
 
@@ -1537,8 +1540,11 @@ namespace IPA.Cores.Basic
 
             if (FullStackTrace)
             {
-                Console.WriteLine("** Warning: CoresConfig.DebugSettings.LeakCheckerFullStackLog is enabled.");
-                Console.WriteLine("** Performance will be degraded.");
+                lock (Con.ConsoleWriteLock)
+                {
+                    Console.WriteLine("** Warning: CoresConfig.DebugSettings.LeakCheckerFullStackLog is enabled.");
+                    Console.WriteLine("** Performance will be degraded.");
+                }
             }
         }
 
