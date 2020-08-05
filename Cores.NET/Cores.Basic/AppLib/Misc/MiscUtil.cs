@@ -727,7 +727,7 @@ namespace IPA.Cores.Basic
             public string BranchName = "master";
         }
 
-        public static async Task ExecGitParallelUpdaterAsync(string rootDirPath, CancellationToken cancel = default)
+        public static async Task ExecGitParallelUpdaterAsync(string rootDirPath, int maxConcurrentTasks, CancellationToken cancel = default)
         {
             string gitExePath = GitUtil.GetGitForWindowsExeFileName();
 
@@ -750,7 +750,7 @@ namespace IPA.Cores.Basic
 
             List<Tuple<Entry, Task>> RunningTasksList = new List<Tuple<Entry, Task>>();
 
-            using SemaphoreSlim sem = new SemaphoreSlim(8, 8);
+            using SemaphoreSlim sem = new SemaphoreSlim(maxConcurrentTasks, maxConcurrentTasks);
             int index = 0;
             foreach (var entry in entryList)
             {
@@ -788,6 +788,8 @@ namespace IPA.Cores.Basic
                             string error = $"*** Error - {Lfs.PathParser.GetFileName(target.DirPath)} ***\n{ex.Message}\n\n";
 
                             Con.WriteError(error);
+
+                            throw;
                         }
                     }
                     finally
@@ -839,6 +841,8 @@ namespace IPA.Cores.Basic
                 {
                     Con.WriteLine($"  {Lfs.PathParser.GetFileName(item.Item1.DirPath)}: {(item.Item2.Exception?._GetSingleException().Message ?? "Unknown")}\n");
                 }
+
+                throw new CoresException("One or more git tasks resulted errors");
             }
         }
     }

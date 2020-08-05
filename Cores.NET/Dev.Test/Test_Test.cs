@@ -461,7 +461,7 @@ namespace IPA.TestDev
             {
                 Async(async () =>
                 {
-                    await GitParallelUpdater.ExecGitParallelUpdaterAsync(@"C:\TMP2\gitneko");
+                    await GitParallelUpdater.ExecGitParallelUpdaterAsync(@"C:\TMP2\gitneko", 1);
                 });
                 return;
             }
