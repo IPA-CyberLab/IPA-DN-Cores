@@ -49,7 +49,7 @@ namespace IPA.TestDev
     {
         [ConsoleCommand(
             "Git 並列アップデータ",
-            "GitParallelUpdate [dir] [/concurrent:NUM]",
+            "GitParallelUpdate [dir] [/concurrent:NUM] [/setting:TXTFILENAME]",
             "Git 並列アップデータ")]
         static int GitParallelUpdate(ConsoleService c, string cmdName, string str)
         {
@@ -57,6 +57,7 @@ namespace IPA.TestDev
             {
                 new ConsoleParam("[rootDir]", ConsoleService.Prompt, "Directory: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("concurrent"),
+                new ConsoleParam("setting"),
             };
 
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
@@ -65,9 +66,11 @@ namespace IPA.TestDev
 
             int numConcurrentTasks = vl["num"].IntValue;
 
-            if (numConcurrentTasks <= 0) numConcurrentTasks = 8;
+            if (numConcurrentTasks <= 0) numConcurrentTasks = 16;
 
-            GitParallelUpdater.ExecGitParallelUpdaterAsync(dir, numConcurrentTasks)._GetResult();
+            string setting = vl["setting"].StrValue;
+
+            GitParallelUpdater.ExecGitParallelUpdaterAsync(dir, numConcurrentTasks, setting)._GetResult();
 
             return 0;
         }
