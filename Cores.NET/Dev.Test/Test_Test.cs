@@ -394,7 +394,7 @@ namespace IPA.TestDev
                 return;
             }
 
-            if (true)
+            if (false)
             {
                 //MsReg.IsValue(RegRoot.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion", "")._Debug();
                 //MsReg.GetValueType(RegRoot.LocalMachine, @"SOFTWARE\Microsoft\Windows\Dwm", "AnimationAttributionHashingEnabled")._Debug();
@@ -410,18 +410,19 @@ namespace IPA.TestDev
                 return;
             }
 
-            if (true)
+            if (false)
             {
                 Async(async () =>
                 {
                     try
                     {
-                        var result1 = await EasyExec.ExecAsync("git", $"pull origin master", @"C:\git\IPA-DNP-DeskVPN",
+                        var result1 = await EasyExec.ExecAsync(GitUtil.GetGitForWindowsExeFileName(), $"pull origin master", @"C:\git\IPA-DNP-DeskVPN",
                             timeout: CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
                             easyOutputMaxSize: CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
-                            flags: ExecFlags.Default | ExecFlags.PrintRealtimeStderr | ExecFlags.PrintRealtimeStdout,
+                            flags: ExecFlags.Default | ExecFlags.PrintRealtimeStdErr | ExecFlags.PrintRealtimeStdOut,
                             cancel: default,
-                            debug: true);
+                            debug: false,
+                            printTag: "Git");
                     }
                     catch (Exception ex)
                     {

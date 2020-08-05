@@ -220,8 +220,8 @@ namespace IPA.Cores.Basic
         None = 0,
         KillProcessGroup = 1,                   // Kill する場合はプロセスグループを Kill する
         EasyInputOutputMode = 2,                // 標準出力およびエラー出力の結果を簡易的に受信し、標準入力の結果を簡易的に送信する (結果を確認しながらの対話はできない)
-        PrintRealtimeStdout = 4,                // stdout データをリアルタイムで表示する
-        PrintRealtimeStderr = 8,                // stderr データをリアルタイムで表示する
+        PrintRealtimeStdOut = 4,                // stdout データをリアルタイムで表示する
+        PrintRealtimeStdErr = 8,                // stderr データをリアルタイムで表示する
 
         Default = KillProcessGroup | ExecFlags.EasyInputOutputMode,
     }
@@ -690,29 +690,38 @@ namespace IPA.Cores.Basic
             }
         }
 
-        PipeStreamPairWithSubTask? RealTimeStdout = null;
-        PipeStreamPairWithSubTask? RealTimeErrout = null;
+        PipeStreamPairWithSubTask? RealTimeStdOut = null;
+        PipeStreamPairWithSubTask? RealTimeStdErr = null;
 
         // リアルタイムでデータが届いたときに呼ばれるコールバック関数
-        async Task RealTimeRecvDataCallbackAsync(ReadOnlyMemory<byte> data, bool stderr, CancellationToken cancel)
+        Task RealTimeRecvDataCallbackAsync(ReadOnlyMemory<byte> data, bool stderr, CancellationToken cancel)
         {
-            await Task.CompletedTask;
-
-            PipeStreamPairWithSubTask? pair;
+            PipeStreamPairWithSubTask? pair = null;
 
             if (stderr == false)
             {
-                pair = (this.RealTimeErrout ??= new PipeStreamPairWithSubTask(RealTimeRecvDataPrintCallbackAsync));
+                if (this.Options.Flags.Bit(ExecFlags.PrintRealtimeStdOut))
+                {
+                    pair = (this.RealTimeStdErr ??= new PipeStreamPairWithSubTask(RealTimeRecvDataPrintCallbackAsync));
+                }
             }
             else
             {
-                pair = (this.RealTimeStdout ??= new PipeStreamPairWithSubTask(RealTimeRecvDataPrintCallbackAsync));
+                if (this.Options.Flags.Bit(ExecFlags.PrintRealtimeStdErr))
+                {
+                    pair = (this.RealTimeStdOut ??= new PipeStreamPairWithSubTask(RealTimeRecvDataPrintCallbackAsync));
+                }
             }
 
-            if (pair.StreamA.IsReadyToSend())
+            if (pair != null)
             {
-                pair.StreamA.FastSendNonBlock(data._CloneMemory(), true);
+                if (pair.StreamA.IsReadyToSend())
+                {
+                    pair.StreamA.FastSendNonBlock(data._CloneMemory(), true);
+                }
             }
+
+            return TaskCompleted;
         }
 
         readonly AsyncLock WriteLineLocker = new AsyncLock();
@@ -854,6 +863,9 @@ namespace IPA.Cores.Basic
 
             this.StandardPipePoint_MySide._DisposeSafe();
             this.ErrorPipePoint_MySide._DisposeSafe();
+
+            this.RealTimeStdOut._DisposeSafe();
+            this.RealTimeStdErr._DisposeSafe();
 
             base.DisposeImpl(ex);
         }

@@ -729,6 +729,8 @@ namespace IPA.Cores.Basic
 
         public static async Task ExecGitParallelUpdaterAsync(string rootDirPath, CancellationToken cancel = default)
         {
+            string gitExePath = GitUtil.GetGitForWindowsExeFileName();
+
             List<Entry> entryList = new List<Entry>();
 
             // 指定されたディレクトリにあるサブディレクトリの一覧を列挙し、その中に .git サブディレクトリがあるものを git ローカルリポジトリとして列挙する
@@ -753,22 +755,27 @@ namespace IPA.Cores.Basic
                 {
                     var target = entry;
 
+                    string printTag = "<" + Lfs.PathParser.GetFileName(target.DirPath) + ">";
+
                     try
                     {
-                        var result1 = await EasyExec.ExecAsync("git", $"pull {target.OriginName} {target.BranchName}", target.DirPath,
+                        var result1 = await EasyExec.ExecAsync(gitExePath, $"pull {target.OriginName} {target.BranchName}", target.DirPath,
                             timeout: CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
                             easyOutputMaxSize: CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
                             cancel: cancel,
-                            debug: true);
+                            printTag: printTag,
+                            flags: ExecFlags.Default | ExecFlags.PrintRealtimeStdErr | ExecFlags.PrintRealtimeStdOut);
 
-                        var result2 = await EasyExec.ExecAsync("git", $"submodule update --init --recursive", target.DirPath,
+                        var result2 = await EasyExec.ExecAsync(gitExePath, $"submodule update --init --recursive", target.DirPath,
                             timeout: CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
                             easyOutputMaxSize: CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
                             cancel: cancel,
-                            debug: true);
+                            printTag: printTag,
+                            flags: ExecFlags.Default | ExecFlags.PrintRealtimeStdErr | ExecFlags.PrintRealtimeStdOut);
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        ex._Debug();
                     }
                 });
 
