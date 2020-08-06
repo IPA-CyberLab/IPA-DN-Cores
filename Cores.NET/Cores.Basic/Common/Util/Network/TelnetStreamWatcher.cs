@@ -152,14 +152,27 @@ namespace IPA.Cores.Basic
                                             }
                                         }
                                     }
+                                    else if (line._IsSamei("g"))
+                                    {
+                                        // GC
+                                        Dbg.WriteLine($"Manual GC0 is called by the administrator.");
+
+                                        long start = Time.HighResTick64;
+                                        GC.Collect(0, GCCollectionMode.Forced, true, true);
+                                        long end = Time.HighResTick64;
+
+                                        long spentTime = end - start;
+
+                                        Dbg.WriteLine($"Manual GC0 Took Time: {spentTime} msecs.");
+                                    }
                                     else
                                     {
                                         // GC
                                         Dbg.WriteLine($"Manual GC is called by the administrator.");
 
-                                        long start = FastTick64.Now;
+                                        long start = Time.HighResTick64;
                                         Dbg.GcCollect();
-                                        long end = FastTick64.Now;
+                                        long end = Time.HighResTick64;
 
                                         long spentTime = end - start;
 
