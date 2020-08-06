@@ -152,7 +152,7 @@ namespace IPA.Cores.Basic
                                             }
                                         }
                                     }
-                                    else if (line._IsSamei("g"))
+                                    else if (line._IsSamei("0"))
                                     {
                                         // GC
                                         Dbg.WriteLine($"Manual GC0 is called by the administrator.");
@@ -164,6 +164,19 @@ namespace IPA.Cores.Basic
                                         long spentTime = end - start;
 
                                         Dbg.WriteLine($"Manual GC0 Took Time: {spentTime} msecs.");
+                                    }
+                                    else if (line._IsSamei("1"))
+                                    {
+                                        // GC
+                                        Dbg.WriteLine($"Manual GC1 is called by the administrator.");
+
+                                        long start = Time.HighResTick64;
+                                        GC.Collect(1, GCCollectionMode.Forced, true, true);
+                                        long end = Time.HighResTick64;
+
+                                        long spentTime = end - start;
+
+                                        Dbg.WriteLine($"Manual GC1 Took Time: {spentTime} msecs.");
                                     }
                                     else
                                     {
