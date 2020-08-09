@@ -48,9 +48,37 @@ namespace IPA.TestDev
     partial class TestDevCommands
     {
         [ConsoleCommand(
-        "ファイルシステム ストレステスト",
-        "FileSystemStressTest [dir] [/num:NUM]",
-        "ファイルシステム ストレステスト")]
+            "Git 並列アップデータ",
+            "GitParallelUpdate [dir] [/concurrent:NUM] [/setting:TXTFILENAME]",
+            "Git 並列アップデータ")]
+        static int GitParallelUpdate(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[rootDir]", ConsoleService.Prompt, "Directory: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("concurrent"),
+                new ConsoleParam("setting"),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string dir = vl.DefaultParam.StrValue;
+
+            int numConcurrentTasks = vl["num"].IntValue;
+
+            if (numConcurrentTasks <= 0) numConcurrentTasks = 16;
+
+            string setting = vl["setting"].StrValue;
+
+            GitParallelUpdater.ExecGitParallelUpdaterAsync(dir, numConcurrentTasks, setting)._GetResult();
+
+            return 0;
+        }
+
+        [ConsoleCommand(
+            "ファイルシステム ストレステスト",
+            "FileSystemStressTest [dir] [/num:NUM]",
+            "ファイルシステム ストレステスト")]
         static int FileSystemStressTest(ConsoleService c, string cmdName, string str)
         {
             ConsoleParam[] args =

@@ -804,7 +804,9 @@ namespace IPA.Cores.Helper.Basic
             => _ReadAsync(stream, bufferSize, cancel)._GetResult();
 
         // 指定したサイズを超えないデータを切断されるまでに受信する
-        public static async Task<Memory<byte>> _ReadWithMaxBufferSizeAsync(this Stream stream, int maxBufferSize, CancellationToken cancel = default)
+        // 必要に応じて受信中のデータをリアルタイムで指定されたコールバック関数に提供する
+        public static async Task<Memory<byte>> _ReadWithMaxBufferSizeAsync(this Stream stream, int maxBufferSize, CancellationToken cancel = default,
+            Func<ReadOnlyMemory<byte>, CancellationToken, Task>? receivedDataMonitorAsync = null)
         {
             maxBufferSize._SetMax(1);
 
@@ -843,7 +845,32 @@ namespace IPA.Cores.Helper.Basic
                     break;
                 }
 
-                buffer.Write(tmp.Slice(0, sz));
+                var writeData = tmp.Slice(0, sz);
+                if (receivedDataMonitorAsync != null)
+                {
+                    try
+                    {
+                        await receivedDataMonitorAsync(writeData, cancel);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+                }
+                buffer.Write(writeData);
+            }
+
+            if (receivedDataMonitorAsync != null)
+            {
+                // 最後まで読み終わった旨を通知するためにコールバックには空データを渡す
+                try
+                {
+                    await receivedDataMonitorAsync(default, cancel);
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
             }
 
             return buffer.Memory;

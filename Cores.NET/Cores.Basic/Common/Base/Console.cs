@@ -92,6 +92,8 @@ namespace IPA.Cores.Basic
     // コンソール入出力
     public static partial class Con
     {
+        public static readonly CriticalSection ConsoleWriteLock = new CriticalSection();
+
         static ConsoleService? cs = null;
 
         public static ConsoleService? ConsoleService
@@ -138,7 +140,11 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                Console.WriteLine(arg._GetObjectDump(type: type));
+                string str = arg._GetObjectDump(type: type);
+                lock (Con.ConsoleWriteLock)
+                {
+                    Console.WriteLine(str);
+                }
                 LocalLogRouter.PrintConsole(arg, noConsole: true, priority: LogPriority.Info);
             }
         }
@@ -152,7 +158,10 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                Console.WriteLine(str);
+                lock (Con.ConsoleWriteLock)
+                {
+                    Console.WriteLine(str);
+                }
                 LocalLogRouter.PrintConsole(str, noConsole: true, priority: LogPriority.Info);
             }
         }
@@ -165,7 +174,10 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                Console.WriteLine(str, arg);
+                lock (Con.ConsoleWriteLock)
+                {
+                    Console.WriteLine(str, arg);
+                }
                 LocalLogRouter.PrintConsole(string.Format(str, arg), noConsole: true, priority: LogPriority.Info);
             }
         }
@@ -178,7 +190,10 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                Console.WriteLine(str, args);
+                lock (Con.ConsoleWriteLock)
+                {
+                    Console.WriteLine(str, args);
+                }
                 LocalLogRouter.PrintConsole(string.Format(str, args), noConsole: true, priority: LogPriority.Info);
             }
         }
@@ -201,7 +216,11 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                Console.WriteLine(arg._GetObjectDump());
+                string str = arg._GetObjectDump();
+                lock (Con.ConsoleWriteLock)
+                {
+                    Console.WriteLine(str);
+                }
                 LocalLogRouter.PrintConsole(arg, noConsole: true, priority: LogPriority.Error);
             }
         }
@@ -261,7 +280,11 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                Console.WriteLine(arg._GetObjectDump());
+                string str = arg._GetObjectDump();
+                lock (Con.ConsoleWriteLock)
+                {
+                    Console.WriteLine();
+                }
                 LocalLogRouter.PrintConsole(arg, noConsole: true, priority: LogPriority.Info);
             }
         }

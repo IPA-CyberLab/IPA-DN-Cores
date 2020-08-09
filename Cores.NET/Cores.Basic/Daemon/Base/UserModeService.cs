@@ -177,7 +177,10 @@ namespace IPA.Cores.Basic
                 string pidBody = Env.ProcessId.ToString() + Env.NewLine;
                 Lfs.WriteStringToFile(pidFileName, pidBody, FileFlags.AutoCreateDirectory);
 
-                Console.WriteLine(ExecMainSignature);
+                lock (Con.ConsoleWriteLock)
+                {
+                    Console.WriteLine(ExecMainSignature);
+                }
 
                 // The daemon routine is now started. Wait here until InternalStop() is called.
                 StoppedEvent.Wait();

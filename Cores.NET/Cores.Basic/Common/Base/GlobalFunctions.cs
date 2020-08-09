@@ -227,6 +227,15 @@ namespace IPA.Cores.Globals
         [MethodImpl(Inline)]
         public static Task<TResult> TR<TResult>(TResult result) => Task.FromResult(result);
 
+        [MethodImpl(Inline)]
+        public static Task TR() => Task.CompletedTask;
+
+        public static Task TaskCompleted
+        {
+            [MethodImpl(Inline)]
+            get => Task.CompletedTask;
+        }
+
         public static void For(int count, Action<int> action)
         {
             for (int i = 0; i < count; i++)

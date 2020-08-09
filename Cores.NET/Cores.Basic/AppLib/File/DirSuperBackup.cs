@@ -197,7 +197,10 @@ namespace IPA.Cores.Basic
 
                 using (await WriteLogLock.LockWithAwait())
                 {
-                    Console.WriteLine(line);
+                    lock (Con.ConsoleWriteLock)
+                    {
+                        Console.WriteLine(line);
+                    }
 
                     if (type.Bit(DirSuperBackupLogType.Error))
                     {

@@ -355,7 +355,118 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (true)
+            if (false)
+            {
+                var pair = new PipeStreamPairWithSubTask(async (st) =>
+                {
+                    try
+                    {
+                        var r = new StreamReader(st);
+                        while (true)
+                        {
+                            string? line = await r.ReadLineAsync();
+                            if (line == null)
+                            {
+                                Con.WriteLine("[EOF]");
+                                break;
+                            }
+                            Con.WriteLine(line);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+                });
+
+                while (true)
+                {
+                    StreamWriter w = new StreamWriter(pair.StreamA);
+                    w.AutoFlush = true;
+                    string line = Con.ReadLine("IN>")!;
+                    if (line._IsEmpty())
+                    {
+                        pair.Dispose();
+                        break;
+                    }
+                    w.WriteLine(line);
+                }
+                return;
+            }
+
+            if (false)
+            {
+                //MsReg.IsValue(RegRoot.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion", "")._Debug();
+                //MsReg.GetValueType(RegRoot.LocalMachine, @"SOFTWARE\Microsoft\Windows\Dwm", "AnimationAttributionHashingEnabled")._Debug();
+                //var x = MsReg.ReadValue(RegRoot.LocalMachine, @"SOFTWARE\Microsoft\Windows\Dwm", "test1");
+                MsReg.WriteStr(RegRoot.CurrentUser, @"SOFTWARE\Microsoft\Windows\Test1", "str", "Hello");
+                MsReg.WriteInt32(RegRoot.CurrentUser, @"SOFTWARE\Microsoft\Windows\Test1", "int32", 32);
+                MsReg.WriteInt64(RegRoot.CurrentUser, @"SOFTWARE\Microsoft\Windows\Test1", "int64", 64);
+                MsReg.WriteBin(RegRoot.CurrentUser, @"SOFTWARE\Microsoft\Windows\Test1", "bin", "Hello World"._GetBytes_UTF8());
+                MsReg.EnumKey(RegRoot.CurrentUser, @"SOFTWARE\Microsoft\Windows\")._DebugAsJson();
+                MsReg.EnumValue(RegRoot.CurrentUser, @"SOFTWARE\Microsoft\Windows\Test1")._DebugAsJson();
+                MsReg.DeleteValue(RegRoot.CurrentUser, @"SOFTWARE\Microsoft\Windows\Test1", "int64");
+                MsReg.DeleteKey(RegRoot.CurrentUser, @"SOFTWARE\Microsoft\Windows\Test1");
+                return;
+            }
+
+            if (false)
+            {
+                Async(async () =>
+                {
+                    try
+                    {
+                        var result1 = await EasyExec.ExecAsync(GitUtil.GetGitForWindowsExeFileName(), $"pull origin master", @"C:\git\IPA-DNP-DeskVPN",
+                            timeout: CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
+                            easyOutputMaxSize: CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
+                            flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdErr | ExecFlags.EasyPrintRealtimeStdOut,
+                            cancel: default,
+                            debug: false,
+                            printTag: "Git");
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+                });
+                return;
+            }
+
+            if (false)
+            {
+                Async(async () =>
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            var result1 = await EasyExec.ExecAsync("cmd.exe", "/k ipconfig", @"C:\TMP2\gitneko\IPA-DNP-Hotate",
+                                timeout: CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
+                                easyOutputMaxSize: CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
+                                flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdErr | ExecFlags.EasyPrintRealtimeStdOut,
+                                cancel: default,
+                                debug: false,
+                                printTag: "CMD");
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Debug();
+                        }
+                    }
+                });
+                return;
+            }
+
+            if (false)
+            {
+                Async(async () =>
+                {
+                    await GitParallelUpdater.ExecGitParallelUpdaterAsync(@"C:\TMP2\gitneko", 1);
+                });
+                return;
+            }
+
+            if (false)
             {
                 NamedAsyncLocks named = new NamedAsyncLocks();
 
@@ -400,7 +511,7 @@ namespace IPA.TestDev
                 return;
             }
 
-            if (true)
+            if (false)
             {
                 LogBrowserSecureJson json = new LogBrowserSecureJson
                 {
@@ -521,7 +632,7 @@ namespace IPA.TestDev
                 return;
             }
 
-            if (false)
+            if (true)
             {
                 using CancelWatcher c = new CancelWatcher();
 
@@ -2409,10 +2520,6 @@ ZIP ファイルのパスワード:
 
         public static unsafe void Test01()
         {
-            if (true)
-            {
-
-            }
 
             if (true)
             {

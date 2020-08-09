@@ -153,7 +153,10 @@ namespace IPA.Cores.Basic
         {
             if (record.Flags.Bit(LogFlags.NoOutputToConsole) == false)
             {
-                Console.WriteLine(record.ConsolePrintableString);
+                lock (Con.ConsoleWriteLock)
+                {
+                    Console.WriteLine(record.ConsolePrintableString);
+                }
             }
         }
     }

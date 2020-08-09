@@ -708,6 +708,205 @@ namespace IPA.Cores.Basic
             }, cancel: cancel);
         }
     }
+
+    public static partial class CoresConfig
+    {
+        public static partial class GitParallelUpdater
+        {
+            public static readonly Copenhagen<int> GitCommandTimeoutMsecs = 10 * 60 * 1000;
+            public static readonly Copenhagen<int> GitCommandOutputMaxSize = 10 * 1024 * 1024;
+            public static readonly Copenhagen<string> GitParallelTxtFileName = "GitParallelUpdate.txt";
+        }
+    }
+
+    public static class GitParallelUpdater
+    {
+        class Entry
+        {
+            public string DirPath = null!;
+            public string OriginName = "origin";
+            public string BranchName = "";
+            public bool Ignore = false;
+        }
+
+        public static async Task ExecGitParallelUpdaterAsync(string rootDirPath, int maxConcurrentTasks, string? settingFileName = null, CancellationToken cancel = default)
+        {
+            string gitExePath = GitUtil.GetGitForWindowsExeFileName();
+
+            List<Entry> entryList = new List<Entry>();
+
+            List<Entry> settingsList = new List<Entry>();
+
+            // 指定されたディレクトリに GitParallelUpdate.txt ファイルがあれば読み込む
+            string txtFilePath = PP.Combine(rootDirPath, CoresConfig.GitParallelUpdater.GitParallelTxtFileName);
+
+            if (settingFileName._IsFilled())
+                txtFilePath = settingFileName;
+
+            if (await Lfs.IsFileExistsAsync(txtFilePath))
+            {
+                string body = await Lfs.ReadStringFromFileAsync(txtFilePath, cancel: cancel);
+                foreach (string line2 in body._GetLines(true))
+                {
+                    string line = line2._StripCommentFromLine();
+
+                    if (line._IsFilled())
+                    {
+                        string[] tokens = line._Split(StringSplitOptions.RemoveEmptyEntries, " ", "\t");
+
+                        if (tokens.Length >= 1)
+                        {
+                            Entry e = new Entry
+                            {
+                                DirPath = tokens.ElementAtOrDefault(0),
+                                OriginName = tokens.ElementAtOrDefault(1),
+                                BranchName = tokens.ElementAtOrDefault(2),
+                            };
+
+                            if (e.OriginName._IsSamei("ignore"))
+                            {
+                                e.Ignore = true;
+                            }
+                            else
+                            {
+                                e.OriginName = e.OriginName._FilledOrDefault("origin");
+                                e.BranchName = e.BranchName._FilledOrDefault("");
+                            }
+
+                            settingsList.Add(e);
+                        }
+                    }
+                }
+            }
+
+            // 指定されたディレクトリにあるサブディレクトリの一覧を列挙し、その中に .git サブディレクトリがあるものを git ローカルリポジトリとして列挙する
+            var subDirList = await Lfs.EnumDirectoryAsync(rootDirPath);
+
+            foreach (var subDir in subDirList.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false))
+            {
+                string gitDirPath = Lfs.PathParser.Combine(subDir.FullPath, ".git");
+
+                if ((await Lfs.IsDirectoryExistsAsync(gitDirPath, cancel)))
+                {
+                    subDir.FullPath._Debug();
+
+                    var e = new Entry { DirPath = subDir.FullPath };
+
+                    var setting = settingsList.Where(x => x.DirPath._IsSamei(subDir.Name)).FirstOrDefault();
+
+                    if (setting != null)
+                    {
+                        if (setting.Ignore)
+                        {
+                            continue;
+                        }
+
+                        e.OriginName = setting.OriginName;
+                        e.BranchName = setting.BranchName;
+                    }
+
+                    entryList.Add(e);
+                }
+            }
+
+            List<Tuple<Entry, Task>> RunningTasksList = new List<Tuple<Entry, Task>>();
+
+            using SemaphoreSlim sem = new SemaphoreSlim(maxConcurrentTasks, maxConcurrentTasks);
+            int index = 0;
+            foreach (var entry in entryList)
+            {
+                index++;
+                Task t = AsyncAwait(async () =>
+                {
+                    int thisIndex = index;
+                    var target = entry;
+
+                    await sem.WaitAsync(cancel);
+
+                    try
+                    {
+
+                        string printTag = "[" + thisIndex + ": " + Lfs.PathParser.GetFileName(target.DirPath) + "]";
+
+                        try
+                        {
+                            var result1 = await EasyExec.ExecAsync(gitExePath, $"pull {target.OriginName} {target.BranchName}", target.DirPath,
+                                timeout: CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
+                                easyOutputMaxSize: CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
+                                cancel: cancel,
+                                printTag: printTag,
+                                flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdErr | ExecFlags.EasyPrintRealtimeStdOut);
+
+                            var result2 = await EasyExec.ExecAsync(gitExePath, $"submodule update --init --recursive", target.DirPath,
+                                timeout: CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
+                                easyOutputMaxSize: CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
+                                cancel: cancel,
+                                printTag: printTag,
+                                flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdErr | ExecFlags.EasyPrintRealtimeStdOut);
+                        }
+                        catch (Exception ex)
+                        {
+                            string error = $"*** Error - {Lfs.PathParser.GetFileName(target.DirPath)} ***\n{ex.Message}\n\n";
+
+                            Con.WriteError(error);
+
+                            throw;
+                        }
+                    }
+                    finally
+                    {
+                        sem.Release();
+                    }
+                });
+
+                RunningTasksList.Add(new Tuple<Entry, Task>(entry, t));
+            }
+
+            while (true)
+            {
+                if (cancel.IsCancellationRequested)
+                {
+                    // キャンセルされた
+                    // すべてのタスクが終了するまで待機する
+                    RunningTasksList.ForEach(x => x.Item2._TryWait());
+                    return;
+                }
+
+                if (RunningTasksList.Select(x => x.Item2).All(x => x.IsCompleted))
+                {
+                    // すべてのタスクが完了した
+                    break;
+                }
+
+                // 未完了タスク数を表示する
+                int numCompleted = RunningTasksList.Where(x => x.Item2.IsCompleted).Count();
+
+                string str = $"\n--- Completed: {numCompleted} / {RunningTasksList.Count}\n" +
+                    $"Running tasks: {RunningTasksList.Where(x => x.Item2.IsCompleted == false).Select(x => Lfs.PathParser.GetFileName(x.Item1.DirPath))._Combine(", ")}\n";
+
+                Con.WriteLine(str);
+
+                await TaskUtil.WaitObjectsAsync(tasks: RunningTasksList.Select(x => x.Item2).Where(x => x.IsCompleted == false), cancels: cancel._SingleArray(), timeout: 1000);
+            }
+
+            Con.WriteLine($"\n--- All tasks completed.");
+            if (RunningTasksList.Select(x => x.Item2).All(x => x.IsCompletedSuccessfully))
+            {
+                Con.WriteLine($"All {RunningTasksList.Count} tasks completed with OK.\n\n");
+            }
+            else
+            {
+                Con.WriteLine($"OK tasks: {RunningTasksList.Where(x => x.Item2.IsCompletedSuccessfully).Count()}, Error tasks: {RunningTasksList.Where(x => x.Item2.IsCompletedSuccessfully == false).Count()}");
+
+                foreach (var item in RunningTasksList.Where(x => x.Item2.IsCompletedSuccessfully == false))
+                {
+                    Con.WriteLine($"  [{Lfs.PathParser.GetFileName(item.Item1.DirPath)}]: {(item.Item2.Exception?._GetSingleException().Message ?? "Unknown")}\n");
+                }
+
+                throw new CoresException("One or more git tasks resulted errors");
+            }
+        }
+    }
 }
 
 #endif

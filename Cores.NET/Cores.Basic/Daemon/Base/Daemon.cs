@@ -553,7 +553,10 @@ namespace IPA.Cores.Basic
             DaemonSettings settingsCopy = this.Settings._CloneDeep();
             settingsCopy.DaemonSecret = Consts.Strings.HidePassword;
 
-            Console.WriteLine($"DaemonHost: Parameters: {settingsCopy._ObjectToRuntimeJsonStr()}");
+            lock (Con.ConsoleWriteLock)
+            {
+                Console.WriteLine($"DaemonHost: Parameters: {settingsCopy._ObjectToRuntimeJsonStr()}");
+            }
 
             this.Mode = mode;
 

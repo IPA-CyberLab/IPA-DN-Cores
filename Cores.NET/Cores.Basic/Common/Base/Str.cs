@@ -3914,7 +3914,10 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            Console.WriteLine();
+            lock (Con.ConsoleWriteLock)
+            {
+                Console.WriteLine();
+            }
 
             if (escape)
             {

@@ -356,7 +356,11 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                string str = ex.ToString();
+                lock (Con.ConsoleWriteLock)
+                {
+                    Console.WriteLine(ex);
+                }
             }
 
             // クライアントの破棄

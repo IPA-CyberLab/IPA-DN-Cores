@@ -2138,6 +2138,85 @@ namespace IPA.Cores.Basic
             this.B._DisposeSafe();
         }
     }
+
+    // 片方の Stream から書き込むともう 1 つの Stream から出てくるパイプの終端 Stream ペア。不要になった場合は 2 回リリースすること!!
+    public class PipeStreamPair
+    {
+        readonly RefInt Counter = new RefInt(2);
+
+        readonly PipePoint PointA, PointB;
+
+        public PipeStream StreamA { get; }
+        public PipeStream StreamB { get; }
+
+        public PipeStreamPair(bool autoFlush = true)
+        {
+            PointA = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide);
+            PointB = PointA.CounterPart!;
+
+            StreamA = PointA._InternalGetStream(autoFlush);
+            StreamB = PointB!._InternalGetStream(autoFlush);
+        }
+
+        public void Release()
+        {
+            if (Counter.Decrement() == 0)
+            {
+                this.PointA._DisposeSafe();
+                this.PointB._DisposeSafe();
+
+                this.StreamA._DisposeSafe();
+                this.StreamB._DisposeSafe();
+            }
+        }
+    }
+
+    // PipeStreamPair で、かつ StreamB のほうを処理できる新たなタスクを立ち上げる。そのタスクが終了すると 1 回 Release をする。もう 1 回リリースするには、Dispose を呼び出す。
+    public class PipeStreamPairWithSubTask : IDisposable
+    {
+        readonly PipeStreamPair Pair;
+
+        public PipeStream StreamA { get; }
+
+        public Task TaskForStreamB { get; } // 終了待機に利用可能 (利用しなくても良い)
+
+        public PipeStreamPairWithSubTask(Func<PipeStream, Task> taskForStreamB, bool autoFlush = true, bool noDebugMessage = false)
+        {
+            this.Pair = new PipeStreamPair(autoFlush);
+
+            this.StreamA = this.Pair.StreamA;
+
+            this.TaskForStreamB = AsyncAwait(async () =>
+            {
+                try
+                {
+                    await taskForStreamB(this.Pair.StreamB);
+                }
+                catch (Exception ex)
+                {
+                    if (noDebugMessage == false)
+                    {
+                        ex._Debug();
+                    }
+                }
+                finally
+                {
+                    this.Pair.StreamB.Disconnect();
+                    this.Pair.Release();
+                }
+            });
+        }
+
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            this.Pair.StreamA.Disconnect();
+            this.Pair.Release();
+        }
+    }
 }
 
 

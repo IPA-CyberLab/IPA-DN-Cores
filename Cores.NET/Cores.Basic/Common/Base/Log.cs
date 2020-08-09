@@ -658,7 +658,11 @@ namespace IPA.Cores.Basic
                                     {
                                         if (DebugFileErrorPrintHashSet.Add(fileName))
                                         {
-                                            Console.WriteLine($"IO.FileCreate('{fileName}') failed. {ex.Message}");
+                                            string str = $"IO.FileCreate('{fileName}') failed. {ex.Message}";
+                                            lock (Con.ConsoleWriteLock)
+                                            {
+                                                Console.WriteLine(str);
+                                            }
                                         }
                                     }
                                 }
@@ -700,7 +704,11 @@ namespace IPA.Cores.Basic
                                 {
                                     if (DebugFileErrorPrintHashSet.Add(fileName))
                                     {
-                                        Console.WriteLine($"IO.FileCreate('{fileName}') failed. {ex.Message}");
+                                        string str = $"IO.FileCreate('{fileName}') failed. {ex.Message}";
+                                        lock (Con.ConsoleWriteLock)
+                                        {
+                                            Console.WriteLine(str);
+                                        }
                                     }
                                 }
 

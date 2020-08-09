@@ -831,9 +831,17 @@ namespace IPA.Cores.Basic
 
         public static void GcCollect()
         {
+            long pressure = 32_000_000_000_000; // 32TB
+
+            if (Env.Is64BitProcess == false)
+                pressure = 2_000_000_000; // 2GB
+
+            bool pressureAdded = false;
+
             try
             {
-                GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                GC.AddMemoryPressure(pressure);
+                pressureAdded = true;
             }
             catch
             {
@@ -841,10 +849,28 @@ namespace IPA.Cores.Basic
 
             try
             {
-                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true, true);
+                try
+                {
+                    GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true, true);
+                }
+                catch
+                {
+                }
             }
-            catch
+            finally
             {
+                if (pressureAdded)
+                {
+                    GC.RemoveMemoryPressure(pressure);
+                }
             }
         }
 
@@ -1483,7 +1509,10 @@ namespace IPA.Cores.Basic
 
         public void Print()
         {
-            Console.WriteLine(this.InformationString);
+            lock (Con.ConsoleWriteLock)
+            {
+                Console.WriteLine(this.InformationString);
+            }
         }
     }
 
@@ -1537,8 +1566,11 @@ namespace IPA.Cores.Basic
 
             if (FullStackTrace)
             {
-                Console.WriteLine("** Warning: CoresConfig.DebugSettings.LeakCheckerFullStackLog is enabled.");
-                Console.WriteLine("** Performance will be degraded.");
+                lock (Con.ConsoleWriteLock)
+                {
+                    Console.WriteLine("** Warning: CoresConfig.DebugSettings.LeakCheckerFullStackLog is enabled.");
+                    Console.WriteLine("** Performance will be degraded.");
+                }
             }
         }
 
