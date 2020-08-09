@@ -68,7 +68,7 @@ namespace IPA.Cores.Basic
                 {
                     using var file = await Lfs.CreateAsync(@"c:\tmp\test.dat");
 
-                    using var t = new SectorBasedRandomAccessSimple(file, 10, true);
+                    using var t = new SectorBasedRandomAccessSimpleTest(file, 10, true);
 
                     await t.WriteRandomAsync(0, "012345678901234567890"._GetBytes());
                     await t.WriteRandomAsync(5, "Hello World    x"._GetBytes());
@@ -78,7 +78,7 @@ namespace IPA.Cores.Basic
                 {
                     using var file = await Lfs.OpenAsync(@"c:\tmp\test.dat", writeMode: true);
 
-                    using var t = new SectorBasedRandomAccessSimple(file, 10, true);
+                    using var t = new SectorBasedRandomAccessSimpleTest(file, 10, true);
 
                     long size = await t.GetFileSizeAsync();
                     size._Print();

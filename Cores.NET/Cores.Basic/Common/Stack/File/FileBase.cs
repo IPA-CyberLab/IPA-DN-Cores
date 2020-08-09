@@ -2135,9 +2135,9 @@ namespace IPA.Cores.Basic
         }
     }
     // セクタベースのランダムアクセスを提供するシンプルなクラス。先頭部分に論理ファイルサイズが書いてある。
-    public class SectorBasedRandomAccessSimple : SectorBasedRandomAccessBase<byte>
+    public class SectorBasedRandomAccessSimpleTest : SectorBasedRandomAccessBase<byte>
     {
-        public SectorBasedRandomAccessSimple(IRandomAccess<byte> physical, int sectorSize, bool disposeObject = false)
+        public SectorBasedRandomAccessSimpleTest(IRandomAccess<byte> physical, int sectorSize, bool disposeObject = false)
             : base(physical, sectorSize, sectorSize, disposeObject)
         {
             try

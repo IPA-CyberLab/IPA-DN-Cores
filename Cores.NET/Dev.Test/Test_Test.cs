@@ -363,7 +363,7 @@ namespace IPA.TestDev
                 {
                     using var file = Lfs.Open(@"c:\tmp\test1.dat");
 
-                    using var sector = new SectorBasedRandomAccessSimple(file, 100000);
+                    using var sector = new SectorBasedRandomAccessSimpleTest(file, 100000);
 
                     using var stream = sector.GetStream(true);
 
@@ -415,7 +415,7 @@ namespace IPA.TestDev
 
                             using var file = Lfs.Create(@"c:\tmp\test1.dat", flags: FileFlags.SparseFile);
 
-                            using var sector = new SectorBasedRandomAccessSimple(file, 100000);
+                            using var sector = new SectorBasedRandomAccessSimpleTest(file, 100000);
 
                             using var stream = sector.GetStream(true);
 
@@ -449,7 +449,7 @@ namespace IPA.TestDev
                             {
                                 using var file = Lfs.Open(@"c:\tmp\test1.dat");
 
-                                using var sector = new SectorBasedRandomAccessSimple(file, 100000);
+                                using var sector = new SectorBasedRandomAccessSimpleTest(file, 100000);
 
                                 using var stream = sector.GetStream(true);
 
