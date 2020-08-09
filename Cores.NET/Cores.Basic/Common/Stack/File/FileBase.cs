@@ -2222,18 +2222,21 @@ namespace IPA.Cores.Basic
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
-        protected virtual void Dispose(bool disposing)
-        {
-            DisposeAsync()._TryGetResult();
-        }
-
         public async ValueTask DisposeAsync()
         {
             if (DisposeFlag.IsFirstCall() == false) return;
-
+            await DisposeInternalAsync();
+        }
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
             try
             {
-                await FlushAsync();
+                await this.FlushAsync();
             }
             catch (Exception ex)
             {
@@ -2259,7 +2262,9 @@ namespace IPA.Cores.Basic
 
         async Task SetVirtualSizeAsync(long virtualSize, bool flush, CancellationToken cancel = default)
         {
-            if (virtualSize < 0) throw new ArgumentOutOfRangeException(nameof(virtualSize));
+            if (virtualSize < 0) virtualSize = this.VirtualSizeCache;
+
+            if (virtualSize < 0) return;
 
             bool doFlush = flush;
 
@@ -2600,6 +2605,8 @@ namespace IPA.Cores.Basic
         {
             if (this.Physical != null)
             {
+                await SetVirtualSizeAsync(-1, false, cancel);
+
                 await Physical.FlushAsync(cancel);
             }
         }

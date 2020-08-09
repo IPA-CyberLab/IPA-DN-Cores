@@ -58,7 +58,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-using IPA.Cores.Basic.Internals;
+using IPA.Cores.Basic.Internal;
 
 namespace IPA.Cores.Basic
 {
@@ -86,7 +86,7 @@ namespace IPA.Cores.Basic
     }
 }
 
-namespace IPA.Cores.Basic.Internals
+namespace IPA.Cores.Basic.Internal
 {
     // From: https://github.com/chrishaly/bc-csharp/tree/18f1d45b8d649b051c26fd2a5c70d37ab00604a6
     // 
