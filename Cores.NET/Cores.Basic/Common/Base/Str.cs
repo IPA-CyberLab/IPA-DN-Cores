@@ -1889,9 +1889,12 @@ namespace IPA.Cores.Basic
         }
 
         // 受信した byte[] 配列を自動的にエンコーディング検出して string に変換する
-        public static string DecodeStringAutoDetect(ReadOnlySpan<byte> data, out Encoding detectedEncoding)
+        public static string DecodeStringAutoDetect(ReadOnlySpan<byte> data, out Encoding detectedEncoding, bool untilNullByte = false)
         {
             int bomSize;
+
+            if (untilNullByte) data = data._UntilNullByte();
+
             detectedEncoding = Str.GetEncoding(data, out bomSize)!;
             if (detectedEncoding == null)
                 detectedEncoding = Encoding.UTF8;
@@ -1902,7 +1905,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列をデコードする (BOM があれば BOM に従う)
-        public static string DecodeString(ReadOnlySpan<byte> data, Encoding defaultEncoding, out Encoding detectedEncoding)
+        public static string DecodeString(ReadOnlySpan<byte> data, Encoding defaultEncoding, out Encoding detectedEncoding, bool untilNullByte = false)
         {
             int bomSize;
 
@@ -1911,6 +1914,8 @@ namespace IPA.Cores.Basic
                 detectedEncoding = defaultEncoding;
 
             data = data.Slice(bomSize);
+
+            if (untilNullByte) data = data._UntilNullByte();
 
             return detectedEncoding.GetString(data);
         }

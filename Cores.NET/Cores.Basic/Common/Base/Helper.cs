@@ -127,6 +127,24 @@ namespace IPA.Cores.Helper.Basic
 
     public static class BasicHelper
     {
+        public static ReadOnlySpan<byte> _UntilNullByte(this ReadOnlySpan<byte> src)
+        {
+            int r = src.IndexOf((byte)0);
+            if (r == -1) return src;
+            return src.Slice(0, r);
+        }
+        public static ReadOnlySpan<byte> _UntilNullByte(this Span<byte> src) => _UntilNullByte(src._AsReadOnlySpan());
+
+        public static ReadOnlyMemory<byte> _UntilNullByte(this ReadOnlyMemory<byte> src)
+        {
+            int r = src.Span.IndexOf((byte)0);
+            if (r == -1) return src;
+            return src.Slice(0, r);
+        }
+        public static ReadOnlyMemory<byte> _UntilNullByte(this Memory<byte> src) => _UntilNullByte(src._AsReadOnlyMemory());
+
+        public static byte[] _UntilNullByte(this byte[] src) => src.AsSpan()._UntilNullByte().ToArray();
+
         public static byte[] _GetBytes_UTF8(this string str, bool bom = false) => Util.CombineByteArray(bom ? Str.GetBOM(Str.Utf8Encoding) : null, Str.Utf8Encoding.GetBytes(str));
         public static byte[] _GetBytes_UTF16LE(this string str, bool bom = false) => Util.CombineByteArray(bom ? Str.GetBOM(Str.Utf8Encoding) : null, Str.UniEncoding.GetBytes(str));
         public static byte[] _GetBytes_ShiftJis(this string str) => Str.ShiftJisEncoding.GetBytes(str);
@@ -135,46 +153,46 @@ namespace IPA.Cores.Helper.Basic
         public static byte[] _GetBytes(this string str, bool appendBom = false) => Util.CombineByteArray(appendBom ? Str.GetBOM(Str.Utf8Encoding) : null, Str.Utf8Encoding.GetBytes(str));
         public static byte[] _GetBytes(this string str, Encoding encoding) => encoding.GetBytes(str);
 
-        public static string _GetString_UTF8(this byte[] byteArray) => Str.DecodeString(byteArray, Str.Utf8Encoding, out _);
-        public static string _GetString_UTF16LE(this byte[] byteArray) => Str.DecodeString(byteArray, Str.UniEncoding, out _);
-        public static string _GetString_ShiftJis(this byte[] byteArray) => Str.DecodeString(byteArray, Str.ShiftJisEncoding, out _);
-        public static string _GetString_Ascii(this byte[] byteArray) => Str.DecodeString(byteArray, Str.AsciiEncoding, out _);
-        public static string _GetString_Euc(this byte[] byteArray) => Str.DecodeString(byteArray, Str.EucJpEncoding, out _);
-        public static string _GetString(this byte[] byteArray, Encoding defaultEncoding) => Str.DecodeString(byteArray, defaultEncoding, out _);
-        public static string _GetString(this byte[] byteArray) => Str.DecodeStringAutoDetect(byteArray, out _);
+        public static string _GetString_UTF8(this byte[] byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.Utf8Encoding, out _, untilNullByte);
+        public static string _GetString_UTF16LE(this byte[] byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.UniEncoding, out _, untilNullByte);
+        public static string _GetString_ShiftJis(this byte[] byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.ShiftJisEncoding, out _, untilNullByte);
+        public static string _GetString_Ascii(this byte[] byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.AsciiEncoding, out _, untilNullByte);
+        public static string _GetString_Euc(this byte[] byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.EucJpEncoding, out _, untilNullByte);
+        public static string _GetString(this byte[] byteArray, Encoding defaultEncoding, bool untilNullByte = false) => Str.DecodeString(byteArray, defaultEncoding, out _, untilNullByte);
+        public static string _GetString(this byte[] byteArray, bool untilNullByte = false) => Str.DecodeStringAutoDetect(byteArray, out _, untilNullByte);
 
-        public static string _GetString_UTF8(this ReadOnlySpan<byte> byteArray) => Str.DecodeString(byteArray, Str.Utf8Encoding, out _);
-        public static string _GetString_UTF16LE(this ReadOnlySpan<byte> byteArray) => Str.DecodeString(byteArray, Str.UniEncoding, out _);
-        public static string _GetString_ShiftJis(this ReadOnlySpan<byte> byteArray) => Str.DecodeString(byteArray, Str.ShiftJisEncoding, out _);
-        public static string _GetString_Ascii(this ReadOnlySpan<byte> byteArray) => Str.DecodeString(byteArray, Str.AsciiEncoding, out _);
-        public static string _GetString_Euc(this ReadOnlySpan<byte> byteArray) => Str.DecodeString(byteArray, Str.EucJpEncoding, out _);
-        public static string _GetString(this ReadOnlySpan<byte> byteArray, Encoding default_encoding) => Str.DecodeString(byteArray, default_encoding, out _);
-        public static string _GetString(this ReadOnlySpan<byte> byteArray) => Str.DecodeStringAutoDetect(byteArray, out _);
+        public static string _GetString_UTF8(this ReadOnlySpan<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.Utf8Encoding, out _, untilNullByte);
+        public static string _GetString_UTF16LE(this ReadOnlySpan<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.UniEncoding, out _, untilNullByte);
+        public static string _GetString_ShiftJis(this ReadOnlySpan<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.ShiftJisEncoding, out _, untilNullByte);
+        public static string _GetString_Ascii(this ReadOnlySpan<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.AsciiEncoding, out _, untilNullByte);
+        public static string _GetString_Euc(this ReadOnlySpan<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.EucJpEncoding, out _, untilNullByte);
+        public static string _GetString(this ReadOnlySpan<byte> byteArray, Encoding defaultEncoding, bool untilNullByte = false) => Str.DecodeString(byteArray, defaultEncoding, out _, untilNullByte);
+        public static string _GetString(this ReadOnlySpan<byte> byteArray, bool untilNullByte = false) => Str.DecodeStringAutoDetect(byteArray, out _, untilNullByte);
 
-        public static string _GetString_UTF8(this Span<byte> byteArray) => Str.DecodeString(byteArray, Str.Utf8Encoding, out _);
-        public static string _GetString_UTF16LE(this Span<byte> byteArray) => Str.DecodeString(byteArray, Str.UniEncoding, out _);
-        public static string _GetString_ShiftJis(this Span<byte> byteArray) => Str.DecodeString(byteArray, Str.ShiftJisEncoding, out _);
-        public static string _GetString_Ascii(this Span<byte> byteArray) => Str.DecodeString(byteArray, Str.AsciiEncoding, out _);
-        public static string _GetString_Euc(this Span<byte> byteArray) => Str.DecodeString(byteArray, Str.EucJpEncoding, out _);
-        public static string _GetString(this Span<byte> byteArray, Encoding default_encoding) => Str.DecodeString(byteArray, default_encoding, out _);
-        public static string _GetString(this Span<byte> byteArray) => Str.DecodeStringAutoDetect(byteArray, out _);
+        public static string _GetString_UTF8(this Span<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.Utf8Encoding, out _, untilNullByte);
+        public static string _GetString_UTF16LE(this Span<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.UniEncoding, out _, untilNullByte);
+        public static string _GetString_ShiftJis(this Span<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.ShiftJisEncoding, out _, untilNullByte);
+        public static string _GetString_Ascii(this Span<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.AsciiEncoding, out _, untilNullByte);
+        public static string _GetString_Euc(this Span<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.EucJpEncoding, out _, untilNullByte);
+        public static string _GetString(this Span<byte> byteArray, Encoding defaultEncoding, bool untilNullByte = false) => Str.DecodeString(byteArray, defaultEncoding, out _, untilNullByte);
+        public static string _GetString(this Span<byte> byteArray, bool untilNullByte = false) => Str.DecodeStringAutoDetect(byteArray, out _, untilNullByte);
 
 
-        public static string _GetString_UTF8(this ReadOnlyMemory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.Utf8Encoding, out _);
-        public static string _GetString_UTF16LE(this ReadOnlyMemory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.UniEncoding, out _);
-        public static string _GetString_ShiftJis(this ReadOnlyMemory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.ShiftJisEncoding, out _);
-        public static string _GetString_Ascii(this ReadOnlyMemory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.AsciiEncoding, out _);
-        public static string _GetString_Euc(this ReadOnlyMemory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.EucJpEncoding, out _);
-        public static string _GetString(this ReadOnlyMemory<byte> byteArray, Encoding default_encoding) => Str.DecodeString(byteArray.Span, default_encoding, out _);
-        public static string _GetString(this ReadOnlyMemory<byte> byteArray) => Str.DecodeStringAutoDetect(byteArray.Span, out _);
+        public static string _GetString_UTF8(this ReadOnlyMemory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.Utf8Encoding, out _, untilNullByte);
+        public static string _GetString_UTF16LE(this ReadOnlyMemory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.UniEncoding, out _, untilNullByte);
+        public static string _GetString_ShiftJis(this ReadOnlyMemory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.ShiftJisEncoding, out _, untilNullByte);
+        public static string _GetString_Ascii(this ReadOnlyMemory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.AsciiEncoding, out _, untilNullByte);
+        public static string _GetString_Euc(this ReadOnlyMemory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.EucJpEncoding, out _, untilNullByte);
+        public static string _GetString(this ReadOnlyMemory<byte> byteArray, Encoding default_encoding, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, default_encoding, out _, untilNullByte);
+        public static string _GetString(this ReadOnlyMemory<byte> byteArray, bool untilNullByte = false) => Str.DecodeStringAutoDetect(byteArray.Span, out _, untilNullByte);
 
-        public static string _GetString_UTF8(this Memory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.Utf8Encoding, out _);
-        public static string _GetString_UTF16LE(this Memory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.UniEncoding, out _);
-        public static string _GetString_ShiftJis(this Memory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.ShiftJisEncoding, out _);
-        public static string _GetString_Ascii(this Memory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.AsciiEncoding, out _);
-        public static string _GetString_Euc(this Memory<byte> byteArray) => Str.DecodeString(byteArray.Span, Str.EucJpEncoding, out _);
-        public static string _GetString(this Memory<byte> byteArray, Encoding defaultEncoding) => Str.DecodeString(byteArray.Span, defaultEncoding, out _);
-        public static string _GetString(this Memory<byte> byteArray) => Str.DecodeStringAutoDetect(byteArray.Span, out _);
+        public static string _GetString_UTF8(this Memory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.Utf8Encoding, out _, untilNullByte);
+        public static string _GetString_UTF16LE(this Memory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.UniEncoding, out _, untilNullByte);
+        public static string _GetString_ShiftJis(this Memory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.ShiftJisEncoding, out _, untilNullByte);
+        public static string _GetString_Ascii(this Memory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.AsciiEncoding, out _, untilNullByte);
+        public static string _GetString_Euc(this Memory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.EucJpEncoding, out _, untilNullByte);
+        public static string _GetString(this Memory<byte> byteArray, Encoding defaultEncoding, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, defaultEncoding, out _, untilNullByte);
+        public static string _GetString(this Memory<byte> byteArray, bool untilNullByte = false) => Str.DecodeStringAutoDetect(byteArray.Span, out _, untilNullByte);
 
         public static string _GetHexString(this byte[] byteArray, string padding = "") => Str.ByteToHex(byteArray, padding);
         public static string _GetHexString(this Span<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray, padding);
