@@ -553,13 +553,13 @@ namespace IPA.TestDev
 
             if (false)
             {
-                Async(async () =>
+                Async((Func<Task>)(async () =>
                 {
                     try
                     {
                         var result1 = await EasyExec.ExecAsync(GitUtil.GetGitForWindowsExeFileName(), $"pull origin master", @"C:\git\IPA-DNP-DeskVPN",
-                            timeout: CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
-                            easyOutputMaxSize: CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
+                            timeout: (int?)CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
+                            easyOutputMaxSize: (int)CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
                             flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdErr | ExecFlags.EasyPrintRealtimeStdOut,
                             cancel: default,
                             debug: false,
@@ -569,21 +569,21 @@ namespace IPA.TestDev
                     {
                         ex._Debug();
                     }
-                });
+                }));
                 return;
             }
 
             if (false)
             {
-                Async(async () =>
+                Async((Func<Task>)(async () =>
                 {
                     while (true)
                     {
                         try
                         {
                             var result1 = await EasyExec.ExecAsync("cmd.exe", "/k ipconfig", @"C:\TMP2\gitneko\IPA-DNP-Hotate",
-                                timeout: CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
-                                easyOutputMaxSize: CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
+                                timeout: (int?)CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
+                                easyOutputMaxSize: (int)CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
                                 flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdErr | ExecFlags.EasyPrintRealtimeStdOut,
                                 cancel: default,
                                 debug: false,
@@ -594,7 +594,7 @@ namespace IPA.TestDev
                             ex._Debug();
                         }
                     }
-                });
+                }));
                 return;
             }
 
