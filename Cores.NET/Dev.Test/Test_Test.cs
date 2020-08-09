@@ -71,6 +71,7 @@ using System.Text;
 using IPA.Cores.Basic.App.DaemonCenterLib;
 using IPA.Cores.ClientApi.GoogleApi;
 using System.Security.Cryptography;
+using IPA.Cores.Basic.Tests;
 
 
 
@@ -355,6 +356,146 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+
+            if (false)
+            {
+                Async(async () =>
+                {
+                    using var file = Lfs.Open(@"c:\tmp\test1.dat");
+
+                    using var sector = new SectorBasedRandomAccessSimple(file, 100000);
+
+                    using var stream = sector.GetStream(true);
+
+                    using SHA1Managed sha1 = new SHA1Managed();
+                    byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
+                    if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
+                    {
+                        stream._SeekToBegin();
+
+                        using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
+                        using var filest = file2.GetStream();
+
+                        await stream.CopyBetweenStreamAsync(filest);
+
+                        throw new CoresException($"Hash different: {hash._GetHexString()}");
+                    }
+                    else
+                    {
+                        "Hash OK!"._Print();
+                    }
+                });
+
+                return;
+            }
+
+            if (true)
+            {
+                using CancelWatcher c = new CancelWatcher();
+
+                var task1 = AsyncAwait(async () =>
+                {
+                    try
+                    {
+                        for (int i = 0; ; i++)
+                        {
+                            Dbg.GcCollect();
+
+                            await Task.Yield();
+
+                            c.ThrowIfCancellationRequested();
+
+                            $"----------- {i}"._Debug();
+
+                            using var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, title: "Downloading", unit: "bytes", toStr3: true));
+
+                            HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
+
+                            //using var stream = new BufferBasedStream(mem);
+
+                            using var file = Lfs.Create(@"c:\tmp\test1.dat", flags: FileFlags.SparseFile);
+
+                            using var sector = new SectorBasedRandomAccessSimple(file, 100000);
+
+                            using var stream = sector.GetStream(true);
+
+                            //using var stream = file.GetStream();
+
+                            await FileDownloader.DownloadFileParallelAsync(
+                                "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
+                                stream,
+                                new FileDownloadOption(maxConcurrentThreads: Util.GetRandWithPercentageInt(90), bufferSize: Util.GetRandWithPercentageInt(123457), webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
+                                progressReporter: reporter,
+                                cancel: c);
+                            //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
+                            //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
+
+                            using SHA1Managed sha1 = new SHA1Managed();
+                            stream._SeekToBegin();
+                            byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
+                            if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
+                            {
+                                stream._SeekToBegin();
+
+                                using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
+                                using var filest = file2.GetStream();
+
+                                await stream.CopyBetweenStreamAsync(filest);
+
+                                throw new CoresException($"Hash different: {hash._GetHexString()}");
+                            }
+
+                            await AsyncAwait(async () =>
+                            {
+                                using var file = Lfs.Open(@"c:\tmp\test1.dat");
+
+                                using var sector = new SectorBasedRandomAccessSimple(file, 100000);
+
+                                using var stream = sector.GetStream(true);
+
+                                using SHA1Managed sha1 = new SHA1Managed();
+                                byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
+                                if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
+                                {
+                                    stream._SeekToBegin();
+
+                                    using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
+                                    using var filest = file2.GetStream();
+
+                                    await stream.CopyBetweenStreamAsync(filest);
+
+                                    throw new CoresException($"Hash different 2: {hash._GetHexString()}");
+                                }
+                                else
+                                {
+                                    "Hash OK!"._Print();
+                                }
+
+                            });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+                });
+
+                Con.ReadLine();
+
+                c.Cancel();
+
+                task1._TryGetResult();
+
+                return;
+            }
+
+            if (true)
+            {
+                SectorBasedRandomAccessTest.Test();
+
+                return;
+            }
+
             if (false)
             {
                 var pair = new PipeStreamPairWithSubTask(async (st) =>

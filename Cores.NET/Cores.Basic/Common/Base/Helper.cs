@@ -1022,6 +1022,25 @@ namespace IPA.Cores.Helper.Basic
             catch { }
         }
 
+        public static async Task _DisposeSafeAsync2(this IDisposable? obj)
+        {
+            try
+            {
+                if (obj != null)
+                {
+                    if (obj is IAsyncDisposable)
+                    {
+                        await ((IAsyncDisposable)obj)._DisposeSafeAsync();
+                    }
+                    else
+                    {
+                        obj._DisposeSafe();
+                    }
+                }
+            }
+            catch { }
+        }
+
         public static async Task _DisposeSafeAsync(this IAsyncDisposable? obj)
         {
             try
@@ -2108,6 +2127,9 @@ namespace IPA.Cores.Helper.Basic
         public static Task<long> CopyBetweenStreamAsync(this Stream src, Stream dest, CopyFileParams? param = null, ProgressReporterBase? reporter = null,
             long estimatedSize = -1, CancellationToken cancel = default, Ref<uint>? srcZipCrc = null, long truncateSize = -1)
             => Util.CopyBetweenStreamAsync(src, dest, param, reporter, estimatedSize, cancel, srcZipCrc, truncateSize);
+
+        public static RandomAccessBasedStream GetStream(this IRandomAccess<byte> target, bool disposeTarget = false)
+            => new RandomAccessBasedStream(target, disposeTarget);
     }
 }
 

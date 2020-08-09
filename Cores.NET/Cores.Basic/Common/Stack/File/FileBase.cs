@@ -43,6 +43,7 @@ using System.Diagnostics.CodeAnalysis;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Diagnostics;
 
 #pragma warning disable CS0649
 #pragma warning disable CA2235 // Mark all non-serializable fields
@@ -1741,6 +1742,123 @@ namespace IPA.Cores.Basic
 
         protected override Task StartImplAsync(CancellationToken cancel = default)
             => Task.CompletedTask;
+    }
+
+    // IRandomAccess<byte> ベースの読み書き可能 Stream
+    public class RandomAccessBasedStream : StreamImplBase
+    {
+        public bool DisposeTarget { get; }
+        public IRandomAccess<byte> Target { get; }
+
+        long CurrentPosition = 0;
+
+        public RandomAccessBasedStream(IRandomAccess<byte> target, bool disposeTarget = false, StreamImplBaseOptions? options = null) : base(options ?? new StreamImplBaseOptions(true, true, true))
+        {
+            this.DisposeTarget = disposeTarget;
+            this.Target = target;
+            this.CurrentPosition = 0;
+        }
+
+        public override bool DataAvailable => true;
+
+        Once DisposeFlag;
+        protected override void Dispose(bool disposing)
+        {
+            try
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                if (this.DisposeTarget)
+                {
+                    this.Target._DisposeSafe();
+                }
+            }
+            finally { base.Dispose(disposing); }
+        }
+
+        protected override async Task FlushImplAsync(CancellationToken cancellationToken = default)
+        {
+            await Target.FlushAsync(cancellationToken);
+        }
+
+        protected override long GetLengthImpl()
+        {
+            return Target.GetFileSize();
+        }
+
+        protected override long GetPositionImpl()
+        {
+            return this.CurrentPosition;
+        }
+
+        protected override long SeekImpl(long offset, SeekOrigin origin)
+        {
+            checked
+            {
+                if (origin == SeekOrigin.Begin)
+                {
+                    this.CurrentPosition = offset;
+                }
+                else if (origin == SeekOrigin.Current)
+                {
+                    long newPosition = this.CurrentPosition + offset;
+
+                    if (newPosition < 0) throw new ArgumentOutOfRangeException(nameof(offset));
+
+                    this.CurrentPosition = newPosition;
+                }
+                else if (origin == SeekOrigin.End)
+                {
+                    long newPosition = GetLengthImpl() - offset;
+
+                    if (newPosition < 0) throw new ArgumentOutOfRangeException(nameof(offset));
+
+                    this.CurrentPosition = newPosition;
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(origin));
+                }
+
+                return this.CurrentPosition;
+            }
+        }
+
+        protected override void SetLengthImpl(long length)
+        {
+            checked
+            {
+                Target.SetFileSize(length);
+            }
+        }
+
+        protected override void SetPositionImpl(long position)
+        {
+            this.SeekImpl(position, SeekOrigin.Begin);
+        }
+
+        protected override async ValueTask<int> ReadImplAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            checked
+            {
+                int ret = await Target.ReadRandomAsync(this.CurrentPosition, buffer, cancellationToken);
+
+                Debug.Assert(buffer.Length >= ret);
+
+                this.CurrentPosition += ret;
+
+                return ret;
+            }
+        }
+
+        protected override async ValueTask WriteImplAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            checked
+            {
+                await Target.WriteRandomAsync(this.CurrentPosition, buffer, cancellationToken);
+
+                this.CurrentPosition += buffer.Length;
+            }
+        }
     }
 
     public interface IRandomAccess<T> : IDisposable
