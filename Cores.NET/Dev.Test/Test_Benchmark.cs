@@ -257,6 +257,14 @@ namespace IPA.TestDev
         }
     }
 
+    class BMTestClass1<T>
+    {
+        public static bool IsByte()
+        {
+            return GenericInfo<T>.IsByte;
+        }
+    }
+
     partial class TestDevCommands
     {
         const int Benchmark_CountForVeryFast = 200000000;
@@ -414,7 +422,23 @@ namespace IPA.TestDev
             BenchMask_BoostUp_PacketParser("190531_vlan_pppoe_l2tp_tcp");
             BenchMask_BoostUp_PacketParser("190531_vlan_pppoe_l2tp_udp");
 
+            Memory<byte> allZeroTest = new byte[4000];
+
+
             var queue = new MicroBenchmarkQueue()
+
+
+            .Add(new MicroBenchmark($"IsSpanAllZero", Benchmark_CountForNormal, count =>
+            {
+                unsafe
+                {
+                    Span<byte> span = allZeroTest.Span;
+                    for (int c = 0; c < count; c++)
+                    {
+                        Limbo.BoolVolatile = Util.IsSpanAllZero(span);
+                    }
+                }
+            }), enabled: true, priority: 200810)
 
 
             .Add(new MicroBenchmark($"CalcCrc32ForZipEncryption", Benchmark_CountForNormal, count =>

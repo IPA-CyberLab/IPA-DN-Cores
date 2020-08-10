@@ -355,6 +355,8 @@ namespace IPA.Cores.Basic
         public const int PasswordSaltSize = 16;
         public const int PasswordKeySize = 32;
         public const int PasswordIterations = 1234;
+        public const string SaltPasswordPrefixV0 = "__pw_salted________v0_";
+        public const string SaltPasswordPrefixCommon = "__pw_salted________";
         public static string SaltPassword(string password, byte[]? salt = null)
         {
             if (salt == null)
@@ -370,12 +372,24 @@ namespace IPA.Cores.Basic
                 src = Secure.HashSHA256(src._CombineByte(salt));
             }
 
-            return src._CombineByte(salt)._GetHexString();
+            return SaltPasswordPrefixV0 + src._CombineByte(salt)._GetHexString();
         }
 
         // パスワードハッシュの検証
         public static bool VeritySaltedPassword(string saltedPassword, string password)
         {
+            if (password.StartsWith(SaltPasswordPrefixCommon, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            if (saltedPassword.StartsWith(SaltPasswordPrefixV0, StringComparison.Ordinal) == false)
+            {
+                return saltedPassword._IsSame(password);
+            }
+
+            saltedPassword = saltedPassword.Substring(SaltPasswordPrefixV0.Length);
+
             byte[] data = saltedPassword._GetHexBytes();
             if (data.Length != (PasswordSaltSize + PasswordKeySize))
             {
@@ -386,6 +400,8 @@ namespace IPA.Cores.Basic
             byte[] salt = data._ExtractByte(PasswordKeySize, PasswordSaltSize);
 
             string hash2 = SaltPassword(password, salt);
+
+            hash2 = hash2.Substring(SaltPasswordPrefixV0.Length);
 
             return saltedPassword._GetHexBytes()._MemEquals(hash2._GetHexBytes());
         }

@@ -44,6 +44,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 #pragma warning disable CS0649
 #pragma warning disable CA2235 // Mark all non-serializable fields
@@ -2183,6 +2184,7 @@ namespace IPA.Cores.Basic
 
     // セクタベースのランダムアクセスを提供する抽象クラス。ベースの IRandomAccess に対する読み書きは必ずセクタサイズの倍数となる。
     public abstract class SectorBasedRandomAccessBase<T> : IRandomAccess<T>, IAsyncDisposable
+        where T: struct
     {
         public int SectorSize { get; }
         IRandomAccess<T> Physical { get; }
@@ -2218,7 +2220,31 @@ namespace IPA.Cores.Basic
                 {
                     long sectorNumber = i + firstSectorNumber;
 
-                    TransformSectorImpl(dest.Slice(SectorSize * i, SectorSize), src.Slice(SectorSize * i, SectorSize), sectorNumber, logicalToPhysical);
+                    var srcSlice = src.Slice(SectorSize * i, SectorSize);
+
+                    bool allZero = false;
+
+                    if (logicalToPhysical == false)
+                    {
+                        // 物理ディスクから読んだデータがすべて 0 (未初期化) の場合は、Transform を実施せず、最初から 0 であったとみなす
+                        if (GenericInfo<T>.IsByte)
+                        {
+                            var srcByteSpan = MemoryMarshal.Cast<T, byte>(srcSlice.Span);
+
+                            allZero = srcByteSpan._IsAllZero();
+                        }
+                    }
+
+                    var destSlice = dest.Slice(SectorSize * i, SectorSize);
+
+                    if (allZero == false)
+                    {
+                        TransformSectorImpl(destSlice, srcSlice, sectorNumber, logicalToPhysical);
+                    }
+                    else
+                    {
+                        destSlice.Span.Clear();
+                    }
                 }
             }
         }

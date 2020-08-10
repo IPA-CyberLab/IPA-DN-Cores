@@ -159,6 +159,22 @@ namespace IPA.Cores.Helper.Basic
         [MethodImpl(Inline)]
         public static ReadOnlySpanBuffer<T> _SliceTail<T>(this ReadOnlySpanBuffer<T> target, int length) => target.Slice(target.Length - length);
 
+        [MethodImpl(Inline)]
+        public static bool _IsAllZero(this Memory<byte> target) => Util.IsSpanAllZero(target.Span);
+        [MethodImpl(Inline)]
+        public static bool _IsAllZero(this ReadOnlyMemory<byte> target) => Util.IsSpanAllZero(target.Span);
+        [MethodImpl(Inline)]
+        public static bool _IsAllZero(this Span<byte> target) => Util.IsSpanAllZero(target);
+        [MethodImpl(Inline)]
+        public static bool _IsAllZero(this ReadOnlySpan<byte> target) => Util.IsSpanAllZero(target);
+        [MethodImpl(Inline)]
+        public static bool _IsAllZero(this MemoryBuffer<byte> target) => Util.IsSpanAllZero(target.Span);
+        [MethodImpl(Inline)]
+        public static bool _IsAllZero(this ReadOnlyMemoryBuffer<byte> target) => Util.IsSpanAllZero(target.Span);
+        [MethodImpl(Inline)]
+        public static bool _IsAllZero(this SpanBuffer<byte> target) => Util.IsSpanAllZero(target);
+        [MethodImpl(Inline)]
+        public static bool _IsAllZero(this ReadOnlySpanBuffer<byte> target) => Util.IsSpanAllZero(target);
 
         // For BigEndian-standard world
         [MethodImpl(Inline)]

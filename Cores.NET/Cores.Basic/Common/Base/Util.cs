@@ -2532,6 +2532,38 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public static unsafe bool IsSpanAllZero(ReadOnlySpan<byte> span)
+        {
+            if (span.Length == 0) return true;
+
+            fixed (byte* srcPointer = span)
+            {
+                long srcLen = span.Length;
+                long startLong = (long)srcPointer;
+                long endLong = startLong + srcLen;
+
+                startLong = ((startLong + 7) / 8) * 8;
+                endLong = (endLong / 8) * 8;
+
+                for (long i = startLong; i < endLong; i += 8)
+                {
+                    if (*((long*)i) != 0)
+                    {
+                        return false;
+                    }
+                }
+
+                for (byte* p = srcPointer; p < (byte*)startLong; p++)
+                    if (*p != 0) return false;
+
+                byte* endp = srcPointer + srcLen;
+                for (byte* p = (byte*)endLong; p < endp; p++)
+                    if (*p != 0) return false;
+
+                return true;
+            }
+        }
+
         [Flags]
         public enum SpanSparseInfo
         {
@@ -7351,6 +7383,29 @@ namespace IPA.Cores.Basic
         }
 
 
+    }
+
+    public static class GenericInfo<T>
+    {
+        public static readonly T SampleElement = default!;
+
+        public static int Size
+        {
+            [MethodImpl(Inline)]
+            get => Unsafe.SizeOf<T>();
+        }
+        public static readonly Type Type;
+
+        public static bool IsByte
+        {
+            [MethodImpl(Inline)]
+            get => typeof(T) == typeof(byte);
+        }
+
+        static GenericInfo()
+        {
+            Type = typeof(T);
+        }
     }
 
     public static class EmptyEnumerable<T>

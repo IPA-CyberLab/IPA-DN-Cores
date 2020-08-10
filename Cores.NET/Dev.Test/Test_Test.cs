@@ -367,6 +367,13 @@ namespace IPA.TestDev
                     w.WriteLine("a");
                     w.Flush();
                     w.WriteLine("Neko");
+                    w.Flush();
+                    st.Position = 1000000;
+                    w.WriteLine("Cat");
+                    w.Flush();
+                    st.Position = 500000;
+                    w.WriteLine("Dog");
+                    w.Flush();
                 });
 
                 Async(async () =>
