@@ -356,7 +356,7 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (true)
+            if (false)
             {
                 Async(async () =>
                 {
@@ -389,7 +389,7 @@ namespace IPA.TestDev
                 return;
             }
 
-            if (true)
+            if (false)
             {
                 Secure.Rand(32)._GetHexString()._Print();
 
@@ -464,7 +464,7 @@ namespace IPA.TestDev
 
                             using var file = Lfs.Create(@"c:\tmp\test1.dat", flags: FileFlags.SparseFile);
 
-                            using var sector = new SectorBasedRandomAccessSimpleTest(file, 100000);
+                            using var sector = new XtsAesRandomAccess(file, "neko");
 
                             using var stream = sector.GetStream(true);
 
@@ -498,7 +498,7 @@ namespace IPA.TestDev
                             {
                                 using var file = Lfs.Open(@"c:\tmp\test1.dat");
 
-                                using var sector = new SectorBasedRandomAccessSimpleTest(file, 100000);
+                                using var sector = new XtsAesRandomAccess(file, "neko");
 
                                 using var stream = sector.GetStream(true);
 
