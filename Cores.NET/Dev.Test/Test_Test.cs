@@ -438,6 +438,124 @@ namespace IPA.TestDev
                 return;
             }
 
+            if (false)
+            {
+                while (true)
+                {
+                    Memory<byte> x = new byte[100000];
+                    x.Span.Fill(1);
+                    Limbo.ObjectVolatileSlow = x;
+                }
+            }
+
+            if (true)
+            {
+                using CancelWatcher c = new CancelWatcher();
+
+                List<Task> taskList = new List<Task>();
+
+                for (int k = 0; k < 20; k++)
+                {
+                    var task1 = AsyncAwait(async () =>
+                    {
+                        int taskId = k;
+                        try
+                        {
+                            for (int i = 0; ; i++)
+                            {
+
+                                //await Task.Yield();
+
+                                //await Task.Delay(taskId * 100);
+
+                                c.ThrowIfCancellationRequested();
+
+                                $"----------- {i}"._Debug();
+
+                                using var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, title: $"Task {taskId}", unit: "bytes", toStr3: true));
+
+                                HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
+
+                                //using var stream = new BufferBasedStream(mem);
+                                
+                                using var file = Lfs.Create(@$"c:\tmp\200810\{taskId}.dat", flags: FileFlags.AutoCreateDirectory | FileFlags.SparseFile);
+
+                                using var sector = new XtsAesRandomAccess(file, "neko");
+                                using var stream = sector.GetStream(true);
+
+                                //using var stream = file.GetStream();
+
+                                await FileDownloader.DownloadFileParallelAsync(
+                                    "http://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
+                                    stream,
+                                    new FileDownloadOption(1, bufferSize: 10000, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
+                                    progressReporter: reporter,
+                                    cancel: c);
+                                //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
+                                //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
+
+                                //using SHA1Managed sha1 = new SHA1Managed();
+                                //stream._SeekToBegin();
+                                //byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
+                                //if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
+                                //{
+                                //    stream._SeekToBegin();
+
+                                //    using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
+                                //    using var filest = file2.GetStream();
+
+                                //    await stream.CopyBetweenStreamAsync(filest);
+
+                                //    throw new CoresException($"Hash different: {hash._GetHexString()}");
+                                //}
+
+                                //await AsyncAwait(async () =>
+                                //{
+                                //    using var file = Lfs.Open(@"c:\tmp\test1.dat");
+
+                                //    using var sector = new XtsAesRandomAccess(file, "neko");
+
+                                //    using var stream = sector.GetStream(true);
+
+                                //    using SHA1Managed sha1 = new SHA1Managed();
+                                //    byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
+                                //    if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
+                                //    {
+                                //        stream._SeekToBegin();
+
+                                //        using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
+                                //        using var filest = file2.GetStream();
+
+                                //        await stream.CopyBetweenStreamAsync(filest);
+
+                                //        throw new CoresException($"Hash different 2: {hash._GetHexString()}");
+                                //    }
+                                //    else
+                                //    {
+                                //        "Hash OK!"._Print();
+                                //    }
+
+                                //});
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Debug();
+                        }
+                    });
+
+                    taskList.Add(task1);
+                }
+
+                Con.ReadLine();
+
+                c.Cancel();
+
+                Task.WhenAll(taskList.ToArray())._TryGetResult();
+
+                return;
+            }
+
             if (true)
             {
                 using CancelWatcher c = new CancelWatcher();
@@ -462,18 +580,17 @@ namespace IPA.TestDev
 
                             //using var stream = new BufferBasedStream(mem);
 
-                            using var file = Lfs.Create(@"c:\tmp\test1.dat", flags: FileFlags.SparseFile);
+                            using var file = Lfs.Create(@"c:\tmp\test1.dat");
 
                             using var sector = new XtsAesRandomAccess(file, "neko");
-
                             using var stream = sector.GetStream(true);
 
                             //using var stream = file.GetStream();
 
                             await FileDownloader.DownloadFileParallelAsync(
-                                "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
+                                "http://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
                                 stream,
-                                new FileDownloadOption(maxConcurrentThreads: Util.GetRandWithPercentageInt(90), bufferSize: Util.GetRandWithPercentageInt(123457), webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
+                                new FileDownloadOption(1, bufferSize: 10000, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
                                 progressReporter: reporter,
                                 cancel: c);
                             //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
@@ -494,33 +611,33 @@ namespace IPA.TestDev
                                 throw new CoresException($"Hash different: {hash._GetHexString()}");
                             }
 
-                            await AsyncAwait(async () =>
-                            {
-                                using var file = Lfs.Open(@"c:\tmp\test1.dat");
+                            //await AsyncAwait(async () =>
+                            //{
+                            //    using var file = Lfs.Open(@"c:\tmp\test1.dat");
 
-                                using var sector = new XtsAesRandomAccess(file, "neko");
+                            //    using var sector = new XtsAesRandomAccess(file, "neko");
 
-                                using var stream = sector.GetStream(true);
+                            //    using var stream = sector.GetStream(true);
 
-                                using SHA1Managed sha1 = new SHA1Managed();
-                                byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
-                                if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
-                                {
-                                    stream._SeekToBegin();
+                            //    using SHA1Managed sha1 = new SHA1Managed();
+                            //    byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
+                            //    if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
+                            //    {
+                            //        stream._SeekToBegin();
 
-                                    using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
-                                    using var filest = file2.GetStream();
+                            //        using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
+                            //        using var filest = file2.GetStream();
 
-                                    await stream.CopyBetweenStreamAsync(filest);
+                            //        await stream.CopyBetweenStreamAsync(filest);
 
-                                    throw new CoresException($"Hash different 2: {hash._GetHexString()}");
-                                }
-                                else
-                                {
-                                    "Hash OK!"._Print();
-                                }
+                            //        throw new CoresException($"Hash different 2: {hash._GetHexString()}");
+                            //    }
+                            //    else
+                            //    {
+                            //        "Hash OK!"._Print();
+                            //    }
 
-                            });
+                            //});
                         }
                     }
                     catch (Exception ex)
