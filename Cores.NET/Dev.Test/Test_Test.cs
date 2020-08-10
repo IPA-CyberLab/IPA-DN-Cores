@@ -486,7 +486,7 @@ namespace IPA.TestDev
                                 //using var stream = file.GetStream();
 
                                 await FileDownloader.DownloadFileParallelAsync(
-                                    "http://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
+                                    "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
                                     stream,
                                     new FileDownloadOption(20, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
                                     progressReporter: reporter,
@@ -509,33 +509,33 @@ namespace IPA.TestDev
                                 //    throw new CoresException($"Hash different: {hash._GetHexString()}");
                                 //}
 
-                                //await AsyncAwait(async () =>
-                                //{
-                                //    using var file = Lfs.Open(@"c:\tmp\test1.dat");
+                                await AsyncAwait(async () =>
+                                {
+                                    using var file = Lfs.Open(@$"f:\tmp\200810\{taskId}.dat");
 
-                                //    using var sector = new XtsAesRandomAccess(file, "neko");
+                                    using var sector = new XtsAesRandomAccess(file, "neko");
 
-                                //    using var stream = sector.GetStream(true);
+                                    using var stream = sector.GetStream(true);
 
-                                //    using SHA1Managed sha1 = new SHA1Managed();
-                                //    byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
-                                //    if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
-                                //    {
-                                //        stream._SeekToBegin();
+                                    using SHA1Managed sha1 = new SHA1Managed();
+                                    byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
+                                    if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
+                                    {
+                                        stream._SeekToBegin();
 
-                                //        using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
-                                //        using var filest = file2.GetStream();
+                                        using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
+                                        using var filest = file2.GetStream();
 
-                                //        await stream.CopyBetweenStreamAsync(filest);
+                                        await stream.CopyBetweenStreamAsync(filest);
 
-                                //        throw new CoresException($"Hash different 2: {hash._GetHexString()}");
-                                //    }
-                                //    else
-                                //    {
-                                //        "Hash OK!"._Print();
-                                //    }
+                                        throw new CoresException($"Hash different 2: {hash._GetHexString()}");
+                                    }
+                                    else
+                                    {
+                                        "Hash OK!"._Print();
+                                    }
 
-                                //});
+                                });
                             }
                         }
                         catch (Exception ex)
