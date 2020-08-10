@@ -872,6 +872,8 @@ namespace IPA.Cores.Basic
                     GC.RemoveMemoryPressure(pressure);
                 }
             }
+
+            CoresRuntimeStat.NextTimeCallGc = true;
         }
 
         public static void Suspend() => Kernel.SuspendForDebug();
@@ -1381,11 +1383,42 @@ namespace IPA.Cores.Basic
         public int IO;
         public int Cpu;
         public long Mem;
+        public int Gc, Gc0, Gc1, Gc2;
         public int Task2;
+
+        public static bool NextTimeCallGc { get; internal set; } = false;
 
         public void Refresh()
         {
-            long mem = GC.GetTotalMemory(false);
+            bool flag = NextTimeCallGc;
+            NextTimeCallGc = false;
+
+            if (flag)
+            {
+                try
+                {
+                    GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true, true);
+                }
+                catch
+                {
+                }
+            }
+
+            long mem = GC.GetTotalMemory(flag);
+
+            Gc0 = GC.CollectionCount(0);
+            Gc1 = GC.CollectionCount(1);
+            Gc2 = GC.CollectionCount(2);
+
+            Gc = Gc0 + Gc1 + Gc2;
 
             ThreadPool.GetAvailableThreads(out int avail_workers, out int avail_ports);
             ThreadPool.GetMaxThreads(out int max_workers, out int max_ports);

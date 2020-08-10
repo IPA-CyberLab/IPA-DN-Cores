@@ -72,6 +72,7 @@ namespace IPA.Cores.Basic
         public const int XtsAesMetaDataSize = 1 * 4096;
         public const int XtsAesKeySize = 64;
         public const string EncryptMetadataHeaderString = "!!__[MetaData:IPA.Cores.Basic.XtsAesRandomAccess]__!!\r\n";
+
         public static readonly ReadOnlyMemory<byte> EncryptMetadataHeaderData = EncryptMetadataHeaderString._GetBytes_Ascii();
 
         string CurrentPassword;
@@ -186,7 +187,7 @@ namespace IPA.Cores.Basic
                 // 不正 ここには来ないはず
                 throw new CoresException($"XtsAesRandomAccess: Invalid readSize: {readSize}");
             }
-            
+
             // XTS を作成
             this.CurrentXts = XtsAes256.Create(this.CurrentMasterKey.ToArray());
             this.CurrentEncrypter = this.CurrentXts.CreateEncryptor();
