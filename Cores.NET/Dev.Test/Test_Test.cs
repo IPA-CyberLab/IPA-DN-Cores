@@ -364,10 +364,11 @@ namespace IPA.TestDev
                     using var es = new XtsAesRandomAccess(file, "test", true);
                     using var st = es.GetStream(true);
                     using var w = new StreamWriter(st);
-                    w.WriteLine("Hello World");
+                    w.WriteLine("a");
                     w.Flush();
                     w.WriteLine("Neko");
                 });
+
                 Async(async () =>
                 {
                     using var file = await Lfs.OpenAsync(@"c:\tmp\test1.dat", false);
@@ -377,6 +378,7 @@ namespace IPA.TestDev
                     r.ReadLine()._Print();
                     r.ReadLine()._Print();
                 });
+
                 return;
             }
 

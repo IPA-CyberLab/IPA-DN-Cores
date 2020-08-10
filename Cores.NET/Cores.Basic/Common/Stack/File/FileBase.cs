@@ -574,7 +574,7 @@ namespace IPA.Cores.Basic
                         }
 
                         // パディング
-                            if (File.FileParams.Flags.Bit(FileFlags.RandomAccessOnly))
+                        if (File.FileParams.Flags.Bit(FileFlags.RandomAccessOnly))
                             await File.AppendAsync(padData);
                         else
                             await File.WriteAsync(padData);
@@ -2150,7 +2150,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override Task InitMetadataAsync(CancellationToken cancel = default)
+        protected override Task InitMetadataImplAsync(CancellationToken cancel = default)
         {
             return TaskCompleted;
         }
@@ -2197,7 +2197,31 @@ namespace IPA.Cores.Basic
         protected abstract Task<long> ReadVirtualSizeImplAsync(CancellationToken cancel = default);
         protected abstract Task WriteVirtualSizeImplAsync(long virtualSize, CancellationToken cancel = default);
 
-        protected abstract Task InitMetadataAsync(CancellationToken cancel = default);
+        protected abstract Task InitMetadataImplAsync(CancellationToken cancel = default);
+
+        protected virtual void TransformSectorImpl(Memory<T> dest, ReadOnlyMemory<T> src, long sectorNumber, bool logicalToPhysical)
+        {
+            src.CopyTo(dest);
+        }
+
+        void TransformMultipleSectors(Memory<T> dest, ReadOnlyMemory<T> src, long firstSectorNumber, bool logicalToPhysical)
+        {
+            checked
+            {
+                if (dest.Length != src.Length) throw new ArgumentOutOfRangeException("dest.Length != src.Length");
+
+                if ((dest.Length % SectorSize) != 0) throw new ArgumentOutOfRangeException("(dest.Length % SectorSize) != 0");
+
+                int numSectors = dest.Length / SectorSize;
+
+                for (int i = 0; i < numSectors; i++)
+                {
+                    long sectorNumber = i + firstSectorNumber;
+
+                    TransformSectorImpl(dest.Slice(SectorSize * i, SectorSize), src.Slice(SectorSize * i, SectorSize), sectorNumber, logicalToPhysical);
+                }
+            }
+        }
 
         bool MetaDataInited = false;
 
@@ -2316,7 +2340,7 @@ namespace IPA.Cores.Basic
         {
             if (this.MetaDataInited == false)
             {
-                await this.InitMetadataAsync(cancel);
+                await this.InitMetadataImplAsync(cancel);
                 this.MetaDataInited = true;
             }
         }
@@ -2386,15 +2410,6 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected Task<int> LogicalReadAsync(long logicalPosition, Memory<T> data, CancellationToken cancel = default)
-        {
-            checked
-            {
-                if (logicalPosition < 0) throw new ArgumentOutOfRangeException(nameof(logicalPosition));
-                return PhysicalReadAsync(logicalPosition + this.PhysicalPrePaddingSize, data, cancel);
-            }
-        }
-
         protected async Task PhysicalWriteAsync(long physicalPosition, ReadOnlyMemory<T> data, CancellationToken cancel = default)
         {
             checked
@@ -2411,12 +2426,34 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected Task LogicalWriteAsync(long logicalPosition, ReadOnlyMemory<T> data, CancellationToken cancel = default)
+        protected async Task<int> LogicalReadAsync(long logicalPosition, Memory<T> data, CancellationToken cancel = default)
         {
             checked
             {
                 if (logicalPosition < 0) throw new ArgumentOutOfRangeException(nameof(logicalPosition));
-                return PhysicalWriteAsync(logicalPosition + this.PhysicalPrePaddingSize, data, cancel);
+
+                int readSize = await PhysicalReadAsync(logicalPosition + this.PhysicalPrePaddingSize, data, cancel);
+
+                var readSegment = data._SliceHead(readSize);
+
+                TransformMultipleSectors(readSegment, readSegment, logicalPosition / SectorSize, false);
+
+                return readSize;
+            }
+        }
+
+        protected async Task LogicalWriteAsync(long logicalPosition, ReadOnlyMemory<T> data, CancellationToken cancel = default)
+        {
+            checked
+            {
+                if (logicalPosition < 0) throw new ArgumentOutOfRangeException(nameof(logicalPosition));
+
+                using (MemoryHelper.FastAllocMemoryWithUsing(data.Length, out Memory<T> tmp))
+                {
+                    TransformMultipleSectors(tmp, data, logicalPosition / SectorSize, true);
+
+                    await PhysicalWriteAsync(logicalPosition + this.PhysicalPrePaddingSize, tmp, cancel);
+                }
             }
         }
 
@@ -2542,14 +2579,20 @@ namespace IPA.Cores.Basic
 
                     if (startPadding != 0)
                     {
+                        // 最初の中途半端なセクタを読み取る
                         await LogicalReadAsync(startPosition, tmp.Slice(0, SectorSize), cancel);
                     }
 
                     if (endPadding != 0)
                     {
-                        await LogicalReadAsync(endPosition - SectorSize, tmp.Slice(tmp.Length - SectorSize, SectorSize), cancel);
+                        if (startPadding == 0 || (endPosition - SectorSize) != startPosition) // 最初のセクタと最後のセクタが異なる場合のみ
+                        {
+                            // 最後の中途半端なセクタを読み取る
+                            await LogicalReadAsync(endPosition - SectorSize, tmp.Slice(tmp.Length - SectorSize, SectorSize), cancel);
+                        }
                     }
 
+                    // 書き込みしたいデータを上書きする
                     data.CopyTo(tmp.Slice(startPadding));
 
                     long currentLogicalSize = await ReadVirtualSizeAsync(cancel);

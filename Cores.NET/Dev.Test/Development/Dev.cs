@@ -71,12 +71,15 @@ namespace IPA.Cores.Basic
         public const int XtsAesSectorSize = 4096;
         public const int XtsAesMetaDataSize = 1 * 4096;
         public const int XtsAesKeySize = 64;
-        public const string EncryptMetadataHeaderString = "!!__[Medatada:IPA.Cores.Basic.XtsAesRandomAccess]__!!\r\n";
+        public const string EncryptMetadataHeaderString = "!!__[MetaData:IPA.Cores.Basic.XtsAesRandomAccess]__!!\r\n";
         public static readonly ReadOnlyMemory<byte> EncryptMetadataHeaderData = EncryptMetadataHeaderString._GetBytes_Ascii();
 
         string CurrentPassword;
         ReadOnlyMemory<byte> CurrentMasterKey;
         XtsAesRandomAccessMetaData CurrentMetaData = null!;
+        Xts CurrentXts = null!;
+        XtsCryptoTransform CurrentEncrypter = null!;
+        XtsCryptoTransform CurrentDescrypter = null!;
 
         public XtsAesRandomAccess(IRandomAccess<byte> physical, string password, bool disposeObject = false, int metaDataFlushInterval = 0)
             : base(physical, XtsAesSectorSize, XtsAesMetaDataSize, disposeObject, metaDataFlushInterval)
@@ -116,7 +119,7 @@ namespace IPA.Cores.Basic
             await this.PhysicalWriteAsync(0, tmp, cancel);
         }
 
-        protected override async Task InitMetadataAsync(CancellationToken cancel = default)
+        protected override async Task InitMetadataImplAsync(CancellationToken cancel = default)
         {
             Memory<byte> tmp = new byte[XtsAesMetaDataSize];
 
@@ -183,6 +186,11 @@ namespace IPA.Cores.Basic
                 // 不正 ここには来ないはず
                 throw new CoresException($"XtsAesRandomAccess: Invalid readSize: {readSize}");
             }
+            
+            // XTS を作成
+            this.CurrentXts = XtsAes256.Create(this.CurrentMasterKey.ToArray());
+            this.CurrentEncrypter = this.CurrentXts.CreateEncryptor();
+            this.CurrentDescrypter = this.CurrentXts.CreateDecryptor();
         }
 
         protected override Task<long> ReadVirtualSizeImplAsync(CancellationToken cancel = default)
@@ -195,6 +203,22 @@ namespace IPA.Cores.Basic
             this.CurrentMetaData.VirtualSize = virtualSize;
 
             await WriteMetaDataAsync(cancel);
+        }
+
+        protected override void TransformSectorImpl(Memory<byte> dest, ReadOnlyMemory<byte> src, long sectorNumber, bool logicalToPhysical)
+        {
+            checked
+            {
+                if (dest.Length != src.Length) throw new ArgumentOutOfRangeException("dest.Length != src.Length");
+                if (dest.Length != SectorSize) throw new ArgumentOutOfRangeException("dest.Length != SectorSize");
+
+                var destSeg = dest._AsSegment();
+                var srcSeg = src._AsSegment();
+
+                XtsCryptoTransform transform = logicalToPhysical ? this.CurrentDescrypter : this.CurrentEncrypter;
+
+                transform.TransformBlock(srcSeg.Array!, srcSeg.Offset, srcSeg.Count, destSeg.Array!, destSeg.Offset, (ulong)sectorNumber);
+            }
         }
     }
 
@@ -214,6 +238,7 @@ namespace IPA.Cores.Basic
                     await t.WriteRandomAsync(5, "Hello World    x"._GetBytes());
                     await t.SetFileSizeAsync(31);
                 });
+
                 Async(async () =>
                 {
                     using var file = await Lfs.OpenAsync(@"c:\tmp\test.dat", writeMode: true);

@@ -2887,6 +2887,19 @@ namespace IPA.Cores.Basic
             LeakCounterKind.FastAllocMemoryWithUsing);
         }
 
+        public static ValueHolder FastAllocArrayMoreThanWithUsing<T>(int length, out T[] array)
+        {
+            T[] allocatedArray = FastAllocMoreThan<T>(length);
+
+            array = allocatedArray;
+
+            return new ValueHolder(() =>
+            {
+                FastFree(allocatedArray);
+            },
+            LeakCounterKind.FastAllocMemoryWithUsing);
+        }
+
         public static unsafe ValueHolder AllocUnmanagedMemoryWithUsing(long byteLength, out IntPtr ptr)
         {
             IntPtr p;
