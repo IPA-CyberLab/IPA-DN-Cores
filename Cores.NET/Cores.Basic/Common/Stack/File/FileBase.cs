@@ -1479,17 +1479,22 @@ namespace IPA.Cores.Basic
     public interface IHasError
     {
         Exception? LastError { get; }
-        bool HasError => LastError != null;
+    }
 
-        public void ThrowIfError(Exception? overrideError = null)
+    public static class IHasErrorHelper
+    {
+        public static void ThrowIfError(this IHasError me, Exception? overrideError = null)
         {
-            Exception? lastError = this.LastError;
+            Exception? lastError = me.LastError;
             if (lastError != null)
             {
                 Exception throwError = overrideError ?? lastError;
                 throw throwError;
             }
         }
+
+        public static bool HasError(this IHasError me)
+            => me.LastError != null;
     }
 
     public interface ISequentialWritable<T> : IHasError
@@ -1499,11 +1504,14 @@ namespace IPA.Cores.Basic
 
         Task<long> AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default);
         Task<long> FlushAsync(CancellationToken cancel = default);
+    }
 
-        long Append(ReadOnlyMemory<T> data, CancellationToken cancel = default)
-            => AppendAsync(data, cancel)._GetResult();
-        long Flush(CancellationToken cancel = default)
-            => FlushAsync(cancel)._GetResult();
+    public static class ISequentialWritableHelper
+    {
+        public static long Append<T>(this ISequentialWritable<T> me, ReadOnlyMemory<T> data, CancellationToken cancel = default)
+            => me.AppendAsync(data, cancel)._GetResult();
+        public static long Flush<T>(this ISequentialWritable<T> me, CancellationToken cancel = default)
+            => me.FlushAsync(cancel)._GetResult();
     }
 
     public static class ISequentialWritableExtension
@@ -1873,22 +1881,38 @@ namespace IPA.Cores.Basic
     public interface IRandomAccess<T> : IDisposable
     {
         Task<int> ReadRandomAsync(long position, Memory<T> data, CancellationToken cancel = default);
-        int ReadRandom(long position, Memory<T> data, CancellationToken cancel = default)
-            => ReadRandomAsync(position, data, cancel)._GetResult();
 
         Task WriteRandomAsync(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default);
-        void WriteRandom(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default)
-            => WriteRandomAsync(position, data, cancel)._GetResult();
 
         Task AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default);
-        void Append(ReadOnlyMemory<T> data, CancellationToken cancel = default)
-            => AppendAsync(data, cancel)._GetResult();
 
-        async Task AppendWithLargeFsAutoPaddingAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default)
+        Task<long> GetFileSizeAsync(bool refresh = false, CancellationToken cancel = default);
+
+        Task<long> GetPhysicalSizeAsync(CancellationToken cancel = default);
+
+        Task SetFileSizeAsync(long size, CancellationToken cancel = default);
+
+        Task FlushAsync(CancellationToken cancel = default);
+
+        AsyncLock SharedAsyncLock { get; }
+    }
+
+    public static class IRandomAccessHelper
+    {
+        public static int ReadRandom<T>(this IRandomAccess<T> me, long position, Memory<T> data, CancellationToken cancel = default)
+            => me.ReadRandomAsync(position, data, cancel)._GetResult();
+
+        public static void WriteRandom<T>(this IRandomAccess<T> me, long position, ReadOnlyMemory<T> data, CancellationToken cancel = default)
+            => me.WriteRandomAsync(position, data, cancel)._GetResult();
+
+        public static void Append<T>(this IRandomAccess<T> me, ReadOnlyMemory<T> data, CancellationToken cancel = default)
+            => me.AppendAsync(data, cancel)._GetResult();
+
+        public static async Task AppendWithLargeFsAutoPaddingAsync<T>(this IRandomAccess<T> me, ReadOnlyMemory<T> data, CancellationToken cancel = default)
         {
             try
             {
-                await AppendAsync(data, cancel);
+                await me.AppendAsync(data, cancel);
             }
             catch (LargeFsWriteWithCrossBorderException padding)
             {
@@ -1909,31 +1933,26 @@ namespace IPA.Cores.Basic
                         }
                     }
 
-                    await AppendAsync(padData, cancel);
-                    await AppendAsync(data, cancel);
+                    await me.AppendAsync(padData, cancel);
+                    await me.AppendAsync(data, cancel);
                 }
             }
         }
-        void AppendWithLargeFsAutoPadding(ReadOnlyMemory<T> data, CancellationToken cancel = default)
-            => AppendWithLargeFsAutoPaddingAsync(data, cancel)._GetResult();
 
-        Task<long> GetFileSizeAsync(bool refresh = false, CancellationToken cancel = default);
-        long GetFileSize(bool refresh = false, CancellationToken cancel = default)
-            => GetFileSizeAsync(refresh, cancel)._GetResult();
+        public static void AppendWithLargeFsAutoPadding<T>(this IRandomAccess<T> me, ReadOnlyMemory<T> data, CancellationToken cancel = default)
+            => me.AppendWithLargeFsAutoPaddingAsync(data, cancel)._GetResult();
 
-        Task<long> GetPhysicalSizeAsync(CancellationToken cancel = default);
-        long GetPhysicalSize(CancellationToken cancel = default)
-            => GetPhysicalSizeAsync(cancel)._GetResult();
+        public static long GetFileSize<T>(this IRandomAccess<T> me, bool refresh = false, CancellationToken cancel = default)
+            => me.GetFileSizeAsync(refresh, cancel)._GetResult();
 
-        Task SetFileSizeAsync(long size, CancellationToken cancel = default);
-        void SetFileSize(long size, CancellationToken cancel = default)
-            => SetFileSizeAsync(size, cancel)._GetResult();
+        public static long GetPhysicalSize<T>(this IRandomAccess<T> me, CancellationToken cancel = default)
+            => me.GetPhysicalSizeAsync(cancel)._GetResult();
 
-        Task FlushAsync(CancellationToken cancel = default);
-        void Flush(CancellationToken cancel = default)
-            => FlushAsync(cancel)._GetResult();
+        public static void SetFileSize<T>(this IRandomAccess<T> me, long size, CancellationToken cancel = default)
+            => me.SetFileSizeAsync(size, cancel)._GetResult();
 
-        AsyncLock SharedAsyncLock { get; }
+        public static void Flush<T>(this IRandomAccess<T> me, CancellationToken cancel = default)
+            => me.FlushAsync(cancel)._GetResult();
     }
 
     public class RandomAccessHandle : IRandomAccess<byte>, IDisposable
@@ -2184,7 +2203,7 @@ namespace IPA.Cores.Basic
 
     // セクタベースのランダムアクセスを提供する抽象クラス。ベースの IRandomAccess に対する読み書きは必ずセクタサイズの倍数となる。
     public abstract class SectorBasedRandomAccessBase<T> : IRandomAccess<T>, IAsyncDisposable
-        where T: struct
+        where T : struct
     {
         public int SectorSize { get; }
         IRandomAccess<T> Physical { get; }
