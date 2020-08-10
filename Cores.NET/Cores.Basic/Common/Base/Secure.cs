@@ -374,9 +374,9 @@ namespace IPA.Cores.Basic
         }
 
         // パスワードハッシュの検証
-        public static bool VeritySaltedPassword(string hash, string password)
+        public static bool VeritySaltedPassword(string saltedPassword, string password)
         {
-            byte[] data = hash._GetHexBytes();
+            byte[] data = saltedPassword._GetHexBytes();
             if (data.Length != (PasswordSaltSize + PasswordKeySize))
             {
                 throw new ApplicationException("data.Length != (PasswordSaltSize + PasswordKeySize)");
@@ -387,7 +387,7 @@ namespace IPA.Cores.Basic
 
             string hash2 = SaltPassword(password, salt);
 
-            return hash._GetHexBytes()._MemEquals(hash2._GetHexBytes());
+            return saltedPassword._GetHexBytes()._MemEquals(hash2._GetHexBytes());
         }
 
         // PKCS 証明書の読み込み

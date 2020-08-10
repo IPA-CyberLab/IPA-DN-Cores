@@ -2150,7 +2150,12 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task<long> GetVirtualSizeImplAsync(CancellationToken cancel = default)
+        protected override Task InitMetadataAsync(CancellationToken cancel = default)
+        {
+            return TaskCompleted;
+        }
+
+        protected override async Task<long> ReadVirtualSizeImplAsync(CancellationToken cancel = default)
         {
             using (MemoryHelper.FastAllocMemoryWithUsing(this.PhysicalPrePaddingSize, out Memory<byte> tmp))
             {
@@ -2161,7 +2166,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task SetVirtualSizeImplAsync(long logicalSize, CancellationToken cancel = default)
+        protected override async Task WriteVirtualSizeImplAsync(long logicalSize, CancellationToken cancel = default)
         {
             using (MemoryHelper.FastAllocMemoryWithUsing(this.PhysicalPrePaddingSize, out Memory<byte> tmp))
             {
@@ -2189,8 +2194,12 @@ namespace IPA.Cores.Basic
 
         public AsyncLock SharedAsyncLock { get; } = new AsyncLock();
 
-        protected abstract Task<long> GetVirtualSizeImplAsync(CancellationToken cancel = default);
-        protected abstract Task SetVirtualSizeImplAsync(long virtualSize, CancellationToken cancel = default);
+        protected abstract Task<long> ReadVirtualSizeImplAsync(CancellationToken cancel = default);
+        protected abstract Task WriteVirtualSizeImplAsync(long virtualSize, CancellationToken cancel = default);
+
+        protected abstract Task InitMetadataAsync(CancellationToken cancel = default);
+
+        bool MetaDataInited = false;
 
         long VirtualSizeCache = -1;
         long PhysicalSizeCache = -1;
@@ -2247,20 +2256,21 @@ namespace IPA.Cores.Basic
                 await Physical._DisposeSafeAsync2();
         }
 
-        async Task<long> GetVirtualSizeAsync(CancellationToken cancel = default)
+        async Task<long> ReadVirtualSizeAsync(CancellationToken cancel = default)
         {
             if (this.VirtualSizeCache < 0)
             {
-                long v = await GetVirtualSizeImplAsync(cancel);
+                long v = await ReadVirtualSizeImplAsync(cancel);
 
                 if (v < 0) throw new CoresException("GetLogicalSizeImplAsync() returned < 0");
 
                 this.VirtualSizeCache = v;
+                this.VirtualSizeLastWritten = v;
             }
             return this.VirtualSizeCache;
         }
 
-        async Task SetVirtualSizeAsync(long virtualSize, bool flush, CancellationToken cancel = default)
+        async Task WriteVirtualSizeAsync(long virtualSize, bool flush, CancellationToken cancel = default)
         {
             if (virtualSize < 0) virtualSize = this.VirtualSizeCache;
 
@@ -2294,12 +2304,21 @@ namespace IPA.Cores.Basic
             {
                 if (VirtualSizeLastWritten != virtualSize)
                 {
-                    await SetVirtualSizeImplAsync(virtualSize, cancel);
+                    await WriteVirtualSizeImplAsync(virtualSize, cancel);
                     VirtualSizeLastWritten = virtualSize;
                 }
             }
 
             this.VirtualSizeCache = virtualSize;
+        }
+
+        async Task EnsureMetadataInitAsync(CancellationToken cancel = default)
+        {
+            if (this.MetaDataInited == false)
+            {
+                await this.InitMetadataAsync(cancel);
+                this.MetaDataInited = true;
+            }
         }
 
         protected async Task<long> PhysicalGetSizeAsync(CancellationToken cancel = default)
@@ -2344,6 +2363,8 @@ namespace IPA.Cores.Basic
                 {
                     data = data.Slice(0, (int)availableSize);
                 }
+
+                if (data.Length == 0) return 0;
 
                 if ((data.Length % this.SectorSize) != 0)
                     throw new ArgumentOutOfRangeException("(data.Length % this.SectorSize) != 0");
@@ -2440,9 +2461,11 @@ namespace IPA.Cores.Basic
         {
             checked
             {
+                await EnsureMetadataInitAsync(cancel);
+
                 if (position < 0) throw new ArgumentOutOfRangeException(nameof(position));
 
-                long currentLogicalSize = await GetVirtualSizeAsync(cancel);
+                long currentLogicalSize = await ReadVirtualSizeAsync(cancel);
                 if (position + data.Length > currentLogicalSize)
                 {
                     int newDataLength = Math.Max((int)(currentLogicalSize - position), 0);
@@ -2489,6 +2512,8 @@ namespace IPA.Cores.Basic
         {
             checked
             {
+                await EnsureMetadataInitAsync(cancel);
+
                 if (position < 0) throw new ArgumentOutOfRangeException(nameof(position));
 
                 if (data.Length == 0) return;
@@ -2527,7 +2552,7 @@ namespace IPA.Cores.Basic
 
                     data.CopyTo(tmp.Slice(startPadding));
 
-                    long currentLogicalSize = await GetVirtualSizeAsync(cancel);
+                    long currentLogicalSize = await ReadVirtualSizeAsync(cancel);
 
                     await LogicalWriteAsync(startPosition, tmp, cancel);
 
@@ -2537,21 +2562,23 @@ namespace IPA.Cores.Basic
 
                     LogicalSetSizeCache(newLogicalSize);
 
-                    await SetVirtualSizeAsync(newVirtualSize, false, cancel);
+                    await WriteVirtualSizeAsync(newVirtualSize, false, cancel);
                 }
             }
         }
 
         public async Task AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default)
         {
-            long currentSize = await GetVirtualSizeAsync(cancel);
+            long currentSize = await ReadVirtualSizeAsync(cancel);
 
             await WriteRandomAsync(currentSize, data, cancel);
         }
 
         public async Task<long> GetFileSizeAsync(bool refresh = false, CancellationToken cancel = default)
         {
-            return await GetVirtualSizeAsync(cancel);
+            await EnsureMetadataInitAsync(cancel);
+
+            return await ReadVirtualSizeAsync(cancel);
         }
 
         public async Task<long> GetPhysicalSizeAsync(CancellationToken cancel = default)
@@ -2563,9 +2590,11 @@ namespace IPA.Cores.Basic
         {
             checked
             {
+                await EnsureMetadataInitAsync(cancel);
+
                 if (newSize < 0) throw new ArgumentOutOfRangeException(nameof(newSize));
 
-                await SetVirtualSizeAsync(newSize, false, cancel);
+                await WriteVirtualSizeAsync(newSize, false, cancel);
 
                 int lastSectorPaddingSize = 0;
 
@@ -2605,125 +2634,11 @@ namespace IPA.Cores.Basic
         {
             if (this.Physical != null)
             {
-                await SetVirtualSizeAsync(-1, false, cancel);
+                await EnsureMetadataInitAsync(cancel);
+
+                await WriteVirtualSizeAsync(-1, true, cancel);
 
                 await Physical.FlushAsync(cancel);
-            }
-        }
-
-        public class RandomAccessBasedStream : StreamImplBase
-        {
-            public bool DisposeTarget { get; }
-            public IRandomAccess<byte> Target { get; }
-
-            long CurrentPosition = 0;
-
-            public RandomAccessBasedStream(IRandomAccess<byte> target, bool disposeTarget = false, StreamImplBaseOptions? options = null) : base(options ?? new StreamImplBaseOptions(true, true, true))
-            {
-                this.DisposeTarget = disposeTarget;
-                this.Target = target;
-                this.CurrentPosition = 0;
-            }
-
-            public override bool DataAvailable => true;
-
-            Once DisposeFlag;
-            protected override void Dispose(bool disposing)
-            {
-                try
-                {
-                    if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                    if (this.DisposeTarget)
-                    {
-                        this.Target._DisposeSafe();
-                    }
-                }
-                finally { base.Dispose(disposing); }
-            }
-
-            protected override async Task FlushImplAsync(CancellationToken cancellationToken = default)
-            {
-                await Target.FlushAsync(cancellationToken);
-            }
-
-            protected override long GetLengthImpl()
-            {
-                return Target.GetFileSize();
-            }
-
-            protected override long GetPositionImpl()
-            {
-                return this.CurrentPosition;
-            }
-
-            protected override long SeekImpl(long offset, SeekOrigin origin)
-            {
-                checked
-                {
-                    if (origin == SeekOrigin.Begin)
-                    {
-                        this.CurrentPosition = 0;
-                    }
-                    else if (origin == SeekOrigin.Current)
-                    {
-                        long newPosition = this.CurrentPosition + offset;
-
-                        if (newPosition < 0) throw new ArgumentOutOfRangeException(nameof(offset));
-
-                        this.CurrentPosition = newPosition;
-                    }
-                    else if (origin == SeekOrigin.End)
-                    {
-                        long newPosition = GetLengthImpl() - offset;
-
-                        if (newPosition < 0) throw new ArgumentOutOfRangeException(nameof(offset));
-
-                        this.CurrentPosition = newPosition;
-                    }
-                    else
-                    {
-                        throw new ArgumentOutOfRangeException(nameof(origin));
-                    }
-
-                    return this.CurrentPosition;
-                }
-            }
-
-            protected override void SetLengthImpl(long length)
-            {
-                checked
-                {
-                    Target.SetFileSize(length);
-                }
-            }
-
-            protected override void SetPositionImpl(long position)
-            {
-                this.SeekImpl(position, SeekOrigin.Begin);
-            }
-
-            protected override async ValueTask<int> ReadImplAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
-            {
-                checked
-                {
-                    int ret = await Target.ReadRandomAsync(this.CurrentPosition, buffer, cancellationToken);
-
-                    Debug.Assert(buffer.Length >= ret);
-
-                    this.CurrentPosition += ret;
-
-                    return ret;
-                }
-            }
-
-            protected override async ValueTask WriteImplAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
-            {
-                checked
-                {
-                    await Target.WriteRandomAsync(this.CurrentPosition, buffer, cancellationToken);
-
-                    this.CurrentPosition += buffer.Length;
-                }
             }
         }
     }

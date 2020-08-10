@@ -55,6 +55,7 @@ namespace IPA.Cores.Basic
         public const int AeadChaCha20Poly1305MacSize = 16;
         public const int AeadChaCha20Poly1305NonceSize = 12;
         public const int AeadChaCha20Poly1305KeySize = 32;
+        public const int PasswordIterations = 1234;
 
         static readonly byte[] zero15 = new byte[15];
 
@@ -145,8 +146,8 @@ namespace IPA.Cores.Basic
 
         static void crypto_aead_chacha20poly1305_ietf_encrypt(Memory<byte> c, ReadOnlyMemory<byte> m, ReadOnlyMemory<byte> ad, ReadOnlyMemory<byte> npub, ReadOnlyMemory<byte> k)
         {
-            crypto_aead_chacha20poly1305_ietf_encrypt_detached(c.Slice(0, c.Length - AeadChaCha20Poly1305MacSize),
-                c.Slice(c.Length - AeadChaCha20Poly1305MacSize, AeadChaCha20Poly1305MacSize),
+            crypto_aead_chacha20poly1305_ietf_encrypt_detached(c._SliceHead(m.Length),
+                c.Slice(m.Length, AeadChaCha20Poly1305MacSize),
                 m, ad, npub, k);
         }
 
@@ -165,6 +166,70 @@ namespace IPA.Cores.Basic
         public static bool Aead_ChaCha20Poly1305_Ietf_Decrypt(Memory<byte> dest, ReadOnlyMemory<byte> src, ReadOnlyMemory<byte> key, ReadOnlyMemory<byte> nonce, ReadOnlyMemory<byte> aad)
         {
             return crypto_aead_chacha20poly1305_ietf_decrypt(dest, src, aad, nonce, key);
+        }
+
+        public static Memory<byte> PasswordToKey(string password)
+        {
+            byte[] pw = password._NonNull()._GetBytes_UTF8();
+
+            Span<byte> hashSrc = new byte[32 + pw.Length + 4];
+            Span<byte> hashDst = new byte[32];
+
+            Secure.HashSHA256(pw, hashDst);
+
+            for (int i = 0; i < PasswordIterations; i++)
+            {
+                hashDst.CopyTo(hashSrc);
+
+                pw.CopyTo(hashSrc.Slice(32, pw.Length));
+
+                hashSrc.Slice(32 + pw.Length)._SetSInt32(i);
+
+                Secure.HashSHA256(hashSrc, hashDst);
+            }
+
+            return hashDst._CloneMemory();
+        }
+
+        public static Memory<byte> EasyEncryptWithPassword(ReadOnlyMemory<byte> src, string password, ReadOnlyMemory<byte> nonce12bytes = default, ReadOnlyMemory<byte> aadAnyBytes = default)
+            => EasyEncrypt(src, PasswordToKey(password), nonce12bytes, aadAnyBytes);
+
+        public static ResultOrExeption<Memory<byte>> EasyDecryptWithPassword(ReadOnlyMemory<byte> easyEncrypted, string password, ReadOnlyMemory<byte> aadAnyBytes = default)
+            => EasyDecrypt(easyEncrypted, PasswordToKey(password), aadAnyBytes);
+
+        public static Memory<byte> EasyEncrypt(ReadOnlyMemory<byte> src, ReadOnlyMemory<byte> key32bytes, ReadOnlyMemory<byte> nonce12bytes = default, ReadOnlyMemory<byte> aadAnyBytes = default)
+        {
+            if (key32bytes.Length != AeadChaCha20Poly1305KeySize) throw new ArgumentOutOfRangeException(nameof(key32bytes));
+
+            if (nonce12bytes.IsEmpty) nonce12bytes = Secure.Rand(AeadChaCha20Poly1305NonceSize);
+            if (nonce12bytes.Length != AeadChaCha20Poly1305NonceSize) throw new ArgumentOutOfRangeException(nameof(nonce12bytes));
+
+            Memory<byte> dest = new byte[src.Length + AeadChaCha20Poly1305MacSize + AeadChaCha20Poly1305NonceSize];
+
+            Aead_ChaCha20Poly1305_Ietf_Encrypt(dest, src, key32bytes, nonce12bytes, aadAnyBytes);
+
+            nonce12bytes.CopyTo(dest._SliceTail(AeadChaCha20Poly1305NonceSize));
+
+            return dest;
+        }
+
+        public static ResultOrExeption<Memory<byte>> EasyDecrypt(ReadOnlyMemory<byte> easyEncrypted, ReadOnlyMemory<byte> key32bytes, ReadOnlyMemory<byte> aadAnyBytes = default)
+        {
+            if (key32bytes.Length != AeadChaCha20Poly1305KeySize) throw new ArgumentOutOfRangeException(nameof(key32bytes));
+
+            if (easyEncrypted.Length < (AeadChaCha20Poly1305MacSize + AeadChaCha20Poly1305NonceSize)) throw new CoresException("easyEncrypted.Length < (AeadChaCha20Poly1305MacSize + AeadChaCha20Poly1305NonceSize)");
+
+            Memory<byte> dest = new byte[easyEncrypted.Length - AeadChaCha20Poly1305MacSize - AeadChaCha20Poly1305NonceSize];
+
+            var src = easyEncrypted._SliceHead(easyEncrypted.Length - AeadChaCha20Poly1305NonceSize);
+            var nonce = easyEncrypted._SliceTail(AeadChaCha20Poly1305NonceSize);
+
+            if (Aead_ChaCha20Poly1305_Ietf_Decrypt(dest, src, key32bytes, nonce, aadAnyBytes) == false)
+            {
+                return new ResultOrExeption<Memory<byte>>(new CoresException("Different key or authentication data"));
+            }
+
+            return new ResultOrExeption<Memory<byte>>(dest);
         }
 
         public static void Aead_ChaCha20Poly1305_Ietf_Test()

@@ -91,6 +91,7 @@ using IPA.Cores.Basic.Internal;
 
 namespace IPA.Cores.Basic
 {
+
     namespace Internal
     {
         /// <summary>

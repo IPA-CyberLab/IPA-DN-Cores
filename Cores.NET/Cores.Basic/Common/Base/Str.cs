@@ -945,16 +945,22 @@ namespace IPA.Cores.Basic
 
         public static byte[] BomUtf8 { get; }
 
-        public static readonly byte[] NewLine_Bytes_Windows = new byte[] { 13, 10 };
-        public static readonly byte[] NewLine_Bytes_Unix = new byte[] { 10 };
-        public static readonly byte[] NewLine_Bytes_Local = (Environment.OSVersion.Platform == PlatformID.Win32NT) ? NewLine_Bytes_Windows : NewLine_Bytes_Unix;
+        public static readonly ReadOnlyMemory<byte> NewLine_Bytes_Windows = new byte[] { 13, 10 };
+        public static readonly ReadOnlyMemory<byte> NewLine_Bytes_Unix = new byte[] { 10 };
+        public static readonly ReadOnlyMemory<byte> NewLine_Bytes_Local = (Environment.OSVersion.Platform == PlatformID.Win32NT) ? NewLine_Bytes_Windows : NewLine_Bytes_Unix;
+
+        public static readonly ReadOnlyMemory<byte> CrLf_Bytes = new byte[] { 13, 10 };
+        public static readonly ReadOnlyMemory<byte> Lf_Bytes = new byte[] { 10 };
 
         public static readonly string NewLine_Str_Windows = "\r\n";
         public static readonly string NewLine_Str_Unix = "\n";
         public static readonly string NewLine_Str_Local = (Environment.OSVersion.Platform == PlatformID.Win32NT) ? NewLine_Str_Windows : NewLine_Str_Unix;
 
-        public static byte[] GetCrlfBytes(CrlfStyle style = CrlfStyle.LocalPlatform) => GetNewLineBytes(style);
-        public static byte[] GetNewLineBytes(CrlfStyle style = CrlfStyle.LocalPlatform)
+        public static readonly string CrLf_Str = "\r\n";
+        public static readonly string Lf_Str = "\n";
+
+        public static ReadOnlyMemory<byte> GetCrlfBytes(CrlfStyle style = CrlfStyle.LocalPlatform) => GetNewLineBytes(style);
+        public static ReadOnlyMemory<byte> GetNewLineBytes(CrlfStyle style = CrlfStyle.LocalPlatform)
         {
             switch (style)
             {
@@ -6182,7 +6188,7 @@ namespace IPA.Cores.Basic
             return NormalizeCrlf(str, Str.GetNewLineBytes(style), ensureLastLineCrlf);
         }
         [return: NotNullIfNotNull("str")]
-        public static string NormalizeCrlf(string str, byte[] crlfData, bool ensureLastLineCrlf = false)
+        public static string NormalizeCrlf(string str, ReadOnlyMemory<byte> crlfData, bool ensureLastLineCrlf = false)
         {
             if (str == null) return "";
             byte[] srcData = Str.Utf8Encoding.GetBytes(str);
@@ -6194,7 +6200,7 @@ namespace IPA.Cores.Basic
             if (style == CrlfStyle.NoChange) return srcData.ToArray();
             return NormalizeCrlf(srcData, Str.GetNewLineBytes(style), ensureLastLineCrlf);
         }
-        public static Memory<byte> NormalizeCrlf(ReadOnlySpan<byte> srcData, byte[] crlfData, bool ensureLastLineCrlf = false)
+        public static Memory<byte> NormalizeCrlf(ReadOnlySpan<byte> srcData, ReadOnlyMemory<byte> crlfData, bool ensureLastLineCrlf = false)
         {
             FastMemoryBuffer<byte> ret = new FastMemoryBuffer<byte>();
             FastMemoryBuffer<byte> tmp = new FastMemoryBuffer<byte>();

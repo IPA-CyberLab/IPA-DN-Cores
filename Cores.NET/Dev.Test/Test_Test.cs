@@ -356,6 +356,46 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Async(async () =>
+                {
+                    using var file = await Lfs.CreateAsync(@"c:\tmp\test1.dat");
+                    using var es = new XtsAesRandomAccess(file, "test", true);
+                    using var st = es.GetStream(true);
+                    using var w = new StreamWriter(st);
+                    w.WriteLine("Hello World");
+                    w.Flush();
+                    w.WriteLine("Neko");
+                });
+                Async(async () =>
+                {
+                    using var file = await Lfs.OpenAsync(@"c:\tmp\test1.dat", false);
+                    using var es = new XtsAesRandomAccess(file, "test", true);
+                    using var st = es.GetStream(true);
+                    using var r = new StreamReader(st);
+                    r.ReadLine()._Print();
+                    r.ReadLine()._Print();
+                });
+                return;
+            }
+
+            if (true)
+            {
+                Secure.Rand(32)._GetHexString()._Print();
+
+                string src = "Hello World Neko San Neko San 2 Neko San 3";
+                var srcData = src._GetBytes_UTF8();
+
+                var encrypted = ChaChaPoly.EasyEncryptWithPassword(srcData, "microsoft");
+
+                var result = ChaChaPoly.EasyDecryptWithPassword(encrypted, "microsoft");
+                result.ThrowIfException();
+
+                result.Value._GetString_UTF8()._Print();
+
+                return;
+            }
 
             if (false)
             {

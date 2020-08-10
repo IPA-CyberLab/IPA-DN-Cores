@@ -114,6 +114,7 @@ namespace IPA.Cores.Helper.Basic
         [MethodImpl(Inline)]
         public static ReadOnlyMemory<T> _AsReadOnlyMemory<T>(this T[] array, int start, int length) => array.AsMemory(start, length);
 
+        [MethodImpl(Inline)] 
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this T[] array, int start) => array.AsSpan(start);
         [MethodImpl(Inline)]
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this T[] array) => array.AsSpan();
@@ -123,6 +124,40 @@ namespace IPA.Cores.Helper.Basic
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this ArraySegment<T> segment, int start) => segment.AsSpan(start);
         [MethodImpl(Inline)]
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this T[] array, int start, int length) => array.AsSpan(start, length);
+
+        [MethodImpl(Inline)]
+        public static Memory<T> _SliceHead<T>(this Memory<T> target, int length) => target.Slice(0, length);
+        [MethodImpl(Inline)]
+        public static ReadOnlyMemory<T> _SliceHead<T>(this ReadOnlyMemory<T> target, int length) => target.Slice(0, length);
+        [MethodImpl(Inline)]
+        public static Span<T> _SliceHead<T>(this Span<T> target, int length) => target.Slice(0, length);
+        [MethodImpl(Inline)]
+        public static ReadOnlySpan<T> _SliceHead<T>(this ReadOnlySpan<T> target, int length) => target.Slice(0, length);
+        [MethodImpl(Inline)]
+        public static MemoryBuffer<T> _SliceHead<T>(this MemoryBuffer<T> target, int length) => target.Slice(0, length);
+        [MethodImpl(Inline)]
+        public static ReadOnlyMemoryBuffer<T> _SliceHead<T>(this ReadOnlyMemoryBuffer<T> target, int length) => target.Slice(0, length);
+        [MethodImpl(Inline)]
+        public static SpanBuffer<T> _SliceHead<T>(this SpanBuffer<T> target, int length) => target.Slice(0, length);
+        [MethodImpl(Inline)]
+        public static ReadOnlySpanBuffer<T> _SliceHead<T>(this ReadOnlySpanBuffer<T> target, int length) => target.Slice(0, length);
+
+        [MethodImpl(Inline)] 
+        public static Memory<T> _SliceTail<T>(this Memory<T> target, int length) => target.Slice(target.Length - length);
+        [MethodImpl(Inline)] 
+        public static ReadOnlyMemory<T> _SliceTail<T>(this ReadOnlyMemory<T> target, int length) => target.Slice(target.Length - length);
+        [MethodImpl(Inline)] 
+        public static Span<T> _SliceTail<T>(this Span<T> target, int length) => target.Slice(target.Length - length);
+        [MethodImpl(Inline)] 
+        public static ReadOnlySpan<T> _SliceTail<T>(this ReadOnlySpan<T> target, int length) => target.Slice(target.Length - length);
+        [MethodImpl(Inline)]
+        public static MemoryBuffer<T> _SliceTail<T>(this MemoryBuffer<T> target, int length) => target.Slice(target.Length - length);
+        [MethodImpl(Inline)]
+        public static ReadOnlyMemoryBuffer<T> _SliceTail<T>(this ReadOnlyMemoryBuffer<T> target, int length) => target.Slice(target.Length - length);
+        [MethodImpl(Inline)]
+        public static SpanBuffer<T> _SliceTail<T>(this SpanBuffer<T> target, int length) => target.Slice(target.Length - length);
+        [MethodImpl(Inline)]
+        public static ReadOnlySpanBuffer<T> _SliceTail<T>(this ReadOnlySpanBuffer<T> target, int length) => target.Slice(target.Length - length);
 
 
         // For BigEndian-standard world
@@ -1369,6 +1404,8 @@ namespace IPA.Cores.Helper.Basic
         {
             if (Cores.Basic.MemoryHelper._UseFast == false) return _AsSegmentSlow(memory);
 
+            if (memory.IsEmpty) return new ArraySegment<T>();
+
             unsafe
             {
                 byte* ptr = (byte*)Unsafe.AsPointer(ref memory);
@@ -1383,6 +1420,8 @@ namespace IPA.Cores.Helper.Basic
         public static ArraySegment<T> _AsSegment<T>(this ReadOnlyMemory<T> memory)
         {
             if (Cores.Basic.MemoryHelper._UseFast == false) return _AsSegmentSlow(memory);
+
+            if (memory.IsEmpty) return new ArraySegment<T>();
 
             unsafe
             {

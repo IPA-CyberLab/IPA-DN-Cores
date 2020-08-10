@@ -50,6 +50,7 @@ using System.Runtime.InteropServices;
 using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.Internal;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using Microsoft.AspNetCore.Server.IIS.Core;
@@ -57,6 +58,145 @@ using Microsoft.EntityFrameworkCore.Query.Internal;
 
 namespace IPA.Cores.Basic
 {
+    public class XtsAesRandomAccessMetaData
+    {
+        public int Version;
+        public long VirtualSize;
+        public string SaltedPassword = "";
+        public string MasterKeyEncryptedByPassword = "";
+    }
+
+    public class XtsAesRandomAccess : SectorBasedRandomAccessBase<byte>
+    {
+        public const int XtsAesSectorSize = 4096;
+        public const int XtsAesMetaDataSize = 1 * 4096;
+        public const int XtsAesKeySize = 64;
+        public const string EncryptMetadataHeaderString = "!!__[Medatada:IPA.Cores.Basic.XtsAesRandomAccess]__!!\r\n";
+        public static readonly ReadOnlyMemory<byte> EncryptMetadataHeaderData = EncryptMetadataHeaderString._GetBytes_Ascii();
+
+        string CurrentPassword;
+        ReadOnlyMemory<byte> CurrentMasterKey;
+        XtsAesRandomAccessMetaData CurrentMetaData = null!;
+
+        public XtsAesRandomAccess(IRandomAccess<byte> physical, string password, bool disposeObject = false, int metaDataFlushInterval = 0)
+            : base(physical, XtsAesSectorSize, XtsAesMetaDataSize, disposeObject, metaDataFlushInterval)
+        {
+            this.CurrentPassword = password;
+        }
+
+        async Task WriteMetaDataAsync(CancellationToken cancel = default)
+        {
+            // ファイルのヘッダを書き込む
+            string jsonString = this.CurrentMetaData._ObjectToJson();
+
+            MemoryBuffer<byte> tmp = new MemoryBuffer<byte>();
+            tmp.Write(EncryptMetadataHeaderData);
+            tmp.Write(Str.CrLf_Bytes);
+            tmp.Write(jsonString._GetBytes_UTF8());
+            tmp.Write(Str.CrLf_Bytes);
+            tmp.Write(Str.CrLf_Bytes);
+
+            if (tmp.Length > XtsAesMetaDataSize)
+            {
+                throw new CoresException($"XtsAesRandomAccess: tmp.Length ({tmp.Length}) > XtsAesMetaDataSize");
+            }
+
+            int remainSize = XtsAesMetaDataSize - tmp.Length;
+
+            if (remainSize >= 2)
+            {
+                tmp.Write(new byte[remainSize - 2]);
+                tmp.Write(Str.CrLf_Bytes);
+            }
+            else
+            {
+                tmp.Write(new byte[remainSize]);
+            }
+
+            await this.PhysicalWriteAsync(0, tmp, cancel);
+        }
+
+        protected override async Task InitMetadataAsync(CancellationToken cancel = default)
+        {
+            Memory<byte> tmp = new byte[XtsAesMetaDataSize];
+
+            // ヘッダの読み込みを試行する
+            int readSize = await this.PhysicalReadAsync(0, tmp, cancel);
+            if (readSize == XtsAesMetaDataSize)
+            {
+                // ファイルの内容が 1 バイト以上存在する
+                if (tmp._SliceHead(EncryptMetadataHeaderData.Length)._MemCompare(EncryptMetadataHeaderData) != 0)
+                {
+                    // ファイル内容が存在し、かつ暗号化されていないファイルである
+                    throw new CoresException("XtsAesRandomAccess: The file body is not encrypted file. No headers found.");
+                }
+
+                var jsonString = tmp.Slice(EncryptMetadataHeaderData.Length)._GetString_UTF8(untilNullByte: true);
+
+                XtsAesRandomAccessMetaData? metaData = jsonString._JsonToObject<XtsAesRandomAccessMetaData>();
+                if (metaData == null)
+                    throw new CoresException("XtsAesRandomAccess: The XtsAesRandomAccessMetaData JSON header parse failed.");
+
+                // バージョン番号チェック
+                if (metaData.Version != 1)
+                    throw new CoresException($"XtsAesRandomAccess: Unsupported version: {metaData.Version}");
+
+                // パスワード検査
+                if (Secure.VeritySaltedPassword(metaData.SaltedPassword, this.CurrentPassword) == false)
+                    throw new CoresException("XtsAesRandomAccess: Incorrect password.");
+
+                // 秘密鍵解読
+                var decrypted = ChaChaPoly.EasyDecryptWithPassword(metaData.MasterKeyEncryptedByPassword._GetHexBytes(), this.CurrentPassword);
+                decrypted.ThrowIfException();
+
+                // 秘密鍵サイズ検査
+                if (decrypted.Value.Length != XtsAesKeySize)
+                    throw new CoresException("XtsAesRandomAccess: decrypted.Value.Length != XtsAesKeySize");
+
+                this.CurrentMasterKey = decrypted.Value;
+
+                this.CurrentMetaData = metaData;
+            }
+            else if (readSize == 0)
+            {
+                // ファイルの内容が存在しない
+
+                // マスターキーを新規作成する
+                this.CurrentMasterKey = Secure.Rand(XtsAesKeySize);
+
+                // メタデータを新規作成する
+                var metaData = new XtsAesRandomAccessMetaData
+                {
+                    Version = 1,
+                    VirtualSize = 0,
+                    SaltedPassword = Secure.SaltPassword(this.CurrentPassword),
+                    MasterKeyEncryptedByPassword = ChaChaPoly.EasyEncryptWithPassword(this.CurrentMasterKey, this.CurrentPassword)._GetHexString(),
+                };
+
+                this.CurrentMetaData = metaData;
+
+                // メタデータを書き込みする
+                await WriteMetaDataAsync(cancel);
+            }
+            else
+            {
+                // 不正 ここには来ないはず
+                throw new CoresException($"XtsAesRandomAccess: Invalid readSize: {readSize}");
+            }
+        }
+
+        protected override Task<long> ReadVirtualSizeImplAsync(CancellationToken cancel = default)
+        {
+            return TR(this.CurrentMetaData.VirtualSize);
+        }
+
+        protected override async Task WriteVirtualSizeImplAsync(long virtualSize, CancellationToken cancel = default)
+        {
+            this.CurrentMetaData.VirtualSize = virtualSize;
+
+            await WriteMetaDataAsync(cancel);
+        }
+    }
 
     namespace Tests
     {
