@@ -463,6 +463,9 @@ namespace IPA.Cores.Basic
         {
             Timeouts.ApplyHeavyLoadServerConfig();
             PipeConfig.ApplyHeavyLoadServerConfig();
+            FileDownloader.ApplyHeavyLoadServerConfig();
+            FastBufferConfig.ApplyHeavyLoadServerConfig();
+            FastMemoryPoolConfig.ApplyHeavyLoadServerConfig();
         }
     }
 }

@@ -3124,6 +3124,20 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public static partial class CoresConfig
+    {
+        public static partial class FastMemoryPoolConfig
+        {
+            public static readonly Copenhagen<int> ExpandSizeMultipleBy = 5;
+
+            // 重いサーバー (大量のインスタンスや大量のコンテナが稼働、または大量のコネクションを処理) における定数変更
+            public static void ApplyHeavyLoadServerConfig()
+            {
+                ExpandSizeMultipleBy.TrySet(1);
+            }
+        }
+    }
+
     public class FastMemoryPool<T>
     {
         Memory<T> Pool;
@@ -3139,6 +3153,11 @@ namespace IPA.Cores.Basic
 
         public Memory<T> Reserve(int maxSize)
         {
+            if (CoresConfig.FastMemoryPoolConfig.ExpandSizeMultipleBy <= 1)
+            {
+                return new T[maxSize];
+            }
+
             checked
             {
                 if (maxSize < 0) throw new ArgumentOutOfRangeException("size");
@@ -3148,7 +3167,7 @@ namespace IPA.Cores.Basic
 
                 if ((Pool.Length - CurrentPos) < maxSize)
                 {
-                    MinReserveSize = Math.Max(MinReserveSize, maxSize * 5);
+                    MinReserveSize = Math.Max(MinReserveSize, maxSize * CoresConfig.FastMemoryPoolConfig.ExpandSizeMultipleBy);
                     Pool = new T[MinReserveSize];
                     CurrentPos = 0;
                 }
@@ -3166,6 +3185,11 @@ namespace IPA.Cores.Basic
 
         public Memory<T> Commit(Memory<T> reservedMemory, int commitSize)
         {
+            if (CoresConfig.FastMemoryPoolConfig.ExpandSizeMultipleBy <= 1)
+            {
+                return reservedMemory._SliceHead(commitSize);
+            }
+
             checked
             {
                 int returnSize = reservedMemory.Length - commitSize;

@@ -52,6 +52,13 @@ namespace IPA.Cores.Basic
         {
             public static readonly Copenhagen<long> DefaultFastStreamBufferThreshold = 524288;
             public static readonly Copenhagen<long> DefaultFastDatagramBufferThreshold = 65536;
+
+            // 重いサーバー (大量のインスタンスや大量のコンテナが稼働、または大量のコネクションを処理) における定数変更
+            public static void ApplyHeavyLoadServerConfig()
+            {
+                DefaultFastStreamBufferThreshold.TrySet(65536);
+                DefaultFastDatagramBufferThreshold.TrySet(65536);
+            }
         }
     }
 

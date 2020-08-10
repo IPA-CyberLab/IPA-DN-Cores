@@ -478,7 +478,7 @@ namespace IPA.TestDev
 
                                 //using var stream = new BufferBasedStream(mem);
                                 
-                                using var file = Lfs.Create(@$"c:\tmp\200810\{taskId}.dat", flags: FileFlags.AutoCreateDirectory | FileFlags.SparseFile);
+                                using var file = Lfs.Create(@$"f:\tmp\200810\{taskId}.dat", flags: FileFlags.AutoCreateDirectory | FileFlags.SparseFile);
 
                                 using var sector = new XtsAesRandomAccess(file, "neko");
                                 using var stream = sector.GetStream(true);
@@ -488,7 +488,7 @@ namespace IPA.TestDev
                                 await FileDownloader.DownloadFileParallelAsync(
                                     "http://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
                                     stream,
-                                    new FileDownloadOption(1, bufferSize: 10000, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
+                                    new FileDownloadOption(20, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
                                     progressReporter: reporter,
                                     cancel: c);
                                 //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
@@ -590,7 +590,7 @@ namespace IPA.TestDev
                             await FileDownloader.DownloadFileParallelAsync(
                                 "http://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
                                 stream,
-                                new FileDownloadOption(1, bufferSize: 10000, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
+                                new FileDownloadOption(20, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
                                 progressReporter: reporter,
                                 cancel: c);
                             //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,

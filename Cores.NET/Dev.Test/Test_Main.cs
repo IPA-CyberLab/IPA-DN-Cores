@@ -65,6 +65,8 @@ namespace IPA.TestDev
         {
             int ret = -1;
 
+            CoresConfig.ApplyHeavyLoadServerConfigAll();
+
             //CoresConfig.LocalLargeFileSystemSettings.MaxSingleFileSize.SetValue(200);
 
             //Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: false, leakFullStack: false);

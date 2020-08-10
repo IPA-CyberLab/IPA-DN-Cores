@@ -163,6 +163,12 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<int> DefaultBufferSize = 1 * 1024 * 1024; // 1MB
             public static readonly Copenhagen<int> DefaultAdditionalConnectionIntervalMsecs = 1000;
             public static readonly Copenhagen<int> DefaultMaxConcurrentFiles = 20;
+
+            // 重いサーバー (大量のインスタンスや大量のコンテナが稼働、または大量のコネクションを処理) における定数変更
+            public static void ApplyHeavyLoadServerConfig()
+            {
+                DefaultBufferSize.TrySet(65536);
+            }
         }
     }
 

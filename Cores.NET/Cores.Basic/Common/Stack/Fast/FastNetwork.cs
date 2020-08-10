@@ -1505,12 +1505,12 @@ namespace IPA.Cores.Basic
                 me.RecvTmpBufferSize = Math.Min(i, MaxStreamBufferLength);
             }
 
-                Memory<byte> tmp = me.FastMemoryAllocatorForStream.Reserve(me.RecvTmpBufferSize);
-                int r = await me.Socket.ReceiveAsync(tmp);
-                if (r < 0) throw new SocketDisconnectedException();
-                me.FastMemoryAllocatorForStream.Commit(ref tmp, r);
-                if (r == 0) return new ValueOrClosed<ReadOnlyMemory<byte>>();
-                return new ValueOrClosed<ReadOnlyMemory<byte>>(tmp);
+            Memory<byte> tmp = me.FastMemoryAllocatorForStream.Reserve(me.RecvTmpBufferSize);
+            int r = await me.Socket.ReceiveAsync(tmp);
+            if (r < 0) throw new SocketDisconnectedException();
+            me.FastMemoryAllocatorForStream.Commit(ref tmp, r);
+            if (r == 0) return new ValueOrClosed<ReadOnlyMemory<byte>>();
+            return new ValueOrClosed<ReadOnlyMemory<byte>>(tmp);
         });
 
         protected override async Task StreamReadFromObjectImplAsync(FastStreamBuffer fifo, CancellationToken cancel)
