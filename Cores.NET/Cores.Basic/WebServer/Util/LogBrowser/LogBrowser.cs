@@ -58,6 +58,7 @@ using System.Security.Policy;
 using System.Diagnostics.Eventing.Reader;
 using Org.BouncyCastle.Ocsp;
 using IPA.Cores.Basic.HttpClientCore;
+using Org.BouncyCastle.Asn1;
 
 #if CORES_BASIC_HTTPSERVER
 // ASP.NET Core 3.0 用の型名を無理やり ASP.NET Core 2.2 でコンパイルするための型エイリアスの設定
@@ -270,6 +271,8 @@ namespace IPA.Cores.Basic
             alog.UserAgent = request.Headers[Consts.HttpHeaders.UserAgent];
             alog.Referer = request.Headers[Consts.HttpHeaders.Referer];
 
+            Ref<string> suppliedPassword = "";
+
             try
             {
                 // クライアント IP による ACL のチェック
@@ -362,6 +365,8 @@ namespace IPA.Cores.Basic
 
                                 alog.PasswordMatched = ok;
 
+                                suppliedPassword = password;
+
                                 return TR(ok);
                             });
 
@@ -423,29 +428,85 @@ namespace IPA.Cores.Basic
 
                 if (logicalPath._IsEmpty()) logicalPath = physicalPath;
 
-                if (RootFs.IsDirectoryExists(physicalPath, cancel))
+                string? encryptedRawPhysicalPath = null;
+
+                if (this.Options.Flags.Bit(LogBrowserFlags.SecureJson))
+                {
+                    if (await RootFs.IsDirectoryExistsAsync(physicalPath, cancel) == false)
+                    {
+                        if (await RootFs.IsFileExistsAsync(physicalPath, cancel) == false)
+                        {
+                            string tmp = physicalPath + Consts.Extensions.EncryptedXtsAes256;
+                            if (await RootFs.IsFileExistsAsync(tmp, cancel))
+                            {
+                                encryptedRawPhysicalPath = tmp;
+                            }
+                        }
+                    }
+                }
+
+                if (await RootFs.IsDirectoryExistsAsync(physicalPath, cancel))
                 {
                     // Directory
                     string htmlBody = await BuildDirectoryHtmlAsync(new DirectoryPath(physicalPath, RootFs), logicalPath, footer, cancel);
 
                     return new HttpStringResult(htmlBody, contentType: Consts.MimeTypes.HtmlUtf8);
                 }
-                else if (RootFs.IsFileExists(physicalPath, cancel))
+                else if (encryptedRawPhysicalPath._IsFilled() || await RootFs.IsFileExistsAsync(physicalPath, cancel))
                 {
+                    // File
                     if (this.Options.Flags.Bit(LogBrowserFlags.SecureJson) && RootFs.PathParser.GetFileName(physicalPath)._IsSamei(Consts.FileNames.LogBrowserSecureJson))
                     {
                         // _secure.json そのものにはアクセスできません
                         return new HttpStringResult("403 Forbidden", statusCode: 403);
                     }
 
-                    // File
                     string extension = RootFs.PathParser.GetExtension(physicalPath);
                     string mimeType = MasterData.ExtensionToMime.Get(extension);
 
-                    FileObject file = await RootFs.OpenAsync(physicalPath, cancel: cancel);
+                    FileObject file;
+                    IRandomAccess<byte> randomAccess;
+                    Stream fileStream;
+
+                    if (encryptedRawPhysicalPath._IsEmpty())
+                    {
+                        // 普通のファイル
+                        file = await RootFs.OpenAsync(physicalPath, cancel: cancel);
+                        try
+                        {
+                            fileStream = file.GetStream(disposeTarget: true);
+
+                            randomAccess = file;
+                        }
+                        catch
+                        {
+                            file._DisposeSafe();
+
+                            throw;
+                        }
+                    }
+                    else
+                    {
+                        // 暗号化済みファイル
+                        file = await RootFs.OpenAsync(encryptedRawPhysicalPath, cancel: cancel);
+
+                        try
+                        {
+                            randomAccess = new XtsAesRandomAccess(file, suppliedPassword, disposeObject: true);
+
+                            fileStream = randomAccess.GetStream(disposeTarget: true);
+                        }
+                        catch
+                        {
+                            file._DisposeSafe();
+
+                            throw;
+                        }
+                    }
+
                     try
                     {
-                        long fileSize = file.Size;
+                        long fileSize = fileStream.Length;
 
                         long head = qsList._GetStrFirst("head")._ToInt()._NonNegative();
                         long tail = qsList._GetStrFirst("tail")._ToInt()._NonNegative();
@@ -489,7 +550,7 @@ namespace IPA.Cores.Basic
                                 // 元のファイルの先頭に BOM が付いていて、先頭をスキップする場合は、
                                 // 応答データに先頭にも BOM を付ける
                                 byte[] bom = new byte[3];
-                                if (await file.ReadRandomAsync(0, bom, cancel) == 3)
+                                if (await randomAccess.ReadRandomAsync(0, bom, cancel) == 3)
                                 {
                                     if (Str.BOM_UTF_8._MemEquals(bom))
                                     {
@@ -500,10 +561,12 @@ namespace IPA.Cores.Basic
                             catch { }
                         }
 
-                        return new HttpFileResult(file, readStart, readSize, mimeType, preData: preData);
+                        return new HttpResult(fileStream, readStart, readSize, mimeType, preData: preData);
                     }
                     catch
                     {
+                        randomAccess._DisposeSafe();
+                        fileStream._DisposeSafe();
                         file._DisposeSafe();
                         throw;
                     }
@@ -612,11 +675,15 @@ namespace IPA.Cores.Basic
                             absolutePath = PP.Combine(PP.GetDirectoryName(e.FullPath), printFileName);
 
                             // 暗号化ファイルの場合は実際にヘッダを読み取ってみる
-                            var encryptedParseResult = await XtsAesRandomAccess.TryReadMetaDataAsync(new FilePath(e.FullPath, dir.FileSystem), cancel);
-                            if (encryptedParseResult.IsOk)
+                            try
                             {
-                                printSize = encryptedParseResult.Value!.VirtualSize;
+                                var encryptedParseResult = await XtsAesRandomAccess.TryReadMetaDataAsync(new FilePath(e.FullPath, dir.FileSystem), cancel);
+                                if (encryptedParseResult.IsOk)
+                                {
+                                    printSize = encryptedParseResult.Value!.VirtualSize;
+                                }
                             }
+                            catch { }
                         }
                     }
                 }

@@ -72,6 +72,7 @@ using IPA.Cores.Basic.App.DaemonCenterLib;
 using IPA.Cores.ClientApi.GoogleApi;
 using System.Security.Cryptography;
 using IPA.Cores.Basic.Tests;
+using System.Runtime.InteropServices.WindowsRuntime;
 
 
 
@@ -356,6 +357,37 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                bool b1 = true;
+                bool b2 = false;
+
+                byte v1 = b1._RawReadValueUInt8();
+                byte v2 = b2._RawReadValueUInt8();
+
+                Con.WriteLine(v1);
+                Con.WriteLine(v2);
+
+                Con.WriteLine();
+
+                v1 = 9;
+
+                b1._RawWriteValueUInt8(v1);
+                v1 = b1._RawReadValueUInt8();
+
+                Con.WriteLine(v1);
+
+                Con.WriteLine();
+
+                bool b3 = true;
+                //b3._RawWriteValueUInt8(12);
+
+                bool r = (b1);
+                r._Print();
+
+                return;
+            }
+
             if (true)
             {
                 Async(async () =>
