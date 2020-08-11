@@ -207,6 +207,9 @@ namespace IPA.Cores.Globals
         public static ResourceFileSystem CoresRes => Res.Cores;
 
         public static PathParser PP => PathParser.Local;
+        public static PathParser PPLinux => PathParser.Linux;
+        public static PathParser PPMac => PathParser.Mac;
+        public static PathParser PPWin => PathParser.Windows;
 
 #if CORES_BASIC_GIT
         public static GitFileSystem GitFs(string url, string commitIdOrRefName = "") => GitGlobalFs.GetFileSystem(url, commitIdOrRefName);

@@ -102,7 +102,7 @@ namespace IPA.Cores.Basic
         public int StatusCode;
         public bool? PasswordMatched;
     }
-
+    
     // LogBrowser を含んだ HttpServer のオプション
     public class LogBrowserHttpServerOptions
     {
@@ -340,6 +340,7 @@ namespace IPA.Cores.Basic
                     {
                         // 認証が必要とされている場合、パスが  /任意の名前/<authsubdirname>/ である場合は Basic 認証を経由して実ファイルにアクセスさせる。
                         // それ以外の場合は、認証案内ページを出す。
+                        var x = request.GetDisplayUrl();
                         request.GetDisplayUrl()._ParseUrl(out Uri fullUri, out _);
                         var thisDirFullUrl = new Uri(fullUri, this.AbsolutePathPrefix + firstDirName + "/");
                         var authFullUrl = new Uri(thisDirFullUrl, secureJson.AuthSubDirName + "/");
@@ -355,7 +356,7 @@ namespace IPA.Cores.Basic
                                 // ユーザー名とパスワードが一致するものが 1 つ以上あるかどうか
                                 bool ok = secureJson.AuthDatabase
                                     .Where(db => db.Key._IsFilled() && db.Value._IsFilled())
-                                    .Where(db => db.Key._IsSamei(username) && db.Value._IsSame(password))
+                                    .Where(db => db.Key._IsSamei(username) && Secure.VeritySaltedPassword(db.Value, password))
                                     .Any();
 
                                 alog.PasswordMatched = ok;
@@ -368,10 +369,11 @@ namespace IPA.Cores.Basic
                                 // 認証失敗
                                 KeyValueList<string, string> headers = new KeyValueList<string, string>();
                                 headers.Add(Consts.HttpHeaders.WWWAuthenticate, $"Basic realm=\"User Authentication for {firstDirName._MakeSafePath(PathParser.Linux) + "/."}\"");
-                                return new HttpStringResult(
-                                    $"User authentication is required for {authFullUrl}.\r\nLogging in by non-authorized users is a violation of the Japanese Act on Prohibition of Unauthorized Computer Access\r\nand is subject to severe criminal penalties.\r\n\r\n" +
-                                    $"{authFullUrl} にアクセスするためには、ユーザー認証が必要です。\r\n不正ユーザーによるログインは日本国の不正アクセス禁止法違反であり、重大な刑事罰の対象となります。\r\n\r\n"
-                                    , statusCode: 401, additionalHeaders: headers);
+
+                                // 認証案内を出す
+                                string htmlBody = BuildAuthRequiredHtml(new DirectoryPath(physicalPath, RootFs), fullUri.ToString(), secureJson);
+
+                                return new HttpStringResult(htmlBody, contentType: Consts.MimeTypes.HtmlUtf8, statusCode: 401, additionalHeaders: headers);
                             }
 
                             // 認証成功
@@ -383,9 +385,10 @@ namespace IPA.Cores.Basic
                         }
                         else
                         {
+                            // 認証案内を出す
+                            string htmlBody = BuildAuthRequiredHtml(new DirectoryPath(physicalPath, RootFs), authFullUrl.ToString(), secureJson);
 
-                            return new HttpStringResult(
-                                $"認証案内:\r\n{authFullUrl}\r\n\r\n{secureJson.AuthSubject}\r\n");
+                            return new HttpStringResult(htmlBody, contentType: Consts.MimeTypes.HtmlUtf8);
                         }
                     }
 
@@ -514,6 +517,20 @@ namespace IPA.Cores.Basic
             {
                 return new HttpStringResult($"HTTP Status Code: 500\r\n" + ex.ToString(), statusCode: 500);
             }
+        }
+
+        string BuildAuthRequiredHtml(DirectoryPath dir, string targetFullUrl, LogBrowserSecureJson secureJson)
+        {
+            string body = CoresRes["LogBrowser/Html/Auth.html"].String;
+
+            body = body._ReplaceStrWithReplaceClass(new
+            {
+                __FULLPATH__ = targetFullUrl._EncodeHtml(true),
+                __TITLE__ = $"{this.Options.SystemTitle} - {RootFs.PathParser.AppendDirectorySeparatorTail(dir.PathString)}"._EncodeHtml(true),
+                __TITLE2__ = $"{this.Options.SystemTitle} - {RootFs.PathParser.AppendDirectorySeparatorTail(dir.PathString)}"._EncodeHtml(true),
+            });
+
+            return body;
         }
 
         string BuildDirectoryHtml(DirectoryPath dir, string logicalPath, string footer = "")
