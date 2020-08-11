@@ -121,6 +121,60 @@ namespace IPA.Cores.Basic
             this.CurrentPassword = password;
         }
 
+        // メタデータ読み取りとパース試行 (ファイルから)
+        public static async Task<ResultOrExeption<XtsAesRandomAccessMetaData>> TryReadMetaDataAsync(FilePath path, CancellationToken cancel = default)
+        {
+            using var file = await path.OpenAsync(cancel: cancel);
+            return await TryReadMetaDataAsync(file, cancel);
+        }
+
+        // メタデータ読み取りとパース試行
+        public static async Task<ResultOrExeption<XtsAesRandomAccessMetaData>> TryReadMetaDataAsync(IRandomAccess<byte> physical, CancellationToken cancel = default)
+        {
+            Memory<byte> firseSectorData = new byte[XtsAesMetaDataSize];
+
+            // ヘッダの読み込みを試行する
+            int readSize = await physical.ReadRandomAsync(0, firseSectorData, cancel);
+            if (readSize == XtsAesMetaDataSize)
+            {
+                return TryParseMetaData(firseSectorData);
+            }
+            else if (readSize == 0)
+            {
+                throw new CoresException("The file contents is empty.");
+            }
+            else
+            {
+                throw new CoresException("readSize != XtsAesMetaDataSize");
+            }
+        }
+
+        // メタデータパース試行
+        public static ResultOrExeption<XtsAesRandomAccessMetaData> TryParseMetaData(ReadOnlyMemory<byte> firstSectorData)
+        {
+            if (firstSectorData.Length != XtsAesMetaDataSize)
+                return new ResultOrExeption<XtsAesRandomAccessMetaData>(new CoresException("metaData.Length != XtsAesMetaDataSize"));
+
+            // ファイルの内容が 1 バイト以上存在する
+            if (firstSectorData._SliceHead(EncryptMetadataHeaderData.Length)._MemCompare(EncryptMetadataHeaderData) != 0)
+            {
+                // ファイル内容が存在し、かつ暗号化されていないファイルである
+                return new ResultOrExeption<XtsAesRandomAccessMetaData>(new CoresException("XtsAesRandomAccess: The file body is not encrypted file. No headers found."));
+            }
+
+            var jsonString = firstSectorData.Slice(EncryptMetadataHeaderData.Length)._GetString_UTF8(untilNullByte: true);
+
+            XtsAesRandomAccessMetaData? metaData = jsonString._JsonToObject<XtsAesRandomAccessMetaData>();
+            if (metaData == null)
+                return new ResultOrExeption<XtsAesRandomAccessMetaData>(new CoresException("XtsAesRandomAccess: The XtsAesRandomAccessMetaData JSON header parse failed."));
+
+            // バージョン番号チェック
+            if (metaData.Version != 1)
+                return new ResultOrExeption<XtsAesRandomAccessMetaData>(new CoresException($"XtsAesRandomAccess: Unsupported version: {metaData.Version}"));
+
+            return metaData;
+        }
+
         async Task WriteMetaDataAsync(CancellationToken cancel = default)
         {
             // ファイルのヘッダを書き込む
@@ -155,28 +209,17 @@ namespace IPA.Cores.Basic
 
         protected override async Task InitMetadataImplAsync(CancellationToken cancel = default)
         {
-            Memory<byte> tmp = new byte[XtsAesMetaDataSize];
+            Memory<byte> firstSectorData = new byte[XtsAesMetaDataSize];
 
             // ヘッダの読み込みを試行する
-            int readSize = await this.PhysicalReadAsync(0, tmp, cancel);
+            int readSize = await this.PhysicalReadAsync(0, firstSectorData, cancel);
             if (readSize == XtsAesMetaDataSize)
             {
-                // ファイルの内容が 1 バイト以上存在する
-                if (tmp._SliceHead(EncryptMetadataHeaderData.Length)._MemCompare(EncryptMetadataHeaderData) != 0)
-                {
-                    // ファイル内容が存在し、かつ暗号化されていないファイルである
-                    throw new CoresException("XtsAesRandomAccess: The file body is not encrypted file. No headers found.");
-                }
+                var metaDataParseResult = TryParseMetaData(firstSectorData);
 
-                var jsonString = tmp.Slice(EncryptMetadataHeaderData.Length)._GetString_UTF8(untilNullByte: true);
+                metaDataParseResult.ThrowIfException();
 
-                XtsAesRandomAccessMetaData? metaData = jsonString._JsonToObject<XtsAesRandomAccessMetaData>();
-                if (metaData == null)
-                    throw new CoresException("XtsAesRandomAccess: The XtsAesRandomAccessMetaData JSON header parse failed.");
-
-                // バージョン番号チェック
-                if (metaData.Version != 1)
-                    throw new CoresException($"XtsAesRandomAccess: Unsupported version: {metaData.Version}");
+                var metaData = metaDataParseResult.Value!;
 
                 // パスワード検査
                 if (Secure.VeritySaltedPassword(metaData.SaltedPassword, this.CurrentPassword) == false)
@@ -336,7 +379,7 @@ namespace IPA.Cores.Basic
             {
                 VerifyKey(KEY_LENGTH, key1);
                 VerifyKey(KEY_LENGTH, key2);
-                
+
                 return new XtsAes256(AesManaged.Create, key1, key2);
             }
 

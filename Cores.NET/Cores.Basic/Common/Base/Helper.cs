@@ -2125,8 +2125,8 @@ namespace IPA.Cores.Helper.Basic
         public static DateTimeOffset _Time64ToDateTimeOffsetLocal(this long value) => Time.Time64ToDateTimeOffsetLocal(value);
 
         public static Task<long> CopyBetweenStreamAsync(this Stream src, Stream dest, CopyFileParams? param = null, ProgressReporterBase? reporter = null,
-            long estimatedSize = -1, CancellationToken cancel = default, Ref<uint>? srcZipCrc = null, long truncateSize = -1)
-            => Util.CopyBetweenStreamAsync(src, dest, param, reporter, estimatedSize, cancel, srcZipCrc, truncateSize);
+            long estimatedSize = -1, CancellationToken cancel = default, Ref<uint>? srcZipCrc = null, long truncateSize = -1, bool flush = false)
+            => Util.CopyBetweenStreamAsync(src, dest, param, reporter, estimatedSize, cancel, srcZipCrc, truncateSize, flush);
 
         public static RandomAccessBasedStream GetStream(this IRandomAccess<byte> target, bool disposeTarget = false)
             => new RandomAccessBasedStream(target, disposeTarget);

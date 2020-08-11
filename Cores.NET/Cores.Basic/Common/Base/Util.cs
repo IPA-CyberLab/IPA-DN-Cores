@@ -2926,7 +2926,7 @@ namespace IPA.Cores.Basic
 
         // Stream から Stream へのコピー (ファイルのダウンロードなど)
         public static async Task<long> CopyBetweenStreamAsync(Stream src, Stream dest, CopyFileParams? param = null, ProgressReporterBase? reporter = null,
-            long estimatedSize = -1, CancellationToken cancel = default, Ref<uint>? srcZipCrc = null, long truncateSize = -1)
+            long estimatedSize = -1, CancellationToken cancel = default, Ref<uint>? srcZipCrc = null, long truncateSize = -1, bool flush = false)
         {
             if (param == null) param = new CopyFileParams();
             if (reporter == null) reporter = new NullProgressReporter(null);
@@ -3051,6 +3051,15 @@ namespace IPA.Cores.Basic
                 }
 
                 srcZipCrc.Set(srcCrc.Value);
+
+                if (flush)
+                {
+                    try
+                    {
+                        await dest.FlushAsync(cancel);
+                    }
+                    catch { }
+                }
 
                 return currentPosition;
             }

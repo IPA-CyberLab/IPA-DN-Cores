@@ -57,6 +57,7 @@ using Microsoft.AspNetCore.Http.Extensions;
 using System.Security.Policy;
 using System.Diagnostics.Eventing.Reader;
 using Org.BouncyCastle.Ocsp;
+using IPA.Cores.Basic.HttpClientCore;
 
 #if CORES_BASIC_HTTPSERVER
 // ASP.NET Core 3.0 用の型名を無理やり ASP.NET Core 2.2 でコンパイルするための型エイリアスの設定
@@ -425,7 +426,7 @@ namespace IPA.Cores.Basic
                 if (RootFs.IsDirectoryExists(physicalPath, cancel))
                 {
                     // Directory
-                    string htmlBody = BuildDirectoryHtml(new DirectoryPath(physicalPath, RootFs), logicalPath, footer);
+                    string htmlBody = await BuildDirectoryHtmlAsync(new DirectoryPath(physicalPath, RootFs), logicalPath, footer, cancel);
 
                     return new HttpStringResult(htmlBody, contentType: Consts.MimeTypes.HtmlUtf8);
                 }
@@ -533,12 +534,12 @@ namespace IPA.Cores.Basic
             return body;
         }
 
-        string BuildDirectoryHtml(DirectoryPath dir, string logicalPath, string footer = "")
+        async Task<string> BuildDirectoryHtmlAsync(DirectoryPath dir, string logicalPath, string footer = "", CancellationToken cancel = default)
         {
             string body = CoresRes["LogBrowser/Html/Directory.html"].String;
 
             // Enum dir list
-            List<FileSystemEntity> list = dir.EnumDirectory(flags: EnumDirectoryFlags.NoGetPhysicalSize | EnumDirectoryFlags.IncludeParentDirectory).ToList();
+            List<FileSystemEntity> list = (await dir.EnumDirectoryAsync(flags: EnumDirectoryFlags.NoGetPhysicalSize | EnumDirectoryFlags.IncludeParentDirectory)).ToList();
 
             // Bread crumbs
             var breadCrumbList = new DirectoryPath(logicalPath, dir.FileSystem).GetBreadCrumbList();
@@ -592,6 +593,34 @@ namespace IPA.Cores.Basic
 
                 string absolutePath = e.FullPath;
 
+                string printFileName = e.Name;
+                long printSize = e.Size;
+                if (e.IsDirectory)
+                {
+                    printFileName = $"{e.Name}/";
+                }
+
+                if (e.IsDirectory == false)
+                {
+                    if (this.Options.Flags.Bit(LogBrowserFlags.SecureJson))
+                    {
+                        if (e.Name.EndsWith(Consts.Extensions.EncryptedXtsAes256, StringComparison.Ordinal))
+                        {
+                            // 暗号化ファイル
+                            printFileName = e.Name.Substring(0, e.Name.Length - Consts.Extensions.EncryptedXtsAes256.Length);
+
+                            absolutePath = PP.Combine(PP.GetDirectoryName(e.FullPath), printFileName);
+
+                            // 暗号化ファイルの場合は実際にヘッダを読み取ってみる
+                            var encryptedParseResult = await XtsAesRandomAccess.TryReadMetaDataAsync(new FilePath(e.FullPath, dir.FileSystem), cancel);
+                            if (encryptedParseResult.IsOk)
+                            {
+                                printSize = encryptedParseResult.Value!.VirtualSize;
+                            }
+                        }
+                    }
+                }
+
                 if (e.IsParentDirectory == false)
                 {
                     string relativePath = RootFs.PathParser.GetRelativeDirectoryName(absolutePath, dir);
@@ -617,12 +646,6 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                string printName = e.Name;
-                if (e.IsDirectory)
-                {
-                    printName = $"{e.Name}/";
-                }
-
                 var iconInfo = MasterData.GetFasIconFromExtension(extension);
 
                 dirHtml.WriteLine("<tr>");
@@ -636,11 +659,11 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                dirHtml.WriteLine($@"<a href=""{AbsolutePathPrefix}{absolutePath._EncodeUrlPath()}""><span class=""icon\""><i class=""{iconInfo.Item1} {iconInfo.Item2}""></i></span> {printName._EncodeHtml(true)}</a>");
+                dirHtml.WriteLine($@"<a href=""{AbsolutePathPrefix}{absolutePath._EncodeUrlPath()}""><span class=""icon\""><i class=""{iconInfo.Item1} {iconInfo.Item2}""></i></span> {printFileName._EncodeHtml(true)}</a>");
 
                 dirHtml.WriteLine("</th>");
 
-                string sizeStr = Str.GetFileSizeStr(e.Size);
+                string sizeStr = Str.GetFileSizeStr(printSize);
                 if (e.IsDirectory)
                 {
                     sizeStr = "<Dir>";

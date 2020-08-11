@@ -358,6 +358,21 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                Async(async () =>
+                {
+                    using var srcFile = await Lfs.OpenAsync(@"C:\git\IPA-DN-FileCenter\IPA-DN-FileCenter\Local\DataRoot\test2\標準ﾏｯﾌﾟ.bmp");
+                    using var srcFileStream = srcFile.GetStream();
+                    using var destFile = await Lfs.CreateAsync(@"C:\git\IPA-DN-FileCenter\IPA-DN-FileCenter\Local\DataRoot\test2\MapEncrypted.bmp");
+                    using var enc = new XtsAesRandomAccess(destFile, "b");
+                    using var destFileStream = enc.GetStream();
+                    await srcFileStream.CopyBetweenStreamAsync(destFileStream);
+                });
+
+                return;
+            }
+
+            if (true)
+            {
                 LogBrowserSecureJson json = new LogBrowserSecureJson
                 {
                     AuthRequired = true,
