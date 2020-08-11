@@ -108,16 +108,26 @@ namespace IPA.Cores.Basic
 
         public static Tuple<string, string> GetFasIconFromExtension(string extensionOrMimeType)
         {
-            // Mime type search
-            var ret = MimeToFasIcon.SearchTopWithCache(extensionOrMimeType);
-            if (ret != null) return ret;
+            if (extensionOrMimeType._InStr("/"))
+            {
+                // Mime type search
+                var ret = MimeToFasIcon.SearchTopWithCache(extensionOrMimeType);
+                if (ret != null) return ret;
 
-            // Extension search
-            ret = MimeToFasIcon.SearchTopWithCache(ExtensionToMime.Get(extensionOrMimeType));
-            if (ret != null) return ret;
+                // Last resort
+                return new Tuple<string, string>("fas", "fa-file-download");
+            }
+            else
+            {
+                // Extension search
+                var mime = ExtensionToMime.Get(extensionOrMimeType);
 
-            // Last resort
-            return new Tuple<string, string>("fas", "fa-file-download");
+                var ret = MimeToFasIcon.SearchTopWithCache(mime);
+                if (ret != null) return ret;
+
+                // Last resort
+                return new Tuple<string, string>("fas", "fa-file-download");
+            }
         }
 
         public class PublicSuffixList
