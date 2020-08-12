@@ -4417,7 +4417,7 @@ namespace IPA.Cores.Basic
         }
 
         // 新しいパスワードを生成
-        public static string GenRandPassword(int count = 16)
+        public static string GenRandPassword(int count = 16, bool mustHaveOneUnderBar = true)
         {
             count._SetMax(4);
 
@@ -4444,7 +4444,10 @@ namespace IPA.Cores.Basic
                     sb.Append(c);
                 }
 
-                sb[Secure.RandSInt31() % (sb.Length - 2) + 1] = '_';
+                if (mustHaveOneUnderBar)
+                {
+                    sb[Secure.RandSInt31() % (sb.Length - 2) + 1] = '_';
+                }
 
                 string ret = sb.ToString();
 

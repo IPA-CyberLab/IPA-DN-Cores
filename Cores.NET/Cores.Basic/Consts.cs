@@ -103,6 +103,7 @@ namespace IPA.Cores.Basic
 
             public const int GitCommitIdTruncateLen = 8;
             public const int StandardTruncateLen = 32;
+            public const int NormalStringTruncateLen = 255;
 
             public const int ExceptionStrTruncateLen = 800;
         }

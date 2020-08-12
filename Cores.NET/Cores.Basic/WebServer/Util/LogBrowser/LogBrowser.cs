@@ -79,6 +79,9 @@ namespace IPA.Cores.Basic
         public bool DisableAccessLog = false;
         public bool AllowAccessToAccessLog = false;
 
+        public DateTimeOffset UploadTimeStamp = Util.ZeroDateTimeOffsetValue;
+        public string UploadIp = "";
+
         public void Normalize()
         {
             if (this.AuthDatabase == null) this.AuthDatabase = new KeyValueList<string, string>();

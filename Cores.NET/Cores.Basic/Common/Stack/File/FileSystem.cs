@@ -1576,6 +1576,7 @@ namespace IPA.Cores.Basic
     {
         public DirectoryWalker DirectoryWalker { get; }
         public PathParser PathParser { get; }
+        public PathParser PP => PathParser;
         protected FileSystemParams Params { get; }
         public bool CanWrite => Params.Mode.Bit(FileSystemMode.Writeable);
 

@@ -70,7 +70,7 @@ namespace IPA.Cores.Basic
     {
         None = 0,
         EnableCompression = 1,      // 通常の圧縮を ON にする
-        CompressionMode_Fast = 2,   // 速度有効の圧縮
+        CompressionMode_Fast = 2,   // 速度優先の圧縮
     }
 
     [Serializable]
@@ -230,46 +230,57 @@ namespace IPA.Cores.Basic
 
         ///////////// 以下はユーティリティ関数
 
-        // 任意のファイルシステムの物理ファイルをインポートする
-        public async Task ImportFileAsync(FilePath srcFilePath, FileContainerEntityParam destParam, CancellationToken cancel = default)
+        // 任意のストリームからの仮想ファイルをインポートする
+        public async Task ImportVirtualFileAsync(Stream srcStream, FileContainerEntityParam destParam, CancellationToken cancel = default)
         {
             destParam._NullCheck();
 
             destParam = destParam._CloneDeep();
 
-            // 元ファイルのメタデータ読み込み
-            destParam.MetaData = await srcFilePath.GetFileMetadataAsync(FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoAuthor | FileMetadataGetFlags.NoPhysicalFileSize | FileMetadataGetFlags.NoPreciseFileSize | FileMetadataGetFlags.NoSecurity);
-
             int bufferSize = CoresConfig.BufferSizes.FileCopyBufferSize;
+
+            // 先ファイルを作成
+            await this.AddFileAsync(destParam, async (w, c) =>
+            {
+                // 元ファイルから先ファイルにデータをコピー
+                byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+
+                try
+                {
+                    while (true)
+                    {
+                        int readSize = await srcStream.ReadAsync(buffer, cancel);
+                        if (readSize == 0) break;
+
+                        await w.AppendAsync(buffer.AsMemory(0, readSize), cancel);
+                    }
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(buffer, false);
+                }
+
+                return true;
+            },
+            destParam.MetaData.Size,
+            cancel);
+        }
+        public void ImportVirtualFile(Stream srcStream, FileContainerEntityParam destParam, CancellationToken cancel = default)
+            => ImportVirtualFileAsync(srcStream, destParam, cancel)._GetResult();
+
+        // 任意のファイルシステムの物理ファイルをインポートする
+        public async Task ImportFileAsync(FilePath srcFilePath, FileContainerEntityParam destParam, CancellationToken cancel = default)
+        {
+            // 元ファイルのメタデータ読み込み
+            var metaData = await srcFilePath.GetFileMetadataAsync(FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoAuthor | FileMetadataGetFlags.NoPhysicalFileSize | FileMetadataGetFlags.NoPreciseFileSize | FileMetadataGetFlags.NoSecurity);
+
+            destParam.MetaData = metaData;
 
             // 元ファイルを開く
             using (var srcFile = await srcFilePath.OpenAsync(false, cancel: cancel))
             {
-                // 先ファイルを作成
-                await this.AddFileAsync(destParam, async (w, c) =>
-                {
-                    // 元ファイルから先ファイルにデータをコピー
-                    byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
-
-                    try
-                    {
-                        while (true)
-                        {
-                            int readSize = await srcFile.ReadAsync(buffer, cancel);
-                            if (readSize == 0) break;
-
-                            await w.AppendAsync(buffer.AsMemory(0, readSize), cancel);
-                        }
-                    }
-                    finally
-                    {
-                        ArrayPool<byte>.Shared.Return(buffer, false);
-                    }
-
-                    return true;
-                },
-                destParam.MetaData.Size,
-                cancel);
+                // ストリームの内容をインポートする
+                await ImportVirtualFileAsync(srcFile.GetStream(false), destParam, cancel);
             }
         }
         public void ImportFile(FilePath srcFilePath, FileContainerEntityParam destParam, CancellationToken cancel = default)

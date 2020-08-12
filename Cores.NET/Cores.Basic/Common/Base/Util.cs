@@ -6766,7 +6766,7 @@ namespace IPA.Cores.Basic
         public static implicit operator bool(ResultOrError<T>? resultOrException) => resultOrException != null && resultOrException.IsOk;
     }
 
-    public class ResultOrExeption<T>
+    public class ResultOrExeption<T> : IHasError
     {
         [AllowNull]
         readonly T ResultInternal = default!;
@@ -6793,6 +6793,8 @@ namespace IPA.Cores.Basic
         public bool IsError => ExceptionInternal != null;
 
         public bool IsOk => (!IsError);
+
+        public Exception? LastError => this.ExceptionInternal;
 
         public ResultOrExeption([AllowNull] T result)
         {
