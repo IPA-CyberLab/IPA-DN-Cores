@@ -359,7 +359,7 @@ namespace IPA.TestDev
         {
             if (true)
             {
-                //PPWin.Combine(@"c:\tmp\", "c:\tmp2")._Debug();
+                PPWin.Combine(@"c:\tmp\", @"./././a/b/c/../../d/../.x/")._Debug();
                 return;
             }
 

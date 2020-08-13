@@ -678,7 +678,7 @@ namespace IPA.Cores.Basic
                             // 暗号化ファイル
                             printFileName = e.Name.Substring(0, e.Name.Length - Consts.Extensions.EncryptedXtsAes256.Length);
 
-                            absolutePath = PP.Combine(PP.GetDirectoryName(e.FullPath), printFileName);
+                            absolutePath = RootFs.PathParser.Combine(RootFs.PathParser.GetDirectoryName(e.FullPath), printFileName);
 
                             // 暗号化ファイルの場合は実際にヘッダを読み取ってみる
                             try
@@ -696,7 +696,7 @@ namespace IPA.Cores.Basic
 
                 if (e.IsParentDirectory == false)
                 {
-                    string relativePath = RootFs.PathParser.GetRelativeDirectoryName(absolutePath, dir);
+                    string relativePath = RootFs.PathParser.GetRelativeFileName(absolutePath, dir);
                     absolutePath = RootFs.PathParser.Combine(logicalPath, relativePath);
                 }
                 else

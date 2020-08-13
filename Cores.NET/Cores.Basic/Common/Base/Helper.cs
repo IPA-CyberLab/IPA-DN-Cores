@@ -378,6 +378,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _NormalizeSoftEther(this string? s, bool trim = false) => Str.NormalizeStrSoftEther(s, trim);
         public static string[] _DivideStringByMultiKeywords(this string str, bool caseSensitive, params string[] keywords) => Str.DivideStringMulti(str, caseSensitive, keywords);
         public static bool _IsSuitableEncodingForString(this string s, Encoding encoding) => Str.IsSuitableEncodingForString(s, encoding);
+        public static Encoding _GetBestSuitableEncoding(this string str, IEnumerable<Encoding?>? canditateList = null) => Str.GetBestSuitableEncoding(str, canditateList);
         public static bool _IsStringNumOrAlpha(this string s) => Str.IsStringNumOrAlpha(s);
         public static string _GetLeft(this string str, int len) => Str.GetLeft(str, len);
         public static string[] _SplitStringForSearch(this string str) => Str.SplitStringForSearch(str);
@@ -2152,6 +2153,11 @@ namespace IPA.Cores.Helper.Basic
         public static string _SliceHead(this string src, int length) => src._Slice(0, length);
         [MethodImpl(Inline)]
         public static string _SliceTail(this string src, int length) => src._Slice(src.Length - length);
+
+        public static string _GetFileSizeStr(this long size) => Str.GetFileSizeStr(size);
+        public static string _GetFileSizeStr(this int size) => Str.GetFileSizeStr(size);
+        public static string _GetFileSizeStr(this ulong size) => Str.GetFileSizeStr((long)Math.Min(size, long.MaxValue));
+        public static string _GetFileSizeStr(this uint size) => Str.GetFileSizeStr(size);
     }
 }
 

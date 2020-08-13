@@ -890,9 +890,14 @@ namespace IPA.Cores.Basic
         {
             path = path._NonNull();
 
-            if (this.IsAbsolutePath(path, true))
+            if (path._IsEmpty())
             {
-                throw new ArgumentOutOfRangeException($"Path '{path}' is not relative path.");
+                throw new ArgumentOutOfRangeException($"Path '{path}' is empty.");
+            }
+
+            if (this.IsAbsolutePath(path, true) && (PossibleDirectorySeparators.Where(x => x == path[0]).Any()) == false)
+            {
+                throw new ArgumentOutOfRangeException($"Path '{path}' is not a relative path.");
             }
 
             List<string> pathStack = new List<string>();
@@ -906,7 +911,20 @@ namespace IPA.Cores.Basic
                 else if (trimmed == "..")
                 {
                     if (pathStack.Count >= 1)
-                        pathStack.RemoveAt(pathStack.Count - 1);
+                    {
+                        if (pathStack.ElementAt(pathStack.Count - 1)._IsSamei(".."))
+                        {
+                            pathStack.Add("..");
+                        }
+                        else
+                        {
+                            pathStack.RemoveAt(pathStack.Count - 1);
+                        }
+                    }
+                    else
+                    {
+                        pathStack.Add("..");
+                    }
                 }
                 else if (trimmed.Length >= 1 && trimmed[0] == '.' && trimmed.ToCharArray().Where(c => c != '.').Any() == false)
                 {
@@ -926,7 +944,11 @@ namespace IPA.Cores.Basic
             if (allowOnWindows == false)
             {
                 Debug.Assert(this.Style != FileSystemStyle.Windows);
-                throw new CoresException("this.Style != FileSystemStyle.Windows");
+
+                if (this.Style == FileSystemStyle.Windows)
+                {
+                    throw new CoresException("SplitAbsolutePathToElementsUnixStyle: this.Style == FileSystemStyle.Windows");
+                }
             }
 
             path = path._NonNull();
@@ -1281,10 +1303,18 @@ namespace IPA.Cores.Basic
 
             path2 = NormalizeDirectorySeparator(path2);
 
+            if (path2._IsFilled() && !(this.IsAbsolutePath(path2, true) && (PossibleDirectorySeparators.Where(x => x == path2[0]).Any()) == false))
+            {
+                path2 = this.NormalizeRelativePath(path2);
+            }
+
             if (path2.Length >= 1)
             {
                 if (path2NeverAbsolutePath == false)
                 {
+                    if (IsAbsolutePath(path2))
+                        return path2;
+
                     if (PossibleDirectorySeparators.Where(x => x == path2[0]).Any())
                         return path2;
                 }

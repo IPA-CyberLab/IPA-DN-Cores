@@ -997,6 +997,8 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public static IReadOnlyList<Encoding> SuitableEncodingListForJapaneseWin32;
+
         // Encoding の初期化
         static Str()
         {
@@ -1012,6 +1014,13 @@ namespace IPA.Cores.Basic
             Utf8Encoding = Encoding.UTF8;
             UniEncoding = Encoding.Unicode;
             BomUtf8 = Str.GetBOM(Str.Utf8Encoding)!;
+
+            var suitableEncodingListForJapaneseWin32 = new List<Encoding>();
+            suitableEncodingListForJapaneseWin32.Add(ShiftJisEncoding);
+            suitableEncodingListForJapaneseWin32.Add(AsciiEncoding);
+            suitableEncodingListForJapaneseWin32.Add(Utf8Encoding);
+
+            SuitableEncodingListForJapaneseWin32 = suitableEncodingListForJapaneseWin32;
         }
 
         internal static readonly char[] standardSplitChars =
@@ -1025,6 +1034,26 @@ namespace IPA.Cores.Basic
             {
                 return (char[])standardSplitChars.Clone();
             }
+        }
+
+
+        // 指定されたエンコード一覧を順に試行し、最初に表現可能なエンコードを返す
+        public static Encoding GetBestSuitableEncoding(string str, IEnumerable<Encoding?>? canditateList = null)
+        {
+            if (canditateList == null) canditateList = SuitableEncodingListForJapaneseWin32;
+
+            foreach (var candidate in canditateList)
+            {
+                if (candidate != null)
+                {
+                    if (IsSuitableEncodingForString(str, candidate))
+                    {
+                        return candidate;
+                    }
+                }
+            }
+
+            return Str.Utf8Encoding;
         }
 
         static CriticalSection LockNewId = new CriticalSection();
@@ -4599,6 +4628,7 @@ namespace IPA.Cores.Basic
         // ファイルサイズ文字列
         public static string GetFileSizeStr(long size)
         {
+            size = Math.Min(size, long.MaxValue);
             if (size >= 1099511627776L)
             {
                 return ((double)(size) / 1024.0f / 1024.0f / 1024.0f / 1024.0f).ToString(".00") + " TB";
