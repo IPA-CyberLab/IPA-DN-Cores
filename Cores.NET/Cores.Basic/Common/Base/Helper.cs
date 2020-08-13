@@ -696,8 +696,17 @@ namespace IPA.Cores.Helper.Basic
 
         //        public static void _ParseUrl(this string urlString, out Uri uri, out NameValueCollection queryString) => Str.ParseUrl(urlString, out uri, out queryString);
         public static void _ParseUrl(this string urlString, out Uri uri, out QueryStringList queryString, Encoding? encoding = null) => Str.ParseUrl(urlString, out uri, out queryString, encoding);
+        public static Uri _ParseUrl(this string urlString, out QueryStringList queryString, Encoding? encoding = null)
+        {
+            _ParseUrl(urlString, out Uri uri, out queryString, encoding);
+            return uri;
+        }
+        public static Uri _ParseUrl(this string urlString, Encoding? encoding = null) => _ParseUrl(urlString, out _, encoding);
         public static bool _TryParseUrl(this string urlString, out Uri? uri, out QueryStringList queryString, Encoding? encoding = null) => Str.TryParseUrl(urlString, out uri, out queryString, encoding);
         public static QueryStringList _ParseQueryString(this string src, Encoding? encoding = null) => Str.ParseQueryString(src, encoding);
+
+        public static Uri _CombineUrl(this Uri uri, string relativeUri) => new Uri(uri, relativeUri);
+        public static Uri _CombineUrl(this Uri uri, Uri relativeUri) => new Uri(uri, relativeUri);
 
         public static string _TryGetContentType(this System.Net.Http.Headers.HttpContentHeaders h) => (h == null ? "" : h.ContentType == null ? "" : h.ContentType.ToString()._NonNull());
         public static string _TryGetContentType(this IPA.Cores.Basic.HttpClientCore.HttpContentHeaders h) => (h == null ? "" : h.ContentType == null ? "" : h.ContentType.ToString()._NonNull());

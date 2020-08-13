@@ -78,6 +78,7 @@ namespace IPA.Cores.Basic
         public string AuthSubDirName = "";
         public bool DisableAccessLog = false;
         public bool AllowAccessToAccessLog = false;
+        public bool AllowOnlyOnce = false;
 
         public DateTimeOffset UploadTimeStamp = Util.ZeroDateTimeOffsetValue;
         public string UploadIp = "";

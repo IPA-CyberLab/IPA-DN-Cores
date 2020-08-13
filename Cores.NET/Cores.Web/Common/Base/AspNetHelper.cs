@@ -82,11 +82,23 @@ namespace IPA.Cores.Helper.Web
 
         public static HttpActionResult GetHttpActionResult(this HttpResult h)
             => new HttpActionResult(h);
+
+        public static TextActionResult _AspNetTextActionResult(this string str, string contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, Encoding? encoding = null, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
+            => new TextActionResult(str, contentType, statusCode, encoding, additionalHeaders);
     }
 }
 
 namespace IPA.Cores.Web
 {
+    // 単純なテキストを返すクラス
+    public class TextActionResult : HttpActionResult
+    {
+        public TextActionResult(string str, string contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, Encoding? encoding = null, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
+            : base(new HttpStringResult(str, contentType, statusCode, encoding, additionalHeaders))
+        {
+        }
+    }
+
     // HttpResult を元にして ASP.NET MVC の IActionResult インスタンスを生成するクラス
     public class HttpActionResult : IActionResult
     {

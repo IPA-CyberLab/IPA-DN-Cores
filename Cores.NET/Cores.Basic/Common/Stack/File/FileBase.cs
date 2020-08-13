@@ -1489,7 +1489,7 @@ namespace IPA.Cores.Basic
             if (lastError != null)
             {
                 Exception throwError = overrideError ?? lastError;
-                throw throwError;
+                throwError._ReThrow();
             }
         }
 

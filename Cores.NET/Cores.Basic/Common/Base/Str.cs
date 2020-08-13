@@ -4416,6 +4416,22 @@ namespace IPA.Cores.Basic
             return ByteToStr(Secure.HashSHA1(Guid.NewGuid().ToByteArray()));
         }
 
+        // 新しい数字だけのパスワードを生成
+        public static string GenRandNumericPassword(int count = 16)
+        {
+            count._SetMax(4);
+
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < count; i++)
+            {
+                int r = Secure.RandSInt31();
+                char c = (char)('0' + (r % 10));
+                sb.Append(c);
+            }
+
+            return sb.ToString();
+        }
+
         // 新しいパスワードを生成
         public static string GenRandPassword(int count = 16, bool mustHaveOneUnderBar = true)
         {
