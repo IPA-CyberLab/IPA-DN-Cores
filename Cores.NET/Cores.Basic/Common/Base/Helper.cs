@@ -453,6 +453,7 @@ namespace IPA.Cores.Helper.Basic
         public static List<string> _ToStrList(this IEnumerable<string> t, bool removeEmpty = false, bool distinct = false, bool distinctCaseSensitive = false)
             => Str.StrArrayToList(t, removeEmpty, distinct, distinctCaseSensitive);
         public static string _Combine(this IEnumerable<string?> t, string? sepstr = "") => Str.CombineStringArray(t, sepstr);
+        public static string _Combine(this IEnumerable<string?> t, char sepChar) => Str.CombineStringArray(t, sepChar.ToString());
 
         public static string _MakeAsciiOneLinePrintableStr(this string? src, char alternativeChar = ' ') => Str.MakeAsciiOneLinePrintableStr(src, alternativeChar);
 
@@ -705,6 +706,8 @@ namespace IPA.Cores.Helper.Basic
         public static bool _TryParseUrl(this string urlString, out Uri? uri, out QueryStringList queryString, Encoding? encoding = null) => Str.TryParseUrl(urlString, out uri, out queryString, encoding);
         public static QueryStringList _ParseQueryString(this string src, Encoding? encoding = null) => Str.ParseQueryString(src, encoding);
 
+        public static Uri _CombineUrl(this string uri, string relativeUri) => new Uri(uri._ParseUrl(), relativeUri);
+        public static Uri _CombineUrl(this string uri, Uri relativeUri) => new Uri(uri._ParseUrl(), relativeUri);
         public static Uri _CombineUrl(this Uri uri, string relativeUri) => new Uri(uri, relativeUri);
         public static Uri _CombineUrl(this Uri uri, Uri relativeUri) => new Uri(uri, relativeUri);
 
@@ -2139,6 +2142,16 @@ namespace IPA.Cores.Helper.Basic
 
         public static RandomAccessBasedStream GetStream(this IRandomAccess<byte> target, bool disposeTarget = false)
             => new RandomAccessBasedStream(target, disposeTarget);
+
+        [MethodImpl(Inline)] 
+        public static string _Slice(this string src, int start, int length) => src.Substring(start, length);
+        [MethodImpl(Inline)]
+        public static string _Slice(this string src, int start) => src.Substring(start);
+
+        [MethodImpl(Inline)]
+        public static string _SliceHead(this string src, int length) => src._Slice(0, length);
+        [MethodImpl(Inline)]
+        public static string _SliceTail(this string src, int length) => src._Slice(src.Length - length);
     }
 }
 

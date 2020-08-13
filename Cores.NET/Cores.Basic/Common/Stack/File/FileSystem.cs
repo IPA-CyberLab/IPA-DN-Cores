@@ -876,11 +876,57 @@ namespace IPA.Cores.Basic
             return BuildAbsolutePathStringFromElements(SplitAbsolutePathToElementsUnixStyle(path));
         }
 
+        public string BuildRelativePathToElements(IEnumerable<string> elements)
+        {
+            return elements._Combine(this.DirectorySeparator);
+        }
+
+        public string NormalizeRelativePath(string path)
+        {
+            return BuildRelativePathToElements(SplitRelativePathToElements(path));
+        }
+
+        public string[] SplitRelativePathToElements(string path)
+        {
+            path = path._NonNull();
+
+            if (this.IsAbsolutePath(path, true))
+            {
+                throw new ArgumentOutOfRangeException($"Path '{path}' is not relative path.");
+            }
+
+            List<string> pathStack = new List<string>();
+
+            string[] tokens = path.Split(this.PossibleDirectorySeparators, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (string s in tokens)
+            {
+                string trimmed = s.Trim();
+                if (trimmed == ".") { }
+                else if (trimmed == "..")
+                {
+                    if (pathStack.Count >= 1)
+                        pathStack.RemoveAt(pathStack.Count - 1);
+                }
+                else if (trimmed.Length >= 1 && trimmed[0] == '.' && trimmed.ToCharArray().Where(c => c != '.').Any() == false)
+                {
+                    // "....." 等の '.' のみで構成される文字列
+                }
+                else
+                {
+                    pathStack.Add(s);
+                }
+            }
+
+            return pathStack.ToArray();
+        }
+
         public string[] SplitAbsolutePathToElementsUnixStyle(string path, bool allowOnWindows = false)
         {
             if (allowOnWindows == false)
             {
                 Debug.Assert(this.Style != FileSystemStyle.Windows);
+                throw new CoresException("this.Style != FileSystemStyle.Windows");
             }
 
             path = path._NonNull();
@@ -1230,6 +1276,10 @@ namespace IPA.Cores.Basic
 
             if (path2._IsEmpty())
                 return path1;
+
+            path1 = NormalizeDirectorySeparator(path1);
+
+            path2 = NormalizeDirectorySeparator(path2);
 
             if (path2.Length >= 1)
             {

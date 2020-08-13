@@ -79,6 +79,8 @@ namespace IPA.Cores.Basic
         public bool DisableAccessLog = false;
         public bool AllowAccessToAccessLog = false;
         public bool AllowOnlyOnce = false;
+        public int NumFiles = 0;
+        public long TotalFileSize = 0;
 
         public DateTimeOffset UploadTimeStamp = Util.ZeroDateTimeOffsetValue;
         public string UploadIp = "";

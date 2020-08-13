@@ -359,6 +359,12 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                //PPWin.Combine(@"c:\tmp\", "c:\tmp2")._Debug();
+                return;
+            }
+
+            if (true)
+            {
                 bool b1 = true;
                 bool b2 = false;
 

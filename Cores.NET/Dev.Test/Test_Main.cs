@@ -71,7 +71,7 @@ namespace IPA.TestDev
 
             //Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: false, leakFullStack: false);
 
-            CoresLib.Init(new CoresLibOptions(CoresMode.Application, "TestDev", DebugMode.Debug, defaultPrintStatToConsole: true, defaultRecordLeakFullStack: false), args);
+            CoresLib.Init(new CoresLibOptions(CoresMode.Application, "TestDev", DebugMode.Debug, defaultPrintStatToConsole: true, defaultRecordLeakFullStack: true), args);
             //CoresLib.Init(new CoresLibOptions(CoresMode.Library, "TestDevLib", DebugMode.ReleaseNoDebugLogs, defaultPrintStatToConsole: false, defaultRecordLeakFullStack: false), args);
 
             try
