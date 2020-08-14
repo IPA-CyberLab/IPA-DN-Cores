@@ -492,23 +492,35 @@ namespace IPA.Cores.Basic
 
                     if (secureJson != null && secureJson.AllowOnlyOnce && isAccessToAccessLog == false)
                     {
-                        // Only Once 処理
-                        if (secureJson.OnlyOnceDownloadIp._IsEmpty())
+                        bool downloadBySelf = false;
+
+                        if (secureJson.UploadIp._IsSamei(clientIpAddress.ToString()))
                         {
-                            // 初回のダウンロードである。IP アドレスの書き込みをし、カウントダウンを開始する。
-                            secureJson.OnlyOnceDownloadIp = clientIpAddress.ToString();
-                            secureJson.OnlyOnceDownloadExpires = DateTimeOffset.Now.AddHours(1); // 1 時間のカウントダウン開始
-
-                            // ファイル保存
-                            secureJsonPath._NullCheck();
-
-                            await RootFs.WriteJsonToFileAsync(secureJsonPath, secureJson, cancel: cancel);
+                            // アップロードした本人
+                            downloadBySelf = true;
                         }
-                        else if (secureJson.OnlyOnceDownloadIp._IsSamei(clientIpAddress.ToString()))
+
+                        // Only Once 処理
+                        if (downloadBySelf == false)
+                        {
+                            if (secureJson.OnlyOnceDownloadIp._IsEmpty())
+                            {
+                                // 初回のダウンロードである。IP アドレスの書き込みをし、カウントダウンを開始する。
+                                secureJson.OnlyOnceDownloadIp = clientIpAddress.ToString();
+                                secureJson.OnlyOnceDownloadExpires = DateTimeOffset.Now.AddHours(1); // 1 時間のカウントダウン開始
+
+                                // ファイル保存
+                                secureJsonPath._NullCheck();
+
+                                await RootFs.WriteJsonToFileAsync(secureJsonPath, secureJson, cancel: cancel);
+                            }
+                        }
+
+                        if (downloadBySelf || secureJson.OnlyOnceDownloadIp._IsSamei(clientIpAddress.ToString()))
                         {
                             // 同じ IP アドレスから 2 回目以降のダウンロードである。
                             // 有効期限チェック
-                            if (secureJson.OnlyOnceDownloadExpires.HasValue &&
+                            if (secureJson.OnlyOnceDownloadExpires.HasValue == false ||
                                 secureJson.OnlyOnceDownloadExpires.Value >= DateTimeOffset.Now)
                             {
                                 // OK
