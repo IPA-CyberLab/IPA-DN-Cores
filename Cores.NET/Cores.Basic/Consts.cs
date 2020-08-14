@@ -95,6 +95,8 @@ namespace IPA.Cores.Basic
             public const int DefaultMaxPartialFragments = 4096;
 
             public const int NormalJsonMaxSize = 1 * 1024 * 1024; // 1MB
+
+            public const int MaxCookieDays = 365 + 366; // 2 Years
         }
 
         public static partial class MaxLens
@@ -180,7 +182,8 @@ namespace IPA.Cores.Basic
 
             public const string DaemonExecModeLogFileSuffix = "daemon";
 
-            public const string EasyCookiePrefix = "Ec_";
+            public const string EasyCookieNamePrefix = "Cores_EasyCookie_";
+            public const string EasyCookieValuePrefix = "Ec_";
         }
 
         public static partial class HiveNames
