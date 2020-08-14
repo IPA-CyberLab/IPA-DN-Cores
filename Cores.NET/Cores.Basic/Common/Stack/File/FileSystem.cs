@@ -1302,7 +1302,7 @@ namespace IPA.Cores.Basic
             path1 = NormalizeDirectorySeparator(path1);
 
             path2 = NormalizeDirectorySeparator(path2);
-
+            
             if (path2._IsFilled() && !(this.IsAbsolutePath(path2, true) && (PossibleDirectorySeparators.Where(x => x == path2[0]).Any()) == false))
             {
                 path2 = this.NormalizeRelativePath(path2);

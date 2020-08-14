@@ -73,6 +73,7 @@ using IPA.Cores.ClientApi.GoogleApi;
 using System.Security.Cryptography;
 using IPA.Cores.Basic.Tests;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.IO.Compression;
 
 
 
@@ -357,6 +358,24 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                using MemoryStream ms = new MemoryStream();
+
+                using var def = new DeflateStream(ms, CompressionLevel.Fastest);
+
+                //def.Write(new byte[0]);
+
+                def.WriteAsync(Memory<byte>.Empty)._GetResult();
+
+                def.Flush();
+
+                ms.Length._Print();
+
+                return;
+
+            }
+
             if (true)
             {
                 PPWin.Combine(@"c:\tmp\", @"./././a/b/c/../../d/../.x/")._Debug();

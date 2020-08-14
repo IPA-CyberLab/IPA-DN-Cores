@@ -1502,7 +1502,7 @@ namespace IPA.Cores.Basic
         public long CurrentPosition { get; }
         public bool NeedFlush { get; }
 
-        Task<long> AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default);
+        Task<long> AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default, bool forceWriteZeroLengthData = false);
         Task<long> FlushAsync(CancellationToken cancel = default);
     }
 
@@ -1647,13 +1647,15 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<long> AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default)
+        public async Task<long> AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default, bool forceWriteZeroLengthData = false)
         {
             if (this.LastError != null) throw this.LastError;
 
             cancel.ThrowIfCancellationRequested();
 
-            if (data.Length == 0) return this.CurrentPosition;
+            if (data.Length == 0)
+                if (forceWriteZeroLengthData == false)
+                    return this.CurrentPosition;
 
             if (IsStarted == false) throw new CoresException("Not started.");
 
