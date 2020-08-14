@@ -176,6 +176,18 @@ namespace IPA.Cores.Helper.Basic
         [MethodImpl(Inline)]
         public static bool _IsAllZero(this ReadOnlySpanBuffer<byte> target) => Util.IsSpanAllZero(target);
 
+        public static byte[] _EasyCompress(this Span<byte> src) => DeflateUtil.EasyCompress(src);
+        public static byte[] _EasyCompress(this ReadOnlySpan<byte> src) => DeflateUtil.EasyCompress(src);
+        public static byte[] _EasyCompress(this Memory<byte> src) => DeflateUtil.EasyCompress(src.Span);
+        public static byte[] _EasyCompress(this ReadOnlyMemory<byte> src) => DeflateUtil.EasyCompress(src.Span);
+        public static byte[] _EasyCompress(this byte[] src) => DeflateUtil.EasyCompress(src);
+
+        public static byte[] _EasyDecompress(this Span<byte> src) => DeflateUtil.EasyDecompress(src);
+        public static byte[] _EasyDecompress(this ReadOnlySpan<byte> src) => DeflateUtil.EasyDecompress(src);
+        public static byte[] _EasyDecompress(this Memory<byte> src) => DeflateUtil.EasyDecompress(src);
+        public static byte[] _EasyDecompress(this ReadOnlyMemory<byte> src) => DeflateUtil.EasyDecompress(src);
+        public static byte[] _EasyDecompress(this byte[] src) => DeflateUtil.EasyDecompress(src._AsReadOnlyMemory());
+
         // For BigEndian-standard world
         [MethodImpl(Inline)]
         public static ushort _Endian16_U(this ushort v) => BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(v) : v;

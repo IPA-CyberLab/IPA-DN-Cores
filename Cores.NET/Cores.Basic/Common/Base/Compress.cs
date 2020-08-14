@@ -31,15 +31,41 @@
 // LAW OR COURT RULE.
 
 using System;
+using System.IO;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
 using IPA.Cores.Basic.Internal;
+using System.IO.Compression;
 
 namespace IPA.Cores.Basic
 {
+    public static class DeflateUtil
+    {
+        public static byte[] EasyCompress(ReadOnlySpan<byte> src)
+        {
+            using MemoryStream ms = new MemoryStream();
+            using var d = new DeflateStream(ms, CompressionLevel.Optimal);
+            d.Write(src);
+            d.Flush();
+            return ms.ToArray();
+        }
+
+        public static byte[] EasyDecompress(ReadOnlySpan<byte> src, int maxSize = 0)
+            => EasyDecompress(src._CloneMemory(), maxSize);
+
+        public static byte[] EasyDecompress(ReadOnlyMemory<byte> src, int maxSize = 0)
+        {
+            var srcSegment = src._AsSegment();
+
+            using MemoryStream ms = new MemoryStream(srcSegment.Array!, srcSegment.Offset, srcSegment.Count);
+            using var d = new DeflateStream(ms, CompressionMode.Decompress);
+            return d._ReadToEnd(maxSize);
+        }
+    }
+
     public static class ZLib
     {
         // データを圧縮する

@@ -356,24 +356,35 @@ namespace IPA.TestDev
         }
 
 
+        class TestClass123
+        {
+            public static void Test123()
+            {
+                CoresLibException e = new CoresLibException();
+
+                throw e;
+            }
+        }
+
         public static void Test_Generic()
         {
             if (true)
             {
-                using MemoryStream ms = new MemoryStream();
+                LogBrowserSecureJson j = new LogBrowserSecureJson()
+                {
+                    AuthSubject = " 独立行政法人 情報処理推進機構 (IPA) 独立行政法人 情報処理推進機構 (IPA) ",
+                    UploadIp = "1.2.3.4.5.6.7.8",
+                };
 
-                using var def = new DeflateStream(ms, CompressionLevel.Fastest);
+                string str = EasyCookieUtil.SerializeObject("abc");
 
-                //def.Write(new byte[0]);
+                str._Print();
 
-                def.WriteAsync(Memory<byte>.Empty)._GetResult();
+                string? k = EasyCookieUtil.DeserializeObject<string>(str);
 
-                def.Flush();
-
-                ms.Length._Print();
+                k._DebugAsJson();
 
                 return;
-
             }
 
             if (true)

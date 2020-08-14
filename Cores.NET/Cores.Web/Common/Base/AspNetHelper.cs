@@ -37,6 +37,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Routing;
@@ -85,6 +86,12 @@ namespace IPA.Cores.Helper.Web
 
         public static TextActionResult _AspNetTextActionResult(this string str, string contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, Encoding? encoding = null, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
             => new TextActionResult(str, contentType, statusCode, encoding, additionalHeaders);
+
+        [return: MaybeNull]
+        public static T _GetCookie<T>(this Controller controller, string cookieName)
+        {
+            return default!;
+        }
     }
 }
 

@@ -62,6 +62,10 @@ namespace IPA.Cores.Globals
             return 0;
         }
 
+        public const MethodImplOptions NoOptimization = MethodImplOptions.NoOptimization;
+
+        public const MethodImplOptions NoInline = MethodImplOptions.NoInlining;
+
         public const MethodImplOptions Inline = MethodImplOptions.AggressiveInlining | (MethodImplOptions)512 /* AggressiveOptimization */;
 
         public static int DoNothing() => NoOp();

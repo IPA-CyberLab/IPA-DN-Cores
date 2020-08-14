@@ -106,6 +106,8 @@ namespace IPA.Cores.Basic
             public const int NormalStringTruncateLen = 255;
 
             public const int ExceptionStrTruncateLen = 800;
+
+            public const int MaxCookieSize = 4093;
         }
 
         public static partial class Ports
@@ -177,6 +179,8 @@ namespace IPA.Cores.Basic
             public const string DaemonDefFileMarker = "hTNdwaKmxL4MNPAyyes2qsgT";
 
             public const string DaemonExecModeLogFileSuffix = "daemon";
+
+            public const string EasyCookiePrefix = "Ec_";
         }
 
         public static partial class HiveNames

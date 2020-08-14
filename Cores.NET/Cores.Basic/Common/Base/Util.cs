@@ -2881,16 +2881,23 @@ namespace IPA.Cores.Basic
             if (maxSize <= 0) maxSize = int.MaxValue;
             MemoryStream ms = new MemoryStream();
 
-            byte[] tmp = new byte[200000];
-            while (true)
+            byte[] tmp = MemoryHelper.FastAllocMoreThan<byte>(Consts.Numbers.DefaultLargeBufferSize);
+            try
             {
-                int r = s.Read(tmp, 0, tmp.Length);
-                if (r == 0)
+                while (true)
                 {
-                    break;
+                    int r = s.Read(tmp, 0, tmp.Length);
+                    if (r == 0)
+                    {
+                        break;
+                    }
+                    ms.Write(tmp, 0, r);
+                    if (ms.Length > maxSize) throw new OverflowException();
                 }
-                ms.Write(tmp, 0, r);
-                if (ms.Length > maxSize) throw new OverflowException();
+            }
+            finally
+            {
+                MemoryHelper.FastFree(tmp);
             }
 
             return ms.ToArray();
@@ -2901,7 +2908,7 @@ namespace IPA.Cores.Basic
             if (maxSize <= 0) maxSize = int.MaxValue;
             MemoryStream ms = new MemoryStream();
 
-            byte[] tmp = MemoryHelper.FastAllocMoreThan<byte>(200000);
+            byte[] tmp = MemoryHelper.FastAllocMoreThan<byte>(Consts.Numbers.DefaultLargeBufferSize);
             try
             {
                 while (true)
@@ -7422,6 +7429,34 @@ namespace IPA.Cores.Basic
     public static class EmptyEnumerable<T>
     {
         public static IEnumerable<T> Empty { get; } = new List<T>();
+    }
+
+    public class CoresLibException : CoresException
+    {
+        [MethodImpl(NoInline | NoOptimization)]
+        public CoresLibException(string? message = "", [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+            : base(GenerateMessage(message, filename, line, caller))
+        {
+        }
+
+        [MethodImpl(NoInline | NoOptimization)]
+        public CoresLibException(string? message, Exception? innerException, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+            : base(GenerateMessage(message, filename, line, caller), innerException)
+        {
+        }
+
+        [MethodImpl(NoInline | NoOptimization)]
+        static string GenerateMessage(string? srcMessage, string filename, int line, string? caller)
+        {
+            StackTrace stackTrace = new StackTrace(1, false);
+            Type? type = stackTrace?.GetFrame(1)?.GetMethod()?.DeclaringType;
+
+            string className = type?.Name ?? "UnknownClass";
+            string functionName = caller._FilledOrDefault("UnknownFunction");
+            if (srcMessage._IsEmpty()) srcMessage = nameof(CoresLibException);
+
+            return $"{className} - {functionName}(): {srcMessage}";
+        }
     }
 
     public class CoresException : ApplicationException
