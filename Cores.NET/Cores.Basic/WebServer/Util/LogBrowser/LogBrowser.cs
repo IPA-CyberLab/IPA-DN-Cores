@@ -83,7 +83,10 @@ namespace IPA.Cores.Basic
         public long TotalFileSize = 0;
 
         public DateTimeOffset UploadTimeStamp = Util.ZeroDateTimeOffsetValue;
+
         public string UploadIp = "";
+        public string? OnlyOnceDownloadIp = null;
+        public DateTimeOffset? OnlyOnceDownloadExpires = null;
 
         public void Normalize()
         {
@@ -110,7 +113,7 @@ namespace IPA.Cores.Basic
         public int StatusCode;
         public bool? PasswordMatched;
     }
-    
+
     // LogBrowser を含んだ HttpServer のオプション
     public class LogBrowserHttpServerOptions
     {
@@ -320,15 +323,19 @@ namespace IPA.Cores.Basic
                     return new HttpStringResult("403 Forbidden", statusCode: 403);
                 }
 
+                LogBrowserSecureJson? secureJson = null;
+                bool isAccessToAccessLog = false;
+                string? secureJsonPath = null;
+
                 if (this.Options.Flags.Bit(LogBrowserFlags.SecureJson))
                 {
                     // _secure.json ファイルの読み込みを試行する
                     string[] dirNames = PathParser.Linux.SplitAbsolutePathToElementsUnixStyle(physicalPath);
                     string firstDirName = "/" + dirNames[0];
-                    string secureJsonPath = PathParser.Linux.Combine(firstDirName, Consts.FileNames.LogBrowserSecureJson);
+                    secureJsonPath = PathParser.Linux.Combine(firstDirName, Consts.FileNames.LogBrowserSecureJson);
 
                     // このファイルはあるかな?
-                    LogBrowserSecureJson? secureJson = secureJsonPath._FileToObject<LogBrowserSecureJson>(RootFs, Consts.Numbers.NormalJsonMaxSize, cancel: cancel, nullIfError: true);
+                    secureJson = secureJsonPath._FileToObject<LogBrowserSecureJson>(RootFs, Consts.Numbers.NormalJsonMaxSize, cancel: cancel, nullIfError: true);
 
                     if (secureJson == null)
                     {
@@ -344,7 +351,7 @@ namespace IPA.Cores.Basic
                         accessLogResults.PhysicalAccessLogDirPath = PathParser.Linux.Combine(firstDirName, Consts.FileNames.LogBrowserAccessLogDirName);
                     }
 
-                    bool isAccessToAccessLog = false;
+                    bool isEncrypted = false;
 
                     if (secureJson.AuthRequired)
                     {
@@ -354,6 +361,8 @@ namespace IPA.Cores.Basic
                         request.GetDisplayUrl()._ParseUrl(out Uri fullUri, out _);
                         var thisDirFullUrl = new Uri(fullUri, this.AbsolutePathPrefix + firstDirName + "/");
                         var authFullUrl = new Uri(thisDirFullUrl, secureJson.AuthSubDirName + "/");
+
+                        isEncrypted = true;
 
                         if (dirNames.ElementAtOrDefault(1)._IsSamei(secureJson.AuthSubDirName))
                         {
@@ -421,15 +430,28 @@ namespace IPA.Cores.Basic
 
                     }
 
-                    if (isAccessToAccessLog == false)
+                    if (secureJson.AllowAccessToAccessLog && secureJson.DisableAccessLog == false)
                     {
                         // フッターにアクセスログへのリンクを付ける
-                        footer = $@"
+                        footer += $@"
         <hr>
         <p><a href=""{this.AbsolutePathPrefix}/{dirNames.Take(2)._Combine("/")}/{Consts.FileNames.LogBrowserAccessLogDirName}/""><strong><i class=""far fa-eye""></i> アクセスログの参照</strong></a></p>
-        <p>　</p>
 ";
                     }
+
+                    if (isEncrypted)
+                    {
+                        // 暗号化されている案内を出す
+                        footer += $@"
+        <hr>
+        <p><i class=""fas fa-shield-alt""></i>&nbsp;このディレクトリのファイルは、Web サーバー上で XTS-AES256 で強力に透過的暗号化されています。<BR>
+        (XTS-AES256 の暗号鍵は、認証時の非常に長いパスワード文字列を利用しています。)<BR>
+        ファイルへのアクセスの都度、サーバー上でメモリ上で一時的・透過的に解読されます。<BR>
+        したがって、たとえサーバーや VM、クラウドシステムの管理者 (root) であっても、アクセス用パスワードを知らない限り、ファイルの内容にアクセスすることはできません。</p>
+";
+                    }
+
+                    footer += $"<HR><p>IPA FileCenter Uploader: <a href='https://github.com/IPA-CyberLab/IPA-DN-FileCenter'>オープンソース GitHub ソースコード</a> | <a href='https://github.com/IPA-CyberLab/IPA-DN-FileCenter/blob/master/LICENSE'>使用条件</a> | Copyright &copy; {DateTime.Now.Year.ToString()} IPA 産業サイバーセキュリティセンター サイバー技術研究室. All rights reserved.</p>";
                 }
 
                 if (logicalPath._IsEmpty()) logicalPath = physicalPath;
@@ -451,6 +473,7 @@ namespace IPA.Cores.Basic
                     }
                 }
 
+
                 if (await RootFs.IsDirectoryExistsAsync(physicalPath, cancel))
                 {
                     // Directory
@@ -465,6 +488,60 @@ namespace IPA.Cores.Basic
                     {
                         // _secure.json そのものにはアクセスできません
                         return new HttpStringResult("403 Forbidden", statusCode: 403);
+                    }
+
+                    if (secureJson != null && secureJson.AllowOnlyOnce && isAccessToAccessLog == false)
+                    {
+                        // Only Once 処理
+                        if (secureJson.OnlyOnceDownloadIp._IsEmpty())
+                        {
+                            // 初回のダウンロードである。IP アドレスの書き込みをし、カウントダウンを開始する。
+                            secureJson.OnlyOnceDownloadIp = clientIpAddress.ToString();
+                            secureJson.OnlyOnceDownloadExpires = DateTimeOffset.Now.AddHours(1); // 1 時間のカウントダウン開始
+
+                            // ファイル保存
+                            secureJsonPath._NullCheck();
+
+                            await RootFs.WriteJsonToFileAsync(secureJsonPath, secureJson, cancel: cancel);
+                        }
+                        else if (secureJson.OnlyOnceDownloadIp._IsSamei(clientIpAddress.ToString()))
+                        {
+                            // 同じ IP アドレスから 2 回目以降のダウンロードである。
+                            // 有効期限チェック
+                            if (secureJson.OnlyOnceDownloadExpires.HasValue &&
+                                secureJson.OnlyOnceDownloadExpires.Value >= DateTimeOffset.Now)
+                            {
+                                // OK
+                            }
+                            else
+                            {
+                                // 有効期限切れ
+                                return new HttpStringResult(BuildErrorHtml(secureJson,
+                                    $"このファイルは、IP アドレス '{secureJson.OnlyOnceDownloadIp}' から最初にダウンロードされてから 60 分間のみダウンロード可能に設定されています。ファイルのダウンロード可能な有効期限が切れています。有効期限: {secureJson.OnlyOnceDownloadExpires?._ToDtStr() ?? "Unknown"}",
+                                    new DirectoryPath(physicalPath, RootFs)
+                                    ), contentType: Consts.MimeTypes.HtmlUtf8, statusCode: 403);
+                            }
+                        }
+                        else
+                        {
+                            // IP 違い
+                            return new HttpStringResult(BuildErrorHtml(secureJson,
+                                $"このファイルは、IP アドレス '{secureJson.OnlyOnceDownloadIp}' からすでにダウンロードされています。あなたは、異なる IP アドレス '{clientIpAddress}' であるため、ダウンロードできません。",
+                                new DirectoryPath(physicalPath, RootFs)
+                                ), contentType: Consts.MimeTypes.HtmlUtf8, statusCode: 403);
+                        }
+                    }
+
+                    if (secureJson != null && secureJson.Expires <= DateTimeOffset.Now)
+                    {
+                        if (isAccessToAccessLog == false)
+                        {
+                            // 有効期限が切れました
+                            return new HttpStringResult(BuildErrorHtml(secureJson,
+                                $"ファイルのダウンロード可能な有効期限が切れています。有効期限: {secureJson.Expires._ToDtStr()}",
+                                new DirectoryPath(physicalPath, RootFs)
+                                ), contentType: Consts.MimeTypes.HtmlUtf8, statusCode: 403);
+                        }
                     }
 
                     string extension = RootFs.PathParser.GetExtension(physicalPath);
@@ -587,6 +664,20 @@ namespace IPA.Cores.Basic
             {
                 return new HttpStringResult($"HTTP Status Code: 500\r\n" + ex.ToString(), statusCode: 500);
             }
+        }
+
+        string BuildErrorHtml(LogBrowserSecureJson secureJson, string errorString, DirectoryPath dir)
+        {
+            string body = CoresRes["LogBrowser/Html/Error.html"].String;
+
+            body = body._ReplaceStrWithReplaceClass(new
+            {
+                __TITLE__ = $"{this.Options.SystemTitle} - { (dir.IsDirectoryExists() ? RootFs.PathParser.AppendDirectorySeparatorTail(dir.PathString) : dir.PathString)}"._EncodeHtml(true),
+                __TITLE2__ = $"{this.Options.SystemTitle} - { (dir.IsDirectoryExists() ? RootFs.PathParser.AppendDirectorySeparatorTail(dir.PathString) : dir.PathString)}"._EncodeHtml(true),
+                __ERROR__ = errorString._EncodeHtml(true),
+            });
+
+            return body;
         }
 
         string BuildAuthRequiredHtml(DirectoryPath dir, string targetFullUrl, LogBrowserSecureJson secureJson)
