@@ -968,10 +968,12 @@ namespace IPA.Cores.Basic
                 lock (this.StateDb.DataLock)
                     lastMaxRowId = this.StateDb.ManagedData.TableNameAndLastRowId._GetOrNew(tableName);
 
-                $"lastMaxRowId get = {lastMaxRowId}   from  tableName = {tableName}"._DebugFunc();
+                $"lastMaxRowId get = {lastMaxRowId._ToString3()}   from  tableName = {tableName}"._DebugFunc();
 
                 while (true)
                 {
+                    long dbCurrentMaxRowId = (await Db.QueryWithValueAsync($"select max({rowIdColumnName}) from {tableName}", cancel)).Int64;
+
                     await Db.QueryAsync($"select top {maxRowsToFetchOnce} * from {tableName} with (nolock) where {rowIdColumnName} > {lastMaxRowId} order by {rowIdColumnName} asc", cancel);
 
                     Data data = await Db.ReadAllDataAsync(cancel);
@@ -1000,9 +1002,9 @@ namespace IPA.Cores.Basic
                         totalWrittenRows++;
                     }
 
-                    $"Current WrittenRows: {totalWrittenRows}   from tableName = {tableName}"._DebugFunc();
-
                     lastMaxRowId = data.RowList.Last().ValueList[0].Int64;
+
+                    $"{tableName}: Current WrittenRows: {totalWrittenRows._ToString3()}, Last Row ID: {lastMaxRowId._ToString3()}, DB Current Max Row ID: {dbCurrentMaxRowId._ToString3()}"._DebugFunc();
 
                     lock (this.StateDb.DataLock)
                         this.StateDb.ManagedData.TableNameAndLastRowId[tableName] = lastMaxRowId;
@@ -1013,13 +1015,14 @@ namespace IPA.Cores.Basic
             catch (Exception ex)
             {
                 ex._Error();
+                throw;
             }
             finally
             {
                 // DataVault クライアントの解放
                 clients._DoForEach(x => x._DisposeSafe());
 
-                $"End: tableName = {tableName}, rowIdColumnName = {rowIdColumnName}, maxRowsToFetchOnce = {maxRowsToFetchOnce}, totalWrittenRows = {totalWrittenRows}"._DebugFunc();
+                $"End: tableName = {tableName}, rowIdColumnName = {rowIdColumnName}, maxRowsToFetchOnce = {maxRowsToFetchOnce}, totalWrittenRows = {totalWrittenRows._ToString3()}"._DebugFunc();
             }
         }
 
