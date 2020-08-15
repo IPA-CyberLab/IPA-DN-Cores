@@ -146,7 +146,8 @@ namespace IPA.Cores.Basic
 
     public class Utf8BomFileSystemParam : ViewFileSystemParams
     {
-        public Utf8BomFileSystemParam(FileSystem underlayFileSystem, FileSystemMode mode = FileSystemMode.Default) : base(underlayFileSystem, underlayFileSystem.PathParser, mode) { }
+        public Utf8BomFileSystemParam(FileSystem underlayFileSystem, FileSystemMode mode = FileSystemMode.Default, bool disposeUnderlay = false)
+            : base(underlayFileSystem, underlayFileSystem.PathParser, mode, disposeUnderlay) { }
     }
 
     public class Utf8BomFileSystem : ViewFileSystem

@@ -147,10 +147,12 @@ namespace IPA.Cores.Basic
     public class ViewFileSystemParams : FileSystemParams
     {
         public FileSystem UnderlayFileSystem { get; }
+        public bool DisposeUnderlay { get; }
 
-        public ViewFileSystemParams(FileSystem underlayFileSystem, PathParser pathParser, FileSystemMode mode = FileSystemMode.Default) : base(pathParser, mode)
+        public ViewFileSystemParams(FileSystem underlayFileSystem, PathParser pathParser, FileSystemMode mode = FileSystemMode.Default, bool disposeUnderlay = false) : base(pathParser, mode)
         {
             this.UnderlayFileSystem = underlayFileSystem;
+            this.DisposeUnderlay = disposeUnderlay;
         }
     }
 
@@ -181,6 +183,21 @@ namespace IPA.Cores.Basic
             {
                 fileObj._DisposeSafe();
                 throw;
+            }
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                if (Params.DisposeUnderlay)
+                {
+                    await this.UnderlayFileSystem._DisposeSafeAsync();
+                }
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
             }
         }
 

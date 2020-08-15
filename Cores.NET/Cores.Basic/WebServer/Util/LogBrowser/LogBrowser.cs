@@ -171,12 +171,60 @@ namespace IPA.Cores.Basic
         }
     }
 
+    class LogBrowserSecureJsonRewriteFileSystem : RewriteFileSystem
+    {
+        public LogBrowserSecureJsonRewriteFileSystem(RewriteFileSystemParam param) : base(param)
+        {
+        }
+
+        protected override string MapPathVirtualToPhysicalImpl(string relativeSafeUnderlayFsStyleVirtualPath)
+        {
+            if (relativeSafeUnderlayFsStyleVirtualPath == "") return "/";
+
+            // yymmdd_aaa を /yymmdd/yymmdd_aaa に変換する
+            if (relativeSafeUnderlayFsStyleVirtualPath.Length >= 7 && relativeSafeUnderlayFsStyleVirtualPath[6] == '_')
+            {
+                var yymmdd = relativeSafeUnderlayFsStyleVirtualPath._SliceHead(6);
+
+                if (yymmdd.All(x => (x >= '0' && x <= '9')))
+                {
+                    return "/" + yymmdd + "/" + relativeSafeUnderlayFsStyleVirtualPath;
+                }
+            }
+
+            throw new CoresLibException($"relativeSafeUnderlayFsStyleVirtualPath is incorrect: '{relativeSafeUnderlayFsStyleVirtualPath}'");
+        }
+
+        protected override string MapPathPhysicalToVirtualImpl(string underlayFsStylePhysicalPath)
+        {
+            if (underlayFsStylePhysicalPath == "/") return "";
+
+            // /yymmdd/yymmdd_aaa を yymmdd_aaa に変換する
+            if (underlayFsStylePhysicalPath[0] == '/')
+            {
+                underlayFsStylePhysicalPath = underlayFsStylePhysicalPath._Slice(1);
+
+                if (underlayFsStylePhysicalPath.Length >= 7 && underlayFsStylePhysicalPath[6] == '/')
+                {
+                    var yymmdd = underlayFsStylePhysicalPath._SliceHead(6);
+
+                    if (yymmdd.All(x => (x >= '0' && x <= '9')))
+                    {
+                        return underlayFsStylePhysicalPath._Slice(7);
+                    }
+                }
+            }
+
+            throw new CoresLibException($"underlayFsStylePhysicalPath is incorrect: '{underlayFsStylePhysicalPath}'");
+        }
+    }
+
     // 汎用的に任意の Kestrel App から利用できる LogBrowser
     public class LogBrowser : AsyncService
     {
         public LogBrowserOptions Options { get; }
 
-        public ChrootFileSystem RootFs;
+        public FileSystem RootFs;
 
         public string AbsolutePathPrefix { get; }
 
@@ -196,6 +244,11 @@ namespace IPA.Cores.Basic
             this.Options = options;
 
             this.RootFs = new ChrootFileSystem(new ChrootFileSystemParam(Options.RootDir.FileSystem, Options.RootDir.PathString, FileSystemMode.Writeable));
+
+            if (this.Options.Flags.Bit(LogBrowserFlags.SecureJson))
+            {
+                this.RootFs = new LogBrowserSecureJsonRewriteFileSystem(new RewriteFileSystemParam(this.RootFs, disposeUnderlay: true));
+            }
         }
 
         public async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)

@@ -62,10 +62,10 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public abstract class RewriteViewFileSystemParam : ViewFileSystemParams
+    public class RewriteFileSystemParam : ViewFileSystemParams
     {
-        public RewriteViewFileSystemParam(FileSystem underlayFileSystem, FileSystemMode mode = FileSystemMode.Default)
-            : base(underlayFileSystem, underlayFileSystem.PathParser.Style == FileSystemStyle.Windows ? PathParser.GetInstance(FileSystemStyle.Mac) : underlayFileSystem.PathParser, mode)
+        public RewriteFileSystemParam(FileSystem underlayFileSystem, FileSystemMode mode = FileSystemMode.Default, bool disposeUnderlay = false)
+            : base(underlayFileSystem, underlayFileSystem.PathParser.Style == FileSystemStyle.Windows ? PathParser.GetInstance(FileSystemStyle.Mac) : underlayFileSystem.PathParser, mode, disposeUnderlay)
         // Use the Mac OS X path parser if the underlay file system is Windows
         {
         }
@@ -85,9 +85,9 @@ namespace IPA.Cores.Basic
 
     public abstract class RewriteFileSystem : ViewFileSystem, IRewriteVirtualPhysicalPath
     {
-        protected new RewriteViewFileSystemParam Params => (RewriteViewFileSystemParam)base.Params;
+        protected new RewriteFileSystemParam Params => (RewriteFileSystemParam)base.Params;
 
-        public RewriteFileSystem(RewriteViewFileSystemParam param) : base(param)
+        public RewriteFileSystem(RewriteFileSystemParam param) : base(param)
         {
         }
 

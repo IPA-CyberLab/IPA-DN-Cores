@@ -707,9 +707,9 @@ namespace IPA.Cores.Helper.Basic
         public static bool _TryParseUrl(this string urlString, out Uri? uri, out QueryStringList queryString, Encoding? encoding = null) => Str.TryParseUrl(urlString, out uri, out queryString, encoding);
         public static QueryStringList _ParseQueryString(this string src, Encoding? encoding = null) => Str.ParseQueryString(src, encoding);
 
-        public static Uri _CombineUrl(this string uri, string relativeUri) => new Uri(uri._ParseUrl(), relativeUri);
+        public static Uri _CombineUrl(this string uri, string relativeUriOrAbsolutePath) => new Uri(uri._ParseUrl(), relativeUriOrAbsolutePath);
         public static Uri _CombineUrl(this string uri, Uri relativeUri) => new Uri(uri._ParseUrl(), relativeUri);
-        public static Uri _CombineUrl(this Uri uri, string relativeUri) => new Uri(uri, relativeUri);
+        public static Uri _CombineUrl(this Uri uri, string relativeUriOrAbsolutePath) => new Uri(uri, relativeUriOrAbsolutePath);
         public static Uri _CombineUrl(this Uri uri, Uri relativeUri) => new Uri(uri, relativeUri);
 
         public static string _TryGetContentType(this System.Net.Http.Headers.HttpContentHeaders h) => (h == null ? "" : h.ContentType == null ? "" : h.ContentType.ToString()._NonNull());
