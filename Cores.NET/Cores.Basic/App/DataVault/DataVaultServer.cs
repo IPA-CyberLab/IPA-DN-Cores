@@ -267,7 +267,7 @@ namespace IPA.Cores.Basic
 
             this.FileFlags = fileFlags;
 
-            this.DestFileSystem = destFileSystem ?? LfsUtf8;
+            this.DestFileSystem = destFileSystem ?? Lfs;
 
             this.DestRootDirName = this.DestFileSystem.PathParser.RemoveLastSeparatorChar(this.DestFileSystem.PathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(this.DestRootDirName));
 
