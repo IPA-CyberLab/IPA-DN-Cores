@@ -15,6 +15,7 @@ Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		..\..\Cores.Codes\Cores.Codes.projitems*{1c674893-7c84-4e7a-834e-6e2370225d99}*SharedItemsImports = 13
 		..\..\Cores.Basic\Cores.Basic.projitems*{1c674893-7c84-4e7c-834e-6e2370225da0}*SharedItemsImports = 13
+		..\..\Cores.Basic\Cores.Basic.projitems*{77728b0f-4ed4-4f24-9b64-ca70049716b6}*SharedItemsImports = 5
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
