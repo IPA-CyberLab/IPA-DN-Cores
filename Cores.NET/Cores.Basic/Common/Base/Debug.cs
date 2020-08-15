@@ -1388,10 +1388,14 @@ namespace IPA.Cores.Basic
 
         public static bool NextTimeCallGc { get; internal set; } = false;
 
-        public void Refresh()
+        public void Refresh(bool forceGc = false)
         {
-            bool flag = NextTimeCallGc;
-            NextTimeCallGc = false;
+            bool flag = forceGc || NextTimeCallGc;
+
+            if (forceGc == false)
+            {
+                NextTimeCallGc = false;
+            }
 
             if (flag)
             {

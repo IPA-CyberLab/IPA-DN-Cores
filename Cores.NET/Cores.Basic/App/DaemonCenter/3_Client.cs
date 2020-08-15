@@ -242,7 +242,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         {
             CoresRuntimeStat runtimeStat = new CoresRuntimeStat();
 
-            runtimeStat.Refresh();
+            runtimeStat.Refresh(forceGc: true);
 
             string[]? globalIpList = null;
 
