@@ -16,6 +16,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)App\DaemonCenter\3_Client.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\DaemonCenter\1_Common.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\DaemonCenter\2_Server.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)App\DataVault\DataVaultClient.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)App\DataVault\DataVaultServer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)App\DataVault\DataVaultServerApp.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\Logging\LogServerApp\LogServerApp.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\SnmpWork\SnmpWork.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\SnmpWork\SnmpWorkFetchers.cs" />

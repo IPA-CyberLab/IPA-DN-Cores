@@ -1576,6 +1576,7 @@ namespace IPA.Cores.Basic
     {
         DiscardExistingData = 0,
         DiscardWritingData,
+        ForceWrite,
     }
 
     public static class FastStreamBufferHelper
@@ -1613,7 +1614,7 @@ namespace IPA.Cores.Basic
 
                         ret = totalSizeToInsert;
                     }
-                    else
+                    else if (mode == FastStreamNonStopWriteMode.DiscardWritingData)
                     {
                         long freeSpace = buffer.SizeWantToBeWritten;
                         if (freeSpace == 0) return 0;
@@ -1623,6 +1624,16 @@ namespace IPA.Cores.Basic
                         buffer.EnqueueAll(itemToInsert);
 
                         ret = totalSizeToInsert;
+                    }
+                    else
+                    {
+                        ret = 0;
+                        foreach (var m in itemList)
+                        {
+                            ret += m.Length;
+                        }
+
+                        buffer.EnqueueAll(itemList);
                     }
                 }
             }

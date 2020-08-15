@@ -3041,6 +3041,71 @@ ZIP ファイルのパスワード:
 
     partial class TestDevCommands
     {
+        // Data vault server
+        [ConsoleCommand]
+        static void DataVaultServerTest(ConsoleService c, string cmdName, string str)
+        {
+            using (DataVaultServerApp server = new DataVaultServerApp())
+            {
+                Con.ReadLine("Exit>");
+            }
+        }
+
+        [ConsoleCommand]
+        static void DataVaultClientTest(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[arg]", null, null, null, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string serverHostname = vl.DefaultParam.StrValue._FilledOrDefault("127.0.0.1");
+
+            PalSslClientAuthenticationOptions cliSsl = new PalSslClientAuthenticationOptions(false, null, DevTools.TestSampleCert.HashSHA1);
+
+            using (DataVaultClient client = new DataVaultClient(new DataVaultClientOptions(null, cliSsl, serverHostname)))
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+
+                Task testTask = TaskUtil.StartAsyncTaskAsync(async () =>
+                {
+                    await Task.CompletedTask;
+
+                    string bigData = Str.MakeCharArray('x', 100_000);
+
+                    for (int i = 0; ; i++)
+                    {
+                        if (cts.IsCancellationRequested) return;
+
+                        client.WriteDataAsync(new DataVaultData
+                        {
+                            SystemName = "tcpip_test",
+                            LogName = "alog",
+                            KeyType = "by_server_ip",
+                            KeyShortValue = "127.0",
+                            KeyFullValue = "127.0.0.1",
+                            TimeStamp = DateTimeOffset.Now,
+                            WithTime = true,
+                            Data = new int[] { 1, 2, 3, 4, 5 },
+                        }
+                        )._GetResult();
+
+                        //await Task.Delay(100);
+                    }
+                });
+
+                Con.ReadLine("Exit>");
+
+                cts.Cancel();
+
+                testTask._TryWait();
+            }
+        }
+
+
+        // Log server
         [ConsoleCommand]
         static void LogServerTest(ConsoleService c, string cmdName, string str)
         {

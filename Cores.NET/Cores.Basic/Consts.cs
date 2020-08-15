@@ -110,6 +110,8 @@ namespace IPA.Cores.Basic
             public const int ExceptionStrTruncateLen = 800;
 
             public const int MaxCookieSize = 4093;
+
+            public const int DataVaultPathElementMaxLen = 64;
         }
 
         public static partial class Ports
@@ -118,6 +120,9 @@ namespace IPA.Cores.Basic
 
             public const int LogServerDefaultHttpPort = 80;
             public const int LogServerDefaultHttpsPort = 443;
+
+            public const int DataVaultServerDefaultHttpPort = 80;
+            public const int DataVaultServerDefaultHttpsPort = 443;
 
             public const int Http = 80;
             public const int Https = 443;
@@ -143,6 +148,8 @@ namespace IPA.Cores.Basic
             public const int DaemonCenterHttps = 7004;
             public const int CodeSignServer = 7006;
             public const int SnmpWorkHttp = 7007;
+            public const int SnmpWorkTelnetStat = 7008;
+            public const int DataVaultServerDefaultServicePort = 7009;
         }
 
         public static partial class DaemonArgKeys
