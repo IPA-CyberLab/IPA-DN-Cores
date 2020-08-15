@@ -490,7 +490,7 @@ namespace IPA.Cores.Basic
                 serializer: HiveSerializerSelection.RichJson));
 
         public static readonly Singleton<string, HiveData<HiveKeyValue>> UserSettingsEx =
-            new Singleton<string, HiveData<HiveKeyValue>>(appName => new HiveData<HiveKeyValue>(SharedUserConfigHive, "AppSettings/" + appName,
+            new Singleton<string, HiveData<HiveKeyValue>>(appName => new HiveData<HiveKeyValue>(SharedUserConfigHive, "AppUserSettings/" + appName,
                 serializer: HiveSerializerSelection.RichJson));
 
 
@@ -969,7 +969,7 @@ namespace IPA.Cores.Basic
 
                     bool skipLoadFromFile = false;
 
-                    if (flag.Bit(HiveSyncFlags.SaveToFile) && this.Policy.Bit(HiveSyncPolicy.AutoWriteToFile))
+                    if (flag.Bit(HiveSyncFlags.SaveToFile) && (this.Policy.Bit(HiveSyncPolicy.AutoWriteToFile)|| flag.Bit(HiveSyncFlags.ForceUpdate)))
                     {
                         if (this.StorageHash != dataSnapshotState.Hash || flag.Bit(HiveSyncFlags.ForceUpdate))
                         {
