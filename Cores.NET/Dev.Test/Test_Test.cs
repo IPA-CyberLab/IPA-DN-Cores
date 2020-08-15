@@ -3065,7 +3065,7 @@ ZIP ファイルのパスワード:
 
             PalSslClientAuthenticationOptions cliSsl = new PalSslClientAuthenticationOptions(false, null, "d471b9675b3d374d7af8828ab4276711c2a2c601");
 
-            using (DataVaultClient client = new DataVaultClient(new DataVaultClientOptions(null, cliSsl, serverHostname, "3xvTXIkPJmYoNVVzoNHgDvzQpIyffE4z")))
+            using (DataVaultClient client = new DataVaultClient(new DataVaultClientOptions(serverHostname, "3xvTXIkPJmYoNVVzoNHgDvzQpIyffE4z", cliSsl)))
             {
                 CancellationTokenSource cts = new CancellationTokenSource();
 
