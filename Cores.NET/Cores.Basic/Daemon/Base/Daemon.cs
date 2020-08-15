@@ -485,9 +485,9 @@ namespace IPA.Cores.Basic
                 // LogClient を起動する
                 using (IDisposable logClient = StartLogClientInstallerIfEnabled())
                 {
-#if CORES_BASIC_HTTPSERVER
+#if (CORES_BASIC_WEBAPP || CORES_BASIC_HTTPSERVER)
                     using (DaemonUtil util = new DaemonUtil(this.Daemon.Name))
-#endif // CORES_BASIC_HTTPSERVER
+#endif // (CORES_BASIC_WEBAPP || CORES_BASIC_HTTPSERVER)
                     {
                         this.Daemon.Start(DaemonStartupMode.ForegroundTestMode, this.Param);
 
@@ -568,9 +568,9 @@ namespace IPA.Cores.Basic
             using (IDisposable logClient = StartLogClientInstallerIfEnabled())
             {
                 // DaemonUtil クラスを起動する
-#if CORES_BASIC_HTTPSERVER
+#if (CORES_BASIC_WEBAPP || CORES_BASIC_HTTPSERVER)
                 using (DaemonUtil util = new DaemonUtil(this.Daemon.Name))
-#endif // CORES_BASIC_HTTPSERVER
+#endif // (CORES_BASIC_WEBAPP || CORES_BASIC_HTTPSERVER)
                 {
                     // DaemonCenter クライアントを起動する (有効な場合)
                     using (IDisposable client = StartDaemonCenterClientIfEnabled())
