@@ -54,6 +54,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Threading;
+using Newtonsoft.Json.Linq;
 
 namespace IPA.Cores.Basic
 {
@@ -219,15 +220,38 @@ namespace IPA.Cores.Basic
 
             return Str.CombineStringArray(strs, ", ");
         }
+
+        public JObject ToJsonObject()
+        {
+            JObject ret = Json.NewJsonObject();
+
+            int i;
+            for (i = 0; i < this.FieldList.Length; i++)
+            {
+                string fieldName = FieldList[i];
+                object value = ValueList[i].Object;
+
+                ret.Add(fieldName, new JValue(value));
+            }
+
+            return ret;
+        }
     }
 
     // データ
-    public class Data : IEnumerable
+    public class Data : IEnumerable, IEmptyChecker
     {
         public Row[]? RowList { get; private set; } = null;
         public string[]? FieldList { get; private set; } = null;
 
+        public bool IsEmpty => IsThisEmpty();
+
         public Data() { }
+
+        public bool IsThisEmpty()
+        {
+            return (RowList?.Length ?? 0) == 0;
+        }
 
         public Data(Database db)
         {
@@ -261,7 +285,7 @@ namespace IPA.Cores.Basic
             this.RowList = row_list.ToArray();
         }
 
-        public async Task ReadFromDbAsync(Database db)
+        public async Task ReadFromDbAsync(Database db, CancellationToken cancel = default)
         {
             DbDataReader r = db.DataReader._NullCheck();
 
@@ -278,7 +302,7 @@ namespace IPA.Cores.Basic
             this.FieldList = fieldsList.ToArray();
 
             List<Row> row_list = new List<Row>();
-            while (await db.ReadNextAsync())
+            while (await db.ReadNextAsync(cancel))
             {
                 DatabaseValue[] values = new DatabaseValue[this.FieldList.Length];
 
@@ -432,27 +456,27 @@ namespace IPA.Cores.Basic
             Connection = dbConnection;
         }
 
-        public void EnsureOpen() => EnsureOpenAsync()._GetResult();
+        public void EnsureOpen(CancellationToken cancel = default) => EnsureOpenAsync(cancel)._GetResult();
 
         AsyncLock OpenCloseLock = new AsyncLock();
 
-        public async Task EnsureOpenAsync()
+        public async Task EnsureOpenAsync(CancellationToken cancel = default)
         {
             if (IsOpened) return;
-            using (await OpenCloseLock.LockWithAwait())
+            using (await OpenCloseLock.LockWithAwait(cancel))
             {
                 if (IsOpened == false)
                 {
-                    await Connection.OpenAsync();
+                    await Connection.OpenAsync(cancel);
                     IsOpened = true;
                 }
             }
         }
 
         // バルク書き込み
-        public void SqlBulkWrite(string tableName, DataTable dt)
+        public void SqlBulkWrite(string tableName, DataTable dt, CancellationToken cancel = default)
         {
-            EnsureOpen();
+            EnsureOpen(cancel);
 
             using (SqlBulkCopy bc = new SqlBulkCopy((SqlConnection)this.Connection, SqlBulkCopyOptions.Default, (SqlTransaction)Transaction!))
             {
@@ -462,15 +486,15 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task SqlBulkWriteAsync(string tableName, DataTable dt)
+        public async Task SqlBulkWriteAsync(string tableName, DataTable dt, CancellationToken cancel = default)
         {
-            await EnsureOpenAsync();
+            await EnsureOpenAsync(cancel);
 
             using (SqlBulkCopy bc = new SqlBulkCopy((SqlConnection)this.Connection, SqlBulkCopyOptions.Default, (SqlTransaction)Transaction!))
             {
                 bc.BulkCopyTimeout = CommandTimeoutSecs;
                 bc.DestinationTableName = tableName;
-                await bc.WriteToServerAsync(dt);
+                await bc.WriteToServerAsync(dt, cancel);
             }
         }
 
@@ -494,6 +518,17 @@ namespace IPA.Cores.Basic
             DbCommand cmd = buildCommand(commandStr, args);
 
             DataReader = await cmd.ExecuteReaderAsync();
+        }
+
+        public async Task QueryAsync(string commandStr, CancellationToken cancel, params object[] args)
+        {
+            await EnsureOpenAsync(cancel);
+
+            await CloseQueryAsync();
+
+            DbCommand cmd = buildCommand(commandStr, args);
+
+            DataReader = await cmd.ExecuteReaderAsync(cancel);
         }
 
         static CriticalSection DapperTypeMapLock = new CriticalSection();
@@ -533,9 +568,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        async Task<CommandDefinition> SetupDapperAsync(string commandStr, object? param, Type? type = null)
+        async Task<CommandDefinition> SetupDapperAsync(string commandStr, object? param, Type? type = null, CancellationToken cancel = default)
         {
-            await EnsureOpenAsync();
+            await EnsureOpenAsync(cancel);
 
             EnsureDapperTypeMapping(type);
 
@@ -584,9 +619,9 @@ namespace IPA.Cores.Basic
             => ExecuteScalarAsync<T>(commandStr, param)._GetResult();
 
 
-        public async Task<T?> EasyGetAsync<T>(dynamic id, bool throwErrorIfNotFound = true) where T : class
+        public async Task<T?> EasyGetAsync<T>(dynamic id, bool throwErrorIfNotFound = true, CancellationToken cancel = default) where T : class
         {
-            await EnsureOpenAsync();
+            await EnsureOpenAsync(cancel);
             EnsureDapperTypeMapping(typeof(T));
 
             var ret = await SqlMapperExtensions.GetAsync<T>(Connection, id, Transaction);
@@ -597,9 +632,9 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public async Task<IEnumerable<T>> EasyGetAllAsync<T>(bool throwErrorIfNotFound = false) where T : class
+        public async Task<IEnumerable<T>> EasyGetAllAsync<T>(bool throwErrorIfNotFound = false, CancellationToken cancel = default) where T : class
         {
-            await EnsureOpenAsync();
+            await EnsureOpenAsync(cancel);
             EnsureDapperTypeMapping(typeof(T));
 
             var ret = await SqlMapperExtensions.GetAllAsync<T>(Connection, Transaction);
@@ -611,17 +646,17 @@ namespace IPA.Cores.Basic
         }
 
 
-        public async Task<int> EasyInsertAsync<T>(T data) where T : class
+        public async Task<int> EasyInsertAsync<T>(T data, CancellationToken cancel = default) where T : class
         {
-            await EnsureOpenAsync();
+            await EnsureOpenAsync(cancel);
             EnsureDapperTypeMapping(typeof(T));
 
             return await SqlMapperExtensions.InsertAsync<T>(Connection, data, Transaction);
         }
 
-        public async Task<bool> EasyUpdateAsync<T>(T data, bool throwErrorIfNotFound = true) where T : class
+        public async Task<bool> EasyUpdateAsync<T>(T data, bool throwErrorIfNotFound = true, CancellationToken cancel = default) where T : class
         {
-            await EnsureOpenAsync();
+            await EnsureOpenAsync(cancel);
             EnsureDapperTypeMapping(typeof(T));
 
             bool ret = await SqlMapperExtensions.UpdateAsync<T>(Connection, data, Transaction);
@@ -632,9 +667,9 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public async Task<bool> EasyDeleteAsync<T>(T data, bool throwErrorIfNotFound = true) where T : class
+        public async Task<bool> EasyDeleteAsync<T>(T data, bool throwErrorIfNotFound = true, CancellationToken cancel = default) where T : class
         {
-            await EnsureOpenAsync();
+            await EnsureOpenAsync(cancel);
             EnsureDapperTypeMapping(typeof(T));
 
             bool ret = await SqlMapperExtensions.DeleteAsync<T>(Connection, data, Transaction);
@@ -742,6 +777,17 @@ namespace IPA.Cores.Basic
             return await cmd.ExecuteNonQueryAsync();
         }
 
+        public async Task<int> QueryWithNoReturnAsync(string commandStr, CancellationToken cancel, params object[] args)
+        {
+            await EnsureOpenAsync(cancel);
+
+            await CloseQueryAsync();
+
+            DbCommand cmd = buildCommand(commandStr, args);
+
+            return await cmd.ExecuteNonQueryAsync(cancel);
+        }
+
         public DatabaseValue QueryWithValue(string commandStr, params object[] args)
         {
             EnsureOpen();
@@ -750,6 +796,17 @@ namespace IPA.Cores.Basic
             DbCommand cmd = buildCommand(commandStr, args);
 
             return new DatabaseValue(cmd.ExecuteScalar());
+        }
+
+        public async Task<DatabaseValue> QueryWithValueAsync(string commandStr, CancellationToken cancel, params object[] args)
+        {
+            await EnsureOpenAsync(cancel);
+
+            await CloseQueryAsync();
+
+            DbCommand cmd = buildCommand(commandStr, args);
+
+            return new DatabaseValue(await cmd.ExecuteScalarAsync(cancel));
         }
 
         public async Task<DatabaseValue> QueryWithValueAsync(string commandStr, params object[] args)
@@ -813,10 +870,10 @@ namespace IPA.Cores.Basic
             return new Data(this);
         }
 
-        public async Task<Data> ReadAllDataAsync()
+        public async Task<Data> ReadAllDataAsync(CancellationToken cancel = default)
         {
             Data ret = new Data();
-            await ret.ReadFromDbAsync(this);
+            await ret.ReadFromDbAsync(this, cancel);
             return ret;
         }
 
@@ -835,13 +892,13 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public async Task<bool> ReadNextAsync()
+        public async Task<bool> ReadNextAsync(CancellationToken cancel = default)
         {
             if (DataReader == null)
             {
                 return false;
             }
-            if ((await DataReader.ReadAsync()) == false)
+            if ((await DataReader.ReadAsync(cancel)) == false)
             {
                 return false;
             }
@@ -1133,13 +1190,13 @@ namespace IPA.Cores.Basic
             LABEL_RETRY:
             try
             {
-                    using (UsingTran u = this.UsingTran(isolationLevel))
+                using (UsingTran u = this.UsingTran(isolationLevel))
+                {
+                    if (await task())
                     {
-                        if (await task())
-                        {
-                            u.Commit();
-                        }
+                        u.Commit();
                     }
+                }
             }
             catch (SqlException sqlex)
             {
@@ -1201,29 +1258,29 @@ namespace IPA.Cores.Basic
         }
 
         // トランザクションの開始 (UsingTran オブジェクト作成)
-        public async Task<UsingTran> UsingTranAsync(IsolationLevel? isolationLevel = null)
+        public async Task<UsingTran> UsingTranAsync(IsolationLevel? isolationLevel = null, CancellationToken cancel = default)
         {
             UsingTran t = new UsingTran(this);
 
-            await BeginAsync(isolationLevel);
+            await BeginAsync(isolationLevel, cancel);
 
             return t;
         }
 
         // トランザクションの開始
-        public async Task BeginAsync(IsolationLevel? isolationLevel = null)
+        public async Task BeginAsync(IsolationLevel? isolationLevel = null, CancellationToken cancel = default)
         {
-            await EnsureOpenAsync();
+            await EnsureOpenAsync(cancel);
 
             await CloseQueryAsync();
 
             if (isolationLevel == IsolationLevel.Unspecified)
             {
-                Transaction = await Connection.BeginTransactionAsync();
+                Transaction = await Connection.BeginTransactionAsync(cancel);
             }
             else
             {
-                Transaction = await Connection.BeginTransactionAsync(isolationLevel ?? this.DefaultIsolationLevel);
+                Transaction = await Connection.BeginTransactionAsync(isolationLevel ?? this.DefaultIsolationLevel, cancel);
             }
         }
 
@@ -1240,7 +1297,7 @@ namespace IPA.Cores.Basic
             Transaction.Dispose();
             Transaction = null;
         }
-        public async Task CommitAsync()
+        public async Task CommitAsync(CancellationToken cancel = default)
         {
             if (Transaction == null)
             {
@@ -1249,7 +1306,7 @@ namespace IPA.Cores.Basic
 
             await CloseQueryAsync();
 
-            await Transaction.CommitAsync();
+            await Transaction.CommitAsync(cancel);
 
             await Transaction._DisposeSafeAsync();
             Transaction = null;
@@ -1268,7 +1325,7 @@ namespace IPA.Cores.Basic
             Transaction.Dispose();
             Transaction = null;
         }
-        public async Task CancelAsync()
+        public async Task CancelAsync(CancellationToken cancel = default)
         {
             if (Transaction == null)
             {
@@ -1277,7 +1334,7 @@ namespace IPA.Cores.Basic
 
             await CloseQueryAsync();
 
-            await Transaction.RollbackAsync();
+            await Transaction.RollbackAsync(cancel);
 
             await Transaction._DisposeSafeAsync();
             Transaction = null;

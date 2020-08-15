@@ -1614,6 +1614,28 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
+        public static async Task _DoForEachAsync<T>(this IEnumerable<T> list, Func<T, Task> action, CancellationToken cancel = default)
+        {
+            list._NullCheck();
+            List<T> list2 = list.ToList();
+            for (int i = 0; i < list2.Count; i++)
+            {
+                T t = list2[i];
+                await action(t);
+            }
+        }
+
+        public static async Task _DoForEachAsync<T>(this IEnumerable<T> list, Func<T, int, Task> action, CancellationToken cancel = default)
+        {
+            list._NullCheck();
+            List<T> list2 = list.ToList();
+            for (int i = 0; i < list2.Count; i++)
+            {
+                T t = list2[i];
+                await action(t, i);
+            }
+        }
+
 
         public static T _GetResult<T>(this Task<T> task) => task.GetAwaiter().GetResult();
 

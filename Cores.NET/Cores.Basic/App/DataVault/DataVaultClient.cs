@@ -83,7 +83,7 @@ namespace IPA.Cores.Basic
         public readonly Copenhagen<int> RetryIntervalMin = CoresConfig.DataVaultProtocolSettings.DefaultRetryIntervalMin.Value;
         public readonly Copenhagen<int> RetryIntervalMax = CoresConfig.DataVaultProtocolSettings.DefaultRetryIntervalMax.Value;
 
-        public DataVaultClientOptions(TcpIpSystem? tcpIp, PalSslClientAuthenticationOptions sslAuthOptions, string serverHostname, string accessKey, int serverPort = Consts.Ports.DataVaultServerDefaultServicePort)
+        public DataVaultClientOptions(string serverHostname, string accessKey, PalSslClientAuthenticationOptions sslAuthOptions, int serverPort = Consts.Ports.DataVaultServerDefaultServicePort, TcpIpSystem? tcpIp = null)
         {
             this.ServerHostname = serverHostname._NonNullTrim();
             this.ServerPort = serverPort;
