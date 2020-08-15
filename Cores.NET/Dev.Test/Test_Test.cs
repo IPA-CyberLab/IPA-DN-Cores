@@ -578,7 +578,7 @@ namespace IPA.TestDev
                                 HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
 
                                 //using var stream = new BufferBasedStream(mem);
-                                
+
                                 using var file = Lfs.Create(@$"f:\tmp\200810\{taskId}.dat", flags: FileFlags.AutoCreateDirectory | FileFlags.SparseFile);
 
                                 using var sector = new XtsAesRandomAccess(file, "neko");
@@ -3063,9 +3063,9 @@ ZIP ファイルのパスワード:
 
             string serverHostname = vl.DefaultParam.StrValue._FilledOrDefault("127.0.0.1");
 
-            PalSslClientAuthenticationOptions cliSsl = new PalSslClientAuthenticationOptions(false, null, DevTools.TestSampleCert.HashSHA1);
+            PalSslClientAuthenticationOptions cliSsl = new PalSslClientAuthenticationOptions(false, null, "d471b9675b3d374d7af8828ab4276711c2a2c601");
 
-            using (DataVaultClient client = new DataVaultClient(new DataVaultClientOptions(null, cliSsl, serverHostname)))
+            using (DataVaultClient client = new DataVaultClient(new DataVaultClientOptions(null, cliSsl, serverHostname, "3xvTXIkPJmYoNVVzoNHgDvzQpIyffE4z")))
             {
                 CancellationTokenSource cts = new CancellationTokenSource();
 
@@ -3075,30 +3075,43 @@ ZIP ファイルのパスワード:
 
                     string bigData = Str.MakeCharArray('x', 100_000);
 
-                    for (int i = 0; ; i++)
+                    for (int i = 0; i < 20; i++)
                     {
                         if (cts.IsCancellationRequested) return;
 
-                        client.WriteDataAsync(new DataVaultData
+                        await client.WriteDataAsync(new DataVaultData
                         {
                             SystemName = "tcpip_test",
                             LogName = "alog",
                             KeyType = "by_server_ip",
-                            KeyShortValue = "127.0",
+                            KeyShortValue = "127.0.",
                             KeyFullValue = "127.0.0.1",
                             TimeStamp = DateTimeOffset.Now,
-                            WithTime = true,
-                            Data = new int[] { 1, 2, 3, 4, 5 },
+                            WithTime = false,
+                            Data = new int[] { i, 1, 2, 3, 4, 5 },
                         }
-                        )._GetResult();
+                        );
 
-                        //await Task.Delay(100);
+                        //Dbg.Where();
                     }
+
+                    await client.WriteCompleteAsync(new DataVaultData
+                    {
+                        SystemName = "tcpip_test",
+                        LogName = "alog",
+                        KeyType = "by_server_ip",
+                        KeyShortValue = "127.0",
+                        KeyFullValue = "127.0.0.1",
+                        TimeStamp = DateTimeOffset.Now,
+                        WithTime = false,
+                        Data = new int[] { 0, 1, 2, 3, 4, 5 },
+                    });
                 });
 
                 Con.ReadLine("Exit>");
 
                 cts.Cancel();
+                client._CancelSafe();
 
                 testTask._TryWait();
             }

@@ -46,6 +46,7 @@ using static IPA.Cores.Globals.Basic;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using System.Security.AccessControl;
 
 namespace IPA.Cores.Basic
 {
@@ -88,6 +89,8 @@ namespace IPA.Cores.Basic
 
                     string mustIncludeHostnameStr = k.GetStr("MustIncludeHostname", "*");
 
+                    string accessKey = k.GetStr("AccessKey", Str.GenRandPassword(mustHaveOneUnderBar: false, count: 32));
+
                     dataDestDir = Lfs.ConfigPathStringToPhysicalDirectoryPath(dataDestDir);
                     certVaultDir = Lfs.ConfigPathStringToPhysicalDirectoryPath(certVaultDir);
 
@@ -111,7 +114,8 @@ namespace IPA.Cores.Basic
                         sslAuthOptions: sslOptions,
                         tcpIp: LocalNet,
                         ports: Str.ParsePortsList(servicePortsStr),
-                        rateLimiterConfigName: "DataVaultServer"
+                        rateLimiterConfigName: "DataVaultServer",
+                        accessKey: accessKey
                         ));
 
                     // Start HTTP Server-based Web log browser

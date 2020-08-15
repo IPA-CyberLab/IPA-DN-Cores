@@ -46,6 +46,8 @@ using static IPA.Cores.Globals.Basic;
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using System.ComponentModel;
+using System.Buffers;
 
 namespace IPA.Cores.Basic
 {
@@ -72,6 +74,7 @@ namespace IPA.Cores.Basic
         public int ServerPort { get; }
         public TcpIpSystem TcpIp { get; }
         public PalSslClientAuthenticationOptions SslAuthOptions { get; }
+        public string AccessKey { get; }
 
         public readonly Copenhagen<int> SendKeepAliveInterval = CoresConfig.DataVaultProtocolSettings.DefaultSendKeepAliveInterval.Value;
         public readonly Copenhagen<int> ClientMaxBufferSize = CoresConfig.DataVaultProtocolSettings.BufferingSizeThresholdPerServer.Value;
@@ -80,12 +83,13 @@ namespace IPA.Cores.Basic
         public readonly Copenhagen<int> RetryIntervalMin = CoresConfig.DataVaultProtocolSettings.DefaultRetryIntervalMin.Value;
         public readonly Copenhagen<int> RetryIntervalMax = CoresConfig.DataVaultProtocolSettings.DefaultRetryIntervalMax.Value;
 
-        public DataVaultClientOptions(TcpIpSystem? tcpIp, PalSslClientAuthenticationOptions sslAuthOptions, string serverHostname, int serverPort = Consts.Ports.DataVaultServerDefaultServicePort)
+        public DataVaultClientOptions(TcpIpSystem? tcpIp, PalSslClientAuthenticationOptions sslAuthOptions, string serverHostname, string accessKey, int serverPort = Consts.Ports.DataVaultServerDefaultServicePort)
         {
             this.ServerHostname = serverHostname._NonNullTrim();
             this.ServerPort = serverPort;
             this.TcpIp = tcpIp ?? LocalNet;
             this.SslAuthOptions = sslAuthOptions;
+            this.AccessKey = accessKey;
 
             if (this.SslAuthOptions.TargetHost._IsEmpty())
             {
@@ -121,6 +125,14 @@ namespace IPA.Cores.Basic
             this.Writer = this.Reader.CounterPart!;
 
             this.MainProcTask = this.StartMainLoop(MainLoopAsync);
+        }
+
+        public async Task WriteCompleteAsync(DataVaultData data, CancellationToken cancel = default)
+        {
+            data.WriteCompleteFlag = true;
+            data.Data = null;
+
+            await WriteDataAsync(data, cancel);
         }
 
         public async Task WriteDataAsync(DataVaultData data, CancellationToken cancel = default)
@@ -163,10 +175,6 @@ namespace IPA.Cores.Basic
                             throw new CoresLibException("Connection to the server is disconnected.");
                         }
                     }
-                }
-                else
-                {
-                    firstErrorTick = 0;
                 }
 
                 await this.Writer.StreamWriter.WaitForReadyToWriteAsync(cancel, 100, noTimeoutException: true);
@@ -231,6 +239,12 @@ namespace IPA.Cores.Basic
                         initSendBuf.WriteSInt32(DataVaultServerBase.MagicNumber);
                         initSendBuf.WriteSInt32(ClientVersion);
 
+                        Memory<byte> accessKeyData = new byte[256];
+                        var accessKeyBytes = this.Options.AccessKey._GetBytes_UTF8();
+                        accessKeyBytes.CopyTo(accessKeyData);
+
+                        initSendBuf.Write(accessKeyData);
+
                         await writer.SendAsync(initSendBuf, cancel);
 
                         writer.ReadTimeout = this.Options.RecvTimeout;
@@ -244,6 +258,8 @@ namespace IPA.Cores.Basic
                         {
                             throw new ApplicationException($"Invalid magicNumber = 0x{magicNumber:X}");
                         }
+
+                        Con.WriteInfo($"DataVaultClient: Connection established.");
 
                         // 最初に接続が確立されたことを通知
                         FirstConnectionEstablishedEvent.Set(true);

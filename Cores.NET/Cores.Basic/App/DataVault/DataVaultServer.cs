@@ -65,14 +65,14 @@ namespace IPA.Cores.Basic
 
     public class DataVaultData
     {
+        public DateTimeOffset TimeStamp;
         public string? SystemName;
         public string? LogName;
         public string? KeyType;
         public string? KeyShortValue;
         public string? KeyFullValue;
-        public DateTimeOffset TimeStamp;
         public bool WithTime;
-
+        public bool? WriteCompleteFlag;
         public object? Data;
 
         static readonly PathParser WinParser = PathParser.GetInstance(FileSystemStyle.Windows);
@@ -82,7 +82,7 @@ namespace IPA.Cores.Basic
             this.SystemName = WinParser.MakeSafeFileName(this.SystemName._NonNullTrim()).ToLower()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
             this.LogName = WinParser.MakeSafeFileName(this.LogName._NonNullTrim()).ToLower()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
             this.KeyType = WinParser.MakeSafeFileName(this.KeyType._NonNullTrim()).ToLower()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
-            this.KeyShortValue = WinParser.MakeSafeFileName(this.SystemName._NonNullTrim()).ToLower()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
+            this.KeyShortValue = WinParser.MakeSafeFileName(this.KeyShortValue._NonNullTrim()).ToLower()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
             this.KeyFullValue = WinParser.MakeSafeFileName(this.KeyFullValue._NonNullTrim()).ToLower()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
 
             if (this.TimeStamp == null) this.TimeStamp = Util.ZeroDateTimeOffsetValue;
@@ -100,14 +100,12 @@ namespace IPA.Cores.Basic
     {
         public readonly Copenhagen<int> RecvTimeout = CoresConfig.DataVaultProtocolSettings.DefaultRecvTimeout.Value;
 
-        public DataVaultServerOptionsBase(TcpIpSystem tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, string? rateLimiterConfigName = null, params IPEndPoint[] endPoints)
-            : base(tcpIp, sslAuthOptions, rateLimiterConfigName, endPoints.Any() ? endPoints : IPUtil.GenerateListeningEndPointsList(false, Consts.Ports.DataVaultServerDefaultServicePort))
-        {
-        }
+        public string AccessKey { get; }
 
-        public DataVaultServerOptionsBase(TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports, string? rateLimiterConfigName = null)
+        public DataVaultServerOptionsBase(TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports, string accessKey, string? rateLimiterConfigName = null)
             : base(tcpIp, sslAuthOptions, rateLimiterConfigName, IPUtil.GenerateListeningEndPointsList(false, ports))
         {
+            this.AccessKey = accessKey;
         }
     }
 
@@ -151,6 +149,12 @@ namespace IPA.Cores.Basic
                 if (magicNumber != MagicNumber) throw new ApplicationException($"Invalid magicNumber = 0x{magicNumber:X}");
 
                 int clientVersion = await st.ReceiveSInt32Async();
+
+                var accessKeyData = await st.ReceiveAllAsync(256);
+                if (accessKeyData._GetString_UTF8(untilNullByte: true)._IsSame(this.Options.AccessKey) == false)
+                {
+                    throw new ApplicationException($"Invalid access key");
+                }
 
                 MemoryBuffer<byte> sendBuffer = new MemoryBuffer<byte>();
                 sendBuffer.WriteSInt32(MagicNumber);
@@ -249,8 +253,9 @@ namespace IPA.Cores.Basic
         public FileSystem DestFileSystem { get; }
         public string DestRootDirName { get; }
 
-        public DataVaultServerOptions(FileSystem? destFileSystem, string destRootDirName, FileFlags fileFlags, Action<DataVaultServerReceivedData, DataVaultServerOptions>? setDestinationProc, TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports, string? rateLimiterConfigName = null)
-            : base(tcpIp, sslAuthOptions, ports, rateLimiterConfigName)
+        public DataVaultServerOptions(FileSystem? destFileSystem, string destRootDirName, FileFlags fileFlags, Action<DataVaultServerReceivedData, DataVaultServerOptions>? setDestinationProc, 
+            TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports, string accessKey, string? rateLimiterConfigName = null)
+            : base(tcpIp, sslAuthOptions, ports, accessKey, rateLimiterConfigName)
         {
             if (setDestinationProc == null) setDestinationProc = DataVaultServer.DefaultSetDestinationsProc;
 
@@ -285,15 +290,20 @@ namespace IPA.Cores.Basic
 
             if (d.WithTime == false)
             {
-                timeStampStr = Str.DateToStrShort(d.TimeStamp.Date);
+                timeStampStr = Str.DateToStrShort(d.TimeStamp.LocalDateTime.Date);
             }
             else
             {
-                timeStampStr = Str.DateTimeToStrShortWithMilliSecs(d.TimeStamp.Date);
+                timeStampStr = Str.DateTimeToStrShortWithMilliSecs(d.TimeStamp.LocalDateTime);
             }
 
             string relativePath = Str.CombineStringArray("/", d.SystemName, d.KeyType, d.KeyShortValue, d.KeyFullValue, d.LogName, timeStampStr,
                 $"{d.LogName}-{d.KeyFullValue}-{timeStampStr}.json");
+
+            if (d.WriteCompleteFlag ?? false)
+            {
+                relativePath += ".completed";
+            }
 
             data.AddDestinationFileName(parser.NormalizeDirectorySeparator(parser.Combine(root, relativePath)));
         }
