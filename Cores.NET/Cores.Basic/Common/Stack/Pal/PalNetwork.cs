@@ -47,6 +47,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Collections.Immutable;
+using System.Security.Authentication;
 
 namespace IPA.Cores.Basic
 {
@@ -55,6 +56,10 @@ namespace IPA.Cores.Basic
         public static partial class SslSettings
         {
             public static readonly Copenhagen<int> DefaultNegotiationRecvTimeout = 15 * 1000;
+
+#pragma warning disable CS0618 // 型またはメンバーが旧型式です
+            public static readonly Copenhagen<SslProtocols> DefaultSslProtocolVersions = SslProtocols.Ssl3 | SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12 | SslProtocols.Tls13;
+#pragma warning restore CS0618 // 型またはメンバーが旧型式です
         }
     }
 
