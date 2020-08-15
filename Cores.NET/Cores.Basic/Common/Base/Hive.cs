@@ -764,6 +764,8 @@ namespace IPA.Cores.Basic
         public bool IsReadOnly => this.Policy.Bit(HiveSyncPolicy.ReadOnly);
         public CriticalSection ReaderWriterLockObj { get; } = new CriticalSection();
 
+        Exception? InitialLoadError = null;
+
         T? DataInternal = null;
         long StorageHash = 0;
 
@@ -887,7 +889,7 @@ namespace IPA.Cores.Basic
                             catch { }
                         }
                     }
-                    catch
+                    catch (Exception initialLoadError)
                     {
                         // If the loading failed, then try create an empty one.
                         result = GetDefaultDataState();
@@ -901,6 +903,7 @@ namespace IPA.Cores.Basic
                         {
                             // Save to the storage. Perhaps there is a file on the storage, and must not be overwritten to prevent data loss.
                             this.Policy |= HiveSyncPolicy.ReadOnly;
+                            this.InitialLoadError = initialLoadError;
                         }
                     }
 
@@ -1139,6 +1142,11 @@ namespace IPA.Cores.Basic
             using (await AccessLock.LockWithAwait(cancel))
             {
                 T data = await LoadDataAsync(cancel);
+
+                if (this.InitialLoadError != null)
+                {
+                    throw this.InitialLoadError;
+                }
 
                 await proc(data);
 
