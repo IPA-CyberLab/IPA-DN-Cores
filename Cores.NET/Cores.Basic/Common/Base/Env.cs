@@ -276,8 +276,31 @@ namespace IPA.Cores.Basic
                 // プログラムのあるディレクトリから 1 つずつ遡ってアプリケーションの root ディレクトリを取得する
                 string tmp = AppExecutableExeOrDllFileDir;
 
+                bool isSingleFileBinary = false;
+
                 string tmp2 = AppExecutableExeOrDllFileDir._ReplaceStr("\\", "/");
                 if (tmp2._InStr("/tmp/.net/", true) || tmp2._InStr("/temp/.net/", true))
+                {
+                    // temp ディレクトリ上で動作しておる
+                    isSingleFileBinary = true;
+                }
+                else
+                {
+                    try
+                    {
+                        var fi = new FileInfo(AppRealProcessExeFileName);
+                        if (fi.Length >= 50_000_000)
+                        {
+                            // EXE ファイルのサイズが 50MB を超えている。これはきっと、 PublishSingleFile で生成されたファイルに違いない。
+                            // .NET Core 3.1 では、これくらいしか 見分ける方法がありません !!
+                            // https://github.com/dotnet/runtime/issues/13481
+                            isSingleFileBinary = true;
+                        }
+                    }
+                    catch { }
+                }
+
+                if (isSingleFileBinary)
                 {
                     // dotnet publish で -p:PublishSingleFile=true で生成されたファイルである。
                     // この場合、AppExecutableExeOrDllFileDir は一時ディレクトリを指しているので、
