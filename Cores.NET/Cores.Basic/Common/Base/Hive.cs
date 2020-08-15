@@ -762,7 +762,7 @@ namespace IPA.Cores.Basic
         public HiveSerializer Serializer { get; }
         public bool IsManaged { get; } = false;
         public bool IsReadOnly => this.Policy.Bit(HiveSyncPolicy.ReadOnly);
-        public CriticalSection ReaderWriterLockObj { get; } = new CriticalSection();
+        //public CriticalSection ReaderWriterLockObj { get; } = new CriticalSection(); 不要? 2020/8/15 登
 
         T? DataInternal = null;
         long StorageHash = 0;

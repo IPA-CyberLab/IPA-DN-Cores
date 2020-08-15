@@ -653,6 +653,23 @@ namespace IPA.Cores.Basic
             return new IPAddress(data);
         }
 
+        // 指定した IP アドレスから先頭 2 バイトを取得 (IPv4 の場合)
+        public static string GetHead2BytesIPString(string ip)
+        {
+            return GetHead2BytesIPString(IPAddress.Parse(ip));
+        }
+        public static string GetHead2BytesIPString(IPAddress ip)
+        {
+            if (ip.AddressFamily != AddressFamily.InterNetwork)
+            {
+                throw new ArgumentException("ip.AddressFamily != AddressFamily.InterNetwork");
+            }
+
+            byte[] b = ip.GetAddressBytes();
+
+            return $"{b[0]}.{b[1]}";
+        }
+
         // IP アドレスを文字列に変換
         public static string IPToStr(IPAddress ip)
         {

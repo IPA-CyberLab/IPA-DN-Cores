@@ -245,6 +245,21 @@ namespace IPA.Cores.Basic
 
         public static bool IsConsoleDebugMode => CoresConfig.DebugSettings.IsConsoleDebugMode();
 
+        [MethodImpl(NoInline | NoOptimization)]
+        public static string GetCurrentExecutingPositionInfoString(int skip = 0, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool onlyClassName = false)
+        {
+            StackTrace stackTrace = new StackTrace(1 + skip, false);
+            Type? type = stackTrace?.GetFrame(0)?.GetMethod()?.DeclaringType;
+
+            string className = type?.Name ?? "UnknownClass";
+
+            if (onlyClassName) return className;
+
+            string functionName = caller._FilledOrDefault("UnknownFunction");
+
+            return $"{className} {functionName}";
+        }
+
         public static string WriteLine()
         {
             if (Dbg.IsDebugMode == false) return "";
