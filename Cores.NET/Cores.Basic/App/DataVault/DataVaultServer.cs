@@ -79,6 +79,10 @@ namespace IPA.Cores.Basic
 
         public void NormalizeReceivedData(string defaultSrcMachineName)
         {
+            if (this.KeyType._IsEmpty()) this.KeyType = "all";
+            if (this.KeyShortValue._IsEmpty()) this.KeyShortValue = "all";
+            if (this.KeyFullValue._IsEmpty()) this.KeyFullValue = "all";
+
             this.SystemName = WinParser.MakeSafeFileName(this.SystemName._NonNullTrim()).ToLower()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
             this.LogName = WinParser.MakeSafeFileName(this.LogName._NonNullTrim()).ToLower()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
             this.KeyType = WinParser.MakeSafeFileName(this.KeyType._NonNullTrim()).ToLower()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
@@ -263,7 +267,7 @@ namespace IPA.Cores.Basic
 
             this.FileFlags = fileFlags;
 
-            this.DestFileSystem = destFileSystem ?? LfsUtf8;
+            this.DestFileSystem = destFileSystem ?? Lfs;
 
             this.DestRootDirName = this.DestFileSystem.PathParser.RemoveLastSeparatorChar(this.DestFileSystem.PathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(this.DestRootDirName));
 
