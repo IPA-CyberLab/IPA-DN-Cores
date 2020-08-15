@@ -297,8 +297,8 @@ namespace IPA.Cores.Basic
                 timeStampStr = Str.DateTimeToStrShortWithMilliSecs(d.TimeStamp.LocalDateTime);
             }
 
-            string relativePath = Str.CombineStringArray("/", d.SystemName, d.KeyType, d.KeyShortValue, d.KeyFullValue, d.LogName, timeStampStr,
-                $"{d.LogName}-{d.KeyType}-{d.KeyFullValue}-{timeStampStr}.json");
+            string relativePath = Str.CombineStringArray("/", d.SystemName, d.LogName, d.KeyType, d.KeyShortValue, d.KeyFullValue,
+                $"{timeStampStr}-{d.SystemName}-{d.LogName}-{d.KeyType}-{d.KeyFullValue}.json");
 
             if (d.WriteCompleteFlag ?? false)
             {
