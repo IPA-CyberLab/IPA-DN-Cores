@@ -298,7 +298,7 @@ namespace IPA.Cores.Basic
             }
 
             string relativePath = Str.CombineStringArray("/", d.SystemName, d.KeyType, d.KeyShortValue, d.KeyFullValue, d.LogName, timeStampStr,
-                $"{d.LogName}-{d.KeyFullValue}-{timeStampStr}.json");
+                $"{d.LogName}-{d.KeyType}-{d.KeyFullValue}-{timeStampStr}.json");
 
             if (d.WriteCompleteFlag ?? false)
             {
