@@ -243,6 +243,12 @@ namespace IPA.Cores.Globals
             get => Task.CompletedTask;
         }
 
+        [MethodImpl(NoInline | NoOptimization)]
+        public static string StackInfo([CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            return Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller);
+        }
+
         public static void For(int count, Action<int> action)
         {
             for (int i = 0; i < count; i++)

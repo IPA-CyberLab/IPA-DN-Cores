@@ -364,6 +364,36 @@ namespace IPA.Cores.Helper.Basic
         public static void _Printf(this string s, params object[] args) => Str.Printf(s, args);
         public static string? _Print(this string? s) { Con.WriteLine(s); return s; }
         public static string? _Debug(this string? s) { Dbg.WriteLine(s); return s; }
+        public static string? _ErrorFunc(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            $"{Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller, onlyClassName: false)}: {s._NonNull()}"._Error();
+            return s;
+        }
+        public static string? _ErrorClass(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            $"{Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller, onlyClassName: true)}: {s._NonNull()}"._Error();
+            return s;
+        }
+        public static string? _PrintFunc(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            $"{Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller, onlyClassName: false)}: {s._NonNull()}"._Print();
+            return s;
+        }
+        public static string? _PrintClass(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            $"{Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller, onlyClassName: true)}: {s._NonNull()}"._Print();
+            return s;
+        }
+        public static string? _DebugFunc(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            $"{Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller, onlyClassName: false)}: {s._NonNull()}"._Debug();
+            return s;
+        }
+        public static string? _DebugClass(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            $"{Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller, onlyClassName: true)}: {s._NonNull()}"._Debug();
+            return s;
+        }
         public static int _Search(this string s, string keyword, int start = 0, bool caseSenstive = false) => Str.SearchStr(s, keyword, start, caseSenstive);
         public static long _CalcKeywordMatchPoint(this string targetStr, string keyword, StringComparison comparison = StringComparison.OrdinalIgnoreCase) => Str.CalcKeywordMatchPoint(targetStr, keyword, comparison);
         public static string _TrimCrlf(this string? s) => Str.TrimCrlf(s);
@@ -662,6 +692,16 @@ namespace IPA.Cores.Helper.Basic
             return n;
         }
 
+        public static TValue _GetOrNew<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key, TValue defaultValue)
+            where TValue : new()
+            where TKey : notnull
+        {
+            if (d.ContainsKey(key)) return d[key];
+            TValue n = defaultValue;
+            d.Add(key, n);
+            return n;
+        }
+
         public static TValue _GetOrNew<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key, Func<TValue> newProc)
             where TKey : notnull
         {
@@ -677,6 +717,16 @@ namespace IPA.Cores.Helper.Basic
         {
             if (d.ContainsKey(key)) return d[key];
             TValue n = new TValue();
+            d.Add(key, n);
+            return n;
+        }
+
+        public static TValue _GetOrNew<TKey, TValue>(this SortedDictionary<TKey, TValue> d, TKey key, TValue defaultValue)
+            where TValue : new()
+            where TKey : notnull
+        {
+            if (d.ContainsKey(key)) return d[key];
+            TValue n = defaultValue;
             d.Add(key, n);
             return n;
         }
@@ -1614,6 +1664,28 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
+        public static async Task _DoForEachAsync<T>(this IEnumerable<T> list, Func<T, Task> action, CancellationToken cancel = default)
+        {
+            list._NullCheck();
+            List<T> list2 = list.ToList();
+            for (int i = 0; i < list2.Count; i++)
+            {
+                T t = list2[i];
+                await action(t);
+            }
+        }
+
+        public static async Task _DoForEachAsync<T>(this IEnumerable<T> list, Func<T, int, Task> action, CancellationToken cancel = default)
+        {
+            list._NullCheck();
+            List<T> list2 = list.ToList();
+            for (int i = 0; i < list2.Count; i++)
+            {
+                T t = list2[i];
+                await action(t, i);
+            }
+        }
+
 
         public static T _GetResult<T>(this Task<T> task) => task.GetAwaiter().GetResult();
 
@@ -2144,7 +2216,7 @@ namespace IPA.Cores.Helper.Basic
         public static RandomAccessBasedStream GetStream(this IRandomAccess<byte> target, bool disposeTarget = false)
             => new RandomAccessBasedStream(target, disposeTarget);
 
-        [MethodImpl(Inline)] 
+        [MethodImpl(Inline)]
         public static string _Slice(this string src, int start, int length) => src.Substring(start, length);
         [MethodImpl(Inline)]
         public static string _Slice(this string src, int start) => src.Substring(start);

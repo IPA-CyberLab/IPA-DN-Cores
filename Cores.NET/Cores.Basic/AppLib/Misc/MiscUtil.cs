@@ -60,7 +60,7 @@ using Microsoft.Extensions.Options;
 
 namespace IPA.Cores.Basic
 {
-    // JSON をパースするとこの型が出てくる
+    // ログファイルの JSON をパースするとこの型が出てくる
     public class LogJsonParseAsRuntimeStat
     {
         public DateTimeOffset? TimeStamp;
