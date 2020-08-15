@@ -249,9 +249,17 @@ namespace IPA.Cores.Basic
         public static string GetCurrentExecutingPositionInfoString(int skip = 0, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool onlyClassName = false)
         {
             StackTrace stackTrace = new StackTrace(1 + skip, false);
-            Type? type = stackTrace?.GetFrame(0)?.GetMethod()?.DeclaringType;
+            var method = stackTrace?.GetFrame(0)?.GetMethod();
+            Type? type = method?.DeclaringType;
 
             string className = type?.Name ?? "UnknownClass";
+
+            if (className.StartsWith("<"))
+            {
+                // await 自動生成関数
+                type = type?.DeclaringType;
+                className = type?.Name ?? "UnknownClass";
+            }
 
             if (onlyClassName) return className;
 

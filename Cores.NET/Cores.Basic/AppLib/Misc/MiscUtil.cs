@@ -913,6 +913,131 @@ namespace IPA.Cores.Basic
             }
         }
     }
+
+    public class SqlVaultUtilReaderState
+    {
+        public Dictionary<string, long> TableNameAndLastRowId = new Dictionary<string, long>(StrComparer.IgnoreCaseComparer);
+    }
+
+    public class SqlVaultUtil : AsyncService
+    {
+        public IEnumerable<DataVaultClientOptions> DataVaultClientOptions { get; }
+        public Database Db { get; }
+        public string SettingsName { get; }
+
+        readonly SingleInstance Instance;
+
+        public HiveData<SqlVaultUtilReaderState> StateDb { get; }
+
+        public SqlVaultUtil(Database database, string settingsName, params DataVaultClientOptions[] dataVaultClientOptions)
+        {
+            try
+            {
+                // 多重起動は許容しません!!
+                this.Instance = new SingleInstance(settingsName);
+
+                this.DataVaultClientOptions = dataVaultClientOptions;
+                this.Db = database;
+                this.SettingsName = settingsName;
+
+                this.StateDb = Hive.SharedLocalConfigHive.CreateAutoSyncHive<SqlVaultUtilReaderState>("SqlVaultUtilLastState/" + settingsName, () => new SqlVaultUtilReaderState());
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+        public async Task ReadRowsAndWriteToVaultAsync(string tableName, string rowIdColumnName, Func<Row, IEnumerable<DataVaultData>> rowToDataListFunc, int maxRowsToFetchOnce = 4096, CancellationToken cancel = default)
+        {
+            $"Start: tableName = {tableName}, rowIdColumnName = {rowIdColumnName}, maxRowsToFetchOnce = {maxRowsToFetchOnce}"._DebugFunc();
+
+            long totalWrittenRows = 0;
+
+            List<DataVaultClient> clients = new List<DataVaultClient>();
+            try
+            {
+                // DataVault クライアントの作成
+                foreach (var opt in this.DataVaultClientOptions)
+                {
+                    clients.Add(new DataVaultClient(opt));
+                }
+
+                long lastMaxRowId = 0;
+                lock (this.StateDb.DataLock)
+                    lastMaxRowId = this.StateDb.ManagedData.TableNameAndLastRowId._GetOrNew(tableName);
+
+                $"lastMaxRowId get = {lastMaxRowId}   from  tableName = {tableName}"._DebugFunc();
+
+                while (true)
+                {
+                    await Db.QueryAsync($"select top {maxRowsToFetchOnce} * from {tableName} with (nolock) where {rowIdColumnName} > {lastMaxRowId} order by {rowIdColumnName} asc", cancel);
+
+                    Data data = await Db.ReadAllDataAsync(cancel);
+
+                    if (data.IsEmpty) break;
+
+                    foreach (var row in data.RowList!)
+                    {
+                        foreach (var client in clients)
+                        {
+                            IEnumerable<DataVaultData>? dataList = null;
+
+                            try
+                            {
+                                dataList = rowToDataListFunc(row);
+                            }
+                            catch (Exception ex)
+                            {
+                                ex._Debug();
+                                continue;
+                            }
+
+                            await dataList._DoForEachAsync(data => client.WriteDataAsync(data, cancel));
+                        }
+
+                        totalWrittenRows++;
+                    }
+
+                    $"Current WrittenRows: {totalWrittenRows}   from tableName = {tableName}"._DebugFunc();
+
+                    lastMaxRowId = data.RowList.Last().ValueList[0].Int64;
+
+                    lock (this.StateDb.DataLock)
+                        this.StateDb.ManagedData.TableNameAndLastRowId[tableName] = lastMaxRowId;
+
+                    await this.StateDb.SyncWithStorageAsync(HiveSyncFlags.ForceUpdate | HiveSyncFlags.SaveToFile, false, cancel);
+                }
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+            finally
+            {
+                // DataVault クライアントの解放
+                clients._DoForEach(x => x._DisposeSafe());
+
+                $"End: tableName = {tableName}, rowIdColumnName = {rowIdColumnName}, maxRowsToFetchOnce = {maxRowsToFetchOnce}, totalWrittenRows = {totalWrittenRows}"._DebugFunc();
+            }
+        }
+
+        protected override void DisposeImpl(Exception? ex)
+        {
+            try
+            {
+                this.StateDb._DisposeSafe();
+
+                this.Instance._DisposeSafe();
+            }
+            finally
+            {
+                base.DisposeImpl(ex);
+            }
+        }
+    }
+
 }
 
 #endif

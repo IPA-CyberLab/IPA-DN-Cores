@@ -364,36 +364,44 @@ namespace IPA.Cores.Helper.Basic
         public static void _Printf(this string s, params object[] args) => Str.Printf(s, args);
         public static string? _Print(this string? s) { Con.WriteLine(s); return s; }
         public static string? _Debug(this string? s) { Dbg.WriteLine(s); return s; }
+
+        [MethodImpl(NoInline | NoOptimization)]
         public static string? _ErrorFunc(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
         {
             $"{Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller, onlyClassName: false)}: {s._NonNull()}"._Error();
             return s;
         }
+        [MethodImpl(NoInline | NoOptimization)]
         public static string? _ErrorClass(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
         {
             $"{Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller, onlyClassName: true)}: {s._NonNull()}"._Error();
             return s;
         }
+        [MethodImpl(NoInline | NoOptimization)]
         public static string? _PrintFunc(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
         {
             $"{Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller, onlyClassName: false)}: {s._NonNull()}"._Print();
             return s;
         }
+        [MethodImpl(NoInline | NoOptimization)]
         public static string? _PrintClass(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
         {
             $"{Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller, onlyClassName: true)}: {s._NonNull()}"._Print();
             return s;
         }
+        [MethodImpl(NoInline | NoOptimization)]
         public static string? _DebugFunc(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
         {
             $"{Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller, onlyClassName: false)}: {s._NonNull()}"._Debug();
             return s;
         }
+        [MethodImpl(NoInline | NoOptimization)]
         public static string? _DebugClass(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
         {
             $"{Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller, onlyClassName: true)}: {s._NonNull()}"._Debug();
             return s;
         }
+
         public static int _Search(this string s, string keyword, int start = 0, bool caseSenstive = false) => Str.SearchStr(s, keyword, start, caseSenstive);
         public static long _CalcKeywordMatchPoint(this string targetStr, string keyword, StringComparison comparison = StringComparison.OrdinalIgnoreCase) => Str.CalcKeywordMatchPoint(targetStr, keyword, comparison);
         public static string _TrimCrlf(this string? s) => Str.TrimCrlf(s);
