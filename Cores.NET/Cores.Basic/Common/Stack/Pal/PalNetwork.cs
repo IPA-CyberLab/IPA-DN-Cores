@@ -508,6 +508,7 @@ namespace IPA.Cores.Basic
         public PalSslValidateRemoteCertificateCallback? ValidateRemoteCertificateProc { get; set; }
         public string[] ServerCertSHAList { get; set; } = new string[0];
         public bool AllowAnyServerCert { get; set; } = false;
+        public SslProtocols SslProtocols { get; set; } = default;
 
         public readonly Copenhagen<int> NegotiationRecvTimeout = CoresConfig.SslSettings.DefaultNegotiationRecvTimeout.Value;
 
@@ -531,6 +532,7 @@ namespace IPA.Cores.Basic
                 }),
                 EncryptionPolicy = EncryptionPolicy.RequireEncryption,
                 CertificateRevocationCheckMode = X509RevocationMode.NoCheck,
+                EnabledSslProtocols = (SslProtocols == default ? CoresConfig.SslSettings.DefaultSslProtocolVersions.Value : SslProtocols),
             };
 
             if (this.ClientCertificate != null)
