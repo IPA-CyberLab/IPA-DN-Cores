@@ -249,6 +249,15 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [Flags]
+    public enum DataVaultServerFlags : long
+    {
+        None = 0,
+        UseConcurrentSafeAppendDataToFileAsync = 1,
+
+        Default = UseConcurrentSafeAppendDataToFileAsync,
+    }
+
     public class DataVaultServerOptions : DataVaultServerOptionsBase
     {
         public Action<DataVaultServerReceivedData, DataVaultServerOptions> SetDestinationsProc { get; }
@@ -256,15 +265,18 @@ namespace IPA.Cores.Basic
         public FileFlags FileFlags { get; }
         public FileSystem DestFileSystem { get; }
         public string DestRootDirName { get; }
+        public DataVaultServerFlags ServerFlags { get; }
 
         public DataVaultServerOptions(FileSystem? destFileSystem, string destRootDirName, FileFlags fileFlags, Action<DataVaultServerReceivedData, DataVaultServerOptions>? setDestinationProc, 
-            TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports, string accessKey, string? rateLimiterConfigName = null)
+            TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports, string accessKey, DataVaultServerFlags serverFlags = DataVaultServerFlags.Default, string? rateLimiterConfigName = null)
             : base(tcpIp, sslAuthOptions, ports, accessKey, rateLimiterConfigName)
         {
             if (setDestinationProc == null) setDestinationProc = DataVaultServer.DefaultSetDestinationsProc;
 
             this.DestRootDirName = destRootDirName;
 
+            this.ServerFlags = serverFlags;
+            
             this.FileFlags = fileFlags;
 
             this.DestFileSystem = destFileSystem ?? Lfs;
@@ -334,18 +346,30 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    var buffer = writeBufferList[fileName];
+                    MemoryBuffer<byte>? buffer = writeBufferList[fileName];
 
-                    var handle = await Options.DestFileSystem.GetRandomAccessHandleAsync(fileName, true, this.Options.FileFlags | FileFlags.AutoCreateDirectory);
-                    var concurrentHandle = handle.GetConcurrentRandomAccess();
+                    if (buffer != null)
+                    {
+                        if (Options.ServerFlags.Bit(DataVaultServerFlags.UseConcurrentSafeAppendDataToFileAsync) == false)
+                        {
+                            // 従来のモード。動作重い？ btrfs がバグる
+                            var handle = await Options.DestFileSystem.GetRandomAccessHandleAsync(fileName, true, this.Options.FileFlags | FileFlags.AutoCreateDirectory);
+                            var concurrentHandle = handle.GetConcurrentRandomAccess();
 
-                    await concurrentHandle.AppendWithLargeFsAutoPaddingAsync(buffer.Memory);
+                            await concurrentHandle.AppendWithLargeFsAutoPaddingAsync(buffer.Memory);
 
-                    await concurrentHandle.FlushAsync();
+                            await concurrentHandle.FlushAsync();
+                        }
+                        else
+                        {
+                            // 新しいモード。軽いことを期待 2020/8/16
+                            await Options.DestFileSystem.ConcurrentSafeAppendDataToFileAsync(fileName, buffer.Memory, this.Options.FileFlags | FileFlags.AutoCreateDirectory);
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
-                    Con.WriteDebug($"DataVaultReceiveImplAsync: Filename '{fileName}' write error: {ex.ToString()}");
+                    Con.WriteError($"DataVaultReceiveImplAsync: Filename '{fileName}' write error: {ex.ToString()}");
                 }
             }
         }

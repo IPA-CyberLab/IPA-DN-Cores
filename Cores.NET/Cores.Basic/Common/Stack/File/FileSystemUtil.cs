@@ -58,6 +58,16 @@ namespace IPA.Cores.Basic
 
     public abstract partial class FileSystem
     {
+        readonly NamedAsyncLocks ConcurrentAppendLock = new NamedAsyncLocks(StrComparer.IgnoreCaseComparer);
+
+        public async Task<int> ConcurrentSafeAppendDataToFileAsync(string path, ReadOnlyMemory<byte> data, FileFlags additionalFileFlags = FileFlags.None, CancellationToken cancel = default)
+        {
+            using (await ConcurrentAppendLock.LockWithAwait(path, cancel))
+            {
+                return await this.AppendDataToFileAsync(path, data, flags: FileFlags.AutoCreateDirectory | additionalFileFlags, cancel);
+            }
+        }
+
         public async Task<bool> TryAddOrRemoveAttributeFromExistingFile(string path, FileAttributes attributesToAdd = 0, FileAttributes attributesToRemove = 0, CancellationToken cancel = default)
         {
             try
