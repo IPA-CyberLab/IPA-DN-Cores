@@ -406,7 +406,7 @@ namespace IPA.Cores.Basic
 
                     if (p.ExitCode == 0)
                     {
-                        Con.WriteError("Git is supported.");
+                        Con.WriteInfo("Git is supported.");
                         return true;
                     }
                     else
