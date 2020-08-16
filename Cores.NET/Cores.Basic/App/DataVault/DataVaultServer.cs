@@ -342,6 +342,8 @@ namespace IPA.Cores.Basic
                 }
             }
 
+            bool firstFlag = false;
+
             foreach (string fileName in writeBufferList.Keys)
             {
                 try
@@ -350,6 +352,15 @@ namespace IPA.Cores.Basic
 
                     if (buffer != null)
                     {
+                        if (firstFlag == false)
+                        {
+                            // ファイルシステム API が同期モードになっておりディスク I/O に長時間かかる場合を想定し、
+                            // 呼び出し元の非同期ソケットタイムアウト検出がおかしくなる問題がありえるため
+                            // 1 回は必ず Yield する
+                            firstFlag = true;
+                            await Task.Yield();
+                        }
+
                         if (Options.ServerFlags.Bit(DataVaultServerFlags.UseConcurrentSafeAppendDataToFileAsync) == false)
                         {
                             // 従来のモード。動作重い？ btrfs がバグる
