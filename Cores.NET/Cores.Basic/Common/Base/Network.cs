@@ -670,6 +670,23 @@ namespace IPA.Cores.Basic
             return $"{b[0]}.{b[1]}";
         }
 
+        // 指定した IP アドレスから先頭 1 バイトを取得 (IPv4 の場合)
+        public static string GetHead1BytesIPString(string ip)
+        {
+            return GetHead1BytesIPString(IPAddress.Parse(ip));
+        }
+        public static string GetHead1BytesIPString(IPAddress ip)
+        {
+            if (ip.AddressFamily != AddressFamily.InterNetwork)
+            {
+                throw new ArgumentException("ip.AddressFamily != AddressFamily.InterNetwork");
+            }
+
+            byte[] b = ip.GetAddressBytes();
+
+            return $"{b[0]}";
+        }
+
         // IP アドレスを文字列に変換
         public static string IPToStr(IPAddress ip)
         {
