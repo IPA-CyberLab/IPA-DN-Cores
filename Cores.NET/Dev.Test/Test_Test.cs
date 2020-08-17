@@ -370,6 +370,37 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                Async(async () =>
+                {
+                    using var file = await Lfs.OpenAsync(@"C:\TMP\200724_raspi4_boot_fail_sdimg\sd_fixtest.img", true);
+                    long totalSize = await file.GetFileSizeAsync();
+                    int unitSize = 100_000_000;
+                    Memory<byte> tmp = new byte[unitSize];
+                    Memory<byte> target = "LABEL=writable\t/\t ext4\tdefaults\t0 0"._GetBytes_Ascii();
+                    Memory<byte> newdata = "LABEL=writable\t/\t ext4\tdefaults\t0 1"._GetBytes_Ascii();
+
+                    for (long i = 0; i < totalSize; i += unitSize)
+                    {
+                        await file.ReadRandomAsync(i, tmp);
+
+                        int r = ((ReadOnlySpan<byte>)tmp.Span).IndexOf(target.Span);
+                        if (r != -1)
+                        {
+                            long pos = i + r;
+
+                            $"Found: {pos}"._Debug();
+
+                            await file.WriteRandomAsync(pos, newdata);
+                        }
+
+                        i._ToString3()._Debug();
+                    }
+                });
+                return;
+            }
+
+            if (true)
+            {
                 LogBrowserSecureJson j = new LogBrowserSecureJson()
                 {
                     AuthSubject = " 独立行政法人 情報処理推進機構 (IPA) 独立行政法人 情報処理推進機構 (IPA) ",
