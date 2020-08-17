@@ -344,7 +344,8 @@ namespace IPA.Cores.Basic
 
             bool firstFlag = false;
 
-            foreach (string fileName in writeBufferList.Keys)
+            // 2020/8/17 パスで並び替えるようにしてみた (そのほうがファイルシステム上高速だという仮定)
+            foreach (string fileName in writeBufferList.Keys.OrderBy(x => x, this.Options.DestFileSystem.PathParser.PathStringComparer))
             {
                 try
                 {
