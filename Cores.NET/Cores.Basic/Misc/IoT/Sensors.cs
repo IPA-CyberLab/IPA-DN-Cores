@@ -59,13 +59,13 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic
 {
     // センサー設定
-    public abstract class SensorSettings
+    public abstract class SensorSettingsBase
     {
-        public SensorSettings() { }
+        public SensorSettingsBase() { }
     }
 
     // COM ポートを用いて通信をするセンサー設定
-    public abstract class ComPortBasedSensorSettings
+    public class ComPortBasedSensorSettings : SensorSettingsBase
     {
         public ComPortSettings ComSettings { get; }
 
@@ -78,12 +78,101 @@ namespace IPA.Cores.Basic
     // センサー基本クラス
     public abstract class SensorBase : AsyncService
     {
-        public SensorBase(SensorSettings settings)
+        public SensorSettingsBase Settings { get; }
+        public bool Connected { get; private set; }
+
+        public SensorBase(SensorSettingsBase settings)
         {
+            this.Settings = settings;
         }
 
         protected abstract Task ConnectImplAsync(CancellationToken cancel = default);
+        protected abstract Task DisconnectImplAsync();
+        readonly AsyncLock Lock = new AsyncLock();
+
+        public async Task ConnectAsync(CancellationToken cancel = default)
+        {
+            await Task.Yield();
+
+            using (await Lock.LockWithAwait(cancel))
+            {
+                if (this.Connected)
+                    throw new CoresException("Already connected.");
+
+                await ConnectImplAsync(cancel);
+
+                this.Connected = true;
+            }
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                using (await Lock.LockWithAwait())
+                {
+                    if (this.Connected)
+                    {
+                        this.Connected = false;
+
+                        await DisconnectImplAsync();
+                    }
+                }
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
+        }
     }
+
+    // COM ポートを用いて通信するセンサーの基本クラス
+    public abstract class ComPortBasedSensorBase : SensorBase
+    {
+        public new ComPortBasedSensorSettings Settings => (ComPortBasedSensorSettings)base.Settings;
+
+        protected ShellClientSock Sock { get; private set; } = null!;
+
+        public ComPortBasedSensorBase(ComPortBasedSensorSettings settings) : base(settings)
+        {
+        }
+
+        protected override async Task ConnectImplAsync(CancellationToken cancel = default)
+        {
+            ComPortClient com = new ComPortClient(this.Settings.ComSettings);
+
+            try
+            {
+                var sock = await com.ConnectAndGetSockAsync(cancel);
+
+                this.Sock = sock;
+            }
+            catch
+            {
+                await com._DisposeSafeAsync2();
+                throw;
+            }
+        }
+
+        protected override async Task DisconnectImplAsync()
+        {
+            await this.Sock._DisposeSafeAsync();
+
+            this.Sock = null!;
+        }
+    }
+
+    // eMeter 8870 電圧センサー
+    public class VoltageSensor8870 : ComPortBasedSensorBase
+    {
+        public new ComPortBasedSensorSettings Settings => (ComPortBasedSensorSettings)base.Settings;
+
+        public VoltageSensor8870(ComPortBasedSensorSettings settings) : base(settings)
+        {
+        }
+    }
+
+
 }
 
 #endif

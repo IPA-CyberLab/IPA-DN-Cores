@@ -376,14 +376,12 @@ namespace IPA.TestDev
                 ComPortClient client = null!;
                 Task t = AsyncAwait(async () =>
                 {
-                    using var com = new ComPortClient(new ComPortSettings("COM9"));
+                    var com = new ComPortClient(new ComPortSettings("COM9"));
                     client = com;
 
-                    var pp = await com.ConnectAsync(cancel);
-                    using var stub = pp.GetNetAppProtocolStub();
-                    using var st = stub.GetStream();
+                    using var sock = await com.ConnectAndGetSockAsync();
 
-                    var r = new BinaryLineReader(st);
+                    var r = new BinaryLineReader(sock.Stream);
 
                     while (true)
                     {

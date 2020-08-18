@@ -88,6 +88,37 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class ShellClientSock : AsyncService
+    {
+        public ShellClientBase Client { get; }
+        public PipePoint PipePoint { get; }
+        public NetAppStub Stub { get; }
+        public PipeStream Stream { get; }
+
+        public ShellClientSock(ShellClientBase client, PipePoint pipePoint, NetAppStub stub, PipeStream stream)
+        {
+            this.Client = client;
+            this.PipePoint = pipePoint;
+            this.Stub = stub;
+            this.Stream = stream;
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                await this.Stream._DisposeSafeAsync();
+                await this.Stub._DisposeSafeAsync();
+                await this.PipePoint._DisposeSafeAsync2();
+                await this.Client._DisposeSafeAsync();
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
+        }
+    }
+
     public abstract class ShellClientBase : AsyncService
     {
         public ShellClientSettingsBase Settings { get; }
@@ -107,12 +138,36 @@ namespace IPA.Cores.Basic
         }
 
         protected abstract Task<PipePoint> ConnectImplAsync(CancellationToken cancel = default);
-        protected abstract void DisconnectImpl();
+        protected abstract Task DisconnectImplAsync();
 
         readonly AsyncLock Lock = new AsyncLock();
 
+        public async Task<ShellClientSock> ConnectAndGetSockAsync(CancellationToken cancel = default)
+        {
+            PipePoint? pipePoint = null;
+            NetAppStub? stub = null;
+            PipeStream? stream = null;
+            try
+            {
+                pipePoint = await this.ConnectAsync(cancel);
+                stub = pipePoint.GetNetAppProtocolStub();
+                stream = stub.GetStream();
+
+                return new ShellClientSock(this, pipePoint, stub, stream);
+            }
+            catch
+            {
+                await stream._DisposeSafeAsync();
+                await stub._DisposeSafeAsync();
+                await pipePoint._DisposeSafeAsync2();
+                throw;
+            }
+        }
+
         public async Task<PipePoint> ConnectAsync(CancellationToken cancel = default)
         {
+            await Task.Yield();
+
             using (await Lock.LockWithAwait(cancel))
             {
                 if (this.Connected)
@@ -126,27 +181,23 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception? ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
-                using (Lock.LockLegacy())
+                using (await Lock.LockWithAwait())
                 {
                     if (this.Connected)
                     {
                         this.Connected = false;
 
-                        DisconnectImpl();
+                        await DisconnectImplAsync();
                     }
                 }
             }
-            catch (Exception ex2)
-            {
-                ex2._Debug();
-            }
             finally
             {
-                base.CancelImpl(ex);
+                await base.CleanupImplAsync(ex);
             }
         }
     }
@@ -348,12 +399,12 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisconnectImpl()
+        protected override async Task DisconnectImplAsync()
         {
-            this.PipePointMySide._DisposeSafe();
-            this.PipePointWrapper._DisposeSafe();
-            this.Stream._DisposeSafe();
-            this.Ssh._DisposeSafe();
+            await this.PipePointMySide._DisposeSafeAsync2();
+            await this.PipePointWrapper._DisposeSafeAsync2();
+            await this.Stream._DisposeSafeAsync2();
+            await this.Ssh._DisposeSafeAsync2();
 
             this.PipePointMySide = null;
             this.PipePointWrapper = null;
@@ -541,11 +592,11 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisconnectImpl()
+        protected override async Task DisconnectImplAsync()
         {
-            this.PipePointMySide._DisposeSafe();
-            this.PipePointWrapper._DisposeSafe();
-            this.SerialPort._DisposeSafe();
+            await this.PipePointMySide._DisposeSafeAsync2();
+            await this.PipePointWrapper._DisposeSafeAsync2();
+            await this.SerialPort._DisposeSafeAsync2();
 
             this.PipePointMySide = null;
             this.PipePointWrapper = null;
