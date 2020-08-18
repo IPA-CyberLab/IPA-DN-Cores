@@ -380,6 +380,34 @@ namespace IPA.TestDev
                 CancellationTokenSource cts = new CancellationTokenSource();
                 var cancel = cts.Token;
 
+                var sensor = new ThermometerSensor528018();
+
+                sensor.StartAsync(cancel)._TryGetResult();
+
+                using var poll = AsyncScoped(async c =>
+                {
+                    while (c.IsCancellationRequested == false)
+                    {
+                        sensor.CurrentData.PrimaryValue._Debug();
+
+                        await c._WaitUntilCanceledAsync(500);
+                    }
+                });
+
+                Con.ReadLine();
+
+                cts.Cancel();
+
+                sensor._DisposeSafe();
+
+                return;
+            }
+
+            if (true)
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+                var cancel = cts.Token;
+
                 var sensor = new VoltageSensor8870(new ComPortBasedSensorSettings(new ComPortSettings("/dev/ttyACM0")));
 
                 sensor.StartAsync(cancel)._TryGetResult();

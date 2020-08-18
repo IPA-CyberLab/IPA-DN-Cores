@@ -402,6 +402,7 @@ namespace IPA.Cores.Basic
             public const string Df = "/bin/df";
             public const string Birdc = "/usr/local/sbin/birdc";
             public const string Birdc6 = "/usr/local/sbin/birdc6";
+            public const string Temper = "/usr/bin/temper";
         }
 
         public static partial class LinuxPaths

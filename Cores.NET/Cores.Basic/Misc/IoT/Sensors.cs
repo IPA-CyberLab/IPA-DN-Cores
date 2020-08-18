@@ -68,13 +68,13 @@ namespace IPA.Cores.Basic
     }
 
     // センサー設定
-    public abstract class SensorSettingsBase
+    public class SensorSettings
     {
-        public SensorSettingsBase() { }
+        public SensorSettings() { }
     }
 
     // COM ポートを用いて通信をするセンサー設定
-    public class ComPortBasedSensorSettings : SensorSettingsBase
+    public class ComPortBasedSensorSettings : SensorSettings
     {
         public ComPortSettings ComSettings { get; }
 
@@ -121,12 +121,12 @@ namespace IPA.Cores.Basic
     // センサー基本クラス
     public abstract class SensorBase : AsyncServiceWithMainLoop
     {
-        public SensorSettingsBase Settings { get; }
+        public SensorSettings Settings { get; }
         public bool Started { get; private set; }
 
         public SensorData CurrentData { get; private set; } = new SensorData();
 
-        public SensorBase(SensorSettingsBase settings)
+        public SensorBase(SensorSettings settings)
         {
             this.Settings = settings;
         }
@@ -173,6 +173,9 @@ namespace IPA.Cores.Basic
                 }
                 catch (Exception ex)
                 {
+                    // 取得失敗。値を初期化いたします
+                    this.UpdateCurrentData(new SensorData());
+
                     ex.ToString()._DebugFunc();
                 }
 
@@ -190,6 +193,23 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // コマンドラインを用いて取得するセンサーの基本クラス
+    public abstract class ProcessBasedSensorBase : SensorBase
+    {
+        protected abstract Task GetValueFromCommandLineImplAsync(CancellationToken cancel = default);
+
+        public ProcessBasedSensorBase(SensorSettings settings) : base(settings)
+        {
+        }
+
+        protected sealed override async Task ConnectAndGetValueImplAsync(CancellationToken cancel = default)
+        {
+            await Task.Yield();
+
+            await GetValueFromCommandLineImplAsync(cancel);
+        }
+    }
+
     // COM ポートを用いて通信するセンサーの基本クラス
     public abstract class ComPortBasedSensorBase : SensorBase
     {
@@ -201,7 +221,7 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override async Task ConnectAndGetValueImplAsync(CancellationToken cancel = default)
+        protected sealed override async Task ConnectAndGetValueImplAsync(CancellationToken cancel = default)
         {
             await Task.Yield();
 
@@ -271,6 +291,52 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // thermometer-528018 温度センサー
+    public class ThermometerSensor528018 : ProcessBasedSensorBase
+    {
+        public ThermometerSensor528018() : base(new SensorSettings())
+        {
+        }
+
+        protected override async Task GetValueFromCommandLineImplAsync(CancellationToken cancel = default)
+        {
+            while (true)
+            {
+                cancel.ThrowIfCancellationRequested();
+
+                EasyExecResult result = await EasyExec.ExecAsync(Consts.LinuxCommands.Temper, cancel: cancel, timeout: 10 * 1000);
+
+                string[] lines = result.ErrorAndOutputStr._GetLines(true);
+
+                if (lines.Length >= 1)
+                {
+                    string[] tokens = lines[0]._Split(StringSplitOptions.RemoveEmptyEntries, ',');
+
+                    if (tokens.Length == 2)
+                    {
+                        string numstr = tokens[1];
+
+                        if (double.TryParse(numstr, out double value))
+                        {
+                            SensorData data = new SensorData(value.ToString("F2"));
+
+                            this.UpdateCurrentData(data);
+                        }
+                    }
+                    else
+                    {
+                        Dbg.Where();
+                    }
+                }
+                else
+                {
+                    Dbg.Where();
+                }
+
+                await cancel._WaitUntilCanceledAsync(1000);
+            }
+        }
+    }
 
 }
 
