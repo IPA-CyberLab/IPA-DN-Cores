@@ -2843,6 +2843,11 @@ namespace IPA.Cores.Basic
                     _UseFast = true;
                 }
             }
+
+            if (_UseFast == false)
+            {
+                Console.WriteLine("MemoryHelper Warning: Fail to set _UseFast to true. Performance impact.");
+            }
         }
 
         public const int MemoryUsePoolThreshold = 1024;
