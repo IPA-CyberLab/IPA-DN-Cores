@@ -431,8 +431,6 @@ namespace IPA.Cores.Basic
             DataBits = dataBits;
             StopBits = stopBits;
             Handshake = handshake;
-
-            this._DebugAsJson();
         }
     }
 

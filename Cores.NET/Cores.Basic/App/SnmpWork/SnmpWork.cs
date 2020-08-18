@@ -170,11 +170,11 @@ namespace IPA.Cores.Basic
 
         public IEnumerable<KeyValuePair<string, string>> CurrentValues { get; private set; }
 
-        protected abstract void InitImpl();
+        protected abstract void InitImpl(object? param = null);
 
         public readonly SnmpWorkHost Host;
 
-        public SnmpWorkFetcherBase(SnmpWorkHost host)
+        public SnmpWorkFetcherBase(SnmpWorkHost host, object? param = null)
         {
             try
             {
@@ -182,7 +182,7 @@ namespace IPA.Cores.Basic
 
                 this.CurrentValues = new SortedDictionary<string, string>();
 
-                InitImpl();
+                InitImpl(param);
 
                 this.StartMainLoop(MainLoopAsync);
             }
