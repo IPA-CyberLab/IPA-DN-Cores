@@ -369,7 +369,7 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (true)
+            if (false)
             {
                 ComPortClient.GetPortTargetNames()._DebugAsJson();
                 return;
@@ -380,7 +380,7 @@ namespace IPA.TestDev
                 CancellationTokenSource cts = new CancellationTokenSource();
                 var cancel = cts.Token;
 
-                var sensor = new VoltageSensor8870(new ComPortBasedSensorSettings(new ComPortSettings("com9")));
+                var sensor = new VoltageSensor8870(new ComPortBasedSensorSettings(new ComPortSettings("/dev/ttyACM0")));
 
                 sensor.StartAsync(cancel)._TryGetResult();
 

@@ -423,7 +423,7 @@ namespace IPA.Cores.Basic
         public StopBits StopBits { get; }
         public Handshake Handshake { get; }
 
-        public ComPortSettings(string targetName, int connectTimeoutMsecs = 0, int commTimeoutMsecs = 0, int baudRate = 9660, Parity parity = Parity.None, int dataBits = 8, StopBits stopBits = StopBits.One, Handshake handshake = Handshake.None)
+        public ComPortSettings(string targetName, int connectTimeoutMsecs = 0, int commTimeoutMsecs = 0, int baudRate = 9600, Parity parity = Parity.None, int dataBits = 8, StopBits stopBits = StopBits.One, Handshake handshake = Handshake.None)
             : base(targetName, 0, connectTimeoutMsecs, commTimeoutMsecs)
         {
             BaudRate = baudRate;
@@ -431,6 +431,8 @@ namespace IPA.Cores.Basic
             DataBits = dataBits;
             StopBits = stopBits;
             Handshake = handshake;
+
+            this._DebugAsJson();
         }
     }
 
