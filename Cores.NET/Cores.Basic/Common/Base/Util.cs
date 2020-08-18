@@ -7031,6 +7031,46 @@ namespace IPA.Cores.Basic
             this.Buffer = new byte[bufferSize + 1]; // 最後の文字が CR の場合は追加で 1 文字読むため、1 バイト多めにしてある
         }
 
+        readonly Queue<Memory<byte>> SingleLineQueue = new Queue<Memory<byte>>();
+
+        public async Task<string?> ReadSingleLineStringAsync(int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, Encoding? encoding = null, CancellationToken cancel = default)
+        {
+            if (encoding == null) encoding = Str.Utf8Encoding;
+
+            var memory = await ReadSingleLineAsync(maxBytesPerLine, cancel);
+            if (memory == null) return null;
+
+            return encoding.GetString(memory.Value.Span);
+        }
+
+        public async Task<Memory<byte>?> ReadSingleLineAsync(int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, CancellationToken cancel = default)
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            if (SingleLineQueue.Count >= 1)
+            {
+                return SingleLineQueue.Dequeue();
+            }
+
+            List<Memory<byte>>? multiLines = await ReadLinesAsync(maxBytesPerLine, cancel);
+
+            if (multiLines == null)
+            {
+                return null;
+            }
+
+            Debug.Assert(multiLines.Count >= 1);
+
+            if (multiLines.Count == 1) return multiLines[0];
+
+            foreach (var line in multiLines)
+            {
+                this.SingleLineQueue.Enqueue(line);
+            }
+
+            return SingleLineQueue.Dequeue();
+        }
+
         public async Task<List<Memory<byte>>?> ReadLinesAsync(int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, CancellationToken cancel = default)
         {
             List<Memory<byte>> ret = new List<Memory<byte>>();
@@ -7045,6 +7085,8 @@ namespace IPA.Cores.Basic
                 {
                     // バッファが空の場合は読み込む
                     CurrentPositionInBuffer = 0;
+
+                    cancel.ThrowIfCancellationRequested();
 
                     int r = await Stream.ReadAsync(this.Buffer.Slice(0, this.BufferSize), cancel);
 

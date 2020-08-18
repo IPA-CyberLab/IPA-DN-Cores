@@ -34,6 +34,7 @@
 
 using System;
 using System.IO;
+using System.IO.Ports;
 using System.IO.Enumeration;
 using System.Threading;
 using System.Threading.Tasks;
@@ -368,6 +369,94 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+                var cancel = cts.Token;
+                ComPortClient client = null!;
+                Task t = AsyncAwait(async () =>
+                {
+                    using var com = new ComPortClient(new ComPortSettings("COM9"));
+                    client = com;
+
+                    var pp = await com.ConnectAsync(cancel);
+                    using var stub = pp.GetNetAppProtocolStub();
+                    using var st = stub.GetStream();
+
+                    var r = new BinaryLineReader(st);
+
+                    while (true)
+                    {
+                        string? line = await r.ReadSingleLineStringAsync(cancel: cancel);
+
+                        if (line == null)
+                        {
+                            "Disconectd!"._Print();
+                        }
+
+                        line = line._NonNull();
+
+                        $"Recv: {line}"._Print();
+                    }
+                });
+
+                Con.ReadLine();
+
+                Dbg.Where();
+
+                //client._DisposeSafe();
+                cts.Cancel();
+
+                Dbg.Where();
+
+
+                Dbg.Where();
+
+                t._GetResult();
+
+                return;
+            }
+
+            if (true)
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+                SerialPort p = new SerialPort("COM9");
+
+                Task t = AsyncAwait(async () =>
+                {
+
+                    p.Open();
+
+                    "Open"._Print();
+
+                    var stream = p.BaseStream;
+
+                    while (true)
+                    {
+                        var memory = await stream._ReadAsync(cancel: cts.Token);
+
+                        memory._GetString_Ascii()._Print();
+                    }
+                });
+
+                Con.ReadLine();
+
+                Dbg.Where();
+
+                p.Close();
+
+                Dbg.Where();
+
+                cts.Cancel();
+
+                Dbg.Where();
+
+                t._GetResult();
+
+                return;
+            }
+
+
             if (true)
             {
                 Async(async () =>

@@ -685,6 +685,15 @@ namespace IPA.Cores.Basic
                 EventListeners.Fire(this, FastBufferCallbackEventType.EmptyToNonEmpty);
         }
 
+        public void EnqueueWithLock(ReadOnlyMemory<T> item, bool completeWrite = false)
+        {
+            lock (LockObj)
+                Enqueue(item);
+
+            if (completeWrite)
+                CompleteWrite();
+        }
+
         public void EnqueueAllWithLock(ReadOnlySpan<ReadOnlyMemory<T>> itemList, bool completeWrite = false)
         {
             lock (LockObj)
