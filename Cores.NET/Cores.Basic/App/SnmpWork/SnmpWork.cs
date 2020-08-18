@@ -60,6 +60,20 @@ namespace IPA.Cores.Basic
 {
     [Serializable]
     [DataContract]
+    public class SnmpWorkSensorSetting
+    {
+        [DataMember]
+        public string SensorName = "";
+
+        [DataMember]
+        public string SensorTitle = "";
+
+        [DataMember]
+        public string SensorArguments = "";
+    }
+
+    [Serializable]
+    [DataContract]
     public class SnmpWorkSettings : INormalizable
     {
         [DataMember]
@@ -98,6 +112,9 @@ namespace IPA.Cores.Basic
         [DataMember]
         public bool HopsToTTL = false;
 
+        [DataMember]
+        public List<SnmpWorkSensorSetting> SensorList = new List<SnmpWorkSensorSetting>();
+
         public void Normalize()
         {
             if (PingTargets._IsEmpty()) PingTargets = SnmpWorkConfig.DefaultPingTarget;
@@ -111,6 +128,11 @@ namespace IPA.Cores.Basic
             if (PktLossIntervalMsec <= 0) PktLossIntervalMsec = SnmpWorkConfig.DefaultPktLossIntervalMsec;
             if (HttpPort <= 0) HttpPort = Consts.Ports.SnmpWorkHttp;
             if (PingNumTry <= 0) PingNumTry = SnmpWorkConfig.DefaultPingNumTry;
+            if (SensorList == null || SensorList.Count == 0)
+            {
+                SensorList = new List<SnmpWorkSensorSetting>();
+                SensorList.Add(new SnmpWorkSensorSetting { SensorName = Consts.Strings.Sample, SensorArguments = "", SensorTitle = Consts.Strings.Sample });
+            }
         }
     }
 
@@ -131,7 +153,7 @@ namespace IPA.Cores.Basic
         public static readonly Copenhagen<int> TruncatedNameStrLen = 14;
 
         public static readonly Copenhagen<string> DefaultPingTarget = "ping4.test.sehosts.com=IPv4 Internet,ping6.test.sehosts.com=IPv6 Internet";
-        public static readonly Copenhagen<string> DefaultSpeedTarget = "speed4.test.sehosts.com|9821=IPv4 Internet,speed6.test.sehosts.com|9821=IPv6 Internet";
+        public static readonly Copenhagen<string> DefaultSpeedTarget = "";// speed4.test.sehosts.com|9821=IPv4 Internet,speed6.test.sehosts.com|9821=IPv6 Internet";  2020/08/18 disable by default !!!
         public static readonly Copenhagen<int> DefaultSpeedIntervalSecs = 600;
         public static readonly Copenhagen<int> DefaultSpeedSpanSecs = 7;
         public static readonly Copenhagen<int> DefaultSpeedTryCount = 5;
@@ -483,6 +505,22 @@ namespace IPA.Cores.Basic
             }
 
             return ret;
+        }
+
+        public void RegisterSensors(int snmpIndexBase)
+        {
+            var settings = this.Settings;
+
+            foreach (var sensorItem in settings.SensorList)
+            {
+                if (sensorItem.SensorTitle._IsFilled() && sensorItem.SensorTitle._IsSamei(Consts.Strings.Sample) == false) // Sample config を除外する
+                {
+                    if (sensorItem.SensorName._IsFilled() && sensorItem.SensorName._IsSamei(Consts.Strings.Sample) == false)
+                    {
+                        this.Register(sensorItem.SensorTitle, snmpIndexBase, new SnmpWorkFetcherSensor(this, sensorItem));
+                    }
+                }
+            }
         }
 
         public void Register(string name, int snmpIndexBase, SnmpWorkFetcherBase fetcher)

@@ -59,6 +59,65 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    public class SnmpWorkFetcherSensor : SnmpWorkFetcherBase
+    {
+        readonly Sensor Sensor;
+
+        public SnmpWorkFetcherSensor(SnmpWorkHost host, SnmpWorkSensorSetting setting) : base(host)
+        {
+            try
+            {
+                Sensor sensor = SensorsFactory.Create(setting.SensorName, setting.SensorTitle, setting.SensorArguments);
+
+                this.Sensor = sensor;
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+        protected override void InitImpl()
+        {
+            Sensor.StartAsync()._GetResult();
+        }
+
+        protected override async Task GetValueAsync(SortedDictionary<string, string> ret, RefInt nextPollingInterval, CancellationToken cancel = default)
+        {
+            await Task.Yield();
+
+            var data = Sensor.CurrentData;
+
+            foreach (var item in data.ValueList)
+            {
+                if (item.Value._IsFilled())
+                {
+                    string key = "value";
+
+                    if (item.Key._IsFilled())
+                    {
+                        key = item.Key.Trim();
+                    }
+
+                    ret.TryAdd(key, item.Value);
+                }
+            }
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                await this.Sensor._DisposeSafeAsync();
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
+        }
+    }
+
     public class SnmpWorkFetcherBird : SnmpWorkFetcherBase
     {
         bool isBirdcExists = false;

@@ -191,6 +191,8 @@ namespace IPA.Cores.Basic
 
             public const string EasyCookieNamePrefix = "Cores_EasyCookie_";
             public const string EasyCookieValuePrefix = "Ec_";
+
+            public const string Sample = "__sample__";
         }
 
         public static partial class HiveNames

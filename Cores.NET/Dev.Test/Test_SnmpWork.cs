@@ -74,6 +74,8 @@ namespace IPA.TestDev
             host.Register("Quality", 107_00000, new SnmpWorkFetcherPktQuality(host));
             host.Register("Bird", 108_00000, new SnmpWorkFetcherBird(host));
 
+            host.RegisterSensors(109_00000);
+
             Con.WriteLine("SnmpWorkDaemon: Started.");
         }
 

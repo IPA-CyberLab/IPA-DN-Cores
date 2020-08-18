@@ -55,6 +55,7 @@ using System.Runtime.Serialization;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Runtime.InteropServices.WindowsRuntime;
 
 namespace IPA.Cores.Basic
 {
@@ -70,7 +71,6 @@ namespace IPA.Cores.Basic
     // センサー設定
     public class SensorSettings
     {
-        public SensorSettings() { }
     }
 
     // COM ポートを用いて通信をするセンサー設定
@@ -119,14 +119,16 @@ namespace IPA.Cores.Basic
     }
 
     // センサー基本クラス
-    public abstract class SensorBase : AsyncServiceWithMainLoop
+    public abstract class Sensor : AsyncServiceWithMainLoop
     {
         public SensorSettings Settings { get; }
         public bool Started { get; private set; }
 
+        public string Title { get; set; } = "";
+
         public SensorData CurrentData { get; private set; } = new SensorData();
 
-        public SensorBase(SensorSettings settings)
+        public Sensor(SensorSettings settings)
         {
             this.Settings = settings;
         }
@@ -194,7 +196,7 @@ namespace IPA.Cores.Basic
     }
 
     // コマンドラインを用いて取得するセンサーの基本クラス
-    public abstract class ProcessBasedSensorBase : SensorBase
+    public abstract class ProcessBasedSensorBase : Sensor
     {
         protected abstract Task GetValueFromCommandLineImplAsync(CancellationToken cancel = default);
 
@@ -211,7 +213,7 @@ namespace IPA.Cores.Basic
     }
 
     // COM ポートを用いて通信するセンサーの基本クラス
-    public abstract class ComPortBasedSensorBase : SensorBase
+    public abstract class ComPortBasedSensorBase : Sensor
     {
         public new ComPortBasedSensorSettings Settings => (ComPortBasedSensorSettings)base.Settings;
 
@@ -338,6 +340,31 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // センサー Factor Class
+    public static class SensorsFactory
+    {
+        public static Sensor Create(string sensorName, string sensorTitle, string arguments)
+        {
+            Sensor? ret = null;
+            if (sensorName._IsSamei("ThermometerSensor528018"))
+            {
+                ret = new ThermometerSensor528018();
+            }
+            else if (sensorName._IsSamei("VoltageSensor8870"))
+            {
+                ret = new VoltageSensor8870(new ComPortBasedSensorSettings(new ComPortSettings(arguments)));
+            }
+
+            if (ret == null)
+            {
+                throw new ArgumentException(nameof(sensorName));
+            }
+
+            ret.Title = sensorTitle;
+
+            return ret;
+        }
+    }
 }
 
 #endif
