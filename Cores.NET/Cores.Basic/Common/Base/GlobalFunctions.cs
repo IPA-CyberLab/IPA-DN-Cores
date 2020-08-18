@@ -152,6 +152,62 @@ namespace IPA.Cores.Globals
             return h;
         }
 
+        [MethodImpl(Inline)]
+        public static IDisposable AsyncScoped(Func<CancellationToken, Task> asyncFunc, bool noErrorMessage = false)
+        {
+            CancellationTokenSource cts = new CancellationTokenSource();
+
+            Task task = asyncFunc(cts.Token);
+
+            AsyncHolder h = new AsyncHolder(async () =>
+            {
+                cts._TryCancelNoBlock();
+
+                try
+                {
+                    await task;
+                }
+                catch (Exception ex)
+                {
+                    if (noErrorMessage == false)
+                    {
+                        ex._Debug();
+                    }
+                }
+            },
+            LeakCounterKind.AsyncScoped);
+
+            return h;
+        }
+
+        [MethodImpl(Inline)]
+        public static IDisposable AsyncScoped<T>(Func<CancellationToken, Task<T>> asyncFunc, bool noErrorMessage = false)
+        {
+            CancellationTokenSource cts = new CancellationTokenSource();
+
+            Task<T> task = asyncFunc(cts.Token);
+
+            AsyncHolder h = new AsyncHolder(async () =>
+            {
+                cts._TryCancelNoBlock();
+
+                try
+                {
+                    await task;
+                }
+                catch (Exception ex)
+                {
+                    if (noErrorMessage == false)
+                    {
+                        ex._Debug();
+                    }
+                }
+            },
+            LeakCounterKind.AsyncScoped);
+
+            return h;
+        }
+
         public static bool TryRetBool(Action action, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
         {
             try

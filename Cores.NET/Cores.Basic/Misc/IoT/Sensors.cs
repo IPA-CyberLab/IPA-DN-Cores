@@ -58,6 +58,15 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    public static partial class CoresConfig
+    {
+        public static partial class SensorConfig
+        {
+            public static readonly Copenhagen<int> RetryIntervalBaseMsecs = 1 * 1000;
+            public static readonly Copenhagen<int> RetryIntervalMaxMsecs = 15 * 1000;
+        }
+    }
+
     // センサー設定
     public abstract class SensorSettingsBase
     {
@@ -75,53 +84,108 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // センサーで取得された値データ
+    public class SensorData
+    {
+        public SortedDictionary<string, string> ValueList { get; } = new SortedDictionary<string, string>(StrComparer.IgnoreCaseComparer);
+
+        public string PrimaryValue
+        {
+            get
+            {
+                if (this.ValueList.TryGetValue("", out string? ret))
+                    return ret._NonNull();
+
+                return "";
+            }
+        }
+
+        public void SetPrimaryValue(string primaryValue)
+        {
+            this.ValueList[""] = primaryValue._NonNullTrim();
+        }
+
+        public void AddValue(string name, string value)
+        {
+            this.ValueList[name._NonNullTrim()] = value._NonNullTrim();
+        }
+
+        public SensorData() { }
+
+        public SensorData(string primaryValue)
+        {
+            SetPrimaryValue(primaryValue);
+        }
+    }
+
     // センサー基本クラス
-    public abstract class SensorBase : AsyncService
+    public abstract class SensorBase : AsyncServiceWithMainLoop
     {
         public SensorSettingsBase Settings { get; }
-        public bool Connected { get; private set; }
+        public bool Started { get; private set; }
+
+        public SensorData CurrentData { get; private set; } = new SensorData();
 
         public SensorBase(SensorSettingsBase settings)
         {
             this.Settings = settings;
         }
 
-        protected abstract Task ConnectImplAsync(CancellationToken cancel = default);
-        protected abstract Task DisconnectImplAsync();
         readonly AsyncLock Lock = new AsyncLock();
 
-        public async Task ConnectAsync(CancellationToken cancel = default)
+        protected abstract Task ConnectAndGetValueImplAsync(CancellationToken cancel = default);
+
+        public async Task StartAsync(CancellationToken cancel = default)
         {
             await Task.Yield();
 
             using (await Lock.LockWithAwait(cancel))
             {
-                if (this.Connected)
+                if (this.Started)
                     throw new CoresException("Already connected.");
 
-                await ConnectImplAsync(cancel);
+                this.Started = true;
 
-                this.Connected = true;
+                Task t = this.StartMainLoop(MainLoopAsync);
             }
         }
 
-        protected override async Task CleanupImplAsync(Exception? ex)
+        // 最新データのセット
+        protected void UpdateCurrentData(SensorData data)
         {
-            try
-            {
-                using (await Lock.LockWithAwait())
-                {
-                    if (this.Connected)
-                    {
-                        this.Connected = false;
+            this.CurrentData = data;
+        }
 
-                        await DisconnectImplAsync();
-                    }
-                }
-            }
-            finally
+        // 接続試行 / 値取得を繰り返すループ
+        async Task MainLoopAsync(CancellationToken cancel = default)
+        {
+            int nextWaitTime = 0;
+
+            while (true)
             {
-                await base.CleanupImplAsync(ex);
+                cancel.ThrowIfCancellationRequested();
+
+                await Task.Yield();
+
+                try
+                {
+                    await ConnectAndGetValueImplAsync(cancel);
+                }
+                catch (Exception ex)
+                {
+                    ex.ToString()._DebugFunc();
+                }
+
+                cancel.ThrowIfCancellationRequested();
+
+                nextWaitTime = nextWaitTime + CoresConfig.SensorConfig.RetryIntervalBaseMsecs;
+                nextWaitTime = Math.Min(nextWaitTime, CoresConfig.SensorConfig.RetryIntervalMaxMsecs);
+
+                nextWaitTime = Util.GenRandInterval(nextWaitTime);
+
+                $"Waiting for {nextWaitTime} msecs to next retry"._DebugFunc();
+
+                await cancel._WaitUntilCanceledAsync(nextWaitTime);
             }
         }
     }
@@ -131,34 +195,42 @@ namespace IPA.Cores.Basic
     {
         public new ComPortBasedSensorSettings Settings => (ComPortBasedSensorSettings)base.Settings;
 
-        protected ShellClientSock Sock { get; private set; } = null!;
+        protected abstract Task GetValueFromComPortImplAsync(ShellClientSock sock, CancellationToken cancel = default);
 
         public ComPortBasedSensorBase(ComPortBasedSensorSettings settings) : base(settings)
         {
         }
 
-        protected override async Task ConnectImplAsync(CancellationToken cancel = default)
+        protected override async Task ConnectAndGetValueImplAsync(CancellationToken cancel = default)
         {
-            ComPortClient com = new ComPortClient(this.Settings.ComSettings);
+            await Task.Yield();
 
+            ComPortClient? client = null;
             try
             {
-                var sock = await com.ConnectAndGetSockAsync(cancel);
+                client = new ComPortClient(this.Settings.ComSettings);
 
-                this.Sock = sock;
+                using ShellClientSock sock = await client.ConnectAndGetSockAsync(cancel);
+
+                await TaskUtil.DoAsyncWithTimeout(async (c) =>
+                {
+                    await Task.Yield();
+
+                    await GetValueFromComPortImplAsync(sock, c);
+
+                    return 0;
+                },
+                cancelProc: () =>
+                {
+                    sock._DisposeSafe(new OperationCanceledException());
+                },
+                cancel: cancel);
             }
             catch
             {
-                await com._DisposeSafeAsync2();
+                await client._DisposeSafeAsync();
                 throw;
             }
-        }
-
-        protected override async Task DisconnectImplAsync()
-        {
-            await this.Sock._DisposeSafeAsync();
-
-            this.Sock = null!;
         }
     }
 
@@ -169,6 +241,33 @@ namespace IPA.Cores.Basic
 
         public VoltageSensor8870(ComPortBasedSensorSettings settings) : base(settings)
         {
+        }
+
+        protected override async Task GetValueFromComPortImplAsync(ShellClientSock sock, CancellationToken cancel = default)
+        {
+            var reader = new BinaryLineReader(sock.Stream);
+
+            while (true)
+            {
+                string? line = await reader.ReadSingleLineStringAsync(cancel: cancel);
+                if (line == null)
+                {
+                    break;
+                }
+
+                // ここで line には "0123.4A" のようなアンペア文字列が入っているはずである。
+                if (line.EndsWith("A"))
+                {
+                    string numstr = line._SliceHead(line.Length - 1);
+
+                    if (double.TryParse(numstr, out double value))
+                    {
+                        SensorData data = new SensorData(value.ToString("F2"));
+
+                        this.UpdateCurrentData(data);
+                    }
+                }
+            }
         }
     }
 

@@ -547,6 +547,11 @@ namespace IPA.Cores.Basic
         {
         }
 
+        public static string[] GetPortTargetNames()
+        {
+            return SerialPort.GetPortNames().Distinct().OrderBy(x => x, StrComparer.IgnoreCaseComparer).ToArray();
+        }
+
         protected override async Task<PipePoint> ConnectImplAsync(CancellationToken cancel = default)
         {
             await Task.CompletedTask;
