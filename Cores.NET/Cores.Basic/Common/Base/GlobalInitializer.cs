@@ -53,6 +53,7 @@ namespace IPA.Cores.Basic
         public bool RecordLeakFullStack { get; private set; }
         public bool NohupMode { get; private set; }
         public bool NoTelnetMode { get; private set; }
+        public bool ShowVersion { get; private set; }
         public CoresMode Mode { get; private set; }
         public string AppName { get; }
 
@@ -85,6 +86,7 @@ namespace IPA.Cores.Basic
             procs.Add(("fullleak", false, (name, next) => { this.RecordLeakFullStack = true; }));
             procs.Add(("nohup", false, (name, next) => { this.NohupMode = true; }));
             procs.Add(("notelnet", false, (name, next) => { this.NoTelnetMode = true; }));
+            procs.Add(("version", false, (name, next) => { this.ShowVersion = true; }));
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -198,6 +200,24 @@ namespace IPA.Cores.Basic
 #endif
 
                 string[] newArgs = options.OverrideOptionsByArgs(args);
+
+                if (options.ShowVersion)
+                {
+                    // Show version
+                    Console.WriteLine($"{options.AppName} {options.Mode}");
+                    Console.WriteLine();
+
+                    var vals = Env.GetCoresEnvValuesList();
+
+                    foreach (var kv in vals)
+                    {
+                        Console.WriteLine($"  {kv.Key}: {kv.Value}");
+                    }
+
+                    Console.WriteLine();
+                    
+                    Environment.Exit(0);
+                }
 
                 if (SetDebugModeOnce.IsFirstCall())
                 {

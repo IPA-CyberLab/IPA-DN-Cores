@@ -566,6 +566,35 @@ namespace IPA.Cores.Basic
         {
             Util.PutGitIgnoreFileOnDirectory(Lfs.PathParser.Combine(Env.AppLocalDir));
         }
+
+        public static KeyValueList<string, string> GetCoresEnvValuesList()
+        {
+            KeyValueList<string, string> vals = new KeyValueList<string, string>();
+
+            vals.Add("BuildConfigurationName", Env.BuildConfigurationName);
+            vals.Add("FrameworkInfoString", Env.FrameworkInfoString);
+            vals.Add("OsInfoString", Env.OsInfoString);
+            vals.Add("CpuInfo", Env.CpuInfo.ToString());
+            vals.Add("NumCpus", Env.NumCpus.ToString());
+            vals.Add("UserNameEx", Env.UserNameEx);
+            vals.Add("MachineName", Env.MachineName);
+            vals.Add("IsWindows", Env.IsWindows.ToString());
+            vals.Add("IsUnix", Env.IsUnix.ToString());
+            vals.Add("IsMac", Env.IsMac.ToString());
+            vals.Add("Is64BitProcess", Env.Is64BitProcess.ToString());
+            vals.Add("IsWow64", Env.IsWow64.ToString());
+            vals.Add("IsUnix", Env.IsUnix.ToString());
+            vals.Add("IsHostedByDotNetProcess", Env.IsHostedByDotNetProcess.ToString());
+            vals.Add("GcMode", Env.GcMode.ToString());
+            vals.Add("GcCompactionMode", Env.GcCompactionMode.ToString());
+            vals.Add("GcLatencyMode", Env.GcLatencyMode.ToString());
+            vals.Add("AppRealProcessExeFileName", Env.AppRealProcessExeFileName);
+            vals.Add("AppExecutableExeOrDllFileName", Env.AppExecutableExeOrDllFileName);
+            vals.Add("AppExecutableExeOrDllFileDir", Env.AppExecutableExeOrDllFileDir);
+            vals.Add("AppRootDir", Env.AppRootDir);
+
+            return vals;
+        }
     }
 
     public static class CoresLocalDirs
