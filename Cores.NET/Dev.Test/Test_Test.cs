@@ -369,6 +369,24 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Async(async () =>
+                {
+                    while (true)
+                    {
+                        string cmd = Con.ReadLine("CMD>")!;
+
+                        var result = await EasyExec.ExecAsync(cmd);
+
+                        result.ErrorAndOutputStr._Print();
+
+                        ""._Print();
+                    }
+                });
+                return;
+            }
+
             if (false)
             {
                 ComPortClient.GetPortTargetNames()._DebugAsJson();

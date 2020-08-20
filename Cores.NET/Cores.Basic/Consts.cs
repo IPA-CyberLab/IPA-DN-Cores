@@ -387,6 +387,9 @@ namespace IPA.Cores.Basic
 
         public static partial class LinuxCommands
         {
+            // 一応絶対パスでここに書くことを推奨するが、コマンド名のみでもよい。
+            // また、実行時に絶対パスが見つからない場合は、 LinuxPaths.BasicBinDirList のディレクトリの探索が自動的になされる
+            // ので、さほど心配することなく色々な Linux ディスフリビューションでそのまま動作させることができる。
             public const string Bash = "/bin/bash";
             public const string Ip = "/sbin/ip";
             public const string Ifconfig = "/sbin/ifconfig";
@@ -409,6 +412,15 @@ namespace IPA.Cores.Basic
 
         public static partial class LinuxPaths
         {
+            public static readonly IEnumerable<string> BasicBinDirList = new string[] {
+                "/bin/",
+                "/sbin/",
+                "/usr/bin/",
+                "/usr/sbin/",
+                "/usr/local/bin/",
+                "/usr/local/sbin/",
+            };
+
             public const string SysThermal = "/sys/class/thermal/";
             public const string SockStat = "/proc/net/sockstat";
             public const string FileNr = "/proc/sys/fs/file-nr";

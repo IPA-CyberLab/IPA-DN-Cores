@@ -220,10 +220,11 @@ namespace IPA.Cores.Basic
         None = 0,
         KillProcessGroup = 1,                   // Kill する場合はプロセスグループを Kill する
         EasyInputOutputMode = 2,                // 標準出力およびエラー出力の結果を簡易的に受信し、標準入力の結果を簡易的に送信する (結果を確認しながらの対話はできない)
-        EasyPrintRealtimeStdOut = 4,                // stdout データをリアルタイムで表示する
-        EasyPrintRealtimeStdErr = 8,                // stderr データをリアルタイムで表示する
+        EasyPrintRealtimeStdOut = 4,            // stdout データをリアルタイムで表示する
+        EasyPrintRealtimeStdErr = 8,            // stderr データをリアルタイムで表示する
+        UnixAutoFullPath = 16,                  // UNIX 用コマンドで自動フルパス解決をする
 
-        Default = KillProcessGroup | ExecFlags.EasyInputOutputMode,
+        Default = KillProcessGroup | ExecFlags.EasyInputOutputMode | UnixAutoFullPath,
     }
 
     // 簡易実行
@@ -241,7 +242,7 @@ namespace IPA.Cores.Basic
             args.Add("-c");
             args.Add(command);
 
-            ExecOptions opt = new ExecOptions(Consts.LinuxCommands.Bash, args, currentDirectory, flags, easyOutputMaxSize, easyInputStr, printTag);
+            ExecOptions opt = new ExecOptions(Lfs.UnixGetFullPathFromCommandName(Consts.LinuxCommands.Bash), args, currentDirectory, flags, easyOutputMaxSize, easyInputStr, printTag);
 
             if (debug)
             {
@@ -284,18 +285,18 @@ namespace IPA.Cores.Basic
             return result;
         }
 
-        public static async Task<EasyExecResult> ExecAsync(string fileName, string? arguments = null, string? currentDirectory = null,
+        public static async Task<EasyExecResult> ExecAsync(string cmdName, string? arguments = null, string? currentDirectory = null,
             ExecFlags flags = ExecFlags.Default | ExecFlags.EasyInputOutputMode,
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, int? timeout = null,
             CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true, string printTag = "")
         {
             if (timeout <= 0) timeout = Timeout.Infinite;
 
-            ExecOptions opt = new ExecOptions(fileName, arguments, currentDirectory, flags, easyOutputMaxSize, easyInputStr, printTag);
+            ExecOptions opt = new ExecOptions(cmdName, arguments, currentDirectory, flags, easyOutputMaxSize, easyInputStr, printTag);
 
             if (debug)
             {
-                Dbg.WriteLine($"ExecAsync: --- Starting process \"{fileName}{(arguments._IsFilled() ? " " : "")}{arguments}\" ---");
+                Dbg.WriteLine($"ExecAsync: --- Starting process \"{cmdName}{(arguments._IsFilled() ? " " : "")}{arguments}\" ---");
             }
 
             EasyExecResult result;
@@ -317,13 +318,13 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-                Dbg.WriteLine($"Error on starting process \"{fileName}{(arguments._IsFilled() ? " " : "")}{arguments}\". Exception: {ex.Message}");
+                Dbg.WriteLine($"Error on starting process \"{cmdName}{(arguments._IsFilled() ? " " : "")}{arguments}\". Exception: {ex.Message}");
                 throw;
             }
 
             if (debug)
             {
-                Dbg.WriteLine($"ExecAsync: The result of process \"{fileName}{(arguments._IsFilled() ? " " : "")}{arguments}\": " + result.ToString(Str.GetCrlfStr(), false));
+                Dbg.WriteLine($"ExecAsync: The result of process \"{cmdName}{(arguments._IsFilled() ? " " : "")}{arguments}\": " + result.ToString(Str.GetCrlfStr(), false));
             }
 
             if (throwOnErrorExitCode)
@@ -441,6 +442,7 @@ namespace IPA.Cores.Basic
     // 子プロセスの実行パラメータ
     public class ExecOptions
     {
+        public string CommandName { get; }
         public string FileName { get; }
         public string Arguments { get; }
         public IEnumerable<string>? ArgumentsList { get; }
@@ -450,10 +452,26 @@ namespace IPA.Cores.Basic
         public string? EasyInputStr { get; }
         public string PrintTag { get; }
 
-        public ExecOptions(string fileName, string? arguments = null, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default,
+        public ExecOptions(string commandName, string? arguments = null, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default,
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, string printTag = "")
         {
-            this.FileName = fileName._NullCheck();
+            this.CommandName = commandName._NullCheck();
+            if (Env.IsUnix == false || flags.Bit(ExecFlags.UnixAutoFullPath) == false)
+            {
+                this.FileName = this.CommandName._NullCheck();
+            }
+            else
+            {
+                try
+                {
+                    this.FileName = Lfs.UnixGetFullPathFromCommandName(this.CommandName._NullCheck());
+                }
+                catch
+                {
+                    this.FileName = this.CommandName._NullCheck();
+                }
+            }
+
             this.Arguments = arguments._NonNull();
             this.ArgumentsList = null;
             this.CurrentDirectory = currentDirectory._NonNull();
@@ -463,10 +481,26 @@ namespace IPA.Cores.Basic
             this.PrintTag = printTag;
         }
 
-        public ExecOptions(string fileName, IEnumerable<string> argumentsList, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default,
+        public ExecOptions(string commandName, IEnumerable<string> argumentsList, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default,
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, string printTag = "")
         {
-            this.FileName = fileName._NullCheck();
+            this.CommandName = commandName._NullCheck();
+            if (Env.IsUnix == false || flags.Bit(ExecFlags.UnixAutoFullPath) == false)
+            {
+                this.FileName = this.CommandName._NullCheck();
+            }
+            else
+            {
+                try
+                {
+                    this.FileName = Lfs.UnixGetFullPathFromCommandName(this.CommandName._NullCheck());
+                }
+                catch
+                {
+                    this.FileName = this.CommandName._NullCheck();
+                }
+            }
+
             this.Arguments = "";
             this.ArgumentsList = argumentsList;
             this.CurrentDirectory = currentDirectory._NonNull();

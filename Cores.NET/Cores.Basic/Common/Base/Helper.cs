@@ -700,13 +700,11 @@ namespace IPA.Cores.Helper.Basic
             return n;
         }
 
-        public static TValue _GetOrNew<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key, TValue defaultValue)
-            where TValue : new()
+        public static TValue _GetOrDefault<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key, TValue defaultValue)
             where TKey : notnull
         {
             if (d.ContainsKey(key)) return d[key];
             TValue n = defaultValue;
-            d.Add(key, n);
             return n;
         }
 
@@ -729,13 +727,11 @@ namespace IPA.Cores.Helper.Basic
             return n;
         }
 
-        public static TValue _GetOrNew<TKey, TValue>(this SortedDictionary<TKey, TValue> d, TKey key, TValue defaultValue)
-            where TValue : new()
+        public static TValue _GetOrDefault<TKey, TValue>(this SortedDictionary<TKey, TValue> d, TKey key, TValue defaultValue)
             where TKey : notnull
         {
             if (d.ContainsKey(key)) return d[key];
             TValue n = defaultValue;
-            d.Add(key, n);
             return n;
         }
 
