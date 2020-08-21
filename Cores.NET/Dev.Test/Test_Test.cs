@@ -367,8 +367,101 @@ namespace IPA.TestDev
             }
         }
 
+        // SNMP Worker CGI ハンドラ
+        public class CgiServerStressTest_TestCgiHandler : CgiHandlerBase
+        {
+            public CgiServerStressTest_TestCgiHandler()
+            {
+            }
+
+            protected override void InitActionListImpl(CgiActionList noAuth, CgiActionList reqAuth)
+            {
+                try
+                {
+                    noAuth.AddAction("/", WebMethodBits.GET | WebMethodBits.HEAD, async (ctx) =>
+                    {
+                        await Task.CompletedTask;
+                        var method = ctx.QueryString._GetStrFirst("method")._ParseEnum(SnmpWorkGetMethod.Get);
+
+                        StringWriter w = new StringWriter();
+                        for (int i = 0; i < 100; i++)
+                        {
+                            w.WriteLine($"Hello World Neko Neko Neko {i}");
+                        }
+
+                        return new HttpStringResult(w.ToString()._NormalizeCrlf(CrlfStyle.Lf, true));
+                    });
+                }
+                catch
+                {
+                    this._DisposeSafe();
+                    throw;
+                }
+            }
+        }
+
+        static void CgiServerStressTest_Server()
+        {
+            // HTTP サーバーを立ち上げる
+            var cgi = new CgiHttpServer(new CgiServerStressTest_TestCgiHandler(), new HttpServerOptions()
+            {
+                AutomaticRedirectToHttpsIfPossible = false,
+                DisableHiveBasedSetting = true,
+                DenyRobots = true,
+                UseGlobalCertVault = false,
+                LocalHostOnly = true,
+                HttpPortsList = new int[] { 1234 }.ToList(),
+                HttpsPortsList = new List<int>(),
+                UseKestrelWithIPACoreStack = true,
+            },
+            true);
+        }
+
+        static void CgiServerStressTest()
+        {
+            RefLong count = 0;
+
+            CgiServerStressTest_Server();
+
+            for (int i = 0; i < 100; i++)
+            {
+                Task t = AsyncAwait(async () =>
+                {
+                    while (true)
+                    {
+                        await Task.Yield();
+
+                        try
+                        {
+                            using var web = new WebApi(new WebApiOptions(doNotUseTcpStack: false));
+
+                            var ret = await web.SimpleQueryAsync(WebMethods.GET, "http://127.0.0.1:1234/");
+                            count++;
+                        }
+                        catch (Exception ex)
+                        {
+                            ex.Message._Debug();
+                        }
+                    }
+                });
+            }
+
+            while (true)
+            {
+                $"Current: {count}"._Print();
+
+                Sleep(1000);
+            }
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                CgiServerStressTest();
+                return;
+            }
+
             if (true)
             {
                 Async(async () =>

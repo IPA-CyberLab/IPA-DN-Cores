@@ -286,12 +286,12 @@ namespace IPA.Cores.Basic
     public class WebApiOptions
     {
         public WebApiSettings Settings { get; }
-        public TcpIpSystem TcpIp { get; }
+        public TcpIpSystem? TcpIp { get; }
 
-        public WebApiOptions(WebApiSettings? settings = null, TcpIpSystem? tcpIp = null)
+        public WebApiOptions(WebApiSettings? settings = null, TcpIpSystem? tcpIp = null, bool doNotUseTcpStack = false)
         {
             if (settings == null) settings = new WebApiSettings();
-            if (tcpIp == null) tcpIp = LocalNet;
+            if (tcpIp == null) tcpIp = (doNotUseTcpStack ? null : LocalNet);
 
             this.Settings = settings;
             this.TcpIp = tcpIp;
