@@ -420,11 +420,12 @@ namespace IPA.TestDev
                             using var web = new WebApi(new WebApiOptions());
 
                             var ret = await web.SimpleQueryAsync(WebMethods.GET, "http://127.0.0.1:1234/");
+
                             count++;
                         }
                         catch (Exception ex)
                         {
-                            ex.Message._Debug();
+                            ex.Message._Print();
                         }
                     }
                 });
