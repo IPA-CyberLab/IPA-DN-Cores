@@ -15470,14 +15470,6 @@ namespace IPA.Cores.Basic.HttpClientCore
                     }
                     Socket connectSocket = saea.ConnectSocket;
                     connectSocket.NoDelay = true;
-                    connectSocket.LingerState = new LingerOption(false, 0);
-                    try
-                    {
-                        connectSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
-                    }
-                    catch
-                    {
-                    }
                     result = new ValueTuple<Socket, Stream>(connectSocket, new NetworkStream(connectSocket, true));
                 }
                 else
