@@ -15449,6 +15449,8 @@ namespace IPA.Cores.Basic.HttpClientCore
                 saea.Initialize(cancellationToken);
                 saea.RemoteEndPoint = new DnsEndPoint(host, port);
 
+                system = null;
+
                 if (system == null)
                 {
                     if (Socket.ConnectAsync(SocketType.Stream, ProtocolType.Tcp, saea))
@@ -15468,6 +15470,7 @@ namespace IPA.Cores.Basic.HttpClientCore
                     }
                     Socket connectSocket = saea.ConnectSocket;
                     connectSocket.NoDelay = true;
+                    connectSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
                     result = new ValueTuple<Socket, Stream>(connectSocket, new NetworkStream(connectSocket, true));
                 }
                 else
