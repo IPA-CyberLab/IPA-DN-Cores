@@ -407,7 +407,7 @@ namespace IPA.TestDev
 
             CgiServerStressTest_Server();
 
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 5; i++)
             {
                 Task t = AsyncAwait(async () =>
                 {
