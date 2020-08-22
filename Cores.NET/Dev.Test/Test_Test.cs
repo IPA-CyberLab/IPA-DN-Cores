@@ -367,6 +367,7 @@ namespace IPA.TestDev
             }
         }
 
+
         // SNMP Worker CGI ハンドラ
         public class CgiServerStressTest_TestCgiHandler : CgiHandlerBase
         {
@@ -410,20 +411,37 @@ namespace IPA.TestDev
                 DenyRobots = true,
                 UseGlobalCertVault = false,
                 LocalHostOnly = true,
-                HttpPortsList = new int[] { 1234 }.ToList(),
+                HttpPortsList = new int[] { 7007 }.ToList(),
                 HttpsPortsList = new List<int>(),
                 UseKestrelWithIPACoreStack = true,
             },
             true);
         }
 
+        static void CgiServerStressTest_Server2()
+        {
+            var host = new SnmpWorkHost();
+
+            host.Register("Temperature", 101_00000, new SnmpWorkFetcherTemperature(host));
+            host.Register("Ram", 102_00000, new SnmpWorkFetcherMemory(host));
+            host.Register("Disk", 103_00000, new SnmpWorkFetcherDisk(host));
+            host.Register("Net", 104_00000, new SnmpWorkFetcherNetwork(host));
+
+            host.Register("Ping", 105_00000, new SnmpWorkFetcherPing(host));
+            host.Register("Speed", 106_00000, new SnmpWorkFetcherSpeed(host));
+            host.Register("Quality", 107_00000, new SnmpWorkFetcherPktQuality(host));
+            host.Register("Bird", 108_00000, new SnmpWorkFetcherBird(host));
+
+            Con.WriteLine("SnmpWorkDaemon: Started.");
+        }
+
         static void CgiServerStressTest()
         {
             RefLong count = 0;
 
-            CgiServerStressTest_Server();
+            CgiServerStressTest_Server2();
 
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 5; i++)
             {
                 Task t = AsyncAwait(async () =>
                 {
@@ -433,14 +451,15 @@ namespace IPA.TestDev
 
                         try
                         {
-                            using var web = new WebApi(new WebApiOptions(doNotUseTcpStack: false));
+                            using var web = new WebApi(new WebApiOptions());
 
-                            var ret = await web.SimpleQueryAsync(WebMethods.GET, "http://127.0.0.1:1234/");
+                            var ret = await web.SimpleQueryAsync(WebMethods.GET, "http://127.0.0.1:7007/?method=GetAll");
+
                             count++;
                         }
                         catch (Exception ex)
                         {
-                            ex.Message._Debug();
+                            ex.Message._Print();
                         }
                     }
                 });
