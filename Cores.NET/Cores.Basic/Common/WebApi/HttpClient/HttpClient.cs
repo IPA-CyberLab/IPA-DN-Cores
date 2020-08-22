@@ -15449,7 +15449,7 @@ namespace IPA.Cores.Basic.HttpClientCore
                 saea.Initialize(cancellationToken);
                 saea.RemoteEndPoint = new DnsEndPoint(host, port);
 
-                system = null;
+                //system = null;
 
                 if (system == null)
                 {
