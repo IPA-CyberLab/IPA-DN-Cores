@@ -6,8 +6,8 @@
     <LangVersion>8.0</LangVersion>
     <PackageId>Cores.Lib.Full</PackageId>
     <Authors>IPA-CyberLab</Authors>
-    <ServerGarbageCollection>false</ServerGarbageCollection>
-    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
     <Nullable>enable</Nullable>
     <TieredCompilationQuickJit>false</TieredCompilationQuickJit>
