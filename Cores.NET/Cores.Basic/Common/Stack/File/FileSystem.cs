@@ -1036,9 +1036,6 @@ namespace IPA.Cores.Basic
         {
             srcPath = srcPath._NonNull();
 
-            if (this.Style == FileSystemStyle.Windows)
-                srcPath = srcPath.TrimStart();
-
             int mode = -1;
 
             char[] possible = PossibleDirectorySeparators;
