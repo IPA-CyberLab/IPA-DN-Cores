@@ -153,7 +153,7 @@ namespace IPA.Cores.Basic
         public static readonly Copenhagen<int> TruncatedNameStrLen = 14;
 
         public static readonly Copenhagen<string> DefaultPingTarget = "ping4.test.sehosts.com=IPv4 Internet,ping6.test.sehosts.com=IPv6 Internet";
-        public static readonly Copenhagen<string> DefaultSpeedTarget = "speed4.test.sehosts.com|9821=IPv4 Internet,speed6.test.sehosts.com|9821=IPv6 Internet";  2020/08/18 disable by default !!!
+        public static readonly Copenhagen<string> DefaultSpeedTarget = "speed4.test.sehosts.com|9821=IPv4 Internet,speed6.test.sehosts.com|9821=IPv6 Internet"; //  2020/08/18 disable by default !!!
         public static readonly Copenhagen<int> DefaultSpeedIntervalSecs = 600;
         public static readonly Copenhagen<int> DefaultSpeedSpanSecs = 7;
         public static readonly Copenhagen<int> DefaultSpeedTryCount = 5;
