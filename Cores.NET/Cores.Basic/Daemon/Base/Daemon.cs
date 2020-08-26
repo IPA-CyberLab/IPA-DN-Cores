@@ -473,11 +473,17 @@ namespace IPA.Cores.Basic
 
             TelnetLocalLogWatcher? telnetWatcher = null;
 
+            // Start the TelnetLogWatcher
+            List<IPEndPoint> telnetWatcherEpList = new List<IPEndPoint>();
+
+            int localLogWatchPort = 50000 + Util.RandSInt31() % 10000;
+            telnetWatcherEpList.Add(new IPEndPoint(IPAddress.Loopback, localLogWatchPort));
+            telnetWatcherEpList.Add(new IPEndPoint(IPAddress.IPv6Loopback, localLogWatchPort));
+
             if (this.Settings.DaemonTelnetLogWatcherPort != 0 && CoresLib.Options.NoTelnetMode == false)
             {
-                telnetWatcher = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions((ip) => ip._GetIPAddressType().BitAny(IPAddressType.LocalUnicast | IPAddressType.Loopback), null,
-                    new IPEndPoint(IPAddress.Any, this.Settings.DaemonTelnetLogWatcherPort),
-                    new IPEndPoint(IPAddress.IPv6Any, this.Settings.DaemonTelnetLogWatcherPort)));
+                telnetWatcherEpList.Add(new IPEndPoint(IPAddress.Any, this.Settings.DaemonTelnetLogWatcherPort));
+                telnetWatcherEpList.Add(new IPEndPoint(IPAddress.IPv6Any, this.Settings.DaemonTelnetLogWatcherPort));
             }
 
             try
