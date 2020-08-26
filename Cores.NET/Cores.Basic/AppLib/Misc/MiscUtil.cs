@@ -949,7 +949,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task ReadRowsAndWriteToVaultAsync(string tableName, string rowIdColumnName, Func<Row, IEnumerable<DataVaultData>> rowToDataListFunc, int maxRowsToFetchOnce = 4096, CancellationToken cancel = default)
+        public async Task ReadRowsAndWriteToVaultAsync(string tableName, string rowIdColumnName, Func<Row, IEnumerable<DataVaultData>> rowToDataListFunc, int maxRowsToFetchOnce = 4096, bool shuffle = true, CancellationToken cancel = default)
         {
             $"Start: tableName = {tableName}, rowIdColumnName = {rowIdColumnName}, maxRowsToFetchOnce = {maxRowsToFetchOnce}"._DebugFunc();
 
@@ -994,6 +994,11 @@ namespace IPA.Cores.Basic
                             {
                                 ex._Debug();
                                 continue;
+                            }
+
+                            if (shuffle)
+                            {
+                                dataList = dataList._Shuffle();
                             }
 
                             await dataList._DoForEachAsync(data => client.WriteDataAsync(data, cancel));
