@@ -273,6 +273,7 @@ namespace IPA.Cores.Basic
         public int PooledConnectionLifeTime = CoresConfig.DefaultHttpClientSettings.PooledConnectionLifeTime;
         public bool UseProxy = CoresConfig.DefaultHttpClientSettings.UseProxy;
         public bool DisableKeepAlive = false;
+        public bool DoNotThrowHttpResultError = false;
 
         public bool AllowAutoRedirect = true;
         public int MaxAutomaticRedirections = 10;
@@ -494,7 +495,9 @@ namespace IPA.Cores.Basic
 
             using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
             {
-                await ThrowIfErrorAsync(res);
+                if (this.Settings.DoNotThrowHttpResultError == false)
+                    await ThrowIfErrorAsync(res);
+
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
                 return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers);
             }
@@ -511,7 +514,9 @@ namespace IPA.Cores.Basic
 
             using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
             {
-                await ThrowIfErrorAsync(res);
+                if (this.Settings.DoNotThrowHttpResultError == false)
+                    await ThrowIfErrorAsync(res);
+
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
                 string type = res.Content.Headers._TryGetContentType();
                 return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers);
@@ -534,7 +539,9 @@ namespace IPA.Cores.Basic
 
             using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
             {
-                await ThrowIfErrorAsync(res);
+                if (this.Settings.DoNotThrowHttpResultError == false)
+                    await ThrowIfErrorAsync(res);
+
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
                 return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers);
             }
@@ -567,7 +574,8 @@ namespace IPA.Cores.Basic
             HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseHeadersRead, request.Cancel);
             try
             {
-                await ThrowIfErrorAsync(res);
+                if (this.Settings.DoNotThrowHttpResultError == false)
+                    await ThrowIfErrorAsync(res);
 
                 return new WebSendRecvResponse(res, await res.Content.ReadAsStreamAsync());
             }

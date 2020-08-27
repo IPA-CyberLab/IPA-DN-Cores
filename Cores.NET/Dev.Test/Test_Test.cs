@@ -75,6 +75,7 @@ using System.Security.Cryptography;
 using IPA.Cores.Basic.Tests;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.IO.Compression;
+using IPA.Cores.Basic.HttpClientCore;
 
 
 
@@ -473,8 +474,126 @@ namespace IPA.TestDev
             }
         }
 
+        static void VaultStressTest()
+        {
+            int[] ports = { 80, 443, 7009 };
+            string dest = "pktlinux.sec.softether.co.jp";
+            string url = "https://pktlinux.sec.softether.co.jp/";
+
+            RefInt SslCounter = 0;
+
+            RefInt DisconnectCounter = 0;
+
+            // 接続してすぐ切断する動作
+            for (int i = 0; i < 50; i++)
+            {
+                var task = AsyncAwait(async () =>
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            int mode = Util.RandSInt31() % 2;
+                            int port = ports[Util.RandSInt31() % ports.Length];
+                            int waittime = Util.RandSInt31() % 1000;
+                            using var sock = await LocalNet.ConnectAsync(new TcpConnectParam(dest, port, connectTimeout: 3000, dnsTimeout: 3000));
+                            using var st = sock.GetStream();
+
+                            if (mode == 0)
+                            {
+                                waittime = 0;
+                            }
+
+                            if (waittime >= 1)
+                            {
+                                await Task.Delay(waittime);
+                            }
+
+                            sock.Disconnect();
+
+                            DisconnectCounter.Increment();
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Error();
+                        }
+                    }
+                });
+            }
+
+            // 接続して長時間放っておく動作
+            for (int i = 0; i < 50; i++)
+            {
+                var task = AsyncAwait(async () =>
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            int port = ports[Util.RandSInt31() % ports.Length];
+                            int waittime = 60 * 1000;
+                            using var sock = await LocalNet.ConnectAsync(new TcpConnectParam(dest, port, connectTimeout: 3000, dnsTimeout: 3000));
+                            using var st = sock.GetStream();
+
+                            if (waittime >= 1)
+                            {
+                                await Task.Delay(waittime);
+                            }
+
+                            sock.Disconnect();
+
+                            DisconnectCounter.Increment();
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Error();
+                        }
+                    }
+                });
+            }
+
+            // SSL
+            for (int i = 0; i < 50; i++)
+            {
+                var task = AsyncAwait(async () =>
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            using WebApi api = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true, DoNotThrowHttpResultError = true }));
+
+                            await api.SimpleQueryAsync(WebMethods.GET, url);
+
+                            SslCounter.Increment();
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Error();
+                        }
+                    }
+                });
+            }
+
+
+            while (true)
+            {
+                string msg = $"SslCounter = {SslCounter}, DisconnectCounter = {DisconnectCounter}";
+
+                msg._Print();
+
+                Sleep(1000);
+            }
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                VaultStressTest();
+                return;
+            }
+
             if (true)
             {
                 CgiServerStressTest();
@@ -875,11 +994,11 @@ namespace IPA.TestDev
                             for (int i = 0; ; i++)
                             {
 
-                                //await Task.Yield();
+                        //await Task.Yield();
 
-                                //await Task.Delay(taskId * 100);
+                        //await Task.Delay(taskId * 100);
 
-                                c.ThrowIfCancellationRequested();
+                        c.ThrowIfCancellationRequested();
 
                                 $"----------- {i}"._Debug();
 
@@ -887,41 +1006,41 @@ namespace IPA.TestDev
 
                                 HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
 
-                                //using var stream = new BufferBasedStream(mem);
+                        //using var stream = new BufferBasedStream(mem);
 
-                                using var file = Lfs.Create(@$"f:\tmp\200810\{taskId}.dat", flags: FileFlags.AutoCreateDirectory | FileFlags.SparseFile);
+                        using var file = Lfs.Create(@$"f:\tmp\200810\{taskId}.dat", flags: FileFlags.AutoCreateDirectory | FileFlags.SparseFile);
 
                                 using var sector = new XtsAesRandomAccess(file, "neko");
                                 using var stream = sector.GetStream(true);
 
-                                //using var stream = file.GetStream();
+                        //using var stream = file.GetStream();
 
-                                await FileDownloader.DownloadFileParallelAsync(
-                                    "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
-                                    stream,
-                                    new FileDownloadOption(20, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
-                                    progressReporter: reporter,
-                                    cancel: c);
-                                //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
-                                //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
+                        await FileDownloader.DownloadFileParallelAsync(
+                    "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
+                    stream,
+                    new FileDownloadOption(20, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
+                    progressReporter: reporter,
+                    cancel: c);
+                        //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
+                        //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
 
-                                //using SHA1Managed sha1 = new SHA1Managed();
-                                //stream._SeekToBegin();
-                                //byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
-                                //if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
-                                //{
-                                //    stream._SeekToBegin();
+                        //using SHA1Managed sha1 = new SHA1Managed();
+                        //stream._SeekToBegin();
+                        //byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
+                        //if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
+                        //{
+                        //    stream._SeekToBegin();
 
-                                //    using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
-                                //    using var filest = file2.GetStream();
+                        //    using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
+                        //    using var filest = file2.GetStream();
 
-                                //    await stream.CopyBetweenStreamAsync(filest);
+                        //    await stream.CopyBetweenStreamAsync(filest);
 
-                                //    throw new CoresException($"Hash different: {hash._GetHexString()}");
-                                //}
+                        //    throw new CoresException($"Hash different: {hash._GetHexString()}");
+                        //}
 
-                                await AsyncAwait(async () =>
-                                {
+                        await AsyncAwait(async () =>
+                {
                                     using var file = Lfs.Open(@$"f:\tmp\200810\{taskId}.dat");
 
                                     using var sector = new XtsAesRandomAccess(file, "neko");
@@ -989,25 +1108,25 @@ namespace IPA.TestDev
 
                             HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
 
-                            //using var stream = new BufferBasedStream(mem);
+                    //using var stream = new BufferBasedStream(mem);
 
-                            using var file = Lfs.Create(@"c:\tmp\test1.dat");
+                    using var file = Lfs.Create(@"c:\tmp\test1.dat");
 
                             using var sector = new XtsAesRandomAccess(file, "neko");
                             using var stream = sector.GetStream(true);
 
-                            //using var stream = file.GetStream();
+                    //using var stream = file.GetStream();
 
-                            await FileDownloader.DownloadFileParallelAsync(
-                                "http://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
-                                stream,
-                                new FileDownloadOption(20, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
-                                progressReporter: reporter,
-                                cancel: c);
-                            //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
-                            //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
+                    await FileDownloader.DownloadFileParallelAsync(
+                "http://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
+                stream,
+                new FileDownloadOption(20, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
+                progressReporter: reporter,
+                cancel: c);
+                    //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
+                    //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
 
-                            using SHA1Managed sha1 = new SHA1Managed();
+                    using SHA1Managed sha1 = new SHA1Managed();
                             stream._SeekToBegin();
                             byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
                             if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
@@ -1022,34 +1141,34 @@ namespace IPA.TestDev
                                 throw new CoresException($"Hash different: {hash._GetHexString()}");
                             }
 
-                            //await AsyncAwait(async () =>
-                            //{
-                            //    using var file = Lfs.Open(@"c:\tmp\test1.dat");
+                    //await AsyncAwait(async () =>
+                    //{
+                    //    using var file = Lfs.Open(@"c:\tmp\test1.dat");
 
-                            //    using var sector = new XtsAesRandomAccess(file, "neko");
+                    //    using var sector = new XtsAesRandomAccess(file, "neko");
 
-                            //    using var stream = sector.GetStream(true);
+                    //    using var stream = sector.GetStream(true);
 
-                            //    using SHA1Managed sha1 = new SHA1Managed();
-                            //    byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
-                            //    if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
-                            //    {
-                            //        stream._SeekToBegin();
+                    //    using SHA1Managed sha1 = new SHA1Managed();
+                    //    byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
+                    //    if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
+                    //    {
+                    //        stream._SeekToBegin();
 
-                            //        using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
-                            //        using var filest = file2.GetStream();
+                    //        using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
+                    //        using var filest = file2.GetStream();
 
-                            //        await stream.CopyBetweenStreamAsync(filest);
+                    //        await stream.CopyBetweenStreamAsync(filest);
 
-                            //        throw new CoresException($"Hash different 2: {hash._GetHexString()}");
-                            //    }
-                            //    else
-                            //    {
-                            //        "Hash OK!"._Print();
-                            //    }
+                    //        throw new CoresException($"Hash different 2: {hash._GetHexString()}");
+                    //    }
+                    //    else
+                    //    {
+                    //        "Hash OK!"._Print();
+                    //    }
 
-                            //});
-                        }
+                    //});
+                }
                     }
                     catch (Exception ex)
                     {
@@ -1206,8 +1325,8 @@ namespace IPA.TestDev
                                      concurrent.Increment();
                                      try
                                      {
-                                         //Con.WriteLine(taskId + " : " + i + "   (" + concurrent + ")");
-                                         await Task.Yield();
+                                 //Con.WriteLine(taskId + " : " + i + "   (" + concurrent + ")");
+                                 await Task.Yield();
                                      }
                                      finally
                                      {
@@ -1306,8 +1425,8 @@ namespace IPA.TestDev
                             await t1;
                             await t2;
 
-                            //counter.Increment()._Debug();
-                        }
+                    //counter.Increment()._Debug();
+                }
                     });
                 }
 
@@ -1358,19 +1477,19 @@ namespace IPA.TestDev
 
                             using var stream = new BufferBasedStream(mem);
 
-                            //using var file = Lfs.Create(@"c:\tmp\test1.dat", flags: FileFlags.SparseFile);
-                            //using var stream = file.GetStream();
+                    //using var file = Lfs.Create(@"c:\tmp\test1.dat", flags: FileFlags.SparseFile);
+                    //using var stream = file.GetStream();
 
-                            await FileDownloader.DownloadFileParallelAsync(
-                                "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
-                                stream,
-                                new FileDownloadOption(maxConcurrentThreads: Util.GetRandWithPercentageInt(90), bufferSize: Util.GetRandWithPercentageInt(123457), webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
-                                progressReporter: reporter,
-                                cancel: c);
-                            //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
-                            //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
+                    await FileDownloader.DownloadFileParallelAsync(
+                "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
+                stream,
+                new FileDownloadOption(maxConcurrentThreads: Util.GetRandWithPercentageInt(90), bufferSize: Util.GetRandWithPercentageInt(123457), webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
+                progressReporter: reporter,
+                cancel: c);
+                    //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
+                    //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
 
-                            using SHA1Managed sha1 = new SHA1Managed();
+                    using SHA1Managed sha1 = new SHA1Managed();
                             stream._SeekToBegin();
                             byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
                             if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
@@ -3195,8 +3314,8 @@ ZIP ファイルのパスワード:
                             client.WriteLog(new LogJsonData()
                             {
                                 AppName = "App",
-                                //Data = "Hello World " + i.ToString(),
-                                Data = new { X = 123, Y = 456, Z = "Hello" },
+                        //Data = "Hello World " + i.ToString(),
+                        Data = new { X = 123, Y = 456, Z = "Hello" },
                                 Guid = Str.NewGuid(),
                                 Kind = LogKind.Default,
                                 MachineName = "Neko",
@@ -3228,7 +3347,7 @@ ZIP ファイルのパスワード:
                 using (PCapPacketRecorder r = new PCapPacketRecorder(new TcpPseudoPacketGeneratorOptions(TcpDirectionType.Client, IPAddress.Parse("192.168.0.1"), 1, IPAddress.Parse("192.168.0.2"), 2)))
                 {
                     r.RegisterEmitter(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190608\test.pcapng", flags: FileFlags.AutoCreateDirectory),
-    false)));
+        false)));
 
                     var g = r.TcpGen;
 
@@ -3402,8 +3521,8 @@ ZIP ファイルのパスワード:
                         }
                         );
 
-                        //Dbg.Where();
-                    }
+                    //Dbg.Where();
+                }
 
                     await client.WriteCompleteAsync(new DataVaultData
                     {
@@ -3469,8 +3588,8 @@ ZIP ファイルのパスワード:
                         client.WriteLog(new LogJsonData()
                         {
                             AppName = "App",
-                            //Data = "Hello World " + i.ToString(),
-                            Data = new { X = 123, Y = 456, Z = bigData },
+                        //Data = "Hello World " + i.ToString(),
+                        Data = new { X = 123, Y = 456, Z = bigData },
                             Guid = Str.NewGuid(),
                             Kind = LogKind.Default,
                             MachineName = "Neko",
@@ -3481,8 +3600,8 @@ ZIP ファイルのパスワード:
                         }
                         );
 
-                        //await Task.Delay(100);
-                    }
+                    //await Task.Delay(100);
+                }
                 });
 
                 Con.ReadLine("Exit>");

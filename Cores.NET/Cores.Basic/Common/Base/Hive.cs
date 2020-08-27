@@ -610,7 +610,7 @@ namespace IPA.Cores.Basic
                 HiveSyncFlags flags = HiveSyncFlags.LoadFromFile;
 
                 if (hive.IsReadOnly == false)
-                    flags |= HiveSyncFlags.SaveToFile;
+                    flags |= HiveSyncFlags.SaveToFile | HiveSyncFlags.ForceUpdate;
 
                 // no worry for error
                 await hive.SyncWithStorageAsync(flags, true, cancel);
@@ -657,7 +657,7 @@ namespace IPA.Cores.Basic
             HiveSyncFlags flags = HiveSyncFlags.LoadFromFile;
 
             if (hiveData.IsReadOnly == false)
-                flags |= HiveSyncFlags.SaveToFile;
+                flags |= HiveSyncFlags.SaveToFile | HiveSyncFlags.ForceUpdate;
 
             // エラーを無視
             hiveData.SyncWithStorageAsync(flags, true)._GetResult();
@@ -939,6 +939,8 @@ namespace IPA.Cores.Basic
 
         public async Task SyncWithStorageAsync(HiveSyncFlags flag, bool ignoreError, CancellationToken cancel = default)
         {
+            if (flag.Bit(HiveSyncFlags.SaveToFile)) flag |= HiveSyncFlags.ForceUpdate;
+
             try
             {
                 await SyncWithStorageAsyncInternal(flag, ignoreError, cancel);
