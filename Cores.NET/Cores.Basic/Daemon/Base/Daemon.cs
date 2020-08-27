@@ -486,6 +486,8 @@ namespace IPA.Cores.Basic
                 telnetWatcherEpList.Add(new IPEndPoint(IPAddress.IPv6Any, this.Settings.DaemonTelnetLogWatcherPort));
             }
 
+            telnetWatcher = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions((ip) => ip._GetIPAddressType().BitAny(IPAddressType.LocalUnicast | IPAddressType.Loopback), null, telnetWatcherEpList.ToArray()));
+
             try
             {
                 // LogClient を起動する
