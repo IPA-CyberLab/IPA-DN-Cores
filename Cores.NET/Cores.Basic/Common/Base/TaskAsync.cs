@@ -1714,10 +1714,7 @@ namespace IPA.Cores.Basic
         {
             get
             {
-                lock (lockobj)
-                {
-                    return this.isSet;
-                }
+                return this.isSet;
             }
         }
 

@@ -83,3 +83,31 @@
 2020/08/31 22:50:05.226 +09:00 AsyncCallMethodFromSyncMethod: 12.76 ns, 78,396,832 / sec
 2020/08/31 22:50:05.772 +09:00 Lock for readonly object: 12.57 ns, 79,571,602 / sec
 2020/08/31 22:50:06.309 +09:00 Lock for get property object: 12.57 ns, 79,538,754 / sec
+2020/08/31 22:55:01.696 +09:00 ----- Start new benchmark -----
+2020/08/31 22:55:01.728 +09:00 Commit: c6628920f4c66e0efc11d2ed90dab9e586deb8e1
+2020/08/31 22:55:01.728 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2020/08/31 22:55:01.728 +09:00 OS: Microsoft Windows 10.0.19041
+2020/08/31 22:55:01.728 +09:00 Framework: .NET Core 3.1.7
+2020/08/31 22:55:01.728 +09:00 Host: PC37
+2020/08/31 22:55:02.551 +09:00 AsyncEvent: 4,685.74 ns, 213,413 / sec
+2020/08/31 22:55:03.132 +09:00 SyncEvent: 8,167.05 ns, 122,443 / sec
+2020/08/31 22:55:03.658 +09:00 IsSpanAllZero: 136.35 ns, 7,334,134 / sec
+2020/08/31 22:55:04.188 +09:00 CalcCrc32ForZipEncryption: 0.10 ns, 9,566,210,130 / sec
+2020/08/31 22:55:04.718 +09:00 Sync(): 1.36 ns, 735,772,991 / sec
+2020/08/31 22:55:05.250 +09:00 RateLimiter: 127.82 ns, 7,823,224 / sec
+2020/08/31 22:55:12.043 +09:00 ----- Start new benchmark -----
+2020/08/31 22:55:12.075 +09:00 Commit: c6628920f4c66e0efc11d2ed90dab9e586deb8e1
+2020/08/31 22:55:12.075 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2020/08/31 22:55:12.075 +09:00 OS: Microsoft Windows 10.0.19041
+2020/08/31 22:55:12.075 +09:00 Framework: .NET Core 3.1.7
+2020/08/31 22:55:12.075 +09:00 Host: PC37
+2020/08/31 22:55:12.866 +09:00 AsyncEvent: 4,038.86 ns, 247,594 / sec
+2020/08/31 22:55:13.463 +09:00 SyncEvent: 8,266.59 ns, 120,968 / sec
+2020/08/31 22:55:19.518 +09:00 ----- Start new benchmark -----
+2020/08/31 22:55:19.551 +09:00 Commit: c6628920f4c66e0efc11d2ed90dab9e586deb8e1
+2020/08/31 22:55:19.551 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\netcoreapp3.1\Dev.Test.dll
+2020/08/31 22:55:19.551 +09:00 OS: Microsoft Windows 10.0.19041
+2020/08/31 22:55:19.551 +09:00 Framework: .NET Core 3.1.7
+2020/08/31 22:55:19.551 +09:00 Host: PC37
+2020/08/31 22:55:20.344 +09:00 AsyncEvent: 3,963.22 ns, 252,320 / sec
+2020/08/31 22:55:20.933 +09:00 SyncEvent: 8,198.11 ns, 121,979 / sec

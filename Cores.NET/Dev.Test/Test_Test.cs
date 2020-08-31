@@ -603,7 +603,7 @@ namespace IPA.TestDev
                         {
                             $"task 1-A: {ThreadObj.CurrentThreadId}"._Print();
 
-                            await ev1.WaitOneAsync(cancel: cts.Token).ConfigureAwait(false);
+                            await ev1.WaitOneAsync(cancel: cts.Token);
 
                             $"task 1-B: {ThreadObj.CurrentThreadId}"._Print();
 
@@ -617,7 +617,7 @@ namespace IPA.TestDev
 
                         $"task 0-A: {ThreadObj.CurrentThreadId}"._Print();
 
-                        await ev2.WaitOneAsync().ConfigureAwait(false);
+                        await ev2.WaitOneAsync();
 
                         $"task 0-B: {ThreadObj.CurrentThreadId}"._Print();
                     }
