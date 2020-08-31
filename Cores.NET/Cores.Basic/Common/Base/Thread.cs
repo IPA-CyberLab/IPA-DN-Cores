@@ -976,17 +976,7 @@ namespace IPA.Cores.Basic
         EventWaitHandle EventObj = null!;
         public const int Infinite = Timeout.Infinite;
 
-        public Event()
-        {
-            InternalInit(false);
-        }
-
-        public Event(bool manualReset)
-        {
-            InternalInit(manualReset);
-        }
-
-        void InternalInit(bool manualReset)
+        public Event(bool manualReset = false)
         {
             EventObj = new EventWaitHandle(false, (manualReset ? EventResetMode.ManualReset : EventResetMode.AutoReset));
         }

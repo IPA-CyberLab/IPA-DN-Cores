@@ -428,6 +428,72 @@ namespace IPA.TestDev
             var queue = new MicroBenchmarkQueue()
 
 
+            .Add(new MicroBenchmark($"SyncEvent", Benchmark_CountForNormal, count =>
+            {
+                Async(async () =>
+                {
+                    Event ev1 = new Event();
+                    Event ev2 = new Event();
+
+                    CancellationTokenSource cts = new CancellationTokenSource();
+
+                    var thread = ThreadObj.Start(p =>
+                    {
+                        while (cts.IsCancellationRequested == false)
+                        {
+                            ev1.Wait();
+
+                            ev2.Set();
+                        }
+                    });
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        ev1.Set();
+
+                        ev2.Wait();
+                    }
+
+                    cts.Cancel();
+
+                    ev1.Set();
+
+                    thread.WaitForEnd();
+                });
+            }), enabled: true, priority: 200831)
+
+            .Add(new MicroBenchmark($"AsyncEvent", Benchmark_CountForNormal, count =>
+            {
+                Async(async () =>
+                {
+                    AsyncAutoResetEvent ev1 = new AsyncAutoResetEvent();
+                    AsyncAutoResetEvent ev2 = new AsyncAutoResetEvent();
+
+                    CancellationTokenSource cts = new CancellationTokenSource();
+
+                    Task t2 = AsyncAwait(async () =>
+                    {
+                        while (cts.IsCancellationRequested == false)
+                        {
+                            await ev1.WaitOneAsync(cancel: cts.Token);
+
+                            ev2.Set();
+                        }
+                    });
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        ev1.Set();
+
+                        await ev2.WaitOneAsync();
+                    }
+
+                    cts.Cancel();
+
+                    await t2;
+                });
+            }), enabled: true, priority: 200831)
+
             .Add(new MicroBenchmark($"IsSpanAllZero", Benchmark_CountForNormal, count =>
             {
                 unsafe
