@@ -82,11 +82,6 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            ~SockEvent()
-            {
-                Release();
-            }
-
             public void Dispose()
             {
                 Release();

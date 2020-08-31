@@ -798,13 +798,6 @@ namespace IPA.Cores.Basic
                 hamBuf = null;
             }
 
-
-            // デストラクタ
-            ~IO()
-            {
-                Close();
-            }
-
             // ファイルの拡張子が一致するかどうかチェック
             static bool IsExtensionMatchInternal(string filename, string extension)
             {
