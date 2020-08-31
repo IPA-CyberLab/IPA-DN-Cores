@@ -124,7 +124,7 @@ namespace IPA.Cores.Basic
             path = WindowsPathParser.NormalizeDirectorySeparator(path);
 
             path = WindowsPathParser.RemoveLastSeparatorChar(path);
-            
+
             if (path.StartsWith(@"\\"))
             {
                 if (path.Length >= 3 && path[2] != '\\')
@@ -560,7 +560,7 @@ namespace IPA.Cores.Basic
 
             public CancellationTokenRegistration CancelRegistration;
 
-            public TaskCompletionSource<TResult> CompletionSource = new TaskCompletionSource<TResult>();
+            public TaskCompletionSource<TResult> CompletionSource = new TaskCompletionSource<TResult>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             public unsafe void IOCompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* overlapped)
             {
@@ -773,7 +773,7 @@ namespace IPA.Cores.Basic
             using (var sc = Win32Api.Advapi32.OpenSCManager(null, null, Win32Api.Kernel32.GenericOperations.GENERIC_READ))
             {
                 if (sc.IsInvalid) ThrowLastWin32Error(name);
-                
+
                 using (var service = Win32Api.Advapi32.OpenService(sc, name, Win32Api.Kernel32.GenericOperations.GENERIC_READ))
                 {
                     if (service.IsInvalid == false)

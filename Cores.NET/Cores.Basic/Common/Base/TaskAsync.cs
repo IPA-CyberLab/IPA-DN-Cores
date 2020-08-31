@@ -1229,7 +1229,7 @@ namespace IPA.Cores.Basic
 
         public static Task WhenCanceled(CancellationToken cancel, out CancellationTokenRegistration registration)
         {
-            TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();
+            TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             registration = cancel.Register(() =>
             {
@@ -1707,7 +1707,7 @@ namespace IPA.Cores.Basic
 
         void init()
         {
-            this.tcs = new TaskCompletionSource<bool>();
+            this.tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         public bool IsSet

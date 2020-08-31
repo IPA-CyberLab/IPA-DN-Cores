@@ -590,6 +590,47 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                Async(async () =>
+                {
+                    AsyncAutoResetEvent ev1 = new AsyncAutoResetEvent();
+                    AsyncAutoResetEvent ev2 = new AsyncAutoResetEvent();
+
+                    CancellationTokenSource cts = new CancellationTokenSource();
+
+                    Task t2 = AsyncAwait(async () =>
+                    {
+                        while (cts.IsCancellationRequested == false)
+                        {
+                            $"task 1-A: {ThreadObj.CurrentThreadId}"._Print();
+
+                            await ev1.WaitOneAsync(cancel: cts.Token).ConfigureAwait(false);
+
+                            $"task 1-B: {ThreadObj.CurrentThreadId}"._Print();
+
+                            ev2.Set();
+                        }
+                    });
+
+                    for (int i = 0; i < 100; i++)
+                    {
+                        ev1.Set();
+
+                        $"task 0-A: {ThreadObj.CurrentThreadId}"._Print();
+
+                        await ev2.WaitOneAsync().ConfigureAwait(false);
+
+                        $"task 0-B: {ThreadObj.CurrentThreadId}"._Print();
+                    }
+
+                    cts.Cancel();
+
+                    await t2;
+                });
+                return;
+            }
+
+            if (true)
+            {
                 VaultStressTest();
                 return;
             }
