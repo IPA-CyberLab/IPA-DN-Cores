@@ -460,7 +460,7 @@ namespace IPA.TestDev
 
                     thread.WaitForEnd();
                 });
-            }), enabled: true, priority: 200831)
+            }), enabled: true, priority: 200830)
 
             .Add(new MicroBenchmark($"AsyncEvent", Benchmark_CountForNormal, count =>
             {
