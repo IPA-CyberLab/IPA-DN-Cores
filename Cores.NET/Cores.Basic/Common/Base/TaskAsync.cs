@@ -1764,15 +1764,22 @@ namespace IPA.Cores.Basic
             }
             else
             {
+                bool flag = false;
+
                 lock (lockobj)
                 {
                     if (isSet == false)
                     {
                         isSet = true;
-                        tcs.TrySetResult(true);
-
-                        this.CallbackList.Invoke();
+                        flag = true;
                     }
+                }
+
+                if (flag)
+                {
+                    tcs.TrySetResult(true);
+
+                    this.CallbackList.Invoke();
                 }
             }
         }
