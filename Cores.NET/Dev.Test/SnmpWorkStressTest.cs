@@ -167,7 +167,7 @@ namespace IPA.TestDev
 
             int num = vl.DefaultParam.IntValue;
 
-            if (num == 0) num = 100;
+            if (num == 0) num = 1;
 
             "Starting servers..."._Print();
 
@@ -197,7 +197,11 @@ namespace IPA.TestDev
 
                 bool flag = (memCount % 10) == 0;
 
+                CoresRuntimeStat stat = new CoresRuntimeStat();
+                stat.Refresh();
+                stat._Print();
                 $"{DateTime.Now._ToDtStr()}: {SnmpWorkStressTestClass.count.Value._ToString3()}"._Print();
+                Con.WriteLine();
 
                 int randSize = Util.RandSInt31() % 10000000 + 1;
 
