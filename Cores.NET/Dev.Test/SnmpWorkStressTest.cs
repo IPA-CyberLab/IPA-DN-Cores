@@ -193,36 +193,43 @@ namespace IPA.TestDev
 
             while (true)
             {
-                memCount++;
-
-                bool flag = (memCount % 10) == 0;
-
-                CoresRuntimeStat stat = new CoresRuntimeStat();
-                stat.Refresh();
-                stat._Print();
-                $"{DateTime.Now._ToDtStr()}: {SnmpWorkStressTestClass.count.Value._ToString3()}"._Print();
-                Con.WriteLine();
-
-                int randSize = Util.RandSInt31() % 10000000 + 1;
-
-                Memory<byte> tmp = new byte[randSize];
-                Limbo.ObjectVolatileSlow = tmp;
-
-
-                var span = tmp.Span;
-                for (int i = 0; i < randSize; i++)
+                try
                 {
-                    span[i] = (byte)i;
+                    memCount++;
+
+                    bool flag = (memCount % 10) == 0;
+
+                    CoresRuntimeStat stat = new CoresRuntimeStat();
+                    stat.Refresh();
+                    stat._Print();
+                    $"{DateTime.Now._ToDtStr()}: {SnmpWorkStressTestClass.count.Value._ToString3()}"._Print();
+                    Con.WriteLine();
+
+                    int randSize = Util.RandSInt31() % 10000000 + 1;
+
+                    Memory<byte> tmp = new byte[randSize];
+                    Limbo.ObjectVolatileSlow = tmp;
+
+
+                    var span = tmp.Span;
+                    for (int i = 0; i < randSize; i++)
+                    {
+                        span[i] = (byte)i;
+                    }
+
+                    if (flag) Dbg.GcCollect();
+
+                    Limbo.ObjectVolatileSlow = null;
+                    tmp = default;
+
+                    if (flag) Dbg.GcCollect();
+
+                    Sleep(1000);
                 }
-
-                if (flag) Dbg.GcCollect();
-
-                Limbo.ObjectVolatileSlow = null;
-                tmp = default;
-
-                if (flag) Dbg.GcCollect();
-
-                Sleep(1000);
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"SnmpWorkStressTest Main Function: {ex.ToString()}");
+                }
             }
         }
 
