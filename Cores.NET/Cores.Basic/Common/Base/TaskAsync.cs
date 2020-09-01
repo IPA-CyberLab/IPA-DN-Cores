@@ -60,11 +60,11 @@ namespace IPA.Cores.Basic
             // 重いサーバー (大量のインスタンスや大量のコンテナが稼働、または大量のコネクションを処理) における定数変更
             public static void ApplyHeavyLoadServerConfig()
             {
-                DefaultMinWorkerThreads.TrySet(32767);
-                DefaultMinIoCompletionThreads.TrySet(2048);
+                DefaultMinWorkerThreads.TrySet(512);
+                DefaultMinIoCompletionThreads.TrySet(256);
 
-                DefaultMaxWorkerThreads.TrySet(32767);
-                DefaultMaxIoCompletionThreads.TrySet(4096);
+                DefaultMaxWorkerThreads.TrySet(4096);
+                DefaultMaxIoCompletionThreads.TrySet(2048);
             }
         }
     }
