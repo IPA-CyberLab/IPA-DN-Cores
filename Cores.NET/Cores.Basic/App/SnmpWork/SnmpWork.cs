@@ -353,6 +353,7 @@ namespace IPA.Cores.Basic
                     LocalHostOnly = true,
                     HttpPortsList = new int[] { port }.ToList(),
                     HttpsPortsList = new List<int>(),
+                    UseKestrelWithIPACoreStack = false,
                 },
                 true);
             }
