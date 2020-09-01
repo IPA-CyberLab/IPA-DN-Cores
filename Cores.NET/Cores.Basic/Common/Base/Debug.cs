@@ -1342,7 +1342,9 @@ namespace IPA.Cores.Basic
             ThreadPool.GetAvailableThreads(out int avail_workers, out int avail_ports);
             ThreadPool.GetMaxThreads(out int max_workers, out int max_ports);
             ThreadPool.GetMinThreads(out int min_workers, out int min_ports);
-            long mem = GC.GetTotalMemory(false);
+            System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true, true);
+            long mem = GC.GetTotalMemory(true);
             int num_queued = TaskUtil.GetQueuedTasksCount();
             int num_timered = TaskUtil.GetScheduledTimersCount();
 
