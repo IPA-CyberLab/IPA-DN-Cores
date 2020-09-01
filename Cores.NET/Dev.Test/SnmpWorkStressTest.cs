@@ -154,12 +154,12 @@ namespace IPA.TestDev
                     span[i] = (byte)i;
                 }
 
-                Dbg.GcCollect();
+//                Dbg.GcCollect();
 
                 Limbo.ObjectVolatileSlow = null;
                 tmp = default;
 
-                Dbg.GcCollect();
+//                Dbg.GcCollect();
 
                 Sleep(1000);
             }
