@@ -41,6 +41,7 @@ using System.Linq;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Net;
 
 namespace IPA.TestDev
 {
@@ -74,17 +75,19 @@ namespace IPA.TestDev
         {
             for (int i = 0; i < 10; i++)
             {
-                Task t = AsyncAwait(async () =>
+                ThreadObj.Start((p) =>
                 {
                     while (true)
                     {
-                        await Task.Yield();
-
                         try
                         {
-                            using var web = new WebApi(new WebApiOptions());
+                            WebRequest req = HttpWebRequest.Create($"http://127.0.0.1:{port}/?method=GetAll");
 
-                            var ret = await web.SimpleQueryAsync(WebMethods.GET, $"http://127.0.0.1:{port}/?method=GetAll");
+                            using var res = req.GetResponse();
+
+                            //using var web = new WebApi(new WebApiOptions());
+
+                            //var ret = await web.SimpleQueryAsync(WebMethods.GET, $"http://127.0.0.1:{port}/?method=GetAll");
 
                             count++;
                         }
@@ -140,7 +143,7 @@ namespace IPA.TestDev
 
             while (true)
             {
-                $"{SnmpWorkStressTestClass.count.Value}"._Print();
+                $"{SnmpWorkStressTestClass.count.Value._ToString3()}"._Print();
 
                 int randSize = Util.RandSInt31() % 100000000 + 1;
 
