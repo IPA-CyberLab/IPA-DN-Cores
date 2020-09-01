@@ -627,6 +627,8 @@ namespace IPA.Cores.Basic
 
         public static int GetScheduledTimersCount()
         {
+            return -1;
+
             if (FailedFlag_GetScheduledTimersCount) return -1;
 
             if (TimerQueueType == null || TimerQueueTimersFieldList == null)
