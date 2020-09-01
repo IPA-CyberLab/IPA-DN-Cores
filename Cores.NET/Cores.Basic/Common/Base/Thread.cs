@@ -358,7 +358,7 @@ namespace IPA.Cores.Basic
                 Worker.ExecAsync(p =>
                 {
                     MutantBase = MutantBase.Create(name);
-                }, 0);
+                }, 0)._GetResult();
             }
             catch
             {
