@@ -1553,7 +1553,7 @@ namespace IPA.Cores.Basic
         {
             if (me.RecvTmpBufferSize == 0)
             {
-                int i = 1024;
+                int i = me.Socket.ReceiveBufferSize;
                 if (i <= 0) i = CoresConfig.BufferSizes.MaxNetworkStreamSendRecvBufferSize;
                 me.RecvTmpBufferSize = Math.Min(i, MaxStreamBufferLength);
             }
@@ -1715,7 +1715,7 @@ namespace IPA.Cores.Basic
         {
             if (me.RecvTmpBufferSize == 0)
             {
-                int i = 1024;// CoresConfig.BufferSizes.MaxNetworkStreamSendRecvBufferSize;
+                int i = CoresConfig.BufferSizes.MaxNetworkStreamSendRecvBufferSize;
                 me.RecvTmpBufferSize = Math.Min(i, MaxStreamBufferLength);
             }
 
