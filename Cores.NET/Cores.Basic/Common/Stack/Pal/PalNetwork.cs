@@ -333,7 +333,7 @@ namespace IPA.Cores.Basic
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         protected virtual void Dispose(bool disposing)
         {
-            if (DisposeFlag.IsFirstCall() && disposing)
+            if (disposing && DisposeFlag.IsFirstCall())
             {
                 IDisposable[] disposeList;
                 lock (DisposeOnDisposeList)
