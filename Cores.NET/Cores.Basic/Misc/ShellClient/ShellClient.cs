@@ -308,9 +308,11 @@ namespace IPA.Cores.Basic
                 cancel: cancel);
         }
 
-        protected override async Task StreamReadFromObjectImplAsync(FastStreamBuffer fifo, CancellationToken cancel)
+        protected override async Task<bool> StreamReadFromObjectImplAsync(FastStreamBuffer fifo, CancellationToken cancel)
         {
             await cancel._WaitUntilCanceledAsync();
+
+            return true;
         }
 
         protected override Task DatagramWriteToObjectImplAsync(FastDatagramBuffer fifo, CancellationToken cancel)
@@ -496,7 +498,7 @@ namespace IPA.Cores.Basic
         }
 
         // シリアルポート --> 抽象 Stream
-        protected override async Task StreamReadFromObjectImplAsync(FastStreamBuffer fifo, CancellationToken cancel)
+        protected override async Task<bool> StreamReadFromObjectImplAsync(FastStreamBuffer fifo, CancellationToken cancel)
         {
             if (this.SerialPort.IsOpen == false) throw new FastBufferDisconnectedException();
 
@@ -523,6 +525,8 @@ namespace IPA.Cores.Basic
                     this.SerialPort.Close();
                 },
                 cancel: cancel);
+
+            return true;
         }
 
         protected override Task DatagramWriteToObjectImplAsync(FastDatagramBuffer fifo, CancellationToken cancel)
