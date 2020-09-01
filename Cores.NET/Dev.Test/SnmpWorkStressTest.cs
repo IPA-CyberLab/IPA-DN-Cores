@@ -171,7 +171,7 @@ namespace IPA.TestDev
 
             "Starting servers..."._Print();
 
-            for (int i = 7000; i < (7000 + num); i++)
+            for (int i = 8000; i < (8000 + num); i++)
             {
                 SnmpWorkStressTestClass.StartServer(i);
                 i._Print();
@@ -181,7 +181,7 @@ namespace IPA.TestDev
 
             "Starting tests..."._Print();
 
-            for (int i = 7000; i < (7000 + num); i++)
+            for (int i = 8000; i < (8000 + num); i++)
             {
                 SnmpWorkStressTestClass.StartStressTest(i);
                 i._Print();
@@ -189,11 +189,17 @@ namespace IPA.TestDev
 
             "All tests started."._Print();
 
+            int memCount = 0;
+
             while (true)
             {
+                memCount++;
+
+                bool flag = (memCount % 10) == 0;
+
                 $"{DateTime.Now._ToDtStr()}: {SnmpWorkStressTestClass.count.Value._ToString3()}"._Print();
 
-                int randSize = Util.RandSInt31() % 100000000 + 1;
+                int randSize = Util.RandSInt31() % 10000000 + 1;
 
                 Memory<byte> tmp = new byte[randSize];
                 Limbo.ObjectVolatileSlow = tmp;
@@ -205,12 +211,12 @@ namespace IPA.TestDev
                     span[i] = (byte)i;
                 }
 
-//                Dbg.GcCollect();
+                if (flag) Dbg.GcCollect();
 
                 Limbo.ObjectVolatileSlow = null;
                 tmp = default;
 
-//                Dbg.GcCollect();
+                if (flag) Dbg.GcCollect();
 
                 Sleep(1000);
             }
