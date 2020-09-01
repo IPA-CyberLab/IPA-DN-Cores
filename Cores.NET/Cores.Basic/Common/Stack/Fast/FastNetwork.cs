@@ -1808,7 +1808,7 @@ namespace IPA.Cores.Basic
         {
             if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Stream) == false) throw new NotSupportedException();
 
-            ReadResult r = await this.PipeToRead.ReadAsync(cancel);
+            ReadResult r = await this.PipeToRead.ReadAsync();
 
             if (r.IsCanceled) return false;
             if (r.IsCompleted && r.Buffer.Length == 0) return false;
@@ -1842,9 +1842,9 @@ namespace IPA.Cores.Basic
         {
             if (DisconnectFlag.IsFirstCall())
             {
-                try { PipeToRead.Complete(ex); } catch { }
+                try { PipeToRead.Complete(); } catch { }
                 try { PipeToRead.CancelPendingRead(); } catch { }
-                try { PipeToWrite.Complete(ex); } catch { }
+                try { PipeToWrite.Complete(); } catch { }
                 try { PipeToWrite.CancelPendingFlush(); } catch { }
             }
         }
