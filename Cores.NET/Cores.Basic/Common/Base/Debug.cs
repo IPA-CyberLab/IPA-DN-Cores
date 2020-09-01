@@ -1299,6 +1299,8 @@ namespace IPA.Cores.Basic
             }
 
             static OldSingleton<IntervalReporter> thread_pool_stat_reporter;
+
+            [Obsolete]
             public static IntervalReporter StartThreadPoolStatReporter()
             {
                 return thread_pool_stat_reporter.CreateOrGet(() =>
