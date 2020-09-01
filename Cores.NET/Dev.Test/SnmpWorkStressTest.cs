@@ -42,6 +42,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Net;
+using System.Net.Sockets;
 
 namespace IPA.TestDev
 {
@@ -49,10 +50,10 @@ namespace IPA.TestDev
     {
         public static void StartServer(int port)
         {
-            SnmpWorkConfig.DefaultPollingIntervalSecs.TrySet(1);
+            SnmpWorkConfig.DefaultPollingIntervalSecs.TrySet(50);
             SnmpWorkConfig.DefaultPingTarget.TrySet("ping4.test.sehosts.com=IPv4 Internet,ping6.test.sehosts.com=IPv6 Internet,8.8.8.8,8.8.4.4,130.158.6.51,1.2.3.4");
             SnmpWorkConfig.DefaultSpeedTarget.TrySet("none");
-            SnmpWorkConfig.DefaultPktLossIntervalMsec.TrySet(10);
+            SnmpWorkConfig.DefaultPktLossIntervalMsec.TrySet(50);
             SnmpWorkConfig.DefaultPktLossTimeoutMsecs.TrySet(100);
 
             var host = new SnmpWorkHost(port);
@@ -73,7 +74,9 @@ namespace IPA.TestDev
 
         public static void StartStressTest(int port)
         {
-            for (int i = 0; i < 10; i++)
+            int num = 10;
+
+            for (int i = 0; i < num; i++)
             {
                 ThreadObj.Start((p) =>
                 {
@@ -89,12 +92,56 @@ namespace IPA.TestDev
 
                             //var ret = await web.SimpleQueryAsync(WebMethods.GET, $"http://127.0.0.1:{port}/?method=GetAll");
 
-                            count++;
+                            count.Increment();
                         }
                         catch (Exception ex)
                         {
                             ex.Message._Print();
                         }
+                    }
+                });
+            }
+
+            for (int i = 0; i < num; i++)
+            {
+                ThreadObj.Start((p) =>
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            {
+                                using TcpClient tc = new TcpClient("127.0.0.1", port);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            ex.Message._Print();
+                        }
+                        Sleep(Util.RandSInt31() % 100 + 50);
+                    }
+                });
+            }
+
+            for (int i = 0; i < num; i++)
+            {
+                ThreadObj.Start((p) =>
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            {
+                                using TcpClient tc = new TcpClient("127.0.0.1", port);
+
+                                Sleep(Util.RandSInt31() % 1000);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            ex.Message._Print();
+                        }
+                        Sleep(Util.RandSInt31() % 100 + 50);
                     }
                 });
             }
@@ -143,7 +190,7 @@ namespace IPA.TestDev
 
             while (true)
             {
-                $"{SnmpWorkStressTestClass.count.Value._ToString3()}"._Print();
+                $"{DateTime.Now._ToDtStr()}: {SnmpWorkStressTestClass.count.Value._ToString3()}"._Print();
 
                 int randSize = Util.RandSInt31() % 100000000 + 1;
 
