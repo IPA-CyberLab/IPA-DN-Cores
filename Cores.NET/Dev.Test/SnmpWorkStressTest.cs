@@ -74,13 +74,13 @@ namespace IPA.TestDev
 
         public static void StartStressTest(int port)
         {
-            int num = 1;
+            int num = 50;
 
             for (int i = 0; i < num; i++)
             {
                 ThreadObj.Start((p) =>
                 {
-                    //while (true)
+                    while (true)
                     {
                         try
                         {
