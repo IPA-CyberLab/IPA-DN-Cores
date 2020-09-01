@@ -286,18 +286,18 @@ namespace IPA.Cores.Basic
     // SNMP Worker ホストクラス
     public class SnmpWorkHost : AsyncService
     {
-        readonly HiveData<SnmpWorkSettings> SettingsHive;
+        //readonly HiveData<SnmpWorkSettings> SettingsHive;
 
         // 'Config\SnmpWork' のデータ
-        public SnmpWorkSettings Settings => SettingsHive.GetManagedDataSnapshot();
+        public SnmpWorkSettings Settings { get; } = new SnmpWorkSettings();
 
         // 内部データベース (index 管理)
-        readonly HiveData<SnmpWorkInternalDb> InternalDbHive;
+        //readonly HiveData<SnmpWorkInternalDb> InternalDbHive;
 
         // データベースへのアクセスを容易にするための自動プロパティ
-        CriticalSection InternalDbLock => InternalDbHive.DataLock;
-        SnmpWorkInternalDb InternalDb => InternalDbHive.ManagedData;
-        SnmpWorkInternalDb InternalDbSnapshot => InternalDbHive.GetManagedDataSnapshot();
+        CriticalSection InternalDbLock { get; } = new CriticalSection();
+        SnmpWorkInternalDb InternalDb { get; } = new SnmpWorkInternalDb();
+        //SnmpWorkInternalDb InternalDbSnapshot => InternalDbHive.GetManagedDataSnapshot();
 
         readonly CriticalSection LockList = new CriticalSection();
 
@@ -305,18 +305,21 @@ namespace IPA.Cores.Basic
 
         readonly CgiHttpServer Cgi;
 
-        public SnmpWorkHost()
+        public SnmpWorkHost(int id = 0)
         {
             try
             {
+                if (id == 0) id = 1;
+                Settings.Normalize();
+
                 // SnmpWorkSettings を読み込む
-                this.SettingsHive = new HiveData<SnmpWorkSettings>(Hive.SharedLocalConfigHive, $"SnmpWork", null, HiveSyncPolicy.AutoReadFromFile);
+                //this.SettingsHive = new HiveData<SnmpWorkSettings>(Hive.SharedLocalConfigHive, $"SnmpWork", null, HiveSyncPolicy.AutoReadFromFile);
 
                 // データベース
-                this.InternalDbHive = new HiveData<SnmpWorkInternalDb>(Hive.SharedLocalConfigHive, "InternalDatabase/SnmpWorkInternalDb",
-                    getDefaultDataFunc: () => new SnmpWorkInternalDb(),
-                    policy: HiveSyncPolicy.AutoReadWriteFile,
-                    serializer: HiveSerializerSelection.RichJson);
+                //this.InternalDbHive = new HiveData<SnmpWorkInternalDb>(Hive.SharedLocalConfigHive, "InternalDatabase/SnmpWorkInternalDb",
+                //    getDefaultDataFunc: () => new SnmpWorkInternalDb(),
+                //    policy: HiveSyncPolicy.AutoReadWriteFile,
+                //    serializer: HiveSerializerSelection.RichJson);
 
                 // HTTP サーバーを立ち上げる
                 this.Cgi = new CgiHttpServer(new SnmpWorkCgiHandler(this), new HttpServerOptions()
@@ -326,7 +329,7 @@ namespace IPA.Cores.Basic
                     DenyRobots = true,
                     UseGlobalCertVault = false,
                     LocalHostOnly = true,
-                    HttpPortsList = new int[] { Settings.HttpPort }.ToList(),
+                    HttpPortsList = new int[] { id }.ToList(),
                     HttpsPortsList = new List<int>(),
                 },
                 true);
@@ -526,9 +529,9 @@ namespace IPA.Cores.Basic
                     fetcher._DisposeSafe();
                 }
 
-                this.SettingsHive._DisposeSafe();
+                //this.SettingsHive._DisposeSafe();
 
-                this.InternalDbHive._DisposeSafe();
+                //this.InternalDbHive._DisposeSafe();
             }
             finally
             {
