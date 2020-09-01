@@ -74,7 +74,7 @@ namespace IPA.TestDev
 
         public static void StartStressTest(int port)
         {
-            int num = 10;
+            int num = 50;
 
             for (int i = 0; i < num; i++)
             {
@@ -98,6 +98,7 @@ namespace IPA.TestDev
                         {
                             ex.Message._Print();
                         }
+                        Sleep(Util.RandSInt31() % 100 + 50);
                     }
                 });
             }
