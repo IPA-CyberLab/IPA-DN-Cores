@@ -350,7 +350,7 @@ namespace IPA.Cores.Basic
                     DisableHiveBasedSetting = true,
                     DenyRobots = true,
                     UseGlobalCertVault = false,
-                    LocalHostOnly = true,
+                    //LocalHostOnly = true,
                     HttpPortsList = new int[] { port }.ToList(),
                     HttpsPortsList = new List<int>(),
                     UseKestrelWithIPACoreStack = true,
