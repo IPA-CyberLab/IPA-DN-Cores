@@ -84,7 +84,7 @@ namespace IPA.TestDev
                     {
                         try
                         {
-                            WebRequest req = HttpWebRequest.Create($"http://127.{port % 255}.{i}.1:{port}/?method=GetAll");
+                            WebRequest req = HttpWebRequest.Create($"http://127.{Util.RandUInt8()}.{Util.RandUInt8()}.1:{port}/?method=GetAll");
 
                             using var res = req.GetResponse();
 
@@ -112,7 +112,7 @@ namespace IPA.TestDev
             //            try
             //            {
             //                {
-            //                    using TcpClient tc = new TcpClient($"127.{port % 255}.{i}.1", port);
+            //                    using TcpClient tc = new TcpClient($"127.{Util.RandUInt8()}.{Util.RandUInt8()}.1", port);
             //                }
             //            }
             //            catch (Exception ex)
@@ -133,7 +133,7 @@ namespace IPA.TestDev
             //            try
             //            {
             //                {
-            //                    using TcpClient tc = new TcpClient($"127.{port % 255}.{i}.1", port);
+            //                    using TcpClient tc = new TcpClient($"127.{Util.RandUInt8()}.{Util.RandUInt8()}.1", port);
 
             //                    Sleep(Util.RandSInt31() % 1000);
             //                }
