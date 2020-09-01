@@ -191,6 +191,8 @@ namespace IPA.TestDev
 
             int memCount = 0;
 
+            long lastCount = 0;
+
             while (true)
             {
                 try
@@ -199,10 +201,14 @@ namespace IPA.TestDev
 
                     bool flag = (memCount % 10) == 0;
 
+                    long currentCount = SnmpWorkStressTestClass.count.Value;
+                    long diff = currentCount - lastCount;
+                    lastCount = currentCount;
+
                     CoresRuntimeStat stat = new CoresRuntimeStat();
                     stat.Refresh();
                     stat._Print();
-                    $"{DateTime.Now._ToDtStr()}: {SnmpWorkStressTestClass.count.Value._ToString3()}"._Print();
+                    $"{DateTime.Now._ToDtStr()}: {currentCount._ToString3()} ({diff._ToString3()})"._Print();
                     Con.WriteLine();
 
                     int randSize = Util.RandSInt31() % 10000000 + 1;
