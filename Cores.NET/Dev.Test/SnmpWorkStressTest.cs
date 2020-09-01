@@ -103,49 +103,49 @@ namespace IPA.TestDev
                 });
             }
 
-            for (int i = 0; i < num; i++)
-            {
-                ThreadObj.Start((p) =>
-                {
-                    while (true)
-                    {
-                        try
-                        {
-                            {
-                                using TcpClient tc = new TcpClient($"127.{port % 255}.{i}.1", port);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            ex.Message._Print();
-                        }
-                        Sleep(Util.RandSInt31() % 100 + 50);
-                    }
-                });
-            }
+            //for (int i = 0; i < num; i++)
+            //{
+            //    ThreadObj.Start((p) =>
+            //    {
+            //        while (true)
+            //        {
+            //            try
+            //            {
+            //                {
+            //                    using TcpClient tc = new TcpClient($"127.{port % 255}.{i}.1", port);
+            //                }
+            //            }
+            //            catch (Exception ex)
+            //            {
+            //                ex.Message._Print();
+            //            }
+            //            Sleep(Util.RandSInt31() % 100 + 50);
+            //        }
+            //    });
+            //}
 
-            for (int i = 0; i < num; i++)
-            {
-                ThreadObj.Start((p) =>
-                {
-                    while (true)
-                    {
-                        try
-                        {
-                            {
-                                using TcpClient tc = new TcpClient($"127.{port % 255}.{i}.1", port);
+            //for (int i = 0; i < num; i++)
+            //{
+            //    ThreadObj.Start((p) =>
+            //    {
+            //        while (true)
+            //        {
+            //            try
+            //            {
+            //                {
+            //                    using TcpClient tc = new TcpClient($"127.{port % 255}.{i}.1", port);
 
-                                Sleep(Util.RandSInt31() % 1000);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            ex.Message._Print();
-                        }
-                        Sleep(Util.RandSInt31() % 100 + 50);
-                    }
-                });
-            }
+            //                    Sleep(Util.RandSInt31() % 1000);
+            //                }
+            //            }
+            //            catch (Exception ex)
+            //            {
+            //                ex.Message._Print();
+            //            }
+            //            Sleep(Util.RandSInt31() % 100 + 50);
+            //        }
+            //    });
+            //}
         }
     }
 
