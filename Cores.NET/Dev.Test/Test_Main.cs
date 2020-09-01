@@ -65,7 +65,7 @@ namespace IPA.TestDev
         {
             int ret = -1;
 
-            CoresConfig.ApplyHeavyLoadServerConfigAll();
+            //CoresConfig.ApplyHeavyLoadServerConfigAll();
 
             //CoresConfig.LocalLargeFileSystemSettings.MaxSingleFileSize.SetValue(200);
 
