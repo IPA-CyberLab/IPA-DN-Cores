@@ -1238,6 +1238,8 @@ namespace IPA.Cores.Basic
 
         async Task MainLoopsAsync(CancellationToken cancel)
         {
+            await Task.Yield();
+
             try
             {
                 List<Task> tasks = new List<Task>();

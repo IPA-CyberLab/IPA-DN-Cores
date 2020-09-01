@@ -618,7 +618,7 @@ namespace IPA.Cores.Basic
     {
         static int NumPendingAsyncTasks = 0;
 
-        const bool YieldOnStartDefault = false;
+        const bool YieldOnStartDefault = true;
 
         public static int GetNumPendingAsyncTasks() => NumPendingAsyncTasks;
 
@@ -4683,6 +4683,8 @@ namespace IPA.Cores.Basic
 
         public async Task<TResult> ExecAsync<TResult, TParam>(Func<TParam, TResult> proc, [AllowNull] TParam param, int timeout = Timeout.Infinite, CancellationToken cancel = default)
         {
+            await Task.Yield();
+
             if (DisposeFlag.IsSet) throw new ObjectDisposedException("SingleWorkerThread");
 
             if (this.SelfThread)
