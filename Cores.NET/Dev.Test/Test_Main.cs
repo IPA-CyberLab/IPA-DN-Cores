@@ -63,6 +63,7 @@ namespace IPA.TestDev
     {
         static int Main(string[] args)
         {
+            ThreadPool.SetMinThreads(128, 64);
             int ret = -1;
 
             //CoresConfig.LocalLargeFileSystemSettings.MaxSingleFileSize.SetValue(200);
