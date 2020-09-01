@@ -46,15 +46,15 @@ namespace IPA.TestDev
 {
     static class SnmpWorkStressTestClass
     {
-        static void CgiServerStressTest_Server2(int id)
+        public static void StartServer(int port)
         {
-            //SnmpWorkConfig.DefaultPollingIntervalSecs.TrySet(1);
-            //SnmpWorkConfig.DefaultPingTarget.TrySet("ping4.test.sehosts.com=IPv4 Internet,ping6.test.sehosts.com=IPv6 Internet,8.8.8.8,8.8.4.4,130.158.6.51,1.2.3.4");
-            //SnmpWorkConfig.DefaultSpeedTarget.TrySet("none");
-            //SnmpWorkConfig.DefaultPktLossIntervalMsec.TrySet(10);
-            //SnmpWorkConfig.DefaultPktLossTimeoutMsecs.TrySet(100);
+            SnmpWorkConfig.DefaultPollingIntervalSecs.TrySet(1);
+            SnmpWorkConfig.DefaultPingTarget.TrySet("ping4.test.sehosts.com=IPv4 Internet,ping6.test.sehosts.com=IPv6 Internet,8.8.8.8,8.8.4.4,130.158.6.51,1.2.3.4");
+            SnmpWorkConfig.DefaultSpeedTarget.TrySet("none");
+            SnmpWorkConfig.DefaultPktLossIntervalMsec.TrySet(10);
+            SnmpWorkConfig.DefaultPktLossTimeoutMsecs.TrySet(100);
 
-            var host = new SnmpWorkHost(id);
+            var host = new SnmpWorkHost(port);
 
             host.Register("Temperature", 101_00000, new SnmpWorkFetcherTemperature(host));
             host.Register("Ram", 102_00000, new SnmpWorkFetcherMemory(host));
@@ -68,15 +68,11 @@ namespace IPA.TestDev
             Con.WriteLine("SnmpWorkDaemon: Started.");
         }
 
-        public static void TestMain(int id)
+        public static RefLong count = 0;
+
+        public static void StartStressTest(int port)
         {
-            RefLong count = 0;
-
-            CgiServerStressTest_Server2(id);
-
-            //Sleep(Timeout.Infinite);
-
-            for (int i = 0; i < 1; i++)
+            for (int i = 0; i < 10; i++)
             {
                 Task t = AsyncAwait(async () =>
                 {
@@ -88,7 +84,7 @@ namespace IPA.TestDev
                         {
                             using var web = new WebApi(new WebApiOptions());
 
-                            var ret = await web.SimpleQueryAsync(WebMethods.GET, $"http://127.0.0.1:{id}/?method=GetAll");
+                            var ret = await web.SimpleQueryAsync(WebMethods.GET, $"http://127.0.0.1:{port}/?method=GetAll");
 
                             count++;
                         }
@@ -99,13 +95,6 @@ namespace IPA.TestDev
                     }
                 });
             }
-
-            while (true)
-            {
-                $"ID={id}: {count}"._Print();
-
-                Sleep(1000);
-            }
         }
     }
 
@@ -113,26 +102,69 @@ namespace IPA.TestDev
     {
         [ConsoleCommand(
             "SnmpWorkStressTest command",
-            "SnmpWorkStressTest [id]",
+            "SnmpWorkStressTest [num]",
             "This is a test command.",
-            "[id]:ID number")]
+            "[num]: number")]
         static int SnmpWorkStressTest(ConsoleService c, string cmdName, string str)
         {
             ConsoleParam[] args =
             {
-                new ConsoleParam("[id]", null, null, null, null),
+                new ConsoleParam("[num]", null, null, null, null),
             };
 
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            int id = vl.DefaultParam.IntValue;
+            int num = vl.DefaultParam.IntValue;
 
-            if (id == 0) id = 1;
+            if (num == 0) num = 100;
 
-            SnmpWorkStressTestClass.TestMain(id);
+            "Starting servers..."._Print();
 
-            return 0;
+            for (int i = 7000; i < (7000 + num); i++)
+            {
+                SnmpWorkStressTestClass.StartServer(i);
+                i._Print();
+            }
+
+            "All servers started."._Print();
+
+            "Starting tests..."._Print();
+
+            for (int i = 7000; i < (7000 + num); i++)
+            {
+                SnmpWorkStressTestClass.StartStressTest(i);
+                i._Print();
+            }
+
+            "All tests started."._Print();
+
+            while (true)
+            {
+                $"{SnmpWorkStressTestClass.count.Value}"._Print();
+
+                int randSize = Util.RandSInt31() % 100000000 + 1;
+
+                Memory<byte> tmp = new byte[randSize];
+                Limbo.ObjectVolatileSlow = tmp;
+
+
+                var span = tmp.Span;
+                for (int i = 0; i < randSize; i++)
+                {
+                    span[i] = (byte)i;
+                }
+
+                Dbg.GcCollect();
+
+                Limbo.ObjectVolatileSlow = null;
+                tmp = default;
+
+                Dbg.GcCollect();
+
+                Sleep(1000);
+            }
         }
+
     }
 }
 
