@@ -49,6 +49,130 @@ namespace IPA.Cores.Basic
 {
     public static partial class CoresConfig
     {
+        public static partial class ThreadPoolConfig
+        {
+            public static readonly Copenhagen<int> DefaultMinWorkerThreads = 0;
+            public static readonly Copenhagen<int> DefaultMinIoCompletionThreads = 0;
+
+            public static readonly Copenhagen<int> DefaultMaxWorkerThreads = 0;
+            public static readonly Copenhagen<int> DefaultMaxIoCompletionThreads = 0;
+
+            // 重いサーバー (大量のインスタンスや大量のコンテナが稼働、または大量のコネクションを処理) における定数変更
+            public static void ApplyHeavyLoadServerConfig()
+            {
+                DefaultMinWorkerThreads.TrySet(32767);
+                DefaultMinIoCompletionThreads.TrySet(2048);
+
+                DefaultMaxWorkerThreads.TrySet(32767);
+                DefaultMaxIoCompletionThreads.TrySet(4096);
+            }
+        }
+    }
+
+    public static class ThreadPoolConfigUtil
+    {
+        public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
+
+        static int InitialMinWorkerThreads = 0;
+        static int InitialMinIoCompletionThreads = 0;
+
+        static int InitialMaxWorkerThreads = 0;
+        static int InitialMaxIoCompletionThreads = 0;
+
+        static void ModuleInit()
+        {
+            ThreadPool.GetMaxThreads(out InitialMaxWorkerThreads, out InitialMaxIoCompletionThreads);
+            ThreadPool.GetMinThreads(out InitialMinWorkerThreads, out InitialMinIoCompletionThreads);
+
+            // 設定を変更する
+
+            // 1 回目
+            if (CoresConfig.ThreadPoolConfig.DefaultMinWorkerThreads != 0 && CoresConfig.ThreadPoolConfig.DefaultMinIoCompletionThreads != 0)
+            {
+                try
+                {
+                    ThreadPool.SetMinThreads(CoresConfig.ThreadPoolConfig.DefaultMinWorkerThreads, CoresConfig.ThreadPoolConfig.DefaultMinIoCompletionThreads);
+                }
+                catch { }
+            }
+            if (CoresConfig.ThreadPoolConfig.DefaultMaxWorkerThreads != 0 && CoresConfig.ThreadPoolConfig.DefaultMaxIoCompletionThreads != 0)
+            {
+                try
+                {
+                    ThreadPool.SetMaxThreads(CoresConfig.ThreadPoolConfig.DefaultMaxWorkerThreads, CoresConfig.ThreadPoolConfig.DefaultMaxIoCompletionThreads);
+                }
+                catch { }
+            }
+
+            // 2 回目
+            if (CoresConfig.ThreadPoolConfig.DefaultMinWorkerThreads != 0 && CoresConfig.ThreadPoolConfig.DefaultMinIoCompletionThreads != 0)
+            {
+                try
+                {
+                    ThreadPool.SetMinThreads(CoresConfig.ThreadPoolConfig.DefaultMinWorkerThreads, CoresConfig.ThreadPoolConfig.DefaultMinIoCompletionThreads);
+                }
+                catch { }
+            }
+            if (CoresConfig.ThreadPoolConfig.DefaultMaxWorkerThreads != 0 && CoresConfig.ThreadPoolConfig.DefaultMaxIoCompletionThreads != 0)
+            {
+                try
+                {
+                    ThreadPool.SetMaxThreads(CoresConfig.ThreadPoolConfig.DefaultMaxWorkerThreads, CoresConfig.ThreadPoolConfig.DefaultMaxIoCompletionThreads);
+                }
+                catch { }
+            }
+        }
+
+        static void ModuleFree()
+        {
+            // 設定を復元する
+
+            // 1 回目
+            if (InitialMinWorkerThreads != 0 && InitialMinIoCompletionThreads != 0)
+            {
+                try
+                {
+                    ThreadPool.SetMinThreads(InitialMinWorkerThreads, InitialMinIoCompletionThreads);
+                }
+                catch { }
+            }
+            if (InitialMaxWorkerThreads != 0 && InitialMaxIoCompletionThreads != 0)
+            {
+                try
+                {
+                    ThreadPool.SetMaxThreads(InitialMaxWorkerThreads, InitialMaxIoCompletionThreads);
+                }
+                catch { }
+            }
+
+            // 2 回目
+            if (InitialMinWorkerThreads != 0 && InitialMinIoCompletionThreads != 0)
+            {
+                try
+                {
+                    ThreadPool.SetMinThreads(InitialMinWorkerThreads, InitialMinIoCompletionThreads);
+                }
+                catch { }
+            }
+            if (InitialMaxWorkerThreads != 0 && InitialMaxIoCompletionThreads != 0)
+            {
+                try
+                {
+                    ThreadPool.SetMaxThreads(InitialMaxWorkerThreads, InitialMaxIoCompletionThreads);
+                }
+                catch { }
+            }
+
+            InitialMinWorkerThreads = 0;
+            InitialMinIoCompletionThreads = 0;
+
+            InitialMaxWorkerThreads = 0;
+            InitialMaxIoCompletionThreads = 0;
+        }
+    }
+
+    public static partial class CoresConfig
+    {
         public static partial class TaskAsyncSettings
         {
             public static readonly Copenhagen<int> WaitTimeoutUntilPendingTaskFinish = 1 * 1000;
@@ -613,7 +737,6 @@ namespace IPA.Cores.Basic
         TimeoutException = 4,
         All = 0x7FFFFFFF,
     }
-
     public static partial class TaskUtil
     {
         static int NumPendingAsyncTasks = 0;

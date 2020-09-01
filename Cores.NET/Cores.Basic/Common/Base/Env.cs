@@ -44,6 +44,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Threading;
 
 namespace IPA.Cores.Basic
 {
@@ -592,6 +593,12 @@ namespace IPA.Cores.Basic
             vals.Add("AppExecutableExeOrDllFileName", Env.AppExecutableExeOrDllFileName);
             vals.Add("AppExecutableExeOrDllFileDir", Env.AppExecutableExeOrDllFileDir);
             vals.Add("AppRootDir", Env.AppRootDir);
+
+            ThreadPool.GetMinThreads(out int minWorkerThreads, out int minCompletionPortThreads);
+            ThreadPool.GetMaxThreads(out int maxWorkerThreads, out int maxCompletionPortThreads);
+
+            vals.Add("MinThreads", $"WorkerThreads = {minWorkerThreads}, CompletionPortThreads = {minCompletionPortThreads}");
+            vals.Add("MaxThreads", $"WorkerThreads = {maxWorkerThreads}, CompletionPortThreads = {maxCompletionPortThreads}");
 
             return vals;
         }

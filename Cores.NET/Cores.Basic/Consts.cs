@@ -498,6 +498,7 @@ namespace IPA.Cores.Basic
             FileDownloader.ApplyHeavyLoadServerConfig();
             FastBufferConfig.ApplyHeavyLoadServerConfig();
             FastMemoryPoolConfig.ApplyHeavyLoadServerConfig();
+            ThreadPoolConfig.ApplyHeavyLoadServerConfig();
         }
     }
 }

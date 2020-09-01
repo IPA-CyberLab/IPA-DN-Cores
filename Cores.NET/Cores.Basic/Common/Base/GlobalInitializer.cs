@@ -274,6 +274,8 @@ namespace IPA.Cores.Basic
         static void InitModules(CoresLibOptions options)
         {
             // Initialize
+            ThreadPoolConfigUtil.Module.Init();
+
             LeakChecker.Module.Init();
 
             CoresLocalDirs.Module.Init();
@@ -357,6 +359,8 @@ namespace IPA.Cores.Basic
             CoresLocalDirs.Module.Free();
 
             LeakCheckerResult leakCheckerResult = LeakChecker.Module.Free();
+
+            ThreadPoolConfigUtil.Module.Free();
 
             // Print the leak results
             if (Dbg.IsConsoleDebugMode)
