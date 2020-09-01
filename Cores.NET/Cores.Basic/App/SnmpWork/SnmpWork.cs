@@ -327,11 +327,11 @@ namespace IPA.Cores.Basic
 
         readonly CgiHttpServer Cgi;
 
-        public SnmpWorkHost(int id = 0)
+        public SnmpWorkHost(int port = 0)
         {
             try
             {
-                if (id == 0) id = 1;
+                if (port == 0) port = 1;
                 Settings.Normalize();
 
                 // SnmpWorkSettings を読み込む
@@ -351,7 +351,7 @@ namespace IPA.Cores.Basic
                     DenyRobots = true,
                     UseGlobalCertVault = false,
                     LocalHostOnly = true,
-                    HttpPortsList = new int[] { id }.ToList(),
+                    HttpPortsList = new int[] { port }.ToList(),
                     HttpsPortsList = new List<int>(),
                     UseKestrelWithIPACoreStack = true,
                 },
