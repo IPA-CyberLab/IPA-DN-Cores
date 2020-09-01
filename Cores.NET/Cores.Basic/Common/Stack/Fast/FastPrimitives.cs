@@ -48,7 +48,13 @@ using System.IO;
 namespace IPA.Cores.Basic
 {
     public class DisconnectedException : Exception { }
-    public class FastBufferDisconnectedException : DisconnectedException { }
+    public class FastBufferDisconnectedException : DisconnectedException
+    {
+        public FastBufferDisconnectedException()
+        {
+            DoNothing();
+        }
+    }
     public class SocketDisconnectedException : DisconnectedException { }
     public class BaseStreamDisconnectedException : DisconnectedException { }
 
