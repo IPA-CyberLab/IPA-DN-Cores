@@ -15449,6 +15449,8 @@ namespace IPA.Cores.Basic.HttpClientCore
                 saea.Initialize(cancellationToken);
                 saea.RemoteEndPoint = new DnsEndPoint(host, port);
 
+                system = null; // Force use native HttpClient
+
                 if (system == null)
                 {
                     if (Socket.ConnectAsync(SocketType.Stream, ProtocolType.Tcp, saea))
