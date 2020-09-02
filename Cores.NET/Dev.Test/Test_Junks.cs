@@ -48,6 +48,42 @@ namespace IPA.TestDev
     partial class TestDevCommands
     {
         [ConsoleCommand(
+    "クラッシュさん",
+    "Crash",
+    "クラッシュさん")]
+        static int Crash(ConsoleService c, string cmdName, string str)
+        {
+            unsafe
+            {
+                byte[] tmp = new byte[4096];
+
+                var fs = File.Create("/tmp/test.txt");
+
+                IntPtr fd = fs.SafeFileHandle.DangerousGetHandle();
+
+                $"fd = {fd.ToInt64()}"._Print();
+
+                fixed (byte* tmpptr = tmp)
+                {
+                    long ptr = (long)tmpptr;
+                    while (true)
+                    {
+                        ptr++;
+                        byte* p = (byte*)ptr;
+
+                        int r = UnixApi.Write(fd, p, 1);
+
+                        $"{ptr} : {r}"._Print();
+
+                        if (r == -1) break;
+                    }
+                }
+            }
+
+            return 0;
+        }
+
+        [ConsoleCommand(
             "Git 並列アップデータ",
             "GitParallelUpdate [dir] [/concurrent:NUM] [/setting:TXTFILENAME]",
             "Git 並列アップデータ")]
