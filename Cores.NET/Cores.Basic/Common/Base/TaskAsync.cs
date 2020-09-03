@@ -3025,6 +3025,8 @@ namespace IPA.Cores.Basic
 
     public class CriticalSection { }
 
+    public class CriticalSection<T> { }
+
     public class WhenAll : IDisposable
     {
         public Task WaitMe { get; }
