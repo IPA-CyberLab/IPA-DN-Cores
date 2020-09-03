@@ -1059,6 +1059,56 @@ namespace IPA.Cores.Basic
         static readonly CriticalSection LockNewId = new CriticalSection();
         static ulong LastNewIdMSecs = 0;
 
+        // 指定されたディレクトリ名が "YYMMDD_なんとか" または "YYMMDD なんとか" または "YYYYMMDD_なんとか" または "YYYYMMDD なんとか" である場合は日付を返す
+        public static bool TryParseYYMMDDDirName(string name, out DateTime date)
+        {
+            date = default;
+            return false;
+        }
+
+        // YYMMDD または YYYYMMDD をパースする
+        public static bool TryParseYYMMDD(string str, out DateTime date)
+        {
+            date = default;
+
+            try
+            {
+                if (str.Length == 6 && str.All(x => x >= '0' && x <= '9'))
+                {
+                    if (str == "000000")
+                    {
+                        date = Util.ZeroDateTimeValue;
+                        return true;
+                    }
+
+                    int year = str.Substring(0, 2)._ToInt();
+                    int month = str.Substring(2, 2)._ToInt();
+                    int day = str.Substring(4, 2)._ToInt();
+
+                    date = new DateTime(year + 2000, month, day);
+                    return true;
+                }
+                else if (str.Length == 8 && str.All(x => x >= '0' && x <= '9'))
+                {
+                    if (str == "00000000")
+                    {
+                        date = Util.ZeroDateTimeValue;
+                        return true;
+                    }
+
+                    int year = str.Substring(0, 4)._ToInt();
+                    int month = str.Substring(4, 2)._ToInt();
+                    int day = str.Substring(6, 2)._ToInt();
+
+                    date = new DateTime(year, month, day);
+                    return true;
+                }
+            }
+            catch { }
+
+            return false;
+        }
+
         // ワイルドカード一致検査
         public static bool WildcardMatch(string targetStr, string wildcard, bool ignoreCase = false)
         {
