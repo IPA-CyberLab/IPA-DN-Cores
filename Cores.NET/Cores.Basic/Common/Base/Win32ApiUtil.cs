@@ -560,7 +560,7 @@ namespace IPA.Cores.Basic
 
             public CancellationTokenRegistration CancelRegistration;
 
-            public TaskCompletionSource<TResult> CompletionSource = new TaskCompletionSource<TResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            public TaskCompletionSource<TResult> CompletionSource = new TaskCompletionSource<TResult>(CoresConfig.TaskAsyncSettings.AsyncEventTaskCreationOption);
 
             public unsafe void IOCompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* overlapped)
             {

@@ -1177,7 +1177,7 @@ namespace IPA.Cores.Helper.Basic
             if (task == null)
                 throw new ArgumentNullException("task");
 
-            var tcs = new TaskCompletionSource<T>(state, TaskCreationOptions.RunContinuationsAsynchronously);
+            var tcs = new TaskCompletionSource<T>(state, CoresConfig.TaskAsyncSettings.AsyncEventTaskCreationOption);
             task.ContinueWith(t =>
             {
                 if (t.IsFaulted)
@@ -1200,7 +1200,7 @@ namespace IPA.Cores.Helper.Basic
             if (task == null)
                 throw new ArgumentNullException("task");
 
-            var tcs = new TaskCompletionSource<int>(state, TaskCreationOptions.RunContinuationsAsynchronously);
+            var tcs = new TaskCompletionSource<int>(state, CoresConfig.TaskAsyncSettings.AsyncEventTaskCreationOption);
             task.ContinueWith(t =>
             {
                 if (t.IsFaulted)

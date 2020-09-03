@@ -176,6 +176,12 @@ namespace IPA.Cores.Basic
         public static partial class TaskAsyncSettings
         {
             public static readonly Copenhagen<int> WaitTimeoutUntilPendingTaskFinish = 1 * 1000;
+
+            // AsyncEvent で新しい TaskCompletionSource を作成する際のオプション。
+            // すなわち Set() すると同一スレッドで継続するか、別スレッドになるか、の違いである。
+            // TaskCreationOptions.RunContinuationsAsynchronously を指定すると、別スレッドで作成されるようになる。
+            // デッドロック問題がある場合は、TaskCreationOptions.RunContinuationsAsynchronously にすると解決される場合がある。
+            public static readonly Copenhagen<TaskCreationOptions> AsyncEventTaskCreationOption = TaskCreationOptions.None;
         }
     }
 
@@ -1358,7 +1364,7 @@ namespace IPA.Cores.Basic
 
         public static Task WhenCanceled(CancellationToken cancel, out CancellationTokenRegistration registration)
         {
-            TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>(CoresConfig.TaskAsyncSettings.AsyncEventTaskCreationOption);
 
             registration = cancel.Register(() =>
             {
@@ -1836,7 +1842,7 @@ namespace IPA.Cores.Basic
 
         void init()
         {
-            this.tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            this.tcs = new TaskCompletionSource<bool>(CoresConfig.TaskAsyncSettings.AsyncEventTaskCreationOption);
         }
 
         public bool IsSet
