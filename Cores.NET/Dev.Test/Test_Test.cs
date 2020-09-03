@@ -590,6 +590,11 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                return;
+            }
+
+            if (true)
+            {
                 Async(async () =>
                 {
                     AsyncAutoResetEvent ev1 = new AsyncAutoResetEvent();

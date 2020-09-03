@@ -48,9 +48,40 @@ namespace IPA.TestDev
     partial class TestDevCommands
     {
         [ConsoleCommand(
-    "クラッシュさん",
-    "Crash",
-    "クラッシュさん")]
+            "指定されたディレクトリ内の最新のいくつかのサブディレクトリのみコピー (同期) し、他は削除する",
+            "SyncLatestFewDirs [srcdir] [/destdir:DESTDIR] [/num:HowManyDirs=1]",
+            "指定されたディレクトリ内の最新のいくつかのサブディレクトリのみコピー (同期) し、他は削除する")]
+        static int SyncLatestFewDirs(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[srcdir]", ConsoleService.Prompt, "Src Directory: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("destdir", ConsoleService.Prompt, "Dest Directory: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("num", ConsoleService.Prompt, "How Many Dirs: ", ConsoleService.EvalNotEmpty, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string srcDir = vl.DefaultParam.StrValue;
+            string dstDir = vl["destdir"].StrValue;
+            int num = vl["num"].IntValue;
+
+            // ソースディレクトリのサブディレクトリを列挙いたします
+            Async(async () =>
+            {
+                var srcSubDirs = (await Lfs.EnumDirectoryAsync(srcDir)).Where(x => x.IsDirectory);
+                foreach (var subDir in srcSubDirs)
+                {
+                }
+            });
+
+            return 0;
+        }
+
+        [ConsoleCommand(
+            "クラッシュさん",
+            "Crash",
+            "クラッシュさん")]
         static int Crash(ConsoleService c, string cmdName, string str)
         {
             unsafe
