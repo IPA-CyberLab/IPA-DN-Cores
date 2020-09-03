@@ -1799,7 +1799,7 @@ namespace IPA.Cores.Basic
             return new ReadOnlyMemoryBuffer<byte>(baseMemory);
         }
 
-        CriticalSection PinLockObj = new CriticalSection();
+        readonly CriticalSection PinLockObj = new CriticalSection<ReadOnlyMemoryBuffer<T>>();
         int PinLockedCounter = 0;
         MemoryHandle PinHandle;
         public bool IsPinLocked() => (PinLockedCounter != 0);

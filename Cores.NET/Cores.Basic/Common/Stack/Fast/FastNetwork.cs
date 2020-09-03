@@ -240,7 +240,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        CriticalSection LayerInfoLock = new CriticalSection();
+        readonly CriticalSection LayerInfoLock = new CriticalSection<DuplexPipe>();
 
         public LayerInfoBase? LayerInfo_A_LowerSide { get; private set; } = null;
         public LayerInfoBase? LayerInfo_B_UpperSide { get; private set; } = null;
@@ -413,7 +413,7 @@ namespace IPA.Cores.Basic
         internal void _InternalSetCounterPart(PipePoint p)
             => this.CounterPart = p;
 
-        internal CriticalSection _InternalAttachHandleLock = new CriticalSection();
+        readonly internal CriticalSection _InternalAttachHandleLock = new CriticalSection<PipePoint>();
         internal AttachHandle? _InternalCurrentAttachHandle = null;
 
         public AttachHandle Attach(AttachDirection attachDirection, object? userState = null, bool noCheckDisconnected = false) => new AttachHandle(this, attachDirection, userState, noCheckDisconnected);
@@ -447,7 +447,7 @@ namespace IPA.Cores.Basic
         DuplexPipe.InstalledLayerHolder? InstalledLayerHolder = null;
 
         IHolder Leak;
-        CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<AttachHandle>();
 
         public AttachHandle(PipePoint end, AttachDirection attachDirection, object? userState = null, bool noCheckDisconnected = false) : base()
         {

@@ -258,11 +258,11 @@ namespace IPA.Cores.Basic
 
         IReadOnlyList<CertVaultCertificate> InternalCertList = null!;
 
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<CertVault>();
 
         volatile bool AcmeQueueUpdatedFlag = false;
 
-        readonly CriticalSection AcmeQueueLockObj = new CriticalSection();
+        readonly CriticalSection AcmeQueueLockObj = new CriticalSection<CertVault>();
 
         List<string> AcmeQueue = new List<string>();
 

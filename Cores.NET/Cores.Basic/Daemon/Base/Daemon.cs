@@ -124,7 +124,7 @@ namespace IPA.Cores.Basic
         public DaemonStatus Status { get; private set; }
         public FastEventListenerList<Daemon, DaemonStatus> StatusChangedEvent { get; }
 
-        CriticalSection StatusLock = new CriticalSection();
+        readonly CriticalSection StatusLock = new CriticalSection<Daemon>();
 
         AsyncLock AsyncLock = new AsyncLock();
 

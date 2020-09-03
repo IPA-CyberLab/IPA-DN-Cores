@@ -96,7 +96,7 @@ namespace IPA.Cores.Basic
     {
         protected NetworkSystemParam Param;
 
-        protected readonly CriticalSection LockObj = new CriticalSection();
+        protected readonly CriticalSection LockObj = new CriticalSection<NetworkSystemBase>();
         protected readonly HashSet<NetSock> OpenedSockList = new HashSet<NetSock>();
 
         public NetworkSystemBase(NetworkSystemParam param)

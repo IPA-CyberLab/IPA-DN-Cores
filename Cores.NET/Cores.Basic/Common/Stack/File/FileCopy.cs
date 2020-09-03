@@ -93,7 +93,7 @@ namespace IPA.Cores.Basic
             StartTick = EndTick = SizeTotal = SizeOk = NumFilesTotal = NumFilesOk = NumDirectoriesTotal = NumDirectoriesOk = 0;
         }
 
-        public readonly CriticalSection LockObj = new CriticalSection();
+        public readonly CriticalSection LockObj = new CriticalSection<CopyDirectoryStatus>();
     }
 
     public class CopyDirectoryParams

@@ -87,7 +87,7 @@ namespace IPA.Cores.Basic
 
         long Time64;
         long Tick64WithTime64;
-        CriticalSection Lock = new CriticalSection();
+        readonly CriticalSection Lock = new CriticalSection<TimeAdjustHistoryBase>();
         ImmutableList<History> HistoryList = ImmutableList<History>.Empty;
         History LatestHistory = new History();
         public int Interval { get; }

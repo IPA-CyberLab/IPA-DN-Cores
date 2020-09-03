@@ -258,7 +258,7 @@ namespace IPA.Cores.Basic
 
         public List<Action> OnDisconnected { get; } = new List<Action>();
 
-        public CriticalSection LockObj { get; } = new CriticalSection();
+        public CriticalSection LockObj { get; } = new CriticalSection<FastStreamBuffer<T>>();
 
         public ExceptionQueue ExceptionQueue { get; } = new ExceptionQueue();
         public LayerInfo Info { get; } = new LayerInfo();
@@ -1309,7 +1309,7 @@ namespace IPA.Cores.Basic
 
         public static readonly long DefaultThreshold = CoresConfig.FastBufferConfig.DefaultFastDatagramBufferThreshold;
 
-        public CriticalSection LockObj { get; } = new CriticalSection();
+        public CriticalSection LockObj { get; } = new CriticalSection<FastDatagramBuffer<T>>();
 
         public ExceptionQueue ExceptionQueue { get; } = new ExceptionQueue();
         public LayerInfo Info { get; } = new LayerInfo();

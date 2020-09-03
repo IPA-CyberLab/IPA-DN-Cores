@@ -693,9 +693,9 @@ namespace IPA.Cores.Basic
             public JsonRpcResponse? Response;
         }
 
-        CriticalSection LockMtQueue = new CriticalSection();
-        List<MT_QueueItem> MtQueue = new List<MT_QueueItem>();
-        SemaphoreSlim MtSemaphore = new SemaphoreSlim(1, 1);
+        readonly CriticalSection LockMtQueue = new CriticalSection<JsonRpcClient>();
+        readonly List<MT_QueueItem> MtQueue = new List<MT_QueueItem>();
+        readonly SemaphoreSlim MtSemaphore = new SemaphoreSlim(1, 1);
 
         BatchQueue<MT_QueueItem> MtBatch;
 

@@ -1056,7 +1056,7 @@ namespace IPA.Cores.Basic
             return Str.Utf8Encoding;
         }
 
-        static CriticalSection LockNewId = new CriticalSection();
+        static readonly CriticalSection LockNewId = new CriticalSection();
         static ulong LastNewIdMSecs = 0;
 
         // ワイルドカード一致検査

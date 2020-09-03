@@ -209,7 +209,7 @@ namespace IPA.Cores.Basic
         public long TotalSize { get; }
         public int MaxPartialFragments { get; }
 
-        public readonly CriticalSection Lock = new CriticalSection();
+        public readonly CriticalSection Lock = new CriticalSection<ConcurrentDownloadPartialMaps>();
 
         internal readonly SortedList<long, ConcurrentDownloadPartial> List = new SortedList<long, ConcurrentDownloadPartial>();
 

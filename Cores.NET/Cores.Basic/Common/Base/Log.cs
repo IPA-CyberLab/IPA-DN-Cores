@@ -337,7 +337,7 @@ namespace IPA.Cores.Basic
 
         public readonly byte[] NewFilePreamble = Str.BomUtf8;
 
-        readonly CriticalSection Lock = new CriticalSection();
+        readonly CriticalSection Lock = new CriticalSection<Logger>();
         public string DirName { get; }
         public string Kind { get; }
         public string Prefix { get; }

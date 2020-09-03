@@ -125,11 +125,11 @@ namespace IPA.Cores.Basic
         public FastEventListenerList<Inbox, NonsenseEventType> StateChangeEventListener { get; }
 
         readonly List<InboxAdapter> AdapterList = new List<InboxAdapter>();
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<Inbox>();
         
         readonly InboxAdapterFactory Factory;
 
-        readonly CriticalSection FirstSeenTableLock = new CriticalSection();
+        readonly CriticalSection FirstSeenTableLock = new CriticalSection<Inbox>();
 
         readonly Dictionary<string, DateTimeOffset> FirstSeenTable = new Dictionary<string, DateTimeOffset>();
 

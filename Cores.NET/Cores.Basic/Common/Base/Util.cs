@@ -367,7 +367,7 @@ namespace IPA.Cores.Basic
         {
             this._Value = initialValue;
             this._InitialValue = initialValue;
-            this.LockObj = new CriticalSection();
+            this.LockObj = new CriticalSection<Copenhagen<T>>();
             this.Determined = false;
             IsValueType = !(typeof(T).IsClass);
         }
@@ -3733,7 +3733,7 @@ namespace IPA.Cores.Basic
     {
         readonly Action<TOptions> InitProc;
         readonly Func<TResult> FreeProc;
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<StaticModule<TOptions, TResult>>();
 
         readonly List<Action> ActionListAfterInit = new List<Action>();
 
@@ -3887,7 +3887,7 @@ namespace IPA.Cores.Basic
     {
         public const int MaxElements = 8_000_000; // Max 64Mbytes
 
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<SingletonFastArray<TKey, TObject>>();
         readonly Func<TKey, TObject> CreateProc;
         TObject[] ObjectList;
         public int Count { get; private set; }
@@ -4007,7 +4007,7 @@ namespace IPA.Cores.Basic
 
     public class Singleton<TObject> : IDisposable where TObject : class
     {
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<Singleton<TObject>>();
         readonly Func<TObject> CreateProc;
         TObject? Object = null;
         public bool IsCreated { get; private set; }
@@ -4067,7 +4067,7 @@ namespace IPA.Cores.Basic
     public class Singleton<TKey, TObject> : IDisposable where TObject : class
         where TKey : notnull
     {
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<Singleton<TKey, TObject>>();
         readonly Func<TKey, TObject> CreateProc;
         readonly Dictionary<TKey, TObject> Table;
         public IEnumerable<TKey> Keys => this.Table.Keys;
@@ -4216,8 +4216,8 @@ namespace IPA.Cores.Basic
 
         readonly Dictionary<TKey, Entry> Table = new Dictionary<TKey, Entry>();
 
-        CriticalSection SyncLock = new CriticalSection();
-        CriticalSection Lock = new CriticalSection();
+        readonly CriticalSection SyncLock = new CriticalSection<SyncCache<TKey, TData>>();
+        readonly CriticalSection Lock = new CriticalSection<SyncCache<TKey, TData>>();
 
         public SyncCache(int lifeTime)
             : this(lifeTime, CacheFlags.None, (Func<TKey, CancellationToken, TData?>)null!) { }
@@ -4368,8 +4368,8 @@ namespace IPA.Cores.Basic
 
         readonly Dictionary<TKey, Entry> Table = new Dictionary<TKey, Entry>();
 
-        AsyncLock AsyncLock = new AsyncLock();
-        CriticalSection Lock = new CriticalSection();
+        readonly AsyncLock AsyncLock = new AsyncLock();
+        readonly CriticalSection Lock = new CriticalSection<AsyncCache<TKey, TData>>();
 
         public AsyncCache(int lifeTime)
             : this(lifeTime, CacheFlags.None, (Func<TKey, CancellationToken, Task<TData?>>)null!) { }
@@ -5097,7 +5097,7 @@ namespace IPA.Cores.Basic
             LongerSample = longerSample;
         }
 
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<EtaCalculator>();
 
         Data? ShorterData1 = null;
         Data? ShorterData2 = null;
@@ -5344,7 +5344,7 @@ namespace IPA.Cores.Basic
 
     public abstract class ProgressReporterBase : IDisposable
     {
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<ProgressReporterBase>();
 
         readonly EtaCalculator EtaCalc = new EtaCalculator();
 
@@ -5719,7 +5719,7 @@ namespace IPA.Cores.Basic
 
         readonly List<Entry> List = new List<Entry>();
 
-        CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<WeightedExceptionList>();
 
         public void Add(Exception exception, int weight)
         {
@@ -5942,7 +5942,7 @@ namespace IPA.Cores.Basic
 
         public int Interval { get; }
 
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<StatisticsReporter<T>>();
 
         public readonly AsyncEventListenerList<T, NonsenseEventType> ListenerList = new AsyncEventListenerList<T, NonsenseEventType>();
 
@@ -6377,7 +6377,7 @@ namespace IPA.Cores.Basic
     public class RateLimiterEntry
     {
         public RateLimiterOptions Options { get; }
-        public readonly CriticalSection LockObj = new CriticalSection();
+        public readonly CriticalSection LockObj = new CriticalSection<RateLimiterEntry>();
 
         public long CreatedTick { get; }
         public long ExpiresTick => this.LastInputTick + Options.ExpiresMsec;
@@ -6465,7 +6465,7 @@ namespace IPA.Cores.Basic
 
         public int MaxConcurrentRequests { get; }
 
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<ConcurrentLimiter<TKey>>();
 
         readonly Dictionary<TKey, Entry> Table = new Dictionary<TKey, Entry>();
 
@@ -6579,7 +6579,7 @@ namespace IPA.Cores.Basic
         public RateLimiterOptions Options { get; }
 
         readonly Dictionary<TKey, RateLimiterEntry> Table = new Dictionary<TKey, RateLimiterEntry>();
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<RateLimiter<TKey>>();
 
         long NextGcTick = 0;
 

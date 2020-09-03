@@ -87,7 +87,7 @@ namespace IPA.Cores.Basic
         PipeStream UpperStream;
 
         readonly AsyncAutoResetEvent SendPongEvent = new AsyncAutoResetEvent();
-        readonly CriticalSection PongQueueLock = new CriticalSection();
+        readonly CriticalSection PongQueueLock = new CriticalSection<NetWebSocketProtocolStack>();
         readonly Queue<ReadOnlyMemory<byte>> PongQueue = new Queue<ReadOnlyMemory<byte>>();
         
 

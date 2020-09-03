@@ -139,7 +139,7 @@ namespace IPA.Cores.Basic
         public sealed class WindowsServiceObject : ServiceBase
         {
             readonly WindowsService Svc;
-            readonly CriticalSection LockObj = new CriticalSection();
+            readonly CriticalSection LockObj = new CriticalSection<WindowsServiceObject>();
 
             public WindowsServiceObject(WindowsService service)
             {

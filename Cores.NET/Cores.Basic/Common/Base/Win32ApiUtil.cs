@@ -545,7 +545,7 @@ namespace IPA.Cores.Basic
 
         unsafe class InternalOverlappedContext<TResult>
         {
-            public CriticalSection LockObj = new CriticalSection();
+            readonly public CriticalSection LockObj = new CriticalSection<InternalOverlappedContext<TResult>>();
 
             public ReadOnlyMemoryBuffer<byte>? InBuffer = null;
             public ValueHolder InBufferPinHolder;

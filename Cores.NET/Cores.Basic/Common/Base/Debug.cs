@@ -1341,7 +1341,7 @@ namespace IPA.Cores.Basic
         {
             static readonly Task MainTask;
 
-            static CriticalSection LockObj = new CriticalSection();
+            static readonly CriticalSection LockObj = new CriticalSection();
 
             static double _CpuUsageSingle = 0.0;
             static double _CpuUsageTotal = 0.0;

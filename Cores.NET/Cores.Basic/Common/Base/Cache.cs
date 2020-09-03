@@ -99,7 +99,7 @@ namespace IPA.Cores.Basic
             this.Type = type;
 
             list = new Dictionary<TKey, Entry>();
-            LockObj = new CriticalSection();
+            LockObj = new CriticalSection<Cache<TKey, TValue>>();
         }
 
         public void Add(TKey key, TValue value)

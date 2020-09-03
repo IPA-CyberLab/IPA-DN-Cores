@@ -56,8 +56,8 @@ namespace IPA.Cores.Basic
         public const int SHA256Size = 32;
         public const int SHA512Size = 64;
         public const int MD5Size = 16;
-        readonly static CriticalSection RandLock = new CriticalSection();
-        readonly static CriticalSection MD5Lock = new CriticalSection();
+        readonly static CriticalSection RandLock = new CriticalSection<Secure>();
+        readonly static CriticalSection MD5Lock = new CriticalSection<Secure>();
 
         public static byte[] Rand(int size) { byte[] r = new byte[size]; Rand(r); return r; }
 

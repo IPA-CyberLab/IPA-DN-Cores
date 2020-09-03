@@ -321,7 +321,7 @@ namespace IPA.Cores.Basic
         SnmpWorkInternalDb InternalDb => InternalDbHive.ManagedData;
         SnmpWorkInternalDb InternalDbSnapshot => InternalDbHive.GetManagedDataSnapshot();
 
-        readonly CriticalSection LockList = new CriticalSection();
+        readonly CriticalSection LockList = new CriticalSection<SnmpWorkHost>();
 
         readonly SortedDictionary<string, KeyValuePair<SnmpWorkFetcherBase, int>> CurrentFetcherList = new SortedDictionary<string, KeyValuePair<SnmpWorkFetcherBase, int>>(StrComparer.IgnoreCaseTrimComparer);
 

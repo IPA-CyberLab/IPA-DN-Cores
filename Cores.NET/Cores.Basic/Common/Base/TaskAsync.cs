@@ -194,7 +194,7 @@ namespace IPA.Cores.Basic
             this.Sem = new SemaphoreSlim(this.MaxConcurrentTasks, this.MaxConcurrentTasks);
         }
 
-        readonly CriticalSection Lock = new CriticalSection();
+        readonly CriticalSection Lock = new CriticalSection<AsyncConcurrentTask>();
 
         readonly AsyncPulse Pulse = new AsyncPulse();
 
@@ -305,7 +305,7 @@ namespace IPA.Cores.Basic
     // 複数のタスクが非同期に待機することができるパルス。パルスは誰でも Fire することができ、Fire がある毎に、待機しているすべてのタスクの待機が解除される。
     public class AsyncPulse
     {
-        readonly CriticalSection Lock = new CriticalSection();
+        readonly CriticalSection Lock = new CriticalSection<AsyncPulse>();
 
         readonly HashSet<AsyncManualResetEvent> EventList = new HashSet<AsyncManualResetEvent>();
 
@@ -358,7 +358,7 @@ namespace IPA.Cores.Basic
     public sealed class NamedAsyncLocks
     {
         readonly Dictionary<string, AsyncLock> List;
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<NamedAsyncLocks>();
 
         readonly RefInt CurrentProcessing = new RefInt();
 
@@ -1952,7 +1952,7 @@ namespace IPA.Cores.Basic
         readonly List<IAsyncService> DirectDisposeList = new List<IAsyncService>();
         readonly List<IAsyncService> IndirectDisposeList = new List<IAsyncService>();
 
-        CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<AsyncService>();
 
         public long AsyncServiceId { get; }
         public string AsyncServiceObjectName { get; }
@@ -2425,7 +2425,7 @@ namespace IPA.Cores.Basic
 
     public struct FastReadList<T>
     {
-        static CriticalSection GlobalWriteLock = new CriticalSection();
+        readonly static CriticalSection GlobalWriteLock = new CriticalSection<FastReadList<T>>();
         static volatile int IdSeed = 0;
 
         SortedDictionary<int, T> Hash;
@@ -2908,7 +2908,7 @@ namespace IPA.Cores.Basic
     {
         Task? MainTask;
 
-        CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<TimeoutDetector>();
 
         public long Timeout { get; }
 
@@ -3016,16 +3016,18 @@ namespace IPA.Cores.Basic
             {
                 if (_LockObj == null)
                 {
-                    _LockObj = new CriticalSection();
+                    _LockObj = new CriticalSection<LazyCriticalSection>();
                 }
                 return _LockObj;
             }
         }
     }
 
+    // 名前無し
     public class CriticalSection { }
 
-    public class CriticalSection<T> { }
+    // 名前付き: デバッガでわかりやすいようにするため
+    public class CriticalSection<T> : CriticalSection { }
 
     public class WhenAll : IDisposable
     {
@@ -3138,7 +3140,7 @@ namespace IPA.Cores.Basic
 
         Dictionary<TKey, GroupInstance> Hash = new Dictionary<TKey, GroupInstance>();
 
-        CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<GroupManager<TKey, TGroupContext>>();
 
         public GroupManager(NewGroupContextCallback onNewGroup, DeleteGroupContextCallback onDeleteGroup, object? userState = null)
         {
@@ -3479,7 +3481,7 @@ namespace IPA.Cores.Basic
 
         QueueBody First;
 
-        public static readonly CriticalSection GlobalLock = new CriticalSection();
+        public static readonly CriticalSection GlobalLock = new CriticalSection<SharedQueue<T>>();
 
         public bool Distinct { get; }
 
@@ -3814,7 +3816,7 @@ namespace IPA.Cores.Basic
 
         HierarchyBody First;
 
-        public static readonly CriticalSection GlobalLock = new CriticalSection();
+        public static readonly CriticalSection GlobalLock = new CriticalSection<SharedHierarchy<T>>();
 
         public SharedHierarchy()
         {
@@ -3944,7 +3946,7 @@ namespace IPA.Cores.Basic
     public class AsyncLocalTimer
     {
         LocalTimer Timer = new LocalTimer(true);
-        CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<AsyncLocalTimer>();
         public long Now => Timer.Now;
 
         AsyncAutoResetEvent TimerChangedEvent = new AsyncAutoResetEvent();
@@ -4107,7 +4109,7 @@ namespace IPA.Cores.Basic
 
         static bool CallbackIsRegistered = false;
 
-        static CriticalSection LockObj = new CriticalSection();
+        static readonly CriticalSection LockObj = new CriticalSection();
         static Task? task = null;
         static AsyncAutoResetEvent threadSignal = new AsyncAutoResetEvent();
         static bool callbackIsCalled = false;
@@ -4404,7 +4406,7 @@ namespace IPA.Cores.Basic
         public int Counter => counter;
         public bool IsZero => (counter == 0);
 
-        CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<RefCounter>();
 
         public FastEventListenerList<RefCounter, RefCounterEventType> EventListener = new FastEventListenerList<RefCounter, RefCounterEventType>();
 
@@ -4482,7 +4484,7 @@ namespace IPA.Cores.Basic
             public long LastReleasedTick { get; private set; } = 0;
             public long LastAccessCounterValue = 0;
 
-            readonly CriticalSection LockObj = new CriticalSection();
+            readonly CriticalSection LockObj = new CriticalSection<ObjectEntry>();
 
             readonly ObjectPoolBase<TObject, TParam> PoolBase;
 
@@ -4781,7 +4783,7 @@ namespace IPA.Cores.Basic
         }
 
         readonly ThreadObj? Thread;
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<SingleThreadWorker>();
         readonly Queue<Job> Queue = new Queue<Job>();
         readonly Event QueueInsertedEvent = new Event(false);
         readonly CancellationTokenSource CancalSource = new CancellationTokenSource();

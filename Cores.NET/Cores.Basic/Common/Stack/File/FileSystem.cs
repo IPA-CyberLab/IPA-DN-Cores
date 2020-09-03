@@ -1657,7 +1657,7 @@ namespace IPA.Cores.Basic
         protected FileSystemParams Params { get; }
         public bool CanWrite => Params.Mode.Bit(FileSystemMode.Writeable);
 
-        CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<FileSystem>();
         HashSet<FileBase> OpenedHandleList = new HashSet<FileBase>();
 
         public Singleton<FileSystemObjectPool> ObjectPoolForRead { get; }
@@ -2314,7 +2314,7 @@ namespace IPA.Cores.Basic
 
         Task? CurrentPollingTask = null;
 
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<FileSystemEventWatcher>();
 
         public FastEventListenerList<FileSystemEventWatcher, NonsenseEventType> EventListeners { get; } = new FastEventListenerList<FileSystemEventWatcher, NonsenseEventType>();
 

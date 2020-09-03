@@ -67,7 +67,7 @@ namespace IPA.Cores.Basic
             int UnixCurrentPipeData;
 
             bool IsReleased = false;
-            CriticalSection ReleaseLock = new CriticalSection();
+            readonly CriticalSection ReleaseLock = new CriticalSection<SockEvent>();
 
             public SockEvent()
             {

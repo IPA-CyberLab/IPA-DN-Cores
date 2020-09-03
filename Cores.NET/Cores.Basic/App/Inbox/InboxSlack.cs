@@ -174,7 +174,7 @@ namespace IPA.Cores.Basic
         Dictionary<string, SlackApi.Message[]> MessageListPerConversation = new Dictionary<string, SlackApi.Message[]>(StrComparer.IgnoreCaseComparer);
 
         readonly AsyncAutoResetEvent UpdateChannelsEvent = new AsyncAutoResetEvent();
-        readonly CriticalSection UpdateChannelsListLock = new CriticalSection();
+        readonly CriticalSection UpdateChannelsListLock = new CriticalSection<InboxSlackPerAppAdapter>();
         readonly HashSet<string> UpdateChannelsList = new HashSet<string>(StrComparer.IgnoreCaseComparer);
 
         async Task RealtimeRecvLoopAsync(CancellationToken cancel)

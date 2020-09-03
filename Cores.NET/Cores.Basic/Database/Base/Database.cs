@@ -531,7 +531,7 @@ namespace IPA.Cores.Basic
             DataReader = await cmd.ExecuteReaderAsync(cancel);
         }
 
-        static CriticalSection DapperTypeMapLock = new CriticalSection();
+        readonly static CriticalSection DapperTypeMapLock = new CriticalSection<Database>();
         static HashSet<Type> DapperInstalledTypes = new HashSet<Type>();
         static void EnsureDapperTypeMapping(Type? t)
         {

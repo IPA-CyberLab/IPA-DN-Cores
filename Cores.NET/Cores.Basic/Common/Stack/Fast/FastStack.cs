@@ -99,7 +99,7 @@ namespace IPA.Cores.Basic
             this.NoCheckDisconnected = noCheckDisconnected;
         }
 
-        CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<NetAppStub>();
 
         PipeStream? StreamCache = null;
 
@@ -246,7 +246,7 @@ namespace IPA.Cores.Basic
         public async Task ConnectAsync(string host, int port, AddressFamily? addressFamily = null, int connectTimeout = NetTcpProtocolStubBase.DefaultTcpConnectTimeout)
             => await ConnectAsync(await Options.DnsClient!.GetIPFromHostName(host, addressFamily, GrandCancel, connectTimeout), port, default, connectTimeout);
 
-        CriticalSection ListenLock = new CriticalSection();
+        readonly CriticalSection ListenLock = new CriticalSection<NetTcpProtocolStubBase>();
 
         public void Listen(IPEndPoint localEndPoint)
         {
@@ -650,7 +650,7 @@ namespace IPA.Cores.Basic
     {
         protected PipePoint Lower { get; }
 
-        CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<NetMiddleProtocolStackBase>();
         protected AttachHandle LowerAttach { get; private set; }
 
         public new NetMiddleProtocolOptionsBase Options => (NetMiddleProtocolOptionsBase)base.Options;
@@ -965,7 +965,7 @@ namespace IPA.Cores.Basic
 
     public abstract class NetTcpListener : AsyncService
     {
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<NetTcpListener>();
 
         readonly Dictionary<string, NetTcpListenerPort> List = new Dictionary<string, NetTcpListenerPort>();
 

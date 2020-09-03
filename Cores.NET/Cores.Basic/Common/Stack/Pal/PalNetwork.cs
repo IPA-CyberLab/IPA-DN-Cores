@@ -138,7 +138,7 @@ namespace IPA.Cores.Basic
         public SocketType SocketType { get; }
         public ProtocolType ProtocolType { get; }
 
-        CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<PalSocket>();
 
         public CachedProperty<bool> NoDelay { get; }
         public CachedProperty<int> LingerTime { get; }

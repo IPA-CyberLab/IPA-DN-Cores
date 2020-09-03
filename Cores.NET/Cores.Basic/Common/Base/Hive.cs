@@ -455,7 +455,7 @@ namespace IPA.Cores.Basic
         public static readonly StaticModule Module = new StaticModule(InitModule, FreeModule);
 
         static readonly HashSet<Hive> RunningHivesList = new HashSet<Hive>();
-        static readonly CriticalSection RunningHivesListLockObj = new CriticalSection();
+        static readonly CriticalSection RunningHivesListLockObj = new CriticalSection<Hive>();
 
         static readonly string ConfigHiveDirName = Path.Combine(Env.AppRootDir, "Config", (CoresLib.Mode == CoresMode.Library ? "Lib_" : "App_") + CoresLib.AppNameFnSafe);
         static readonly string LocalConfigHiveDirName = Path.Combine(Env.AppLocalDir, "Config");
@@ -534,7 +534,7 @@ namespace IPA.Cores.Basic
         public HiveStorageProvider StorageProvider => Options.StorageProvider;
 
         readonly Dictionary<string, IHiveData> RegisteredHiveData = new Dictionary<string, IHiveData>();
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<Hive>();
 
         readonly AsyncManualResetEvent EventWhenFirstHiveDataRegistered = new AsyncManualResetEvent();
 
@@ -769,7 +769,7 @@ namespace IPA.Cores.Basic
         T? DataInternal = null;
         long StorageHash = 0;
 
-        public CriticalSection DataLock { get; } = new CriticalSection();
+        public CriticalSection DataLock { get; } = new CriticalSection<HiveData<T>>();
 
         readonly AsyncLock StorageAsyncLock = new AsyncLock();
 
