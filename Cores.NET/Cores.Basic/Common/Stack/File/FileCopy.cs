@@ -42,6 +42,7 @@ using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Security.Cryptography;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -257,6 +258,50 @@ namespace IPA.Cores.Basic
 
     public static partial class FileUtil
     {
+        public static async Task<byte[]> CalcFileHashAsync(FilePath file, HashAlgorithm hash, long truncateSize = long.MaxValue, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? fileSize = null, CancellationToken cancel = default)
+        {
+            using var f = await file.OpenAsync(cancel: cancel);
+            using var stream = f.GetStream();
+            return await Secure.CalcStreamHashAsync(stream, hash, truncateSize, bufferSize, fileSize, cancel);
+        }
+
+        public static async Task<ResultOrError<int>> CompareFileHashAsync(FilePath file1, FilePath file2, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? fileSize = null, CancellationToken cancel = default)
+        {
+            using SHA1Managed sha1 = new SHA1Managed();
+
+            byte[] hash1, hash2;
+
+            try
+            {
+                if (await file1.IsFileExistsAsync(cancel) == false)
+                {
+                    return new ResultOrError<int>(EnsureError.Error);
+                }
+
+                hash1 = await CalcFileHashAsync(file1, sha1, bufferSize: bufferSize, fileSize: fileSize, cancel: cancel);
+            }
+            catch
+            {
+                return new ResultOrError<int>(EnsureError.Error);
+            }
+
+            try
+            {
+                if (await file2.IsFileExistsAsync(cancel) == false)
+                {
+                    return new ResultOrError<int>(EnsureError.Error);
+                }
+
+                hash2 = await CalcFileHashAsync(file2, sha1, bufferSize: bufferSize, cancel: cancel);
+            }
+            catch
+            {
+                return new ResultOrError<int>(EnsureError.Error);
+            }
+
+            return hash1._MemCompare(hash2);
+        }
+
         public static async Task<CopyDirectoryStatus> CopyDirAsync(FileSystem srcFileSystem, string srcPath, FileSystem destFileSystem, string destPath,
             CopyDirectoryParams? param = null, object? state = null, CopyDirectoryStatus? statusObject = null, CancellationToken cancel = default)
         {
@@ -468,6 +513,31 @@ namespace IPA.Cores.Basic
 
             using (ProgressReporterBase reporter = param.ProgressReporterFactory.CreateNewReporter($"CopyFile '{srcFileSystem.PathParser.GetFileName(srcPath)}'", state))
             {
+                if (param.Flags.Bit(FileFlags.WriteOnlyIfChanged))
+                {
+                    // 新旧両方のファイルが存在する場合、ファイル内容が同一かチェックし、同一の場合はコピーをスキップする
+                    RefLong skippedFileSize = new RefLong();
+                    var sameRet = await CompareFileHashAsync(new FilePath(srcPath, srcFileSystem), new FilePath(destPath, destFileSystem), fileSize: skippedFileSize, cancel: cancel);
+
+                    if (sameRet.IsOk && sameRet.Value == 0)
+                    {
+                        // 同じファイルなのでスキップする
+                        FileMetadata srcFileMetadata = await srcFileSystem.GetFileMetadataAsync(srcPath, param.MetadataCopier.OptimizedMetadataGetFlags, cancel);
+                        try
+                        {
+                            await destFileSystem.SetFileMetadataAsync(destPath, param.MetadataCopier.Copy(srcFileMetadata), cancel);
+                        }
+                        catch (Exception ex)
+                        {
+                            Con.WriteDebug($"CopyFileAsync: '{destPath}': SetFileMetadataAsync failed. Error: {ex.Message}");
+                        }
+
+                        reporter.ReportProgress(new ProgressData(skippedFileSize, skippedFileSize, true));
+
+                        return;
+                    }
+                }
+
                 using (var srcFile = await srcFileSystem.OpenAsync(srcPath, flags: param.Flags, cancel: cancel))
                 {
                     try
@@ -767,6 +837,76 @@ namespace IPA.Cores.Basic
                 srcZipCrc.Set(srcCrc.Value);
 
                 return currentPosition;
+            }
+        }
+        // 指定されたディレクトリ内の最新のいくつかのサブディレクトリのみコピー (同期) し、他は削除する
+        public static async Task SyncLatestFewDirsAsync(DirectoryPath srcDir, DirectoryPath dstDir, int num = 1, CancellationToken cancel = default)
+        {
+            num = Math.Max(num, 1);
+
+            if (srcDir.PathString._IsSamei(dstDir.PathString))
+            {
+                throw new CoresException("srcDir == dstDir");
+            }
+
+            // コピー元ディレクトリを列挙し、日付の新しい順に num 個のディレクトリを列挙する (ディレクトリ内に何も入っていないディレクトリは除外する)
+            KeyValueList<FileSystemEntity, DateTime> srcSubDirTargetList = new KeyValueList<FileSystemEntity, DateTime>();
+
+            var srcSubDirs = (await srcDir.EnumDirectoryAsync(cancel: cancel)).Where(x => x.IsDirectory);
+            foreach (var subDir in srcSubDirs)
+            {
+                cancel.ThrowIfCancellationRequested();
+
+                var subFiles = await srcDir.FileSystem.EnumDirectoryAsync(subDir.FullPath, cancel: cancel);
+
+                if (subFiles.Any())
+                {
+                    if (Str.TryParseYYMMDDDirName(subDir.Name, out DateTime date))
+                    {
+                        srcSubDirTargetList.Add(subDir, date);
+                    }
+                }
+            }
+
+            var copySrcTargets = srcSubDirTargetList.OrderByDescending(x => x.Value).Take(num);
+
+            // コピー先ディレクトリで YYMMDD 形式のディレクトリを列挙し、削除すべきディレクトリ一覧を生成する
+            List<FileSystemEntity> dirListToDelete = new List<FileSystemEntity>();
+
+            var dstSubDirs = (await dstDir.EnumDirectoryAsync(cancel: cancel)).Where(x => x.IsDirectory);
+            foreach (var subDir in dstSubDirs)
+            {
+                cancel.ThrowIfCancellationRequested();
+
+                if (Str.TryParseYYMMDDDirName(subDir.Name, out _))
+                {
+                    if (copySrcTargets.Select(x => x.Key.Name).Where(x => x._IsSamei(subDir.Name)).Any() == false)
+                    {
+                        dirListToDelete.Add(subDir);
+                    }
+                }
+            }
+
+            // コピー対象ディレクトリをコピーする
+            foreach (var copySrcDir in copySrcTargets.Select(x => x.Key))
+            {
+                await srcDir.FileSystem.CopyDirAsync(copySrcDir.FullPath, dstDir.Combine(copySrcDir.Name), dstDir.FileSystem,
+                    new CopyDirectoryParams(CopyDirectoryFlags.Default, FileFlags.WriteOnlyIfChanged),
+                    cancel: cancel);
+            }
+
+            // 削除すべき古いディレクトリを削除する
+            foreach (var deleteDir in dirListToDelete.OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer))
+            {
+                $"Deleting old dir '{deleteDir.FullPath}' ..."._Print();
+                try
+                {
+                    await dstDir.FileSystem.DeleteDirectoryAsync(deleteDir.FullPath, true, cancel);
+                }
+                catch (Exception ex)
+                {
+                    ex._Error();
+                }
             }
         }
     }

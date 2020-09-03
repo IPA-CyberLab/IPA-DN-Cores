@@ -58,40 +58,6 @@ using Microsoft.EntityFrameworkCore.Query.Internal;
 
 namespace IPA.Cores.Basic
 {
-
-    namespace Tests
-    {
-        public static class SectorBasedRandomAccessTest
-        {
-            public static void Test()
-            {
-                Async(async () =>
-                {
-                    using var file = await Lfs.CreateAsync(@"c:\tmp\test.dat");
-
-                    using var t = new SectorBasedRandomAccessSimpleTest(file, 10, true);
-
-                    await t.WriteRandomAsync(0, "012345678901234567890"._GetBytes());
-                    await t.WriteRandomAsync(5, "Hello World    x"._GetBytes());
-                    await t.SetFileSizeAsync(31);
-                });
-
-                Async(async () =>
-                {
-                    using var file = await Lfs.OpenAsync(@"c:\tmp\test.dat", writeMode: true);
-
-                    using var t = new SectorBasedRandomAccessSimpleTest(file, 10, true);
-
-                    long size = await t.GetFileSizeAsync();
-                    size._Print();
-
-                    await t.WriteRandomAsync(12, "0"._GetBytes());
-
-                    //await t.SetFileSizeAsync(size - 1);
-                });
-            }
-        }
-    }
 }
 
 #endif

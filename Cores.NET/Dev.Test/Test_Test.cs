@@ -72,7 +72,7 @@ using System.Text;
 using IPA.Cores.Basic.App.DaemonCenterLib;
 using IPA.Cores.ClientApi.GoogleApi;
 using System.Security.Cryptography;
-using IPA.Cores.Basic.Tests;
+//using IPA.Cores.Basic.Tests;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.IO.Compression;
 using IPA.Cores.Basic.HttpClientCore;
@@ -590,6 +590,14 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                while (true)
+                {
+                    string line = Con.ReadLine()!;
+                    if (Str.TryParseYYMMDDDirName(line, out DateTime dt))
+                    {
+                        dt.ToString()._Print();
+                    }
+                }
                 return;
             }
 
@@ -1231,12 +1239,12 @@ namespace IPA.TestDev
                 return;
             }
 
-            if (true)
-            {
-                SectorBasedRandomAccessTest.Test();
+            //if (true)
+            //{
+            //    SectorBasedRandomAccessTest.Test();
 
-                return;
-            }
+            //    return;
+            //}
 
             if (false)
             {

@@ -1060,10 +1060,31 @@ namespace IPA.Cores.Basic
         static ulong LastNewIdMSecs = 0;
 
         // 指定されたディレクトリ名が "YYMMDD_なんとか" または "YYMMDD なんとか" または "YYYYMMDD_なんとか" または "YYYYMMDD なんとか" である場合は日付を返す
+        static readonly char[] YymmddSplitChars = new char[] { '_', ' ', '　', '\t' };
         public static bool TryParseYYMMDDDirName(string name, out DateTime date)
         {
             date = default;
-            return false;
+
+            name = name._TrimNonNull();
+
+            int r = name.IndexOfAny(YymmddSplitChars);
+            if ((r == 6 || r == 8) && name.Substring(0, r).All(x => x >= '0' && x <= '9'))
+            {
+                name = name.Substring(0, r);
+            }
+            else
+            {
+                if (name.Length >= 7 && name.Substring(0, 6).All(x => x >= '0' && x <= '9') && (!(name[6] >= '0' && name[6] <= '9')))
+                {
+                    name = name.Substring(0, 6);
+                }
+                else if (name.Length >= 9 && name.Substring(0, 8).All(x => x >= '0' && x <= '9') && (!(name[8] >= '0' && name[8] <= '9')))
+                {
+                    name = name.Substring(0, 8);
+                }
+            }
+
+            return TryParseYYMMDD(name, out date);
         }
 
         // YYMMDD または YYYYMMDD をパースする
@@ -1081,6 +1102,13 @@ namespace IPA.Cores.Basic
                         return true;
                     }
 
+                    if (str == "999999")
+                    {
+                        date = Util.MaxDateTimeValue;
+                        return true;
+                    }
+
+
                     int year = str.Substring(0, 2)._ToInt();
                     int month = str.Substring(2, 2)._ToInt();
                     int day = str.Substring(4, 2)._ToInt();
@@ -1093,6 +1121,12 @@ namespace IPA.Cores.Basic
                     if (str == "00000000")
                     {
                         date = Util.ZeroDateTimeValue;
+                        return true;
+                    }
+
+                    if (str == "99999999")
+                    {
+                        date = Util.MaxDateTimeValue;
                         return true;
                     }
 

@@ -69,10 +69,7 @@ namespace IPA.TestDev
             // ソースディレクトリのサブディレクトリを列挙いたします
             Async(async () =>
             {
-                var srcSubDirs = (await Lfs.EnumDirectoryAsync(srcDir)).Where(x => x.IsDirectory);
-                foreach (var subDir in srcSubDirs)
-                {
-                }
+                await FileUtil.SyncLatestFewDirsAsync(srcDir, dstDir, num);
             });
 
             return 0;
