@@ -487,7 +487,7 @@ namespace IPA.Cores.Helper.Basic
 
         public static byte[] _NonNull(this byte[] b) { if (b == null) return new byte[0]; else return b; }
 
-        public static string _LinesToStr(this IEnumerable<string> lines) => Str.LinesToStr(lines);
+        public static string _LinesToStr(this IEnumerable<string> lines, string? newLineStr = null) => Str.LinesToStr(lines, newLineStr);
         public static string[] _UniqueToken(this IEnumerable<string> t) => Str.UniqueToken(t);
         public static List<string> _ToStrList(this IEnumerable<string> t, bool removeEmpty = false, bool distinct = false, bool distinctCaseSensitive = false)
             => Str.StrArrayToList(t, removeEmpty, distinct, distinctCaseSensitive);
@@ -2234,6 +2234,20 @@ namespace IPA.Cores.Helper.Basic
         public static string _GetFileSizeStr(this int size) => Str.GetFileSizeStr(size);
         public static string _GetFileSizeStr(this ulong size) => Str.GetFileSizeStr((long)Math.Min(size, long.MaxValue));
         public static string _GetFileSizeStr(this uint size) => Str.GetFileSizeStr(size);
+
+        [return: NotNullIfNotNull("memoryList")]
+        public static List<string>? _ToStringList(this List<Memory<byte>>? memoryList, Encoding? encoding = null)
+        {
+            if (memoryList == null) return null;
+
+            if (encoding == null) encoding = Str.Utf8Encoding;
+
+            List<string> ret = new List<string>();
+
+            memoryList._DoForEach(x => ret.Add(encoding.GetString(x.Span)));
+
+            return ret;
+        }
     }
 }
 

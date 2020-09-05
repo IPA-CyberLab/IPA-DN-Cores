@@ -6031,9 +6031,13 @@ namespace IPA.Cores.Basic
         }
 
         // 複数行をテキストに変換する
-        public static string LinesToStr(IEnumerable<string> lines)
+        public static string LinesToStr(IEnumerable<string> lines, string? newLineStr = null)
         {
             StringWriter sw = new StringWriter();
+            if (newLineStr._IsFilled())
+            {
+                sw.NewLine = newLineStr;
+            }
             foreach (string s in lines)
             {
                 sw.WriteLine(s);

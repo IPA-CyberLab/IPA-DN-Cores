@@ -158,6 +158,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Misc\HtmlParser\HtmlParserHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Misc\IoT\Sensors.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Misc\ShellClient\ShellClient.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Misc\ShellClient\ShellProcessor.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Security\Base\Pki.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Security\Base\Crypto.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Security\Base\CryptoLegacy.cs" />

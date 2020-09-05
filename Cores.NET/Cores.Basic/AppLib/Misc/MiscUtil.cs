@@ -57,9 +57,67 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using Castle.Core.Logging;
 using Microsoft.Extensions.Options;
+using System.Xml;
 
 namespace IPA.Cores.Basic
 {
+    public class PoderosaSettingsContents
+    {
+        public string? HostName;
+        public int Port;
+        public string? Method;
+        public string? Username;
+        public string? Password;
+
+        public PoderosaSettingsContents() { }
+
+        public PoderosaSettingsContents(string settingsBody)
+        {
+            var xml = new XmlDocument();
+            xml.LoadXml(settingsBody);
+
+            var shortcut = xml.SelectSingleNode("poderosa-shortcut");
+            if (shortcut == null) throw new CoresLibException("Not a poderosa-shortcut file.");
+
+            var ver = shortcut.Attributes["version"].Value;
+            if (ver != "4.0") throw new CoresLibException("ver != '4.0'");
+
+            var sshParam = shortcut.SelectSingleNode("Poderosa.Protocols.SSHLoginParameter");
+            if (sshParam == null) throw new CoresLibException("Not a SSH shortcut file.");
+
+            this.HostName = sshParam.Attributes["destination"]?.Value._NonNull();
+            this.Port = sshParam.Attributes["port"]?.Value._NonNull()._ToInt() ?? 0;
+            if (this.Port == 0) this.Port = Consts.Ports.Ssh;
+
+            this.Username = sshParam.Attributes["account"]?.Value._NonNull();
+            this.Password = sshParam.Attributes["passphrase"]?.Value._NonNull();
+        }
+
+        public SecureShellClientSettings GetSshClientSettings(int connectTimeoutMsecs = 0, int commTimeoutMsecs = 0)
+        {
+            return new SecureShellClientSettings(this.HostName._NullCheck(), this.Port, this.Username._NullCheck(), this.Password._NonNull(), connectTimeoutMsecs, commTimeoutMsecs);
+        }
+
+        public SecureShellClient CreateSshClient(int connectTimeoutMsecs = 0, int commTimeoutMsecs = 0)
+        {
+            return new SecureShellClient(this.GetSshClientSettings(connectTimeoutMsecs, commTimeoutMsecs));
+        }
+    }
+
+    public static class PoderosaSettingsContentsHelper
+    {
+        public static async Task<PoderosaSettingsContents> ReadPoderosaFileAsync(this FileSystem fs, string fileName, CancellationToken cancel = default)
+            => new PoderosaSettingsContents(await fs.ReadStringFromFileAsync(fileName, cancel: cancel));
+
+        public static PoderosaSettingsContents ReadPoderosaFile(this FileSystem fs, string fileName, CancellationToken cancel = default)
+            => ReadPoderosaFileAsync(fs, fileName, cancel)._GetResult();
+    }
+
+    // 色々なおまけユーティリティ
+    public static partial class MiscUtil
+    {
+    }
+
     // ログファイルの JSON をパースするとこの型が出てくる
     public class LogJsonParseAsRuntimeStat
     {

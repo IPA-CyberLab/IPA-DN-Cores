@@ -7009,6 +7009,21 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // BinaryLineReader オプション
+    public class BinaryLineReaderOption
+    {
+        public object? Param { get; }
+        public Func<MemoryStream, object?, bool>? FinishDeterminer { get; }
+        public Action<MemoryStream, object?, CancellationToken>? Preview { get; }
+
+        public BinaryLineReaderOption(Func<MemoryStream, object?, bool>? finishDeterminer = null, Action<MemoryStream, object?, CancellationToken>? preview = null, object? param = null)
+        {
+            Param = param;
+            FinishDeterminer = finishDeterminer;
+            Preview = preview;
+        }
+    }
+
     // Stream からバイナリを読み込み、CR, LF を検出して行に分解する。高速化のためにバッファリングを使用する
     public class BinaryLineReader
     {
@@ -7071,8 +7086,61 @@ namespace IPA.Cores.Basic
             return SingleLineQueue.Dequeue();
         }
 
-        public async Task<List<Memory<byte>>?> ReadLinesAsync(int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, CancellationToken cancel = default)
+        // FinishDeterminer で終わりと判定されるか、EOF に当たるまで、無限に Stream から行を読む。
+        // ただし、メモリ制限値 DefaultMaxBytesTotalLine を超えた場合はエラーにする。
+        public async Task<List<Memory<byte>>?> ReadLinesUntilEofAsync(RefBool isEof, int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, int maxBytesTotal = Consts.Numbers.DefaultMaxBytesTotalLine, CancellationToken cancel = default, BinaryLineReaderOption? option = null)
         {
+            int currentSize = 0;
+
+            isEof._NullCheck(nameof(isEof));
+
+            List<Memory<byte>> ret = new List<Memory<byte>>();
+
+            isEof.Set(false);
+
+            while (true)
+            {
+                RefBool finisherMatched = new RefBool();
+
+                var r = await ReadLinesAsync(maxBytesPerLine, cancel, option, finisherMatched);
+
+                if (r != null)
+                {
+                    r._DoForEach(x =>
+                    {
+                        ret.Add(x);
+
+                        currentSize += x.Length;
+
+                        if (currentSize > maxBytesTotal)
+                        {
+                            throw new CoresLibException($"currentSize ({currentSize}) > maxBytesTotal ({maxBytesTotal})");
+                        }
+                    });
+                }
+
+                if (r == null)
+                {
+                    // EOF
+                    isEof.Set(true);
+                    break;
+                }
+                else if (finisherMatched)
+                {
+                    // 期待された行の終わりに到達
+                    break;
+                }
+            }
+
+            return ret;
+        }
+
+        // 内部バッファサイズを目標として、読めるだけ Stream から行を読む。
+        // EOF に当たり、これ以上読むべき行がない場合は null を返す。
+        public async Task<List<Memory<byte>>?> ReadLinesAsync(int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, CancellationToken cancel = default, BinaryLineReaderOption? option = null, RefBool? finisherMatched = null)
+        {
+            finisherMatched?.Set(false);
+
             List<Memory<byte>> ret = new List<Memory<byte>>();
 
             while (true)
@@ -7081,7 +7149,7 @@ namespace IPA.Cores.Basic
 
                 Debug.Assert(CurrentSizeInBuffer >= CurrentPositionInBuffer);
                 int remain = CurrentSizeInBuffer - CurrentPositionInBuffer;
-                if (remain <= 0)
+                if (remain == 0)
                 {
                     // バッファが空の場合は読み込む
                     CurrentPositionInBuffer = 0;
@@ -7128,7 +7196,7 @@ namespace IPA.Cores.Basic
                         if (((long)CurrentLine.Length + (long)remain2) > maxBytesPerLine)
                         {
                             // 1 行あたり最大読み取り可能文字数を超えた
-                            throw new CoresException($"Line character length overflow. {((long)CurrentLine.Length + (long)remain2)} > {maxBytesPerLine}");
+                            throw new CoresLibException($"Line character length overflow. {((long)CurrentLine.Length + (long)remain2)} > {maxBytesPerLine}");
                         }
                     }
 
@@ -7211,6 +7279,24 @@ namespace IPA.Cores.Basic
                         // 読み取ったデータを CurrentLine に追記する
                         CurrentLine.Write(bufferCurrentRange.Slice(0, sizeOfLineData));
 
+                        if (newLineFound == false)
+                        {
+                            if (sizeOfLineData >= 1)
+                            {
+                                // 改行コードによる行の終わりには達していないが、これ以上読むべきデータがない場合は、
+                                // FinishDeterminer により行の終わりと判定されるかどうか試してみる
+                                if (option?.FinishDeterminer?.Invoke(CurrentLine, option.Param) ?? false)
+                                {
+                                    // 行の終わりとみなす
+                                    newLineFound = true;
+
+                                    finisherMatched?.Set(true);
+                                }
+                            }
+                        }
+
+                        option?.Preview?.Invoke(CurrentLine, option.Param, cancel);
+
                         if (newLineFound)
                         {
                             // 行の終わりに達していたらこの行をリストに追加する
@@ -7247,6 +7333,7 @@ namespace IPA.Cores.Basic
         // PipeStream 専用
         // タイムアウトした場合は、改行コードがなくてもひとまず読めた部分まで返す (1 バイト以上読めている場合のみ)
         // この場合、Item2 は false となる。
+        // Eof の場合は null を返す。
         public async Task<List<Tuple<Memory<byte>, bool>>?> ReadLinesWithTimeoutAsync(int timeout, int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, int maxLines = int.MaxValue, CancellationToken cancel = default)
         {
             if (maxLines <= 0) throw new ArgumentOutOfRangeException(nameof(maxLines));
@@ -7269,7 +7356,7 @@ namespace IPA.Cores.Basic
                 {
                     Debug.Assert(CurrentSizeInBuffer >= CurrentPositionInBuffer);
                     int remain = CurrentSizeInBuffer - CurrentPositionInBuffer;
-                    if (remain <= 0)
+                    if (remain == 0)
                     {
                         // バッファが空の場合は読み込む
                         CurrentPositionInBuffer = 0;

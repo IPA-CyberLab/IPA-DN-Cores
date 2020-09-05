@@ -86,6 +86,8 @@ namespace IPA.Cores.Basic
 
             public const int DefaultMaxBytesPerLine = 10 * 1024 * 1024;
 
+            public const int DefaultMaxBytesTotalLine = 30 * 1024 * 1024;
+
             public const int DefaultMaxNetworkRecvSize = 30 * 1000 * 1000; // 30 MB (Kestrel default)
 
             public const int SignCodeServerMaxFileSize = 300 * 1024 * 1024; // 300 MB
@@ -127,6 +129,8 @@ namespace IPA.Cores.Basic
             public const int Http = 80;
             public const int Https = 443;
 
+            public const int Telnet = 23;
+            public const int Ssh = 22;
             public const int Smtp = 25;
             public const int SmtpSubmission = 587;
             public const int Smtps = 465;
@@ -383,6 +387,9 @@ namespace IPA.Cores.Basic
             public const int DefaultSendPingTimeout = 1 * 1000;
 
             public const int GcTempDefaultFileLifeTime = 5 * 60 * 1000;
+
+            public const int DefaultShellPromptRecvTimeout = 1 * 1000;
+            public const int DefaultShellPromptSendTimeout = 5 * 1000;
         }
 
         public static partial class LinuxCommands
