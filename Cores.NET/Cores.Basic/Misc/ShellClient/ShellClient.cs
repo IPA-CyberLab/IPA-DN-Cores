@@ -405,13 +405,20 @@ namespace IPA.Cores.Basic
         {
             await this.PipePointMySide._DisposeSafeAsync2();
             await this.PipePointWrapper._DisposeSafeAsync2();
-            await this.Stream._DisposeSafeAsync2();
-            await this.Ssh._DisposeSafeAsync2();
+
+            TaskUtil.StartAsyncTaskAsync(async () =>
+            {
+                // To prevent deadlock: SSH.net bug
+                await this.Stream._DisposeSafeAsync2();
+                await this.Ssh._DisposeSafeAsync2();
+            })._LaissezFaire();
 
             this.PipePointMySide = null;
             this.PipePointWrapper = null;
-            this.Stream = null;
-            this.Ssh = null;
+
+            // To prevent deadlock: SSH.net bug
+            //this.Stream = null;
+            //this.Ssh = null;
         }
     }
 
