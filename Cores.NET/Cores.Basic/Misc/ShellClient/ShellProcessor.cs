@@ -216,6 +216,13 @@ namespace IPA.Cores.Basic
         // bash 上でコマンドを実行し、その結果を返す
         public async Task<ShellResult> ExecBashCommandAsync(string cmdLine, bool throwIfError = true, CancellationToken cancel = default)
         {
+            string[] tmp = cmdLine._GetLines(true);
+            if (tmp.Length != 1)
+            {
+                throw new CoresLibException($"The command line is not a single line: '{cmdLine}'");
+            }
+            cmdLine = tmp[0];
+
             string exitCodeBefore = Str.GenRandStr().Substring(16);
 
             StringBuilder exitCodeBeforeHex = new StringBuilder();
@@ -235,8 +242,13 @@ namespace IPA.Cores.Basic
             // コマンド実行結果とプロンプトが返ってくるまでのすべての結果を得る
             List<string> retStrList = await RecvLinesUntilSpecialPs1PromptAsync(cancel);
 
+            if (retStrList.Count >= 1 && retStrList[0]._IsSameTrim(cmdLine))
+            {
+                retStrList.RemoveAt(0);
+            }
+
             // 終了コード取得コマンド送信
-            await SendLineInternalAsync(printExitCodeCommand, cancel);
+                await SendLineInternalAsync(printExitCodeCommand, cancel);
 
             // 終了コードとプロンプトが返ってくるまでのすべての結果を得る
             List<string> exitCodeStrList = await RecvLinesUntilSpecialPs1PromptAsync(cancel);

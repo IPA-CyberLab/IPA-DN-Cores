@@ -590,29 +590,34 @@ namespace IPA.TestDev
         {
             if (true)
             {
-                //for (int i = 0; ; i++)
+                ThreadObj.StartMany(16, (p) =>
                 {
-                    //i._Print();
-
-                    var poderosa = Lfs.ReadPoderosaFile(@"H:\SSH\dnlinux.gts");
-
-                    Async(async () =>
+                    for (int i = 0; ; i++)
                     {
-                        using var ssh = poderosa.CreateSshClient();
+                        //i._Print();
 
-                        using var sock = await ssh.ConnectAndGetSockAsync();
+                        var poderosa = Lfs.ReadPoderosaFile(@"H:\SSH\dnlinux.gts");
 
-                        using var proc = sock.CreateUnixShellProcessor();
+                        Async(async () =>
+                        {
+                            using var ssh = poderosa.CreateSshClient();
 
-                        var res = await proc.ExecBashCommandAsync("cat /proc/cpuinfo");
+                            using var sock = await ssh.ConnectAndGetSockAsync();
 
-                        //var res2 = await proc.ExecBashCommandAsync("cat /etc/passwd");
+                            using var proc = sock.CreateUnixShellProcessor();
 
-                        //res._Print();
-                    });
+                            var res = await proc.ExecBashCommandAsync("cat /proc/cpuinfo");
 
-                    Dbg.GcCollect();
-                }
+                            //var res2 = await proc.ExecBashCommandAsync("cat /etc/passwd");
+
+                            //res._Print();
+                        });
+
+                        Dbg.GcCollect();
+                    }
+                });
+
+                SleepInfinite();
 
                 return;
             }
