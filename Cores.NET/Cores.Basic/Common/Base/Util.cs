@@ -7224,7 +7224,6 @@ namespace IPA.Cores.Basic
 
                     while (true)
                     {
-                        // 現在バッファに入っているデータ全体の Span の取得
                         Debug.Assert(CurrentSizeInBuffer >= CurrentPositionInBuffer);
                         int remain3 = CurrentSizeInBuffer - CurrentPositionInBuffer;
 
@@ -7234,9 +7233,12 @@ namespace IPA.Cores.Basic
                             return;
                         }
 
+                        // 現在バッファに入っているデータ全体の Span の取得
                         Span<byte> bufferCurrentRange = bufferSpan.Slice(CurrentPositionInBuffer, CurrentSizeInBuffer - CurrentPositionInBuffer);
 
-                        // 最初の改行コードにぶつかるまで 1 文字ずつ読む
+                        string str2 = bufferCurrentRange.ToArray()._GetString();
+
+                        // 最初の改行コード (行の末尾) にぶつかるまで 1 文字ずつ読む
                         bool newLineFound = false;
                         int sizeRead = 0;
                         int sizeOfLineData = 0;
@@ -7264,6 +7266,7 @@ namespace IPA.Cores.Basic
 
                         if (newLineFound == false)
                         {
+                            // 改行コード (行の末尾) が見つからなかった場合、バッファに入っている全体を読み取る
                             sizeOfLineData = sizeRead = bufferCurrentRange.Length;
                         }
 
@@ -7281,12 +7284,14 @@ namespace IPA.Cores.Basic
 
                         if (newLineFound == false)
                         {
-                            if (sizeOfLineData >= 1)
+                            if (CurrentLine.Length >= 1)
                             {
                                 // 改行コードによる行の終わりには達していないが、これ以上読むべきデータがない場合は、
                                 // FinishDeterminer により行の終わりと判定されるかどうか試してみる
                                 if (option?.FinishDeterminer?.Invoke(CurrentLine, option.Param) ?? false)
                                 {
+                                    string str = CurrentLine.ToArray()._GetString();
+
                                     // 行の終わりとみなす
                                     newLineFound = true;
 
@@ -7295,7 +7300,12 @@ namespace IPA.Cores.Basic
                             }
                         }
 
-                        option?.Preview?.Invoke(CurrentLine, option.Param, cancel);
+                        if (newLineFound)
+                        {
+                            string str = CurrentLine.ToArray()._GetString();
+
+                            option?.Preview?.Invoke(CurrentLine, option.Param, cancel);
+                        }
 
                         if (newLineFound)
                         {

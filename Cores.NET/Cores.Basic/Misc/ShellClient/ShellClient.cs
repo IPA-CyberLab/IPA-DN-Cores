@@ -117,6 +117,13 @@ namespace IPA.Cores.Basic
                 await base.CleanupImplAsync(ex);
             }
         }
+
+        public UnixShellProcessor CreateUnixShellProcessor(bool disposeObject = true)
+        {
+            var ret = new UnixShellProcessor(this, disposeObject, new UnixShellProcessorSettings { TargetHostName = Client.Settings.TargetName });
+
+            return ret;
+        }
     }
 
     public abstract class ShellClientBase : AsyncService
@@ -295,7 +302,9 @@ namespace IPA.Cores.Basic
                             if (size == 0)
                                 break;
 
-                            await Stream.WriteAsync(buffer.Slice(0, size), cancel);
+                            var dataToSend = buffer.Slice(0, size);
+
+                            await Stream.WriteAsync(dataToSend, cancel);
                             flush = true;
                         }
                     }

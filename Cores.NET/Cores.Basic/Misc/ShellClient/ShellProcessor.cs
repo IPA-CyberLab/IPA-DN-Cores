@@ -55,15 +55,36 @@ using System.Runtime.Serialization;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 
 namespace IPA.Cores.Basic
 {
+    public class ShellResult
+    {
+        public string CommandLine = "";
+        public List<string> StringList = new List<string>();
+        public int ExitCode = 0;
+
+        public void ThrowIfError(string prefix = "")
+        {
+            if (ExitCode != 0)
+            {
+                string tmp = "";
+                if (prefix._IsFilled()) tmp = $"{prefix}: ";
+
+                throw new CoresLibException($"{tmp}Exit code = {ExitCode}, CommandLine = {CommandLine}");
+            }
+        }
+    }
+
     public class ShellProcessorSettings
     {
         public Encoding Encoding { get; set; } = Str.Utf8Encoding;
         public int RecvTimeout { get; set; } = Consts.Timeouts.DefaultShellPromptRecvTimeout;
         public int SendTimeout { get; set; } = Consts.Timeouts.DefaultShellPromptSendTimeout;
         public string SendNewLineStr { get; set; } = Str.NewLine_Str_Unix;
+
+        public string TargetHostName { get; set; } = "";
     }
 
     public class ShellProcessor : AsyncService
@@ -121,7 +142,13 @@ namespace IPA.Cores.Basic
             {
                 string previewLine = MemoryToString(ms);
 
-                Con.WriteLine($"Recv: {previewLine}");
+                string tmp = "";
+                if (this.Settings.TargetHostName._IsFilled())
+                {
+                    tmp = this.Settings.TargetHostName + ":";
+                }
+
+                Con.WriteInfo($"[{tmp}RX] {previewLine}");
             });
 
             RefBool isEof = new RefBool();
@@ -144,9 +171,15 @@ namespace IPA.Cores.Basic
 
             line = line._GetLines(true)._LinesToStr(Settings.SendNewLineStr);
 
+            string tmp = "";
+            if (this.Settings.TargetHostName._IsFilled())
+            {
+                tmp = this.Settings.TargetHostName + ":";
+            }
+
             foreach (var oneLine in line._GetLines())
             {
-                Con.WriteLine($"Send: {oneLine}");
+                Con.WriteInfo($"[{tmp}TX] {oneLine}");
             }
 
             await this.Sock.Stream.SendAsync(this.Settings.Encoding.GetBytes(line), cancel);
@@ -175,9 +208,90 @@ namespace IPA.Cores.Basic
             }
         }
 
+        Once BashInited;
+
+        string BashPromptIdStrPlainText = null!;
+        string BashPromptIdStrExportPs1 = null!;
+
+        // bash 上でコマンドを実行し、その結果を返す
+        public async Task<ShellResult> ExecBashCommandAsync(string cmdLine, bool throwIfError = true, CancellationToken cancel = default)
+        {
+            string exitCodeBefore = Str.GenRandStr().Substring(16);
+
+            StringBuilder exitCodeBeforeHex = new StringBuilder();
+            foreach (char c in exitCodeBefore)
+            {
+                exitCodeBeforeHex.Append("\\x");
+                exitCodeBeforeHex.Append(((uint)c).ToString("X2"));
+            }
+
+            string printExitCodeCommand = $"echo -e \"{exitCodeBeforeHex} exitcode = $?\"";
+
+            await EnsureInitBashAsync(cancel);
+
+            // コマンド送信
+            await SendLineInternalAsync(cmdLine, cancel);
+
+            // コマンド実行結果とプロンプトが返ってくるまでのすべての結果を得る
+            List<string> retStrList = await RecvLinesUntilSpecialPs1PromptAsync(cancel);
+
+            // 終了コード取得コマンド送信
+            await SendLineInternalAsync(printExitCodeCommand, cancel);
+
+            // 終了コードとプロンプトが返ってくるまでのすべての結果を得る
+            List<string> exitCodeStrList = await RecvLinesUntilSpecialPs1PromptAsync(cancel);
+
+            // 終了コードのパース
+            int? exitCode = null;
+            foreach (string line in exitCodeStrList)
+            {
+                string[] tokens = line._Split(StringSplitOptions.RemoveEmptyEntries, ' ', '\t');
+                if (tokens.Length == 4)
+                {
+                    if (tokens[0] == exitCodeBefore && tokens[1] == "exitcode" && tokens[2] == "=")
+                    {
+                        exitCode = tokens[3]._ToInt();
+                        break;
+                    }
+                }
+            }
+
+            if (exitCode.HasValue == false)
+            {
+                throw new CoresLibException($"Failed to parse the exit code of the command.");
+            }
+
+            ShellResult result = new ShellResult()
+            {
+                StringList = retStrList,
+                ExitCode = exitCode.Value,
+                CommandLine = cmdLine,
+            };
+
+            if (throwIfError)
+            {
+                result.ThrowIfError(Settings.TargetHostName);
+            }
+
+            return result;
+        }
+
         // bash を初期化する
+        public async Task EnsureInitBashAsync(CancellationToken cancel = default)
+        {
+            if (BashInited.IsSet == false)
+                await InitBashAsync(cancel);
+        }
+
         public async Task InitBashAsync(CancellationToken cancel = default)
         {
+            if (BashInited.IsFirstCall() == false) throw new CoresLibException("InitBashAsync is already called.");
+
+            // プロンプト文字列の生成
+            string randstr = "prompt_" + Str.GenRandStr().ToLower().Substring(0, 12);
+            BashPromptIdStrExportPs1 = "export PS1=\"\\133" + randstr + "\\041\\!\\041\\w\\041\\u\\135\"";
+            BashPromptIdStrPlainText = "[" + randstr + "!";
+
             // 最初のプロンプトを待つ
             await RecvLinesUntilBasicUnixPromptAsync(cancel);
 
@@ -186,12 +300,50 @@ namespace IPA.Cores.Basic
 
             // bash 起動後のプロンプトを待つ
             await RecvLinesUntilBasicUnixPromptAsync(cancel);
+
+            // PS1 文字列を設定する
+            await SendLineInternalAsync(BashPromptIdStrExportPs1, cancel);
+
+            // PS1 設定後のプロンプトを待つ
+            await RecvLinesUntilSpecialPs1PromptAsync(cancel);
+        }
+
+        // PS1 環境変数で指定されている特殊なプロンプトが出てくるまで行を読み進める
+        public async Task<List<string>> RecvLinesUntilSpecialPs1PromptAsync(CancellationToken cancel = default)
+        {
+            List<string> ret =  await this.ReadLinesInternalAsync(UnixSpecialPs1PromptDeterminer, cancel);
+
+            List<string> ret2 = new List<string>();
+
+            foreach (string line in ret)
+            {
+                // プロンプトそのものは除外
+                if (line._InStr(BashPromptIdStrPlainText) == false)
+                {
+                    ret2.Add(line);
+                }
+            }
+
+            return ret2;
         }
 
         // UNIX 用の標準的なプロンプトが出てくるまで行を読み進める
         public async Task<List<string>> RecvLinesUntilBasicUnixPromptAsync(CancellationToken cancel = default)
         {
             return await this.ReadLinesInternalAsync(BasicUnixPromptDeterminer, cancel);
+        }
+
+        // PS1 プロンプトの行終了識別関数
+        protected virtual bool UnixSpecialPs1PromptDeterminer(MemoryStream ms, object? param)
+        {
+            string str = MemoryToString(ms);
+
+            if (str._InStr(BashPromptIdStrPlainText))
+            {
+                return true;
+            }
+
+            return false;
         }
 
         // UNIX 用の標準的なシェルの行終了識別関数

@@ -6034,7 +6034,7 @@ namespace IPA.Cores.Basic
         public static string LinesToStr(IEnumerable<string> lines, string? newLineStr = null)
         {
             StringWriter sw = new StringWriter();
-            if (newLineStr._IsFilled())
+            if (newLineStr._IsNullOrZeroLen() == false)
             {
                 sw.NewLine = newLineStr;
             }

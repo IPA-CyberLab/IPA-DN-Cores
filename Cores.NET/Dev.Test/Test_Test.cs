@@ -590,9 +590,9 @@ namespace IPA.TestDev
         {
             if (true)
             {
-                for (int i = 0; ; i++)
+                //for (int i = 0; ; i++)
                 {
-                    i._Print();
+                    //i._Print();
 
                     var poderosa = Lfs.ReadPoderosaFile(@"H:\SSH\dnlinux.gts");
 
@@ -602,9 +602,13 @@ namespace IPA.TestDev
 
                         using var sock = await ssh.ConnectAndGetSockAsync();
 
-                        using var proc = new UnixShellProcessor(sock);
+                        using var proc = sock.CreateUnixShellProcessor();
 
-                        await proc.InitBashAsync();
+                        var res = await proc.ExecBashCommandAsync("cat /proc/cpuinfo");
+
+                        //var res2 = await proc.ExecBashCommandAsync("cat /etc/passwd");
+
+                        //res._Print();
                     });
 
                     Dbg.GcCollect();
