@@ -357,7 +357,9 @@ namespace IPA.Cores.Helper.Basic
         public static object _Old_XmlToObjectPublic(this string s, Type t) => Str.XMLToObjectSimple_PublicLegacy(s, t);
         public static StrToken _ToToken(this string s, string splitStr = " ,\t\r\n") => new StrToken(s, splitStr);
         public static string _OneLine(this string s, string splitter = " / ") => Str.OneLine(s, splitter);
+        public static string _OneLine(this IEnumerable<string> s, string splitter = " / ") => Str.OneLine(s._Combine(Str.NewLine_Str_Local), splitter);
         public static string _GetFirstFilledLineFromLines(this string src) => Str.GetFirstFilledLineFromLines(src);
+        public static string _GetFirstFilledLineFromLines(this IEnumerable<string> src) => Str.GetFirstFilledLineFromLines(src._Combine(Str.NewLine_Str_Local));
         public static string _FormatC(this string s) => Str.FormatC(s);
         public static string _FormatC(this string s, params object[] args) => Str.FormatC(s, args);
         public static void _Printf(this string s) => Str.Printf(s, new object[0]);
@@ -2247,6 +2249,11 @@ namespace IPA.Cores.Helper.Basic
             memoryList._DoForEach(x => ret.Add(encoding.GetString(x.Span)));
 
             return ret;
+        }
+
+        public static string _GetIpStrForSort(this IPAddress ip)
+        {
+            return ip.AddressFamily.ToString() + ":" + ip.GetAddressBytes()._GetHexString();
         }
     }
 }
