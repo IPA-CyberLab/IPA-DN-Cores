@@ -3878,6 +3878,8 @@ namespace IPA.Cores.Basic
         public long Now { get; private set; } = FastTick64.Now;
         public bool AutomaticUpdateNow { get; }
 
+        int AddCount = 0;
+
         public LocalTimer(bool automaticUpdateNow = true)
         {
             AutomaticUpdateNow = automaticUpdateNow;
@@ -3890,6 +3892,12 @@ namespace IPA.Cores.Basic
         {
             if (Hash.Add(tick))
                 List.Add(tick);
+
+            if (((AddCount++) % 100) == 0)
+            {
+                // 100 回に 1 回くらいは Gc をいたします
+                GcInternal();
+            }
 
             return tick;
         }
@@ -3904,7 +3912,7 @@ namespace IPA.Cores.Basic
             return v;
         }
 
-        public int GetNextInterval()
+        int GcInternal()
         {
             int ret = Timeout.Infinite;
             if (AutomaticUpdateNow) UpdateNow();
@@ -3933,6 +3941,17 @@ namespace IPA.Cores.Basic
                     Hash.Remove(v);
                 }
             }
+
+            return ret;
+        }
+
+        public int GetNextInterval()
+        {
+            int ret = Timeout.Infinite;
+            if (AutomaticUpdateNow) UpdateNow();
+            long now = Now;
+
+            ret = GcInternal();
 
             if (ret == Timeout.Infinite)
             {
