@@ -1075,12 +1075,8 @@ namespace IPA.Cores.Basic
         static readonly FieldInfo? TimerQueueTimer_Next_FieldInfo1 = TimerQueueTimerType != null ? TimerQueueTimerType.GetField("m_next", BindingFlags.Instance | BindingFlags.NonPublic) : null; // .NET Core 2.x
         static readonly FieldInfo? TimerQueueTimer_Next_FieldInfo2 = TimerQueueTimerType != null ? TimerQueueTimerType.GetField("_next", BindingFlags.Instance | BindingFlags.NonPublic) : null; // .NET Core 3.x
 
-        // 注意: デッドロックの原因である可能性が 0 ではないため、無効にしてある
-        // 200827 .NET Core フリーズ問題 フレームスタック
         public static int GetScheduledTimersCount()
         {
-            return -1;
-
 #pragma warning disable CS0162 // 到達できないコードが検出されました
             if (FailedFlag_GetScheduledTimersCount) return -1;
 #pragma warning restore CS0162 // 到達できないコードが検出されました
@@ -1099,6 +1095,8 @@ namespace IPA.Cores.Basic
                 FailedFlag_GetScheduledTimersCount = true;
                 return -1;
             }
+
+            bool fatalError = true;
 
             try
             {
@@ -1122,12 +1120,23 @@ namespace IPA.Cores.Basic
 
                             if (timer != null)
                             {
-                                lock (timerQueueInstance)
+                                // 2020/9/14 万一のデッドロックのおそれがあるため、ロック取得はしないようにした
+                                //lock (timerQueueInstance)
                                 {
+                                    int c = 0;
+
                                     while (timer != null)
                                     {
                                         timer = Timer_Next_Field_info.GetValue(timer);
+                                        fatalError = false;
                                         num++;
+
+                                        c++;
+                                        if (c >= 100000)
+                                        {
+                                            // Infinite loop?
+                                            break;
+                                        }
                                     }
                                 }
                             }
@@ -1139,7 +1148,10 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                FailedFlag_GetScheduledTimersCount = true;
+                if (fatalError)
+                {
+                    FailedFlag_GetScheduledTimersCount = true;
+                }
                 return -1;
             }
         }
