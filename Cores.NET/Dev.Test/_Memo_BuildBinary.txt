@@ -1,4 +1,4 @@
-¡ Win32 - x64
+ï»¿â–  Win32 - x64
 
 cd /d C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\
 
@@ -8,7 +8,7 @@ dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true -p:PublishReadyTo
 
 ---
 C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bld\win-x64\
-‚É¶¬‚³‚ê‚é
+ã«ç”Ÿæˆã•ã‚Œã‚‹
 
 
 
@@ -18,7 +18,7 @@ C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bld\win-x64\
 
 
 
-¡ Linux - x64
+â–  Linux - x64
 
 cd /d C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\
 
@@ -28,7 +28,7 @@ dotnet publish -c Release -r linux-x64 -p:PublishSingleFile=true -p:PublishReady
 
 ---
 C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bld\linux-x64\
-‚É¶¬‚³‚ê‚é
+ã«ç”Ÿæˆã•ã‚Œã‚‹
 
 
 
@@ -38,7 +38,7 @@ C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bld\linux-x64\
 
 
 
-¡ Linux - arm64
+â–  Linux - arm64
 
 cd /d C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\
 
@@ -48,5 +48,5 @@ dotnet publish -c Release -r linux-arm64 -p:PublishSingleFile=true -p:PublishRea
 
 ---
 C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bld\linux-arm64\
-‚É¶¬‚³‚ê‚é
+ã«ç”Ÿæˆã•ã‚Œã‚‹
 
