@@ -229,7 +229,7 @@ namespace IPA.Cores.Basic
 
             this.FileFlags = fileFlags;
 
-            this.DestFileSystem = destFileSystem ?? LLfsUtf8;
+            this.DestFileSystem = destFileSystem ?? Lfs;
 
             this.DestRootDirName = this.DestFileSystem.PathParser.RemoveLastSeparatorChar(this.DestFileSystem.PathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(this.DestRootDirName));
 
@@ -252,26 +252,41 @@ namespace IPA.Cores.Basic
             string root = options.DestRootDirName;
             LogPriority priority = data.JsonData!.Priority._ParseEnum(LogPriority.None);
             LogJsonData d = data.JsonData;
+            DateTime date;
+            if (d.TimeStamp.HasValue == false)
+            {
+                date = Util.ZeroDateTimeValue;
+            }
+            else
+            {
+                date = d.TimeStamp.Value.LocalDateTime.Date;
+            }
 
             if (d.Kind._IsSamei(LogKind.Default))
             {
                 if (priority >= LogPriority.Debug)
-                    Add($"{d.AppName}/{d.MachineName}/Debug");
+                    Add($"{d.AppName}/{d.MachineName}/Debug", d.AppName!, "Debug", date);
 
                 if (priority >= LogPriority.Info)
-                    Add($"{d.AppName}/{d.MachineName}/Info");
+                    Add($"{d.AppName}/{d.MachineName}/Info", d.AppName!, "Info", date);
 
                 if (priority >= LogPriority.Error)
-                    Add($"{d.AppName}/{d.MachineName}/Error");
+                    Add($"{d.AppName}/{d.MachineName}/Error", d.AppName!, "Error", date);
             }
             else
             {
-                Add($"{d.AppName}/{d.MachineName}/{d.Kind}");
+                Add($"{d.AppName}/{d.MachineName}/{d.Kind}", d.AppName!, d.Kind!, date);
             }
 
-            void Add(string filename)
+            void Add(string subDirName, string token0, string token1, DateTime date)
             {
-                data.AddDestinationFileName(parser.NormalizeDirectorySeparator(parser.Combine(root, filename + ".log")));
+                string yyyymmdd = Str.DateToStrShort(date);
+
+                string tmp = parser.Combine(root, subDirName, $"{yyyymmdd}-{token0}-{token1}.log");
+
+                tmp = tmp.ToLower();
+
+                data.AddDestinationFileName(parser.NormalizeDirectorySeparator(tmp));
             }
         }
 
@@ -280,7 +295,7 @@ namespace IPA.Cores.Basic
             SingletonSlim<string, MemoryBuffer<byte>> writeBufferList =
                 new SingletonSlim<string, MemoryBuffer<byte>>((filename) => new MemoryBuffer<byte>(), this.Options.DestFileSystem.PathParser.PathStringComparer);
 
-            foreach (LogServerReceivedData data in dataList)
+            foreach (var data in dataList)
             {
                 Options.SetDestinationsProc(data, this.Options);
 
@@ -293,22 +308,32 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            foreach (string fileName in writeBufferList.Keys)
+            bool firstFlag = false;
+
+            // 2020/8/17 パスで並び替えるようにしてみた (そのほうがファイルシステム上高速だという仮定)
+            foreach (string fileName in writeBufferList.Keys.OrderBy(x => x, this.Options.DestFileSystem.PathParser.PathStringComparer))
             {
                 try
                 {
-                    var buffer = writeBufferList[fileName];
+                    MemoryBuffer<byte>? buffer = writeBufferList[fileName];
 
-                    var handle = await Options.DestFileSystem.GetRandomAccessHandleAsync(fileName, true, this.Options.FileFlags | FileFlags.AutoCreateDirectory);
-                    var concurrentHandle = handle.GetConcurrentRandomAccess();
+                    if (buffer != null)
+                    {
+                        if (firstFlag == false)
+                        {
+                            // ファイルシステム API が同期モードになっておりディスク I/O に長時間かかる場合を想定し、
+                            // 呼び出し元の非同期ソケットタイムアウト検出がおかしくなる問題がありえるため
+                            // 1 回は必ず Yield する
+                            firstFlag = true;
+                            await Task.Yield();
+                        }
 
-                    await concurrentHandle.AppendWithLargeFsAutoPaddingAsync(buffer.Memory);
-
-                    await concurrentHandle.FlushAsync();
+                        await Options.DestFileSystem.ConcurrentSafeAppendDataToFileAsync(fileName, buffer.Memory, this.Options.FileFlags | FileFlags.AutoCreateDirectory);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    Con.WriteDebug($"LogReceiveImplAsync: Filename '{fileName}' write error: {ex.ToString()}");
+                    Con.WriteError($"LogReceiveImplAsync: Filename '{fileName}' write error: {ex.ToString()}");
                 }
             }
         }

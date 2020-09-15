@@ -329,7 +329,7 @@ namespace IPA.Cores.Basic
             SingletonSlim<string, MemoryBuffer<byte>> writeBufferList =
                 new SingletonSlim<string, MemoryBuffer<byte>>((filename) => new MemoryBuffer<byte>(), this.Options.DestFileSystem.PathParser.PathStringComparer);
 
-            foreach (DataVaultServerReceivedData data in dataList)
+            foreach (var data in dataList)
             {
                 Options.SetDestinationsProc(data, this.Options);
 
