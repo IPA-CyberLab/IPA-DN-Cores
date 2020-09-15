@@ -284,8 +284,6 @@ namespace IPA.Cores.Basic
 
                 string tmp = parser.Combine(root, subDirName, $"{yyyymmdd}-{token0}-{token1}.log");
 
-                tmp = tmp.ToLower();
-
                 data.AddDestinationFileName(parser.NormalizeDirectorySeparator(tmp));
             }
         }
