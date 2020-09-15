@@ -45,144 +45,6 @@ using IPA.Cores.ClientApi.GoogleApi;
 
 namespace IPA.TestDev
 {
-    public static class Junks
-    {
-        public static void ReplaceString(string dirName, string pattern, string oldString, string newString, bool caseSensitive)
-        {
-            IEnumerable<string> files;
-            if (Directory.Exists(dirName) == false && File.Exists(dirName))
-            {
-                files = dirName._SingleArray();
-            }
-            else
-            {
-                files = Lfs.EnumDirectory(dirName, true)
-                    .Where(x => x.IsFile)
-                    .Where(x => Lfs.PathParser.IsFullPathExcludedByExcludeDirList(Lfs.PathParser.GetDirectoryName(x.FullPath)) == false)
-                    .Where(x => Str.MultipleWildcardMatch(x.Name, pattern, true))
-                    .Select(x => x.FullPath);
-            }
-
-            int n = 0;
-
-            foreach (string file in files)
-            {
-                Con.WriteLine("処理中: '{0}'", file);
-
-                byte[] data = File.ReadAllBytes(file);
-
-                int bom;
-                Encoding? enc = Str.GetEncoding(data, out bom);
-                if (enc == null)
-                {
-                    enc = Encoding.UTF8;
-                }
-
-                string srcStr = enc.GetString(Util.ExtractByteArray(data, bom, data.Length - bom));
-                string dstStr = Str.ReplaceStr(srcStr, oldString, newString, caseSensitive);
-
-                if (srcStr != dstStr)
-                {
-                    Buf buf = new Buf();
-
-                    if (bom != 0)
-                    {
-                        var bomData = Str.GetBOM(enc);
-                        if (bomData != null)
-                        {
-                            buf.Write(bomData);
-                        }
-                    }
-
-                    buf.Write(enc.GetBytes(dstStr));
-
-                    buf.SeekToBegin();
-
-                    File.WriteAllBytes(file, buf.Read());
-
-                    Con.WriteLine("  保存しました。");
-                    n++;
-                }
-                else
-                {
-                    Con.WriteLine("  変更なし");
-                }
-            }
-
-            Con.WriteLine("{0} 個のファイルを変換しましたよ!!", n);
-        }
-
-        public static void NormalizeCrLf(string dirName, string pattern)
-        {
-            IEnumerable<string> files;
-            if (Directory.Exists(dirName) == false && File.Exists(dirName))
-            {
-                files = dirName._SingleArray();
-            }
-            else
-            {
-                files = Lfs.EnumDirectory(dirName, true)
-                    .Where(x => x.IsFile)
-                    .Where(x => Lfs.PathParser.IsFullPathExcludedByExcludeDirList(Lfs.PathParser.GetDirectoryName(x.FullPath)) == false)
-                    .Where(x => Str.MultipleWildcardMatch(x.Name, pattern, true))
-                    .Select(x => x.FullPath);
-            }
-
-            int n = 0;
-
-            foreach (string file in files)
-            {
-                Con.WriteLine("処理中: '{0}'", file);
-
-                byte[] data = File.ReadAllBytes(file);
-
-                var ret = Str.NormalizeCrlf(data, CrlfStyle.CrLf, true);
-
-                File.WriteAllBytes(file, ret.ToArray());
-
-                n++;
-            }
-
-            Con.WriteLine("{0} 個のファイルを変換しましたよ!!", n);
-        }
-
-        public static void ChangeEncoding(string dirName, string pattern, bool bom, string encoding)
-        {
-            IEnumerable<string> files;
-            if (Directory.Exists(dirName) == false && File.Exists(dirName))
-            {
-                files = dirName._SingleArray();
-            }
-            else
-            {
-                files = Lfs.EnumDirectory(dirName, true)
-                    .Where(x => x.IsFile)
-                    .Where(x => Lfs.PathParser.IsFullPathExcludedByExcludeDirList(Lfs.PathParser.GetDirectoryName(x.FullPath)) == false)
-                    .Where(x => Str.MultipleWildcardMatch(x.Name, pattern, true))
-                    .Select(x => x.FullPath);
-            }
-
-            Encoding enc = Encoding.GetEncoding(encoding);
-
-            int n = 0;
-
-            foreach (string file in files)
-            {
-                Con.WriteLine("処理中: '{0}'", file);
-
-                byte[] data = File.ReadAllBytes(file);
-
-                byte[] ret = Str.ConvertEncoding(data, enc, bom);
-
-                File.WriteAllBytes(file, ret);
-
-                n++;
-            }
-
-            Con.WriteLine("{0} 個のファイルを変換しましたよ!!", n);
-        }
-    }
-
     partial class TestDevCommands
     {
         [ConsoleCommand(
@@ -208,7 +70,7 @@ namespace IPA.TestDev
 
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            Junks.ReplaceString(vl.DefaultParam.StrValue, vl["PATTERN"].StrValue, vl["OLDSTRING"].StrValue, vl["NEWSTRING"].StrValue, vl["CASESENSITIVE"].BoolValue);
+            MiscUtil.ReplaceStringOfFiles(vl.DefaultParam.StrValue, vl["PATTERN"].StrValue, vl["OLDSTRING"].StrValue, vl["NEWSTRING"].StrValue, vl["CASESENSITIVE"].BoolValue);
 
             return 0;
         }
@@ -234,7 +96,7 @@ namespace IPA.TestDev
 
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            Junks.ChangeEncoding(vl.DefaultParam.StrValue, vl["PATTERN"].StrValue, vl["BOM"].BoolValue, vl["ENCODING"].StrValue);
+            MiscUtil.ChangeEncodingOfFiles(vl.DefaultParam.StrValue, vl["PATTERN"].StrValue, vl["BOM"].BoolValue, vl["ENCODING"].StrValue);
 
             return 0;
         }
@@ -257,7 +119,7 @@ namespace IPA.TestDev
 
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            Junks.NormalizeCrLf(vl.DefaultParam.StrValue, vl["PATTERN"].StrValue);
+            MiscUtil.NormalizeCrLfOfFiles(vl.DefaultParam.StrValue, vl["PATTERN"].StrValue);
 
             return 0;
         }
