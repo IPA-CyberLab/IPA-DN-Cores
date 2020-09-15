@@ -251,6 +251,8 @@ namespace IPA.Cores.Basic
 
             public const string LogBrowserSecureJson = "_secure.json";
             public const string LogBrowserAccessLogDirName = "_accesslog";
+
+            public static readonly IEnumerable<string> StandardExcludeDirNames = new string[] { ".svn", "_vti_cnf", "_vti_pvt", "_private", ".git" };
         }
 
         public static partial class BlazorApp

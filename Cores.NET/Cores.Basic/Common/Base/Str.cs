@@ -1143,6 +1143,24 @@ namespace IPA.Cores.Basic
             return false;
         }
 
+        // 複数のワイルドカードパターンにある文字列が一致するかどうか検査
+        public static bool MultipleWildcardMatch(string targetStr, string multipleWildcard, bool ignoreCase = false)
+        {
+            var wildCardList = multipleWildcard._Split(StringSplitOptions.RemoveEmptyEntries, "|", ",", ";", " ").Where(x => x._IsFilled());
+
+            if (wildCardList.Any() == false) return false;
+
+            foreach (string wildcard in wildCardList)
+            {
+                if (WildcardMatch(targetStr, wildcard, ignoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         // ワイルドカード一致検査
         public static bool WildcardMatch(string targetStr, string wildcard, bool ignoreCase = false)
         {

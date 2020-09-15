@@ -45,8 +45,224 @@ using IPA.Cores.ClientApi.GoogleApi;
 
 namespace IPA.TestDev
 {
+    public static class Junks
+    {
+        public static void ReplaceString(string dirName, string pattern, string oldString, string newString, bool caseSensitive)
+        {
+            IEnumerable<string> files;
+            if (Directory.Exists(dirName) == false && File.Exists(dirName))
+            {
+                files = dirName._SingleArray();
+            }
+            else
+            {
+                files = Lfs.EnumDirectory(dirName, true)
+                    .Where(x => x.IsFile)
+                    .Where(x => Lfs.PathParser.IsFullPathExcludedByExcludeDirList(Lfs.PathParser.GetDirectoryName(x.FullPath)) == false)
+                    .Where(x => Str.MultipleWildcardMatch(x.Name, pattern, true))
+                    .Select(x => x.FullPath);
+            }
+
+            int n = 0;
+
+            foreach (string file in files)
+            {
+                Con.WriteLine("処理中: '{0}'", file);
+
+                byte[] data = File.ReadAllBytes(file);
+
+                int bom;
+                Encoding? enc = Str.GetEncoding(data, out bom);
+                if (enc == null)
+                {
+                    enc = Encoding.UTF8;
+                }
+
+                string srcStr = enc.GetString(Util.ExtractByteArray(data, bom, data.Length - bom));
+                string dstStr = Str.ReplaceStr(srcStr, oldString, newString, caseSensitive);
+
+                if (srcStr != dstStr)
+                {
+                    Buf buf = new Buf();
+
+                    if (bom != 0)
+                    {
+                        var bomData = Str.GetBOM(enc);
+                        if (bomData != null)
+                        {
+                            buf.Write(bomData);
+                        }
+                    }
+
+                    buf.Write(enc.GetBytes(dstStr));
+
+                    buf.SeekToBegin();
+
+                    File.WriteAllBytes(file, buf.Read());
+
+                    Con.WriteLine("  保存しました。");
+                    n++;
+                }
+                else
+                {
+                    Con.WriteLine("  変更なし");
+                }
+            }
+
+            Con.WriteLine("{0} 個のファイルを変換しましたよ!!", n);
+        }
+
+        public static void NormalizeCrLf(string dirName, string pattern)
+        {
+            IEnumerable<string> files;
+            if (Directory.Exists(dirName) == false && File.Exists(dirName))
+            {
+                files = dirName._SingleArray();
+            }
+            else
+            {
+                files = Lfs.EnumDirectory(dirName, true)
+                    .Where(x => x.IsFile)
+                    .Where(x => Lfs.PathParser.IsFullPathExcludedByExcludeDirList(Lfs.PathParser.GetDirectoryName(x.FullPath)) == false)
+                    .Where(x => Str.MultipleWildcardMatch(x.Name, pattern, true))
+                    .Select(x => x.FullPath);
+            }
+
+            int n = 0;
+
+            foreach (string file in files)
+            {
+                Con.WriteLine("処理中: '{0}'", file);
+
+                byte[] data = File.ReadAllBytes(file);
+
+                var ret = Str.NormalizeCrlf(data, CrlfStyle.CrLf, true);
+
+                File.WriteAllBytes(file, ret.ToArray());
+
+                n++;
+            }
+
+            Con.WriteLine("{0} 個のファイルを変換しましたよ!!", n);
+        }
+
+        public static void ChangeEncoding(string dirName, string pattern, bool bom, string encoding)
+        {
+            IEnumerable<string> files;
+            if (Directory.Exists(dirName) == false && File.Exists(dirName))
+            {
+                files = dirName._SingleArray();
+            }
+            else
+            {
+                files = Lfs.EnumDirectory(dirName, true)
+                    .Where(x => x.IsFile)
+                    .Where(x => Lfs.PathParser.IsFullPathExcludedByExcludeDirList(Lfs.PathParser.GetDirectoryName(x.FullPath)) == false)
+                    .Where(x => Str.MultipleWildcardMatch(x.Name, pattern, true))
+                    .Select(x => x.FullPath);
+            }
+
+            Encoding enc = Encoding.GetEncoding(encoding);
+
+            int n = 0;
+
+            foreach (string file in files)
+            {
+                Con.WriteLine("処理中: '{0}'", file);
+
+                byte[] data = File.ReadAllBytes(file);
+
+                byte[] ret = Str.ConvertEncoding(data, enc, bom);
+
+                File.WriteAllBytes(file, ret);
+
+                n++;
+            }
+
+            Con.WriteLine("{0} 個のファイルを変換しましたよ!!", n);
+        }
+    }
+
     partial class TestDevCommands
     {
+        [ConsoleCommand(
+        "ファイル内の文字を置換",
+        "ReplaceString [dirName] [/PATTERN:pattern] [/OLDSTRING:oldstring] [/NEWSTRING:newstring] [/CASESENSITIVE:yes|no]",
+        "指定されたディレクトリ内のパターンに一致するファイルの文字コードを変更します。",
+        "[dirName]:ディレクトリ名を指定します。",
+        "PATTERN:ファイル名のパターンを指定します。たとえば、'*.txt' などと指定します。'*.txt,*.c,*.h' など複数指定も可能です。",
+        "OLDSTRING:古い文字列を指定します。",
+        "NEWSTRING:新しい文字列を指定します。",
+        "CASESENSITIVE:yes の場合は大文字・小文字を区別します。"
+        )]
+        static int ReplaceString(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[dirName]", ConsoleService.Prompt, "ディレクトリ名: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("PATTERN", ConsoleService.Prompt, "ファイル名のパターン: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("OLDSTRING", ConsoleService.Prompt, "古い文字列: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("NEWSTRING", ConsoleService.Prompt, "新しい文字列: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("CASESENSITIVE", null, null, null, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            Junks.ReplaceString(vl.DefaultParam.StrValue, vl["PATTERN"].StrValue, vl["OLDSTRING"].StrValue, vl["NEWSTRING"].StrValue, vl["CASESENSITIVE"].BoolValue);
+
+            return 0;
+        }
+
+        [ConsoleCommand(
+            "ファイルの文字コードを変換",
+            "ChangeEncoding [dirName] [/PATTERN:pattern] [/ENCODING:encoding] [/BOM:yes|no]",
+            "指定されたディレクトリ内のパターンに一致するファイルの文字コードを変更します。",
+            "[dirName]:ディレクトリ名を指定します。",
+            "PATTERN:ファイル名のパターンを指定します。たとえば、'*.txt' などと指定します。'*.txt,*.c,*.h' など複数指定も可能です。",
+            "ENCODING:保存先ファイルの文字コードを指定します。",
+            "BOM:yes を指定した場合、Unicode 関係のフォーマットの場合は BOM を付加します。"
+            )]
+        static int ChangeEncoding(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[dirName]", ConsoleService.Prompt, "ディレクトリ名: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("PATTERN", ConsoleService.Prompt, "ファイル名のパターン: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("ENCODING", ConsoleService.Prompt, "文字コード名: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("BOM", null, null, null, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            Junks.ChangeEncoding(vl.DefaultParam.StrValue, vl["PATTERN"].StrValue, vl["BOM"].BoolValue, vl["ENCODING"].StrValue);
+
+            return 0;
+        }
+
+
+        [ConsoleCommand(
+            "改行コードを CRLF に統一",
+            "NormalizeCrLf [dirName] [/PATTERN:pattern]",
+            "指定されたディレクトリ内のパターンに一致するファイルの改行コードを変更します。",
+            "[dirName]:ディレクトリ名を指定します。",
+            "PATTERN:ファイル名のパターンを指定します。たとえば、'*.txt' などと指定します。'*.txt,*.c,*.h' など複数指定も可能です。"
+            )]
+        static int NormalizeCrLf(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[dirName]", ConsoleService.Prompt, "ディレクトリ名: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("PATTERN", ConsoleService.Prompt, "ファイル名のパターン: ", ConsoleService.EvalNotEmpty, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            Junks.NormalizeCrLf(vl.DefaultParam.StrValue, vl["PATTERN"].StrValue);
+
+            return 0;
+        }
+
+
         [ConsoleCommand(
             "指定されたディレクトリ内の最新のいくつかのサブディレクトリのみコピー (同期) し、他は削除する",
             "SyncLatestFewDirs [srcdir] [/destdir:DESTDIR] [/num:HowManyDirs=1]",

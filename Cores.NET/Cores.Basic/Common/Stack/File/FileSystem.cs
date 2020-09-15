@@ -838,6 +838,25 @@ namespace IPA.Cores.Basic
             this.InvalidFileNameChars = GetInvalidFileNameChars();
         }
 
+        public bool IsFullPathExcludedByExcludeDirList(string fullPath, IEnumerable<string>? dirList = null)
+        {
+            dirList ??= Consts.FileNames.StandardExcludeDirNames;
+
+            fullPath = this.NormalizeDirectorySeparator(fullPath, true);
+
+            string[] tokens = fullPath._Split(StringSplitOptions.RemoveEmptyEntries, this.DirectorySeparator);
+
+            foreach (var token in tokens)
+            {
+                if (dirList.Any(x => x._IsSamei(token)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public string AppendDirectorySeparatorTail(string path)
         {
             path = path._NonNull();
