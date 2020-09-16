@@ -3908,7 +3908,7 @@ namespace IPA.Cores.Basic
             if (((AddCount++) % 100) == 0)
             {
                 // 100 回に 1 回くらいは Gc をいたします
-                GcInternal();
+                GcInternal(true);
             }
 
             return tick;
@@ -3924,20 +3924,26 @@ namespace IPA.Cores.Basic
             return v;
         }
 
-        int GcInternal()
+        int GcInternal(bool remainOneAtLeast = false)
         {
             int ret = Timeout.Infinite;
             if (AutomaticUpdateNow) UpdateNow();
             long now = Now;
             List<long>? deleteList = null;
+            int n = 0;
 
             foreach (long v in List)
             {
                 if (now >= v)
                 {
                     ret = 0;
-                    if (deleteList == null) deleteList = new List<long>();
-                    deleteList.Add(v);
+
+                    n++;
+                    if (remainOneAtLeast == false || (n >= 2))
+                    {
+                        if (deleteList == null) deleteList = new List<long>();
+                        deleteList.Add(v);
+                    }
                 }
                 else
                 {

@@ -195,6 +195,9 @@ namespace IPA.Cores.Basic
 
                                 if (recvData.IsEmpty) throw new DisconnectedException();
 
+                                "--------------------"._Print();
+                                recvData._GetString_UTF8()._Print();
+
                                 try
                                 {
                                     dynamic json = recvData._GetString_UTF8()._JsonToDynamic()!;
@@ -206,7 +209,7 @@ namespace IPA.Cores.Basic
                                     string channel = json!.channel;
                                     string type = json.type;
 
-                                    if (type._IsSamei("message") || type._IsSamei("channel_marked") || type._IsSamei("im_marked") || type._IsSamei("group_marked"))
+                                    if (type._IsSamei("message") || type._IsSamei("channel_marked") || type._IsSamei("im_marked") || type._IsSamei("group_marked") || type._IsSamei("mpim_marked"))
                                     {
                                         if (channel._IsFilled())
                                         {
