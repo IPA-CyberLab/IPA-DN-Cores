@@ -195,9 +195,6 @@ namespace IPA.Cores.Basic
 
                                 if (recvData.IsEmpty) throw new DisconnectedException();
 
-                                "--------------------"._Print();
-                                recvData._GetString_UTF8()._Print();
-
                                 try
                                 {
                                     dynamic json = recvData._GetString_UTF8()._JsonToDynamic()!;
