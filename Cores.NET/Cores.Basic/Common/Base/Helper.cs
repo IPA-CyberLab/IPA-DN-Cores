@@ -2255,6 +2255,9 @@ namespace IPA.Cores.Helper.Basic
         {
             return ip.AddressFamily.ToString() + ":" + ip.GetAddressBytes()._GetHexString();
         }
+
+        public static string _AddSpacePadding(this string? srcStr, int totalWidth, bool addOnLeft = false, char spaceChar = ' ')
+            => Str.AddSpacePadding(srcStr, totalWidth, addOnLeft, spaceChar);
     }
 }
 

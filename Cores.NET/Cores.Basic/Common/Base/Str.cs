@@ -2622,6 +2622,29 @@ namespace IPA.Cores.Basic
             }
         }
 
+        // 指定した文字幅に満ちるまでスペースを追加する
+        public static string AddSpacePadding(string? srcStr, int totalWidth, bool addOnLeft = false, char spaceChar = ' ')
+        {
+            srcStr = srcStr._NonNull();
+
+            int spaceCount = 0;
+
+            int strWidth = Str.GetStrWidth(srcStr);
+            if (strWidth < totalWidth)
+            {
+                spaceCount = totalWidth - strWidth;
+            }
+
+            if (addOnLeft == false)
+            {
+                return srcStr + Str.MakeCharArray(spaceChar, spaceCount);
+            }
+            else
+            {
+                return Str.MakeCharArray(spaceChar, spaceCount) + srcStr;
+            }
+        }
+
         // スペースを正規化する
         public static string NormalizeSpace(string? str)
         {
