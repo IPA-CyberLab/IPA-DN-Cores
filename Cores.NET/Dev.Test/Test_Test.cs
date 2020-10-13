@@ -644,12 +644,12 @@ namespace IPA.TestDev
         static void Test_ThinLgWanMapping()
         {
             IPv4Addr privateIp = new IPv4Addr("10.47.3.101");
-            IPv4Addr lgwanIp = new IPv4Addr("10.37.1.101");
+            IPv4Addr lgwanIp = new IPv4Addr("61.212.19.199");
             IPv4Addr internetIp = new IPv4Addr("163.220.245.201");
 
             for (int i = 0; i < 32; i++)
             {
-                $"GateProxyMappings{i:D3}     {privateIp.Add(i).ToString()._AddSpacePadding(17)} {internetIp.Add(i).ToString()._AddSpacePadding(17)} {lgwanIp.Add(i).ToString()._AddSpacePadding(17)}".Trim()._Print();
+                $"GateProxyMappings{i:D3}     {privateIp.Add(i).ToString()._AddSpacePadding(17)} {internetIp.Add(i).ToString()._AddSpacePadding(17)} {lgwanIp.Add(i).ToString()._AddSpacePadding(17)}  inetg{(i + 1)}.gates.lgwan.cyber.ipa.go.jp  lgwang{(i + 1)}.ipa.asp.lgwan.jp".Trim()._Print();
             }
         }
 
