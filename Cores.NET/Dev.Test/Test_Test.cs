@@ -641,20 +641,73 @@ namespace IPA.TestDev
             }
         }
 
+        static void Test_ThinLgWanConfigMaker()
+        {
+            if (true)
+            {
+                string src = @"C:\Dropbox\COENET\メモ資料\200930 自治体テレワーク for LGWAN 開発設計資料\第三世代 本番環境\G. Config および手順書集\G-22. HTTPS 画面通信受付サーバ (LGWAN 公開セグメント側)\_内部用_テンプレート\lgwang0.txt";
+                for (int i = 1; i <= 32; i++)
+                {
+                    string dst = @"C:\Dropbox\COENET\メモ資料\200930 自治体テレワーク for LGWAN 開発設計資料\第三世代 本番環境\G. Config および手順書集\G-22. HTTPS 画面通信受付サーバ (LGWAN 公開セグメント側)\" +
+                        $"lgwang{i}.txt";
+
+                    string srcData = Lfs.ReadStringFromFile(src);
+                    string dstData = srcData._ReplaceStrWithReplaceClass(
+                        new
+                        {
+                            __INDEX1__ = i,
+                            __INDEX2__ = i.ToString("D2"),
+                            __VMNUMBER__ = (((i - 1) / 8) + 1),
+                        });
+
+                    Lfs.WriteStringToFile(dst, dstData);
+                }
+            }
+
+            if (true)
+            {
+                string src = @"C:\Dropbox\COENET\メモ資料\200930 自治体テレワーク for LGWAN 開発設計資料\第三世代 本番環境\G. Config および手順書集\G-26. HTTPS 画面通信受付サーバ (インターネット公開セグメント側)\_内部用_テンプレート\inetg0.txt";
+                for (int i = 1; i <= 32; i++)
+                {
+                    string dst = @"C:\Dropbox\COENET\メモ資料\200930 自治体テレワーク for LGWAN 開発設計資料\第三世代 本番環境\G. Config および手順書集\G-26. HTTPS 画面通信受付サーバ (インターネット公開セグメント側)\" +
+                        $"inetg{i}.txt";
+
+                    string srcData = Lfs.ReadStringFromFile(src);
+                    string dstData = srcData._ReplaceStrWithReplaceClass(
+                        new
+                        {
+                            __INDEX1__ = i,
+                            __INDEX2__ = i.ToString("D2"),
+                            __VMNUMBER__ = (((i - 1) / 8) + 1),
+                        });
+
+                    Lfs.WriteStringToFile(dst, dstData);
+                }
+            }
+        }
+
         static void Test_ThinLgWanMapping()
         {
             IPv4Addr privateIp = new IPv4Addr("10.47.3.101");
             IPv4Addr lgwanIp = new IPv4Addr("61.212.19.199");
             IPv4Addr internetIp = new IPv4Addr("163.220.245.201");
+            IPv4Addr lgwanPrivateIp = new IPv4Addr("10.47.2.101");
+            IPv4Addr internetPrivateIp = new IPv4Addr("10.47.4.101");
 
             for (int i = 0; i < 32; i++)
             {
-                $"GateProxyMappings{i:D3}     {privateIp.Add(i).ToString()._AddSpacePadding(17)} {internetIp.Add(i).ToString()._AddSpacePadding(17)} {lgwanIp.Add(i).ToString()._AddSpacePadding(17)}  inetg{(i + 1)}.gates.lgwan.cyber.ipa.go.jp  lgwang{(i + 1)}.ipa.asp.lgwan.jp".Trim()._Print();
+                $"GateProxyMappings{i:D3}     {privateIp.Add(i).ToString()._AddSpacePadding(17)} {internetIp.Add(i).ToString()._AddSpacePadding(17)} {lgwanIp.Add(i).ToString()._AddSpacePadding(17)}  inetg{(i + 1)}.gates.lgwan.cyber.ipa.go.jp  lgwang{(i + 1)}.ipa.asp.lgwan.jp   {internetPrivateIp.Add(i).ToString()._AddSpacePadding(17)}  {lgwanPrivateIp.Add(i).ToString()._AddSpacePadding(17)}  ".Trim()._Print();
             }
         }
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_ThinLgWanConfigMaker();
+                return;
+            }
+
             if (true)
             {
                 Test_ThinLgWanMapping();
