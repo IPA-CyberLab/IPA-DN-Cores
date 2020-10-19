@@ -641,6 +641,18 @@ namespace IPA.TestDev
             }
         }
 
+        static void Test_ThinLgWanSshConfigMaker()
+        {
+            string src = @"c:\ssh\g1.gts";
+            for (int i = 2; i <= 32; i++)
+            {
+                string dst = PP.Combine(PP.GetDirectoryName(src), $"g{i}.gts");
+                string body = Lfs.ReadStringFromFile(src);
+                body = body._ReplaceStr("g1", $"g{i}");
+                Lfs.WriteStringToFile(dst, body);
+            }
+        }
+
         static void Test_ThinLgWanConfigMaker()
         {
             if (true)
@@ -702,6 +714,12 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_ThinLgWanSshConfigMaker();
+                return;
+            }
+
             if (true)
             {
                 Test_ThinLgWanConfigMaker();
