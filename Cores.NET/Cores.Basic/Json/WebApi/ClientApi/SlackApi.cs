@@ -355,7 +355,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
                 await ThrowIfErrorAsync(res);
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
-                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers);
+                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers, res.IsSuccessStatusCode, res.StatusCode, res.ReasonPhrase);
             }
         }
 

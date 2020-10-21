@@ -924,6 +924,9 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public static void ForEach<T>(int maxConcurrentTasks, IEnumerable<T> items, Func<T, CancellationToken, Task> func, CancellationToken cancel = default)
+            => ForEachAsync(maxConcurrentTasks, items, func, cancel)._GetResult();
+
         public static int GetMinTimeout(params int[] values)
         {
             long minValue = long.MaxValue;

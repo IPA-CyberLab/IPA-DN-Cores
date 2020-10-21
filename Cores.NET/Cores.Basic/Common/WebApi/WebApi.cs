@@ -194,13 +194,23 @@ namespace IPA.Cores.Basic
         public Encoding DefaultEncoding { get; } = null!;
         public WebApi Api { get; }
         public HttpResponseHeaders Headers { get; }
+        public HttpStatusCode StatusCode { get; }
+        public bool IsSuccessStatusCode { get; }
+        public string StatusReason { get; }
+        public string StatusCodeAndReasonString { get; }
 
-        public WebRet(WebApi api, string url, string contentType, byte[] data, HttpResponseHeaders headers)
+        public WebRet(WebApi api, string url, string contentType, byte[] data, HttpResponseHeaders headers, bool isSuccessStatusCode, HttpStatusCode statusCode, string statusReason)
         {
             this.Api = api;
             this.Url = url._NonNull();
             this.ContentType = contentType._NonNull();
             this.Headers = headers;
+
+            this.StatusCode = statusCode;
+            this.IsSuccessStatusCode = isSuccessStatusCode;
+            this.StatusReason = statusReason._NonNull();
+
+            this.StatusCodeAndReasonString = string.Format("Response status code does not indicate success: {0} ({1}).", (int)statusCode, statusReason);
 
             try
             {
@@ -499,7 +509,7 @@ namespace IPA.Cores.Basic
                     await ThrowIfErrorAsync(res);
 
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
-                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers);
+                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers, res.IsSuccessStatusCode, res.StatusCode, res.ReasonPhrase);
             }
         }
 
@@ -519,7 +529,7 @@ namespace IPA.Cores.Basic
 
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
                 string type = res.Content.Headers._TryGetContentType();
-                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers);
+                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers, res.IsSuccessStatusCode, res.StatusCode, res.ReasonPhrase);
             }
         }
 
@@ -543,7 +553,7 @@ namespace IPA.Cores.Basic
                     await ThrowIfErrorAsync(res);
 
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
-                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers);
+                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers, res.IsSuccessStatusCode, res.StatusCode, res.ReasonPhrase);
             }
         }
 
