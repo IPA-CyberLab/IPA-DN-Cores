@@ -70,6 +70,26 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class SqlDatabaseConnectionSetting
+    {
+        public string DataSource { get; }
+        public string InitialDatalog { get; }
+        public string UserId { get; }
+        public string Password { get; }
+
+        public SqlDatabaseConnectionSetting(string dataSource, string initialCatalog, string userId, string password)
+        {
+            this.DataSource = DataSource;
+            this.InitialDatalog = initialCatalog;
+            this.UserId = userId;
+            this.Password = password;
+        }
+
+        public static implicit operator string(SqlDatabaseConnectionSetting config)
+            => $"Data Source={config.DataSource};Initial Catalog={config.InitialDatalog};Persist Security Info=True;User ID={config.UserId};Password={config.Password}";
+
+    }
+
     public class EasyTable : TableAttribute
     {
         public EasyTable(string tableName) : base(tableName) { }

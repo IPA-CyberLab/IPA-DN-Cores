@@ -1288,6 +1288,49 @@ namespace IPA.Cores.Basic
             return "ID-" + a + "-" + b + "-" + c + d + e + "-" + prefix.ToUpper() + "-" + f + "-" + g;
         }
 
+        // 新しい UID を生成する
+        public static string NewUid(string prefix = "UID")
+        {
+            // <PREFIX>-AAAAAAAAAA-BBB-CCDDDDDEEEEEEE-FFFFF-GGGGG
+
+            // AAAAAAAAAA: 10 桁の整数 2000/01/01 からの秒数
+            // BBB: 3 桁の整数 2000/01/01 からのミリ秒数
+            // DDDDD および EEEEEEE: 乱数
+            // FFFFF: 2015/08/10 からの秒数を 9600 で割った値
+            // GGGGG: 乱数
+            // CC: チェックサム (AAAAAAAAAABBBDDDDDEEEEEFFFFFGGGGG<ID> のハッシュ)
+            prefix = prefix._NonNullTrim();
+
+            if (prefix._IsNullOrZeroLen()) prefix = "UID";
+
+            DateTime start_dt = new DateTime(2000, 1, 1);
+            DateTime now = DateTime.Now;
+
+            ulong msecs = (ulong)Util.ConvertTimeSpan(now - start_dt);
+
+            lock (LockNewId)
+            {
+                if (LastNewIdMSecs >= msecs)
+                {
+                    msecs = LastNewIdMSecs + 1;
+                }
+
+                LastNewIdMSecs = msecs;
+            }
+
+            string a = ((msecs / 1000UL) % 10000000000UL).ToString("D10");
+            string b = (msecs % 1000UL).ToString("D3");
+            string d = (Secure.RandUInt64() % 100000UL).ToString("D5");
+            string e = (Secure.RandUInt64() % 100000UL).ToString("D5");
+            string f = (((ulong)((now - new DateTime(2015, 8, 10)).TotalSeconds / 9600.0)) % 100000UL).ToString("D5");
+            string g = (Secure.RandUInt64() % 100000UL).ToString("D5");
+            string hash_str = a + b + d + e + f + g + prefix.ToUpper();
+            byte[] hash = Secure.HashSHA1(Str.AsciiEncoding.GetBytes(hash_str));
+            Buf buf = new Buf(hash);
+            string c = (buf.ReadInt64() % 100000UL).ToString("D5");
+
+            return prefix.ToUpper() + "-" + a + "-" + b + "-" + c + d + e + "-" + f + "-" + g;
+        }
         // ID 文字列を短縮する
         public static string? GetShortId(string fullId)
         {
