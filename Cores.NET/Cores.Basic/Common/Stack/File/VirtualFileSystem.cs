@@ -65,7 +65,7 @@ namespace IPA.Cores.Basic
         public VirtualFileSystem FileSystem { get; }
         readonly RefInt LinkRef = new RefInt();
         readonly RefInt HandleRef = new RefInt();
-        protected readonly CriticalSection LockObj = new CriticalSection();
+        protected readonly CriticalSection LockObj = new CriticalSection<VfsEntity>();
 
         public abstract string Name { get; protected set; }
         public abstract FileAttributes Attributes { get; protected set; }

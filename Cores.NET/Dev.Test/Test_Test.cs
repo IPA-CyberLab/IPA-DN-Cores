@@ -34,6 +34,7 @@
 
 using System;
 using System.IO;
+using System.IO.Ports;
 using System.IO.Enumeration;
 using System.Threading;
 using System.Threading.Tasks;
@@ -71,8 +72,10 @@ using System.Text;
 using IPA.Cores.Basic.App.DaemonCenterLib;
 using IPA.Cores.ClientApi.GoogleApi;
 using System.Security.Cryptography;
-using IPA.Cores.Basic.Tests;
+//using IPA.Cores.Basic.Tests;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.IO.Compression;
+using IPA.Cores.Basic.HttpClientCore;
 
 
 
@@ -355,8 +358,739 @@ namespace IPA.TestDev
         }
 
 
+        class TestClass123
+        {
+            public static void Test123()
+            {
+                CoresLibException e = new CoresLibException();
+
+                throw e;
+            }
+        }
+
+
+        // SNMP Worker CGI ハンドラ
+        public class CgiServerStressTest_TestCgiHandler : CgiHandlerBase
+        {
+            public CgiServerStressTest_TestCgiHandler()
+            {
+            }
+
+            protected override void InitActionListImpl(CgiActionList noAuth, CgiActionList reqAuth)
+            {
+                try
+                {
+                    noAuth.AddAction("/", WebMethodBits.GET | WebMethodBits.HEAD, async (ctx) =>
+                    {
+                        await Task.CompletedTask;
+                        var method = ctx.QueryString._GetStrFirst("method")._ParseEnum(SnmpWorkGetMethod.Get);
+
+                        StringWriter w = new StringWriter();
+                        for (int i = 0; i < 100; i++)
+                        {
+                            w.WriteLine($"Hello World Neko Neko Neko {i}");
+                        }
+
+                        return new HttpStringResult(w.ToString()._NormalizeCrlf(CrlfStyle.Lf, true));
+                    });
+                }
+                catch
+                {
+                    this._DisposeSafe();
+                    throw;
+                }
+            }
+        }
+
+        static void CgiServerStressTest_Server()
+        {
+            // HTTP サーバーを立ち上げる
+            var cgi = new CgiHttpServer(new CgiServerStressTest_TestCgiHandler(), new HttpServerOptions()
+            {
+                AutomaticRedirectToHttpsIfPossible = false,
+                DisableHiveBasedSetting = true,
+                DenyRobots = true,
+                UseGlobalCertVault = false,
+                LocalHostOnly = true,
+                HttpPortsList = new int[] { 7007 }.ToList(),
+                HttpsPortsList = new List<int>(),
+                UseKestrelWithIPACoreStack = true,
+            },
+            true);
+        }
+
+        static void CgiServerStressTest_Server2()
+        {
+            var host = new SnmpWorkHost();
+
+            host.Register("Temperature", 101_00000, new SnmpWorkFetcherTemperature(host));
+            host.Register("Ram", 102_00000, new SnmpWorkFetcherMemory(host));
+            host.Register("Disk", 103_00000, new SnmpWorkFetcherDisk(host));
+            host.Register("Net", 104_00000, new SnmpWorkFetcherNetwork(host));
+
+            host.Register("Ping", 105_00000, new SnmpWorkFetcherPing(host));
+            host.Register("Speed", 106_00000, new SnmpWorkFetcherSpeed(host));
+            host.Register("Quality", 107_00000, new SnmpWorkFetcherPktQuality(host));
+            host.Register("Bird", 108_00000, new SnmpWorkFetcherBird(host));
+
+            Con.WriteLine("SnmpWorkDaemon: Started.");
+        }
+
+        static void CgiServerStressTest()
+        {
+            RefLong count = 0;
+
+            CgiServerStressTest_Server2();
+
+            for (int i = 0; i < 5; i++)
+            {
+                Task t = AsyncAwait(async () =>
+                {
+                    while (true)
+                    {
+                        await Task.Yield();
+
+                        try
+                        {
+                            using var web = new WebApi(new WebApiOptions());
+
+                            var ret = await web.SimpleQueryAsync(WebMethods.GET, "http://127.0.0.1:7007/?method=GetAll");
+
+                            count++;
+                        }
+                        catch (Exception ex)
+                        {
+                            ex.Message._Print();
+                        }
+                    }
+                });
+            }
+
+            while (true)
+            {
+                $"Current: {count}"._Print();
+
+                Sleep(1000);
+            }
+        }
+
+        static void VaultStressTest()
+        {
+            int[] ports = { 80, 443, 7009 };
+            string dest = "pktlinux.sec.softether.co.jp";
+            string url = "https://pktlinux.sec.softether.co.jp/";
+
+            RefInt SslCounter = 0;
+
+            RefInt DisconnectCounter = 0;
+
+            // 接続してすぐ切断する動作
+            for (int i = 0; i < 50; i++)
+            {
+                var task = AsyncAwait(async () =>
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            int mode = Util.RandSInt31() % 2;
+                            int port = ports[Util.RandSInt31() % ports.Length];
+                            int waittime = Util.RandSInt31() % 1000;
+                            using var sock = await LocalNet.ConnectAsync(new TcpConnectParam(dest, port, connectTimeout: 3000, dnsTimeout: 3000));
+                            using var st = sock.GetStream();
+
+                            if (mode == 0)
+                            {
+                                waittime = 0;
+                            }
+
+                            if (waittime >= 1)
+                            {
+                                await Task.Delay(waittime);
+                            }
+
+                            sock.Disconnect();
+
+                            DisconnectCounter.Increment();
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Error();
+                        }
+                    }
+                });
+            }
+
+            // 接続して長時間放っておく動作
+            for (int i = 0; i < 50; i++)
+            {
+                var task = AsyncAwait(async () =>
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            int port = ports[Util.RandSInt31() % ports.Length];
+                            int waittime = 60 * 1000;
+                            using var sock = await LocalNet.ConnectAsync(new TcpConnectParam(dest, port, connectTimeout: 3000, dnsTimeout: 3000));
+                            using var st = sock.GetStream();
+
+                            if (waittime >= 1)
+                            {
+                                await Task.Delay(waittime);
+                            }
+
+                            sock.Disconnect();
+
+                            DisconnectCounter.Increment();
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Error();
+                        }
+                    }
+                });
+            }
+
+            // SSL
+            for (int i = 0; i < 50; i++)
+            {
+                var task = AsyncAwait(async () =>
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            using WebApi api = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true, DoNotThrowHttpResultError = true }));
+
+                            await api.SimpleQueryAsync(WebMethods.GET, url);
+
+                            SslCounter.Increment();
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Error();
+                        }
+                    }
+                });
+            }
+
+
+            while (true)
+            {
+                string msg = $"SslCounter = {SslCounter}, DisconnectCounter = {DisconnectCounter}";
+
+                msg._Print();
+
+                Sleep(1000);
+            }
+        }
+
+        static void Test_MakeThinLgwanCerts_200930()
+        {
+            string baseDir = @"\\labfs\share\Secrets\Projects\ThinTelework_LGWAN\Certs\200930_Certs\";
+
+            if (true)
+            {
+                string password = "microsoft";
+
+                PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+                var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "IPA Telework System for LGWAN Root Certificate", c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA512));
+
+                CertificateStore store = new CertificateStore(cert, priv);
+
+                Lfs.WriteStringToFile(baseDir + @"00_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+
+                Lfs.WriteDataToFile(baseDir + @"00_Master.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+                Lfs.WriteDataToFile(baseDir + @"00_Master_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"00_Master.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"00_Master.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            }
+
+            if (true)
+            {
+                string password = "microsoft";
+
+                CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(baseDir + @"00_Master.pfx").Span);
+
+                IssueCert("IPA Telework System for LGWAN Controller Certificate 01", baseDir + @"01_Controller");
+                IssueCert("IPA Telework System for LGWAN Gateway Certificate 02", baseDir + @"02_Gates_001");
+
+                void IssueCert(string cn, string fileNameBase)
+                {
+                    PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
+
+                    var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, cn, c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA256,
+                        keyUsages: Org.BouncyCastle.Asn1.X509.KeyUsage.DigitalSignature | Org.BouncyCastle.Asn1.X509.KeyUsage.KeyEncipherment | Org.BouncyCastle.Asn1.X509.KeyUsage.DataEncipherment,
+                        extendedKeyUsages:
+                            new Org.BouncyCastle.Asn1.X509.KeyPurposeID[] {
+                                Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPServerAuth, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPClientAuth,
+                                Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecEndSystem, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecTunnel, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecUser }));
+
+                    var store = new CertificateStore(cert, priv);
+                    Lfs.WriteDataToFile(fileNameBase + ".pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+                    Lfs.WriteDataToFile(fileNameBase + "_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                    Lfs.WriteDataToFile(fileNameBase + ".cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                    Lfs.WriteDataToFile(fileNameBase + ".key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+                }
+            }
+        }
+
+        static void Test_ThinLgWanSshConfigMaker()
+        {
+            string src = @"c:\ssh\g1.gts";
+            for (int i = 2; i <= 32; i++)
+            {
+                string dst = PP.Combine(PP.GetDirectoryName(src), $"g{i}.gts");
+                string body = Lfs.ReadStringFromFile(src);
+                body = body._ReplaceStr("g1", $"g{i}");
+                Lfs.WriteStringToFile(dst, body);
+            }
+        }
+
+        static void Test_ThinLgWanConfigMaker()
+        {
+            if (true)
+            {
+                string src = @"C:\Dropbox\COENET\メモ資料\200930 自治体テレワーク for LGWAN 開発設計資料\第三世代 本番環境\G. Config および手順書集\G-22. HTTPS 画面通信受付サーバ (LGWAN 公開セグメント側)\_内部用_テンプレート\lgwang0.txt";
+                for (int i = 1; i <= 32; i++)
+                {
+                    string dst = @"C:\Dropbox\COENET\メモ資料\200930 自治体テレワーク for LGWAN 開発設計資料\第三世代 本番環境\G. Config および手順書集\G-22. HTTPS 画面通信受付サーバ (LGWAN 公開セグメント側)\" +
+                        $"lgwang{i}.txt";
+
+                    string srcData = Lfs.ReadStringFromFile(src);
+                    string dstData = srcData._ReplaceStrWithReplaceClass(
+                        new
+                        {
+                            __INDEX1__ = i,
+                            __INDEX2__ = i.ToString("D2"),
+                            __VMNUMBER__ = (((i - 1) / 8) + 1),
+                        });
+
+                    Lfs.WriteStringToFile(dst, dstData);
+                }
+            }
+
+            if (true)
+            {
+                string src = @"C:\Dropbox\COENET\メモ資料\200930 自治体テレワーク for LGWAN 開発設計資料\第三世代 本番環境\G. Config および手順書集\G-26. HTTPS 画面通信受付サーバ (インターネット公開セグメント側)\_内部用_テンプレート\inetg0.txt";
+                for (int i = 1; i <= 32; i++)
+                {
+                    string dst = @"C:\Dropbox\COENET\メモ資料\200930 自治体テレワーク for LGWAN 開発設計資料\第三世代 本番環境\G. Config および手順書集\G-26. HTTPS 画面通信受付サーバ (インターネット公開セグメント側)\" +
+                        $"inetg{i}.txt";
+
+                    string srcData = Lfs.ReadStringFromFile(src);
+                    string dstData = srcData._ReplaceStrWithReplaceClass(
+                        new
+                        {
+                            __INDEX1__ = i,
+                            __INDEX2__ = i.ToString("D2"),
+                            __VMNUMBER__ = (((i - 1) / 8) + 1),
+                        });
+
+                    Lfs.WriteStringToFile(dst, dstData);
+                }
+            }
+        }
+
+        static void Test_ThinLgWanMapping()
+        {
+            IPv4Addr privateIp = new IPv4Addr("10.47.3.101");
+            IPv4Addr lgwanIp = new IPv4Addr("61.212.19.199");
+            IPv4Addr internetIp = new IPv4Addr("163.220.245.201");
+            IPv4Addr lgwanPrivateIp = new IPv4Addr("10.47.2.101");
+            IPv4Addr internetPrivateIp = new IPv4Addr("10.47.4.101");
+
+            for (int i = 0; i < 32; i++)
+            {
+                $"GateProxyMappings{i:D3}     {privateIp.Add(i).ToString()._AddSpacePadding(17)} {internetIp.Add(i).ToString()._AddSpacePadding(17)} {lgwanIp.Add(i).ToString()._AddSpacePadding(17)}  inetg{(i + 1)}.gates.lgwan.cyber.ipa.go.jp  lgwang{(i + 1)}.ipa.asp.lgwan.jp   {internetPrivateIp.Add(i).ToString()._AddSpacePadding(17)}  {lgwanPrivateIp.Add(i).ToString()._AddSpacePadding(17)}  ".Trim()._Print();
+            }
+        }
+
+        static void Test_ThinLgWanConnectivityTest()
+        {
+            IPv4Addr ipBase = new IPv4Addr("163.220.245.201");
+
+            List<string> hostList = new List<string>();
+
+            for (int i = 0; i < 32; i++)
+            {
+                var ip = ipBase.Add(i).ToString();
+
+                WebApiSettings setting = new WebApiSettings
+                {
+                    DoNotThrowHttpResultError = true,
+                };
+
+                setting.SslAcceptCertSHAHashList.Add("f2365a80f2f9d50621d91c50b1c7ea56f09fbed6");
+
+                using var web = new WebApi(new WebApiOptions(setting));
+
+                var ret = web.SimpleQueryAsync(WebMethods.GET, $"https://{ip}/")._GetResult();
+
+                $"{ip}: {ret.StatusCodeAndReasonString} {ret.Data._GetString_UTF8()._MakeAsciiOneLinePrintableStr()}"._Print();
+            }
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_ThinLgWanConnectivityTest();
+                return;
+            }
+
+            if (true)
+            {
+                Test_ThinLgWanSshConfigMaker();
+                return;
+            }
+
+            if (true)
+            {
+                Test_ThinLgWanConfigMaker();
+                return;
+            }
+
+            if (true)
+            {
+                Test_ThinLgWanMapping();
+                return;
+            }
+
+            if (true)
+            {
+                Test_MakeThinLgwanCerts_200930();
+                return;
+            }
+
+            if (true)
+            {
+                ThreadObj.StartMany(16, (p) =>
+                {
+                    for (int i = 0; ; i++)
+                    {
+                        //i._Print();
+
+                        var poderosa = Lfs.ReadPoderosaFile(@"H:\SSH\dnlinux.gts");
+
+                        Async(async () =>
+                        {
+                            using var ssh = poderosa.CreateSshClient();
+
+                            using var sock = await ssh.ConnectAndGetSockAsync();
+
+                            using var proc = sock.CreateUnixShellProcessor();
+
+                            var res = await proc.ExecBashCommandAsync("cat /proc/cpuinfo");
+
+                            //var res2 = await proc.ExecBashCommandAsync("cat /etc/passwd");
+
+                            //res._Print();
+                        });
+
+                        Dbg.GcCollect();
+                    }
+                });
+
+                SleepInfinite();
+
+                return;
+            }
+
+            if (true)
+            {
+                while (true)
+                {
+                    string line = Con.ReadLine()!;
+                    if (Str.TryParseYYMMDDDirName(line, out DateTime dt))
+                    {
+                        dt.ToString()._Print();
+                    }
+                }
+                return;
+            }
+
+            if (true)
+            {
+                Async(async () =>
+                {
+                    AsyncAutoResetEvent ev1 = new AsyncAutoResetEvent();
+                    AsyncAutoResetEvent ev2 = new AsyncAutoResetEvent();
+
+                    CancellationTokenSource cts = new CancellationTokenSource();
+
+                    Task t2 = AsyncAwait(async () =>
+                    {
+                        while (cts.IsCancellationRequested == false)
+                        {
+                            $"task 1-A: {ThreadObj.CurrentThreadId}"._Print();
+
+                            await ev1.WaitOneAsync(cancel: cts.Token);
+
+                            $"task 1-B: {ThreadObj.CurrentThreadId}"._Print();
+
+                            ev2.Set();
+                        }
+                    });
+
+                    for (int i = 0; i < 100; i++)
+                    {
+                        ev1.Set();
+
+                        $"task 0-A: {ThreadObj.CurrentThreadId}"._Print();
+
+                        await ev2.WaitOneAsync();
+
+                        $"task 0-B: {ThreadObj.CurrentThreadId}"._Print();
+                    }
+
+                    cts.Cancel();
+
+                    await t2;
+                });
+                return;
+            }
+
+            if (true)
+            {
+                VaultStressTest();
+                return;
+            }
+
+            if (true)
+            {
+                CgiServerStressTest();
+                return;
+            }
+
+            if (true)
+            {
+                Async(async () =>
+                {
+                    while (true)
+                    {
+                        string cmd = Con.ReadLine("CMD>")!;
+
+                        var result = await EasyExec.ExecAsync(cmd);
+
+                        result.ErrorAndOutputStr._Print();
+
+                        ""._Print();
+                    }
+                });
+                return;
+            }
+
+            if (false)
+            {
+                ComPortClient.GetPortTargetNames()._DebugAsJson();
+                return;
+            }
+
+            if (true)
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+                var cancel = cts.Token;
+
+                var sensor = new ThermometerSensor528018();
+
+                sensor.StartAsync(cancel)._TryGetResult();
+
+                using var poll = AsyncScoped(async c =>
+                {
+                    while (c.IsCancellationRequested == false)
+                    {
+                        sensor.CurrentData.PrimaryValue._Debug();
+
+                        await c._WaitUntilCanceledAsync(500);
+                    }
+                });
+
+                Con.ReadLine();
+
+                cts.Cancel();
+
+                sensor._DisposeSafe();
+
+                return;
+            }
+
+            if (true)
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+                var cancel = cts.Token;
+
+                var sensor = new VoltageSensor8870(new ComPortBasedSensorSettings(new ComPortSettings("/dev/ttyACM0")));
+
+                sensor.StartAsync(cancel)._TryGetResult();
+
+                using var poll = AsyncScoped(async c =>
+                {
+                    while (c.IsCancellationRequested == false)
+                    {
+                        sensor.CurrentData.PrimaryValue._Debug();
+
+                        await c._WaitUntilCanceledAsync(500);
+                    }
+                });
+
+                Con.ReadLine();
+
+                cts.Cancel();
+
+                sensor._DisposeSafe();
+
+                return;
+            }
+
+            if (true)
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+                var cancel = cts.Token;
+                ComPortClient client = null!;
+                Task t = AsyncAwait(async () =>
+                {
+                    var com = new ComPortClient(new ComPortSettings("COM9"));
+                    client = com;
+
+                    using var sock = await com.ConnectAndGetSockAsync();
+
+                    var r = new BinaryLineReader(sock.Stream);
+
+                    while (true)
+                    {
+                        string? line = await r.ReadSingleLineStringAsync(cancel: cancel);
+
+                        if (line == null)
+                        {
+                            "Disconectd!"._Print();
+                        }
+
+                        line = line._NonNull();
+
+                        $"Recv: {line}"._Print();
+                    }
+                });
+
+                Con.ReadLine();
+
+                Dbg.Where();
+
+                //client._DisposeSafe();
+                cts.Cancel();
+
+                Dbg.Where();
+
+
+                Dbg.Where();
+
+                t._GetResult();
+
+                return;
+            }
+
+            if (true)
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+                SerialPort p = new SerialPort("COM9");
+
+                Task t = AsyncAwait(async () =>
+                {
+
+                    p.Open();
+
+                    "Open"._Print();
+
+                    var stream = p.BaseStream;
+
+                    while (true)
+                    {
+                        var memory = await stream._ReadAsync(cancel: cts.Token);
+
+                        memory._GetString_Ascii()._Print();
+                    }
+                });
+
+                Con.ReadLine();
+
+                Dbg.Where();
+
+                p.Close();
+
+                Dbg.Where();
+
+                cts.Cancel();
+
+                Dbg.Where();
+
+                t._GetResult();
+
+                return;
+            }
+
+
+            if (true)
+            {
+                Async(async () =>
+                {
+                    using var file = await Lfs.OpenAsync(@"C:\TMP\200724_raspi4_boot_fail_sdimg\sd_fixtest.img", true);
+                    long totalSize = await file.GetFileSizeAsync();
+                    int unitSize = 100_000_000;
+                    Memory<byte> tmp = new byte[unitSize];
+                    Memory<byte> target = "LABEL=writable\t/\t ext4\tdefaults\t0 0"._GetBytes_Ascii();
+                    Memory<byte> newdata = "LABEL=writable\t/\t ext4\tdefaults\t0 1"._GetBytes_Ascii();
+
+                    for (long i = 0; i < totalSize; i += unitSize)
+                    {
+                        await file.ReadRandomAsync(i, tmp);
+
+                        int r = ((ReadOnlySpan<byte>)tmp.Span).IndexOf(target.Span);
+                        if (r != -1)
+                        {
+                            long pos = i + r;
+
+                            $"Found: {pos}"._Debug();
+
+                            await file.WriteRandomAsync(pos, newdata);
+                        }
+
+                        i._ToString3()._Debug();
+                    }
+                });
+                return;
+            }
+
+            if (true)
+            {
+                LogBrowserSecureJson j = new LogBrowserSecureJson()
+                {
+                    AuthSubject = " 独立行政法人 情報処理推進機構 (IPA) 独立行政法人 情報処理推進機構 (IPA) ",
+                    UploadIp = "1.2.3.4.5.6.7.8",
+                };
+
+                string str = EasyCookieUtil.SerializeObject("abc");
+
+                str._Print();
+
+                string? k = EasyCookieUtil.DeserializeObject<string>(str);
+
+                k._DebugAsJson();
+
+                return;
+            }
+
+            if (true)
+            {
+                PPWin.Combine(@"c:\tmp\", @"./././a/b/c/../../d/../.x/")._Debug();
+                return;
+            }
+
             if (true)
             {
                 bool b1 = true;
@@ -542,7 +1276,7 @@ namespace IPA.TestDev
                                 HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
 
                                 //using var stream = new BufferBasedStream(mem);
-                                
+
                                 using var file = Lfs.Create(@$"f:\tmp\200810\{taskId}.dat", flags: FileFlags.AutoCreateDirectory | FileFlags.SparseFile);
 
                                 using var sector = new XtsAesRandomAccess(file, "neko");
@@ -551,11 +1285,11 @@ namespace IPA.TestDev
                                 //using var stream = file.GetStream();
 
                                 await FileDownloader.DownloadFileParallelAsync(
-                                    "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
-                                    stream,
-                                    new FileDownloadOption(20, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
-                                    progressReporter: reporter,
-                                    cancel: c);
+                            "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
+                            stream,
+                            new FileDownloadOption(20, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
+                            progressReporter: reporter,
+                            cancel: c);
                                 //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
                                 //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
 
@@ -575,32 +1309,32 @@ namespace IPA.TestDev
                                 //}
 
                                 await AsyncAwait(async () =>
-                                {
-                                    using var file = Lfs.Open(@$"f:\tmp\200810\{taskId}.dat");
+                        {
+                            using var file = Lfs.Open(@$"f:\tmp\200810\{taskId}.dat");
 
-                                    using var sector = new XtsAesRandomAccess(file, "neko");
+                            using var sector = new XtsAesRandomAccess(file, "neko");
 
-                                    using var stream = sector.GetStream(true);
+                            using var stream = sector.GetStream(true);
 
-                                    using SHA1Managed sha1 = new SHA1Managed();
-                                    byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
-                                    if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
-                                    {
-                                        stream._SeekToBegin();
+                            using SHA1Managed sha1 = new SHA1Managed();
+                            byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
+                            if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
+                            {
+                                stream._SeekToBegin();
 
-                                        using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
-                                        using var filest = file2.GetStream();
+                                using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
+                                using var filest = file2.GetStream();
 
-                                        await stream.CopyBetweenStreamAsync(filest);
+                                await stream.CopyBetweenStreamAsync(filest);
 
-                                        throw new CoresException($"Hash different 2: {hash._GetHexString()}");
-                                    }
-                                    else
-                                    {
-                                        "Hash OK!"._Print();
-                                    }
+                                throw new CoresException($"Hash different 2: {hash._GetHexString()}");
+                            }
+                            else
+                            {
+                                "Hash OK!"._Print();
+                            }
 
-                                });
+                        });
                             }
                         }
                         catch (Exception ex)
@@ -653,11 +1387,11 @@ namespace IPA.TestDev
                             //using var stream = file.GetStream();
 
                             await FileDownloader.DownloadFileParallelAsync(
-                                "http://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
-                                stream,
-                                new FileDownloadOption(20, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
-                                progressReporter: reporter,
-                                cancel: c);
+                        "http://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
+                        stream,
+                        new FileDownloadOption(20, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
+                        progressReporter: reporter,
+                        cancel: c);
                             //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
                             //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
 
@@ -720,12 +1454,12 @@ namespace IPA.TestDev
                 return;
             }
 
-            if (true)
-            {
-                SectorBasedRandomAccessTest.Test();
+            //if (true)
+            //{
+            //    SectorBasedRandomAccessTest.Test();
 
-                return;
-            }
+            //    return;
+            //}
 
             if (false)
             {
@@ -1016,11 +1750,11 @@ namespace IPA.TestDev
                             //using var stream = file.GetStream();
 
                             await FileDownloader.DownloadFileParallelAsync(
-                                "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
-                                stream,
-                                new FileDownloadOption(maxConcurrentThreads: Util.GetRandWithPercentageInt(90), bufferSize: Util.GetRandWithPercentageInt(123457), webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
-                                progressReporter: reporter,
-                                cancel: c);
+                        "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
+                        stream,
+                        new FileDownloadOption(maxConcurrentThreads: Util.GetRandWithPercentageInt(90), bufferSize: Util.GetRandWithPercentageInt(123457), webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
+                        progressReporter: reporter,
+                        cancel: c);
                             //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
                             //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
 
@@ -2882,7 +3616,7 @@ ZIP ファイルのパスワード:
                 using (PCapPacketRecorder r = new PCapPacketRecorder(new TcpPseudoPacketGeneratorOptions(TcpDirectionType.Client, IPAddress.Parse("192.168.0.1"), 1, IPAddress.Parse("192.168.0.2"), 2)))
                 {
                     r.RegisterEmitter(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190608\test.pcapng", flags: FileFlags.AutoCreateDirectory),
-    false)));
+        false)));
 
                     var g = r.TcpGen;
 
@@ -3005,6 +3739,84 @@ ZIP ファイルのパスワード:
 
     partial class TestDevCommands
     {
+        // Data vault server
+        [ConsoleCommand]
+        static void DataVaultServerTest(ConsoleService c, string cmdName, string str)
+        {
+            using (DataVaultServerApp server = new DataVaultServerApp())
+            {
+                Con.ReadLine("Exit>");
+            }
+        }
+
+        [ConsoleCommand]
+        static void DataVaultClientTest(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[arg]", null, null, null, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string serverHostname = vl.DefaultParam.StrValue._FilledOrDefault("127.0.0.1");
+
+            PalSslClientAuthenticationOptions cliSsl = new PalSslClientAuthenticationOptions(false, null, "d471b9675b3d374d7af8828ab4276711c2a2c601");
+
+            using (DataVaultClient client = new DataVaultClient(new DataVaultClientOptions(serverHostname, "3xvTXIkPJmYoNVVzoNHgDvzQpIyffE4z", cliSsl)))
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+
+                Task testTask = TaskUtil.StartAsyncTaskAsync(async () =>
+                {
+                    await Task.CompletedTask;
+
+                    string bigData = Str.MakeCharArray('x', 100_000);
+
+                    for (int i = 0; i < 20; i++)
+                    {
+                        if (cts.IsCancellationRequested) return;
+
+                        await client.WriteDataAsync(new DataVaultData
+                        {
+                            SystemName = "tcpip_test",
+                            LogName = "alog",
+                            KeyType = "by_server_ip",
+                            KeyShortValue = "127.0.",
+                            KeyFullValue = "127.0.0.1",
+                            TimeStamp = DateTimeOffset.Now,
+                            WithTime = false,
+                            Data = new int[] { i, 1, 2, 3, 4, 5 },
+                        }
+                        );
+
+                        //Dbg.Where();
+                    }
+
+                    await client.WriteCompleteAsync(new DataVaultData
+                    {
+                        SystemName = "tcpip_test",
+                        LogName = "alog",
+                        KeyType = "by_server_ip",
+                        KeyShortValue = "127.0",
+                        KeyFullValue = "127.0.0.1",
+                        TimeStamp = DateTimeOffset.Now,
+                        WithTime = false,
+                        Data = new int[] { 0, 1, 2, 3, 4, 5 },
+                    });
+                });
+
+                Con.ReadLine("Exit>");
+
+                cts.Cancel();
+                client._CancelSafe();
+
+                testTask._TryWait();
+            }
+        }
+
+
+        // Log server
         [ConsoleCommand]
         static void LogServerTest(ConsoleService c, string cmdName, string str)
         {

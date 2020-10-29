@@ -115,7 +115,7 @@ namespace IPA.Cores.Basic
         T? CachedData = null;
         DateTime CachedTimeStamp;
         AsyncLock AsyncLock = new AsyncLock();
-        CriticalSection Lock = new CriticalSection();
+        readonly CriticalSection Lock = new CriticalSection<PersistentLocalCache<T>>();
 
         public PersistentLocalCache(string name, TimeSpan lifetime, bool ignoreUpdateError, Func<CancellationToken, Task<T>> updateProcAsync)
         {

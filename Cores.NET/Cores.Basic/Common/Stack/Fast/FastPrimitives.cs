@@ -47,7 +47,13 @@ using System.IO;
 
 namespace IPA.Cores.Basic
 {
-    public class DisconnectedException : Exception { }
+    public class DisconnectedException : Exception
+    {
+        public DisconnectedException()
+        {
+            DoNothing();
+        }
+    }
     public class FastBufferDisconnectedException : DisconnectedException { }
     public class SocketDisconnectedException : DisconnectedException { }
     public class BaseStreamDisconnectedException : DisconnectedException { }
@@ -70,7 +76,7 @@ namespace IPA.Cores.Basic
         public DatagramFlag Flag;
         public long TimeStamp;
 
-        public IPEndPoint? IPEndPoint { get => (IPEndPoint ?)EndPoint; set => EndPoint = value; }
+        public IPEndPoint? IPEndPoint { get => (IPEndPoint?)EndPoint; set => EndPoint = value; }
 
         // For UDP
         public Datagram(Memory<byte> data, EndPoint udpEndPoint, DatagramFlag flag = 0)

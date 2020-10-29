@@ -245,6 +245,29 @@ namespace IPA.Cores.Basic
 
         public static bool IsConsoleDebugMode => CoresConfig.DebugSettings.IsConsoleDebugMode();
 
+        [MethodImpl(NoInline | NoOptimization)]
+        public static string GetCurrentExecutingPositionInfoString(int skip = 0, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool onlyClassName = false)
+        {
+            StackTrace stackTrace = new StackTrace(1 + skip, false);
+            var method = stackTrace?.GetFrame(0)?.GetMethod();
+            Type? type = method?.DeclaringType;
+
+            string className = type?.Name ?? "UnknownClass";
+
+            if (className.StartsWith("<"))
+            {
+                // await 自動生成関数
+                type = type?.DeclaringType;
+                className = type?.Name ?? "UnknownClass";
+            }
+
+            if (onlyClassName) return className;
+
+            string functionName = caller._FilledOrDefault("UnknownFunction");
+
+            return $"{className} {functionName}";
+        }
+
         public static string WriteLine()
         {
             if (Dbg.IsDebugMode == false) return "";
@@ -383,7 +406,7 @@ namespace IPA.Cores.Basic
 
                     if (p.ExitCode == 0)
                     {
-                        Con.WriteError("Git is supported.");
+                        Con.WriteInfo("Git is supported.");
                         return true;
                     }
                     else
@@ -1276,6 +1299,8 @@ namespace IPA.Cores.Basic
             }
 
             static OldSingleton<IntervalReporter> thread_pool_stat_reporter;
+
+            [Obsolete]
             public static IntervalReporter StartThreadPoolStatReporter()
             {
                 return thread_pool_stat_reporter.CreateOrGet(() =>
@@ -1316,7 +1341,7 @@ namespace IPA.Cores.Basic
         {
             static readonly Task MainTask;
 
-            static CriticalSection LockObj = new CriticalSection();
+            static readonly CriticalSection LockObj = new CriticalSection();
 
             static double _CpuUsageSingle = 0.0;
             static double _CpuUsageTotal = 0.0;
@@ -1388,10 +1413,14 @@ namespace IPA.Cores.Basic
 
         public static bool NextTimeCallGc { get; internal set; } = false;
 
-        public void Refresh()
+        public void Refresh(bool forceGc = false)
         {
-            bool flag = NextTimeCallGc;
-            NextTimeCallGc = false;
+            bool flag = forceGc || NextTimeCallGc;
+
+            if (forceGc == false)
+            {
+                NextTimeCallGc = false;
+            }
 
             if (flag)
             {
@@ -1527,6 +1556,7 @@ namespace IPA.Cores.Basic
         IpConnectionRateLimiterTryEnterHolder,
         AsyncAwaitScoped,
         AsyncPulseRegisteredEvent,
+        AsyncScoped,
     }
 
     public class LeakCheckerResult

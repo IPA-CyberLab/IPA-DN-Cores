@@ -62,6 +62,10 @@ namespace IPA.Cores.Globals
             return 0;
         }
 
+        public const MethodImplOptions NoOptimization = MethodImplOptions.NoOptimization;
+
+        public const MethodImplOptions NoInline = MethodImplOptions.NoInlining;
+
         public const MethodImplOptions Inline = MethodImplOptions.AggressiveInlining | (MethodImplOptions)512 /* AggressiveOptimization */;
 
         public static int DoNothing() => NoOp();
@@ -144,6 +148,62 @@ namespace IPA.Cores.Globals
                 }
             },
             LeakCounterKind.AsyncAwaitScoped);
+
+            return h;
+        }
+
+        [MethodImpl(Inline)]
+        public static IDisposable AsyncScoped(Func<CancellationToken, Task> asyncFunc, bool noErrorMessage = false)
+        {
+            CancellationTokenSource cts = new CancellationTokenSource();
+
+            Task task = asyncFunc(cts.Token);
+
+            AsyncHolder h = new AsyncHolder(async () =>
+            {
+                cts._TryCancelNoBlock();
+
+                try
+                {
+                    await task;
+                }
+                catch (Exception ex)
+                {
+                    if (noErrorMessage == false)
+                    {
+                        ex._Debug();
+                    }
+                }
+            },
+            LeakCounterKind.AsyncScoped);
+
+            return h;
+        }
+
+        [MethodImpl(Inline)]
+        public static IDisposable AsyncScoped<T>(Func<CancellationToken, Task<T>> asyncFunc, bool noErrorMessage = false)
+        {
+            CancellationTokenSource cts = new CancellationTokenSource();
+
+            Task<T> task = asyncFunc(cts.Token);
+
+            AsyncHolder h = new AsyncHolder(async () =>
+            {
+                cts._TryCancelNoBlock();
+
+                try
+                {
+                    await task;
+                }
+                catch (Exception ex)
+                {
+                    if (noErrorMessage == false)
+                    {
+                        ex._Debug();
+                    }
+                }
+            },
+            LeakCounterKind.AsyncScoped);
 
             return h;
         }
@@ -237,6 +297,12 @@ namespace IPA.Cores.Globals
         {
             [MethodImpl(Inline)]
             get => Task.CompletedTask;
+        }
+
+        [MethodImpl(NoInline | NoOptimization)]
+        public static string StackInfo([CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            return Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller);
         }
 
         public static void For(int count, Action<int> action)

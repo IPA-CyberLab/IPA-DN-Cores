@@ -56,8 +56,8 @@ namespace IPA.Cores.Basic
         public const int SHA256Size = 32;
         public const int SHA512Size = 64;
         public const int MD5Size = 16;
-        readonly static CriticalSection RandLock = new CriticalSection();
-        readonly static CriticalSection MD5Lock = new CriticalSection();
+        readonly static CriticalSection RandLock = new CriticalSection<Secure>();
+        readonly static CriticalSection MD5Lock = new CriticalSection<Secure>();
 
         public static byte[] Rand(int size) { byte[] r = new byte[size]; Rand(r); return r; }
 
@@ -280,7 +280,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public static async Task<byte[]> CalcStreamHashAsync(Stream stream, HashAlgorithm hash, long truncateSize = long.MaxValue, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, CancellationToken cancel = default)
+        public static async Task<byte[]> CalcStreamHashAsync(Stream stream, HashAlgorithm hash, long truncateSize = long.MaxValue, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalReadSize = null, CancellationToken cancel = default)
         {
             checked
             {
@@ -306,7 +306,7 @@ namespace IPA.Cores.Basic
                     {
                         break;
                     }
-                    
+
                     Debug.Assert(readSize <= tryReadSize);
 
                     hash.TransformBlock(buffer, 0, readSize, null, 0);
@@ -323,6 +323,8 @@ namespace IPA.Cores.Basic
                 hash.TransformFinalBlock(buffer, 0, 0);
 
                 ArrayPool<byte>.Shared.Return(buffer);
+
+                totalReadSize?.Set(currentSize);
 
                 return hash.Hash;
             }

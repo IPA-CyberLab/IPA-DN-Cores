@@ -41,7 +41,7 @@ namespace IPA.Cores.Basic.Legacy
 {
     public class FileLogger
     {
-        CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<FileLogger>();
         string? logDir;
         string lastFileName;
         IO? fs;

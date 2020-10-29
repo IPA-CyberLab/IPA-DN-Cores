@@ -213,6 +213,66 @@ namespace IPA.Cores.Basic
                 catch { }
             }
         }
+
+        readonly Dictionary<string, string> CommandNamdToFullPathCache = new Dictionary<string, string>();
+
+        // UNIX におけるコマンド名からフルパスを取得する (指定されたファイル名がフルパスとして見つからない場合)
+        public string UnixGetFullPathFromCommandName(string commandName)
+        {
+            if (Env.IsUnix == false) throw new ArgumentException("Env.IsUnix == false");
+            if (commandName._IsEmpty()) throw new ArgumentException(nameof(commandName));
+
+            commandName = commandName.Trim();
+
+            if (this.PathParser.IsAbsolutePath(commandName))
+            {
+                if (Lfs.IsFileExists(commandName))
+                {
+                    // 最初から指定されたフルパスが存在する
+                    return commandName;
+                }
+
+                // 指定されたフルパスにファイルが存在しない。コマンド名だけを取り出して解決しようと試みる。
+                commandName = this.PathParser.GetFileName(commandName);
+            }
+
+            lock (CommandNamdToFullPathCache)
+            {
+                return CommandNamdToFullPathCache._GetOrNew(commandName, () =>
+                {
+                    string fullPath = UnixGetFullPathFromCommandNameInternal(commandName);
+
+                    if (fullPath._IsEmpty())
+                    {
+                        throw new CoresException($"The full path of UNIX command '{commandName}' not found.");
+                    }
+
+                    return fullPath;
+                });
+            }
+        }
+
+        string UnixGetFullPathFromCommandNameInternal(string commandName)
+        {
+            if (Env.IsUnix == false) throw new ArgumentException("Env.IsUnix == false");
+            if (commandName._IsEmpty()) throw new ArgumentException(nameof(commandName));
+
+            try
+            {
+                foreach (var dir in Consts.LinuxPaths.BasicBinDirList)
+                {
+                    string fpath = this.PathParser.Combine(dir, commandName);
+
+                    if (this.IsFileExists(fpath))
+                    {
+                        return fpath;
+                    }
+                }
+            }
+            catch { }
+
+            return "";
+        }
     }
 }
 

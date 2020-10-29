@@ -53,6 +53,7 @@ namespace IPA.Cores.Basic
         public bool RecordLeakFullStack { get; private set; }
         public bool NohupMode { get; private set; }
         public bool NoTelnetMode { get; private set; }
+        public bool ShowVersion { get; private set; }
         public CoresMode Mode { get; private set; }
         public string AppName { get; }
 
@@ -85,6 +86,7 @@ namespace IPA.Cores.Basic
             procs.Add(("fullleak", false, (name, next) => { this.RecordLeakFullStack = true; }));
             procs.Add(("nohup", false, (name, next) => { this.NohupMode = true; }));
             procs.Add(("notelnet", false, (name, next) => { this.NoTelnetMode = true; }));
+            procs.Add(("version", false, (name, next) => { this.ShowVersion = true; }));
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -199,6 +201,24 @@ namespace IPA.Cores.Basic
 
                 string[] newArgs = options.OverrideOptionsByArgs(args);
 
+                if (options.ShowVersion)
+                {
+                    // Show version
+                    Console.WriteLine($"{options.AppName} {options.Mode}");
+                    Console.WriteLine();
+
+                    var vals = Env.GetCoresEnvValuesList();
+
+                    foreach (var kv in vals)
+                    {
+                        Console.WriteLine($"  {kv.Key}: {kv.Value}");
+                    }
+
+                    Console.WriteLine();
+                    
+                    Environment.Exit(0);
+                }
+
                 if (SetDebugModeOnce.IsFirstCall())
                 {
                     Dbg.SetDebugMode(options.DebugMode, options.PrintStatToConsole, options.RecordLeakFullStack);
@@ -254,6 +274,8 @@ namespace IPA.Cores.Basic
         static void InitModules(CoresLibOptions options)
         {
             // Initialize
+            ThreadPoolConfigUtil.Module.Init();
+
             LeakChecker.Module.Init();
 
             CoresLocalDirs.Module.Init();
@@ -337,6 +359,8 @@ namespace IPA.Cores.Basic
             CoresLocalDirs.Module.Free();
 
             LeakCheckerResult leakCheckerResult = LeakChecker.Module.Free();
+
+            ThreadPoolConfigUtil.Module.Free();
 
             // Print the leak results
             if (Dbg.IsConsoleDebugMode)

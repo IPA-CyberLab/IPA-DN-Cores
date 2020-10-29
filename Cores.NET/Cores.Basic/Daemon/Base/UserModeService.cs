@@ -92,7 +92,7 @@ namespace IPA.Cores.Basic
         public Action OnStart { get; }
         public Action OnStop { get; }
 
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<UserModeService>();
 
         readonly Hive Hive;
         readonly HiveData<UserModeServicePidData> HiveData;

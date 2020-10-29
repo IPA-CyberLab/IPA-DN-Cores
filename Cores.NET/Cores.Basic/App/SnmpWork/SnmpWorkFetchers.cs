@@ -59,6 +59,60 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    public class SnmpWorkFetcherSensor : SnmpWorkFetcherBase
+    {
+        Sensor Sensor = null!;
+
+        public SnmpWorkFetcherSensor(SnmpWorkHost host, SnmpWorkSensorSetting setting) : base(host, setting)
+        {
+        }
+
+        protected override void InitImpl(object? param = null)
+        {
+            SnmpWorkSensorSetting setting = (SnmpWorkSensorSetting)param!;
+
+            Sensor sensor = SensorsFactory.Create(setting.SensorName, setting.SensorTitle, setting.SensorArguments);
+
+            this.Sensor = sensor;
+
+            Sensor.StartAsync()._GetResult();
+        }
+
+        protected override async Task GetValueAsync(SortedDictionary<string, string> ret, RefInt nextPollingInterval, CancellationToken cancel = default)
+        {
+            await Task.Yield();
+
+            var data = Sensor.CurrentData;
+
+            foreach (var item in data.ValueList)
+            {
+                if (item.Value._IsFilled())
+                {
+                    string key = "value";
+
+                    if (item.Key._IsFilled())
+                    {
+                        key = item.Key.Trim();
+                    }
+
+                    ret.TryAdd(key, item.Value);
+                }
+            }
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                await this.Sensor._DisposeSafeAsync();
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
+        }
+    }
+
     public class SnmpWorkFetcherBird : SnmpWorkFetcherBase
     {
         bool isBirdcExists = false;
@@ -68,7 +122,7 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override void InitImpl()
+        protected override void InitImpl(object? param = null)
         {
             isBirdcExists = Lfs.IsFileExists(Consts.LinuxCommands.Birdc);
             isBirdc6Exists = Lfs.IsFileExists(Consts.LinuxCommands.Birdc6);
@@ -213,7 +267,7 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override void InitImpl()
+        protected override void InitImpl(object? param = null)
         {
         }
 
@@ -320,7 +374,7 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override void InitImpl()
+        protected override void InitImpl(object? param = null)
         {
         }
 
@@ -440,7 +494,7 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override void InitImpl()
+        protected override void InitImpl(object? param = null)
         {
         }
 
@@ -595,7 +649,7 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override void InitImpl()
+        protected override void InitImpl(object? param = null)
         {
             // ConnTrack コマンドが利用可能かどうか確認
             if (EasyExec.ExecAsync(Consts.LinuxCommands.ConnTrack, "-C")._TryGetResult() != default)
@@ -721,7 +775,7 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override void InitImpl() { }
+        protected override void InitImpl(object? param = null) { }
 
         protected override async Task GetValueAsync(SortedDictionary<string, string> ret, RefInt nextPollingInterval, CancellationToken cancel = default)
         {
@@ -766,7 +820,7 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override void InitImpl() { }
+        protected override void InitImpl(object? param = null) { }
 
         protected override async Task GetValueAsync(SortedDictionary<string, string> ret, RefInt nextPollingInterval, CancellationToken cancel = default)
         {
@@ -834,7 +888,7 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override void InitImpl()
+        protected override void InitImpl(object? param = null)
         {
             // sensors コマンドが利用可能かどうか確認
             if (EasyExec.ExecAsync(Consts.LinuxCommands.Sensors, "-u")._TryGetResult() != default)
@@ -987,7 +1041,7 @@ namespace IPA.Cores.Basic
             DoNothing();
         }
 
-        protected override void InitImpl()
+        protected override void InitImpl(object? param = null)
         {
         }
 

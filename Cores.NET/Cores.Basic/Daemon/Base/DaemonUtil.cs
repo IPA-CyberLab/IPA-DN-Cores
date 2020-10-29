@@ -33,7 +33,7 @@
 // Author: Daiyuu Nobori
 // Daemon と共に付随して動作する管理補助的ユーティリティ
 
-#if CORES_BASIC_DAEMON && CORES_BASIC_HTTPSERVER
+#if CORES_BASIC_DAEMON && (CORES_BASIC_WEBAPP || CORES_BASIC_HTTPSERVER)
 
 using System;
 using System.IO;

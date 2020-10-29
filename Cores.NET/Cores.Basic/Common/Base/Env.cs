@@ -44,6 +44,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Threading;
 
 namespace IPA.Cores.Basic
 {
@@ -276,8 +277,31 @@ namespace IPA.Cores.Basic
                 // プログラムのあるディレクトリから 1 つずつ遡ってアプリケーションの root ディレクトリを取得する
                 string tmp = AppExecutableExeOrDllFileDir;
 
+                bool isSingleFileBinary = false;
+
                 string tmp2 = AppExecutableExeOrDllFileDir._ReplaceStr("\\", "/");
                 if (tmp2._InStr("/tmp/.net/", true) || tmp2._InStr("/temp/.net/", true))
+                {
+                    // temp ディレクトリ上で動作しておる
+                    isSingleFileBinary = true;
+                }
+                else
+                {
+                    try
+                    {
+                        var fi = new FileInfo(AppRealProcessExeFileName);
+                        if (fi.Length >= 50_000_000)
+                        {
+                            // EXE ファイルのサイズが 50MB を超えている。これはきっと、 PublishSingleFile で生成されたファイルに違いない。
+                            // .NET Core 3.1 では、これくらいしか 見分ける方法がありません !!
+                            // https://github.com/dotnet/runtime/issues/13481
+                            isSingleFileBinary = true;
+                        }
+                    }
+                    catch { }
+                }
+
+                if (isSingleFileBinary)
                 {
                     // dotnet publish で -p:PublishSingleFile=true で生成されたファイルである。
                     // この場合、AppExecutableExeOrDllFileDir は一時ディレクトリを指しているので、
@@ -542,6 +566,41 @@ namespace IPA.Cores.Basic
         public static void PutGitIgnoreFileOnAppLocalDirectory()
         {
             Util.PutGitIgnoreFileOnDirectory(Lfs.PathParser.Combine(Env.AppLocalDir));
+        }
+
+        public static KeyValueList<string, string> GetCoresEnvValuesList()
+        {
+            KeyValueList<string, string> vals = new KeyValueList<string, string>();
+
+            vals.Add("BuildConfigurationName", Env.BuildConfigurationName);
+            vals.Add("FrameworkInfoString", Env.FrameworkInfoString);
+            vals.Add("OsInfoString", Env.OsInfoString);
+            vals.Add("CpuInfo", Env.CpuInfo.ToString());
+            vals.Add("NumCpus", Env.NumCpus.ToString());
+            vals.Add("UserNameEx", Env.UserNameEx);
+            vals.Add("MachineName", Env.MachineName);
+            vals.Add("IsWindows", Env.IsWindows.ToString());
+            vals.Add("IsUnix", Env.IsUnix.ToString());
+            vals.Add("IsMac", Env.IsMac.ToString());
+            vals.Add("Is64BitProcess", Env.Is64BitProcess.ToString());
+            vals.Add("IsWow64", Env.IsWow64.ToString());
+            vals.Add("IsUnix", Env.IsUnix.ToString());
+            vals.Add("IsHostedByDotNetProcess", Env.IsHostedByDotNetProcess.ToString());
+            vals.Add("GcMode", Env.GcMode.ToString());
+            vals.Add("GcCompactionMode", Env.GcCompactionMode.ToString());
+            vals.Add("GcLatencyMode", Env.GcLatencyMode.ToString());
+            vals.Add("AppRealProcessExeFileName", Env.AppRealProcessExeFileName);
+            vals.Add("AppExecutableExeOrDllFileName", Env.AppExecutableExeOrDllFileName);
+            vals.Add("AppExecutableExeOrDllFileDir", Env.AppExecutableExeOrDllFileDir);
+            vals.Add("AppRootDir", Env.AppRootDir);
+
+            ThreadPool.GetMinThreads(out int minWorkerThreads, out int minCompletionPortThreads);
+            ThreadPool.GetMaxThreads(out int maxWorkerThreads, out int maxCompletionPortThreads);
+
+            vals.Add("MinThreads", $"WorkerThreads = {minWorkerThreads}, CompletionPortThreads = {minCompletionPortThreads}");
+            vals.Add("MaxThreads", $"WorkerThreads = {maxWorkerThreads}, CompletionPortThreads = {maxCompletionPortThreads}");
+
+            return vals;
         }
     }
 

@@ -997,6 +997,8 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public static IReadOnlyList<Encoding> SuitableEncodingListForJapaneseWin32;
+
         // Encoding の初期化
         static Str()
         {
@@ -1012,6 +1014,13 @@ namespace IPA.Cores.Basic
             Utf8Encoding = Encoding.UTF8;
             UniEncoding = Encoding.Unicode;
             BomUtf8 = Str.GetBOM(Str.Utf8Encoding)!;
+
+            var suitableEncodingListForJapaneseWin32 = new List<Encoding>();
+            suitableEncodingListForJapaneseWin32.Add(ShiftJisEncoding);
+            suitableEncodingListForJapaneseWin32.Add(AsciiEncoding);
+            suitableEncodingListForJapaneseWin32.Add(Utf8Encoding);
+
+            SuitableEncodingListForJapaneseWin32 = suitableEncodingListForJapaneseWin32;
         }
 
         internal static readonly char[] standardSplitChars =
@@ -1027,8 +1036,130 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static CriticalSection LockNewId = new CriticalSection();
+
+        // 指定されたエンコード一覧を順に試行し、最初に表現可能なエンコードを返す
+        public static Encoding GetBestSuitableEncoding(string str, IEnumerable<Encoding?>? canditateList = null)
+        {
+            if (canditateList == null) canditateList = SuitableEncodingListForJapaneseWin32;
+
+            foreach (var candidate in canditateList)
+            {
+                if (candidate != null)
+                {
+                    if (IsSuitableEncodingForString(str, candidate))
+                    {
+                        return candidate;
+                    }
+                }
+            }
+
+            return Str.Utf8Encoding;
+        }
+
+        static readonly CriticalSection LockNewId = new CriticalSection();
         static ulong LastNewIdMSecs = 0;
+
+        // 指定されたディレクトリ名が "YYMMDD_なんとか" または "YYMMDD なんとか" または "YYYYMMDD_なんとか" または "YYYYMMDD なんとか" である場合は日付を返す
+        static readonly char[] YymmddSplitChars = new char[] { '_', ' ', '　', '\t' };
+        public static bool TryParseYYMMDDDirName(string name, out DateTime date)
+        {
+            date = default;
+
+            name = name._TrimNonNull();
+
+            int r = name.IndexOfAny(YymmddSplitChars);
+            if ((r == 6 || r == 8) && name.Substring(0, r).All(x => x >= '0' && x <= '9'))
+            {
+                name = name.Substring(0, r);
+            }
+            else
+            {
+                if (name.Length >= 7 && name.Substring(0, 6).All(x => x >= '0' && x <= '9') && (!(name[6] >= '0' && name[6] <= '9')))
+                {
+                    name = name.Substring(0, 6);
+                }
+                else if (name.Length >= 9 && name.Substring(0, 8).All(x => x >= '0' && x <= '9') && (!(name[8] >= '0' && name[8] <= '9')))
+                {
+                    name = name.Substring(0, 8);
+                }
+            }
+
+            return TryParseYYMMDD(name, out date);
+        }
+
+        // YYMMDD または YYYYMMDD をパースする
+        public static bool TryParseYYMMDD(string str, out DateTime date)
+        {
+            date = default;
+
+            try
+            {
+                if (str.Length == 6 && str.All(x => x >= '0' && x <= '9'))
+                {
+                    if (str == "000000")
+                    {
+                        date = Util.ZeroDateTimeValue;
+                        return true;
+                    }
+
+                    if (str == "999999")
+                    {
+                        date = Util.MaxDateTimeValue;
+                        return true;
+                    }
+
+
+                    int year = str.Substring(0, 2)._ToInt();
+                    int month = str.Substring(2, 2)._ToInt();
+                    int day = str.Substring(4, 2)._ToInt();
+
+                    date = new DateTime(year + 2000, month, day);
+                    return true;
+                }
+                else if (str.Length == 8 && str.All(x => x >= '0' && x <= '9'))
+                {
+                    if (str == "00000000")
+                    {
+                        date = Util.ZeroDateTimeValue;
+                        return true;
+                    }
+
+                    if (str == "99999999")
+                    {
+                        date = Util.MaxDateTimeValue;
+                        return true;
+                    }
+
+                    int year = str.Substring(0, 4)._ToInt();
+                    int month = str.Substring(4, 2)._ToInt();
+                    int day = str.Substring(6, 2)._ToInt();
+
+                    date = new DateTime(year, month, day);
+                    return true;
+                }
+            }
+            catch { }
+
+            return false;
+        }
+
+        // 複数のワイルドカードパターンにある文字列が一致するかどうか検査
+        public static bool MultipleWildcardMatch(string targetStr, string multipleWildcard, bool ignoreCase = false)
+        {
+            var wildCardList = multipleWildcard._Split(StringSplitOptions.RemoveEmptyEntries, "|", ",", ";", " ").Where(x => x._IsFilled());
+
+            if (wildCardList.Any() == false) return false;
+
+            foreach (string wildcard in wildCardList)
+            {
+                if (WildcardMatch(targetStr, wildcard, ignoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
 
         // ワイルドカード一致検査
         public static bool WildcardMatch(string targetStr, string wildcard, bool ignoreCase = false)
@@ -2531,6 +2662,29 @@ namespace IPA.Cores.Basic
             if (toZenkakuKana)
             {
                 str = KanaHankakuToZenkaku(str);
+            }
+        }
+
+        // 指定した文字幅に満ちるまでスペースを追加する
+        public static string AddSpacePadding(string? srcStr, int totalWidth, bool addOnLeft = false, char spaceChar = ' ')
+        {
+            srcStr = srcStr._NonNull();
+
+            int spaceCount = 0;
+
+            int strWidth = Str.GetStrWidth(srcStr);
+            if (strWidth < totalWidth)
+            {
+                spaceCount = totalWidth - strWidth;
+            }
+
+            if (addOnLeft == false)
+            {
+                return srcStr + Str.MakeCharArray(spaceChar, spaceCount);
+            }
+            else
+            {
+                return Str.MakeCharArray(spaceChar, spaceCount) + srcStr;
             }
         }
 
@@ -4459,8 +4613,24 @@ namespace IPA.Cores.Basic
             return ByteToStr(Secure.HashSHA1(Guid.NewGuid().ToByteArray()));
         }
 
+        // 新しい数字だけのパスワードを生成
+        public static string GenRandNumericPassword(int count = 16)
+        {
+            count._SetMax(4);
+
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < count; i++)
+            {
+                int r = Secure.RandSInt31();
+                char c = (char)('0' + (r % 10));
+                sb.Append(c);
+            }
+
+            return sb.ToString();
+        }
+
         // 新しいパスワードを生成
-        public static string GenRandPassword(int count = 16)
+        public static string GenRandPassword(int count = 16, bool mustHaveOneUnderBar = true)
         {
             count._SetMax(4);
 
@@ -4487,7 +4657,10 @@ namespace IPA.Cores.Basic
                     sb.Append(c);
                 }
 
-                sb[Secure.RandSInt31() % (sb.Length - 2) + 1] = '_';
+                if (mustHaveOneUnderBar)
+                {
+                    sb[Secure.RandSInt31() % (sb.Length - 2) + 1] = '_';
+                }
 
                 string ret = sb.ToString();
 
@@ -4623,6 +4796,7 @@ namespace IPA.Cores.Basic
         // ファイルサイズ文字列
         public static string GetFileSizeStr(long size)
         {
+            size = Math.Min(size, long.MaxValue);
             if (size >= 1099511627776L)
             {
                 return ((double)(size) / 1024.0f / 1024.0f / 1024.0f / 1024.0f).ToString(".00") + " TB";
@@ -5941,9 +6115,13 @@ namespace IPA.Cores.Basic
         }
 
         // 複数行をテキストに変換する
-        public static string LinesToStr(IEnumerable<string> lines)
+        public static string LinesToStr(IEnumerable<string> lines, string? newLineStr = null)
         {
             StringWriter sw = new StringWriter();
+            if (newLineStr._IsNullOrZeroLen() == false)
+            {
+                sw.NewLine = newLineStr;
+            }
             foreach (string s in lines)
             {
                 sw.WriteLine(s);

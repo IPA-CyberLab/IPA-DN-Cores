@@ -258,7 +258,7 @@ namespace IPA.Cores.Basic
 
         public List<Action> OnDisconnected { get; } = new List<Action>();
 
-        public CriticalSection LockObj { get; } = new CriticalSection();
+        public CriticalSection LockObj { get; } = new CriticalSection<FastStreamBuffer<T>>();
 
         public ExceptionQueue ExceptionQueue { get; } = new ExceptionQueue();
         public LayerInfo Info { get; } = new LayerInfo();
@@ -683,6 +683,15 @@ namespace IPA.Cores.Basic
             EventListeners.Fire(this, FastBufferCallbackEventType.Written);
             if (Length != 0 && oldLen == 0)
                 EventListeners.Fire(this, FastBufferCallbackEventType.EmptyToNonEmpty);
+        }
+
+        public void EnqueueWithLock(ReadOnlyMemory<T> item, bool completeWrite = false)
+        {
+            lock (LockObj)
+                Enqueue(item);
+
+            if (completeWrite)
+                CompleteWrite();
         }
 
         public void EnqueueAllWithLock(ReadOnlySpan<ReadOnlyMemory<T>> itemList, bool completeWrite = false)
@@ -1300,7 +1309,7 @@ namespace IPA.Cores.Basic
 
         public static readonly long DefaultThreshold = CoresConfig.FastBufferConfig.DefaultFastDatagramBufferThreshold;
 
-        public CriticalSection LockObj { get; } = new CriticalSection();
+        public CriticalSection LockObj { get; } = new CriticalSection<FastDatagramBuffer<T>>();
 
         public ExceptionQueue ExceptionQueue { get; } = new ExceptionQueue();
         public LayerInfo Info { get; } = new LayerInfo();
@@ -1576,6 +1585,7 @@ namespace IPA.Cores.Basic
     {
         DiscardExistingData = 0,
         DiscardWritingData,
+        ForceWrite,
     }
 
     public static class FastStreamBufferHelper
@@ -1613,7 +1623,7 @@ namespace IPA.Cores.Basic
 
                         ret = totalSizeToInsert;
                     }
-                    else
+                    else if (mode == FastStreamNonStopWriteMode.DiscardWritingData)
                     {
                         long freeSpace = buffer.SizeWantToBeWritten;
                         if (freeSpace == 0) return 0;
@@ -1623,6 +1633,16 @@ namespace IPA.Cores.Basic
                         buffer.EnqueueAll(itemToInsert);
 
                         ret = totalSizeToInsert;
+                    }
+                    else
+                    {
+                        ret = 0;
+                        foreach (var m in itemList)
+                        {
+                            ret += m.Length;
+                        }
+
+                        buffer.EnqueueAll(itemList);
                     }
                 }
             }

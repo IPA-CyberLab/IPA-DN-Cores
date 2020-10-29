@@ -357,13 +357,53 @@ namespace IPA.Cores.Helper.Basic
         public static object _Old_XmlToObjectPublic(this string s, Type t) => Str.XMLToObjectSimple_PublicLegacy(s, t);
         public static StrToken _ToToken(this string s, string splitStr = " ,\t\r\n") => new StrToken(s, splitStr);
         public static string _OneLine(this string s, string splitter = " / ") => Str.OneLine(s, splitter);
+        public static string _OneLine(this IEnumerable<string> s, string splitter = " / ") => Str.OneLine(s._Combine(Str.NewLine_Str_Local), splitter);
         public static string _GetFirstFilledLineFromLines(this string src) => Str.GetFirstFilledLineFromLines(src);
+        public static string _GetFirstFilledLineFromLines(this IEnumerable<string> src) => Str.GetFirstFilledLineFromLines(src._Combine(Str.NewLine_Str_Local));
         public static string _FormatC(this string s) => Str.FormatC(s);
         public static string _FormatC(this string s, params object[] args) => Str.FormatC(s, args);
         public static void _Printf(this string s) => Str.Printf(s, new object[0]);
         public static void _Printf(this string s, params object[] args) => Str.Printf(s, args);
         public static string? _Print(this string? s) { Con.WriteLine(s); return s; }
         public static string? _Debug(this string? s) { Dbg.WriteLine(s); return s; }
+
+        [MethodImpl(NoInline | NoOptimization)]
+        public static string? _ErrorFunc(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            $"{Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller, onlyClassName: false)}: {s._NonNull()}"._Error();
+            return s;
+        }
+        [MethodImpl(NoInline | NoOptimization)]
+        public static string? _ErrorClass(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            $"{Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller, onlyClassName: true)}: {s._NonNull()}"._Error();
+            return s;
+        }
+        [MethodImpl(NoInline | NoOptimization)]
+        public static string? _PrintFunc(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            $"{Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller, onlyClassName: false)}: {s._NonNull()}"._Print();
+            return s;
+        }
+        [MethodImpl(NoInline | NoOptimization)]
+        public static string? _PrintClass(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            $"{Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller, onlyClassName: true)}: {s._NonNull()}"._Print();
+            return s;
+        }
+        [MethodImpl(NoInline | NoOptimization)]
+        public static string? _DebugFunc(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            $"{Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller, onlyClassName: false)}: {s._NonNull()}"._Debug();
+            return s;
+        }
+        [MethodImpl(NoInline | NoOptimization)]
+        public static string? _DebugClass(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            $"{Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller, onlyClassName: true)}: {s._NonNull()}"._Debug();
+            return s;
+        }
+
         public static int _Search(this string s, string keyword, int start = 0, bool caseSenstive = false) => Str.SearchStr(s, keyword, start, caseSenstive);
         public static long _CalcKeywordMatchPoint(this string targetStr, string keyword, StringComparison comparison = StringComparison.OrdinalIgnoreCase) => Str.CalcKeywordMatchPoint(targetStr, keyword, comparison);
         public static string _TrimCrlf(this string? s) => Str.TrimCrlf(s);
@@ -378,6 +418,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _NormalizeSoftEther(this string? s, bool trim = false) => Str.NormalizeStrSoftEther(s, trim);
         public static string[] _DivideStringByMultiKeywords(this string str, bool caseSensitive, params string[] keywords) => Str.DivideStringMulti(str, caseSensitive, keywords);
         public static bool _IsSuitableEncodingForString(this string s, Encoding encoding) => Str.IsSuitableEncodingForString(s, encoding);
+        public static Encoding _GetBestSuitableEncoding(this string str, IEnumerable<Encoding?>? canditateList = null) => Str.GetBestSuitableEncoding(str, canditateList);
         public static bool _IsStringNumOrAlpha(this string s) => Str.IsStringNumOrAlpha(s);
         public static string _GetLeft(this string str, int len) => Str.GetLeft(str, len);
         public static string[] _SplitStringForSearch(this string str) => Str.SplitStringForSearch(str);
@@ -448,11 +489,12 @@ namespace IPA.Cores.Helper.Basic
 
         public static byte[] _NonNull(this byte[] b) { if (b == null) return new byte[0]; else return b; }
 
-        public static string _LinesToStr(this IEnumerable<string> lines) => Str.LinesToStr(lines);
+        public static string _LinesToStr(this IEnumerable<string> lines, string? newLineStr = null) => Str.LinesToStr(lines, newLineStr);
         public static string[] _UniqueToken(this IEnumerable<string> t) => Str.UniqueToken(t);
         public static List<string> _ToStrList(this IEnumerable<string> t, bool removeEmpty = false, bool distinct = false, bool distinctCaseSensitive = false)
             => Str.StrArrayToList(t, removeEmpty, distinct, distinctCaseSensitive);
         public static string _Combine(this IEnumerable<string?> t, string? sepstr = "") => Str.CombineStringArray(t, sepstr);
+        public static string _Combine(this IEnumerable<string?> t, char sepChar) => Str.CombineStringArray(t, sepChar.ToString());
 
         public static string _MakeAsciiOneLinePrintableStr(this string? src, char alternativeChar = ' ') => Str.MakeAsciiOneLinePrintableStr(src, alternativeChar);
 
@@ -660,6 +702,14 @@ namespace IPA.Cores.Helper.Basic
             return n;
         }
 
+        public static TValue _GetOrDefault<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key, TValue defaultValue)
+            where TKey : notnull
+        {
+            if (d.ContainsKey(key)) return d[key];
+            TValue n = defaultValue;
+            return n;
+        }
+
         public static TValue _GetOrNew<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key, Func<TValue> newProc)
             where TKey : notnull
         {
@@ -676,6 +726,14 @@ namespace IPA.Cores.Helper.Basic
             if (d.ContainsKey(key)) return d[key];
             TValue n = new TValue();
             d.Add(key, n);
+            return n;
+        }
+
+        public static TValue _GetOrDefault<TKey, TValue>(this SortedDictionary<TKey, TValue> d, TKey key, TValue defaultValue)
+            where TKey : notnull
+        {
+            if (d.ContainsKey(key)) return d[key];
+            TValue n = defaultValue;
             return n;
         }
 
@@ -696,8 +754,19 @@ namespace IPA.Cores.Helper.Basic
 
         //        public static void _ParseUrl(this string urlString, out Uri uri, out NameValueCollection queryString) => Str.ParseUrl(urlString, out uri, out queryString);
         public static void _ParseUrl(this string urlString, out Uri uri, out QueryStringList queryString, Encoding? encoding = null) => Str.ParseUrl(urlString, out uri, out queryString, encoding);
+        public static Uri _ParseUrl(this string urlString, out QueryStringList queryString, Encoding? encoding = null)
+        {
+            _ParseUrl(urlString, out Uri uri, out queryString, encoding);
+            return uri;
+        }
+        public static Uri _ParseUrl(this string urlString, Encoding? encoding = null) => _ParseUrl(urlString, out _, encoding);
         public static bool _TryParseUrl(this string urlString, out Uri? uri, out QueryStringList queryString, Encoding? encoding = null) => Str.TryParseUrl(urlString, out uri, out queryString, encoding);
         public static QueryStringList _ParseQueryString(this string src, Encoding? encoding = null) => Str.ParseQueryString(src, encoding);
+
+        public static Uri _CombineUrl(this string uri, string relativeUriOrAbsolutePath) => new Uri(uri._ParseUrl(), relativeUriOrAbsolutePath);
+        public static Uri _CombineUrl(this string uri, Uri relativeUri) => new Uri(uri._ParseUrl(), relativeUri);
+        public static Uri _CombineUrl(this Uri uri, string relativeUriOrAbsolutePath) => new Uri(uri, relativeUriOrAbsolutePath);
+        public static Uri _CombineUrl(this Uri uri, Uri relativeUri) => new Uri(uri, relativeUri);
 
         public static string _TryGetContentType(this System.Net.Http.Headers.HttpContentHeaders h) => (h == null ? "" : h.ContentType == null ? "" : h.ContentType.ToString()._NonNull());
         public static string _TryGetContentType(this IPA.Cores.Basic.HttpClientCore.HttpContentHeaders h) => (h == null ? "" : h.ContentType == null ? "" : h.ContentType.ToString()._NonNull());
@@ -1110,7 +1179,7 @@ namespace IPA.Cores.Helper.Basic
             if (task == null)
                 throw new ArgumentNullException("task");
 
-            var tcs = new TaskCompletionSource<T>(state);
+            var tcs = new TaskCompletionSource<T>(state, CoresConfig.TaskAsyncSettings.AsyncEventTaskCreationOption);
             task.ContinueWith(t =>
             {
                 if (t.IsFaulted)
@@ -1133,7 +1202,7 @@ namespace IPA.Cores.Helper.Basic
             if (task == null)
                 throw new ArgumentNullException("task");
 
-            var tcs = new TaskCompletionSource<int>(state);
+            var tcs = new TaskCompletionSource<int>(state, CoresConfig.TaskAsyncSettings.AsyncEventTaskCreationOption);
             task.ContinueWith(t =>
             {
                 if (t.IsFaulted)
@@ -1598,6 +1667,28 @@ namespace IPA.Cores.Helper.Basic
             {
                 T t = list2[i];
                 action(t, i);
+            }
+        }
+
+        public static async Task _DoForEachAsync<T>(this IEnumerable<T> list, Func<T, Task> action, CancellationToken cancel = default)
+        {
+            list._NullCheck();
+            List<T> list2 = list.ToList();
+            for (int i = 0; i < list2.Count; i++)
+            {
+                T t = list2[i];
+                await action(t);
+            }
+        }
+
+        public static async Task _DoForEachAsync<T>(this IEnumerable<T> list, Func<T, int, Task> action, CancellationToken cancel = default)
+        {
+            list._NullCheck();
+            List<T> list2 = list.ToList();
+            for (int i = 0; i < list2.Count; i++)
+            {
+                T t = list2[i];
+                await action(t, i);
             }
         }
 
@@ -2130,6 +2221,43 @@ namespace IPA.Cores.Helper.Basic
 
         public static RandomAccessBasedStream GetStream(this IRandomAccess<byte> target, bool disposeTarget = false)
             => new RandomAccessBasedStream(target, disposeTarget);
+
+        [MethodImpl(Inline)]
+        public static string _Slice(this string src, int start, int length) => src.Substring(start, length);
+        [MethodImpl(Inline)]
+        public static string _Slice(this string src, int start) => src.Substring(start);
+
+        [MethodImpl(Inline)]
+        public static string _SliceHead(this string src, int length) => src._Slice(0, length);
+        [MethodImpl(Inline)]
+        public static string _SliceTail(this string src, int length) => src._Slice(src.Length - length);
+
+        public static string _GetFileSizeStr(this long size) => Str.GetFileSizeStr(size);
+        public static string _GetFileSizeStr(this int size) => Str.GetFileSizeStr(size);
+        public static string _GetFileSizeStr(this ulong size) => Str.GetFileSizeStr((long)Math.Min(size, long.MaxValue));
+        public static string _GetFileSizeStr(this uint size) => Str.GetFileSizeStr(size);
+
+        [return: NotNullIfNotNull("memoryList")]
+        public static List<string>? _ToStringList(this List<Memory<byte>>? memoryList, Encoding? encoding = null)
+        {
+            if (memoryList == null) return null;
+
+            if (encoding == null) encoding = Str.Utf8Encoding;
+
+            List<string> ret = new List<string>();
+
+            memoryList._DoForEach(x => ret.Add(encoding.GetString(x.Span)));
+
+            return ret;
+        }
+
+        public static string _GetIpStrForSort(this IPAddress ip)
+        {
+            return ip.AddressFamily.ToString() + ":" + ip.GetAddressBytes()._GetHexString();
+        }
+
+        public static string _AddSpacePadding(this string? srcStr, int totalWidth, bool addOnLeft = false, char spaceChar = ' ')
+            => Str.AddSpacePadding(srcStr, totalWidth, addOnLeft, spaceChar);
     }
 }
 

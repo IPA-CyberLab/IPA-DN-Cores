@@ -47,6 +47,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Collections.Immutable;
+using System.Security.Authentication;
 
 namespace IPA.Cores.Basic
 {
@@ -55,6 +56,10 @@ namespace IPA.Cores.Basic
         public static partial class SslSettings
         {
             public static readonly Copenhagen<int> DefaultNegotiationRecvTimeout = 15 * 1000;
+
+#pragma warning disable CS0618 // 型またはメンバーが旧型式です
+            public static readonly Copenhagen<SslProtocols> DefaultSslProtocolVersions = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12 | SslProtocols.Tls13;
+#pragma warning restore CS0618 // 型またはメンバーが旧型式です
         }
     }
 
@@ -133,7 +138,7 @@ namespace IPA.Cores.Basic
         public SocketType SocketType { get; }
         public ProtocolType ProtocolType { get; }
 
-        CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<PalSocket>();
 
         public CachedProperty<bool> NoDelay { get; }
         public CachedProperty<int> LingerTime { get; }
@@ -328,7 +333,7 @@ namespace IPA.Cores.Basic
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         protected virtual void Dispose(bool disposing)
         {
-            if (DisposeFlag.IsFirstCall() && disposing)
+            if (disposing && DisposeFlag.IsFirstCall())
             {
                 IDisposable[] disposeList;
                 lock (DisposeOnDisposeList)
@@ -503,6 +508,7 @@ namespace IPA.Cores.Basic
         public PalSslValidateRemoteCertificateCallback? ValidateRemoteCertificateProc { get; set; }
         public string[] ServerCertSHAList { get; set; } = new string[0];
         public bool AllowAnyServerCert { get; set; } = false;
+        public SslProtocols SslProtocols { get; set; } = default;
 
         public readonly Copenhagen<int> NegotiationRecvTimeout = CoresConfig.SslSettings.DefaultNegotiationRecvTimeout.Value;
 
@@ -526,6 +532,7 @@ namespace IPA.Cores.Basic
                 }),
                 EncryptionPolicy = EncryptionPolicy.RequireEncryption,
                 CertificateRevocationCheckMode = X509RevocationMode.NoCheck,
+                EnabledSslProtocols = (SslProtocols == default ? CoresConfig.SslSettings.DefaultSslProtocolVersions.Value : SslProtocols),
             };
 
             if (this.ClientCertificate != null)

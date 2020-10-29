@@ -838,6 +838,25 @@ namespace IPA.Cores.Basic
             this.InvalidFileNameChars = GetInvalidFileNameChars();
         }
 
+        public bool IsFullPathExcludedByExcludeDirList(string fullPath, IEnumerable<string>? dirList = null)
+        {
+            dirList ??= Consts.FileNames.StandardExcludeDirNames;
+
+            fullPath = this.NormalizeDirectorySeparator(fullPath, true);
+
+            string[] tokens = fullPath._Split(StringSplitOptions.RemoveEmptyEntries, this.DirectorySeparator);
+
+            foreach (var token in tokens)
+            {
+                if (dirList.Any(x => x._IsSamei(token)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public string AppendDirectorySeparatorTail(string path)
         {
             path = path._NonNull();
@@ -876,11 +895,79 @@ namespace IPA.Cores.Basic
             return BuildAbsolutePathStringFromElements(SplitAbsolutePathToElementsUnixStyle(path));
         }
 
+        public string BuildRelativePathToElements(IEnumerable<string> elements)
+        {
+            return elements._Combine(this.DirectorySeparator);
+        }
+
+        public string NormalizeRelativePath(string path)
+        {
+            return BuildRelativePathToElements(SplitRelativePathToElements(path));
+        }
+
+        public string[] SplitRelativePathToElements(string path)
+        {
+            path = path._NonNull();
+
+            if (path._IsEmpty())
+            {
+                throw new ArgumentOutOfRangeException($"Path '{path}' is empty.");
+            }
+
+            if (this.IsAbsolutePath(path, true) && (PossibleDirectorySeparators.Where(x => x == path[0]).Any()) == false)
+            {
+                throw new ArgumentOutOfRangeException($"Path '{path}' is not a relative path.");
+            }
+
+            List<string> pathStack = new List<string>();
+
+            string[] tokens = path.Split(this.PossibleDirectorySeparators, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (string s in tokens)
+            {
+                string trimmed = s.Trim();
+                if (trimmed == ".") { }
+                else if (trimmed == "..")
+                {
+                    if (pathStack.Count >= 1)
+                    {
+                        if (pathStack.ElementAt(pathStack.Count - 1)._IsSamei(".."))
+                        {
+                            pathStack.Add("..");
+                        }
+                        else
+                        {
+                            pathStack.RemoveAt(pathStack.Count - 1);
+                        }
+                    }
+                    else
+                    {
+                        pathStack.Add("..");
+                    }
+                }
+                else if (trimmed.Length >= 1 && trimmed[0] == '.' && trimmed.ToCharArray().Where(c => c != '.').Any() == false)
+                {
+                    // "....." 等の '.' のみで構成される文字列
+                }
+                else
+                {
+                    pathStack.Add(s);
+                }
+            }
+
+            return pathStack.ToArray();
+        }
+
         public string[] SplitAbsolutePathToElementsUnixStyle(string path, bool allowOnWindows = false)
         {
             if (allowOnWindows == false)
             {
                 Debug.Assert(this.Style != FileSystemStyle.Windows);
+
+                if (this.Style == FileSystemStyle.Windows)
+                {
+                    throw new CoresException("SplitAbsolutePathToElementsUnixStyle: this.Style == FileSystemStyle.Windows");
+                }
             }
 
             path = path._NonNull();
@@ -967,9 +1054,6 @@ namespace IPA.Cores.Basic
         public string NormalizeDirectorySeparator(string srcPath, bool includeBackSlashForcefully = false)
         {
             srcPath = srcPath._NonNull();
-
-            if (this.Style == FileSystemStyle.Windows)
-                srcPath = srcPath.TrimStart();
 
             int mode = -1;
 
@@ -1231,10 +1315,22 @@ namespace IPA.Cores.Basic
             if (path2._IsEmpty())
                 return path1;
 
+            path1 = NormalizeDirectorySeparator(path1);
+
+            path2 = NormalizeDirectorySeparator(path2);
+            
+            if (path2._IsFilled() && !(this.IsAbsolutePath(path2, true) && (PossibleDirectorySeparators.Where(x => x == path2[0]).Any()) == false))
+            {
+                path2 = this.NormalizeRelativePath(path2);
+            }
+
             if (path2.Length >= 1)
             {
                 if (path2NeverAbsolutePath == false)
                 {
+                    if (IsAbsolutePath(path2))
+                        return path2;
+
                     if (PossibleDirectorySeparators.Where(x => x == path2[0]).Any())
                         return path2;
                 }
@@ -1576,10 +1672,11 @@ namespace IPA.Cores.Basic
     {
         public DirectoryWalker DirectoryWalker { get; }
         public PathParser PathParser { get; }
+        public PathParser PP => PathParser;
         protected FileSystemParams Params { get; }
         public bool CanWrite => Params.Mode.Bit(FileSystemMode.Writeable);
 
-        CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<FileSystem>();
         HashSet<FileBase> OpenedHandleList = new HashSet<FileBase>();
 
         public Singleton<FileSystemObjectPool> ObjectPoolForRead { get; }
@@ -2236,7 +2333,7 @@ namespace IPA.Cores.Basic
 
         Task? CurrentPollingTask = null;
 
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<FileSystemEventWatcher>();
 
         public FastEventListenerList<FileSystemEventWatcher, NonsenseEventType> EventListeners { get; } = new FastEventListenerList<FileSystemEventWatcher, NonsenseEventType>();
 

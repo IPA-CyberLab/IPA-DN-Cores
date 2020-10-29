@@ -455,7 +455,7 @@ namespace IPA.Cores.Basic
         public static readonly StaticModule Module = new StaticModule(InitModule, FreeModule);
 
         static readonly HashSet<Hive> RunningHivesList = new HashSet<Hive>();
-        static readonly CriticalSection RunningHivesListLockObj = new CriticalSection();
+        static readonly CriticalSection RunningHivesListLockObj = new CriticalSection<Hive>();
 
         static readonly string ConfigHiveDirName = Path.Combine(Env.AppRootDir, "Config", (CoresLib.Mode == CoresMode.Library ? "Lib_" : "App_") + CoresLib.AppNameFnSafe);
         static readonly string LocalConfigHiveDirName = Path.Combine(Env.AppLocalDir, "Config");
@@ -490,7 +490,7 @@ namespace IPA.Cores.Basic
                 serializer: HiveSerializerSelection.RichJson));
 
         public static readonly Singleton<string, HiveData<HiveKeyValue>> UserSettingsEx =
-            new Singleton<string, HiveData<HiveKeyValue>>(appName => new HiveData<HiveKeyValue>(SharedUserConfigHive, "AppSettings/" + appName,
+            new Singleton<string, HiveData<HiveKeyValue>>(appName => new HiveData<HiveKeyValue>(SharedUserConfigHive, "AppUserSettings/" + appName,
                 serializer: HiveSerializerSelection.RichJson));
 
 
@@ -534,7 +534,7 @@ namespace IPA.Cores.Basic
         public HiveStorageProvider StorageProvider => Options.StorageProvider;
 
         readonly Dictionary<string, IHiveData> RegisteredHiveData = new Dictionary<string, IHiveData>();
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<Hive>();
 
         readonly AsyncManualResetEvent EventWhenFirstHiveDataRegistered = new AsyncManualResetEvent();
 
@@ -610,7 +610,7 @@ namespace IPA.Cores.Basic
                 HiveSyncFlags flags = HiveSyncFlags.LoadFromFile;
 
                 if (hive.IsReadOnly == false)
-                    flags |= HiveSyncFlags.SaveToFile;
+                    flags |= HiveSyncFlags.SaveToFile | HiveSyncFlags.ForceUpdate;
 
                 // no worry for error
                 await hive.SyncWithStorageAsync(flags, true, cancel);
@@ -657,7 +657,7 @@ namespace IPA.Cores.Basic
             HiveSyncFlags flags = HiveSyncFlags.LoadFromFile;
 
             if (hiveData.IsReadOnly == false)
-                flags |= HiveSyncFlags.SaveToFile;
+                flags |= HiveSyncFlags.SaveToFile | HiveSyncFlags.ForceUpdate;
 
             // エラーを無視
             hiveData.SyncWithStorageAsync(flags, true)._GetResult();
@@ -762,12 +762,14 @@ namespace IPA.Cores.Basic
         public HiveSerializer Serializer { get; }
         public bool IsManaged { get; } = false;
         public bool IsReadOnly => this.Policy.Bit(HiveSyncPolicy.ReadOnly);
-        public CriticalSection ReaderWriterLockObj { get; } = new CriticalSection();
+        //public CriticalSection ReaderWriterLockObj { get; } = new CriticalSection(); 不要? 2020/8/15 登
+
+        Exception? InitialLoadError = null;
 
         T? DataInternal = null;
         long StorageHash = 0;
 
-        public CriticalSection DataLock { get; } = new CriticalSection();
+        public CriticalSection DataLock { get; } = new CriticalSection<HiveData<T>>();
 
         readonly AsyncLock StorageAsyncLock = new AsyncLock();
 
@@ -887,7 +889,7 @@ namespace IPA.Cores.Basic
                             catch { }
                         }
                     }
-                    catch
+                    catch (Exception initialLoadError)
                     {
                         // If the loading failed, then try create an empty one.
                         result = GetDefaultDataState();
@@ -901,6 +903,7 @@ namespace IPA.Cores.Basic
                         {
                             // Save to the storage. Perhaps there is a file on the storage, and must not be overwritten to prevent data loss.
                             this.Policy |= HiveSyncPolicy.ReadOnly;
+                            this.InitialLoadError = initialLoadError;
                         }
                     }
 
@@ -936,6 +939,8 @@ namespace IPA.Cores.Basic
 
         public async Task SyncWithStorageAsync(HiveSyncFlags flag, bool ignoreError, CancellationToken cancel = default)
         {
+            if (flag.Bit(HiveSyncFlags.SaveToFile)) flag |= HiveSyncFlags.ForceUpdate;
+
             try
             {
                 await SyncWithStorageAsyncInternal(flag, ignoreError, cancel);
@@ -969,7 +974,7 @@ namespace IPA.Cores.Basic
 
                     bool skipLoadFromFile = false;
 
-                    if (flag.Bit(HiveSyncFlags.SaveToFile) && this.Policy.Bit(HiveSyncPolicy.AutoWriteToFile))
+                    if (flag.Bit(HiveSyncFlags.SaveToFile) && (this.Policy.Bit(HiveSyncPolicy.AutoWriteToFile)|| flag.Bit(HiveSyncFlags.ForceUpdate)))
                     {
                         if (this.StorageHash != dataSnapshotState.Hash || flag.Bit(HiveSyncFlags.ForceUpdate))
                         {
@@ -1139,6 +1144,11 @@ namespace IPA.Cores.Basic
             using (await AccessLock.LockWithAwait(cancel))
             {
                 T data = await LoadDataAsync(cancel);
+
+                if (this.InitialLoadError != null)
+                {
+                    throw this.InitialLoadError;
+                }
 
                 await proc(data);
 

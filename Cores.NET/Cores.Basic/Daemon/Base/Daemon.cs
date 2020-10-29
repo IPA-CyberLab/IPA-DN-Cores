@@ -124,7 +124,7 @@ namespace IPA.Cores.Basic
         public DaemonStatus Status { get; private set; }
         public FastEventListenerList<Daemon, DaemonStatus> StatusChangedEvent { get; }
 
-        CriticalSection StatusLock = new CriticalSection();
+        readonly CriticalSection StatusLock = new CriticalSection<Daemon>();
 
         AsyncLock AsyncLock = new AsyncLock();
 
@@ -473,21 +473,29 @@ namespace IPA.Cores.Basic
 
             TelnetLocalLogWatcher? telnetWatcher = null;
 
+            // Start the TelnetLogWatcher
+            List<IPEndPoint> telnetWatcherEpList = new List<IPEndPoint>();
+
+            int localLogWatchPort = 50000 + Util.RandSInt31() % 10000;
+            telnetWatcherEpList.Add(new IPEndPoint(IPAddress.Loopback, localLogWatchPort));
+            telnetWatcherEpList.Add(new IPEndPoint(IPAddress.IPv6Loopback, localLogWatchPort));
+
             if (this.Settings.DaemonTelnetLogWatcherPort != 0 && CoresLib.Options.NoTelnetMode == false)
             {
-                telnetWatcher = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions((ip) => ip._GetIPAddressType().BitAny(IPAddressType.LocalUnicast | IPAddressType.Loopback), null,
-                    new IPEndPoint(IPAddress.Any, this.Settings.DaemonTelnetLogWatcherPort),
-                    new IPEndPoint(IPAddress.IPv6Any, this.Settings.DaemonTelnetLogWatcherPort)));
+                telnetWatcherEpList.Add(new IPEndPoint(IPAddress.Any, this.Settings.DaemonTelnetLogWatcherPort));
+                telnetWatcherEpList.Add(new IPEndPoint(IPAddress.IPv6Any, this.Settings.DaemonTelnetLogWatcherPort));
             }
+
+            telnetWatcher = new TelnetLocalLogWatcher(new TelnetStreamWatcherOptions((ip) => ip._GetIPAddressType().BitAny(IPAddressType.LocalUnicast | IPAddressType.Loopback), null, telnetWatcherEpList.ToArray()));
 
             try
             {
                 // LogClient を起動する
                 using (IDisposable logClient = StartLogClientInstallerIfEnabled())
                 {
-#if CORES_BASIC_HTTPSERVER
+#if (CORES_BASIC_WEBAPP || CORES_BASIC_HTTPSERVER)
                     using (DaemonUtil util = new DaemonUtil(this.Daemon.Name))
-#endif // CORES_BASIC_HTTPSERVER
+#endif // (CORES_BASIC_WEBAPP || CORES_BASIC_HTTPSERVER)
                     {
                         this.Daemon.Start(DaemonStartupMode.ForegroundTestMode, this.Param);
 
@@ -568,9 +576,9 @@ namespace IPA.Cores.Basic
             using (IDisposable logClient = StartLogClientInstallerIfEnabled())
             {
                 // DaemonUtil クラスを起動する
-#if CORES_BASIC_HTTPSERVER
+#if (CORES_BASIC_WEBAPP || CORES_BASIC_HTTPSERVER)
                 using (DaemonUtil util = new DaemonUtil(this.Daemon.Name))
-#endif // CORES_BASIC_HTTPSERVER
+#endif // (CORES_BASIC_WEBAPP || CORES_BASIC_HTTPSERVER)
                 {
                     // DaemonCenter クライアントを起動する (有効な場合)
                     using (IDisposable client = StartDaemonCenterClientIfEnabled())

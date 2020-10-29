@@ -34,6 +34,8 @@
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
+using System;
+using System.Diagnostics.CodeAnalysis;
 using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
@@ -51,6 +53,65 @@ namespace IPA.Cores.Basic
             catch
             {
                 return 0;
+            }
+        }
+    }
+
+    // EasyCookie ユーティリティ
+    public static class EasyCookieUtil
+    {
+        public static string SerializeObject<T>(T obj)
+        {
+            if (obj == null) return "";
+
+            MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+
+            string json = obj._ObjectToJson<T>(EnsurePresentInterface.Yes, compact: true);
+            byte[] jsonData = json._GetBytes_UTF8();
+
+            buf.Write(jsonData);
+            buf.WriteSInt64(Secure.HashSHA1AsLong(jsonData));
+
+            string cookieStr = buf.Span._EasyCompress()._Base64UrlEncode();
+
+            cookieStr = Consts.Strings.EasyCookieValuePrefix + cookieStr;
+
+            if (cookieStr.Length > Consts.MaxLens.MaxCookieSize)
+            {
+                throw new CoresLibException($"The serializing base64 length exceeds max cookie length ({cookieStr.Length} > {Consts.MaxLens.MaxCookieSize}");
+            }
+
+            return cookieStr;
+        }
+
+        [return: MaybeNull]
+        public static T DeserializeObject<T>(string? cookieStr = null)
+        {
+            try
+            {
+                if (cookieStr._IsEmpty()) return default;
+
+                if (cookieStr.StartsWith(Consts.Strings.EasyCookieValuePrefix) == false) return default;
+
+                cookieStr = cookieStr._Slice(Consts.Strings.EasyCookieValuePrefix.Length);
+
+                Span<byte> data = cookieStr._Base64UrlDecode()._EasyDecompress();
+
+                var jsonData = data._SliceHead(data.Length - sizeof(long));
+                var hash = data._SliceTail(sizeof(long))._GetSInt64();
+
+                if (Secure.HashSHA1AsLong(jsonData) != hash)
+                {
+                    return default;
+                }
+
+                string json = jsonData._GetString_UTF8();
+
+                return json._JsonToObject<T>();
+            }
+            catch
+            {
+                return default;
             }
         }
     }

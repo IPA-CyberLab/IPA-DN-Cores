@@ -174,7 +174,7 @@ namespace IPA.Cores.Basic
         Dictionary<string, SlackApi.Message[]> MessageListPerConversation = new Dictionary<string, SlackApi.Message[]>(StrComparer.IgnoreCaseComparer);
 
         readonly AsyncAutoResetEvent UpdateChannelsEvent = new AsyncAutoResetEvent();
-        readonly CriticalSection UpdateChannelsListLock = new CriticalSection();
+        readonly CriticalSection UpdateChannelsListLock = new CriticalSection<InboxSlackPerAppAdapter>();
         readonly HashSet<string> UpdateChannelsList = new HashSet<string>(StrComparer.IgnoreCaseComparer);
 
         async Task RealtimeRecvLoopAsync(CancellationToken cancel)
@@ -206,7 +206,7 @@ namespace IPA.Cores.Basic
                                     string channel = json!.channel;
                                     string type = json.type;
 
-                                    if (type._IsSamei("message") || type._IsSamei("channel_marked") || type._IsSamei("im_marked") || type._IsSamei("group_marked"))
+                                    if (type._IsSamei("message") || type._IsSamei("channel_marked") || type._IsSamei("im_marked") || type._IsSamei("group_marked") || type._IsSamei("mpim_marked"))
                                     {
                                         if (channel._IsFilled())
                                         {

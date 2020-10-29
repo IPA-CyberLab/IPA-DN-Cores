@@ -64,7 +64,7 @@ namespace IPA.Cores.Basic
 
         readonly HashSet<PipePoint> SubscribersList = new HashSet<PipePoint>();
 
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<BufferedLogRoute>();
 
         public BufferedLogRoute(string kind, LogPriority minimalPriority, LogInfoOptions infoOptions, int bufferSize) : base(kind, minimalPriority)
         {
@@ -224,7 +224,7 @@ namespace IPA.Cores.Basic
 
     public class LogRouter : AsyncService
     {
-        CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<LogRouter>();
 
         ImmutableList<LogRouteBase> RouteList = ImmutableList<LogRouteBase>.Empty;
 

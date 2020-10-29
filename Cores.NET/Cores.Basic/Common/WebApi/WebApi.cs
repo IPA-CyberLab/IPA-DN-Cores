@@ -194,13 +194,23 @@ namespace IPA.Cores.Basic
         public Encoding DefaultEncoding { get; } = null!;
         public WebApi Api { get; }
         public HttpResponseHeaders Headers { get; }
+        public HttpStatusCode StatusCode { get; }
+        public bool IsSuccessStatusCode { get; }
+        public string StatusReason { get; }
+        public string StatusCodeAndReasonString { get; }
 
-        public WebRet(WebApi api, string url, string contentType, byte[] data, HttpResponseHeaders headers)
+        public WebRet(WebApi api, string url, string contentType, byte[] data, HttpResponseHeaders headers, bool isSuccessStatusCode, HttpStatusCode statusCode, string statusReason)
         {
             this.Api = api;
             this.Url = url._NonNull();
             this.ContentType = contentType._NonNull();
             this.Headers = headers;
+
+            this.StatusCode = statusCode;
+            this.IsSuccessStatusCode = isSuccessStatusCode;
+            this.StatusReason = statusReason._NonNull();
+
+            this.StatusCodeAndReasonString = string.Format("Response status code does not indicate success: {0} ({1}).", (int)statusCode, statusReason);
 
             try
             {
@@ -273,6 +283,7 @@ namespace IPA.Cores.Basic
         public int PooledConnectionLifeTime = CoresConfig.DefaultHttpClientSettings.PooledConnectionLifeTime;
         public bool UseProxy = CoresConfig.DefaultHttpClientSettings.UseProxy;
         public bool DisableKeepAlive = false;
+        public bool DoNotThrowHttpResultError = false;
 
         public bool AllowAutoRedirect = true;
         public int MaxAutomaticRedirections = 10;
@@ -286,12 +297,12 @@ namespace IPA.Cores.Basic
     public class WebApiOptions
     {
         public WebApiSettings Settings { get; }
-        public TcpIpSystem TcpIp { get; }
+        public TcpIpSystem? TcpIp { get; }
 
-        public WebApiOptions(WebApiSettings? settings = null, TcpIpSystem? tcpIp = null)
+        public WebApiOptions(WebApiSettings? settings = null, TcpIpSystem? tcpIp = null, bool doNotUseTcpStack = false)
         {
             if (settings == null) settings = new WebApiSettings();
-            if (tcpIp == null) tcpIp = LocalNet;
+            if (tcpIp == null) tcpIp = (doNotUseTcpStack ? null : LocalNet);
 
             this.Settings = settings;
             this.TcpIp = tcpIp;
@@ -494,9 +505,11 @@ namespace IPA.Cores.Basic
 
             using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
             {
-                await ThrowIfErrorAsync(res);
+                if (this.Settings.DoNotThrowHttpResultError == false)
+                    await ThrowIfErrorAsync(res);
+
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
-                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers);
+                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers, res.IsSuccessStatusCode, res.StatusCode, res.ReasonPhrase);
             }
         }
 
@@ -511,10 +524,12 @@ namespace IPA.Cores.Basic
 
             using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
             {
-                await ThrowIfErrorAsync(res);
+                if (this.Settings.DoNotThrowHttpResultError == false)
+                    await ThrowIfErrorAsync(res);
+
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
                 string type = res.Content.Headers._TryGetContentType();
-                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers);
+                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers, res.IsSuccessStatusCode, res.StatusCode, res.ReasonPhrase);
             }
         }
 
@@ -534,9 +549,11 @@ namespace IPA.Cores.Basic
 
             using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
             {
-                await ThrowIfErrorAsync(res);
+                if (this.Settings.DoNotThrowHttpResultError == false)
+                    await ThrowIfErrorAsync(res);
+
                 byte[] data = await res.Content.ReadAsByteArrayAsync();
-                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers);
+                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers, res.IsSuccessStatusCode, res.StatusCode, res.ReasonPhrase);
             }
         }
 
@@ -567,7 +584,8 @@ namespace IPA.Cores.Basic
             HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseHeadersRead, request.Cancel);
             try
             {
-                await ThrowIfErrorAsync(res);
+                if (this.Settings.DoNotThrowHttpResultError == false)
+                    await ThrowIfErrorAsync(res);
 
                 return new WebSendRecvResponse(res, await res.Content.ReadAsStreamAsync());
             }

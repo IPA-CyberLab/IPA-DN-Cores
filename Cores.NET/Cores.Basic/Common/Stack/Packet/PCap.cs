@@ -279,7 +279,7 @@ namespace IPA.Cores.Basic
         readonly IDisposable EventRegister_Send;
         readonly IDisposable EventRegister_Recv;
 
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<PCapPipePointStreamRecorder>();
 
         long[] LastReadTailList;
 

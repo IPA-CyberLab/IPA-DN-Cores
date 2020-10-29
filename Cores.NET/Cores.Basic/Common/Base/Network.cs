@@ -67,7 +67,7 @@ namespace IPA.Cores.Basic
             int UnixCurrentPipeData;
 
             bool IsReleased = false;
-            CriticalSection ReleaseLock = new CriticalSection();
+            readonly CriticalSection ReleaseLock = new CriticalSection<SockEvent>();
 
             public SockEvent()
             {
@@ -80,11 +80,6 @@ namespace IPA.Cores.Basic
                     UnixSockList = new List<Sock>();
                     UnixApi.NewPipe(out this.UnixPipeRead, out this.UnixPipeWrite);
                 }
-            }
-
-            ~SockEvent()
-            {
-                Release();
             }
 
             public void Dispose()
@@ -651,6 +646,40 @@ namespace IPA.Cores.Basic
             byte[] data = FullRoute.BigNumberToByte(bi, a.AddressFamily);
 
             return new IPAddress(data);
+        }
+
+        // 指定した IP アドレスから先頭 2 バイトを取得 (IPv4 の場合)
+        public static string GetHead2BytesIPString(string ip)
+        {
+            return GetHead2BytesIPString(IPAddress.Parse(ip));
+        }
+        public static string GetHead2BytesIPString(IPAddress ip)
+        {
+            if (ip.AddressFamily != AddressFamily.InterNetwork)
+            {
+                throw new ArgumentException("ip.AddressFamily != AddressFamily.InterNetwork");
+            }
+
+            byte[] b = ip.GetAddressBytes();
+
+            return $"{b[0]}.{b[1]}";
+        }
+
+        // 指定した IP アドレスから先頭 1 バイトを取得 (IPv4 の場合)
+        public static string GetHead1BytesIPString(string ip)
+        {
+            return GetHead1BytesIPString(IPAddress.Parse(ip));
+        }
+        public static string GetHead1BytesIPString(IPAddress ip)
+        {
+            if (ip.AddressFamily != AddressFamily.InterNetwork)
+            {
+                throw new ArgumentException("ip.AddressFamily != AddressFamily.InterNetwork");
+            }
+
+            byte[] b = ip.GetAddressBytes();
+
+            return $"{b[0]}";
         }
 
         // IP アドレスを文字列に変換

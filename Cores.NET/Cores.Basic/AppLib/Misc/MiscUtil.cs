@@ -57,10 +57,202 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using Castle.Core.Logging;
 using Microsoft.Extensions.Options;
+using System.Xml;
 
 namespace IPA.Cores.Basic
 {
-    // JSON をパースするとこの型が出てくる
+    public class PoderosaSettingsContents
+    {
+        public string? HostName;
+        public int Port;
+        public string? Method;
+        public string? Username;
+        public string? Password;
+
+        public PoderosaSettingsContents() { }
+
+        public PoderosaSettingsContents(string settingsBody)
+        {
+            var xml = new XmlDocument();
+            xml.LoadXml(settingsBody);
+
+            var shortcut = xml.SelectSingleNode("poderosa-shortcut");
+            if (shortcut == null) throw new CoresLibException("Not a poderosa-shortcut file.");
+
+            var ver = shortcut.Attributes["version"].Value;
+            if (ver != "4.0") throw new CoresLibException("ver != '4.0'");
+
+            var sshParam = shortcut.SelectSingleNode("Poderosa.Protocols.SSHLoginParameter");
+            if (sshParam == null) throw new CoresLibException("Not a SSH shortcut file.");
+
+            this.HostName = sshParam.Attributes["destination"]?.Value._NonNull();
+            this.Port = sshParam.Attributes["port"]?.Value._NonNull()._ToInt() ?? 0;
+            if (this.Port == 0) this.Port = Consts.Ports.Ssh;
+
+            this.Username = sshParam.Attributes["account"]?.Value._NonNull();
+            this.Password = sshParam.Attributes["passphrase"]?.Value._NonNull();
+        }
+
+        public SecureShellClientSettings GetSshClientSettings(int connectTimeoutMsecs = 0, int commTimeoutMsecs = 0)
+        {
+            return new SecureShellClientSettings(this.HostName._NullCheck(), this.Port, this.Username._NullCheck(), this.Password._NonNull(), connectTimeoutMsecs, commTimeoutMsecs);
+        }
+
+        public SecureShellClient CreateSshClient(int connectTimeoutMsecs = 0, int commTimeoutMsecs = 0)
+        {
+            return new SecureShellClient(this.GetSshClientSettings(connectTimeoutMsecs, commTimeoutMsecs));
+        }
+    }
+
+    public static class PoderosaSettingsContentsHelper
+    {
+        public static async Task<PoderosaSettingsContents> ReadPoderosaFileAsync(this FileSystem fs, string fileName, CancellationToken cancel = default)
+            => new PoderosaSettingsContents(await fs.ReadStringFromFileAsync(fileName, cancel: cancel));
+
+        public static PoderosaSettingsContents ReadPoderosaFile(this FileSystem fs, string fileName, CancellationToken cancel = default)
+            => ReadPoderosaFileAsync(fs, fileName, cancel)._GetResult();
+    }
+
+    // 色々なおまけユーティリティ
+    public static partial class MiscUtil
+    {
+        public static void ReplaceStringOfFiles(string dirName, string pattern, string oldString, string newString, bool caseSensitive)
+        {
+            IEnumerable<string> files;
+            if (Directory.Exists(dirName) == false && File.Exists(dirName))
+            {
+                files = dirName._SingleArray();
+            }
+            else
+            {
+                files = Lfs.EnumDirectory(dirName, true)
+                    .Where(x => x.IsFile)
+                    .Where(x => Lfs.PathParser.IsFullPathExcludedByExcludeDirList(Lfs.PathParser.GetDirectoryName(x.FullPath)) == false)
+                    .Where(x => Str.MultipleWildcardMatch(x.Name, pattern, true))
+                    .Select(x => x.FullPath);
+            }
+
+            int n = 0;
+
+            foreach (string file in files)
+            {
+                Con.WriteLine("処理中: '{0}'", file);
+
+                byte[] data = File.ReadAllBytes(file);
+
+                int bom;
+                Encoding? enc = Str.GetEncoding(data, out bom);
+                if (enc == null)
+                {
+                    enc = Encoding.UTF8;
+                }
+
+                string srcStr = enc.GetString(Util.ExtractByteArray(data, bom, data.Length - bom));
+                string dstStr = Str.ReplaceStr(srcStr, oldString, newString, caseSensitive);
+
+                if (srcStr != dstStr)
+                {
+                    Buf buf = new Buf();
+
+                    if (bom != 0)
+                    {
+                        var bomData = Str.GetBOM(enc);
+                        if (bomData != null)
+                        {
+                            buf.Write(bomData);
+                        }
+                    }
+
+                    buf.Write(enc.GetBytes(dstStr));
+
+                    buf.SeekToBegin();
+
+                    File.WriteAllBytes(file, buf.Read());
+
+                    Con.WriteLine("  保存しました。");
+                    n++;
+                }
+                else
+                {
+                    Con.WriteLine("  変更なし");
+                }
+            }
+
+            Con.WriteLine("{0} 個のファイルを変換しましたよ!!", n);
+        }
+
+        public static void NormalizeCrLfOfFiles(string dirName, string pattern)
+        {
+            IEnumerable<string> files;
+            if (Directory.Exists(dirName) == false && File.Exists(dirName))
+            {
+                files = dirName._SingleArray();
+            }
+            else
+            {
+                files = Lfs.EnumDirectory(dirName, true)
+                    .Where(x => x.IsFile)
+                    .Where(x => Lfs.PathParser.IsFullPathExcludedByExcludeDirList(Lfs.PathParser.GetDirectoryName(x.FullPath)) == false)
+                    .Where(x => Str.MultipleWildcardMatch(x.Name, pattern, true))
+                    .Select(x => x.FullPath);
+            }
+
+            int n = 0;
+
+            foreach (string file in files)
+            {
+                Con.WriteLine("処理中: '{0}'", file);
+
+                byte[] data = File.ReadAllBytes(file);
+
+                var ret = Str.NormalizeCrlf(data, CrlfStyle.CrLf, true);
+
+                File.WriteAllBytes(file, ret.ToArray());
+
+                n++;
+            }
+
+            Con.WriteLine("{0} 個のファイルを変換しましたよ!!", n);
+        }
+
+        public static void ChangeEncodingOfFiles(string dirName, string pattern, bool bom, string encoding)
+        {
+            IEnumerable<string> files;
+            if (Directory.Exists(dirName) == false && File.Exists(dirName))
+            {
+                files = dirName._SingleArray();
+            }
+            else
+            {
+                files = Lfs.EnumDirectory(dirName, true)
+                    .Where(x => x.IsFile)
+                    .Where(x => Lfs.PathParser.IsFullPathExcludedByExcludeDirList(Lfs.PathParser.GetDirectoryName(x.FullPath)) == false)
+                    .Where(x => Str.MultipleWildcardMatch(x.Name, pattern, true))
+                    .Select(x => x.FullPath);
+            }
+
+            Encoding enc = Encoding.GetEncoding(encoding);
+
+            int n = 0;
+
+            foreach (string file in files)
+            {
+                Con.WriteLine("処理中: '{0}'", file);
+
+                byte[] data = File.ReadAllBytes(file);
+
+                byte[] ret = Str.ConvertEncoding(data, enc, bom);
+
+                File.WriteAllBytes(file, ret);
+
+                n++;
+            }
+
+            Con.WriteLine("{0} 個のファイルを変換しましたよ!!", n);
+        }
+    }
+
+    // ログファイルの JSON をパースするとこの型が出てくる
     public class LogJsonParseAsRuntimeStat
     {
         public DateTimeOffset? TimeStamp;
@@ -209,7 +401,7 @@ namespace IPA.Cores.Basic
         public long TotalSize { get; }
         public int MaxPartialFragments { get; }
 
-        public readonly CriticalSection Lock = new CriticalSection();
+        public readonly CriticalSection Lock = new CriticalSection<ConcurrentDownloadPartialMaps>();
 
         internal readonly SortedList<long, ConcurrentDownloadPartial> List = new SortedList<long, ConcurrentDownloadPartial>();
 
@@ -913,6 +1105,139 @@ namespace IPA.Cores.Basic
             }
         }
     }
+
+    public class SqlVaultUtilReaderState
+    {
+        public Dictionary<string, long> TableNameAndLastRowId = new Dictionary<string, long>(StrComparer.IgnoreCaseComparer);
+    }
+
+    public class SqlVaultUtil : AsyncService
+    {
+        public IEnumerable<DataVaultClientOptions> DataVaultClientOptions { get; }
+        public Database Db { get; }
+        public string SettingsName { get; }
+
+        readonly SingleInstance Instance;
+
+        public HiveData<SqlVaultUtilReaderState> StateDb { get; }
+
+        public SqlVaultUtil(Database database, string settingsName, params DataVaultClientOptions[] dataVaultClientOptions)
+        {
+            try
+            {
+                // 多重起動は許容しません!!
+                this.Instance = new SingleInstance(settingsName);
+
+                this.DataVaultClientOptions = dataVaultClientOptions;
+                this.Db = database;
+                this.SettingsName = settingsName;
+
+                this.StateDb = Hive.SharedLocalConfigHive.CreateAutoSyncHive<SqlVaultUtilReaderState>("SqlVaultUtilLastState/" + settingsName, () => new SqlVaultUtilReaderState());
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+        public async Task ReadRowsAndWriteToVaultAsync(string tableName, string rowIdColumnName, Func<Row, IEnumerable<DataVaultData>> rowToDataListFunc, int maxRowsToFetchOnce = 4096, bool shuffle = true, CancellationToken cancel = default)
+        {
+            $"Start: tableName = {tableName}, rowIdColumnName = {rowIdColumnName}, maxRowsToFetchOnce = {maxRowsToFetchOnce}"._DebugFunc();
+
+            long totalWrittenRows = 0;
+
+            List<DataVaultClient> clients = new List<DataVaultClient>();
+            try
+            {
+                // DataVault クライアントの作成
+                foreach (var opt in this.DataVaultClientOptions)
+                {
+                    clients.Add(new DataVaultClient(opt));
+                }
+
+                long lastMaxRowId = 0;
+                lock (this.StateDb.DataLock)
+                    lastMaxRowId = this.StateDb.ManagedData.TableNameAndLastRowId._GetOrNew(tableName);
+
+                $"lastMaxRowId get = {lastMaxRowId._ToString3()}   from  tableName = {tableName}"._DebugFunc();
+
+                while (true)
+                {
+                    long dbCurrentMaxRowId = (await Db.QueryWithValueAsync($"select max({rowIdColumnName}) from {tableName}", cancel)).Int64;
+
+                    await Db.QueryAsync($"select top {maxRowsToFetchOnce} * from {tableName} with (nolock) where {rowIdColumnName} > {lastMaxRowId} order by {rowIdColumnName} asc", cancel);
+
+                    Data data = await Db.ReadAllDataAsync(cancel);
+
+                    if (data.IsEmpty) break;
+
+                    foreach (var row in data.RowList!)
+                    {
+                        foreach (var client in clients)
+                        {
+                            IEnumerable<DataVaultData>? dataList = null;
+
+                            try
+                            {
+                                dataList = rowToDataListFunc(row);
+                            }
+                            catch (Exception ex)
+                            {
+                                ex._Debug();
+                                continue;
+                            }
+
+                            if (shuffle)
+                            {
+                                dataList = dataList._Shuffle();
+                            }
+
+                            await dataList._DoForEachAsync(data => client.WriteDataAsync(data, cancel));
+                        }
+
+                        totalWrittenRows++;
+                    }
+
+                    lastMaxRowId = data.RowList.Last().ValueList[0].Int64;
+
+                    $"{tableName}: Current WrittenRows: {totalWrittenRows._ToString3()}, Last Row ID: {lastMaxRowId._ToString3()}, DB Current Max Row ID: {dbCurrentMaxRowId._ToString3()}"._DebugFunc();
+
+                    lock (this.StateDb.DataLock)
+                        this.StateDb.ManagedData.TableNameAndLastRowId[tableName] = lastMaxRowId;
+
+                    await this.StateDb.SyncWithStorageAsync(HiveSyncFlags.ForceUpdate | HiveSyncFlags.SaveToFile, false, cancel);
+                }
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+                throw;
+            }
+            finally
+            {
+                // DataVault クライアントの解放
+                clients._DoForEach(x => x._DisposeSafe());
+
+                $"End: tableName = {tableName}, rowIdColumnName = {rowIdColumnName}, maxRowsToFetchOnce = {maxRowsToFetchOnce}, totalWrittenRows = {totalWrittenRows._ToString3()}"._DebugFunc();
+            }
+        }
+
+        protected override void DisposeImpl(Exception? ex)
+        {
+            try
+            {
+                this.StateDb._DisposeSafe();
+
+                this.Instance._DisposeSafe();
+            }
+            finally
+            {
+                base.DisposeImpl(ex);
+            }
+        }
+    }
+
 }
 
 #endif

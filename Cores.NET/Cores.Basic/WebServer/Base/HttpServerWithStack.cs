@@ -212,7 +212,6 @@ namespace IPA.Cores.Basic
 
                     ProcessTimeMsecs = processTime,
                     ResponseCode = httpResponseCode,
-                    Exception = exception?.ToString(),
                 };
 
                 log.AuthUserName = log.AuthUserName._NullIfEmpty();
@@ -230,18 +229,21 @@ namespace IPA.Cores.Basic
                 if (req.Headers.TryGetValue("User-Agent", out StringValues userAgentValue))
                     log.UserAgent = userAgentValue.ToString()._TruncStrEx(maxLen);
 
-                log._PostAccessLog(LogTag.WebServer);
-
                 if (exception != null)
                 {
                     try
                     {
-                        string msg = $"Web Server Exception on {log.Method} {log.Url}\r\n{exception.ToString()}";
+                        string msg = $"Web Server Exception on {log.Method} {log.Url}\r\n{exception.ToString()}\r\n{log._ObjectToJson(compact: true)}\r\n------------------\r\n";
 
-                        msg._Debug();
+                        //msg._Debug();
+                        msg._Error();
                     }
                     catch { }
                 }
+
+                log.Exception = exception?.ToString();
+
+                log._PostAccessLog(LogTag.WebServer);
             });
         }
     }

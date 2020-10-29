@@ -247,7 +247,7 @@ namespace IPA.Cores.Basic
 
             readonly long FileSizeHint;
 
-            long CurrentWrittenRawBytes;
+            long CurrentWrittenContentsBytes;
             long WrittenDataStartOffset;
 
             ZipCrc32 Crc32;
@@ -369,7 +369,7 @@ namespace IPA.Cores.Basic
                 Crc32.Append(data.Span);
 
                 // 書き込んだ元データサイズを加算します
-                CurrentWrittenRawBytes += data.Length;
+                CurrentWrittenContentsBytes += data.Length;
             }
 
             // Flush 要求を受けました
@@ -393,17 +393,24 @@ namespace IPA.Cores.Basic
                     return;
                 }
 
-                await this.FileContentWriterStream.FlushAsync(cancel);
+                if (CurrentWrittenContentsBytes == 0)
+                {
+                    // これまで 1 バイトも書き込みをしていないので、0 バイトの書き込みを明示的にする
+                    // (これを行なわないと、圧縮ストリーム長が 0 になっておかしいままになる)
+                    await this.AppendAsync(Memory<byte>.Empty, cancel, forceWriteZeroLengthData: true);
+                }
 
-                await this.FileContentWriterStream._DisposeSafeAsync();
+                await this.FileContentWriterStream.FlushAsync(cancel);
 
                 // 圧縮後データサイズを計算
                 long currentWriteenCompressedBytes = this.RawWriter.CurrentPosition - WrittenDataStartOffset;
 
+                await this.FileContentWriterStream._DisposeSafeAsync();
+
                 // 結局 Zip64 形式が必要か不要かの判定
                 bool useZip64 = false;
 
-                if (CurrentWrittenRawBytes >= uint.MaxValue || currentWriteenCompressedBytes >= uint.MaxValue || RelativeOffsetOfLocalHeader >= uint.MaxValue)
+                if (CurrentWrittenContentsBytes >= uint.MaxValue || currentWriteenCompressedBytes >= uint.MaxValue || RelativeOffsetOfLocalHeader >= uint.MaxValue)
                 {
                     useZip64 = true;
                 }
@@ -419,7 +426,7 @@ namespace IPA.Cores.Basic
                         if (useZip64 == false)
                         {
                             DataDescriptor.CompressedSize = ((uint)currentWriteenCompressedBytes)._LE_Endian32_U();
-                            DataDescriptor.UncompressedSize = ((uint)CurrentWrittenRawBytes)._LE_Endian32_U();
+                            DataDescriptor.UncompressedSize = ((uint)CurrentWrittenContentsBytes)._LE_Endian32_U();
                         }
                         else
                         {
@@ -500,7 +507,7 @@ namespace IPA.Cores.Basic
 
                             ZipExtZip64Field zip64 = new ZipExtZip64Field
                             {
-                                UncompressedSize = CurrentWrittenRawBytes._LE_Endian64_U(),
+                                UncompressedSize = CurrentWrittenContentsBytes._LE_Endian64_U(),
                                 CompressedSize = currentWriteenCompressedBytes._LE_Endian64_U(),
                                 RelativeOffsetOfLocalHeader = RelativeOffsetOfLocalHeader._LE_Endian64_U(),
                                 DiskNumberStart = 0,

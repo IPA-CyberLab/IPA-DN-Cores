@@ -1893,7 +1893,7 @@ woff application/font-woff
 .rc2 text/plain
 .rct text/plain
 .rdlc application/xml
-.reg text/plain
+.reg application/octet-stream
 .resx application/xml
 .rf image/vnd.rn-realflash
 .rgb image/x-rgb

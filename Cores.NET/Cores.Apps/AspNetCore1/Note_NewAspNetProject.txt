@@ -438,3 +438,25 @@ namespace APP_NAME_HERE
 ---
 
 
+Models/ErrorViewModel.cs  に以下を追加
+
+---
+        public Exception ErrorInfo { get; set; } = null!;
+---
+
+Controllers/UploaderController.cs
+
+---
+public class の定義に
+
+[AutoValidateAntiforgeryToken]
+
+を付ける。
+
+
+public IActionResult Error() を以下に変更
+
+            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier, ErrorInfo = this._GetLastError() });
+---
+
+

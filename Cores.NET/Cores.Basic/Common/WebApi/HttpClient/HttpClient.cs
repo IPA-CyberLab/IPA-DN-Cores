@@ -20631,10 +20631,10 @@ namespace IPA.Cores.Basic.HttpClientCore
                 {
                     NetEventSource.Info(poolManager, FormattableStringFactory.Create("Win7OrWin2K8R2 platform, Changing default TLS protocols to {0}", new object[]
                     {
-                        SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12
+                        CoresConfig.SslSettings.DefaultSslProtocolVersions
                     }), "ConstructSslOptions");
                 }
-                sslClientAuthenticationOptions.EnabledSslProtocols = (SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12);
+                sslClientAuthenticationOptions.EnabledSslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersions;
             }
             return sslClientAuthenticationOptions;
         }

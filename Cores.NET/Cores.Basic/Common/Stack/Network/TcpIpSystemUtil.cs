@@ -290,7 +290,7 @@ namespace IPA.Cores.Basic
     public class GenericAcceptQueueUtil<TSocket> : AsyncService
         where TSocket : AsyncService
     {
-        readonly CriticalSection Lock = new CriticalSection();
+        readonly CriticalSection Lock = new CriticalSection<GenericAcceptQueueUtil<TSocket>>();
         readonly Queue<SocketEntry> AcceptedQueue = new Queue<SocketEntry>();
         readonly AsyncAutoResetEvent AcceptedEvent = new AsyncAutoResetEvent();
 

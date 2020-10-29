@@ -37,6 +37,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Routing;
@@ -52,9 +53,57 @@ using static IPA.Cores.Globals.Basic;
 using IPA.Cores.Web;
 using IPA.Cores.Helper.Web;
 using static IPA.Cores.Globals.Web;
+using Castle.DynamicProxy.Generators;
+using Microsoft.AspNetCore.Diagnostics;
 
 namespace IPA.Cores.Helper.Web
 {
+    public class AspNetCookieOptions : INormalizable
+    {
+        public string Domain { get; set; } = "";
+        public bool NoJavaScript { get; set; } = false;
+        public bool HttpsOnly { get; set; } = false;
+        public int Days { get; set; } = Consts.Numbers.MaxCookieDays;
+        public string Path { get; set; } = "/";
+
+        public void Normalize()
+        {
+            if (Days < 0) Days = 0;
+            if (Days > Consts.Numbers.MaxCookieDays) Days = Consts.Numbers.MaxCookieDays;
+
+            if (Path._IsEmpty()) Path = "/";
+            Domain = Domain._NonNullTrim();
+        }
+
+        public AspNetCookieOptions(int days = Consts.Numbers.MaxCookieDays, bool httpsOnly = false, bool noJs = false, string path = "/", string domain = "")
+        {
+            this.Days = days;
+            this.HttpsOnly = httpsOnly;
+            this.NoJavaScript = noJs;
+            this.Path = path;
+            this.Domain = domain;
+
+            this.Normalize();
+        }
+
+        public CookieOptions ToCookieOptions()
+        {
+            this.Normalize();
+
+            CookieOptions ret = new CookieOptions
+            {
+                Domain = this.Domain,
+                Expires = this.Days <= 0 ? (DateTimeOffset ?)null: DateTimeOffset.Now.AddDays(this.Days),
+                HttpOnly = this.NoJavaScript,
+                Secure = this.HttpsOnly,
+                Path = this.Path,
+                SameSite = SameSiteMode.Lax,
+            };
+
+            return ret;
+        }
+    }
+
     public static partial class AspNetExtensions
     {
         public static string GenerateAbsoluteUrl(this ControllerBase c, string actionName)
@@ -82,11 +131,86 @@ namespace IPA.Cores.Helper.Web
 
         public static HttpActionResult GetHttpActionResult(this HttpResult h)
             => new HttpActionResult(h);
+
+        public static TextActionResult _AspNetTextActionResult(this string str, string contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, Encoding? encoding = null, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
+            => new TextActionResult(str, contentType, statusCode, encoding, additionalHeaders);
+
+
+        // エラーハンドラページで利用できる、最後のエラーの取得
+        public static Exception _GetLastError(this Controller controller)
+        {
+            try
+            {
+                var errorContext = controller.HttpContext.Features.Get<IExceptionHandlerFeature>();
+
+                return errorContext.Error;
+            }
+            catch
+            {
+                throw new CoresLibException("Unknown exception: Failed to Get IExceptionHandlerFeature.");
+            }
+        }
+
+        // タグ関係
+        public static string _BoolToChecked(this bool b) => b ? " checked" : "";
+
+        // --- Cookie 関係 ---
+
+        public static void _EasySaveCookie<T>(this HttpResponse response, string cookieName, T value, AspNetCookieOptions? options = null)
+        {
+            if (options == null) options = new AspNetCookieOptions();
+
+            cookieName = Consts.Strings.EasyCookieNamePrefix + cookieName;
+
+            string valueStr = EasyCookieUtil.SerializeObject(value);
+
+            if (valueStr._IsEmpty())
+            {
+                response.Cookies.Delete(cookieName);
+            }
+            else
+            {
+                response.Cookies.Append(cookieName, valueStr, options.ToCookieOptions());
+            }
+        }
+
+        [return: MaybeNull]
+        public static T _EasyLoadCookie<T>(this HttpRequest request, string cookieName)
+        {
+            cookieName = Consts.Strings.EasyCookieNamePrefix + cookieName;
+
+            string valueStr = request.Cookies[cookieName];
+
+            return EasyCookieUtil.DeserializeObject<T>(valueStr);
+        }
+
+        public static void _EasySaveCookie<T>(this HttpContext context, string cookieName, T value, AspNetCookieOptions? options = null)
+            => context.Response._EasySaveCookie(cookieName, value, options);
+
+        [return: MaybeNull]
+        public static T _EasyLoadCookie<T>(this HttpContext context, string cookieName)
+            => context.Request._EasyLoadCookie<T>(cookieName);
+
+        public static void _EasySaveCookie<T>(this Controller controller, string cookieName, T value, AspNetCookieOptions? options = null)
+            => controller.HttpContext._EasySaveCookie(cookieName, value, options);
+
+        [return: MaybeNull]
+        public static T _EasyLoadCookie<T>(this Controller controller, string cookieName)
+            => controller.HttpContext._EasyLoadCookie<T>(cookieName);
     }
 }
 
 namespace IPA.Cores.Web
 {
+    // 単純なテキストを返すクラス
+    public class TextActionResult : HttpActionResult
+    {
+        public TextActionResult(string str, string contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, Encoding? encoding = null, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
+            : base(new HttpStringResult(str, contentType, statusCode, encoding, additionalHeaders))
+        {
+        }
+    }
+
     // HttpResult を元にして ASP.NET MVC の IActionResult インスタンスを生成するクラス
     public class HttpActionResult : IActionResult
     {

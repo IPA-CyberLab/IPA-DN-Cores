@@ -48,6 +48,148 @@ namespace IPA.TestDev
     partial class TestDevCommands
     {
         [ConsoleCommand(
+        "ファイル内の文字を置換",
+        "ReplaceString [dirName] [/PATTERN:pattern] [/OLDSTRING:oldstring] [/NEWSTRING:newstring] [/CASESENSITIVE:yes|no]",
+        "指定されたディレクトリ内のパターンに一致するファイルの文字コードを変更します。",
+        "[dirName]:ディレクトリ名を指定します。",
+        "PATTERN:ファイル名のパターンを指定します。たとえば、'*.txt' などと指定します。'*.txt,*.c,*.h' など複数指定も可能です。",
+        "OLDSTRING:古い文字列を指定します。",
+        "NEWSTRING:新しい文字列を指定します。",
+        "CASESENSITIVE:yes の場合は大文字・小文字を区別します。"
+        )]
+        static int ReplaceString(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[dirName]", ConsoleService.Prompt, "ディレクトリ名: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("PATTERN", ConsoleService.Prompt, "ファイル名のパターン: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("OLDSTRING", ConsoleService.Prompt, "古い文字列: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("NEWSTRING", ConsoleService.Prompt, "新しい文字列: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("CASESENSITIVE", null, null, null, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            MiscUtil.ReplaceStringOfFiles(vl.DefaultParam.StrValue, vl["PATTERN"].StrValue, vl["OLDSTRING"].StrValue, vl["NEWSTRING"].StrValue, vl["CASESENSITIVE"].BoolValue);
+
+            return 0;
+        }
+
+        [ConsoleCommand(
+            "ファイルの文字コードを変換",
+            "ChangeEncoding [dirName] [/PATTERN:pattern] [/ENCODING:encoding] [/BOM:yes|no]",
+            "指定されたディレクトリ内のパターンに一致するファイルの文字コードを変更します。",
+            "[dirName]:ディレクトリ名を指定します。",
+            "PATTERN:ファイル名のパターンを指定します。たとえば、'*.txt' などと指定します。'*.txt,*.c,*.h' など複数指定も可能です。",
+            "ENCODING:保存先ファイルの文字コードを指定します。",
+            "BOM:yes を指定した場合、Unicode 関係のフォーマットの場合は BOM を付加します。"
+            )]
+        static int ChangeEncoding(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[dirName]", ConsoleService.Prompt, "ディレクトリ名: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("PATTERN", ConsoleService.Prompt, "ファイル名のパターン: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("ENCODING", ConsoleService.Prompt, "文字コード名: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("BOM", null, null, null, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            MiscUtil.ChangeEncodingOfFiles(vl.DefaultParam.StrValue, vl["PATTERN"].StrValue, vl["BOM"].BoolValue, vl["ENCODING"].StrValue);
+
+            return 0;
+        }
+
+
+        [ConsoleCommand(
+            "改行コードを CRLF に統一",
+            "NormalizeCrLf [dirName] [/PATTERN:pattern]",
+            "指定されたディレクトリ内のパターンに一致するファイルの改行コードを変更します。",
+            "[dirName]:ディレクトリ名を指定します。",
+            "PATTERN:ファイル名のパターンを指定します。たとえば、'*.txt' などと指定します。'*.txt,*.c,*.h' など複数指定も可能です。"
+            )]
+        static int NormalizeCrLf(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[dirName]", ConsoleService.Prompt, "ディレクトリ名: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("PATTERN", ConsoleService.Prompt, "ファイル名のパターン: ", ConsoleService.EvalNotEmpty, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            MiscUtil.NormalizeCrLfOfFiles(vl.DefaultParam.StrValue, vl["PATTERN"].StrValue);
+
+            return 0;
+        }
+
+
+        [ConsoleCommand(
+            "指定されたディレクトリ内の最新のいくつかのサブディレクトリのみコピー (同期) し、他は削除する",
+            "SyncLatestFewDirs [srcdir] [/destdir:DESTDIR] [/num:HowManyDirs=1]",
+            "指定されたディレクトリ内の最新のいくつかのサブディレクトリのみコピー (同期) し、他は削除する")]
+        static int SyncLatestFewDirs(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[srcdir]", ConsoleService.Prompt, "Src Directory: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("destdir", ConsoleService.Prompt, "Dest Directory: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("num", ConsoleService.Prompt, "How Many Dirs: ", ConsoleService.EvalNotEmpty, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string srcDir = vl.DefaultParam.StrValue;
+            string dstDir = vl["destdir"].StrValue;
+            int num = vl["num"].IntValue;
+
+            // ソースディレクトリのサブディレクトリを列挙いたします
+            Async(async () =>
+            {
+                await FileUtil.SyncLatestFewDirsAsync(srcDir, dstDir, num);
+            });
+
+            return 0;
+        }
+
+        [ConsoleCommand(
+            "クラッシュさん",
+            "Crash",
+            "クラッシュさん")]
+        static int Crash(ConsoleService c, string cmdName, string str)
+        {
+            unsafe
+            {
+                byte[] tmp = new byte[4096];
+
+                var fs = File.Create("/tmp/test.txt");
+
+                IntPtr fd = fs.SafeFileHandle.DangerousGetHandle();
+
+                $"fd = {fd.ToInt64()}"._Print();
+
+                fixed (byte* tmpptr = tmp)
+                {
+                    long ptr = (long)tmpptr;
+                    while (true)
+                    {
+                        ptr++;
+                        byte* p = (byte*)ptr;
+
+                        int r = UnixApi.Write(fd, p, 1);
+
+                        $"{ptr} : {r}"._Print();
+
+                        if (r == -1) break;
+                    }
+                }
+            }
+
+            return 0;
+        }
+
+        [ConsoleCommand(
             "Git 並列アップデータ",
             "GitParallelUpdate [dir] [/concurrent:NUM] [/setting:TXTFILENAME]",
             "Git 並列アップデータ")]

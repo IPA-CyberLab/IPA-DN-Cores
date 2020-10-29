@@ -367,7 +367,7 @@ namespace IPA.Cores.Basic
         {
             this._Value = initialValue;
             this._InitialValue = initialValue;
-            this.LockObj = new CriticalSection();
+            this.LockObj = new CriticalSection<Copenhagen<T>>();
             this.Determined = false;
             IsValueType = !(typeof(T).IsClass);
         }
@@ -2881,16 +2881,23 @@ namespace IPA.Cores.Basic
             if (maxSize <= 0) maxSize = int.MaxValue;
             MemoryStream ms = new MemoryStream();
 
-            byte[] tmp = new byte[200000];
-            while (true)
+            byte[] tmp = MemoryHelper.FastAllocMoreThan<byte>(Consts.Numbers.DefaultLargeBufferSize);
+            try
             {
-                int r = s.Read(tmp, 0, tmp.Length);
-                if (r == 0)
+                while (true)
                 {
-                    break;
+                    int r = s.Read(tmp, 0, tmp.Length);
+                    if (r == 0)
+                    {
+                        break;
+                    }
+                    ms.Write(tmp, 0, r);
+                    if (ms.Length > maxSize) throw new OverflowException();
                 }
-                ms.Write(tmp, 0, r);
-                if (ms.Length > maxSize) throw new OverflowException();
+            }
+            finally
+            {
+                MemoryHelper.FastFree(tmp);
             }
 
             return ms.ToArray();
@@ -2901,7 +2908,7 @@ namespace IPA.Cores.Basic
             if (maxSize <= 0) maxSize = int.MaxValue;
             MemoryStream ms = new MemoryStream();
 
-            byte[] tmp = MemoryHelper.FastAllocMoreThan<byte>(200000);
+            byte[] tmp = MemoryHelper.FastAllocMoreThan<byte>(Consts.Numbers.DefaultLargeBufferSize);
             try
             {
                 while (true)
@@ -3726,7 +3733,7 @@ namespace IPA.Cores.Basic
     {
         readonly Action<TOptions> InitProc;
         readonly Func<TResult> FreeProc;
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<StaticModule<TOptions, TResult>>();
 
         readonly List<Action> ActionListAfterInit = new List<Action>();
 
@@ -3880,7 +3887,7 @@ namespace IPA.Cores.Basic
     {
         public const int MaxElements = 8_000_000; // Max 64Mbytes
 
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<SingletonFastArray<TKey, TObject>>();
         readonly Func<TKey, TObject> CreateProc;
         TObject[] ObjectList;
         public int Count { get; private set; }
@@ -4000,7 +4007,7 @@ namespace IPA.Cores.Basic
 
     public class Singleton<TObject> : IDisposable where TObject : class
     {
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<Singleton<TObject>>();
         readonly Func<TObject> CreateProc;
         TObject? Object = null;
         public bool IsCreated { get; private set; }
@@ -4060,7 +4067,7 @@ namespace IPA.Cores.Basic
     public class Singleton<TKey, TObject> : IDisposable where TObject : class
         where TKey : notnull
     {
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<Singleton<TKey, TObject>>();
         readonly Func<TKey, TObject> CreateProc;
         readonly Dictionary<TKey, TObject> Table;
         public IEnumerable<TKey> Keys => this.Table.Keys;
@@ -4209,8 +4216,8 @@ namespace IPA.Cores.Basic
 
         readonly Dictionary<TKey, Entry> Table = new Dictionary<TKey, Entry>();
 
-        CriticalSection SyncLock = new CriticalSection();
-        CriticalSection Lock = new CriticalSection();
+        readonly CriticalSection SyncLock = new CriticalSection<SyncCache<TKey, TData>>();
+        readonly CriticalSection Lock = new CriticalSection<SyncCache<TKey, TData>>();
 
         public SyncCache(int lifeTime)
             : this(lifeTime, CacheFlags.None, (Func<TKey, CancellationToken, TData?>)null!) { }
@@ -4361,8 +4368,8 @@ namespace IPA.Cores.Basic
 
         readonly Dictionary<TKey, Entry> Table = new Dictionary<TKey, Entry>();
 
-        AsyncLock AsyncLock = new AsyncLock();
-        CriticalSection Lock = new CriticalSection();
+        readonly AsyncLock AsyncLock = new AsyncLock();
+        readonly CriticalSection Lock = new CriticalSection<AsyncCache<TKey, TData>>();
 
         public AsyncCache(int lifeTime)
             : this(lifeTime, CacheFlags.None, (Func<TKey, CancellationToken, Task<TData?>>)null!) { }
@@ -5090,7 +5097,7 @@ namespace IPA.Cores.Basic
             LongerSample = longerSample;
         }
 
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<EtaCalculator>();
 
         Data? ShorterData1 = null;
         Data? ShorterData2 = null;
@@ -5337,7 +5344,7 @@ namespace IPA.Cores.Basic
 
     public abstract class ProgressReporterBase : IDisposable
     {
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<ProgressReporterBase>();
 
         readonly EtaCalculator EtaCalc = new EtaCalculator();
 
@@ -5712,7 +5719,7 @@ namespace IPA.Cores.Basic
 
         readonly List<Entry> List = new List<Entry>();
 
-        CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<WeightedExceptionList>();
 
         public void Add(Exception exception, int weight)
         {
@@ -5935,7 +5942,7 @@ namespace IPA.Cores.Basic
 
         public int Interval { get; }
 
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<StatisticsReporter<T>>();
 
         public readonly AsyncEventListenerList<T, NonsenseEventType> ListenerList = new AsyncEventListenerList<T, NonsenseEventType>();
 
@@ -6370,7 +6377,7 @@ namespace IPA.Cores.Basic
     public class RateLimiterEntry
     {
         public RateLimiterOptions Options { get; }
-        public readonly CriticalSection LockObj = new CriticalSection();
+        public readonly CriticalSection LockObj = new CriticalSection<RateLimiterEntry>();
 
         public long CreatedTick { get; }
         public long ExpiresTick => this.LastInputTick + Options.ExpiresMsec;
@@ -6458,7 +6465,7 @@ namespace IPA.Cores.Basic
 
         public int MaxConcurrentRequests { get; }
 
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<ConcurrentLimiter<TKey>>();
 
         readonly Dictionary<TKey, Entry> Table = new Dictionary<TKey, Entry>();
 
@@ -6572,7 +6579,7 @@ namespace IPA.Cores.Basic
         public RateLimiterOptions Options { get; }
 
         readonly Dictionary<TKey, RateLimiterEntry> Table = new Dictionary<TKey, RateLimiterEntry>();
-        readonly CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<RateLimiter<TKey>>();
 
         long NextGcTick = 0;
 
@@ -6766,7 +6773,7 @@ namespace IPA.Cores.Basic
         public static implicit operator bool(ResultOrError<T>? resultOrException) => resultOrException != null && resultOrException.IsOk;
     }
 
-    public class ResultOrExeption<T>
+    public class ResultOrExeption<T> : IHasError
     {
         [AllowNull]
         readonly T ResultInternal = default!;
@@ -6793,6 +6800,8 @@ namespace IPA.Cores.Basic
         public bool IsError => ExceptionInternal != null;
 
         public bool IsOk => (!IsError);
+
+        public Exception? LastError => this.ExceptionInternal;
 
         public ResultOrExeption([AllowNull] T result)
         {
@@ -7000,6 +7009,21 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // BinaryLineReader オプション
+    public class BinaryLineReaderOption
+    {
+        public object? Param { get; }
+        public Func<MemoryStream, object?, bool>? FinishDeterminer { get; }
+        public Action<MemoryStream, object?, CancellationToken>? Preview { get; }
+
+        public BinaryLineReaderOption(Func<MemoryStream, object?, bool>? finishDeterminer = null, Action<MemoryStream, object?, CancellationToken>? preview = null, object? param = null)
+        {
+            Param = param;
+            FinishDeterminer = finishDeterminer;
+            Preview = preview;
+        }
+    }
+
     // Stream からバイナリを読み込み、CR, LF を検出して行に分解する。高速化のためにバッファリングを使用する
     public class BinaryLineReader
     {
@@ -7022,8 +7046,101 @@ namespace IPA.Cores.Basic
             this.Buffer = new byte[bufferSize + 1]; // 最後の文字が CR の場合は追加で 1 文字読むため、1 バイト多めにしてある
         }
 
-        public async Task<List<Memory<byte>>?> ReadLinesAsync(int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, CancellationToken cancel = default)
+        readonly Queue<Memory<byte>> SingleLineQueue = new Queue<Memory<byte>>();
+
+        public async Task<string?> ReadSingleLineStringAsync(int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, Encoding? encoding = null, CancellationToken cancel = default)
         {
+            if (encoding == null) encoding = Str.Utf8Encoding;
+
+            var memory = await ReadSingleLineAsync(maxBytesPerLine, cancel);
+            if (memory == null) return null;
+
+            return encoding.GetString(memory.Value.Span);
+        }
+
+        public async Task<Memory<byte>?> ReadSingleLineAsync(int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, CancellationToken cancel = default)
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            if (SingleLineQueue.Count >= 1)
+            {
+                return SingleLineQueue.Dequeue();
+            }
+
+            List<Memory<byte>>? multiLines = await ReadLinesAsync(maxBytesPerLine, cancel);
+
+            if (multiLines == null)
+            {
+                return null;
+            }
+
+            Debug.Assert(multiLines.Count >= 1);
+
+            if (multiLines.Count == 1) return multiLines[0];
+
+            foreach (var line in multiLines)
+            {
+                this.SingleLineQueue.Enqueue(line);
+            }
+
+            return SingleLineQueue.Dequeue();
+        }
+
+        // FinishDeterminer で終わりと判定されるか、EOF に当たるまで、無限に Stream から行を読む。
+        // ただし、メモリ制限値 DefaultMaxBytesTotalLine を超えた場合はエラーにする。
+        public async Task<List<Memory<byte>>?> ReadLinesUntilEofAsync(RefBool isEof, int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, int maxBytesTotal = Consts.Numbers.DefaultMaxBytesTotalLine, CancellationToken cancel = default, BinaryLineReaderOption? option = null)
+        {
+            int currentSize = 0;
+
+            isEof._NullCheck(nameof(isEof));
+
+            List<Memory<byte>> ret = new List<Memory<byte>>();
+
+            isEof.Set(false);
+
+            while (true)
+            {
+                RefBool finisherMatched = new RefBool();
+
+                var r = await ReadLinesAsync(maxBytesPerLine, cancel, option, finisherMatched);
+
+                if (r != null)
+                {
+                    r._DoForEach(x =>
+                    {
+                        ret.Add(x);
+
+                        currentSize += x.Length;
+
+                        if (currentSize > maxBytesTotal)
+                        {
+                            throw new CoresLibException($"currentSize ({currentSize}) > maxBytesTotal ({maxBytesTotal})");
+                        }
+                    });
+                }
+
+                if (r == null)
+                {
+                    // EOF
+                    isEof.Set(true);
+                    break;
+                }
+                else if (finisherMatched)
+                {
+                    // 期待された行の終わりに到達
+                    break;
+                }
+            }
+
+            return ret;
+        }
+
+        // 内部バッファサイズを目標として、読めるだけ Stream から行を読む。
+        // EOF に当たり、これ以上読むべき行がない場合は null を返す。
+        public async Task<List<Memory<byte>>?> ReadLinesAsync(int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, CancellationToken cancel = default, BinaryLineReaderOption? option = null, RefBool? finisherMatched = null)
+        {
+            finisherMatched?.Set(false);
+
             List<Memory<byte>> ret = new List<Memory<byte>>();
 
             while (true)
@@ -7032,10 +7149,12 @@ namespace IPA.Cores.Basic
 
                 Debug.Assert(CurrentSizeInBuffer >= CurrentPositionInBuffer);
                 int remain = CurrentSizeInBuffer - CurrentPositionInBuffer;
-                if (remain <= 0)
+                if (remain == 0)
                 {
                     // バッファが空の場合は読み込む
                     CurrentPositionInBuffer = 0;
+
+                    cancel.ThrowIfCancellationRequested();
 
                     int r = await Stream.ReadAsync(this.Buffer.Slice(0, this.BufferSize), cancel);
 
@@ -7077,7 +7196,7 @@ namespace IPA.Cores.Basic
                         if (((long)CurrentLine.Length + (long)remain2) > maxBytesPerLine)
                         {
                             // 1 行あたり最大読み取り可能文字数を超えた
-                            throw new CoresException($"Line character length overflow. {((long)CurrentLine.Length + (long)remain2)} > {maxBytesPerLine}");
+                            throw new CoresLibException($"Line character length overflow. {((long)CurrentLine.Length + (long)remain2)} > {maxBytesPerLine}");
                         }
                     }
 
@@ -7105,7 +7224,6 @@ namespace IPA.Cores.Basic
 
                     while (true)
                     {
-                        // 現在バッファに入っているデータ全体の Span の取得
                         Debug.Assert(CurrentSizeInBuffer >= CurrentPositionInBuffer);
                         int remain3 = CurrentSizeInBuffer - CurrentPositionInBuffer;
 
@@ -7115,9 +7233,12 @@ namespace IPA.Cores.Basic
                             return;
                         }
 
+                        // 現在バッファに入っているデータ全体の Span の取得
                         Span<byte> bufferCurrentRange = bufferSpan.Slice(CurrentPositionInBuffer, CurrentSizeInBuffer - CurrentPositionInBuffer);
 
-                        // 最初の改行コードにぶつかるまで 1 文字ずつ読む
+                        string str2 = bufferCurrentRange.ToArray()._GetString();
+
+                        // 最初の改行コード (行の末尾) にぶつかるまで 1 文字ずつ読む
                         bool newLineFound = false;
                         int sizeRead = 0;
                         int sizeOfLineData = 0;
@@ -7145,6 +7266,7 @@ namespace IPA.Cores.Basic
 
                         if (newLineFound == false)
                         {
+                            // 改行コード (行の末尾) が見つからなかった場合、バッファに入っている全体を読み取る
                             sizeOfLineData = sizeRead = bufferCurrentRange.Length;
                         }
 
@@ -7159,6 +7281,31 @@ namespace IPA.Cores.Basic
 
                         // 読み取ったデータを CurrentLine に追記する
                         CurrentLine.Write(bufferCurrentRange.Slice(0, sizeOfLineData));
+
+                        if (newLineFound == false)
+                        {
+                            if (CurrentLine.Length >= 1)
+                            {
+                                // 改行コードによる行の終わりには達していないが、これ以上読むべきデータがない場合は、
+                                // FinishDeterminer により行の終わりと判定されるかどうか試してみる
+                                if (option?.FinishDeterminer?.Invoke(CurrentLine, option.Param) ?? false)
+                                {
+                                    string str = CurrentLine.ToArray()._GetString();
+
+                                    // 行の終わりとみなす
+                                    newLineFound = true;
+
+                                    finisherMatched?.Set(true);
+                                }
+                            }
+                        }
+
+                        if (newLineFound)
+                        {
+                            string str = CurrentLine.ToArray()._GetString();
+
+                            option?.Preview?.Invoke(CurrentLine, option.Param, cancel);
+                        }
 
                         if (newLineFound)
                         {
@@ -7196,6 +7343,7 @@ namespace IPA.Cores.Basic
         // PipeStream 専用
         // タイムアウトした場合は、改行コードがなくてもひとまず読めた部分まで返す (1 バイト以上読めている場合のみ)
         // この場合、Item2 は false となる。
+        // Eof の場合は null を返す。
         public async Task<List<Tuple<Memory<byte>, bool>>?> ReadLinesWithTimeoutAsync(int timeout, int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, int maxLines = int.MaxValue, CancellationToken cancel = default)
         {
             if (maxLines <= 0) throw new ArgumentOutOfRangeException(nameof(maxLines));
@@ -7218,7 +7366,7 @@ namespace IPA.Cores.Basic
                 {
                     Debug.Assert(CurrentSizeInBuffer >= CurrentPositionInBuffer);
                     int remain = CurrentSizeInBuffer - CurrentPositionInBuffer;
-                    if (remain <= 0)
+                    if (remain == 0)
                     {
                         // バッファが空の場合は読み込む
                         CurrentPositionInBuffer = 0;
@@ -7420,6 +7568,34 @@ namespace IPA.Cores.Basic
     public static class EmptyEnumerable<T>
     {
         public static IEnumerable<T> Empty { get; } = new List<T>();
+    }
+
+    public class CoresLibException : CoresException
+    {
+        [MethodImpl(NoInline | NoOptimization)]
+        public CoresLibException(string? message = "", [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+            : base(GenerateMessage(message, filename, line, caller))
+        {
+        }
+
+        [MethodImpl(NoInline | NoOptimization)]
+        public CoresLibException(string? message, Exception? innerException, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+            : base(GenerateMessage(message, filename, line, caller), innerException)
+        {
+        }
+
+        [MethodImpl(NoInline | NoOptimization)]
+        static string GenerateMessage(string? srcMessage, string filename, int line, string? caller)
+        {
+            StackTrace stackTrace = new StackTrace(1, false);
+            Type? type = stackTrace?.GetFrame(1)?.GetMethod()?.DeclaringType;
+
+            string className = type?.Name ?? "UnknownClass";
+            string functionName = caller._FilledOrDefault("UnknownFunction");
+            if (srcMessage._IsEmpty()) srcMessage = nameof(CoresLibException);
+
+            return $"{className} - {functionName}(): {srcMessage}";
+        }
     }
 
     public class CoresException : ApplicationException

@@ -77,7 +77,7 @@ namespace IPA.Cores.Basic
 
     public class BatchQueue<T>
     {
-        CriticalSection LockObj = new CriticalSection();
+        readonly CriticalSection LockObj = new CriticalSection<BatchQueue<T>>();
         Queue<BatchQueueItem<T>> ItemQueue = new Queue<BatchQueueItem<T>>();
         AutoResetEvent NewEventSignal = new AutoResetEvent(false);
         public int IdleThreadRemainTimeMsecs { get; }
@@ -250,7 +250,7 @@ namespace IPA.Cores.Basic
         readonly string NameOfMutant;
         MutantBase? Mutant;
 
-        static readonly CriticalSection LockObj = new CriticalSection();
+        static readonly CriticalSection LockObj = new CriticalSection<SingleInstance>();
 
         static readonly HashSet<string> ProcessWideSingleInstanceHashSet = new HashSet<string>();
 
@@ -358,7 +358,7 @@ namespace IPA.Cores.Basic
                 Worker.ExecAsync(p =>
                 {
                     MutantBase = MutantBase.Create(name);
-                }, 0);
+                }, 0)._GetResult();
             }
             catch
             {
@@ -878,7 +878,7 @@ namespace IPA.Cores.Basic
 
         public class WorkerQueuePrivate
         {
-            CriticalSection LockObj = new CriticalSection();
+            readonly CriticalSection LockObj = new CriticalSection<WorkerQueuePrivate>();
 
             List<ThreadObj> ThreadList;
             ThreadProc ThreadProc;
@@ -976,17 +976,7 @@ namespace IPA.Cores.Basic
         EventWaitHandle EventObj = null!;
         public const int Infinite = Timeout.Infinite;
 
-        public Event()
-        {
-            InternalInit(false);
-        }
-
-        public Event(bool manualReset)
-        {
-            InternalInit(manualReset);
-        }
-
-        void InternalInit(bool manualReset)
+        public Event(bool manualReset = false)
         {
             EventObj = new EventWaitHandle(false, (manualReset ? EventResetMode.ManualReset : EventResetMode.AutoReset));
         }

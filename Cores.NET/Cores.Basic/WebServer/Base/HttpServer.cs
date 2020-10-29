@@ -586,7 +586,7 @@ namespace IPA.Cores.Basic
             {
                 listenOptions.UseHttps(httpsOptions =>
                 {
-                    httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
+                    httpsOptions.SslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersions;
 
                     bool useGlobalCertVault = false;
 

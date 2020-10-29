@@ -86,6 +86,8 @@ namespace IPA.Cores.Basic
 
             public const int DefaultMaxBytesPerLine = 10 * 1024 * 1024;
 
+            public const int DefaultMaxBytesTotalLine = 30 * 1024 * 1024;
+
             public const int DefaultMaxNetworkRecvSize = 30 * 1000 * 1000; // 30 MB (Kestrel default)
 
             public const int SignCodeServerMaxFileSize = 300 * 1024 * 1024; // 300 MB
@@ -95,6 +97,8 @@ namespace IPA.Cores.Basic
             public const int DefaultMaxPartialFragments = 4096;
 
             public const int NormalJsonMaxSize = 1 * 1024 * 1024; // 1MB
+
+            public const int MaxCookieDays = 365 + 366; // 2 Years
         }
 
         public static partial class MaxLens
@@ -103,8 +107,13 @@ namespace IPA.Cores.Basic
 
             public const int GitCommitIdTruncateLen = 8;
             public const int StandardTruncateLen = 32;
+            public const int NormalStringTruncateLen = 255;
 
             public const int ExceptionStrTruncateLen = 800;
+
+            public const int MaxCookieSize = 4093;
+
+            public const int DataVaultPathElementMaxLen = 64;
         }
 
         public static partial class Ports
@@ -114,9 +123,14 @@ namespace IPA.Cores.Basic
             public const int LogServerDefaultHttpPort = 80;
             public const int LogServerDefaultHttpsPort = 443;
 
+            public const int DataVaultServerDefaultHttpPort = 80;
+            public const int DataVaultServerDefaultHttpsPort = 443;
+
             public const int Http = 80;
             public const int Https = 443;
 
+            public const int Telnet = 23;
+            public const int Ssh = 22;
             public const int Smtp = 25;
             public const int SmtpSubmission = 587;
             public const int Smtps = 465;
@@ -138,6 +152,8 @@ namespace IPA.Cores.Basic
             public const int DaemonCenterHttps = 7004;
             public const int CodeSignServer = 7006;
             public const int SnmpWorkHttp = 7007;
+            public const int SnmpWorkTelnetStat = 7008;
+            public const int DataVaultServerDefaultServicePort = 7009;
         }
 
         public static partial class DaemonArgKeys
@@ -176,6 +192,11 @@ namespace IPA.Cores.Basic
             public const string DaemonDefFileMarker = "hTNdwaKmxL4MNPAyyes2qsgT";
 
             public const string DaemonExecModeLogFileSuffix = "daemon";
+
+            public const string EasyCookieNamePrefix = "Cores_EasyCookie_";
+            public const string EasyCookieValuePrefix = "Ec_";
+
+            public const string Sample = "__sample__";
         }
 
         public static partial class HiveNames
@@ -230,6 +251,8 @@ namespace IPA.Cores.Basic
 
             public const string LogBrowserSecureJson = "_secure.json";
             public const string LogBrowserAccessLogDirName = "_accesslog";
+
+            public static readonly IEnumerable<string> StandardExcludeDirNames = new string[] { ".svn", "_vti_cnf", "_vti_pvt", "_private", ".git", ".vs" };
         }
 
         public static partial class BlazorApp
@@ -366,10 +389,16 @@ namespace IPA.Cores.Basic
             public const int DefaultSendPingTimeout = 1 * 1000;
 
             public const int GcTempDefaultFileLifeTime = 5 * 60 * 1000;
+
+            public const int DefaultShellPromptRecvTimeout = 30 * 1000;
+            public const int DefaultShellPromptSendTimeout = 30 * 1000;
         }
 
         public static partial class LinuxCommands
         {
+            // 一応絶対パスでここに書くことを推奨するが、コマンド名のみでもよい。
+            // また、実行時に絶対パスが見つからない場合は、 LinuxPaths.BasicBinDirList のディレクトリの探索が自動的になされる
+            // ので、さほど心配することなく色々な Linux ディスフリビューションでそのまま動作させることができる。
             public const string Bash = "/bin/bash";
             public const string Ip = "/sbin/ip";
             public const string Ifconfig = "/sbin/ifconfig";
@@ -387,10 +416,20 @@ namespace IPA.Cores.Basic
             public const string Df = "/bin/df";
             public const string Birdc = "/usr/local/sbin/birdc";
             public const string Birdc6 = "/usr/local/sbin/birdc6";
+            public const string Temper = "/usr/bin/temper";
         }
 
         public static partial class LinuxPaths
         {
+            public static readonly IEnumerable<string> BasicBinDirList = new string[] {
+                "/bin/",
+                "/sbin/",
+                "/usr/bin/",
+                "/usr/sbin/",
+                "/usr/local/bin/",
+                "/usr/local/sbin/",
+            };
+
             public const string SysThermal = "/sys/class/thermal/";
             public const string SockStat = "/proc/net/sockstat";
             public const string FileNr = "/proc/sys/fs/file-nr";
@@ -468,6 +507,7 @@ namespace IPA.Cores.Basic
             FileDownloader.ApplyHeavyLoadServerConfig();
             FastBufferConfig.ApplyHeavyLoadServerConfig();
             FastMemoryPoolConfig.ApplyHeavyLoadServerConfig();
+            ThreadPoolConfig.ApplyHeavyLoadServerConfig();
         }
     }
 }
