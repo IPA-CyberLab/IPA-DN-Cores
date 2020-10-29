@@ -6237,6 +6237,18 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class Pair<TA, TB>
+    {
+        public TA A { get; set; }
+        public TB B { get; set; }
+
+        public Pair(TA a, TB b)
+        {
+            this.A = a;
+            this.B = b;
+        }
+    }
+
     public class SizedDataQueue<T>
     {
         List<T> InternalList;

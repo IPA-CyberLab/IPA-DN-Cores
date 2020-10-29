@@ -565,6 +565,14 @@ namespace IPA.Cores.Helper.Basic
 
         [return: NotNullIfNotNull("o")]
         public static T? _CloneDeep<T>(this T? o) where T : class => (T?)Util.CloneObject_UsingBinary(o);
+
+        [return: NotNullIfNotNull("o")]
+        public static T? _CloneDeepWithNormalize<T>(this T? o) where T : class, INormalizable
+        {
+            T? obj = (T?)Util.CloneObject_UsingBinary(o);
+            if (obj != null) obj.Normalize();
+            return obj;
+        }
         public static byte[] _ObjectToBinary(this object o) => Util.ObjectToBinary(o);
         public static object _BinaryToObject(this ReadOnlySpan<byte> b) => Util.BinaryToObject(b);
         public static object _BinaryToObject(this Span<byte> b) => Util.BinaryToObject(b);
@@ -2105,6 +2113,7 @@ namespace IPA.Cores.Helper.Basic
         public static byte[] _StrToMac(this string src) => Str.StrToMac(src);
         public static string _NormalizeMac(this string src, string paddingStr = "-", bool lowerStr = false) => Str.NormalizeMac(src, paddingStr, lowerStr);
         public static string _NormalizeMac(this string src, MacAddressStyle style) => Str.NormalizeMac(src, style);
+        public static string _NormalizeIp(this string src) => IPUtil.NormalizeIPAddress(src);
 
         public static string _GetIPv4PtrRecord(this IPAddress ip) => IPUtil.GetIPv4PtrRecord(ip);
 

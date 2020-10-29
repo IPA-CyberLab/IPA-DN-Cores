@@ -80,7 +80,7 @@ namespace IPA.Cores.Basic
 
         public SqlDatabaseConnectionSetting(string dataSource, string initialCatalog, string userId, string password)
         {
-            this.DataSource = DataSource;
+            this.DataSource = dataSource;
             this.InitialDatalog = initialCatalog;
             this.UserId = userId;
             this.Password = password;
@@ -177,6 +177,7 @@ namespace IPA.Cores.Basic
         public string String => (string)Object;
         public double Double => (double)Object;
         public int Int => (int)Object;
+        public int IntNullZero => (this.IsNull ? 0 : Int);
         public uint UInt => (uint)Object;
         public long Int64 => (long)Object;
         public ulong UInt64 => (ulong)Object;
@@ -638,6 +639,19 @@ namespace IPA.Cores.Basic
         public T ExecuteScalar<T>(string commandStr, object? param = null)
             => ExecuteScalarAsync<T>(commandStr, param)._GetResult();
 
+
+        public async Task<IEnumerable<T>> EasySelectAsync<T>(string selectStr, object selectParam, bool throwErrorIfNotFound = false, CancellationToken cancel = default) where T : class
+        {
+            await EnsureOpenAsync(cancel);
+            EnsureDapperTypeMapping(typeof(T));
+
+            var ret = await QueryAsync<T>(selectStr, selectParam);
+
+            if (throwErrorIfNotFound && ret.Count() == 0)
+                throw new KeyNotFoundException();
+
+            return ret;
+        }
 
         public async Task<T?> EasyGetAsync<T>(dynamic id, bool throwErrorIfNotFound = true, CancellationToken cancel = default) where T : class
         {
@@ -1139,6 +1153,7 @@ namespace IPA.Cores.Basic
 
         public delegate Task<bool> TransactionalTaskAsync();
         public delegate Task TransactionalReadOnlyTaskAsync();
+        public delegate Task<T> TransactionalReadOnlyTaskAsync<T>();
 
         // トランザクションの実行 (匿名デリゲートを用いた再試行処理も実施)
         public void Tran(TransactionalTask task) => Tran(null, null, task);
@@ -1248,6 +1263,19 @@ namespace IPA.Cores.Basic
                 await task();
                 return false;
             });
+        }
+
+        public async Task<T> TranReadSnapshotAsync<T>(TransactionalReadOnlyTaskAsync<T> task)
+        {
+            T ret = default;
+
+            await TranAsync(IsolationLevel.Snapshot, async () =>
+            {
+                ret = await task();
+                return false;
+            });
+
+            return ret!;
         }
 
         // トランザクションの開始 (UsingTran オブジェクト作成)
