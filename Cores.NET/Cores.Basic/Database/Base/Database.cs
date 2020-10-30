@@ -177,9 +177,10 @@ namespace IPA.Cores.Basic
         public string String => (string)Object;
         public double Double => (double)Object;
         public int Int => (int)Object;
-        public int IntNullZero => (this.IsNull ? 0 : Int);
+        public int Int_NullAsZero => (this.IsNull ? 0 : Int);
         public uint UInt => (uint)Object;
         public long Int64 => (long)Object;
+        public long Int64_NullAsZero => (this.IsNull ? 0 : Int64);
         public ulong UInt64 => (ulong)Object;
         public bool Bool => (bool)Object;
         public byte[] Data => (byte[])Object;
@@ -603,8 +604,10 @@ namespace IPA.Cores.Basic
             return cmd;
         }
 
-        public async Task<T> GetOrInsertIfEmptyAsync<T>(string selectStr, object selectParam, string insertStr, object insertParam, string newCreatedRowSelectWithIdCmd)
+        public async Task<T> GetOrInsertIfEmptyAsync<T>(string selectStr, object? selectParam, string insertStr, object insertParam, string newCreatedRowSelectWithIdCmd)
         {
+            if (selectParam == null) selectParam = new { };
+
             IEnumerable<T> ret = await QueryAsync<T>(selectStr, selectParam);
             T t = ret.SingleOrDefault();
             if (t._IsNullOrDefault())
@@ -640,8 +643,10 @@ namespace IPA.Cores.Basic
             => ExecuteScalarAsync<T>(commandStr, param)._GetResult();
 
 
-        public async Task<IEnumerable<T>> EasySelectAsync<T>(string selectStr, object selectParam, bool throwErrorIfNotFound = false, CancellationToken cancel = default) where T : class
+        public async Task<IEnumerable<T>> EasySelectAsync<T>(string selectStr, object? selectParam = null, bool throwErrorIfNotFound = false, CancellationToken cancel = default) where T : class
         {
+            if (selectParam == null) selectParam = new { };
+
             await EnsureOpenAsync(cancel);
             EnsureDapperTypeMapping(typeof(T));
 
@@ -726,8 +731,10 @@ namespace IPA.Cores.Basic
         public bool EasyDelete<T>(T data, bool throwErrorIfNotFound = false) where T : class
             => EasyDeleteAsync(data, throwErrorIfNotFound)._GetResult();
 
-        public async Task<dynamic?> EasyFindIdAsync<T>(string selectStr, object selectParam) where T : class
+        public async Task<dynamic?> EasyFindIdAsync<T>(string selectStr, object? selectParam = null) where T : class
         {
+            if (selectParam == null) selectParam = new { };
+
             var list = await QueryAsync<T>(selectStr, selectParam);
             var entity = list.SingleOrDefault();
 
@@ -740,8 +747,10 @@ namespace IPA.Cores.Basic
             return keyProperty.GetValue(entity);
         }
 
-        public async Task<T> EasyFindOrInsertAsync<T>(string selectStr, object selectParam, T? newEntity = null) where T : class
+        public async Task<T> EasyFindOrInsertAsync<T>(string selectStr, object? selectParam = null, T? newEntity = null) where T : class
         {
+            if (selectParam == null) selectParam = new { };
+
             if (newEntity == null)
                 newEntity = (T)selectParam;
 
@@ -775,8 +784,10 @@ namespace IPA.Cores.Basic
             return await EasyGetAsync<T>(id, true);
         }
 
-        public async Task<T?> EasyFindAsync<T>(string selectStr, object selectParam, bool throwErrorIfNotFound = true) where T : class
+        public async Task<T?> EasyFindAsync<T>(string selectStr, object? selectParam = null, bool throwErrorIfNotFound = true) where T : class
         {
+            if (selectParam == null) selectParam = new { };
+
             dynamic? id = await EasyFindIdAsync<T>(selectStr, selectParam);
 
             if (id == null)
@@ -1225,7 +1236,7 @@ namespace IPA.Cores.Basic
             LABEL_RETRY:
             try
             {
-                using (UsingTran u = this.UsingTran(isolationLevel))
+                await using (UsingTran u = await this.UsingTranAsync(isolationLevel))
                 {
                     if (await task())
                     {
@@ -1256,9 +1267,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public Task TranReadSnapshotAsync(TransactionalReadOnlyTaskAsync task)
+        public async Task TranReadSnapshotAsync(TransactionalReadOnlyTaskAsync task)
         {
-            return TranAsync(IsolationLevel.Snapshot, async () =>
+            await TranAsync(IsolationLevel.Snapshot, async () =>
             {
                 await task();
                 return false;
@@ -1274,6 +1285,43 @@ namespace IPA.Cores.Basic
                 ret = await task();
                 return false;
             });
+
+            return ret!;
+        }
+
+        public async Task TranReadSnapshotIfNecessaryAsync(TransactionalReadOnlyTaskAsync task)
+        {
+            if (this.Transaction == null)
+            {
+                await TranAsync(IsolationLevel.Snapshot, async () =>
+                {
+                    await task();
+
+                    return false;
+                });
+            }
+            else
+            {
+                await task();
+            }
+        }
+
+        public async Task<T> TranReadSnapshotIfNecessaryAsync<T>(TransactionalReadOnlyTaskAsync<T> task)
+        {
+            T ret = default;
+
+            if (this.Transaction == null)
+            {
+                await TranAsync(IsolationLevel.Snapshot, async () =>
+                {
+                    ret = await task();
+                    return false;
+                });
+            }
+            else
+            {
+                ret = await task();
+            }
 
             return ret!;
         }
