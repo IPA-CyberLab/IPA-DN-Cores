@@ -71,6 +71,9 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.WebEncoders;
+using System.Text.Encodings.Web;
+using System.Text.Unicode;
 
 #if CORES_BASIC_HTTPSERVER
 // ASP.NET Core 3.0 用の型名を無理やり ASP.NET Core 2.2 でコンパイルするための型エイリアスの設定
@@ -197,6 +200,14 @@ namespace IPA.Cores.Basic
             {
                 // Basic 認証の追加
                 services.AddBasicAuth(opt => opt.PasswordValidatorAsync = this.SimpleBasicAuthenticationPasswordValidator);
+            }
+
+            if (ServerOptions.DisableExcessiveHtmlEncoding)
+            {
+                services.Configure<WebEncoderOptions>(options =>
+                {
+                    options.TextEncoderSettings = new TextEncoderSettings(UnicodeRanges.All);
+                });
             }
 
             //    if (ServerOptions.RequireBasicAuthenticationToAllRequests)
@@ -487,6 +498,8 @@ namespace IPA.Cores.Basic
         public bool HoldSimpleBasicAuthenticationDatabase { get; set; } = false;
         public string SimpleBasicAuthenticationRealm { get; set; } = "Basic Authentication";
         public bool AutomaticRedirectToHttpsIfPossible { get; set; } = true;
+
+        public bool DisableExcessiveHtmlEncoding { get; set; } = true;
 
         public bool HideKestrelServerHeader { get; set; } = true;
 

@@ -6237,15 +6237,29 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class Pair<TA, TB>
+    public class Pair2<TA, TB>
     {
-        public TA A { get; set; }
-        public TB B { get; set; }
+        public TA A { get; }
+        public TB B { get; }
 
-        public Pair(TA a, TB b)
+        public Pair2(TA a, TB b)
         {
             this.A = a;
             this.B = b;
+        }
+    }
+
+    public class Pair3<TA, TB, TC>
+    {
+        public TA A { get; }
+        public TB B { get; }
+        public TC C { get; }
+
+        public Pair3(TA a, TB b, TC c)
+        {
+            this.A = a;
+            this.B = b;
+            this.C = c;
         }
     }
 

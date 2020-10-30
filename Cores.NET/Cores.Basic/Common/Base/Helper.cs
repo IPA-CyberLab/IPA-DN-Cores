@@ -647,6 +647,12 @@ namespace IPA.Cores.Helper.Basic
         public static string _ToLocalDtStr(this DateTimeOffset dt, bool withMSsecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false)
             => dt.LocalDateTime._ToDtStr(withMSsecs, option, withNanoSecs);
 
+        public static string _ToFullDateTimeStr(this DateTime dt, bool toLocalTime = false, CoreLanguage lang = CoreLanguage.Japanese)
+            => Str.DateTimeToStr(dt, toLocalTime, lang);
+
+        public static string _ToFullDateTimeStr(this DateTimeOffset dt, CoreLanguage lang = CoreLanguage.Japanese)
+            => dt.LocalDateTime._ToFullDateTimeStr(false, lang);
+
         public static string _ToTsStr(this TimeSpan timeSpan, bool withMSecs = false, bool withNanoSecs = false) => Str.TimeSpanToTsStr(timeSpan, withMSecs, withNanoSecs);
 
         public static bool _IsZeroDateTime(this DateTime dt) => Util.IsZero(dt);

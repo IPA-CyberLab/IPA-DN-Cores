@@ -5631,19 +5631,7 @@ namespace IPA.Cores.Basic
         }
 
         // 日時を文字列に変換する
-        public static string DateTimeToStr(DateTime dt)
-        {
-            return DateTimeToStr(dt, false);
-        }
-        public static string DateTimeToStr(DateTime dt, CoreLanguage lang)
-        {
-            return DateTimeToStr(dt, false, lang);
-        }
-        public static string DateTimeToStr(DateTime dt, bool toLocalTime)
-        {
-            return DateTimeToStr(dt, toLocalTime, CoreLanguageClass.CurrentThreadLanguage);
-        }
-        public static string DateTimeToStr(DateTime dt, bool toLocalTime, CoreLanguage lang)
+        public static string DateTimeToStr(DateTime dt, bool toLocalTime = false, CoreLanguage lang = CoreLanguage.Japanese)
         {
             if (toLocalTime)
             {
@@ -5659,11 +5647,7 @@ namespace IPA.Cores.Basic
                 return dt.ToString("yyyy-MM-dd(") + DayOfWeekToStr(lang, (int)dt.DayOfWeek) + dt.ToString(") H:mm:ss");
             }
         }
-        public static string DateTimeToStrShort(DateTime dt)
-        {
-            return DateTimeToStrShort(dt, false);
-        }
-        public static string DateTimeToStrShort(DateTime dt, bool toLocalTime)
+        public static string DateTimeToStrShort(DateTime dt, bool toLocalTime = false)
         {
             if (toLocalTime)
             {
@@ -5672,11 +5656,7 @@ namespace IPA.Cores.Basic
 
             return dt.ToString("yyyyMMdd_HHmmss");
         }
-        public static string DateTimeToStrShortWithMilliSecs(DateTime dt)
-        {
-            return DateTimeToStrShortWithMilliSecs(dt, false);
-        }
-        public static string DateTimeToStrShortWithMilliSecs(DateTime dt, bool toLocalTime)
+        public static string DateTimeToStrShortWithMilliSecs(DateTime dt, bool toLocalTime = false)
         {
             if (toLocalTime)
             {
