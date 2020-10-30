@@ -159,6 +159,18 @@ namespace IPA.Cores.Basic
                         return new DnsResponse(param, ip._SingleArray());
                     else
                         return new DnsResponse(param, await PalDns.GetHostAddressesAsync(getIpQuery.Hostname, getIpQuery.Timeout, cancel));
+
+                case DnsGetFqdnQueryParam getFqdnQuery:
+                    var res = await PalDns.GetHostEntryAsync(getFqdnQuery.Ip._UnmapIPv4(), getFqdnQuery.Timeout, cancel);
+
+                    List<string> hostNameList = new List<string>();
+
+                    hostNameList.Add(res.HostName);
+                    res.Aliases._DoForEach(x => hostNameList.Add(x));
+
+                    hostNameList.Distinct();
+
+                    return new DnsResponse(param, hostNameList);
             }
 
             throw new NotImplementedException();

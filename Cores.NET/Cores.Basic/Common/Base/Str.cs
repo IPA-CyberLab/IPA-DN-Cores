@@ -6363,6 +6363,24 @@ namespace IPA.Cores.Basic
             return true;
         }
 
+        public static string MakeStrArray(string str, int count, string sepstr = "")
+        {
+            sepstr = sepstr._NonNull();
+            StringWriter w = new StringWriter();
+
+            for (int i = 0; i < count; i++)
+            {
+                w.Write(str);
+
+                if (i != (count - 1))
+                {
+                    w.Write(sepstr);
+                }
+            }
+
+            return w.ToString();
+        }
+
         // 指定した文字の列を生成する
         public static string MakeCharArray(char c, int len)
         {

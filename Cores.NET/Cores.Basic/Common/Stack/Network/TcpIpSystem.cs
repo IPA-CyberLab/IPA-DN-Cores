@@ -263,12 +263,23 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class DnsGetFqdnQueryParam : DnsQueryParamBase
+    {
+        public IPAddress Ip { get; }
+
+        public DnsGetFqdnQueryParam(IPAddress ip, int timeout = -1) : base(DnsQueryOptions.Default, timeout)
+        {
+            this.Ip = ip;
+        }
+    }
+
     public class DnsResponse
     {
         public DnsQueryParamBase Query { get; }
         public IReadOnlyList<IPAddress> IPAddressList { get; }
+        public IReadOnlyList<string> FqdnList { get; }
 
-        public DnsResponse(DnsQueryParamBase query, IPAddress[] addressList)
+        public DnsResponse(DnsQueryParamBase query, IEnumerable<IPAddress> addressList)
         {
             this.Query = query;
 
@@ -281,6 +292,17 @@ namespace IPA.Cores.Basic
                 filtered = filtered.Where(x => x.AddressFamily == AddressFamily.InterNetworkV6);
 
             this.IPAddressList = new List<IPAddress>(filtered);
+
+            this.FqdnList = new List<string>();
+        }
+
+        public DnsResponse(DnsQueryParamBase query, IEnumerable<string> fqdnList)
+        {
+            this.Query = query;
+
+            this.IPAddressList = new List<IPAddress>();
+
+            this.FqdnList = fqdnList.ToList();
         }
     }
 

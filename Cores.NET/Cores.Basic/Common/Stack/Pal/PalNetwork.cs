@@ -665,6 +665,10 @@ namespace IPA.Cores.Basic
         public static Task<IPHostEntry> GetHostEntryAsync(string hostNameOrAddress, int timeout = Timeout.Infinite, CancellationToken cancel = default)
             => TaskUtil.DoAsyncWithTimeout(c => Dns.GetHostEntryAsync(hostNameOrAddress),
                 timeout: timeout, cancel: cancel);
+
+        public static Task<IPHostEntry> GetHostEntryAsync(IPAddress ip, int timeout = Timeout.Infinite, CancellationToken cancel = default)
+            => TaskUtil.DoAsyncWithTimeout(c => Dns.GetHostEntryAsync(ip),
+                timeout: timeout, cancel: cancel);
     }
 
     public class PalHostNetInfo : BackgroundStateDataBase

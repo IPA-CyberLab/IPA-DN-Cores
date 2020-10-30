@@ -55,6 +55,9 @@ using IPA.Cores.Helper.Web;
 using static IPA.Cores.Globals.Web;
 using Castle.DynamicProxy.Generators;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.Html;
+using System.Net;
 
 namespace IPA.Cores.Helper.Web
 {
@@ -151,8 +154,23 @@ namespace IPA.Cores.Helper.Web
             }
         }
 
+        // HTML 関係
+        public static IHtmlContent Spacing<TModel>(this IHtmlHelper<TModel> helper, int num = 1)
+            => helper.Raw(Str.HtmlSpacing._MakeStrArray(num));
+
         // タグ関係
         public static string _BoolToChecked(this bool b) => b ? " checked" : "";
+
+        // IP アドレス関係
+        public static IPAddress _GetLocalIp(this HttpContext ctx) => ctx.Connection.LocalIpAddress._UnmapIPv4();
+        public static int _GetLocalPort(this HttpContext ctx) => ctx.Connection.LocalPort;
+        public static IPAddress _GetRemoteIp(this HttpContext ctx) => ctx.Connection.RemoteIpAddress._UnmapIPv4();
+        public static int _GetRemotePort(this HttpContext ctx) => ctx.Connection.RemotePort;
+
+        public static IPAddress _GetLocalIp(this Controller controller) => controller.HttpContext._GetLocalIp();
+        public static int _GetLocalPort(this Controller controller) => controller.HttpContext._GetLocalPort();
+        public static IPAddress _GetRemoteIp(this Controller controller) => controller.HttpContext._GetRemoteIp();
+        public static int _GetRemotePort(this Controller controller) => controller.HttpContext._GetRemotePort();
 
         // --- Cookie 関係 ---
 

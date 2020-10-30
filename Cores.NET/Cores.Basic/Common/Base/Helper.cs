@@ -499,6 +499,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _MakeAsciiOneLinePrintableStr(this string? src, char alternativeChar = ' ') => Str.MakeAsciiOneLinePrintableStr(src, alternativeChar);
 
         public static string _MakeCharArray(this char c, int len) => Str.MakeCharArray(c, len);
+        public static string _MakeStrArray(this string str, int count, string sepstr = "") => Str.MakeStrArray(str, count, sepstr);
         public static bool _IsZenkaku(this char c) => Str.IsZenkaku(c);
         public static bool _IsCharNumOrAlpha(this char c) => Str.IsCharNumOrAlpha(c);
         //public static bool _IsSafeAndPrintable(this char c, bool crlIsOk = true, bool html_tag_ng = false) => Str.IsSafeAndPrintable(c, crlIsOk, html_tag_ng);
