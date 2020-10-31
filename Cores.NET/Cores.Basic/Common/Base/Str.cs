@@ -52,6 +52,7 @@ using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using LibGit2Sharp;
 
 namespace IPA.Cores.Basic
 {
@@ -928,6 +929,15 @@ namespace IPA.Cores.Basic
     {
         Windows,
         Linux,
+    }
+
+    [Flags]
+    public enum FullDateTimeStrFlags : ulong
+    {
+        None = 0,
+        NoSeconds = 1,
+        SlashDate = 2,
+        CommaTime = 4,
     }
 
     // 文字列操作
@@ -2404,7 +2414,7 @@ namespace IPA.Cores.Basic
         }
 
         // URL のリンクになっているような部分をリンクする
-        public static string LinkUrlOnText(string text, string target)
+        public static string LinkUrlOnText(string text, string target = "")
         {
             int findStart = 0;
 
@@ -5638,7 +5648,7 @@ namespace IPA.Cores.Basic
         }
 
         // 日時を文字列に変換する
-        public static string DateTimeToStr(DateTime dt, bool toLocalTime = false, CoreLanguage lang = CoreLanguage.Japanese)
+        public static string DateTimeToStr(DateTime dt, bool toLocalTime = false, CoreLanguage lang = CoreLanguage.Japanese, FullDateTimeStrFlags flags = FullDateTimeStrFlags.None)
         {
             if (toLocalTime)
             {
@@ -5647,11 +5657,31 @@ namespace IPA.Cores.Basic
 
             if (lang == CoreLanguage.Japanese)
             {
-                return dt.ToString("yyyy年M月d日") + "(" + DayOfWeekToStr(lang, (int)dt.DayOfWeek) + ")" + dt.ToString(" H時m分s秒");
+                string dateTag = "yyyy年M月d日";
+                string timeTag = flags.Bit(FullDateTimeStrFlags.CommaTime)? " HH:mm:ss" : " H時m分s秒";
+
+                if (flags.Bit(FullDateTimeStrFlags.SlashDate))
+                {
+                    dateTag = "yyyy/MM/dd";
+                }
+
+                if (flags.Bit(FullDateTimeStrFlags.NoSeconds))
+                {
+                    timeTag = flags.Bit(FullDateTimeStrFlags.CommaTime) ? " HH:mm" : " H時m分";
+                }
+
+                return dt.ToString(dateTag) + "(" + DayOfWeekToStr(lang, (int)dt.DayOfWeek) + ")" + dt.ToString(timeTag);
             }
             else
             {
-                return dt.ToString("yyyy-MM-dd(") + DayOfWeekToStr(lang, (int)dt.DayOfWeek) + dt.ToString(") H:mm:ss");
+                string timeTag = ") H:mm:ss";
+
+                if (flags.Bit(FullDateTimeStrFlags.NoSeconds))
+                {
+                    timeTag = ") H:mm";
+                }
+
+                return dt.ToString("yyyy-MM-dd(") + DayOfWeekToStr(lang, (int)dt.DayOfWeek) + dt.ToString(timeTag);
             }
         }
         public static string DateTimeToStrShort(DateTime dt, bool toLocalTime = false)
@@ -5829,6 +5859,43 @@ namespace IPA.Cores.Basic
             return b.ToString();
         }
 
+
+        // 2ch 方式のハッシュ文字列の生成
+        public static string Easy2chTypeHashStr(string src, int len = 8)
+        {
+            len = Math.Max(len, 1);
+
+            var rand = new SeedBasedRandomGenerator(src);
+
+            StringBuilder b = new StringBuilder();
+
+            for (int i = 0; i < len; i++)
+            {
+                char c = IntToChar(rand.GetSInt31());
+
+                b.Append(c);
+            }
+
+            return b.ToString();
+
+            char IntToChar(int i)
+            {
+                i = i % (10 + 26 * 2);
+
+                if (i < 10)
+                {
+                    return (char)('0' + i);
+                }
+                else if (i < (10 + 26))
+                {
+                    return (char)('a' + i - 10);
+                }
+                else
+                {
+                    return (char)('A' + i - (10 + 26));
+                }
+            }
+        }
         // 文字列置換
         public static string Base64ToSafe64(string str)
         {
@@ -6759,8 +6826,10 @@ namespace IPA.Cores.Basic
             return (lines.FirstOrDefault())._NonNullTrim();
         }
 
-        public static string OneLine(string s, string splitter = " / ")
+        public static string OneLine(string? s, string splitter = " / ")
         {
+            if (s._IsNullOrZeroLen()) return "";
+
             StringWriter w = new StringWriter();
             string[] lines = Str.GetLines(s);
             int num = 0;

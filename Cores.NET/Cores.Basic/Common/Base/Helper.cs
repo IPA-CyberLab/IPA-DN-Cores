@@ -356,7 +356,7 @@ namespace IPA.Cores.Helper.Basic
         public static string[] _ParseCmdLine(this string s) => Str.ParseCmdLine(s);
         public static object _Old_XmlToObjectPublic(this string s, Type t) => Str.XMLToObjectSimple_PublicLegacy(s, t);
         public static StrToken _ToToken(this string s, string splitStr = " ,\t\r\n") => new StrToken(s, splitStr);
-        public static string _OneLine(this string s, string splitter = " / ") => Str.OneLine(s, splitter);
+        public static string _OneLine(this string? s, string splitter = " / ") => Str.OneLine(s, splitter);
         public static string _OneLine(this IEnumerable<string> s, string splitter = " / ") => Str.OneLine(s._Combine(Str.NewLine_Str_Local), splitter);
         public static string _GetFirstFilledLineFromLines(this string src) => Str.GetFirstFilledLineFromLines(src);
         public static string _GetFirstFilledLineFromLines(this IEnumerable<string> src) => Str.GetFirstFilledLineFromLines(src._Combine(Str.NewLine_Str_Local));
@@ -648,11 +648,11 @@ namespace IPA.Cores.Helper.Basic
         public static string _ToLocalDtStr(this DateTimeOffset dt, bool withMSsecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false)
             => dt.LocalDateTime._ToDtStr(withMSsecs, option, withNanoSecs);
 
-        public static string _ToFullDateTimeStr(this DateTime dt, bool toLocalTime = false, CoreLanguage lang = CoreLanguage.Japanese)
-            => Str.DateTimeToStr(dt, toLocalTime, lang);
+        public static string _ToFullDateTimeStr(this DateTime dt, bool toLocalTime = false, CoreLanguage lang = CoreLanguage.Japanese, FullDateTimeStrFlags flags = FullDateTimeStrFlags.None)
+            => Str.DateTimeToStr(dt, toLocalTime, lang, flags);
 
-        public static string _ToFullDateTimeStr(this DateTimeOffset dt, CoreLanguage lang = CoreLanguage.Japanese)
-            => dt.LocalDateTime._ToFullDateTimeStr(false, lang);
+        public static string _ToFullDateTimeStr(this DateTimeOffset dt, CoreLanguage lang = CoreLanguage.Japanese, FullDateTimeStrFlags flags = FullDateTimeStrFlags.None)
+            => dt.LocalDateTime._ToFullDateTimeStr(false, lang, flags);
 
         public static string _ToTsStr(this TimeSpan timeSpan, bool withMSecs = false, bool withNanoSecs = false) => Str.TimeSpanToTsStr(timeSpan, withMSecs, withNanoSecs);
 
@@ -761,7 +761,13 @@ namespace IPA.Cores.Helper.Basic
             return n;
         }
 
-        public static IPAddress? _ToIPAddress(this string s, AllowedIPVersions allowed = AllowedIPVersions.All, bool noExceptionAndReturnNull = false) => IPUtil.StrToIP(s, allowed, noExceptionAndReturnNull);
+        public static Task<string> _GetHostnameFromIpAsync(this IPAddress? ip, CancellationToken cancel = default) => LocalNet.GetHostNameSingleOrIpAsync(ip, cancel);
+        public static string _GetHostnameFromIp(this IPAddress? ip, CancellationToken cancel = default) => _GetHostnameFromIpAsync(ip, cancel)._GetResult();
+
+        public static Task<string> _GetHostnameFromIpAsync(this string? ip, CancellationToken cancel = default) => LocalNet.GetHostNameSingleOrIpAsync(ip._ToIPAddress(noExceptionAndReturnNull: true), cancel);
+        public static string _GetHostnameFromIp(this string? ip, CancellationToken cancel = default) => _GetHostnameFromIpAsync(ip, cancel)._GetResult();
+
+        public static IPAddress? _ToIPAddress(this string? s, AllowedIPVersions allowed = AllowedIPVersions.All, bool noExceptionAndReturnNull = false) => IPUtil.StrToIP(s, allowed, noExceptionAndReturnNull);
 
         public static IPAddress _UnmapIPv4(this IPAddress a) => IPUtil.UnmapIPv6AddressToIPv4Address(a);
 

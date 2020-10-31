@@ -163,13 +163,24 @@ namespace IPA.Cores.Helper.Web
 
         // IP アドレス関係
         public static IPAddress _GetLocalIp(this HttpContext ctx) => ctx.Connection.LocalIpAddress._UnmapIPv4();
+        public static Task<string> _GetLocalHostnameAsync(this HttpContext ctx, CancellationToken cancel = default) => ctx._GetLocalIp()._GetHostnameFromIpAsync(cancel);
+        public static string _GetLocalHostname(this HttpContext ctx, CancellationToken cancel = default) => _GetLocalHostnameAsync(ctx)._GetResult();
         public static int _GetLocalPort(this HttpContext ctx) => ctx.Connection.LocalPort;
+
         public static IPAddress _GetRemoteIp(this HttpContext ctx) => ctx.Connection.RemoteIpAddress._UnmapIPv4();
+        public static Task<string> _GetRemoteHostnameAsync(this HttpContext ctx, CancellationToken cancel = default) => ctx._GetRemoteIp()._GetHostnameFromIpAsync(cancel);
+        public static string _GetRemoteHostname(this HttpContext ctx, CancellationToken cancel = default) => _GetRemoteHostnameAsync(ctx)._GetResult();
         public static int _GetRemotePort(this HttpContext ctx) => ctx.Connection.RemotePort;
 
+
         public static IPAddress _GetLocalIp(this Controller controller) => controller.HttpContext._GetLocalIp();
+        public static Task<string> _GetLocalHostnameAsync(this Controller controller, CancellationToken cancel = default) => controller._GetLocalIp()._GetHostnameFromIpAsync(cancel);
+        public static string _GetLocalHostname(this Controller controller, CancellationToken cancel = default) => _GetLocalHostnameAsync(controller)._GetResult();
         public static int _GetLocalPort(this Controller controller) => controller.HttpContext._GetLocalPort();
+
         public static IPAddress _GetRemoteIp(this Controller controller) => controller.HttpContext._GetRemoteIp();
+        public static Task<string> _GetRemoteHostnameAsync(this Controller controller, CancellationToken cancel = default) => controller._GetRemoteIp()._GetHostnameFromIpAsync(cancel);
+        public static string _GetRemoteHostname(this Controller controller, CancellationToken cancel = default) => _GetRemoteHostnameAsync(controller)._GetResult();
         public static int _GetRemotePort(this Controller controller) => controller.HttpContext._GetRemotePort();
 
         // --- Cookie 関係 ---

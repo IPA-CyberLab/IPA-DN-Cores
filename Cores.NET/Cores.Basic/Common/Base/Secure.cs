@@ -428,6 +428,174 @@ namespace IPA.Cores.Basic
         public static CertSelectorCallback StaticServerCertSelector(X509Certificate2 cert) => (obj, sni) => cert;
     }
 
+
+
+    public class SeedBasedRandomGenerator
+    {
+        SHA1 Sha1 = new SHA1Managed();
+        MemoryBuffer<byte> seedPlusSeqNo;
+
+        FastStreamBuffer<byte> fifo = new FastStreamBuffer<byte>();
+
+        public SeedBasedRandomGenerator(string seed) : this(seed._GetBytes_UTF8()) { }
+
+        public SeedBasedRandomGenerator(ReadOnlySpan<byte> seed)
+        {
+            seedPlusSeqNo = new MemoryBuffer<byte>();
+            seedPlusSeqNo.WriteSInt64(0);
+            seedPlusSeqNo.Write(Secure.HashSHA256(seed));
+        }
+
+        long SeqNo = 0;
+
+        ReadOnlyMemory<byte> GenerateNextBlockInternal()
+        {
+            SeqNo++;
+
+            var srcSpan = seedPlusSeqNo.Span;
+            srcSpan._RawWriteValueSInt64(SeqNo);
+
+            Memory<byte> tmp = new byte[Sha1.HashSize / 8];
+
+            if (Sha1.TryComputeHash(srcSpan, tmp.Span, out int num) == false || num != tmp.Length)
+            {
+                throw new CoresLibException("Invalid status!");
+            }
+
+            return tmp;
+        }
+
+        public ReadOnlyMemory<byte> GetBytes(int wantSize)
+        {
+            if (wantSize < 0) throw new ArgumentOutOfRangeException(nameof(wantSize));
+            if (wantSize == 0) return new byte[0];
+
+            MemoryBuffer<byte> ret = new MemoryBuffer<byte>();
+
+            while (true)
+            {
+                if (fifo.Length >= wantSize)
+                {
+                    return fifo.DequeueContiguousSlow(wantSize);
+                }
+
+                var tmp = GenerateNextBlockInternal();
+
+                fifo.Enqueue(tmp);
+            }
+        }
+
+        public byte GetUInt8()
+        {
+            var mem = GetBytes(1);
+            return mem._GetUInt8();
+        }
+
+        public ushort GetUInt16()
+        {
+            var mem = GetBytes(2);
+            return mem._GetUInt16();
+        }
+
+        public uint GetUInt32()
+        {
+            var mem = GetBytes(4);
+            return mem._GetUInt32();
+        }
+
+        public ulong GetUInt64()
+        {
+            var mem = GetBytes(8);
+            return mem._GetUInt64();
+        }
+
+        public byte GetUInt7()
+        {
+            var mem = GetBytes(1)._CloneSpan();
+            mem[0] &= 0x7F;
+            return mem._GetUInt8();
+        }
+
+        public ushort GetUInt15()
+        {
+            var mem = GetBytes(2)._CloneSpan();
+            mem[0] &= 0x7F;
+            return mem._GetUInt16();
+        }
+
+        public uint GetUInt31()
+        {
+            var mem = GetBytes(4)._CloneSpan();
+            mem[0] &= 0x7F;
+            return mem._GetUInt32();
+        }
+
+        public ulong GetUInt63()
+        {
+            var mem = GetBytes(8)._CloneSpan();
+            mem[0] &= 0x7F;
+            return mem._GetUInt64();
+        }
+
+        public sbyte GetSInt8_Caution()
+        {
+            var mem = GetBytes(1);
+            return mem._GetSInt8();
+        }
+
+        public short GetSInt16_Caution()
+        {
+            var mem = GetBytes(2);
+            return mem._GetSInt16();
+        }
+
+        public int GetSInt32_Caution()
+        {
+            var mem = GetBytes(4);
+            return mem._GetSInt32();
+        }
+
+        public long GetSInt64_Caution()
+        {
+            var mem = GetBytes(8);
+            return mem._GetSInt64();
+        }
+
+        public sbyte GetSInt7()
+        {
+            var mem = GetBytes(1)._CloneSpan();
+            mem[0] &= 0x7F;
+            return mem._GetSInt8();
+        }
+
+        public short GetSInt15()
+        {
+            var mem = GetBytes(2)._CloneSpan();
+            mem[0] &= 0x7F;
+            return mem._GetSInt16();
+        }
+
+        public int GetSInt31()
+        {
+            var mem = GetBytes(4)._CloneSpan();
+            mem[0] &= 0x7F;
+            return mem._GetSInt32();
+        }
+
+        public long GetSInt63()
+        {
+            var mem = GetBytes(8)._CloneSpan();
+            mem[0] &= 0x7F;
+            return mem._GetSInt64();
+        }
+
+        public bool GetBool()
+        {
+            return (GetUInt32() % 2) == 0;
+        }
+    }
+
+
     public static class ExeSignChecker
     {
         public static bool IsKernelModeSignedFile(string fileName)

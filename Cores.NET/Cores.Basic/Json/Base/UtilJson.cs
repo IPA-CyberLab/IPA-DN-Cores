@@ -64,6 +64,8 @@ namespace IPA.Cores.Basic
         {
             if (obj == null) return "";
 
+            if (obj is INormalizable n) n.Normalize();
+
             MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
 
             string json = obj._ObjectToJson<T>(EnsurePresentInterface.Yes, compact: true);
@@ -107,7 +109,11 @@ namespace IPA.Cores.Basic
 
                 string json = jsonData._GetString_UTF8();
 
-                return json._JsonToObject<T>();
+                T ret = json._JsonToObject<T>();
+
+                if (ret is INormalizable n) n.Normalize();
+
+                return ret;
             }
             catch
             {
