@@ -761,7 +761,7 @@ namespace IPA.Cores.Helper.Basic
             return n;
         }
 
-        public static IPAddress? _ToIPAddress(this string s) => IPUtil.StrToIP(s);
+        public static IPAddress? _ToIPAddress(this string s, AllowedIPVersions allowed = AllowedIPVersions.All, bool noExceptionAndReturnNull = false) => IPUtil.StrToIP(s, allowed, noExceptionAndReturnNull);
 
         public static IPAddress _UnmapIPv4(this IPAddress a) => IPUtil.UnmapIPv6AddressToIPv4Address(a);
 
@@ -2280,6 +2280,14 @@ namespace IPA.Cores.Helper.Basic
         public static TimeSpan _ToTimeSpanMSecs(this uint msecs) => TimeSpan.FromMilliseconds(msecs);
         public static TimeSpan _ToTimeSpanMSecs(this long msecs) => TimeSpan.FromMilliseconds(msecs);
         public static TimeSpan _ToTimeSpanMSecs(this ulong msecs) => TimeSpan.FromMilliseconds(msecs);
+
+        [MethodImpl(Inline)]
+        public static long _ScopeIdSafe(this IPAddress? ip)
+        {
+            if (ip == null) return 0;
+            if (ip.AddressFamily != AddressFamily.InterNetworkV6) return 0;
+            return ip.ScopeId;
+        }
     }
 }
 

@@ -47,6 +47,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Net;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Diagnostics.CodeAnalysis;
@@ -1234,6 +1235,203 @@ namespace IPA.Cores.Basic
             finally
             {
                 base.DisposeImpl(ex);
+            }
+        }
+    }
+
+    [Serializable]
+    public class DnsHostNameScannerSettings : INormalizable
+    {
+        public int NumThreads { get; set; } = 64;
+        public int Interval { get; set; } = 100;
+        public bool RandomInterval { get; set; } = true;
+        public bool Shuffle { get; set; } = true;
+        public bool PrintStat { get; set; } = true;
+        public bool PrintOrderByFqdn { get; set; } = true;
+        public int NumTry { get; set; } = 3;
+
+        public void Normalize()
+        {
+            this.NumThreads = Math.Max(this.NumThreads, 1);
+            if (Interval < 0) Interval = 100;
+            if (NumTry <= 0) NumTry = 1;
+        }
+    }
+
+    public class DnsHostNameScannerEntry
+    {
+        public IPAddress Ip { get; set; } = null!;
+        public List<string>? HostnameList { get; set; }
+    }
+
+    public class DnsHostNameScanner : AsyncService
+    {
+        readonly DnsResolver Dr;
+        readonly DnsHostNameScannerSettings Settings;
+
+        public DnsHostNameScanner(DnsHostNameScannerSettings? settings = null, DnsResolverSettings? dnsSettings = null)
+        {
+            if (settings == null) settings = new DnsHostNameScannerSettings();
+
+            this.Settings = settings._CloneDeepWithNormalize();
+
+            Dr = DnsResolver.CreateDnsResolverIfSupported(dnsSettings);
+        }
+
+        Once Started;
+
+        Queue<DnsHostNameScannerEntry> BeforeQueue = null!;
+        List<DnsHostNameScannerEntry> AfterResult = null!;
+
+        public Task PerformAsync(string targetIpAddressList, CancellationToken cancel = default)
+            => PerformAsync(IPUtil.GenerateIpAddressListFromIpSubnetList(targetIpAddressList).Select(x=>x.ToString()), cancel);
+
+        public async Task PerformAsync(IEnumerable<string> targetIpAddressList, CancellationToken cancel = default)
+        {
+            if (Started.IsFirstCall() == false) throw new CoresException("Already started.");
+
+            var ipList = targetIpAddressList.Select(x => x._ToIPAddress(noExceptionAndReturnNull: true)).Where(x => x != null).Distinct().OrderBy(x => x, IpComparer.Comparer);
+
+            if (this.Settings.Shuffle) ipList = ipList._Shuffle();
+
+            // キューを作成する
+            BeforeQueue = new Queue<DnsHostNameScannerEntry>();
+            AfterResult = new List<DnsHostNameScannerEntry>();
+
+            // キューに挿入する
+            ipList._DoForEach(x => BeforeQueue.Enqueue(new DnsHostNameScannerEntry { Ip = x! }));
+
+            int numTry = Settings.NumTry;
+
+            for (int tryCount = 0; tryCount < numTry; tryCount++)
+            {
+                if (Settings.PrintStat) $"--- Starting Try #{tryCount + 1} ---"._Print();
+
+                // スレッドを開始する
+                List<Task> tasksList = new List<Task>();
+                for (int i = 0; i < Settings.NumThreads; i++)
+                {
+                    Task t = AsyncAwait(async () =>
+                    {
+                        while (true)
+                        {
+                            cancel.ThrowIfCancellationRequested();
+
+                            DnsHostNameScannerEntry? target;
+                            lock (BeforeQueue)
+                            {
+                                if (BeforeQueue.TryDequeue(out target) == false)
+                                {
+                                    return;
+                                }
+                            }
+
+                            List<string>? ret = await Dr.GetHostNameAsync(target.Ip, cancel);
+
+                            if (ret._IsFilled())
+                            {
+                                target.HostnameList = ret;
+
+                                if (Settings.PrintStat)
+                                {
+                                    $"Try #{tryCount + 1}: {target.Ip.ToString()._AddSpacePadding(19)} {target.HostnameList._Combine(" / ")}"._Print();
+                                }
+                            }
+
+                            lock (AfterResult)
+                            {
+                                AfterResult.Add(target);
+                            }
+
+                            lock (BeforeQueue)
+                            {
+                                if (BeforeQueue.Count == 0) return;
+                            }
+
+                            int nextInterval = Settings.Interval;
+
+                            if (Settings.RandomInterval)
+                            {
+                                nextInterval = Util.GenRandInterval(Settings.Interval);
+                            }
+
+                            await cancel._WaitUntilCanceledAsync(nextInterval);
+                        }
+                    });
+
+                    tasksList.Add(t);
+                }
+
+                // スレッドが完了するまで待つ
+                await Task.WhenAll(tasksList);
+
+                if (Settings.PrintStat) $"--- Finished: Try #{tryCount + 1} ---"._Print();
+
+                if (tryCount != (numTry - 1))
+                {
+                    List<DnsHostNameScannerEntry> unsolvedHosts = new List<DnsHostNameScannerEntry>();
+
+                    foreach (var item in AfterResult)
+                    {
+                        if (item.HostnameList._IsEmpty())
+                        {
+                            // 未解決ホストだな
+                            unsolvedHosts.Add(item);
+                        }
+                    }
+
+                    if (unsolvedHosts.Any() == false)
+                    {
+                        // 未解決ホストなし
+                        break;
+                    }
+
+                    unsolvedHosts.ForEach(x => AfterResult.Remove(x));
+
+                    if (Settings.Shuffle)
+                    {
+                        unsolvedHosts._Shuffle()._DoForEach(x => BeforeQueue.Enqueue(x));
+                    }
+                    else
+                    {
+                        unsolvedHosts.ForEach(x => BeforeQueue.Enqueue(x));
+                    }
+                }
+            }
+
+            if (Settings.PrintStat)
+            {
+                Con.WriteLine();
+                // おもしろソート
+                var printResults = AfterResult.Where(x => x.HostnameList._IsFilled());
+
+                if (Settings.PrintOrderByFqdn)
+                {
+                    printResults = printResults.OrderBy(x => x.HostnameList.First(), StrComparer.FqdnReverseStrComparer).ThenBy(x => x.Ip, IpComparer.Comparer);
+                }
+                else
+                {
+                    printResults = printResults.OrderBy(x => x.Ip, IpComparer.Comparer);
+                }
+
+                Con.WriteLine($"--- Results: {printResults.Count()._ToString3()} ---");
+
+                foreach (var item in printResults)
+                {
+                    $"{item.Ip.ToString()._AddSpacePadding(19)} {item.HostnameList!._Combine(" / ")}"._Print();
+                }
+            }
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                await Dr._DisposeSafeAsync();
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
             }
         }
     }

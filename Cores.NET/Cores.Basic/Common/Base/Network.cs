@@ -44,6 +44,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Linq;
 
 namespace IPA.Cores.Basic
 {
@@ -345,6 +346,43 @@ namespace IPA.Cores.Basic
 
     }
 
+
+
+    public class IpComparer : IEqualityComparer<IPAddress?>, IComparer<IPAddress?>
+    {
+        public static IpComparer Comparer { get; } = new IpComparer();
+
+        public int Compare(IPAddress? x, IPAddress? y)
+        {
+            if (x == null && y != null) return 1;
+            if (x != null && y == null) return -1;
+            if (x == null && y == null) return 0;
+
+            x._MarkNotNull();
+            y._MarkNotNull();
+
+            int r = x.AddressFamily.CompareTo(y.AddressFamily);
+            if (r != 0) return r;
+
+            r = Util.MemCompare(x.GetAddressBytes(), y.GetAddressBytes());
+            if (r != 0) return r;
+
+            if (x.AddressFamily != System.Net.Sockets.AddressFamily.InterNetworkV6) return 0;
+
+            return x.ScopeId.CompareTo(y.ScopeId);
+        }
+
+        public bool Equals(IPAddress? x, IPAddress? y)
+            => (Compare(x, y) == 0);
+
+        public int GetHashCode(IPAddress? obj)
+        {
+            if (obj == null) return 0;
+
+            return obj.GetHashCode();
+        }
+    }
+
     // IP アドレスの種類
     [Flags]
     public enum IPAddressType : long
@@ -435,21 +473,50 @@ namespace IPA.Cores.Basic
         // ブロードキャストアドレスの取得
         public static IPAddress GetBroadcastAddress(IPAddress ip, IPAddress subnet)
         {
-            if (ip.AddressFamily != AddressFamily.InterNetwork || subnet.AddressFamily != AddressFamily.InterNetwork)
+            if (ip.AddressFamily == AddressFamily.InterNetwork)
+            {
+                // IPv4
+                if (subnet.AddressFamily != AddressFamily.InterNetwork)
+                {
+                    throw new ArgumentException("invalid address family.");
+                }
+
+                if (IsSubnetMask4(subnet) == false)
+                {
+                    throw new ArgumentException("not a subnet mask.");
+                }
+
+                IPAddress network = NormalizeIpNetworkAddress(ip, SubnetMaskToInt4(subnet));
+
+                IPAddress broadcast = IPOr(network, IPNot(subnet));
+
+                return broadcast;
+            }
+            else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                // IPv6
+                if (subnet.AddressFamily != AddressFamily.InterNetworkV6)
+                {
+                    throw new ArgumentException("invalid address family.");
+                }
+
+                if (IsSubnetMask6(subnet) == false)
+                {
+                    throw new ArgumentException("not a subnet mask.");
+                }
+
+                IPAddress network = NormalizeIpNetworkAddress(ip, SubnetMaskToInt6(subnet));
+
+                IPAddress broadcast = IPOr(network, IPNot(subnet));
+
+                broadcast.ScopeId = ip.ScopeId;
+
+                return broadcast;
+            }
+            else
             {
                 throw new ArgumentException("invalid address family.");
             }
-
-            if (IsSubnetMask4(subnet) == false)
-            {
-                throw new ArgumentException("not a subnet mask.");
-            }
-
-            IPAddress network = NormalizeIpNetworkAddress(ip, SubnetMaskToInt4(subnet));
-
-            IPAddress broadcast = IPOr(network, IPNot(subnet));
-
-            return broadcast;
         }
 
         // ルータアドレスの取得
@@ -1710,6 +1777,83 @@ namespace IPA.Cores.Basic
             host = GetHostAddress(ip, subnet);
 
             return IsZeroIP(host);
+        }
+
+        // IP サブネットリスト文字列をパースする
+        public static List<Pair2<IPAddress, IPAddress>> ParseIpSubnetListStr(string str)
+        {
+            List<Pair2<IPAddress, IPAddress>> ret = new List<Pair2<IPAddress, IPAddress>>();
+
+            var tokens = str._Split(StringSplitOptions.RemoveEmptyEntries, " ", ",", "|", "　");
+
+            foreach (string token in tokens)
+            {
+                try
+                {
+                    ParseIPAndSubnetMask(token.Trim(), out IPAddress ip, out IPAddress mask);
+
+                    ret.Add(new Pair2<IPAddress, IPAddress>(ip, mask));
+                }
+                catch { }
+            }
+
+            return ret;
+        }
+
+        // IP サブネットリスト文字列をもとに IP アドレスの一覧を生成する
+        public static List<IPAddress> GenerateIpAddressListFromIpSubnetList(IEnumerable<Pair2<IPAddress, IPAddress>> subnetList)
+        {
+            HashSet<IPAddress> hash = new HashSet<IPAddress>();
+
+            subnetList._DoForEach(subnet => GenerateIpAddressListFromIpSubnet(subnet.A, subnet.B).ForEach(x => hash.Add(x)));
+
+            return hash.OrderBy(x => x, IpComparer.Comparer).ToList();
+        }
+        public static List<IPAddress> GenerateIpAddressListFromIpSubnetList(string subnetListStr)
+            => GenerateIpAddressListFromIpSubnetList(ParseIpSubnetListStr(subnetListStr));
+
+        // IP サブネットをもとに IP アドレスの一覧を生成する
+        public static List<IPAddress> GenerateIpAddressListFromIpSubnet(string subnetStr)
+        {
+            ParseIPAndSubnetMask(subnetStr.Trim(), out IPAddress ip, out IPAddress mask);
+
+            return GenerateIpAddressListFromIpSubnet(ip, mask);
+        }
+        public static List<IPAddress> GenerateIpAddressListFromIpSubnet(IPAddress ip, IPAddress subnet)
+        {
+            checked
+            {
+                if (IsSubnetMask(subnet) == false) throw new CoresException("IsSubnetMask(subnet) == false");
+                var prefixAddress = GetPrefixAddress(ip, subnet);
+
+                int intMask = SubnetMaskToInt(subnet);
+
+                int numAddresses;
+
+                if (ip.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    // IPv4
+                    numAddresses = (int)Math.Pow(2, (32 - intMask));
+                }
+                else
+                {
+                    // IPv6
+                    numAddresses = (int)Math.Pow(2, (128 - intMask));
+                }
+
+                IPAddr start = IPAddr.FromAddress(prefixAddress);
+
+                List<IPAddress> ret = new List<IPAddress>();
+
+                for (int i = 0; i < numAddresses; i++)
+                {
+                    var addr = start.Add(i);
+
+                    ret.Add(addr.GetIPAddress());
+                }
+
+                return ret;
+            }
         }
 
         // IP アドレスがサブネットに属しているかどうか調べる

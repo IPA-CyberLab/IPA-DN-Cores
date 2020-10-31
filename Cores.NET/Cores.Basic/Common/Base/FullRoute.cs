@@ -52,6 +52,7 @@ namespace IPA.Cores.Basic
         public byte[] Bytes = null!;
         public int Size;
         public AddressFamily AddressFamily;
+        public long ScopeId = 0;
 
         public virtual byte[] GetBytes()
         {
@@ -63,7 +64,17 @@ namespace IPA.Cores.Basic
             return FullRoute.ByteToBigNumber(this.Bytes, this.AddressFamily);
         }
 
-        public virtual IPAddress GetIPAddress() => new IPAddress(this.Bytes);
+        public virtual IPAddress GetIPAddress()
+        {
+            if (this.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                return new IPAddress(this.Bytes, this.ScopeId);
+            }
+            else
+            {
+                return new IPAddress(this.Bytes);
+            }
+        }
 
         public override string ToString()
         {
@@ -201,10 +212,10 @@ namespace IPA.Cores.Basic
 
         public static IPAddr FromAddress(IPAddress address)
         {
-            return FromBytes(address.GetAddressBytes());
+            return FromBytes(address.GetAddressBytes(), address._ScopeIdSafe());
         }
 
-        public static IPAddr FromBytes(byte[] b)
+        public static IPAddr FromBytes(byte[] b, long scopeId = 0)
         {
             if (b.Length == 4)
             {
@@ -212,7 +223,7 @@ namespace IPA.Cores.Basic
             }
             else if (b.Length == 16)
             {
-                return new IPv6Addr(b);
+                return new IPv6Addr(b, scopeId);
             }
             else
             {
@@ -395,9 +406,10 @@ namespace IPA.Cores.Basic
             this.Bytes = a.GetAddressBytes();
             this.Size = 16;
             this.AddressFamily = AddressFamily.InterNetworkV6;
+            this.ScopeId = a._ScopeIdSafe();
         }
 
-        public IPv6Addr(byte[] b)
+        public IPv6Addr(byte[] b, long scopeId = 0)
         {
             if (b.Length != 16)
             {
@@ -407,6 +419,7 @@ namespace IPA.Cores.Basic
             this.Bytes = b;
             this.Size = 16;
             this.AddressFamily = AddressFamily.InterNetworkV6;
+            this.ScopeId = scopeId;
         }
 
         public IPv6Addr(string str)
@@ -421,6 +434,7 @@ namespace IPA.Cores.Basic
             this.Bytes = a.GetAddressBytes();
             this.Size = 16;
             this.AddressFamily = AddressFamily.InterNetworkV6;
+            this.ScopeId = a._ScopeIdSafe();
         }
 
         public override IPAddr Add(int i)
@@ -443,7 +457,7 @@ namespace IPA.Cores.Basic
             }
 
             byte[] tmp = FullRoute.BigNumberToByte(b1, AddressFamily.InterNetworkV6);
-            return new IPv6Addr(tmp);
+            return new IPv6Addr(tmp, this.ScopeId);
         }
 
         public override string GetZeroPaddingFullString()

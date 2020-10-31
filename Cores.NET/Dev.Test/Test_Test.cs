@@ -741,6 +741,34 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                while (true)
+                {
+                    Con.WriteLine();
+
+                    string line = Con.ReadLine("INPUT>")._NonNullTrim();
+
+                    if (line._IsEmpty())
+                        return;
+
+                    using DnsHostNameScanner scan = new DnsHostNameScanner(
+                        dnsSettings: new DnsResolverSettings(dnsServersList: new IPEndPoint[] { new IPEndPoint("8.8.8.8"._ToIPAddress(), 53) }));
+
+                    scan.PerformAsync(line)._GetResult();
+                }
+                return;
+            }
+
+            if (true)
+            {
+                using DnsHostNameScanner scan = new DnsHostNameScanner(
+                    dnsSettings: new DnsResolverSettings(dnsServersList: new IPEndPoint[] { new IPEndPoint("8.8.8.8"._ToIPAddress(), 53) }));
+
+                        
+                return;
+            }
+
+            if (true)
+            {
                 //DnsTest2();
                 LocalNet.DnsResolver.GetHostNameAsync("1.2.3.4")._GetResult();
                 return;

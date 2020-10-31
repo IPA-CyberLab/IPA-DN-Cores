@@ -58,6 +58,7 @@ using System.Collections.Immutable;
 using System.Collections.Concurrent;
 using System.IO.Pipelines;
 using System.Text;
+using Microsoft.EntityFrameworkCore.Internal;
 
 namespace IPA.Cores.Basic
 {

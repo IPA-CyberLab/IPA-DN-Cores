@@ -201,6 +201,15 @@ namespace IPA.Cores.Basic
                 return null;
             }
         }
+
+        public static DnsResolver CreateDnsResolverIfSupported(DnsResolverSettings? settings)
+        {
+#if CORES_BASIC_MISC
+            return new DnsClientLibBasedDnsResolver(settings);
+#else // CORES_BASIC_MISC
+            return new UnimplementedDnsResolver(settings);
+#endif // CORES_BASIC_MISC
+        }
     }
 
     public class UnimplementedDnsResolver : DnsResolver
