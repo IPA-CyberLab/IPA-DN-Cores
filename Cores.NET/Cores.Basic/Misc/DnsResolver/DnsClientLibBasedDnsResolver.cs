@@ -116,13 +116,31 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task<IEnumerable<string>?> GetHostNameImplAsync(IPAddress ip, CancellationToken cancel = default)
+        protected override async Task<IEnumerable<string>?> GetHostNameImplAsync(IPAddress ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
         {
-            var res = await Client.QueryReverseAsync(ip, cancel);
+            DnsAdditionalResults additionalData = new DnsAdditionalResults();
 
-            if (res.HasError) return null;
+            try
+            {
+                var res = await Client.QueryReverseAsync(ip, cancel);
 
-            return res.Answers?.PtrRecords().Select(x => x.PtrDomainName.ToString()).ToArray() ?? null;
+                if (res.Header.ResponseCode == DnsHeaderResponseCode.NotExistentDomain)
+                {
+                    additionalData.IsNotFound = true;
+                }
+
+                if (res.HasError)
+                {
+                    additionalData.IsError = true;
+                    return null;
+                }
+
+                return res.Answers?.PtrRecords().Select(x => x.PtrDomainName.ToString()).ToArray() ?? null;
+            }
+            finally
+            {
+                additional?.Set(additionalData);
+            }
         }
     }
 }

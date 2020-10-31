@@ -1262,6 +1262,7 @@ namespace IPA.Cores.Basic
     {
         public IPAddress Ip { get; set; } = null!;
         public List<string>? HostnameList { get; set; }
+        public bool NotFound { get; set; }
     }
 
     public class DnsHostNameScanner : AsyncService
@@ -1305,7 +1306,7 @@ namespace IPA.Cores.Basic
 
             for (int tryCount = 0; tryCount < numTry; tryCount++)
             {
-                if (Settings.PrintStat) $"--- Starting Try #{tryCount + 1} ---"._Print();
+                if (Settings.PrintStat) $"--- Starting Try #{tryCount + 1}: {BeforeQueue.Count._ToString3()} hosts ---"._Print();
 
                 // スレッドを開始する
                 List<Task> tasksList = new List<Task>();
@@ -1326,7 +1327,9 @@ namespace IPA.Cores.Basic
                                 }
                             }
 
-                            List<string>? ret = await Dr.GetHostNameAsync(target.Ip, cancel);
+                            Ref<DnsAdditionalResults> additional = new Ref<DnsAdditionalResults>();
+
+                            List<string>? ret = await Dr.GetHostNameAsync(target.Ip, additional, cancel);
 
                             if (ret._IsFilled())
                             {
@@ -1336,6 +1339,10 @@ namespace IPA.Cores.Basic
                                 {
                                     $"Try #{tryCount + 1}: {target.Ip.ToString()._AddSpacePadding(19)} {target.HostnameList._Combine(" / ")}"._Print();
                                 }
+                            }
+                            else
+                            {
+                                target.NotFound = additional?.Value?.IsNotFound ?? false;
                             }
 
                             lock (AfterResult)
@@ -1373,9 +1380,9 @@ namespace IPA.Cores.Basic
 
                     foreach (var item in AfterResult)
                     {
-                        if (item.HostnameList._IsEmpty())
+                        if (item.HostnameList._IsEmpty() && item.NotFound == false)
                         {
-                            // 未解決ホストだな
+                            // 未解決ホストかつエラー発生ホストである
                             unsolvedHosts.Add(item);
                         }
                     }

@@ -121,11 +121,17 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class DnsAdditionalResults
+    {
+        public bool IsError { get; set; }
+        public bool IsNotFound { get; set; }
+    }
+
     public abstract class DnsResolver : AsyncService
     {
         public DnsResolverSettings Settings { get; }
 
-        protected abstract Task<IEnumerable<string>?> GetHostNameImplAsync(IPAddress ip, CancellationToken cancel = default);
+        protected abstract Task<IEnumerable<string>?> GetHostNameImplAsync(IPAddress ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default);
 
         public DnsResolver(DnsResolverSettings? setting = null)
         {
@@ -142,11 +148,11 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<List<string>?> GetHostNameAsync(string ip, CancellationToken cancel = default)
+        public async Task<List<string>?> GetHostNameAsync(string ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
         {
             try
             {
-                return await GetHostNameAsync(ip._ToIPAddress(), cancel);
+                return await GetHostNameAsync(ip._ToIPAddress(), additional, cancel);
             }
             catch
             {
@@ -154,7 +160,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<List<string>?> GetHostNameAsync(IPAddress? ip, CancellationToken cancel = default)
+        public async Task<List<string>?> GetHostNameAsync(IPAddress? ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
         {
             try
             {
@@ -171,7 +177,7 @@ namespace IPA.Cores.Basic
 
                 IEnumerable<string>? tmp = null;
 
-                tmp = await GetHostNameImplAsync(ip, cancel);
+                tmp = await GetHostNameImplAsync(ip, additional, cancel);
 
                 if (tmp != null)
                 {
@@ -214,7 +220,7 @@ namespace IPA.Cores.Basic
 
     public class UnimplementedDnsResolver : DnsResolver
     {
-        protected override Task<IEnumerable<string>?> GetHostNameImplAsync(IPAddress ip, CancellationToken cancel = default)
+        protected override Task<IEnumerable<string>?> GetHostNameImplAsync(IPAddress ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
         {
             throw new NotImplementedException();
         }
