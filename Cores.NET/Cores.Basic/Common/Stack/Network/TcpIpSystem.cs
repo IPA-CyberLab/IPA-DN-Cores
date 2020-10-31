@@ -564,6 +564,49 @@ namespace IPA.Cores.Basic
             }
         }
 
+        // IP アドレスからホスト名を逆引き。できるだけ専用 DNS リゾルバライブラリを利用
+        public virtual async Task<List<string>?> GetHostNameAsync(IPAddress? ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
+        {
+            if (ip == null) return null;
+
+            if (this.DnsResolver.IsAvailable == false)
+            {
+                DnsAdditionalResults additionalResults = new DnsAdditionalResults();
+
+                try
+                {
+                    var p = new DnsGetFqdnQueryParam(ip);
+
+                    var res = await QueryDnsAsync(p, cancel);
+
+                    var ret = res.FqdnList.ToList();
+
+                    if (ret._IsEmpty())
+                    {
+                        additionalResults.IsNotFound = true;
+
+                        ret = null;
+                    }
+
+                    return ret;
+                }
+                catch
+                {
+                    additionalResults.IsError = true;
+
+                    return null;
+                }
+                finally
+                {
+                    additional?.Set(additionalResults);
+                }
+            }
+            else
+            {
+                return await this.DnsResolver.GetHostNameAsync(ip, additional, cancel);
+            }
+        }
+
         public async Task<DnsResponse> QueryDnsAsync(DnsQueryParamBase param, CancellationToken cancel = default)
         {
             using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))

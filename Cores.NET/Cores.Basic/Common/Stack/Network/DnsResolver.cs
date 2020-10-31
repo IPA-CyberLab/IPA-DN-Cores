@@ -129,6 +129,8 @@ namespace IPA.Cores.Basic
 
     public abstract class DnsResolver : AsyncService
     {
+        public abstract bool IsAvailable { get; }
+
         public DnsResolverSettings Settings { get; }
 
         protected abstract Task<IEnumerable<string>?> GetHostNameImplAsync(IPAddress ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default);
@@ -220,6 +222,8 @@ namespace IPA.Cores.Basic
 
     public class UnimplementedDnsResolver : DnsResolver
     {
+        public override bool IsAvailable => false;
+
         protected override Task<IEnumerable<string>?> GetHostNameImplAsync(IPAddress ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
         {
             throw new NotImplementedException();

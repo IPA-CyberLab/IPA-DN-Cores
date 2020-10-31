@@ -63,6 +63,8 @@ namespace IPA.Cores.Basic
 {
     public class DnsClientLibBasedDnsResolver : DnsResolver
     {
+        public override bool IsAvailable => true;
+
         LookupClient Client { get; }
 
         public DnsClientLibBasedDnsResolver(DnsResolverSettings? settings = null) : base(settings)
