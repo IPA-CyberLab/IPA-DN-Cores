@@ -4057,8 +4057,11 @@ namespace IPA.Cores.Basic
                 this.Object = null;
             }
 
-            if (obj is IDisposable disposeTarget)
-                disposeTarget._DisposeSafe();
+            if (obj != null)
+            {
+                if (obj is IDisposable disposeTarget)
+                    disposeTarget._DisposeSafe();
+            }
 
             IsCreated = false;
         }

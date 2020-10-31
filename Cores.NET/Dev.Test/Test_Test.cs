@@ -741,6 +741,13 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                //DnsTest2();
+                LocalNet.DnsResolver.GetHostNameAsync("1.2.3.4")._GetResult();
+                return;
+            }
+
+            if (true)
+            {
                 Test_ThinLgWanConnectivityTest();
                 return;
             }

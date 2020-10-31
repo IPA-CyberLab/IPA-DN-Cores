@@ -2274,6 +2274,12 @@ namespace IPA.Cores.Helper.Basic
 
         public static string _AddSpacePadding(this string? srcStr, int totalWidth, bool addOnLeft = false, char spaceChar = ' ')
             => Str.AddSpacePadding(srcStr, totalWidth, addOnLeft, spaceChar);
+
+        public static TimeSpan _ToTimeSpanMSecs(this double msecs) => TimeSpan.FromMilliseconds(msecs);
+        public static TimeSpan _ToTimeSpanMSecs(this int msecs) => TimeSpan.FromMilliseconds(msecs);
+        public static TimeSpan _ToTimeSpanMSecs(this uint msecs) => TimeSpan.FromMilliseconds(msecs);
+        public static TimeSpan _ToTimeSpanMSecs(this long msecs) => TimeSpan.FromMilliseconds(msecs);
+        public static TimeSpan _ToTimeSpanMSecs(this ulong msecs) => TimeSpan.FromMilliseconds(msecs);
     }
 }
 

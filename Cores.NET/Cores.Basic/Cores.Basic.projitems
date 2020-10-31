@@ -40,6 +40,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Container\ZipFileFormat.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Container\ZipWriter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\RawDiskFs.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Network\DnsResolver.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Network\InternetChecker.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Ui\UiAutomation.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\WebApi\ClientApi\AuthenticodeSignClient.cs" />
@@ -154,6 +155,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\ClientApi\SlackApi.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\Jws.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\WebApi\WebApiJson.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Misc\DnsResolver\DnsClientLibBasedDnsResolver.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Misc\HtmlParser\HtmlParser.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Misc\HtmlParser\HtmlParserHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Misc\IoT\Sensors.cs" />

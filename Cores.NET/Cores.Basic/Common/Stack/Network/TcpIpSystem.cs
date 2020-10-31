@@ -362,6 +362,10 @@ namespace IPA.Cores.Basic
         protected abstract NetTcpProtocolStubBase CreateTcpProtocolStubImpl(TcpConnectParam param, CancellationToken cancel);
         protected abstract Task<DnsResponse> QueryDnsImplAsync(DnsQueryParamBase param, CancellationToken cancel);
         protected abstract NetTcpListener CreateListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc, string? rateLimiterConfigName = null);
+        protected abstract DnsResolver CreateDnsResolverImpl();
+
+        readonly Singleton<DnsResolver> DnsResolverSingleton;
+        public DnsResolver DnsResolver => DnsResolverSingleton;
 
         protected abstract Task<SendPingReply> SendPingImplAsync(IPAddress target, byte[] data, int timeout, CancellationToken cancel);
 
@@ -372,13 +376,26 @@ namespace IPA.Cores.Basic
             LocalHostPossibleGlobalIpAddressListCache =
                 new AsyncCache<HashSet<IPAddress>>(CoresConfig.TcpIpSystemSettings.LocalHostPossibleGlobalIpAddressListCacheLifetime, CacheFlags.IgnoreUpdateError,
                 GetLocalHostPossibleGlobalIpAddressListMainAsync);
+
+            DnsResolverSingleton = new Singleton<DnsResolver>(() => CreateDnsResolverImpl());
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                this.DnsResolverSingleton._DisposeSafe();
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
         }
 
         public TcpIpSystemHostInfo GetHostInfo(bool doNotStartBackground) => GetHostInfoImpl(doNotStartBackground);
 
         public int RegisterHostInfoChangedEvent(AsyncAutoResetEvent ev) => RegisterHostInfoChangedEventImpl(ev);
         public void UnregisterHostInfoChangedEvent(int registerId) => UnregisterHostInfoChangedEventImpl(registerId);
-
 
         public async Task<SendPingReply> SendPingAsync(string hostName, AddressFamily? v4v6 = null, byte[]? data = null,
             int pingTimeout = Consts.Timeouts.DefaultSendPingTimeout, CancellationToken pingCancel = default, int dnsTimeout = 0, CancellationToken dnsCancel = default)

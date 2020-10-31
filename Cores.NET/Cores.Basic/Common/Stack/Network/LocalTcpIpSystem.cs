@@ -150,6 +150,15 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        protected override DnsResolver CreateDnsResolverImpl()
+        {
+#if CORES_BASIC_MISC
+            return new DnsClientLibBasedDnsResolver();
+#else // CORES_BASIC_MISC
+            return new UnimplementedDnsResolver();
+#endif // CORES_BASIC_MISC
+        }
+
         protected override async Task<DnsResponse> QueryDnsImplAsync(DnsQueryParamBase param, CancellationToken cancel)
         {
             switch (param)
