@@ -125,7 +125,7 @@ namespace IPA.TestDev
 
             if (csv._IsFilled())
             {
-                using var csvWriter = Lfs.WriteCsv<FqdnScanResult>(csv, false, true, writeBom: false);
+                using var csvWriter = Lfs.WriteCsv<FqdnScanResult>(csv, false, true, writeBom: false, flags: FileFlags.AutoCreateDirectory);
 
                 foreach (var item in list)
                 {
