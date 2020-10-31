@@ -764,8 +764,8 @@ namespace IPA.Cores.Basic
             url_x._MarkNotNull();
             url_y._MarkNotNull();
 
-            string fqdn_x = url_x.DnsSafeHost._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
-            string fqdn_y = url_y.DnsSafeHost._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
+            string fqdn_x = Str.ReverseFqdnStr(url_x.DnsSafeHost);
+            string fqdn_y = Str.ReverseFqdnStr(url_y.DnsSafeHost);
 
             int r = string.Compare(fqdn_x, fqdn_y, StringComparison.OrdinalIgnoreCase);
             if (r != 0) return r;
@@ -797,8 +797,8 @@ namespace IPA.Cores.Basic
             url_x._MarkNotNull();
             url_y._MarkNotNull();
 
-            string fqdn_x = url_x.DnsSafeHost._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
-            string fqdn_y = url_y.DnsSafeHost._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
+            string fqdn_x = Str.ReverseFqdnStr(url_x.DnsSafeHost);
+            string fqdn_y = Str.ReverseFqdnStr(url_y.DnsSafeHost);
 
             if (string.Equals(fqdn_x, fqdn_y, StringComparison.OrdinalIgnoreCase) == false)
                 return false;
@@ -829,8 +829,8 @@ namespace IPA.Cores.Basic
 
             if ((IgnoreCase)x == y) return 0;
 
-            x = x._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
-            y = y._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
+            x = Str.ReverseFqdnStr(x);
+            y = Str.ReverseFqdnStr(y);
 
             return string.Compare(x, y, StringComparison.OrdinalIgnoreCase);
         }
@@ -842,8 +842,8 @@ namespace IPA.Cores.Basic
 
             if ((IgnoreCase)x == y) return true;
 
-            x = x._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
-            y = y._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
+            x = Str.ReverseFqdnStr(x);
+            y = Str.ReverseFqdnStr(y);
 
             return string.Equals(x, y, StringComparison.OrdinalIgnoreCase);
         }
@@ -1058,6 +1058,13 @@ namespace IPA.Cores.Basic
 
         static readonly CriticalSection LockNewId = new CriticalSection();
         static ulong LastNewIdMSecs = 0;
+
+        [return: NotNullIfNotNull("fqdn")]
+        public static string? ReverseFqdnStr(string? fqdn)
+        {
+            if (fqdn == null) return null;
+            return fqdn._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
+        }
 
         // 指定されたディレクトリ名が "YYMMDD_なんとか" または "YYMMDD なんとか" または "YYYYMMDD_なんとか" または "YYYYMMDD なんとか" である場合は日付を返す
         static readonly char[] YymmddSplitChars = new char[] { '_', ' ', '　', '\t' };
@@ -4968,11 +4975,11 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列を bool に変換する
-        public static bool StrToBool(string? s)
+        public static bool StrToBool(string? s, bool defaultValue = false)
         {
             if (s._IsNullOrZeroLen())
             {
-                return false;
+                return defaultValue;
             }
 
             Str.NormalizeString(ref s, true, true, false, false);

@@ -1284,10 +1284,10 @@ namespace IPA.Cores.Basic
         Queue<DnsHostNameScannerEntry> BeforeQueue = null!;
         List<DnsHostNameScannerEntry> AfterResult = null!;
 
-        public Task PerformAsync(string targetIpAddressList, CancellationToken cancel = default)
+        public Task<List<DnsHostNameScannerEntry>> PerformAsync(string targetIpAddressList, CancellationToken cancel = default)
             => PerformAsync(IPUtil.GenerateIpAddressListFromIpSubnetList(targetIpAddressList).Select(x=>x.ToString()), cancel);
 
-        public async Task PerformAsync(IEnumerable<string> targetIpAddressList, CancellationToken cancel = default)
+        public async Task<List<DnsHostNameScannerEntry>> PerformAsync(IEnumerable<string> targetIpAddressList, CancellationToken cancel = default)
         {
             if (Started.IsFirstCall() == false) throw new CoresException("Already started.");
 
@@ -1428,6 +1428,8 @@ namespace IPA.Cores.Basic
                     $"{item.Ip.ToString()._AddSpacePadding(19)} {item.HostnameList!._Combine(" / ")}"._Print();
                 }
             }
+
+            return AfterResult.OrderBy(x => x.Ip, IpComparer.Comparer).ToList();
         }
 
         protected override async Task CleanupImplAsync(Exception? ex)

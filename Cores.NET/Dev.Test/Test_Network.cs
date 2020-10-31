@@ -70,6 +70,81 @@ namespace IPA.TestDev
 
     partial class TestDevCommands
     {
+        public class FqdnScanResult
+        {
+            public string IpSortKey = "";
+            public string Ip = "";
+            public string FqdnSortKey = "";
+            public string FqdnList = "";
+        }
+
+        [ConsoleCommand(
+        "DNS FQDN Scanner",
+        "FqdnScan [subnets] [/servers:8.8.8.8,8.8.4.4] [/threads:64] [/interval:100] [/try:1] [/shuffle:yes] [/fqdnorder:yes] [/dest:csv]",
+        "DNS FQDN Scanner")]
+        static async Task FqdnScanAsync(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[subnets]", ConsoleService.Prompt, "Subnets: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("servers"),
+                new ConsoleParam("threads"),
+                new ConsoleParam("interval"),
+                new ConsoleParam("try"),
+                new ConsoleParam("shuffle"),
+                new ConsoleParam("fqdnorder"),
+                new ConsoleParam("dest"),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string subnets = vl.DefaultParam.StrValue;
+            string servers = vl["servers"].StrValue;
+            int threads = vl["threads"].IntValue;
+            int interval = vl["interval"].IntValue;
+            int numtry = vl["try"].IntValue;
+            bool shuffle = vl["shuffle"].StrValue._ToBool(true);
+            bool fqdnorder = vl["fqdnorder"].StrValue._ToBool(true);
+            string csv = vl["dest"].StrValue;
+
+            var serversList = servers._Split(StringSplitOptions.RemoveEmptyEntries, " ", "　", ",", "|");
+            if (serversList._IsEmpty())
+            {
+                serversList = new string[] { "8.8.8.8", "8.8.4.4", "1.1.1.1", "3.3.3.3" };
+            }
+
+            List<IPEndPoint> endPointsList = new List<IPEndPoint>();
+
+            serversList._DoForEach(x => endPointsList.Add(new IPEndPoint(x._ToIPAddress(), 53)));
+
+            using DnsHostNameScanner scan = new DnsHostNameScanner(
+                settings: new DnsHostNameScannerSettings { Interval = interval, NumThreads = threads, NumTry = numtry, PrintStat = true, RandomInterval = true, Shuffle = shuffle, PrintOrderByFqdn = fqdnorder },
+                dnsSettings: new DnsResolverSettings(dnsServersList: endPointsList, flags: DnsResolverFlags.UdpOnly | DnsResolverFlags.RoundRobinServers));
+
+            var list = await scan.PerformAsync(subnets);
+
+            if (csv._IsFilled())
+            {
+                using var csvWriter = Lfs.WriteCsv<FqdnScanResult>(csv, false, true, writeBom: false);
+
+                foreach (var item in list)
+                {
+                    if (item.HostnameList._IsFilled())
+                    {
+                        FqdnScanResult r = new FqdnScanResult();
+
+                        r.IpSortKey = IPAddr.FromAddress(item.Ip).GetZeroPaddingFullString();
+                        r.Ip = item.Ip.ToString();
+                        r.FqdnSortKey = Str.ReverseFqdnStr(item.HostnameList.First()).ToLower();
+                        r.FqdnList = item.HostnameList._Combine(" / ");
+
+                        csvWriter.WriteData(r);
+                    }
+                }
+            }
+        }
+
+
         [ConsoleCommand(
         "指定された URL (のテキストファイル) をダウンロードし、その URL に記載されているすべてのファイルをダウンロードする",
         "DownloadUrlListedAsync [url] [/dest:dir] [/ext:tar.gz,zip,exe,...]",

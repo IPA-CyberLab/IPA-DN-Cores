@@ -373,10 +373,7 @@ namespace IPA.Cores.Basic
 
         public override string GetZeroPaddingFullString()
         {
-            return $"{Bytes[0]:X2}{Bytes[1]:X2}:{Bytes[2]:X2}{Bytes[3]:X2}:" +
-                $"{Bytes[4]:X2}{Bytes[5]:X2}:{Bytes[6]:X2}{Bytes[7]:X2}:" +
-                $"{Bytes[8]:X2}{Bytes[9]:X2}:{Bytes[10]:X2}{Bytes[11]:X2}:" +
-                $"{Bytes[12]:X2}{Bytes[13]:X2}:{Bytes[14]:X2}{Bytes[15]:X2}";
+            return $"{Bytes[0]:D3}.{Bytes[1]:D3}.{Bytes[2]:D3}.{Bytes[3]:D3}";
         }
     }
 
@@ -462,7 +459,10 @@ namespace IPA.Cores.Basic
 
         public override string GetZeroPaddingFullString()
         {
-            return $"{Bytes[0]:D3}.{Bytes[1]:D3}.{Bytes[2]:D3}.{Bytes[3]:D3}";
+            return $"{Bytes[0]:X2}{Bytes[1]:X2}:{Bytes[2]:X2}{Bytes[3]:X2}:" +
+                $"{Bytes[4]:X2}{Bytes[5]:X2}:{Bytes[6]:X2}{Bytes[7]:X2}:" +
+                $"{Bytes[8]:X2}{Bytes[9]:X2}:{Bytes[10]:X2}{Bytes[11]:X2}:" +
+                $"{Bytes[12]:X2}{Bytes[13]:X2}:{Bytes[14]:X2}{Bytes[15]:X2}";
         }
     }
 

@@ -300,7 +300,7 @@ namespace IPA.Cores.Helper.Basic
 
 
 
-        public static bool _ToBool(this string? str) => Str.StrToBool(str);
+        public static bool _ToBool(this string? str, bool defaultValue = false) => Str.StrToBool(str, defaultValue);
         public static byte[] _ToByte(this string? str) => Str.StrToByte(str);
         public static DateTime _ToDate(this string? str, bool toUtc = false, bool emptyToZeroDateTime = false) => Str.StrToDate(str, toUtc, emptyToZeroDateTime);
         public static DateTime _ToTime(this string? s, bool toUtc = false, bool emptyToZeroDateTime = false) => Str.StrToTime(s, toUtc, emptyToZeroDateTime);
@@ -2157,6 +2157,9 @@ namespace IPA.Cores.Helper.Basic
 
         public static string _ObjectDataToCsv<T>(this T obj) where T : notnull
             => Str.ObjectDataToCsv(obj);
+
+        public static string _CombineStringArrayForCsv(this IEnumerable<string?>? strs, string prefix = "")
+            => Str.CombineStringArrayForCsv(strs, prefix);
 
         [MethodImpl(Inline)]
         public static bool _IsNullOrDefault<T>([NotNullWhen(false)] this T data)
