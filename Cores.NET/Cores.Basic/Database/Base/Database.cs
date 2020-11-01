@@ -747,12 +747,11 @@ namespace IPA.Cores.Basic
             return keyProperty.GetValue(entity);
         }
 
-        public async Task<T> EasyFindOrInsertAsync<T>(string selectStr, object? selectParam = null, T? newEntity = null) where T : class
+        public async Task<T> EasyFindOrInsertAsync<T>(string selectStr, object? selectParam, T newEntity) where T : class
         {
-            if (selectParam == null) selectParam = new { };
+            newEntity._NullCheck(nameof(newEntity));
 
-            if (newEntity == null)
-                newEntity = (T)selectParam;
+            if (selectParam == null) selectParam = new { };
 
             dynamic? id = await EasyFindIdAsync<T>(selectStr, selectParam);
 

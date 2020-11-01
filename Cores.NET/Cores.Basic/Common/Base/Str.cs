@@ -4621,6 +4621,26 @@ namespace IPA.Cores.Basic
             return str.Substring(0, leftLen) + appendCode + str.Substring(strLen - rightLen, rightLen);
         }
 
+        // おもしろ黒塗り
+        public static string Kuronuri(string src, char replaceChar = '●')
+        {
+            StringBuilder sb = new StringBuilder();
+
+            foreach (char c in src)
+            {
+                if (c == '\r' || c == '\n' || c == ' ' || c == '\t' || c == '　' || c == '.' || c == '(' || c == ')')
+                {
+                    sb.Append(c);
+                }
+                else
+                {
+                    sb.Append(replaceChar);
+                }
+            }
+
+            return sb.ToString();
+        }
+
         // 新しい GUID を生成
         public static string NewGuid() => System.Guid.NewGuid().ToString("N");
 
