@@ -160,6 +160,7 @@ namespace IPA.Cores.Helper.Web
 
         // タグ関係
         public static string _BoolToChecked(this bool b) => b ? " checked" : "";
+        public static string _BoolToDisabled(this bool b) => b ? " disabled" : "";
 
         // IP アドレス関係
         public static IPAddress _GetLocalIp(this HttpContext ctx) => ctx.Connection.LocalIpAddress._UnmapIPv4();
