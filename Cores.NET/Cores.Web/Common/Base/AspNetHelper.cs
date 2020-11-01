@@ -203,6 +203,13 @@ namespace IPA.Cores.Helper.Web
             }
         }
 
+        public static void _EasyDeleteCookie(this HttpResponse response, string cookieName)
+        {
+            cookieName = Consts.Strings.EasyCookieNamePrefix + cookieName;
+
+            response.Cookies.Delete(cookieName);
+        }
+
         [return: MaybeNull]
         public static T _EasyLoadCookie<T>(this HttpRequest request, string cookieName)
         {
@@ -216,12 +223,18 @@ namespace IPA.Cores.Helper.Web
         public static void _EasySaveCookie<T>(this HttpContext context, string cookieName, T value, AspNetCookieOptions? options = null)
             => context.Response._EasySaveCookie(cookieName, value, options);
 
+        public static void _EasyDeleteCookie(this HttpContext context, string cookieName)
+            => context.Response._EasyDeleteCookie(cookieName);
+
         [return: MaybeNull]
         public static T _EasyLoadCookie<T>(this HttpContext context, string cookieName)
             => context.Request._EasyLoadCookie<T>(cookieName);
 
         public static void _EasySaveCookie<T>(this Controller controller, string cookieName, T value, AspNetCookieOptions? options = null)
             => controller.HttpContext._EasySaveCookie(cookieName, value, options);
+
+        public static void _EasyDeleteCookie(this Controller controller, string cookieName)
+            => controller.HttpContext._EasyDeleteCookie(cookieName);
 
         [return: MaybeNull]
         public static T _EasyLoadCookie<T>(this Controller controller, string cookieName)

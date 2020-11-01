@@ -6267,6 +6267,40 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class Pair4<TA, TB, TC, TD>
+    {
+        public TA A { get; }
+        public TB B { get; }
+        public TC C { get; }
+        public TD D { get; }
+
+        public Pair4(TA a, TB b, TC c, TD d)
+        {
+            this.A = a;
+            this.B = b;
+            this.C = c;
+            this.D = d;
+        }
+    }
+
+    public class Pair5<TA, TB, TC, TD, TE>
+    {
+        public TA A { get; }
+        public TB B { get; }
+        public TC C { get; }
+        public TD D { get; }
+        public TE E { get; }
+
+        public Pair5(TA a, TB b, TC c, TD d, TE e)
+        {
+            this.A = a;
+            this.B = b;
+            this.C = c;
+            this.D = d;
+            this.E = e;
+        }
+    }
+
     public class SizedDataQueue<T>
     {
         List<T> InternalList;
