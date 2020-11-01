@@ -731,6 +731,7 @@ namespace IPA.Cores.Basic
         AutoWriteToFile = 4,
 
         AutoReadWriteFile = AutoReadFromFile | AutoWriteToFile, // ※ 2020/11/01 注意! うまく動かない。データ -> ファイル の更新が優先され、ファイルの内容をいじっても更新されない。たぶんバグ。
+                                                                // つまり、動的に上書きされたくないなら、ReadOnly を推奨。
     }
 
     public interface IHiveData
