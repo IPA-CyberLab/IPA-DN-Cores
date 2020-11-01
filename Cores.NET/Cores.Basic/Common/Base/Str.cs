@@ -5916,6 +5916,7 @@ namespace IPA.Cores.Basic
                 }
             }
         }
+
         // 文字列置換
         public static string Base64ToSafe64(string str)
         {

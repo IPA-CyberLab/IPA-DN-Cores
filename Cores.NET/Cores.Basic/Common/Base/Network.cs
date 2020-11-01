@@ -1414,6 +1414,8 @@ namespace IPA.Cores.Basic
         {
             Str.NormalizeString(ref str);
 
+            if (str._IsEmpty()) return "";
+
             try
             {
                 IPAddr a = IPAddr.FromString(str);
