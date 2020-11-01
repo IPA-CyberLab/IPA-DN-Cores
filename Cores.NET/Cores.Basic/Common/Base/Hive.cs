@@ -730,7 +730,7 @@ namespace IPA.Cores.Basic
         AutoReadFromFile = 2,
         AutoWriteToFile = 4,
 
-        AutoReadWriteFile = AutoReadFromFile | AutoWriteToFile,
+        AutoReadWriteFile = AutoReadFromFile | AutoWriteToFile, // ※ 2020/11/01 注意! うまく動かない。データ -> ファイル の更新が優先され、ファイルの内容をいじっても更新されない。たぶんバグ。
     }
 
     public interface IHiveData
@@ -981,7 +981,7 @@ namespace IPA.Cores.Basic
                             dataChanged = true;
 
                             await SaveDataCoreAsync(dataSnapshotState.SerializedData, false, cancel);
-
+                            
                             this.StorageHash = dataSnapshotState.Hash;
 
                             skipLoadFromFile = true;
