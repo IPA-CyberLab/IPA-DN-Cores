@@ -65,8 +65,8 @@ namespace IPA.Cores.Basic
         {
             public static readonly Copenhagen<int> TimeoutOneQueryMsecs = 250;
             public static readonly Copenhagen<int> NumTry = 6;
-            public static readonly Copenhagen<int> MinCacheTimeoutMsecs = 60 * 1000;
-            public static readonly Copenhagen<int> MaxCacheTimeoutMsecs = 3600 * 1000;
+            public static readonly Copenhagen<int> MinCacheTimeoutMsecs = 3600 * 1000;
+            public static readonly Copenhagen<int> MaxCacheTimeoutMsecs = 6 * 3600 * 1000;
         }
     }
 
