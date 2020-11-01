@@ -210,6 +210,29 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public async Task<string> GetHostNameSingleOrIpAsync(IPAddress? ip, CancellationToken cancel = default)
+        {
+            if (ip == null) return "";
+
+            try
+            {
+                var res = await GetHostNameAsync(ip, null, cancel);
+
+                if (res._IsEmpty())
+                {
+                    return ip.ToString();
+                }
+
+                return res.First();
+            }
+            catch
+            {
+                return ip.ToString();
+            }
+        }
+        public Task<string> GetHostNameSingleOrIpAsync(string? ip, CancellationToken cancel = default)
+            => GetHostNameSingleOrIpAsync(ip._ToIPAddress(noExceptionAndReturnNull: true), cancel);
+
         public static DnsResolver CreateDnsResolverIfSupported(DnsResolverSettings? settings)
         {
 #if CORES_BASIC_MISC
