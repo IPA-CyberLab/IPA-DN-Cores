@@ -95,7 +95,7 @@ namespace IPA.Cores.Helper.Web
 
             CookieOptions ret = new CookieOptions
             {
-                Domain = this.Domain,
+                Domain = this.Domain._IsEmpty() ? null : this.Domain,
                 Expires = this.Days <= 0 ? (DateTimeOffset ?)null: DateTimeOffset.Now.AddDays(this.Days),
                 HttpOnly = this.NoJavaScript,
                 Secure = this.HttpsOnly,
