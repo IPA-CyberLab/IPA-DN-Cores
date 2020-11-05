@@ -2897,7 +2897,7 @@ namespace IPA.Cores.Basic
 
         public const string HtmlSpacing = "&nbsp;";
         public const string HtmlCrlf = "<BR>";
-        public const string HtmlBr = "<BR>";
+        public const string HtmlBr = HtmlCrlf;
         public const string HtmlLt = "&lt;";
         public const string HtmlGt = "&gt;";
         public const string HtmlAmp = "&amp;";
@@ -5678,7 +5678,7 @@ namespace IPA.Cores.Basic
             if (lang == CoreLanguage.Japanese)
             {
                 string dateTag = "yyyy年M月d日";
-                string timeTag = flags.Bit(FullDateTimeStrFlags.CommaTime)? " HH:mm:ss" : " H時m分s秒";
+                string timeTag = flags.Bit(FullDateTimeStrFlags.CommaTime) ? " HH:mm:ss" : " H時m分s秒";
 
                 if (flags.Bit(FullDateTimeStrFlags.SlashDate))
                 {
@@ -5879,6 +5879,82 @@ namespace IPA.Cores.Basic
             return b.ToString();
         }
 
+        // 2ch 方式のレスタグ生成
+        public static string Make2chThreadTypeResHyperLink(string srcText, string baseThreadUrl)
+        {
+            baseThreadUrl = baseThreadUrl.TrimEnd('/');
+
+            string[] lines = srcText._Split(StringSplitOptions.None, Str.HtmlCrlf);
+
+            StringBuilder w = new StringBuilder();
+
+            string resChars = "0123456789,-";
+
+            string restag = ">>"._EncodeHtml();
+
+            for (int j = 0; j < lines.Length; j++)
+            {
+                string line = lines[j];
+
+                int startResTag = line.IndexOf(restag, StringComparison.OrdinalIgnoreCase);
+
+                if (startResTag != -1)
+                {
+                    string beforeString = line.Substring(0, startResTag);
+                    string tmp = line.Substring(startResTag + restag.Length);
+
+                    StringBuilder resStringBuilder = new StringBuilder();
+                    StringBuilder afterStringBuilder = new StringBuilder();
+                    bool flag = false;
+
+                    for (int i = 0; i < tmp.Length; i++)
+                    {
+                        char c = tmp[i];
+
+                        if (flag == false)
+                        {
+                            if (resChars.IndexOf(c) != -1 || c == ' ' || c == '　')
+                            {
+                                resStringBuilder.Append(c);
+                            }
+                            else if (c == '&' && tmp.Substring(i).StartsWith(Str.HtmlSpacing, StringComparison.OrdinalIgnoreCase))
+                            {
+                                resStringBuilder.Append(Str.HtmlSpacing);
+                                i += Str.HtmlSpacing.Length - 1;
+                            }
+                            else
+                            {
+                                afterStringBuilder.Append(c);
+                                flag = true;
+                            }
+                        }
+                        else
+                        {
+                            afterStringBuilder.Append(c);
+                        }
+                    }
+
+                    string resString = resStringBuilder.ToString().Trim();
+                    string afterString = afterStringBuilder.ToString();
+
+                    string linkStart = $"<a href=\"{baseThreadUrl}/{resString}/\">";
+                    string linkEnd = "</a>";
+
+                    w.Append($"{linkStart}{restag}{resString}{linkEnd}{afterString}");
+                }
+                else
+                {
+                    w.Append($"{line}");
+                }
+
+                if (j != (lines.Length - 1))
+                {
+                    w.Append(Str.HtmlBr);
+                }
+            }
+
+            return w.ToString();
+        }
 
         // 2ch 方式のハッシュ文字列の生成
         public static string Easy2chTypeHashStr(string src, int len = 8)
