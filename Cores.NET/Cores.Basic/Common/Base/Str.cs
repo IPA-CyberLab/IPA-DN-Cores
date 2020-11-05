@@ -4622,7 +4622,7 @@ namespace IPA.Cores.Basic
         }
 
         // おもしろ黒塗り
-        public static string Kuronuri(string src, char replaceChar = '●')
+        public static string Kuronuri(string src, char replaceChar = '■')
         {
             StringBuilder sb = new StringBuilder();
 
