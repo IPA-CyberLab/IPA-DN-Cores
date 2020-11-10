@@ -5935,9 +5935,10 @@ namespace IPA.Cores.Basic
                     }
 
                     string resString = resStringBuilder.ToString().Trim();
+                    string resStringRemoveSpace = resString._ReplaceStr(Str.HtmlSpacing, "", true);
                     string afterString = afterStringBuilder.ToString();
 
-                    string linkStart = $"<a href=\"{baseThreadUrl}/{resString}/\">";
+                    string linkStart = $"<a href=\"{baseThreadUrl}/{resStringRemoveSpace}/\">";
                     string linkEnd = "</a>";
 
                     w.Append($"{linkStart}{restag}{resString}{linkEnd}{afterString}");
