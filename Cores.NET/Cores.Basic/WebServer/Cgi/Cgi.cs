@@ -101,10 +101,10 @@ namespace IPA.Cores.Basic
 
             var connection = Request.HttpContext.Connection;
 
-            this.ClientIpAddress = connection.RemoteIpAddress._UnmapIPv4();
+            this.ClientIpAddress = connection.RemoteIpAddress!._UnmapIPv4();
             this.ClientPort = connection.RemotePort;
 
-            this.ServerIpAddress = connection.LocalIpAddress._UnmapIPv4();
+            this.ServerIpAddress = connection.LocalIpAddress!._UnmapIPv4();
             this.ServerPort = connection.LocalPort;
 
             this.RequestPathAndQueryString = request._GetRequestPathAndQueryString();

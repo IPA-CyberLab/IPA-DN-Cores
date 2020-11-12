@@ -47,6 +47,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 
+namespace Microsoft.Extensions.Primitives
+{
+    public class InplaceStringBuilder
+    {
+    }
+}
+
 namespace IPA.Cores.Basic
 {
     public static partial class CoresConfig

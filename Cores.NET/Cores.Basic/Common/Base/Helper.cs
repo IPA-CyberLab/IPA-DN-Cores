@@ -806,13 +806,12 @@ namespace IPA.Cores.Helper.Basic
         }
 
         public static string _GetStr<T>(this IDictionary<string, T> d, string key, string defaultStr = "")
-            where T : notnull
         {
             try
             {
                 if (d == null) return defaultStr;
                 if (d.ContainsKey(key) == false) return defaultStr;
-                object o = d[key];
+                object? o = d[key];
                 if (o == null) return defaultStr;
                 if (o is string) return (string)o;
                 return o.ToString()._NonNull();

@@ -195,8 +195,8 @@ namespace IPA.Cores.Basic
                 WebServerLogData log = new WebServerLogData()
                 {
                     ConnectionId = conn.Id,
-                    LocalIP = conn.LocalIpAddress._UnmapIPv4().ToString(),
-                    RemoteIP = conn.RemoteIpAddress._UnmapIPv4().ToString(),
+                    LocalIP = conn.LocalIpAddress!._UnmapIPv4().ToString(),
+                    RemoteIP = conn.RemoteIpAddress!._UnmapIPv4().ToString(),
                     LocalPort = conn.LocalPort,
                     RemotePort = conn.RemotePort,
 
@@ -265,8 +265,8 @@ namespace IPA.Cores.Basic
 
             ConnectionInfo connInfo = request.HttpContext.Connection;
 
-            IPEndPoint remote = new IPEndPoint(connInfo.RemoteIpAddress._UnmapIPv4(), connInfo.RemotePort);
-            IPEndPoint local = new IPEndPoint(connInfo.LocalIpAddress._UnmapIPv4(), connInfo.LocalPort);
+            IPEndPoint remote = new IPEndPoint(connInfo.RemoteIpAddress!._UnmapIPv4(), connInfo.RemotePort);
+            IPEndPoint local = new IPEndPoint(connInfo.LocalIpAddress!._UnmapIPv4(), connInfo.LocalPort);
 
             string pathAndQueryString = request._GetRequestPathAndQueryString();
 

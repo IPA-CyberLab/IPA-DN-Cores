@@ -146,15 +146,15 @@ namespace IPA.Cores.Basic
         // then the list of `features` in the generated code project MUST also be updated.
         // See also: tools/CodeGenerator/TransportConnectionFeatureCollection.cs
 
-        MemoryPool<byte>? IMemoryPoolFeature.MemoryPool => MemoryPool;
+        MemoryPool<byte> IMemoryPoolFeature.MemoryPool => MemoryPool;
 
-        IDuplexPipe? IConnectionTransportFeature.Transport
+        IDuplexPipe IConnectionTransportFeature.Transport
         {
             get => Transport;
             set => Transport = value;
         }
 
-        IDictionary<object, object> IConnectionItemsFeature.Items
+        IDictionary<object, object?> IConnectionItemsFeature.Items
         {
             get => Items;
             set => Items = value;
@@ -245,7 +245,7 @@ namespace IPA.Cores.Basic
 
         int IFeatureCollection.Revision => _featureRevision;
 
-        object IFeatureCollection.this[Type key]
+        object? IFeatureCollection.this[Type key]
         {
             [return: MaybeNull]
             get
@@ -285,27 +285,27 @@ namespace IPA.Cores.Basic
 
                 if (key == IConnectionIdFeatureType)
                 {
-                    _currentIConnectionIdFeature = value;
+                    _currentIConnectionIdFeature = value!;
                 }
                 else if (key == IConnectionTransportFeatureType)
                 {
-                    _currentIConnectionTransportFeature = value;
+                    _currentIConnectionTransportFeature = value!;
                 }
                 else if (key == IConnectionItemsFeatureType)
                 {
-                    _currentIConnectionItemsFeature = value;
+                    _currentIConnectionItemsFeature = value!;
                 }
                 else if (key == IMemoryPoolFeatureType)
                 {
-                    _currentIMemoryPoolFeature = value;
+                    _currentIMemoryPoolFeature = value!;
                 }
                 else if (key == IConnectionLifetimeFeatureType)
                 {
-                    _currentIConnectionLifetimeFeature = value;
+                    _currentIConnectionLifetimeFeature = value!;
                 }
                 else
                 {
-                    ExtraFeatureSet(key, value);
+                    ExtraFeatureSet(key, value!);
                 }
             }
         }
@@ -347,27 +347,27 @@ namespace IPA.Cores.Basic
             _featureRevision++;
             if (typeof(TFeature) == typeof(IConnectionIdFeature))
             {
-                _currentIConnectionIdFeature = feature;
+                _currentIConnectionIdFeature = feature!;
             }
             else if (typeof(TFeature) == typeof(IConnectionTransportFeature))
             {
-                _currentIConnectionTransportFeature = feature;
+                _currentIConnectionTransportFeature = feature!;
             }
             else if (typeof(TFeature) == typeof(IConnectionItemsFeature))
             {
-                _currentIConnectionItemsFeature = feature;
+                _currentIConnectionItemsFeature = feature!;
             }
             else if (typeof(TFeature) == typeof(IMemoryPoolFeature))
             {
-                _currentIMemoryPoolFeature = feature;
+                _currentIMemoryPoolFeature = feature!;
             }
             else if (typeof(TFeature) == typeof(IConnectionLifetimeFeature))
             {
-                _currentIConnectionLifetimeFeature = feature;
+                _currentIConnectionLifetimeFeature = feature!;
             }
             else
             {
-                ExtraFeatureSet(typeof(TFeature), feature);
+                ExtraFeatureSet(typeof(TFeature), feature!);
             }
         }
 
@@ -411,7 +411,7 @@ namespace IPA.Cores.Basic
     // Pure copy from: git\AspNetCore\src\Servers\Kestrel\shared\TransportConnection.cs
     public abstract partial class TransportConnection : ConnectionContext
     {
-        private IDictionary<object, object>? _items;
+        private IDictionary<object, object?>? _items;
         private string? _connectionId;
 
         public TransportConnection()
@@ -441,13 +441,13 @@ namespace IPA.Cores.Basic
 
         public override IFeatureCollection Features => this;
 
-        public virtual MemoryPool<byte>? MemoryPool { get; }
+        public virtual MemoryPool<byte> MemoryPool { get; } = null!;
 
-        public override IDuplexPipe? Transport { get; set; }
+        public override IDuplexPipe Transport { get; set; } = null!;
 
         public IDuplexPipe? Application { get; set; }
 
-        public override IDictionary<object, object> Items
+        public override IDictionary<object, object?> Items
         {
             get
             {
@@ -486,8 +486,8 @@ namespace IPA.Cores.Basic
         {
             this.Sock = sock;
 
-            this.LocalEndPoint = new IPEndPoint(sock.Info.Ip.LocalIPAddress, sock.Info.Tcp.LocalPort);
-            this.RemoteEndPoint = new IPEndPoint(sock.Info.Ip.RemoteIPAddress, sock.Info.Tcp.RemotePort);
+            this.LocalEndPoint = new IPEndPoint(sock.Info.Ip.LocalIPAddress!, sock.Info.Tcp.LocalPort);
+            this.RemoteEndPoint = new IPEndPoint(sock.Info.Ip.RemoteIPAddress!, sock.Info.Tcp.RemotePort);
 
             this.ConnectionClosed = this.Sock.GrandCancel;
 
