@@ -80,13 +80,13 @@ namespace IPA.Cores.Basic
             var shortcut = xml.SelectSingleNode("poderosa-shortcut");
             if (shortcut == null) throw new CoresLibException("Not a poderosa-shortcut file.");
 
-            var ver = shortcut.Attributes["version"].Value;
+            var ver = shortcut.Attributes!["version"]!.Value;
             if (ver != "4.0") throw new CoresLibException("ver != '4.0'");
 
             var sshParam = shortcut.SelectSingleNode("Poderosa.Protocols.SSHLoginParameter");
             if (sshParam == null) throw new CoresLibException("Not a SSH shortcut file.");
 
-            this.HostName = sshParam.Attributes["destination"]?.Value._NonNull();
+            this.HostName = sshParam!.Attributes!["destination"]?.Value._NonNull();
             this.Port = sshParam.Attributes["port"]?.Value._NonNull()._ToInt() ?? 0;
             if (this.Port == 0) this.Port = Consts.Ports.Ssh;
 
@@ -957,9 +957,9 @@ namespace IPA.Cores.Basic
                         {
                             Entry e = new Entry
                             {
-                                DirPath = tokens.ElementAtOrDefault(0),
-                                OriginName = tokens.ElementAtOrDefault(1),
-                                BranchName = tokens.ElementAtOrDefault(2),
+                                DirPath = tokens.ElementAtOrDefault(0)!,
+                                OriginName = tokens.ElementAtOrDefault(1)!,
+                                BranchName = tokens.ElementAtOrDefault(2)!,
                             };
 
                             if (e.OriginName._IsSamei("ignore"))
@@ -1414,7 +1414,7 @@ namespace IPA.Cores.Basic
 
                 if (Settings.PrintOrderByFqdn)
                 {
-                    printResults = printResults.OrderBy(x => x.HostnameList.First(), StrComparer.FqdnReverseStrComparer).ThenBy(x => x.Ip, IpComparer.Comparer);
+                    printResults = printResults.OrderBy(x => x.HostnameList!.First(), StrComparer.FqdnReverseStrComparer).ThenBy(x => x.Ip, IpComparer.Comparer);
                 }
                 else
                 {

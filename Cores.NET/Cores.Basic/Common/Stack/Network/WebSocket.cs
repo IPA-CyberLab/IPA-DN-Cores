@@ -130,7 +130,7 @@ namespace IPA.Cores.Basic
             req.Headers.Add("Upgrade", "websocket");
 
             StringWriter tmpWriter = new StringWriter();
-            tmpWriter.WriteLine($"{req.Method} {req.RequestUri.PathAndQuery} HTTP/1.1");
+            tmpWriter.WriteLine($"{req.Method} {req.RequestUri!.PathAndQuery} HTTP/1.1");
             tmpWriter.WriteLine(req.Headers.ToString());
 
             await LowerStream.WriteAsync(tmpWriter.ToString()._GetBytes_UTF8(), cancel);

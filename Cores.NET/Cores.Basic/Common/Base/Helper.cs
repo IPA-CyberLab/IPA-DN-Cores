@@ -354,7 +354,7 @@ namespace IPA.Cores.Helper.Basic
         public static bool _IsNumber(this string s) => Str.IsNumber(s);
         public static bool _InStr(this string s, string keyword, bool ignoreCase = false) => Str.InStr(s, keyword, !ignoreCase);
         public static string[] _ParseCmdLine(this string s) => Str.ParseCmdLine(s);
-        public static object _Old_XmlToObjectPublic(this string s, Type t) => Str.XMLToObjectSimple_PublicLegacy(s, t);
+        public static object? _Old_XmlToObjectPublic(this string s, Type t) => Str.XMLToObjectSimple_PublicLegacy(s, t);
         public static StrToken _ToToken(this string s, string splitStr = " ,\t\r\n") => new StrToken(s, splitStr);
         public static string _OneLine(this string? s, string splitter = " / ") => Str.OneLine(s, splitter);
         public static string _OneLine(this IEnumerable<string> s, string splitter = " / ") => Str.OneLine(s._Combine(Str.NewLine_Str_Local), splitter);
@@ -581,25 +581,25 @@ namespace IPA.Cores.Helper.Basic
 
         public static void _ObjectToXml(this object obj, MemoryBuffer<byte> dst, DataContractSerializerSettings? settings = null) => Util.ObjectToXml(obj, dst, settings);
         public static byte[] _ObjectToXml(this object obj, DataContractSerializerSettings? settings = null) => Util.ObjectToXml(obj, settings);
-        public static object _XmlToObject(this MemoryBuffer<byte> src, Type type, DataContractSerializerSettings? settings = null) => Util.XmlToObject(src, type, settings);
-        public static T _XmlToObject<T>(this MemoryBuffer<byte> src, DataContractSerializerSettings? settings = null) => Util.XmlToObject<T>(src, settings);
-        public static object _XmlToObject(this byte[] src, Type type, DataContractSerializerSettings? settings = null) => Util.XmlToObject(src, type, settings);
-        public static T _XmlToObject<T>(this byte[] src, DataContractSerializerSettings? settings = null) => Util.XmlToObject<T>(src, settings);
+        public static object? _XmlToObject(this MemoryBuffer<byte> src, Type type, DataContractSerializerSettings? settings = null) => Util.XmlToObject(src, type, settings);
+        public static T? _XmlToObject<T>(this MemoryBuffer<byte> src, DataContractSerializerSettings? settings = null) => Util.XmlToObject<T>(src, settings);
+        public static object? _XmlToObject(this byte[] src, Type type, DataContractSerializerSettings? settings = null) => Util.XmlToObject(src, type, settings);
+        public static T? _XmlToObject<T>(this byte[] src, DataContractSerializerSettings? settings = null) => Util.XmlToObject<T>(src, settings);
 
         public static string _ObjectToXmlStr(this object obj, DataContractSerializerSettings? settings = null) => Str.ObjectToXmlStr(obj, settings);
-        public static object _XmlStrToObject(this string src, Type type, DataContractSerializerSettings? settings = null) => Str.XmlStrToObject(src, type, settings);
-        public static T _XmlStrToObject<T>(this string src, DataContractSerializerSettings? settings = null) => Str.XmlStrToObject<T>(src, settings);
+        public static object? _XmlStrToObject(this string src, Type type, DataContractSerializerSettings? settings = null) => Str.XmlStrToObject(src, type, settings);
+        public static T? _XmlStrToObject<T>(this string src, DataContractSerializerSettings? settings = null) => Str.XmlStrToObject<T>(src, settings);
 
         public static void _ObjectToRuntimeJson(this object obj, MemoryBuffer<byte> dst, DataContractJsonSerializerSettings? settings = null) => Util.ObjectToRuntimeJson(obj, dst, settings);
         public static byte[] _ObjectToRuntimeJson(this object obj, DataContractJsonSerializerSettings? settings = null) => Util.ObjectToRuntimeJson(obj, settings);
-        public static object _RuntimeJsonToObject(this MemoryBuffer<byte> src, Type type, DataContractJsonSerializerSettings? settings = null) => Util.RuntimeJsonToObject(src, type, settings);
-        public static T _RuntimeJsonToObject<T>(this MemoryBuffer<byte> src, DataContractJsonSerializerSettings? settings = null) => Util.RuntimeJsonToObject<T>(src, settings);
-        public static object _RuntimeJsonToObject(this byte[] src, Type type, DataContractJsonSerializerSettings? settings = null) => Util.RuntimeJsonToObject(src, type, settings);
-        public static T _RuntimeJsonToObject<T>(this byte[] src, DataContractJsonSerializerSettings? settings = null) => Util.RuntimeJsonToObject<T>(src, settings);
+        public static object? _RuntimeJsonToObject(this MemoryBuffer<byte> src, Type type, DataContractJsonSerializerSettings? settings = null) => Util.RuntimeJsonToObject(src, type, settings);
+        public static T? _RuntimeJsonToObject<T>(this MemoryBuffer<byte> src, DataContractJsonSerializerSettings? settings = null) => Util.RuntimeJsonToObject<T>(src, settings);
+        public static object? _RuntimeJsonToObject(this byte[] src, Type type, DataContractJsonSerializerSettings? settings = null) => Util.RuntimeJsonToObject(src, type, settings);
+        public static T? _RuntimeJsonToObject<T>(this byte[] src, DataContractJsonSerializerSettings? settings = null) => Util.RuntimeJsonToObject<T>(src, settings);
 
         public static string _ObjectToRuntimeJsonStr(this object obj, DataContractJsonSerializerSettings? settings = null) => Str.ObjectToRuntimeJsonStr(obj, settings);
-        public static object _RuntimeJsonStrToObject(this string src, Type type, DataContractJsonSerializerSettings? settings = null) => Str.RuntimeJsonStrToObject(src, type, settings);
-        public static T _RuntimeJsonStrToObject<T>(this string src, DataContractJsonSerializerSettings? settings = null) => Str.RuntimeJsonStrToObject<T>(src, settings);
+        public static object? _RuntimeJsonStrToObject(this string src, Type type, DataContractJsonSerializerSettings? settings = null) => Str.RuntimeJsonStrToObject(src, type, settings);
+        public static T? _RuntimeJsonStrToObject<T>(this string src, DataContractJsonSerializerSettings? settings = null) => Str.RuntimeJsonStrToObject<T>(src, settings);
 
         public static T _Print<T>(this T o) => (T)o._Print(typeof(T))!;
 
@@ -927,7 +927,7 @@ namespace IPA.Cores.Helper.Basic
                     }
                     else
                     {
-                        throw ex;
+                        throw;
                     }
                 }
 
@@ -1195,7 +1195,7 @@ namespace IPA.Cores.Helper.Basic
         }
 
         public static IAsyncResult _AsApm<T>(this Task<T> task,
-                                    AsyncCallback callback,
+                                    AsyncCallback? callback,
                                     object? state)
         {
             if (task == null)
@@ -1218,7 +1218,7 @@ namespace IPA.Cores.Helper.Basic
         }
 
         public static IAsyncResult _AsApm(this Task task,
-                                            AsyncCallback callback,
+                                            AsyncCallback? callback,
                                             object? state)
         {
             if (task == null)
@@ -1447,6 +1447,7 @@ namespace IPA.Cores.Helper.Basic
 
         [MethodImpl(Inline)]
         [return: NotNullIfNotNull("defaultValue")]
+        [return: MaybeNull]
         public static T _FilledOrDefault<T>(this T obj, T defaultValue = default, bool zeroValueIsEmpty = true) => (obj._IsFilled(zeroValueIsEmpty) ? obj : defaultValue);
 
         [MethodImpl(Inline)]

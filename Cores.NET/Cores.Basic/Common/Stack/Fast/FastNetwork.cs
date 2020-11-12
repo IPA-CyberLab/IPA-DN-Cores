@@ -2004,9 +2004,9 @@ namespace IPA.Cores.Basic
         public sealed override void Write(byte[] buffer, int offset, int count) => WriteAsync(buffer, offset, count, default)._GetResult();
         public sealed override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count, default)._GetResult();
 
-        public sealed override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object? state)
+        public sealed override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback? callback, object? state)
             => ReadAsync(buffer, offset, count, default)._AsApm(callback, state);
-        public sealed override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object? state)
+        public sealed override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback? callback, object? state)
             => WriteAsync(buffer, offset, count, default)._AsApm(callback, state);
         public sealed override int EndRead(IAsyncResult asyncResult) => ((Task<int>)asyncResult)._GetResult();
         public sealed override void EndWrite(IAsyncResult asyncResult) => ((Task)asyncResult)._GetResult();
@@ -2021,6 +2021,7 @@ namespace IPA.Cores.Basic
             MyNameCache ??= this.GetType().ToString();
             return MyNameCache;
         }
+        [Obsolete]
         public sealed override object InitializeLifetimeService() => base.InitializeLifetimeService();
         public sealed override void Close() => Dispose(true);
 

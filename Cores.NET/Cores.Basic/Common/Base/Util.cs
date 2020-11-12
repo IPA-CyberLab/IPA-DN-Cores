@@ -309,9 +309,9 @@ namespace IPA.Cores.Basic
             Value = value;
         }
 
-        public T Value { get; set; }
+        public T? Value { get; set; }
         public void Set(T value) => this.Value = value;
-        public T Get() => this.Value;
+        public T? Get() => this.Value;
         public bool IsTrue()
         {
             switch (this.Value)
@@ -344,7 +344,9 @@ namespace IPA.Cores.Basic
         public static bool operator ==(Ref<T> r, bool b) { return r.IsTrue() == b; }
         public static bool operator !=(Ref<T> r, bool b) { return r.IsTrue() != b; }
         public static bool operator !(Ref<T> r) { return !r.IsTrue(); }
-        public static implicit operator T(Ref<T> r) => r.Value;
+
+        [return: NotNullIfNotNull("r.Value")]
+        public static implicit operator T?(Ref<T> r) => r.Value;
         public static implicit operator Ref<T>(T value) => new Ref<T>(value);
     }
 
@@ -1711,16 +1713,16 @@ namespace IPA.Cores.Basic
             return buf.Span.ToArray();
         }
 
-        public static object RuntimeJsonToObject(MemoryBuffer<byte> src, Type type, DataContractJsonSerializerSettings? settings = null)
+        public static object? RuntimeJsonToObject(MemoryBuffer<byte> src, Type type, DataContractJsonSerializerSettings? settings = null)
         {
             if (settings == null) settings = NewDefaultRuntimeJsonSerializerSettings();
             DataContractJsonSerializer d = new DataContractJsonSerializer(type, settings);
             return d.ReadObject(src._AsDirectStream());
         }
-        public static T RuntimeJsonToObject<T>(MemoryBuffer<byte> src, DataContractJsonSerializerSettings? settings = null) => (T)RuntimeJsonToObject(src, typeof(T), settings);
+        public static T? RuntimeJsonToObject<T>(MemoryBuffer<byte> src, DataContractJsonSerializerSettings? settings = null) => (T?)RuntimeJsonToObject(src, typeof(T), settings);
 
-        public static object RuntimeJsonToObject(byte[] src, Type type, DataContractJsonSerializerSettings? settings = null) => RuntimeJsonToObject(src._AsMemoryBuffer(), type, settings);
-        public static T RuntimeJsonToObject<T>(byte[] src, DataContractJsonSerializerSettings? settings = null) => RuntimeJsonToObject<T>(src._AsMemoryBuffer(), settings);
+        public static object? RuntimeJsonToObject(byte[] src, Type type, DataContractJsonSerializerSettings? settings = null) => RuntimeJsonToObject(src._AsMemoryBuffer(), type, settings);
+        public static T? RuntimeJsonToObject<T>(byte[] src, DataContractJsonSerializerSettings? settings = null) => RuntimeJsonToObject<T>(src._AsMemoryBuffer(), settings);
 
 
 
@@ -1741,7 +1743,7 @@ namespace IPA.Cores.Basic
             return buf.Span.ToArray();
         }
 
-        public static object XmlToObject(MemoryBuffer<byte> src, Type type, DataContractSerializerSettings? settings = null)
+        public static object? XmlToObject(MemoryBuffer<byte> src, Type type, DataContractSerializerSettings? settings = null)
         {
             if (settings == null)
             {
@@ -1751,10 +1753,10 @@ namespace IPA.Cores.Basic
             DataContractSerializer d = new DataContractSerializer(type, settings);
             return d.ReadObject(src._AsDirectStream());
         }
-        public static T XmlToObject<T>(MemoryBuffer<byte> src, DataContractSerializerSettings? settings = null) => (T)XmlToObject(src, typeof(T), settings);
+        public static T? XmlToObject<T>(MemoryBuffer<byte> src, DataContractSerializerSettings? settings = null) => (T?)XmlToObject(src, typeof(T), settings);
 
-        public static object XmlToObject(byte[] src, Type type, DataContractSerializerSettings? settings = null) => XmlToObject(src._AsMemoryBuffer(), type, settings);
-        public static T XmlToObject<T>(byte[] src, DataContractSerializerSettings? settings = null) => XmlToObject<T>(src._AsMemoryBuffer(), settings);
+        public static object? XmlToObject(byte[] src, Type type, DataContractSerializerSettings? settings = null) => XmlToObject(src._AsMemoryBuffer(), type, settings);
+        public static T? XmlToObject<T>(byte[] src, DataContractSerializerSettings? settings = null) => XmlToObject<T>(src._AsMemoryBuffer(), settings);
 
         // オブジェクトをクローンする
         [return: NotNullIfNotNull("o")]
@@ -1769,7 +1771,9 @@ namespace IPA.Cores.Basic
         {
             BinaryFormatter f = new BinaryFormatter();
             MemoryStream ms = new MemoryStream();
+#pragma warning disable SYSLIB0011 // 型またはメンバーが旧型式です
             f.Serialize(ms, o);
+#pragma warning restore SYSLIB0011 // 型またはメンバーが旧型式です
 
             return ms.ToArray();
         }
@@ -1782,7 +1786,9 @@ namespace IPA.Cores.Basic
             ms.Write(data);
             ms.Position = 0;
 
+#pragma warning disable SYSLIB0011 // 型またはメンバーが旧型式です
             return f.Deserialize(ms);
+#pragma warning restore SYSLIB0011 // 型またはメンバーが旧型式です
         }
 
         // オブジェクトの内容をクローンする

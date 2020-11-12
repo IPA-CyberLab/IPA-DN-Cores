@@ -121,7 +121,7 @@ namespace IPA.Cores.Basic
             {
                 Console.Write(prompt);
                 LocalLogRouter.PrintConsole(prompt, noConsole: true);
-                string ret = Console.ReadLine();
+                string? ret = Console.ReadLine();
                 LocalLogRouter.PrintConsole(ret, noConsole: true);
                 return ret;
             }

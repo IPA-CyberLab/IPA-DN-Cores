@@ -594,10 +594,10 @@ namespace IPA.Cores.Basic
 
         public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count, CancellationToken.None)._GetResult();
 
-        public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object? state)
+        public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback? callback, object? state)
             => ReadAsync(buffer, offset, count, default)._AsApm(callback, state);
 
-        public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object? state)
+        public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback? callback, object? state)
             => WriteAsync(buffer, offset, count, default)._AsApm(callback, state);
 
         public override int EndRead(IAsyncResult asyncResult) => ((Task<int>)asyncResult)._GetResult();
@@ -606,6 +606,7 @@ namespace IPA.Cores.Basic
         public override bool Equals(object? obj) => object.Equals(this, obj);
         public override int GetHashCode() => 0;
         public override string ToString() => this.File.ToString();
+        [Obsolete]
         public override object InitializeLifetimeService() => base.InitializeLifetimeService();
         public override void Close() => Dispose(true);
 

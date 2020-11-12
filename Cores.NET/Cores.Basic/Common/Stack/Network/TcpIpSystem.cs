@@ -449,8 +449,8 @@ namespace IPA.Cores.Basic
                 o.Add(r);
             }
 
-            SendPingReply best = o.Where(x => x.Ok).OrderBy(x => x.RttDouble).FirstOrDefault();
-            if (best != default) return best;
+            SendPingReply? best = o.Where(x => x.Ok).OrderBy(x => x.RttDouble).FirstOrDefault();
+            if (best != null) return best;
 
             return o.Last();
         }

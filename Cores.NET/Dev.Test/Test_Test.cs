@@ -73,7 +73,7 @@ using IPA.Cores.Basic.App.DaemonCenterLib;
 using IPA.Cores.ClientApi.GoogleApi;
 using System.Security.Cryptography;
 //using IPA.Cores.Basic.Tests;
-using System.Runtime.InteropServices.WindowsRuntime;
+//using System.Runtime.InteropServices.WindowsRuntime;
 using System.IO.Compression;
 using IPA.Cores.Basic.HttpClientCore;
 
@@ -751,7 +751,7 @@ namespace IPA.TestDev
                         return;
 
                     using DnsHostNameScanner scan = new DnsHostNameScanner(
-                        dnsSettings: new DnsResolverSettings(dnsServersList: new IPEndPoint[] { new IPEndPoint("8.8.8.8"._ToIPAddress(), 53) }));
+                        dnsSettings: new DnsResolverSettings(dnsServersList: new IPEndPoint[] { new IPEndPoint("8.8.8.8"._ToIPAddress()!, 53) }));
 
                     scan.PerformAsync(line)._GetResult();
                 }

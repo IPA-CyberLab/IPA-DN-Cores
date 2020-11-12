@@ -322,7 +322,7 @@ namespace IPA.Cores.Basic
 
         SocketsHttpHandler ClientHandler;
 
-        public X509CertificateCollection ClientCerts { get => this.ClientHandler.SslOptions.ClientCertificates; }
+        public X509CertificateCollection? ClientCerts { get => this.ClientHandler.SslOptions.ClientCertificates; }
 
         public HttpClient Client { get; private set; }
 
@@ -430,9 +430,9 @@ namespace IPA.Cores.Basic
                     {
                         foreach (var s in this.Settings.SslAcceptCertSHAHashList.Select(x => x._NormalizeHexString()))
                         {
-                            if (cert.GetCertHashString(HashAlgorithmName.SHA1)._IsSamei(s)) return true;
-                            if (cert.GetCertHashString(HashAlgorithmName.SHA256)._IsSamei(s)) return true;
-                            if (cert.GetCertHashString(HashAlgorithmName.SHA512)._IsSamei(s)) return true;
+                            if (cert!.GetCertHashString(HashAlgorithmName.SHA1)._IsSamei(s)) return true;
+                            if (cert!.GetCertHashString(HashAlgorithmName.SHA256)._IsSamei(s)) return true;
+                            if (cert!.GetCertHashString(HashAlgorithmName.SHA512)._IsSamei(s)) return true;
                         }
                         return false;
                     };

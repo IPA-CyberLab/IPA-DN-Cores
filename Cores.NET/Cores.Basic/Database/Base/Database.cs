@@ -55,6 +55,7 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Threading;
 using Newtonsoft.Json.Linq;
+using System.ComponentModel;
 
 namespace IPA.Cores.Basic
 {
@@ -172,33 +173,39 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public DateTime DateTime => ((DateTime)Object)._NormalizeDateTime();
-        public DateTimeOffset DateTimeOffset => ((DateTimeOffset)Object)._NormalizeDateTimeOffset();
-        public string String => (string)Object;
-        public double Double => (double)Object;
-        public int Int => (int)Object;
-        public int Int_NullAsZero => (this.IsNull ? 0 : Int);
-        public uint UInt => (uint)Object;
-        public long Int64 => (long)Object;
+        public DateTime DateTime => (this.IsNull ? Util.ZeroDateTimeValue : ((DateTime)Object!)._NormalizeDateTime());
+        public DateTimeOffset DateTimeOffset => (this.IsNull ? Util.ZeroDateTimeOffsetValue : ((DateTimeOffset)Object!)._NormalizeDateTimeOffset());
+        public string String => this.IsNull ? "" : ((string?)Object)._NonNull();
+        public double Double => this.IsNull ? 0.0 : (double)Object!;
+        public int Int => this.IsNull ? 0 : (int)Object!;
+        public uint UInt => this.IsNull ? 0 : (uint)Object!;
+        public long Int64 => this.IsNull ? 0 : (long)Object!;
+        public ulong UInt64 => this.IsNull ? 0 : (ulong)Object!;
+        public bool Bool => this.IsNull ? false : (bool)Object!;
+        public byte[]? Data => this.IsNull ? null : (byte[])Object!;
+        public short Short => this.IsNull ? 0 : (short)Object!;
+        public ushort UShort => this.IsNull ? 0 : (ushort)Object!;
+        public byte Byte => this.IsNull ? 0 : (byte)Object!;
+        public sbyte SByte => this.IsNull ? 0 : (sbyte)Object!;
+
+        public object? Object { get; }
+
+        [Obsolete]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public int Int_NullAsZero => Int;
+
+        [Obsolete]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public long Int64_NullAsZero => (this.IsNull ? 0 : Int64);
-        public ulong UInt64 => (ulong)Object;
-        public bool Bool => (bool)Object;
-        public byte[] Data => (byte[])Object;
-        public short Short => (short)Object;
-        public ushort UShort => (ushort)Object;
-        public byte Byte => (byte)Object;
-        public sbyte SByte => (sbyte)Object;
 
-        public object Object { get; }
-
-        public DatabaseValue(object value)
+        public DatabaseValue(object? value)
         {
             this.Object = value;
         }
 
         public override string? ToString()
         {
-            return this.Object.ToString();
+            return this.Object?.ToString() ?? "";
         }
     }
 
@@ -251,7 +258,7 @@ namespace IPA.Cores.Basic
             for (i = 0; i < this.FieldList.Length; i++)
             {
                 string fieldName = FieldList[i];
-                object value = ValueList[i].Object;
+                object? value = ValueList[i].Object;
 
                 ret.Add(fieldName, new JValue(value));
             }
@@ -769,6 +776,7 @@ namespace IPA.Cores.Basic
                 else
                 {
                     var autoKeyProperty = type.GetProperties().Where(p => p.GetCustomAttributes().OfType<KeyAttribute>().Any()).SingleOrDefault();
+                    autoKeyProperty._NullCheck();
                     if (autoKeyProperty.DeclaringType == typeof(long))
                     {
                         id = await this.GetLastID64Async();
@@ -883,7 +891,7 @@ namespace IPA.Cores.Basic
             get
             {
                 EnsureOpen();
-                return (int)((decimal)this.QueryWithValue("SELECT @@@@IDENTITY").Object);
+                return (int)((decimal)this.QueryWithValue("SELECT @@@@IDENTITY").Object!);
             }
         }
         public long LastID64
@@ -891,20 +899,20 @@ namespace IPA.Cores.Basic
             get
             {
                 EnsureOpen();
-                return (long)((decimal)this.QueryWithValue("SELECT @@@@IDENTITY").Object);
+                return (long)((decimal)this.QueryWithValue("SELECT @@@@IDENTITY").Object!);
             }
         }
 
         public async Task<int> GetLastIDAsync()
         {
             await EnsureOpenAsync();
-            return (int)((decimal)((await this.QueryWithValueAsync("SELECT @@@@IDENTITY")).Object));
+            return (int)((decimal)((await this.QueryWithValueAsync("SELECT @@@@IDENTITY")).Object!));
         }
 
         public async Task<long> GetLastID64Async()
         {
             await EnsureOpenAsync();
-            return (long)((decimal)((await this.QueryWithValueAsync("SELECT @@@@IDENTITY")).Object));
+            return (long)((decimal)((await this.QueryWithValueAsync("SELECT @@@@IDENTITY")).Object!));
         }
 
 

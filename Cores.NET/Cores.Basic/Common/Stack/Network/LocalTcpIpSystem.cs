@@ -164,7 +164,7 @@ namespace IPA.Cores.Basic
             switch (param)
             {
                 case DnsGetIpQueryParam getIpQuery:
-                    if (IPAddress.TryParse(getIpQuery.Hostname, out IPAddress ip))
+                    if (IPAddress.TryParse(getIpQuery.Hostname, out IPAddress? ip))
                         return new DnsResponse(param, ip._SingleArray());
                     else
                         return new DnsResponse(param, await PalDns.GetHostAddressesAsync(getIpQuery.Hostname, getIpQuery.Timeout, cancel));

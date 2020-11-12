@@ -640,7 +640,7 @@ namespace IPA.Cores.Basic
 
                         try
                         {
-                            randomAccess = new XtsAesRandomAccess(file, suppliedPassword, disposeObject: true);
+                            randomAccess = new XtsAesRandomAccess(file, suppliedPassword.Value!, disposeObject: true);
 
                             fileStream = randomAccess.GetStream(disposeTarget: true);
                         }

@@ -695,9 +695,9 @@ namespace IPA.Cores.Basic
 
             if ((IgnoreCase)x == y) return 0;
 
-            if (IPAddress.TryParse(x, out IPAddress ip1))
+            if (IPAddress.TryParse(x, out IPAddress? ip1))
             {
-                if (IPAddress.TryParse(y, out IPAddress ip2))
+                if (IPAddress.TryParse(y, out IPAddress? ip2))
                 {
                     int r = ip1.AddressFamily.CompareTo(ip2.AddressFamily);
                     if (r != 0) return r;
@@ -721,9 +721,9 @@ namespace IPA.Cores.Basic
 
             if ((IgnoreCase)x == y) return true;
 
-            if (IPAddress.TryParse(x, out IPAddress ip1))
+            if (IPAddress.TryParse(x, out IPAddress? ip1))
             {
-                if (IPAddress.TryParse(y, out IPAddress ip2))
+                if (IPAddress.TryParse(y, out IPAddress? ip2))
                 {
                     return ip1.Equals(ip2);
                 }
@@ -736,7 +736,7 @@ namespace IPA.Cores.Basic
         {
             obj = obj._NonNullTrim();
 
-            if (IPAddress.TryParse(obj, out IPAddress addr) == false)
+            if (IPAddress.TryParse(obj, out IPAddress? addr) == false)
             {
                 return 0;
             }
@@ -6965,7 +6965,7 @@ namespace IPA.Cores.Basic
             return Str.Utf8Encoding.GetString(ms.ToArray());
         }
 
-        public static object XMLToObjectSimple_PublicLegacy(string str, Type t)
+        public static object? XMLToObjectSimple_PublicLegacy(string str, Type t)
         {
             XmlSerializer xs = new XmlSerializer(t);
 
@@ -6978,12 +6978,12 @@ namespace IPA.Cores.Basic
         }
 
         public static string ObjectToXmlStr(object obj, DataContractSerializerSettings? settings = null) => Util.ObjectToXml(obj, settings)._GetString_UTF8();
-        public static object XmlStrToObject(string src, Type type, DataContractSerializerSettings? settings = null) => Util.XmlToObject(src._GetBytes_UTF8(), type, settings);
-        public static T XmlStrToObject<T>(string src, DataContractSerializerSettings? settings = null) => Util.XmlToObject<T>(src._GetBytes_UTF8(), settings);
+        public static object? XmlStrToObject(string src, Type type, DataContractSerializerSettings? settings = null) => Util.XmlToObject(src._GetBytes_UTF8(), type, settings);
+        public static T? XmlStrToObject<T>(string src, DataContractSerializerSettings? settings = null) => Util.XmlToObject<T>(src._GetBytes_UTF8(), settings);
 
         public static string ObjectToRuntimeJsonStr(object obj, DataContractJsonSerializerSettings? settings = null) => Util.ObjectToRuntimeJson(obj, settings)._GetString_UTF8();
-        public static object RuntimeJsonStrToObject(string src, Type type, DataContractJsonSerializerSettings? settings = null) => Util.RuntimeJsonToObject(src._GetBytes_UTF8(), type, settings);
-        public static T RuntimeJsonStrToObject<T>(string src, DataContractJsonSerializerSettings? settings = null) => Util.RuntimeJsonToObject<T>(src._GetBytes_UTF8(), settings);
+        public static object? RuntimeJsonStrToObject(string src, Type type, DataContractJsonSerializerSettings? settings = null) => Util.RuntimeJsonToObject(src._GetBytes_UTF8(), type, settings);
+        public static T? RuntimeJsonStrToObject<T>(string src, DataContractJsonSerializerSettings? settings = null) => Util.RuntimeJsonToObject<T>(src._GetBytes_UTF8(), settings);
 
         public static string BuildHttpUrl(string protocol, string host, int port, string localPath)
         {
@@ -7667,7 +7667,7 @@ namespace IPA.Cores.Basic
         {
             if (obj == null && this.Value == null) return true;
             if (obj == null) return false;
-            if (ReferenceEquals(this, obj)) return true;
+            if (ReferenceEquals(this.Value, obj)) return true;
             if (obj is IgnoreCase target)
             {
                 return this == target;
@@ -7728,7 +7728,7 @@ namespace IPA.Cores.Basic
         {
             if (obj == null && this.Value == null) return true;
             if (obj == null) return false;
-            if (ReferenceEquals(this, obj)) return true;
+            if (ReferenceEquals(this.Value, obj)) return true;
             if (obj is Trim target)
             {
                 return this == target;
@@ -7789,7 +7789,7 @@ namespace IPA.Cores.Basic
         {
             if (obj == null && this.Value == null) return true;
             if (obj == null) return false;
-            if (ReferenceEquals(this, obj)) return true;
+            if (ReferenceEquals(this.Value, obj)) return true;
             if (obj is IgnoreCaseTrim target)
             {
                 return this == target;

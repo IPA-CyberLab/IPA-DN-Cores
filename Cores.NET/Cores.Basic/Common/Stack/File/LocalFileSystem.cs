@@ -50,6 +50,7 @@ using static IPA.Cores.Globals.Basic;
 using System.Security.AccessControl;
 
 #pragma warning disable CS1998
+#pragma warning disable CA1416 // プラットフォームの互換性の検証
 
 namespace IPA.Cores.Basic
 {
@@ -466,7 +467,7 @@ namespace IPA.Cores.Basic
                     {
                         if (existingStream.Item2 <= Win32MaxAlternateStreamSize)
                         {
-                            if (data.Items.Select(x => x.Name).Where(x => x._IsSamei(existingStream.Item1)).Any() == false)
+                            if (data.Items!.Select(x => x.Name).Where(x => x._IsSamei(existingStream.Item1)).Any() == false)
                             {
                                 string fullpath = path + existingStream.Item1;
 

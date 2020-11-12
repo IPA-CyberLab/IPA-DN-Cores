@@ -82,12 +82,15 @@ namespace IPA.Cores.Basic
         }
 
         abstract protected Memory<byte> SerializeImpl<T>(T obj);
+
+        [return: MaybeNull]
         abstract protected T DeserializeImpl<T>(ReadOnlyMemory<byte> memory);
 
         public Memory<byte> Serialize<T>(T obj) => SerializeImpl(obj);
-        public T Deserialize<T>(ReadOnlyMemory<byte> memory) => DeserializeImpl<T>(memory);
+        public T? Deserialize<T>(ReadOnlyMemory<byte> memory) => DeserializeImpl<T>(memory);
 
-        public T CloneData<T>(T obj) => Deserialize<T>(Serialize(obj));
+        [return: NotNullIfNotNull("obj")]
+        public T? CloneData<T>(T obj) => Deserialize<T>(Serialize(obj));
     }
 
     public class RuntimeJsonHiveSerializerOptions : HiveSerializerOptions
@@ -123,6 +126,7 @@ namespace IPA.Cores.Basic
             return ret.Memory;
         }
 
+        [return: MaybeNull]
         protected override T DeserializeImpl<T>(ReadOnlyMemory<byte> memory)
         {
             return memory.ToArray()._RuntimeJsonToObject<T>(Options.JsonSettings);
@@ -924,15 +928,19 @@ namespace IPA.Cores.Basic
 
                 Memory<byte> mem = Serializer.Serialize<T>(currentData);
 
-                return Serializer.Deserialize<T>(mem);
+                return Serializer.Deserialize<T>(mem)!;
             }
         }
 
+        [return: NotNullIfNotNull("data")]
+        [return: MaybeNull]
         T CloneData(T data)
         {
+            if (data == null) return null;
+
             Memory<byte> mem = Serializer.Serialize<T>(data);
 
-            return Serializer.Deserialize<T>(mem);
+            return Serializer.Deserialize<T>(mem)!;
         }
 
         public void SyncWithStorage(HiveSyncFlags flag, bool ignoreError, CancellationToken cancel = default)
@@ -1075,7 +1083,7 @@ namespace IPA.Cores.Basic
             Memory<byte> loadBytes = await Hive.StorageProvider.LoadAsync(this.DataName, cancel);
             try
             {
-                T data = this.Serializer.Deserialize<T>(loadBytes);
+                T? data = this.Serializer.Deserialize<T>(loadBytes)!;
 
                 try
                 {

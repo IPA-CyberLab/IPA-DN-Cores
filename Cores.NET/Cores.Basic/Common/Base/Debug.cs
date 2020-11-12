@@ -393,7 +393,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                using (Process p = Process.Start(info))
+                using (Process p = Process.Start(info)!)
                 {
                     string err1 = p.StandardError.ReadToEnd();
                     string err2 = p.StandardOutput.ReadToEnd();
@@ -534,7 +534,7 @@ namespace IPA.Cores.Basic
                 StandardOutputEncoding = Str.Utf8Encoding,
             };
 
-            using Process p = Process.Start(info);
+            using Process p = Process.Start(info)!;
 
             string err1 = p.StandardError.ReadToEnd();
             string err2 = p.StandardOutput.ReadToEnd();

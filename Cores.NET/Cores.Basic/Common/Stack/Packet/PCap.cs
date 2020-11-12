@@ -385,7 +385,7 @@ namespace IPA.Cores.Basic
             }
 
             return new TcpPseudoPacketGeneratorOptions(info.Direction,
-                IPAddress.Parse(info.LocalIP), info.LocalPort, IPAddress.Parse(info.RemoteIP), info.RemotePort);
+                IPAddress.Parse(info.LocalIP!), info.LocalPort, IPAddress.Parse(info.RemoteIP!), info.RemotePort);
         }
     }
 

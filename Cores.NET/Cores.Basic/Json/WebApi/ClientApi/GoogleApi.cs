@@ -153,8 +153,8 @@ namespace IPA.Cores.ClientApi.GoogleApi
             public string? snippet;
             public long internalDate;
 
-            public string GetFrom() => this.payload?.headers.Where(x => x != null && x.name._IsSamei("from")).Select(x => x!.value).FirstOrDefault() ?? "";
-            public string GetSubject() => this.payload?.headers.Where(x => x != null && x.name._IsSamei("subject")).Select(x => x!.value).FirstOrDefault() ?? "";
+            public string GetFrom() => this.payload?.headers!.Where(x => x != null && x.name._IsSamei("from")).Select(x => x!.value).FirstOrDefault() ?? "";
+            public string GetSubject() => this.payload?.headers!.Where(x => x != null && x.name._IsSamei("subject")).Select(x => x!.value).FirstOrDefault() ?? "";
         }
 
         public class GmailProfile

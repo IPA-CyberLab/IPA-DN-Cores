@@ -189,7 +189,7 @@ namespace IPA.Cores.Basic
         {
             DnsResponse res = await this.QueryDnsAsync(new DnsGetIpQueryParam(hostname, timeout: timeout));
 
-            IPAddress ret = res.IPAddressList.Where(x => x.AddressFamily == AddressFamily.InterNetwork || x.AddressFamily == AddressFamily.InterNetworkV6)
+            IPAddress? ret = res.IPAddressList.Where(x => x.AddressFamily == AddressFamily.InterNetwork || x.AddressFamily == AddressFamily.InterNetworkV6)
                 .Where(x => addressFamily == null || x.AddressFamily == addressFamily).FirstOrDefault();
 
             if (ret == null)

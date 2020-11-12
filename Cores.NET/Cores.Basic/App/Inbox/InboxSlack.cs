@@ -361,7 +361,7 @@ namespace IPA.Cores.Basic
                         }
                         else
                         {
-                            if (targetChannelIDs.Contains(conv.id, StrComparer.IgnoreCaseComparer))
+                            if (targetChannelIDs!.Contains(conv.id, StrComparer.IgnoreCaseComparer))
                             {
                                 reload = true;
                             }
@@ -429,7 +429,7 @@ namespace IPA.Cores.Basic
 
                                 if (message.upload)
                                 {
-                                    m.Body += $"Filename: '{message.files.FirstOrDefault()?.name ?? "Unknown Filename"}'";
+                                    m.Body += $"Filename: '{message.files!.FirstOrDefault()?.name ?? "Unknown Filename"}'";
                                 }
 
                                 msgList.Add(m);
@@ -459,7 +459,7 @@ namespace IPA.Cores.Basic
         SlackApi.User? GetUser(string? userId)
         {
             if (userId._IsEmpty()) return null;
-            SlackApi.User? user = this.UserList.Where(x => x.id._IsSamei(userId)).SingleOrDefault();
+            SlackApi.User? user = this.UserList!.Where(x => x.id._IsSamei(userId)).SingleOrDefault();
             return user;
         }
     }

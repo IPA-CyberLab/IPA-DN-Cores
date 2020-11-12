@@ -232,7 +232,7 @@ namespace IPA.Cores.Basic
 
             if (Env.IsHostedByDotNetProcess)
             {
-                Env.DotNetHostProcessExeName = Process.GetCurrentProcess().MainModule.FileName;
+                Env.DotNetHostProcessExeName = Process.GetCurrentProcess().MainModule!.FileName!;
             }
             else
             {
@@ -551,7 +551,7 @@ namespace IPA.Cores.Basic
 
                 Process myProcess2 = Process.GetProcessById(myProcess.Id);
 
-                return myProcess2.MainModule.FileName;
+                return myProcess2.MainModule!.FileName!;
             }
             catch
             {

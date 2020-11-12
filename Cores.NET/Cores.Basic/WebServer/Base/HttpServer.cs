@@ -119,7 +119,7 @@ namespace IPA.Cores.Basic
             AuthorizationHandlerContext context,
             HttpServerAnyAuthenticationRequired requirement)
         {
-            if (context.User.Identity.IsAuthenticated)
+            if (context.User.Identity!.IsAuthenticated)
             {
                 context.Succeed(requirement);
             }

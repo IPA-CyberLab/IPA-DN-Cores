@@ -200,7 +200,7 @@ namespace IPA.Cores.Basic
                     WorkingDirectory = Env.AppRootDir,
                 };
 
-                using (Process p = Process.Start(info))
+                using (Process p = Process.Start(info)!)
                 {
                     return p.WaitForExit(timeout);
                 }
@@ -662,7 +662,7 @@ namespace IPA.Cores.Basic
                     RedirectStandardError = true,
                     RedirectStandardInput = true,
                     CreateNoWindow = true,
-                    WorkingDirectory = options.CurrentDirectory._NullIfEmpty(),
+                    WorkingDirectory = options.CurrentDirectory._NullIfEmpty()!,
                 };
 
                 if (options.ArgumentsList != null)
@@ -671,12 +671,12 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    info.Arguments = options.Arguments._NullIfZeroLen();
+                    info.Arguments = options.Arguments._NullIfZeroLen()!;
                 }
 
                 StartTick = Time.HighResTick64;
 
-                Proc = Process.Start(info);
+                Proc = Process.Start(info)!;
 
                 Proc._FixProcessObjectHandleLeak(); // メモリリーク解消
 
@@ -980,7 +980,7 @@ namespace IPA.Cores.Basic
 
                 ThreadObj? t = null;
 
-                using (Process p = Process.Start(info))
+                using (Process p = Process.Start(info)!)
                 {
                     this.proc = p;
 

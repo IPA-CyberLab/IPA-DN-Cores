@@ -46,6 +46,8 @@ using static IPA.Cores.Globals.Basic;
 using IPA.Cores.Basic.Internal.WinSvc;
 using System.Net;
 
+#pragma warning disable CA1416 // プラットフォームの互換性の検証
+
 namespace IPA.Cores.Basic
 {
     public interface IService

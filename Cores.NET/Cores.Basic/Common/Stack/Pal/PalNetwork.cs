@@ -192,8 +192,8 @@ namespace IPA.Cores.Basic
             });
             SendBufferSize = new CachedProperty<int>(value => _Socket.SendBufferSize = value, () => _Socket.SendBufferSize);
             ReceiveBufferSize = new CachedProperty<int>(value => _Socket.ReceiveBufferSize = value, () => _Socket.ReceiveBufferSize);
-            LocalEndPoint = new CachedProperty<EndPoint>(null, () => _Socket.LocalEndPoint);
-            RemoteEndPoint = new CachedProperty<EndPoint>(null, () => _Socket.RemoteEndPoint);
+            LocalEndPoint = new CachedProperty<EndPoint>(null, () => _Socket.LocalEndPoint!);
+            RemoteEndPoint = new CachedProperty<EndPoint>(null, () => _Socket.RemoteEndPoint!);
 
             NativeHandle = _Socket.Handle.ToInt64();
 
@@ -522,9 +522,9 @@ namespace IPA.Cores.Basic
                 AllowRenegotiation = true,
                 RemoteCertificateValidationCallback = new RemoteCertificateValidationCallback((sender, cert, chain, err) =>
                 {
-                    IReadOnlyList<string> certHashList = cert._GetCertSHAHashStrList();
+                    IReadOnlyList<string> certHashList = cert!._GetCertSHAHashStrList();
 
-                    bool b1 = (ValidateRemoteCertificateProc != null ? ValidateRemoteCertificateProc(new PalX509Certificate(cert)) : false);
+                    bool b1 = (ValidateRemoteCertificateProc != null ? ValidateRemoteCertificateProc(new PalX509Certificate(cert!)) : false);
                     bool b2 = ServerCertSHAList?.Select(sha => sha._ReplaceStr(":", "")).Where(sha => certHashList.Where(certSha => (IgnoreCaseTrim)certSha == sha).Any()).Any() ?? false;
                     bool b3 = this.AllowAnyServerCert;
 
@@ -536,7 +536,7 @@ namespace IPA.Cores.Basic
             };
 
             if (this.ClientCertificate != null)
-                ret.ClientCertificates.Add(this.ClientCertificate.NativeCertificate);
+                ret.ClientCertificates!.Add(this.ClientCertificate.NativeCertificate);
 
             return ret;
         }
@@ -596,7 +596,7 @@ namespace IPA.Cores.Basic
                 object param = this.ServerCertificateSelectionProcParam._MarkNotNull();
                 ret.ServerCertificateSelectionCallback = (obj, sniHostName) =>
                 {
-                    PalX509Certificate cert = this.ServerCertificateSelectionProc(param, sniHostName);
+                    PalX509Certificate cert = this.ServerCertificateSelectionProc(param, sniHostName._NonNull());
                     return cert.NativeCertificate;
                 };
 
@@ -836,14 +836,14 @@ namespace IPA.Cores.Basic
             NetworkChange.NetworkAvailabilityChanged += NetworkChange_NetworkAvailabilityChanged;
         }
 
-        private void NetworkChange_NetworkAddressChanged(object sender, EventArgs e)
+        private void NetworkChange_NetworkAddressChanged(object? sender, EventArgs e)
         {
             if (callMeCache != null) callMeCache();
 
             NetworkChange.NetworkAddressChanged += NetworkChange_NetworkAddressChanged;
         }
 
-        private void NetworkChange_NetworkAvailabilityChanged(object sender, NetworkAvailabilityEventArgs e)
+        private void NetworkChange_NetworkAvailabilityChanged(object? sender, NetworkAvailabilityEventArgs e)
         {
             if (callMeCache != null) callMeCache();
 
@@ -907,7 +907,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                return BackgroundState<PalHostNetInfo>.Current.Data!.IPAddressList.Where(x => x.AddressFamily == AddressFamily.InterNetwork)
+                return BackgroundState<PalHostNetInfo>.Current.Data!.IPAddressList!.Where(x => x.AddressFamily == AddressFamily.InterNetwork)
                     .Where(x => IPAddress.IsLoopback(x) == false).Where(x => x != IPAddress.Any).First();
             }
             catch { }

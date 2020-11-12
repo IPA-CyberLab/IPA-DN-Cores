@@ -341,7 +341,7 @@ namespace IPA.Cores.Basic
                             // 日付を比較する。ただし宛先ディレクトリの物理的なファイルの日付は信用できないので、メタデータ上のファイルサイズと比較する
                             if (destDirOldMetaData != null)
                             {
-                                DirSuperBackupMetadataFile existsFileMetadataFromDirMetadata = destDirOldMetaData.FileList.Where(x => x.FileName._IsSamei(srcFile.Name)).SingleOrDefault();
+                                DirSuperBackupMetadataFile? existsFileMetadataFromDirMetadata = destDirOldMetaData.FileList.Where(x => x.FileName._IsSamei(srcFile.Name)).SingleOrDefault();
                                 if (existsFileMetadataFromDirMetadata == null)
                                 {
                                     // メタデータ上に存在しない
