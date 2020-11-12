@@ -76,6 +76,7 @@ using System.Security.Cryptography;
 //using System.Runtime.InteropServices.WindowsRuntime;
 using System.IO.Compression;
 using IPA.Cores.Basic.HttpClientCore;
+using Microsoft.Extensions.Hosting;
 
 
 
@@ -158,7 +159,7 @@ namespace IPA.TestDev
             }
         }
 
-        protected override void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime)
+        protected override void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
         {
             RouteBuilder rb = new RouteBuilder(app);
 
@@ -168,7 +169,7 @@ namespace IPA.TestDev
             app.UseRouter(router);
         }
 
-        protected override void ConfigureImpl_AfterHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime)
+        protected override void ConfigureImpl_AfterHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
         {
         }
     }

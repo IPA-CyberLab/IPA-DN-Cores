@@ -33,7 +33,7 @@
 // Author: Daiyuu Nobori
 // Snmp Work Daemon Util Main
 
-#if CORES_BASIC_HTTPSERVER
+#if CORES_BASIC_HTTPSERVER || CORES_BASIC_WEBAPP
 
 #pragma warning disable CA2235 // Mark all non-serializable fields
 
