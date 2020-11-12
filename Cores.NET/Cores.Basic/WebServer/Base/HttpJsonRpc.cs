@@ -133,8 +133,8 @@ namespace IPA.Cores.Basic
                 }
 
                 var conn = request.HttpContext.Connection;
-                JsonRpcClientInfo client_info = new JsonRpcClientInfo(this, conn.LocalIpAddress._UnmapIPv4().ToString(), conn.LocalPort,
-                    conn.RemoteIpAddress._UnmapIPv4().ToString(), conn.RemotePort,
+                JsonRpcClientInfo client_info = new JsonRpcClientInfo(this, conn.LocalIpAddress!._UnmapIPv4().ToString(), conn.LocalPort,
+                    conn.RemoteIpAddress!._UnmapIPv4().ToString(), conn.RemotePort,
                     headers);
 
                 //string in_str = request.Body.ReadToEnd().GetString_UTF8();
