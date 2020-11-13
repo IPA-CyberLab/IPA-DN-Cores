@@ -48,6 +48,28 @@ namespace IPA.TestDev
     partial class TestDevCommands
     {
         [ConsoleCommand(
+        "テキスト原稿を HTML 化",
+        "ReplaceString [src] [/DEST:dest]",
+        "テキスト原稿を HTML 化"
+        )]
+        static int GenkoToHtml(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[src]", ConsoleService.Prompt, "元ファイル: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("DEST", ConsoleService.Prompt, "出力先ファイル: ", ConsoleService.EvalNotEmpty, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string dest = vl["DEST"].StrValue;
+
+            MiscUtil.GenkoToHtml(vl.DefaultParam.StrValue, dest);
+
+            return 0;
+        }
+
+        [ConsoleCommand(
         "ファイル内の文字を置換",
         "ReplaceString [dirName] [/PATTERN:pattern] [/OLDSTRING:oldstring] [/NEWSTRING:newstring] [/CASESENSITIVE:yes|no]",
         "指定されたディレクトリ内のパターンに一致するファイルの文字コードを変更します。",
@@ -74,6 +96,7 @@ namespace IPA.TestDev
 
             return 0;
         }
+
 
         [ConsoleCommand(
             "ファイルの文字コードを変換",

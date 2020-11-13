@@ -117,6 +117,37 @@ namespace IPA.Cores.Basic
     // 色々なおまけユーティリティ
     public static partial class MiscUtil
     {
+        public static void GenkoToHtml(string srcTxt, string dstHtml)
+        {
+            string body = Lfs.ReadStringFromFile(srcTxt);
+
+            string[] lines = body._GetLines();
+
+            StringWriter w = new StringWriter();
+
+            foreach (string line in lines)
+            {
+                string s = line;
+
+                if (s._IsEmpty())
+                {
+                    s = $"<p>{Str.HtmlSpacing}</p>";
+                }
+                else if (s.All(c => c <= 0x7f))
+                {
+                    s = $"<p style=\"text-align: center\">{s._EncodeHtml()}</p>";
+                }
+                else
+                {
+                    s = $"<p>{s._EncodeHtml()}</p>";
+                }
+
+                w.WriteLine(s);
+            }
+
+            Lfs.WriteStringToFile(dstHtml, w.ToString(), FileFlags.AutoCreateDirectory, writeBom: true);
+        }
+
         public static void ReplaceStringOfFiles(string dirName, string pattern, string oldString, string newString, bool caseSensitive)
         {
             IEnumerable<string> files;
@@ -1285,7 +1316,7 @@ namespace IPA.Cores.Basic
         List<DnsHostNameScannerEntry> AfterResult = null!;
 
         public Task<List<DnsHostNameScannerEntry>> PerformAsync(string targetIpAddressList, CancellationToken cancel = default)
-            => PerformAsync(IPUtil.GenerateIpAddressListFromIpSubnetList(targetIpAddressList).Select(x=>x.ToString()), cancel);
+            => PerformAsync(IPUtil.GenerateIpAddressListFromIpSubnetList(targetIpAddressList).Select(x => x.ToString()), cancel);
 
         public async Task<List<DnsHostNameScannerEntry>> PerformAsync(IEnumerable<string> targetIpAddressList, CancellationToken cancel = default)
         {
