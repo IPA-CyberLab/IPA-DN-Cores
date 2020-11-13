@@ -82,24 +82,6 @@ namespace IPA.Cores.Basic
             catch { }
             return false;
         }
-
-        public static string GetGitForWindowsExeFileName()
-        {
-            if (Env.IsWindows == false)
-            {
-                throw new NotSupportedException();
-            }
-
-            string value = MsReg.ReadStr(RegRoot.LocalMachine, @"SOFTWARE\GitForWindows", "InstallPath");
-            if (value._IsFilled())
-            {
-                return Lfs.PathParser.Combine(value, @"bin\git.exe");
-            }
-            else
-            {
-                throw new CoresException(@"Git for Windows is not installed.");
-            }
-        }
     }
 
     public class GitCommit

@@ -52,7 +52,6 @@ using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.RegularExpressions;
-using LibGit2Sharp;
 
 namespace IPA.Cores.Basic
 {

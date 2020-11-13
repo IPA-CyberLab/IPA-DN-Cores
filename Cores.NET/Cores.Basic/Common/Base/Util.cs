@@ -563,6 +563,24 @@ namespace IPA.Cores.Basic
             return (long)(*(void**)System.Runtime.CompilerServices.Unsafe.AsPointer(ref o));
         }
 
+        public static string GetGitForWindowsExeFileName()
+        {
+            if (Env.IsWindows == false)
+            {
+                throw new NotSupportedException();
+            }
+
+            string value = MsReg.ReadStr(RegRoot.LocalMachine, @"SOFTWARE\GitForWindows", "InstallPath");
+            if (value._IsFilled())
+            {
+                return Lfs.PathParser.Combine(value, @"bin\git.exe");
+            }
+            else
+            {
+                throw new CoresException(@"Git for Windows is not installed.");
+            }
+        }
+
         // IEnumerable から Array List を作成
         public static T[] IEnumerableToArrayList<T>(IEnumerable<T> i) => i.ToArray();
 

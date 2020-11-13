@@ -35,7 +35,8 @@
 using System;
 using System.Data;
 using System.Data.Common;
-using System.Data.SqlClient;
+//using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
 using System.Text;
 using System.Collections;

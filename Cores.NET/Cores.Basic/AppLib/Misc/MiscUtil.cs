@@ -961,7 +961,7 @@ namespace IPA.Cores.Basic
 
         public static async Task ExecGitParallelUpdaterAsync(string rootDirPath, int maxConcurrentTasks, string? settingFileName = null, CancellationToken cancel = default)
         {
-            string gitExePath = GitUtil.GetGitForWindowsExeFileName();
+            string gitExePath = Util.GetGitForWindowsExeFileName();
 
             List<Entry> entryList = new List<Entry>();
 

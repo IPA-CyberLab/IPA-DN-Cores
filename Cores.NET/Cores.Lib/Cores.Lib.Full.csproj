@@ -15,9 +15,9 @@
     <PublishReadyToRun>true</PublishReadyToRun>
     <PublishReadyToRunShowWarnings>true</PublishReadyToRunShowWarnings>
     <PublishTrimmed>false</PublishTrimmed>
-    <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>embedded</DebugType>
+    <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,13 +27,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DefineConstants>CORES_BASIC_DAEMON;CORES_BASIC_DATABASE;CORES_BASIC_GIT;CORES_BASIC_JSON;CORES_BASIC_SECURITY;CORES_BASIC_WEBAPP;CORES_BASIC_MISC;</DefineConstants>
+    <DefineConstants>CORES_BASIC_DAEMON;CORES_BASIC_DATABASE;CORES_BASIC_JSON;CORES_BASIC_SECURITY;CORES_BASIC_WEBAPP;CORES_BASIC_MISC;</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DefineConstants>TRACE;DEBUG;CORES_BASIC_DAEMON;CORES_BASIC_DATABASE;CORES_BASIC_GIT;CORES_BASIC_JSON;CORES_BASIC_SECURITY;CORES_BASIC_WEBAPP;CORES_BASIC_MISC;</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;CORES_BASIC_DAEMON;CORES_BASIC_DATABASE;CORES_BASIC_JSON;CORES_BASIC_SECURITY;CORES_BASIC_WEBAPP;CORES_BASIC_MISC;</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -55,11 +55,12 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="5.0.0" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="5.0.0" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="5.0.0" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
-    <PackageReference Include="Dapper" Version="1.60.1" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
-    <PackageReference Include="Dapper.Contrib" Version="1.60.1" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="2.1.0-preview2.20297.7" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
+    <PackageReference Include="Dapper" Version="2.0.35" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
+    <PackageReference Include="Dapper.Contrib" Version="2.0.35" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
 
     <!-- Cores.Basic.Git -->
-    <PackageReference Include="LibGit2Sharp" Version="0.26.0" Condition="$(DefineConstants.Contains('CORES_BASIC_GIT;'))" />
+    <!--<PackageReference Include="LibGit2Sharp" Version="0.26.0" Condition="$(DefineConstants.Contains('CORES_BASIC_GIT;'))" />-->
 
     <!-- Cores.Basic.Json -->
     <PackageReference Include="Newtonsoft.Json" Version="12.0.1" Condition="$(DefineConstants.Contains('CORES_BASIC_JSON;'))" />
