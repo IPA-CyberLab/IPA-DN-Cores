@@ -30,6 +30,7 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
+#if false // 2020/11/14 libgit は native ライブラリなので BASIC から外した。後日 Advance にでも入れる予定
 using System;
 using System.IO;
 using System.IO.Enumeration;
@@ -95,3 +96,4 @@ namespace IPA.TestDev
         }
     }
 }
+#endif

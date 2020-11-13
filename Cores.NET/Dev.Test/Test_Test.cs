@@ -274,6 +274,7 @@ namespace IPA.TestDev
             }
         }
 
+#if false // 2020/11/14 libgit は native ライブラリなので BASIC から外した。後日 Advance にでも入れる予定
         public static void Test_SourceCodeCounter(string url)
         {
             GitGlobalFs.StartRepository(url);
@@ -300,6 +301,7 @@ namespace IPA.TestDev
                 }
             }
         }
+#endif
 
         [Serializable]
         public class STest1
@@ -764,7 +766,7 @@ namespace IPA.TestDev
                 using DnsHostNameScanner scan = new DnsHostNameScanner(
                     dnsSettings: new DnsResolverSettings(dnsServersList: new IPEndPoint[] { new IPEndPoint("8.8.8.8"._ToIPAddress(), 53) }));
 
-                        
+
                 return;
             }
 
@@ -1558,7 +1560,7 @@ namespace IPA.TestDev
                 {
                     try
                     {
-                        var result1 = await EasyExec.ExecAsync(GitUtil.GetGitForWindowsExeFileName(), $"pull origin master", @"C:\git\IPA-DNP-DeskVPN",
+                        var result1 = await EasyExec.ExecAsync(Util.GetGitForWindowsExeFileName(), $"pull origin master", @"C:\git\IPA-DNP-DeskVPN",
                             timeout: (int?)CoresConfig.GitParallelUpdater.GitCommandTimeoutMsecs,
                             easyOutputMaxSize: (int)CoresConfig.GitParallelUpdater.GitCommandOutputMaxSize,
                             flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdErr | ExecFlags.EasyPrintRealtimeStdOut,
