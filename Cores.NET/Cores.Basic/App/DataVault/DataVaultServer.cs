@@ -89,7 +89,7 @@ namespace IPA.Cores.Basic
             this.KeyShortValue = WinParser.MakeSafeFileName(this.KeyShortValue._NonNullTrim()).ToLower()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
             this.KeyFullValue = WinParser.MakeSafeFileName(this.KeyFullValue._NonNullTrim()).ToLower()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
 
-            if (this.TimeStamp == null) this.TimeStamp = Util.ZeroDateTimeOffsetValue;
+            if (this.TimeStamp == default) this.TimeStamp = Util.ZeroDateTimeOffsetValue;
         }
     }
 

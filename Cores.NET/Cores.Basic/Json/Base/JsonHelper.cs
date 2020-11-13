@@ -100,6 +100,7 @@ namespace IPA.Cores.Helper.Basic
             => (fs ?? Lfs).ReadJsonFromFile<T>(path, maxSize, flags, cancel, includeNull, maxDepth, nullIfError);
 
         [return: NotNullIfNotNull("obj")]
+        [return: MaybeNull]
         public static T _CloneWithJson<T>([AllowNull] this T obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null)
             => Json.CloneWithJson(obj, escapeHtml, maxDepth, referenceHandling, type);
 

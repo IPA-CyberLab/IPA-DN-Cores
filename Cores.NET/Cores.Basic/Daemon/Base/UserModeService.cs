@@ -33,6 +33,7 @@
 #if CORES_BASIC_DAEMON
 
 #pragma warning disable CA2235 // Mark all non-serializable fields
+#pragma warning disable CA1416 // プラットフォームの互換性の検証
 
 using System;
 using System.Threading;

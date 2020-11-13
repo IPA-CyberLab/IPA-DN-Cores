@@ -246,7 +246,7 @@ namespace IPA.Cores.ClientApi.Acme
 
         public async Task ProcessAuthAsync(CancellationToken cancel = default)
         {
-            AcmeChallengeElement httpChallenge = this.Info!.challenges.Where(x => x?.type == "http-01").First()!;
+            AcmeChallengeElement httpChallenge = this.Info!.challenges!.Where(x => x?.type == "http-01").First()!;
 
             if (httpChallenge.status == AcmeChallengeStatus.valid) return;
 
@@ -325,7 +325,7 @@ namespace IPA.Cores.ClientApi.Acme
 
             int numRetry = 0;
 
-            Con.WriteDebug($"ACME: Trying to process the authorization for '{this.Info.identifiers.Where(x => x != null).Select(x => x!.value)._Combine(", ")}' ...");
+            Con.WriteDebug($"ACME: Trying to process the authorization for '{this.Info.identifiers!.Where(x => x != null).Select(x => x!.value)._Combine(", ")}' ...");
 
             while (true)
             {
@@ -336,7 +336,7 @@ namespace IPA.Cores.ClientApi.Acme
 
                 if (this.Info.status == AcmeOrderStatus.invalid)
                 {
-                    throw new ApplicationException($"Order failed. Details: \"{this.AuthzList.Select(x => x.GetChallengeErrors())._Combine(" ")._OneLine(" ")}\"");
+                    throw new ApplicationException($"Order failed. Details: \"{this.AuthzList!.Select(x => x.GetChallengeErrors())._Combine(" ")._OneLine(" ")}\"");
                 }
 
                 if (this.Info.status != AcmeOrderStatus.pending)
@@ -402,7 +402,7 @@ namespace IPA.Cores.ClientApi.Acme
 
                 if (this.Info.status == AcmeOrderStatus.invalid)
                 {
-                    throw new ApplicationException($"Order failed. Details: \"{this.AuthzList.Select(x => x.GetChallengeErrors())._Combine(" ")._OneLine(" ")}\"");
+                    throw new ApplicationException($"Order failed. Details: \"{this.AuthzList!.Select(x => x.GetChallengeErrors())._Combine(" ")._OneLine(" ")}\"");
                 }
                 else if (this.Info.status == AcmeOrderStatus.pending)
                 {
@@ -461,7 +461,7 @@ namespace IPA.Cores.ClientApi.Acme
                 }
                 else if (this.Info.status == AcmeOrderStatus.valid)
                 {
-                    Con.WriteDebug($"ACME: The certificate issuance for '{this.Info.identifiers.Where(x => x != null).Select(x => x!.value)._Combine(", ")}' is completed. Downloading...");
+                    Con.WriteDebug($"ACME: The certificate issuance for '{this.Info.identifiers!.Where(x => x != null).Select(x => x!.value)._Combine(", ")}' is completed. Downloading...");
 
                     // Completed. Download the certificate
                     byte[] certificateBody = await this.Account.Client.DownloadAsync(WebMethods.GET, this.Info.certificate!, cancel);

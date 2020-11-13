@@ -60,7 +60,7 @@ namespace IPA.Cores.Basic.Legacy
 
                 foreach (string? name in nv.Keys)
                 {
-                    string value = nv[name];
+                    string value = nv[name]._NonNull();
 
                     string tmp = "";
 
@@ -123,8 +123,8 @@ namespace IPA.Cores.Basic.Legacy
             }
         }
 
-        static bool OnRemoteCertificateValidationCallback(Object sender, System.Security.Cryptography.X509Certificates.X509Certificate certificate,
-            System.Security.Cryptography.X509Certificates.X509Chain chain, System.Net.Security.SslPolicyErrors sslPolicyErrors)
+        static bool OnRemoteCertificateValidationCallback(Object sender, System.Security.Cryptography.X509Certificates.X509Certificate? certificate,
+            System.Security.Cryptography.X509Certificates.X509Chain? chain, System.Net.Security.SslPolicyErrors sslPolicyErrors)
         {
             return true;
         }

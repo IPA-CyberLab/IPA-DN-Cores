@@ -326,7 +326,7 @@ namespace IPA.Cores.Basic
 
                 totalReadSize?.Set(currentSize);
 
-                return hash.Hash;
+                return hash.Hash!;
             }
         }
 

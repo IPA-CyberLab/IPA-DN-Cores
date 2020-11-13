@@ -47,6 +47,7 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 
 #pragma warning disable CS0162
 #pragma warning disable CS0219
@@ -59,11 +60,11 @@ namespace IPA.TestDev
         {
         }
 
-        protected override void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime)
+        protected override void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
         {
         }
 
-        protected override void ConfigureImpl_AfterHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime lifetime)
+        protected override void ConfigureImpl_AfterHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
         {
         }
     }
@@ -115,7 +116,7 @@ namespace IPA.TestDev
 
             List<IPEndPoint> endPointsList = new List<IPEndPoint>();
 
-            serversList._DoForEach(x => endPointsList.Add(new IPEndPoint(x._ToIPAddress(), 53)));
+            serversList._DoForEach(x => endPointsList.Add(new IPEndPoint(x._ToIPAddress()!, 53)));
 
             using DnsHostNameScanner scan = new DnsHostNameScanner(
                 settings: new DnsHostNameScannerSettings { Interval = interval, NumThreads = threads, NumTry = numtry, PrintStat = true, RandomInterval = true, Shuffle = shuffle, PrintOrderByFqdn = fqdnorder },

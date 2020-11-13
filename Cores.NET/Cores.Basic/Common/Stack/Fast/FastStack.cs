@@ -621,7 +621,7 @@ namespace IPA.Cores.Basic
         public override async Task<IPAddress> GetIPFromHostName(string host, AddressFamily? addressFamily = null, CancellationToken cancel = default,
             int timeout = NetDnsClientStub.DefaultDnsResolveTimeout)
         {
-            if (IPAddress.TryParse(host, out IPAddress ip))
+            if (IPAddress.TryParse(host, out IPAddress? ip))
             {
                 if (addressFamily != null && ip.AddressFamily != addressFamily)
                     throw new ArgumentException("ip.AddressFamily != addressFamily");

@@ -46,6 +46,8 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Linq;
 
+#pragma warning disable CA1416 // プラットフォームの互換性の検証
+
 namespace IPA.Cores.Basic
 {
     namespace Legacy
@@ -647,7 +649,7 @@ namespace IPA.Cores.Basic
                     return null;
                 }
 
-                if (IPAddress.TryParse(str, out IPAddress ip) == false)
+                if (IPAddress.TryParse(str, out IPAddress? ip) == false)
                     return null;
 
                 if (CheckIsIpAddressVersionAllowed(ip, allowed) == false)
@@ -3031,14 +3033,14 @@ namespace IPA.Cores.Basic
                         if (this.Type == SockType.Tcp)
                         {
                             // リモートホストの情報を取得
-                            IPEndPoint ep1 = (IPEndPoint)this.Socket!.RemoteEndPoint;
+                            IPEndPoint ep1 = (IPEndPoint)this.Socket!.RemoteEndPoint!;
 
                             this.RemotePort = ep1.Port;
                             this.RemoteIP = ep1.Address;
                         }
 
                         // ローカルホストの情報を取得
-                        IPEndPoint ep2 = (IPEndPoint)this.Socket!.LocalEndPoint;
+                        IPEndPoint ep2 = (IPEndPoint)this.Socket!.LocalEndPoint!;
 
                         this.LocalPort = ep2.Port;
                         this.LocalIP = ep2.Address;

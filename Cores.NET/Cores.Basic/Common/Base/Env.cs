@@ -222,7 +222,18 @@ namespace IPA.Cores.Basic
             }
             PathSeparatorChar = PathSeparator[0];
             AppRealProcessExeFileName = IO.RemoveLastEnMark(GetAppRealProcessExeFileNameInternal());
-            AppExecutableExeOrDllFileName = IO.RemoveLastEnMark(GetAppExeOrDllImageFilePathInternal());
+
+            try
+            {
+                AppExecutableExeOrDllFileName = IO.RemoveLastEnMark(GetAppExeOrDllImageFilePathInternal());
+            }
+            catch (FileNotFoundException)
+            {
+                // .NET 5.0 で、single file にしている場合は、何と FileNotFoundException が発生する。
+                // しかし、single file であることはこれで分かるので、AppExecutableExeOrDllFileName を AppRealProcessExeFileName のコピーとする。
+                AppExecutableExeOrDllFileName = AppRealProcessExeFileName;
+            }
+
             BuildConfigurationName = GetBuildConfigurationNameInternal();
 
             // dotnet プロセスによって起動されたプロセスであるか否かを判別
@@ -232,7 +243,7 @@ namespace IPA.Cores.Basic
 
             if (Env.IsHostedByDotNetProcess)
             {
-                Env.DotNetHostProcessExeName = Process.GetCurrentProcess().MainModule.FileName;
+                Env.DotNetHostProcessExeName = Process.GetCurrentProcess().MainModule!.FileName!;
             }
             else
             {
@@ -551,7 +562,7 @@ namespace IPA.Cores.Basic
 
                 Process myProcess2 = Process.GetProcessById(myProcess.Id);
 
-                return myProcess2.MainModule.FileName;
+                return myProcess2.MainModule!.FileName!;
             }
             catch
             {

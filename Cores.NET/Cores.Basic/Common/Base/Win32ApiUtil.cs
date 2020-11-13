@@ -54,6 +54,7 @@ using Microsoft.Win32;
 
 #pragma warning disable CA2101 // Specify marshaling for P/Invoke string arguments
 #pragma warning disable CA1401 // P/Invokes should not be visible
+#pragma warning disable CA1416 // プラットフォームの互換性の検証
 
 // Some parts of this program are from Microsoft CoreCLR - https://github.com/dotnet/coreclr
 // 
@@ -1080,7 +1081,7 @@ namespace IPA.Cores.Basic
             }
             else if (o is string[])
             {
-                string s = ((string[])o).FirstOrDefault();
+                string? s = ((string[])o).FirstOrDefault();
                 return s ?? defaultValue;
             }
             else
@@ -1155,7 +1156,7 @@ namespace IPA.Cores.Basic
             {
                 using (var key = root.GetKey().OpenSubKey(keyName, false))
                 {
-                    return key.GetValueNames();
+                    return key!.GetValueNames();
                 }
             }
             catch
@@ -1170,7 +1171,7 @@ namespace IPA.Cores.Basic
             {
                 using (var key = root.GetKey().OpenSubKey(keyName, false))
                 {
-                    return key.GetSubKeyNames();
+                    return key!.GetSubKeyNames();
                 }
             }
             catch

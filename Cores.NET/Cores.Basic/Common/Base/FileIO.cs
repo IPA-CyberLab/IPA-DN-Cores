@@ -118,7 +118,7 @@ namespace IPA.Cores.Basic
                             // (検索した対象ディレクトリは削除しない)
                             if (v.RelativePath._FindStringsMulti(0, StringComparison.OrdinalIgnoreCase, out _, "\\", "/") != -1)
                             {
-                                Directory.Delete(v.FullPath._GetDirectoryName());
+                                Directory.Delete(v.FullPath._GetDirectoryName()!);
 
                                 Dbg.WriteLine($"OldFileEraser: Directory '{v.FullPath._GetDirectoryName()}' deleted.");
                             }
@@ -1216,15 +1216,8 @@ namespace IPA.Cores.Basic
             // ファイルを置換してリネームする
             public static void FileReplaceRename(string oldName, string newName)
             {
-                try
-                {
-                    FileCopy(oldName, newName);
-                    FileDelete(oldName);
-                }
-                catch (Exception e)
-                {
-                    throw e;
-                }
+                FileCopy(oldName, newName);
+                FileDelete(oldName);
             }
 
             // ファイルをコピーする

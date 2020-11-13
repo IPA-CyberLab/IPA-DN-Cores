@@ -103,7 +103,7 @@ namespace IPA.Cores.Helper.Basic
         public static async Task _SendStreamContents(this HttpResponse h, Stream sourceStream, long? count, string? contentsType = Consts.MimeTypes.OctetStream, CancellationToken cancel = default,
             ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default, int statusCode = Consts.HttpStatusCodes.Ok, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
         {
-            h.ContentType = contentsType;
+            h.ContentType = contentsType._FilledOrDefault(Consts.MimeTypes.OctetStream);
             h.ContentLength = count + preData.Length + postData.Length;
             h.StatusCode = statusCode;
 

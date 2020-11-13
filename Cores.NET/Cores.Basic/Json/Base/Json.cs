@@ -158,7 +158,11 @@ namespace IPA.Cores.Basic
 
             string data = Serialize(obj, true, escapeHtml, maxDepth, true, referenceHandling, false, type);
 
-            return Deserialize(data, type, true, maxDepth, false);
+            object? ret = Deserialize(data, type, true, maxDepth, false);
+
+            ret._NullCheck();
+
+            return ret;
         }
 
         [return: MaybeNull]

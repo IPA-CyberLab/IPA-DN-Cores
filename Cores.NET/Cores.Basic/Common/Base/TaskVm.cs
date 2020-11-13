@@ -157,13 +157,13 @@ namespace IPA.Cores.Basic
     {
         public ThreadObj ThreadObj { get; }
 
-        Func<TIn, Task<TResult>> RootFunction;
+        Func<TIn?, Task<TResult>> RootFunction;
         Task? RootTask;
 
         Queue<(SendOrPostCallback callback, object? args)> DispatchQueue = new Queue<(SendOrPostCallback callback, object? args)>();
         AutoResetEvent DispatchQueueEvent = new AutoResetEvent(false);
 
-        public TIn InputParameter { get; }
+        public TIn? InputParameter { get; }
 
         CancellationToken GracefulCancel { get; }
         CancellationToken AbortCancel { get; }
@@ -187,7 +187,7 @@ namespace IPA.Cores.Basic
 
         TaskVmSynchronizationContext? syncCtx;
 
-        public TaskVm(Func<TIn, Task<TResult>> rootAction, TIn input_parameter = default(TIn), CancellationToken gracefulCancel = default(CancellationToken), CancellationToken abortCancel = default(CancellationToken))
+        public TaskVm(Func<TIn?, Task<TResult>> rootAction, TIn? input_parameter = default(TIn), CancellationToken gracefulCancel = default(CancellationToken), CancellationToken abortCancel = default(CancellationToken))
         {
             this.InputParameter = input_parameter;
             this.RootFunction = rootAction;
@@ -203,7 +203,7 @@ namespace IPA.Cores.Basic
             this.ThreadObj.WaitForInit();
         }
 
-        public static Task<TResult> NewTaskVm(Func<TIn, Task<TResult>> rootAction, TIn inputParameter = default(TIn), CancellationToken gracefulCancel = default(CancellationToken), CancellationToken abortCancel = default(CancellationToken))
+        public static Task<TResult> NewTaskVm(Func<TIn?, Task<TResult>> rootAction, TIn inputParameter = default(TIn), CancellationToken gracefulCancel = default(CancellationToken), CancellationToken abortCancel = default(CancellationToken))
         {
             TaskVm<TResult, TIn> vm = new TaskVm<TResult, TIn>(rootAction, inputParameter, gracefulCancel, abortCancel);
 

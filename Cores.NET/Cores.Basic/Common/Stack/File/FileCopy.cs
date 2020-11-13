@@ -440,7 +440,7 @@ namespace IPA.Cores.Basic
                             {
                                 if (await param.ExceptionCallbackProc(status, entity, ex) == false)
                                 {
-                                    throw ex;
+                                    throw;
                                 }
                             }
                         }

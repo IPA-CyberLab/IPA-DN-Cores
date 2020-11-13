@@ -119,7 +119,7 @@ namespace IPA.Cores.Basic
             AuthorizationHandlerContext context,
             HttpServerAnyAuthenticationRequired requirement)
         {
-            if (context.User.Identity.IsAuthenticated)
+            if (context.User.Identity!.IsAuthenticated)
             {
                 context.Succeed(requirement);
             }
@@ -552,7 +552,9 @@ namespace IPA.Cores.Basic
                 {
                     if (this.DebugKestrelToConsole)
                     {
+#pragma warning disable CS0618 // 型またはメンバーが旧型式です
                         ConsoleLoggerOptions opt = new ConsoleLoggerOptions { DisableColors = false, IncludeScopes = true };
+#pragma warning restore CS0618 // 型またはメンバーが旧型式です
 
                         logging.AddProvider(new ConsoleLoggerProvider(new StaticOptionsMonitor<ConsoleLoggerOptions>(opt)));
                     }

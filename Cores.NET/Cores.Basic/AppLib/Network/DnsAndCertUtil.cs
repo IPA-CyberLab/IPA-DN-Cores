@@ -201,7 +201,7 @@ namespace IPA.Cores.Basic
         // 1 つの SSL 接続試行を処理する非同期関数
         async Task PerformOneAsync(SslCertCollectorItem e, CancellationToken cancel = default)
         {
-            using (ConnSock sock = await TcpIp.ConnectAsync(new TcpConnectParam(IPAddress.Parse(e.IpAddress), e.Port, connectTimeout: 5000), cancel))
+            using (ConnSock sock = await TcpIp.ConnectAsync(new TcpConnectParam(IPAddress.Parse(e.IpAddress!), e.Port, connectTimeout: 5000), cancel))
             {
                 using (SslSock ssl = await sock.SslStartClientAsync(new PalSslClientAuthenticationOptions(e.SniHostName, true)))
                 {

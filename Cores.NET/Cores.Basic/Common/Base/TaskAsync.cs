@@ -966,7 +966,7 @@ namespace IPA.Cores.Basic
             if (timeout < 0) timeout = Timeout.Infinite;
             if (timeout == 0) throw new TimeoutException("timeout == 0");
 
-            if (timeout == Timeout.Infinite && cancel == null && (cancelTokens == null || cancelTokens.Length == 0))
+            if (timeout == Timeout.Infinite && cancel.CanBeCanceled == false && (cancelTokens == null || cancelTokens.Length == 0))
                 return await mainProc(default);
 
             List<Task> waitTasks = new List<Task>();

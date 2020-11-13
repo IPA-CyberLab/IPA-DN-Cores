@@ -255,7 +255,7 @@ namespace IPA.Cores.Basic
         {
             CancellationToken cancel = request._GetRequestCancellationToken();
 
-            using (HttpResult result = await ProcessRequestAsync(request.HttpContext.Connection.RemoteIpAddress._UnmapIPv4(),
+            using (HttpResult result = await ProcessRequestAsync(request.HttpContext.Connection.RemoteIpAddress!._UnmapIPv4(),
                 request.HttpContext.Connection.RemotePort,
                 request._GetRequestPathAndQueryString(),
                 request,
@@ -640,7 +640,7 @@ namespace IPA.Cores.Basic
 
                         try
                         {
-                            randomAccess = new XtsAesRandomAccess(file, suppliedPassword, disposeObject: true);
+                            randomAccess = new XtsAesRandomAccess(file, suppliedPassword.Value!, disposeObject: true);
 
                             fileStream = randomAccess.GetStream(disposeTarget: true);
                         }

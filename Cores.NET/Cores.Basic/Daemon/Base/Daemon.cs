@@ -95,7 +95,7 @@ namespace IPA.Cores.Basic
         {
             ipAddress = ipAddress._NonNullTrim();
 
-            if (ipAddress._IsFilled() && IPAddress.TryParse(ipAddress, out IPAddress ip))
+            if (ipAddress._IsFilled() && IPAddress.TryParse(ipAddress, out IPAddress? ip))
             {
                 // 変数に入れる
                 DaemonClientLocalIpAddress = ip;
@@ -743,7 +743,7 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    Directory.CreateDirectory(Path.GetDirectoryName(logFileName));
+                    Directory.CreateDirectory(Path.GetDirectoryName(logFileName)!);
                 }
                 catch { }
 
@@ -787,7 +787,7 @@ namespace IPA.Cores.Basic
                 log.WriteLine($"DaemonCenter Client: Trying to execute {info.FileName} {info.Arguments} ...");
                 try
                 {
-                    using (Process p = Process.Start(info))
+                    using (Process p = Process.Start(info)!)
                     {
                         string err1 = p.StandardError.ReadToEnd();
                         string err2 = p.StandardError.ReadToEnd();
@@ -1042,7 +1042,7 @@ namespace IPA.Cores.Basic
                                             WorkingDirectory = Env.AppRootDir,
                                         };
 
-                                        using (Process p = Process.Start(info))
+                                        using (Process p = Process.Start(info)!)
                                         {
                                             Con.WriteLine("Reloading the systemd framework...");
                                             p.WaitForExit();
@@ -1112,7 +1112,7 @@ namespace IPA.Cores.Basic
 
                         try
                         {
-                            using (Process p = Process.Start(info))
+                            using (Process p = Process.Start(info)!)
                             {
                                 CancellationTokenSource cts = new CancellationTokenSource();
 
