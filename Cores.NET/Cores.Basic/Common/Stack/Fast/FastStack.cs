@@ -337,13 +337,16 @@ namespace IPA.Cores.Basic
             await TaskUtil.DoAsyncWithTimeout(async localCancel =>
             {
                 await s.ConnectAsync(remoteEndPoint);
-                var ep2 = s._Socket.RemoteEndPoint;
-                Dbg.Where($"ep2 = {ep2?.ToString() ?? "null"}");
+                //var ep2 = s._Socket.RemoteEndPoint;
+                //Dbg.Where($"ep2 = {ep2?.ToString() ?? "null"}");
                 return 0;
             },
             cancelProc: () => s._DisposeSafe(),
             timeout: connectTimeout,
             cancel: cancel);
+
+            var ep3 = s._Socket.RemoteEndPoint;
+            Dbg.Where($"ep3 = {ep2?.ToString() ?? "null"}");
 
             InitSocketWrapperFromSocket(s);
         }
