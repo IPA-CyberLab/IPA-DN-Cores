@@ -308,11 +308,10 @@ namespace IPA.Cores.Basic
         {
             this.ConnectedSocket = s;
             this.SocketWrapper = new PipePointSocketWrapper(Upper, s, this.GrandCancel);
-            var ep = s._Socket.RemoteEndPoint; Dbg.Where($"ep = {ep?.ToString() ?? "null"}");
+
             AddIndirectDisposeLink(this.SocketWrapper); // Do not add SocketWrapper with AddChild(). It causes deadlock due to the cyclic reference.
 
             var info = new LayerInfo();
-
 
             info.LocalPort = ((IPEndPoint)s.LocalEndPoint).Port;
             info.LocalIPAddress = ((IPEndPoint)s.LocalEndPoint).Address;
@@ -336,16 +335,11 @@ namespace IPA.Cores.Basic
             await TaskUtil.DoAsyncWithTimeout(async localCancel =>
             {
                 await s.ConnectAsync(remoteEndPoint);
-                //var ep2 = s._Socket.RemoteEndPoint;
-                //Dbg.Where($"ep2 = {ep2?.ToString() ?? "null"}");
                 return 0;
             },
             cancelProc: () => s._DisposeSafe(),
             timeout: connectTimeout,
             cancel: cancel);
-
-            //var ep3 = s._Socket.RemoteEndPoint;
-            //Dbg.Where($"ep3 = {ep3?.ToString() ?? "null"}");
 
             InitSocketWrapperFromSocket(s);
         }

@@ -217,20 +217,12 @@ namespace IPA.Cores.Basic
 
             await _Socket.ConnectAsync(remoteEP);
 
-            //Dbg.Where($"remoteEP = {remoteEP.ToString()}");
-            //Dbg.Where($"_Socket.Handle = {_Socket.Handle.ToString()}");
-            //Dbg.Where($"_Socket.LocalEndPoint = {_Socket.LocalEndPoint?.ToString() ?? "null"}");
-            //Dbg.Where($"_Socket.RemoteEndPoint = {_Socket.RemoteEndPoint?.ToString() ?? "null"}");
-            //            Dbg.Where($"Ahosan");
-
-            //var a = remoteEP.ToString();
-            //var b = _Socket.Handle.ToString();
-            //var c = _Socket.LocalEndPoint?.ToString() ?? "null";
-            //var d = _Socket.RemoteEndPoint?.ToString() ?? "null";
-
-
             this.LocalEndPoint.Flush();
             this.RemoteEndPoint.Flush();
+
+            // 接続直後にここで Socket から EndPoint を取得しておく。そうしないと Linux 系で .NET 5 系でおかしくなる (null になる)
+            this.LocalEndPoint.Get();
+            this.RemoteEndPoint.Get();
         }
 
         public void Connect(EndPoint remoteEP) => _Socket.Connect(remoteEP);
@@ -258,6 +250,10 @@ namespace IPA.Cores.Basic
         {
             Socket newSocket = await _Socket.AcceptAsync();
             PalSocket s = new PalSocket(newSocket, TcpDirectionType.Server);
+
+            // 接続直後にここで Socket から EndPoint を取得しておく。そうしないと Linux 系で .NET 5 系でおかしくなる (null になる)
+            s.LocalEndPoint.Get();
+            s.RemoteEndPoint.Get();
 
             s.TrySetRecommendedSettings();
 
