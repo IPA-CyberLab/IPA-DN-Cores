@@ -221,6 +221,7 @@ namespace IPA.Cores.Basic
             //Dbg.Where($"_Socket.Handle = {_Socket.Handle.ToString()}");
             //Dbg.Where($"_Socket.LocalEndPoint = {_Socket.LocalEndPoint?.ToString() ?? "null"}");
             //Dbg.Where($"_Socket.RemoteEndPoint = {_Socket.RemoteEndPoint?.ToString() ?? "null"}");
+            Dbg.Where($"Ahosan");
 
             this.LocalEndPoint.Flush();
             this.RemoteEndPoint.Flush();
