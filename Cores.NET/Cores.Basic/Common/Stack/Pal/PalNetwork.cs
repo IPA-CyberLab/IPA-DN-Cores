@@ -223,10 +223,10 @@ namespace IPA.Cores.Basic
             //Dbg.Where($"_Socket.RemoteEndPoint = {_Socket.RemoteEndPoint?.ToString() ?? "null"}");
             //            Dbg.Where($"Ahosan");
 
-            var a = remoteEP.ToString();
-            var b = _Socket.Handle.ToString();
-            var c = _Socket.LocalEndPoint?.ToString() ?? "null";
-            var d = _Socket.RemoteEndPoint?.ToString() ?? "null";
+            //var a = remoteEP.ToString();
+            //var b = _Socket.Handle.ToString();
+            //var c = _Socket.LocalEndPoint?.ToString() ?? "null";
+            //var d = _Socket.RemoteEndPoint?.ToString() ?? "null";
 
 
             this.LocalEndPoint.Flush();
