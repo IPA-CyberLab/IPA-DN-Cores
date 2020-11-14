@@ -310,15 +310,35 @@ namespace IPA.Cores.Basic
             this.SocketWrapper = new PipePointSocketWrapper(Upper, s, this.GrandCancel);
             AddIndirectDisposeLink(this.SocketWrapper); // Do not add SocketWrapper with AddChild(). It causes deadlock due to the cyclic reference.
 
-            UpperAttach.SetLayerInfo(new LayerInfo()
+            try
             {
-                LocalPort = ((IPEndPoint)s.LocalEndPoint).Port,
-                LocalIPAddress = ((IPEndPoint)s.LocalEndPoint).Address,
-                RemotePort = ((IPEndPoint)s.RemoteEndPoint).Port,
-                RemoteIPAddress = ((IPEndPoint)s.RemoteEndPoint).Address,
-                Direction = s.Direction,
-                NativeHandle = s.NativeHandle,
-            }, this, false);
+                UpperAttach.SetLayerInfo(new LayerInfo()
+                {
+                    LocalPort = ((IPEndPoint)s.LocalEndPoint).Port,
+                    LocalIPAddress = ((IPEndPoint)s.LocalEndPoint).Address,
+                    RemotePort = ((IPEndPoint)s.RemoteEndPoint).Port,
+                    RemoteIPAddress = ((IPEndPoint)s.RemoteEndPoint).Address,
+                    Direction = s.Direction,
+                    NativeHandle = s.NativeHandle,
+                }, this, false);
+            }
+            catch (NullReferenceException)
+            {
+                Dbg.Where();
+                if (UpperAttach == null) Dbg.Where("UpperAttach == null");
+                else
+                {
+                    if (s == null) Dbg.Where("x == null");
+                    else
+                    {
+                        if (s.LocalEndPoint == null) Dbg.Where("s.LocalEndPoint == null");
+                        else
+                        {
+                            if (s.LocalEndPoint == null) Dbg.Where("s.LocalEndPoint == null");
+                        }
+                    }
+                }
+            }
         }
 
         protected override async Task ConnectImplAsync(IPEndPoint remoteEndPoint, int connectTimeout = NetTcpProtocolStubBase.DefaultTcpConnectTimeout, CancellationToken cancel = default)
