@@ -132,7 +132,7 @@ namespace IPA.Cores.Basic
         public static bool OSSupportsIPv4 { get => Socket.OSSupportsIPv4; }
         public static bool OSSupportsIPv6 { get => Socket.OSSupportsIPv6; }
 
-        Socket _Socket;
+        internal Socket _Socket { get; }
 
         public AddressFamily AddressFamily { get; }
         public SocketType SocketType { get; }
