@@ -307,8 +307,8 @@ namespace IPA.Cores.Basic
         void InitSocketWrapperFromSocket(PalSocket s)
         {
             this.ConnectedSocket = s;
-            var ep = s._Socket.RemoteEndPoint; Dbg.Where($"ep = {ep?.ToString() ?? "null"}");
             this.SocketWrapper = new PipePointSocketWrapper(Upper, s, this.GrandCancel);
+            var ep = s._Socket.RemoteEndPoint; Dbg.Where($"ep = {ep?.ToString() ?? "null"}");
             AddIndirectDisposeLink(this.SocketWrapper); // Do not add SocketWrapper with AddChild(). It causes deadlock due to the cyclic reference.
 
             var info = new LayerInfo();
