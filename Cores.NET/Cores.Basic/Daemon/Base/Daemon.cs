@@ -614,9 +614,11 @@ namespace IPA.Cores.Basic
         // DaemonCenter クライアントを起動する (有効な場合)
         IDisposable StartDaemonCenterClientIfEnabled()
         {
-            Dbg.Where();
-            if (IsDaemonCenterEnabled() == false) return new EmptyDisposable();
-            Dbg.Where();
+            if (IsDaemonCenterEnabled() == false)
+            {
+                Dbg.Where("IsDaemonCenterEnabled() == false");
+                return new EmptyDisposable();
+            }
 
             TcpIpHostDataJsonSafe hostData = new TcpIpHostDataJsonSafe(getThisHostInfo: EnsureSpecial.Yes, true);
             
@@ -639,9 +641,11 @@ namespace IPA.Cores.Basic
                 CurrentInstanceArguments = Settings.DaemonStartupArgument,
                 PauseFlag = Settings.DaemonPauseFlag,
             };
-            Dbg.Where();
+            
             Client cli = new Client(cs, vars, DaemonCenterRestartRequestedCallback);
-            Dbg.Where();
+
+            Dbg.Where("StartDaemonCenterClientIfEnabled() completed.");
+
             return cli;
         }
 
