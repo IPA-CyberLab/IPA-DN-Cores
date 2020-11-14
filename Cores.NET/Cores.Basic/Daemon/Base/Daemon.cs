@@ -616,9 +616,10 @@ namespace IPA.Cores.Basic
         {
             Dbg.Where();
             if (IsDaemonCenterEnabled() == false) return new EmptyDisposable();
+            Dbg.Where();
 
             TcpIpHostDataJsonSafe hostData = new TcpIpHostDataJsonSafe(getThisHostInfo: EnsureSpecial.Yes, true);
-            Dbg.Where();
+            
             ClientSettings cs = new ClientSettings
             {
                 AppId = Settings.DaemonCenterAppId,

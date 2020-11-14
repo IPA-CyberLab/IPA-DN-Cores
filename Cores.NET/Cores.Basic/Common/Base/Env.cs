@@ -196,10 +196,7 @@ namespace IPA.Cores.Basic
             ExeAssemblyFullName = asmName.FullName;
 
             FrameworkVersion = Environment.Version;
-            if (FrameworkInfoString.StartsWith(".NET Core", StringComparison.OrdinalIgnoreCase))
-            {
-                IsDotNetCore = true;
-            }
+            IsDotNetCore = true;
             OsInfo = Environment.OSVersion;
             IsWindows = (OsInfo.Platform == PlatformID.Win32NT);
             if (IsUnix)
