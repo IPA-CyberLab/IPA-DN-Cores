@@ -310,15 +310,14 @@ namespace IPA.Cores.Basic
             this.SocketWrapper = new PipePointSocketWrapper(Upper, s, this.GrandCancel);
             AddIndirectDisposeLink(this.SocketWrapper); // Do not add SocketWrapper with AddChild(). It causes deadlock due to the cyclic reference.
 
-            var info = new LayerInfo()
-            {
-                LocalPort = ((IPEndPoint)s.LocalEndPoint).Port,
-                LocalIPAddress = ((IPEndPoint)s.LocalEndPoint).Address,
-                RemotePort = ((IPEndPoint)s.RemoteEndPoint).Port,
-                RemoteIPAddress = ((IPEndPoint)s.RemoteEndPoint).Address,
-                Direction = s.Direction,
-                NativeHandle = s.NativeHandle,
-            };
+            var info = new LayerInfo();
+
+            info.LocalPort = ((IPEndPoint)s.LocalEndPoint).Port;
+            info.LocalIPAddress = ((IPEndPoint)s.LocalEndPoint).Address;
+            info.RemotePort = ((IPEndPoint)s.RemoteEndPoint).Port;
+            info.RemoteIPAddress = ((IPEndPoint)s.RemoteEndPoint).Address;
+            info.Direction = s.Direction;
+            info.NativeHandle = s.NativeHandle;
 
             UpperAttach.SetLayerInfo(info, this, false);
         }
