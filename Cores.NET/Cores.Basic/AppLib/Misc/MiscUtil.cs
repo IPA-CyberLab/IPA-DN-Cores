@@ -1176,11 +1176,13 @@ namespace IPA.Cores.Basic
         public async Task ReadRowsAndWriteToVaultAsync(string tableName, string rowIdColumnName, Func<Row, IEnumerable<DataVaultData>> rowToDataListFunc, int maxRowsToFetchOnce = 4096, bool shuffle = true, CancellationToken cancel = default,
             string? lastMaxRowIdName = null)
         {
-            $"Start: tableName = {tableName}, rowIdColumnName = {rowIdColumnName}, maxRowsToFetchOnce = {maxRowsToFetchOnce}"._DebugFunc();
+            if (lastMaxRowIdName._IsEmpty()) lastMaxRowIdName = tableName;
+
+
+            $"Start: tableName = {lastMaxRowIdName}, rowIdColumnName = {rowIdColumnName}, maxRowsToFetchOnce = {maxRowsToFetchOnce}"._DebugFunc();
 
             long totalWrittenRows = 0;
 
-            if (lastMaxRowIdName._IsEmpty()) lastMaxRowIdName = tableName;
 
             List<DataVaultClient> clients = new List<DataVaultClient>();
             try
@@ -1236,7 +1238,7 @@ namespace IPA.Cores.Basic
 
                     lastMaxRowId = data.RowList.Last().ValueList[0].Int64;
 
-                    $"{tableName}: Current WrittenRows: {totalWrittenRows._ToString3()}, Last Row ID: {lastMaxRowId._ToString3()}, DB Current Max Row ID: {dbCurrentMaxRowId._ToString3()}"._DebugFunc();
+                    $"{lastMaxRowIdName}: Current WrittenRows: {totalWrittenRows._ToString3()}, Last Row ID: {lastMaxRowId._ToString3()}, DB Current Max Row ID: {dbCurrentMaxRowId._ToString3()}"._DebugFunc();
 
                     lock (this.StateDb.DataLock)
                         this.StateDb.ManagedData.TableNameAndLastRowId[lastMaxRowIdName] = lastMaxRowId;
@@ -1254,7 +1256,7 @@ namespace IPA.Cores.Basic
                 // DataVault クライアントの解放
                 clients._DoForEach(x => x._DisposeSafe());
 
-                $"End: tableName = {tableName}, rowIdColumnName = {rowIdColumnName}, maxRowsToFetchOnce = {maxRowsToFetchOnce}, totalWrittenRows = {totalWrittenRows._ToString3()}"._DebugFunc();
+                $"End: tableName = {lastMaxRowIdName}, rowIdColumnName = {rowIdColumnName}, maxRowsToFetchOnce = {maxRowsToFetchOnce}, totalWrittenRows = {totalWrittenRows._ToString3()}"._DebugFunc();
             }
         }
 
