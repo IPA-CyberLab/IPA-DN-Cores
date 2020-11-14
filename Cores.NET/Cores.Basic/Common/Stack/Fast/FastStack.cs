@@ -306,14 +306,15 @@ namespace IPA.Cores.Basic
 
         void InitSocketWrapperFromSocket(PalSocket s)
         {
+            var ep = s._Socket.RemoteEndPoint;
+            Dbg.Where($"ep = {ep?.ToString() ?? "null"}");
+
             this.ConnectedSocket = s;
             this.SocketWrapper = new PipePointSocketWrapper(Upper, s, this.GrandCancel);
             AddIndirectDisposeLink(this.SocketWrapper); // Do not add SocketWrapper with AddChild(). It causes deadlock due to the cyclic reference.
 
             var info = new LayerInfo();
 
-            var ep = s._Socket.RemoteEndPoint;
-            Dbg.Where($"ep = {ep?.ToString() ?? "null"}");
 
             info.LocalPort = ((IPEndPoint)s.LocalEndPoint).Port;
             info.LocalIPAddress = ((IPEndPoint)s.LocalEndPoint).Address;
@@ -345,8 +346,8 @@ namespace IPA.Cores.Basic
             timeout: connectTimeout,
             cancel: cancel);
 
-            var ep3 = s._Socket.RemoteEndPoint;
-            Dbg.Where($"ep3 = {ep3?.ToString() ?? "null"}");
+            //var ep3 = s._Socket.RemoteEndPoint;
+            //Dbg.Where($"ep3 = {ep3?.ToString() ?? "null"}");
 
             InitSocketWrapperFromSocket(s);
         }
