@@ -149,21 +149,30 @@ namespace IPA.Cores.Basic
 
             DirLength = SubDirNamePrefix.Length + 1 + 8;
 
+            Exception lastException = new CoresException("Init");
+
             DeleteUnusedDirectories();
 
             for (int i = 0; ; i++)
             {
                 if (i >= CoresConfig.BasicConfig.MaxPossibleConcurrentProcessCounts)
-                    throw new ApplicationException($"UniqueDirectoryProvider error: failed to obtain the unique path. baseDirPath = \"{baseDirPath}\", subDirNamePrefix = \"{subDirNamePrefix}\"");
+                {
+                    throw new ApplicationException($"UniqueDirectoryProvider error: failed to obtain the unique path. baseDirPath = \"{baseDirPath}\", subDirNamePrefix = \"{subDirNamePrefix}\", lastException = {lastException.ToString()}");
+                }
 
                 string candidate = Path.Combine(this.BaseDirPath, $"{SubDirNamePrefix}_{i:D8}");
 
                 try
                 {
-                    if (Directory.Exists(candidate)) continue;
+                    if (Directory.Exists(candidate))
+                    {
+                        lastException = new CoresException($"Directory '{candidate}' already exists");
+                        continue;
+                    }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    lastException = ex;
                     continue;
                 }
 
@@ -179,7 +188,10 @@ namespace IPA.Cores.Basic
                         this.CurrentDirPath = candidate;
                         break;
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        lastException = ex;
+                    }
                 }
             }
         }
