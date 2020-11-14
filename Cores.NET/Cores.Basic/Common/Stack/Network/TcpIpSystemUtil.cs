@@ -141,6 +141,16 @@ namespace IPA.Cores.Basic
                 if (taskList.Count == 0)
                 {
                     // Error
+                    var ex = this.ExceptionList.GetException();
+                    Dbg.Where();
+                    if (ex == null)
+                    {
+                        Dbg.Where("ex == null");
+                    }
+                    else
+                    {
+                        Dbg.Where($"ex = {ex.ToString()}");
+                    }
                     throw this.ExceptionList.GetException()!;
                 }
 
