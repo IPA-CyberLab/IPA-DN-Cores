@@ -312,8 +312,8 @@ namespace IPA.Cores.Basic
 
             var info = new LayerInfo();
 
-            var ep = s._Socket.RemoteEndPoint;
-            Dbg.Where($"ep = {ep?.ToString() ?? "null"}");
+            //var ep = s._Socket.RemoteEndPoint;
+            //Dbg.Where($"ep = {ep?.ToString() ?? "null"}");
 
             info.LocalPort = ((IPEndPoint)s.LocalEndPoint).Port;
             info.LocalIPAddress = ((IPEndPoint)s.LocalEndPoint).Address;
