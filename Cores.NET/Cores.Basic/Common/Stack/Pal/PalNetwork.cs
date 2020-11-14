@@ -217,10 +217,10 @@ namespace IPA.Cores.Basic
 
             await _Socket.ConnectAsync(remoteEP);
 
-            Dbg.Where($"remoteEP = {remoteEP.ToString()}");
-            Dbg.Where($"_Socket.Handle = {_Socket.Handle.ToString()}");
-            Dbg.Where($"_Socket.LocalEndPoint = {_Socket.LocalEndPoint?.ToString() ?? "null"}");
-            Dbg.Where($"_Socket.RemoteEndPoint = {_Socket.RemoteEndPoint?.ToString() ?? "null"}");
+            //Dbg.Where($"remoteEP = {remoteEP.ToString()}");
+            //Dbg.Where($"_Socket.Handle = {_Socket.Handle.ToString()}");
+            //Dbg.Where($"_Socket.LocalEndPoint = {_Socket.LocalEndPoint?.ToString() ?? "null"}");
+            //Dbg.Where($"_Socket.RemoteEndPoint = {_Socket.RemoteEndPoint?.ToString() ?? "null"}");
 
             this.LocalEndPoint.Flush();
             this.RemoteEndPoint.Flush();
