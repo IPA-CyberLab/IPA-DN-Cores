@@ -744,6 +744,14 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                using var si = SingleInstance.TryGet("abc123");
+                Con.WriteLine("Obtained.");
+                Con.ReadLine("Enter to release>");
+                return;
+            }
+
+            if (true)
+            {
                 while (true)
                 {
                     Con.WriteLine();

@@ -77,7 +77,7 @@ namespace IPA.Cores.Basic
     {
         static class Libraries
         {
-            public const string SystemNative = "System.Native";
+            public const string SystemNative = "libSystem.Native";
         }
 
         public enum Signals : int

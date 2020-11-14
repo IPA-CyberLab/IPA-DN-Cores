@@ -177,6 +177,7 @@ namespace IPA.Cores.Basic
                 }
 
                 SingleInstance? si = SingleInstance.TryGet(GenerateSingleInstanceName(candidate), true);
+
                 if (si != null)
                 {
                     // Add the SingleInstance object to the blackhole so that it will not be the target of GC.
@@ -192,6 +193,10 @@ namespace IPA.Cores.Basic
                     {
                         lastException = ex;
                     }
+                }
+                else
+                {
+                    lastException = new CoresException($"Directory '{candidate}': failed to obtain single instance");
                 }
             }
         }
