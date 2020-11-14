@@ -346,7 +346,7 @@ namespace IPA.Cores.Basic
             cancel: cancel);
 
             var ep3 = s._Socket.RemoteEndPoint;
-            Dbg.Where($"ep3 = {ep2?.ToString() ?? "null"}");
+            Dbg.Where($"ep3 = {ep3?.ToString() ?? "null"}");
 
             InitSocketWrapperFromSocket(s);
         }
