@@ -310,35 +310,17 @@ namespace IPA.Cores.Basic
             this.SocketWrapper = new PipePointSocketWrapper(Upper, s, this.GrandCancel);
             AddIndirectDisposeLink(this.SocketWrapper); // Do not add SocketWrapper with AddChild(). It causes deadlock due to the cyclic reference.
 
-            try
+            var info = new LayerInfo()
             {
-                UpperAttach.SetLayerInfo(new LayerInfo()
-                {
-                    LocalPort = ((IPEndPoint)s.LocalEndPoint).Port,
-                    LocalIPAddress = ((IPEndPoint)s.LocalEndPoint).Address,
-                    RemotePort = ((IPEndPoint)s.RemoteEndPoint).Port,
-                    RemoteIPAddress = ((IPEndPoint)s.RemoteEndPoint).Address,
-                    Direction = s.Direction,
-                    NativeHandle = s.NativeHandle,
-                }, this, false);
-            }
-            catch (NullReferenceException)
-            {
-                Dbg.Where();
-                if (UpperAttach == null) Dbg.Where("UpperAttach == null");
-                else
-                {
-                    if (s == null) Dbg.Where("x == null");
-                    else
-                    {
-                        if (s.LocalEndPoint == null) Dbg.Where("s.LocalEndPoint == null");
-                        else
-                        {
-                            if (s.LocalEndPoint == null) Dbg.Where("s.LocalEndPoint == null");
-                        }
-                    }
-                }
-            }
+                LocalPort = ((IPEndPoint)s.LocalEndPoint).Port,
+                LocalIPAddress = ((IPEndPoint)s.LocalEndPoint).Address,
+                RemotePort = ((IPEndPoint)s.RemoteEndPoint).Port,
+                RemoteIPAddress = ((IPEndPoint)s.RemoteEndPoint).Address,
+                Direction = s.Direction,
+                NativeHandle = s.NativeHandle,
+            };
+
+            UpperAttach.SetLayerInfo(info, this, false);
         }
 
         protected override async Task ConnectImplAsync(IPEndPoint remoteEndPoint, int connectTimeout = NetTcpProtocolStubBase.DefaultTcpConnectTimeout, CancellationToken cancel = default)
@@ -1055,7 +1037,7 @@ namespace IPA.Cores.Basic
             await s._InternalStopAsync();
             return true;
         }
-        
+
         NetTcpListenerPort? Search(string hashKey)
         {
             if (List.TryGetValue(hashKey, out NetTcpListenerPort? ret) == false)
