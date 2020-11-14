@@ -1173,11 +1173,14 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task ReadRowsAndWriteToVaultAsync(string tableName, string rowIdColumnName, Func<Row, IEnumerable<DataVaultData>> rowToDataListFunc, int maxRowsToFetchOnce = 4096, bool shuffle = true, CancellationToken cancel = default)
+        public async Task ReadRowsAndWriteToVaultAsync(string tableName, string rowIdColumnName, Func<Row, IEnumerable<DataVaultData>> rowToDataListFunc, int maxRowsToFetchOnce = 4096, bool shuffle = true, CancellationToken cancel = default,
+            string? lastMaxRowIdName = null)
         {
             $"Start: tableName = {tableName}, rowIdColumnName = {rowIdColumnName}, maxRowsToFetchOnce = {maxRowsToFetchOnce}"._DebugFunc();
 
             long totalWrittenRows = 0;
+
+            if (lastMaxRowIdName._IsEmpty()) lastMaxRowIdName = tableName;
 
             List<DataVaultClient> clients = new List<DataVaultClient>();
             try
@@ -1190,7 +1193,7 @@ namespace IPA.Cores.Basic
 
                 long lastMaxRowId = 0;
                 lock (this.StateDb.DataLock)
-                    lastMaxRowId = this.StateDb.ManagedData.TableNameAndLastRowId._GetOrNew(tableName);
+                    lastMaxRowId = this.StateDb.ManagedData.TableNameAndLastRowId._GetOrNew(lastMaxRowIdName);
 
                 $"lastMaxRowId get = {lastMaxRowId._ToString3()}   from  tableName = {tableName}"._DebugFunc();
 
@@ -1236,7 +1239,7 @@ namespace IPA.Cores.Basic
                     $"{tableName}: Current WrittenRows: {totalWrittenRows._ToString3()}, Last Row ID: {lastMaxRowId._ToString3()}, DB Current Max Row ID: {dbCurrentMaxRowId._ToString3()}"._DebugFunc();
 
                     lock (this.StateDb.DataLock)
-                        this.StateDb.ManagedData.TableNameAndLastRowId[tableName] = lastMaxRowId;
+                        this.StateDb.ManagedData.TableNameAndLastRowId[lastMaxRowIdName] = lastMaxRowId;
 
                     await this.StateDb.SyncWithStorageAsync(HiveSyncFlags.ForceUpdate | HiveSyncFlags.SaveToFile, false, cancel);
                 }
