@@ -150,15 +150,26 @@ namespace IPA.Cores.Basic
                     }
                     else if (mode == 1)
                     {
+                        string line2 = line.Trim();
                         // ホスト一覧  (形式は description hostname)
-                        if (line.StartsWith("[") == false)
+                        if (line2.StartsWith("[") == false)
                         {
-                            if (line._GetKeyAndValue(out string description, out string hostname))
+                            if (line2._GetKeyAndValue(out string description, out string hostname))
                             {
                                 CactiHost h = new CactiHost
                                 {
                                     Description = description,
                                     Hostname = hostname,
+                                };
+
+                                ret.Hosts.Add(h);
+                            }
+                            else if (line2._IsFilled())
+                            {
+                                CactiHost h = new CactiHost
+                                {
+                                    Description = line2,
+                                    Hostname = line2,
                                 };
 
                                 ret.Hosts.Add(h);
