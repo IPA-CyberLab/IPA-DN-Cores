@@ -4664,6 +4664,20 @@ namespace IPA.Cores.Basic
 
             return sb.ToString();
         }
+        public static string GenRandNumericPasswordWithBlocks(int lenPerBlock = 4, int numBlocks = 4, char sepstr = '_')
+        {
+            lenPerBlock._SetMax(1);
+            numBlocks._SetMax(1);
+
+            List<string> o = new List<string>();
+
+            for (int i = 0; i < numBlocks; i++)
+            {
+                o.Add(GenRandNumericPassword(lenPerBlock));
+            }
+
+            return o._Combine(sepstr);
+        }
 
         // 新しいパスワードを生成
         public static string GenRandPassword(int count = 16, bool mustHaveOneUnderBar = true)

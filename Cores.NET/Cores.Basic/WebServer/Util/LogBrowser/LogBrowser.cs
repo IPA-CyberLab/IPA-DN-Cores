@@ -82,6 +82,9 @@ namespace IPA.Cores.Basic
         public int NumFiles = 0;
         public long TotalFileSize = 0;
 
+        public bool IsInbox = false;
+        public string InboxUploadPassword = "";
+
         public DateTimeOffset UploadTimeStamp = Util.ZeroDateTimeOffsetValue;
 
         public string UploadIp = "";
@@ -492,7 +495,7 @@ namespace IPA.Cores.Basic
 ";
                     }
 
-                    if (isEncrypted)
+                    if (isEncrypted && secureJson.IsInbox == false)
                     {
                         // 暗号化されている案内を出す
                         footer += $@"
@@ -537,7 +540,7 @@ namespace IPA.Cores.Basic
                 else if (encryptedRawPhysicalPath._IsFilled() || await RootFs.IsFileExistsAsync(physicalPath, cancel))
                 {
                     // File
-                    if (this.Options.Flags.Bit(LogBrowserFlags.SecureJson) && RootFs.PathParser.GetFileName(physicalPath)._IsSamei(Consts.FileNames.LogBrowserSecureJson))
+                    if (this.Options.Flags.Bit(LogBrowserFlags.SecureJson) && RootFs.PathParser.GetFileName(physicalPath).StartsWith(Consts.FileNames.LogBrowserSecureJson, StringComparison.OrdinalIgnoreCase))
                     {
                         // _secure.json そのものにはアクセスできません
                         return new HttpStringResult("403 Forbidden", statusCode: 403);
@@ -808,7 +811,7 @@ namespace IPA.Cores.Basic
 
                 // _secure.json ファイルは非表示とする
                 if (this.Options.Flags.Bit(LogBrowserFlags.SecureJson))
-                    if (e.IsFile && e.Name._IsSamei(Consts.FileNames.LogBrowserSecureJson))
+                    if (e.IsFile && e.Name.StartsWith(Consts.FileNames.LogBrowserSecureJson, StringComparison.OrdinalIgnoreCase))
                         continue;
 
                 // アクセスログフォルダは非表示とする
