@@ -769,7 +769,8 @@ namespace IPA.Cores.Helper.Basic
 
         public static IPAddress? _ToIPAddress(this string? s, AllowedIPVersions allowed = AllowedIPVersions.All, bool noExceptionAndReturnNull = false) => IPUtil.StrToIP(s, allowed, noExceptionAndReturnNull);
 
-        public static IPAddress _UnmapIPv4(this IPAddress a) => IPUtil.UnmapIPv6AddressToIPv4Address(a);
+        [return: NotNullIfNotNull("a")]
+        public static IPAddress? _UnmapIPv4(this IPAddress? a) => IPUtil.UnmapIPv6AddressToIPv4Address(a);
 
         public static IPAddressType _GetIPAddressType(this IPAddress ip) => IPUtil.GetIPAddressType(ip);
         public static IPAddressType _GetIPAddressType(this string ip) => IPUtil.GetIPAddressType(ip);

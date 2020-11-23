@@ -609,7 +609,7 @@ namespace IPA.Cores.Basic
 
         // IPv6 射影アドレスを IPv4 アドレスに変換
         [return: NotNullIfNotNull("addr")]
-        public static IPAddress? UnmapIPv6AddressToIPv4Address(IPAddress addr)
+        public static IPAddress? UnmapIPv6AddressToIPv4Address(IPAddress? addr)
         {
             if (addr == null) return null;
 
