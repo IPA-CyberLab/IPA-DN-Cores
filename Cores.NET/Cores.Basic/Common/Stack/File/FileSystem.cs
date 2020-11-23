@@ -905,6 +905,11 @@ namespace IPA.Cores.Basic
             return BuildRelativePathToElements(SplitRelativePathToElements(path));
         }
 
+        public string[] SplitTokens(string path)
+        {
+            return path.Split(this.PossibleDirectorySeparators, StringSplitOptions.RemoveEmptyEntries);
+        }
+
         public string[] SplitRelativePathToElements(string path)
         {
             path = path._NonNull();

@@ -238,6 +238,8 @@ namespace IPA.Cores.Basic
 
         public FileMetadata() { }
 
+        public FileMetadata(DateTimeOffset nowNowNow) : this(lastWriteTime: nowNowNow, lastAccessTime: nowNowNow, creationTime: nowNowNow) { }
+
         public FileMetadata(bool isDirectory = false, FileSpecialOperationFlags specialOperation = FileSpecialOperationFlags.None,
             FileAttributes? attributes = null, DateTimeOffset? creationTime = null, DateTimeOffset? lastWriteTime = null, DateTimeOffset? lastAccessTime = null,
             FileSecurityMetadata? securityData = null, FileAlternateStreamMetadata? alternateStream = null, FileAuthorMetadata? author = null,

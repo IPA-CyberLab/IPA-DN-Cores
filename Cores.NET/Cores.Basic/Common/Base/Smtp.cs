@@ -40,6 +40,8 @@ using System.Net.Mime;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace IPA.Cores.Basic
 {
@@ -241,7 +243,22 @@ namespace IPA.Cores.Basic
                 return false;
             }
         }
-        public void Send(SmtpConfig smtp)
+
+        // 送信
+        public async Task<bool> SendSafeAsync(SmtpConfig smtp, CancellationToken cancel = default)
+        {
+            try
+            {
+                await SendAsync(smtp, cancel);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public async Task SendAsync(SmtpConfig smtp, CancellationToken cancel = default)
         {
             SmtpClient c = new SmtpClient(smtp.SmtpServer, smtp.SmtpPort);
             c.DeliveryMethod = SmtpDeliveryMethod.Network;
@@ -327,8 +344,10 @@ namespace IPA.Cores.Basic
             mail.Headers.Add("X-Priority", MailPriority);
             mail.Headers.Add("X-MimeOLE", MimeOLE);
 
-            c.Send(mail);
+            await c.SendMailAsync(mail);
         }
+
+        public void Send(SmtpConfig smtp, CancellationToken cancel = default) => SendAsync(smtp, cancel)._GetResult();
     }
 
     public class SmtpConfig

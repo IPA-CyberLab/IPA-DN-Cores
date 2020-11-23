@@ -84,6 +84,8 @@ namespace IPA.Cores.Basic
 
         public bool IsInbox = false;
         public string InboxUploadPassword = "";
+        public bool InboxForcePrefixYymmdd = false;
+        public string InboxEmail = "";
 
         public DateTimeOffset UploadTimeStamp = Util.ZeroDateTimeOffsetValue;
 

@@ -79,6 +79,30 @@ namespace IPA.Cores.Globals
 
         public static T UnixOrWindows<T>(T unix, T windows) => Env.IsUnix ? unix : windows;
 
+        public static DateTime DtNow
+        {
+            [MethodImpl(Inline)]
+            get => DateTime.Now;
+        }
+
+        public static DateTimeOffset DtOffsetNow
+        {
+            [MethodImpl(Inline)]
+            get => DateTimeOffset.Now;
+        }
+
+        public static long TickNow
+        {
+            [MethodImpl(Inline)]
+            get => Time.Tick64;
+        }
+
+        public static long TickHighresNow
+        {
+            [MethodImpl(Inline)]
+            get => Time.HighResTick64;
+        }
+
         [MethodImpl(Inline)]
         public static void Sync(Action action) => TaskUtil.Sync(action);
 
