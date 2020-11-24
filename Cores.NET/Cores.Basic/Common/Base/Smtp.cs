@@ -352,14 +352,60 @@ namespace IPA.Cores.Basic
 
     public class SmtpConfig
     {
-        public string SmtpServer;
-        public int SmtpPort;
-        public bool UseSSL = false;
+        public string SmtpServer { get; }
+        public int SmtpPort { get; }
+        public bool UseSSL { get; }
 
-        public SmtpConfig(string smtpServer, int smtpPort)
+        public SmtpConfig(string smtpServer, int smtpPort = Consts.Ports.Smtp, bool useSsl = false)
         {
             this.SmtpServer = smtpServer;
             this.SmtpPort = smtpPort;
+            this.UseSSL = useSsl;
         }
+    }
+
+    public static class SmtpUtil
+    {
+        public static async Task<bool> SendAsync(SmtpConfig config, string from, string to, string subject, string body, bool noException = false, CancellationToken cancel = default)
+        {
+            try
+            {
+                return await SendAsync(config, new MailAddress(from), new MailAddress(to), subject, body, noException, cancel);
+            }
+            catch
+            {
+                if (noException == false)
+                {
+                    throw;
+                }
+
+                return false;
+            }
+        }
+        public static bool Send(SmtpConfig config, string from, string to, string subject, string body, bool noException = false, CancellationToken cancel = default)
+            => SendAsync(config, from, to, subject, body, noException, cancel)._GetResult();
+
+        public static async Task<bool> SendAsync(SmtpConfig config, MailAddress from, MailAddress to, string subject, string body, bool noException = false, CancellationToken cancel = default)
+        {
+            try
+            {
+                SmtpBody sm = new SmtpBody(from, to, subject, body);
+
+                await sm.SendAsync(config, cancel);
+
+                return true;
+            }
+            catch
+            {
+                if (noException == false)
+                {
+                    throw;
+                }
+
+                return false;
+            }
+        }
+        public static bool Send(SmtpConfig config, MailAddress from, MailAddress to, string subject, string body, bool noException = false, CancellationToken cancel = default)
+            => SendAsync(config, from, to, subject, body, noException, cancel)._GetResult();
     }
 }
