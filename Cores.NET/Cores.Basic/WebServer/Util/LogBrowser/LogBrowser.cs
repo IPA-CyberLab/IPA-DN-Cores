@@ -86,6 +86,7 @@ namespace IPA.Cores.Basic
         public string InboxUploadPassword = "";
         public bool InboxForcePrefixYymmdd = false;
         public string InboxEmail = "";
+        public string InboxIpAcl = "";
 
         public DateTimeOffset UploadTimeStamp = Util.ZeroDateTimeOffsetValue;
 
@@ -100,6 +101,7 @@ namespace IPA.Cores.Basic
             if (this.Expires._IsZeroDateTime()) this.Expires = Util.MaxDateTimeOffsetValue;
             if (this.AuthSubDirName._IsEmpty()) this.AuthSubDirName = "auth";
             this.AuthSubDirName = this.AuthSubDirName._MakeSafeFileName();
+            this.InboxIpAcl = EasyIpAcl.NormalizeRules(this.InboxIpAcl);
         }
     }
 

@@ -430,6 +430,22 @@ namespace IPA.Cores.Basic
             this.DefaultActionForEmpty = defaultActionForEmpty;
         }
 
+        public static string NormalizeRules(string? rules, bool multiLines = false)
+        {
+            rules = rules._NonNullTrim();
+
+            try
+            {
+                EasyIpAcl a = new EasyIpAcl(rules);
+
+                return a.ToString(multiLines);
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
         public static EasyIpAclAction Evaluate(string rules, string ipStr, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit)
         {
             IPAddress? ipa = ipStr._ToIPAddress(noExceptionAndReturnNull: true);
@@ -554,7 +570,7 @@ namespace IPA.Cores.Basic
                 return false;
             }
 
-            return IPUtil.IsInSubnet(ip, this.Network, this.Mask, true);
+            return IPUtil.IsInSameNetwork(ip, this.Network, this.Mask, true);
         }
 
         public static bool TryParse([NotNullWhen(true)] string? ruleStr, [NotNullWhen(true)] out EasyIpAclRule? rule)
