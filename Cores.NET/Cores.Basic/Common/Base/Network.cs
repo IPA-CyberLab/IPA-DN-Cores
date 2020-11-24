@@ -45,6 +45,7 @@ using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Linq;
+using System.Text;
 
 #pragma warning disable CA1416 // プラットフォームの互換性の検証
 
@@ -382,6 +383,223 @@ namespace IPA.Cores.Basic
             if (obj == null) return 0;
 
             return obj.GetHashCode();
+        }
+    }
+
+    // 簡易 IP ACL
+    // 
+    // 表記方法
+    // 1. 改行または ; または , または | または空白文字でルール間を区切る。
+    // 2. 1.2.3.0/24 のように表記すると、この範囲が permit となる。
+    // 3. !1.2.3.4/24 のように先頭に ! を付けると、この範囲が deny となる。
+    // 4. 上から順に評価される。
+    // 
+    // 表記例
+    // 192.168.0.0/16,172.16.0.0/12,10.0.0.0/8
+    public class EasyIpAcl
+    {
+        public EasyIpAclAction DefaultAction { get; }
+        public EasyIpAclAction DefaultActionForEmpty { get; }
+
+        public IEnumerable<EasyIpAclRule> RuleList => RuleListInternal;
+
+        List<EasyIpAclRule> RuleListInternal = new List<EasyIpAclRule>();
+
+        public EasyIpAcl(string body, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit)
+        {
+            List<string> rulesStrList = new List<string>();
+
+            // ルールの列挙
+            string[] lines = body._GetLines(true, true, Consts.Strings.CommentStartStringForEasyIpAcl);
+            foreach (string line in lines)
+            {
+                string[] tokens = line._Split(StringSplitOptions.RemoveEmptyEntries, ';', '|', ',', ' ', '　', '\t');
+
+                tokens.Where(x => x._IsFilled())._DoForEach(x => rulesStrList.Add(x));
+            }
+
+            foreach (string str in rulesStrList)
+            {
+                if (EasyIpAclRule.TryParse(str, out EasyIpAclRule? rule))
+                {
+                    RuleListInternal.Add(rule);
+                }
+            }
+
+            this.DefaultAction = defaultAction;
+            this.DefaultActionForEmpty = defaultActionForEmpty;
+        }
+
+        public static EasyIpAclAction Evaluate(string rules, string ipStr, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit)
+        {
+            IPAddress? ipa = ipStr._ToIPAddress(noExceptionAndReturnNull: true);
+            if (ipa == null)
+            {
+                return EasyIpAclAction.Deny;
+            }
+
+            return Evaluate(rules, ipa, defaultAction, defaultActionForEmpty);
+        }
+
+        public static EasyIpAclAction Evaluate(string rules, IPAddress ip, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit)
+        {
+            try
+            {
+                EasyIpAcl acl = new EasyIpAcl(rules, defaultAction, defaultActionForEmpty);
+
+                return acl.Evaluate(ip);
+            }
+            catch
+            {
+                return EasyIpAclAction.Deny;
+            }
+        }
+
+        public EasyIpAclAction Evaluate(string ipStr)
+        {
+            IPAddress? ipa = ipStr._ToIPAddress(noExceptionAndReturnNull: true);
+            if (ipa == null)
+            {
+                return EasyIpAclAction.Deny;
+            }
+
+            return Evaluate(ipa);
+        }
+
+        public EasyIpAclAction Evaluate(IPAddress ip)
+        {
+            try
+            {
+                if (RuleListInternal.Count == 0)
+                {
+                    return this.DefaultActionForEmpty;
+                }
+
+                foreach (var rule in RuleListInternal)
+                {
+                    if (rule.IsMatch(ip))
+                    {
+                        return rule.Action;
+                    }
+                }
+
+                return this.DefaultAction;
+            }
+            catch
+            {
+                return EasyIpAclAction.Deny;
+            }
+        }
+
+        public override string ToString() => ToString(false);
+        public string ToString(bool multiLines)
+        {
+            List<string> tmp = new List<string>();
+
+            foreach (var item in this.RuleList)
+            {
+                tmp.Add(item.ToString());
+            }
+
+            return tmp._Combine(multiLines ? "\r\n" : "; ");
+        }
+    }
+
+    [Flags]
+    public enum EasyIpAclAction
+    {
+        Deny,
+        Permit,
+    }
+
+    public class EasyIpAclRule
+    {
+        public IPAddress Network { get; }
+        public IPAddress Mask { get; }
+        public int? SubnetLength { get; }
+        public AddressFamily AddressFamily { get; }
+        public EasyIpAclAction Action { get; }
+
+        public EasyIpAclRule(string ruleStr)
+        {
+            ruleStr = ruleStr._NonNullTrim();
+
+            this.Action = EasyIpAclAction.Permit;
+
+            if (ruleStr.StartsWith("!"))
+            {
+                ruleStr = ruleStr.Substring(1);
+                this.Action = EasyIpAclAction.Deny;
+            }
+
+            IPUtil.ParseIPAndMask(ruleStr, out IPAddress network, out IPAddress subnetMask);
+
+            this.AddressFamily = network.AddressFamily;
+            this.Mask = subnetMask;
+            this.Network = IPUtil.IPAnd(network, subnetMask);
+            if (IPUtil.IsSubnetMask(subnetMask))
+            {
+                this.SubnetLength = IPUtil.SubnetMaskToInt(subnetMask);
+            }
+            else
+            {
+                this.SubnetLength = null;
+            }
+        }
+
+        public bool IsMatch(IPAddress ip)
+        {
+            if (ip.AddressFamily != this.AddressFamily)
+            {
+                return false;
+            }
+
+            return IPUtil.IsInSubnet(ip, this.Network, this.Mask, true);
+        }
+
+        public static bool TryParse([NotNullWhen(true)] string? ruleStr, [NotNullWhen(true)] out EasyIpAclRule? rule)
+        {
+            rule = null;
+
+            if (ruleStr._IsEmpty()) return false;
+
+            try
+            {
+                EasyIpAclRule ret = new EasyIpAclRule(ruleStr);
+
+                rule = ret;
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public override string ToString()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            if (this.Action == EasyIpAclAction.Deny)
+            {
+                sb.Append("!");
+            }
+
+            sb.Append(this.Network);
+
+            sb.Append("/");
+
+            if (this.SubnetLength.HasValue)
+            {
+                sb.Append(this.SubnetLength.Value);
+            }
+            else
+            {
+                sb.Append(this.Mask.ToString());
+            }
+
+            return sb.ToString();
         }
     }
 
@@ -1861,28 +2079,31 @@ namespace IPA.Cores.Basic
         }
 
         // IP アドレスがサブネットに属しているかどうか調べる
-        public static bool IsInSubnet(IPAddress ip, string subnetString)
+        public static bool IsInSubnet(IPAddress ip, string subnetString, bool ignoreScopeId = false)
         {
             ParseIPAndSubnetMask(subnetString, out IPAddress ip2, out IPAddress subnet);
-            return IsInSubnet(ip, ip2, subnet);
+            return IsInSubnet(ip, ip2, subnet, ignoreScopeId);
         }
-        public static bool IsInSubnet(IPAddress ip1, IPAddress ip2, IPAddress subnet)
+        public static bool IsInSubnet(IPAddress ip1, IPAddress ip2, IPAddress subnet, bool ignoreScopeId = false)
         {
             if (IsSubnetMask(subnet) == false)
                 throw new ArgumentException("mask is not a subnet.");
-            return IsInSameNetwork(ip1, ip2, subnet);
+            return IsInSameNetwork(ip1, ip2, subnet, ignoreScopeId);
         }
 
         // 同一のネットワークかどうか調べる
-        public static bool IsInSameNetwork(IPAddress ip1, IPAddress ip2, IPAddress subnet)
+        public static bool IsInSameNetwork(IPAddress ip1, IPAddress ip2, IPAddress subnet, bool ignoreScopeId = false)
         {
             IPAddress prefix1, prefix2;
 
-            if (IsIPv6(ip1))
+            if (ignoreScopeId == false)
             {
-                if (ip1.ScopeId != ip2.ScopeId)
+                if (IsIPv6(ip1))
                 {
-                    return false;
+                    if (ip1.ScopeId != ip2.ScopeId)
+                    {
+                        return false;
+                    }
                 }
             }
 

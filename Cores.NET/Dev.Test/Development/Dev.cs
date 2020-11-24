@@ -48,6 +48,7 @@ using System.IO;
 using System.Text;
 using System.Runtime.InteropServices;
 using System.Diagnostics.CodeAnalysis;
+using System.Net;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Basic.Internal;
@@ -55,6 +56,7 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using Microsoft.AspNetCore.Server.IIS.Core;
 using Microsoft.EntityFrameworkCore.Query.Internal;
+using System.Net.Sockets;
 
 namespace IPA.Cores.Basic
 {

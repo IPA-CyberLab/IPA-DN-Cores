@@ -832,6 +832,17 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                while (true)
+                {
+                    string line = Con.ReadLine(">")!;
+                    EasyIpAcl acl = new EasyIpAcl("0.0.0.0/0");
+                    acl.Evaluate(line!._ToIPAddress()!)._Print();
+                }
+                return;
+            }
+
+            if (true)
+            {
                 Test_MakeThinOssCerts_201120();
                 return;
             }
