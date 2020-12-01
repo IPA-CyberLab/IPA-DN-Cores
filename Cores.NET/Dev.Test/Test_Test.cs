@@ -828,8 +828,24 @@ namespace IPA.TestDev
             }
         }
 
+        static void ZipTest_201201()
+        {
+            using var file = Lfs.Create(@"c:\tmp\ziptest\test" + Str.DateTimeToStrShort(DtNow) + ".zip", flags: FileFlags.AutoCreateDirectory);
+            using ZipWriter zip = new ZipWriter(new ZipContainerOptions(file));
+            Memory<byte> data = "Hello"._GetBytes_Ascii();
+
+            zip.AddFileSimpleData(new FileContainerEntityParam("test.txt", flags: FileContainerEntityFlags.EnableCompression, encryptPassword: "a"), data);
+            zip.Finish();
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                ZipTest_201201();
+                return;
+            }
+
             if (true)
             {
                 while (true)
