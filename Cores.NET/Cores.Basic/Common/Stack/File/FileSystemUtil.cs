@@ -1342,7 +1342,6 @@ namespace IPA.Cores.Basic
             if (isAnyFileExists == false)
             {
                 // ファイルが 1 つも存在していないのでバックアップは実施いたしません
-                Dbg.Where();
                 return;
             }
 
