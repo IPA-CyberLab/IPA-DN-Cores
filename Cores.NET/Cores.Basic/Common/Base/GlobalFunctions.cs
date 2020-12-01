@@ -79,6 +79,12 @@ namespace IPA.Cores.Globals
 
         public static T UnixOrWindows<T>(T unix, T windows) => Env.IsUnix ? unix : windows;
 
+        public static DateTime DtUtcNow
+        {
+            [MethodImpl(Inline)]
+            get => DateTime.UtcNow;
+        }
+
         public static DateTime DtNow
         {
             [MethodImpl(Inline)]
