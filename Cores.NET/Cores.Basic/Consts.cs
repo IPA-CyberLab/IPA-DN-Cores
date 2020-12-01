@@ -215,6 +215,7 @@ namespace IPA.Cores.Basic
             public const string Directory = "text/directory";
             public const string DirectoryOpening = "text/directory-open";
             public const string Html = "text/html";
+            public const string Zip = "application/zip";
 
             public const string Text = "text/plain";
             public const string TextUtf8 = "text/plain; charset=UTF-8";
@@ -254,8 +255,25 @@ namespace IPA.Cores.Basic
             public const string LogBrowserSecureJson = "_secure.json";
             public const string LogBrowserAccessLogDirName = "_accesslog";
             public const string LogBrowserHistoryDirName = "_history";
+            public const string LogBrowserZipFileName = "_download_zip";
 
             public static readonly IEnumerable<string> StandardExcludeDirNames = new string[] { ".svn", "_vti_cnf", "_vti_pvt", "_private", ".git", ".vs" };
+
+            public static bool IsSpecialFileNameForLogBrowser(string? fn)
+            {
+                fn = fn._NonNullTrim().ToLower();
+
+                switch (fn)
+                {
+                    case AutoArchiveSubDirName:
+                    case LogBrowserSecureJson:
+                    case LogBrowserAccessLogDirName:
+                    case LogBrowserZipFileName:
+                        return true;
+                }
+
+                return false;
+            }
         }
 
         public static partial class BlazorApp
@@ -331,6 +349,7 @@ namespace IPA.Cores.Basic
             public const string WWWAuthenticate = "WWW-Authenticate";
             public const string UserAgent = "User-Agent";
             public const string Referer = "Referer";
+            public const string ContentDisposition = "Content-Disposition";
         }
 
         public static partial class HttpStatusCodes

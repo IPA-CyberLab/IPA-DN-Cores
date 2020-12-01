@@ -274,7 +274,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                using (HttpResult result = await callback(method, uri.LocalPath, qs, routeData, local, remote, cancel))
+                await using (HttpResult result = await callback(method, uri.LocalPath, qs, routeData, local, remote, cancel))
                 {
                     await response._SendHttpResultAsync(result, cancel);
                 }
@@ -283,7 +283,7 @@ namespace IPA.Cores.Basic
             {
                 ex._Error();
 
-                HttpResult errResult = new HttpStringResult("Error: " + ex.Message, statusCode: Consts.HttpStatusCodes.InternalServerError);
+                await using HttpResult errResult = new HttpStringResult("Error: " + ex.Message, statusCode: Consts.HttpStatusCodes.InternalServerError);
 
                 await response._SendHttpResultAsync(errResult, cancel);
             }

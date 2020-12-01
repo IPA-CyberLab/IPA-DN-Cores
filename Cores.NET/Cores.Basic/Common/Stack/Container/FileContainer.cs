@@ -71,6 +71,7 @@ namespace IPA.Cores.Basic
         None = 0,
         EnableCompression = 1,      // 通常の圧縮を ON にする
         CompressionMode_Fast = 2,   // 速度優先の圧縮
+        FileNameUseShiftJisIfPossible = 4,  // ファイル名が SHIFT_JIS で表現可能な場合は SHIFT_JIS 化する
     }
 
     [Serializable]
@@ -100,7 +101,27 @@ namespace IPA.Cores.Basic
             this.EncryptPassword = encryptPassword._NonNull();
         }
 
-        public Encoding GetEncoding() => Encoding.GetEncoding(this.EncodingWebName);
+        public Encoding GetEncoding()
+        {
+            bool useShiftJis = false;
+
+            if (this.Flags.Bit(FileContainerEntityFlags.FileNameUseShiftJisIfPossible))
+            {
+                if (Str.IsSuitableEncodingForString(PathString, Str.ShiftJisEncoding))
+                {
+                    useShiftJis = true;
+                }
+            }
+
+            if (useShiftJis == false)
+            {
+                return Encoding.GetEncoding(this.EncodingWebName);
+            }
+            else
+            {
+                return Encoding.GetEncoding(Str.ShiftJisEncoding.WebName);
+            }
+        }
 
         public void Validate()
         {

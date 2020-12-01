@@ -598,7 +598,7 @@ namespace IPA.Cores.Basic
     }
 
     // 任意の Stream の一部を HTTP 応答するクラス
-    public partial class HttpResult : IDisposable
+    public partial class HttpResult : IDisposable, IAsyncDisposable
     {
         public int StatusCode { get; }
         public string? ContentType { get; }
@@ -614,39 +614,64 @@ namespace IPA.Cores.Basic
 
         public IReadOnlyList<KeyValuePair<string, string>>? AdditionalHeaders { get; }
 
+        readonly Func<Task>? OnDisposeAsync;
+
         public HttpResult(Stream stream, long offset, long? length, string? contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, bool disposeStream = true,
-            ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
+            ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null, Func<Task>? onDisposeAsync = null)
         {
-            if (stream == null) throw new ArgumentNullException(nameof(stream));
-            if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
-            if ((length ?? long.MaxValue) < 0) throw new ArgumentOutOfRangeException(nameof(length));
-            if (statusCode == 0) throw new ArgumentOutOfRangeException(nameof(statusCode));
+            try
+            {
+                if (stream == null) throw new ArgumentNullException(nameof(stream));
+                if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
+                if ((length ?? long.MaxValue) < 0) throw new ArgumentOutOfRangeException(nameof(length));
+                if (statusCode == 0) throw new ArgumentOutOfRangeException(nameof(statusCode));
 
-            contentType = contentType._NullIfEmpty();
+                contentType = contentType._NullIfEmpty();
 
-            this.Stream = stream;
-            this.Offset = offset;
-            this.Length = length;
-            this.ContentType = contentType;
-            this.StatusCode = statusCode;
-            this.PreData = preData;
-            this.PostData = postData;
+                this.Stream = stream;
+                this.Offset = offset;
+                this.Length = length;
+                this.ContentType = contentType;
+                this.StatusCode = statusCode;
+                this.PreData = preData;
+                this.PostData = postData;
 
-            this.DisposeStream = disposeStream;
-            this.AdditionalHeaders = additionalHeaders;
+                this.DisposeStream = disposeStream;
+                this.AdditionalHeaders = additionalHeaders;
+                this.OnDisposeAsync = onDisposeAsync;
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
         }
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
+        public async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
             if (this.DisposeStream)
             {
-                this.Stream._DisposeSafe();
+                await this.Stream._DisposeSafeAsync();
+            }
+
+            if (this.OnDisposeAsync != null)
+            {
+                await this.OnDisposeAsync()._TryAwait();
             }
         }
+
     }
 
     // すでに用意されたメモリ配列を HTTP 応答するクラス

@@ -63,7 +63,10 @@ namespace IPA.Cores.Helper.Basic
 
         public static async Task _SendHttpResultAsync(this HttpResponse h, HttpResult result, CancellationToken cancel = default)
         {
-            result.Stream.Seek(result.Offset, SeekOrigin.Begin);
+            if (result.Stream.CanSeek)
+            {
+                result.Stream.Seek(result.Offset, SeekOrigin.Begin);
+            }
 
             await h._SendStreamContents(result.Stream, result.Length, result.ContentType, cancel, result.PreData, result.PostData, result.StatusCode, result.AdditionalHeaders);
         }

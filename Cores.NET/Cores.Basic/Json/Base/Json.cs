@@ -115,6 +115,11 @@ namespace IPA.Cores.Basic
 
             string ret = JsonConvert.SerializeObject(obj, compact ? Formatting.None : Formatting.Indented, setting);
 
+            if (compact == false)
+            {
+                ret += Str.CrLf_Str;
+            }
+
             if (base64url)
             {
                 ret = ret._GetBytes_UTF8()._Base64UrlEncode();
@@ -141,6 +146,11 @@ namespace IPA.Cores.Basic
             }
 
             JsonSerializer.Create(setting).Serialize(destTextWriter, obj);
+
+            if (compact == false)
+            {
+                destTextWriter.Write(Str.CrLf_Str);
+            }
         }
 
         [return: NotNullIfNotNull("obj")]

@@ -94,6 +94,8 @@ namespace IPA.Cores.Basic
         public string? OnlyOnceDownloadIp = null;
         public DateTimeOffset? OnlyOnceDownloadExpires = null;
 
+        public bool AllowZipDownload = false;
+
         public void Normalize()
         {
             if (this.AuthDatabase == null) this.AuthDatabase = new KeyValueList<string, string>();
@@ -262,7 +264,7 @@ namespace IPA.Cores.Basic
         {
             CancellationToken cancel = request._GetRequestCancellationToken();
 
-            using (HttpResult result = await ProcessRequestAsync(request.HttpContext.Connection.RemoteIpAddress!._UnmapIPv4(),
+            await using (HttpResult result = await ProcessRequestAsync(request.HttpContext.Connection.RemoteIpAddress!._UnmapIPv4(),
                 request.HttpContext.Connection.RemotePort,
                 request._GetRequestPathAndQueryString(),
                 request,
@@ -385,13 +387,19 @@ namespace IPA.Cores.Basic
 
                 LogBrowserSecureJson? secureJson = null;
                 bool isAccessToAccessLog = false;
+                bool isZipDownloadRequest = false;
+                string zipDownloadRoot = "";
                 string? secureJsonPath = null;
+                string zipFileName = "";
 
                 if (this.Options.Flags.Bit(LogBrowserFlags.SecureJson))
                 {
                     // _secure.json ファイルの読み込みを試行する
                     string[] dirNames = PathParser.Linux.SplitAbsolutePathToElementsUnixStyle(physicalPath);
                     string firstDirName = "/" + dirNames[0];
+                    zipDownloadRoot = firstDirName;
+                    zipFileName = PPWin.MakeSafeFileName(dirNames[0] + "_" + Str.DateTimeToStrShort(DtNow).Substring(2) +  Consts.Extensions.Zip);
+
                     secureJsonPath = PathParser.Linux.Combine(firstDirName, Consts.FileNames.LogBrowserSecureJson);
 
                     // このファイルはあるかな?
@@ -490,13 +498,33 @@ namespace IPA.Cores.Basic
 
                     }
 
-                    if (secureJson.AllowAccessToAccessLog && secureJson.DisableAccessLog == false)
+                    // ZIP ファイルとしてダウンロードすることを要求しているアクセスかどうかを検査
+                    if (dirNames.ElementAtOrDefault(secureJson.AuthRequired ? 2 : 1)._IsSameTrimi(Consts.FileNames.LogBrowserZipFileName))
                     {
-                        // フッターにアクセスログへのリンクを付ける
-                        footer += $@"
-        <hr>
-        <p><a href=""{this.AbsolutePathPrefix}/{dirNames.Take(2)._Combine("/")}/{Consts.FileNames.LogBrowserAccessLogDirName}/""><strong><i class=""far fa-eye""></i> アクセスログの参照</strong></a></p>
-";
+                        // ZIP ファイルとしてのアクセスである
+                        if (secureJson.AllowZipDownload == false)
+                        {
+                            // ZIP ファイルとしてのアクセスは禁止されている
+                            return new HttpStringResult("403 Forbidden", statusCode: 403);
+                        }
+
+                        isZipDownloadRequest = true;
+                    }
+
+                    if ((secureJson.AllowAccessToAccessLog && secureJson.DisableAccessLog == false) || (secureJson.AllowZipDownload))
+                    {
+                        // フッターにアクセスログ等へのリンクを付ける
+                        footer += "<hr>";
+
+                        if (secureJson.AllowZipDownload)
+                        {
+                            footer += $"<p><a href=\"{this.AbsolutePathPrefix}/{dirNames.Take(2)._Combine("/")}/{Consts.FileNames.LogBrowserZipFileName}/\"><strong><i class=\"fas fa-download\"></i> ZIP ファイルとして全ファイルをまとめてダウンロード</strong></a></p>";
+                        }
+
+                        if (secureJson.AllowAccessToAccessLog && secureJson.DisableAccessLog == false)
+                        {
+                            footer += $"<p><a href=\"{this.AbsolutePathPrefix}/{dirNames.Take(2)._Combine("/")}/{Consts.FileNames.LogBrowserAccessLogDirName}/\"><strong><i class=\"far fa-eye\"></i> アクセスログの参照</strong></a></p>";
+                        }
                     }
 
                     if (isEncrypted && secureJson.IsInbox == false)
@@ -541,7 +569,7 @@ namespace IPA.Cores.Basic
 
                     return new HttpStringResult(htmlBody, contentType: Consts.MimeTypes.HtmlUtf8);
                 }
-                else if (encryptedRawPhysicalPath._IsFilled() || await RootFs.IsFileExistsAsync(physicalPath, cancel))
+                else if (encryptedRawPhysicalPath._IsFilled() || await RootFs.IsFileExistsAsync(physicalPath, cancel) || isZipDownloadRequest)
                 {
                     // File
                     if (this.Options.Flags.Bit(LogBrowserFlags.SecureJson) && RootFs.PathParser.GetFileName(physicalPath).StartsWith(Consts.FileNames.LogBrowserSecureJson, StringComparison.OrdinalIgnoreCase))
@@ -616,6 +644,30 @@ namespace IPA.Cores.Basic
                         }
                     }
 
+                    if (isZipDownloadRequest)
+                    {
+                        // ZIP ファイルとしてまとめてダウンロード
+                        PipeStreamPairWithSubTask streamPair = new PipeStreamPairWithSubTask(async (writeMe) =>
+                        {
+                            using WriteOnlyStreamBasedRandomAccess r = new WriteOnlyStreamBasedRandomAccess(writeMe);
+
+                            await using ZipWriter zipWriter = new ZipWriter(new ZipContainerOptions(r), cancel);
+
+                            await zipWriter.ImportDirectoryAsync(new DirectoryPath(zipDownloadRoot, RootFs), new FileContainerEntityParam(flags: FileContainerEntityFlags.FileNameUseShiftJisIfPossible),
+                                fileFilter: e => !PPWin.SplitTokens(e.FullPath).Where(name => Consts.FileNames.IsSpecialFileNameForLogBrowser(name)).Any(),
+                                cancel: cancel);
+
+                            await zipWriter.FinishAsync(cancel);
+                        });
+
+                        List<KeyValuePair<string, string>> headers = new List<KeyValuePair<string, string>>();
+
+                        headers.Add(new KeyValuePair<string, string>(Consts.HttpHeaders.ContentDisposition, $"attachment; filename=\"{zipFileName}\""));
+
+                        return new HttpResult(streamPair.StreamA, 0, null, Consts.MimeTypes.Zip, additionalHeaders: headers, onDisposeAsync: () => streamPair._DisposeSafeAsync2());
+                    }
+
+                    // 1 ファイルをダウンロード
                     string extension = RootFs.PathParser.GetExtension(physicalPath);
                     string mimeType = MasterData.ExtensionToMime.Get(extension);
 

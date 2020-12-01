@@ -268,7 +268,7 @@ namespace IPA.Cores.Web
 
         public async Task ExecuteResultAsync(ActionContext context)
         {
-            using (this.HttpResult)
+            await using (this.HttpResult)
             {
                 await context.HttpContext.Response._SendHttpResultAsync(this.HttpResult, context.HttpContext._GetRequestCancellationToken());
             }

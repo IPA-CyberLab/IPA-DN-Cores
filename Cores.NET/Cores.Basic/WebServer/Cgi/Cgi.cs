@@ -159,7 +159,7 @@ namespace IPA.Cores.Basic
 
                             try
                             {
-                                HttpResult result = await act.ActionAsync(ctx);
+                                await using HttpResult result = await act.ActionAsync(ctx);
 
                                 await response._SendHttpResultAsync(result, ctx.Cancel);
                             }
