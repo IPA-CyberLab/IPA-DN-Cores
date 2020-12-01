@@ -662,7 +662,7 @@ namespace IPA.Cores.Helper.Basic
 
             T value = d.Where(x => x.Key._IsSameTrim(key, comparison)).FirstOrDefault().Value;
 
-            if (value == default)
+            if (value == null)
             {
                 return defaultStr;
             }

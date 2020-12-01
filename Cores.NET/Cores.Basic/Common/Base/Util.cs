@@ -1110,7 +1110,7 @@ namespace IPA.Cores.Basic
         // 指定されたオブジェクトが Null、0 または空データであるかどうか判別する
         public static bool IsEmpty<T>([NotNullWhen(false)] T data, bool zeroValueIsEmpty = false)
         {
-            if (data == default) return true;
+            if (data == null) return true;
 
             try
             {
@@ -2222,7 +2222,7 @@ namespace IPA.Cores.Basic
 
         public static T CloneIfClonable<T>(T obj)
         {
-            if (obj == default) return default!;
+            if (obj == null) return default!;
             if (typeof(T).IsClass == false) return obj;
             if (obj is ICloneable clonable) return (T)clonable.Clone();
             return obj;
