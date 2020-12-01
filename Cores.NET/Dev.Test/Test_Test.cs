@@ -838,8 +838,66 @@ namespace IPA.TestDev
             zip.Finish();
         }
 
+        [Serializable]
+        public class HiveTest_201201_Data
+        {
+            public int Value;
+        }
+
+        static void HiveTest_201201()
+        {
+            using var hiveData = new HiveData<HiveTest_201201_Data>(Hive.SharedLocalConfigHive, "HiveTest/TestConfigData",
+                    getDefaultDataFunc: () => new HiveTest_201201_Data(),
+                    policy: HiveSyncPolicy.AutoReadFromFile | HiveSyncPolicy.AutoWriteToFile,
+                    serializer: HiveSerializerSelection.RichJson);
+
+            using var hiveData2 = new HiveData<HiveTest_201201_Data>(Hive.SharedLocalConfigHive, $"HiveTest/TestConfigData2", () => new HiveTest_201201_Data(), HiveSyncPolicy.None);
+
+            CancellationTokenSource cancel = new CancellationTokenSource();
+
+            Task t = AsyncAwait(async () =>
+            {
+                while (true)
+                {
+                    if (cancel.IsCancellationRequested) break;
+
+                    hiveData.GetManagedDataSnapshot().Value._Print();
+
+                    lock (hiveData.DataLock)
+                    {
+                        if ((hiveData.ManagedData.Value % 2) == 0)
+                        {
+                            hiveData.ManagedData.Value++;
+                        }
+                    }
+
+                    //hiveData2.AccessData(true, (x) =>
+                    //{
+                    //    x.Value._Print();
+
+                    //    x.Value++;
+                    //});
+
+
+                    await cancel._WaitUntilCanceledAsync(100);
+                }
+            });
+
+            Con.ReadLine("Enter to quit>");
+
+            cancel.Cancel();
+
+            t._TryGetResult();
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                HiveTest_201201();
+                return;
+            }
+
             if (true)
             {
                 ZipTest_201201();

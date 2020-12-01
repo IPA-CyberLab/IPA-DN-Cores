@@ -611,13 +611,19 @@ namespace IPA.Cores.Basic
             {
                 cancel.ThrowIfCancellationRequested();
 
-                HiveSyncFlags flags = HiveSyncFlags.LoadFromFile;
+                HiveSyncFlags flags = HiveSyncFlags.None;
 
-                if (hive.IsReadOnly == false)
-                    flags |= HiveSyncFlags.SaveToFile | HiveSyncFlags.ForceUpdate;
+                if (hive.Policy.Bit(HiveSyncPolicy.AutoReadFromFile))
+                    flags |= HiveSyncFlags.LoadFromFile;
 
-                // no worry for error
-                await hive.SyncWithStorageAsync(flags, true, cancel);
+                if (hive.Policy.Bit(HiveSyncPolicy.AutoWriteToFile))
+                    flags |= HiveSyncFlags.SaveToFile;
+
+                if (flags != HiveSyncFlags.None)
+                {
+                    // no worry for error
+                    await hive.SyncWithStorageAsync(flags, true, cancel);
+                }
             }
         }
 
@@ -729,10 +735,13 @@ namespace IPA.Cores.Basic
     [Flags]
     public enum HiveSyncPolicy
     {
-        None = 0,
-        ReadOnly = 1,
-        AutoReadFromFile = 2,
-        AutoWriteToFile = 4,
+        // 以下は Sync を実行しない
+        None = 0,                           // 初期化時に読み込むのみ。手動書き込みが可能。
+        ReadOnly = 1,                       // 初期化時に読み込むのみ。手動書き込みも不可能。
+
+        // 以下は数秒ごとに自動 Sync を実行する
+        AutoReadFromFile = 2,               // 物理ファイルの内容が変更されたら、自動的にメモリに読み込む
+        AutoWriteToFile = 4,                // メモリの内容が変更されたら、自動的に物理ファイルに書き込む
 
         AutoReadWriteFile = AutoReadFromFile | AutoWriteToFile, // ※ 2020/11/01 注意! うまく動かない。データ -> ファイル の更新が優先され、ファイルの内容をいじっても更新されない。たぶんバグ。
                                                                 // つまり、動的に上書きされたくないなら、ReadOnly を推奨。
@@ -948,7 +957,7 @@ namespace IPA.Cores.Basic
 
         public async Task SyncWithStorageAsync(HiveSyncFlags flag, bool ignoreError, CancellationToken cancel = default)
         {
-            if (flag.Bit(HiveSyncFlags.SaveToFile)) flag |= HiveSyncFlags.ForceUpdate;
+            //if (flag.Bit(HiveSyncFlags.SaveToFile)) flag |= HiveSyncFlags.ForceUpdate;
 
             try
             {

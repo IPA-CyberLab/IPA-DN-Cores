@@ -110,6 +110,10 @@ namespace IPA.Cores.Globals
         }
 
         [MethodImpl(Inline)]
+        public static void Where(object? message = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
+            => Dbg.Where(message, filename, line, caller, printThreadId);
+
+        [MethodImpl(Inline)]
         public static void Sync(Action action) => TaskUtil.Sync(action);
 
         [MethodImpl(Inline)]
