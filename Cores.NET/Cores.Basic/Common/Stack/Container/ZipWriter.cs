@@ -401,11 +401,11 @@ namespace IPA.Cores.Basic
                 }
 
                 await this.FileContentWriterStream.FlushAsync(cancel);
+                await this.FileContentWriterStream._DisposeSafeAsync(); // 必ず 「圧縮後データサイズを計算」の前に行なうこと！
 
                 // 圧縮後データサイズを計算
                 long currentWriteenCompressedBytes = this.RawWriter.CurrentPosition - WrittenDataStartOffset;
 
-                await this.FileContentWriterStream._DisposeSafeAsync();
 
                 // 結局 Zip64 形式が必要か不要かの判定
                 bool useZip64 = false;

@@ -832,9 +832,9 @@ namespace IPA.TestDev
         {
             using var file = Lfs.Create(@"c:\tmp\ziptest\test" + Str.DateTimeToStrShort(DtNow) + ".zip", flags: FileFlags.AutoCreateDirectory);
             using ZipWriter zip = new ZipWriter(new ZipContainerOptions(file));
-            Memory<byte> data = "Hello"._GetBytes_Ascii();
+            Memory<byte> data = ""._GetBytes_Ascii();
 
-            zip.AddFileSimpleData(new FileContainerEntityParam("test.txt", flags: FileContainerEntityFlags.EnableCompression, encryptPassword: "a"), data);
+            zip.AddFileSimpleData(new FileContainerEntityParam("test.txt", flags: FileContainerEntityFlags.None, encryptPassword: "a"), data);
             zip.Finish();
         }
 
