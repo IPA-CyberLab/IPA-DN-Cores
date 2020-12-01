@@ -298,31 +298,34 @@ namespace IPA.Cores.Basic
             }
             finally
             {
-                if (alog.PhysicalAccessLogDirPath._IsFilled())
+                try
                 {
-                    try
-                    {
-                        // アクセスログ保存
-                        string alogDir = alog.PhysicalAccessLogDirPath;
+                    await WriteAccessLogAsync(alog.PhysicalAccessLogDirPath, alog.AccessLogData, alog.AccessLogData.Timestamp, cancel);
+                }
+                catch (Exception ex)
+                {
+                    ex._Error();
+                }
+            }
+        }
 
-                        using (await AccessLogLock.LockWithAwait(alogDir, cancel))
-                        {
-                            // ファイル名を決定
-                            string filename = alog.AccessLogData.Timestamp.ToString("yyyyMMdd") + ".log";
+        public async Task WriteAccessLogAsync(string? alogDir, object? alogData, DateTimeOffset timeStamp, CancellationToken cancel = default)
+        {
+            // アクセスログ保存
+            if (alogDir._IsFilled())
+            {
+                using (await AccessLogLock.LockWithAwait(alogDir, cancel))
+                {
+                    // ファイル名を決定
+                    string filename = timeStamp.ToString("yyyyMMdd") + ".log";
 
-                            string filepath = RootFs.PathParser.Combine(alogDir, filename);
+                    string filepath = RootFs.PathParser.Combine(alogDir, filename);
 
-                            // アクセスログを JSON 文字列に変更
-                            string json = alog.AccessLogData._ObjectToJson(compact: true) + "\r\n";
+                    // アクセスログを JSON 文字列に変更
+                    string json = alogData._ObjectToJson(compact: true) + "\r\n";
 
-                            // 書き込み
-                            await RootFs.AppendStringToFileAsync(filepath, json, FileFlags.AutoCreateDirectory, writeBom: true, cancel: cancel);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        ex._Error();
-                    }
+                    // 書き込み
+                    await RootFs.AppendStringToFileAsync(filepath, json, FileFlags.AutoCreateDirectory, writeBom: true, cancel: cancel);
                 }
             }
         }
@@ -518,12 +521,12 @@ namespace IPA.Cores.Basic
 
                         if (secureJson.AllowZipDownload)
                         {
-                            footer += $"<p><a href=\"{this.AbsolutePathPrefix}/{dirNames.Take(2)._Combine("/")}/{Consts.FileNames.LogBrowserZipFileName}/\"><strong><i class=\"fas fa-download\"></i> ZIP ファイルとして全ファイルをまとめてダウンロード</strong></a></p>";
+                            footer += $"<p><a href=\"{this.AbsolutePathPrefix}/{dirNames.Take(secureJson.AuthRequired ? 2 : 1)._Combine("/")}/{Consts.FileNames.LogBrowserZipFileName}/\"><strong><i class=\"fas fa-download\"></i> ZIP ファイルとして全ファイルをまとめてダウンロード</strong></a></p>";
                         }
 
                         if (secureJson.AllowAccessToAccessLog && secureJson.DisableAccessLog == false)
                         {
-                            footer += $"<p><a href=\"{this.AbsolutePathPrefix}/{dirNames.Take(2)._Combine("/")}/{Consts.FileNames.LogBrowserAccessLogDirName}/\"><strong><i class=\"far fa-eye\"></i> アクセスログの参照</strong></a></p>";
+                            footer += $"<p><a href=\"{this.AbsolutePathPrefix}/{dirNames.Take(secureJson.AuthRequired ? 2 : 1)._Combine("/")}/{Consts.FileNames.LogBrowserAccessLogDirName}/\"><strong><i class=\"far fa-eye\"></i> アクセスログの参照</strong></a></p>";
                         }
                     }
 
