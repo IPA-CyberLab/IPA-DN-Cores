@@ -159,7 +159,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            public void ParseDomainBySuffixList(string fqdn, out string suffix, out string suffixPlusOneToken, out string hostnames)
+            public bool ParseDomainBySuffixList(string fqdn, out string suffixTld, out string suffixTldPlusOneDomainLabel, out string hostnames)
             {
                 if (fqdn._IsEmpty()) fqdn = "";
 
@@ -167,10 +167,10 @@ namespace IPA.Cores.Basic
 
                 if (tokens.Length == 0)
                 {
-                    suffix = "";
-                    suffixPlusOneToken = "";
+                    suffixTld = "";
+                    suffixTldPlusOneDomainLabel = "";
                     hostnames = "";
-                    return;
+                    return false;
                 }
 
                 for (int i = tokens.Length; i >= 0; i--)
@@ -179,16 +179,18 @@ namespace IPA.Cores.Basic
 
                     if (SuffixList.Contains(suffixTmp))
                     {
-                        suffix = suffixTmp;
-                        suffixPlusOneToken = tokens.Take(Math.Min(i + 1, tokens.Length)).Reverse()._Combine(".");
+                        suffixTld = suffixTmp;
+                        suffixTldPlusOneDomainLabel = tokens.Take(Math.Min(i + 1, tokens.Length)).Reverse()._Combine(".");
                         hostnames = tokens.Skip(Math.Min(i + 1, tokens.Length)).Reverse()._Combine(".");
-                        return;
+                        return true;
                     }
                 }
 
-                suffix = tokens.Take(1).Reverse()._Combine(".");
-                suffixPlusOneToken = tokens.Take(Math.Min(2, tokens.Length)).Reverse()._Combine(".");
+                suffixTld = tokens.Take(1).Reverse()._Combine(".");
+                suffixTldPlusOneDomainLabel = tokens.Take(Math.Min(2, tokens.Length)).Reverse()._Combine(".");
                 hostnames = tokens.Skip(Math.Min(2, tokens.Length)).Reverse()._Combine(".");
+
+                return false;
             }
         }
 

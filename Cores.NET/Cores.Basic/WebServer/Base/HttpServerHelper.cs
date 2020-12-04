@@ -68,10 +68,10 @@ namespace IPA.Cores.Helper.Basic
                 result.Stream.Seek(result.Offset, SeekOrigin.Begin);
             }
 
-            await h._SendStreamContents(result.Stream, result.Length, result.ContentType, cancel, result.PreData, result.PostData, result.StatusCode, result.AdditionalHeaders);
+            await h._SendStreamContentsAsync(result.Stream, result.Length, result.ContentType, cancel, result.PreData, result.PostData, result.StatusCode, result.AdditionalHeaders);
         }
 
-        public static Task _SendStringContents(this HttpResponse h, string body, string contentsType = Consts.MimeTypes.TextUtf8, Encoding? encoding = null, CancellationToken cancel = default(CancellationToken))
+        public static Task _SendStringContentsAsync(this HttpResponse h, string body, string contentsType = Consts.MimeTypes.TextUtf8, Encoding? encoding = null, CancellationToken cancel = default(CancellationToken))
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
             byte[] ret_data = encoding.GetBytes(body);
@@ -81,14 +81,14 @@ namespace IPA.Cores.Helper.Basic
             return h.Body.WriteAsync(ret_data, 0, ret_data.Length, cancel);
         }
 
-        public static async Task<string> _RecvStringContents(this HttpRequest h, int maxRequestBodyLen = int.MaxValue, Encoding? encoding = null, CancellationToken cancel = default(CancellationToken))
+        public static async Task<string> _RecvStringContentsAsync(this HttpRequest h, int maxRequestBodyLen = int.MaxValue, Encoding? encoding = null, CancellationToken cancel = default(CancellationToken))
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
 
             return (await h.Body._ReadToEndAsync(maxRequestBodyLen, cancel))._GetString_UTF8();
         }
 
-        public static async Task _SendFileContents(this HttpResponse h, FileBase file, long offset, long? count, string contentsType = Consts.MimeTypes.OctetStream, CancellationToken cancel = default)
+        public static async Task _SendFileContentsAsync(this HttpResponse h, FileBase file, long offset, long? count, string contentsType = Consts.MimeTypes.OctetStream, CancellationToken cancel = default)
         {
             CheckStreamRange(offset, count, file.Size);
 
@@ -99,11 +99,11 @@ namespace IPA.Cores.Helper.Basic
                     srcStream.Seek(offset, SeekOrigin.Begin);
                 }
 
-                await h._SendStreamContents(srcStream, count, contentsType, cancel);
+                await h._SendStreamContentsAsync(srcStream, count, contentsType, cancel);
             }
         }
 
-        public static async Task _SendStreamContents(this HttpResponse h, Stream sourceStream, long? count, string? contentsType = Consts.MimeTypes.OctetStream, CancellationToken cancel = default,
+        public static async Task _SendStreamContentsAsync(this HttpResponse h, Stream sourceStream, long? count, string? contentsType = Consts.MimeTypes.OctetStream, CancellationToken cancel = default,
             ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default, int statusCode = Consts.HttpStatusCodes.Ok, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
         {
             h.ContentType = contentsType._FilledOrDefault(Consts.MimeTypes.OctetStream);

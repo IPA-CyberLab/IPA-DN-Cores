@@ -63,9 +63,19 @@ namespace IPA.Cores.Basic
     }
 
 
-    public class DataVaultData
+    public class DataVaultData : ICloneable
     {
         public DateTimeOffset TimeStamp;
+
+        // Stat 系
+        public string? StatUid;
+        public string? StatGlobalIp;
+        public string? StatGlobalFqdn;
+        public int StatGlobalPort;
+        public string? StatLocalIp;
+        public string? StatLocalFqdn;
+
+        // 標準データ
         public string? SystemName;
         public string? LogName;
         public string? KeyType;
@@ -77,7 +87,7 @@ namespace IPA.Cores.Basic
 
         static readonly PathParser WinParser = PathParser.GetInstance(FileSystemStyle.Windows);
 
-        public void NormalizeReceivedData(string defaultSrcMachineName)
+        public void NormalizeReceivedData(string? unused = null)
         {
             if (this.KeyType._IsEmpty()) this.KeyType = "all";
             if (this.KeyShortValue._IsEmpty()) this.KeyShortValue = "all";
@@ -91,6 +101,8 @@ namespace IPA.Cores.Basic
 
             if (this.TimeStamp == default) this.TimeStamp = Util.ZeroDateTimeOffsetValue;
         }
+
+        public object Clone() => this.MemberwiseClone();
     }
 
     [Flags]
@@ -174,7 +186,7 @@ namespace IPA.Cores.Basic
                         {
                             var list = standardDataQueue.GetList();
                             standardDataQueue.Clear();
-                            await DataVaultDataReceivedInternalAsync(sock.EndPointInfo.RemoteIP._NonNullTrim(), list);
+                            await DataVaultDataReceivedInternalAsync(list);
                         }
 
                         DataVaultProtocolDataType type = (DataVaultProtocolDataType)await st.ReceiveSInt32Async();
@@ -207,12 +219,12 @@ namespace IPA.Cores.Basic
                 }
                 finally
                 {
-                    await DataVaultDataReceivedInternalAsync(sock.EndPointInfo.RemoteIP._NonNullTrim(), standardDataQueue.GetList());
+                    await DataVaultDataReceivedInternalAsync(standardDataQueue.GetList());
                 }
             }
         }
 
-        async Task DataVaultDataReceivedInternalAsync(string srcHostName, IReadOnlyList<Memory<byte>> dataList)
+        async Task DataVaultDataReceivedInternalAsync(IReadOnlyList<Memory<byte>> dataList)
         {
             if (dataList.Count == 0) return;
 
@@ -232,7 +244,7 @@ namespace IPA.Cores.Basic
 
                     if (d.JsonData == null) continue;
 
-                    d.JsonData!.NormalizeReceivedData(srcHostName);
+                    d.JsonData!.NormalizeReceivedData();
 
                     list.Add(d);
                 }
@@ -244,8 +256,16 @@ namespace IPA.Cores.Basic
 
             if (list.Count >= 1)
             {
-                await DataVaultReceiveImplAsync(list);
+                await DataVaultReceiveAsync(list);
             }
+        }
+
+        public Task DataVaultReceiveAsync(IReadOnlyList<DataVaultServerReceivedData> dataList)
+        {
+            if (dataList.Any() == false)
+                return Task.CompletedTask;
+
+            return DataVaultReceiveImplAsync(dataList);
         }
     }
 
@@ -267,7 +287,7 @@ namespace IPA.Cores.Basic
         public string DestRootDirName { get; }
         public DataVaultServerFlags ServerFlags { get; }
 
-        public DataVaultServerOptions(FileSystem? destFileSystem, string destRootDirName, FileFlags fileFlags, Action<DataVaultServerReceivedData, DataVaultServerOptions>? setDestinationProc, 
+        public DataVaultServerOptions(FileSystem? destFileSystem, string destRootDirName, FileFlags fileFlags, Action<DataVaultServerReceivedData, DataVaultServerOptions>? setDestinationProc,
             TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports, string accessKey, DataVaultServerFlags serverFlags = DataVaultServerFlags.Default, string? rateLimiterConfigName = null)
             : base(tcpIp, sslAuthOptions, ports, accessKey, rateLimiterConfigName)
         {
@@ -276,7 +296,7 @@ namespace IPA.Cores.Basic
             this.DestRootDirName = destRootDirName;
 
             this.ServerFlags = serverFlags;
-            
+
             this.FileFlags = fileFlags;
 
             this.DestFileSystem = destFileSystem ?? Lfs;

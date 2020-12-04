@@ -72,7 +72,7 @@ namespace IPA.Cores.Basic
                 string rpcMethod = routeData.Values._GetStr("rpc_method");
                 if (rpcMethod._IsEmpty())
                 {
-                    await response._SendStringContents($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTime.Now._ToDtStr(withNanoSecs: true)}", cancel: cancel);
+                    await response._SendStringContentsAsync($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTime.Now._ToDtStr(withNanoSecs: true)}", cancel: cancel);
                 }
                 else
                 {
@@ -100,7 +100,7 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-                await response._SendStringContents(ex.ToString(), cancel: cancel);
+                await response._SendStringContentsAsync(ex.ToString(), cancel: cancel);
             }
         }
 
@@ -108,13 +108,13 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                string in_str = await request._RecvStringContents(this.Config.MaxRequestBodyLen, cancel: request._GetRequestCancellationToken());
+                string in_str = await request._RecvStringContentsAsync(this.Config.MaxRequestBodyLen, cancel: request._GetRequestCancellationToken());
 
                 await ProcessHttpRequestMain(request, response, in_str);
             }
             catch (Exception ex)
             {
-                await response._SendStringContents(ex.ToString(), cancel: request._GetRequestCancellationToken());
+                await response._SendStringContentsAsync(ex.ToString(), cancel: request._GetRequestCancellationToken());
             }
         }
 
@@ -159,7 +159,7 @@ namespace IPA.Cores.Basic
 
             //Dbg.WriteLine("ret_str: " + ret_str);
 
-            await response._SendStringContents(ret_str, responseContentsType, cancel: request._GetRequestCancellationToken());
+            await response._SendStringContentsAsync(ret_str, responseContentsType, cancel: request._GetRequestCancellationToken());
         }
 
         public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string path = "/rpc")

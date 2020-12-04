@@ -150,7 +150,7 @@ namespace IPA.TestDev
                     retStr = currentAccount.ProcessChallengeRequest(token);
                 }
 
-                await response._SendStringContents(retStr, Consts.MimeTypes.OctetStream);
+                await response._SendStringContentsAsync(retStr, Consts.MimeTypes.OctetStream);
             }
             catch (Exception ex)
             {
@@ -892,6 +892,19 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                while (true)
+                {
+                    string fqdn = Con.ReadLine()!;
+
+                    MasterData.DomainSuffixList.ParseDomainBySuffixList(fqdn, out string suffix, out string plusOne, out string hostname);
+
+                    $"suffix = {suffix}\nplusOne = {plusOne}\nhostname = {hostname}\n\n"._Print();
+                }
+                return;
+            }
+
             if (true)
             {
                 HiveTest_201201();

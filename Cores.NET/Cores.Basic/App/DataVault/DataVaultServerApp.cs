@@ -39,6 +39,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Linq;
+using System.Text;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -47,6 +48,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using System.Security.AccessControl;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
 
 namespace IPA.Cores.Basic
 {
@@ -60,6 +64,216 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<string> DefaultDataVaultServerPortsString = Consts.Ports.DataVaultServerDefaultServicePort.ToString();
             public static readonly Copenhagen<string> DefaultHttpServerPortsString = Consts.Ports.DataVaultServerDefaultHttpPort.ToString();
             public static readonly Copenhagen<string> DefaultHttpsServerPortsString = Consts.Ports.DataVaultServerDefaultHttpsPort.ToString();
+
+            public static readonly Copenhagen<int> MaxHttpPostRecvData = 10 * 1024 * 1024;
+        }
+    }
+
+    public class DataVaultLogBrowserHttpServerOptions : LogBrowserHttpServerOptions
+    {
+        public DataVaultServerApp App { get; }
+        public DataVaultServer Vault { get; }
+
+        public DataVaultLogBrowserHttpServerOptions(LogBrowserOptions options, string absolutePrefixPath, DataVaultServerApp app, DataVaultServer vault) : base(options, absolutePrefixPath)
+        {
+            this.App = app;
+            this.Vault = vault;
+        }
+    }
+
+    public class DataVaultLogBrowserHttpServerBuilder : LogBrowserHttpServerBuilder
+    {
+        public new DataVaultLogBrowserHttpServerOptions Options => (DataVaultLogBrowserHttpServerOptions)this.Param!;
+
+        public static new HttpServer<DataVaultLogBrowserHttpServerBuilder> StartServer(HttpServerOptions httpCfg, LogBrowserHttpServerOptions options, CancellationToken cancel = default)
+            => new HttpServer<DataVaultLogBrowserHttpServerBuilder>(httpCfg, options, cancel);
+
+        public DataVaultLogBrowserHttpServerBuilder(IConfiguration configuration) : base(configuration)
+        {
+        }
+
+        protected override void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
+        {
+            RouteBuilder rb = new RouteBuilder(app);
+
+            rb._MapPostStandardHandler("/stat/", PostHandlerAsync);
+
+            IRouter router = rb.Build();
+            app.UseRouter(router);
+
+            base.ConfigureImpl_BeforeHelper(cfg, app, env, lifetime);
+        }
+
+        public async Task<HttpResult> PostHandlerAsync(WebMethods method, string path, QueryStringList queryString, HttpContext context, RouteData routeData, IPEndPoint local, IPEndPoint remote, CancellationToken cancel = default)
+        {
+            var request = context.Request;
+
+            string str = await request._RecvStringContentsAsync(CoresConfig.DataVaultServerApp.MaxHttpPostRecvData, cancel: cancel);
+
+
+            DataVaultData? recv = str._JsonToObject<DataVaultData>();
+
+            List<DataVaultData> list = new List<DataVaultData>();
+
+            if (recv != null)
+            {
+                recv.NormalizeReceivedData();
+
+                recv.StatGlobalIp = remote.Address.ToString();
+                recv.StatGlobalPort = remote.Port;
+
+                recv.StatGlobalFqdn = await LocalNet.GetHostNameSingleOrIpAsync(recv.StatGlobalIp, cancel);
+
+                recv.StatLocalIp = recv.StatLocalIp._NonNullTrim();
+                if (recv.StatLocalIp._IsEmpty()) recv.StatLocalIp = "127.0.0.1";
+
+                recv.StatLocalFqdn = recv.StatLocalFqdn._NonNullTrim();
+                if (recv.StatLocalFqdn._IsEmpty()) recv.StatLocalFqdn = "localhost";
+
+                recv.StatUid = recv.StatUid._NonNullTrim();
+
+                if (recv.SystemName._IsFilled() && recv.LogName._IsFilled())
+                {
+                    // グローバル IP からキーを生成
+                    try
+                    {
+                        DataVaultData d = recv._CloneIfClonable();
+                        d.KeyType = "by_global_ip";
+                        d.KeyShortValue = IPUtil.GetHead1BytesIPString(recv.StatGlobalIp);
+                        d.KeyFullValue = IPUtil.GetHead2BytesIPString(recv.StatGlobalIp);
+
+                        list.Add(d);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+
+                    // グローバル FQDN からキーを生成
+                    try
+                    {
+                        string shortKey, longKey;
+
+                        if (IPUtil.IsStrIP(recv.StatGlobalFqdn) == false)
+                        {
+                            // FQDN
+                            if (MasterData.DomainSuffixList.ParseDomainBySuffixList(recv.StatGlobalFqdn, out string tld, out string domain, out string hostname))
+                            {
+                                // 正しい TLD 配下のドメイン
+                                // 例: 12345.abc.example.org の場合
+                                //     Short key は org.example.ab
+                                //     Long key は  org.example.abc.1
+                                string domainReverse = domain._Split(StringSplitOptions.RemoveEmptyEntries, '.').Reverse()._Combine(".");
+                                string hostnameReverse = hostname._Split(StringSplitOptions.RemoveEmptyEntries, '.').Reverse()._Combine(".");
+
+                                shortKey = new string[] { domainReverse, hostnameReverse._TruncStr(2) }._Combine(".");
+                                longKey = new string[] { domainReverse, hostnameReverse._TruncStr(5) }._Combine(".");
+                            }
+                            else
+                            {
+                                // おかしなドメイン
+                                shortKey = recv.StatGlobalFqdn._TruncStr(2);
+                                longKey = recv.StatGlobalFqdn._TruncStr(4);
+                            }
+                        }
+                        else
+                        {
+                            // IP アドレス
+                            shortKey = IPUtil.GetHead1BytesIPString(recv.StatGlobalIp);
+                            longKey = IPUtil.GetHead1BytesIPString(recv.StatGlobalIp);
+                        }
+
+                        DataVaultData d = recv._CloneIfClonable();
+                        d.KeyType = "by_global_fqdn";
+                        d.KeyShortValue = shortKey;
+                        d.KeyFullValue = longKey;
+
+                        list.Add(d);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+
+                    // ローカル IP からキーを生成
+                    try
+                    {
+                        DataVaultData d = recv._CloneIfClonable();
+                        d.KeyType = "by_local_ip";
+                        d.KeyShortValue = IPUtil.GetHead1BytesIPString(recv.StatLocalIp);
+                        d.KeyFullValue = IPUtil.GetHead2BytesIPString(recv.StatLocalIp);
+
+                        list.Add(d);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+
+                    // グローバル FQDN からキーを生成
+                    try
+                    {
+                        string shortKey, longKey;
+
+                        if (IPUtil.IsStrIP(recv.StatLocalFqdn) == false)
+                        {
+                            // FQDN
+                            if (MasterData.DomainSuffixList.ParseDomainBySuffixList(recv.StatLocalFqdn, out string tld, out string domain, out string hostname))
+                            {
+                                // 正しい TLD 配下のドメイン
+                                // 例: 12345.abc.example.org の場合
+                                //     Short key は org.example.ab
+                                //     Long key は  org.example.abc.1
+                                string domainReverse = domain._Split(StringSplitOptions.RemoveEmptyEntries, '.').Reverse()._Combine(".");
+                                string hostnameReverse = hostname._Split(StringSplitOptions.RemoveEmptyEntries, '.').Reverse()._Combine(".");
+
+                                shortKey = new string[] { domainReverse, hostnameReverse._TruncStr(2) }._Combine(".");
+                                longKey = new string[] { domainReverse, hostnameReverse._TruncStr(5) }._Combine(".");
+                            }
+                            else
+                            {
+                                // おかしなドメイン
+                                shortKey = recv.StatLocalFqdn._TruncStr(2);
+                                longKey = recv.StatLocalFqdn._TruncStr(4);
+                            }
+                        }
+                        else
+                        {
+                            // IP アドレス
+                            shortKey = IPUtil.GetHead1BytesIPString(recv.StatLocalIp);
+                            longKey = IPUtil.GetHead1BytesIPString(recv.StatLocalIp);
+                        }
+
+                        DataVaultData d = recv._CloneIfClonable();
+                        d.KeyType = "by_local_fqdn";
+                        d.KeyShortValue = shortKey;
+                        d.KeyFullValue = longKey;
+
+                        list.Add(d);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+                }
+            }
+
+            List<DataVaultServerReceivedData> list2 = new List<DataVaultServerReceivedData>();
+
+            foreach (var d in list)
+            {
+                DataVaultServerReceivedData d2 = new DataVaultServerReceivedData()
+                {
+                    BinaryData = d._ObjectToJson(compact: true)._GetBytes_UTF8(),
+                    JsonData = d,
+                };
+
+                list2.Add(d2);
+            }
+
+            await this.Options.Vault.DataVaultReceiveAsync(list2);
+
+            return new HttpStringResult("ok");
         }
     }
 
@@ -71,7 +285,7 @@ namespace IPA.Cores.Basic
 
         CertVault? CertVault = null;
 
-        HttpServer<LogBrowserHttpServerBuilder>? LogBrowserHttpServer = null;
+        HttpServer<DataVaultLogBrowserHttpServerBuilder>? LogBrowserHttpServer = null;
 
         public DataVaultServerApp()
         {
@@ -139,7 +353,7 @@ namespace IPA.Cores.Basic
 
                     LogBrowserOptions browserOptions = new LogBrowserOptions(dataDestDir);
 
-                    this.LogBrowserHttpServer = LogBrowserHttpServerBuilder.StartServer(httpServerOptions, new LogBrowserHttpServerOptions(browserOptions, ""));
+                    this.LogBrowserHttpServer = DataVaultLogBrowserHttpServerBuilder.StartServer(httpServerOptions, new DataVaultLogBrowserHttpServerOptions(browserOptions, "", this, this.DataVaultServer));
                 });
             }
             catch

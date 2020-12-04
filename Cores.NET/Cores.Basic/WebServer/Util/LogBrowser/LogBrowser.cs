@@ -260,7 +260,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+        public async Task GetRequestHandlerAsync(HttpRequest request, HttpResponse response, RouteData routeData)
         {
             CancellationToken cancel = request._GetRequestCancellationToken();
 
@@ -1019,12 +1019,12 @@ namespace IPA.Cores.Basic
             if (this.Impl.AbsolutePathPrefix._IsEmpty())
             {
                 // 通常
-                rb.MapGet("{*path}", Impl.GetRequestHandler);
+                rb.MapGet("{*path}", Impl.GetRequestHandlerAsync);
             }
             else
             {
                 // URL Secret を設定
-                rb.MapGet(this.Impl.AbsolutePathPrefix + "/{*path}", Impl.GetRequestHandler);
+                rb.MapGet(this.Impl.AbsolutePathPrefix + "/{*path}", Impl.GetRequestHandlerAsync);
             }
 
             IRouter router = rb.Build();

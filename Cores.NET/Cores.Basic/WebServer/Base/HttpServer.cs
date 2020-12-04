@@ -330,7 +330,7 @@ namespace IPA.Cores.Basic
                     else
                     {
                         context.Response.StatusCode = 404;
-                        await context.Response._SendStringContents("Server not found");
+                        await context.Response._SendStringContentsAsync("Server not found");
                     }
                 });
             }
@@ -395,7 +395,7 @@ namespace IPA.Cores.Basic
                     retStr = currentAccount.ProcessChallengeRequest(token);
                 }
 
-                await response._SendStringContents(retStr, Consts.MimeTypes.OctetStream);
+                await response._SendStringContentsAsync(retStr, Consts.MimeTypes.OctetStream);
             }
             catch (Exception ex)
             {
