@@ -119,6 +119,8 @@ namespace IPA.Cores.Basic
             {
                 recv.NormalizeReceivedData();
 
+                recv.TimeStamp = DtOffsetNow;
+
                 recv.StatGlobalIp = remote.Address.ToString();
                 recv.StatGlobalPort = remote.Port;
 
