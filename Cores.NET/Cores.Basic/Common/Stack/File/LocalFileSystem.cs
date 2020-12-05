@@ -737,10 +737,6 @@ namespace IPA.Cores.Basic
 
             FileMetadata ret = ConvertFileSystemInfoToFileMetadata(dirInfo, flags);
 
-            "------"._Debug();
-            path._Debug();
-            ret._DebugAsJson();
-
             if (flags.Bit(FileMetadataGetFlags.NoSecurity) == false)
             {
                 ret.Security = GetFileOrDirectorySecurityMetadata(path, true);

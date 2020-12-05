@@ -256,7 +256,12 @@ namespace IPA.Cores.Basic
                 if (FileSystem.GetSpecialFileNameKind(entry.Name) == SpecialFileNameKind.Normal)
                     entry.Name = PathParser.GetFileName(entry.FullPath);
 
-                entry.SymbolicLinkTarget = MapPathPhysicalToVirtual(entry.SymbolicLinkTarget);
+                if (entry.SymbolicLinkTarget._IsFilled())
+                {
+                    // リライト時はシンボリックリンク非対応
+                    entry.SymbolicLinkTarget = null;
+                    entry.Attributes.BitRemove(FileAttributes.ReparsePoint);
+                }
             }
 
             return entries;
