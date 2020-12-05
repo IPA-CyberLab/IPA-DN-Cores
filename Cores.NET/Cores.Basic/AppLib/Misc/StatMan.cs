@@ -66,9 +66,9 @@ namespace IPA.Cores.Basic
     {
         public static partial class StatMan
         {
-            public static readonly Copenhagen<int> DefaultPostIntervalMsecs = 500;
-            public static readonly Copenhagen<int> DefaultSaveIntervalMsecs = 500;
-            public static readonly Copenhagen<string> DefaultStatFileName = "Statistics.json";
+            public static readonly Copenhagen<int> DefaultPostIntervalMsecs = (30 * 60 * 1000);
+            public static readonly Copenhagen<int> DefaultSaveIntervalMsecs = (1 * 60 * 1000);
+            public static readonly Copenhagen<string> DefaultStatFileName = "Statistics.db";
             public static readonly Copenhagen<string> DefaultSystemName = "default_system";
             public static readonly Copenhagen<string> DefaultLogName = "default_stat";
             public static readonly Copenhagen<string> DefaultUrl = "https://dn-stat1.ep.ipantt.net/stat/";
@@ -151,7 +151,7 @@ namespace IPA.Cores.Basic
 
                 this.FileNameFullPath = PP.NormalizeDirectorySeparator(this.FileNameFullPath, true);
 
-                this.Database = Lfs.ReadJsonFromFile<StatManDatabase>(this.FileNameFullPath, nullIfError: true);
+                this.Database = Lfs.ReadJsonFromFileEncrypted<StatManDatabase>(this.FileNameFullPath, Consts.Strings.StatManEncryptKey, nullIfError: true);
                 if (this.Database == null)
                 {
                     this.Database = new StatManDatabase();
@@ -207,7 +207,7 @@ namespace IPA.Cores.Basic
 
                 num_try++;
 
-                if (await PostHttpMainAsync(cancel)._TryAwaitAndRetBool())
+                if (await PostHttpMainAsync(cancel)._TryAwaitAndRetBool(true))
                 {
                     num_try = 0;
                 }
@@ -336,7 +336,7 @@ namespace IPA.Cores.Basic
                     dataCopy = this.Database._CloneWithJson();
                 }
 
-                await Lfs.WriteJsonToFileAsync(this.FileNameFullPath, this.Database, FileFlags.AutoCreateDirectory, cancel: cancel)._TryWaitAsync();
+                await Lfs.WriteJsonToFileEncryptedAsync(this.FileNameFullPath, this.Database,  Consts.Strings.StatManEncryptKey, FileFlags.AutoCreateDirectory, cancel: cancel)._TryWaitAsync();
             }
         }
 

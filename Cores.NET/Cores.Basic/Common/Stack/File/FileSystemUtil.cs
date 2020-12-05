@@ -189,6 +189,32 @@ namespace IPA.Cores.Basic
         public int WriteStringToFile(string path, string srcString, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default)
             => WriteStringToFileAsync(path, srcString, flags, doNotOverwrite, encoding, writeBom, cancel)._GetResult();
 
+
+        public Task<int> WriteStringToFileEncryptedAsync(string path, string srcString, string password, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default)
+        {
+            checked
+            {
+                if (encoding == null) encoding = Str.Utf8Encoding;
+                MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+
+                ReadOnlySpan<byte> bomSpan = default;
+
+                if (writeBom)
+                    bomSpan = Str.GetBOMSpan(encoding);
+
+                buf.Write(bomSpan);
+
+                int sizeReserved = srcString.Length * 4 + 128;
+                int encodedSize = encoding.GetBytes(srcString, buf.Walk(sizeReserved));
+                buf.SetLength(bomSpan.Length + encodedSize);
+
+                return WriteDataToFileEncryptedAsync(path, buf.Memory, password, flags, doNotOverwrite, cancel);
+            }
+        }
+        public int WriteStringToFileEncrypted(string path, string srcString, string password, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default)
+            => WriteStringToFileEncryptedAsync(path, srcString, password, flags, doNotOverwrite, encoding, writeBom, cancel)._GetResult();
+
+
         public Task<int> AppendStringToFileAsync(string path, string srcString, FileFlags flags = FileFlags.None, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default)
         {
             checked
@@ -492,6 +518,29 @@ namespace IPA.Cores.Basic
         public string ReadStringFromFile(string path, Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
             => ReadStringFromFileAsync(path, encoding, maxSize, flags, oneLine, cancel)._GetResult();
 
+
+        public async Task<string> ReadStringFromFileEncryptedAsync(string path, string password, Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
+        {
+            Memory<byte> data = await ReadDataFromFileEncryptedAsync(path, password, maxSize, flags, cancel);
+
+            string str;
+
+            if (encoding == null)
+                str = Str.DecodeStringAutoDetect(data.Span, out _);
+            else
+                str = Str.DecodeString(data.Span, encoding, out _);
+
+            if (oneLine)
+            {
+                str = str._OneLine("");
+            }
+
+            return str;
+        }
+        public string ReadStringFromFileEncrypted(string path, string password, Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
+            => ReadStringFromFileEncryptedAsync(path, password, encoding, maxSize, flags, oneLine, cancel)._GetResult();
+
+
         public async Task CreateZipArchiveAsync(FilePath destZipFilePath, string srcRootDir,
             FileContainerEntityParam? paramTemplate = null,
             Func<FileSystemEntity, bool>? fileFilter = null,
@@ -673,6 +722,26 @@ namespace IPA.Cores.Basic
         }
 
         public virtual EasyFileAccess this[string name] => GetEasyAccess(name);
+
+
+        public async Task<int> WriteDataToFileEncryptedAsync(string path, ReadOnlyMemory<byte> srcMemory, string password, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+        {
+            return await this.WriteDataToFileAsync(path, ChaChaPoly.EasyEncryptWithPassword(srcMemory, password), flags, doNotOverwrite, cancel);
+        }
+        public int WriteDataToFileEncrypted(string path, ReadOnlyMemory<byte> data, string password, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+            => WriteDataToFileEncryptedAsync(path, data, password, flags, doNotOverwrite, cancel)._GetResult();
+
+        public async Task<Memory<byte>> ReadDataFromFileEncryptedAsync(string path, string password, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+        {
+            var data = await this.ReadDataFromFileAsync(path, maxSize, flags, cancel);
+
+            var res = ChaChaPoly.EasyDecryptWithPassword(data, password);
+
+            return res;
+        }
+        public Memory<byte> ReadDataFromFileEncrypted(string path, string password, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+            => ReadDataFromFileEncryptedAsync(path, password, maxSize, flags, cancel)._GetResult();
+
     }
 
     public class DirectoryPathInfo
