@@ -95,7 +95,7 @@ namespace IPA.Cores.Basic
                         HttpPortsList = httpPort._SingleList(),
                         HttpsPortsList = httpsPort._SingleList(),
                         DebugKestrelToConsole = false,
-                        UseKestrelWithIPACoreStack = false,
+                        UseKestrelWithIPACoreStack = true,
                         AutomaticRedirectToHttpsIfPossible = false,
                         LocalHostOnly = false,
                         UseGlobalCertVault = false, // Disable Global CertVault
