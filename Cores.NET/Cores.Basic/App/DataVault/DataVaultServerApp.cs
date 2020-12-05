@@ -140,13 +140,28 @@ namespace IPA.Cores.Basic
 
                 if (recv.SystemName._IsFilled() && recv.LogName._IsFilled())
                 {
+                    // キー無し 1 つのディレクトリに全部書き込み
+                    try
+                    {
+                        DataVaultData d = recv._CloneIfClonable();
+                        d.KeyType = "all";
+                        d.KeyShortValue = "all";
+                        d.KeyFullValue = "all";
+
+                        list.Add(d);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+
                     // UID からキーを生成
                     try
                     {
                         DataVaultData d = recv._CloneIfClonable();
                         d.KeyType = "by_uid";
-                        d.KeyShortValue = recv.StatUid._TruncStr(3);
-                        d.KeyFullValue = recv.StatUid._TruncStr(6);
+                        d.KeyShortValue = recv.StatUid._TruncStr(2);
+                        d.KeyFullValue = recv.StatUid._TruncStr(4);
 
                         list.Add(d);
                     }
