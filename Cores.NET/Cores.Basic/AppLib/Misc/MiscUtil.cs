@@ -721,9 +721,10 @@ namespace IPA.Cores.Basic
                     {
                         long now = Time.Tick64;
                         long currentSize = totalDownloadSize;
-                        if (lastSize != totalDownloadSize)
+
+                        if (lastSize != currentSize)
                         {
-                            currentSize = totalDownloadSize;
+                            lastSize = currentSize;
                             lastChangedTick = now;
                         }
 
@@ -791,7 +792,7 @@ namespace IPA.Cores.Basic
 
                                         Memory<byte> thisTimeBuffer = buffer;
 
-                                        int readSize = await src.ReadAsync(thisTimeBuffer, cancel2);
+                                        int readSize = await src._ReadAsyncWithTimeout(thisTimeBuffer, timeout: option.WebApiOptions.Settings.Timeout, cancel: cancel2);
 
                                         Debug.Assert(readSize <= thisTimeBuffer.Length);
 
@@ -884,7 +885,7 @@ namespace IPA.Cores.Basic
 
                 using var res = await http.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, url, cancel));
 
-                long totalSize = await res.DownloadStream.CopyBetweenStreamAsync(destStream, reporter: progressReporter, cancel: cancel);
+                long totalSize = await res.DownloadStream.CopyBetweenStreamAsync(destStream, reporter: progressReporter, cancel: cancel, readTimeout: option.WebApiOptions.Settings.Timeout);
 
                 progressReporter.ReportProgress(new ProgressData(totalSize, isFinish: true));
             }

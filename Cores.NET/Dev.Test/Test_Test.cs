@@ -894,6 +894,15 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                while (true)
+                {
+                    using var timeoutCts = new CancellationTokenSource(10000);
+                    Util.DoNothing();
+                }
+            }
+
+            if (true)
+            {
                 using var statman = new StatMan(new StatManConfig
                 {
                     Callback = (p, v1, v2) =>

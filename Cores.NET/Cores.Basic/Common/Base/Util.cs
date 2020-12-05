@@ -2958,12 +2958,15 @@ namespace IPA.Cores.Basic
 
         // Stream から Stream へのコピー (ファイルのダウンロードなど)
         public static async Task<long> CopyBetweenStreamAsync(Stream src, Stream dest, CopyFileParams? param = null, ProgressReporterBase? reporter = null,
-            long estimatedSize = -1, CancellationToken cancel = default, Ref<uint>? srcZipCrc = null, long truncateSize = -1, bool flush = false)
+            long estimatedSize = -1, CancellationToken cancel = default, Ref<uint>? srcZipCrc = null, long truncateSize = -1, bool flush = false, int readTimeout = Timeout.Infinite, int writeTimeout = Timeout.Infinite)
         {
             if (param == null) param = new CopyFileParams();
             if (reporter == null) reporter = new NullProgressReporter(null);
             if (param.IgnoreReadError) throw new ArgumentException(nameof(param.IgnoreReadError));
             if (srcZipCrc == null) srcZipCrc = new Ref<uint>();
+
+            if (readTimeout <= 0) readTimeout = Timeout.Infinite;
+            if (writeTimeout <= 0) writeTimeout = Timeout.Infinite;
 
             if (truncateSize >= 0)
             {
@@ -2998,7 +3001,17 @@ namespace IPA.Cores.Basic
                                 if (remainSize == 0) break;
                             }
 
-                            int readSize = await src.ReadAsync(thisTimeBuffer, cancel);
+
+                            int readSize;
+
+                            if (readTimeout == Timeout.Infinite)
+                            {
+                                readSize = await src.ReadAsync(thisTimeBuffer, cancel);
+                            }
+                            else
+                            {
+                                readSize = await src._ReadAsyncWithTimeout(thisTimeBuffer, readTimeout, cancel: cancel);
+                            }
 
                             Debug.Assert(readSize <= thisTimeBuffer.Length);
 
@@ -3011,7 +3024,14 @@ namespace IPA.Cores.Basic
                                 srcCrc.Append(sliced.Span);
                             }
 
-                            await dest.WriteAsync(sliced, cancel);
+                            if (writeTimeout == Timeout.Infinite)
+                            {
+                                await dest.WriteAsync(sliced, cancel);
+                            }
+                            else
+                            {
+                                await dest._WriteAsyncWithTimeout(sliced, writeTimeout, cancel);
+                            }
 
                             currentPosition += readSize;
                             reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));
@@ -3050,7 +3070,16 @@ namespace IPA.Cores.Basic
                                     }
                                 }
 
-                                int readSize = await src.ReadAsync(thisTimeBuffer, cancel);
+                                int readSize;
+
+                                if (readTimeout == Timeout.Infinite)
+                                {
+                                    readSize = await src.ReadAsync(thisTimeBuffer, cancel);
+                                }
+                                else
+                                {
+                                    readSize = await src._ReadAsyncWithTimeout(thisTimeBuffer, readTimeout, cancel: cancel);
+                                }
 
                                 Debug.Assert(readSize <= buffer.Length);
 
@@ -3074,7 +3103,17 @@ namespace IPA.Cores.Basic
                                     srcCrc.Append(sliced.Span);
                                 }
 
-                                lastWriteTask = AsyncAwait(async () => { await dest.WriteAsync(sliced, cancel); });
+                                lastWriteTask = AsyncAwait(async () =>
+                                {
+                                    if (writeTimeout == Timeout.Infinite)
+                                    {
+                                        await dest.WriteAsync(sliced, cancel);
+                                    }
+                                    else
+                                    {
+                                        await dest._WriteAsyncWithTimeout(sliced, writeTimeout, cancel);
+                                    }
+                                });
                             }
 
                             reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));

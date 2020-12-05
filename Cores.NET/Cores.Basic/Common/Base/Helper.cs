@@ -1096,18 +1096,18 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
-        public static async Task _WriteAsyncWithTimeout(this Stream stream, byte[] buffer, int offset = 0, int? count = null, int? timeout = null, CancellationToken cancel = default, params CancellationToken[] cancelTokens)
+        public static async Task _WriteAsyncWithTimeout(this Stream stream, ReadOnlyMemory<byte> buffer, int? timeout = null, CancellationToken cancel = default, params CancellationToken[] cancelTokens)
         {
             if (timeout == null) timeout = stream.WriteTimeout;
             if (timeout <= 0) timeout = Timeout.Infinite;
-            int targetWriteSize = count ?? (buffer.Length - offset);
+            int targetWriteSize = buffer.Length;
             if (targetWriteSize == 0) return;
 
             try
             {
                 await TaskUtil.DoAsyncWithTimeout(async (cancelLocal) =>
                 {
-                    await stream.WriteAsync(buffer, offset, targetWriteSize, cancelLocal);
+                    await stream.WriteAsync(buffer, cancelLocal);
                     return 0;
                 },
                 timeout: (int)timeout,
@@ -2280,8 +2280,8 @@ namespace IPA.Cores.Helper.Basic
         public static DateTimeOffset _Time64ToDateTimeOffsetLocal(this long value) => Time.Time64ToDateTimeOffsetLocal(value);
 
         public static Task<long> CopyBetweenStreamAsync(this Stream src, Stream dest, CopyFileParams? param = null, ProgressReporterBase? reporter = null,
-            long estimatedSize = -1, CancellationToken cancel = default, Ref<uint>? srcZipCrc = null, long truncateSize = -1, bool flush = false)
-            => Util.CopyBetweenStreamAsync(src, dest, param, reporter, estimatedSize, cancel, srcZipCrc, truncateSize, flush);
+            long estimatedSize = -1, CancellationToken cancel = default, Ref<uint>? srcZipCrc = null, long truncateSize = -1, bool flush = false, int readTimeout = Timeout.Infinite, int writeTimeout = Timeout.Infinite)
+            => Util.CopyBetweenStreamAsync(src, dest, param, reporter, estimatedSize, cancel, srcZipCrc, truncateSize, flush, readTimeout, writeTimeout);
 
         public static RandomAccessBasedStream GetStream(this IRandomAccess<byte> target, bool disposeTarget = false)
             => new RandomAccessBasedStream(target, disposeTarget);
