@@ -69,6 +69,8 @@ namespace IPA.Cores.Basic
 
         // Stat 系
         public string? StatUid;
+        public string? StatAppVer;
+        public string? StatGitCommitId;
         public string? StatGlobalIp;
         public string? StatGlobalFqdn;
         public int StatGlobalPort;

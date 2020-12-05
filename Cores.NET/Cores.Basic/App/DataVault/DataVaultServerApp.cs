@@ -119,6 +119,10 @@ namespace IPA.Cores.Basic
             {
                 recv.NormalizeReceivedData();
 
+                recv.StatGitCommitId = recv.StatGitCommitId._NonNullTrim();
+
+                recv.StatAppVer = recv.StatAppVer._NonNullTrim();
+
                 recv.TimeStamp = DtOffsetNow;
 
                 recv.StatGlobalIp = remote.Address.ToString();
