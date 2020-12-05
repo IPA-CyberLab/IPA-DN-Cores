@@ -1277,7 +1277,7 @@ namespace IPA.Cores.Basic
 
             if (fileName.Length < baseDirName.Length)
             {
-                throw new ArgumentException("fileName.Length < baseDirName.Length");
+                throw new ArgumentException($"fileName.Length < baseDirName.Length: \"{fileName}\" < \"{baseDirName}\"");
             }
 
             if (fileName.StartsWith(baseDirName, this.PathStringComparison) == false)
