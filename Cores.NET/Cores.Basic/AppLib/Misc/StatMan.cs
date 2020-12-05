@@ -241,7 +241,7 @@ namespace IPA.Cores.Basic
             vers.Add("CPU", Env.CpuInfo.ToString());
             vers.Add("NUMCPU", Env.NumCpus.ToString());
             vers.Add("DOTNET", Env.FrameworkInfoString);
-            vers.Add("EXE", Env.AppExecutableExeOrDllFileDir._GetFileName() ?? "");
+            vers.Add("EXE", Env.AppExecutableExeOrDllFileName._GetFileName() ?? "");
 
             List<string> versStrs = new List<string>();
             vers.ForEach(x => versStrs.Add($"{x.Key}={x.Value}"));
