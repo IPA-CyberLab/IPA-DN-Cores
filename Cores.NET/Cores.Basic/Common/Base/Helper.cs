@@ -680,6 +680,42 @@ namespace IPA.Cores.Helper.Basic
         public static Task _TryAwait(this Task? t, bool noDebugMessage = false) => _TryWaitAsync(t, noDebugMessage);
         public static Task<T> _TryAwait<T>(this Task<T>? t, bool noDebugMessage = false) => _TryWaitAsync(t, noDebugMessage);
 
+        public static async Task<ResultOrExeption<T>> _TryAwaitAndRetBool<T>(this Task<T>? t, bool noDebugMessage = false)
+        {
+            if (t == null) return new ResultOrExeption<T>(new NullReferenceException());
+            try
+            {
+                T ret = await t;
+
+                return new ResultOrExeption<T>(ret);
+            }
+            catch (Exception ex)
+            {
+                if (noDebugMessage == false)
+                    Dbg.WriteLine("Task exception: " + ex._GetSingleException().ToString());
+
+                return new ResultOrExeption<T>(ex);
+            }
+        }
+
+        public static async Task<ResultOrExeption<None>> _TryAwaitAndRetBool(this Task? t, bool noDebugMessage = false)
+        {
+            if (t == null) return new ResultOrExeption<None>(new NullReferenceException());
+            try
+            {
+                await t;
+
+                return new ResultOrExeption<None>(new None());
+            }
+            catch (Exception ex)
+            {
+                if (noDebugMessage == false)
+                    Dbg.WriteLine("Task exception: " + ex._GetSingleException().ToString());
+
+                return new ResultOrExeption<None>(ex);
+            }
+        }
+
         public static T[] _ToArrayList<T>(this IEnumerable<T> i) => Util.IEnumerableToArrayList<T>(i);
 
         public static T? _GetFirstOrNull<T>(this List<T> list) where T : class => (list == null ? null : (list.Count == 0 ? null : list[0]));

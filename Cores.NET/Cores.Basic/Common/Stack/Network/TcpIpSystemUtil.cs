@@ -217,6 +217,45 @@ namespace IPA.Cores.Basic
         {
             MasterData.DomainSuffixList.ParseDomainBySuffixList(fqdn, out suffix, out suffixPlusOneToken, out hostnames);
         }
+
+        async Task<IPAddress?> GetMyPrivateIpInternalAsync(string hostname, int port, CancellationToken cancel = default)
+        {
+            try
+            {
+                using (var sock = await this.ConnectAsync(new TcpConnectParam(hostname, port, connectTimeout: 5000, dnsTimeout: 5000)))
+                {
+                    return sock.EndPointInfo.LocalIP._ToIPAddress(AllowedIPVersions.IPv4);
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public async Task<IPAddress> GetMyPrivateIpAsync(CancellationToken cancel = default)
+        {
+            string[] hosts = new string[]
+                {
+                    "www.msftncsi.com",
+                    "www.msftconnecttest.com",
+                    "www.microsoft.com",
+                    "www.yahoo.com",
+                    "www.bing.com",
+                };
+
+            foreach (string host in hosts)
+            {
+                var ip = await GetMyPrivateIpInternalAsync(host, Consts.Ports.Http, cancel);
+
+                if (ip != null)
+                {
+                    return ip;
+                }
+            }
+
+            return IPAddress.Loopback;
+        }
     }
 
     public class MiddleSock : NetSock

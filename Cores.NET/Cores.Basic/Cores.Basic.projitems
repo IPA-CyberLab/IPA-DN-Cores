@@ -11,6 +11,7 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AppLib\File\DirSuperBackup.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AppLib\Misc\MiscUtil.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)AppLib\Misc\StatMan.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AppLib\Network\DnsAndCertUtil.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\CactiClient\CactiClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\DaemonCenter\3_Client.cs" />

@@ -894,6 +894,48 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                using var statman = new StatMan(new StatManConfig
+                {
+                    Callback = (p, v1, v2) =>
+                    {
+                        v1["callback1"] = Time.HighResTick64;
+                        v1["traffic_total"] = 10;
+                        v2["today"] = DtOffsetNow._ToDtStr(true);
+
+                        return TR();
+                    }
+                });
+
+                statman.AddReport("int1", 123);
+                statman.AddReport("str1", "hello");
+
+                statman.AddReport("int2_total", 1);
+
+                Con.ReadLine("quit>");
+
+                return;
+            }
+
+            if (true)
+            {
+                LocalNet.GetMyPrivateIpAsync()._GetResult()._Print();
+                return;
+            }
+
+            if (true)
+            {
+                KeyValueList<string, long> x = new KeyValueList<string, long>();
+
+                KeyValueList<string, string> y = new KeyValueList<string, string>();
+                x.Add("ab", 123);
+                x.Add("cd", 456);
+                y.Add("ef", "123");
+                y._DebugAsJson();
+                return;
+            }
+
+            if (true)
+            {
                 while (true)
                 {
                     string fqdn = Con.ReadLine()!;

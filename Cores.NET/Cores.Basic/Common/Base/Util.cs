@@ -6914,6 +6914,8 @@ namespace IPA.Cores.Basic
         public static implicit operator ResultOrExeption<T>([AllowNull] T result) => new ResultOrExeption<T>(result);
         public static implicit operator ResultOrExeption<T>(Exception ex) => new ResultOrExeption<T>(ex);
 
+        public static implicit operator bool(ResultOrExeption<T>? resultOrException) => resultOrException != null && resultOrException.IsOk;
+
         [return: MaybeNull]
         public static implicit operator T(ResultOrExeption<T> resultOrException) => resultOrException.Value;
     }
