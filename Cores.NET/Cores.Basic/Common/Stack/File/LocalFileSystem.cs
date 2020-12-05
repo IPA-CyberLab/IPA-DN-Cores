@@ -236,6 +236,8 @@ namespace IPA.Cores.Basic
 
         static FileSystemEntity ConvertFileSystemInfoToFileSystemEntity(FileSystemInfo info)
         {
+            info._DebugAsJson();
+
             FileSystemEntity ret = new FileSystemEntity(
                 name : info.Name,
                 fullPath : info.FullName,
