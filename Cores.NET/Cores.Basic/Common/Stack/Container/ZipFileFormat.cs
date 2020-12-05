@@ -399,18 +399,22 @@ namespace IPA.Cores.Basic
 
         public Exception? Error { get; private set; } = null;
 
+        readonly Memory<byte> InitialHeader;
+
         public ZipEncryptionStream(Stream baseStream, bool leaveStreamOpen, string password, byte byte11th) : base(baseStream, leaveStreamOpen, new StreamImplBaseOptions(false, true, false))
         {
             this.Enc = new ZipEncryption(password);
 
-            // 最初の 12 バイトのダミーデータ (PKZIP のドキュメントではヘッダと呼ばれている) を書き込む
+            // 最初の 12 バイトのダミーデータ (PKZIP のドキュメントではヘッダと呼ばれている) データを覚える
+            InitialHeader = Secure.Rand(12);
 
-            byte[] header = new byte[12];
-            Secure.Rand(12);
-            
-            header[11] = byte11th;
-
-            this.Write(header);
+            InitialHeader.Span[11] = byte11th;
+        }
+        
+        // 最初の 12 バイトのダミーデータ (PKZIP のドキュメントではヘッダと呼ばれている) を書き込む
+        protected override async Task InitImplAsync(CancellationToken cancel = default)
+        {
+            await this.WriteAsync(this.InitialHeader, cancel);
         }
 
         public override bool DataAvailable => false;
@@ -425,7 +429,7 @@ namespace IPA.Cores.Basic
                 Memory<byte> tmp = new byte[buffer.Length];
 
                 Enc.Encrypt(tmp.Span, buffer.Span);
-
+                
                 // 暗号化したデータを書き込みいたします
                 await this.BaseStream.WriteAsync(tmp, cancellationToken);
             }

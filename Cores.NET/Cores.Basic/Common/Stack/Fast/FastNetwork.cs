@@ -1893,10 +1893,20 @@ namespace IPA.Cores.Basic
         public Stream BaseStream { get; }
         public bool LeaveStreamOpen { get; }
 
+        protected abstract Task InitImplAsync(CancellationToken cancel = default);
+
         public WrapperStreamImplBase(Stream baseStream, bool leaveStreamOpen, StreamImplBaseOptions? options = null) : base(options)
         {
             this.BaseStream = baseStream;
             this.LeaveStreamOpen = leaveStreamOpen;
+        }
+
+        Once Inited;
+        public async Task InitAsync(CancellationToken cancel = default)
+        {
+            if (Inited.IsFirstCall() == false) return;
+
+            await InitImplAsync(cancel);
         }
 
         Once DisposeFlag;

@@ -602,7 +602,7 @@ namespace IPA.Cores.Basic
                             dirtmp = PPWin.MakeSafeFileName(dirtmp);
                         }
 
-                        string zip_fn = $"alldir_{Str.DateTimeToStrShort(DtNow).Substring(2)}_{fullUri.Host._NonNullTrim()}_{dirtmp}{Consts.Extensions.Zip}".ToLower();
+                        string zip_fn = $"alldir_{Str.DateTimeToStrShort(DtNow).Substring(2)}_{fullUri.Host._MakeSafeFileName()._NonNullTrim()}_{dirtmp}{Consts.Extensions.Zip}".ToLower();
 
                         // ZIP ファイルとしてまとめてダウンロード
                         PipeStreamPairWithSubTask streamPair = new PipeStreamPairWithSubTask(async (writeMe) =>

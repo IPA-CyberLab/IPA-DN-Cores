@@ -348,7 +348,7 @@ namespace IPA.Cores.Basic
                         // こんなんわかるかいな！
 
                         // 暗号化レイヤーを追加
-                        this.FileContentWriterStream.Add((lower) => new ZipEncryptionStream(lower, true, Param.EncryptPassword, byte11th), autoDispose: true);
+                        await this.FileContentWriterStream.AddWraapperStreamAsync((lower) => new ZipEncryptionStream(lower, true, Param.EncryptPassword, byte11th), autoDispose: true);
                     }
 
                     if (CompressionMethod != ZipCompressionMethod.Raw)

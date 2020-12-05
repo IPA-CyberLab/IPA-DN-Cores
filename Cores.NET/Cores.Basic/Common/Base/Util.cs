@@ -7002,6 +7002,27 @@ namespace IPA.Cores.Basic
             }
         }
 
+        // WrapperStreamImplBase ストリームレイヤを追加
+        public async Task AddWraapperStreamAsync(Func<Stream, WrapperStreamImplBase> newStream, bool autoDispose = false, CancellationToken cancel = default)
+        {
+            newStream._NullCheck();
+
+            var newSt = newStream(this.LayerList.Last().Stream);
+
+            try
+            {
+                AddInternal(newSt, autoDispose);
+
+                await newSt.InitAsync(cancel);
+            }
+            catch
+            {
+                await newSt._DisposeSafeAsync();
+
+                throw;
+            }
+        }
+
         // ストリームレイヤを追加
         public void Add(Func<Stream, Stream> newStream, bool autoDispose = false)
         {
