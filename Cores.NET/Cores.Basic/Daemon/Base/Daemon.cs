@@ -79,6 +79,9 @@ namespace IPA.Cores.Basic
         // Daemon Secret
         public static string DaemonSecret => CurrentDaemonSettingsInternal.DaemonSecret._NonNullTrim();
 
+        // Daemon ZIP 暗号化パスワード
+        public static string DaemonZipEncryptPassword => CurrentDaemonSettingsInternal.DaemonZipEncryptPassword._NonNullTrim();
+
         // DaemonCenter に伝えたいメタデータの Dictionary
         public static readonly ConcurrentDictionary<string, string> MetaStatusDictionary = new ConcurrentDictionary<string, string>();
 
@@ -323,6 +326,9 @@ namespace IPA.Cores.Basic
         public string DaemonSecret = "";
 
         [DataMember]
+        public string DaemonZipEncryptPassword = "";
+
+        [DataMember]
         public string DaemonCenterAppId = "";
 
         [DataMember]
@@ -368,6 +374,9 @@ namespace IPA.Cores.Basic
 
             // 新しいシークレットを作成する
             if (this.DaemonSecret._IsEmpty()) this.DaemonSecret = Str.GenRandPassword(32);
+
+            // 新しい ZIP 暗号化パスワードを作成する
+            if (this.DaemonZipEncryptPassword._IsEmpty()) this.DaemonZipEncryptPassword = Str.GenRandPassword(32);
 
             // 新しい GUID を作成する
             if (this.DaemonCenterInstanceGuid._IsEmpty()) this.DaemonCenterInstanceGuid = Str.NewGuid();
@@ -560,6 +569,7 @@ namespace IPA.Cores.Basic
 
             DaemonSettings settingsCopy = this.Settings._CloneDeep();
             settingsCopy.DaemonSecret = Consts.Strings.HidePassword;
+            settingsCopy.DaemonZipEncryptPassword = Consts.Strings.HidePassword;
 
             lock (Con.ConsoleWriteLock)
             {

@@ -95,6 +95,8 @@ namespace IPA.Cores.Basic
 
                     string mustIncludeHostnameStr = k.GetStr("MustIncludeHostname", "*");
 
+                    string zipEncryptPassword = k.GetStr("ZipEncryptPassword", Str.GenRandPassword(mustHaveOneUnderBar: false, count: 32));
+
                     logDestDir = Lfs.ConfigPathStringToPhysicalDirectoryPath(logDestDir);
                     certVaultDir = Lfs.ConfigPathStringToPhysicalDirectoryPath(certVaultDir);
 
@@ -140,7 +142,7 @@ namespace IPA.Cores.Basic
                         tokens._DoForEach(x => httpServerOptions.MustIncludeHostnameStrList.Add(x));
                     }
 
-                    LogBrowserOptions browserOptions = new LogBrowserOptions(logDestDir);
+                    LogBrowserOptions browserOptions = new LogBrowserOptions(logDestDir, zipEncryptPassword: zipEncryptPassword);
 
                     this.LogBrowserHttpServer = LogBrowserHttpServerBuilder.StartServer(httpServerOptions, new LogBrowserHttpServerOptions(browserOptions, ""));
                 });

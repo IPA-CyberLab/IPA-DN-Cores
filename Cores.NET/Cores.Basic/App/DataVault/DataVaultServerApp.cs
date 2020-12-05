@@ -326,6 +326,8 @@ namespace IPA.Cores.Basic
 
                     string accessKey = k.GetStr("AccessKey", Str.GenRandPassword(mustHaveOneUnderBar: false, count: 32));
 
+                    string zipEncryptPassword = k.GetStr("ZipEncryptPassword", Str.GenRandPassword(mustHaveOneUnderBar: false, count: 32));
+
                     dataDestDir = Lfs.ConfigPathStringToPhysicalDirectoryPath(dataDestDir);
                     certVaultDir = Lfs.ConfigPathStringToPhysicalDirectoryPath(certVaultDir);
 
@@ -372,7 +374,7 @@ namespace IPA.Cores.Basic
                         tokens._DoForEach(x => httpServerOptions.MustIncludeHostnameStrList.Add(x));
                     }
 
-                    LogBrowserOptions browserOptions = new LogBrowserOptions(dataDestDir);
+                    LogBrowserOptions browserOptions = new LogBrowserOptions(dataDestDir, zipEncryptPassword: zipEncryptPassword);
 
                     this.LogBrowserHttpServer = DataVaultLogBrowserHttpServerBuilder.StartServer(httpServerOptions, new DataVaultLogBrowserHttpServerOptions(browserOptions, "", this, this.DataVaultServer));
                 });

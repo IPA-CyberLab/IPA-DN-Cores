@@ -146,6 +146,7 @@ namespace IPA.Cores.Basic
         NoPreview = 1, // プレビューボタンなし
         NoRootDirectory = 2, // 最上位ディレクトリへのアクセス不可
         SecureJson = 4, // _secure.json ファイルを必要とし、色々なセキュリティ処理を実施する
+        NoZipDownload = 8, // ZIP ダウンロードを禁止
     }
 
     // LogBrowser のオプション
@@ -156,12 +157,15 @@ namespace IPA.Cores.Basic
         public long TailSize { get; }
         public Func<IPAddress, bool> ClientIpAcl { get; }
         public LogBrowserFlags Flags { get; }
+        public string ZipEncryptPassword { get; }
 
         public LogBrowserOptions(DirectoryPath rootDir,
             string systemTitle = Consts.Strings.LogBrowserDefaultSystemTitle,
             long tailSize = Consts.Numbers.LogBrowserDefaultTailSize,
             Func<IPAddress, bool>? clientIpAcl = null,
-            LogBrowserFlags flags = LogBrowserFlags.None)
+            LogBrowserFlags flags = LogBrowserFlags.None,
+            string? zipEncryptPassword = null
+            )
         {
             this.SystemTitle = systemTitle._FilledOrDefault(Consts.Strings.LogBrowserDefaultSystemTitle);
             this.RootDir = rootDir;
@@ -172,6 +176,8 @@ namespace IPA.Cores.Basic
 
             this.ClientIpAcl = clientIpAcl;
             this.Flags = flags;
+
+            this.ZipEncryptPassword = zipEncryptPassword._NonNull();
         }
 
         public void SetSystemTitle(string title)
@@ -345,6 +351,8 @@ namespace IPA.Cores.Basic
             alog.UserAgent = request.Headers[Consts.HttpHeaders.UserAgent];
             alog.Referer = request.Headers[Consts.HttpHeaders.Referer];
 
+            alog.Url._ParseUrl(out Uri fullUri, out _);
+
             Ref<string> suppliedPassword = "";
 
             try
@@ -401,7 +409,7 @@ namespace IPA.Cores.Basic
                     string[] dirNames = PathParser.Linux.SplitAbsolutePathToElementsUnixStyle(physicalPath);
                     string firstDirName = "/" + dirNames[0];
                     zipDownloadRoot = firstDirName;
-                    zipFileName = PPWin.MakeSafeFileName(dirNames[0] + "_" + Str.DateTimeToStrShort(DtNow).Substring(2) +  Consts.Extensions.Zip);
+                    zipFileName = PPWin.MakeSafeFileName(dirNames[0] + "_" + Str.DateTimeToStrShort(DtNow).Substring(2) + Consts.Extensions.Zip);
 
                     secureJsonPath = PathParser.Linux.Combine(firstDirName, Consts.FileNames.LogBrowserSecureJson);
 
@@ -429,7 +437,6 @@ namespace IPA.Cores.Basic
                         // 認証が必要とされている場合、パスが  /任意の名前/<authsubdirname>/ である場合は Basic 認証を経由して実ファイルにアクセスさせる。
                         // それ以外の場合は、認証案内ページを出す。
                         var x = request.GetDisplayUrl();
-                        request.GetDisplayUrl()._ParseUrl(out Uri fullUri, out _);
                         var thisDirFullUrl = new Uri(fullUri, this.AbsolutePathPrefix + firstDirName + "/");
                         var authFullUrl = new Uri(thisDirFullUrl, secureJson.AuthSubDirName + "/");
 
@@ -544,6 +551,16 @@ namespace IPA.Cores.Basic
 
                     footer += $"<HR><p>IPA FileCenter Uploader: <a href='https://github.com/IPA-CyberLab/IPA-DN-FileCenter'>オープンソース GitHub ソースコード</a> | <a href='https://github.com/IPA-CyberLab/IPA-DN-FileCenter/blob/master/LICENSE'>使用条件</a> | Copyright &copy; {DateTime.Now.Year.ToString()} IPA 産業サイバーセキュリティセンター サイバー技術研究室. All rights reserved.</p>";
                 }
+                else
+                {
+                    if (this.Options.Flags.Bit(LogBrowserFlags.NoZipDownload) == false)
+                    {
+                        // 通常モード ZIP ダウンロードを許可
+                        footer += "<hr>";
+
+                        footer += $"<p><a href=\"./?zip=1\"><strong><i class=\"fas fa-download\"></i> ZIP ファイルとしてこのディレクトリ以下をまとめてダウンロード</strong></a></p>";
+                    }
+                }
 
                 if (logicalPath._IsEmpty()) logicalPath = physicalPath;
 
@@ -568,6 +585,52 @@ namespace IPA.Cores.Basic
                 if (await RootFs.IsDirectoryExistsAsync(physicalPath, cancel))
                 {
                     // Directory
+                    if (qsList._GetStrFirst("zip")._ToBool() && this.Options.Flags.Bit(LogBrowserFlags.SecureJson) == false && this.Options.Flags.Bit(LogBrowserFlags.NoZipDownload) == false)
+                    {
+                        string dirtmp = physicalPath._NonNullTrim();
+                        if (dirtmp.StartsWith("/"))
+                        {
+                            dirtmp = dirtmp.Substring(1);
+                        }
+
+                        if (dirtmp._IsEmpty())
+                        {
+                            dirtmp = "root";
+                        }
+                        else
+                        {
+                            dirtmp = PPWin.MakeSafeFileName(dirtmp);
+                        }
+
+                        string zip_fn = $"alldir_{Str.DateTimeToStrShort(DtNow).Substring(2)}_{fullUri.Host._NonNullTrim()}_{dirtmp}{Consts.Extensions.Zip}".ToLower();
+
+                        // ZIP ファイルとしてまとめてダウンロード
+                        PipeStreamPairWithSubTask streamPair = new PipeStreamPairWithSubTask(async (writeMe) =>
+                        {
+                            using WriteOnlyStreamBasedRandomAccess r = new WriteOnlyStreamBasedRandomAccess(writeMe);
+
+                            await using ZipWriter zipWriter = new ZipWriter(new ZipContainerOptions(r), cancel);
+
+                            await zipWriter.ImportDirectoryAsync(new DirectoryPath(physicalPath, RootFs),
+                                new FileContainerEntityParam(flags: FileContainerEntityFlags.FileNameUseShiftJisIfPossible | FileContainerEntityFlags.EnableCompression | FileContainerEntityFlags.CompressionMode_Fast,
+                                encryptPassword: this.Options.ZipEncryptPassword),
+                                exceptionHandler: (pathInfo, exception, cancel) =>
+                                {
+                                    exception._Error();
+                                    return true._TaskResult();
+                                },
+                                cancel: cancel);
+
+                            await zipWriter.FinishAsync(cancel);
+                        });
+
+                        List<KeyValuePair<string, string>> headers = new List<KeyValuePair<string, string>>();
+
+                        headers.Add(new KeyValuePair<string, string>(Consts.HttpHeaders.ContentDisposition, $"attachment; filename=\"{zip_fn}\""));
+
+                        return new HttpResult(streamPair.StreamA, 0, null, Consts.MimeTypes.Zip, additionalHeaders: headers, onDisposeAsync: () => streamPair._DisposeSafeAsync2());
+                    }
+
                     string htmlBody = await BuildDirectoryHtmlAsync(new DirectoryPath(physicalPath, RootFs), logicalPath, footer, cancel);
 
                     return new HttpStringResult(htmlBody, contentType: Consts.MimeTypes.HtmlUtf8);
@@ -658,6 +721,11 @@ namespace IPA.Cores.Basic
 
                             await zipWriter.ImportDirectoryAsync(new DirectoryPath(zipDownloadRoot, RootFs), new FileContainerEntityParam(flags: FileContainerEntityFlags.FileNameUseShiftJisIfPossible),
                                 fileFilter: e => !PPWin.SplitTokens(e.FullPath).Where(name => Consts.FileNames.IsSpecialFileNameForLogBrowser(name)).Any(),
+                                exceptionHandler: (pathInfo, exception, cancel) =>
+                                {
+                                    exception._Error();
+                                    return true._TaskResult();
+                                },
                                 cancel: cancel);
 
                             await zipWriter.FinishAsync(cancel);

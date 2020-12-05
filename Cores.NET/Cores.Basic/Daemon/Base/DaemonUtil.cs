@@ -107,6 +107,7 @@ namespace IPA.Cores.Basic
                     LogBrowserOptions browserOptions = new LogBrowserOptions(
                         Env.AppRootDir, 
                         systemTitle: $"{Env.DnsFqdnHostName}",
+                        zipEncryptPassword: GlobalDaemonStateManager.DaemonZipEncryptPassword,
                         clientIpAcl: (ip) =>
                         {
                             // 接続元 IP アドレスの種類を取得
