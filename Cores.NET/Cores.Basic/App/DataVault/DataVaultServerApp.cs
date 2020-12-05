@@ -136,6 +136,21 @@ namespace IPA.Cores.Basic
 
                 if (recv.SystemName._IsFilled() && recv.LogName._IsFilled())
                 {
+                    // UID からキーを生成
+                    try
+                    {
+                        DataVaultData d = recv._CloneIfClonable();
+                        d.KeyType = "by_uid";
+                        d.KeyShortValue = recv.StatUid._TruncStr(3);
+                        d.KeyFullValue = recv.StatUid._TruncStr(6);
+
+                        list.Add(d);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+
                     // グローバル IP からキーを生成
                     try
                     {
