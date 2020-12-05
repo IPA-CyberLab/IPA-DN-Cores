@@ -600,7 +600,7 @@ namespace IPA.Cores.Basic
         protected override Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default)
         {
             // The exception will thrown if the path is not an absolute path
-            return Task.FromResult(Path.GetFullPath(PathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(path)));
+            return Task.FromResult(PathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(path));
         }
 
         protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
