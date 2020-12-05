@@ -248,8 +248,6 @@ namespace IPA.Cores.Basic
 
             ret.PhysicalSize = ret.Size;
 
-            ret._DebugAsJson();
-
             return ret;
         }
 
