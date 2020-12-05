@@ -363,7 +363,7 @@ namespace IPA.Cores.Basic
                         HttpPortsList = Str.ParsePortsList(httpPortsStr).ToList(),
                         HttpsPortsList = Str.ParsePortsList(httpsPortsStr).ToList(),
                         DebugKestrelToConsole = true,
-                        UseKestrelWithIPACoreStack = true,
+                        UseKestrelWithIPACoreStack = false,
                         AutomaticRedirectToHttpsIfPossible = true,
                         LocalHostOnly = false,
                     };
