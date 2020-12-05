@@ -187,7 +187,7 @@ namespace IPA.Cores.Basic
                 await cancel._WaitUntilCanceledAsync(interval);
             }
 
-            await NormalizeAndPollAsync(cancel);
+            await NormalizeAndPollAsync();
         }
 
         async Task PostTaskProcAsync(CancellationToken cancel = default)
@@ -277,7 +277,10 @@ namespace IPA.Cores.Basic
 
             var ret = await http.SimplePostJsonAsync(WebMethods.POST, Config.PostUrl, postStr, cancel);
 
-            ret.ToString()._Print();
+            if (ret.ToString()._InStr("ok") == false)
+            {
+                throw new CoresException($"Http error: {ret.ToString()._TruncStrEx(1000)}");
+            }
         }
 
         public void AddReport(string name, long value)

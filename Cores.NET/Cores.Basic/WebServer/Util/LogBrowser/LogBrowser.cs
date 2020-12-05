@@ -158,13 +158,15 @@ namespace IPA.Cores.Basic
         public Func<IPAddress, bool> ClientIpAcl { get; }
         public LogBrowserFlags Flags { get; }
         public string ZipEncryptPassword { get; }
+        public StatMan? Stat { get; }
 
         public LogBrowserOptions(DirectoryPath rootDir,
             string systemTitle = Consts.Strings.LogBrowserDefaultSystemTitle,
             long tailSize = Consts.Numbers.LogBrowserDefaultTailSize,
             Func<IPAddress, bool>? clientIpAcl = null,
             LogBrowserFlags flags = LogBrowserFlags.None,
-            string? zipEncryptPassword = null
+            string? zipEncryptPassword = null,
+            StatMan? stat = null
             )
         {
             this.SystemTitle = systemTitle._FilledOrDefault(Consts.Strings.LogBrowserDefaultSystemTitle);
@@ -178,6 +180,8 @@ namespace IPA.Cores.Basic
             this.Flags = flags;
 
             this.ZipEncryptPassword = zipEncryptPassword._NonNull();
+
+            this.Stat = stat;
         }
 
         public void SetSystemTitle(string title)
@@ -339,6 +343,8 @@ namespace IPA.Cores.Basic
         async Task<HttpResult> ProcessRequestInternalAsync(IPAddress clientIpAddress, int clientPort, string requestPathAndQueryString, HttpRequest request, HttpResponse response, CancellationToken cancel,
             InternalAccessLogResults accessLogResults)
         {
+            Options.Stat?.AddReport("DownloadTryAccess_Total", 1);
+
             string footer = "";
 
             clientIpAddress = clientIpAddress._UnmapIPv4();
@@ -611,7 +617,7 @@ namespace IPA.Cores.Basic
 
                             await using ZipWriter zipWriter = new ZipWriter(new ZipContainerOptions(r), cancel);
 
-                            await zipWriter.ImportDirectoryAsync(new DirectoryPath(physicalPath, RootFs),
+                            long totalSize = await zipWriter.ImportDirectoryAsync(new DirectoryPath(physicalPath, RootFs),
                                 new FileContainerEntityParam(flags: FileContainerEntityFlags.FileNameUseShiftJisIfPossible | FileContainerEntityFlags.EnableCompression | FileContainerEntityFlags.CompressionMode_Fast,
                                 encryptPassword: this.Options.ZipEncryptPassword),
                                 exceptionHandler: (pathInfo, exception, cancel) =>
@@ -620,6 +626,9 @@ namespace IPA.Cores.Basic
                                     return true._TaskResult();
                                 },
                                 cancel: cancel);
+
+                            Options.Stat?.AddReport("DownloadDataSize_Total", totalSize);
+                            Options.Stat?.AddReport("DownloadZipCount_Total", 1);
 
                             await zipWriter.FinishAsync(cancel);
                         });
@@ -632,6 +641,8 @@ namespace IPA.Cores.Basic
                     }
 
                     string htmlBody = await BuildDirectoryHtmlAsync(new DirectoryPath(physicalPath, RootFs), logicalPath, footer, cancel);
+
+                    Options.Stat?.AddReport("DownloadBrowseDirectory_Total", 1);
 
                     return new HttpStringResult(htmlBody, contentType: Consts.MimeTypes.HtmlUtf8);
                 }
@@ -719,7 +730,7 @@ namespace IPA.Cores.Basic
 
                             await using ZipWriter zipWriter = new ZipWriter(new ZipContainerOptions(r), cancel);
 
-                            await zipWriter.ImportDirectoryAsync(new DirectoryPath(zipDownloadRoot, RootFs), new FileContainerEntityParam(flags: FileContainerEntityFlags.FileNameUseShiftJisIfPossible),
+                            long totalSize = await zipWriter.ImportDirectoryAsync(new DirectoryPath(zipDownloadRoot, RootFs), new FileContainerEntityParam(flags: FileContainerEntityFlags.FileNameUseShiftJisIfPossible),
                                 fileFilter: e => !PPWin.SplitTokens(e.FullPath).Where(name => Consts.FileNames.IsSpecialFileNameForLogBrowser(name)).Any(),
                                 exceptionHandler: (pathInfo, exception, cancel) =>
                                 {
@@ -727,6 +738,9 @@ namespace IPA.Cores.Basic
                                     return true._TaskResult();
                                 },
                                 cancel: cancel);
+
+                            Options.Stat?.AddReport("DownloadDataSize_Total", totalSize);
+                            Options.Stat?.AddReport("DownloadZipCount_Total", 1);
 
                             await zipWriter.FinishAsync(cancel);
                         });
@@ -838,6 +852,9 @@ namespace IPA.Cores.Basic
                             }
                             catch { }
                         }
+
+                        Options.Stat?.AddReport("DownloadFileCount_Total", 1);
+                        Options.Stat?.AddReport("DownloadDataSize_Total", readSize);
 
                         return new HttpResult(fileStream, readStart, readSize, mimeType, preData: preData);
                     }
