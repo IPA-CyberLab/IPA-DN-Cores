@@ -126,7 +126,120 @@ namespace IPA.Cores.Basic
     // 色々なおまけユーティリティ
     public static partial class MiscUtil
     {
-        public static async Task BatchExecSshAsync(IEnumerable<BatchExecSshItem> items, UnixShellProcessorSettings ?settings = null)
+        // バイナリファイルの内容をバイナリで置換する
+        public static async Task<KeyValueList<string, int>> ReplaceBinaryFileAsync(FilePath file, KeyValueList<string, string> oldNewList, byte fillByte = 0x0A, int bufferSize = 1_000_000_000, CancellationToken cancel = default)
+        {
+            checked
+            {
+                List<Pair4<string, ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, RefInt>> list = new List<Pair4<string, ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, RefInt>>();
+
+                // 引数チェック等
+                foreach (var kv in oldNewList)
+                {
+                    string oldStr = kv.Key;
+                    string newStr = kv.Value;
+
+                    Memory<byte> oldData = oldStr._GetHexOrString();
+                    Memory<byte> newData = newStr._GetHexOrString();
+
+                    if (oldData.Length == 0 && newData.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    if (oldData.Length != newData.Length)
+                    {
+                        if (oldData.Length == 0)
+                        {
+                            throw new CoresException("oldData.Length == 0");
+                        }
+                        else if (oldData.Length < newData.Length)
+                        {
+                            throw new CoresException("oldData.Length < newData.Length");
+                        }
+                        else
+                        {
+                            Memory<byte> newData2 = new byte[oldData.Length];
+
+                            newData.CopyTo(newData2);
+
+                            newData2.Slice(newData.Length).Span.Fill(fillByte);
+
+                            newData = newData2;
+                        }
+                    }
+
+                    list.Add(new Pair4<string, ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, RefInt>(oldStr, oldData, newData, 0));
+                }
+
+                if (list.Any() == false)
+                {
+                    // 置換なし
+                    return new KeyValueList<string, int>();
+                }
+
+                using var f = await file.OpenAsync(true, cancel: cancel);
+                long filesize = await f.GetFileSizeAsync(cancel: cancel);
+
+                bufferSize = (int)Math.Min(bufferSize, filesize);
+
+                bufferSize = Math.Max(bufferSize, list.Max(x => x.B.Length) * 2);
+
+                using (MemoryHelper.FastAllocMemoryWithUsing(bufferSize, out Memory<byte> buffer))
+                {
+                    for (long pos = 0; pos < filesize; pos += ((bufferSize + 1) / 2))
+                    {
+                        long blockSize = Math.Min(bufferSize, filesize - pos);
+
+                        int actualSize = await f.ReadRandomAsync(pos, buffer, cancel);
+
+                        if (actualSize >= 1)
+                        {
+                            Memory<byte> target = buffer.Slice(0, actualSize);
+
+                            bool modified = false;
+
+                            Sync(() =>
+                            {
+                                var span = target.Span;
+
+                                foreach (var item in list)
+                                {
+                                    int start = 0;
+                                    while (true)
+                                    {
+                                        int found = span._IndexOfAfter(item.B.Span, start);
+                                        if (found == -1) break;
+                                        start = found + 1;
+
+                                        item.C.Span.CopyTo(span.Slice(found));
+                                        item.D.Increment();
+                                        modified = true;
+                                    }
+                                }
+                            });
+
+                            if (modified)
+                            {
+                                await f.WriteRandomAsync(pos, target, cancel);
+                            }
+                        }
+                    }
+                }
+
+                KeyValueList<string, int> ret = new KeyValueList<string, int>();
+
+                foreach (var item in list)
+                {
+                    ret.Add(item.A, item.D);
+                }
+
+                return ret;
+            }
+        }
+
+        // 複数のホストに対して SSH コマンドをバッチ実行する
+        public static async Task BatchExecSshAsync(IEnumerable<BatchExecSshItem> items, UnixShellProcessorSettings? settings = null)
         {
             foreach (var item in items)
             {
