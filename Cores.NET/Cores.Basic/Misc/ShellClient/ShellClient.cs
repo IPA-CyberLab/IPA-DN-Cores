@@ -118,9 +118,16 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public UnixShellProcessor CreateUnixShellProcessor(bool disposeObject = true)
+        public UnixShellProcessor CreateUnixShellProcessor(UnixShellProcessorSettings? settings = null, bool disposeObject = true)
         {
-            var ret = new UnixShellProcessor(this, disposeObject, new UnixShellProcessorSettings { TargetHostName = Client.Settings.TargetName });
+            if (settings == null)
+            {
+                settings = new UnixShellProcessorSettings();
+            }
+
+            settings.TargetHostName = Client.Settings.TargetName;
+
+            var ret = new UnixShellProcessor(this, disposeObject, settings);
 
             return ret;
         }

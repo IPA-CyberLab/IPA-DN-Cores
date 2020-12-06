@@ -72,7 +72,7 @@ namespace IPA.Cores.Basic
                 string tmp = "";
                 if (prefix._IsFilled()) tmp = $"{prefix}: ";
 
-                throw new CoresLibException($"{tmp}Exit code = {ExitCode}, CommandLine = {CommandLine._OneLine(" / ")._TruncStrEx(Consts.MaxLens.NormalStringTruncateLen)}");
+                throw new CoresLibException($"{tmp}Exit code = {ExitCode}, CommandLine = {CommandLine._OneLine(" / ")._TruncStrEx(Consts.MaxLens.NormalStringTruncateLen)}, Results = {StringList._Combine(" / ")._TruncStrEx(Consts.MaxLens.NormalStringTruncateLen)}");
             }
         }
     }
@@ -83,6 +83,7 @@ namespace IPA.Cores.Basic
         public int RecvTimeout { get; set; } = Consts.Timeouts.DefaultShellPromptRecvTimeout;
         public int SendTimeout { get; set; } = Consts.Timeouts.DefaultShellPromptSendTimeout;
         public string SendNewLineStr { get; set; } = Str.NewLine_Str_Unix;
+        public bool PrintDebug { get; set; } = false;
 
         public string TargetHostName { get; set; } = "";
     }
@@ -149,7 +150,10 @@ namespace IPA.Cores.Basic
                     tmp = hostname + ":";
                 }
 
-                Con.WriteInfo($"[{tmp}RX] {previewLine}");
+                if (Settings.PrintDebug)
+                {
+                    Con.WriteInfo($"[{tmp}RX] {previewLine}");
+                }
             });
 
             RefBool isEof = new RefBool();
@@ -170,7 +174,9 @@ namespace IPA.Cores.Basic
         {
             this.Sock.Stream.WriteTimeout = Settings.SendTimeout;
 
-            line = line._GetLines(true)._LinesToStr(Settings.SendNewLineStr);
+            line = line._GetLines(false)._LinesToStr(Settings.SendNewLineStr);
+
+            if (line == "") line = Settings.SendNewLineStr;
 
             string tmp = "";
             string? hostname = this.Settings.TargetHostName._Split(StringSplitOptions.RemoveEmptyEntries, ".").FirstOrDefault();
@@ -180,9 +186,12 @@ namespace IPA.Cores.Basic
                 tmp = hostname + ":";
             }
 
-            foreach (var oneLine in line._GetLines())
+            if (Settings.PrintDebug)
             {
-                Con.WriteInfo($"[{tmp}TX] {oneLine}");
+                foreach (var oneLine in line._GetLines())
+                {
+                    Con.WriteInfo($"[{tmp}TX] {oneLine}");
+                }
             }
 
             await this.Sock.Stream.SendAsync(this.Settings.Encoding.GetBytes(line), cancel);
@@ -215,6 +224,8 @@ namespace IPA.Cores.Basic
 
         string BashPromptIdStrPlainText = null!;
         string BashPromptIdStrExportPs1 = null!;
+
+        string BashNextInlinePromptStrPlainText = null!;
 
         // bash 上でコマンドを実行し、その結果を返す
         public async Task<ShellResult> ExecBashCommandAsync(string cmdLine, bool throwIfError = true, CancellationToken cancel = default)
@@ -263,19 +274,40 @@ namespace IPA.Cores.Basic
             await EnsureInitBashAsync(cancel);
 
             // コマンド送信
-            await SendLineInternalAsync(cmdLine, cancel);
+            if (multiLineEof._IsEmpty())
+            {
+                // 1 行コマンド
+                await SendLineInternalAsync(cmdLine, cancel);
+            }
+            else
+            {
+                // 2 行以上のコマンド
+                foreach (string oneLine in cmdLine._GetLines())
+                {
+                    $"oneLine = {oneLine}"._Print();
+
+                    // 1 行ずつ送信する
+                    await SendLineInternalAsync(oneLine, cancel);
+
+                    if (oneLine != multiLineEof)
+                    {
+                        // 途中行の場合、インライン入力プロンプト (PS2) が返ってくるまで待つ
+                        await RecvLinesUntilSpecialPs2PromptAsync(cancel);
+                    }
+                }
+            }
 
             // コマンド実行結果とプロンプトが返ってくるまでのすべての結果を得る
             List<string> retStrList = await RecvLinesUntilSpecialPs1PromptAsync(cancel);
 
             if (multiLineEof._IsFilled())
             {
-                // 複数行の場合は、ランダム EOF 文字が含む行が 2 個出現する点までを削除
+                // 複数行の場合は、ランダム EOF 文字が含む行が 1 個出現する点までを削除
                 List<string> tmp2 = new List<string>();
                 int nums = 0;
                 foreach (string line in retStrList)
                 {
-                    if (nums >= 2)
+                    if (nums >= 1)
                     {
                         tmp2.Add(line);
                     }
@@ -350,6 +382,10 @@ namespace IPA.Cores.Basic
             BashPromptIdStrExportPs1 = "export PS1=\"\\133" + randstr + "\\041\\!\\041\\w\\041\\u\\135\"";
             BashPromptIdStrPlainText = "[" + randstr + "!";
 
+            randstr = "inline_" + Str.GenRandStr().ToLower().Substring(0, 12);
+            BashNextInlinePromptStrPlainText = "[" + randstr + "!";
+            string nextInlineExportPs1 = "export PS2=\"\\133" + randstr + "\\041\\!\\041\\w\\041\\u\\135 \"";
+
             // 最初のプロンプトを待つ
             await RecvLinesUntilBasicUnixPromptAsync(cancel);
 
@@ -364,12 +400,37 @@ namespace IPA.Cores.Basic
 
             // PS1 設定後のプロンプトを待つ
             await RecvLinesUntilSpecialPs1PromptAsync(cancel);
+
+            // PS2 文字列を設定する
+            await SendLineInternalAsync(nextInlineExportPs1, cancel);
+
+            // PS2 設定後のプロンプトを待つ
+            await RecvLinesUntilSpecialPs1PromptAsync(cancel);
         }
 
         // PS1 環境変数で指定されている特殊なプロンプトが出てくるまで行を読み進める
         public async Task<List<string>> RecvLinesUntilSpecialPs1PromptAsync(CancellationToken cancel = default)
         {
             List<string> ret = await this.ReadLinesInternalAsync(UnixSpecialPs1PromptDeterminer, cancel);
+
+            List<string> ret2 = new List<string>();
+
+            foreach (string line in ret)
+            {
+                // プロンプトそのものは除外
+                if (line._InStr(BashPromptIdStrPlainText) == false)
+                {
+                    ret2.Add(line);
+                }
+            }
+
+            return ret2;
+        }
+
+        // PS2 環境変数で指定されている特殊なプロンプトが出てくるまで行を読み進める
+        public async Task<List<string>> RecvLinesUntilSpecialPs2PromptAsync(CancellationToken cancel = default)
+        {
+            List<string> ret = await this.ReadLinesInternalAsync(UnixSpecialPs2PromptDeterminer, cancel);
 
             List<string> ret2 = new List<string>();
 
@@ -397,6 +458,19 @@ namespace IPA.Cores.Basic
             string str = MemoryToString(ms);
 
             if (str._InStr(BashPromptIdStrPlainText))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        // PS2 プロンプトの行終了識別関数
+        protected virtual bool UnixSpecialPs2PromptDeterminer(MemoryStream ms, object? param)
+        {
+            string str = MemoryToString(ms);
+
+            if (str._InStr(BashNextInlinePromptStrPlainText))
             {
                 return true;
             }

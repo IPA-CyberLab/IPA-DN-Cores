@@ -114,9 +114,44 @@ namespace IPA.Cores.Basic
             => ReadPoderosaFileAsync(fs, fileName, cancel)._GetResult();
     }
 
+    public class BatchExecSshItem
+    {
+        public string Host = "";
+        public int Port = Consts.Ports.Ssh;
+        public string Username = "root";
+        public string Password = "";
+        public string CommandLine = "";
+    }
+
     // 色々なおまけユーティリティ
     public static partial class MiscUtil
     {
+        public static async Task BatchExecSshAsync(IEnumerable<BatchExecSshItem> items, UnixShellProcessorSettings ?settings = null)
+        {
+            foreach (var item in items)
+            {
+                $"------- {item.Host} ------"._Print();
+                try
+                {
+                    using SecureShellClient ssh = new SecureShellClient(new SecureShellClientSettings(item.Host, item.Port, item.Username, item.Password));
+                    using ShellClientSock sock = await ssh.ConnectAndGetSockAsync();
+                    using var proc = sock.CreateUnixShellProcessor(settings);
+
+                    var result = await proc.ExecBashCommandAsync(item.CommandLine);
+
+
+                    $"\n\n----- OK -----\n\n"._Print();
+                    result.StringList._OneLine()._Print();
+                }
+                catch (Exception ex)
+                {
+                    "\n\n-- !! ERROR !! --\n\n"._Print();
+                    ex._Debug();
+                    "\n\n"._Print();
+                }
+            }
+        }
+
         public static void GenkoToHtml(string srcTxt, string dstHtml)
         {
             string body = Lfs.ReadStringFromFile(srcTxt);
