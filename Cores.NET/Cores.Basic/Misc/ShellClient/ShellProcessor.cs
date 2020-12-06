@@ -72,7 +72,7 @@ namespace IPA.Cores.Basic
                 string tmp = "";
                 if (prefix._IsFilled()) tmp = $"{prefix}: ";
 
-                throw new CoresLibException($"{tmp}Exit code = {ExitCode}, CommandLine = {CommandLine}");
+                throw new CoresLibException($"{tmp}Exit code = {ExitCode}, CommandLine = {CommandLine._OneLine(" / ")._TruncStrEx(Consts.MaxLens.NormalStringTruncateLen)}");
             }
         }
     }
@@ -143,9 +143,10 @@ namespace IPA.Cores.Basic
                 string previewLine = MemoryToString(ms);
 
                 string tmp = "";
-                if (this.Settings.TargetHostName._IsFilled())
+                string? hostname = this.Settings.TargetHostName._Split(StringSplitOptions.RemoveEmptyEntries, ".").FirstOrDefault();
+                if (hostname._IsFilled())
                 {
-                    tmp = this.Settings.TargetHostName + ":";
+                    tmp = hostname + ":";
                 }
 
                 Con.WriteInfo($"[{tmp}RX] {previewLine}");
@@ -172,9 +173,11 @@ namespace IPA.Cores.Basic
             line = line._GetLines(true)._LinesToStr(Settings.SendNewLineStr);
 
             string tmp = "";
-            if (this.Settings.TargetHostName._IsFilled())
+            string? hostname = this.Settings.TargetHostName._Split(StringSplitOptions.RemoveEmptyEntries, ".").FirstOrDefault();
+
+            if (hostname._IsFilled())
             {
-                tmp = this.Settings.TargetHostName + ":";
+                tmp = hostname + ":";
             }
 
             foreach (var oneLine in line._GetLines())
@@ -216,12 +219,35 @@ namespace IPA.Cores.Basic
         // bash 上でコマンドを実行し、その結果を返す
         public async Task<ShellResult> ExecBashCommandAsync(string cmdLine, bool throwIfError = true, CancellationToken cancel = default)
         {
+            string? multiLineEof = null;
+
+            string cmdLineForResult;
+
             string[] tmp = cmdLine._GetLines(true);
-            if (tmp.Length != 1)
+            if (tmp.Length <= 0)
             {
-                throw new CoresLibException($"The command line is not a single line: '{cmdLine}'");
+                // 何も実行しません
+                return new ShellResult { CommandLine = cmdLine, ExitCode = 0, StringList = new List<string>() };
             }
-            cmdLine = tmp[0];
+            if (tmp.Length >= 2)
+            {
+                // 2 行以上の場合
+                string contents = cmdLine._GetLines(false)._LinesToStr(Settings.SendNewLineStr);
+                StringWriter w = new StringWriter();
+                multiLineEof = "EOF_" + Str.GenRandStr().Substring(16);
+                w.NewLine = Settings.SendNewLineStr;
+                w.WriteLine($"bash << {multiLineEof}");
+                w.WriteLine(contents);
+                w.WriteLine(multiLineEof);
+                cmdLine = w.ToString();
+                cmdLineForResult = contents;
+            }
+            else
+            {
+                // 1 行のみの場合
+                cmdLine = tmp[0];
+                cmdLineForResult = cmdLine;
+            }
 
             string exitCodeBefore = Str.GenRandStr().Substring(16);
 
@@ -242,13 +268,33 @@ namespace IPA.Cores.Basic
             // コマンド実行結果とプロンプトが返ってくるまでのすべての結果を得る
             List<string> retStrList = await RecvLinesUntilSpecialPs1PromptAsync(cancel);
 
+            if (multiLineEof._IsFilled())
+            {
+                // 複数行の場合は、ランダム EOF 文字が含む行が 2 個出現する点までを削除
+                List<string> tmp2 = new List<string>();
+                int nums = 0;
+                foreach (string line in retStrList)
+                {
+                    if (nums >= 2)
+                    {
+                        tmp2.Add(line);
+                    }
+
+                    if (line._InStr(multiLineEof))
+                    {
+                        nums++;
+                    }
+                }
+                retStrList = tmp2;
+            }
+
             if (retStrList.Count >= 1 && retStrList[0]._IsSameTrim(cmdLine))
             {
                 retStrList.RemoveAt(0);
             }
 
             // 終了コード取得コマンド送信
-                await SendLineInternalAsync(printExitCodeCommand, cancel);
+            await SendLineInternalAsync(printExitCodeCommand, cancel);
 
             // 終了コードとプロンプトが返ってくるまでのすべての結果を得る
             List<string> exitCodeStrList = await RecvLinesUntilSpecialPs1PromptAsync(cancel);
@@ -277,7 +323,7 @@ namespace IPA.Cores.Basic
             {
                 StringList = retStrList,
                 ExitCode = exitCode.Value,
-                CommandLine = cmdLine,
+                CommandLine = cmdLineForResult,
             };
 
             if (throwIfError)
@@ -323,7 +369,7 @@ namespace IPA.Cores.Basic
         // PS1 環境変数で指定されている特殊なプロンプトが出てくるまで行を読み進める
         public async Task<List<string>> RecvLinesUntilSpecialPs1PromptAsync(CancellationToken cancel = default)
         {
-            List<string> ret =  await this.ReadLinesInternalAsync(UnixSpecialPs1PromptDeterminer, cancel);
+            List<string> ret = await this.ReadLinesInternalAsync(UnixSpecialPs1PromptDeterminer, cancel);
 
             List<string> ret2 = new List<string>();
 
