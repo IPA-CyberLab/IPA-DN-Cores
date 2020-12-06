@@ -998,7 +998,7 @@ namespace IPA.Cores.Basic
             => this.BaseAccess.WriteRandomAsync(position, data, cancel);
     }
 
-    public abstract class FileSystemPath
+    public abstract class FileSystemPath : IEquatable<FileSystemPath>
     {
         public string PathString { get; }
         public FileSystem FileSystem { get; }
@@ -1022,6 +1022,13 @@ namespace IPA.Cores.Basic
         public DirectoryPath GetParentDirectory() => new DirectoryPath(PathParser.GetDirectoryName(this.PathString), this.FileSystem, this.Flags);
 
         public override string ToString() => this.PathString;
+
+        public virtual bool Equals(FileSystemPath? other)
+        {
+            if (other == null) return false;
+            if (this.FileSystem != other.FileSystem) return false;
+            return this.PathString.Equals(other.PathString, this.PathParser.PathStringComparison);
+        }
 
         public static implicit operator string(FileSystemPath path) => path.ToString();
     }

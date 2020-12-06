@@ -47,9 +47,64 @@ namespace IPA.TestDev
 {
     partial class TestDevCommands
     {
+
+        [ConsoleCommand(
+        "バイナリファイル内のデータを置換",
+        "ReplaceBinary [srcFileName] [/DST:destFileName] [/REPLACE:replaceTextFileName] [/FILL:fillByte=10]",
+        "バイナリファイル内のデータを置換します。",
+        "[srcFileName]:元ファイル名を指定します。",
+        "DST:保存先ファイル名を指定します。指定しない場合、元ファイルが上書きされます。",
+        "REPLACE:置換定義ファイルを指定します。テキストファイルで、奇数行に置換元、偶数行に置換先のバイナリ文字列を記載します。0x で始まる行は 16 進数とみなされます。",
+        "FILL:置換先のデータの長さが短い場合に埋めるバイト文字を 16 進数で指定います。省略すると UNIX 改行文字で埋められます。"
+        )]
+        static int ReplaceBinary(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[srcFileName]", ConsoleService.Prompt, "元ファイル名: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("DST"),
+                new ConsoleParam("REPLACE", ConsoleService.Prompt, "換定義ファイル: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("FILL"),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string srcFileName = vl.DefaultParam.StrValue;
+            string dstFileName = vl["DST"].StrValue;
+            if (dstFileName._IsEmpty()) dstFileName = srcFileName;
+
+            string replaceFileName = vl["REPLACE"].StrValue;
+
+            byte fillByte = (byte)(vl["FILL"].StrValue._FilledOrDefault("10")._ToInt());
+
+            Async(async () =>
+            {
+                KeyValueList<string, string> list = new KeyValueList<string, string>();
+
+                string body = await Lfs.ReadStringFromFileAsync(replaceFileName);
+
+                string[] lines = body._GetLines();
+
+                for (int i = 0; i < lines.Length; i += 2)
+                {
+                    string oldstr = lines[i];
+                    string newstr = lines[i + 1];
+
+                    list.Add(oldstr, newstr);
+                }
+
+                var ret = await MiscUtil.ReplaceBinaryFileAsync(srcFileName, dstFileName, list, FileFlags.AutoCreateDirectory, fillByte);
+
+                ret._PrintAsJson();
+            });
+
+            return 0;
+        }
+
+
         [ConsoleCommand(
         "テキスト原稿を HTML 化",
-        "ReplaceString [src] [/DEST:dest]",
+        "GenkoToHtml [src] [/DEST:dest]",
         "テキスト原稿を HTML 化"
         )]
         static int GenkoToHtml(ConsoleService c, string cmdName, string str)

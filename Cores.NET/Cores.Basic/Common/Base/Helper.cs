@@ -201,6 +201,24 @@ namespace IPA.Cores.Helper.Basic
         public static string _GetHexString(this ReadOnlyMemory<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray.Span, padding);
         public static byte[] _GetHexBytes(this string? str) => Str.HexToByte(str);
 
+        public static byte[] _GetHexOrString(this string? str, Encoding ?encoding = null)
+        {
+            if (str._IsNullOrZeroLen()) return new byte[0];
+
+            string tag = "0x";
+
+            string trimmed = str.Trim();
+
+            if (trimmed.StartsWith("0X", StringComparison.OrdinalIgnoreCase))
+            {
+                return trimmed.Substring(tag.Length)._GetHexBytes();
+            }
+
+            if (encoding == null) encoding = Str.Utf8Encoding;
+
+            return encoding.GetBytes(str);
+        }
+
         public static string _NormalizeHexString(this string? src, bool lowerCase = false, string padding = "") => Str.NormalizeHexString(src, lowerCase, padding);
 
         public static bool _ToBool(this bool b) => b;
@@ -2335,6 +2353,22 @@ namespace IPA.Cores.Helper.Basic
             if (ip == null) return 0;
             if (ip.AddressFamily != AddressFamily.InterNetworkV6) return 0;
             return ip.ScopeId;
+        }
+
+        [MethodImpl(Inline)]
+        public static int _IndexOfAfter<T>(this Span<T> span, ReadOnlySpan<T> value, int startOffset) where T : IEquatable<T>
+        {
+            checked
+            {
+                if (startOffset < 0) return -1;
+                int spanSize = span.Length;
+                if (spanSize <= 0) return -1;
+                if (startOffset >= spanSize) return -1;
+                var subSpan = span.Slice(startOffset);
+                int r = subSpan.IndexOf(value);
+                if (r < 0) return -1;
+                return r + startOffset;
+            }
         }
     }
 }

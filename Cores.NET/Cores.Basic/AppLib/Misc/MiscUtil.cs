@@ -127,11 +127,13 @@ namespace IPA.Cores.Basic
     public static partial class MiscUtil
     {
         // バイナリファイルの内容をバイナリで置換する
-        public static async Task<KeyValueList<string, int>> ReplaceBinaryFileAsync(FilePath file, KeyValueList<string, string> oldNewList, byte fillByte = 0x0A, int bufferSize = 1_000_000_000, CancellationToken cancel = default)
+        public static async Task<KeyValueList<string, int>> ReplaceBinaryFileAsync(FilePath srcFilePath, FilePath? destFilePath, KeyValueList<string, string> oldNewList, FileFlags additionalFlags = FileFlags.None, byte fillByte = 0x0A, int bufferSize = Consts.Numbers.DefaultVeryLargeBufferSize, CancellationToken cancel = default)
         {
+            if (destFilePath == null) destFilePath = srcFilePath;
+
             checked
             {
-                List<Pair4<string, ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, RefInt>> list = new List<Pair4<string, ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, RefInt>>();
+                List<Pair4<string, ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, HashSet<long>>> list = new List<Pair4<string, ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, HashSet<long>>>();
 
                 // 引数チェック等
                 foreach (var kv in oldNewList)
@@ -169,7 +171,7 @@ namespace IPA.Cores.Basic
                         }
                     }
 
-                    list.Add(new Pair4<string, ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, RefInt>(oldStr, oldData, newData, 0));
+                    list.Add(new Pair4<string, ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, HashSet<long>>(oldStr, oldData, newData, new HashSet<long>()));
                 }
 
                 if (list.Any() == false)
@@ -178,8 +180,12 @@ namespace IPA.Cores.Basic
                     return new KeyValueList<string, int>();
                 }
 
-                using var f = await file.OpenAsync(true, cancel: cancel);
-                long filesize = await f.GetFileSizeAsync(cancel: cancel);
+                bool same = (srcFilePath.Equals(destFilePath));
+
+                using FileObject srcFile = same ? await srcFilePath.OpenAsync(true, cancel: cancel, additionalFlags: additionalFlags) : await srcFilePath.OpenAsync(false, cancel: cancel, additionalFlags: additionalFlags);
+                using FileObject destFile = same ? srcFile : await destFilePath.CreateAsync(cancel: cancel, additionalFlags: additionalFlags);
+
+                long filesize = await srcFile.GetFileSizeAsync(cancel: cancel);
 
                 bufferSize = (int)Math.Min(bufferSize, filesize);
 
@@ -191,7 +197,7 @@ namespace IPA.Cores.Basic
                     {
                         long blockSize = Math.Min(bufferSize, filesize - pos);
 
-                        int actualSize = await f.ReadRandomAsync(pos, buffer, cancel);
+                        int actualSize = await srcFile.ReadRandomAsync(pos, buffer, cancel);
 
                         if (actualSize >= 1)
                         {
@@ -213,15 +219,15 @@ namespace IPA.Cores.Basic
                                         start = found + 1;
 
                                         item.C.Span.CopyTo(span.Slice(found));
-                                        item.D.Increment();
+                                        item.D.Add(found + pos);
                                         modified = true;
                                     }
                                 }
                             });
 
-                            if (modified)
+                            if (same == false || modified)
                             {
-                                await f.WriteRandomAsync(pos, target, cancel);
+                                await destFile.WriteRandomAsync(pos, target, cancel);
                             }
                         }
                     }
@@ -231,7 +237,7 @@ namespace IPA.Cores.Basic
 
                 foreach (var item in list)
                 {
-                    ret.Add(item.A, item.D);
+                    ret.Add(item.A, item.D.Count);
                 }
 
                 return ret;

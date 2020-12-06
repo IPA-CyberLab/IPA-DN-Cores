@@ -894,6 +894,43 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                Async(async () =>
+                {
+                    KeyValueList<string, string> list = new KeyValueList<string, string>();
+
+                    list.Add("# configuration files on the boot partition.", "0x0A68646D695F736166653D310A230A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A");
+                    list.Add("- growpart", "0x0A0A0A0A0A0A0A0A0A0A");
+                    list.Add("- resizefs", "0x0A0A0A0A0A0A0A0A0A0A");
+
+                    //list.Add("# configuration files on the boot partition.", "\nhdmi_safe=1\n#");
+                    //list.Add("- growpart", "");
+                    //list.Add("- resizefs", "");
+
+                    list.Add("APT::Periodic::Update-Package-Lists \"1\";", "APT::Periodic::Update-Package-Lists \"0\";");
+                    list.Add("APT::Periodic::Unattended-Upgrade \"1\";", "APT::Periodic::Unattended-Upgrade \"0\";");
+
+                    var ret = await MiscUtil.ReplaceBinaryFileAsync(@"D:\Downloads\ubuntu-19.10.1-preinstalled-server-arm64+raspi3.img", @"C:\tmp2\bintest\ubuntutest.img", list);
+
+                    ret._DebugAsJson();
+                });
+                return;
+            }
+            if (true)
+            {
+                Async(async () =>
+                {
+                    KeyValueList<string, string> list = new KeyValueList<string, string>();
+                    list.Add("5", "G");
+                    var ret = await MiscUtil.ReplaceBinaryFileAsync(@"C:\tmp\bintest\aaa.txt", @"C:\tmp\bintest\aaa2.txt", list, bufferSize: 1);
+
+                    ret._DebugAsJson();
+                });
+                return;
+            }
+
+
+            if (true)
+            {
                 while (true)
                 {
                     using var timeoutCts = new CancellationTokenSource(10000);
