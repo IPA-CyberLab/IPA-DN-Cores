@@ -7715,6 +7715,86 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class SharedObjectHolder<T> : IDisposable where T : class
+    {
+        public T Object { get; }
+
+        readonly SharedObjectFactory<T> Factory;
+
+        public SharedObjectHolder(SharedObjectFactory<T> factory, T obj)
+        {
+            this.Factory = factory;
+            this.Object = obj;
+        }
+
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+        Once DisposeFlag;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            this.Factory.Release();
+        }
+
+        public static implicit operator T(SharedObjectHolder<T> holder) => holder.Object;
+    }
+
+    public abstract class SharedObjectFactory<T> where T : class
+    {
+        public static int ReferenceCounter { get; private set; }
+
+        readonly object LockObj = new object();
+        T? Instance = null;
+
+        protected SharedObjectFactory() { }
+
+        protected abstract T CreateNewImpl();
+
+        public SharedObjectHolder<T> CreateOrGet()
+        {
+            lock (LockObj)
+            {
+                if (ReferenceCounter == 0)
+                {
+                    T newObject = CreateNewImpl();
+
+                    this.Instance = newObject;
+                }
+
+                ReferenceCounter++;
+
+                return new SharedObjectHolder<T>(this, this.Instance!);
+            }
+        }
+
+        public void Release()
+        {
+            T? instanceToRelease = null;
+
+            lock (LockObj)
+            {
+                if (ReferenceCounter >= 1)
+                {
+                    ReferenceCounter--;
+
+                    if (ReferenceCounter == 0)
+                    {
+                        instanceToRelease = this.Instance;
+                        this.Instance = null;
+                    }
+                }
+            }
+
+            if (instanceToRelease != null)
+            {
+                if (instanceToRelease is IDisposable disposable)
+                {
+                    disposable._DisposeSafe();
+                }
+            }
+        }
+    }
+
     public static class EmptyEnumerable<T>
     {
         public static IEnumerable<T> Empty { get; } = new List<T>();

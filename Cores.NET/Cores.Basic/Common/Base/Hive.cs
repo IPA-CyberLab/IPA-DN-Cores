@@ -46,6 +46,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using Microsoft.AspNetCore.Server.IIS.Core;
+using System.Runtime.CompilerServices;
 
 namespace IPA.Cores.Basic
 {
@@ -929,6 +930,40 @@ namespace IPA.Cores.Basic
             }
         }
 
+        T? ReadOnlySnapshotCacheInternal = null;
+
+        public T CachedFastSnapshot
+        {
+            [MethodImpl(Inline)]
+            get => GetCachedFastSnapshot();
+        }
+
+        [MethodImpl(Inline)]
+        public T GetCachedFastSnapshot()
+        {
+            if (ReadOnlySnapshotCacheInternal == null)
+            {
+                lock (DataLock)
+                {
+                    T currentData = GetManagedData();
+
+                    Memory<byte> mem = Serializer.Serialize<T>(currentData);
+
+                    ReadOnlySnapshotCacheInternal = Serializer.Deserialize<T>(mem)!;
+                }
+            }
+
+            return ReadOnlySnapshotCacheInternal;
+        }
+
+        void UpdateReadOnlySnapshot(T data)
+        {
+            if (data != null)
+            {
+                this.ReadOnlySnapshotCacheInternal = CloneData(data);
+            }
+        }
+
         public T GetManagedDataSnapshot()
         {
             lock (DataLock)
@@ -992,19 +1027,21 @@ namespace IPA.Cores.Basic
 
                     bool skipLoadFromFile = false;
 
-                    if (flag.Bit(HiveSyncFlags.SaveToFile) && (this.Policy.Bit(HiveSyncPolicy.AutoWriteToFile)|| flag.Bit(HiveSyncFlags.ForceUpdate)))
+                    if (flag.Bit(HiveSyncFlags.SaveToFile) && (this.Policy.Bit(HiveSyncPolicy.AutoWriteToFile) || flag.Bit(HiveSyncFlags.ForceUpdate)))
                     {
                         if (this.StorageHash != dataSnapshotState.Hash || flag.Bit(HiveSyncFlags.ForceUpdate))
                         {
                             dataChanged = true;
 
                             await SaveDataCoreAsync(dataSnapshotState.SerializedData, false, cancel);
-                            
+
                             this.StorageHash = dataSnapshotState.Hash;
 
                             skipLoadFromFile = true;
 
                             dataChanged = true;
+
+                            UpdateReadOnlySnapshot(dataSnapshot);
                         }
                     }
 
@@ -1015,6 +1052,8 @@ namespace IPA.Cores.Basic
                         if (loadDataState.Hash != dataSnapshotState.Hash || flag.Bit(HiveSyncFlags.ForceUpdate))
                         {
                             dataChanged = true;
+
+                            UpdateReadOnlySnapshot(loadDataState.Data!);
 
                             lock (DataLock)
                             {

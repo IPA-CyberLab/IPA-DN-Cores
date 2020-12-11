@@ -6029,6 +6029,19 @@ namespace IPA.Cores.Basic
                 return "";
             }
         }
+        public static string Base64Encode(ReadOnlySpan<byte> data)
+        {
+            try
+            {
+                return Convert.ToBase64String(data);
+            }
+            catch
+            {
+                return "";
+            }
+        }
+        public static string Base64Encode(ReadOnlyMemory<byte> data)
+            => Base64Encode(data.Span);
 
         // Base 64 デコード
         public static byte[] Base64Decode(string str)

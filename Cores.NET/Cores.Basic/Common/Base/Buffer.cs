@@ -1057,6 +1057,8 @@ namespace IPA.Cores.Basic
         long LongPosition { get; }
         long LongLength { get; }
         long LongInternalBufferSize { get; }
+        long LongRemainLength { get; }
+
         void Write(ReadOnlySpan<T> data);
         void WriteOne(T data);
         ReadOnlySpan<T> Read(long size, bool allowPartial = false);
@@ -1127,6 +1129,25 @@ namespace IPA.Cores.Basic
         public long LongLength => BaseStream.Length;
 
         public long LongInternalBufferSize => BaseStream.Length;
+
+        public long LongRemainLength
+        {
+            [MethodImpl(Inline)]
+            get
+            {
+                long length = LongLength;
+                long position = LongPosition;
+                long ret = length - position;
+                if (ret < 0) throw new CoresException($"Position ({length}) > Length ({position})");
+                return ret;
+            }
+        }
+
+        public int RemainLength
+        {
+            [MethodImpl(Inline)]
+            get => checked((int)4);
+        }
 
         public void Clear()
         {
@@ -1391,6 +1412,25 @@ namespace IPA.Cores.Basic
         public long LongLength => this.Length;
 
         public long LongInternalBufferSize => this.InternalBufferSize;
+
+        public long LongRemainLength
+        {
+            [MethodImpl(Inline)]
+            get
+            {
+                long length = LongLength;
+                long position = LongPosition;
+                long ret = length - position;
+                if (ret < 0) throw new CoresException($"Position ({length}) > Length ({position})");
+                return ret;
+            }
+        }
+
+        public int RemainLength
+        {
+            [MethodImpl(Inline)]
+            get => checked((int)LongRemainLength);
+        }
 
         public MemoryBuffer(int size = 0) : this(new T[size]) { }
 
@@ -1782,6 +1822,25 @@ namespace IPA.Cores.Basic
 
         public long LongInternalBufferSize => this.InternalBufferSize;
 
+        public long LongRemainLength
+        {
+            [MethodImpl(Inline)]
+            get
+            {
+                long length = LongLength;
+                long position = LongPosition;
+                long ret = length - position;
+                if (ret < 0) throw new CoresException($"Position ({length}) > Length ({position})");
+                return ret;
+            }
+        }
+
+        public int RemainLength
+        {
+            [MethodImpl(Inline)]
+            get => checked((int)LongRemainLength);
+        }
+
         public ReadOnlyMemoryBuffer(int size = 0) : this(new T[size]) { }
 
         public ReadOnlyMemoryBuffer(ReadOnlyMemory<T> baseMemory)
@@ -2064,6 +2123,25 @@ namespace IPA.Cores.Basic
         public long LongPosition => this.CurrentPosition;
         public long LongLength => this.Length;
         public long LongInternalBufferSize => PhysicalSize;
+
+        public long LongRemainLength
+        {
+            [MethodImpl(Inline)]
+            get
+            {
+                long length = LongLength;
+                long position = LongPosition;
+                long ret = length - position;
+                if (ret < 0) throw new CoresException($"Position ({length}) > Length ({position})");
+                return ret;
+            }
+        }
+
+        public int RemainLength
+        {
+            [MethodImpl(Inline)]
+            get => checked((int)LongRemainLength);
+        }
 
         public AsyncLock SharedAsyncLock { get; } = new AsyncLock();
 
@@ -4016,6 +4094,24 @@ namespace IPA.Cores.Basic
         public long LongInternalBufferSize
             => CurrentBuffer.LongLength;
 
+        public long LongRemainLength
+        {
+            [MethodImpl(Inline)]
+            get
+            {
+                long length = LongLength;
+                long position = LongPosition;
+                long ret = length - position;
+                if (ret < 0) throw new CoresException($"Position ({length}) > Length ({position})");
+                return ret;
+            }
+        }
+
+        public int RemainLength
+        {
+            [MethodImpl(Inline)]
+            get => checked((int)LongRemainLength);
+        }
         public void Clear()
             => CurrentBuffer.Clear();
 
