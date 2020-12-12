@@ -58,6 +58,102 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    public class WpcPack
+    {
+        public Pack Pack { get; private set; }
+        public string HostKey { get; private set; } = "";
+        public string HostSecret2 { get; private set; } = "";
+
+        public WpcPack(Pack pack, string? hostKey = null, string ?hostSecret2=null)
+        {
+            this.Pack = pack;
+            this.HostKey = hostKey._NonNull();
+            this.HostSecret2 = hostSecret2._NonNull();
+        }
+
+        public string ToPacketString()
+            => ToPacketBinary().Span._GetString_Ascii();
+
+        public MemoryBuffer<byte> ToPacketBinary()
+        {
+            WpcItemList list = new WpcItemList();
+
+            var packData = this.Pack.WriteToBuf().ByteData;
+            list.Add("PACK", packData);
+
+            var hashData = Secure.HashSHA1(packData);
+            list.Add("HASH", hashData);
+
+            if (this.HostKey._IsFilled() && this.HostSecret2._IsFilled())
+            {
+                var hostKeyData = this.HostKey._GetHexBytes();
+                var hostSecret2Data = this.HostSecret2._GetHexBytes();
+
+                if (hostKeyData.Length != 20)
+                {
+                    throw new CoresLibException("hostKeyData.Length != 20");
+                }
+
+                if (hostSecret2Data.Length != 20)
+                {
+                    throw new CoresLibException("hostSecret2Data.Length != 20");
+                }
+
+                list.Add("HOST", hostKeyData);
+                list.Add("HOST", hostSecret2Data);
+            }
+
+            return list.ToPacketBinary();
+        }
+
+        public static WpcPack Parse(string recvStr, bool requireKeyAndSecret)
+        {
+            WpcItemList items = WpcItemList.Parse(recvStr);
+
+            var packItem = items.Find("PACK");
+            var hashItem = items.Find("HASH");
+            var hostKeyItem = items.Find("HOST", 0);
+            var hostSecret2Item = items.Find("HOST", 1);
+
+            if (packItem == null || hashItem == null)
+            {
+                throw new CoresLibException("packItem == null || hashItem == null");
+            }
+
+            var hash = Secure.HashSHA1(packItem.Data.Span).AsSpan();
+
+            if (hash._MemEquals(hashItem.Data.Span) == false)
+            {
+                throw new CoresLibException("Different hash");
+            }
+
+            Buf buf = new Buf(packItem.Data.ToArray());
+
+            var pack = Pack.CreateFromBuf(buf);
+
+            string hostKey = "";
+            string hostSecret2 = "";
+
+            if (requireKeyAndSecret)
+            {
+                if (hostKeyItem == null || hostKeyItem.Data.Length != 20)
+                {
+                    throw new CoresLibException("hostKeyItem == null || hostKeyItem.Data.Length != 20");
+                }
+
+                if (hostSecret2Item == null || hostSecret2Item.Data.Length != 20)
+                {
+                    throw new CoresLibException("hostSecret2Item == null || hostSecret2Item.Data.Length != 20");
+                }
+
+                hostKey = hostKeyItem.Data._GetHexString();
+                hostSecret2 = hostSecret2Item.Data._GetHexString();
+            }
+
+            return new WpcPack(pack, hostKey, hostSecret2);
+        }
+    }
+
     public class WpcItemList : List<WpcItem>
     {
         public static WpcItemList Parse(string str)
@@ -80,9 +176,9 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public WpcItem Find(string name, int index = 0)
+        public WpcItem? Find(string name, int index = 0)
         {
-            return this.Where(x => x.Name._IsSamei(name) && x.Index == index).Single();
+            return this.Where(x => x.Name._IsSamei(name) && x.Index == index).SingleOrDefault();
         }
 
         public void Add(string name, ReadOnlyMemory<byte> data)
@@ -121,7 +217,7 @@ namespace IPA.Cores.Basic
 
         public WpcItem(string name, int index, ReadOnlyMemory<byte> data)
         {
-            if (name.Length != 4) throw new ArgumentException("name.Length != 4");
+            if (name.Length > 4) throw new ArgumentException("name.Length > 4");
             this.Name = name.ToUpper();
             this.Index = index;
             this.Data = data;
@@ -135,6 +231,9 @@ namespace IPA.Cores.Basic
             var nameBuf = buf.Read(4, allowPartial: true);
             if (nameBuf.Length != 4) return false;
             name = nameBuf._GetString_Ascii().ToUpper();
+
+            int i = name.IndexOf(' ');
+            if (i != -1) name = name.Substring(0, i);
 
             var sizeStrBuf = buf.Read(10, allowPartial: true);
             if (sizeStrBuf.Length != 10) return false;
@@ -153,7 +252,14 @@ namespace IPA.Cores.Basic
 
         public void Emit(IBuffer<byte> buf)
         {
-            var nameBuf = this.Name.ToUpper()._GetBytes_Ascii();
+            string name = this.Name.ToUpper();
+            if (name.Length < 4)
+            {
+                int pad = 4 - name.Length;
+                name = name + ' '._MakeCharArray(pad);
+            }
+
+            var nameBuf = name.ToUpper()._GetBytes_Ascii();
             if (nameBuf.Length != 4) throw new CoresLibException("nameBuf.Length != 4");
 
             string dataStr = Str.Base64ToSafe64(Str.Base64Encode(this.Data));

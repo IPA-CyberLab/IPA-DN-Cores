@@ -896,7 +896,7 @@ namespace IPA.TestDev
             {
                 WpcItemList l = new WpcItemList();
                 l.Add("test", "Hello"._GetBytes_Ascii());
-                l.Add("test", "Hello2"._GetBytes_Ascii());
+                l.Add("Tes", "Hello2"._GetBytes_Ascii());
                 string str = l.ToPacketString();
 
                 str._Print();

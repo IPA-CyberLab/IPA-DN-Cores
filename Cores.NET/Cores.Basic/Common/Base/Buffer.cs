@@ -2805,7 +2805,6 @@ namespace IPA.Cores.Basic
         public static int PeekSInt32(ref this FastReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(4)._GetSInt32(littleEndian);
         public static long PeekSInt64(ref this FastReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(8)._GetSInt64(littleEndian);
 
-
         public static void WriteBool8(this MemoryBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, false));
         public static void WriteUInt8(this MemoryBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, false));
         public static void WriteByte(this MemoryBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, false));
