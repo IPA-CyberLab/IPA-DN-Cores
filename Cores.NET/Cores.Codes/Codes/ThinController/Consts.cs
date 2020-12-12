@@ -80,6 +80,14 @@ using static IPA.App.ThinControllerApp.AppGlobal;
 
 namespace IPA.Cores.Codes
 {
+    public static partial class ThinControllerConsts
+    {
+        public const string ApiServerForUsers = "ApiServerForUsers";
+        public const string ApiServerForGateway = "ApiServerForGateway";
+
+        public static readonly Copenhagen<int> DefaultMaxBodySizeForUsers = 16 * 1024;
+        public static readonly Copenhagen<int> DefaultMaxBodySizeForGateway = (int)Pack.MaxPackSize;
+    }
 }
 
 #endif

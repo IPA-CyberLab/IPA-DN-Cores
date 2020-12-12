@@ -894,6 +894,22 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                Pack p = new Pack();
+                p.AddStr("1", "Hello");
+                p.AddStr("2", "World");
+                WpcPack wp = new WpcPack(p, "1122334455667788990011223344556677889900", "0011223344556677889900112233445566778899");
+                string str = wp.ToPacketString();
+                str._Print();
+                var wp2 = WpcPack.Parse(str, true);
+                wp2.HostKey._Print();
+                wp2.HostSecret2._Print();
+                wp2.Pack["1"]._Print();
+                wp2.Pack["2"]._Print();
+                return;
+            }
+
+            if (true)
+            {
                 WpcItemList l = new WpcItemList();
                 l.Add("test", "Hello"._GetBytes_Ascii());
                 l.Add("Tes", "Hello2"._GetBytes_Ascii());

@@ -508,6 +508,8 @@ namespace IPA.Cores.Basic
         public string HiveName { get; set; } = Consts.HiveNames.DefaultWebServer;
         public bool DisableHiveBasedSetting = false;
 
+        public List<string> StringOptions = new List<string>();
+
         public bool DenyRobots = false;
 
 #if CORES_BASIC_JSON

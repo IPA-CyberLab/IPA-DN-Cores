@@ -248,38 +248,56 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class HttpEasyContextBox
+    {
+        public HttpContext Context { get; }
+        public RouteData RouteData { get; }
+        public HttpRequest Request { get; }
+        public HttpResponse Response { get; }
+        public ConnectionInfo ConnInfo { get; }
+        public WebMethods Method { get; }
+        public CancellationToken Cancel { get; }
+        public IPEndPoint RemoteEndpoint { get; }
+        public IPEndPoint LocalEndpoint { get; }
+        public string PathAndQueryString { get; }
+        public QueryStringList QueryStringList { get; }
+        public Uri QueryStringUri { get; }
+
+        public HttpEasyContextBox(HttpContext context)
+        {
+            Context = context;
+            RouteData = context.GetRouteData();
+            Request = context.Request;
+            Response = context.Response;
+            ConnInfo = context.Connection;
+            Method = Request.Method._ParseEnum(WebMethods.GET);
+            Cancel = Request._GetRequestCancellationToken();
+            RemoteEndpoint = new IPEndPoint(ConnInfo.RemoteIpAddress!._UnmapIPv4(), ConnInfo.RemotePort);
+            LocalEndpoint = new IPEndPoint(ConnInfo.LocalIpAddress!._UnmapIPv4(), ConnInfo.LocalPort);
+
+            PathAndQueryString = Request._GetRequestPathAndQueryString();
+
+            PathAndQueryString._ParseUrl(out Uri uri, out QueryStringList qs);
+            this.QueryStringUri = uri;
+            this.QueryStringList = qs;
+        }
+    }
+
+
     public delegate Task<HttpResult> HttpResultStandardRequestAsyncCallback(WebMethods method, string path, QueryStringList queryString, HttpContext context, RouteData routeData, IPEndPoint local, IPEndPoint remote, CancellationToken cancel = default);
-    
+
+
     public partial class HttpResult
     {
-        public static RequestDelegate GetStandardRequestHandler(HttpResultStandardRequestAsyncCallback handler)
+        public static async Task EasyRequestHandler(HttpContext context, Func<HttpEasyContextBox, Task<HttpResult>> callback)
         {
-            return (context) => StandardRequestHandlerAsync(context, handler);
-        }
-
-        static async Task StandardRequestHandlerAsync(HttpContext context, HttpResultStandardRequestAsyncCallback callback)
-        {
-            HttpRequest request = context.Request;
-            HttpResponse response = context.Response;
-            RouteData routeData = context.GetRouteData();
-            ConnectionInfo connInfo = context.Connection;
-
-            WebMethods method = request.Method._ParseEnum(WebMethods.GET);
-
-            CancellationToken cancel = request._GetRequestCancellationToken();
-
-            IPEndPoint remote = new IPEndPoint(connInfo.RemoteIpAddress!._UnmapIPv4(), connInfo.RemotePort);
-            IPEndPoint local = new IPEndPoint(connInfo.LocalIpAddress!._UnmapIPv4(), connInfo.LocalPort);
-
-            string pathAndQueryString = request._GetRequestPathAndQueryString();
-
-            pathAndQueryString._ParseUrl(out Uri uri, out QueryStringList qs);
+            var box = context._GetHttpEasyContextBox();
 
             try
             {
-                await using (HttpResult result = await callback(method, uri.LocalPath, qs, context, routeData, local, remote, cancel))
+                await using (HttpResult result = await callback(box))
                 {
-                    await response._SendHttpResultAsync(result, cancel);
+                    await box.Response._SendHttpResultAsync(result, box.Cancel);
                 }
             }
             catch (Exception ex)
@@ -288,7 +306,33 @@ namespace IPA.Cores.Basic
 
                 await using HttpResult errResult = new HttpStringResult("Error: " + ex.Message, statusCode: Consts.HttpStatusCodes.InternalServerError);
 
-                await response._SendHttpResultAsync(errResult, cancel);
+                await box.Response._SendHttpResultAsync(errResult, box.Cancel);
+            }
+        }
+
+        public static RequestDelegate GetStandardRequestHandler(HttpResultStandardRequestAsyncCallback handler)
+        {
+            return (context) => StandardRequestHandlerAsync(context, handler);
+        }
+
+        static async Task StandardRequestHandlerAsync(HttpContext context, HttpResultStandardRequestAsyncCallback callback)
+        {
+            var box = new HttpEasyContextBox(context);
+
+            try
+            {
+                await using (HttpResult result = await callback(box.Method, box.QueryStringUri.LocalPath, box.QueryStringList, context, box.RouteData, box.LocalEndpoint, box.RemoteEndpoint, box.Cancel))
+                {
+                    await box.Response._SendHttpResultAsync(result, box.Cancel);
+                }
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+
+                await using HttpResult errResult = new HttpStringResult("Error: " + ex.Message, statusCode: Consts.HttpStatusCodes.InternalServerError);
+
+                await box.Response._SendHttpResultAsync(errResult, box.Cancel);
             }
         }
     }

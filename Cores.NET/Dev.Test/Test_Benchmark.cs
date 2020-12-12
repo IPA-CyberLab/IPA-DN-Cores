@@ -265,6 +265,59 @@ namespace IPA.TestDev
         }
     }
 
+    public class BMTest_SimpleAsyncService : AsyncService
+    {
+        public Task TestAsync() => TR();
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
+        }
+    }
+
+    public class BMTest_SimpleAsyncService2 : IDisposable, IAsyncDisposable
+    {
+        static long IdSeed = 0;
+        public long AsyncServiceId { get; }
+        public string AsyncServiceObjectName { get; }
+        public CancelWatcher? CancelWatcher { get; } = null;
+
+        public BMTest_SimpleAsyncService2(CancellationToken cancel = default)
+        {
+            this.AsyncServiceId = Interlocked.Increment(ref IdSeed);
+            this.AsyncServiceObjectName = this.ToString() ?? "null";
+
+            this.CancelWatcher = new CancelWatcher(cancel);
+
+        }
+
+        public Task TestAsync() => TR();
+
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+        Once DisposeFlag;
+        public async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
+            // Here
+            this.CancelWatcher?._DisposeSafe();
+        }
+    }
+
     partial class TestDevCommands
     {
         const int Benchmark_CountForVeryFast = 200000000;
@@ -427,6 +480,65 @@ namespace IPA.TestDev
 
             var queue = new MicroBenchmarkQueue()
 
+
+            .Add(new MicroBenchmark($"SimpleAsyncService2", Benchmark_CountForNormal, count =>
+            {
+                Async(async () =>
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        await using var obj = new BMTest_SimpleAsyncService2();
+
+                        await obj.TestAsync();
+                    }
+                });
+            }), enabled: true, priority: 201212)
+
+            .Add(new MicroBenchmark($"SimpleAsynService", Benchmark_CountForNormal, count =>
+            {
+                Async(async () =>
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        await using var obj = new BMTest_SimpleAsyncService();
+
+                        await obj.TestAsync();
+                    }
+                });
+            }), enabled: true, priority: 201212)
+
+            .Add(new MicroBenchmark($"WpcPacket", Benchmark_CountForNormal, count =>
+            {
+                unsafe
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        WpcItemList l = new WpcItemList();
+                        l.Add("test", "Hello"._GetBytes_Ascii());
+                        l.Add("Tes", "Hello2"._GetBytes_Ascii());
+                        string str = l.ToPacketString();
+
+                        var l2 = WpcItemList.Parse(str);
+                    }
+                }
+            }), enabled: true, priority: 201212)
+
+            .Add(new MicroBenchmark($"WpcPacket2", Benchmark_CountForNormal, count =>
+            {
+                unsafe
+                {
+                    Pack p = new Pack();
+                    p.AddStr("1", "Hello");
+                    p.AddStr("2", "World");
+                    WpcPack wp = new WpcPack(p, "1122334455667788990011223344556677889900", "0011223344556677889900112233445566778899");
+                    string str = wp.ToPacketString();
+
+                    for (int c = 0; c < count; c++)
+                    {
+                        var wp2 = WpcPack.Parse(str, true);
+                    }
+                }
+            }), enabled: true, priority: 201212)
 
             .Add(new MicroBenchmark($"SyncEvent", Benchmark_CountForNormal, count =>
             {

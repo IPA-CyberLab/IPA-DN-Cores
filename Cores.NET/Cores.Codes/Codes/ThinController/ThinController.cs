@@ -78,7 +78,13 @@ using static IPA.Cores.Globals.Web;
 
 namespace IPA.Cores.Codes
 {
-    // ThinController 設定
+    // ThinController 設定 (アプリの起動時にコード中から設定可能な設定項目)
+    public static class ThinControllerBasicSettings
+    {
+        public static Action<HttpRequestRateLimiterOptions<HttpRequestRateLimiterHashKeys.SrcIPAddress>> ConfigureHttpRequestRateLimiterOptions = _ => { };
+    }
+
+    // ThinController 設定 (JSON 設定ファイルで動的に設定変更可能な設定項目)
     [Serializable]
     public sealed class ThinControllerSettings : INormalizable
     {
@@ -95,12 +101,29 @@ namespace IPA.Cores.Codes
                 this.WpcPathList = new List<string>();
 
                 this.WpcPathList.Add("/widecontrol/");
+                this.WpcPathList.Add("/thincontrol/");
             }
         }
     }
 
     public class ThinController : AsyncService
     {
+        public class ThinControllerSession : AsyncService
+        {
+            //public ThinControllerSession(HttpEasyContextBox
+
+            protected override async Task CleanupImplAsync(Exception? ex)
+            {
+                try
+                {
+                }
+                finally
+                {
+                    await base.CleanupImplAsync(ex);
+                }
+            }
+        }
+
         // Hive
         readonly HiveData<ThinControllerSettings> SettingsHive;
 
@@ -110,7 +133,7 @@ namespace IPA.Cores.Codes
 
         public ThinControllerSettings SettingsFastSnapshot => SettingsHive.CachedFastSnapshot;
 
-        public ThinController(ThinControllerSettings settings, Func<ThinControllerSettings>? getDefaultSettings =null)
+        public ThinController(ThinControllerSettings settings, Func<ThinControllerSettings>? getDefaultSettings = null)
         {
             try
             {
@@ -128,20 +151,9 @@ namespace IPA.Cores.Codes
             }
         }
 
-        public async Task HandleWpcAsync(HttpContext context)
+        public async Task<HttpResult> HandleWpcAsync(HttpEasyContextBox box)
         {
-            HttpRequest request = context.Request;
-            HttpResponse response = context.Response;
-            ConnectionInfo connInfo = context.Connection;
-            WebMethods method = request.Method._ParseEnum(WebMethods.GET);
-            CancellationToken cancel = request._GetRequestCancellationToken();
-            IPEndPoint remote = new IPEndPoint(connInfo.RemoteIpAddress!._UnmapIPv4(), connInfo.RemotePort);
-            IPEndPoint local = new IPEndPoint(connInfo.LocalIpAddress!._UnmapIPv4(), connInfo.LocalPort);
-
-            string replyBody = "Hello World\r\n";
-            context.Response.StatusCode = 200;
-
-            await context.Response.WriteAsync(replyBody, context.RequestAborted);
+            return new HttpStringResult($"Hello {box.RemoteEndpoint.ToString()} " + DtOffsetNow.ToString());
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -152,7 +164,7 @@ namespace IPA.Cores.Codes
 
                 if (this.SettingsFastSnapshot.WpcPathList.Where(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase)).Any())
                 {
-                    return HandleWpcAsync(context);
+                    return HttpResult.EasyRequestHandler(context, HandleWpcAsync);
                 }
 
                 return next();

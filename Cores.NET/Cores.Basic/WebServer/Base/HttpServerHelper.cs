@@ -192,6 +192,9 @@ namespace IPA.Cores.Helper.Basic
         {
             routeBuilder.MapPost(template, HttpResult.GetStandardRequestHandler(handler));
         }
+
+        public static HttpEasyContextBox _GetHttpEasyContextBox(this HttpContext context)
+            => new HttpEasyContextBox(context);
     }
 }
 

@@ -64,7 +64,7 @@ namespace IPA.Cores.Basic
         public string HostKey { get; private set; } = "";
         public string HostSecret2 { get; private set; } = "";
 
-        public WpcPack(Pack pack, string? hostKey = null, string ?hostSecret2=null)
+        public WpcPack(Pack pack, string? hostKey = null, string? hostSecret2 = null)
         {
             this.Pack = pack;
             this.HostKey = hostKey._NonNull();
@@ -74,7 +74,7 @@ namespace IPA.Cores.Basic
         public string ToPacketString()
             => ToPacketBinary().Span._GetString_Ascii();
 
-        public MemoryBuffer<byte> ToPacketBinary()
+        public SpanBuffer<byte> ToPacketBinary()
         {
             WpcItemList list = new WpcItemList();
 
@@ -109,7 +109,6 @@ namespace IPA.Cores.Basic
         public static WpcPack Parse(string recvStr, bool requireKeyAndSecret)
         {
             WpcItemList items = WpcItemList.Parse(recvStr);
-
             var packItem = items.Find("PACK");
             var hashItem = items.Find("HASH");
             var hostKeyItem = items.Find("HOST", 0);
@@ -157,15 +156,19 @@ namespace IPA.Cores.Basic
     public class WpcItemList : List<WpcItem>
     {
         public static WpcItemList Parse(string str)
-            => Parse(str._GetBytes_Ascii()._AsReadOnlyMemoryBuffer());
+        {
+            ReadOnlySpanBuffer<byte> buf = str._GetBytes_Ascii();
 
-        public static WpcItemList Parse(IBuffer<byte> buf)
+            return Parse(ref buf);
+        }
+
+        public static WpcItemList Parse(ref ReadOnlySpanBuffer<byte> buf)
         {
             WpcItemList ret = new WpcItemList();
 
             while (true)
             {
-                if (WpcItem.Parse(buf, out string name, out ReadOnlyMemory<byte> data) == false)
+                if (WpcItem.Parse(ref buf, out string name, out ReadOnlyMemory<byte> data) == false)
                 {
                     break;
                 }
@@ -190,16 +193,19 @@ namespace IPA.Cores.Basic
             this.Add(new WpcItem(name, index, data));
         }
 
-        public void Emit(IBuffer<byte> buf)
+        public void Emit(ref SpanBuffer<byte> buf)
         {
-            this._DoForEach(x => x.Emit(buf));
+            foreach (var item in this)
+            {
+                item.Emit(ref buf);
+            }
         }
 
-        public MemoryBuffer<byte> ToPacketBinary()
+        public SpanBuffer<byte> ToPacketBinary()
         {
-            MemoryBuffer<byte> ret = new MemoryBuffer<byte>();
+            SpanBuffer<byte> ret = new SpanBuffer<byte>();
 
-            this.Emit(ret);
+            this.Emit(ref ret);
 
             return ret;
         }
@@ -223,7 +229,7 @@ namespace IPA.Cores.Basic
             this.Data = data;
         }
 
-        public static bool Parse(IBuffer<byte> buf, out string name, out ReadOnlyMemory<byte> data)
+        public static bool Parse(ref ReadOnlySpanBuffer<byte> buf, out string name, out ReadOnlyMemory<byte> data)
         {
             name = "";
             data = default;
@@ -250,7 +256,7 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public void Emit(IBuffer<byte> buf)
+        public void Emit(ref SpanBuffer<byte> buf)
         {
             string name = this.Name.ToUpper();
             if (name.Length < 4)
