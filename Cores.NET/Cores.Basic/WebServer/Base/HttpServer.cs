@@ -505,6 +505,9 @@ namespace IPA.Cores.Basic
 
         public int MaxRequestBodySize { get; set; } = Consts.Numbers.DefaultMaxNetworkRecvSize; // Kestrel default
 
+        public int KestrelMaxConcurrentConnections { get; set; } = Consts.Numbers.DefaultKestrelMaxConcurrentConnections;
+        public int KestrelMaxUpgradedConnections { get; set; } = Consts.Numbers.DefaultKestrelMaxUpgradedConnections;
+
         public string HiveName { get; set; } = Consts.HiveNames.DefaultWebServer;
         public bool DisableHiveBasedSetting = false;
 
@@ -598,6 +601,9 @@ namespace IPA.Cores.Basic
                 // Kestrel with Stack
                 withStackOpt.TcpIp = this.TcpIp ?? LocalNet;
             }
+
+            opt.Limits.MaxConcurrentConnections = this.KestrelMaxConcurrentConnections;
+            opt.Limits.MaxConcurrentUpgradedConnections = this.KestrelMaxUpgradedConnections;
 
             void EnableHttps(ListenOptions listenOptions)
             {

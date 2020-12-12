@@ -55,7 +55,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="5.0.0" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="5.0.0" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="5.0.0" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="2.1.0-preview2.20297.7" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="2.1.0" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
     <PackageReference Include="Dapper" Version="2.0.35" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
     <PackageReference Include="Dapper.Contrib" Version="2.0.35" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
 

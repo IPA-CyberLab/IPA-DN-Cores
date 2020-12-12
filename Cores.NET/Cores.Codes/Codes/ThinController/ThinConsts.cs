@@ -85,7 +85,9 @@ namespace IPA.Cores.Codes
         public static readonly Copenhagen<int> DefaultMaxBodySizeForUsers = 16 * 1024;
         public static readonly Copenhagen<int> DefaultMaxBodySizeForGateway = (int)Pack.MaxPackSize;
 
-        public static readonly Copenhagen<int> MaxConcurrentWpcRequestProcessing = 1;
+        public static readonly Copenhagen<int> MaxConcurrentWpcRequestProcessingForUsers = 1;
+
+        public static readonly Copenhagen<int> MaxConcurrentKestrelConnectionsForUsers = 2;
 
         public static readonly Copenhagen<string> AccessLogTag = "ThinControlerLog";
 

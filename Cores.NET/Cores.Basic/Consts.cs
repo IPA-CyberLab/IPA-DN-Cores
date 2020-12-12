@@ -99,6 +99,9 @@ namespace IPA.Cores.Basic
             public const int NormalJsonMaxSize = 1 * 1024 * 1024; // 1MB
 
             public const int MaxCookieDays = 365 + 366; // 2 Years
+
+            public const int DefaultKestrelMaxConcurrentConnections = 10000;
+            public const int DefaultKestrelMaxUpgradedConnections = 10000;
         }
 
         public static partial class MaxLens

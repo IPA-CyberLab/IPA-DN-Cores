@@ -395,11 +395,11 @@ namespace IPA.Cores.Codes
             {
                 // カウント加算
                 int cur = this.CurrentConcurrentProcess.Increment();
-                if (cur > ThinControllerConsts.MaxConcurrentWpcRequestProcessing)
+                if (cur > ThinControllerConsts.MaxConcurrentWpcRequestProcessingForUsers)
                 {
                     // 最大数超過
                     this.CurrentConcurrentProcess.Decrement();
-                    return new HttpErrorResult(Consts.HttpStatusCodes.TooManyRequests, $"Too many WPC concurrent requests ({cur} > {ThinControllerConsts.MaxConcurrentWpcRequestProcessing})");
+                    return new HttpErrorResult(Consts.HttpStatusCodes.TooManyRequests, $"Too many WPC concurrent requests ({cur} > {ThinControllerConsts.MaxConcurrentWpcRequestProcessingForUsers})");
                 }
             }
 
