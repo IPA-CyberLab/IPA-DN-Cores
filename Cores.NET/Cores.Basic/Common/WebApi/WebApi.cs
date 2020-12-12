@@ -688,6 +688,12 @@ namespace IPA.Cores.Basic
             : base(str._NonNull()._GetBytes(encoding ?? Str.Utf8Encoding), contentType, statusCode, additionalHeaders) { }
     }
 
+    public class HttpErrorResult : HttpStringResult
+    {
+        public HttpErrorResult(int statusCode, string friendlyString, string contentType = Consts.MimeTypes.TextUtf8, Encoding? encoding = null, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
+            : base($"{statusCode} {(friendlyString._IsEmpty() ? "HTTP Error" : friendlyString)}", contentType, statusCode, encoding, additionalHeaders) { }
+    }
+
     // 指定されたファイルを HTTP 応答するクラス
     public class HttpFileResult : HttpResult
     {

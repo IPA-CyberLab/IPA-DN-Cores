@@ -259,6 +259,10 @@ namespace IPA.Cores.Basic
         public CancellationToken Cancel { get; }
         public IPEndPoint RemoteEndpoint { get; }
         public IPEndPoint LocalEndpoint { get; }
+
+        public string RemoteHostnameOrIpAddress { get; private set; }
+        public bool IsRemoteHostnameResolved { get; private set; }
+
         public string PathAndQueryString { get; }
         public QueryStringList QueryStringList { get; }
         public Uri QueryStringUri { get; }
@@ -275,11 +279,32 @@ namespace IPA.Cores.Basic
             RemoteEndpoint = new IPEndPoint(ConnInfo.RemoteIpAddress!._UnmapIPv4(), ConnInfo.RemotePort);
             LocalEndpoint = new IPEndPoint(ConnInfo.LocalIpAddress!._UnmapIPv4(), ConnInfo.LocalPort);
 
+            this.IsRemoteHostnameResolved = false;
+            this.RemoteHostnameOrIpAddress = RemoteEndpoint.Address.ToString();
+
             PathAndQueryString = Request._GetRequestPathAndQueryString();
 
             PathAndQueryString._ParseUrl(out Uri uri, out QueryStringList qs);
             this.QueryStringUri = uri;
             this.QueryStringList = qs;
+        }
+
+        public async Task TryResolveRemoteHostnameAsync(DnsResolver? resolver = null, CancellationToken cancel = default)
+        {
+            if (this.IsRemoteHostnameResolved)
+            {
+                return;
+            }
+
+            if (resolver == null) resolver = LocalNet.DnsResolver;
+
+            string hostname = await resolver.GetHostNameSingleOrIpAsync(this.RemoteEndpoint.Address, cancel);
+
+            if (hostname._IsEmpty() == false)
+            {
+                this.RemoteHostnameOrIpAddress = hostname;
+                this.IsRemoteHostnameResolved = true;
+            }
         }
     }
 
@@ -289,13 +314,13 @@ namespace IPA.Cores.Basic
 
     public partial class HttpResult
     {
-        public static async Task EasyRequestHandler(HttpContext context, Func<HttpEasyContextBox, Task<HttpResult>> callback)
+        public static async Task EasyRequestHandler(HttpContext context, object? param, Func<HttpEasyContextBox, object?, Task<HttpResult>> callback)
         {
             var box = context._GetHttpEasyContextBox();
 
             try
             {
-                await using (HttpResult result = await callback(box))
+                await using (HttpResult result = await callback(box, param))
                 {
                     await box.Response._SendHttpResultAsync(result, box.Cancel);
                 }

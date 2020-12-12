@@ -209,15 +209,15 @@ namespace IPA.Cores.Basic
                 else
                 {
                     // 同時接続数制限されたのでエラーを返す
-                    context.Response.StatusCode = 429;
-                    await context.Response.WriteAsync("429 Too many concurrent requests", context.RequestAborted);
+                    context.Response.StatusCode = Consts.HttpStatusCodes.TooManyRequests;
+                    await context.Response.WriteAsync($"{Consts.HttpStatusCodes.TooManyRequests} Too many concurrent requests", context.RequestAborted);
                 }
             }
             else
             {
                 // 流量制限されたのでエラーを返す
-                context.Response.StatusCode = 429;
-                await context.Response.WriteAsync("429 Too many requests", context.RequestAborted);
+                context.Response.StatusCode = Consts.HttpStatusCodes.TooManyRequests;
+                await context.Response.WriteAsync($"{Consts.HttpStatusCodes.TooManyRequests} Too many requests", context.RequestAborted);
             }
         }
     }

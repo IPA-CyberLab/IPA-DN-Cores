@@ -64,6 +64,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
@@ -75,6 +78,7 @@ using static IPA.Cores.Globals.Codes;
 using IPA.Cores.Web;
 using IPA.Cores.Helper.Web;
 using static IPA.Cores.Globals.Web;
+using System.Runtime.CompilerServices;
 
 namespace IPA.Cores.Codes
 {
@@ -90,6 +94,9 @@ namespace IPA.Cores.Codes
     {
         public List<string> WpcPathList = new List<string>();
 
+        public string DbConnectionString_Read = "";
+        public string DbConnectionString_Write = "";
+
         public ThinControllerSettings()
         {
         }
@@ -103,24 +110,214 @@ namespace IPA.Cores.Codes
                 this.WpcPathList.Add("/widecontrol/");
                 this.WpcPathList.Add("/thincontrol/");
             }
+
+            if (this.DbConnectionString_Read._IsEmpty())
+            {
+                this.DbConnectionString_Read = "Data Source=127.0.0.1;Initial Catalog=THIN;Persist Security Info=True;User ID=thin_read;Password=password1;";
+            }
+
+            if (this.DbConnectionString_Write._IsEmpty())
+            {
+                this.DbConnectionString_Write = "Data Source=127.0.0.1;Initial Catalog=THIN;Persist Security Info=True;User ID=thin_write;Password=password2;";
+            }
         }
     }
 
     public class ThinController : AsyncService
     {
-        public class ThinControllerSession : AsyncService
+        public class ThinControllerSessionClientInfo
         {
-            //public ThinControllerSession(HttpEasyContextBox
+            public ThinControllerServiceType ServiceType { get; }
 
-            protected override async Task CleanupImplAsync(Exception? ex)
+            public HttpEasyContextBox? Box { get; }
+
+            public string ClientPhysicalIp { get; }
+            public string ClientIp { get; }
+            public string FlagStr { get; }
+            public bool IsProxyMode { get; }
+
+            public ThinControllerSessionFlags Flags { get; }
+
+            public ThinControllerSessionClientInfo(HttpEasyContextBox box, ThinControllerServiceType serviceType)
+            {
+                this.ServiceType = serviceType;
+
+                this.Box = box;
+
+                this.ClientPhysicalIp = box.RemoteEndpoint.Address.ToString();
+
+                if (this.ServiceType == ThinControllerServiceType.ApiServiceForGateway)
+                {
+                    this.ClientIp = box.Request.Headers._GetStrFirst("X-WG-Proxy-SrcIP", this.ClientPhysicalIp);
+
+                    if (this.ClientPhysicalIp != this.ClientIp)
+                    {
+                        this.IsProxyMode = true;
+                    }
+                }
+                else
+                {
+                    this.ClientIp = this.ClientPhysicalIp;
+                }
+
+                this.FlagStr = box.QueryStringList._GetStrFirst("flag");
+
+                if (this.FlagStr._InStr("limited", true))
+                {
+                    this.Flags |= ThinControllerSessionFlags.LimitedMode;
+                }
+            }
+        }
+
+        public class ThinControllerSession : IDisposable, IAsyncDisposable
+        {
+            static RefLong IdSeed = new RefLong();
+
+            public string Uid { get; }
+            public ThinController Controller { get; }
+            public ThinControllerSessionClientInfo ClientInfo { get; }
+
+            public string FunctionName { get; private set; } = "Unknown";
+
+            public ThinControllerSession(ThinController controller, ThinControllerSessionClientInfo clientInfo)
             {
                 try
                 {
+                    this.Uid = Str.NewUid("REQ", '_') + "_" + IdSeed.Increment().ToString("D12");
+                    this.Controller = controller;
+                    this.ClientInfo = clientInfo;
                 }
-                finally
+                catch
                 {
-                    await base.CleanupImplAsync(ex);
+                    this._DisposeSafe();
+                    throw;
                 }
+            }
+
+            public async Task<WpcResult> ProcessWpcRequestCoreAsync(string wpcRequestString, CancellationToken cancel = default)
+            {
+                try
+                {
+                    // WPC リクエストをパースする
+                    WpcPack pack = WpcPack.Parse(wpcRequestString, false);
+
+                    // 関数名を取得する
+                    this.FunctionName = pack.Pack["Function"].StrValue._NonNull();
+                    if (this.FunctionName._IsEmpty()) this.FunctionName = "Unknown";
+
+                    // 関数を実行する
+                    switch (this.FunctionName.ToLower())
+                    {
+                        case "test":
+                            break;
+
+                        default:
+                            // 適切な関数が見つからない
+                            return NewWpcResult(VpnErrors.ERR_DESK_RPC_PROTOCOL_ERROR);
+                    }
+
+                    WpcResult ok = NewWpcResult(EnsureOk.Ok);
+
+                    return ok;
+                }
+                catch (Exception ex)
+                {
+                    // エラー発生
+                    return NewWpcResult(ex);
+                }
+            }
+
+            public async Task<string> ProcessWpcRequestAsync(string wpcRequestString, CancellationToken cancel = default)
+            {
+                // メイン処理の実行
+                WpcResult err = await ProcessWpcRequestCoreAsync(wpcRequestString, cancel);
+
+                err._PostAccessLog(ThinControllerConsts.AccessLogTag);
+
+                if (err.IsError)
+                {
+                    err._Error();
+                }
+
+                // WPC 応答文字列の回答
+                WpcPack wp = err.ToWpcPack();
+
+                return wp.ToPacketString();
+            }
+
+            // WPC 応答にクライアント情報を付加
+            protected void SetWpcResultAdditionalInfo(WpcResult result)
+            {
+                var clientInfo = this.ClientInfo;
+
+                // 追加クライアント情報
+                var c = result.ClientInfo;
+
+                c.Add("SessionUid", this.Uid);
+
+
+                c.Add("ServiceType", clientInfo.ServiceType.ToString());
+
+                c.Add("ClientPhysicalIp", clientInfo.ClientPhysicalIp);
+                c.Add("ClientIp", clientInfo.ClientIp);
+                c.Add("ClientPort", clientInfo.Box?.RemoteEndpoint.Port.ToString() ?? "");
+                c.Add("FlagStr", clientInfo.FlagStr);
+                c.Add("Flags", clientInfo.Flags.ToString());
+                c.Add("IsProxyMode", clientInfo.IsProxyMode.ToString());
+
+                // 追加情報
+                var a = result.AdditionalInfo;
+
+                a.Add("FunctionName", this.FunctionName);
+            }
+
+            // OK WPC 応答の生成
+            protected WpcResult NewWpcResult(EnsureOk ok)
+            {
+                WpcResult ret = new WpcResult(EnsureOk.Ok);
+
+                SetWpcResultAdditionalInfo(ret);
+
+                return ret;
+            }
+
+            // 通常エラー WPC 応答の生成
+            protected WpcResult NewWpcResult(VpnErrors errorCode, string? additionalErrorStr = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+            {
+                WpcResult ret = new WpcResult(errorCode, additionalErrorStr, filename, line, caller);
+
+                SetWpcResultAdditionalInfo(ret);
+
+                return ret;
+            }
+
+            // 例外エラー WPC 応答の生成
+            protected WpcResult NewWpcResult(Exception ex)
+            {
+                WpcResult ret = new WpcResult(ex);
+
+                SetWpcResultAdditionalInfo(ret);
+
+                return ret;
+            }
+
+            // 解放系
+            public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+            Once DisposeFlag;
+            public async ValueTask DisposeAsync()
+            {
+                if (DisposeFlag.IsFirstCall() == false) return;
+                await DisposeInternalAsync();
+            }
+            protected virtual void Dispose(bool disposing)
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                DisposeInternalAsync()._GetResult();
+            }
+            Task DisposeInternalAsync()
+            {
+                // Here
+                return TR();
             }
         }
 
@@ -133,6 +330,9 @@ namespace IPA.Cores.Codes
 
         public ThinControllerSettings SettingsFastSnapshot => SettingsHive.CachedFastSnapshot;
 
+        // データベース
+        public ThinDatabase Db { get; }
+
         public ThinController(ThinControllerSettings settings, Func<ThinControllerSettings>? getDefaultSettings = null)
         {
             try
@@ -143,6 +343,8 @@ namespace IPA.Cores.Codes
                     getDefaultSettings,
                     HiveSyncPolicy.AutoReadWriteFile,
                     HiveSerializerSelection.RichJson);
+
+                this.Db = new ThinDatabase(this);
             }
             catch (Exception ex)
             {
@@ -151,12 +353,66 @@ namespace IPA.Cores.Codes
             }
         }
 
-        public async Task<HttpResult> HandleWpcAsync(HttpEasyContextBox box)
+        public class HandleWpcParam
         {
-            return new HttpStringResult($"Hello {box.RemoteEndpoint.ToString()} " + DtOffsetNow.ToString());
+            public ThinControllerServiceType ServiceType;
         }
 
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        readonly RefInt CurrentConcurrentProcess = new RefInt();
+
+        public async Task<HttpResult> HandleWpcAsync(HttpEasyContextBox box, object? param2)
+        {
+            CancellationToken cancel = box.Cancel;
+            HandleWpcParam param = (HandleWpcParam)param2!;
+
+            // エンドユーザー用サービスポイントの場合、最大同時処理リクエスト数を制限する
+            bool limitMaxConcurrentProcess = param.ServiceType == ThinControllerServiceType.ApiServiceForUsers;
+
+            if (limitMaxConcurrentProcess)
+            {
+                // カウント加算
+                int cur = this.CurrentConcurrentProcess.Increment();
+                if (cur > ThinControllerConsts.MaxConcurrentWpcRequestProcessing)
+                {
+                    // 最大数超過
+                    this.CurrentConcurrentProcess.Decrement();
+                    return new HttpErrorResult(Consts.HttpStatusCodes.TooManyRequests, $"Too many WPC concurrent requests ({cur} > {ThinControllerConsts.MaxConcurrentWpcRequestProcessing})");
+                }
+            }
+
+            try
+            {
+                // クライアント情報
+                ThinControllerSessionClientInfo clientInfo = new ThinControllerSessionClientInfo(box, param.ServiceType);
+
+                // WPC リクエスト文字列の受信
+                string requestWpcString = await box.Request._RecvStringContentsAsync((int)Pack.MaxPackSize * 2, cancel: cancel);
+
+                // WPC 処理のためのセッションの作成
+                var session = new ThinControllerSession(this, clientInfo);
+
+                // WPC 処理の実施
+                string responseWpcString = await session.ProcessWpcRequestAsync(requestWpcString, cancel);
+
+                // WPC 結果の応答
+                return new HttpStringResult(responseWpcString);
+            }
+            catch (Exception ex)
+            {
+                // WPC 処理中にエラー発生
+                return new HttpErrorResult(Consts.HttpStatusCodes.InternalServerError, $"Internal Server Error: {ex.Message}");
+            }
+            finally
+            {
+                // カウント減算
+                if (limitMaxConcurrentProcess)
+                {
+                    this.CurrentConcurrentProcess.Decrement();
+                }
+            }
+        }
+
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ThinControllerServiceType serviceType)
         {
             app.Use((context, next) =>
             {
@@ -164,7 +420,12 @@ namespace IPA.Cores.Codes
 
                 if (this.SettingsFastSnapshot.WpcPathList.Where(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase)).Any())
                 {
-                    return HttpResult.EasyRequestHandler(context, HandleWpcAsync);
+                    HandleWpcParam param = new HandleWpcParam
+                    {
+                        ServiceType = serviceType,
+                    };
+
+                    return HttpResult.EasyRequestHandler(context, param, HandleWpcAsync);
                 }
 
                 return next();
@@ -175,6 +436,8 @@ namespace IPA.Cores.Codes
         {
             try
             {
+                await this.Db._DisposeSafeAsync();
+
                 this.SettingsHive._DisposeSafe();
             }
             finally

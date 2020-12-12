@@ -82,11 +82,31 @@ namespace IPA.Cores.Codes
 {
     public static partial class ThinControllerConsts
     {
-        public const string ApiServerForUsers = "ApiServerForUsers";
-        public const string ApiServerForGateway = "ApiServerForGateway";
-
         public static readonly Copenhagen<int> DefaultMaxBodySizeForUsers = 16 * 1024;
         public static readonly Copenhagen<int> DefaultMaxBodySizeForGateway = (int)Pack.MaxPackSize;
+
+        public static readonly Copenhagen<int> MaxConcurrentWpcRequestProcessing = 1;
+
+        public static readonly Copenhagen<string> AccessLogTag = "ThinControlerLog";
+
+        public static readonly Copenhagen<int> DbReadReloadIntervalMsecs = 1 * 1000;
+        public static readonly Copenhagen<int> DbWriteIntervalMsecs = 1 * 1000;
+        public static readonly Copenhagen<int> DbBackupFileWriteIntervalMsecs = 5 * 1000;
+    }
+
+    [Flags]
+    public enum ThinControllerServiceType
+    {
+        ApiServiceForUsers,
+        ApiServiceForGateway,
+    }
+
+    [Flags]
+    public enum ThinControllerSessionFlags
+    {
+        None = 0,
+
+        LimitedMode,
     }
 }
 

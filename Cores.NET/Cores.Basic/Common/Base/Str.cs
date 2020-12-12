@@ -1436,7 +1436,7 @@ namespace IPA.Cores.Basic
         }
 
         // 新しい UID を生成する
-        public static string NewUid(string prefix = "UID")
+        public static string NewUid(string prefix = "UID", char concat = '-')
         {
             // <PREFIX>-AAAAAAAAAA-BBB-CCDDDDDEEEEEEE-FFFFF-GGGGG
 
@@ -1476,7 +1476,7 @@ namespace IPA.Cores.Basic
             Buf buf = new Buf(hash);
             string c = (buf.ReadInt64() % 100000UL).ToString("D5");
 
-            return prefix.ToUpper() + "-" + a + "-" + b + "-" + c + d + e + "-" + f + "-" + g;
+            return prefix.ToUpper() + concat + a + concat + b + concat + c + d + e + concat + f + concat + g;
         }
         // ID 文字列を短縮する
         public static string? GetShortId(string fullId)

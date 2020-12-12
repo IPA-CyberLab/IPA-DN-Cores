@@ -894,6 +894,12 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                TestDevCommands.ConvertCErrorsToCsErrors(@"C:\git\IPA-DNP-ThinApps-Lgwan", @"c:\tmp\201212\test.cs");
+                return;
+            }
+
+            if (true)
+            {
                 Pack p = new Pack();
                 p.AddStr("1", "Hello");
                 p.AddStr("2", "World");

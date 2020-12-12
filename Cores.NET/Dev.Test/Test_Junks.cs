@@ -47,6 +47,61 @@ namespace IPA.TestDev
 {
     partial class TestDevCommands
     {
+        public static void ConvertCErrorsToCsErrors(string dir, string outputFileName)
+        {
+            List<Pair2<int, string>> list = new List<Pair2<int, string>>();
+
+            Lfs.DirectoryWalker.WalkDirectory(dir, (info, entries, cancel) =>
+            {
+                var headerFiles = entries.Where(x => x.IsFile && x.Name._WildcardMatch("*.h", true)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer);
+
+                headerFiles._DoForEach(x =>
+                {
+                    string body = Lfs.ReadStringFromFile(x.FullPath);
+                    int count = 0;
+                    foreach (string line in body._GetLines())
+                    {
+                        if (line._GetKeyAndValue(out string code, out string comment, "/"))
+                        {
+                            code = code.Trim();
+                            comment = comment.Trim();
+
+                            string[] tokens = code._Split(StringSplitOptions.RemoveEmptyEntries, ' ', '\t');
+
+                            if (tokens.Length == 3 && tokens[0]._IsSamei("#define") && tokens[1].StartsWith("ERR_") && tokens[2]._IsNumber())
+                            {
+                                int num = tokens[2]._ToInt();
+
+                                string result = $"{tokens[1]} = {num}, // {comment}";
+
+                                list.Add(new Pair2<int, string>(num, result));
+                                count++;
+                            }
+                        }
+                    }
+                    if (count >= 1)
+                    {
+                        x.FullPath._Print();
+                    }
+                });
+
+                return true;
+            },
+            exceptionHandler: (info, ex, c) =>
+            {
+                ex._Print();
+                return true;
+            });
+
+            StringWriter w = new StringWriter();
+
+            foreach (string b in list.OrderBy(x => x.A).Select(x => x.B))
+            {
+                w.WriteLine(b);
+            }
+
+            Lfs.WriteStringToFile(outputFileName, w.ToString(), flags: FileFlags.AutoCreateDirectory);
+        }
 
         [ConsoleCommand(
         "バイナリファイル内のデータを置換",

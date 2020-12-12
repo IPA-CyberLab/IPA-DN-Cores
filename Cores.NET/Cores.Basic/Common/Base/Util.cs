@@ -7889,6 +7889,12 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
+    public enum EnsureOk
+    {
+        Ok = 0,
+    }
+
+    [Flags]
     public enum EnsureError
     {
         Error = 0,

@@ -607,7 +607,7 @@ namespace IPA.Cores.Basic
             if (param != null)
                 EnsureDapperTypeMapping(param.GetType());
 
-            CommandDefinition cmd = new CommandDefinition(commandStr, param, this.Transaction);
+            CommandDefinition cmd = new CommandDefinition(commandStr, param, this.Transaction, commandTimeout: this.CommandTimeoutSecs);
 
             return cmd;
         }

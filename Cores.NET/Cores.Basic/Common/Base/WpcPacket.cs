@@ -52,6 +52,9 @@ using System.Runtime.CompilerServices;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
@@ -279,6 +282,54 @@ namespace IPA.Cores.Basic
             buf.Write(nameBuf);
             buf.Write(dataSizeStrData);
             buf.Write(dataBuf);
+        }
+    }
+
+    public class WpcResult
+    {
+        public bool IsOk => ErrorCode == VpnErrors.ERR_NO_ERROR;
+        public bool IsError => !IsOk;
+
+        public VpnErrors ErrorCode { get; }
+        public string ErrorCodeString => ErrorCode.ToString();
+
+        public KeyValueList<string, string> AdditionalInfo { get; } = new KeyValueList<string, string>();
+
+        public KeyValueList<string, string> ClientInfo { get; } = new KeyValueList<string, string>();
+
+        public string? ErrorLocation { get; }
+        public string? AdditionalErrorStr { get; }
+
+        public WpcResult(EnsureOk ok) : this(VpnErrors.ERR_NO_ERROR) { }
+
+        public WpcResult(VpnErrors errorCode, string? additionalErrorStr = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            this.ErrorCode = errorCode;
+
+            if (this.IsError)
+            {
+                this.AdditionalErrorStr = additionalErrorStr._NonNullTrim();
+                if (this.AdditionalErrorStr._IsEmpty()) this.AdditionalErrorStr = null;
+
+                this.ErrorLocation = $"{filename}:{line} by {caller}";
+            }
+        }
+
+        public WpcResult(Exception ex)
+        {
+            this.ErrorCode = VpnErrors.ERR_TEMP_ERROR;
+            this.ErrorLocation = ex.StackTrace?.ToString() ?? "Unknown";
+            this.AdditionalErrorStr = ex.Message;
+        }
+
+        public WpcPack ToWpcPack()
+        {
+            Pack p = new Pack();
+            p.AddInt("Error", (uint)this.ErrorCode);
+
+            WpcPack wp = new WpcPack(p);
+
+            return wp;
         }
     }
 }
