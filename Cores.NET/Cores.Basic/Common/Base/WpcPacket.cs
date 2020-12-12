@@ -290,6 +290,9 @@ namespace IPA.Cores.Basic
         public bool IsOk => ErrorCode == VpnErrors.ERR_NO_ERROR;
         public bool IsError => !IsOk;
 
+        [JsonIgnore]
+        public Pack Pack { get; }
+
         public VpnErrors ErrorCode { get; }
         public string ErrorCodeString => ErrorCode.ToString();
 
@@ -300,11 +303,16 @@ namespace IPA.Cores.Basic
         public string? ErrorLocation { get; }
         public string? AdditionalErrorStr { get; }
 
-        public WpcResult(EnsureOk ok) : this(VpnErrors.ERR_NO_ERROR) { }
+        public WpcResult(Pack? pack = null) : this(VpnErrors.ERR_NO_ERROR, pack) { }
 
-        public WpcResult(VpnErrors errorCode, string? additionalErrorStr = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        public WpcResult(VpnErrors errorCode, Pack? pack = null, string? additionalErrorStr = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
         {
+            if (pack == null) pack = new Pack();
+
+            this.Pack = pack;
+
             this.ErrorCode = errorCode;
+            this.Pack.AddInt("Error", (uint)this.ErrorCode);
 
             if (this.IsError)
             {
@@ -315,19 +323,20 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public WpcResult(Exception ex)
+        public WpcResult(Exception ex, Pack? pack = null)
         {
+            if (pack == null) pack = new Pack();
+
+            this.Pack = pack;
             this.ErrorCode = VpnErrors.ERR_TEMP_ERROR;
+            this.Pack.AddInt("Error", (uint)this.ErrorCode);
             this.ErrorLocation = ex.StackTrace?.ToString() ?? "Unknown";
             this.AdditionalErrorStr = ex.Message;
         }
 
         public WpcPack ToWpcPack()
         {
-            Pack p = new Pack();
-            p.AddInt("Error", (uint)this.ErrorCode);
-
-            WpcPack wp = new WpcPack(p);
+            WpcPack wp = new WpcPack(this.Pack);
 
             return wp;
         }

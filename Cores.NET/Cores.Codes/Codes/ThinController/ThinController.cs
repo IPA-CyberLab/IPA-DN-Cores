@@ -194,31 +194,54 @@ namespace IPA.Cores.Codes
                 }
             }
 
+            // テスト
+            public WpcResult ProcTest(WpcPack req, CancellationToken cancel)
+            {
+                Pack p = new Pack();
+
+                p.AddStr("test", req.Pack["1"].Int64Value.ToString());
+
+                return new WpcResult(VpnErrors.ERR_SECURITY_ERROR);
+            }
+
+            // 通信テスト
+            public WpcResult ProcCommCheck(WpcPack req, CancellationToken cancel)
+            {
+                Pack p = new Pack();
+
+                p.AddStr("retstr", req.Pack["str"].StrValue._NonNull());
+
+                return NewWpcResult(p);
+            }
+
+            // Gate から: セッションリストの報告
+            public WpcResult ProcReportSessionList(WpcPack req, CancellationToken cancel)
+            {
+                return null!;
+            }
+
             public async Task<WpcResult> ProcessWpcRequestCoreAsync(string wpcRequestString, CancellationToken cancel = default)
             {
                 try
                 {
                     // WPC リクエストをパースする
-                    WpcPack pack = WpcPack.Parse(wpcRequestString, false);
+                    WpcPack req = WpcPack.Parse(wpcRequestString, false);
 
                     // 関数名を取得する
-                    this.FunctionName = pack.Pack["Function"].StrValue._NonNull();
+                    this.FunctionName = req.Pack["Function"].StrValue._NonNull();
                     if (this.FunctionName._IsEmpty()) this.FunctionName = "Unknown";
 
                     // 関数を実行する
                     switch (this.FunctionName.ToLower())
                     {
-                        case "test":
-                            break;
+                        case "test": return ProcTest(req, cancel);
+                        case "commcheck": return ProcCommCheck(req, cancel);
+                        case "reportsessionlist": return ProcReportSessionList(req, cancel);
 
                         default:
                             // 適切な関数が見つからない
                             return NewWpcResult(VpnErrors.ERR_DESK_RPC_PROTOCOL_ERROR);
                     }
-
-                    WpcResult ok = NewWpcResult(EnsureOk.Ok);
-
-                    return ok;
                 }
                 catch (Exception ex)
                 {
@@ -272,9 +295,9 @@ namespace IPA.Cores.Codes
             }
 
             // OK WPC 応答の生成
-            protected WpcResult NewWpcResult(EnsureOk ok)
+            protected WpcResult NewWpcResult(Pack? pack = null)
             {
-                WpcResult ret = new WpcResult(EnsureOk.Ok);
+                WpcResult ret = new WpcResult(pack);
 
                 SetWpcResultAdditionalInfo(ret);
 
@@ -282,9 +305,9 @@ namespace IPA.Cores.Codes
             }
 
             // 通常エラー WPC 応答の生成
-            protected WpcResult NewWpcResult(VpnErrors errorCode, string? additionalErrorStr = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+            protected WpcResult NewWpcResult(VpnErrors errorCode, Pack? pack = null, string? additionalErrorStr = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
             {
-                WpcResult ret = new WpcResult(errorCode, additionalErrorStr, filename, line, caller);
+                WpcResult ret = new WpcResult(errorCode, pack, additionalErrorStr, filename, line, caller);
 
                 SetWpcResultAdditionalInfo(ret);
 
@@ -292,9 +315,9 @@ namespace IPA.Cores.Codes
             }
 
             // 例外エラー WPC 応答の生成
-            protected WpcResult NewWpcResult(Exception ex)
+            protected WpcResult NewWpcResult(Exception ex, Pack? pack = null)
             {
-                WpcResult ret = new WpcResult(ex);
+                WpcResult ret = new WpcResult(ex, pack);
 
                 SetWpcResultAdditionalInfo(ret);
 
