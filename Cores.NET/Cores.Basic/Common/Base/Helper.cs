@@ -456,7 +456,7 @@ namespace IPA.Cores.Helper.Basic
         public static byte[] _DecodeUrlToBytes(this string? str) => Str.DecodeUrlToBytes(str);
         public static string _EncodeUrlPath(this string? str, Encoding? e = null) => Str.EncodeUrlPath(str, e);
         public static string _DecodeUrlPath(this string? str, Encoding? e = null) => Str.DecodeUrlPath(str, e);
-        public static string _EncodeHtml(this string? str, bool forceAllSpaceToTag = false) => Str.EncodeHtml(str, forceAllSpaceToTag);
+        public static string _EncodeHtml(this string? str, bool forceAllSpaceToTag = false, bool spaceIfEmpty = false) => Str.EncodeHtml(str, forceAllSpaceToTag, spaceIfEmpty);
         public static string _DecodeHtml(this string? str) => Str.DecodeHtml(str);
 
         public static string _EncodeEasy(this string? str) => Str.EncodeEasy(str);

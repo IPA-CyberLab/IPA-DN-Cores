@@ -5807,12 +5807,16 @@ namespace IPA.Cores.Basic
 
     public class FieldReaderWriter
     {
-        public readonly Dictionary<string, MemberInfo> MetadataTable = new Dictionary<string, MemberInfo>();
+        // 高速検索用ハッシュテーブル
+        readonly Dictionary<string, MemberInfo> MetadataTableInternal = new Dictionary<string, MemberInfo>();
+        public IReadOnlyDictionary<string, MemberInfo> MetadataTable => MetadataTableInternal;
 
         public Type TargetType { get; }
 
         public IReadOnlyList<string> FieldOrPropertyNamesList { get; }
         public IReadOnlyList<string> MethodNamesList { get; }
+
+        public IReadOnlyList<string> OrderedPublicFieldOrPropertyNamesList { get; }
 
         static readonly Singleton<Type, FieldReaderWriter> _PublicSingleton = new Singleton<Type, FieldReaderWriter>(t => new FieldReaderWriter(t, false));
         static readonly Singleton<Type, FieldReaderWriter> _PrivateSingleton = new Singleton<Type, FieldReaderWriter>(t => new FieldReaderWriter(t, true));
@@ -5834,11 +5838,14 @@ namespace IPA.Cores.Basic
             var m2 = TargetType.GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.InvokeMethod);
 
             List<string> fieldOrPropertyNamesList = new List<string>();
+
+            var members = TargetType.GetMembers();
+
             List<string> methodNamesList = new List<string>();
 
             foreach (MemberInfo info in fields.Cast<MemberInfo>().Concat(properties.Cast<MemberInfo>().Concat(methods.Cast<MemberInfo>())))
             {
-                if (MetadataTable.TryAdd(info.Name, info))
+                if (MetadataTableInternal.TryAdd(info.Name, info))
                 {
                     if (info is FieldInfo || info is PropertyInfo)
                         fieldOrPropertyNamesList.Add(info.Name);
@@ -5850,6 +5857,11 @@ namespace IPA.Cores.Basic
 
             this.FieldOrPropertyNamesList = fieldOrPropertyNamesList;
             this.MethodNamesList = methodNamesList;
+
+            // 登場順に並べられたフィールドおよびプロパティのリストを生成
+            List<string> orderedFieldOrPropertyNamesList = new List<string>();
+            TargetType.GetMembers().Where(x => x.MemberType.BitAny(MemberTypes.Field | MemberTypes.Property))._DoForEach(x => orderedFieldOrPropertyNamesList.Add(x.Name));
+            this.OrderedPublicFieldOrPropertyNamesList = orderedFieldOrPropertyNamesList;
         }
 
         public static FieldReaderWriter GetCached(Type type) => _PublicSingleton.CreateOrGet(type);

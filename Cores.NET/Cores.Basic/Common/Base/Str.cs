@@ -3123,7 +3123,7 @@ namespace IPA.Cores.Basic
         }
 
         // HTML エンコード
-        public static string EncodeHtml(string? str, bool forceAllSpaceToTag = false)
+        public static string EncodeHtml(string? str, bool forceAllSpaceToTag = false, bool spaceIfEmpty = false)
         {
             str = str._NonNull();
 
@@ -3182,6 +3182,11 @@ namespace IPA.Cores.Basic
 
             // 改行コード
             str = str.Replace("\r\n", HtmlCrlf);
+
+            if (str._IsEmpty())
+            {
+                str = Str.HtmlSpacing;
+            }
 
             return str;
         }

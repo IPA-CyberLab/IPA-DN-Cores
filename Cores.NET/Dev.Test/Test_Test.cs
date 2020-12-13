@@ -930,8 +930,32 @@ namespace IPA.TestDev
             }
         }
 
+        public class TestTable_201213
+        {
+            [SimpleTableIgnore]
+            public string A { get; set; } = "Hello";
+            [SimpleTableOrder(8)]
+            public string B = "World";
+            public int C = 123;
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                List<TestTable_201213> a = new List<TestTable_201213>();
+
+                a.Add(new TestTable_201213());
+                a.Add(new TestTable_201213() { A = "Neko", B = "Inu", C = 456 });
+
+
+                var table = new SimpleTableView<TestTable_201213>(a);
+
+                table.GenerateHtml()._Print();
+
+                return;
+            }
+
             if (true)
             {
                 Async(async () => await Test_DNS_201213());

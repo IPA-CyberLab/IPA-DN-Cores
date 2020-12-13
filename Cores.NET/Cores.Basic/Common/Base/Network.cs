@@ -405,12 +405,12 @@ namespace IPA.Cores.Basic
 
         List<EasyIpAclRule> RuleListInternal = new List<EasyIpAclRule>();
 
-        public EasyIpAcl(string body, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit)
+        public EasyIpAcl(string? body, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit)
         {
             List<string> rulesStrList = new List<string>();
 
             // ルールの列挙
-            string[] lines = body._GetLines(true, true, Consts.Strings.CommentStartStringForEasyIpAcl);
+            string[] lines = body._NonNull()._GetLines(true, true, Consts.Strings.CommentStartStringForEasyIpAcl);
             foreach (string line in lines)
             {
                 string[] tokens = line._Split(StringSplitOptions.RemoveEmptyEntries, ';', '|', ',', ' ', '　', '\t');
@@ -446,7 +446,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static EasyIpAclAction Evaluate(string rules, string ipStr, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit)
+        public static EasyIpAclAction Evaluate(string? rules, string ipStr, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit)
         {
             IPAddress? ipa = ipStr._ToIPAddress(noExceptionAndReturnNull: true);
             if (ipa == null)
@@ -457,7 +457,7 @@ namespace IPA.Cores.Basic
             return Evaluate(rules, ipa, defaultAction, defaultActionForEmpty);
         }
 
-        public static EasyIpAclAction Evaluate(string rules, IPAddress ip, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit)
+        public static EasyIpAclAction Evaluate(string? rules, IPAddress ip, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit)
         {
             try
             {

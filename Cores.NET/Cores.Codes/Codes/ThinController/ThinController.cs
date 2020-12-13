@@ -600,6 +600,15 @@ namespace IPA.Cores.Codes
             CancellationToken cancel = box.Cancel;
             HandleWpcParam param = (HandleWpcParam)param2!;
 
+            if (param.ServiceType == ThinControllerServiceType.ApiServiceForGateway)
+            {
+                // Gateway 宛のポートに通信が来たら IP ACL を確認する
+                if (EasyIpAcl.Evaluate(this.Db.GetVarString("GatewayServicePortIpAcl"), box.RemoteEndpoint.Address) == EasyIpAclAction.Deny)
+                {
+                    return new HttpErrorResult(Consts.HttpStatusCodes.Forbidden, $"Your IP address '{box.RemoteEndpoint.Address}' is not allowed to access to this endpoint.");
+                }
+            }
+
             // エンドユーザー用サービスポイントの場合、最大同時処理リクエスト数を制限する
             bool limitMaxConcurrentProcess = param.ServiceType == ThinControllerServiceType.ApiServiceForUsers;
 
@@ -621,16 +630,29 @@ namespace IPA.Cores.Codes
                 ThinControllerSessionClientInfo clientInfo = new ThinControllerSessionClientInfo(box, param.ServiceType);
 
                 // WPC リクエスト文字列の受信
-                string requestWpcString = await box.Request._RecvStringContentsAsync((int)Pack.MaxPackSize * 2, cancel: cancel);
+                string requestWpcString = "";
+                if (box.Method == WebMethods.POST)
+                {
+                    requestWpcString = await box.Request._RecvStringContentsAsync((int)Pack.MaxPackSize * 2, cancel: cancel);
+                }
 
-                // WPC 処理のためのセッションの作成
-                var session = new ThinControllerSession(this, clientInfo);
+                if (requestWpcString._IsFilled())
+                {
+                    // WPC 処理のためのセッションの作成
+                    var session = new ThinControllerSession(this, clientInfo);
 
-                // WPC 処理の実施
-                string responseWpcString = await session.ProcessWpcRequestAsync(requestWpcString, cancel);
+                    // WPC 処理の実施
+                    string responseWpcString = await session.ProcessWpcRequestAsync(requestWpcString, cancel);
 
-                // WPC 結果の応答
-                return new HttpStringResult(responseWpcString);
+                    // WPC 結果の応答
+                    return new HttpStringResult(responseWpcString);
+                }
+                else
+                {
+                    // プロトコルエラー (リクエストがない)
+                    WpcResult result = new WpcResult(VpnErrors.ERR_PROTOCOL_ERROR);
+                    return new HttpStringResult(result.ToWpcPack().ToPacketString());
+                }
             }
             catch (Exception ex)
             {
