@@ -303,6 +303,8 @@ namespace IPA.Cores.Codes
                 // メモリデータベースを構築
                 ThinMemoryDb mem = new ThinMemoryDb(allSvcs, allMachines, allVars);
 
+                this.MemDb = mem;
+
                 // 構築したメモリデータベースをバックアップファイルに保存
                 long now = TickNow;
 

@@ -355,8 +355,8 @@ namespace IPA.Cores.Basic
         public DateTime DateTimeValue = new DateTime(0);
         public bool BoolValue = false;
 
-        public int SIntValue => (int)Math.Max(IntValue, int.MaxValue);
-        public long SInt64Value => (long)Math.Max(Int64Value, long.MaxValue);
+        public int SIntValue => (int)Math.Min(IntValue, int.MaxValue);
+        public long SInt64Value => (long)Math.Min(Int64Value, long.MaxValue);
         public int SIntValueSafeNum => Math.Min(SIntValue, 65535);
         public string StrValueNonNull => StrValue._NonNull();
         public string UniStrValueNonNull => UniStrValue._NonNull();

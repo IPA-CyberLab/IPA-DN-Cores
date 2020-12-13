@@ -228,9 +228,23 @@ namespace IPA.Cores.Codes
             async Task GateSecurityCheckAsync(WpcPack req, CancellationToken cancel)
             {
                 string gateKey = req.Pack["GateKey"].StrValueNonNull;
+
+                bool ok = false;
+
                 if (gateKey._IsFilled())
                 {
-                    // todo: check
+                    // gateKey が GateKeyList の一覧にあるかどうか検査
+                    if (Controller.Db.IsConnected == false)
+                    {
+                        throw new CoresException("Controller.DB is not connected yet.");
+                    }
+
+                    ok = Controller.Db.GetVars("GateKeyList")?.Where(x => x.VAR_VALUE1 == gateKey).Any() ?? false;
+                }
+
+                if (ok == false)
+                {
+                    throw new CoresException($"The specified gateKey '{gateKey}' is invalid.");
                 }
 
                 // Gate の場合 IP 逆引きの実行
@@ -432,7 +446,7 @@ namespace IPA.Cores.Codes
 
                         default:
                             // 適切な関数が見つからない
-                            return NewWpcResult(VpnErrors.ERR_DESK_RPC_PROTOCOL_ERROR);
+                            return NewWpcResult(VpnErrors.ERR_NOT_SUPPORTED);
                     }
                 }
                 catch (Exception ex)

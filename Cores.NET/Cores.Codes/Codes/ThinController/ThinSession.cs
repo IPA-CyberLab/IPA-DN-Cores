@@ -130,6 +130,7 @@ namespace IPA.Cores.Codes
         {
             GateId = GateId._NonNull().ToUpper();
             IpAddress = IpAddress._NonNull();
+            if (Port == 0) Port = Consts.Ports.Https;
             HostName = HostName._NonNull();
             MacAddress = MacAddress._NonNull();
             OsInfo = OsInfo._NonNull();
