@@ -115,37 +115,68 @@ namespace IPA.Cores.Codes
 
     public class ThinDbMachine
     {
+        [SimpleTableOrder(1)]
         public int MACHINE_ID { get; set; }
+        [SimpleTableIgnore]
         public string SVC_NAME { get; set; } = "";
         [EasyManualKey]
+        [SimpleTableOrder(3)]
         public string MSID { get; set; } = "";
+        [SimpleTableOrder(2)]
         public string PCID { get; set; } = "";
+        [SimpleTableIgnore]
         public int PCID_VER { get; set; }
+        [SimpleTableIgnore]
         public byte[] CERT { get; set; } = new byte[0];
+        [SimpleTableIgnore]
         public string CERT_HASH { get; set; } = "";
+        [SimpleTableIgnore]
         public string HOST_SECRET { get; set; } = "";
+        [SimpleTableIgnore]
         public string HOST_SECRET2 { get; set; } = "";
+        [SimpleTableOrder(5)]
         public DateTime CREATE_DATE { get; set; } = Util.ZeroDateTimeValue;
+        [SimpleTableIgnore]
         public DateTime UPDATE_DATE { get; set; } = Util.ZeroDateTimeValue;
+        [SimpleTableOrder(7)]
         public DateTime LAST_SERVER_DATE { get; set; } = Util.ZeroDateTimeValue;
+        [SimpleTableOrder(8)]
         public DateTime LAST_CLIENT_DATE { get; set; } = Util.ZeroDateTimeValue;
+        [SimpleTableOrder(9)]
         public int NUM_SERVER { get; set; }
+        [SimpleTableOrder(10)]
         public int NUM_CLIENT { get; set; }
+        [SimpleTableOrder(4)]
         public string CREATE_IP { get; set; } = "";
+        [SimpleTableIgnore]
         public string CREATE_HOST { get; set; } = "";
+        [SimpleTableOrder(6)]
         public string LAST_IP { get; set; } = "";
+        [SimpleTableIgnore]
         public string REAL_PROXY_IP { get; set; } = "";
+        [SimpleTableIgnore]
         public string LAST_FLAG { get; set; } = "";
+        [SimpleTableIgnore]
         public int SE_LANGUAGE { get; set; }
+        [SimpleTableIgnore]
         public bool RESET_CERT_FLAG { get; set; }
+        [SimpleTableIgnore]
         public bool FLAG_BETA2MSG { get; set; }
+        [SimpleTableIgnore]
         public DateTime FIRST_CLIENT_DATE { get; set; } = Util.ZeroDateTimeValue;
+        [SimpleTableIgnore]
         public DateTime EXPIRE { get; set; } = Util.ZeroDateTimeValue;
+        [SimpleTableIgnore]
         public int MAX_CLIENTS { get; set; }
+        [SimpleTableIgnore]
         public bool MAC_ENABLE { get; set; }
+        [SimpleTableIgnore]
         public int NUM_MACCLIENT { get; set; }
+        [SimpleTableIgnore]
         public string WOL_MACLIST { get; set; } = "";
+        [SimpleTableIgnore]
         public long SERVERMASK64 { get; set; }
+        [SimpleTableIgnore]
         public string JSON_ATTRIBUTES { get; set; } = "";
     }
 

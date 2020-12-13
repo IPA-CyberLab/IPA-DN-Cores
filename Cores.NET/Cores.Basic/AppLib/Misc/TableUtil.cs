@@ -63,11 +63,11 @@ namespace IPA.Cores.Basic
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class SimpleTableOrderAttribute : Attribute
     {
-        public SimpleTableOrderAttribute(int order = 0)
+        public SimpleTableOrderAttribute(double order = 0)
         {
             this.Order = order;
         }
-        public int Order { get; set; } = 0;
+        public double Order { get; set; } = 0;
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
@@ -79,15 +79,15 @@ namespace IPA.Cores.Basic
 
         public IReadOnlyList<string> OrderedColumnNamesList;
 
-        public IEnumerable<TRow> Data { get; }
+        public IEnumerable<TRow>? Data { get; }
 
-        public SimpleTableView(IEnumerable<TRow> data)
+        public SimpleTableView(IEnumerable<TRow>? data)
         {
             this.Data = data;
 
             var names = this.Rw.OrderedPublicFieldOrPropertyNamesList;
 
-            List<Pair3<string, int, int>> cols = new List<Pair3<string, int, int>>();
+            List<Pair3<string, double, int>> cols = new List<Pair3<string, double, int>>();
 
             int i = 0;
             foreach (string name in names)
@@ -100,9 +100,9 @@ namespace IPA.Cores.Basic
 
                 if (ignoreAttribute != null) continue;
 
-                int customOrder = orderAttribute?.Order ?? int.MaxValue;
+                double customOrder = orderAttribute?.Order ?? double.MaxValue;
 
-                cols.Add(new Pair3<string, int, int>(name, customOrder, naturalOrder));
+                cols.Add(new Pair3<string, double, int>(name, customOrder, naturalOrder));
             }
 
             this.OrderedColumnNamesList = cols.OrderBy(x => x.B).ThenBy(x => x.C).Select(x => x.A).ToList();
@@ -124,26 +124,33 @@ namespace IPA.Cores.Basic
             w.WriteLine($"  </tr>");
 
             int i = 0;
-            foreach (var row in this.Data)
+            if (this.Data != null)
             {
-                if (row != null)
+                foreach (var row in this.Data)
                 {
-                    string color = ((i % 2) == 0) ? "#EFF3FB" : "White";
-
-                    w.WriteLine($"  <tr style=\"background-color:{color};\">");
-
-                    foreach (var name in this.OrderedColumnNamesList)
+                    if (row != null)
                     {
-                        object? obj = Rw.GetValue(row, name);
-                        string dataStr = obj?.ToString()._NonNull() ?? "";
-                        string dataHtml = dataStr._EncodeHtml(true, true);
+                        string color = ((i % 2) == 0) ? "#EFF3FB" : "White";
 
-                        w.WriteLine($"    <td style=\"white-space: nowrap;\">{dataHtml}</td>");
+                        w.WriteLine($"  <tr style=\"background-color:{color};\">");
+
+                        foreach (var name in this.OrderedColumnNamesList)
+                        {
+                            object? obj = Rw.GetValue(row, name);
+                            string dataStr = obj?.ToString()._NonNull() ?? "";
+
+                            if (obj is DateTime dt1) dataStr = dt1._ToDtStr();
+                            if (obj is DateTimeOffset dt2) dataStr = dt2._ToDtStr();
+
+                            string dataHtml = dataStr._EncodeHtml(true, true);
+
+                            w.WriteLine($"    <td style=\"white-space: nowrap;\">{dataHtml}</td>");
+                        }
+
+                        w.WriteLine($"  </tr>");
+
+                        i++;
                     }
-
-                    w.WriteLine($"  </tr>");
-
-                    i++;
                 }
             }
 

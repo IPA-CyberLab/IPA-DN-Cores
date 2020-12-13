@@ -561,6 +561,8 @@ namespace IPA.Cores.Codes
 
         public DnsResolver DnsResolver { get; }
 
+        public DateTimeOffset BootDateTime { get; } = DtOffsetNow;
+
         // データベース
         public ThinDatabase Db { get; }
         public ThinSessionManager SessionManager { get; }
@@ -594,6 +596,24 @@ namespace IPA.Cores.Codes
         }
 
         readonly RefInt CurrentConcurrentProcess = new RefInt();
+
+        // 管理用ビューを取得
+        public ThinAdminView GetAdminView()
+        {
+            SessionManager.DeleteOldGate(DtNow);
+
+            ThinAdminView ret = new ThinAdminView();
+
+            ret.BootDateTime = this.BootDateTime;
+
+            ret.GatesList = this.SessionManager.GateTable.Values;
+
+            ret.VarsList = this.Db.MemDb?.VarList.OrderBy(x => x.VAR_NAME).ThenBy(x => x.VAR_ID) ?? null;
+
+            ret.MachinesList = this.Db.MemDb?.MachineList.OrderBy(x => x.CREATE_DATE) ?? null;
+
+            return ret;
+        }
 
         public async Task<HttpResult> HandleWpcAsync(HttpEasyContextBox box, object? param2)
         {

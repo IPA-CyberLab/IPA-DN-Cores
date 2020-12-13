@@ -109,21 +109,35 @@ namespace IPA.Cores.Codes
 
     public class ThinGate : IValidatable, INormalizable
     {
+        [SimpleTableOrder(1)]
         public string GateId = "";
+        [SimpleTableOrder(6)]
         public string IpAddress = "";
+        [SimpleTableOrder(7.5)]
         public int Port;
+        [SimpleTableOrder(7)]
         public string HostName = "";
+        [SimpleTableOrder(11)]
         public int Performance;
+        [SimpleTableOrder(12)]
         public int NumSessions;
+        [SimpleTableOrder(8)]
         public int Build;
+        [SimpleTableOrder(9)]
         public string MacAddress = "";
+        [SimpleTableOrder(10)]
         public string OsInfo = "";
+        [SimpleTableOrder(2)]
         public DateTime EstablishedDateTime = Util.ZeroDateTimeValue;
+        [SimpleTableOrder(3)]
         public DateTime LastCommDateTime = Util.ZeroDateTimeValue;
+        [SimpleTableOrder(4)]
         public DateTime Expires = Util.ZeroDateTimeValue;
+        [SimpleTableOrder(5)]
         public long NumComm;
 
         [NoDebugDump]
+        [SimpleTableIgnore]
         public ImmutableDictionary<string, ThinSession> SessionTable = ImmutableDictionary<string, ThinSession>.Empty;
 
         public void Normalize()
@@ -254,16 +268,20 @@ namespace IPA.Cores.Codes
 
             gate.SessionTable = gate.SessionTable.AddRange(newSessionDictionary);
             gate.NumSessions = gate.SessionTable.Count;
+            gate.LastCommDateTime = now;
+            gate.Expires = expires;
 
             ImmutableInterlocked.AddOrUpdate(ref this.GateTable, gate.GateId,
                 addValueFactory: gateId =>
                 {
                     gate.NumComm = 1;
+                    gate.EstablishedDateTime = now;
                     return gate;
                 },
                 updateValueFactory: (gateId, current) =>
                 {
                     gate.NumComm = current.NumComm + 1;
+                    gate.EstablishedDateTime = current.EstablishedDateTime;
                     return gate;
                 });
 

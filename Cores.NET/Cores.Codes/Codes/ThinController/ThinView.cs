@@ -80,35 +80,18 @@ using static IPA.App.ThinControllerApp.AppGlobal;
 
 namespace IPA.Cores.Codes
 {
-    public static partial class ThinControllerConsts
+    public class ThinAdminView
     {
-        public static readonly Copenhagen<int> DefaultMaxBodySizeForUsers = 16 * 1024;
-        public static readonly Copenhagen<int> DefaultMaxBodySizeForGateway = (int)Pack.MaxPackSize;
+        public DateTimeOffset BootDateTime;
+        public IEnumerable<ThinGate> GatesList = null!;
+        public IEnumerable<ThinDbVar>? VarsList = null;
+        public IEnumerable<ThinDbMachine>? MachinesList = null;
 
-        public static readonly Copenhagen<int> MaxConcurrentWpcRequestProcessingForUsers = 500;
+        public int NumGates => GatesList.Count();
+        public int NumTotalSessions => GatesList.Sum(x => x.NumSessions);
 
-        public static readonly Copenhagen<int> MaxConcurrentKestrelConnectionsForUsers = 1000;
-
-        public static readonly Copenhagen<string> AccessLogTag = "ThinControlerLog";
-
-        public static readonly Copenhagen<int> DbReadReloadIntervalMsecs = 1 * 1000;
-        public static readonly Copenhagen<int> DbWriteIntervalMsecs = 1 * 1000;
-        public static readonly Copenhagen<int> DbBackupFileWriteIntervalMsecs = 5 * 1000;
-    }
-
-    [Flags]
-    public enum ThinControllerServiceType
-    {
-        ApiServiceForUsers,
-        ApiServiceForGateway,
-    }
-
-    [Flags]
-    public enum ThinControllerSessionFlags
-    {
-        None = 0,
-
-        LimitedMode,
+        public int NumVars => VarsList?.Count() ?? 0;
+        public int NumMachines => MachinesList?.Count() ?? 0;
     }
 }
 
