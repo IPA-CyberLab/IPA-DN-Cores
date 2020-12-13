@@ -82,6 +82,30 @@ using Newtonsoft.Json;
 
 namespace IPA.Cores.Codes
 {
+    public class ThinDbVar : INormalizable
+    {
+        [EasyKey]
+        public int VAR_ID { get; set; }
+        public string VAR_NAME { get; set; } = "";
+        public string VAR_VALUE1 { get; set; } = "";
+        public string? VAR_VALUE2 { get; set; }
+        public string? VAR_VALUE3 { get; set; }
+        public string? VAR_VALUE4 { get; set; }
+        public string? VAR_VALUE5 { get; set; }
+        public string? VAR_VALUE6 { get; set; }
+
+        public void Normalize()
+        {
+            this.VAR_NAME = this.VAR_NAME._NonNullTrim();
+            this.VAR_VALUE1 = this.VAR_VALUE1._NonNullTrim();
+            this.VAR_VALUE2 = this.VAR_VALUE2._TrimIfNonNull();
+            this.VAR_VALUE3 = this.VAR_VALUE3._TrimIfNonNull();
+            this.VAR_VALUE4 = this.VAR_VALUE4._TrimIfNonNull();
+            this.VAR_VALUE5 = this.VAR_VALUE5._TrimIfNonNull();
+            this.VAR_VALUE6 = this.VAR_VALUE6._TrimIfNonNull();
+        }
+    }
+
     public class ThinDbSvc
     {
         [EasyManualKey]
@@ -96,6 +120,7 @@ namespace IPA.Cores.Codes
         [EasyManualKey]
         public string MSID { get; set; } = "";
         public string PCID { get; set; } = "";
+        public int PCID_VER { get; set; }
         public byte[] CERT { get; set; } = new byte[0];
         public string CERT_HASH { get; set; } = "";
         public string HOST_SECRET { get; set; } = "";
@@ -121,17 +146,23 @@ namespace IPA.Cores.Codes
         public int NUM_MACCLIENT { get; set; }
         public string WOL_MACLIST { get; set; } = "";
         public long SERVERMASK64 { get; set; }
+        public string JSON_ATTRIBUTES { get; set; } = "";
     }
 
     public class ThinMemoryDb
     {
         // データベースからもらってきたデータ
         public List<ThinDbSvc> SvcList = new List<ThinDbSvc>();
+        public List<ThinDbVar> VarList = new List<ThinDbVar>();
         public List<ThinDbMachine> MachineList = new List<ThinDbMachine>();
 
         // 上記データをもとにハッシュ化したデータ
         [JsonIgnore]
         public Dictionary<string, ThinDbSvc> SvcBySvcName = new Dictionary<string, ThinDbSvc>(StrComparer.IgnoreCaseComparer);
+
+        [JsonIgnore]
+        public Dictionary<string, List<ThinDbVar>> VarByName = new Dictionary<string, List<ThinDbVar>>(StrComparer.IgnoreCaseComparer);
+
         [JsonIgnore]
         public Dictionary<string, ThinDbMachine> MachineByPcidAndSvcName = new Dictionary<string, ThinDbMachine>(StrComparer.IgnoreCaseComparer);
         [JsonIgnore]
@@ -142,10 +173,11 @@ namespace IPA.Cores.Codes
         public ThinMemoryDb() { }
 
         // データベースから構築
-        public ThinMemoryDb(IEnumerable<ThinDbSvc> svcTable, IEnumerable<ThinDbMachine> machineTable)
+        public ThinMemoryDb(IEnumerable<ThinDbSvc> svcTable, IEnumerable<ThinDbMachine> machineTable, IEnumerable<ThinDbVar> varTable)
         {
-            this.SvcList = svcTable.OrderBy(x=>x.SVC_NAME, StrComparer.IgnoreCaseComparer).ToList();
-            this.MachineList = machineTable.OrderBy(x=>x.MACHINE_ID).ToList();
+            this.SvcList = svcTable.OrderBy(x => x.SVC_NAME, StrComparer.IgnoreCaseComparer).ToList();
+            this.VarList = varTable.OrderBy(x => x.VAR_NAME).ThenBy(x=>x.VAR_ID).ToList();
+            this.MachineList = machineTable.OrderBy(x => x.MACHINE_ID).ToList();
 
             BuildDictionary();
         }
@@ -161,6 +193,7 @@ namespace IPA.Cores.Codes
 
             this.SvcList = tmp.SvcList;
             this.MachineList = tmp.MachineList;
+            this.VarList = tmp.VarList;
 
             BuildDictionary();
         }
@@ -168,6 +201,13 @@ namespace IPA.Cores.Codes
         void BuildDictionary()
         {
             this.SvcList.ForEach(x => this.SvcBySvcName.TryAdd(x.SVC_NAME, x));
+
+            this.VarList.ForEach(v =>
+            {
+                v.Normalize();
+
+                this.VarByName._GetOrNew(v.VAR_NAME, () => new List<ThinDbVar>()).Add(v);
+            });
 
             this.MachineList.ForEach(x =>
             {
@@ -207,6 +247,8 @@ namespace IPA.Cores.Codes
 
         public ThinMemoryDb? MemDb { get; private set; }
 
+        public bool IsConnected => MemDb != null;
+
         public string BackupFileName { get; }
 
         public ThinDatabase(ThinController controller)
@@ -245,18 +287,21 @@ namespace IPA.Cores.Codes
             {
                 await using var db = await OpenDatabaseForReadAsync(cancel);
 
-                var dbRet = await db.TranReadSnapshotIfNecessaryAsync(async () =>
-                {
-                    IEnumerable<ThinDbSvc> allSvcs = await db.EasySelectAsync<ThinDbSvc>("select * from SVC", cancel: cancel);
-                    IEnumerable<ThinDbMachine> allMachines = await db.EasySelectAsync<ThinDbMachine>("select * from MACHINE", cancel: cancel);
+                IEnumerable<ThinDbSvc> allSvcs = null!;
+                IEnumerable<ThinDbMachine> allMachines = null!;
+                IEnumerable<ThinDbVar> allVars = null!;
 
-                    return new Pair2<IEnumerable<ThinDbSvc>, IEnumerable<ThinDbMachine>>(allSvcs, allMachines);
+                await db.TranReadSnapshotIfNecessaryAsync(async () =>
+                {
+                    allSvcs = await db.EasySelectAsync<ThinDbSvc>("select * from SVC", cancel: cancel);
+                    allMachines = await db.EasySelectAsync<ThinDbMachine>("select * from MACHINE", cancel: cancel);
+                    allVars = await db.EasySelectAsync<ThinDbVar>("select * from VAR", cancel: cancel);
                 });
 
-                $"ThinDatabase.ReadCoreAsync Read All Records from DB: {dbRet.B.Count()}"._Debug();
+                $"ThinDatabase.ReadCoreAsync Read All Records from DB: {allMachines.Count()}"._Debug();
 
                 // メモリデータベースを構築
-                ThinMemoryDb mem = new ThinMemoryDb(dbRet.A, dbRet.B);
+                ThinMemoryDb mem = new ThinMemoryDb(allSvcs, allMachines, allVars);
 
                 // 構築したメモリデータベースをバックアップファイルに保存
                 long now = TickNow;
@@ -329,6 +374,25 @@ namespace IPA.Cores.Codes
                 await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(ThinControllerConsts.DbWriteIntervalMsecs));
             }
         }
+
+        // 便利な Var 取得ルーチン集
+        public IEnumerable<ThinDbVar>? GetVars(string name)
+        {
+            var db = this.MemDb;
+            if (db == null) return null;
+
+            if (db.VarByName.TryGetValue(name, out List<ThinDbVar>? list) == false)
+            {
+                return new ThinDbVar[0];
+            }
+
+            return list;
+        }
+        public ThinDbVar? GetVar(string name)
+            => GetVars(name)?.FirstOrDefault();
+
+        public string? GetVarString(string name)
+            => GetVar(name)?.VAR_VALUE1;
 
         protected override async Task CleanupImplAsync(Exception? ex)
         {

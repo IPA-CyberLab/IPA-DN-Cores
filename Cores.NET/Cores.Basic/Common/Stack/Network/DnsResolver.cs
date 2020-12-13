@@ -56,6 +56,7 @@ using System.Net;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Collections.Immutable;
 
 namespace IPA.Cores.Basic
 {
@@ -67,6 +68,7 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<int> NumTry = 6;
             public static readonly Copenhagen<int> MinCacheTimeoutMsecs = 3600 * 1000;
             public static readonly Copenhagen<int> MaxCacheTimeoutMsecs = 6 * 3600 * 1000;
+            public static readonly Copenhagen<int> ReverseLookupInternalCacheTimeoutMsecs = 3600 * 1000;
         }
     }
 
@@ -94,15 +96,18 @@ namespace IPA.Cores.Basic
         public int MinCacheTimeout { get; }
         public int MaxCacheTimeout { get; }
         public IReadOnlyList<IPEndPoint> DnsServersList { get; }
+        public int ReverseLookupIntervalCacheTimeoutMsecs { get; }
 
         public DnsResolverSettings(TcpIpSystem? tcpIp = null, DnsResolverFlags flags = DnsResolverFlags.Default,
-            int timeoutOneQuery = -1, int numTry = -1, int minCacheTimeout = -1, int maxCacheTimeout = -1, IEnumerable<IPEndPoint>? dnsServersList = null)
+            int timeoutOneQuery = -1, int numTry = -1, int minCacheTimeout = -1, int maxCacheTimeout = -1, IEnumerable<IPEndPoint>? dnsServersList = null,
+            int reverseLookupInternalCacheTimeoutMsecs = -1)
         {
             if (tcpIp == null) tcpIp = LocalNet;
             if (timeoutOneQuery <= 0) timeoutOneQuery = CoresConfig.DnsResolverDefaults.TimeoutOneQueryMsecs;
             if (numTry <= 0) numTry = CoresConfig.DnsResolverDefaults.NumTry;
             if (minCacheTimeout <= 0) minCacheTimeout = CoresConfig.DnsResolverDefaults.MinCacheTimeoutMsecs;
             if (maxCacheTimeout <= 0) maxCacheTimeout = CoresConfig.DnsResolverDefaults.MaxCacheTimeoutMsecs;
+            if (reverseLookupInternalCacheTimeoutMsecs < 0) reverseLookupInternalCacheTimeoutMsecs = CoresConfig.DnsResolverDefaults.ReverseLookupInternalCacheTimeoutMsecs;
 
             this.TcpIp = tcpIp;
             this.Flags = flags;
@@ -110,6 +115,7 @@ namespace IPA.Cores.Basic
             this.NumTry = numTry;
             this.MinCacheTimeout = minCacheTimeout;
             this.MaxCacheTimeout = maxCacheTimeout;
+            this.ReverseLookupIntervalCacheTimeoutMsecs = reverseLookupInternalCacheTimeoutMsecs;
             if (dnsServersList != null)
             {
                 this.DnsServersList = dnsServersList.ToList();
@@ -161,6 +167,7 @@ namespace IPA.Cores.Basic
                 return null;
             }
         }
+
 
         public async Task<List<string>?> GetHostNameAsync(IPAddress? ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
         {

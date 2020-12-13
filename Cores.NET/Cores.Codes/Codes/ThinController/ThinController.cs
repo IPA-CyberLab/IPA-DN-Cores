@@ -217,7 +217,168 @@ namespace IPA.Cores.Codes
             // Gate から: セッションリストの報告
             public WpcResult ProcReportSessionList(WpcPack req, CancellationToken cancel)
             {
-                return null!;
+                Pack p = req.Pack;
+
+                int numSessions = p["NumSession"].SIntValueSafeNum;
+
+                Dictionary<string, ThinSession> sessionList = new Dictionary<string, ThinSession>();
+
+                for (int i = 0; i < numSessions; i++)
+                {
+                    ThinSession sess = new ThinSession
+                    {
+                        Msid = p["Msid", i].StrValueNonNull,
+                        SessionId = p["SessionId", i].DataValueHexStr,
+                        EstablishedDateTime = Util.ConvertDateTime(p["EstablishedDateTime", i].Int64Value).ToLocalTime(),
+                        IpAddress = p["IpAddress", i].StrValueNonNull,
+                        HostName = p["Hostname", i].StrValueNonNull,
+                        NumClients = p["NumClients", i].SIntValue,
+                        ServerMask64 = p["ServerMask64", i].Int64Value,
+                    };
+
+                    sess.Validate();
+
+                    sessionList.TryAdd(sess.SessionId, sess);
+                }
+
+                ThinGate gate = new ThinGate
+                {
+                    GateId = p["GateId"].DataValueHexStr,
+                    IpAddress = this.ClientInfo.ClientPhysicalIp,
+                    Port = p["Port"].SIntValue,
+                    HostName = this.ClientInfo.ClientPhysicalIp,
+                    Performance = p["Performance"].SIntValue,
+                    NumSessions = sessionList.Count,
+                    Build = p["Build"].SIntValue,
+                    MacAddress = p["MacAddress"].StrValueNonNull,
+                    OsInfo = p["OsInfo"].StrValueNonNull,
+                };
+
+                int numSc = (int)Math.Min(p.GetCount("SC_SessionId"), 65536);
+
+                Dictionary<string, HashSet<string>> sessionAndClientTable = new Dictionary<string, HashSet<string>>();
+                for (int i = 0; i < numSc; i++)
+                {
+                    string sessionId = p["SC_SessionId", i].DataValueHexStr;
+                    string clientId = p["SC_ClientID", i].DataValueHexStr;
+
+                    if (sessionId.Length == 40 && clientId.Length == 40)
+                    {
+                        sessionId = sessionId.ToUpper();
+                        clientId = clientId.ToUpper();
+
+                        sessionAndClientTable._GetOrNew(sessionId, () => new HashSet<string>()).Add(clientId);
+                    }
+                }
+
+                foreach (var item in sessionAndClientTable)
+                {
+                    var sess = sessionList._GetOrDefault(item.Key);
+                    if (sess != null) sess.NumClientsUnique++;
+                }
+
+                var now = DtNow;
+
+                Controller.SessionManager.UpdateGateAndReportSessions(now, now.AddMilliseconds(p["EntryExpires"].SIntValue), gate, sessionList.Values);
+
+                var ret = NewWpcResult();
+
+                ret.AdditionalInfo.Add("Gate", gate._GetObjectDumpForJsonFriendly());
+
+                string? secretKey = Controller.Db.GetVarString("ControllerGateSecretKey");
+                if (secretKey._IsFilled()) ret.Pack.AddStr("ControllerGateSecretKey", secretKey);
+
+                return ret;
+            }
+
+            // Gate から: 1 本のセッションの追加の報告
+            public WpcResult ProcReportSessionAdd(WpcPack req, CancellationToken cancel)
+            {
+                Pack p = req.Pack;
+
+                int i = 0;
+                ThinSession sess = new ThinSession
+                {
+                    Msid = p["Msid", i].StrValueNonNull,
+                    SessionId = p["SessionId", i].DataValueHexStr,
+                    EstablishedDateTime = Util.ConvertDateTime(p["EstablishedDateTime", i].Int64Value).ToLocalTime(),
+                    IpAddress = p["IpAddress", i].StrValueNonNull,
+                    HostName = p["Hostname", i].StrValueNonNull,
+                    NumClients = p["NumClients", i].SIntValue,
+                    ServerMask64 = p["ServerMask64", i].Int64Value,
+                };
+
+                sess.Validate();
+
+                // gate のフィールド内容は UpdateGateAndAddSession でそれほど参照されないので適当で OK
+                ThinGate gate = new ThinGate
+                {
+                    GateId = p["GateId"].DataValueHexStr,
+                    IpAddress = this.ClientInfo.ClientPhysicalIp,
+                    Port = p["Port"].SIntValue,
+                    HostName = this.ClientInfo.ClientPhysicalIp,
+                    Performance = p["Performance"].SIntValue,
+                    NumSessions = 0,
+                    Build = p["Build"].SIntValue,
+                    MacAddress = p["MacAddress"].StrValueNonNull,
+                    OsInfo = p["OsInfo"].StrValueNonNull,
+                };
+
+                sess.NumClientsUnique = sess.NumClients == 0 ? 0 : 1;
+
+                var now = DtNow;
+
+                Controller.SessionManager.UpdateGateAndAddSession(now, now.AddMilliseconds(p["EntryExpires"].SIntValue), gate, sess);
+
+                var ret = NewWpcResult();
+
+                ret.AdditionalInfo.Add("Gate", gate._GetObjectDumpForJsonFriendly());
+                ret.AdditionalInfo.Add("AddSession", sess._GetObjectDumpForJsonFriendly());
+
+                string? secretKey = Controller.Db.GetVarString("ControllerGateSecretKey");
+                if (secretKey._IsFilled()) ret.Pack.AddStr("ControllerGateSecretKey", secretKey);
+
+                return ret;
+            }
+
+            // Gate から: 1 本のセッションの削除の報告
+            public WpcResult ProcReportSessionDel(WpcPack req, CancellationToken cancel)
+            {
+                Pack p = req.Pack;
+
+                string sessionId = p["SessionId"].DataValueHexStr;
+
+                // gate のフィールド内容は UpdateGateAndAddSession でそれほど参照されないので適当で OK
+                ThinGate gate = new ThinGate
+                {
+                    GateId = p["GateId"].DataValueHexStr,
+                    IpAddress = this.ClientInfo.ClientPhysicalIp,
+                    Port = p["Port"].SIntValue,
+                    HostName = this.ClientInfo.ClientPhysicalIp,
+                    Performance = p["Performance"].SIntValue,
+                    NumSessions = 0,
+                    Build = p["Build"].SIntValue,
+                    MacAddress = p["MacAddress"].StrValueNonNull,
+                    OsInfo = p["OsInfo"].StrValueNonNull,
+                };
+
+                var now = DtNow;
+
+                bool ok = Controller.SessionManager.TryUpdateGateAndDeleteSession(now, now.AddMilliseconds(p["EntryExpires"].SIntValue), gate, sessionId, out ThinSession? session);
+
+                var ret = NewWpcResult();
+
+                ret.AdditionalInfo.Add("Gate", gate._GetObjectDumpForJsonFriendly());
+
+                if (ok && session != null)
+                {
+                    ret.AdditionalInfo.Add("DeleteSession", session._GetObjectDumpForJsonFriendly());
+                }
+
+                string? secretKey = Controller.Db.GetVarString("ControllerGateSecretKey");
+                if (secretKey._IsFilled()) ret.Pack.AddStr("ControllerGateSecretKey", secretKey);
+
+                return ret;
             }
 
             public async Task<WpcResult> ProcessWpcRequestCoreAsync(string wpcRequestString, CancellationToken cancel = default)
@@ -237,6 +398,8 @@ namespace IPA.Cores.Codes
                         case "test": return ProcTest(req, cancel);
                         case "commcheck": return ProcCommCheck(req, cancel);
                         case "reportsessionlist": return ProcReportSessionList(req, cancel);
+                        case "reportsessionadd": return ProcReportSessionAdd(req, cancel);
+                        case "reportsessiondel": return ProcReportSessionDel(req, cancel);
 
                         default:
                             // 適切な関数が見つからない
@@ -355,6 +518,7 @@ namespace IPA.Cores.Codes
 
         // データベース
         public ThinDatabase Db { get; }
+        public ThinSessionManager SessionManager { get; }
 
         public ThinController(ThinControllerSettings settings, Func<ThinControllerSettings>? getDefaultSettings = null)
         {
@@ -368,6 +532,7 @@ namespace IPA.Cores.Codes
                     HiveSerializerSelection.RichJson);
 
                 this.Db = new ThinDatabase(this);
+                this.SessionManager = new ThinSessionManager();
             }
             catch (Exception ex)
             {

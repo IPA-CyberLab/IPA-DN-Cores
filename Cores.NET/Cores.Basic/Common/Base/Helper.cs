@@ -430,6 +430,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _TrimEndsWith(this string s, string key, bool caseSensitive = false) { Str.TrimEndsWith(ref s, key, caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase); return s; }
         public static string _NonNull(this string? s) { if (s == null) return ""; else return s; }
         public static string _NonNullTrim(this string? s) { if (s == null) return ""; else return s.Trim(); }
+        public static string? _TrimIfNonNull(this string ?s) { if (s == null) return null; else return s.Trim(); }
         public static string _NonNullTrimSe(this string? s) { return Str.NormalizeStrSoftEther(s._NonNullTrim(), true); }
         public static string _TrimNonNull(this string? s) => s._NonNullTrim();
         public static bool _TryTrimStartWith(this string srcStr, out string outStr, StringComparison comparison, params string[] keys) => Str.TryTrimStartWith(srcStr, out outStr, comparison, keys);
@@ -579,8 +580,10 @@ namespace IPA.Cores.Helper.Basic
 
         public static void _DebugObject(this object? o) => Dbg.DebugObject(o);
         public static void _PrintObject(this object? o) => Dbg.PrintObject(o);
-        public static string _GetObjectDump(this object? o, string? instanceBaseName = "", string? separatorString = ", ", bool hideEmpty = true, bool jsonIfPossible = false, Type? type = null)
-            => Dbg.GetObjectDump(o, instanceBaseName, separatorString, hideEmpty, jsonIfPossible, type);
+        public static string _GetObjectDump(this object? o, string? instanceBaseName = "", string? separatorString = ", ", bool hideEmpty = true, bool jsonIfPossible = false, Type? type = null, string stringClosure = "\"")
+            => Dbg.GetObjectDump(o, instanceBaseName, separatorString, hideEmpty, jsonIfPossible, type, stringClosure);
+        public static string _GetObjectDumpForJsonFriendly(this object? o, string? instanceBaseName = "", Type? type = null)
+            => _GetObjectDump(o, instanceBaseName, type: type, stringClosure: "'");
         public static string _Old_ObjectToXmlPublic(this object o, Type? t = null) => Str.ObjectToXMLSimple_PublicLegacy(o, t ?? o.GetType());
 
         [return: NotNullIfNotNull("o")]
@@ -772,7 +775,7 @@ namespace IPA.Cores.Helper.Basic
             return n;
         }
 
-        public static TValue _GetOrDefault<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key, TValue defaultValue)
+        public static TValue? _GetOrDefault<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key, TValue? defaultValue = default)
             where TKey : notnull
         {
             if (d.ContainsKey(key)) return d[key];
@@ -799,7 +802,7 @@ namespace IPA.Cores.Helper.Basic
             return n;
         }
 
-        public static TValue _GetOrDefault<TKey, TValue>(this SortedDictionary<TKey, TValue> d, TKey key, TValue defaultValue)
+        public static TValue? _GetOrDefault<TKey, TValue>(this SortedDictionary<TKey, TValue> d, TKey key, TValue? defaultValue = default)
             where TKey : notnull
         {
             if (d.ContainsKey(key)) return d[key];

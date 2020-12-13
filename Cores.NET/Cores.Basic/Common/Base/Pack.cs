@@ -354,6 +354,14 @@ namespace IPA.Cores.Basic
         public byte[]? DataValue = null;
         public DateTime DateTimeValue = new DateTime(0);
         public bool BoolValue = false;
+
+        public int SIntValue => (int)Math.Max(IntValue, int.MaxValue);
+        public long SInt64Value => (long)Math.Max(Int64Value, long.MaxValue);
+        public int SIntValueSafeNum => Math.Min(SIntValue, 65535);
+        public string StrValueNonNull => StrValue._NonNull();
+        public string UniStrValueNonNull => UniStrValue._NonNull();
+        public ReadOnlyMemory<byte> DataValueNonNull => DataValue == null ? ReadOnlyMemory<byte>.Empty : DataValue;
+        public string DataValueHexStr => DataValueNonNull._GetHexString();
     }
 
     // Pack
@@ -395,6 +403,10 @@ namespace IPA.Cores.Basic
 
                 return p;
             }
+        }
+        public PackValueAccessor this[string name, int index]
+        {
+            get => this[name, (uint)index];
         }
 
         // コンストラクタ

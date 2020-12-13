@@ -605,3 +605,83 @@
 2020/12/12 11:20:05.475 +09:00 ParsePacket #3 - 190527_vlan_simple_tcp: 74.68 ns, 13,389,576 / sec
 2020/12/12 11:20:06.096 +09:00 ParsePacket #2 - 190527_novlan_simple_udp: 62.56 ns, 15,983,827 / sec
 2020/12/12 11:20:18.074 +09:00 ParsePacket #1 - 190527_novlan_simple_tcp: 60.64 ns, 16,490,585 / sec
+2020/12/13 12:33:59.122 +09:00 ----- Start new benchmark -----
+2020/12/13 12:33:59.151 +09:00 Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31
+2020/12/13 12:33:59.151 +09:00 ExeFileName: C:\git\IPA-DNP-ThinController-Public\submodules\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2020/12/13 12:33:59.151 +09:00 OS: Microsoft Windows 10.0.19042
+2020/12/13 12:33:59.151 +09:00 Framework: .NET 5.0.0
+2020/12/13 12:33:59.151 +09:00 Host: PC34
+2020/12/13 12:33:59.990 +09:00 FastCache: 34.75 ns, 28,774,919 / sec
+2020/12/13 12:34:00.508 +09:00 SimpleAsyncService2: 533.65 ns, 1,873,904 / sec
+2020/12/13 12:34:01.042 +09:00 SimpleAsynService: 1,392.42 ns, 718,174 / sec
+2020/12/13 12:34:01.582 +09:00 WpcPacket: 3,013.96 ns, 331,789 / sec
+2020/12/13 12:34:03.212 +09:00 ----- Start new benchmark -----
+2020/12/13 12:34:03.244 +09:00 Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31
+2020/12/13 12:34:03.244 +09:00 ExeFileName: C:\git\IPA-DNP-ThinController-Public\submodules\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2020/12/13 12:34:03.244 +09:00 OS: Microsoft Windows 10.0.19042
+2020/12/13 12:34:03.244 +09:00 Framework: .NET 5.0.0
+2020/12/13 12:34:03.244 +09:00 Host: PC34
+2020/12/13 12:34:04.095 +09:00 FastCache: 34.31 ns, 29,147,401 / sec
+2020/12/13 12:34:04.628 +09:00 SimpleAsyncService2: 635.70 ns, 1,573,074 / sec
+2020/12/13 12:34:46.037 +09:00 ----- Start new benchmark -----
+2020/12/13 12:34:46.070 +09:00 Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31
+2020/12/13 12:34:46.070 +09:00 ExeFileName: C:\git\IPA-DNP-ThinController-Public\submodules\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2020/12/13 12:34:46.070 +09:00 OS: Microsoft Windows 10.0.19042
+2020/12/13 12:34:46.070 +09:00 Framework: .NET 5.0.0
+2020/12/13 12:34:46.070 +09:00 Host: PC34
+2020/12/13 12:34:46.948 +09:00 FastCache: 34.96 ns, 28,601,314 / sec
+2020/12/13 12:34:47.478 +09:00 SimpleAsyncService2: 609.14 ns, 1,641,652 / sec
+2020/12/13 12:35:10.595 +09:00 ----- Start new benchmark -----
+2020/12/13 12:35:10.627 +09:00 Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31
+2020/12/13 12:35:10.627 +09:00 ExeFileName: C:\git\IPA-DNP-ThinController-Public\submodules\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2020/12/13 12:35:10.627 +09:00 OS: Microsoft Windows 10.0.19042
+2020/12/13 12:35:10.627 +09:00 Framework: .NET 5.0.0
+2020/12/13 12:35:10.627 +09:00 Host: PC34
+2020/12/13 12:35:11.504 +09:00 FastCache: 35.51 ns, 28,160,193 / sec
+2020/12/13 12:35:12.036 +09:00 SimpleAsyncService2: 600.44 ns, 1,665,448 / sec
+2020/12/13 12:35:35.478 +09:00 ----- Start new benchmark -----
+2020/12/13 12:35:35.512 +09:00 Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31
+2020/12/13 12:35:35.512 +09:00 ExeFileName: C:\git\IPA-DNP-ThinController-Public\submodules\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2020/12/13 12:35:35.512 +09:00 OS: Microsoft Windows 10.0.19042
+2020/12/13 12:35:35.512 +09:00 Framework: .NET 5.0.0
+2020/12/13 12:35:35.512 +09:00 Host: PC34
+2020/12/13 12:35:36.437 +09:00 FastCache: 38.01 ns, 26,306,173 / sec
+2020/12/13 12:35:36.963 +09:00 SimpleAsyncService2: 682.66 ns, 1,464,860 / sec
+2020/12/13 12:35:50.741 +09:00 ----- Start new benchmark -----
+2020/12/13 12:35:50.775 +09:00 Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31
+2020/12/13 12:35:50.775 +09:00 ExeFileName: C:\git\IPA-DNP-ThinController-Public\submodules\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2020/12/13 12:35:50.775 +09:00 OS: Microsoft Windows 10.0.19042
+2020/12/13 12:35:50.775 +09:00 Framework: .NET 5.0.0
+2020/12/13 12:35:50.775 +09:00 Host: PC34
+2020/12/13 12:35:51.811 +09:00 FastCache: 25.09 ns, 39,851,075 / sec
+2020/12/13 12:40:44.608 +09:00 ----- Start new benchmark -----
+2020/12/13 12:40:44.637 +09:00 Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31
+2020/12/13 12:40:44.637 +09:00 ExeFileName: C:\git\IPA-DNP-ThinController-Public\submodules\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2020/12/13 12:40:44.637 +09:00 OS: Microsoft Windows 10.0.19042
+2020/12/13 12:40:44.637 +09:00 Framework: .NET 5.0.0
+2020/12/13 12:40:44.637 +09:00 Host: PC34
+2020/12/13 12:40:45.509 +09:00 FastCache: 36.30 ns, 27,546,503 / sec
+2020/12/13 12:40:46.036 +09:00 SimpleAsyncService2: 549.04 ns, 1,821,368 / sec
+2020/12/13 12:40:49.314 +09:00 ----- Start new benchmark -----
+2020/12/13 12:40:49.344 +09:00 Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31
+2020/12/13 12:40:49.344 +09:00 ExeFileName: C:\git\IPA-DNP-ThinController-Public\submodules\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2020/12/13 12:40:49.344 +09:00 OS: Microsoft Windows 10.0.19042
+2020/12/13 12:40:49.344 +09:00 Framework: .NET 5.0.0
+2020/12/13 12:40:49.344 +09:00 Host: PC34
+2020/12/13 12:40:50.231 +09:00 FastCache: 37.65 ns, 26,558,034 / sec
+2020/12/13 12:40:50.753 +09:00 SimpleAsyncService2: 613.93 ns, 1,628,854 / sec
+2020/12/13 12:40:59.621 +09:00 ----- Start new benchmark -----
+2020/12/13 12:40:59.651 +09:00 Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31
+2020/12/13 12:40:59.651 +09:00 ExeFileName: C:\git\IPA-DNP-ThinController-Public\submodules\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2020/12/13 12:40:59.651 +09:00 OS: Microsoft Windows 10.0.19042
+2020/12/13 12:40:59.651 +09:00 Framework: .NET 5.0.0
+2020/12/13 12:40:59.651 +09:00 Host: PC34
+2020/12/13 12:41:00.536 +09:00 FastCache: 36.35 ns, 27,510,261 / sec
+2020/12/13 12:41:01.067 +09:00 SimpleAsyncService2: 540.71 ns, 1,849,403 / sec
+2020/12/13 12:43:26.817 +09:00 ----- Start new benchmark -----
+2020/12/13 12:43:26.846 +09:00 Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31
+2020/12/13 12:43:26.846 +09:00 ExeFileName: C:\git\IPA-DNP-ThinController-Public\submodules\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2020/12/13 12:43:26.846 +09:00 OS: Microsoft Windows 10.0.19042
+2020/12/13 12:43:26.846 +09:00 Framework: .NET 5.0.0
+2020/12/13 12:43:26.846 +09:00 Host: PC34
+2020/12/13 12:43:27.898 +09:00 FastCache: 53.78 ns, 18,594,565 / sec

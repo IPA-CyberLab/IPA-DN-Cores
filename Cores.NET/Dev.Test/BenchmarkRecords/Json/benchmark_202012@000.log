@@ -609,3 +609,81 @@
 {"TimeStamp":"2020-12-12T11:20:05.4756805+09:00","Data":{"TestName":"ParsePacket #3 - 190527_vlan_simple_tcp","Ret":74.68496234829888,"PerSecond":13389576},"Tag":"result"}
 {"TimeStamp":"2020-12-12T11:20:06.0963182+09:00","Data":{"TestName":"ParsePacket #2 - 190527_novlan_simple_udp","Ret":62.563239629553564,"PerSecond":15983827},"Tag":"result"}
 {"TimeStamp":"2020-12-12T11:20:18.0741076+09:00","Data":{"TestName":"ParsePacket #1 - 190527_novlan_simple_tcp","Ret":60.64066152998169,"PerSecond":16490585},"Tag":"result"}
+{"TimeStamp":"2020-12-13T12:33:59.1222047+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:33:59.1511738+09:00","Data":"Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:33:59.1512129+09:00","Data":"ExeFileName: C:\\git\\IPA-DNP-ThinController-Public\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:33:59.151215+09:00","Data":"OS: Microsoft Windows 10.0.19042","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:33:59.1512165+09:00","Data":"Framework: .NET 5.0.0","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:33:59.151218+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:33:59.9908373+09:00","Data":{"TestName":"FastCache","Ret":34.75248652173913,"PerSecond":28774919},"Tag":"result"}
+{"TimeStamp":"2020-12-13T12:34:00.5082665+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":533.6450611839455,"PerSecond":1873904},"Tag":"result"}
+{"TimeStamp":"2020-12-13T12:34:01.0422343+09:00","Data":{"TestName":"SimpleAsynService","Ret":1392.4199158190872,"PerSecond":718174},"Tag":"result"}
+{"TimeStamp":"2020-12-13T12:34:01.5828761+09:00","Data":{"TestName":"WpcPacket","Ret":3013.9561245495465,"PerSecond":331789},"Tag":"result"}
+{"TimeStamp":"2020-12-13T12:34:03.2127961+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:34:03.2448379+09:00","Data":"Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:34:03.2448847+09:00","Data":"ExeFileName: C:\\git\\IPA-DNP-ThinController-Public\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:34:03.244888+09:00","Data":"OS: Microsoft Windows 10.0.19042","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:34:03.2448904+09:00","Data":"Framework: .NET 5.0.0","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:34:03.2448943+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:34:04.0954748+09:00","Data":{"TestName":"FastCache","Ret":34.30837521739131,"PerSecond":29147401},"Tag":"result"}
+{"TimeStamp":"2020-12-13T12:34:04.6282661+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":635.6979878892928,"PerSecond":1573074},"Tag":"result"}
+{"TimeStamp":"2020-12-13T12:34:46.0374771+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:34:46.0707178+09:00","Data":"Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:34:46.0707715+09:00","Data":"ExeFileName: C:\\git\\IPA-DNP-ThinController-Public\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:34:46.0707753+09:00","Data":"OS: Microsoft Windows 10.0.19042","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:34:46.0707779+09:00","Data":"Framework: .NET 5.0.0","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:34:46.0707813+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:34:46.9489595+09:00","Data":{"TestName":"FastCache","Ret":34.96342791666667,"PerSecond":28601314},"Tag":"result"}
+{"TimeStamp":"2020-12-13T12:35:10.595338+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:35:10.6276601+09:00","Data":"Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:35:10.627699+09:00","Data":"ExeFileName: C:\\git\\IPA-DNP-ThinController-Public\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:35:10.6277022+09:00","Data":"OS: Microsoft Windows 10.0.19042","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:35:10.6277041+09:00","Data":"Framework: .NET 5.0.0","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:35:10.627707+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:35:11.5040555+09:00","Data":{"TestName":"FastCache","Ret":35.51111916666667,"PerSecond":28160193},"Tag":"result"}
+{"TimeStamp":"2020-12-13T12:35:12.0361072+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":600.4388734142199,"PerSecond":1665448},"Tag":"result"}
+{"TimeStamp":"2020-12-13T12:35:35.4782893+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:35:35.5126276+09:00","Data":"Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:35:35.5126711+09:00","Data":"ExeFileName: C:\\git\\IPA-DNP-ThinController-Public\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:35:35.5126731+09:00","Data":"OS: Microsoft Windows 10.0.19042","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:35:35.5126756+09:00","Data":"Framework: .NET 5.0.0","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:35:35.5126771+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:35:36.4379117+09:00","Data":{"TestName":"FastCache","Ret":38.01389125,"PerSecond":26306173},"Tag":"result"}
+{"TimeStamp":"2020-12-13T12:35:36.9636156+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":682.6587425355855,"PerSecond":1464860},"Tag":"result"}
+{"TimeStamp":"2020-12-13T12:35:50.7417493+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:35:50.7754344+09:00","Data":"Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:35:50.7754763+09:00","Data":"ExeFileName: C:\\git\\IPA-DNP-ThinController-Public\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:35:50.7754792+09:00","Data":"OS: Microsoft Windows 10.0.19042","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:35:50.7754817+09:00","Data":"Framework: .NET 5.0.0","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:35:50.7754855+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:40:44.6085599+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:40:44.6375747+09:00","Data":"Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:40:44.6376097+09:00","Data":"ExeFileName: C:\\git\\IPA-DNP-ThinController-Public\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:40:44.6376127+09:00","Data":"OS: Microsoft Windows 10.0.19042","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:40:44.6376143+09:00","Data":"Framework: .NET 5.0.0","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:40:44.6376157+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:40:45.5091295+09:00","Data":{"TestName":"FastCache","Ret":36.30224833333333,"PerSecond":27546503},"Tag":"result"}
+{"TimeStamp":"2020-12-13T12:40:46.0363054+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":549.037791709923,"PerSecond":1821368},"Tag":"result"}
+{"TimeStamp":"2020-12-13T12:40:49.3147415+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:40:49.3447895+09:00","Data":"Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:40:49.344835+09:00","Data":"ExeFileName: C:\\git\\IPA-DNP-ThinController-Public\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:40:49.344838+09:00","Data":"OS: Microsoft Windows 10.0.19042","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:40:49.3448396+09:00","Data":"Framework: .NET 5.0.0","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:40:49.3448423+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:40:50.2315077+09:00","Data":{"TestName":"FastCache","Ret":37.65338875,"PerSecond":26558034},"Tag":"result"}
+{"TimeStamp":"2020-12-13T12:40:50.753006+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":613.9283097206066,"PerSecond":1628854},"Tag":"result"}
+{"TimeStamp":"2020-12-13T12:40:59.6217589+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:40:59.6517365+09:00","Data":"Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:40:59.6517903+09:00","Data":"ExeFileName: C:\\git\\IPA-DNP-ThinController-Public\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:40:59.6517935+09:00","Data":"OS: Microsoft Windows 10.0.19042","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:40:59.6517962+09:00","Data":"Framework: .NET 5.0.0","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:40:59.6518005+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:41:00.5364235+09:00","Data":{"TestName":"FastCache","Ret":36.3500728,"PerSecond":27510261},"Tag":"result"}
+{"TimeStamp":"2020-12-13T12:41:01.0677592+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":540.7149902186035,"PerSecond":1849403},"Tag":"result"}
+{"TimeStamp":"2020-12-13T12:43:26.8174028+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:43:26.8469119+09:00","Data":"Commit: a7eca7d4c3cf0e468c8c6aba793f14201178bd31","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:43:26.8469486+09:00","Data":"ExeFileName: C:\\git\\IPA-DNP-ThinController-Public\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:43:26.8469505+09:00","Data":"OS: Microsoft Windows 10.0.19042","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:43:26.8469531+09:00","Data":"Framework: .NET 5.0.0","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:43:26.8469546+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2020-12-13T12:43:27.8988951+09:00","Data":{"TestName":"FastCache","Ret":53.77915458333333,"PerSecond":18594565},"Tag":"result"}

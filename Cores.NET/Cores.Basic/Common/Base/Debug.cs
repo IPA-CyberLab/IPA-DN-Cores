@@ -64,6 +64,9 @@ namespace IPA.Cores.Basic
         ReleaseNoLogs,
     }
 
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    public class NoDebugDumpAttribute : Attribute { }
+
     public static partial class CoresConfig
     {
         public static partial class DebugSettings
@@ -585,7 +588,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static string GetObjectDump(object? obj, string? instanceBaseName = "", string? separatorStr = ", ", bool hideEmpty = true, bool jsonIfPossible = false, Type? type = null)
+        public static string GetObjectDump(object? obj, string? instanceBaseName = "", string? separatorStr = ", ", bool hideEmpty = true, bool jsonIfPossible = false, Type? type = null, string stringClosure = "\"")
         {
             separatorStr = separatorStr._NonNull();
 
@@ -622,7 +625,7 @@ namespace IPA.Cores.Basic
 
                 DebugVars v = GetVarsFromClass(type, separatorStr, hideEmpty, instanceBaseName, obj!);
 
-                return v.ToString();
+                return v.ToString(stringClosure);
             }
             catch// (Exception ex)
             {
@@ -686,6 +689,11 @@ namespace IPA.Cores.Basic
                 else if (info.MemberType == MemberTypes.Property)
                 {
                     ok = true;
+                }
+
+                if (info.GetCustomAttribute(typeof(NoDebugDumpAttribute)) != null)
+                {
+                    ok = false;
                 }
 
                 if (ok)
@@ -931,7 +939,7 @@ namespace IPA.Cores.Basic
         public List<(MemberInfo memberInfo, object? data, int order)> Vars = new List<(MemberInfo, object?, int)>();
         public List<(DebugVars child, int order)> Childlen = new List<(DebugVars, int)>();
 
-        public void WriteToString(List<string> currentList, ImmutableList<string> parents)
+        public void WriteToString(List<string> currentList, ImmutableList<string> parents, string stringClosure = "\"")
         {
             SortedList<int, object> localList = new SortedList<int, object>();
 
@@ -942,7 +950,7 @@ namespace IPA.Cores.Basic
                 MemberInfo p = data.memberInfo;
                 object? o = data.data;
                 string printStr = "null";
-                string closure = "\"";
+                string closure = stringClosure;
                 if ((o?.GetType().IsPrimitive ?? true) || (o?.GetType().IsEnum ?? false)) closure = "";
                 if (o != null)
                 {
@@ -974,7 +982,7 @@ namespace IPA.Cores.Basic
             foreach (var v in Childlen)
             {
                 List<string> tmpList = new List<string>();
-                v.child.WriteToString(tmpList, parents.Add(v.child.BaseName));
+                v.child.WriteToString(tmpList, parents.Add(v.child.BaseName), stringClosure);
 
                 localList.Add(v.order, tmpList);
             }
@@ -997,11 +1005,14 @@ namespace IPA.Cores.Basic
         }
 
         public override string ToString()
+            => ToString("\"");
+
+        public string ToString(string stringClosure)
         {
             ImmutableList<string> parents = ImmutableList.Create<string>(this.BaseName);
             List<string> strList = new List<string>();
 
-            WriteToString(strList, parents);
+            WriteToString(strList, parents, stringClosure);
 
             for (int i = 0; i < strList.Count; i++)
             {

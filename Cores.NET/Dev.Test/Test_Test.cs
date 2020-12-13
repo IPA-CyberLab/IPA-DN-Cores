@@ -890,8 +890,66 @@ namespace IPA.TestDev
             t._TryGetResult();
         }
 
+        static async Task LambdaTest_201213_Async()
+        {
+            int a = 0;
+            string s = "x";
+            var res = await AsyncAwait(async () =>
+            {
+                a++;
+                s = "y";
+                await TaskCompleted;
+                return 0;
+            });
+            Con.WriteLine(a);
+            Con.WriteLine(s);
+        }
+
+        public class Test201213
+        {
+            public string A = "123";
+            public int B = 456;
+            [NoDebugDump]
+            public List<string> C = new List<string>(  new string[] { "a", "b", "c" });
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                FastCache<string, string> c = new FastCache<string, string>(expireMsecs: 1000);
+                string key = "neko";
+
+                c[key] = "Hello";
+                c[key] = "World";
+
+                while (true)
+                {
+                    c["NEKO"]._Print();
+                    Sleep(100);
+                }
+
+                return;
+            }
+
+            if (true)
+            {
+                Test201213 x = new Test201213();
+
+                x._GetObjectDumpForJsonFriendly()._Print();
+
+                return;
+            }
+
+            if (true)
+            {
+                Async(async () =>
+                {
+                    await LambdaTest_201213_Async();
+                });
+                return;
+            }
+
             if (true)
             {
                 TestDevCommands.ConvertCErrorsToCsErrors(@"C:\git\IPA-DNP-ThinApps-Lgwan", @"c:\tmp\201212\test.cs");

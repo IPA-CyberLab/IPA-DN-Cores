@@ -89,7 +89,7 @@ namespace IPA.Cores.Codes
         public string IpAddress = "";
         public string HostName = "";
         public int NumClients;
-        public long ServerMask64;
+        public ulong ServerMask64;
         public int NumClientsUnique;
 
         public void Normalize()
@@ -111,6 +111,7 @@ namespace IPA.Cores.Codes
     {
         public string GateId = "";
         public string IpAddress = "";
+        public int Port;
         public string HostName = "";
         public int Performance;
         public int NumSessions;
@@ -122,6 +123,7 @@ namespace IPA.Cores.Codes
         public DateTime Expires = Util.ZeroDateTimeValue;
         public long NumComm;
 
+        [NoDebugDump]
         public ImmutableDictionary<string, ThinSession> SessionTable = ImmutableDictionary<string, ThinSession>.Empty;
 
         public void Normalize()
@@ -140,16 +142,20 @@ namespace IPA.Cores.Codes
         }
     }
 
-    public class ThinGateDb
+    public class ThinSessionManager
     {
         public ImmutableDictionary<string, ThinGate> GateTable = ImmutableDictionary<string, ThinGate>.Empty;
 
-        public void UpdateGateAndDeleteSession(DateTime now, DateTime expires, ThinGate gate, ThinSession session)
+        public bool TryUpdateGateAndDeleteSession(DateTime now, DateTime expires, ThinGate gate, string sessionId, out ThinSession? session)
         {
+            session = null;
+            bool sessionIsDeleted = false;
+
             gate.Normalize();
             gate.Validate();
-            session.Normalize();
-            session.Validate();
+
+            if (sessionId.Length != 40) throw new CoresLibException("sessionId.Length != 40");
+            sessionId = sessionId.ToUpper();
 
             if (this.GateTable.TryGetValue(gate.GateId, out ThinGate? currentGate))
             {
@@ -159,18 +165,32 @@ namespace IPA.Cores.Codes
                 if (currentGate.LastCommDateTime < now) currentGate.LastCommDateTime = now;
                 if (currentGate.Expires < expires) currentGate.Expires = expires;
 
-                currentGate.NumSessions = Math.Max(currentGate.NumSessions - 1, 0);
+                // セッション ID でセッションを検索する
+                var currentSessionTable = currentGate.SessionTable;
 
-                // MSID でセッションを検索
-                if (currentGate.SessionTable.TryGetValue(session.Msid, out ThinSession? existSession))
+                foreach (var item in currentSessionTable)
                 {
-                    // セッション ID が一致する場合のみ削除する
-                    ImmutableInterlocked.TryRemove(ref currentGate.SessionTable, existSession.Msid, out _);
+                    var sess = item.Value;
+                    if (sess.SessionId == sessionId)
+                    {
+                        if (ImmutableInterlocked.TryRemove(ref currentGate.SessionTable, item.Key, out session))
+                        {
+                            sessionIsDeleted = true;
+                        }
+                    }
+                }
+
+                if (sessionIsDeleted)
+                {
+                    // セッションが減ったことを記録
+                    currentGate.NumSessions = Math.Max(currentGate.NumSessions - 1, 0);
                 }
             }
 
             // 古い Gate を削除
             DeleteOldGate(now, gate);
+
+            return sessionIsDeleted;
         }
 
         public void UpdateGateAndAddSession(DateTime now, DateTime expires, ThinGate gate, ThinSession session)
