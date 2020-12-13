@@ -2373,6 +2373,11 @@ namespace IPA.Cores.Helper.Basic
                 return r + startOffset;
             }
         }
+
+        public static string _TrimBothSideChar(this string? src, char c1, char c2) => Str.TrimBothSideChar(src, c1, c2);
+
+        public static IPEndPoint? _ToIPEndPoint(this string? str, int defaultPort, AllowedIPVersions allowed = AllowedIPVersions.All, bool noExceptionAndReturnNull = false)
+            => IPUtil.StrToIPEndPoint(str, defaultPort, allowed, noExceptionAndReturnNull);
     }
 }
 

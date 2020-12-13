@@ -594,7 +594,7 @@ namespace IPA.Cores.Basic
 
             if (this.DnsResolver.IsAvailable == false)
             {
-                DnsAdditionalResults additionalResults = new DnsAdditionalResults();
+                DnsAdditionalResults additionalResults = new DnsAdditionalResults(true, false);
 
                 try
                 {
@@ -606,17 +606,19 @@ namespace IPA.Cores.Basic
 
                     if (ret._IsEmpty())
                     {
-                        additionalResults.IsNotFound = true;
+                        additionalResults = new DnsAdditionalResults(false, true);
 
                         ret = null;
+                    }
+                    else
+                    {
+                        additionalResults = new DnsAdditionalResults(false, false);
                     }
 
                     return ret;
                 }
                 catch
                 {
-                    additionalResults.IsError = true;
-
                     return null;
                 }
                 finally

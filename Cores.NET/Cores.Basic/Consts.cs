@@ -104,7 +104,6 @@ namespace IPA.Cores.Basic
             public const int DefaultKestrelMaxUpgradedConnections = 10000;
 
             public const int DefaultCacheExpiresMsecs = 60 * 1000;
-            public const int DefaultCacheGcIntervalsMsecs = 15 * 1000;
             public const int MinCacheGcIntervalsMsecs = 100;
         }
 

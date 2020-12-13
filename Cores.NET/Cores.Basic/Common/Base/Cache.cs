@@ -39,6 +39,7 @@ using System.Linq;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Threading.Tasks;
 
 namespace IPA.Cores.Basic
 {
@@ -50,7 +51,7 @@ namespace IPA.Cores.Basic
 
     public class FastCache<TValue> : FastCache<string, TValue>
     {
-        public FastCache(int expireMsecs = Consts.Numbers.DefaultCacheExpiresMsecs, int gcIntervalMsecs = Consts.Numbers.DefaultCacheGcIntervalsMsecs,
+        public FastCache(int expireMsecs = Consts.Numbers.DefaultCacheExpiresMsecs, int gcIntervalMsecs = 0,
             CacheType cahceType = CacheType.DoNotUpdateExpiresWhenAccess, bool ignoreCase = true)
             : base(expireMsecs, gcIntervalMsecs, cahceType, ignoreCase ? StrComparer.SensitiveCaseComparer : StrComparer.IgnoreCaseComparer)
         {
@@ -80,10 +81,16 @@ namespace IPA.Cores.Basic
 
         public IEnumerable<KeyValuePair<TKey, ValueWithExpires<TValue>>> GetItems() => Dict;
 
-        public IEnumerable<TValue?> GetValues() => Dict.Values.Select(x => x.Value);
+        public IEnumerable<TValue?> GetValues()
+        {
+            if (IsCacheDisabled) return new TValue?[0];
+            return Dict.Values.Select(x => x.Value);
+        }
 
-        public FastCache(int expireMsecs = Consts.Numbers.DefaultCacheExpiresMsecs, int gcIntervalMsecs = Consts.Numbers.DefaultCacheGcIntervalsMsecs, CacheType cahceType = CacheType.DoNotUpdateExpiresWhenAccess,
-            IEqualityComparer<TKey>? keyComparer = null)
+        public bool IsCacheDisabled { get; } = false;
+
+        public FastCache(int expireMsecs = Consts.Numbers.DefaultCacheExpiresMsecs, int gcIntervalMsecs = 0, CacheType cahceType = CacheType.DoNotUpdateExpiresWhenAccess,
+            IEqualityComparer<TKey>? comparer = null)
         {
             this.CacheType = cahceType;
 
@@ -99,7 +106,7 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                if (this.GcIntervalMsecs == 0)
+                if (this.GcIntervalMsecs <= 0)
                 {
                     this.GcIntervalMsecs = Math.Max(this.ExpireMsecs / 4, 1);
                 }
@@ -111,9 +118,14 @@ namespace IPA.Cores.Basic
 
             Dict = ImmutableDictionary<TKey, ValueWithExpires<TValue>>.Empty;
 
-            if (keyComparer != null)
+            if (comparer != null)
             {
-                Dict = Dict.WithComparers(keyComparer);
+                Dict = Dict.WithComparers(comparer);
+            }
+
+            if (this.ExpireMsecs <= 0)
+            {
+                IsCacheDisabled = true;
             }
         }
 
@@ -122,6 +134,7 @@ namespace IPA.Cores.Basic
         [MethodImpl(Inline)]
         void GcIfNecessary(long now = 0)
         {
+            if (IsCacheDisabled) return;
             if (this.GcIntervalMsecs == long.MaxValue) return;
 
             if (now == 0) now = TickNow;
@@ -135,6 +148,7 @@ namespace IPA.Cores.Basic
 
         void GcCore(long now)
         {
+            if (IsCacheDisabled) return;
             var currentDict = this.Dict;
 
             foreach (var item in currentDict)
@@ -148,11 +162,13 @@ namespace IPA.Cores.Basic
 
         public void Delete(TKey key)
         {
+            if (IsCacheDisabled) return;
             ImmutableInterlocked.TryRemove(ref this.Dict, key, out _);
         }
 
         public void Add(TKey key, TValue? value)
         {
+            if (IsCacheDisabled) return;
             GcIfNecessary();
 
             ImmutableInterlocked.AddOrUpdate(ref this.Dict, key,
@@ -167,8 +183,17 @@ namespace IPA.Cores.Basic
         }
 
         public TValue? GetOrCreate(TKey key, Func<TKey, TValue?> createProc)
+            => GetOrCreate(key, createProc, out _);
+        public TValue? GetOrCreate(TKey key, Func<TKey, TValue?> createProc, out bool found)
         {
-            TValue? value = Get(key, out bool found);
+            found = false;
+
+            if (IsCacheDisabled)
+            {
+                return createProc(key);
+            }
+
+            TValue? value = Get(key, out found);
 
             if (found == false)
             {
@@ -180,8 +205,31 @@ namespace IPA.Cores.Basic
             return value;
         }
 
+        public async Task<TValue?> GetOrCreateAsync(TKey key, Func<TKey, Task<TValue?>> createProc, RefBool? found = null)
+        {
+            found?.Set(false);
+            if (IsCacheDisabled)
+            {
+                return await createProc(key);
+            }
+
+            TValue? value = Get(key, out bool found2);
+
+            if (found2 == false)
+            {
+                value = await createProc(key);
+
+                Add(key, value);
+            }
+
+            found?.Set(found2);
+
+            return value;
+        }
+
         public void Clear()
         {
+            if (IsCacheDisabled) return;
             this.Dict = this.Dict.Clear();
         }
 
@@ -191,6 +239,11 @@ namespace IPA.Cores.Basic
         public TValue? Get(TKey key, out bool found, TValue? defaultValue = default)
         {
             found = false;
+
+            if (IsCacheDisabled)
+            {
+                return defaultValue;
+            }
 
             long now = Time.Tick64;
 
@@ -240,8 +293,9 @@ namespace IPA.Cores.Basic
         public CacheType CacheType { get; }
         public long ExpireMsecs { get; }
         public long GcIntervalMsecs { get; }
+        public bool IsCacheDisabled { get; } = false;
 
-        public FastSingleCache(int expireMsecs = Consts.Numbers.DefaultCacheExpiresMsecs, int gcIntervalMsecs = Consts.Numbers.DefaultCacheGcIntervalsMsecs, CacheType cahceType = CacheType.DoNotUpdateExpiresWhenAccess)
+        public FastSingleCache(int expireMsecs = Consts.Numbers.DefaultCacheExpiresMsecs, int gcIntervalMsecs = 0, CacheType cahceType = CacheType.DoNotUpdateExpiresWhenAccess)
         {
             this.CacheType = cahceType;
 
@@ -257,7 +311,7 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                if (this.GcIntervalMsecs == 0)
+                if (this.GcIntervalMsecs <= 0)
                 {
                     this.GcIntervalMsecs = Math.Max(this.ExpireMsecs / 4, 1);
                 }
@@ -266,6 +320,11 @@ namespace IPA.Cores.Basic
                     this.GcIntervalMsecs = Math.Max(Math.Min(this.GcIntervalMsecs, this.ExpireMsecs), Consts.Numbers.MinCacheGcIntervalsMsecs);
                 }
             }
+
+            if (this.ExpireMsecs <= 0)
+            {
+                IsCacheDisabled = true;
+            }
         }
 
         long LastTimeGc = 0;
@@ -273,6 +332,7 @@ namespace IPA.Cores.Basic
         [MethodImpl(Inline)]
         void GcIfNecessary(long now = 0)
         {
+            if (IsCacheDisabled) return;
             if (this.GcIntervalMsecs == long.MaxValue) return;
 
             if (now == 0)
@@ -289,6 +349,7 @@ namespace IPA.Cores.Basic
 
         void GcCore(long now)
         {
+            if (IsCacheDisabled) return;
             var current = CurrentValue;
             if (current != null && now > current.Expires)
             {
@@ -300,17 +361,28 @@ namespace IPA.Cores.Basic
 
         public void Delete()
         {
+            if (IsCacheDisabled) return;
             this.CurrentValue = null;
         }
 
         public void Add(TValue? value)
         {
+            if (IsCacheDisabled) return;
             this.CurrentValue = new ValueWithExpires<TValue>(this.ExpireMsecs == long.MaxValue ? long.MaxValue : Time.Tick64 + this.ExpireMsecs, value);
         }
 
         public TValue? GetOrCreate(Func<TValue?> createProc)
+            => GetOrCreate(createProc, out _);
+        public TValue? GetOrCreate(Func<TValue?> createProc, out bool found)
         {
-            TValue? value = Get(out bool found);
+            found = false;
+
+            if (IsCacheDisabled)
+            {
+                return createProc();
+            }
+
+            TValue? value = Get(out found);
 
             if (found)
             {
@@ -324,11 +396,40 @@ namespace IPA.Cores.Basic
             return value;
         }
 
+        public async Task<TValue?> GetOrCreateAsync(Func<Task<TValue?>> createProc, RefBool? found = null)
+        {
+            found?.Set(false);
+
+            if (IsCacheDisabled)
+            {
+                return await createProc();
+            }
+
+            TValue? value = Get(out bool found2);
+
+            if (found2)
+            {
+                found?.Set(true);
+                return value;
+            }
+
+            value = await createProc();
+
+            Add(value);
+
+            return value;
+        }
+
         public TValue? Get(TValue? defaultValue = default)
             => Get(out _, defaultValue);
         public TValue? Get(out bool found, TValue? defaultValue = default)
         {
             found = false;
+
+            if (IsCacheDisabled)
+            {
+                return defaultValue;
+            }
 
             var current = this.CurrentValue;
 

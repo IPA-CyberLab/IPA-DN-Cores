@@ -129,8 +129,21 @@ namespace IPA.Cores.Basic
 
     public class DnsAdditionalResults
     {
-        public bool IsError { get; set; }
-        public bool IsNotFound { get; set; }
+        public DnsAdditionalResults(bool isError, bool isNotFound, bool isCacheResult = false)
+        {
+            IsError = isError;
+            IsNotFound = isNotFound;
+            IsCacheResult = isCacheResult;
+        }
+
+        public bool IsError { get; }
+        public bool IsNotFound { get; }
+        public bool IsCacheResult { get; }
+
+        public DnsAdditionalResults Clone(bool? isCacheResult = null)
+        {
+            return new DnsAdditionalResults(this.IsError, this.IsNotFound, isCacheResult == null ? this.IsCacheResult : isCacheResult.Value);
+        }
     }
 
     public abstract class DnsResolver : AsyncService
@@ -141,6 +154,20 @@ namespace IPA.Cores.Basic
 
         protected abstract Task<IEnumerable<string>?> GetHostNameImplAsync(IPAddress ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default);
 
+        class ReverseLookupCacheItem
+        {
+            public ReverseLookupCacheItem(List<string>? value, DnsAdditionalResults additionalResults)
+            {
+                Value = value;
+                AdditionalResults = additionalResults;
+            }
+
+            public List<string>? Value { get; }
+            public DnsAdditionalResults AdditionalResults { get; }
+        }
+
+        readonly FastCache<string, ReverseLookupCacheItem> ReverseLookupCache;
+
         public DnsResolver(DnsResolverSettings? setting = null)
         {
             try
@@ -148,6 +175,8 @@ namespace IPA.Cores.Basic
                 if (setting == null) setting = new DnsResolverSettings();
 
                 this.Settings = setting;
+
+                this.ReverseLookupCache = new FastCache<string, ReverseLookupCacheItem>(this.Settings.ReverseLookupIntervalCacheTimeoutMsecs, comparer: StrComparer.IpAddressStrComparer);
             }
             catch
             {
@@ -156,11 +185,11 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<List<string>?> GetHostNameAsync(string ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
+        public async Task<List<string>?> GetHostNameAsync(string ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default, bool noCache = false)
         {
             try
             {
-                return await GetHostNameAsync(ip._ToIPAddress(), additional, cancel);
+                return await GetHostNameAsync(ip._ToIPAddress(), additional, cancel, noCache);
             }
             catch
             {
@@ -168,8 +197,44 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public async Task<List<string>?> GetHostNameAsync(IPAddress? ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default, bool noCache = false)
+        {
+            if (noCache) return await GetHostNameCoreAsync(ip, additional, cancel);
 
-        public async Task<List<string>?> GetHostNameAsync(IPAddress? ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
+            if (ip == null) return null;
+
+            var ipType = ip._GetIPAddressType();
+
+            if (ipType.Bit(IPAddressType.Loopback))
+            {
+                return "localhost"._SingleList();
+            }
+
+            string ipStr = ip.ToString();
+
+            RefBool found = new RefBool();
+
+            ReverseLookupCacheItem? item = await this.ReverseLookupCache.GetOrCreateAsync(ipStr, async ipStr =>
+            {
+                Ref<DnsAdditionalResults> additionals = new Ref<DnsAdditionalResults>();
+
+                List<string>? value = await GetHostNameCoreAsync(ip, additionals, cancel);
+
+                return new ReverseLookupCacheItem(value, additionals.Value ?? new DnsAdditionalResults(true, false));
+            }, found);
+
+            if (item == null)
+            {
+                additional?.Set(new DnsAdditionalResults(true, false, false));
+                return null;
+            }
+
+            additional?.Set(item.AdditionalResults.Clone(true));
+
+            return item.Value;
+        }
+
+        async Task<List<string>?> GetHostNameCoreAsync(IPAddress? ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
         {
             try
             {
@@ -217,13 +282,13 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<string> GetHostNameSingleOrIpAsync(IPAddress? ip, CancellationToken cancel = default)
+        public async Task<string> GetHostNameSingleOrIpAsync(IPAddress? ip, CancellationToken cancel = default, bool noCache = false)
         {
             if (ip == null) return "";
 
             try
             {
-                var res = await GetHostNameAsync(ip, null, cancel);
+                var res = await GetHostNameAsync(ip, null, cancel, noCache);
 
                 if (res._IsEmpty())
                 {
@@ -237,8 +302,8 @@ namespace IPA.Cores.Basic
                 return ip.ToString();
             }
         }
-        public Task<string> GetHostNameSingleOrIpAsync(string? ip, CancellationToken cancel = default)
-            => GetHostNameSingleOrIpAsync(ip._ToIPAddress(noExceptionAndReturnNull: true), cancel);
+        public Task<string> GetHostNameSingleOrIpAsync(string? ip, CancellationToken cancel = default, bool noCache = false)
+            => GetHostNameSingleOrIpAsync(ip._ToIPAddress(noExceptionAndReturnNull: true), cancel, noCache);
 
         public static DnsResolver CreateDnsResolverIfSupported(DnsResolverSettings? settings)
         {

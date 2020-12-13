@@ -855,6 +855,191 @@ namespace IPA.Cores.Basic
             return addr;
         }
 
+        // ホスト名とポート番号から文字列に結合
+        public static string BuildHostPortStr(string host, int port, int? defaultPortToOmit = null)
+        {
+            host = host._NonNullTrim();
+
+            if (host._InStr(":")) host = $"[{host}]";
+
+            if (port == (defaultPortToOmit ?? int.MinValue))
+            {
+                return host;
+            }
+            else
+            {
+                return host + ":" + port;
+            }
+        }
+
+        // 文字列からホスト名とポート番号にパース
+        public static bool TryParseHostPort(string? src, out string host, out int port, int? defaultPort = null)
+        {
+            if (TryParseHostPortCore(src, out host, out port, defaultPort))
+            {
+                host = host._TrimBothSideChar('[', ']');
+
+                return true;
+            }
+            return false;
+        }
+        static bool TryParseHostPortCore(string? src, out string host, out int port, int? defaultPort = null)
+        {
+            host = "";
+            port = 0;
+
+            src = src._NonNullTrim();
+            if (src._IsEmpty()) return false;
+
+            if (src.StartsWith("["))
+            {
+                if (src._InStr("]"))
+                {
+                    // [target]:port
+                    string tmp = src;
+                    int n = tmp.IndexOf("]");
+                    if (n != -1)
+                    {
+                        char[] array = tmp.ToCharArray();
+                        for (int i = n; i < array.Length; i++)
+                        {
+                            if (array[i] == ':')
+                            {
+                                array[i] = '@';
+                            }
+                        }
+
+                        tmp = new string(array);
+                    }
+
+                    return TryParseHostPortAtmarkInternal(tmp, out host, out port, defaultPort);
+                }
+            }
+
+            if (src._InStr("@")) return TryParseHostPortAtmarkInternal(src, out host, out port, defaultPort);
+
+            // target:port
+            string[] t = src._Split(StringSplitOptions.None, ":");
+            if (t.Length == 0)
+            {
+                return false;
+            }
+
+            if (t.Length >= 2)
+            {
+                // ipv6
+                string lastToken = t[t.Length - 1];
+                int p = lastToken._ToInt();
+                if ((p >= 1 && p <= 65535) && lastToken.All(x=> x >= '0' && x <= '9'))
+                {
+                    // ipv6:port
+                    char[] tmp = src.Reverse().ToArray();
+                    for (int i = 0; i < tmp.Length; i++)
+                    {
+                        if (tmp[i] == ':')
+                        {
+                            tmp[i] = '@';
+                            break;
+                        }
+                    }
+                    string tmp2 = new string(tmp.Reverse().ToArray());
+
+                    return TryParseHostPortAtmarkInternal(tmp2, out host, out port, defaultPort);
+                }
+
+                if ((defaultPort ?? 0) <= 0)
+                {
+                    return false;
+                }
+
+                host = src;
+                port = defaultPort ?? 0;
+
+                return true;
+            }
+
+            if ((defaultPort ?? 0) <= 0)
+            {
+                if (t.Length < 2) return false;
+                if (t[1]._ToInt() <= 0) return false;
+            }
+
+            if (t.Length >= 2 && t[1]._ToInt() <= 0) return false;
+
+            if (t.Length >= 1 && t[0]._IsFilled())
+            {
+                host = t[0].Trim();
+                if (t.Length >= 2)
+                {
+                    port = t[1]._ToInt();
+                }
+            }
+
+            if (port == 0) port = defaultPort ?? 0;
+            if (port == 0) return false;
+
+            return true;
+        }
+
+        static bool TryParseHostPortAtmarkInternal(string? src, out string host, out int port, int? defaultPort = null)
+        {
+            host = "";
+            port = 0;
+
+            src = src._NonNullTrim();
+            if (src._IsEmpty()) return false;
+
+            var t = src._Split(StringSplitOptions.None, "@");
+
+            if ((defaultPort ?? 0) <= 0)
+            {
+                if (t.Length < 2) return false;
+                if (t[1]._ToInt() <= 0) return false;
+            }
+
+            if (t.Length >= 2 && t[1]._ToInt() <= 0) return false;
+
+            if (t.Length >= 1 && t[0]._IsFilled())
+            {
+                host = t[0].Trim();
+                if (t.Length >= 2)
+                {
+                    port = t[1]._ToInt();
+                }
+            }
+
+            if (port == 0) port = defaultPort ?? 0;
+            if (port == 0) return false;
+
+            return true;
+        }
+
+        // 文字列を IP エンドポイントに変換
+        public static IPEndPoint? StrToIPEndPoint(string? str, int defaultPort, AllowedIPVersions allowed = AllowedIPVersions.All, bool noExceptionAndReturnNull = false)
+        {
+            try
+            {
+                if (defaultPort <= 0 || defaultPort >= 65536) throw new ArgumentOutOfRangeException(nameof(defaultPort));
+
+                if (str._IsEmpty()) return null;
+
+                if (TryParseHostPort(str, out string host, out int port, defaultPort) == false) return null;
+
+                IPAddress? ip = StrToIP(host, allowed, noExceptionAndReturnNull);
+                if (ip == null) return null;
+
+                IPEndPoint ep = new IPEndPoint(ip, port);
+
+                return ep;
+            }
+            catch
+            {
+                if (noExceptionAndReturnNull == false) throw;
+
+                return null;
+            }
+        }
+
         // 文字列を IP アドレスに変換
         public static IPAddress? StrToIP(string? str, AllowedIPVersions allowed = AllowedIPVersions.All, bool noExceptionAndReturnNull = false)
         {

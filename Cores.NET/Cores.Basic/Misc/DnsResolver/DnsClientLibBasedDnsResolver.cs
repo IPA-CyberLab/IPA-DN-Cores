@@ -120,7 +120,7 @@ namespace IPA.Cores.Basic
 
         protected override async Task<IEnumerable<string>?> GetHostNameImplAsync(IPAddress ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
         {
-            DnsAdditionalResults additionalData = new DnsAdditionalResults();
+            DnsAdditionalResults additionalData = new DnsAdditionalResults(true, false);
 
             try
             {
@@ -128,12 +128,12 @@ namespace IPA.Cores.Basic
 
                 if (res.Header.ResponseCode == DnsHeaderResponseCode.NotExistentDomain)
                 {
-                    additionalData.IsNotFound = true;
+                    additionalData = new DnsAdditionalResults(false, true);
                 }
 
                 if (res.HasError)
                 {
-                    additionalData.IsError = true;
+                    additionalData = new DnsAdditionalResults(true, false);
                     return null;
                 }
 

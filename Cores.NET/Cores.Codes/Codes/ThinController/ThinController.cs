@@ -133,6 +133,7 @@ namespace IPA.Cores.Codes
 
             public string ClientPhysicalIp { get; }
             public string ClientIp { get; }
+            public string ClientIpFqdn { get; private set; }
             public string FlagStr { get; }
             public bool IsProxyMode { get; }
 
@@ -166,6 +167,15 @@ namespace IPA.Cores.Codes
                 {
                     this.Flags |= ThinControllerSessionFlags.LimitedMode;
                 }
+
+                this.ClientIpFqdn = this.ClientIp;
+            }
+
+            public async Task ResolveClientIpFqdnIfPossibleAsync(DnsResolver resolver, CancellationToken cancel = default)
+            {
+                if (this.ClientIpFqdn != this.ClientIp) return;
+
+                this.ClientIpFqdn = await resolver.GetHostNameSingleOrIpAsync(this.ClientIp, cancel);
             }
         }
 
@@ -214,9 +224,24 @@ namespace IPA.Cores.Codes
                 return NewWpcResult(p);
             }
 
-            // Gate から: セッションリストの報告
-            public WpcResult ProcReportSessionList(WpcPack req, CancellationToken cancel)
+            // Gate のセキュリティ検査
+            async Task GateSecurityCheckAsync(WpcPack req, CancellationToken cancel)
             {
+                string gateKey = req.Pack["GateKey"].StrValueNonNull;
+                if (gateKey._IsFilled())
+                {
+                    // todo: check
+                }
+
+                // Gate の場合 IP 逆引きの実行
+                await this.ClientInfo.ResolveClientIpFqdnIfPossibleAsync(Controller.DnsResolver, cancel);
+            }
+
+            // Gate から: セッションリストの報告
+            public async Task<WpcResult> ProcReportSessionListAsync(WpcPack req, CancellationToken cancel)
+            {
+                await GateSecurityCheckAsync(req, cancel);
+
                 Pack p = req.Pack;
 
                 int numSessions = p["NumSession"].SIntValueSafeNum;
@@ -292,8 +317,10 @@ namespace IPA.Cores.Codes
             }
 
             // Gate から: 1 本のセッションの追加の報告
-            public WpcResult ProcReportSessionAdd(WpcPack req, CancellationToken cancel)
+            public async Task<WpcResult> ProcReportSessionAddAsync(WpcPack req, CancellationToken cancel)
             {
+                await GateSecurityCheckAsync(req, cancel);
+
                 Pack p = req.Pack;
 
                 int i = 0;
@@ -342,8 +369,10 @@ namespace IPA.Cores.Codes
             }
 
             // Gate から: 1 本のセッションの削除の報告
-            public WpcResult ProcReportSessionDel(WpcPack req, CancellationToken cancel)
+            public async Task<WpcResult> ProcReportSessionDelAsync(WpcPack req, CancellationToken cancel)
             {
+                await GateSecurityCheckAsync(req, cancel);
+
                 Pack p = req.Pack;
 
                 string sessionId = p["SessionId"].DataValueHexStr;
@@ -397,9 +426,9 @@ namespace IPA.Cores.Codes
                     {
                         case "test": return ProcTest(req, cancel);
                         case "commcheck": return ProcCommCheck(req, cancel);
-                        case "reportsessionlist": return ProcReportSessionList(req, cancel);
-                        case "reportsessionadd": return ProcReportSessionAdd(req, cancel);
-                        case "reportsessiondel": return ProcReportSessionDel(req, cancel);
+                        case "reportsessionlist": return await ProcReportSessionListAsync(req, cancel);
+                        case "reportsessionadd": return await ProcReportSessionAddAsync(req, cancel);
+                        case "reportsessiondel": return await ProcReportSessionDelAsync(req, cancel);
 
                         default:
                             // 適切な関数が見つからない
@@ -516,6 +545,8 @@ namespace IPA.Cores.Codes
 
         public ThinControllerSettings SettingsFastSnapshot => SettingsHive.CachedFastSnapshot;
 
+        public DnsResolver DnsResolver { get; }
+
         // データベース
         public ThinDatabase Db { get; }
         public ThinSessionManager SessionManager { get; }
@@ -530,6 +561,8 @@ namespace IPA.Cores.Codes
                     getDefaultSettings,
                     HiveSyncPolicy.AutoReadWriteFile,
                     HiveSerializerSelection.RichJson);
+
+                this.DnsResolver = new DnsClientLibBasedDnsResolver(new DnsResolverSettings());
 
                 this.Db = new ThinDatabase(this);
                 this.SessionManager = new ThinSessionManager();
@@ -625,6 +658,8 @@ namespace IPA.Cores.Codes
             try
             {
                 await this.Db._DisposeSafeAsync();
+
+                await this.DnsResolver._DisposeSafeAsync();
 
                 this.SettingsHive._DisposeSafe();
             }

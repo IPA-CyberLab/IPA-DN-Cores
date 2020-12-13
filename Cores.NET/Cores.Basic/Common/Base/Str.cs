@@ -6554,6 +6554,24 @@ namespace IPA.Cores.Basic
             return true;
         }
 
+        // 文字列の両端が指定された文字の場合は削除
+        public static string TrimBothSideChar(string? src, char c1, char c2)
+        {
+            src = src._NonNull();
+
+            int len = src.Length;
+
+            if (len >= 2)
+            {
+                if (src[0] == c1 && src[len - 1] == c2)
+                {
+                    src = src.Substring(1, len - 2);
+                }
+            }
+
+            return src;
+        }
+
         // 指定した文字列が含まれているかどうかチェック
         public static bool InStr(string str, string keyword, bool caseSensitive = false)
         {

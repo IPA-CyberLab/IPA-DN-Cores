@@ -910,11 +910,34 @@ namespace IPA.TestDev
             public string A = "123";
             public int B = 456;
             [NoDebugDump]
-            public List<string> C = new List<string>(  new string[] { "a", "b", "c" });
+            public List<string> C = new List<string>(new string[] { "a", "b", "c" });
+        }
+
+        static async Task Test_DNS_201213()
+        {
+            await using var dns = new DnsClientLibBasedDnsResolver(new DnsResolverSettings(reverseLookupInternalCacheTimeoutMsecs: 0, flags: DnsResolverFlags.Default,
+                dnsServersList: " 64.6.64.6"._ToIPEndPoint(53)!._SingleArray()));
+
+            while (true)
+            {
+                long stat = TickHighresNow;
+                var fqdn = await dns.GetHostNameSingleOrIpAsync("8.8.8.8", noCache: true);
+                long end = TickHighresNow;
+
+                $"{fqdn}   {end - stat}"._Print();
+
+                Sleep(10);
+            }
         }
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Async(async () => await Test_DNS_201213());
+                return;
+            }
+
             if (true)
             {
                 FastCache<string, string> c = new FastCache<string, string>(expireMsecs: 1000);
