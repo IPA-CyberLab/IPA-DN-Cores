@@ -94,6 +94,8 @@ namespace IPA.Cores.Codes
         public static readonly Copenhagen<int> DbReadReloadIntervalMsecs = 1 * 1000;
         public static readonly Copenhagen<int> DbWriteIntervalMsecs = 1 * 1000;
         public static readonly Copenhagen<int> DbBackupFileWriteIntervalMsecs = 5 * 1000;
+
+        public const int MaxPcidLen = 31;
     }
 
     [Flags]

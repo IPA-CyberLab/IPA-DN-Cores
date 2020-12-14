@@ -3608,6 +3608,172 @@ namespace IPA.Cores.Basic
             }
         }
 
+
+        // From WideControl 2007
+        public class LegacyDomainUtil
+        {
+            string domainStr;
+            string[] tokens;
+
+            public string DomainString
+            {
+                get { return domainStr; }
+            }
+
+            public LegacyDomainUtil(string domainStr)
+            {
+                string str = domainStr.Trim().ToLower();
+                string str2 = "";
+
+                foreach (char c in str)
+                {
+                    if (IsSafeCharDomain(c))
+                    {
+                        str2 += c;
+                    }
+                }
+
+                this.domainStr = str2;
+
+                StrToken tok = new StrToken(domainStr, ".");
+                tokens = tok.Tokens;
+            }
+
+            // ドメインに使用できる文字かどうかチェック
+            public static bool IsSafeCharDomain(char c)
+            {
+                if ('a' <= c && c <= 'z')
+                {
+                    return true;
+                }
+                else if ('A' <= c && c <= 'Z')
+                {
+                    return true;
+                }
+                else if (c == '_' || c == '-')
+                {
+                    return true;
+                }
+                else if ('0' <= c && c <= '9')
+                {
+                    return true;
+                }
+                else if (c == '.')
+                {
+                    return true;
+                }
+                return false;
+            }
+
+            // FQDN の最後の項目を取得
+            public string LastUnit
+            {
+                get
+                {
+                    if (tokens.Length == 0)
+                    {
+                        return "";
+                    }
+                    return tokens[tokens.Length - 1];
+                }
+            }
+
+            // GTLD かどうか取得
+            public bool IsGtld
+            {
+                get
+                {
+                    string last = LastUnit;
+
+                    if (last == "com" || last == "net" || last == "org" || last == "edu" ||
+                        last == "gov" || last == "mil" || last == "int" || last == "info" ||
+                        last == "biz" || last == "name" || last == "pro" || last == "museum" ||
+                        last == "aero" || last == "coop" || last == "jobs" || last == "travel" ||
+                        last == "mobi" || last == "cat" || last == "asia" || last == "post" ||
+                        last == "tel")
+                    {
+                        return true;
+                    }
+
+                    return false;
+                }
+            }
+
+            // 汎用 JP かどうか取得
+            public bool IsHanyouJP
+            {
+                get
+                {
+                    string last = LastUnit;
+
+                    if (last == "jp")
+                    {
+                        if (tokens.Length >= 3)
+                        {
+                            string s = tokens[tokens.Length - 2];
+
+                            if (s == "co" || s == "or" || s == "ne" || s == "ac" || s == "ad" ||
+                                s == "ed" || s == "go" || s == "gr" || s == "lg")
+                            {
+                                return false;
+                            }
+
+                            if (Str.IsStrInList(s, "HOKKAIDO", "FUKUSHIMA", "TOKYO", "YAMANASHI", "SHIGA",
+                                "TOTTORI", "KAGAWA", "KUMAMOTO", "SENDAI", "OSAKA", "AOMORI", "IBARAKI",
+                                "KANAGAWA", "NAGANO", "KYOTO", "SHIMANE", "EHIME", "OITA", "CHIBA", "KOBE",
+                                "IWATE", "TOCHIGI", "NIIGATA", "GIFU", "OSAKA", "OKAYAMA", "KOCHI", "MIYAZAKI",
+                                "YOKOHAMA", "HIROSHIMA", "MIYAGI", "GUNMA", "TOYAMA", "SHIZUOKA", "HYOGO",
+                                "HIROSHIMA", "FUKUOKA", "KAGOSHIMA", "KAWASAKI",
+                                "FUKUOKA", "AKITA", "SAITAMA", "ISHIKAWA", "AICHI", "NARA", "YAMAGUCHI",
+                                "SAGA", "OKINAWA", "NAGOYA", "KITAKYUSHU", "YAMAGATA",
+                                "CHIBA", "FUKUI", "MIE", "WAKAYAMA",
+                                "TOKUSHIMA", "NAGASAKI", "SAPPORO", "KYOTO"))
+                            {
+                                return false;
+                            }
+
+                            return true;
+                        }
+                        else
+                        {
+                            return true;
+                        }
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            // 固有文字列を取得
+            public string ProperString
+            {
+                get
+                {
+                    bool b = IsHanyouJP || IsGtld;
+
+                    if (tokens.Length == 0)
+                    {
+                        return "";
+                    }
+                    else if (tokens.Length == 1)
+                    {
+                        return tokens[0].Trim();
+                    }
+
+                    if (tokens.Length == 2 || b)
+                    {
+                        return tokens[tokens.Length - 2];
+                    }
+                    else
+                    {
+                        return tokens[tokens.Length - 3];
+                    }
+                }
+            }
+        }
+
         // DNS
         public class Domain
         {

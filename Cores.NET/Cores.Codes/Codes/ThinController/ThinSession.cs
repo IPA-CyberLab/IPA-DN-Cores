@@ -189,6 +189,30 @@ namespace IPA.Cores.Codes
     {
         public ImmutableDictionary<string, ThinGate> GateTable = ImmutableDictionary<string, ThinGate>.Empty;
 
+        public Pair2<ThinGate, ThinSession>? SearchServerSessionByMsid(string msid)
+        {
+            var table = this.GateTable;
+
+            // 全 Gate の Session を検索
+            List<Pair2<ThinGate, ThinSession>> candidates = new List<Pair2<ThinGate, ThinSession>>();
+
+            foreach (var gate in table.Values)
+            {
+                var sess = gate.SessionTable._GetOrDefault(msid);
+
+                // Gate あたり MSID の検索結果セッションは必ず 1 つになるはずである
+                if (sess != null)
+                {
+                    candidates.Add(new Pair2<ThinGate, ThinSession>(gate, sess));
+                }
+            }
+
+            // 万一複数の Gate で同じ MSID のセッションが複数発見された場合は、最後に接続されたものを選択する
+            var candidates2 = candidates.OrderByDescending(x => x.B.EstablishedDateTime);
+
+            return candidates2.FirstOrDefault();
+        }
+
         public ThinGate? SelectBestGateForServer(EasyIpAcl preferAcl, int gateMaxSessions, bool allowCandidate2)
         {
             DateTime now = DtNow;

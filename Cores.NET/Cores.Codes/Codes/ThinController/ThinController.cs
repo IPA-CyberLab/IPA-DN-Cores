@@ -271,6 +271,222 @@ namespace IPA.Cores.Codes
             return NewWpcResult(p);
         }
 
+        // WOL MAC アドレス取得
+        public async Task<WpcResult> ProcClientGetWolMacList(WpcPack req, CancellationToken cancel)
+        {
+            var q = req.Pack;
+
+            // svcName を取得 (正規化)
+            string svcName = NormalizeSvcName(q["SvcName"].StrValueNonNull);
+            if (svcName._IsEmpty()) return NewWpcResult(VpnErrors.ERR_SVCNAME_NOT_FOUND);
+
+            string pcid = q["Pcid"].StrValueNonNull;
+
+            // svcName と PCID から Machine を取得
+            var machine = await Controller.Db.SearchMachineByPcidAsync(svcName, pcid, cancel);
+
+            if (machine == null)
+            {
+                // PCID が見つからない
+                var ret2 = NewWpcResult(VpnErrors.ERR_PCID_NOT_FOUND);
+                ret2.AdditionalInfo.Add("SvcName", svcName);
+                ret2.AdditionalInfo.Add("Pcid", pcid);
+                return ret2;
+            }
+
+            var ret = NewWpcResult();
+            var p = ret.Pack;
+            p.AddStr("wol_maclist", machine.WOL_MACLIST._NonNullTrim());
+
+            ret.AdditionalInfo.Add("SvcName", machine.SVC_NAME);
+            ret.AdditionalInfo.Add("Pcid", machine.PCID);
+            ret.AdditionalInfo.Add("Msid", machine.MSID);
+            ret.AdditionalInfo.Add("WoL_MacList", machine.WOL_MACLIST._NonNullTrim());
+
+            return ret;
+        }
+
+        // クライアントからの接続要求を処理
+        public async Task<WpcResult> ProcClientConnectAsync(WpcPack req, CancellationToken cancel)
+        {
+            var q = req.Pack;
+
+            // svcName を取得 (正規化)
+            string svcName = NormalizeSvcName(q["SvcName"].StrValueNonNull);
+            if (svcName._IsEmpty()) return NewWpcResult(VpnErrors.ERR_SVCNAME_NOT_FOUND);
+
+            string pcid = q["Pcid"].StrValueNonNull;
+            int ver = q["Ver"].SIntValue;
+            int build = q["Build"].SIntValue;
+            ulong clientFlags = q["ClientFlags"].Int64Value;
+            ulong clientOptions = q["ClientOptions"].Int64Value;
+
+            // svcName と PCID から Machine を取得
+            var machine = await Controller.Db.SearchMachineByPcidAsync(svcName, pcid, cancel);
+
+            if (machine == null)
+            {
+                // PCID が見つからない
+                var ret2 = NewWpcResult(VpnErrors.ERR_PCID_NOT_FOUND);
+                ret2.AdditionalInfo.Add("SvcName", svcName);
+                ret2.AdditionalInfo.Add("Pcid", pcid);
+                return ret2;
+            }
+
+            // 行政情報システム適合モードかどうか
+            bool isLimitedMode = machine.LAST_FLAG._InStr("limited", true);
+
+            // 接続先の Gate と Session を取得
+            var gateAndSession = Controller.SessionManager.SearchServerSessionByMsid(machine.MSID);
+
+            if (gateAndSession == null)
+            {
+                // PCID はデータベースに存在するがセッションが存在しない
+                var ret2 = NewWpcResult(VpnErrors.ERR_DEST_MACHINE_NOT_EXISTS);
+                ret2.AdditionalInfo.Add("SvcName", svcName);
+                ret2.AdditionalInfo.Add("Pcid", pcid);
+                return ret2;
+            }
+
+            // IP アドレス等を元にした接続禁止を行なう場合、禁止の旨のメッセージを応答する
+            string? prohibitedMessage = await Controller.Hook.DetermineConnectionProhibitedAsync(this.Controller, true, gateAndSession.B.IpAddress, this.ClientInfo.ClientIp, machine);
+
+            if (prohibitedMessage._IsFilled())
+            {
+                // 接続禁止メッセージを応答
+                var ret2 = NewWpcResult(VpnErrors.ERR_RECV_MSG);
+                ret2.Pack.AddUniStr("Msg", prohibitedMessage);
+                ret2.AdditionalInfo.Add("SvcName", svcName);
+                ret2.AdditionalInfo.Add("Pcid", pcid);
+                ret2.AdditionalInfo.Add("MsgForClient", prohibitedMessage);
+                return ret2;
+            }
+
+            if ((clientOptions & 1) != 0)
+            {
+                // WoL クライアントである
+                if ((gateAndSession.B.ServerMask64 & 128) == 0)
+                {
+                    // トリガー PC のバージョンが WoL トリガー機能がない古いバージョンである
+                    var ret2 = NewWpcResult(VpnErrors.ERR_WOL_TRIGGER_NOT_SUPPORTED);
+                    ret2.AdditionalInfo.Add("SvcName", svcName);
+                    ret2.AdditionalInfo.Add("Pcid", pcid);
+                    return ret2;
+                }
+            }
+
+            var ret = NewWpcResult();
+            var p = ret.Pack;
+
+            string fqdn = (await Controller.Hook.GenerateFqdnForProxyAsync(gateAndSession.A.IpAddress, this, cancel))._FilledOrDefault(gateAndSession.A.IpAddress);
+
+            p.AddStr("Hostname", gateAndSession.A.IpAddress);
+            p.AddInt("Port", (uint)gateAndSession.A.Port);
+            p.AddStr("HostnameForProxy", fqdn);
+            p.AddData("SessionId", gateAndSession.B.SessionId._GetHexBytes());
+
+            ulong serverMask64 = gateAndSession.B.ServerMask64;
+            if (isLimitedMode)
+                serverMask64 |= 256; // 行政情報システム適合モード (ThinController が勝手に付ける)
+            p.AddInt64("ServerMask64", serverMask64);
+
+            ret.AdditionalInfo.Add("SvcName", machine.SVC_NAME);
+            ret.AdditionalInfo.Add("Pcid", machine.PCID);
+            ret.AdditionalInfo.Add("Msid", machine.MSID);
+            ret.AdditionalInfo.Add("GateHostname", gateAndSession.A.IpAddress);
+            ret.AdditionalInfo.Add("GateHostnameForProxy", fqdn);
+            ret.AdditionalInfo.Add("GatePort", gateAndSession.A.Port.ToString());
+
+            return ret;
+        }
+
+        string NormalizeSvcName(string svcName)
+        {
+            if (svcName._IsEmpty()) return "";
+            svcName = Controller.Db.MemDb?.SvcBySvcName._GetOrDefault(svcName)?.SVC_NAME ?? "";
+            if (svcName._IsEmpty()) return "";
+            return svcName;
+        }
+
+        // サーバーの登録
+        public async Task<WpcResult> ProcRegistMachine(WpcPack req, CancellationToken cancel)
+        {
+            var q = req.Pack;
+
+            // svcName を取得 (正規化)
+            string svcName = NormalizeSvcName(q["SvcName"].StrValueNonNull);
+            if (svcName._IsEmpty()) return NewWpcResult(VpnErrors.ERR_SVCNAME_NOT_FOUND);
+
+            string pcid = q["Pcid"].StrValueNonNull;
+
+            // データベースエラー時は処理禁止
+            if (Controller.Db.IsDatabaseConnected == false)
+            {
+                return NewWpcResult(VpnErrors.ERR_TEMP_ERROR);
+            }
+
+            // PCID チェック
+            var err = ThinController.CheckPCID(pcid);
+            if (err != VpnErrors.ERR_NO_ERROR)
+            {
+                // PCID 不正
+                var ret2 = NewWpcResult(err);
+                ret2.AdditionalInfo.Add("SvcName", svcName);
+                ret2.AdditionalInfo.Add("Pcid", pcid);
+                return ret2;
+            }
+
+            // PCID の簡易存在検査 (メモリ上とデータベース上のいずれにも存在しないことを確認)
+            // データベースにトランザクションはかけていないが、一意インデックスで一意性は保証されるので
+            // この軽いチェックのみで問題はない
+            if (await Controller.Db.SearchMachineByPcidAsync(svcName, pcid, cancel) != null)
+            {
+                // 既に存在する
+                var ret2 = NewWpcResult(VpnErrors.ERR_PCID_ALREADY_EXISTS);
+                ret2.AdditionalInfo.Add("SvcName", svcName);
+                ret2.AdditionalInfo.Add("Pcid", pcid);
+                return ret2;
+            }
+
+            return null!;
+        }
+
+        // PCID 候補を取得
+        public async Task<WpcResult> ProcGetPcidCandidate(WpcPack req, CancellationToken cancel)
+        {
+            var q = req.Pack;
+
+            // svcName を取得 (正規化)
+            string svcName = NormalizeSvcName(q["SvcName"].StrValueNonNull);
+            if (svcName._IsEmpty()) return NewWpcResult(VpnErrors.ERR_SVCNAME_NOT_FOUND);
+
+            // データベースエラー時は処理禁止
+            if (Controller.Db.IsDatabaseConnected == false)
+            {
+                return NewWpcResult(VpnErrors.ERR_TEMP_ERROR);
+            }
+
+            string fqdn = await Controller.DnsResolver.GetHostNameSingleOrIpAsync(this.ClientInfo.ClientIp, cancel);
+            string machineName = q["MachineName"].StrValueNonNull;
+            string computerName = q["ComputerName"].StrValueNonNull;
+            string userName = q["UserName"].StrValueNonNull;
+
+            string candidate = await Controller.GeneratePcidCandidateAsync(svcName, fqdn, machineName, userName, computerName, cancel);
+
+            var ret = NewWpcResult();
+            var p = ret.Pack;
+            p.AddStr("Ret", candidate);
+
+            ret.AdditionalInfo.Add("Candidate", candidate);
+            ret.AdditionalInfo.Add("svcName", svcName);
+            ret.AdditionalInfo.Add("fqdn", fqdn);
+            ret.AdditionalInfo.Add("machineName", machineName);
+            ret.AdditionalInfo.Add("userName", userName);
+            ret.AdditionalInfo.Add("computerName", computerName);
+
+            return ret;
+        }
+
         // サーバーからの接続要求を処理
         public async Task<WpcResult> ProcServerConnectAsync(WpcPack req, CancellationToken cancel)
         {
@@ -321,17 +537,26 @@ namespace IPA.Cores.Codes
             p.AddData("Signature2", sign);
             p.AddStr("Pcid", this.ClientInfo.AuthedMachine!.PCID);
             p.AddStr("Hostname", bestGate.IpAddress);
-            p.AddStr("HostnameForProxy", (await Controller.Hook.GenerateFqdnForProxyAsync(bestGate.IpAddress, this, cancel))._FilledOrDefault(bestGate.IpAddress));
+            string fqdn = (await Controller.Hook.GenerateFqdnForProxyAsync(bestGate.IpAddress, this, cancel))._FilledOrDefault(bestGate.IpAddress);
+            p.AddStr("HostnameForProxy", fqdn);
             p.AddInt("Port", (uint)bestGate.Port);
 
-            // IP アドレス等を元にした接続禁止メッセージがある場合は、そのメッセージを応答する (接続処理自体は成功させる)
+            // IP アドレス等を元にした接続禁止を行なう場合、禁止の旨のメッセージを応答する (接続処理自体は成功させる)
             string? prohibitedMessage = await Controller.Hook.DetermineConnectionProhibitedAsync(this.Controller, false, this.ClientInfo.ClientIp, null, this.ClientInfo.AuthedMachine!);
 
             if (prohibitedMessage._IsFilled())
             {
                 p.AddUniStr("MsgForServer", prohibitedMessage);
                 p.AddInt("MsgForServerOnce", 0);
+                ret.AdditionalInfo.Add("MsgForServer", prohibitedMessage);
             }
+
+            ret.AdditionalInfo.Add("SvcName", this.ClientInfo.AuthedMachine!.SVC_NAME);
+            ret.AdditionalInfo.Add("Pcid", this.ClientInfo.AuthedMachine!.PCID);
+            ret.AdditionalInfo.Add("Msid", this.ClientInfo.AuthedMachine!.MSID);
+            ret.AdditionalInfo.Add("GateHostname", bestGate.IpAddress);
+            ret.AdditionalInfo.Add("GateHostnameForProxy", fqdn);
+            ret.AdditionalInfo.Add("GatePort", bestGate.Port.ToString());
 
             return ret;
         }
@@ -620,9 +845,9 @@ namespace IPA.Cores.Codes
         {
             try
             {
-                if (Controller.Db.IsConnected == false)
+                if (Controller.Db.IsLoaded == false)
                 {
-                    throw new CoresException("Controller.DB is not connected yet.");
+                    throw new CoresException("Controller.DB is not loaded yet.");
                 }
 
                 // WPC リクエストをパースする
@@ -647,15 +872,27 @@ namespace IPA.Cores.Codes
                     }
                 }
 
+                cancel.ThrowIfCancellationRequested();
+
                 // 関数を実行する
                 switch (this.FunctionName.ToLower())
                 {
+                    // テスト系
                     case "test": return ProcTest(req, cancel);
                     case "commcheck": return ProcCommCheck(req, cancel);
+
+                    // Gate 系
                     case "reportsessionlist": return await ProcReportSessionListAsync(req, cancel);
                     case "reportsessionadd": return await ProcReportSessionAddAsync(req, cancel);
                     case "reportsessiondel": return await ProcReportSessionDelAsync(req, cancel);
+
+                    // サーバー系
+                    case "getpcidcandidate": return await ProcGetPcidCandidate(req, cancel);
                     case "serverconnect": return await ProcServerConnectAsync(req, cancel);
+
+                    // クライアント系
+                    case "clientconnect": return await ProcClientConnectAsync(req, cancel);
+                    case "clientgetwolmaclist": return await ProcClientGetWolMacList(req, cancel);
 
                     default:
                         // 適切な関数が見つからない
@@ -951,6 +1188,202 @@ namespace IPA.Cores.Codes
                 await base.CleanupImplAsync(ex);
             }
         }
+
+        // ユーティリティ関数系
+
+        // 最近発行した PCID 候補のキャッシュ
+        readonly FastCache<string, int> RecentPcidCandidateCache = new FastCache<string, int>(10 * 60 * 1000, comparer: StrComparer.IgnoreCaseComparer);
+
+        public void AddPcidToRecentPcidCandidateCache(string pcid)
+        {
+            RecentPcidCandidateCache.Add(pcid, 1);
+        }
+
+        // PCID の候補の決定
+        public async Task<string> GeneratePcidCandidateAsync(string svcName, string dns1, string dns2, string username, string machineName, CancellationToken cancel)
+        {
+            string s = await GeneratePcidCandidateCoreAsync(svcName, dns1, dns2, username, machineName, cancel);
+
+            RecentPcidCandidateCache.Add(s, 1);
+
+            return s;
+        }
+
+        async Task<string> GeneratePcidCandidateCoreAsync(string svcName, string dns1, string dns2, string username, string machineName, CancellationToken cancel)
+        {
+            int i;
+            var domain1 = new Basic.Legacy.LegacyDomainUtil(dns1);
+            var domain2 = new Basic.Legacy.LegacyDomainUtil(dns2);
+            string d1 = ConvertStrToSafeForPcid(domain1.ProperString);
+            string d2 = ConvertStrToSafeForPcid(domain2.ProperString);
+            if (dns1._IsStrIP())
+            {
+                d1 = "";
+            }
+            if (dns2._IsStrIP())
+            {
+                d2 = "";
+            }
+            username = ConvertStrToSafeForPcid(username).Trim();
+            i = machineName.IndexOf(".");
+            if (i != -1)
+            {
+                machineName = machineName.Substring(0, i);
+            }
+            machineName = ConvertStrToSafeForPcid(machineName).Trim();
+            if (machineName.Length > 8)
+            {
+                machineName = machineName.Substring(0, 8);
+            }
+
+            if (d1 != "")
+            {
+                return await GeneratePcidCandidateStringCoreAsync(svcName, d1, cancel);
+            }
+
+            if (Str.IsStrInList(username, "", "administrator", "system") == false)
+            {
+                return await GeneratePcidCandidateStringCoreAsync(svcName, username, cancel);
+            }
+
+            if (d2 != "")
+            {
+                return await GeneratePcidCandidateStringCoreAsync(svcName, d2, cancel);
+            }
+
+            if (machineName != "")
+            {
+                return await GeneratePcidCandidateStringCoreAsync(svcName, machineName, cancel);
+            }
+
+            string key = Str.ByteToHex(Secure.Rand(8));
+            return await GeneratePcidCandidateStringCoreAsync(svcName, key, cancel);
+        }
+
+        // 候補名の生成
+        async Task<string> GeneratePcidCandidateStringCoreAsync(string svcName, string key, CancellationToken cancel)
+        {
+            ulong i;
+            uint n = 0;
+            while (true)
+            {
+                n++;
+
+                i = 1 + Secure.RandUInt31() % 99999999;
+                if (n >= 100)
+                {
+                    i = Secure.RandUInt63() % 9999999999UL + n;
+                }
+                if (n >= 200)
+                {
+                    i = Secure.RandUInt63() % 999999999999UL + n;
+                }
+                if (n >= 1000)
+                {
+                    throw new CoresLibException("(n >= 1000)");
+                }
+
+                string pcidCandidate = GeneratePcidCandidateStringFromKeyAndNumber(key, i);
+
+                if (RecentPcidCandidateCache.ContainsKey(pcidCandidate) == false)
+                {
+                    if (await this.Db.SearchMachineByPcidAsync(svcName, pcidCandidate, cancel) == null)
+                    {
+                        return pcidCandidate;
+                    }
+                }
+            }
+        }
+
+        // PCID 候補生成
+        public static string GeneratePcidCandidateStringFromKeyAndNumber(string key, ulong id)
+        {
+            key = key.ToLower().Trim();
+            string ret = key + "-" + id.ToString();
+
+            ret._SliceHead(ThinControllerConsts.MaxPcidLen);
+
+            return ret;
+        }
+
+        // PCID に使用できる文字列にコンバート
+        public static string ConvertStrToSafeForPcid(string str)
+        {
+            string ret = "";
+
+            foreach (char c in str)
+            {
+                if (IsSafeCharForPcid(c))
+                {
+                    ret += c;
+                }
+            }
+
+            if (ret.Length > 20)
+            {
+                ret = ret.Substring(0, 20);
+            }
+
+            return ret;
+        }
+
+        // PCID に使用できる文字かどうかチェック
+        public static bool IsSafeCharForPcid(char c)
+        {
+            if ('a' <= c && c <= 'z')
+            {
+                return true;
+            }
+            else if ('A' <= c && c <= 'Z')
+            {
+                return true;
+            }
+            else if (c == '_' || c == '-')
+            {
+                return true;
+            }
+            else if ('0' <= c && c <= '9')
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // PCID のチェック
+        public static VpnErrors CheckPCID(string pcid)
+        {
+            int i, len;
+            len = pcid.Length;
+            if (len == 0)
+            {
+                return VpnErrors.ERR_PCID_NOT_SPECIFIED;
+            }
+            if (len > ThinControllerConsts.MaxPcidLen)
+            {
+                return VpnErrors.ERR_PCID_TOO_LONG;
+            }
+            for (i = 0; i < len; i++)
+            {
+                if (IsSafeCharForPcid(pcid[i]) == false)
+                {
+                    return VpnErrors.ERR_PCID_INVALID;
+                }
+            }
+
+            return VpnErrors.ERR_NO_ERROR;
+        }
+
+        // MSID の生成
+        public static string GenerateMsid(string certhash, string svcName)
+        {
+            byte[] hex = certhash._GetHexBytes();
+            if (hex.Length != 20)
+            {
+                throw new ArgumentException("certHash");
+            }
+            return "MSID-" + svcName + "-" + Str.ByteToHex(hex);
+        }
+
     }
 }
 

@@ -294,7 +294,9 @@ namespace IPA.Cores.Codes
 
         public ThinMemoryDb? MemDb { get; private set; }
 
-        public bool IsConnected => MemDb != null;
+        public bool IsLoaded => MemDb != null; // 一度でもメモリロードされたら true
+
+        public bool IsDatabaseConnected { get; private set; } // 読み出しメインループからの最後のデータベース接続に成功していれば true、それ以外の場合は false。DB で不具合が発生していることを検出するため
 
         public string BackupFileName { get; }
 
@@ -325,6 +327,15 @@ namespace IPA.Cores.Codes
             return db;
         }
 
+        public async Task<Database> OpenDatabaseForWriteAsync(CancellationToken cancel = default)
+        {
+            Database db = new Database(this.Controller.SettingsFastSnapshot.DbConnectionString_Write, defaultIsolationLevel: IsolationLevel.Serializable);
+
+            await db.EnsureOpenAsync(cancel);
+
+            return db;
+        }
+
         long LastBackupSaveTick = 0;
 
         // データベースから最新の情報取得メイン
@@ -332,20 +343,31 @@ namespace IPA.Cores.Codes
         {
             try
             {
-                await using var db = await OpenDatabaseForReadAsync(cancel);
 
                 IEnumerable<ThinDbSvc> allSvcs = null!;
                 IEnumerable<ThinDbMachine> allMachines = null!;
                 IEnumerable<ThinDbVar> allVars = null!;
 
-                await db.TranReadSnapshotIfNecessaryAsync(async () =>
+                try
                 {
-                    allSvcs = await db.EasySelectAsync<ThinDbSvc>("select * from SVC", cancel: cancel);
-                    allMachines = await db.EasySelectAsync<ThinDbMachine>("select * from MACHINE", cancel: cancel);
-                    allVars = await db.EasySelectAsync<ThinDbVar>("select * from VAR", cancel: cancel);
-                });
+                    await using var db = await OpenDatabaseForReadAsync(cancel);
 
-                $"ThinDatabase.ReadCoreAsync Read All Records from DB: {allMachines.Count()}"._Debug();
+                    await db.TranReadSnapshotIfNecessaryAsync(async () =>
+                    {
+                        allSvcs = await db.EasySelectAsync<ThinDbSvc>("select * from SVC", cancel: cancel);
+                        allMachines = await db.EasySelectAsync<ThinDbMachine>("select * from MACHINE", cancel: cancel);
+                        allVars = await db.EasySelectAsync<ThinDbVar>("select * from VAR", cancel: cancel);
+                    });
+
+                    IsDatabaseConnected = true;
+                    $"ThinDatabase.ReadCoreAsync Read All Records from DB: {allMachines.Count()}"._Debug();
+                }
+                catch (Exception ex)
+                {
+                    IsDatabaseConnected = false;
+                    $"ThinDatabase.ReadCoreAsync Database Connect Error: {ex.ToString()}"._Error();
+                    throw;
+                }
 
                 // メモリデータベースを構築
                 ThinMemoryDb mem = new ThinMemoryDb(allSvcs, allMachines, allVars);
@@ -462,12 +484,178 @@ namespace IPA.Cores.Codes
             }
         }
 
+        // PCID 変更実行
+        public async Task<VpnErrors> RenamePcidAsync(string msid, string newPcid, DateTime now, CancellationToken cancel = default)
+        {
+            msid = msid._NonNullTrim();
+            newPcid = newPcid._NonNullTrim();
+
+            VpnErrors err2 = ThinController.CheckPCID(newPcid);
+            if (err2 != VpnErrors.ERR_NO_ERROR) return err2;
+
+            VpnErrors err = VpnErrors.ERR_INTERNAL_ERROR;
+
+            await using var db = await OpenDatabaseForWriteAsync(cancel);
+
+            // トランザクションを確立し厳格なチェックを実施
+            // (DB サーバー側で一意インデックスによりチェックするが、インデックスが間違っていた場合に備えて、トランザクションでも厳密にチェックするのである)
+            if (await db.TranAsync(async () =>
+            {
+                // MACHINE を取得
+                var machine = await db.EasySelectSingleAsync<ThinDbMachine>("SELECT * FROM MACHINE WHERE MSID = @MSID", new { MSID = msid }, false, true, cancel);
+                if (machine == null)
+                {
+                    // おかしいな
+                    err = VpnErrors.ERR_SECURITY_ERROR;
+                    return false;
+                }
+
+                // 同一 PCID が存在しないかどうかチェック
+                if ((await db.QueryWithValueAsync("SELECT COUNT(MACHINE_ID) FROM MACHINE WHERE PCID = @ AND SVC_NAME = @", newPcid, machine.SVC_NAME)).Int != 0)
+                {
+                    err = VpnErrors.ERR_PCID_ALREADY_EXISTS;
+                    return false;
+                }
+
+                // 変更の実行
+                await db.QueryWithNoReturnAsync("UPDATE MACHINE SET PCID = @, UPDATE_DATE = @, PCID_UPDATE_DATE = @, PCID_VER = PCID_VER + 1 WHERE MSID = @",
+                    newPcid, now, now, msid);
+
+                return true;
+            }) == false)
+            {
+                return err;
+            }
+
+            Controller.AddPcidToRecentPcidCandidateCache(newPcid);
+
+            // ローカルメモリデータベース上の PCID 情報を変更
+            var machine = this.MemDb?.MachineByMsid._GetOrDefault(msid);
+
+            if (machine != null)
+            {
+                machine.PCID = newPcid;
+            }
+
+            return VpnErrors.ERR_NO_ERROR;
+        }
+
+        // サーバー登録実行
+        public async Task<VpnErrors> RegisterMachineAsync(string svcName, string msid, string pcid, string hostKey, string hostSecret2, DateTime now, string ip, string fqdn, CancellationToken cancel = default)
+        {
+            svcName = svcName._NonNullTrim();
+            msid = msid._NonNullTrim();
+            pcid = pcid._NonNullTrim();
+            hostKey = hostKey._NonNullTrim();
+            hostSecret2 = hostSecret2._NonNullTrim();
+            ip = ip._NonNullTrim();
+            fqdn = fqdn._NonNullTrim();
+
+            VpnErrors err2 = ThinController.CheckPCID(pcid);
+            if (err2 != VpnErrors.ERR_NO_ERROR) return err2;
+
+            VpnErrors err = VpnErrors.ERR_INTERNAL_ERROR;
+
+            await using var db = await OpenDatabaseForWriteAsync(cancel);
+
+            // トランザクションを確立し厳格なチェックを実施
+            // (DB サーバー側で一意インデックスによりチェックするが、インデックスが間違っていた場合に備えて、トランザクションでも厳密にチェックするのである)
+            if (await db.TranAsync(async () =>
+            {
+                // 同一 hostKey が存在しないかどうか確認
+                if ((await db.QueryWithValueAsync("SELECT COUNT(MACHINE_ID) FROM MACHINE WHERE CERT_HASH = @", hostKey)).Int != 0)
+                {
+                    err = VpnErrors.ERR_SECURITY_ERROR;
+                    return false;
+                }
+
+                // 同一シークレットが存在しないかどうかチェック
+                if ((await db.QueryWithValueAsync("SELECT COUNT(MACHINE_ID) FROM MACHINE WHERE HOST_SECRET2 = @", hostSecret2)).Int != 0)
+                {
+                    err = VpnErrors.ERR_SECURITY_ERROR;
+                    return false;
+                }
+
+                // 同一 PCID が存在しないかどうかチェック
+                if ((await db.QueryWithValueAsync("SELECT COUNT(MACHINE_ID) FROM MACHINE WHERE PCID = @ AND SVC_NAME = @", pcid, svcName)).Int != 0)
+                {
+                    err = VpnErrors.ERR_PCID_ALREADY_EXISTS;
+                    return false;
+                }
+
+                // 登録の実行
+                await db.QueryWithNoReturnAsync("INSERT INTO MACHINE (SVC_NAME, MSID, PCID, CERT, CERT_HASH, CREATE_DATE, UPDATE_DATE, LAST_SERVER_DATE, LAST_CLIENT_DATE, NUM_SERVER, NUM_CLIENT, CREATE_IP, CREATE_HOST, HOST_SECRET, HOST_SECRET2) " +
+                                    "VALUES (@, @, @, @, @, @, @, @, @, @, @, @, @, @, @)",
+                                    svcName, msid, pcid, new byte[0], hostKey,
+                                    now, now, now, now,
+                                    0, 0,
+                                    ip, fqdn,
+                                    hostKey, hostSecret2);
+
+                return true;
+            }) == false)
+            {
+                return err;
+            }
+
+            Controller.AddPcidToRecentPcidCandidateCache(pcid);
+
+            return VpnErrors.ERR_NO_ERROR;
+        }
+
+        // SvcName および Pcid による Machine の検索試行
+        public async Task<ThinDbMachine?> SearchMachineByPcidAsync(string svcName, string pcid, CancellationToken cancel = default)
+        {
+            // まずローカルメモリデータベースを検索する
+            var mem = this.MemDb;
+            if (mem != null)
+            {
+                var foundMachine = mem.MachineByPcidAndSvcName._GetOrDefault(pcid + "@" + svcName);
+                if (foundMachine != null)
+                {
+                    // 発見
+                    return foundMachine;
+                }
+            }
+
+            if (IsDatabaseConnected == false)
+            {
+                // データベース読み込みメインループでエラーが発生している場合は、データベース接続を試行しない (大量の試行がなされ不具合が発生するおそれがあるため)
+                return null;
+            }
+
+            cancel.ThrowIfCancellationRequested();
+
+            // ローカルメモリデータベースの検索でヒットしなかった場合 (たとえば、最近作成されたホストの場合) は、マスタデータベースを物理的に検索する
+            await using var db = await OpenDatabaseForReadAsync(cancel);
+
+            var foundMachine2 = await db.TranReadSnapshotIfNecessaryAsync(async () =>
+            {
+                return await db.EasySelectSingleAsync<ThinDbMachine>("select * from MACHINE where PCID = @PCID and SVC_NAME = @SVC_NAME",
+                    new
+                    {
+                        PCID = pcid,
+                        SVC_NAME = svcName,
+                    },
+                    throwErrorIfMultipleFound: true, throwErrorIfNotFound: false, cancel: cancel);
+            });
+
+            if (foundMachine2 != null)
+            {
+                // 発見
+                return foundMachine2;
+            }
+
+            // 未発見
+            return null;
+        }
+
         // HostKey および HostSecret2 による認証試行
         public async Task<ThinDbMachine?> AuthMachineAsync(string hostKey, string hostSecret2, CancellationToken cancel = default)
         {
             // まずローカルメモリデータベースを検索する
             var mem = this.MemDb;
-            if (mem != null && false)
+            if (mem != null)
             {
                 var foundMachine = mem.MachineByCertHashAndHostSecret2._GetOrDefault(hostKey + "@" + hostSecret2);
                 if (foundMachine != null)
@@ -476,6 +664,14 @@ namespace IPA.Cores.Codes
                     return foundMachine;
                 }
             }
+
+            if (IsDatabaseConnected == false)
+            {
+                // データベース読み込みメインループでエラーが発生している場合は、データベース接続を試行しない (大量の試行がなされ不具合が発生するおそれがあるため)
+                return null;
+            }
+
+            cancel.ThrowIfCancellationRequested();
 
             // ローカルメモリデータベースの検索でヒットしなかった場合 (たとえば、最近作成されたホストの場合) は、マスタデータベースを物理的に検索する
             await using var db = await OpenDatabaseForReadAsync(cancel);

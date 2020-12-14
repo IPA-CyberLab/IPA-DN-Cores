@@ -233,6 +233,13 @@ namespace IPA.Cores.Basic
             this.Dict = this.Dict.Clear();
         }
 
+        public bool ContainsKey(TKey key)
+        {
+            Get(key, out bool ret);
+
+            return ret;
+        }
+
         public TValue? Get(TKey key, TValue? defaultValue = default)
             => Get(key, out _, defaultValue);
 
@@ -418,6 +425,13 @@ namespace IPA.Cores.Basic
             Add(value);
 
             return value;
+        }
+
+        public bool Contains()
+        {
+            Get(out bool ret);
+
+            return ret;
         }
 
         public TValue? Get(TValue? defaultValue = default)
