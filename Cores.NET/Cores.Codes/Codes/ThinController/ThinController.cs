@@ -114,276 +114,180 @@ namespace IPA.Cores.Codes
 
             if (this.DbConnectionString_Read._IsEmpty())
             {
+                // デフォルトダミー文字列 (安全)
                 this.DbConnectionString_Read = "Data Source=127.0.0.1;Initial Catalog=THIN;Persist Security Info=True;User ID=thin_read;Password=password1;";
             }
 
             if (this.DbConnectionString_Write._IsEmpty())
             {
+                // デフォルトダミー文字列 (安全)
                 this.DbConnectionString_Write = "Data Source=127.0.0.1;Initial Catalog=THIN;Persist Security Info=True;User ID=thin_write;Password=password2;";
             }
         }
     }
 
-    public class ThinController : AsyncService
+    // ThinController の動作をカスタマイズ可能なフック抽象クラス
+    public abstract class ThinControllerHookBase
     {
-        public class ThinControllerSessionClientInfo
+        public abstract Task<string?> DetermineMachineGroupNameAsync(ThinControllerSession session, CancellationToken cancel = default);
+    }
+
+    public class ThinControllerSessionClientInfo
+    {
+        public ThinControllerServiceType ServiceType { get; }
+
+        public HttpEasyContextBox? Box { get; }
+
+        public string ClientPhysicalIp { get; }
+        public string ClientIp { get; }
+        public string ClientIpFqdn { get; private set; }
+        public QueryStringList HttpQueryStringList { get; }
+        public bool IsProxyMode { get; }
+
+        public bool IsAuthed => AuthedMachine != null;
+        public ThinDbMachine? AuthedMachine { get; private set; }
+        public string MachineGroupName { get; private set; } = "";
+
+        public ThinControllerSessionClientInfo(HttpEasyContextBox box, ThinControllerServiceType serviceType)
         {
-            public ThinControllerServiceType ServiceType { get; }
+            this.ServiceType = serviceType;
 
-            public HttpEasyContextBox? Box { get; }
+            this.Box = box;
 
-            public string ClientPhysicalIp { get; }
-            public string ClientIp { get; }
-            public string ClientIpFqdn { get; private set; }
-            public string FlagStr { get; }
-            public bool IsProxyMode { get; }
+            this.ClientPhysicalIp = box.RemoteEndpoint.Address.ToString();
 
-            public bool IsAuthed => AuthedMachine != null;
-            public ThinDbMachine? AuthedMachine { get; private set; }
-
-            public ThinControllerSessionFlags Flags { get; }
-
-            public ThinControllerSessionClientInfo(HttpEasyContextBox box, ThinControllerServiceType serviceType)
+            if (this.ServiceType == ThinControllerServiceType.ApiServiceForGateway)
             {
-                this.ServiceType = serviceType;
+                this.ClientIp = box.Request.Headers._GetStrFirst("X-WG-Proxy-SrcIP", this.ClientPhysicalIp);
 
-                this.Box = box;
-
-                this.ClientPhysicalIp = box.RemoteEndpoint.Address.ToString();
-
-                if (this.ServiceType == ThinControllerServiceType.ApiServiceForGateway)
+                if (this.ClientPhysicalIp != this.ClientIp)
                 {
-                    this.ClientIp = box.Request.Headers._GetStrFirst("X-WG-Proxy-SrcIP", this.ClientPhysicalIp);
-
-                    if (this.ClientPhysicalIp != this.ClientIp)
-                    {
-                        this.IsProxyMode = true;
-                    }
+                    this.IsProxyMode = true;
                 }
-                else
-                {
-                    this.ClientIp = this.ClientPhysicalIp;
-                }
-
-                this.FlagStr = box.QueryStringList._GetStrFirst("flag");
-
-                if (this.FlagStr._InStr("limited", true))
-                {
-                    this.Flags |= ThinControllerSessionFlags.LimitedMode;
-                }
-
-                this.ClientIpFqdn = this.ClientIp;
+            }
+            else
+            {
+                this.ClientIp = this.ClientPhysicalIp;
             }
 
-            public async Task ResolveClientIpFqdnIfPossibleAsync(DnsResolver resolver, CancellationToken cancel = default)
-            {
-                if (this.ClientIpFqdn != this.ClientIp) return;
+            this.HttpQueryStringList = box.QueryStringList;
 
-                this.ClientIpFqdn = await resolver.GetHostNameSingleOrIpAsync(this.ClientIp, cancel);
+            this.ClientIpFqdn = this.ClientIp;
+        }
+
+        public async Task ResolveClientIpFqdnIfPossibleAsync(DnsResolver resolver, CancellationToken cancel = default)
+        {
+            if (this.ClientIpFqdn != this.ClientIp) return;
+
+            this.ClientIpFqdn = await resolver.GetHostNameSingleOrIpAsync(this.ClientIp, cancel);
+        }
+
+        public async Task SetAuthedAsync(ThinControllerSession session, ThinDbMachine machine, CancellationToken cancel)
+        {
+            machine._NullCheck(nameof(machine));
+
+            this.AuthedMachine = machine;
+            this.MachineGroupName = (await session.Controller.Hook.DetermineMachineGroupNameAsync(session, cancel))._NonNullTrim();
+        }
+    }
+
+    public class ThinControllerSession : IDisposable, IAsyncDisposable
+    {
+        static RefLong IdSeed = new RefLong();
+
+        public string Uid { get; }
+        public ThinController Controller { get; }
+        public ThinControllerSessionClientInfo ClientInfo { get; }
+
+        public string FunctionName { get; private set; } = "Unknown";
+
+        public ThinControllerSession(ThinController controller, ThinControllerSessionClientInfo clientInfo)
+        {
+            try
+            {
+                this.Uid = Str.NewUid("REQ", '_') + "_" + IdSeed.Increment().ToString("D12");
+                this.Controller = controller;
+                this.ClientInfo = clientInfo;
             }
-
-            public void SetAuthed(ThinDbMachine machine)
+            catch
             {
-                machine._NullCheck(nameof(machine));
-
-                this.AuthedMachine = machine;
+                this._DisposeSafe();
+                throw;
             }
         }
 
-        public class ThinControllerSession : IDisposable, IAsyncDisposable
+        // テスト
+        public WpcResult ProcTest(WpcPack req, CancellationToken cancel)
         {
-            static RefLong IdSeed = new RefLong();
+            Pack p = new Pack();
 
-            public string Uid { get; }
-            public ThinController Controller { get; }
-            public ThinControllerSessionClientInfo ClientInfo { get; }
+            p.AddStr("test", req.Pack["1"].Int64Value.ToString());
 
-            public string FunctionName { get; private set; } = "Unknown";
+            return new WpcResult(VpnErrors.ERR_SECURITY_ERROR);
+        }
 
-            public ThinControllerSession(ThinController controller, ThinControllerSessionClientInfo clientInfo)
+        // 通信テスト
+        public WpcResult ProcCommCheck(WpcPack req, CancellationToken cancel)
+        {
+            Pack p = new Pack();
+
+            p.AddStr("retstr", req.Pack["str"].StrValue._NonNull());
+
+            return NewWpcResult(p);
+        }
+
+        // サーバーからの接続要求を処理
+        public async Task<WpcResult> ProcServerConnectAsync(WpcPack req, CancellationToken cancel)
+        {
+            var notAuthedErr = RequireMachineAuth(); if (notAuthedErr != null) return notAuthedErr; // 認証を要求
+
+            return null!;
+        }
+
+        // サーバーが未登録の場合は登録を要求する
+        WpcResult? RequireMachineAuth()
+        {
+            if (this.ClientInfo.IsAuthed == false)
             {
-                try
-                {
-                    this.Uid = Str.NewUid("REQ", '_') + "_" + IdSeed.Increment().ToString("D12");
-                    this.Controller = controller;
-                    this.ClientInfo = clientInfo;
-                }
-                catch
-                {
-                    this._DisposeSafe();
-                    throw;
-                }
+                return new WpcResult(VpnErrors.ERR_NO_INIT_CONFIG);
+            }
+            return null;
+        }
+
+        // Gate のセキュリティ検査
+        async Task GateSecurityCheckAsync(WpcPack req, CancellationToken cancel)
+        {
+            string gateKey = req.Pack["GateKey"].StrValueNonNull;
+
+            bool ok = false;
+
+            if (gateKey._IsFilled())
+            {
+                ok = Controller.Db.GetVars("GateKeyList")?.Where(x => x.VAR_VALUE1 == gateKey).Any() ?? false;
             }
 
-            // テスト
-            public WpcResult ProcTest(WpcPack req, CancellationToken cancel)
+            if (ok == false)
             {
-                Pack p = new Pack();
-
-                p.AddStr("test", req.Pack["1"].Int64Value.ToString());
-
-                return new WpcResult(VpnErrors.ERR_SECURITY_ERROR);
+                throw new CoresException($"The specified gateKey '{gateKey}' is invalid.");
             }
 
-            // 通信テスト
-            public WpcResult ProcCommCheck(WpcPack req, CancellationToken cancel)
+            // Gate の場合 IP 逆引きの実行
+            await this.ClientInfo.ResolveClientIpFqdnIfPossibleAsync(Controller.DnsResolver, cancel);
+        }
+
+        // Gate から: セッションリストの報告
+        public async Task<WpcResult> ProcReportSessionListAsync(WpcPack req, CancellationToken cancel)
+        {
+            await GateSecurityCheckAsync(req, cancel);
+
+            Pack p = req.Pack;
+
+            int numSessions = p["NumSession"].SIntValueSafeNum;
+
+            Dictionary<string, ThinSession> sessionList = new Dictionary<string, ThinSession>();
+
+            for (int i = 0; i < numSessions; i++)
             {
-                Pack p = new Pack();
-
-                p.AddStr("retstr", req.Pack["str"].StrValue._NonNull());
-
-                return NewWpcResult(p);
-            }
-
-            // Gate のセキュリティ検査
-            async Task GateSecurityCheckAsync(WpcPack req, CancellationToken cancel)
-            {
-                string gateKey = req.Pack["GateKey"].StrValueNonNull;
-
-                bool ok = false;
-
-                if (gateKey._IsFilled())
-                {
-                    ok = Controller.Db.GetVars("GateKeyList")?.Where(x => x.VAR_VALUE1 == gateKey).Any() ?? false;
-                }
-
-                if (ok == false)
-                {
-                    throw new CoresException($"The specified gateKey '{gateKey}' is invalid.");
-                }
-
-                // Gate の場合 IP 逆引きの実行
-                await this.ClientInfo.ResolveClientIpFqdnIfPossibleAsync(Controller.DnsResolver, cancel);
-            }
-
-            // Gate から: セッションリストの報告
-            public async Task<WpcResult> ProcReportSessionListAsync(WpcPack req, CancellationToken cancel)
-            {
-                await GateSecurityCheckAsync(req, cancel);
-
-                Pack p = req.Pack;
-
-                int numSessions = p["NumSession"].SIntValueSafeNum;
-
-                Dictionary<string, ThinSession> sessionList = new Dictionary<string, ThinSession>();
-
-                for (int i = 0; i < numSessions; i++)
-                {
-                    ThinSession sess = new ThinSession
-                    {
-                        Msid = p["Msid", i].StrValueNonNull,
-                        SessionId = p["SessionId", i].DataValueHexStr,
-                        EstablishedDateTime = Util.ConvertDateTime(p["EstablishedDateTime", i].Int64Value).ToLocalTime(),
-                        IpAddress = p["IpAddress", i].StrValueNonNull,
-                        HostName = p["Hostname", i].StrValueNonNull,
-                        NumClients = p["NumClients", i].SIntValue,
-                        ServerMask64 = p["ServerMask64", i].Int64Value,
-                    };
-
-                    sess.Normalize();
-                    sess.Validate();
-
-                    sessionList.TryAdd(sess.SessionId, sess);
-                }
-
-                ThinGate gate = new ThinGate
-                {
-                    GateId = p["GateId"].DataValueHexStr,
-                    IpAddress = this.ClientInfo.ClientIp,
-                    Port = p["Port"].SIntValue,
-                    HostName = this.ClientInfo.ClientIpFqdn,
-                    Performance = p["Performance"].SIntValue,
-                    NumSessions = sessionList.Count,
-                    Build = p["Build"].SIntValue,
-                    MacAddress = p["MacAddress"].StrValueNonNull,
-                    OsInfo = p["OsInfo"].StrValueNonNull,
-                    UltraCommitId = p["UltraCommitId"].StrValueNonNull,
-                    CurrentTime = p["CurrentTime"].DateTimeValue.ToLocalTime(),
-                    BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
-                };
-
-                gate.Normalize();
-                gate.Validate();
-
-                int numSc = (int)Math.Min(p.GetCount("SC_SessionId"), 65536);
-
-                Dictionary<string, HashSet<string>> sessionAndClientTable = new Dictionary<string, HashSet<string>>();
-                for (int i = 0; i < numSc; i++)
-                {
-                    string sessionId = p["SC_SessionId", i].DataValueHexStr;
-                    string clientId = p["SC_ClientID", i].DataValueHexStr;
-
-                    if (sessionId.Length == 40 && clientId.Length == 40)
-                    {
-                        sessionId = sessionId.ToUpper();
-                        clientId = clientId.ToUpper();
-
-                        sessionAndClientTable._GetOrNew(sessionId, () => new HashSet<string>()).Add(clientId);
-                    }
-                }
-
-                foreach (var item in sessionAndClientTable)
-                {
-                    var sess = sessionList._GetOrDefault(item.Key);
-                    if (sess != null) sess.NumClientsUnique++;
-                }
-
-                bool exists = false;
-                if (Controller.SessionManager.GateTable.TryGetValue(gate.GateId, out ThinGate? currentGate))
-                {
-                    if (DtNow <= currentGate.Expires)
-                    {
-                        exists = true;
-                    }
-                }
-                if (exists == false)
-                {
-                    // この Gate がまだ GateTable に存在しないので、この Gate に本当に到達可能かどうかチェックする
-                    if (Controller.Db.GetVarBool("TestGateTcpReachability"))
-                    {
-                        using var tcp = new TcpClient();
-                        tcp.NoDelay = true;
-                        tcp.ReceiveTimeout = tcp.ReceiveTimeout = 5 * 1000;
-                        await tcp.ConnectAsync(gate.IpAddress, gate.Port, cancel);
-                        await using var stream = tcp.GetStream();
-                        await using var sslStream = new SslStream(stream, false, (sender, cert, chain, err) => true);
-                        stream.ReadTimeout = 5 * 1000;
-                        stream.WriteTimeout = 5 * 1000;
-                        sslStream.ReadTimeout = 5 * 1000;
-                        sslStream.WriteTimeout = 5 * 1000;
-                        await sslStream.AuthenticateAsClientAsync(
-                            new SslClientAuthenticationOptions()
-                            {
-                                AllowRenegotiation = false,
-                                CertificateRevocationCheckMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck,
-                                EnabledSslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersions,
-                                TargetHost = gate.IpAddress.ToString(),
-                            }, cancel
-                            );
-                    }
-                }
-
-                var now = DtNow;
-
-                Controller.SessionManager.UpdateGateAndReportSessions(now, now.AddMilliseconds(p["EntryExpires"].SIntValue), gate, sessionList.Values);
-
-                var ret = NewWpcResult();
-
-                ret.AdditionalInfo.Add("Gate", gate._GetObjectDumpForJsonFriendly());
-
-                AddGateSettingsToPack(ret.Pack);
-
-                return ret;
-            }
-
-            // Gate から: 1 本のセッションの追加の報告
-            public async Task<WpcResult> ProcReportSessionAddAsync(WpcPack req, CancellationToken cancel)
-            {
-                await GateSecurityCheckAsync(req, cancel);
-
-                Pack p = req.Pack;
-
-                int i = 0;
                 ThinSession sess = new ThinSession
                 {
                     Msid = p["Msid", i].StrValueNonNull,
@@ -398,264 +302,383 @@ namespace IPA.Cores.Codes
                 sess.Normalize();
                 sess.Validate();
 
-                // gate のフィールド内容は UpdateGateAndAddSession でそれほど参照されないので適当で OK
-                ThinGate gate = new ThinGate
-                {
-                    GateId = p["GateId"].DataValueHexStr,
-                    IpAddress = this.ClientInfo.ClientIp,
-                    Port = p["Port"].SIntValue,
-                    HostName = this.ClientInfo.ClientIpFqdn,
-                    Performance = p["Performance"].SIntValue,
-                    NumSessions = 0,
-                    Build = p["Build"].SIntValue,
-                    MacAddress = p["MacAddress"].StrValueNonNull,
-                    OsInfo = p["OsInfo"].StrValueNonNull,
-                    UltraCommitId = p["UltraCommitId"].StrValueNonNull,
-                    CurrentTime = p["CurrentTime"].DateTimeValue.ToLocalTime(),
-                    BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
-                };
-
-                gate.Normalize();
-                gate.Validate();
-
-                sess.NumClientsUnique = sess.NumClients == 0 ? 0 : 1;
-
-                var now = DtNow;
-
-                Controller.SessionManager.UpdateGateAndAddSession(now, now.AddMilliseconds(p["EntryExpires"].SIntValue), gate, sess);
-
-                var ret = NewWpcResult();
-
-                ret.AdditionalInfo.Add("Gate", gate._GetObjectDumpForJsonFriendly());
-                ret.AdditionalInfo.Add("AddSession", sess._GetObjectDumpForJsonFriendly());
-
-                AddGateSettingsToPack(ret.Pack);
-
-                return ret;
+                sessionList.TryAdd(sess.SessionId, sess);
             }
 
-            // Gate から: 1 本のセッションの削除の報告
-            public async Task<WpcResult> ProcReportSessionDelAsync(WpcPack req, CancellationToken cancel)
+            ThinGate gate = new ThinGate
             {
-                await GateSecurityCheckAsync(req, cancel);
+                GateId = p["GateId"].DataValueHexStr,
+                IpAddress = this.ClientInfo.ClientIp,
+                Port = p["Port"].SIntValue,
+                HostName = this.ClientInfo.ClientIpFqdn,
+                Performance = p["Performance"].SIntValue,
+                NumSessions = sessionList.Count,
+                Build = p["Build"].SIntValue,
+                MacAddress = p["MacAddress"].StrValueNonNull,
+                OsInfo = p["OsInfo"].StrValueNonNull,
+                UltraCommitId = p["UltraCommitId"].StrValueNonNull,
+                CurrentTime = p["CurrentTime"].DateTimeValue.ToLocalTime(),
+                BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
+            };
 
-                Pack p = req.Pack;
+            gate.Normalize();
+            gate.Validate();
 
-                string sessionId = p["SessionId"].DataValueHexStr;
+            int numSc = (int)Math.Min(p.GetCount("SC_SessionId"), 65536);
 
-                // gate のフィールド内容は UpdateGateAndAddSession でそれほど参照されないので適当で OK
-                ThinGate gate = new ThinGate
+            Dictionary<string, HashSet<string>> sessionAndClientTable = new Dictionary<string, HashSet<string>>();
+            for (int i = 0; i < numSc; i++)
+            {
+                string sessionId = p["SC_SessionId", i].DataValueHexStr;
+                string clientId = p["SC_ClientID", i].DataValueHexStr;
+
+                if (sessionId.Length == 40 && clientId.Length == 40)
                 {
-                    GateId = p["GateId"].DataValueHexStr,
-                    IpAddress = this.ClientInfo.ClientIp,
-                    Port = p["Port"].SIntValue,
-                    HostName = this.ClientInfo.ClientIpFqdn,
-                    Performance = p["Performance"].SIntValue,
-                    NumSessions = 0,
-                    Build = p["Build"].SIntValue,
-                    MacAddress = p["MacAddress"].StrValueNonNull,
-                    OsInfo = p["OsInfo"].StrValueNonNull,
-                    UltraCommitId = p["UltraCommitId"].StrValueNonNull,
-                    CurrentTime = p["CurrentTime"].DateTimeValue.ToLocalTime(),
-                    BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
-                };
+                    sessionId = sessionId.ToUpper();
+                    clientId = clientId.ToUpper();
 
-                gate.Normalize();
-                gate.Validate();
-
-                var now = DtNow;
-
-                bool ok = Controller.SessionManager.TryUpdateGateAndDeleteSession(now, now.AddMilliseconds(p["EntryExpires"].SIntValue), gate, sessionId, out ThinSession? session);
-
-                var ret = NewWpcResult();
-
-                ret.AdditionalInfo.Add("Gate", gate._GetObjectDumpForJsonFriendly());
-
-                if (ok && session != null)
-                {
-                    ret.AdditionalInfo.Add("DeleteSession", session._GetObjectDumpForJsonFriendly());
+                    sessionAndClientTable._GetOrNew(sessionId, () => new HashSet<string>()).Add(clientId);
                 }
-
-                AddGateSettingsToPack(ret.Pack);
-
-                return ret;
             }
 
-            // Gate にとって有用な設定を Gate に返送する
-            void AddGateSettingsToPack(Pack p)
+            foreach (var item in sessionAndClientTable)
             {
-                string? secretKey = Controller.Db.GetVarString("ControllerGateSecretKey");
-                if (secretKey._IsFilled()) p.AddStr("ControllerGateSecretKey", secretKey);
+                var sess = sessionList._GetOrDefault(item.Key);
+                if (sess != null) sess.NumClientsUnique++;
+            }
 
-                var db = Controller.Db.MemDb;
-                if (db != null)
+            bool exists = false;
+            if (Controller.SessionManager.GateTable.TryGetValue(gate.GateId, out ThinGate? currentGate))
+            {
+                if (DtNow <= currentGate.Expires)
                 {
-                    var varsList = db.VarList;
-                    var names = varsList.Where(x => x.VAR_NAME.StartsWith("GateSettings_Int_", StringComparison.OrdinalIgnoreCase)).Select(x => x.VAR_NAME).Distinct(StrComparer.IgnoreCaseComparer);
-
-                    names._DoForEach(x =>
-                    {
-                        var item = db.VarByName._GetOrDefault(x)?.FirstOrDefault();
-                        if (item != null)
+                    exists = true;
+                }
+            }
+            if (exists == false)
+            {
+                // この Gate がまだ GateTable に存在しないので、この Gate に本当に到達可能かどうかチェックする
+                if (Controller.Db.GetVarBool("TestGateTcpReachability"))
+                {
+                    using var tcp = new TcpClient();
+                    tcp.NoDelay = true;
+                    tcp.ReceiveTimeout = tcp.ReceiveTimeout = 5 * 1000;
+                    await tcp.ConnectAsync(gate.IpAddress, gate.Port, cancel);
+                    await using var stream = tcp.GetStream();
+                    await using var sslStream = new SslStream(stream, false, (sender, cert, chain, err) => true);
+                    stream.ReadTimeout = 5 * 1000;
+                    stream.WriteTimeout = 5 * 1000;
+                    sslStream.ReadTimeout = 5 * 1000;
+                    sslStream.WriteTimeout = 5 * 1000;
+                    await sslStream.AuthenticateAsClientAsync(
+                        new SslClientAuthenticationOptions()
                         {
-                            p.AddInt(item.VAR_NAME, (uint)item.VAR_VALUE1._ToInt());
-                        }
-                    });
+                            AllowRenegotiation = false,
+                            CertificateRevocationCheckMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck,
+                            EnabledSslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersions,
+                            TargetHost = gate.IpAddress.ToString(),
+                        }, cancel
+                        );
                 }
             }
 
-            public async Task<WpcResult> ProcessWpcRequestCoreAsync(string wpcRequestString, CancellationToken cancel = default)
+            var now = DtNow;
+
+            Controller.SessionManager.UpdateGateAndReportSessions(now, now.AddMilliseconds(p["EntryExpires"].SIntValue), gate, sessionList.Values);
+
+            var ret = NewWpcResult();
+
+            ret.AdditionalInfo.Add("Gate", gate._GetObjectDumpForJsonFriendly());
+
+            AddGateSettingsToPack(ret.Pack);
+
+            return ret;
+        }
+
+        // Gate から: 1 本のセッションの追加の報告
+        public async Task<WpcResult> ProcReportSessionAddAsync(WpcPack req, CancellationToken cancel)
+        {
+            await GateSecurityCheckAsync(req, cancel);
+
+            Pack p = req.Pack;
+
+            int i = 0;
+            ThinSession sess = new ThinSession
             {
-                try
+                Msid = p["Msid", i].StrValueNonNull,
+                SessionId = p["SessionId", i].DataValueHexStr,
+                EstablishedDateTime = Util.ConvertDateTime(p["EstablishedDateTime", i].Int64Value).ToLocalTime(),
+                IpAddress = p["IpAddress", i].StrValueNonNull,
+                HostName = p["Hostname", i].StrValueNonNull,
+                NumClients = p["NumClients", i].SIntValue,
+                ServerMask64 = p["ServerMask64", i].Int64Value,
+            };
+
+            sess.Normalize();
+            sess.Validate();
+
+            // gate のフィールド内容は UpdateGateAndAddSession でそれほど参照されないので適当で OK
+            ThinGate gate = new ThinGate
+            {
+                GateId = p["GateId"].DataValueHexStr,
+                IpAddress = this.ClientInfo.ClientIp,
+                Port = p["Port"].SIntValue,
+                HostName = this.ClientInfo.ClientIpFqdn,
+                Performance = p["Performance"].SIntValue,
+                NumSessions = 0,
+                Build = p["Build"].SIntValue,
+                MacAddress = p["MacAddress"].StrValueNonNull,
+                OsInfo = p["OsInfo"].StrValueNonNull,
+                UltraCommitId = p["UltraCommitId"].StrValueNonNull,
+                CurrentTime = p["CurrentTime"].DateTimeValue.ToLocalTime(),
+                BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
+            };
+
+            gate.Normalize();
+            gate.Validate();
+
+            sess.NumClientsUnique = sess.NumClients == 0 ? 0 : 1;
+
+            var now = DtNow;
+
+            Controller.SessionManager.UpdateGateAndAddSession(now, now.AddMilliseconds(p["EntryExpires"].SIntValue), gate, sess);
+
+            var ret = NewWpcResult();
+
+            ret.AdditionalInfo.Add("Gate", gate._GetObjectDumpForJsonFriendly());
+            ret.AdditionalInfo.Add("AddSession", sess._GetObjectDumpForJsonFriendly());
+
+            AddGateSettingsToPack(ret.Pack);
+
+            return ret;
+        }
+
+        // Gate から: 1 本のセッションの削除の報告
+        public async Task<WpcResult> ProcReportSessionDelAsync(WpcPack req, CancellationToken cancel)
+        {
+            await GateSecurityCheckAsync(req, cancel);
+
+            Pack p = req.Pack;
+
+            string sessionId = p["SessionId"].DataValueHexStr;
+
+            // gate のフィールド内容は UpdateGateAndAddSession でそれほど参照されないので適当で OK
+            ThinGate gate = new ThinGate
+            {
+                GateId = p["GateId"].DataValueHexStr,
+                IpAddress = this.ClientInfo.ClientIp,
+                Port = p["Port"].SIntValue,
+                HostName = this.ClientInfo.ClientIpFqdn,
+                Performance = p["Performance"].SIntValue,
+                NumSessions = 0,
+                Build = p["Build"].SIntValue,
+                MacAddress = p["MacAddress"].StrValueNonNull,
+                OsInfo = p["OsInfo"].StrValueNonNull,
+                UltraCommitId = p["UltraCommitId"].StrValueNonNull,
+                CurrentTime = p["CurrentTime"].DateTimeValue.ToLocalTime(),
+                BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
+            };
+
+            gate.Normalize();
+            gate.Validate();
+
+            var now = DtNow;
+
+            bool ok = Controller.SessionManager.TryUpdateGateAndDeleteSession(now, now.AddMilliseconds(p["EntryExpires"].SIntValue), gate, sessionId, out ThinSession? session);
+
+            var ret = NewWpcResult();
+
+            ret.AdditionalInfo.Add("Gate", gate._GetObjectDumpForJsonFriendly());
+
+            if (ok && session != null)
+            {
+                ret.AdditionalInfo.Add("DeleteSession", session._GetObjectDumpForJsonFriendly());
+            }
+
+            AddGateSettingsToPack(ret.Pack);
+
+            return ret;
+        }
+
+        // Gate にとって有用な設定を Gate に返送する
+        void AddGateSettingsToPack(Pack p)
+        {
+            string? secretKey = Controller.Db.GetVarString("ControllerGateSecretKey");
+            if (secretKey._IsFilled()) p.AddStr("ControllerGateSecretKey", secretKey);
+
+            var db = Controller.Db.MemDb;
+            if (db != null)
+            {
+                var varsList = db.VarList;
+                var names = varsList.Where(x => x.VAR_NAME.StartsWith("GateSettings_Int_", StringComparison.OrdinalIgnoreCase)).Select(x => x.VAR_NAME).Distinct(StrComparer.IgnoreCaseComparer);
+
+                names._DoForEach(x =>
                 {
-                    if (Controller.Db.IsConnected == false)
+                    var item = db.VarByName._GetOrDefault(x)?.FirstOrDefault();
+                    if (item != null)
                     {
-                        throw new CoresException("Controller.DB is not connected yet.");
+                        p.AddInt(item.VAR_NAME, (uint)item.VAR_VALUE1._ToInt());
                     }
-
-                    // WPC リクエストをパースする
-                    WpcPack req = WpcPack.Parse(wpcRequestString, false);
-
-                    // 関数名を取得する
-                    this.FunctionName = req.Pack["Function"].StrValue._NonNull();
-                    if (this.FunctionName._IsEmpty()) this.FunctionName = "Unknown";
-
-                    if (FunctionName.StartsWith("report", StringComparison.OrdinalIgnoreCase) == false)
-                    {
-                        // Gate からの要求以外の場合は、認証を実施する
-                        if (req.HostKey._IsFilled() && req.HostSecret2._IsFilled())
-                        {
-                            var authedMachine = await Controller.Db.AuthMachineAsync(req.HostKey, req.HostSecret2, cancel);
-
-                            if (authedMachine != null)
-                            {
-                                // 認証成功
-                                this.ClientInfo.SetAuthed(authedMachine);
-                            }
-                        }
-                    }
-
-                    // 関数を実行する
-                    switch (this.FunctionName.ToLower())
-                    {
-                        case "test": return ProcTest(req, cancel);
-                        case "commcheck": return ProcCommCheck(req, cancel);
-                        case "reportsessionlist": return await ProcReportSessionListAsync(req, cancel);
-                        case "reportsessionadd": return await ProcReportSessionAddAsync(req, cancel);
-                        case "reportsessiondel": return await ProcReportSessionDelAsync(req, cancel);
-
-                        default:
-                            // 適切な関数が見つからない
-                            return NewWpcResult(VpnErrors.ERR_NOT_SUPPORTED);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    // エラー発生
-                    return NewWpcResult(ex);
-                }
-            }
-
-            public async Task<string> ProcessWpcRequestAsync(string wpcRequestString, CancellationToken cancel = default)
-            {
-                // メイン処理の実行
-                WpcResult err = await ProcessWpcRequestCoreAsync(wpcRequestString, cancel);
-
-                err._PostAccessLog(ThinControllerConsts.AccessLogTag);
-
-                if (err.IsError)
-                {
-                    err._Error();
-                }
-
-                // WPC 応答文字列の回答
-                WpcPack wp = err.ToWpcPack();
-
-                return wp.ToPacketString();
-            }
-
-            // WPC 応答にクライアント情報を付加
-            protected void SetWpcResultAdditionalInfo(WpcResult result)
-            {
-                var clientInfo = this.ClientInfo;
-
-                // 追加クライアント情報
-                var c = result.ClientInfo;
-
-                c.Add("SessionUid", this.Uid);
-
-
-                c.Add("ServiceType", clientInfo.ServiceType.ToString());
-
-                c.Add("ClientPhysicalIp", clientInfo.ClientPhysicalIp);
-                c.Add("ClientIp", clientInfo.ClientIp);
-                c.Add("ClientPort", clientInfo.Box?.RemoteEndpoint.Port.ToString() ?? "");
-                c.Add("FlagStr", clientInfo.FlagStr);
-                c.Add("Flags", clientInfo.Flags.ToString());
-                c.Add("IsProxyMode", clientInfo.IsProxyMode.ToString());
-
-                c.Add("IsAuthed", clientInfo.IsAuthed.ToString());
-
-                if (clientInfo.IsAuthed)
-                {
-                    c.Add("AuthedMachineMsid", clientInfo.AuthedMachine!.MSID);
-                }
-
-                // 追加情報
-                var a = result.AdditionalInfo;
-
-                a.Add("FunctionName", this.FunctionName);
-            }
-
-            // OK WPC 応答の生成
-            protected WpcResult NewWpcResult(Pack? pack = null)
-            {
-                WpcResult ret = new WpcResult(pack);
-
-                SetWpcResultAdditionalInfo(ret);
-
-                return ret;
-            }
-
-            // 通常エラー WPC 応答の生成
-            protected WpcResult NewWpcResult(VpnErrors errorCode, Pack? pack = null, string? additionalErrorStr = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
-            {
-                WpcResult ret = new WpcResult(errorCode, pack, additionalErrorStr, filename, line, caller);
-
-                SetWpcResultAdditionalInfo(ret);
-
-                return ret;
-            }
-
-            // 例外エラー WPC 応答の生成
-            protected WpcResult NewWpcResult(Exception ex, Pack? pack = null)
-            {
-                WpcResult ret = new WpcResult(ex, pack);
-
-                SetWpcResultAdditionalInfo(ret);
-
-                return ret;
-            }
-
-            // 解放系
-            public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
-            Once DisposeFlag;
-            public async ValueTask DisposeAsync()
-            {
-                if (DisposeFlag.IsFirstCall() == false) return;
-                await DisposeInternalAsync();
-            }
-            protected virtual void Dispose(bool disposing)
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                DisposeInternalAsync()._GetResult();
-            }
-            Task DisposeInternalAsync()
-            {
-                // Here
-                return TR();
+                });
             }
         }
+
+        public async Task<WpcResult> ProcessWpcRequestCoreAsync(string wpcRequestString, CancellationToken cancel = default)
+        {
+            try
+            {
+                if (Controller.Db.IsConnected == false)
+                {
+                    throw new CoresException("Controller.DB is not connected yet.");
+                }
+
+                // WPC リクエストをパースする
+                WpcPack req = WpcPack.Parse(wpcRequestString, false);
+
+                // 関数名を取得する
+                this.FunctionName = req.Pack["Function"].StrValue._NonNull();
+                if (this.FunctionName._IsEmpty()) this.FunctionName = "Unknown";
+
+                if (FunctionName.StartsWith("report", StringComparison.OrdinalIgnoreCase) == false)
+                {
+                    // Gate からの要求以外の場合は、認証を実施する
+                    if (req.HostKey._IsFilled() && req.HostSecret2._IsFilled())
+                    {
+                        var authedMachine = await Controller.Db.AuthMachineAsync(req.HostKey, req.HostSecret2, cancel);
+
+                        if (authedMachine != null)
+                        {
+                            // 認証成功
+                            await this.ClientInfo.SetAuthedAsync(this, authedMachine, cancel);
+                        }
+                    }
+                }
+
+                // 関数を実行する
+                switch (this.FunctionName.ToLower())
+                {
+                    case "test": return ProcTest(req, cancel);
+                    case "commcheck": return ProcCommCheck(req, cancel);
+                    case "reportsessionlist": return await ProcReportSessionListAsync(req, cancel);
+                    case "reportsessionadd": return await ProcReportSessionAddAsync(req, cancel);
+                    case "reportsessiondel": return await ProcReportSessionDelAsync(req, cancel);
+                    case "serverconnect": return await ProcServerConnectAsync(req, cancel);
+
+                    default:
+                        // 適切な関数が見つからない
+                        return NewWpcResult(VpnErrors.ERR_NOT_SUPPORTED);
+                }
+            }
+            catch (Exception ex)
+            {
+                // エラー発生
+                return NewWpcResult(ex);
+            }
+        }
+
+        public async Task<string> ProcessWpcRequestAsync(string wpcRequestString, CancellationToken cancel = default)
+        {
+            // メイン処理の実行
+            WpcResult err = await ProcessWpcRequestCoreAsync(wpcRequestString, cancel);
+
+            err._PostAccessLog(ThinControllerConsts.AccessLogTag);
+
+            if (err.IsError)
+            {
+                err._Error();
+            }
+
+            // WPC 応答文字列の回答
+            WpcPack wp = err.ToWpcPack();
+
+            return wp.ToPacketString();
+        }
+
+        // WPC 応答にクライアント情報を付加
+        protected void SetWpcResultAdditionalInfo(WpcResult result)
+        {
+            var clientInfo = this.ClientInfo;
+
+            // 追加クライアント情報
+            var c = result.ClientInfo;
+
+            c.Add("SessionUid", this.Uid);
+
+
+            c.Add("ServiceType", clientInfo.ServiceType.ToString());
+
+            c.Add("ClientPhysicalIp", clientInfo.ClientPhysicalIp);
+            c.Add("ClientIp", clientInfo.ClientIp);
+            c.Add("ClientPort", clientInfo.Box?.RemoteEndpoint.Port.ToString() ?? "");
+            c.Add("HttpQueryStringList", clientInfo.HttpQueryStringList.ToString());
+            c.Add("IsProxyMode", clientInfo.IsProxyMode.ToString());
+
+            c.Add("IsAuthed", clientInfo.IsAuthed.ToString());
+
+            if (clientInfo.IsAuthed)
+            {
+                c.Add("AuthedMachineMsid", clientInfo.AuthedMachine!.MSID);
+                c.Add("AuthedMachineGroupName", clientInfo.MachineGroupName);
+            }
+
+            // 追加情報
+            var a = result.AdditionalInfo;
+
+            a.Add("FunctionName", this.FunctionName);
+        }
+
+        // OK WPC 応答の生成
+        protected WpcResult NewWpcResult(Pack? pack = null)
+        {
+            WpcResult ret = new WpcResult(pack);
+
+            SetWpcResultAdditionalInfo(ret);
+
+            return ret;
+        }
+
+        // 通常エラー WPC 応答の生成
+        protected WpcResult NewWpcResult(VpnErrors errorCode, Pack? pack = null, string? additionalErrorStr = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            WpcResult ret = new WpcResult(errorCode, pack, additionalErrorStr, filename, line, caller);
+
+            SetWpcResultAdditionalInfo(ret);
+
+            return ret;
+        }
+
+        // 例外エラー WPC 応答の生成
+        protected WpcResult NewWpcResult(Exception ex, Pack? pack = null)
+        {
+            WpcResult ret = new WpcResult(ex, pack);
+
+            SetWpcResultAdditionalInfo(ret);
+
+            return ret;
+        }
+
+        // 解放系
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+        Once DisposeFlag;
+        public async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            DisposeInternalAsync()._GetResult();
+        }
+        Task DisposeInternalAsync()
+        {
+            // Here
+            return TR();
+        }
+    }
+
+    public class ThinController : AsyncService
+    {
 
         // Hive
         readonly HiveData<ThinControllerSettings> SettingsHive;
@@ -670,14 +693,18 @@ namespace IPA.Cores.Codes
 
         public DateTimeOffset BootDateTime { get; } = DtOffsetNow;
 
+        public ThinControllerHookBase Hook { get; }
+
         // データベース
         public ThinDatabase Db { get; }
         public ThinSessionManager SessionManager { get; }
 
-        public ThinController(ThinControllerSettings settings, Func<ThinControllerSettings>? getDefaultSettings = null)
+        public ThinController(ThinControllerSettings settings, ThinControllerHookBase hook, Func<ThinControllerSettings>? getDefaultSettings = null)
         {
             try
             {
+                this.Hook = hook;
+
                 this.SettingsHive = new HiveData<ThinControllerSettings>(
                     Hive.SharedLocalConfigHive,
                     "ThinController",

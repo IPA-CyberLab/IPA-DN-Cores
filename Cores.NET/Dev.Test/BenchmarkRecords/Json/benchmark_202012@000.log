@@ -687,3 +687,121 @@
 {"TimeStamp":"2020-12-13T12:43:26.8469531+09:00","Data":"Framework: .NET 5.0.0","Tag":"text"}
 {"TimeStamp":"2020-12-13T12:43:26.8469546+09:00","Data":"Host: PC34","Tag":"text"}
 {"TimeStamp":"2020-12-13T12:43:27.8988951+09:00","Data":{"TestName":"FastCache","Ret":53.77915458333333,"PerSecond":18594565},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:21:49.8453656+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:21:49.8750225+09:00","Data":"Commit: 78fb0da33d11a71a1e668c319f3809537d96de6f","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:21:49.8750594+09:00","Data":"ExeFileName: C:\\git\\IPA-DNP-ThinController-Public\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:21:49.8750614+09:00","Data":"OS: Microsoft Windows 10.0.19042","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:21:49.875064+09:00","Data":"Framework: .NET 5.0.0","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:21:49.8750655+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:21:50.677811+09:00","Data":{"TestName":"EvaluateAclNormal","Ret":30219.088730844964,"PerSecond":33091},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:21:51.189301+09:00","Data":{"TestName":"EvaluateAclCached","Ret":586.6688805103644,"PerSecond":1704539},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:21:51.7184101+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":535.3921742507388,"PerSecond":1867789},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:21:52.2544598+09:00","Data":{"TestName":"SimpleAsynService","Ret":1439.0759403328655,"PerSecond":694890},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:21:52.7879748+09:00","Data":{"TestName":"WpcPacket","Ret":3059.6221060739435,"PerSecond":326837},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:21:53.3899718+09:00","Data":{"TestName":"WpcPacket2","Ret":8353.938742758059,"PerSecond":119704},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:21:53.9093077+09:00","Data":{"TestName":"AsyncEvent","Ret":1995.7916126314838,"PerSecond":501054},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:21:54.4853495+09:00","Data":{"TestName":"SyncEvent","Ret":7985.1860883416375,"PerSecond":125231},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:21:55.0034025+09:00","Data":{"TestName":"IsSpanAllZero","Ret":148.12220585273099,"PerSecond":6751182},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:21:55.5193713+09:00","Data":{"TestName":"CalcCrc32ForZipEncryption","Ret":0.31868736379225626,"PerSecond":3137871511},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:21:56.038845+09:00","Data":{"TestName":"Sync()","Ret":0.5698125621096692,"PerSecond":1754963064},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:21:56.5684159+09:00","Data":{"TestName":"RateLimiter","Ret":107.71917799349048,"PerSecond":9283397},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:21:57.0882512+09:00","Data":{"TestName":"ignore case compare string 1","Ret":16.204548121155213,"PerSecond":61711069},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:21:57.6153796+09:00","Data":{"TestName":"ignore case compare string 2","Ret":14.604134835941982,"PerSecond":68473758},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:21:58.1442899+09:00","Data":{"TestName":"isemptystr #2","Ret":3.595412061207128,"PerSecond":278132237},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:21:58.6623473+09:00","Data":{"TestName":"isemptystr #1","Ret":4.096760664005103,"PerSecond":244095294},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:21:59.1914831+09:00","Data":{"TestName":"string CmpTrim new","Ret":36.67170891956259,"PerSecond":27268977},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:21:59.719134+09:00","Data":{"TestName":"string SameTrim new","Ret":36.09268853833243,"PerSecond":27706442},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:22:00.2491678+09:00","Data":{"TestName":"string SameTrim old","Ret":40.05566961082837,"PerSecond":24965254},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:22:00.7783261+09:00","Data":{"TestName":"string test","Ret":4.307080313106767,"PerSecond":232175842},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:22:01.3085804+09:00","Data":{"TestName":"StringWriter","Ret":1023.7963282038786,"PerSecond":976756},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:22:01.8268126+09:00","Data":{"TestName":"StringBuilder","Ret":1183.7338909734738,"PerSecond":844784},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:22:02.340759+09:00","Data":{"TestName":"Generic Test","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:22:02.8877393+09:00","Data":{"TestName":"IpChecksum","Ret":7.476231929052492,"PerSecond":133757220},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:22:03.4226255+09:00","Data":{"TestName":"CalcIPv4Checksum","Ret":3.8998458468098853,"PerSecond":256420391},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:22:16.9507061+09:00","Data":{"TestName":"BuildPacket #1 - Memory","Ret":40.44899200592941,"PerSecond":24722494},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:22:17.4706235+09:00","Data":{"TestName":"ParsePacket #7 - 190531_vlan_pppoe_l2tp_udp","Ret":188.74641377985557,"PerSecond":5298113},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:22:17.9796025+09:00","Data":{"TestName":"ParsePacket #6 - 190531_vlan_pppoe_l2tp_tcp","Ret":190.7616033850676,"PerSecond":5242145},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:23:15.5919044+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:23:15.6223919+09:00","Data":"Commit: 78fb0da33d11a71a1e668c319f3809537d96de6f","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:23:15.6224286+09:00","Data":"ExeFileName: C:\\git\\IPA-DNP-ThinController-Public\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:23:15.6224304+09:00","Data":"OS: Microsoft Windows 10.0.19042","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:23:15.622432+09:00","Data":"Framework: .NET 5.0.0","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:23:15.6224343+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:23:16.4613694+09:00","Data":{"TestName":"EvaluateAclNormal","Ret":30805.57924027229,"PerSecond":32461},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:23:16.9947002+09:00","Data":{"TestName":"EvaluateAclCached1","Ret":587.2202069912403,"PerSecond":1702938},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:23:17.5238105+09:00","Data":{"TestName":"EvaluateAclCached2","Ret":86.05890541579441,"PerSecond":11619947},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:23:18.0444571+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":560.7486789431098,"PerSecond":1783330},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:23:18.5790829+09:00","Data":{"TestName":"SimpleAsynService","Ret":1359.7149564162048,"PerSecond":735448},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:23:19.1087174+09:00","Data":{"TestName":"WpcPacket","Ret":3039.9915795216607,"PerSecond":328948},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:23:22.8196681+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:23:22.8486537+09:00","Data":"Commit: 78fb0da33d11a71a1e668c319f3809537d96de6f","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:23:22.8486882+09:00","Data":"ExeFileName: C:\\git\\IPA-DNP-ThinController-Public\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:23:22.8486908+09:00","Data":"OS: Microsoft Windows 10.0.19042","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:23:22.8486924+09:00","Data":"Framework: .NET 5.0.0","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:23:22.8486939+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:23:23.6344875+09:00","Data":{"TestName":"EvaluateAclNormal","Ret":29812.025283623632,"PerSecond":33543},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:23:24.1596383+09:00","Data":{"TestName":"EvaluateAclCached1","Ret":596.6669094875456,"PerSecond":1675976},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:23:59.2975305+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:23:59.333279+09:00","Data":"Commit: 78fb0da33d11a71a1e668c319f3809537d96de6f","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:23:59.3333185+09:00","Data":"ExeFileName: C:\\git\\IPA-DNP-ThinController-Public\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:23:59.3333205+09:00","Data":"OS: Microsoft Windows 10.0.19042","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:23:59.333322+09:00","Data":"Framework: .NET 5.0.0","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:23:59.3333235+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:00.2273159+09:00","Data":{"TestName":"EvaluateAclNormal","Ret":37063.124319285955,"PerSecond":26980},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:00.749412+09:00","Data":{"TestName":"EvaluateAclCached1","Ret":684.364721932026,"PerSecond":1461209},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:01.2834808+09:00","Data":{"TestName":"EvaluateAclCached2","Ret":147.53432982456872,"PerSecond":6778083},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:01.8060622+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":670.9031619924988,"PerSecond":1490528},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:02.3483924+09:00","Data":{"TestName":"SimpleAsynService","Ret":1618.9804617870311,"PerSecond":617672},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:02.9166856+09:00","Data":{"TestName":"WpcPacket","Ret":3729.052382858402,"PerSecond":268164},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:05.6423588+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:05.6792189+09:00","Data":"Commit: 78fb0da33d11a71a1e668c319f3809537d96de6f","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:05.6792664+09:00","Data":"ExeFileName: C:\\git\\IPA-DNP-ThinController-Public\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:05.6792699+09:00","Data":"OS: Microsoft Windows 10.0.19042","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:05.6792725+09:00","Data":"Framework: .NET 5.0.0","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:05.6792762+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:06.5245664+09:00","Data":{"TestName":"EvaluateAclNormal","Ret":32193.249483057523,"PerSecond":31062},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:07.0627429+09:00","Data":{"TestName":"EvaluateAclCached1","Ret":526.8966970673746,"PerSecond":1897905},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:07.5854792+09:00","Data":{"TestName":"EvaluateAclCached2","Ret":84.21848196029569,"PerSecond":11873878},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:08.105895+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":577.4648438770671,"PerSecond":1731707},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:18.0858018+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:18.1148881+09:00","Data":"Commit: 78fb0da33d11a71a1e668c319f3809537d96de6f","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:18.114924+09:00","Data":"ExeFileName: C:\\git\\IPA-DNP-ThinController-Public\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:18.1149273+09:00","Data":"OS: Microsoft Windows 10.0.19042","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:18.1149313+09:00","Data":"Framework: .NET 5.0.0","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:18.1149336+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:18.962326+09:00","Data":{"TestName":"EvaluateAclNormal","Ret":34903.604730625426,"PerSecond":28650},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:19.4957598+09:00","Data":{"TestName":"EvaluateAclCached1","Ret":769.9380683286071,"PerSecond":1298805},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:20.0196782+09:00","Data":{"TestName":"EvaluateAclCached2","Ret":116.03169764208263,"PerSecond":8618334},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:20.5566139+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":662.881533157245,"PerSecond":1508565},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:21.099204+09:00","Data":{"TestName":"SimpleAsynService","Ret":1728.7257235379457,"PerSecond":578460},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:21.6287314+09:00","Data":{"TestName":"WpcPacket","Ret":3928.598065436048,"PerSecond":254543},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:30.0468414+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:30.0756345+09:00","Data":"Commit: 78fb0da33d11a71a1e668c319f3809537d96de6f","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:30.0756679+09:00","Data":"ExeFileName: C:\\git\\IPA-DNP-ThinController-Public\\submodules\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:30.0756698+09:00","Data":"OS: Microsoft Windows 10.0.19042","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:30.0756714+09:00","Data":"Framework: .NET 5.0.0","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:30.0756728+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2020-12-14T12:24:30.9575747+09:00","Data":{"TestName":"EvaluateAclNormal","Ret":39151.85482784588,"PerSecond":25541},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:31.4973201+09:00","Data":{"TestName":"EvaluateAclCached1","Ret":677.0099712762808,"PerSecond":1477083},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:32.0187012+09:00","Data":{"TestName":"EvaluateAclCached2","Ret":143.5188943964026,"PerSecond":6967723},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:32.5551435+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":645.9497426541195,"PerSecond":1548108},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:33.0933889+09:00","Data":{"TestName":"SimpleAsynService","Ret":1632.2264682541447,"PerSecond":612660},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:33.6284773+09:00","Data":{"TestName":"WpcPacket","Ret":3929.017224177964,"PerSecond":254516},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:34.2115836+09:00","Data":{"TestName":"WpcPacket2","Ret":10900.463137277384,"PerSecond":91739},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:34.7359209+09:00","Data":{"TestName":"AsyncEvent","Ret":2544.0590407226637,"PerSecond":393072},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:35.2808847+09:00","Data":{"TestName":"SyncEvent","Ret":7082.399876255586,"PerSecond":141195},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:35.8058944+09:00","Data":{"TestName":"IsSpanAllZero","Ret":157.3883936646433,"PerSecond":6353708},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:36.3364189+09:00","Data":{"TestName":"CalcCrc32ForZipEncryption","Ret":0.7076737039696022,"PerSecond":1413080625},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:36.8504422+09:00","Data":{"TestName":"Sync()","Ret":0.7147494980923221,"PerSecond":1399091573},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:37.3826472+09:00","Data":{"TestName":"RateLimiter","Ret":125.30040562052892,"PerSecond":7980820},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:37.9013821+09:00","Data":{"TestName":"ignore case compare string 1","Ret":17.83296501952966,"PerSecond":56075924},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:38.4095662+09:00","Data":{"TestName":"ignore case compare string 2","Ret":15.21802631209717,"PerSecond":65711543},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:38.9295758+09:00","Data":{"TestName":"isemptystr #2","Ret":3.9164254319707292,"PerSecond":255334875},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:39.4474385+09:00","Data":{"TestName":"isemptystr #1","Ret":3.6234859429207553,"PerSecond":275977336},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:39.9636893+09:00","Data":{"TestName":"string CmpTrim new","Ret":35.96096793948987,"PerSecond":27807927},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:40.4850405+09:00","Data":{"TestName":"string SameTrim new","Ret":39.05332977102445,"PerSecond":25606011},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:41.0144205+09:00","Data":{"TestName":"string SameTrim old","Ret":42.09786725341832,"PerSecond":23754172},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:41.5416914+09:00","Data":{"TestName":"string test","Ret":3.900720846508329,"PerSecond":256362872},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:42.0747307+09:00","Data":{"TestName":"StringWriter","Ret":982.4300142760092,"PerSecond":1017884},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:42.6126124+09:00","Data":{"TestName":"StringBuilder","Ret":918.1794278206263,"PerSecond":1089111},"Tag":"result"}
+{"TimeStamp":"2020-12-14T12:24:43.1406512+09:00","Data":{"TestName":"Generic Test","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}

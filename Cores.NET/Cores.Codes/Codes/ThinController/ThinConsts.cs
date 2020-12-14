@@ -102,14 +102,6 @@ namespace IPA.Cores.Codes
         ApiServiceForUsers,
         ApiServiceForGateway,
     }
-
-    [Flags]
-    public enum ThinControllerSessionFlags
-    {
-        None = 0,
-
-        LimitedMode,
-    }
 }
 
 #endif

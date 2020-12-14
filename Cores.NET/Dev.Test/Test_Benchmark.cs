@@ -477,8 +477,44 @@ namespace IPA.TestDev
 
             Memory<byte> allZeroTest = new byte[4000];
 
+            string aclStr = "192.168.3.0/24, 192.168.4.0/24, 2001:c90::/32, !192.168.5.0/24, 10.0.0.0/8, 172.16.0.0/12";
+            var aclSampleIp = "192.168.5.0"._ToIPAddress()!;
 
             var queue = new MicroBenchmarkQueue()
+
+            .Add(new MicroBenchmark($"EvaluateAclNormal", Benchmark_CountForNormal, count =>
+            {
+                Async(async () =>
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        EasyIpAcl.Evaluate(aclStr, aclSampleIp);
+                    }
+                });
+            }), enabled: true, priority: 201212)
+
+            .Add(new MicroBenchmark($"EvaluateAclCached1", Benchmark_CountForNormal, count =>
+            {
+                Async(async () =>
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        EasyIpAcl.Evaluate(aclStr, aclSampleIp, enableCache: true);
+                    }
+                });
+            }), enabled: true, priority: 201212)
+
+            .Add(new MicroBenchmark($"EvaluateAclCached2", Benchmark_CountForNormal, count =>
+            {
+                Async(async () =>
+                {
+                    var acl = new EasyIpAcl(aclStr, enableCache: true);
+                    for (int c = 0; c < count; c++)
+                    {
+                        acl.Evaluate(aclSampleIp);
+                    }
+                });
+            }), enabled: true, priority: 201212)
 
 
             .Add(new MicroBenchmark($"SimpleAsyncService2", Benchmark_CountForNormal, count =>

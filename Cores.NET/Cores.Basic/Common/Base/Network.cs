@@ -386,6 +386,15 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public static partial class CoresConfig
+    {
+        public static partial class EasyIpAclConfig
+        {
+            public static readonly Copenhagen<int> CachedAclObjectsExpires = 10 * 1000; // ACL オブジェクトキャッシュ有効期限
+            public static readonly Copenhagen<int> CachedAclObjectResultsExpires = 60 * 1000; // ACL オブジェクトあたりの結果キャッシュ有効期限
+        }
+    }
+
     // 簡易 IP ACL
     // 
     // 表記方法
@@ -405,9 +414,18 @@ namespace IPA.Cores.Basic
 
         List<EasyIpAclRule> RuleListInternal = new List<EasyIpAclRule>();
 
-        public EasyIpAcl(string? body, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit)
+        readonly FastCache<IPAddress, EasyIpAclAction>? Cache = null;
+
+        static readonly FastCache<string, EasyIpAcl> GlobalAclObjectCache = new FastCache<string, EasyIpAcl>(CoresConfig.EasyIpAclConfig.CachedAclObjectsExpires, 0, CacheType.UpdateExpiresWhenAccess);
+
+        public EasyIpAcl(string? body, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit, bool enableCache = false)
         {
             List<string> rulesStrList = new List<string>();
+
+            if (enableCache)
+            {
+                this.Cache = new FastCache<IPAddress, EasyIpAclAction>(CoresConfig.EasyIpAclConfig.CachedAclObjectResultsExpires, 0, CacheType.UpdateExpiresWhenAccess, IpComparer.Comparer);
+            }
 
             // ルールの列挙
             string[] lines = body._NonNull()._GetLines(true, true, Consts.Strings.CommentStartStringForEasyIpAcl);
@@ -446,18 +464,36 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static EasyIpAclAction Evaluate(string? rules, string ipStr, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit)
+        public static EasyIpAclAction Evaluate(string? rules, string ipStr, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit, bool enableCache = false)
         {
+            if (rules._IsEmpty()) return defaultActionForEmpty;
+
             IPAddress? ipa = ipStr._ToIPAddress(noExceptionAndReturnNull: true);
             if (ipa == null)
             {
                 return EasyIpAclAction.Deny;
             }
 
-            return Evaluate(rules, ipa, defaultAction, defaultActionForEmpty);
+            return Evaluate(rules, ipa, defaultAction, defaultActionForEmpty, enableCache);
         }
 
-        public static EasyIpAclAction Evaluate(string? rules, IPAddress ip, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit)
+        public static EasyIpAclAction Evaluate(string? rules, IPAddress ip, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit, bool enableCache = false)
+        {
+            if (rules._IsEmpty()) return defaultActionForEmpty;
+
+            if (enableCache == false)
+            {
+                return EvaluateCore(rules, ip, defaultAction, defaultActionForEmpty);
+            }
+            else
+            {
+                string key = $"{rules},{(int)defaultAction},{(int)defaultActionForEmpty}";
+
+                return GlobalAclObjectCache.GetOrCreate(key, key => new EasyIpAcl(rules, defaultAction, defaultActionForEmpty, true))!.EvaluateCore(ip);
+            }
+        }
+
+        static EasyIpAclAction EvaluateCore(string? rules, IPAddress ip, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit)
         {
             try
             {
@@ -483,6 +519,21 @@ namespace IPA.Cores.Basic
         }
 
         public EasyIpAclAction Evaluate(IPAddress ip)
+        {
+            if (this.Cache != null)
+            {
+                return this.Cache.GetOrCreate(ip, ip =>
+                {
+                    return EvaluateCore(ip);
+                });
+            }
+            else
+            {
+                return EvaluateCore(ip);
+            }
+        }
+
+        EasyIpAclAction EvaluateCore(IPAddress ip)
         {
             try
             {

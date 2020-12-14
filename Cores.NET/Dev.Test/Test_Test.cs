@@ -941,6 +941,18 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+
+            if (true)
+            {
+                while (true)
+                {
+                    string line = Con.ReadLine(">")!;
+                    EasyIpAcl.Evaluate("!192.168.3.8,192.168.3.0/24", line!._ToIPAddress()!, enableCache: true)._Print();
+                }
+                return;
+            }
+
+
             if (true)
             {
                 List<TestTable_201213> a = new List<TestTable_201213>();
@@ -1146,17 +1158,6 @@ namespace IPA.TestDev
             if (true)
             {
                 ZipTest_201201();
-                return;
-            }
-
-            if (true)
-            {
-                while (true)
-                {
-                    string line = Con.ReadLine(">")!;
-                    EasyIpAcl acl = new EasyIpAcl("0.0.0.0/0");
-                    acl.Evaluate(line!._ToIPAddress()!)._Print();
-                }
                 return;
             }
 
