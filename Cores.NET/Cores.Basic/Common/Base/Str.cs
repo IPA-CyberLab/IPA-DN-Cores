@@ -2610,21 +2610,25 @@ namespace IPA.Cores.Basic
         }
 
         // 先頭文字列の除去
-        public static void TrimStartWith(ref string str, string key, StringComparison comparison)
+        public static bool TrimStartWith(ref string str, string key, StringComparison comparison)
         {
             if (str.StartsWith(key, comparison))
             {
                 str = str.Substring(key.Length);
+                return true;
             }
+            return false;
         }
 
         // 末尾文字列の除去
-        public static void TrimEndsWith(ref string str, string key, StringComparison comparison)
+        public static bool TrimEndsWith(ref string str, string key, StringComparison comparison)
         {
             if (str.EndsWith(key, comparison))
             {
                 str = str.Substring(0, str.Length - key.Length);
+                return true;
             }
+            return false;
         }
 
         // 空白の除去

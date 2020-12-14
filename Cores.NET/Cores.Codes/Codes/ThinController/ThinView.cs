@@ -84,6 +84,7 @@ namespace IPA.Cores.Codes
     {
         public DateTimeOffset BootDateTime;
         public IEnumerable<ThinGate> GatesList = null!;
+        public IEnumerable<ThinSession> SessionsList = null!;
         public IEnumerable<ThinDbVar>? VarsList = null;
         public IEnumerable<ThinDbMachine>? MachinesList = null;
 

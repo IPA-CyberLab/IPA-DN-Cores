@@ -127,6 +127,8 @@ namespace IPA.Cores.Codes
         [SimpleTableIgnore]
         public int PCID_VER { get; set; }
         [SimpleTableIgnore]
+        public DateTime PCID_UPDATE_DATE { get; set; } = Util.ZeroDateTimeValue;
+        [SimpleTableIgnore]
         public byte[] CERT { get; set; } = new byte[0];
         [SimpleTableIgnore]
         public string CERT_HASH { get; set; } = "";
@@ -205,6 +207,11 @@ namespace IPA.Cores.Codes
         [JsonIgnore]
         public Dictionary<string, ThinDbMachine> MachineByCertHashAndHostSecret2 = new Dictionary<string, ThinDbMachine>(StrComparer.IgnoreCaseComparer);
 
+        [JsonIgnore]
+        public int MaxSessionsPerGate;
+        [JsonIgnore]
+        public string ControllerGateSecretKey = "";
+
         public ThinMemoryDb() { }
 
         // データベースから構築
@@ -214,7 +221,7 @@ namespace IPA.Cores.Codes
             this.VarList = varTable.OrderBy(x => x.VAR_NAME).ThenBy(x => x.VAR_ID).ToList();
             this.MachineList = machineTable.OrderBy(x => x.MACHINE_ID).ToList();
 
-            BuildDictionary();
+            BuildOnMemoryData();
         }
 
         // ファイルから復元
@@ -230,10 +237,11 @@ namespace IPA.Cores.Codes
             this.MachineList = tmp.MachineList;
             this.VarList = tmp.VarList;
 
-            BuildDictionary();
+            BuildOnMemoryData();
         }
 
-        void BuildDictionary()
+        // オンメモリデータの構築
+        void BuildOnMemoryData()
         {
             this.SvcList.ForEach(x => this.SvcBySvcName.TryAdd(x.SVC_NAME, x));
 
@@ -252,6 +260,10 @@ namespace IPA.Cores.Codes
                 this.MachineByMsid.TryAdd(x.MSID, x);
                 this.MachineByCertHashAndHostSecret2.TryAdd(x.CERT_HASH + "@" + x.HOST_SECRET2, x);
             });
+
+            // 頻繁にアクセスされる変数を予め読み出しておく
+            this.MaxSessionsPerGate = this.VarByName._GetOrDefault("MaxSessionsPerGate")?.FirstOrDefault()?.VAR_VALUE1._ToInt() ?? 0;
+            this.ControllerGateSecretKey = this.VarByName._GetOrDefault("ControllerGateSecretKey")?.FirstOrDefault()?.VAR_VALUE1._NonNullTrim() ?? "";
         }
 
         public long SaveToFile(string filePath)
@@ -455,7 +467,7 @@ namespace IPA.Cores.Codes
         {
             // まずローカルメモリデータベースを検索する
             var mem = this.MemDb;
-            if (mem != null&&false)
+            if (mem != null && false)
             {
                 var foundMachine = mem.MachineByCertHashAndHostSecret2._GetOrDefault(hostKey + "@" + hostSecret2);
                 if (foundMachine != null)
@@ -467,13 +479,17 @@ namespace IPA.Cores.Codes
 
             // ローカルメモリデータベースの検索でヒットしなかった場合 (たとえば、最近作成されたホストの場合) は、マスタデータベースを物理的に検索する
             await using var db = await OpenDatabaseForReadAsync(cancel);
-            var foundMachine2 = await db.EasySelectSingleAsync<ThinDbMachine>("select * from MACHINE where CERT_HASH = @CERT_HASH and HOST_SECRET2 = @HOST_SECRET2",
-                new
-                {
-                    CERT_HASH = hostKey,
-                    HOST_SECRET2 = hostSecret2,
-                },
-                throwErrorIfMultipleFound: true, throwErrorIfNotFound: false, cancel: cancel);
+
+            var foundMachine2 = await db.TranReadSnapshotIfNecessaryAsync(async () =>
+            {
+                return await db.EasySelectSingleAsync<ThinDbMachine>("select * from MACHINE where CERT_HASH = @CERT_HASH and HOST_SECRET2 = @HOST_SECRET2",
+                    new
+                    {
+                        CERT_HASH = hostKey,
+                        HOST_SECRET2 = hostSecret2,
+                    },
+                    throwErrorIfMultipleFound: true, throwErrorIfNotFound: false, cancel: cancel);
+            });
 
             if (foundMachine2 != null)
             {

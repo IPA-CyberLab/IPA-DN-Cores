@@ -126,11 +126,46 @@ namespace IPA.Cores.Codes
         }
     }
 
+#pragma warning disable CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
     // ThinController の動作をカスタマイズ可能なフック抽象クラス
     public abstract class ThinControllerHookBase
     {
-        public abstract Task<string?> DetermineMachineGroupNameAsync(ThinControllerSession session, CancellationToken cancel = default);
+        public virtual async Task<string?> DetermineMachineGroupNameAsync(ThinControllerSession session, CancellationToken cancel = default) => null;
+
+        public virtual async Task<string> GenerateFqdnForProxyAsync(string ipAddress, ThinControllerSession session, CancellationToken cancel = default)
+        {
+            if (IPAddress.TryParse(ipAddress, out IPAddress? ip) && ip.AddressFamily == AddressFamily.InterNetwork)
+            {
+                byte[] b = ip.GetAddressBytes();
+
+                string fqdn;
+                int rand = Util.RandSInt31() % 120;
+
+                if (rand < 40)
+                {
+                    fqdn = string.Format("{0}.{1}.{2}.{3}.xip.io",
+                        b[0], b[1], b[2], b[3]);
+                }
+                else if (rand < 80)
+                {
+                    fqdn = string.Format("{0}.{1}.{2}.{3}.nip.io",
+                        b[0], b[1], b[2], b[3]);
+                }
+                else
+                {
+                    fqdn = string.Format("{0}.{1}.{2}.{3}.sslip.io",
+                        b[0], b[1], b[2], b[3]);
+                }
+
+                return fqdn;
+            }
+
+            return ipAddress;
+        }
+
+        public virtual async Task<string?> DetermineConnectionProhibitedAsync(ThinController controller, bool isClientConnectMode, string serverIp, string? clientIp, ThinDbMachine serverMachine) => null;
     }
+#pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
 
     public class ThinControllerSessionClientInfo
     {
@@ -187,7 +222,7 @@ namespace IPA.Cores.Codes
             machine._NullCheck(nameof(machine));
 
             this.AuthedMachine = machine;
-            this.MachineGroupName = (await session.Controller.Hook.DetermineMachineGroupNameAsync(session, cancel))._NonNullTrim();
+            this.MachineGroupName = (await session.Controller.Hook.DetermineMachineGroupNameAsync(session, cancel))._NonNullTrim()._FilledOrDefault("Default");
         }
     }
 
@@ -241,15 +276,73 @@ namespace IPA.Cores.Codes
         {
             var notAuthedErr = RequireMachineAuth(); if (notAuthedErr != null) return notAuthedErr; // 認証を要求
 
-            return null!;
+            // 設定変数の "PreferredGateIpRange_Group_<グループ名>" に書かれている ACL を取得する
+            string preferredIpAcl = Controller.Db.GetVarString($"PreferredGateIpRange_Group_{this.ClientInfo.MachineGroupName}")._NonNullTrim();
+            bool forceAcl = false;
+            if (preferredIpAcl._TryTrimStartWith(out preferredIpAcl, StringComparison.OrdinalIgnoreCase, "[force]"))
+            {
+                // 先頭が [force] で始まっていれば、強制適用
+                forceAcl = true;
+            }
+            var acl = EasyIpAcl.GetOrCreateCachedIpAcl(preferredIpAcl);
+
+            // 最良の Gate を選択
+            var bestGate = Controller.SessionManager.SelectBestGateForServer(acl, Controller.Db.MemDb?.MaxSessionsPerGate ?? 0, !forceAcl);
+
+            if (bestGate == null)
+            {
+                // 適合 Gate なし (混雑?)
+                return NewWpcResult(VpnErrors.ERR_NO_GATE_CAN_ACCEPT);
+            }
+
+            // 選択された Gate のセッション数を仮に 1 つ増加させる
+            Interlocked.Increment(ref bestGate.NumSessions);
+
+            ulong expires = (ulong)Util.ConvertDateTime(DtUtcNow.AddMinutes(20));
+
+            var gateIdData = bestGate.GateId._GetHexBytes();
+
+            MemoryBuffer<byte> b = new MemoryBuffer<byte>();
+            b.Write(ClientInfo.AuthedMachine!.MSID._GetBytes_Ascii());
+            b.WriteUInt64(expires);
+            b.Write(gateIdData);
+
+            var ret = NewWpcResult();
+            var p = ret.Pack;
+            p.AddStr("Msid", ClientInfo.AuthedMachine!.MSID);
+            p.AddData("GateId", gateIdData);
+            p.AddInt64("Expires", expires);
+
+            // 署名
+            MemoryBuffer<byte> signSrc = new MemoryBuffer<byte>();
+            signSrc.Write((Controller.Db.MemDb?.ControllerGateSecretKey ?? "")._GetBytes_Ascii());
+            signSrc.Write(b.Span);
+            byte[] sign = Secure.HashSHA1(signSrc.Span);
+            p.AddData("Signature2", sign);
+            p.AddStr("Pcid", this.ClientInfo.AuthedMachine!.PCID);
+            p.AddStr("Hostname", bestGate.IpAddress);
+            p.AddStr("HostnameForProxy", (await Controller.Hook.GenerateFqdnForProxyAsync(bestGate.IpAddress, this, cancel))._FilledOrDefault(bestGate.IpAddress));
+            p.AddInt("Port", (uint)bestGate.Port);
+
+            // IP アドレス等を元にした接続禁止メッセージがある場合は、そのメッセージを応答する (接続処理自体は成功させる)
+            string? prohibitedMessage = await Controller.Hook.DetermineConnectionProhibitedAsync(this.Controller, false, this.ClientInfo.ClientIp, null, this.ClientInfo.AuthedMachine!);
+
+            if (prohibitedMessage._IsFilled())
+            {
+                p.AddUniStr("MsgForServer", prohibitedMessage);
+                p.AddInt("MsgForServerOnce", 0);
+            }
+
+            return ret;
         }
+
 
         // サーバーが未登録の場合は登録を要求する
         WpcResult? RequireMachineAuth()
         {
             if (this.ClientInfo.IsAuthed == false)
             {
-                return new WpcResult(VpnErrors.ERR_NO_INIT_CONFIG);
+                return NewWpcResult(VpnErrors.ERR_NO_INIT_CONFIG);
             }
             return null;
         }
@@ -357,7 +450,7 @@ namespace IPA.Cores.Codes
             }
             if (exists == false)
             {
-                // この Gate がまだ GateTable に存在しないので、この Gate に本当に到達可能かどうかチェックする
+                // この Gate がまだ GateTable に存在しない。初めての登録試行であるため、この Gate に本当に到達可能かどうかチェックする
                 if (Controller.Db.GetVarBool("TestGateTcpReachability"))
                 {
                     using var tcp = new TcpClient();
@@ -628,7 +721,7 @@ namespace IPA.Cores.Codes
         }
 
         // OK WPC 応答の生成
-        protected WpcResult NewWpcResult(Pack? pack = null)
+        public WpcResult NewWpcResult(Pack? pack = null)
         {
             WpcResult ret = new WpcResult(pack);
 
@@ -638,7 +731,7 @@ namespace IPA.Cores.Codes
         }
 
         // 通常エラー WPC 応答の生成
-        protected WpcResult NewWpcResult(VpnErrors errorCode, Pack? pack = null, string? additionalErrorStr = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        public WpcResult NewWpcResult(VpnErrors errorCode, Pack? pack = null, string? additionalErrorStr = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
         {
             WpcResult ret = new WpcResult(errorCode, pack, additionalErrorStr, filename, line, caller);
 
@@ -648,7 +741,7 @@ namespace IPA.Cores.Codes
         }
 
         // 例外エラー WPC 応答の生成
-        protected WpcResult NewWpcResult(Exception ex, Pack? pack = null)
+        public WpcResult NewWpcResult(Exception ex, Pack? pack = null)
         {
             WpcResult ret = new WpcResult(ex, pack);
 
@@ -740,7 +833,7 @@ namespace IPA.Cores.Codes
 
             ret.BootDateTime = this.BootDateTime;
 
-            ret.GatesList = this.SessionManager.GateTable.Values;
+            ret.GatesList = this.SessionManager.GateTable.Values.OrderBy(x => x.IpAddress, StrComparer.IpAddressStrComparer).ThenBy(x => x.GateId);
 
             ret.VarsList = this.Db.MemDb?.VarList.OrderBy(x => x.VAR_NAME).ThenBy(x => x.VAR_ID) ?? null;
 

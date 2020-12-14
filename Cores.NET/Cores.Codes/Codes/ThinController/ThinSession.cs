@@ -83,13 +83,21 @@ namespace IPA.Cores.Codes
 {
     public class ThinSession : IValidatable, INormalizable
     {
+        [SimpleTableOrder(2)]
         public string Msid = "";
+        [SimpleTableOrder(1)]
         public string SessionId = "";
+        [SimpleTableOrder(-100)]
         public DateTime EstablishedDateTime = Util.ZeroDateTimeValue;
+        [SimpleTableOrder(3)]
         public string IpAddress = "";
+        [SimpleTableOrder(4)]
         public string HostName = "";
+        [SimpleTableOrder(6)]
         public int NumClients;
+        [SimpleTableOrder(5.5)]
         public ulong ServerMask64;
+        [SimpleTableOrder(7)]
         public int NumClientsUnique;
 
         public void Normalize()
@@ -144,6 +152,12 @@ namespace IPA.Cores.Codes
         [SimpleTableOrder(18.5)]
         public DateTime BootTime => DtNow - BootTick;
 
+        [SimpleTableOrder(12.1)]
+        public int NumClients => this.SessionTable.Values.Sum(x => x.NumClients);
+        [SimpleTableOrder(12.2)]
+        public int NumClientsUnique => this.SessionTable.Values.Sum(x => x.NumClientsUnique);
+
+
         [NoDebugDump]
         [SimpleTableIgnore]
         public ImmutableDictionary<string, ThinSession> SessionTable = ImmutableDictionary<string, ThinSession>.Empty;
@@ -164,11 +178,84 @@ namespace IPA.Cores.Codes
             if (GateId.Length != 40) throw new CoresLibException("GateId.Length != 40");
             IpAddress._NotEmptyCheck(nameof(IpAddress));
         }
+
+        public double CalcLoad()
+        {
+            return (double)NumSessions * (double)100.0f / (double)Performance;
+        }
     }
 
     public class ThinSessionManager
     {
         public ImmutableDictionary<string, ThinGate> GateTable = ImmutableDictionary<string, ThinGate>.Empty;
+
+        public ThinGate? SelectBestGateForServer(EasyIpAcl preferAcl, int gateMaxSessions, bool allowCandidate2)
+        {
+            DateTime now = DtNow;
+            var table = this.GateTable;
+
+            // 現在アクティブな Gate で有効期限が切れていないもののリスト
+            var candidates2 = table.Values.Where(x => now <= x.Expires);
+
+            // これらの Gate の中でセッション数が MaxSessionsPerGate 以下のもののリスト
+            if (gateMaxSessions != 0)
+            {
+                candidates2 = candidates2.Where(x => x.NumSessions < gateMaxSessions);
+            }
+
+            // これらの Gate の中で希望 IP アドレスリストの範囲内であるものを candidates1 とする
+            // 希望 IP アドレスの範囲にかかわらずすべての適合 Gate を candidates2 とする
+            var candidates1 = candidates2.Where(x => preferAcl.Evaluate(x.IpAddress) == EasyIpAclAction.Permit);
+
+            List<IEnumerable<ThinGate>> candidatesList = new List<IEnumerable<ThinGate>>();
+            candidatesList.Add(candidates1);
+
+            if (allowCandidate2)
+            {
+                candidatesList.Add(candidates2);
+            }
+
+            // 1/2 の確率で、「force_random_mode」を有効にする。
+            // 「force_random_mode」の場合は、最小セッション数は無関係にすべての適応ホストから無作為に 1 つ選択する。
+            bool force_random_mode = Util.RandBool();
+
+            foreach (var candidates in candidatesList)
+            {
+                IEnumerable<ThinGate> selectedGates;
+
+                if (force_random_mode == false)
+                {
+                    // 候補を load をもとにソートする
+                    List<Pair2<ThinGate, double>> sortList = new List<Pair2<ThinGate, double>>();
+
+                    foreach (var gate in candidates)
+                    {
+                        double load = force_random_mode == false ? gate.CalcLoad() : 1.0;
+
+                        sortList.Add(new Pair2<ThinGate, double>(gate, load));
+                    }
+
+                    // 最も低い load の値を取得
+                    double minLoad = sortList.OrderByDescending(x => x.B).Select(x => x.B).FirstOrDefault();
+                    var minLoadCandidates = sortList.Where(x => x.B == minLoad);
+                    selectedGates = minLoadCandidates.Select(x => x.A);
+                }
+                else
+                {
+                    selectedGates = candidates;
+                }
+
+                var selectedGate = selectedGates._Shuffle().FirstOrDefault();
+                if (selectedGate != null)
+                {
+                    // 1 つ選定完了!
+                    return selectedGate;
+                }
+            }
+
+            // 全部失敗
+            return null;
+        }
 
         public bool TryUpdateGateAndDeleteSession(DateTime now, DateTime expires, ThinGate gate, string sessionId, out ThinSession? session)
         {

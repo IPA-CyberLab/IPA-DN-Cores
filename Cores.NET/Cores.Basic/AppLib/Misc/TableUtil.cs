@@ -73,15 +73,31 @@ namespace IPA.Cores.Basic
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class SimpleTableIgnoreAttribute : Attribute { }
 
+    public class SimpleTableDynamicColumn<TRow>
+    {
+        public string Name { get; }
+        public double Order { get; }
+        public Func<TRow, string?> GetStrProc;
+
+        public SimpleTableDynamicColumn(string name, double order, Func<TRow, string?> getStrProc)
+        {
+            this.Name = name;
+            this.Order = order;
+            this.GetStrProc = getStrProc;
+        }
+    }
+
     public class SimpleTableView<TRow>
     {
         readonly FieldReaderWriter Rw = FieldReaderWriter.GetCached<TRow>();
 
         public IReadOnlyList<string> OrderedColumnNamesList;
 
+        readonly Dictionary<string, SimpleTableDynamicColumn<TRow>> DynamicColumnTable = new Dictionary<string, SimpleTableDynamicColumn<TRow>>();
+
         public IEnumerable<TRow>? Data { get; }
 
-        public SimpleTableView(IEnumerable<TRow>? data)
+        public SimpleTableView(IEnumerable<TRow>? data, params SimpleTableDynamicColumn<TRow>[] dynamicColumns)
         {
             this.Data = data;
 
@@ -103,6 +119,13 @@ namespace IPA.Cores.Basic
                 double customOrder = orderAttribute?.Order ?? double.MaxValue;
 
                 cols.Add(new Pair3<string, double, int>(name, customOrder, naturalOrder));
+            }
+
+            foreach (var dynamicColumn in dynamicColumns)
+            {
+                cols.Add(new Pair3<string, double, int>(dynamicColumn.Name, dynamicColumn.Order, ++i));
+
+                DynamicColumnTable.TryAdd(dynamicColumn.Name, dynamicColumn);
             }
 
             this.OrderedColumnNamesList = cols.OrderBy(x => x.B).ThenBy(x => x.C).Select(x => x.A).ToList();
@@ -136,22 +159,33 @@ namespace IPA.Cores.Basic
 
                         foreach (var name in this.OrderedColumnNamesList)
                         {
-                            object? obj = Rw.GetValue(row, name);
-                            string dataStr = obj?.ToString()._NonNull() ?? "";
+                            string dataStr;
 
-                            switch (obj)
+                            var dynamicColumn = this.DynamicColumnTable._GetOrDefault(name);
+                            if (dynamicColumn != null)
                             {
-                                case DateTime dt:
-                                    dataStr = dt._ToDtStr();
-                                    break;
+                                dataStr = dynamicColumn.GetStrProc(row)._NonNull();
+                            }
+                            else
+                            {
+                                object? obj = Rw.GetValue(row, name);
 
-                                case DateTimeOffset dt:
-                                    dataStr = dt._ToDtStr();
-                                    break;
+                                dataStr = obj?.ToString()._NonNull() ?? "";
 
-                                case TimeSpan ts:
-                                    dataStr = ts._ToTsStr();
-                                    break;
+                                switch (obj)
+                                {
+                                    case DateTime dt:
+                                        dataStr = dt._ToDtStr();
+                                        break;
+
+                                    case DateTimeOffset dt:
+                                        dataStr = dt._ToDtStr();
+                                        break;
+
+                                    case TimeSpan ts:
+                                        dataStr = ts._ToTsStr();
+                                        break;
+                                }
                             }
 
                             string dataHtml = dataStr._EncodeHtml(true, true);
