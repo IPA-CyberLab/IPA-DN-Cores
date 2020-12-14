@@ -147,10 +147,10 @@ namespace IPA.Cores.Basic
                 {
                     throw new CoresLibException("hostSecret2Item == null || hostSecret2Item.Data.Length != 20");
                 }
-
-                hostKey = hostKeyItem.Data._GetHexString();
-                hostSecret2 = hostSecret2Item.Data._GetHexString();
             }
+
+            hostKey = hostKeyItem?.Data._GetHexString() ?? "";
+            hostSecret2 = hostSecret2Item?.Data._GetHexString() ?? "";
 
             return new WpcPack(pack, hostKey, hostSecret2);
         }
@@ -291,6 +291,7 @@ namespace IPA.Cores.Basic
         public bool IsError => !IsOk;
 
         [JsonIgnore]
+        [NoDebugDump]
         public Pack Pack { get; }
 
         public VpnErrors ErrorCode { get; }

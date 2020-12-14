@@ -79,6 +79,7 @@ using IPA.Cores.Web;
 using IPA.Cores.Helper.Web;
 using static IPA.Cores.Globals.Web;
 using System.Runtime.CompilerServices;
+using System.Net.Security;
 
 namespace IPA.Cores.Codes
 {
@@ -107,8 +108,8 @@ namespace IPA.Cores.Codes
             {
                 this.WpcPathList = new List<string>();
 
-                this.WpcPathList.Add("/widecontrol/");
                 this.WpcPathList.Add("/thincontrol/");
+                this.WpcPathList.Add("/widecontrol/");
             }
 
             if (this.DbConnectionString_Read._IsEmpty())
@@ -136,6 +137,9 @@ namespace IPA.Cores.Codes
             public string ClientIpFqdn { get; private set; }
             public string FlagStr { get; }
             public bool IsProxyMode { get; }
+
+            public bool IsAuthed => AuthedMachine != null;
+            public ThinDbMachine? AuthedMachine { get; private set; }
 
             public ThinControllerSessionFlags Flags { get; }
 
@@ -176,6 +180,13 @@ namespace IPA.Cores.Codes
                 if (this.ClientIpFqdn != this.ClientIp) return;
 
                 this.ClientIpFqdn = await resolver.GetHostNameSingleOrIpAsync(this.ClientIp, cancel);
+            }
+
+            public void SetAuthed(ThinDbMachine machine)
+            {
+                machine._NullCheck(nameof(machine));
+
+                this.AuthedMachine = machine;
             }
         }
 
@@ -233,12 +244,6 @@ namespace IPA.Cores.Codes
 
                 if (gateKey._IsFilled())
                 {
-                    // gateKey が GateKeyList の一覧にあるかどうか検査
-                    if (Controller.Db.IsConnected == false)
-                    {
-                        throw new CoresException("Controller.DB is not connected yet.");
-                    }
-
                     ok = Controller.Db.GetVars("GateKeyList")?.Where(x => x.VAR_VALUE1 == gateKey).Any() ?? false;
                 }
 
@@ -275,6 +280,7 @@ namespace IPA.Cores.Codes
                         ServerMask64 = p["ServerMask64", i].Int64Value,
                     };
 
+                    sess.Normalize();
                     sess.Validate();
 
                     sessionList.TryAdd(sess.SessionId, sess);
@@ -295,6 +301,9 @@ namespace IPA.Cores.Codes
                     CurrentTime = p["CurrentTime"].DateTimeValue.ToLocalTime(),
                     BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
                 };
+
+                gate.Normalize();
+                gate.Validate();
 
                 int numSc = (int)Math.Min(p.GetCount("SC_SessionId"), 65536);
 
@@ -317,6 +326,41 @@ namespace IPA.Cores.Codes
                 {
                     var sess = sessionList._GetOrDefault(item.Key);
                     if (sess != null) sess.NumClientsUnique++;
+                }
+
+                bool exists = false;
+                if (Controller.SessionManager.GateTable.TryGetValue(gate.GateId, out ThinGate? currentGate))
+                {
+                    if (DtNow <= currentGate.Expires)
+                    {
+                        exists = true;
+                    }
+                }
+                if (exists == false)
+                {
+                    // この Gate がまだ GateTable に存在しないので、この Gate に本当に到達可能かどうかチェックする
+                    if (Controller.Db.GetVarBool("TestGateTcpReachability"))
+                    {
+                        using var tcp = new TcpClient();
+                        tcp.NoDelay = true;
+                        tcp.ReceiveTimeout = tcp.ReceiveTimeout = 5 * 1000;
+                        await tcp.ConnectAsync(gate.IpAddress, gate.Port, cancel);
+                        await using var stream = tcp.GetStream();
+                        await using var sslStream = new SslStream(stream, false, (sender, cert, chain, err) => true);
+                        stream.ReadTimeout = 5 * 1000;
+                        stream.WriteTimeout = 5 * 1000;
+                        sslStream.ReadTimeout = 5 * 1000;
+                        sslStream.WriteTimeout = 5 * 1000;
+                        await sslStream.AuthenticateAsClientAsync(
+                            new SslClientAuthenticationOptions()
+                            {
+                                AllowRenegotiation = false,
+                                CertificateRevocationCheckMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck,
+                                EnabledSslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersions,
+                                TargetHost = gate.IpAddress.ToString(),
+                            }, cancel
+                            );
+                    }
                 }
 
                 var now = DtNow;
@@ -351,6 +395,7 @@ namespace IPA.Cores.Codes
                     ServerMask64 = p["ServerMask64", i].Int64Value,
                 };
 
+                sess.Normalize();
                 sess.Validate();
 
                 // gate のフィールド内容は UpdateGateAndAddSession でそれほど参照されないので適当で OK
@@ -369,6 +414,9 @@ namespace IPA.Cores.Codes
                     CurrentTime = p["CurrentTime"].DateTimeValue.ToLocalTime(),
                     BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
                 };
+
+                gate.Normalize();
+                gate.Validate();
 
                 sess.NumClientsUnique = sess.NumClients == 0 ? 0 : 1;
 
@@ -411,6 +459,9 @@ namespace IPA.Cores.Codes
                     CurrentTime = p["CurrentTime"].DateTimeValue.ToLocalTime(),
                     BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
                 };
+
+                gate.Normalize();
+                gate.Validate();
 
                 var now = DtNow;
 
@@ -457,12 +508,32 @@ namespace IPA.Cores.Codes
             {
                 try
                 {
+                    if (Controller.Db.IsConnected == false)
+                    {
+                        throw new CoresException("Controller.DB is not connected yet.");
+                    }
+
                     // WPC リクエストをパースする
                     WpcPack req = WpcPack.Parse(wpcRequestString, false);
 
                     // 関数名を取得する
                     this.FunctionName = req.Pack["Function"].StrValue._NonNull();
                     if (this.FunctionName._IsEmpty()) this.FunctionName = "Unknown";
+
+                    if (FunctionName.StartsWith("report", StringComparison.OrdinalIgnoreCase) == false)
+                    {
+                        // Gate からの要求以外の場合は、認証を実施する
+                        if (req.HostKey._IsFilled() && req.HostSecret2._IsFilled())
+                        {
+                            var authedMachine = await Controller.Db.AuthMachineAsync(req.HostKey, req.HostSecret2, cancel);
+
+                            if (authedMachine != null)
+                            {
+                                // 認証成功
+                                this.ClientInfo.SetAuthed(authedMachine);
+                            }
+                        }
+                    }
 
                     // 関数を実行する
                     switch (this.FunctionName.ToLower())
@@ -522,6 +593,13 @@ namespace IPA.Cores.Codes
                 c.Add("FlagStr", clientInfo.FlagStr);
                 c.Add("Flags", clientInfo.Flags.ToString());
                 c.Add("IsProxyMode", clientInfo.IsProxyMode.ToString());
+
+                c.Add("IsAuthed", clientInfo.IsAuthed.ToString());
+
+                if (clientInfo.IsAuthed)
+                {
+                    c.Add("AuthedMachineMsid", clientInfo.AuthedMachine!.MSID);
+                }
 
                 // 追加情報
                 var a = result.AdditionalInfo;

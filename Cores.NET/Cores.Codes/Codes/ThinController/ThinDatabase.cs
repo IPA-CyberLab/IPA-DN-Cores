@@ -131,8 +131,12 @@ namespace IPA.Cores.Codes
         [SimpleTableIgnore]
         public string CERT_HASH { get; set; } = "";
         [SimpleTableIgnore]
+        [JsonIgnore]
+        [NoDebugDump]
         public string HOST_SECRET { get; set; } = "";
         [SimpleTableIgnore]
+        [JsonIgnore]
+        [NoDebugDump]
         public string HOST_SECRET2 { get; set; } = "";
         [SimpleTableOrder(5)]
         public DateTime CREATE_DATE { get; set; } = Util.ZeroDateTimeValue;
@@ -207,7 +211,7 @@ namespace IPA.Cores.Codes
         public ThinMemoryDb(IEnumerable<ThinDbSvc> svcTable, IEnumerable<ThinDbMachine> machineTable, IEnumerable<ThinDbVar> varTable)
         {
             this.SvcList = svcTable.OrderBy(x => x.SVC_NAME, StrComparer.IgnoreCaseComparer).ToList();
-            this.VarList = varTable.OrderBy(x => x.VAR_NAME).ThenBy(x=>x.VAR_ID).ToList();
+            this.VarList = varTable.OrderBy(x => x.VAR_NAME).ThenBy(x => x.VAR_ID).ToList();
             this.MachineList = machineTable.OrderBy(x => x.MACHINE_ID).ToList();
 
             BuildDictionary();
@@ -244,7 +248,7 @@ namespace IPA.Cores.Codes
             {
                 var svc = this.SvcBySvcName[x.SVC_NAME];
 
-                this.MachineByPcidAndSvcName.TryAdd(x.PCID + "@" + x.SVC_NAME, x);
+                this.MachineByPcidAndSvcName.TryAdd(x.PCID + "@" + svc.SVC_NAME, x);
                 this.MachineByMsid.TryAdd(x.MSID, x);
                 this.MachineByCertHashAndHostSecret2.TryAdd(x.CERT_HASH + "@" + x.HOST_SECRET2, x);
             });
@@ -427,6 +431,12 @@ namespace IPA.Cores.Codes
         public string? GetVarString(string name)
             => GetVar(name)?.VAR_VALUE1;
 
+        public int GetVarInt(string name, int defaultValue = 0)
+            => GetVarString(name)?._ToInt() ?? defaultValue;
+
+        public bool GetVarBool(string name, bool defaultValue = false)
+            => GetVarString(name)?._ToBool(defaultValue) ?? defaultValue;
+
         protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
@@ -438,6 +448,41 @@ namespace IPA.Cores.Codes
             {
                 await base.CleanupImplAsync(ex);
             }
+        }
+
+        // HostKey および HostSecret2 による認証試行
+        public async Task<ThinDbMachine?> AuthMachineAsync(string hostKey, string hostSecret2, CancellationToken cancel = default)
+        {
+            // まずローカルメモリデータベースを検索する
+            var mem = this.MemDb;
+            if (mem != null&&false)
+            {
+                var foundMachine = mem.MachineByCertHashAndHostSecret2._GetOrDefault(hostKey + "@" + hostSecret2);
+                if (foundMachine != null)
+                {
+                    // 発見
+                    return foundMachine;
+                }
+            }
+
+            // ローカルメモリデータベースの検索でヒットしなかった場合 (たとえば、最近作成されたホストの場合) は、マスタデータベースを物理的に検索する
+            await using var db = await OpenDatabaseForReadAsync(cancel);
+            var foundMachine2 = await db.EasySelectSingleAsync<ThinDbMachine>("select * from MACHINE where CERT_HASH = @CERT_HASH and HOST_SECRET2 = @HOST_SECRET2",
+                new
+                {
+                    CERT_HASH = hostKey,
+                    HOST_SECRET2 = hostSecret2,
+                },
+                throwErrorIfMultipleFound: true, throwErrorIfNotFound: false, cancel: cancel);
+
+            if (foundMachine2 != null)
+            {
+                // 発見
+                return foundMachine2;
+            }
+
+            // 未発見
+            return null;
         }
     }
 }

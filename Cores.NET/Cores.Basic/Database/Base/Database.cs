@@ -650,6 +650,22 @@ namespace IPA.Cores.Basic
         public T ExecuteScalar<T>(string commandStr, object? param = null)
             => ExecuteScalarAsync<T>(commandStr, param)._GetResult();
 
+        public async Task<T?> EasySelectSingleAsync<T>(string selectStr, object? selectParam = null, bool throwErrorIfNotFound = false, bool throwErrorIfMultipleFound = false, CancellationToken cancel = default) where T : class
+        {
+            IEnumerable<T> ret = await EasySelectAsync<T>(selectStr, selectParam, false, cancel);
+
+            if (throwErrorIfNotFound && ret.Count() == 0)
+            {
+                throw new CoresLibException($"throwErrorIfNotFound == true and no elements returned from the database.");
+            }
+
+            if (throwErrorIfMultipleFound && ret.Count() >= 2)
+            {
+                throw new CoresLibException($"throwErrorIfMultipleFound == true and {ret.Count()} elements returned from the database.");
+            }
+
+            return ret.FirstOrDefault();
+        }
 
         public async Task<IEnumerable<T>> EasySelectAsync<T>(string selectStr, object? selectParam = null, bool throwErrorIfNotFound = false, CancellationToken cancel = default) where T : class
         {
@@ -661,7 +677,9 @@ namespace IPA.Cores.Basic
             var ret = await QueryAsync<T>(selectStr, selectParam);
 
             if (throwErrorIfNotFound && ret.Count() == 0)
-                throw new KeyNotFoundException();
+            {
+                throw new CoresLibException($"throwErrorIfNotFound == true and no elements returned from the database.");
+            }
 
             return ret;
         }
@@ -674,7 +692,9 @@ namespace IPA.Cores.Basic
             var ret = await SqlMapperExtensions.GetAsync<T>(Connection, id, Transaction);
 
             if (throwErrorIfNotFound && ret == null)
-                throw new KeyNotFoundException();
+            {
+                throw new CoresLibException($"throwErrorIfNotFound == true and no elements returned from the database.");
+            }
 
             return ret;
         }
@@ -687,7 +707,9 @@ namespace IPA.Cores.Basic
             var ret = await SqlMapperExtensions.GetAllAsync<T>(Connection, Transaction);
 
             if (throwErrorIfNotFound && ret.Count() == 0)
-                throw new KeyNotFoundException();
+            {
+                throw new CoresLibException($"throwErrorIfNotFound == true and no elements returned from the database.");
+            }
 
             return ret;
         }
@@ -722,7 +744,10 @@ namespace IPA.Cores.Basic
             bool ret = await SqlMapperExtensions.DeleteAsync<T>(Connection, data, Transaction);
 
             if (throwErrorIfNotFound && ret == false)
-                throw new KeyNotFoundException();
+            {
+                throw new CoresLibException($"throwErrorIfNotFound == true and no elements returned from the database.");
+            }
+
 
             return ret;
         }
