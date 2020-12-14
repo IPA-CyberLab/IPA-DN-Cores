@@ -266,6 +266,21 @@ namespace IPA.Cores.Codes
             this.ControllerGateSecretKey = this.VarByName._GetOrDefault("ControllerGateSecretKey")?.FirstOrDefault()?.VAR_VALUE1._NonNullTrim() ?? "";
         }
 
+        // PCID 一覧のリビルド (PCID に変更が発生したので Dictionary をリビルドする)
+        public void RebuildPcidListOnMemory()
+        {
+            Dictionary<string, ThinDbMachine> tmp = new Dictionary<string, ThinDbMachine>(StrComparer.IgnoreCaseComparer);
+
+            this.MachineList.ForEach(x =>
+            {
+                var svc = this.SvcBySvcName[x.SVC_NAME];
+
+                tmp.TryAdd(x.PCID + "@" + svc.SVC_NAME, x);
+            });
+
+            this.MachineByPcidAndSvcName = tmp;
+        }
+
         public long SaveToFile(string filePath)
         {
             string backupPath = filePath + ".bak";
@@ -530,11 +545,18 @@ namespace IPA.Cores.Codes
             Controller.AddPcidToRecentPcidCandidateCache(newPcid);
 
             // ローカルメモリデータベース上の PCID 情報を変更
-            var machine = this.MemDb?.MachineByMsid._GetOrDefault(msid);
-
-            if (machine != null)
+            var memDb = this.MemDb;
+            if (memDb != null)
             {
-                machine.PCID = newPcid;
+                var machine = memDb.MachineByMsid._GetOrDefault(msid);
+
+                if (machine != null)
+                {
+                    machine.PCID = newPcid;
+
+                    // Dictionary をリビルド
+                    memDb.RebuildPcidListOnMemory();
+                }
             }
 
             return VpnErrors.ERR_NO_ERROR;

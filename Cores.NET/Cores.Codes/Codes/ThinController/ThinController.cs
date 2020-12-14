@@ -251,6 +251,22 @@ namespace IPA.Cores.Codes
             }
         }
 
+        // 設定文字列の取得
+        public WpcResult ProcGetEnvStr(WpcPack req, CancellationToken cancel)
+        {
+            string name = "Env_" + req.Pack["Name"].StrValueNonNull;
+            string s = Controller.Db.GetVarString(name)._NonNullTrim();
+
+            var ret = NewWpcResult();
+            var p = ret.Pack;
+            p.AddStr("Ret", s);
+
+            ret.AdditionalInfo.Add("Name", name);
+            ret.AdditionalInfo.Add("Ret", s);
+
+            return ret;
+        }
+
         // テスト
         public WpcResult ProcTest(WpcPack req, CancellationToken cancel)
         {
@@ -408,9 +424,43 @@ namespace IPA.Cores.Codes
             return svcName;
         }
 
+        // PCID の変更
+        public async Task<WpcResult> ProcRenameMachine(WpcPack req, CancellationToken cancel)
+        {
+            var notAuthedErr = RequireMachineAuth(); if (notAuthedErr != null) return notAuthedErr; // 認証を要求
+
+            var q = req.Pack;
+            string newPcid = q["NewName"].StrValueNonNull;
+
+            // 変更の実行
+            var now = DtNow;
+            var err = await Controller.Db.RenamePcidAsync(this.ClientInfo.AuthedMachine!.MSID, newPcid, now, cancel);
+            if (err != VpnErrors.ERR_NO_ERROR)
+            {
+                // 登録エラー
+                var ret2 = NewWpcResult(err);
+                ret2.AdditionalInfo.Add("OldPcid", this.ClientInfo.AuthedMachine!.PCID);
+                ret2.AdditionalInfo.Add("NewPcid", newPcid);
+                return ret2;
+            }
+
+            var ret = NewWpcResult();
+            var p = ret.Pack;
+
+            ret.AdditionalInfo.Add("OldPcid", this.ClientInfo.AuthedMachine!.PCID);
+            ret.AdditionalInfo.Add("NewPcid", newPcid);
+
+            return ret;
+        }
+
         // サーバーの登録
         public async Task<WpcResult> ProcRegistMachine(WpcPack req, CancellationToken cancel)
         {
+            if (req.HostKey._IsEmpty() || req.HostSecret2._IsEmpty())
+            {
+                return NewWpcResult(VpnErrors.ERR_PROTOCOL_ERROR);
+            }
+
             var q = req.Pack;
 
             // svcName を取得 (正規化)
@@ -448,7 +498,32 @@ namespace IPA.Cores.Codes
                 return ret2;
             }
 
-            return null!;
+            // MSID の生成
+            string msid = ThinController.GenerateMsid(req.HostKey, req.HostSecret2);
+
+            // 登録の実行
+            var now = DtNow;
+            err = await Controller.Db.RegisterMachineAsync(svcName, msid, q["Pcid"].StrValueNonNull, req.HostKey, req.HostSecret2, now, this.ClientInfo.ClientIp, this.ClientInfo.ClientIpFqdn, cancel);
+            if (err != VpnErrors.ERR_NO_ERROR)
+            {
+                // 登録エラー
+                var ret2 = NewWpcResult(err);
+                ret2.AdditionalInfo.Add("SvcName", svcName);
+                ret2.AdditionalInfo.Add("Pcid", pcid);
+                ret2.AdditionalInfo.Add("HostKey", req.HostKey);
+                ret2.AdditionalInfo.Add("Msid", msid);
+                return ret2;
+            }
+
+            var ret = NewWpcResult();
+            var p = ret.Pack;
+
+            ret.AdditionalInfo.Add("SvcName", svcName);
+            ret.AdditionalInfo.Add("Pcid", pcid);
+            ret.AdditionalInfo.Add("HostKey", req.HostKey);
+            ret.AdditionalInfo.Add("Msid", msid);
+
+            return ret;
         }
 
         // PCID 候補を取得
@@ -888,11 +963,16 @@ namespace IPA.Cores.Codes
 
                     // サーバー系
                     case "getpcidcandidate": return await ProcGetPcidCandidate(req, cancel);
+                    case "registmachine": return await ProcRegistMachine(req, cancel);
+                    case "renamemachine": return await ProcRenameMachine(req, cancel);
                     case "serverconnect": return await ProcServerConnectAsync(req, cancel);
 
                     // クライアント系
                     case "clientconnect": return await ProcClientConnectAsync(req, cancel);
                     case "clientgetwolmaclist": return await ProcClientGetWolMacList(req, cancel);
+
+                    // 共通系
+                    case "getenvstr": return ProcGetEnvStr(req, cancel);
 
                     default:
                         // 適切な関数が見つからない
@@ -1212,6 +1292,9 @@ namespace IPA.Cores.Codes
         async Task<string> GeneratePcidCandidateCoreAsync(string svcName, string dns1, string dns2, string username, string machineName, CancellationToken cancel)
         {
             int i;
+            if (dns1._IsSamei("localhost")) dns1 = "";
+            if (dns2._IsSamei("localhost")) dns2 = "";
+            if (machineName._IsSamei("localhost")) machineName = "";
             var domain1 = new Basic.Legacy.LegacyDomainUtil(dns1);
             var domain2 = new Basic.Legacy.LegacyDomainUtil(dns2);
             string d1 = ConvertStrToSafeForPcid(domain1.ProperString);

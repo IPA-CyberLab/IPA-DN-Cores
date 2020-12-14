@@ -2308,14 +2308,42 @@ namespace IPA.Cores.Helper.Basic
             => new RandomAccessBasedStream(target, disposeTarget);
 
         [MethodImpl(Inline)]
-        public static string _Slice(this string src, int start, int length) => src.Substring(start, length);
-        [MethodImpl(Inline)]
-        public static string _Slice(this string src, int start) => src.Substring(start);
+        [return: NotNullIfNotNull("src")]
+        public static string? _Slice(this string? src, int start, int length)
+        {
+            checked
+            {
+                if (src == null) return null;
+                length = Math.Min(length, src.Length - start);
+                if (length <= 0) return "";
+                return src.Substring(start, length);
+            }
+        }
 
         [MethodImpl(Inline)]
-        public static string _SliceHead(this string src, int length) => src._Slice(0, length);
+        [return: NotNullIfNotNull("src")]
+        public static string? _Slice(this string? src, int start)
+        {
+            if (src == null) return null;
+            return src.Substring(start);
+        }
+
         [MethodImpl(Inline)]
-        public static string _SliceTail(this string src, int length) => src._Slice(src.Length - length);
+        [return: NotNullIfNotNull("src")]
+        public static string? _SliceHead(this string? src, int length) => src._Slice(0, length);
+
+        [MethodImpl(Inline)]
+        [return: NotNullIfNotNull("src")]
+        public static string? _SliceTail(this string? src, int length)
+        {
+            checked
+            {
+                if (src == null) return null;
+                length = Math.Min(length, src.Length);
+                if (length <= 0) return "";
+                return src.Substring(src.Length - length);
+            }
+        }
 
         public static string _GetFileSizeStr(this long size) => Str.GetFileSizeStr(size);
         public static string _GetFileSizeStr(this int size) => Str.GetFileSizeStr(size);
