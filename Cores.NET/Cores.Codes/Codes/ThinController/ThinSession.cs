@@ -135,6 +135,14 @@ namespace IPA.Cores.Codes
         public DateTime Expires = Util.ZeroDateTimeValue;
         [SimpleTableOrder(5)]
         public long NumComm;
+        [SimpleTableOrder(20)]
+        public string UltraCommitId = "";
+        [SimpleTableOrder(19)]
+        public DateTime CurrentTime = Util.ZeroDateTimeValue;
+        [SimpleTableOrder(18)]
+        public TimeSpan BootTick;
+        [SimpleTableOrder(18.5)]
+        public DateTime BootTime => DtNow - BootTick;
 
         [NoDebugDump]
         [SimpleTableIgnore]
@@ -148,6 +156,7 @@ namespace IPA.Cores.Codes
             HostName = HostName._NonNull();
             MacAddress = MacAddress._NonNull();
             OsInfo = OsInfo._NonNull();
+            UltraCommitId = UltraCommitId._NonNull();
         }
 
         public void Validate()
@@ -303,12 +312,12 @@ namespace IPA.Cores.Codes
                 }
             }
 
-            // 同一の IP Address を持った古い Gate が存在している場合はこれを削除する
+            // 同一の IP Address およびポート番号を持った古い Gate が存在している場合はこれを削除する
             if (latestGate != null)
             {
                 foreach (var item in currentTable)
                 {
-                    if (latestGate.IpAddress._IsSamei(item.Value.IpAddress) && item.Key != latestGate.GateId)
+                    if (latestGate.IpAddress._IsSamei(item.Value.IpAddress) && latestGate.Port == item.Value.Port && item.Key != latestGate.GateId)
                     {
                         ImmutableInterlocked.TryRemove(ref this.GateTable, item.Key, out _);
                     }

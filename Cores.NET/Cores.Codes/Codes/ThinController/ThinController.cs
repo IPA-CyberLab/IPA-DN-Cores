@@ -283,14 +283,17 @@ namespace IPA.Cores.Codes
                 ThinGate gate = new ThinGate
                 {
                     GateId = p["GateId"].DataValueHexStr,
-                    IpAddress = this.ClientInfo.ClientPhysicalIp,
+                    IpAddress = this.ClientInfo.ClientIp,
                     Port = p["Port"].SIntValue,
-                    HostName = this.ClientInfo.ClientPhysicalIp,
+                    HostName = this.ClientInfo.ClientIpFqdn,
                     Performance = p["Performance"].SIntValue,
                     NumSessions = sessionList.Count,
                     Build = p["Build"].SIntValue,
                     MacAddress = p["MacAddress"].StrValueNonNull,
                     OsInfo = p["OsInfo"].StrValueNonNull,
+                    UltraCommitId = p["UltraCommitId"].StrValueNonNull,
+                    CurrentTime = p["CurrentTime"].DateTimeValue.ToLocalTime(),
+                    BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
                 };
 
                 int numSc = (int)Math.Min(p.GetCount("SC_SessionId"), 65536);
@@ -324,8 +327,7 @@ namespace IPA.Cores.Codes
 
                 ret.AdditionalInfo.Add("Gate", gate._GetObjectDumpForJsonFriendly());
 
-                string? secretKey = Controller.Db.GetVarString("ControllerGateSecretKey");
-                if (secretKey._IsFilled()) ret.Pack.AddStr("ControllerGateSecretKey", secretKey);
+                AddGateSettingsToPack(ret.Pack);
 
                 return ret;
             }
@@ -355,14 +357,17 @@ namespace IPA.Cores.Codes
                 ThinGate gate = new ThinGate
                 {
                     GateId = p["GateId"].DataValueHexStr,
-                    IpAddress = this.ClientInfo.ClientPhysicalIp,
+                    IpAddress = this.ClientInfo.ClientIp,
                     Port = p["Port"].SIntValue,
-                    HostName = this.ClientInfo.ClientPhysicalIp,
+                    HostName = this.ClientInfo.ClientIpFqdn,
                     Performance = p["Performance"].SIntValue,
                     NumSessions = 0,
                     Build = p["Build"].SIntValue,
                     MacAddress = p["MacAddress"].StrValueNonNull,
                     OsInfo = p["OsInfo"].StrValueNonNull,
+                    UltraCommitId = p["UltraCommitId"].StrValueNonNull,
+                    CurrentTime = p["CurrentTime"].DateTimeValue.ToLocalTime(),
+                    BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
                 };
 
                 sess.NumClientsUnique = sess.NumClients == 0 ? 0 : 1;
@@ -376,8 +381,7 @@ namespace IPA.Cores.Codes
                 ret.AdditionalInfo.Add("Gate", gate._GetObjectDumpForJsonFriendly());
                 ret.AdditionalInfo.Add("AddSession", sess._GetObjectDumpForJsonFriendly());
 
-                string? secretKey = Controller.Db.GetVarString("ControllerGateSecretKey");
-                if (secretKey._IsFilled()) ret.Pack.AddStr("ControllerGateSecretKey", secretKey);
+                AddGateSettingsToPack(ret.Pack);
 
                 return ret;
             }
@@ -395,14 +399,17 @@ namespace IPA.Cores.Codes
                 ThinGate gate = new ThinGate
                 {
                     GateId = p["GateId"].DataValueHexStr,
-                    IpAddress = this.ClientInfo.ClientPhysicalIp,
+                    IpAddress = this.ClientInfo.ClientIp,
                     Port = p["Port"].SIntValue,
-                    HostName = this.ClientInfo.ClientPhysicalIp,
+                    HostName = this.ClientInfo.ClientIpFqdn,
                     Performance = p["Performance"].SIntValue,
                     NumSessions = 0,
                     Build = p["Build"].SIntValue,
                     MacAddress = p["MacAddress"].StrValueNonNull,
                     OsInfo = p["OsInfo"].StrValueNonNull,
+                    UltraCommitId = p["UltraCommitId"].StrValueNonNull,
+                    CurrentTime = p["CurrentTime"].DateTimeValue.ToLocalTime(),
+                    BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
                 };
 
                 var now = DtNow;
@@ -418,10 +425,32 @@ namespace IPA.Cores.Codes
                     ret.AdditionalInfo.Add("DeleteSession", session._GetObjectDumpForJsonFriendly());
                 }
 
-                string? secretKey = Controller.Db.GetVarString("ControllerGateSecretKey");
-                if (secretKey._IsFilled()) ret.Pack.AddStr("ControllerGateSecretKey", secretKey);
+                AddGateSettingsToPack(ret.Pack);
 
                 return ret;
+            }
+
+            // Gate にとって有用な設定を Gate に返送する
+            void AddGateSettingsToPack(Pack p)
+            {
+                string? secretKey = Controller.Db.GetVarString("ControllerGateSecretKey");
+                if (secretKey._IsFilled()) p.AddStr("ControllerGateSecretKey", secretKey);
+
+                var db = Controller.Db.MemDb;
+                if (db != null)
+                {
+                    var varsList = db.VarList;
+                    var names = varsList.Where(x => x.VAR_NAME.StartsWith("GateSettings_Int_", StringComparison.OrdinalIgnoreCase)).Select(x => x.VAR_NAME).Distinct(StrComparer.IgnoreCaseComparer);
+
+                    names._DoForEach(x =>
+                    {
+                        var item = db.VarByName._GetOrDefault(x)?.FirstOrDefault();
+                        if (item != null)
+                        {
+                            p.AddInt(item.VAR_NAME, (uint)item.VAR_VALUE1._ToInt());
+                        }
+                    });
+                }
             }
 
             public async Task<WpcResult> ProcessWpcRequestCoreAsync(string wpcRequestString, CancellationToken cancel = default)

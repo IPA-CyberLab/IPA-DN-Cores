@@ -139,8 +139,20 @@ namespace IPA.Cores.Basic
                             object? obj = Rw.GetValue(row, name);
                             string dataStr = obj?.ToString()._NonNull() ?? "";
 
-                            if (obj is DateTime dt1) dataStr = dt1._ToDtStr();
-                            if (obj is DateTimeOffset dt2) dataStr = dt2._ToDtStr();
+                            switch (obj)
+                            {
+                                case DateTime dt:
+                                    dataStr = dt._ToDtStr();
+                                    break;
+
+                                case DateTimeOffset dt:
+                                    dataStr = dt._ToDtStr();
+                                    break;
+
+                                case TimeSpan ts:
+                                    dataStr = ts._ToTsStr();
+                                    break;
+                            }
 
                             string dataHtml = dataStr._EncodeHtml(true, true);
 
