@@ -173,19 +173,19 @@ namespace IPA.Cores.Codes
     // ThinController 統計データ
     public class ThinControllerStat
     {
-        public int CurrentRelayGates;
-        public int CurrentUserSessionsServer;
-        public int CurrentUserSessionsClient1;
-        public int CurrentUserSessionsClient2;
-        public int TotalServers;
-        public int ActiveServers_Day01;
-        public int ActiveServers_Day03;
-        public int ActiveServers_Day07;
-        public int ActiveServers_Day30;
-        public int TodaysNewServers;
-        public int YestardaysNewServers;
-        public double TotalServerConnectRequestsKilo;
-        public double TotalClientConnectRequestsKilo;
+        public int Stat_CurrentRelayGates;
+        public int Stat_CurrentUserSessionsServer;
+        public int Stat_CurrentUserSessionsClient1;
+        public int Stat_CurrentUserSessionsClient2;
+        public int Stat_TotalServers;
+        public int Stat_ActiveServers_Day01;
+        public int Stat_ActiveServers_Day03;
+        public int Stat_ActiveServers_Day07;
+        public int Stat_ActiveServers_Day30;
+        public int Stat_TodaysNewServers;
+        public int Stat_YestardaysNewServers;
+        public double Stat_TotalServerConnectRequestsKilo;
+        public double Stat_TotalClientConnectRequestsKilo;
 
         public int Sys_DotNet_NumRunningTasks;
         public int Sys_DotNet_NumDelayedTasks;
@@ -1338,19 +1338,19 @@ namespace IPA.Cores.Codes
                         var stat = this.GenerateStat();
                         if (stat != null)
                         {
-                            nums.Add("Stat_CurrentRelayGates", stat.CurrentRelayGates);
-                            nums.Add("Stat_CurrentUserSessionsServer", stat.CurrentUserSessionsServer);
-                            nums.Add("Stat_CurrentUserSessionsClient1", stat.CurrentUserSessionsClient1);
-                            nums.Add("Stat_CurrentUserSessionsClient2", stat.CurrentUserSessionsClient2);
-                            nums.Add("Stat_TotalServers", stat.TotalServers);
-                            nums.Add("Stat_ActiveServers_Day01", stat.ActiveServers_Day01);
-                            nums.Add("Stat_ActiveServers_Day03", stat.ActiveServers_Day03);
-                            nums.Add("Stat_ActiveServers_Day07", stat.ActiveServers_Day07);
-                            nums.Add("Stat_ActiveServers_Day30", stat.ActiveServers_Day30);
-                            nums.Add("Stat_TodaysNewServers", stat.TodaysNewServers);
-                            nums.Add("Stat_YestardaysNewServers", stat.YestardaysNewServers);
-                            nums.Add("Stat_TotalServerConnectRequests", (long)(stat.TotalServerConnectRequestsKilo * 1000.0));
-                            nums.Add("Stat_TotalClientConnectRequests", (long)(stat.TotalClientConnectRequestsKilo * 1000.0));
+                            nums.Add("Stat_CurrentRelayGates", stat.Stat_CurrentRelayGates);
+                            nums.Add("Stat_CurrentUserSessionsServer", stat.Stat_CurrentUserSessionsServer);
+                            nums.Add("Stat_CurrentUserSessionsClient1", stat.Stat_CurrentUserSessionsClient1);
+                            nums.Add("Stat_CurrentUserSessionsClient2", stat.Stat_CurrentUserSessionsClient2);
+                            nums.Add("Stat_TotalServers", stat.Stat_TotalServers);
+                            nums.Add("Stat_ActiveServers_Day01", stat.Stat_ActiveServers_Day01);
+                            nums.Add("Stat_ActiveServers_Day03", stat.Stat_ActiveServers_Day03);
+                            nums.Add("Stat_ActiveServers_Day07", stat.Stat_ActiveServers_Day07);
+                            nums.Add("Stat_ActiveServers_Day30", stat.Stat_ActiveServers_Day30);
+                            nums.Add("Stat_TodaysNewServers", stat.Stat_TodaysNewServers);
+                            nums.Add("Stat_YestardaysNewServers", stat.Stat_YestardaysNewServers);
+                            nums.Add("Stat_TotalServerConnectRequests", (long)(stat.Stat_TotalServerConnectRequestsKilo * 1000.0));
+                            nums.Add("Stat_TotalClientConnectRequests", (long)(stat.Stat_TotalClientConnectRequestsKilo * 1000.0));
 
                             nums.Add("Sys_DotNet_NumRunningTasks", stat.Sys_DotNet_NumRunningTasks);
                             nums.Add("Sys_DotNet_NumDelayedTasks", stat.Sys_DotNet_NumDelayedTasks);
@@ -1442,10 +1442,10 @@ namespace IPA.Cores.Codes
             {
                 await db.QueryWithNoReturnAsync("INSERT INTO STAT (STAT_DATE, STAT_NUM_GATES, STAT_NUM_SERVERS, STAT_NUM_CLIENTS, STAT_NUM_UNIQUE_CLIENTS, STAT_HOSTNAME, STAT_JSON) VALUES (@,@,@,@,@,@,@)",
                                 now,
-                                stat.CurrentRelayGates,
-                                stat.CurrentUserSessionsServer,
-                                stat.CurrentUserSessionsClient1,
-                                stat.CurrentUserSessionsClient2,
+                                stat.Stat_CurrentRelayGates,
+                                stat.Stat_CurrentUserSessionsServer,
+                                stat.Stat_CurrentUserSessionsClient1,
+                                stat.Stat_CurrentUserSessionsClient2,
                                 Env.MachineName.ToLower(),
                                 stat._ObjectToJson(compact: true)
                                 );
@@ -1830,19 +1830,19 @@ namespace IPA.Cores.Codes
 
             ThinControllerStat ret = new ThinControllerStat
             {
-                CurrentRelayGates = SessionManager.GateTable.Count,
-                CurrentUserSessionsServer = SessionManager.GateTable.Values.Sum(x => x.SessionTable.Count),
-                CurrentUserSessionsClient1 = SessionManager.GateTable.Values.Sum(x => x.SessionTable.Values.Sum(s => s.NumClients)),
-                CurrentUserSessionsClient2 = SessionManager.GateTable.Values.Sum(x => x.SessionTable.Values.Sum(s => s.NumClientsUnique)),
-                TotalServers = mem.MachineList.Count,
-                ActiveServers_Day01 = mem.MachineList.Where(x => x.LAST_CLIENT_DATE >= days1).Count(),
-                ActiveServers_Day03 = mem.MachineList.Where(x => x.LAST_CLIENT_DATE >= days3).Count(),
-                ActiveServers_Day07 = mem.MachineList.Where(x => x.LAST_CLIENT_DATE >= days7).Count(),
-                ActiveServers_Day30 = mem.MachineList.Where(x => x.LAST_CLIENT_DATE >= days30).Count(),
-                TodaysNewServers = mem.MachineList.Where(x => x.CREATE_DATE >= today).Count(),
-                YestardaysNewServers = mem.MachineList.Where(x => x.CREATE_DATE >= yesterday && x.CREATE_DATE < today).Count(),
-                TotalServerConnectRequestsKilo = (double)mem.MachineList.Sum(x => (long)x.NUM_SERVER) / 1000.0,
-                TotalClientConnectRequestsKilo = (double)mem.MachineList.Sum(x => (long)x.NUM_CLIENT) / 1000.0,
+                Stat_CurrentRelayGates = SessionManager.GateTable.Count,
+                Stat_CurrentUserSessionsServer = SessionManager.GateTable.Values.Sum(x => x.SessionTable.Count),
+                Stat_CurrentUserSessionsClient1 = SessionManager.GateTable.Values.Sum(x => x.SessionTable.Values.Sum(s => s.NumClients)),
+                Stat_CurrentUserSessionsClient2 = SessionManager.GateTable.Values.Sum(x => x.SessionTable.Values.Sum(s => s.NumClientsUnique)),
+                Stat_TotalServers = mem.MachineList.Count,
+                Stat_ActiveServers_Day01 = mem.MachineList.Where(x => x.LAST_CLIENT_DATE >= days1).Count(),
+                Stat_ActiveServers_Day03 = mem.MachineList.Where(x => x.LAST_CLIENT_DATE >= days3).Count(),
+                Stat_ActiveServers_Day07 = mem.MachineList.Where(x => x.LAST_CLIENT_DATE >= days7).Count(),
+                Stat_ActiveServers_Day30 = mem.MachineList.Where(x => x.LAST_CLIENT_DATE >= days30).Count(),
+                Stat_TodaysNewServers = mem.MachineList.Where(x => x.CREATE_DATE >= today).Count(),
+                Stat_YestardaysNewServers = mem.MachineList.Where(x => x.CREATE_DATE >= yesterday && x.CREATE_DATE < today).Count(),
+                Stat_TotalServerConnectRequestsKilo = (double)mem.MachineList.Sum(x => (long)x.NUM_SERVER) / 1000.0,
+                Stat_TotalClientConnectRequestsKilo = (double)mem.MachineList.Sum(x => (long)x.NUM_CLIENT) / 1000.0,
 
                 Sys_DotNet_NumRunningTasks = sys.Task,
                 Sys_DotNet_NumDelayedTasks = sys.D,
