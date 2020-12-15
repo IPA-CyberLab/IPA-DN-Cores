@@ -1004,6 +1004,22 @@ namespace IPA.Cores.Codes
                     // 発見
                     return foundMachine;
                 }
+
+                // 2020/04 頃に登録された古いマシンは hostSecret2 がデータベースに登録されていない場合がある
+                foundMachine = mem.MachineByCertHashAndHostSecret2._GetOrDefault(hostKey + "@");
+                if (foundMachine != null)
+                {
+                    // 発見
+                    // データベースに hostSecret2 を登録する (つまり、アップグレード)
+                    await using var db2 = await OpenDatabaseForWriteAsync(cancel);
+
+                    await db2.QueryWithNoReturnAsync("UPDATE MACHINE SET HOST_SECRET2 = @ WHERE MSID = @ and HOST_SECRET2 = ''",
+                        hostSecret2, foundMachine.MSID);
+
+                    $"AuthMachineAsync: Upgrade hostSecret2: MSID = {foundMachine.MSID}"._Debug();
+
+                    return foundMachine;
+                }
             }
 
             if (IsDatabaseConnected == false)
@@ -1019,7 +1035,8 @@ namespace IPA.Cores.Codes
 
             var foundMachine2 = await db.TranReadSnapshotIfNecessaryAsync(async () =>
             {
-                return await db.EasySelectSingleAsync<ThinDbMachine>("select * from MACHINE where CERT_HASH = @CERT_HASH and HOST_SECRET2 = @HOST_SECRET2",
+                // 2020/04 頃に登録された古いマシンは hostSecret2 がデータベースに登録されていない場合がある
+                return await db.EasySelectSingleAsync<ThinDbMachine>("select * from MACHINE where CERT_HASH = @CERT_HASH and (HOST_SECRET2 = @HOST_SECRET2 OR HOST_SECRET2 = '')",
                     new
                     {
                         CERT_HASH = hostKey,
