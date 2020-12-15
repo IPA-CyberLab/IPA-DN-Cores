@@ -43,6 +43,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -158,6 +159,8 @@ namespace IPA.Cores.Codes
         public string CREATE_HOST { get; set; } = "";
         [SimpleTableOrder(6)]
         public string LAST_IP { get; set; } = "";
+        [SimpleTableOrder(6.1)]
+        public string LAST_CLIENT_IP { get; set; } = "";
         [SimpleTableIgnore]
         public string REAL_PROXY_IP { get; set; } = "";
         [SimpleTableIgnore]
@@ -338,6 +341,16 @@ namespace IPA.Cores.Codes
         }
     }
 
+    public class ThinDatabaseUpdateJob
+    {
+        public Func<Database, CancellationToken, Task> ProcAsync { get; }
+
+        public ThinDatabaseUpdateJob(Func<Database, CancellationToken, Task> procAsync)
+        {
+            ProcAsync = procAsync;
+        }
+    }
+
     public class ThinDatabasePcidChangeHistory
     {
         public string Msid { get; }
@@ -371,6 +384,8 @@ namespace IPA.Cores.Codes
         readonly FastCache<string, ThinDatabasePcidChangeHistory> PcidChangeHistoryCache = new FastCache<string, ThinDatabasePcidChangeHistory>(ThinControllerConsts.Max_ControllerDbReadFullReloadIntervalMsecs * 4, comparer: StrComparer.IgnoreCaseComparer);
         readonly CriticalSection PcidChangeLock = new CriticalSection<ThinDatabasePcidChangeHistory>();
 
+        ImmutableQueue<ThinDatabaseUpdateJob> UpdateJobQueue = ImmutableQueue<ThinDatabaseUpdateJob>.Empty;
+
         public ThinDatabase(ThinController controller)
         {
             try
@@ -387,6 +402,11 @@ namespace IPA.Cores.Codes
                 this._DisposeSafe();
                 throw;
             }
+        }
+
+        public void EnqueueUpdateJob(Func<Database, CancellationToken, Task> proc)
+        {
+            ImmutableInterlocked.Enqueue(ref this.UpdateJobQueue, new ThinDatabaseUpdateJob(proc));
         }
 
         public async Task<Database> OpenDatabaseForReadAsync(CancellationToken cancel = default)
@@ -414,7 +434,6 @@ namespace IPA.Cores.Codes
         {
             try
             {
-
                 IEnumerable<ThinDbSvc> allSvcs = null!;
                 IEnumerable<ThinDbMachine> allMachines = null!;
                 IEnumerable<ThinDbVar> allVars = null!;
@@ -518,11 +537,67 @@ namespace IPA.Cores.Codes
             }
         }
 
+        // データベース更新メイン
+        async Task<int> WriteCoreAsync(CancellationToken cancel)
+        {
+            int num = 0;
+            await using var db = await OpenDatabaseForWriteAsync(cancel);
+
+            await db.EnsureOpenAsync(cancel);
+
+            // キューが空になるまで 実施 いたします
+            while (cancel.IsCancellationRequested == false)
+            {
+                if (ImmutableInterlocked.TryDequeue(ref this.UpdateJobQueue, out ThinDatabaseUpdateJob? queue) == false)
+                {
+                    break;
+                }
+
+                RetryHelper<int> r = new RetryHelper<int>(100, 10);
+
+                await r.RunAsync(async c =>
+                {
+                    await queue.ProcAsync(db, c);
+
+                    return 0;
+                }, cancel: cancel);
+
+                num++;
+            }
+
+            return num;
+        }
+
         // データベースを更新するタスク
         async Task WriteMainLoopAsync(CancellationToken cancel)
         {
+            int numCycle = 0;
+            int numError = 0;
             while (cancel.IsCancellationRequested == false)
             {
+                if (this.UpdateJobQueue.IsEmpty == false)
+                {
+                    numCycle++;
+
+                    $"ThinDatabase.WriteMainLoopAsync numCycle={numCycle}, numError={numError} Start."._Debug();
+
+                    long startTick = Time.HighResTick64;
+                    int num = 0;
+
+                    try
+                    {
+                        num = await WriteCoreAsync(cancel);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Error();
+                    }
+
+                    long endTick = Time.HighResTick64;
+
+                    $"ThinDatabase.WriteMainLoopAsync numCycle={numCycle}, numError={numError} End. Written items: {num}, Took time: {endTick - startTick}"._Debug();
+                }
+
                 await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(Controller.CurrentValue_ControllerDbWriteUpdateIntervalMsecs));
             }
         }
@@ -566,6 +641,59 @@ namespace IPA.Cores.Codes
         }
 
         readonly AsyncLock RenamePcidAsyncLock = new AsyncLock();
+
+        // WoL MAC の即時更新
+        public async Task UpdateDbForWolMac(string msid, string wolMacList, long serverMask64, DateTime now, CancellationToken cancel)
+        {
+            msid = msid._NonNullTrim();
+            now = now._NormalizeDateTime();
+            wolMacList = wolMacList._NonNull();
+
+            if (this.IsDatabaseConnected == false)
+            {
+                // データベースエラー発生中はこの処理は実行できない (スキップいたします)
+                return;
+            }
+
+            await using var db = await OpenDatabaseForWriteAsync(cancel);
+
+            await db.QueryWithNoReturnAsync("UPDATE MACHINE SET LAST_SERVER_DATE = @, WOL_MACLIST = @, SERVERMASK64 = @ WHERE MSID = @",
+                now, wolMacList, serverMask64, msid);
+        }
+
+        // ClientConnect によるデータベース情報更新
+        public void UpdateDbForClientConnect(string msid, DateTime now, string lastClientIp)
+        {
+            msid = msid._NonNullTrim();
+            now = now._NormalizeDateTime();
+            lastClientIp = lastClientIp._NonNullTrim();
+
+            EnqueueUpdateJob(async (db, c) =>
+            {
+                await db.QueryWithNoReturnAsync(
+                    "UPDATE MACHINE SET NUM_CLIENT = NUM_CLIENT + 1, LAST_CLIENT_DATE = @, LAST_CLIENT_IP = @ WHERE MSID = @ " +
+                    "UPDATE MACHINE SET FIRST_CLIENT_DATE = @ WHERE MSID = @ AND FIRST_CLIENT_DATE IS NULL",
+                    now, lastClientIp, msid,
+                    now, msid);
+            });
+        }
+
+        // ServerConnect によるデータベース情報更新
+        public void UpdateDbForServerConnect(string msid, DateTime now, string lastIp, string realProxyIp, string lastFlag, string wolMacList, long serverMask64)
+        {
+            msid = msid._NonNullTrim();
+            now = now._NormalizeDateTime();
+            lastIp = lastIp._NonNullTrim();
+            realProxyIp = realProxyIp._NonNullTrim();
+            lastFlag = lastFlag._NonNullTrim();
+            wolMacList = wolMacList._NonNull();
+
+            EnqueueUpdateJob(async (db, c) =>
+            {
+                await db.QueryWithNoReturnAsync("UPDATE MACHINE SET NUM_SERVER = NUM_SERVER + 1, LAST_SERVER_DATE = @, LAST_IP = @, REAL_PROXY_IP = @, LAST_FLAG = @, WOL_MACLIST = @, SERVERMASK64 = @ WHERE MSID = @",
+                    now, lastIp, realProxyIp, lastFlag, wolMacList, serverMask64, msid);
+            });
+        }
 
         // PCID 変更実行
         public async Task<VpnErrors> RenamePcidAsync(string msid, string newPcid, DateTime now, CancellationToken cancel = default)
@@ -731,6 +859,33 @@ namespace IPA.Cores.Codes
             Controller.AddPcidToRecentPcidCandidateCache(pcid);
 
             return VpnErrors.ERR_NO_ERROR;
+        }
+
+        // MSID によるデータベースからの最新の Machine の取得
+        public async Task<ThinDbMachine?> SearchMachineByMsidFromDbForce(string msid, CancellationToken cancel = default)
+        {
+            if (IsDatabaseConnected == false)
+            {
+                // データベース読み込みメインループでエラーが発生している場合は、データベース接続を試行しない (大量の試行がなされ不具合が発生するおそれがあるため)
+                return null;
+            }
+
+            cancel.ThrowIfCancellationRequested();
+
+            // ローカルメモリデータベースの検索でヒットしなかった場合 (たとえば、最近作成されたホストの場合) は、マスタデータベースを物理的に検索する
+            await using var db = await OpenDatabaseForReadAsync(cancel);
+
+            var foundMachine = await db.TranReadSnapshotIfNecessaryAsync(async () =>
+            {
+                return await db.EasySelectSingleAsync<ThinDbMachine>("select * from MACHINE where MSID = @MSID",
+                    new
+                    {
+                        MSID = msid,
+                    },
+                    throwErrorIfMultipleFound: true, throwErrorIfNotFound: false, cancel: cancel);
+            });
+
+            return foundMachine;
         }
 
         // SvcName および Pcid による Machine の検索試行

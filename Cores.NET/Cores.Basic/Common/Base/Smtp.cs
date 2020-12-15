@@ -65,16 +65,16 @@ namespace IPA.Cores.Basic
                 case SmtpLanguage.Japanese:
                     //CharsetList.Add(Str.ISO88591Encoding);
                     CharsetList.Add(Str.AsciiEncoding);
-//                    CharsetList.Add(Str.ISO2022JPEncoding);
-//                    CharsetList.Add(Str.GB2312Encoding);
+                    //                    CharsetList.Add(Str.ISO2022JPEncoding);
+                    //                    CharsetList.Add(Str.GB2312Encoding);
                     CharsetList.Add(Str.Utf8Encoding);
                     break;
 
                 case SmtpLanguage.Simpled_Chinese:
                     //CharsetList.Add(Str.ISO88591Encoding);
                     CharsetList.Add(Str.AsciiEncoding);
-//                    CharsetList.Add(Str.GB2312Encoding);
-//                    CharsetList.Add(Str.ISO2022JPEncoding);
+                    //                    CharsetList.Add(Str.GB2312Encoding);
+                    //                    CharsetList.Add(Str.ISO2022JPEncoding);
                     CharsetList.Add(Str.Utf8Encoding);
                     break;
 
@@ -82,8 +82,8 @@ namespace IPA.Cores.Basic
                     //CharsetList.Add(Str.ISO88591Encoding);
                     CharsetList.Add(Str.AsciiEncoding);
                     CharsetList.Add(Str.Utf8Encoding);
-//                    CharsetList.Add(Str.ISO2022JPEncoding);
-//                    CharsetList.Add(Str.GB2312Encoding);
+                    //                    CharsetList.Add(Str.ISO2022JPEncoding);
+                    //                    CharsetList.Add(Str.GB2312Encoding);
                     break;
             }
         }
@@ -264,6 +264,12 @@ namespace IPA.Cores.Basic
             c.DeliveryMethod = SmtpDeliveryMethod.Network;
             c.EnableSsl = smtp.UseSSL;
 
+            if (smtp.Username._IsFilled() && smtp.Password._IsFilled())
+            {
+                c.UseDefaultCredentials = false;
+                c.Credentials = new System.Net.NetworkCredential(smtp.Username, smtp.Password);
+            }
+
             MailMessage mail = new MailMessage(CharsetList.NormalizeMailAddress(this.From),
                 CharsetList.NormalizeMailAddress(this.To));
 
@@ -325,7 +331,7 @@ namespace IPA.Cores.Basic
 
             if (this.ReplyTo != null)
             {
-//                mail.ReplyTo = this.ReplyTo;
+                //                mail.ReplyTo = this.ReplyTo;
                 mail.ReplyToList.Add(this.ReplyTo);
             }
 
@@ -355,12 +361,16 @@ namespace IPA.Cores.Basic
         public string SmtpServer { get; }
         public int SmtpPort { get; }
         public bool UseSSL { get; }
+        public string Username { get; }
+        public string Password { get; }
 
-        public SmtpConfig(string smtpServer, int smtpPort = Consts.Ports.Smtp, bool useSsl = false)
+        public SmtpConfig(string smtpServer, int smtpPort = Consts.Ports.Smtp, bool useSsl = false, string? username = null, string? password = null)
         {
             this.SmtpServer = smtpServer;
             this.SmtpPort = smtpPort;
             this.UseSSL = useSsl;
+            this.Username = username._NonNull();
+            this.Password = password._NonNull();
         }
     }
 

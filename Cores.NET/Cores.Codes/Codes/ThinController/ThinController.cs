@@ -163,7 +163,10 @@ namespace IPA.Cores.Codes
             return ipAddress;
         }
 
-        public virtual async Task<string?> DetermineConnectionProhibitedAsync(ThinController controller, bool isClientConnectMode, string serverIp, string? clientIp, ThinDbMachine serverMachine) => null;
+        public virtual async Task<string?> DetermineConnectionProhibitedAsync(ThinController controller, bool isClientConnectMode, string serverIp, string? clientIp, ThinDbMachine serverMachine, CancellationToken cancel = default) => null;
+
+        public virtual async Task<bool> SendOtpEmailAsync(ThinController controller, string otp, string emailTo, string emailFrom, string clientIp, string clientFqdn, string pcidMasked, string pcid,
+            string smtpServerHostname, int smtpServerPort, string smtpUsername, string smtpPassword, CancellationToken cancel = default) => throw new NotImplementedException();
     }
 #pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
 
@@ -310,6 +313,18 @@ namespace IPA.Cores.Codes
                 return ret2;
             }
 
+            if (machine.WOL_MACLIST._IsEmpty())
+            {
+                // オンメモリ上のデータベース上で WOL_MACLIST が空の場合はデータベースから読み込む
+                var machine2 = await Controller.Db.SearchMachineByMsidFromDbForce(machine.MSID, cancel);
+
+                if (machine2 != null)
+                {
+                    // データベースから読み込んだものを利用
+                    machine = machine2;
+                }
+            }
+
             var ret = NewWpcResult();
             var p = ret.Pack;
             p.AddStr("wol_maclist", machine.WOL_MACLIST._NonNullTrim());
@@ -413,6 +428,9 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("GateHostnameForProxy", fqdn);
             ret.AdditionalInfo.Add("GatePort", gateAndSession.A.Port.ToString());
 
+            // データベース更新
+            Controller.Db.UpdateDbForClientConnect(machine.MSID, DtNow, ClientInfo.ClientIp);
+
             return ret;
         }
 
@@ -499,7 +517,7 @@ namespace IPA.Cores.Codes
             }
 
             // MSID の生成
-            string msid = ThinController.GenerateMsid(req.HostKey, req.HostSecret2);
+            string msid = ThinController.GenerateMsid(req.HostKey, svcName);
 
             // 登録の実行
             var now = DtNow;
@@ -558,6 +576,51 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("machineName", machineName);
             ret.AdditionalInfo.Add("userName", userName);
             ret.AdditionalInfo.Add("computerName", computerName);
+
+            return ret;
+        }
+
+        // OTP メールを送信
+        public async Task<WpcResult> ProcSendOtpEmailAsync(WpcPack req, CancellationToken cancel)
+        {
+            var notAuthedErr = RequireMachineAuth(); if (notAuthedErr != null) return notAuthedErr; // 認証を要求
+
+            Pack q = req.Pack;
+
+            string otp = q["Otp"].StrValueNonNull;
+            string email = q["Email"].StrValueNonNull;
+            string clientIp = q["Ip"].StrValueNonNull;
+            string clientFqdn = q["Fqdn"].StrValueNonNull;
+            string pcid = ClientInfo.AuthedMachine!.PCID;
+
+            int pcidMaskLen = Math.Min(pcid.Length / 2, 4);
+            if (pcidMaskLen == pcid.Length && pcidMaskLen >= 1)
+            {
+                pcidMaskLen--;
+            }
+
+            string pcidMasked = pcid.Substring(0, pcid.Length - pcidMaskLen);
+            for (int i = 0; i < pcidMaskLen; i++)
+            {
+                pcidMasked += '*';
+            }
+
+            string smtpServerHostname = Controller.Db.GetVarString("SmtpServerHostname")._NonNullTrim();
+            int smtpServerPort = Controller.Db.GetVarString("SmtpServerPort")._NonNullTrim()._ToInt()._ZeroOrDefault(Consts.Ports.Smtp);
+            string smtpUsername = Controller.Db.GetVarString("SmtpUsername")._NonNullTrim();
+            string smtpPassword = Controller.Db.GetVarString("SmtpPassword")._NonNullTrim();
+            string otpFrom = Controller.Db.GetVarString("SmtpOtpFrom")._NonNullTrim();
+
+            bool ok = await Controller.Hook.SendOtpEmailAsync(Controller, otp, email, otpFrom, clientIp, clientFqdn, pcidMasked, pcid, smtpServerHostname, smtpServerPort, smtpUsername, smtpPassword, cancel);
+            var ret = NewWpcResult();
+            var p = ret.Pack;
+
+            ret.AdditionalInfo.Add("otp", otp);
+            ret.AdditionalInfo.Add("email", email);
+            ret.AdditionalInfo.Add("clientIp", clientIp);
+            ret.AdditionalInfo.Add("clientFqdn", clientFqdn);
+            ret.AdditionalInfo.Add("pcid", pcid);
+            ret.AdditionalInfo.Add("pcidMasked", pcidMasked);
 
             return ret;
         }
@@ -632,6 +695,32 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("GateHostname", bestGate.IpAddress);
             ret.AdditionalInfo.Add("GateHostnameForProxy", fqdn);
             ret.AdditionalInfo.Add("GatePort", bestGate.Port.ToString());
+
+            string wolMacList = req.Pack["wol_maclist"].StrValueNonNull;
+            long serverMask64 = req.Pack["ServerMask64"].SInt64Value;
+
+            var machine = this.ClientInfo.AuthedMachine!;
+            if (wolMacList._IsFilled() && machine.WOL_MACLIST._IsSamei(wolMacList) == false)
+            {
+                // WoL MAC アドレスリストが登録されようとしており、かつ、現在の DB の内容と異なる場合は、
+                // 直ちに DB 強制更新する
+                await Controller.Db.UpdateDbForWolMac(ClientInfo.AuthedMachine!.MSID, wolMacList, serverMask64, DtNow, cancel);
+
+                machine.WOL_MACLIST = wolMacList;
+                machine.SERVERMASK64 = serverMask64;
+            }
+
+            // DB 更新 (遅延)
+            string realProxyIp = "";
+            if (ClientInfo.ClientIp._IsSameIPAddress(ClientInfo.ClientPhysicalIp) == false)
+            {
+                realProxyIp = ClientInfo.ClientPhysicalIp;
+            }
+
+            Controller.Db.UpdateDbForServerConnect(ClientInfo.AuthedMachine!.MSID, DtNow, ClientInfo.ClientIp, realProxyIp,
+                ClientInfo.HttpQueryStringList._GetStrFirst("flag"),
+                wolMacList,
+                serverMask64);
 
             return ret;
         }
@@ -966,6 +1055,7 @@ namespace IPA.Cores.Codes
                     case "registmachine": return await ProcRegistMachine(req, cancel);
                     case "renamemachine": return await ProcRenameMachine(req, cancel);
                     case "serverconnect": return await ProcServerConnectAsync(req, cancel);
+                    case "sendotpemail": return await ProcSendOtpEmailAsync(req, cancel);
 
                     // クライアント系
                     case "clientconnect": return await ProcClientConnectAsync(req, cancel);
