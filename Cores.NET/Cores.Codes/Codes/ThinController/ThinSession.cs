@@ -78,6 +78,7 @@ using IPA.Cores.Helper.Web;
 using static IPA.Cores.Globals.Web;
 
 using static IPA.App.ThinControllerApp.AppGlobal;
+using Newtonsoft.Json;
 
 namespace IPA.Cores.Codes
 {
@@ -150,7 +151,7 @@ namespace IPA.Cores.Codes
         [SimpleTableOrder(18)]
         public TimeSpan BootTick;
         [SimpleTableOrder(18.5)]
-        public DateTime BootTime => DtNow - BootTick;
+        public DateTime BootTime => (BootTick.Ticks != 0 ? DtNow - BootTick : ZeroDateTimeValue);
 
         [SimpleTableOrder(12.1)]
         public int NumClients => this.SessionTable.Values.Sum(x => x.NumClients);
@@ -159,6 +160,7 @@ namespace IPA.Cores.Codes
 
         [NoDebugDump]
         [SimpleTableIgnore]
+        [JsonIgnore]
         public ImmutableDictionary<string, ThinSession> SessionTable = ImmutableDictionary<string, ThinSession>.Empty;
 
         public void Normalize()

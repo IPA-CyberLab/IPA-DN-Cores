@@ -170,6 +170,38 @@ namespace IPA.Cores.Codes
     }
 #pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
 
+    // ThinController 統計データ
+    public class ThinControllerStat
+    {
+        public int CurrentRelayGates;
+        public int CurrentUserSessionsServer;
+        public int CurrentUserSessionsClient1;
+        public int CurrentUserSessionsClient2;
+        public int TotalServers;
+        public int ActiveServers_Day01;
+        public int ActiveServers_Day03;
+        public int ActiveServers_Day07;
+        public int ActiveServers_Day30;
+        public int TodaysNewServers;
+        public int YestardaysNewServers;
+        public double TotalServerConnectRequestsKilo;
+        public double TotalClientConnectRequestsKilo;
+
+        public int Sys_DotNet_NumRunningTasks;
+        public int Sys_DotNet_NumDelayedTasks;
+        public int Sys_DotNet_NumTimerTasks;
+        public int Sys_DotNet_NumObjects;
+        public int Sys_DotNet_CpuUsage;
+        public double Sys_DotNet_ManagedMemory_MBytes;
+        public double Sys_DotNet_ProcessMemory_MBytes;
+        public int Sys_DotNet_GcTotal, Sys_DotNet_Gc0, Sys_DotNet_Gc1, Sys_DotNet_Gc2;
+
+        public double Sys_Thin_BootDays;
+        public int Sys_Thin_ConcurrentRequests;
+        public int Sys_Thin_LastDbReadTookMsecs;
+        public int Sys_Thin_IsDatabaseConnected;
+    }
+
     public class ThinControllerSessionClientInfo
     {
         public ThinControllerServiceType ServiceType { get; }
@@ -194,14 +226,12 @@ namespace IPA.Cores.Codes
 
             this.ClientPhysicalIp = box.RemoteEndpoint.Address.ToString();
 
-            if (this.ServiceType == ThinControllerServiceType.ApiServiceForGateway)
-            {
-                this.ClientIp = box.Request.Headers._GetStrFirst("X-WG-Proxy-SrcIP", this.ClientPhysicalIp);
+            string proxySrcIp = box.Request.Headers._GetStrFirst("X-WG-Proxy-SrcIP");
 
-                if (this.ClientPhysicalIp != this.ClientIp)
-                {
-                    this.IsProxyMode = true;
-                }
+            if (proxySrcIp._IsFilled() && proxySrcIp != this.ClientIp)
+            {
+                this.ClientIp = proxySrcIp;
+                this.IsProxyMode = true;
             }
             else
             {
@@ -777,6 +807,11 @@ namespace IPA.Cores.Codes
         // Gate のセキュリティ検査
         async Task GateSecurityCheckAsync(WpcPack req, CancellationToken cancel)
         {
+            if (this.ClientInfo.ServiceType != ThinControllerServiceType.ApiServiceForGateway)
+            {
+                throw new CoresException($"ClientInfo.ServiceType != ThinControllerServiceType.ApiServiceForGateway. IP: {ClientInfo.ClientIp}, Physical IP: {ClientInfo.ClientPhysicalIp}");
+            }
+
             string gateKey = req.Pack["GateKey"].StrValueNonNull;
 
             bool ok = false;
@@ -788,7 +823,7 @@ namespace IPA.Cores.Codes
 
             if (ok == false)
             {
-                throw new CoresException($"The specified gateKey '{gateKey}' is invalid.");
+                throw new CoresException($"The specified gateKey '{gateKey}' is invalid. IP: {ClientInfo.ClientIp}, Physical IP: {ClientInfo.ClientPhysicalIp}");
             }
 
             // Gate の場合 IP 逆引きの実行
@@ -1231,11 +1266,15 @@ namespace IPA.Cores.Codes
 
         public DateTimeOffset BootDateTime { get; } = DtOffsetNow;
 
+        public long BootTick { get; } = TickNow;
+
         public ThinControllerHookBase Hook { get; }
 
         // データベース
         public ThinDatabase Db { get; }
         public ThinSessionManager SessionManager { get; }
+
+        readonly Task RecordStatTask;
 
         public ThinController(ThinControllerSettings settings, ThinControllerHookBase hook, Func<ThinControllerSettings>? getDefaultSettings = null)
         {
@@ -1254,6 +1293,8 @@ namespace IPA.Cores.Codes
 
                 this.Db = new ThinDatabase(this);
                 this.SessionManager = new ThinSessionManager();
+
+                this.RecordStatTask = RecordStatAsync()._LeakCheck();
             }
             catch (Exception ex)
             {
@@ -1268,6 +1309,68 @@ namespace IPA.Cores.Codes
         }
 
         readonly RefInt CurrentConcurrentProcess = new RefInt();
+
+        // 統計記録用タスク
+        async Task RecordStatAsync()
+        {
+            CancellationToken cancel = this.GrandCancel;
+
+            long lastTick = 0;
+
+            int nextInterval = Util.GenRandInterval(this.CurrentValue_ControllerRecordStatIntervalMsecs);
+
+            while (cancel.IsCancellationRequested == false)
+            {
+                long now = TickNow;
+
+                if (lastTick == 0 || now >= (lastTick + nextInterval))
+                {
+                    lastTick = now;
+                    nextInterval = Util.GenRandInterval(this.CurrentValue_ControllerRecordStatIntervalMsecs);
+
+                    try
+                    {
+                        await RecordStatCoreAsync(cancel);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Error();
+                    }
+                }
+
+                await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(1000));
+            }
+        }
+
+        async Task RecordStatCoreAsync(CancellationToken cancel)
+        {
+            var stat = this.GenerateStat();
+            if (stat == null)
+            {
+                return;
+            }
+
+            var now = DtNow;
+
+            // ファイルに記録
+            stat._PostData("ThinControllerStat", noWait: true);
+
+            // DB にポスト
+            this.Db.EnqueueUpdateJob(async (db, cancel) =>
+            {
+                await db.QueryWithNoReturnAsync("INSERT INTO STAT (STAT_DATE, STAT_NUM_GATES, STAT_NUM_SERVERS, STAT_NUM_CLIENTS, STAT_NUM_UNIQUE_CLIENTS, STAT_HOSTNAME, STAT_JSON) VALUES (@,@,@,@,@,@,@)",
+                                now,
+                                stat.CurrentRelayGates,
+                                stat.CurrentUserSessionsServer,
+                                stat.CurrentUserSessionsClient1,
+                                stat.CurrentUserSessionsClient2,
+                                Env.MachineName.ToLower(),
+                                stat._ObjectToJson(compact: true)
+                                );
+            });
+
+            await TaskCompleted;
+        }
 
         // 管理用ビューを取得
         public ThinAdminView GetAdminView()
@@ -1285,6 +1388,114 @@ namespace IPA.Cores.Codes
             ret.MachinesList = this.Db.MemDb?.MachineList.OrderBy(x => x.CREATE_DATE) ?? null;
 
             return ret;
+        }
+
+        async Task<HttpResult?> SpecialHandlingAsync(HttpEasyContextBox box, ThinControllerSessionClientInfo clientInfo, CancellationToken cancel)
+        {
+            string urlPath = box.PathAndQueryStringUri.AbsolutePath._NonNullTrim();
+
+            // ステータステキスト応答モード (例: /thincontrol/api/stat/)
+            if (urlPath._InStr("api/", true) && urlPath._InStr("/stat", true))
+            {
+                if (Db.IsLoaded == false)
+                {
+                    return new HttpErrorResult(Consts.HttpStatusCodes.InternalServerError, $"The database is not loaded yet.");
+                }
+                else
+                {
+                    string password = box.QueryStringList._GetStrFirst("password");
+                    string password2 = Db.GetVarString("QueryPassword_Stat")._NonNullTrim();
+                    if (password2._IsEmpty() || password2 == password)
+                    {
+                        var stat = this.GenerateStat()!;
+                        string body;
+                        string mime;
+
+                        if (urlPath._InStr("json", true) == false)
+                        {
+                            // 通常モード (例: /thincontrol/api/stat/)
+                            var rw = FieldReaderWriter.GetCached<ThinControllerStat>();
+
+                            StringWriter w = new StringWriter();
+
+                            w.WriteLine($"# {DtNow._ToDtStr()}");
+
+                            foreach (string name in rw.OrderedPublicFieldOrPropertyNamesList)
+                            {
+                                object? obj = rw.GetValue(stat, name);
+                                string objStr;
+                                if (obj is double d)
+                                {
+                                    objStr = d.ToString("F3");
+                                }
+                                else
+                                {
+                                    objStr = obj?.ToString() ?? "";
+                                }
+                                if (objStr._IsEmpty())
+                                {
+                                    objStr = "0";
+                                }
+
+                                w.WriteLine($"{name}: {objStr}");
+                            }
+
+                            body = w.ToString();
+                            mime = Consts.MimeTypes.Text;
+                        }
+                        else
+                        {
+                            // JSON モード (例: /thincontrol/api/statjson/)
+                            body = stat._ObjectToJson();
+                            mime = Consts.MimeTypes.Json;
+                        }
+
+                        await TaskCompleted;
+
+                        return new HttpStringResult(body, mime);
+                    }
+                    else
+                    {
+                        return new HttpErrorResult(Consts.HttpStatusCodes.Forbidden, $"Invalid query password.");
+                    }
+                }
+            }
+
+            // 中継ゲートウェイ列挙モード (例: /thincontrol/api/gates/)
+            if (urlPath._InStr("api/", true) && urlPath._InStr("/gates", true))
+            {
+                string password = box.QueryStringList._GetStrFirst("password");
+                string password2 = Db.GetVarString("QueryPassword_Gates")._NonNullTrim();
+                if (password2._IsEmpty() || password2 == password)
+                {
+                    var gates = SessionManager.GateTable.Values.OrderBy(x => x.IpAddress, StrComparer.IpAddressStrComparer).ThenBy(x => x.GateId, StrComparer.IgnoreCaseComparer);
+
+                    return new HttpStringResult(gates._ObjectToJson(), Consts.MimeTypes.Json);
+                }
+                else
+                {
+                    return new HttpErrorResult(Consts.HttpStatusCodes.Forbidden, $"Invalid query password.");
+                }
+            }
+
+            // セッション列挙モード (例: /thincontrol/api/sessions/)
+            if (urlPath._InStr("api/", true) && urlPath._InStr("/sessions", true))
+            {
+                string password = box.QueryStringList._GetStrFirst("password");
+                string password2 = Db.GetVarString("QueryPassword_Sessions")._NonNullTrim();
+                if (password2._IsEmpty() || password2 == password)
+                {
+                    var sessions = SessionManager.GateTable.Values.SelectMany(x => x.SessionTable.Values).OrderBy(x => x.SessionId).ThenBy(x => x.EstablishedDateTime);
+
+                    return new HttpStringResult(sessions._ObjectToJson(), Consts.MimeTypes.Json);
+                }
+                else
+                {
+                    return new HttpErrorResult(Consts.HttpStatusCodes.Forbidden, $"Invalid query password.");
+                }
+            }
+
+            return null;
         }
 
         public async Task<HttpResult> HandleWpcAsync(HttpEasyContextBox box, object? param2)
@@ -1313,6 +1524,26 @@ namespace IPA.Cores.Codes
                 // クライアント情報
                 ThinControllerSessionClientInfo clientInfo = new ThinControllerSessionClientInfo(box, param.ServiceType);
 
+                if (clientInfo.IsProxyMode)
+                {
+                    // "X-WG-Proxy-SrcIP" HTTP ヘッダの値は、"AllowedProxyIpAcl" 設定変数に記載されている IP アドレスからのみ受付ける
+                    var proxyAclStr = Db.GetVarString("AllowedProxyIpAcl")._NonNullTrim();
+                    if (EasyIpAcl.Evaluate(proxyAclStr, clientInfo.ClientPhysicalIp, enableCache: true) == EasyIpAclAction.Deny)
+                    {
+                        // 不正プロキシ
+                        string errStr = $"Error: The client IP address '{clientInfo.ClientPhysicalIp}' is not allowed as the proxy server. Check the 'AllowedProxyIpAcl' variable.";
+                        errStr._Error();
+                        return new HttpErrorResult(Consts.HttpStatusCodes.Forbidden, errStr);
+                    }
+                }
+
+                // 特別ハンドリングの試行
+                var specialResult = await SpecialHandlingAsync(box, clientInfo, cancel);
+                if (specialResult != null)
+                {
+                    return specialResult;
+                }
+
                 // WPC リクエスト文字列の受信
                 string requestWpcString = "";
                 if (box.Method == WebMethods.POST)
@@ -1337,6 +1568,7 @@ namespace IPA.Cores.Codes
                     WpcResult result = new WpcResult(VpnErrors.ERR_PROTOCOL_ERROR);
                     return new HttpStringResult(result.ToWpcPack().ToPacketString());
                 }
+
             }
             catch (Exception ex)
             {
@@ -1397,6 +1629,8 @@ namespace IPA.Cores.Codes
 
                 await this.DnsResolver._DisposeSafeAsync();
 
+                await this.RecordStatTask._TryAwait(true);
+
                 this.SettingsHive._DisposeSafe();
             }
             finally
@@ -1419,7 +1653,128 @@ namespace IPA.Cores.Codes
         public int CurrentValue_ControllerDbBackupFileWriteIntervalMsecs
             => (this.Db?.MemDb?.ControllerDbBackupFileWriteIntervalMsecs)._ZeroOrDefault(ThinControllerConsts.Default_ControllerDbBackupFileWriteIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbBackupFileWriteIntervalMsecs);
 
+        public int CurrentValue_ControllerRecordStatIntervalMsecs
+            => (this.Db?.MemDb?.ControllerRecordStatIntervalMsecs)._ZeroOrDefault(ThinControllerConsts.Default_ControllerRecordStatIntervalMsecs, max: ThinControllerConsts.Max_ControllerRecordStatIntervalMsecs);
+
         // ユーティリティ関数系
+
+        // Web に表示可能なステータス情報の取得
+        public IEnumerable<Pair2<string, IEnumerable<StrKeyValueItem>>> GetAdminStatus(bool refresh = false)
+        {
+            List<Pair2<string, IEnumerable<StrKeyValueItem>>> ret = new List<Pair2<string, IEnumerable<StrKeyValueItem>>>();
+
+            var stat = GenerateStat(refresh);
+            if (stat != null)
+            {
+                // 統計データの生成
+                List<StrKeyValueItem> list = new List<StrKeyValueItem>();
+                var rw = FieldReaderWriter.GetCached<ThinControllerStat>();
+                foreach (string name in rw.OrderedPublicFieldOrPropertyNamesList)
+                {
+                    object? obj = rw.GetValue(stat, name);
+                    string str = (rw.GetValue(stat, name)?.ToString())._NonNullTrim();
+                    if (obj is double d) str = d.ToString("F3");
+                    list.Add(new StrKeyValueItem(name, str));
+                }
+
+                ret.Add(new Pair2<string, IEnumerable<StrKeyValueItem>>("ThinController System Status", list));
+            }
+
+            var env = new EnvInfoSnapshot();
+            if (env != null)
+            {
+                // 環境データの生成
+                List<StrKeyValueItem> list = new List<StrKeyValueItem>();
+                var rw = FieldReaderWriter.GetCached<EnvInfoSnapshot>();
+                foreach (string name in rw.OrderedPublicFieldOrPropertyNamesList)
+                {
+                    string str = (rw.GetValue(env, name)?.ToString())._NonNullTrim();
+                    list.Add(new StrKeyValueItem(name, str));
+                }
+
+                ret.Add(new Pair2<string, IEnumerable<StrKeyValueItem>>(".NET Runtime Environment Information", list));
+            }
+
+            return ret;
+        }
+
+        // 統計データの作成
+        readonly FastSingleCache<ThinControllerStat> StatCache = new FastSingleCache<ThinControllerStat>(ThinControllerConsts.ControllerStatCacheExpiresMsecs, 0, CacheType.DoNotUpdateExpiresWhenAccess);
+        public ThinControllerStat? GenerateStat(bool refresh = false)
+        {
+            if (Db.MemDb == null) return null;
+            if (refresh) StatCache.Clear();
+            return StatCache.GetOrCreate(() => GenerateStatCore());
+        }
+
+
+        ThinControllerStat? GenerateStatCore()
+        {
+            var now = DtNow;
+            var days1 = now.AddDays(-1);
+            var days3 = now.AddDays(-3);
+            var days7 = now.AddDays(-7);
+            var days30 = now.AddDays(-30);
+
+            var today = now.Date;
+            var yesterday = now.Date.AddDays(-1);
+
+            var mem = Db.MemDb;
+
+            if (mem == null)
+            {
+                return null;
+            }
+
+            CoresRuntimeStat sys = new CoresRuntimeStat();
+
+            sys.Refresh(true);
+
+            long processMemory = 0;
+            try
+            {
+                processMemory = Process.GetCurrentProcess().PrivateMemorySize64;
+            }
+            catch
+            {
+            }
+
+            ThinControllerStat ret = new ThinControllerStat
+            {
+                CurrentRelayGates = SessionManager.GateTable.Count,
+                CurrentUserSessionsServer = SessionManager.GateTable.Values.Sum(x => x.SessionTable.Count),
+                CurrentUserSessionsClient1 = SessionManager.GateTable.Values.Sum(x => x.SessionTable.Values.Sum(s => s.NumClients)),
+                CurrentUserSessionsClient2 = SessionManager.GateTable.Values.Sum(x => x.SessionTable.Values.Sum(s => s.NumClientsUnique)),
+                TotalServers = mem.MachineList.Count,
+                ActiveServers_Day01 = mem.MachineList.Where(x => x.LAST_CLIENT_DATE >= days1).Count(),
+                ActiveServers_Day03 = mem.MachineList.Where(x => x.LAST_CLIENT_DATE >= days3).Count(),
+                ActiveServers_Day07 = mem.MachineList.Where(x => x.LAST_CLIENT_DATE >= days7).Count(),
+                ActiveServers_Day30 = mem.MachineList.Where(x => x.LAST_CLIENT_DATE >= days30).Count(),
+                TodaysNewServers = mem.MachineList.Where(x => x.CREATE_DATE >= today).Count(),
+                YestardaysNewServers = mem.MachineList.Where(x => x.CREATE_DATE >= yesterday && x.CREATE_DATE < today).Count(),
+                TotalServerConnectRequestsKilo = (double)mem.MachineList.Sum(x => (long)x.NUM_SERVER) / 1000.0,
+                TotalClientConnectRequestsKilo = (double)mem.MachineList.Sum(x => (long)x.NUM_CLIENT) / 1000.0,
+
+                Sys_DotNet_NumRunningTasks = sys.Task,
+                Sys_DotNet_NumDelayedTasks = sys.D,
+                Sys_DotNet_NumTimerTasks = sys.Q,
+                Sys_DotNet_NumObjects = sys.Obj,
+                Sys_DotNet_CpuUsage = sys.Cpu,
+                Sys_DotNet_ManagedMemory_MBytes = (double)sys.Mem / 1024.0,
+                Sys_DotNet_ProcessMemory_MBytes = (double)processMemory / 1024.0 / 1024.0,
+                Sys_DotNet_GcTotal = sys.Gc,
+                Sys_DotNet_Gc0 = sys.Gc0,
+                Sys_DotNet_Gc1 = sys.Gc1,
+                Sys_DotNet_Gc2 = sys.Gc2,
+
+                Sys_Thin_BootDays = (double)(TickNow - this.BootTick) / (double)(24 * 60 * 60 * 1000),
+                Sys_Thin_ConcurrentRequests = this.CurrentConcurrentProcess,
+                Sys_Thin_LastDbReadTookMsecs = this.Db.LastDbReadTookMsecs,
+                Sys_Thin_IsDatabaseConnected = this.Db.IsDatabaseConnected ? 1 : 0,
+            };
+
+            return ret;
+        }
 
         // Gate の IP を指定することで、データベースに規程されている IP グループ名の適合一覧を取得
         public IEnumerable<string> GetGatePreferredIpRangeGroup(string gateIpAddress)

@@ -265,7 +265,7 @@ namespace IPA.Cores.Basic
 
         public string PathAndQueryString { get; }
         public QueryStringList QueryStringList { get; }
-        public Uri QueryStringUri { get; }
+        public Uri PathAndQueryStringUri { get; }
 
         public HttpEasyContextBox(HttpContext context)
         {
@@ -285,7 +285,7 @@ namespace IPA.Cores.Basic
             PathAndQueryString = Request._GetRequestPathAndQueryString();
 
             PathAndQueryString._ParseUrl(out Uri uri, out QueryStringList qs);
-            this.QueryStringUri = uri;
+            this.PathAndQueryStringUri = uri;
             this.QueryStringList = qs;
         }
 
@@ -346,7 +346,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                await using (HttpResult result = await callback(box.Method, box.QueryStringUri.LocalPath, box.QueryStringList, context, box.RouteData, box.LocalEndpoint, box.RemoteEndpoint, box.Cancel))
+                await using (HttpResult result = await callback(box.Method, box.PathAndQueryStringUri.LocalPath, box.QueryStringList, context, box.RouteData, box.LocalEndpoint, box.RemoteEndpoint, box.Cancel))
                 {
                     await box.Response._SendHttpResultAsync(result, box.Cancel);
                 }

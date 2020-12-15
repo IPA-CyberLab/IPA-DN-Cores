@@ -248,7 +248,7 @@ namespace IPA.Cores.Basic
 
         protected override void DisposeImpl(Exception? ex) { }
 
-        public T InstallLogRoute<T>(T route) where T: LogRouteBase
+        public T InstallLogRoute<T>(T route) where T : LogRouteBase
         {
             lock (LockObj)
             {
@@ -492,7 +492,7 @@ namespace IPA.Cores.Basic
         public static void PrintConsole(object? obj, bool noConsole = false, LogPriority priority = LogPriority.Info, string? tag = null)
             => Post(obj, priority, flags: noConsole ? LogFlags.NoOutputToConsole : LogFlags.None, tag: tag);
 
-        public static Task PostDataAsync(object? obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info, CancellationToken cancel = default)
+        public static Task PostDataAsync(object? obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info, CancellationToken cancel = default, bool noWait = false)
         {
             Post(obj, priority, kind: LogKind.Data, tag: tag);
 
@@ -502,7 +502,7 @@ namespace IPA.Cores.Basic
             }
 
             // データを post したときは一定個数ごとに Half Flush し、Half Flush 完了まで待機をする (消失防止のため)
-            if (PostDataFlushCountPer == 0 || (Interlocked.Increment(ref PostDataCounter) % PostDataFlushCountPer) == 0)
+            if (noWait == false && (PostDataFlushCountPer == 0 || (Interlocked.Increment(ref PostDataCounter) % PostDataFlushCountPer) == 0))
             {
                 return FlushAsync(halfFlush: true, cancel: cancel);
             }
@@ -512,8 +512,8 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void PostData(object? obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info, CancellationToken cancel = default)
-            => PostDataAsync(obj, tag, copyToDebug, priority, cancel)._GetResult();
+        public static void PostData(object? obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info, CancellationToken cancel = default, bool noWait = false)
+            => PostDataAsync(obj, tag, copyToDebug, priority, cancel, noWait)._GetResult();
 
         public static void PostStat(object? obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info)
         {

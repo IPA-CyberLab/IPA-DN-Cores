@@ -222,6 +222,8 @@ namespace IPA.Cores.Codes
         public int ControllerDbWriteUpdateIntervalMsecs;
         [JsonIgnore]
         public int ControllerDbBackupFileWriteIntervalMsecs;
+        [JsonIgnore]
+        public int ControllerRecordStatIntervalMsecs;
 
         public ThinMemoryDb() { }
 
@@ -303,6 +305,7 @@ namespace IPA.Cores.Codes
             this.ControllerDbFullReloadIntervalMsecs = this.VarByName._GetOrDefault("ControllerDbFullReloadIntervalMsecs")?.FirstOrDefault()?.VAR_VALUE1._ToInt() ?? 0;
             this.ControllerDbWriteUpdateIntervalMsecs = this.VarByName._GetOrDefault("ControllerDbWriteUpdateIntervalMsecs")?.FirstOrDefault()?.VAR_VALUE1._ToInt() ?? 0;
             this.ControllerDbBackupFileWriteIntervalMsecs = this.VarByName._GetOrDefault("ControllerDbBackupFileWriteIntervalMsecs")?.FirstOrDefault()?.VAR_VALUE1._ToInt() ?? 0;
+            this.ControllerRecordStatIntervalMsecs = this.VarByName._GetOrDefault("ControllerRecordStatIntervalMsecs")?.FirstOrDefault()?.VAR_VALUE1._ToInt() ?? 0;
         }
 
         // PCID 一覧のリビルド (PCID に変更が発生したので Dictionary をリビルドする)
@@ -384,7 +387,7 @@ namespace IPA.Cores.Codes
         readonly FastCache<string, ThinDatabasePcidChangeHistory> PcidChangeHistoryCache = new FastCache<string, ThinDatabasePcidChangeHistory>(ThinControllerConsts.Max_ControllerDbReadFullReloadIntervalMsecs * 4, comparer: StrComparer.IgnoreCaseComparer);
         readonly CriticalSection PcidChangeLock = new CriticalSection<ThinDatabasePcidChangeHistory>();
 
-        ImmutableQueue<ThinDatabaseUpdateJob> UpdateJobQueue = ImmutableQueue<ThinDatabaseUpdateJob>.Empty;
+        readonly ConcurrentQueue<ThinDatabaseUpdateJob> UpdateJobQueue = new ConcurrentQueue<ThinDatabaseUpdateJob>();
 
         public ThinDatabase(ThinController controller)
         {
@@ -406,7 +409,15 @@ namespace IPA.Cores.Codes
 
         public void EnqueueUpdateJob(Func<Database, CancellationToken, Task> proc)
         {
-            ImmutableInterlocked.Enqueue(ref this.UpdateJobQueue, new ThinDatabaseUpdateJob(proc));
+            int maxQueueLength = Math.Max(ThinControllerConsts.ControllerMaxDatabaseWriteQueueLength, 1);
+
+            // キューがいっぱいの場合は古いものから削除する
+            while (UpdateJobQueue.Count >= maxQueueLength)
+            {
+                UpdateJobQueue.TryDequeue(out _);
+            }
+
+            UpdateJobQueue.Enqueue(new ThinDatabaseUpdateJob(proc));
         }
 
         public async Task<Database> OpenDatabaseForReadAsync(CancellationToken cancel = default)
@@ -506,6 +517,8 @@ namespace IPA.Cores.Codes
             }
         }
 
+        public int LastDbReadTookMsecs { get; private set; } = 0;
+
         // データベースから最新の情報を取得するタスク
         async Task ReadMainLoopAsync(CancellationToken cancel)
         {
@@ -520,9 +533,12 @@ namespace IPA.Cores.Codes
 
                 long startTick = Time.HighResTick64;
 
+                bool ok = false;
+
                 try
                 {
                     await ReadCoreAsync(cancel);
+                    ok = true;
                 }
                 catch (Exception ex)
                 {
@@ -530,6 +546,15 @@ namespace IPA.Cores.Codes
                 }
 
                 long endTick = Time.HighResTick64;
+
+                if (ok)
+                {
+                    LastDbReadTookMsecs = (int)(endTick - startTick);
+                }
+                else
+                {
+                    LastDbReadTookMsecs = 0;
+                }
 
                 $"ThinDatabase.ReadMainLoopAsync numCycle={numCycle}, numError={numError} End. Took time: {endTick - startTick}"._Debug();
 
@@ -548,7 +573,9 @@ namespace IPA.Cores.Codes
             // キューが空になるまで 実施 いたします
             while (cancel.IsCancellationRequested == false)
             {
-                if (ImmutableInterlocked.TryDequeue(ref this.UpdateJobQueue, out ThinDatabaseUpdateJob? queue) == false)
+                ThinDatabaseUpdateJob? queue = null;
+
+                if (UpdateJobQueue.TryDequeue(out queue) == false)
                 {
                     break;
                 }
@@ -575,7 +602,7 @@ namespace IPA.Cores.Codes
             int numError = 0;
             while (cancel.IsCancellationRequested == false)
             {
-                if (this.UpdateJobQueue.IsEmpty == false)
+                if (this.UpdateJobQueue.Count >= 1)
                 {
                     numCycle++;
 

@@ -89,17 +89,21 @@ namespace IPA.Cores.Codes
         public static readonly Copenhagen<int> ControllerMaxBodySizeForUsers = 64 * 1024;
         public static readonly Copenhagen<int> ControllerMaxBodySizeForGateway = (int)Pack.MaxPackSize;
         public static readonly Copenhagen<int> ControllerMaxConcurrentKestrelConnectionsForUsers = 1000 * Math.Max(Environment.ProcessorCount, 1);
+        public static readonly Copenhagen<int> ControllerStatCacheExpiresMsecs = 30 * 1000;
+        public static readonly Copenhagen<int> ControllerMaxDatabaseWriteQueueLength = 100000; // 1 レコードあたり 10KB として 1GB 分まで
 
         // DB の Var で設定可能な変数のデフォルト値
         public static readonly Copenhagen<int> Default_ControllerMaxConcurrentWpcRequestProcessingForUsers = 500;
         public static readonly Copenhagen<int> Default_ControllerDbFullReloadIntervalMsecs = 10 * 1000;
         public static readonly Copenhagen<int> Default_ControllerDbWriteUpdateIntervalMsecs = 1 * 1000;
-        public static readonly Copenhagen<int> Default_ControllerDbBackupFileWriteIntervalMsecs = 5 * 1000;
+        public static readonly Copenhagen<int> Default_ControllerDbBackupFileWriteIntervalMsecs = 5 * 60 * 1000;
+        public static readonly Copenhagen<int> Default_ControllerRecordStatIntervalMsecs = 5 * 60 * 1000;
 
         // DB の Var で設定可能な変数の最大値
-        public const int Max_ControllerDbReadFullReloadIntervalMsecs = 10 * 60 * 1000;
+        public const int Max_ControllerDbReadFullReloadIntervalMsecs = 30 * 60 * 1000;
         public const int Max_ControllerDbWriteUpdateIntervalMsecs = 5 * 60 * 1000;
-        public const int Max_ControllerDbBackupFileWriteIntervalMsecs = 60 * 1000;
+        public const int Max_ControllerDbBackupFileWriteIntervalMsecs = 24 * 60 * 60 * 1000;
+        public const int Max_ControllerRecordStatIntervalMsecs = 60 * 60 * 1000;
 
     }
 

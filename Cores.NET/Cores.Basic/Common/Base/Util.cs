@@ -7876,6 +7876,18 @@ namespace IPA.Cores.Basic
 
     public class None { }
 
+    public class StrKeyValueItem
+    {
+        public string Key { get; }
+        public string Value { get; }
+
+        public StrKeyValueItem(string key, string value)
+        {
+            Key = key;
+            Value = value;
+        }
+    }
+
     [Flags]
     public enum EnsureCtor
     {
