@@ -769,7 +769,11 @@ namespace IPA.Cores.Helper.Basic
             where TValue : new()
             where TKey : notnull
         {
-            if (d.ContainsKey(key)) return d[key];
+            if (d.TryGetValue(key, out TValue value))
+            {
+                return value;
+            }
+
             TValue n = new TValue();
             d.Add(key, n);
             return n;
@@ -778,7 +782,11 @@ namespace IPA.Cores.Helper.Basic
         public static TValue? _GetOrDefault<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key, TValue? defaultValue = default)
             where TKey : notnull
         {
-            if (d.ContainsKey(key)) return d[key];
+            if (d.TryGetValue(key, out TValue value))
+            {
+                return value;
+            }
+
             TValue n = defaultValue;
             return n;
         }
@@ -786,7 +794,11 @@ namespace IPA.Cores.Helper.Basic
         public static TValue _GetOrNew<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key, Func<TValue> newProc)
             where TKey : notnull
         {
-            if (d.ContainsKey(key)) return d[key];
+            if (d.TryGetValue(key, out TValue value))
+            {
+                return value;
+            }
+
             TValue n = newProc();
             d.Add(key, n);
             return n;
@@ -796,7 +808,11 @@ namespace IPA.Cores.Helper.Basic
             where TValue : new()
             where TKey : notnull
         {
-            if (d.ContainsKey(key)) return d[key];
+            if (d.TryGetValue(key, out TValue value))
+            {
+                return value;
+            }
+
             TValue n = new TValue();
             d.Add(key, n);
             return n;
@@ -805,7 +821,11 @@ namespace IPA.Cores.Helper.Basic
         public static TValue? _GetOrDefault<TKey, TValue>(this SortedDictionary<TKey, TValue> d, TKey key, TValue? defaultValue = default)
             where TKey : notnull
         {
-            if (d.ContainsKey(key)) return d[key];
+            if (d.TryGetValue(key, out TValue value))
+            {
+                return value;
+            }
+
             TValue n = defaultValue;
             return n;
         }
@@ -813,7 +833,11 @@ namespace IPA.Cores.Helper.Basic
         public static TValue _GetOrNew<TKey, TValue>(this SortedDictionary<TKey, TValue> d, TKey key, Func<TValue> newProc)
             where TKey : notnull
         {
-            if (d.ContainsKey(key)) return d[key];
+            if (d.TryGetValue(key, out TValue value))
+            {
+                return value;
+            }
+
             TValue n = newProc();
             d.Add(key, n);
             return n;

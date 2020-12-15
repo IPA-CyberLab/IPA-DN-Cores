@@ -157,7 +157,6 @@ namespace IPA.Cores.Codes
         [SimpleTableOrder(12.2)]
         public int NumClientsUnique => this.SessionTable.Values.Sum(x => x.NumClientsUnique);
 
-
         [NoDebugDump]
         [SimpleTableIgnore]
         public ImmutableDictionary<string, ThinSession> SessionTable = ImmutableDictionary<string, ThinSession>.Empty;

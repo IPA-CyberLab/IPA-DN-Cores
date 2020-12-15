@@ -939,8 +939,22 @@ namespace IPA.TestDev
             public int C = 123;
         }
 
+        static void Test_201215()
+        {
+            EasyJsonStrAttributes a = "{'axx':'b'}";
+
+            a["x"] = "Neko";
+
+            a._PrintAsJson(compact: true);
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_201215();
+                return;
+            }
 
             if (true)
             {

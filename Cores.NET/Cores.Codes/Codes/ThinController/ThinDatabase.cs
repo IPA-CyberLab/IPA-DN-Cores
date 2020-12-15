@@ -792,7 +792,7 @@ namespace IPA.Cores.Codes
         }
 
         // サーバー登録実行
-        public async Task<VpnErrors> RegisterMachineAsync(string svcName, string msid, string pcid, string hostKey, string hostSecret2, DateTime now, string ip, string fqdn, CancellationToken cancel = default)
+        public async Task<VpnErrors> RegisterMachineAsync(string svcName, string msid, string pcid, string hostKey, string hostSecret2, DateTime now, string ip, string fqdn, string initialJsonAttributes, CancellationToken cancel = default)
         {
             svcName = svcName._NonNullTrim();
             msid = msid._NonNullTrim();
@@ -801,6 +801,7 @@ namespace IPA.Cores.Codes
             hostSecret2 = hostSecret2._NonNullTrim();
             ip = ip._NonNullTrim();
             fqdn = fqdn._NonNullTrim();
+            initialJsonAttributes = initialJsonAttributes._NonNullTrim();
 
             VpnErrors err2 = ThinController.CheckPCID(pcid);
             if (err2 != VpnErrors.ERR_NO_ERROR) return err2;
@@ -841,14 +842,14 @@ namespace IPA.Cores.Codes
                 }
 
                 // 登録の実行
-                await db.QueryWithNoReturnAsync("INSERT INTO MACHINE (SVC_NAME, MSID, PCID, CERT, CERT_HASH, CREATE_DATE, UPDATE_DATE, LAST_SERVER_DATE, LAST_CLIENT_DATE, NUM_SERVER, NUM_CLIENT, CREATE_IP, CREATE_HOST, HOST_SECRET, HOST_SECRET2, PCID_UPDATE_DATE) " +
-                                    "VALUES (@, @, @, @, @, @, @, @, @, @, @, @, @, @, @, @)",
+                await db.QueryWithNoReturnAsync("INSERT INTO MACHINE (SVC_NAME, MSID, PCID, CERT, CERT_HASH, CREATE_DATE, UPDATE_DATE, LAST_SERVER_DATE, LAST_CLIENT_DATE, NUM_SERVER, NUM_CLIENT, CREATE_IP, CREATE_HOST, HOST_SECRET, HOST_SECRET2, PCID_UPDATE_DATE, JSON_ATTRIBUTES) " +
+                                    "VALUES (@, @, @, @, @, @, @, @, @, @, @, @, @, @, @, @, @)",
                                     svcName, msid, pcid, new byte[0], hostKey,
                                     now, now, now, now,
                                     0, 0,
                                     ip, fqdn,
                                     hostKey, hostSecret2,
-                                    now);
+                                    now, initialJsonAttributes);
 
                 return true;
             }) == false)

@@ -98,6 +98,11 @@ namespace IPA.Cores.Basic
 
         public static string Serialize(object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null)
         {
+            if (obj is IToJsonString specialInterface)
+            {
+                return specialInterface.ToJsonString(includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type);
+            }
+
             JsonSerializerSettings setting = new JsonSerializerSettings()
             {
                 MaxDepth = maxDepth,
@@ -130,6 +135,13 @@ namespace IPA.Cores.Basic
 
         public static void Serialize(TextWriter destTextWriter, object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type? type = null)
         {
+            if (obj is IToJsonString specialInterface)
+            {
+                string tmp = specialInterface.ToJsonString(includeNull, escapeHtml, maxDepth, compact, referenceHandling, false, type);
+                destTextWriter.Write(tmp);
+                return;
+            }
+
             JsonSerializerSettings setting = new JsonSerializerSettings()
             {
                 MaxDepth = maxDepth,
@@ -288,6 +300,177 @@ namespace IPA.Cores.Basic
 
             return SerializeDynamic(d);
         }
+    }
+
+    public interface IToJsonString
+    {
+        string ToJsonString(bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null);
+    }
+
+    public class EasyJsonStrAttributes
+        : ICollection<KeyValuePair<string, string>>, IEnumerable<KeyValuePair<string, string>>, IEnumerable, IDictionary<string, string>, IReadOnlyCollection<KeyValuePair<string, string>>, IReadOnlyDictionary<string, string>, ICollection, IDictionary, IToJsonString
+    {
+        public readonly SortedDictionary<string, string> Dict;
+
+        public EasyJsonStrAttributes(string? text = null, IComparer<string>? comparer = null)
+        {
+            comparer = comparer ?? StrComparer.IgnoreCaseTrimComparer;
+
+            this.Dict = new SortedDictionary<string, string>(comparer);
+
+            if (text._IsFilled())
+            {
+                JObject? obj = text._JsonToObject<JObject>();
+
+                if (obj != null)
+                {
+                    foreach (var item in obj)
+                    {
+                        string name = item.Key._NonNullTrim();
+                        string value = item.Value.ToString()._NonNullTrim();
+
+                        Dict.TryAdd(name, value);
+                    }
+                }
+            }
+        }
+
+        public static implicit operator string(EasyJsonStrAttributes attributesObj) => attributesObj.ToJsonString();
+        public static implicit operator EasyJsonStrAttributes(string? str) => new EasyJsonStrAttributes(str);
+
+        public override string ToString() => ToJsonString();
+
+        public string ToJsonString(bool includeNull = false, bool escapeHtml = false, int? maxDepth = 8, bool compact = true, bool referenceHandling = false, bool base64url = false, Type? type = null)
+        {
+            if (this.Dict.Count == 0) return "";
+
+            var json = Json.NewJsonObject();
+
+            foreach (var item in this.Dict)
+            {
+                json.Add(item.Key, JToken.FromObject(item.Value));
+            }
+
+            return json._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type);
+        }
+
+        public string this[string key]
+        {
+            get => this.Dict._GetOrDefault(key._NonNullTrim(), "")._NonNullTrim();
+            set
+            {
+                if (value._IsEmpty())
+                {
+                    this.Dict.Remove(key._NonNullTrim());
+                }
+                else
+                {
+                    this.Dict[key._NonNullTrim()] = value._NonNullTrim();
+                }
+            }
+        }
+
+        public object? this[object key]
+        {
+            get => this.Dict._GetOrDefault(key?.ToString()._NonNullTrim() ?? "", "")._NonNullTrim();
+
+            set
+            {
+                if (value == null || value.ToString()._IsEmpty())
+                {
+                    this.Dict.Remove(key?.ToString()._NonNullTrim() ?? "");
+                }
+                else
+                {
+                    this.Dict[key?.ToString()._NonNullTrim() ?? ""] = value!.ToString()._NonNullTrim() ?? "";
+                }
+            }
+        }
+
+        public int Count => Dict.Count;
+
+        public bool IsReadOnly => false;
+
+        public ICollection<string> Keys => Dict.Keys;
+
+        public ICollection<string> Values => Dict.Values;
+
+        public bool IsSynchronized => true;
+
+        readonly CriticalSection LockObj = new CriticalSection<EasyJsonStrAttributes>();
+        public object SyncRoot => LockObj;
+
+        public bool IsFixedSize => false;
+
+        IEnumerable<string> IReadOnlyDictionary<string, string>.Keys => Dict.Keys;
+
+        ICollection IDictionary.Keys => Dict.Keys;
+
+        IEnumerable<string> IReadOnlyDictionary<string, string>.Values => Dict.Values;
+
+        ICollection IDictionary.Values => Dict.Values;
+
+        public void Add(KeyValuePair<string, string> item) => this[item.Key] = item.Value;
+
+        public void Add(string key, string value) => this[key] = value;
+
+        public void Add(object key, object? value) => this[key] = value;
+
+        public void Clear() => Dict.Clear();
+
+        public bool Contains(KeyValuePair<string, string> item)
+        {
+            string key = item.Key._NonNullTrim();
+            string value = item.Value._NonNullTrim();
+            if (value._IsEmpty()) return false;
+
+            return this.Dict.Where(x => this.Dict.Comparer.Compare(key, x.Key) == 0 && value == x.Value).Any();
+        }
+
+        public bool Contains(object key)
+        {
+            string keystr = key!.ToString()._NonNullTrim() ?? "";
+            return this.Dict.Keys.Where(x => this.Dict.Comparer.Compare(keystr, x) == 0).Any();
+        }
+
+        public bool ContainsKey(string key)
+        {
+            key = key._NonNullTrim();
+            return this.Dict.Keys.Where(x => this.Dict.Comparer.Compare(key, x) == 0).Any();
+        }
+
+        public void CopyTo(KeyValuePair<string, string>[] array, int arrayIndex)
+            => Dict.CopyTo(array, arrayIndex);
+
+        public void CopyTo(Array array, int index)
+            => throw new NotImplementedException();
+
+        public IEnumerator<KeyValuePair<string, string>> GetEnumerator()
+            => this.Dict.GetEnumerator();
+
+        public bool Remove(KeyValuePair<string, string> item)
+            => throw new NotImplementedException();
+
+        public bool Remove(string key)
+            => this.Dict.Remove(key._NonNullTrim());
+
+        public void Remove(object key)
+            => this.Dict.Remove(key?.ToString()._NonNullTrim() ?? "");
+
+        public bool TryGetValue(string key, [MaybeNullWhen(false)] out string value)
+        {
+            bool ret = this.Dict.TryGetValue(key._NonNullTrim(), out value);
+
+            value = value._NonNullTrim();
+
+            return ret;
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+            => this.Dict.GetEnumerator();
+
+        IDictionaryEnumerator IDictionary.GetEnumerator()
+            => this.Dict.GetEnumerator();
     }
 
     public static partial class Dbg

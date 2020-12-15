@@ -6478,20 +6478,6 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class EasyStrAttributes : SortedDictionary<string, string>
-    {
-        public EasyStrAttributes(IComparer<string>? comparer = null) : this("", comparer) { }
-
-        public EasyStrAttributes(string? text, IComparer<string>? comparer = null) : base(comparer ?? StrComparer.IgnoreCaseTrimComparer)
-        {
-            text = text._NonNull();
-
-            if (text._IsFilled())
-            {
-            }
-        }
-    }
-
     [Flags]
     public enum RateLimiterMode
     {

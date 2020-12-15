@@ -493,6 +493,28 @@ namespace IPA.Cores.Codes
                 return NewWpcResult(VpnErrors.ERR_TEMP_ERROR);
             }
 
+            // 登録キーのチェック (DB に RegistrationKey がある場合のみ)
+            string registrationPassword = q["RegistrationPassword"].StrValueNonNull;
+            string registrationEmail = q["RegistrationEmail"].StrValueNonNull;
+            bool registrationKeyOk = false;
+            var regKeyVars = Controller.Db.GetVars("RegistrationKey");
+            if (regKeyVars?.Where(x => x.VAR_VALUE1._IsFilled()).Any() ?? false)
+            {
+                if (regKeyVars.Where(x => x.VAR_VALUE1 == registrationPassword && x.VAR_VALUE1._IsFilled()).Any())
+                {
+                    registrationKeyOk = true;
+                }
+
+                if (registrationKeyOk == false)
+                {
+                    // 登録キー不正
+                    var ret2 = NewWpcResult(registrationPassword._IsEmpty() ? VpnErrors.ERR_REG_PASSWORD_EMPTY : VpnErrors.ERR_REG_PASSWORD_INCORRECT);
+                    ret2.AdditionalInfo.Add("RegistrationPassword", registrationPassword);
+                    ret2.AdditionalInfo.Add("RegistrationEmail", registrationEmail);
+                    return ret2;
+                }
+            }
+
             // PCID チェック
             var err = ThinController.CheckPCID(pcid);
             if (err != VpnErrors.ERR_NO_ERROR)
@@ -520,8 +542,17 @@ namespace IPA.Cores.Codes
             string msid = ThinController.GenerateMsid(req.HostKey, svcName);
 
             // 登録の実行
+            EasyJsonStrAttributes attributes = new EasyJsonStrAttributes();
+
+            if (registrationKeyOk)
+            {
+                attributes["RegistrationPassword"] = registrationPassword;
+                attributes["RegistrationEmail"] = registrationEmail;
+            }
+
             var now = DtNow;
-            err = await Controller.Db.RegisterMachineAsync(svcName, msid, q["Pcid"].StrValueNonNull, req.HostKey, req.HostSecret2, now, this.ClientInfo.ClientIp, this.ClientInfo.ClientIpFqdn, cancel);
+            err = await Controller.Db.RegisterMachineAsync(svcName, msid, q["Pcid"].StrValueNonNull, req.HostKey, req.HostSecret2, now, this.ClientInfo.ClientIp, this.ClientInfo.ClientIpFqdn,
+                attributes, cancel);
             if (err != VpnErrors.ERR_NO_ERROR)
             {
                 // 登録エラー
@@ -540,6 +571,12 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("Pcid", pcid);
             ret.AdditionalInfo.Add("HostKey", req.HostKey);
             ret.AdditionalInfo.Add("Msid", msid);
+
+            if (registrationKeyOk)
+            {
+                ret.AdditionalInfo.Add("RegistrationPassword", registrationPassword);
+                ret.AdditionalInfo.Add("RegistrationEmail", registrationEmail);
+            }
 
             return ret;
         }
@@ -624,6 +661,7 @@ namespace IPA.Cores.Codes
 
             return ret;
         }
+
 
         // サーバーからの接続要求を処理
         public async Task<WpcResult> ProcServerConnectAsync(WpcPack req, CancellationToken cancel)
@@ -1369,20 +1407,47 @@ namespace IPA.Cores.Codes
 
         // 設定値プロパティ集
         // ここで、this.Db はまだ null である可能性があるため、? を付けること
-        public int CurrentValue_ControllerMaxConcurrentWpcRequestProcessingForUsers 
+        public int CurrentValue_ControllerMaxConcurrentWpcRequestProcessingForUsers
             => (this.Db?.MemDb?.ControllerMaxConcurrentWpcRequestProcessingForUsers)._ZeroOrDefault(ThinControllerConsts.Default_ControllerMaxConcurrentWpcRequestProcessingForUsers);
 
-        public int CurrentValue_ControllerDbFullReloadIntervalMsecs 
+        public int CurrentValue_ControllerDbFullReloadIntervalMsecs
             => (this.Db?.MemDb?.ControllerDbFullReloadIntervalMsecs)._ZeroOrDefault(ThinControllerConsts.Default_ControllerDbFullReloadIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbReadFullReloadIntervalMsecs);
 
-        public int CurrentValue_ControllerDbWriteUpdateIntervalMsecs 
+        public int CurrentValue_ControllerDbWriteUpdateIntervalMsecs
             => (this.Db?.MemDb?.ControllerDbWriteUpdateIntervalMsecs)._ZeroOrDefault(ThinControllerConsts.Default_ControllerDbWriteUpdateIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbWriteUpdateIntervalMsecs);
 
-        public int CurrentValue_ControllerDbBackupFileWriteIntervalMsecs 
+        public int CurrentValue_ControllerDbBackupFileWriteIntervalMsecs
             => (this.Db?.MemDb?.ControllerDbBackupFileWriteIntervalMsecs)._ZeroOrDefault(ThinControllerConsts.Default_ControllerDbBackupFileWriteIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbBackupFileWriteIntervalMsecs);
 
         // ユーティリティ関数系
 
+        // Gate の IP を指定することで、データベースに規程されている IP グループ名の適合一覧を取得
+        public IEnumerable<string> GetGatePreferredIpRangeGroup(string gateIpAddress)
+        {
+            List<string> ret = new List<string>();
+
+            ret.Add("Default");
+
+            string tag = "PreferredGateIpRange_Group_";
+            var varNames = Db.MemDb?.VarByName.Keys.Where(x => x.StartsWith(tag, StringComparison.OrdinalIgnoreCase)).OrderBy(x => x, StrComparer.IgnoreCaseComparer);
+
+            if (varNames != null)
+            {
+                foreach (var name in varNames)
+                {
+                    var aclString = Db.GetVarString(name)._NonNullTrim();
+
+                    var acl = EasyIpAcl.GetOrCreateCachedIpAcl(aclString);
+
+                    if (acl.Evaluate(gateIpAddress) == EasyIpAclAction.Permit)
+                    {
+                        ret.Add(name._Slice(tag.Length));
+                    }
+                }
+            }
+
+            return ret.Distinct(StrComparer.IgnoreCaseComparer);
+        }
         // 最近発行した PCID 候補のキャッシュ
         readonly FastCache<string, int> RecentPcidCandidateCache = new FastCache<string, int>(10 * 60 * 1000, comparer: StrComparer.IgnoreCaseComparer);
 
