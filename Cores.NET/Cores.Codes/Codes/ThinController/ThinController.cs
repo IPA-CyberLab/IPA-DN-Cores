@@ -194,6 +194,8 @@ namespace IPA.Cores.Codes
         public int Sys_DotNet_CpuUsage;
         public double Sys_DotNet_ManagedMemory_MBytes;
         public double Sys_DotNet_ProcessMemory_MBytes;
+        public int Sys_DotNet_NumNativeThreads;
+        public int Sys_DotNet_NumNativeHandles;
         public int Sys_DotNet_GcTotal, Sys_DotNet_Gc0, Sys_DotNet_Gc1, Sys_DotNet_Gc2;
 
         public double Sys_Thin_BootDays;
@@ -1357,6 +1359,8 @@ namespace IPA.Cores.Codes
                             nums.Add("Sys_DotNet_CpuUsage", stat.Sys_DotNet_CpuUsage);
                             nums.Add("Sys_DotNet_ManagedMemory", (long)(stat.Sys_DotNet_ManagedMemory_MBytes * 1024.0 * 1024.0));
                             nums.Add("Sys_DotNet_ProcessMemory", (long)(stat.Sys_DotNet_ProcessMemory_MBytes * 1024.0 * 1024.0));
+                            nums.Add("Sys_DotNet_NumNativeThreads", stat.Sys_DotNet_NumNativeThreads);
+                            nums.Add("Sys_DotNet_NumNativeHandles", stat.Sys_DotNet_NumNativeHandles);
                             nums.Add("Sys_DotNet_GcTotal", stat.Sys_DotNet_GcTotal);
                             nums.Add("Sys_DotNet_Gc0", stat.Sys_DotNet_Gc0);
                             nums.Add("Sys_DotNet_Gc1", stat.Sys_DotNet_Gc1);
@@ -1811,9 +1815,14 @@ namespace IPA.Cores.Codes
             sys.Refresh(true);
 
             long processMemory = 0;
+            int numThreads = 0;
+            int numHandles = 0;
             try
             {
-                processMemory = Process.GetCurrentProcess().PrivateMemorySize64;
+                var proc = Process.GetCurrentProcess();
+                processMemory = proc.PrivateMemorySize64;
+                numThreads = proc.Threads.Count;
+                numHandles = proc.HandleCount;
             }
             catch
             {
@@ -1842,6 +1851,8 @@ namespace IPA.Cores.Codes
                 Sys_DotNet_CpuUsage = sys.Cpu,
                 Sys_DotNet_ManagedMemory_MBytes = (double)sys.Mem / 1024.0,
                 Sys_DotNet_ProcessMemory_MBytes = (double)processMemory / 1024.0 / 1024.0,
+                Sys_DotNet_NumNativeThreads = numThreads,
+                Sys_DotNet_NumNativeHandles = numHandles,
                 Sys_DotNet_GcTotal = sys.Gc,
                 Sys_DotNet_Gc0 = sys.Gc0,
                 Sys_DotNet_Gc1 = sys.Gc1,
