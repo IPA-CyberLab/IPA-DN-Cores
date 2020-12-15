@@ -82,20 +82,25 @@ namespace IPA.Cores.Codes
 {
     public static partial class ThinControllerConsts
     {
-        public static readonly Copenhagen<int> DefaultMaxBodySizeForUsers = 16 * 1024;
-        public static readonly Copenhagen<int> DefaultMaxBodySizeForGateway = (int)Pack.MaxPackSize;
-
-        public static readonly Copenhagen<int> MaxConcurrentWpcRequestProcessingForUsers = 500;
-
-        public static readonly Copenhagen<int> MaxConcurrentKestrelConnectionsForUsers = 1000;
+        public const int MaxPcidLen = 31;
 
         public static readonly Copenhagen<string> AccessLogTag = "ThinControlerLog";
 
-        public static readonly Copenhagen<int> DbReadReloadIntervalMsecs = 1 * 1000;
-        public static readonly Copenhagen<int> DbWriteIntervalMsecs = 1 * 1000;
-        public static readonly Copenhagen<int> DbBackupFileWriteIntervalMsecs = 5 * 1000;
+        public static readonly Copenhagen<int> ControllerMaxBodySizeForUsers = 64 * 1024;
+        public static readonly Copenhagen<int> ControllerMaxBodySizeForGateway = (int)Pack.MaxPackSize;
+        public static readonly Copenhagen<int> ControllerMaxConcurrentKestrelConnectionsForUsers = 1000 * Math.Max(Environment.ProcessorCount, 1);
 
-        public const int MaxPcidLen = 31;
+        // DB の Var で設定可能な変数のデフォルト値
+        public static readonly Copenhagen<int> Default_ControllerMaxConcurrentWpcRequestProcessingForUsers = 500;
+        public static readonly Copenhagen<int> Default_ControllerDbFullReloadIntervalMsecs = 10 * 1000;
+        public static readonly Copenhagen<int> Default_ControllerDbWriteUpdateIntervalMsecs = 1 * 1000;
+        public static readonly Copenhagen<int> Default_ControllerDbBackupFileWriteIntervalMsecs = 5 * 1000;
+
+        // DB の Var で設定可能な変数の最大値
+        public const int Max_ControllerDbReadFullReloadIntervalMsecs = 10 * 60 * 1000;
+        public const int Max_ControllerDbWriteUpdateIntervalMsecs = 5 * 60 * 1000;
+        public const int Max_ControllerDbBackupFileWriteIntervalMsecs = 60 * 1000;
+
     }
 
     [Flags]

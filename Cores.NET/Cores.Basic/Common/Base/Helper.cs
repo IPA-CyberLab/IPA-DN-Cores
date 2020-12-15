@@ -1509,6 +1509,32 @@ namespace IPA.Cores.Helper.Basic
         public static T _FilledOrDefault<T>(this T obj, T defaultValue = default, bool zeroValueIsEmpty = true) => (obj._IsFilled(zeroValueIsEmpty) ? obj : defaultValue);
 
         [MethodImpl(Inline)]
+        public static int _ZeroOrDefault(this int i, int defaultValue, int min = 0, int max = int.MaxValue)
+        {
+            if (i == 0) i = defaultValue;
+            i = Math.Max(i, min);
+            i = Math.Min(i, max);
+            return i;
+        }
+
+        [MethodImpl(Inline)]
+        public static int _ZeroOrDefault(this int? i, int defaultValue, int min = 0, int max = int.MaxValue)
+            => _ZeroOrDefault(i ?? 0, defaultValue, min, max);
+
+        [MethodImpl(Inline)]
+        public static long _ZeroOrDefault(this long i, long defaultValue, long min = 0, long max = long.MaxValue)
+        {
+            if (i == 0) i = defaultValue;
+            i = Math.Max(i, min);
+            i = Math.Min(i, max);
+            return i;
+        }
+
+        [MethodImpl(Inline)]
+        public static long _ZeroOrDefault(this long? i, long defaultValue, long min = 0, long max = long.MaxValue)
+            => _ZeroOrDefault(i ?? 0, defaultValue, min, max);
+
+        [MethodImpl(Inline)]
         [return: NotNull]
         public static T _FilledOrException<T>(this T obj, Exception? exception = null, bool zeroValueIsEmpty = true)
         {

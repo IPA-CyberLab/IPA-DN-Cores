@@ -211,17 +211,25 @@ namespace IPA.Cores.Codes
         public int MaxSessionsPerGate;
         [JsonIgnore]
         public string ControllerGateSecretKey = "";
+        [JsonIgnore]
+        public int ControllerMaxConcurrentWpcRequestProcessingForUsers;
+        [JsonIgnore]
+        public int ControllerDbFullReloadIntervalMsecs;
+        [JsonIgnore]
+        public int ControllerDbWriteUpdateIntervalMsecs;
+        [JsonIgnore]
+        public int ControllerDbBackupFileWriteIntervalMsecs;
 
         public ThinMemoryDb() { }
 
         // データベースから構築
-        public ThinMemoryDb(IEnumerable<ThinDbSvc> svcTable, IEnumerable<ThinDbMachine> machineTable, IEnumerable<ThinDbVar> varTable)
+        public ThinMemoryDb(IEnumerable<ThinDbSvc> svcTable, IEnumerable<ThinDbMachine> machineTable, IEnumerable<ThinDbVar> varTable, IEnumerable<ThinDatabasePcidChangeHistory?>? pcidChangeHistory = null)
         {
             this.SvcList = svcTable.OrderBy(x => x.SVC_NAME, StrComparer.IgnoreCaseComparer).ToList();
             this.VarList = varTable.OrderBy(x => x.VAR_NAME).ThenBy(x => x.VAR_ID).ToList();
             this.MachineList = machineTable.OrderBy(x => x.MACHINE_ID).ToList();
 
-            BuildOnMemoryData();
+            BuildOnMemoryData(pcidChangeHistory);
         }
 
         // ファイルから復元
@@ -241,7 +249,7 @@ namespace IPA.Cores.Codes
         }
 
         // オンメモリデータの構築
-        void BuildOnMemoryData()
+        void BuildOnMemoryData(IEnumerable<ThinDatabasePcidChangeHistory?>? pcidChangeHistory = null)
         {
             this.SvcList.ForEach(x => this.SvcBySvcName.TryAdd(x.SVC_NAME, x));
 
@@ -252,18 +260,46 @@ namespace IPA.Cores.Codes
                 this.VarByName._GetOrNew(v.VAR_NAME, () => new List<ThinDbVar>()).Add(v);
             });
 
+            // MSID または認証キーによるハッシュを生成
             this.MachineList.ForEach(x =>
             {
-                var svc = this.SvcBySvcName[x.SVC_NAME];
-
-                this.MachineByPcidAndSvcName.TryAdd(x.PCID + "@" + svc.SVC_NAME, x);
                 this.MachineByMsid.TryAdd(x.MSID, x);
                 this.MachineByCertHashAndHostSecret2.TryAdd(x.CERT_HASH + "@" + x.HOST_SECRET2, x);
             });
 
+            if (pcidChangeHistory != null)
+            {
+                // PCID 変更履歴を適用
+                foreach (var hist in pcidChangeHistory)
+                {
+                    if (hist != null)
+                    {
+                        var machine = this.MachineByMsid._GetOrDefault(hist.Msid);
+                        if (machine != null)
+                        {
+                            if (hist.Ver > machine.PCID_VER)
+                            {
+                                // PCID 変更履歴のほうがより新しいので、メモリ上の PCID を書換える
+                                machine.PCID = hist.Pcid;
+                                machine.PCID_VER = hist.Ver;
+                                machine.PCID_UPDATE_DATE = hist.UpdateDateTime;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // PCID 名によるハッシュを生成
+            RebuildPcidListOnMemory();
+
             // 頻繁にアクセスされる変数を予め読み出しておく
             this.MaxSessionsPerGate = this.VarByName._GetOrDefault("MaxSessionsPerGate")?.FirstOrDefault()?.VAR_VALUE1._ToInt() ?? 0;
             this.ControllerGateSecretKey = this.VarByName._GetOrDefault("ControllerGateSecretKey")?.FirstOrDefault()?.VAR_VALUE1._NonNullTrim() ?? "";
+
+            this.ControllerMaxConcurrentWpcRequestProcessingForUsers = this.VarByName._GetOrDefault("ControllerMaxConcurrentWpcRequestProcessingForUsers")?.FirstOrDefault()?.VAR_VALUE1._ToInt() ?? 0;
+            this.ControllerDbFullReloadIntervalMsecs = this.VarByName._GetOrDefault("ControllerDbFullReloadIntervalMsecs")?.FirstOrDefault()?.VAR_VALUE1._ToInt() ?? 0;
+            this.ControllerDbWriteUpdateIntervalMsecs = this.VarByName._GetOrDefault("ControllerDbWriteUpdateIntervalMsecs")?.FirstOrDefault()?.VAR_VALUE1._ToInt() ?? 0;
+            this.ControllerDbBackupFileWriteIntervalMsecs = this.VarByName._GetOrDefault("ControllerDbBackupFileWriteIntervalMsecs")?.FirstOrDefault()?.VAR_VALUE1._ToInt() ?? 0;
         }
 
         // PCID 一覧のリビルド (PCID に変更が発生したので Dictionary をリビルドする)
@@ -271,7 +307,8 @@ namespace IPA.Cores.Codes
         {
             Dictionary<string, ThinDbMachine> tmp = new Dictionary<string, ThinDbMachine>(StrComparer.IgnoreCaseComparer);
 
-            this.MachineList.ForEach(x =>
+            // 重複発生時は PCID_UPDATE_DATE が大きいほど優先
+            this.MachineList.OrderByDescending(x => x.PCID_UPDATE_DATE).ThenBy(x => x.MACHINE_ID)._DoForEach(x =>
             {
                 var svc = this.SvcBySvcName[x.SVC_NAME];
 
@@ -301,6 +338,22 @@ namespace IPA.Cores.Codes
         }
     }
 
+    public class ThinDatabasePcidChangeHistory
+    {
+        public string Msid { get; }
+        public int Ver { get; }
+        public string Pcid { get; } = "";
+        public DateTime UpdateDateTime { get; } = ZeroDateTimeValue;
+
+        public ThinDatabasePcidChangeHistory(string msid, int ver, string pcid, DateTime dt)
+        {
+            Msid = msid;
+            Ver = ver;
+            Pcid = pcid;
+            UpdateDateTime = dt;
+        }
+    }
+
     public class ThinDatabase : AsyncServiceWithMainLoop
     {
         Task ReadMainLoopTask, WriteMainLoopTask;
@@ -314,6 +367,9 @@ namespace IPA.Cores.Codes
         public bool IsDatabaseConnected { get; private set; } // 読み出しメインループからの最後のデータベース接続に成功していれば true、それ以外の場合は false。DB で不具合が発生していることを検出するため
 
         public string BackupFileName { get; }
+
+        readonly FastCache<string, ThinDatabasePcidChangeHistory> PcidChangeHistoryCache = new FastCache<string, ThinDatabasePcidChangeHistory>(ThinControllerConsts.Max_ControllerDbReadFullReloadIntervalMsecs * 4, comparer: StrComparer.IgnoreCaseComparer);
+        readonly CriticalSection PcidChangeLock = new CriticalSection<ThinDatabasePcidChangeHistory>();
 
         public ThinDatabase(ThinController controller)
         {
@@ -384,15 +440,25 @@ namespace IPA.Cores.Codes
                     throw;
                 }
 
-                // メモリデータベースを構築
-                ThinMemoryDb mem = new ThinMemoryDb(allSvcs, allMachines, allVars);
+                ThinMemoryDb mem = null!;
 
-                this.MemDb = mem;
+                // 最近このサーバーで PCID 変更がなされた履歴のほうが新しい場合はダウンロードしたデータ中における PCID の変更を行なう
+                // この処理は PCID 変更処理と排他である
+                using (await RenamePcidAsyncLock.LockWithAwait(cancel))
+                {
+                    // PCID 変更履歴ヒストリを取得
+                    IEnumerable<ThinDatabasePcidChangeHistory?> historyItems = PcidChangeHistoryCache.GetValues();
+
+                    // メモリデータベースを構築
+                    mem = new ThinMemoryDb(allSvcs, allMachines, allVars, historyItems);
+
+                    this.MemDb = mem;
+                }
 
                 // 構築したメモリデータベースをバックアップファイルに保存
                 long now = TickNow;
 
-                if (LastBackupSaveTick == 0 || now >= (LastBackupSaveTick + ThinControllerConsts.DbBackupFileWriteIntervalMsecs))
+                if (LastBackupSaveTick == 0 || now >= (LastBackupSaveTick + Controller.CurrentValue_ControllerDbBackupFileWriteIntervalMsecs))
                 {
                     try
                     {
@@ -448,7 +514,7 @@ namespace IPA.Cores.Codes
 
                 $"ThinDatabase.ReadMainLoopAsync numCycle={numCycle}, numError={numError} End. Took time: {endTick - startTick}"._Debug();
 
-                await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(ThinControllerConsts.DbReadReloadIntervalMsecs));
+                await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(Controller.CurrentValue_ControllerDbFullReloadIntervalMsecs));
             }
         }
 
@@ -457,7 +523,7 @@ namespace IPA.Cores.Codes
         {
             while (cancel.IsCancellationRequested == false)
             {
-                await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(ThinControllerConsts.DbWriteIntervalMsecs));
+                await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(Controller.CurrentValue_ControllerDbWriteUpdateIntervalMsecs));
             }
         }
 
@@ -499,9 +565,15 @@ namespace IPA.Cores.Codes
             }
         }
 
+        readonly AsyncLock RenamePcidAsyncLock = new AsyncLock();
+
         // PCID 変更実行
         public async Task<VpnErrors> RenamePcidAsync(string msid, string newPcid, DateTime now, CancellationToken cancel = default)
         {
+            // この関数は同時に 1 ユーザーからしか実行されないようにする
+            // (ローカルメモリデータベースをいじるため)
+            using var asyncLock = await RenamePcidAsyncLock.LockWithAwait(cancel);
+
             msid = msid._NonNullTrim();
             newPcid = newPcid._NonNullTrim();
 
@@ -510,7 +582,24 @@ namespace IPA.Cores.Codes
 
             VpnErrors err = VpnErrors.ERR_INTERNAL_ERROR;
 
+            // ローカルメモリデータベース上の PCID 情報を確認
+            var memDb = this.MemDb!;
+
+            if (memDb.MachineList.Where(x => x.PCID._IsSamei(newPcid)).Any())
+            {
+                // ローカルメモリデータベース上で重複
+                return VpnErrors.ERR_PCID_ALREADY_EXISTS;
+            }
+
+            if (this.IsDatabaseConnected == false)
+            {
+                // データベースエラー発生中はこの処理は実行できない
+                return VpnErrors.ERR_TEMP_ERROR;
+            }
+
             await using var db = await OpenDatabaseForWriteAsync(cancel);
+
+            ThinDbMachine? updatedMachine = null;
 
             // トランザクションを確立し厳格なチェックを実施
             // (DB サーバー側で一意インデックスによりチェックするが、インデックスが間違っていた場合に備えて、トランザクションでも厳密にチェックするのである)
@@ -536,27 +625,39 @@ namespace IPA.Cores.Codes
                 await db.QueryWithNoReturnAsync("UPDATE MACHINE SET PCID = @, UPDATE_DATE = @, PCID_UPDATE_DATE = @, PCID_VER = PCID_VER + 1 WHERE MSID = @",
                     newPcid, now, now, msid);
 
+                // 変更した結果を取得
+                updatedMachine = await db.EasySelectSingleAsync<ThinDbMachine>("SELECT * FROM MACHINE WHERE MSID = @MSID", new { MSID = msid }, false, true, cancel);
+                if (updatedMachine == null)
+                {
+                    // おかしいな
+                    err = VpnErrors.ERR_SECURITY_ERROR;
+                    return false;
+                }
+
                 return true;
             }) == false)
             {
                 return err;
             }
 
+            updatedMachine._MarkNotNull();
+
             Controller.AddPcidToRecentPcidCandidateCache(newPcid);
 
             // ローカルメモリデータベース上の PCID 情報を変更
-            var memDb = this.MemDb;
-            if (memDb != null)
+            var machine = memDb.MachineByMsid._GetOrDefault(msid);
+
+            if (machine != null)
             {
-                var machine = memDb.MachineByMsid._GetOrDefault(msid);
+                machine.PCID = newPcid;
+                machine.PCID_UPDATE_DATE = updatedMachine.PCID_UPDATE_DATE;
+                machine.PCID_VER = updatedMachine.PCID_VER;
 
-                if (machine != null)
-                {
-                    machine.PCID = newPcid;
+                // メモリ上の PCID Dictionary をリビルド
+                memDb.RebuildPcidListOnMemory();
 
-                    // Dictionary をリビルド
-                    memDb.RebuildPcidListOnMemory();
-                }
+                // PCID 変更履歴の更新
+                this.PcidChangeHistoryCache.Add(machine.MSID, new ThinDatabasePcidChangeHistory(machine.MSID, machine.PCID_VER, newPcid, updatedMachine.PCID_UPDATE_DATE));
             }
 
             return VpnErrors.ERR_NO_ERROR;
@@ -575,6 +676,12 @@ namespace IPA.Cores.Codes
 
             VpnErrors err2 = ThinController.CheckPCID(pcid);
             if (err2 != VpnErrors.ERR_NO_ERROR) return err2;
+
+            // データベースエラー時は処理禁止
+            if (IsDatabaseConnected == false)
+            {
+                return VpnErrors.ERR_TEMP_ERROR;
+            }
 
             VpnErrors err = VpnErrors.ERR_INTERNAL_ERROR;
 
@@ -606,13 +713,14 @@ namespace IPA.Cores.Codes
                 }
 
                 // 登録の実行
-                await db.QueryWithNoReturnAsync("INSERT INTO MACHINE (SVC_NAME, MSID, PCID, CERT, CERT_HASH, CREATE_DATE, UPDATE_DATE, LAST_SERVER_DATE, LAST_CLIENT_DATE, NUM_SERVER, NUM_CLIENT, CREATE_IP, CREATE_HOST, HOST_SECRET, HOST_SECRET2) " +
-                                    "VALUES (@, @, @, @, @, @, @, @, @, @, @, @, @, @, @)",
+                await db.QueryWithNoReturnAsync("INSERT INTO MACHINE (SVC_NAME, MSID, PCID, CERT, CERT_HASH, CREATE_DATE, UPDATE_DATE, LAST_SERVER_DATE, LAST_CLIENT_DATE, NUM_SERVER, NUM_CLIENT, CREATE_IP, CREATE_HOST, HOST_SECRET, HOST_SECRET2, PCID_UPDATE_DATE) " +
+                                    "VALUES (@, @, @, @, @, @, @, @, @, @, @, @, @, @, @, @)",
                                     svcName, msid, pcid, new byte[0], hostKey,
                                     now, now, now, now,
                                     0, 0,
                                     ip, fqdn,
-                                    hostKey, hostSecret2);
+                                    hostKey, hostSecret2,
+                                    now);
 
                 return true;
             }) == false)

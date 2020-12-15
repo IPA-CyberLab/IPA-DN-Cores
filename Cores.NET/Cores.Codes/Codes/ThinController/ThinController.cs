@@ -50,6 +50,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.Security;
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
@@ -79,14 +80,13 @@ using IPA.Cores.Web;
 using IPA.Cores.Helper.Web;
 using static IPA.Cores.Globals.Web;
 using System.Runtime.CompilerServices;
-using System.Net.Security;
 
 namespace IPA.Cores.Codes
 {
     // ThinController 設定 (アプリの起動時にコード中から設定可能な設定項目)
     public static class ThinControllerBasicSettings
     {
-        public static Action<HttpRequestRateLimiterOptions<HttpRequestRateLimiterHashKeys.SrcIPAddress>> ConfigureHttpRequestRateLimiterOptions = _ => { };
+        public static Action<HttpRequestRateLimiterOptions<HttpRequestRateLimiterHashKeys.SrcIPAddress>> ConfigureHttpRequestRateLimiterOptionsForUsers = _ => { };
     }
 
     // ThinController 設定 (JSON 設定ファイルで動的に設定変更可能な設定項目)
@@ -1164,15 +1164,6 @@ namespace IPA.Cores.Codes
             CancellationToken cancel = box.Cancel;
             HandleWpcParam param = (HandleWpcParam)param2!;
 
-            if (param.ServiceType == ThinControllerServiceType.ApiServiceForGateway)
-            {
-                // Gateway 宛のポートに通信が来たら IP ACL を確認する
-                if (EasyIpAcl.Evaluate(this.Db.GetVarString("GatewayServicePortIpAcl"), box.RemoteEndpoint.Address) == EasyIpAclAction.Deny)
-                {
-                    return new HttpErrorResult(Consts.HttpStatusCodes.Forbidden, $"Your IP address '{box.RemoteEndpoint.Address}' is not allowed to access to this endpoint.");
-                }
-            }
-
             // エンドユーザー用サービスポイントの場合、最大同時処理リクエスト数を制限する
             bool limitMaxConcurrentProcess = param.ServiceType == ThinControllerServiceType.ApiServiceForUsers;
 
@@ -1180,11 +1171,12 @@ namespace IPA.Cores.Codes
             {
                 // カウント加算
                 int cur = this.CurrentConcurrentProcess.Increment();
-                if (cur > ThinControllerConsts.MaxConcurrentWpcRequestProcessingForUsers)
+                int maxValue = this.CurrentValue_ControllerMaxConcurrentWpcRequestProcessingForUsers;
+                if (cur > maxValue)
                 {
                     // 最大数超過
                     this.CurrentConcurrentProcess.Decrement();
-                    return new HttpErrorResult(Consts.HttpStatusCodes.TooManyRequests, $"Too many WPC concurrent requests ({cur} > {ThinControllerConsts.MaxConcurrentWpcRequestProcessingForUsers})");
+                    return new HttpErrorResult(Consts.HttpStatusCodes.TooManyRequests, $"Too many WPC concurrent requests ({cur} > {maxValue})");
                 }
             }
 
@@ -1235,8 +1227,22 @@ namespace IPA.Cores.Codes
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ThinControllerServiceType serviceType)
         {
-            app.Use((context, next) =>
+            app.Use(async (context, next) =>
             {
+                if (serviceType == ThinControllerServiceType.ApiServiceForGateway)
+                {
+                    // Gateway 宛のポートに通信が来たら IP ACL を確認する
+                    var addr = context.Connection.RemoteIpAddress!._UnmapIPv4();
+                    if (EasyIpAcl.Evaluate(this.Db.GetVarString("GatewayServicePortIpAcl"), addr) == EasyIpAclAction.Deny)
+                    {
+                        await using var errResult = new HttpErrorResult(Consts.HttpStatusCodes.Forbidden, $"Your IP address '{addr}' is not allowed to access to this endpoint.");
+
+                        await context.Response._SendHttpResultAsync(errResult, context._GetRequestCancellationToken());
+
+                        return;
+                    }
+                }
+
                 string path = context.Request.Path.Value._NonNullTrim();
 
                 if (this.SettingsFastSnapshot.WpcPathList.Where(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase)).Any())
@@ -1246,10 +1252,12 @@ namespace IPA.Cores.Codes
                         ServiceType = serviceType,
                     };
 
-                    return HttpResult.EasyRequestHandler(context, param, HandleWpcAsync);
+                    await HttpResult.EasyRequestHandler(context, param, HandleWpcAsync);
+
+                    return;
                 }
 
-                return next();
+                await next();
             });
         }
 
@@ -1268,6 +1276,20 @@ namespace IPA.Cores.Codes
                 await base.CleanupImplAsync(ex);
             }
         }
+
+        // 設定値プロパティ集
+        // ここで、this.Db はまだ null である可能性があるため、? を付けること
+        public int CurrentValue_ControllerMaxConcurrentWpcRequestProcessingForUsers 
+            => (this.Db?.MemDb?.ControllerMaxConcurrentWpcRequestProcessingForUsers)._ZeroOrDefault(ThinControllerConsts.Default_ControllerMaxConcurrentWpcRequestProcessingForUsers);
+
+        public int CurrentValue_ControllerDbFullReloadIntervalMsecs 
+            => (this.Db?.MemDb?.ControllerDbFullReloadIntervalMsecs)._ZeroOrDefault(ThinControllerConsts.Default_ControllerDbFullReloadIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbReadFullReloadIntervalMsecs);
+
+        public int CurrentValue_ControllerDbWriteUpdateIntervalMsecs 
+            => (this.Db?.MemDb?.ControllerDbWriteUpdateIntervalMsecs)._ZeroOrDefault(ThinControllerConsts.Default_ControllerDbWriteUpdateIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbWriteUpdateIntervalMsecs);
+
+        public int CurrentValue_ControllerDbBackupFileWriteIntervalMsecs 
+            => (this.Db?.MemDb?.ControllerDbBackupFileWriteIntervalMsecs)._ZeroOrDefault(ThinControllerConsts.Default_ControllerDbBackupFileWriteIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbBackupFileWriteIntervalMsecs);
 
         // ユーティリティ関数系
 

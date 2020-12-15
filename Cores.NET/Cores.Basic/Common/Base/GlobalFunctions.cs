@@ -329,6 +329,30 @@ namespace IPA.Cores.Globals
         [MethodImpl(Inline)]
         public static Task TR() => Task.CompletedTask;
 
+        public static DateTime ZeroDateTimeValue
+        {
+            [MethodImpl(Inline)]
+            get => Util.ZeroDateTimeValue;
+        }
+
+        public static DateTime MaxDateTimeValue
+        {
+            [MethodImpl(Inline)]
+            get => Util.MaxDateTimeValue;
+        }
+
+        public static DateTimeOffset ZeroDateTimeOffsetValue
+        {
+            [MethodImpl(Inline)]
+            get => Util.ZeroDateTimeOffsetValue;
+        }
+
+        public static DateTimeOffset MaxDateTimeOffsetValue
+        {
+            [MethodImpl(Inline)]
+            get => Util.MaxDateTimeOffsetValue;
+        }
+
         public static Task TaskCompleted
         {
             [MethodImpl(Inline)]
