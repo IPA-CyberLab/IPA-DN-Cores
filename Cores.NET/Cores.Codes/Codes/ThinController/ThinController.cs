@@ -1338,19 +1338,19 @@ namespace IPA.Cores.Codes
                         var stat = this.GenerateStat();
                         if (stat != null)
                         {
-                            nums.Add("CurrentRelayGates", stat.CurrentRelayGates);
-                            nums.Add("CurrentUserSessionsServer", stat.CurrentUserSessionsServer);
-                            nums.Add("CurrentUserSessionsClient1", stat.CurrentUserSessionsClient1);
-                            nums.Add("CurrentUserSessionsClient2", stat.CurrentUserSessionsClient2);
-                            nums.Add("TotalServers", stat.TotalServers);
-                            nums.Add("ActiveServers_Day01", stat.ActiveServers_Day01);
-                            nums.Add("ActiveServers_Day03", stat.ActiveServers_Day03);
-                            nums.Add("ActiveServers_Day07", stat.ActiveServers_Day07);
-                            nums.Add("ActiveServers_Day30", stat.ActiveServers_Day30);
-                            nums.Add("TodaysNewServers", stat.TodaysNewServers);
-                            nums.Add("YestardaysNewServers", stat.YestardaysNewServers);
-                            nums.Add("TotalServerConnectRequests", (long)(stat.TotalServerConnectRequestsKilo * 1000.0));
-                            nums.Add("TotalClientConnectRequests", (long)(stat.TotalClientConnectRequestsKilo * 1000.0));
+                            nums.Add("Stat_CurrentRelayGates", stat.CurrentRelayGates);
+                            nums.Add("Stat_CurrentUserSessionsServer", stat.CurrentUserSessionsServer);
+                            nums.Add("Stat_CurrentUserSessionsClient1", stat.CurrentUserSessionsClient1);
+                            nums.Add("Stat_CurrentUserSessionsClient2", stat.CurrentUserSessionsClient2);
+                            nums.Add("Stat_TotalServers", stat.TotalServers);
+                            nums.Add("Stat_ActiveServers_Day01", stat.ActiveServers_Day01);
+                            nums.Add("Stat_ActiveServers_Day03", stat.ActiveServers_Day03);
+                            nums.Add("Stat_ActiveServers_Day07", stat.ActiveServers_Day07);
+                            nums.Add("Stat_ActiveServers_Day30", stat.ActiveServers_Day30);
+                            nums.Add("Stat_TodaysNewServers", stat.TodaysNewServers);
+                            nums.Add("Stat_YestardaysNewServers", stat.YestardaysNewServers);
+                            nums.Add("Stat_TotalServerConnectRequests", (long)(stat.TotalServerConnectRequestsKilo * 1000.0));
+                            nums.Add("Stat_TotalClientConnectRequests", (long)(stat.TotalClientConnectRequestsKilo * 1000.0));
 
                             nums.Add("Sys_DotNet_NumRunningTasks", stat.Sys_DotNet_NumRunningTasks);
                             nums.Add("Sys_DotNet_NumDelayedTasks", stat.Sys_DotNet_NumDelayedTasks);
