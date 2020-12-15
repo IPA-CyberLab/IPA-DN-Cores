@@ -1265,7 +1265,7 @@ namespace IPA.Cores.Basic
                         string exe;
                         string arguments;
 
-                        exe = (Env.IsHostedByDotNetProcess ? Env.DotNetHostProcessExeName : $"\"{Env.AppExecutableExeOrDllFileName}\"");
+                        exe = (Env.IsHostedByDotNetProcess ? Env.DotNetHostProcessExeName : $"{Env.AppRealProcessExeFileName}");
                         arguments = (Env.IsHostedByDotNetProcess ? $"exec \"{Env.AppExecutableExeOrDllFileName}\" /cmd:{cmdName} {DaemonCmdType.WinExecSvc}" : $"/cmd:{cmdName} {DaemonCmdType.WinExecSvc}");
 
                         string path = $"\"{exe}\" {arguments}";
