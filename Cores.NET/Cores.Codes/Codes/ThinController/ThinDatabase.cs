@@ -387,7 +387,9 @@ namespace IPA.Cores.Codes
         readonly FastCache<string, ThinDatabasePcidChangeHistory> PcidChangeHistoryCache = new FastCache<string, ThinDatabasePcidChangeHistory>(ThinControllerConsts.Max_ControllerDbReadFullReloadIntervalMsecs * 4, comparer: StrComparer.IgnoreCaseComparer);
         readonly CriticalSection PcidChangeLock = new CriticalSection<ThinDatabasePcidChangeHistory>();
 
-        readonly ConcurrentQueue<ThinDatabaseUpdateJob> UpdateJobQueue = new ConcurrentQueue<ThinDatabaseUpdateJob>();
+        readonly ConcurrentQueue<ThinDatabaseUpdateJob> LazyUpdateJobQueue = new ConcurrentQueue<ThinDatabaseUpdateJob>();
+
+        public int LazyUpdateJobQueueLength => LazyUpdateJobQueue.Count;
 
         public ThinDatabase(ThinController controller)
         {
@@ -412,12 +414,12 @@ namespace IPA.Cores.Codes
             int maxQueueLength = Math.Max(ThinControllerConsts.ControllerMaxDatabaseWriteQueueLength, 1);
 
             // キューがいっぱいの場合は古いものから削除する
-            while (UpdateJobQueue.Count >= maxQueueLength)
+            while (LazyUpdateJobQueue.Count >= maxQueueLength)
             {
-                UpdateJobQueue.TryDequeue(out _);
+                LazyUpdateJobQueue.TryDequeue(out _);
             }
 
-            UpdateJobQueue.Enqueue(new ThinDatabaseUpdateJob(proc));
+            LazyUpdateJobQueue.Enqueue(new ThinDatabaseUpdateJob(proc));
 
             Controller.StatMan!.AddReport("EnqueueUpdateJob_Total", 1);
         }
@@ -601,7 +603,7 @@ namespace IPA.Cores.Codes
             {
                 ThinDatabaseUpdateJob? queue = null;
 
-                if (UpdateJobQueue.TryDequeue(out queue) == false)
+                if (LazyUpdateJobQueue.TryDequeue(out queue) == false)
                 {
                     break;
                 }
@@ -628,7 +630,7 @@ namespace IPA.Cores.Codes
             int numError = 0;
             while (cancel.IsCancellationRequested == false)
             {
-                if (this.UpdateJobQueue.Count >= 1)
+                if (this.LazyUpdateJobQueue.Count >= 1)
                 {
                     numCycle++;
 

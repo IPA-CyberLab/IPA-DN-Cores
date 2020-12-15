@@ -197,6 +197,7 @@ namespace IPA.Cores.Codes
         public int Sys_DotNet_GcTotal, Sys_DotNet_Gc0, Sys_DotNet_Gc1, Sys_DotNet_Gc2;
 
         public double Sys_Thin_BootDays;
+        public int Sys_Thin_DbLazyUpdateQueueLength;
         public int Sys_Thin_ConcurrentRequests;
         public int Sys_Thin_LastDbReadTookMsecs;
         public int Sys_Thin_IsDatabaseConnected;
@@ -1850,6 +1851,7 @@ namespace IPA.Cores.Codes
                 Sys_Thin_ConcurrentRequests = this.CurrentConcurrentProcess,
                 Sys_Thin_LastDbReadTookMsecs = this.Db.LastDbReadTookMsecs,
                 Sys_Thin_IsDatabaseConnected = this.Db.IsDatabaseConnected ? 1 : 0,
+                Sys_Thin_DbLazyUpdateQueueLength = this.Db.LazyUpdateJobQueueLength,
             };
 
             return ret;
