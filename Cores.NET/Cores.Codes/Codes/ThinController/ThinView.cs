@@ -89,7 +89,7 @@ namespace IPA.Cores.Codes
         public IEnumerable<ThinDbMachine>? MachinesList = null;
 
         public int NumGates => GatesList.Count();
-        public int NumTotalSessions => GatesList.Sum(x => x.NumSessions);
+        public int NumTotalSessions => GatesList.Sum(x => x.SessionTable.Count);
 
         public int NumVars => VarsList?.Count() ?? 0;
         public int NumMachines => MachinesList?.Count() ?? 0;
