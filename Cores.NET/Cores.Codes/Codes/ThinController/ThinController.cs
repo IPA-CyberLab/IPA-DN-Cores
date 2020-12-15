@@ -364,6 +364,8 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("Msid", machine.MSID);
             ret.AdditionalInfo.Add("WoL_MacList", machine.WOL_MACLIST._NonNullTrim());
 
+            Controller.StatMan!.AddReport("ProcClientGetWolMacList_Total", 1);
+
             return ret;
         }
 
@@ -461,6 +463,8 @@ namespace IPA.Cores.Codes
             // データベース更新
             Controller.Db.UpdateDbForClientConnect(machine.MSID, DtNow, ClientInfo.ClientIp);
 
+            Controller.StatMan!.AddReport("ProcClientConnectAsync_Total", 1);
+
             return ret;
         }
 
@@ -497,6 +501,8 @@ namespace IPA.Cores.Codes
 
             ret.AdditionalInfo.Add("OldPcid", this.ClientInfo.AuthedMachine!.PCID);
             ret.AdditionalInfo.Add("NewPcid", newPcid);
+
+            Controller.StatMan!.AddReport("ProcRenameMachine_Total", 1);
 
             return ret;
         }
@@ -608,6 +614,8 @@ namespace IPA.Cores.Codes
                 ret.AdditionalInfo.Add("RegistrationEmail", registrationEmail);
             }
 
+            Controller.StatMan!.AddReport("ProcRegistMachine_Total", 1);
+
             return ret;
         }
 
@@ -643,6 +651,8 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("machineName", machineName);
             ret.AdditionalInfo.Add("userName", userName);
             ret.AdditionalInfo.Add("computerName", computerName);
+
+            Controller.StatMan!.AddReport("ProcGetPcidCandidate_Total", 1);
 
             return ret;
         }
@@ -688,6 +698,8 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("clientFqdn", clientFqdn);
             ret.AdditionalInfo.Add("pcid", pcid);
             ret.AdditionalInfo.Add("pcidMasked", pcidMasked);
+
+            Controller.StatMan!.AddReport("ProcSendOtpEmailAsync_Total", 1);
 
             return ret;
         }
@@ -772,6 +784,12 @@ namespace IPA.Cores.Codes
             {
                 // WoL MAC アドレスリストが登録されようとしており、かつ、現在の DB の内容と異なる場合は、
                 // 直ちに DB 強制更新する
+                if (Controller.Db.IsDatabaseConnected == false)
+                {
+                    // データベースエラー時は処理禁止
+                    return NewWpcResult(VpnErrors.ERR_TEMP_ERROR);
+                }
+
                 await Controller.Db.UpdateDbForWolMac(ClientInfo.AuthedMachine!.MSID, wolMacList, serverMask64, DtNow, cancel);
 
                 machine.WOL_MACLIST = wolMacList;
@@ -789,6 +807,8 @@ namespace IPA.Cores.Codes
                 ClientInfo.HttpQueryStringList._GetStrFirst("flag"),
                 wolMacList,
                 serverMask64);
+
+            Controller.StatMan!.AddReport("ProcServerConnectAsync_Total", 1);
 
             return ret;
         }
@@ -947,6 +967,8 @@ namespace IPA.Cores.Codes
 
             AddGateSettingsToPack(ret.Pack);
 
+            Controller.StatMan!.AddReport("ProcReportSessionListAsync_Total", 1);
+
             return ret;
         }
 
@@ -1005,6 +1027,8 @@ namespace IPA.Cores.Codes
 
             AddGateSettingsToPack(ret.Pack);
 
+            Controller.StatMan!.AddReport("ProcReportSessionAddAsync_Total", 1);
+
             return ret;
         }
 
@@ -1051,6 +1075,8 @@ namespace IPA.Cores.Codes
             }
 
             AddGateSettingsToPack(ret.Pack);
+
+            Controller.StatMan!.AddReport("ProcReportSessionDelAsync_Total", 1);
 
             return ret;
         }
@@ -1276,6 +1302,8 @@ namespace IPA.Cores.Codes
 
         readonly Task RecordStatTask;
 
+        public StatMan StatMan {get;}
+
         public ThinController(ThinControllerSettings settings, ThinControllerHookBase hook, Func<ThinControllerSettings>? getDefaultSettings = null)
         {
             try
@@ -1295,6 +1323,53 @@ namespace IPA.Cores.Codes
                 this.SessionManager = new ThinSessionManager();
 
                 this.RecordStatTask = RecordStatAsync()._LeakCheck();
+
+                this.StatMan = new StatMan(new StatManConfig
+                {
+                    SystemName = "thincontroller",
+                    LogName = "thincontroller_stat",
+                    Callback = async (p, nums, strs) =>
+                    {
+                        await TaskCompleted;
+
+                        var stat = this.GenerateStat();
+                        if (stat != null)
+                        {
+                            nums.Add("CurrentRelayGates", stat.CurrentRelayGates);
+                            nums.Add("CurrentUserSessionsServer", stat.CurrentUserSessionsServer);
+                            nums.Add("CurrentUserSessionsClient1", stat.CurrentUserSessionsClient1);
+                            nums.Add("CurrentUserSessionsClient2", stat.CurrentUserSessionsClient2);
+                            nums.Add("TotalServers", stat.TotalServers);
+                            nums.Add("ActiveServers_Day01", stat.ActiveServers_Day01);
+                            nums.Add("ActiveServers_Day03", stat.ActiveServers_Day03);
+                            nums.Add("ActiveServers_Day07", stat.ActiveServers_Day07);
+                            nums.Add("ActiveServers_Day30", stat.ActiveServers_Day30);
+                            nums.Add("TodaysNewServers", stat.TodaysNewServers);
+                            nums.Add("YestardaysNewServers", stat.YestardaysNewServers);
+                            nums.Add("TotalServerConnectRequests", (long)(stat.TotalServerConnectRequestsKilo * 1000.0));
+                            nums.Add("TotalClientConnectRequests", (long)(stat.TotalClientConnectRequestsKilo * 1000.0));
+
+                            nums.Add("Sys_DotNet_NumRunningTasks", stat.Sys_DotNet_NumRunningTasks);
+                            nums.Add("Sys_DotNet_NumDelayedTasks", stat.Sys_DotNet_NumDelayedTasks);
+                            nums.Add("Sys_DotNet_NumTimerTasks", stat.Sys_DotNet_NumTimerTasks);
+                            nums.Add("Sys_DotNet_NumObjects", stat.Sys_DotNet_NumObjects);
+                            nums.Add("Sys_DotNet_CpuUsage", stat.Sys_DotNet_CpuUsage);
+                            nums.Add("Sys_DotNet_ManagedMemory", (long)(stat.Sys_DotNet_ManagedMemory_MBytes * 1024.0 * 1024.0));
+                            nums.Add("Sys_DotNet_ProcessMemory", (long)(stat.Sys_DotNet_ProcessMemory_MBytes * 1024.0 * 1024.0));
+                            nums.Add("Sys_DotNet_GcTotal", stat.Sys_DotNet_GcTotal);
+                            nums.Add("Sys_DotNet_Gc0", stat.Sys_DotNet_Gc0);
+                            nums.Add("Sys_DotNet_Gc1", stat.Sys_DotNet_Gc1);
+                            nums.Add("Sys_DotNet_Gc2", stat.Sys_DotNet_Gc2);
+
+                            nums.Add("Sys_Thin_BootSeconds", (long)(stat.Sys_Thin_BootDays * 60.0 * 60.0 * 24.0));
+                            nums.Add("Sys_Thin_ConcurrentRequests", stat.Sys_Thin_ConcurrentRequests);
+                            nums.Add("Sys_Thin_LastDbReadTookMsecs", stat.Sys_Thin_LastDbReadTookMsecs);
+                            nums.Add("Sys_Thin_IsDatabaseConnected", stat.Sys_Thin_IsDatabaseConnected);
+                        }
+                    }
+                });
+
+                StatMan!.AddReport("BootCount_Total", 1);
             }
             catch (Exception ex)
             {
@@ -1313,6 +1388,8 @@ namespace IPA.Cores.Codes
         // 統計記録用タスク
         async Task RecordStatAsync()
         {
+            await Task.Yield();
+
             CancellationToken cancel = this.GrandCancel;
 
             long lastTick = 0;
@@ -1625,6 +1702,8 @@ namespace IPA.Cores.Codes
         {
             try
             {
+                await this.StatMan._DisposeSafeAsync();
+
                 await this.Db._DisposeSafeAsync();
 
                 await this.DnsResolver._DisposeSafeAsync();

@@ -83,7 +83,7 @@ using Newtonsoft.Json;
 
 namespace IPA.Cores.Codes
 {
-    public class ThinDbVar : INormalizable
+    public class ThinDbVar : INormalizable // 注意! MemDb ファイル保存するため、むやみに [JsonIgnore] を書かないこと！！
     {
         [EasyKey]
         public int VAR_ID { get; set; }
@@ -107,14 +107,14 @@ namespace IPA.Cores.Codes
         }
     }
 
-    public class ThinDbSvc
+    public class ThinDbSvc // 注意! MemDb ファイル保存するため、むやみに [JsonIgnore] を書かないこと！！
     {
         [EasyManualKey]
         public string SVC_NAME { get; set; } = "";
         public string SVC_TITLE { get; set; } = "";
     }
 
-    public class ThinDbMachine
+    public class ThinDbMachine // 注意! MemDb ファイル保存するため、むやみに [JsonIgnore] を書かないこと！！
     {
         [SimpleTableOrder(1)]
         public int MACHINE_ID { get; set; }
@@ -134,11 +134,9 @@ namespace IPA.Cores.Codes
         [SimpleTableIgnore]
         public string CERT_HASH { get; set; } = "";
         [SimpleTableIgnore]
-        [JsonIgnore]
         [NoDebugDump]
         public string HOST_SECRET { get; set; } = "";
         [SimpleTableIgnore]
-        [JsonIgnore]
         [NoDebugDump]
         public string HOST_SECRET2 { get; set; } = "";
         [SimpleTableOrder(5)]
@@ -189,12 +187,14 @@ namespace IPA.Cores.Codes
         public string JSON_ATTRIBUTES { get; set; } = "";
     }
 
-    public class ThinMemoryDb
+    public class ThinMemoryDb // 注意! MemDb ファイル保存するため、むやみに [JsonIgnore] を書かないこと！！
     {
         // データベースからもらってきたデータ
         public List<ThinDbSvc> SvcList = new List<ThinDbSvc>();
         public List<ThinDbVar> VarList = new List<ThinDbVar>();
         public List<ThinDbMachine> MachineList = new List<ThinDbMachine>();
+
+        // 以下は [JsonIgnore] を付けること！！
 
         // 上記データをもとにハッシュ化したデータ
         [JsonIgnore]
@@ -418,24 +418,46 @@ namespace IPA.Cores.Codes
             }
 
             UpdateJobQueue.Enqueue(new ThinDatabaseUpdateJob(proc));
+
+            Controller.StatMan!.AddReport("EnqueueUpdateJob_Total", 1);
         }
 
         public async Task<Database> OpenDatabaseForReadAsync(CancellationToken cancel = default)
         {
             Database db = new Database(this.Controller.SettingsFastSnapshot.DbConnectionString_Read, defaultIsolationLevel: IsolationLevel.Snapshot);
 
-            await db.EnsureOpenAsync(cancel);
+            try
+            {
+                await db.EnsureOpenAsync(cancel);
 
-            return db;
+                Controller.StatMan!.AddReport("OpenDatabaseForReadAsync_Total", 1);
+
+                return db;
+            }
+            catch
+            {
+                await db._DisposeSafeAsync();
+                throw;
+            }
         }
 
         public async Task<Database> OpenDatabaseForWriteAsync(CancellationToken cancel = default)
         {
             Database db = new Database(this.Controller.SettingsFastSnapshot.DbConnectionString_Write, defaultIsolationLevel: IsolationLevel.Serializable);
 
-            await db.EnsureOpenAsync(cancel);
+            try
+            {
+                await db.EnsureOpenAsync(cancel);
 
-            return db;
+                Controller.StatMan!.AddReport("OpenDatabaseForWriteAsync_Total", 1);
+
+                return db;
+            }
+            catch
+            {
+                await db._DisposeSafeAsync();
+                throw;
+            }
         }
 
         long LastBackupSaveTick = 0;
@@ -503,6 +525,8 @@ namespace IPA.Cores.Codes
                         ex._Error();
                     }
                 }
+
+                Controller.StatMan!.AddReport("ReadFromDb_OK_Total", 1);
             }
             catch
             {
@@ -511,6 +535,8 @@ namespace IPA.Cores.Codes
                 {
                     this.MemDb = new ThinMemoryDb(this.BackupFileName);
                 }
+
+                Controller.StatMan!.AddReport("ReadFromDb_Error_Total", 1);
 
                 // バックアップファイルの読み込みを行なった上で、DB 例外はちゃんと throw する
                 throw;
