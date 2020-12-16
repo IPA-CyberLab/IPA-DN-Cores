@@ -520,8 +520,8 @@ namespace IPA.Cores.Helper.Basic
         public static string[] _UniqueToken(this IEnumerable<string> t) => Str.UniqueToken(t);
         public static List<string> _ToStrList(this IEnumerable<string> t, bool removeEmpty = false, bool distinct = false, bool distinctCaseSensitive = false)
             => Str.StrArrayToList(t, removeEmpty, distinct, distinctCaseSensitive);
-        public static string _Combine(this IEnumerable<string?> t, string? sepstr = "") => Str.CombineStringArray(t, sepstr);
-        public static string _Combine(this IEnumerable<string?> t, char sepChar) => Str.CombineStringArray(t, sepChar.ToString());
+        public static string _Combine(this IEnumerable<string?> t, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringArray(t, sepstr, removeEmpty, maxItems, ommitStr);
+        public static string _Combine(this IEnumerable<string?> t, char sepChar, bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringArray(t, sepChar.ToString(), removeEmpty, maxItems, ommitStr);
 
         public static string _MakeAsciiOneLinePrintableStr(this string? src, char alternativeChar = ' ') => Str.MakeAsciiOneLinePrintableStr(src, alternativeChar);
 

@@ -47,8 +47,13 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
-    public abstract class IPAddr : IComparable<IPAddr>, IEquatable<IPAddr>
+    public class IPAddr : IComparable<IPAddr>, IEquatable<IPAddr>
     {
+        [Obsolete("Hotate InetDb のデシリアライズのために残しているが、使用してはなりません")]
+        public IPAddr()
+        {
+        }
+
         public byte[] Bytes = null!;
         public int Size;
         public AddressFamily AddressFamily;
@@ -125,7 +130,10 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public abstract IPAddr Add(int i);
+        public virtual IPAddr Add(int i)
+        {
+            throw new NotImplementedException();
+        }
 
         public static byte[] PadBytes(byte[] b, int size)
         {
@@ -314,6 +322,7 @@ namespace IPA.Cores.Basic
 
     public class IPv4Addr : IPAddr
     {
+#pragma warning disable CS0618 // 型またはメンバーが旧型式です
         public IPv4Addr(IPAddress a)
         {
             if (a.AddressFamily != AddressFamily.InterNetwork)
@@ -351,6 +360,7 @@ namespace IPA.Cores.Basic
             this.Size = 4;
             this.AddressFamily = AddressFamily.InterNetwork;
         }
+#pragma warning restore CS0618 // 型またはメンバーが旧型式です
 
         public override IPAddr Add(int i)
         {
@@ -393,6 +403,7 @@ namespace IPA.Cores.Basic
             max_ipv6 = b;
         }
 
+#pragma warning disable CS0618 // 型またはメンバーが旧型式です
         public IPv6Addr(IPAddress a)
         {
             if (a.AddressFamily != AddressFamily.InterNetworkV6)
@@ -433,6 +444,7 @@ namespace IPA.Cores.Basic
             this.AddressFamily = AddressFamily.InterNetworkV6;
             this.ScopeId = a._ScopeIdSafe();
         }
+#pragma warning restore CS0618 // 型またはメンバーが旧型式です
 
         public override IPAddr Add(int i)
         {

@@ -4539,7 +4539,7 @@ namespace IPA.Cores.Basic
             return CombineStringArray(tmp.ToArray(), sepstr);
         }
 
-        public static string CombineStringArray(IEnumerable<string?> strList, string? sepstr = "", bool removeEmpty = false)
+        public static string CombineStringArray(IEnumerable<string?> strList, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...")
         {
             sepstr = sepstr._NonNull();
 
@@ -4551,6 +4551,12 @@ namespace IPA.Cores.Basic
             {
                 if (removeEmpty == false || s._IsFilled())
                 {
+                    if (num >= maxItems)
+                    {
+                        b.Append(ommitStr._NonNull());
+                        break;
+                    }
+
                     if (num >= 1)
                     {
                         b.Append(sepstr);
