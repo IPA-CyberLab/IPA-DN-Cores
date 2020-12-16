@@ -446,9 +446,18 @@ namespace IPA.Cores.Basic
                     throw new IOException("Open failed.");
                 }
 
-                if (UnixApi.FLock(fd, UnixApi.LockOperations.LOCK_EX | (nonBlock ? UnixApi.LockOperations.LOCK_NB : 0)) == -1)
+                try
                 {
-                    throw new IOException("FLock failed.");
+                    if (UnixApi.FLock(fd, UnixApi.LockOperations.LOCK_EX | (nonBlock ? UnixApi.LockOperations.LOCK_NB : 0)) == -1)
+                    {
+                        throw new IOException("FLock failed.");
+                    }
+                }
+                catch
+                {
+                    UnixApi.Close(fd);
+
+                    throw;
                 }
 
                 this.FileHandle = fd;
