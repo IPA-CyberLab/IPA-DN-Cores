@@ -386,6 +386,13 @@ namespace IPA.Cores.Helper.Basic
         public static string? _Print(this string? s) { Con.WriteLine(s); return s; }
         public static string? _Debug(this string? s) { Dbg.WriteLine(s); return s; }
 
+        [return: NotNullIfNotNull("s")]
+        public static string? _MaskPassword(this string? s, char maskedChar = '*')
+        {
+            if (s == null) return null;
+            return maskedChar._MakeCharArray(s.Length);
+        }
+
         [MethodImpl(NoInline | NoOptimization)]
         public static string? _ErrorFunc(this string? s, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
         {

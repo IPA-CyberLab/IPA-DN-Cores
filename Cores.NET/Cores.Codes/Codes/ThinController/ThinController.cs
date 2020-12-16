@@ -218,13 +218,17 @@ namespace IPA.Cores.Codes
         public ThinDbMachine? AuthedMachine { get; private set; }
         public string MachineGroupName { get; private set; } = "";
 
-        public ThinControllerSessionClientInfo(HttpEasyContextBox box, ThinControllerServiceType serviceType)
+        public int ConsumingConcurrentProcessCount { get; }
+
+        public ThinControllerSessionClientInfo(HttpEasyContextBox box, ThinControllerServiceType serviceType, int consumingConcurrentProcessCount)
         {
             this.ServiceType = serviceType;
 
             this.Box = box;
 
             this.ClientPhysicalIp = box.RemoteEndpoint.Address.ToString();
+
+            this.ConsumingConcurrentProcessCount = consumingConcurrentProcessCount;
 
             string proxySrcIp = box.Request.Headers._GetStrFirst("X-WG-Proxy-SrcIP");
 
@@ -1462,7 +1466,15 @@ namespace IPA.Cores.Codes
 
             ret.GatesList = this.SessionManager.GateTable.Values.OrderBy(x => x.IpAddress, StrComparer.IpAddressStrComparer).ThenBy(x => x.GateId);
 
-            ret.VarsList = this.Db.MemDb?.VarList.OrderBy(x => x.VAR_NAME).ThenBy(x => x.VAR_ID) ?? null;
+            ret.VarsList = (this.Db.MemDb?.VarList.OrderBy(x => x.VAR_NAME).ThenBy(x => x.VAR_ID) ?? null)!.ToList()._CloneWithJson() ?? null;
+
+            ret.VarsList?._DoForEach(x =>
+            {
+                if (x.VAR_NAME._InStr("password", true) || x.VAR_NAME._InStr("secret", true))
+                {
+                    x.VAR_VALUE1 = x.VAR_VALUE1._MaskPassword();
+                }
+            });
 
             ret.MachinesList = this.Db.MemDb?.MachineList.OrderBy(x => x.CREATE_DATE) ?? null;
 
@@ -1486,7 +1498,7 @@ namespace IPA.Cores.Codes
                     string password2 = Db.GetVarString("QueryPassword_Stat")._NonNullTrim();
                     if (password2._IsEmpty() || password2 == password)
                     {
-                        var stat = this.GenerateStat()!;
+                        var stat = this.GenerateStat(false, clientInfo.ConsumingConcurrentProcessCount)!;
                         string body;
                         string mime;
 
@@ -1601,7 +1613,7 @@ namespace IPA.Cores.Codes
             try
             {
                 // クライアント情報
-                ThinControllerSessionClientInfo clientInfo = new ThinControllerSessionClientInfo(box, param.ServiceType);
+                ThinControllerSessionClientInfo clientInfo = new ThinControllerSessionClientInfo(box, param.ServiceType, limitMaxConcurrentProcess ? 1 : 0);
 
                 if (clientInfo.IsProxyMode)
                 {
@@ -1781,15 +1793,15 @@ namespace IPA.Cores.Codes
 
         // 統計データの作成
         readonly FastSingleCache<ThinControllerStat> StatCache = new FastSingleCache<ThinControllerStat>(ThinControllerConsts.ControllerStatCacheExpiresMsecs, 0, CacheType.DoNotUpdateExpiresWhenAccess);
-        public ThinControllerStat? GenerateStat(bool refresh = false)
+        public ThinControllerStat? GenerateStat(bool refresh = false, int subtractConcurrentProcessCount = 0)
         {
             if (Db.MemDb == null) return null;
             if (refresh) StatCache.Clear();
-            return StatCache.GetOrCreate(() => GenerateStatCore());
+            return StatCache.GetOrCreate(() => GenerateStatCore(subtractConcurrentProcessCount));
         }
 
 
-        ThinControllerStat? GenerateStatCore()
+        ThinControllerStat? GenerateStatCore(int subtractConcurrentProcessCount = 0)
         {
             var now = DtNow;
             var days1 = now.AddDays(-1);
@@ -1856,7 +1868,7 @@ namespace IPA.Cores.Codes
                 Sys_DotNet_Gc2 = sys.Gc2,
 
                 Sys_Thin_BootDays = (double)(TickNow - this.BootTick) / (double)(24 * 60 * 60 * 1000),
-                Sys_Thin_ConcurrentRequests = this.CurrentConcurrentProcess,
+                Sys_Thin_ConcurrentRequests = Math.Max(this.CurrentConcurrentProcess - subtractConcurrentProcessCount, 0),
                 Sys_Thin_LastDbReadTookMsecs = this.Db.LastDbReadTookMsecs,
                 Sys_Thin_IsDatabaseConnected = this.Db.IsDatabaseConnected ? 1 : 0,
                 Sys_Thin_DbLazyUpdateQueueLength = this.Db.LazyUpdateJobQueueLength,
