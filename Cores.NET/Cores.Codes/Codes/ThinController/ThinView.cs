@@ -72,12 +72,6 @@ using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
 
-using IPA.Cores.Web;
-using IPA.Cores.Helper.Web;
-using static IPA.Cores.Globals.Web;
-
-using static IPA.App.ThinControllerApp.AppGlobal;
-
 namespace IPA.Cores.Codes
 {
     public class ThinAdminView

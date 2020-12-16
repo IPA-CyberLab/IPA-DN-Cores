@@ -76,9 +76,6 @@ using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
 
-using IPA.Cores.Web;
-using IPA.Cores.Helper.Web;
-using static IPA.Cores.Globals.Web;
 using System.Runtime.CompilerServices;
 
 namespace IPA.Cores.Codes
