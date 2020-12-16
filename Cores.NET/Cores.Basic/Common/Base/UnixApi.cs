@@ -395,8 +395,8 @@ namespace IPA.Cores.Basic
             int r2 = SetRLimit(id, ref t);
 
             t = new RLimit();
-            t.CurrentLimit = hard_limit;
-            t.MaximumLimit = hard_limit;
+            t.CurrentLimit = value;
+            t.MaximumLimit = value;
 
             int r3 = SetRLimit(id, ref t);
         }
