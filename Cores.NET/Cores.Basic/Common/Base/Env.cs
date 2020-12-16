@@ -209,6 +209,8 @@ namespace IPA.Cores.Basic
                 {
                     IsMac = true;
                 }
+
+                UnixApi.InitUnixLimitsValue(IsMac, (IntPtr.Size == 8));
             }
 
             PathSeparator = "" + Path.DirectorySeparatorChar;

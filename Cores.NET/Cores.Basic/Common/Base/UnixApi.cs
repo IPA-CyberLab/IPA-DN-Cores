@@ -339,5 +339,77 @@ namespace IPA.Cores.Basic
         {
             return TaskUtil.WaitWithPoll(timeout, 100, () => (IsProcess(pid) == false), cancel);
         }
+
+        internal const ulong RLIM_INFINITY = ulong.MaxValue;
+
+        internal enum RlimitResources : int
+        {
+            RLIMIT_CPU = 0,        // CPU limit in seconds
+            RLIMIT_FSIZE = 1,        // Largest file that can be created, in bytes
+            RLIMIT_DATA = 2,        // Maximum size of data segment, in bytes
+            RLIMIT_STACK = 3,        // Maximum size of stack segment, in bytes
+            RLIMIT_CORE = 4,        // Largest core file that can be created, in bytes
+            RLIMIT_AS = 5,        // Address space limit
+            RLIMIT_RSS = 6,        // Largest resident set size, in bytes
+            RLIMIT_MEMLOCK = 7,        // Locked-in-memory address space
+            RLIMIT_NPROC = 8,        // Number of processes
+            RLIMIT_NOFILE = 9,        // Number of open files
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct RLimit
+        {
+            internal ulong CurrentLimit;
+            internal ulong MaximumLimit;
+        }
+
+        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_GetRLimit", SetLastError = true)]
+        internal static extern int GetRLimit(RlimitResources resourceType, out RLimit limits);
+
+        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_SetRLimit", SetLastError = true)]
+        internal static extern int SetRLimit(RlimitResources resourceType, ref RLimit limits);
+
+        internal static class UnixLimitConsts
+        {
+            public const uint UNIX_MAX_CHILD_PROCESSES = 2000000;       // Maximum number of child processes
+            public const uint UNIX_LINUX_MAX_THREADS = 200000000;       // Maximum number of threads
+            public const uint UNIX_MAX_LOCKS = 65536;                   // Maximum number of locks
+            public const uint UNIX_MAX_MEMORY = int.MaxValue - 1;
+            public const ulong UNIX_MAX_MEMORY_64 = (65536UL * 2147483647UL);  // Maximum memory capacity (64-bit)
+            public const uint UNIX_MAX_FD = (655360);               // Maximum number of FDs
+            public const uint UNIX_MAX_FD_MACOS = (10000);			// Maximum number of FDs (Mac OS X)
+        }
+
+        internal static void SetResourceLimits(RlimitResources id, ulong value)
+        {
+            RLimit t = new RLimit();
+
+            int r1 = GetRLimit(id, out t);
+
+            ulong hard_limit = t.MaximumLimit;
+
+            t = new RLimit();
+            t.CurrentLimit = Math.Min(value, hard_limit);
+            t.MaximumLimit = hard_limit;
+
+            int r2 = SetRLimit(id, ref t);
+
+            t = new RLimit();
+            t.CurrentLimit = hard_limit;
+            t.MaximumLimit = hard_limit;
+
+            int r3 = SetRLimit(id, ref t);
+        }
+
+        internal static void InitUnixLimitsValue(bool isMac, bool is64bit)
+        {
+            SetResourceLimits(RlimitResources.RLIMIT_DATA, is64bit ? UnixLimitConsts.UNIX_MAX_MEMORY_64 : UnixLimitConsts.UNIX_MAX_MEMORY);
+            SetResourceLimits(RlimitResources.RLIMIT_RSS, is64bit ? UnixLimitConsts.UNIX_MAX_MEMORY_64 : UnixLimitConsts.UNIX_MAX_MEMORY);
+
+            SetResourceLimits(RlimitResources.RLIMIT_NOFILE, isMac ? UnixLimitConsts.UNIX_MAX_FD_MACOS : UnixLimitConsts.UNIX_MAX_FD);
+
+            SetResourceLimits(RlimitResources.RLIMIT_MEMLOCK, UnixLimitConsts.UNIX_MAX_LOCKS);
+            SetResourceLimits(RlimitResources.RLIMIT_NPROC, UnixLimitConsts.UNIX_MAX_CHILD_PROCESSES);
+        }
     }
 }
