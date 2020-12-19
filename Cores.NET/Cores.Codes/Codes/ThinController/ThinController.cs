@@ -1988,15 +1988,15 @@ namespace IPA.Cores.Codes
 
                 if (n <= 100)
                 {
-                    rand = Str.GenRandNumericPasswordWithBlocks(4, 2, '-');
+                    rand = Str.GenRandNumericPasswordWithBlocks(3, 2, '-');
                 }
                 else if (n <= 200)
                 {
-                    rand = Str.GenRandNumericPasswordWithBlocks(4, 3, '-');
+                    rand = Str.GenRandNumericPasswordWithBlocks(4, 2, '-');
                 }
                 else if (n <= 1000)
                 {
-                    rand = Str.GenRandNumericPasswordWithBlocks(4, 4, '-');
+                    rand = Str.GenRandNumericPasswordWithBlocks(5, 3, '-');
                 }
                 else
                 {
