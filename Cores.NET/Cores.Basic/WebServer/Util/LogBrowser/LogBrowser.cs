@@ -828,6 +828,8 @@ namespace IPA.Cores.Basic
                             readSize = tail;
                         }
 
+                        bool isUtf8 = MasterData.ExtensionToMime.Get(".json")._IsSamei(mimeType); // JSON?
+
                         if (tail != 0)
                         {
                             mimeType = Consts.MimeTypes.Text;
@@ -840,7 +842,8 @@ namespace IPA.Cores.Basic
                             try
                             {
                                 // 元のファイルの先頭に BOM が付いていて、先頭をスキップする場合は、
-                                // 応答データに先頭にも BOM を付ける
+                                // 応答データに先頭にも BOM を付ける。
+                                // 2020.12.19 元のファイルに BOM がなくても、UTF-8 であることが確実であれば BOM を付ける。
                                 byte[] bom = new byte[3];
                                 if (await randomAccess.ReadRandomAsync(0, bom, cancel) == 3)
                                 {
@@ -848,6 +851,11 @@ namespace IPA.Cores.Basic
                                     {
                                         preData = bom;
                                     }
+                                }
+
+                                if (isUtf8)
+                                {
+                                    preData = bom;
                                 }
                             }
                             catch { }
