@@ -125,12 +125,7 @@ namespace IPA.Cores.Codes
         [SimpleTableIgnore]
         public DateTime PCID_UPDATE_DATE { get; set; } = Util.ZeroDateTimeValue;
         [SimpleTableIgnore]
-        public byte[] CERT { get; set; } = new byte[0];
-        [SimpleTableIgnore]
         public string CERT_HASH { get; set; } = "";
-        [SimpleTableIgnore]
-        [NoDebugDump]
-        public string HOST_SECRET { get; set; } = "";
         [SimpleTableIgnore]
         [NoDebugDump]
         public string HOST_SECRET2 { get; set; } = "";
@@ -159,21 +154,7 @@ namespace IPA.Cores.Codes
         [SimpleTableIgnore]
         public string LAST_FLAG { get; set; } = "";
         [SimpleTableIgnore]
-        public int SE_LANGUAGE { get; set; }
-        [SimpleTableIgnore]
-        public bool RESET_CERT_FLAG { get; set; }
-        [SimpleTableIgnore]
-        public bool FLAG_BETA2MSG { get; set; }
-        [SimpleTableIgnore]
         public DateTime FIRST_CLIENT_DATE { get; set; } = Util.ZeroDateTimeValue;
-        [SimpleTableIgnore]
-        public DateTime EXPIRE { get; set; } = Util.ZeroDateTimeValue;
-        [SimpleTableIgnore]
-        public int MAX_CLIENTS { get; set; }
-        [SimpleTableIgnore]
-        public bool MAC_ENABLE { get; set; }
-        [SimpleTableIgnore]
-        public int NUM_MACCLIENT { get; set; }
         [SimpleTableIgnore]
         public string WOL_MACLIST { get; set; } = "";
         [SimpleTableIgnore]
@@ -722,7 +703,7 @@ namespace IPA.Cores.Codes
             {
                 await db.QueryWithNoReturnAsync(
                     "UPDATE MACHINE SET NUM_CLIENT = NUM_CLIENT + 1, LAST_CLIENT_DATE = @, LAST_CLIENT_IP = @ WHERE MSID = @ " +
-                    "UPDATE MACHINE SET FIRST_CLIENT_DATE = @ WHERE MSID = @ AND FIRST_CLIENT_DATE IS NULL",
+                    "UPDATE MACHINE SET FIRST_CLIENT_DATE = @ WHERE MSID = @ AND (FIRST_CLIENT_DATE IS NULL OR FIRST_CLIENT_DATE <= '1900/01/01')",
                     now, lastClientIp, msid,
                     now, msid);
             });
@@ -892,13 +873,13 @@ namespace IPA.Cores.Codes
                 }
 
                 // 登録の実行
-                await db.QueryWithNoReturnAsync("INSERT INTO MACHINE (SVC_NAME, MSID, PCID, CERT, CERT_HASH, CREATE_DATE, UPDATE_DATE, LAST_SERVER_DATE, LAST_CLIENT_DATE, NUM_SERVER, NUM_CLIENT, CREATE_IP, CREATE_HOST, HOST_SECRET, HOST_SECRET2, PCID_UPDATE_DATE, JSON_ATTRIBUTES) " +
-                                    "VALUES (@, @, @, @, @, @, @, @, @, @, @, @, @, @, @, @, @)",
-                                    svcName, msid, pcid, new byte[0], hostKey,
+                await db.QueryWithNoReturnAsync("INSERT INTO MACHINE (SVC_NAME, MSID, PCID, CERT_HASH, CREATE_DATE, UPDATE_DATE, LAST_SERVER_DATE, LAST_CLIENT_DATE, NUM_SERVER, NUM_CLIENT, CREATE_IP, CREATE_HOST, HOST_SECRET2, PCID_UPDATE_DATE, JSON_ATTRIBUTES) " +
+                                    "VALUES (@, @, @, @, @, @, @, @, @, @, @, @, @, @, @)",
+                                    svcName, msid, pcid, hostKey,
                                     now, now, now, now,
                                     0, 0,
                                     ip, fqdn,
-                                    hostKey, hostSecret2,
+                                    hostSecret2,
                                     now, initialJsonAttributes);
 
                 return true;
