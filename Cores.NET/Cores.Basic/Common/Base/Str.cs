@@ -4667,7 +4667,7 @@ namespace IPA.Cores.Basic
         // 新しい数字だけのパスワードを生成
         public static string GenRandNumericPassword(int count = 16)
         {
-            count._SetMax(4);
+            count._SetMax(1);
 
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < count; i++)
