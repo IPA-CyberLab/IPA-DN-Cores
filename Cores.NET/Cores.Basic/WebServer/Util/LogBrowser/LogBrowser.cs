@@ -159,6 +159,7 @@ namespace IPA.Cores.Basic
         public LogBrowserFlags Flags { get; }
         public string ZipEncryptPassword { get; }
         public StatMan? Stat { get; }
+        public bool RegardAllLogFilesUtf8 { get; }
 
         public LogBrowserOptions(DirectoryPath rootDir,
             string systemTitle = Consts.Strings.LogBrowserDefaultSystemTitle,
@@ -166,12 +167,14 @@ namespace IPA.Cores.Basic
             Func<IPAddress, bool>? clientIpAcl = null,
             LogBrowserFlags flags = LogBrowserFlags.None,
             string? zipEncryptPassword = null,
-            StatMan? stat = null
+            StatMan? stat = null,
+            bool regardAllLogFilesUtfs = false
             )
         {
             this.SystemTitle = systemTitle._FilledOrDefault(Consts.Strings.LogBrowserDefaultSystemTitle);
             this.RootDir = rootDir;
             this.TailSize = tailSize._Max(1);
+            this.RegardAllLogFilesUtf8 = regardAllLogFilesUtfs;
 
             // デフォルト ACL はすべて通す
             if (clientIpAcl == null) clientIpAcl = (ip) => true;
@@ -828,26 +831,43 @@ namespace IPA.Cores.Basic
                             readSize = tail;
                         }
 
+                        bool isUtf8 = MasterData.ExtensionToMime.Get(".json")._IsSamei(mimeType); // JSON は必ず UTF-8 である
+
+                        if (this.Options.RegardAllLogFilesUtf8)
+                        {
+                            if (extension._IsSamei(".log"))
+                            {
+                                // すべての log ファイルを UTF8 として扱う
+                                isUtf8 = true;
+                            }
+                        }
+
                         if (tail != 0)
                         {
                             mimeType = Consts.MimeTypes.Text;
                         }
 
-                        byte[] preData = new byte[0];
+                        ReadOnlyMemory<byte> preData = new byte[0];
 
                         if (readSize != 0 && fileSize >= 3)
                         {
                             try
                             {
                                 // 元のファイルの先頭に BOM が付いていて、先頭をスキップする場合は、
-                                // 応答データに先頭にも BOM を付ける
+                                // 応答データに先頭にも BOM を付ける。
+                                // 2020.12.19 元のファイルに BOM がなくても、UTF-8 であることが確実であれば BOM を付ける。
                                 byte[] bom = new byte[3];
                                 if (await randomAccess.ReadRandomAsync(0, bom, cancel) == 3)
                                 {
                                     if (Str.BOM_UTF_8._MemEquals(bom))
                                     {
-                                        preData = bom;
+                                        preData = Str.BOM_UTF_8;
                                     }
+                                }
+
+                                if (isUtf8)
+                                {
+                                    preData = Str.BOM_UTF_8;
                                 }
                             }
                             catch { }
