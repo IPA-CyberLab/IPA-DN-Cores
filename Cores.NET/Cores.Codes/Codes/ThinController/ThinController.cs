@@ -1979,27 +1979,31 @@ namespace IPA.Cores.Codes
         // 候補名の生成
         async Task<string> GeneratePcidCandidateStringCoreAsync(string svcName, string key, CancellationToken cancel)
         {
-            ulong i;
             uint n = 0;
             while (true)
             {
                 n++;
 
-                i = 1 + Secure.RandUInt31() % 99999999;
-                if (n >= 100)
+                string rand;
+
+                if (n <= 100)
                 {
-                    i = Secure.RandUInt63() % 9999999999UL + n;
+                    rand = Str.GenRandNumericPasswordWithBlocks(4, 2, '-');
                 }
-                if (n >= 200)
+                else if (n <= 200)
                 {
-                    i = Secure.RandUInt63() % 999999999999UL + n;
+                    rand = Str.GenRandNumericPasswordWithBlocks(4, 3, '-');
                 }
-                if (n >= 1000)
+                else if (n <= 1000)
+                {
+                    rand = Str.GenRandNumericPasswordWithBlocks(4, 4, '-');
+                }
+                else
                 {
                     throw new CoresLibException("(n >= 1000)");
                 }
 
-                string pcidCandidate = GeneratePcidCandidateStringFromKeyAndNumber(key, i);
+                string pcidCandidate = GeneratePcidCandidateStringFromKeyAndNumber(key, rand);
 
                 if (RecentPcidCandidateCache.ContainsKey(pcidCandidate) == false)
                 {
@@ -2012,10 +2016,10 @@ namespace IPA.Cores.Codes
         }
 
         // PCID 候補生成
-        public static string GeneratePcidCandidateStringFromKeyAndNumber(string key, ulong id)
+        public static string GeneratePcidCandidateStringFromKeyAndNumber(string key, string add)
         {
             key = key.ToLower().Trim();
-            string ret = key + "-" + id.ToString();
+            string ret = key + "-" + add;
 
             ret._SliceHead(ThinControllerConsts.MaxPcidLen);
 
