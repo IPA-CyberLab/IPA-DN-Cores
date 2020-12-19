@@ -724,8 +724,10 @@ namespace IPA.Cores.Codes
             }
             var acl = EasyIpAcl.GetOrCreateCachedIpAcl(preferredIpAcl);
 
+            string preferGate = this.ClientInfo.HttpQueryStringList._GetStrFirst("prefer_gate");
+
             // 最良の Gate を選択
-            var bestGate = Controller.SessionManager.SelectBestGateForServer(acl, Controller.Db.MemDb?.MaxSessionsPerGate ?? 0, !forceAcl);
+            var bestGate = Controller.SessionManager.SelectBestGateForServer(acl, Controller.Db.MemDb?.MaxSessionsPerGate ?? 0, !forceAcl, preferGate);
 
             if (bestGate == null)
             {
@@ -899,6 +901,13 @@ namespace IPA.Cores.Codes
                 CurrentTime = p["CurrentTime"].DateTimeValue.ToLocalTime(),
                 BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
             };
+
+            // Performance の値を DB の Vars で上書き
+            int v = this.Controller.Db.GetVarInt($"PerformanceOverride_{gate.IpAddress}");
+            if (v != 0)
+            {
+                gate.Performance = v;
+            }
 
             gate.Normalize();
             gate.Validate();

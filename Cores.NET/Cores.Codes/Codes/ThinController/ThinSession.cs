@@ -209,13 +209,23 @@ namespace IPA.Cores.Codes
             return candidates2.FirstOrDefault();
         }
 
-        public ThinGate? SelectBestGateForServer(EasyIpAcl preferAcl, int gateMaxSessions, bool allowCandidate2)
+        public ThinGate? SelectBestGateForServer(EasyIpAcl preferAcl, int gateMaxSessions, bool allowCandidate2, string preferGate)
         {
             DateTime now = DtNow;
             var table = this.GateTable;
 
             // 現在アクティブな Gate で有効期限が切れていないもののリスト
             var candidates2 = table.Values.Where(x => now <= x.Expires);
+
+            if (preferGate._IsFilled())
+            {
+                // 特定の Gate を特に希望
+                var gg = candidates2.Where(x => x.IpAddress._IsSamei(preferGate) && x.NumSessions < (gateMaxSessions * 2)).FirstOrDefault();
+                if (gg != null)
+                {
+                    return gg;
+                }
+            }
 
             // これらの Gate の中でセッション数が MaxSessionsPerGate 以下のもののリスト
             if (gateMaxSessions != 0)
@@ -256,7 +266,7 @@ namespace IPA.Cores.Codes
                     }
 
                     // 最も低い load の値を取得
-                    double minLoad = sortList.OrderByDescending(x => x.B).Select(x => x.B).FirstOrDefault();
+                    double minLoad = sortList.OrderBy(x => x.B).Select(x => x.B).FirstOrDefault();
                     var minLoadCandidates = sortList.Where(x => x.B == minLoad);
                     selectedGates = minLoadCandidates.Select(x => x.A);
                 }
