@@ -80,12 +80,6 @@ using System.Runtime.CompilerServices;
 
 namespace IPA.Cores.Codes
 {
-    // ThinController 設定 (アプリの起動時にコード中から設定可能な設定項目)
-    public static class ThinControllerBasicSettings
-    {
-        public static Action<HttpRequestRateLimiterOptions<HttpRequestRateLimiterHashKeys.SrcIPAddress>> ConfigureHttpRequestRateLimiterOptionsForUsers = _ => { };
-    }
-
     // ThinController 設定 (JSON 設定ファイルで動的に設定変更可能な設定項目)
     [Serializable]
     public sealed class ThinControllerSettings : INormalizable
@@ -220,6 +214,8 @@ namespace IPA.Cores.Codes
 
         public int ConsumingConcurrentProcessCount { get; }
 
+        public string ClientIpForRateLimiter { get; } = "";
+
         public ThinControllerSessionClientInfo(HttpEasyContextBox box, ThinControllerServiceType serviceType, int consumingConcurrentProcessCount)
         {
             this.ServiceType = serviceType;
@@ -245,6 +241,23 @@ namespace IPA.Cores.Codes
             this.HttpQueryStringList = box.QueryStringList;
 
             this.ClientIpFqdn = this.ClientIp;
+
+            // Rate limiter 用 IP アドレス
+            var clientIpAddress = ClientIp._ToIPAddress(noExceptionAndReturnNull: true);
+            if (clientIpAddress != null)
+            {
+                // サブネットマスクの AND をする
+                if (clientIpAddress.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    // IPv4
+                    ClientIpForRateLimiter = (IPUtil.IPAnd(clientIpAddress, IPUtil.IntToSubnetMask4(24))).ToString();
+                }
+                else
+                {
+                    // IPv6
+                    ClientIpForRateLimiter = (IPUtil.IPAnd(clientIpAddress, IPUtil.IntToSubnetMask6(56))).ToString();
+                }
+            }
         }
 
         public async Task ResolveClientIpFqdnIfPossibleAsync(DnsResolver resolver, CancellationToken cancel = default)
@@ -286,6 +299,27 @@ namespace IPA.Cores.Codes
                 this._DisposeSafe();
                 throw;
             }
+        }
+
+        // 重い処理の Rate Limiter を開始
+        public WpcResult? TryEnterHeavyRateLimiter()
+        {
+            if (this.ClientInfo.ClientIpForRateLimiter._IsFilled())
+            {
+                if (this.Controller.HeavyRequestRateLimiter.TryInput(this.ClientInfo.ClientIpForRateLimiter, out RateLimiterEntry? e) == false)
+                {
+                    var ret = new WpcResult(VpnErrors.ERR_TEMP_ERROR);
+                    if (e != null)
+                    {
+                        ret.AdditionalInfo.Add("HeavyRequestRateLimiter.CurrentAmount", e.CurrentAmount.ToString());
+                        ret.AdditionalInfo.Add("HeavyRequestRateLimiter.Burst", e.Options.Burst.ToString());
+                        ret.AdditionalInfo.Add("HeavyRequestRateLimiter.LimitPerSecond", e.Options.LimitPerSecond.ToString());
+                    }
+                    return ret;
+                }
+            }
+
+            return null;
         }
 
         // 設定文字列の取得
@@ -484,6 +518,7 @@ namespace IPA.Cores.Codes
         public async Task<WpcResult> ProcRenameMachine(WpcPack req, CancellationToken cancel)
         {
             var notAuthedErr = RequireMachineAuth(); if (notAuthedErr != null) return notAuthedErr; // 認証を要求
+            var heavyErr = TryEnterHeavyRateLimiter(); if (heavyErr != null) return heavyErr; // 重い処理なので Rate Limit を設定
 
             var q = req.Pack;
             string newPcid = q["NewName"].StrValueNonNull;
@@ -518,6 +553,8 @@ namespace IPA.Cores.Codes
             {
                 return NewWpcResult(VpnErrors.ERR_PROTOCOL_ERROR);
             }
+
+            var heavyErr = TryEnterHeavyRateLimiter(); if (heavyErr != null) return heavyErr; // 重い処理なので Rate Limit を設定
 
             var q = req.Pack;
 
@@ -1315,7 +1352,9 @@ namespace IPA.Cores.Codes
 
         readonly Task RecordStatTask;
 
-        public StatMan StatMan {get;}
+        public StatMan StatMan { get; }
+
+        public RateLimiter<string> HeavyRequestRateLimiter { get; } = new RateLimiter<string>(new RateLimiterOptions(burst: 50, limitPerSecond: 5, mode: RateLimiterMode.NoPenalty));
 
         public ThinController(ThinControllerSettings settings, ThinControllerHookBase hook, Func<ThinControllerSettings>? getDefaultSettings = null)
         {
