@@ -847,7 +847,7 @@ namespace IPA.Cores.Basic
                             mimeType = Consts.MimeTypes.Text;
                         }
 
-                        byte[] preData = new byte[0];
+                        ReadOnlyMemory<byte> preData = new byte[0];
 
                         if (readSize != 0 && fileSize >= 3)
                         {
@@ -861,13 +861,13 @@ namespace IPA.Cores.Basic
                                 {
                                     if (Str.BOM_UTF_8._MemEquals(bom))
                                     {
-                                        preData = bom;
+                                        preData = Str.BOM_UTF_8;
                                     }
                                 }
 
                                 if (isUtf8)
                                 {
-                                    preData = bom;
+                                    preData = Str.BOM_UTF_8;
                                 }
                             }
                             catch { }
