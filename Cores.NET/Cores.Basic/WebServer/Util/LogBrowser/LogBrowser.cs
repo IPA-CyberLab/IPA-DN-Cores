@@ -159,6 +159,7 @@ namespace IPA.Cores.Basic
         public LogBrowserFlags Flags { get; }
         public string ZipEncryptPassword { get; }
         public StatMan? Stat { get; }
+        public bool RegardAllLogFilesUtf8 { get; }
 
         public LogBrowserOptions(DirectoryPath rootDir,
             string systemTitle = Consts.Strings.LogBrowserDefaultSystemTitle,
@@ -166,12 +167,14 @@ namespace IPA.Cores.Basic
             Func<IPAddress, bool>? clientIpAcl = null,
             LogBrowserFlags flags = LogBrowserFlags.None,
             string? zipEncryptPassword = null,
-            StatMan? stat = null
+            StatMan? stat = null,
+            bool regardAllLogFilesUtfs = false
             )
         {
             this.SystemTitle = systemTitle._FilledOrDefault(Consts.Strings.LogBrowserDefaultSystemTitle);
             this.RootDir = rootDir;
             this.TailSize = tailSize._Max(1);
+            this.RegardAllLogFilesUtf8 = regardAllLogFilesUtfs;
 
             // デフォルト ACL はすべて通す
             if (clientIpAcl == null) clientIpAcl = (ip) => true;
@@ -828,7 +831,16 @@ namespace IPA.Cores.Basic
                             readSize = tail;
                         }
 
-                        bool isUtf8 = MasterData.ExtensionToMime.Get(".json")._IsSamei(mimeType); // JSON?
+                        bool isUtf8 = MasterData.ExtensionToMime.Get(".json")._IsSamei(mimeType); // JSON は必ず UTF-8 である
+
+                        if (this.Options.RegardAllLogFilesUtf8)
+                        {
+                            if (extension._IsSamei(".log"))
+                            {
+                                // すべての log ファイルを UTF8 として扱う
+                                isUtf8 = true;
+                            }
+                        }
 
                         if (tail != 0)
                         {
