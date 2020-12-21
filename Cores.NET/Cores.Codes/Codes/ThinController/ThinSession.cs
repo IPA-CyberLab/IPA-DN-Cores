@@ -305,6 +305,7 @@ namespace IPA.Cores.Codes
 
                 if (currentGate.LastCommDateTime < now) currentGate.LastCommDateTime = now;
                 if (currentGate.Expires < expires) currentGate.Expires = expires;
+                if (currentGate.BootTick < gate.BootTick) currentGate.BootTick = gate.BootTick;
 
                 // セッション ID でセッションを検索する
                 var currentSessionTable = currentGate.SessionTable;
@@ -348,6 +349,7 @@ namespace IPA.Cores.Codes
 
                 if (currentGate.LastCommDateTime < now) currentGate.LastCommDateTime = now;
                 if (currentGate.Expires < expires) currentGate.Expires = expires;
+                if (currentGate.BootTick < gate.BootTick) currentGate.BootTick = gate.BootTick;
 
                 ImmutableInterlocked.AddOrUpdate(ref currentGate.SessionTable, session.Msid,
                     addValueFactory: msid =>
