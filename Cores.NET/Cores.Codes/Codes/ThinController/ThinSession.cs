@@ -146,7 +146,7 @@ namespace IPA.Cores.Codes
         [SimpleTableOrder(18)]
         public TimeSpan BootTick;
         [SimpleTableOrder(18.5)]
-        public DateTime BootTime => (BootTick.Ticks != 0 ? DtNow - BootTick : ZeroDateTimeValue);
+        public DateTime BootTime => (BootTick.Ticks != 0 ? LastCommDateTime - BootTick : ZeroDateTimeValue);
 
         [SimpleTableOrder(12.1)]
         public int NumClients => this.SessionTable.Values.Sum(x => x.NumClients);
