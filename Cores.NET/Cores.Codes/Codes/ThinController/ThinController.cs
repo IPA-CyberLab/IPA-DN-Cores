@@ -1634,6 +1634,19 @@ namespace IPA.Cores.Codes
                 }
             }
 
+            // ホスト情報モード
+            if (urlPath._InStr("api/", true) && urlPath._InStr("/info", true))
+            {
+                StringWriter w = new StringWriter();
+                
+                w.WriteLine($"Current time: {DtOffsetNow.ToString()}");
+                w.WriteLine($"Hostname: {Env.DnsFqdnHostName} ({Env.MachineName})");
+                w.WriteLine($"Server Endpoint: {box.LocalEndpoint.ToString()}");
+                w.WriteLine($"Client Endpoint: {box.RemoteEndpoint.ToString()}");
+
+                return new HttpStringResult(w.ToString());
+            }
+
             return null;
         }
 
