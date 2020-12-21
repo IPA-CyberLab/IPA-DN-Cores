@@ -1640,7 +1640,7 @@ namespace IPA.Cores.Codes
                 StringWriter w = new StringWriter();
                 
                 w.WriteLine($"Current time: {DtOffsetNow.ToString()}");
-                w.WriteLine($"Hostname: {Env.DnsFqdnHostName} ({Env.MachineName})");
+                w.WriteLine($"Hostname: {Env.MachineName}");
                 w.WriteLine($"Server Endpoint: {box.LocalEndpoint.ToString()}");
                 w.WriteLine($"Client Endpoint: {box.RemoteEndpoint.ToString()}");
 
