@@ -1726,20 +1726,22 @@ namespace IPA.Cores.Codes
                     }
                 }
 
-                if (clientInfo.IsProxyMode == false)
-                {
-                    this.Throughput_Request_NonProxy.Add(1);
-                }
-                else
-                {
-                    this.Throughput_Request_Proxy.Add(1);
-                }
-
                 // 特別ハンドリングの試行
                 var specialResult = await SpecialHandlingAsync(box, clientInfo, cancel);
                 if (specialResult != null)
                 {
                     return specialResult;
+                }
+
+                if (clientInfo.IsProxyMode == false && param.ServiceType == ThinControllerServiceType.ApiServiceForUsers)
+                {
+                    // 非プロキシのユーザーリクエスト
+                    this.Throughput_Request_NonProxy.Add(1);
+                }
+                else
+                {
+                    // プロキシ経由のユーザーリクエスト
+                    this.Throughput_Request_Proxy.Add(1);
                 }
 
                 // WPC リクエスト文字列の受信
