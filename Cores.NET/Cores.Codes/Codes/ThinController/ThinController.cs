@@ -1376,11 +1376,11 @@ namespace IPA.Cores.Codes
 
         public StatMan StatMan { get; }
 
-        public readonly ThroughputMeasuse Throughput_ClientGetWolMacList = new ThroughputMeasuse(10 * 60 * 1000, 1 * 60 * 1000);
+        public readonly ThroughputMeasuse Throughput_ClientGetWolMacList = new ThroughputMeasuse();
         public readonly ThroughputMeasuse Throughput_ClientConnect = new ThroughputMeasuse();
-        public readonly ThroughputMeasuse Throughput_RenameMachine = new ThroughputMeasuse(10 * 60 * 1000, 1 * 60 * 1000);
-        public readonly ThroughputMeasuse Throughput_RegistMachine = new ThroughputMeasuse(10 * 60 * 1000, 1 * 60 * 1000);
-        public readonly ThroughputMeasuse Throughput_SendOtpEmail = new ThroughputMeasuse(10 * 60 * 1000, 1 * 60 * 1000);
+        public readonly ThroughputMeasuse Throughput_RenameMachine = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_RegistMachine = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_SendOtpEmail = new ThroughputMeasuse();
         public readonly ThroughputMeasuse Throughput_ServerConnect = new ThroughputMeasuse();
         public readonly ThroughputMeasuse Throughput_ReportSessionList = new ThroughputMeasuse();
         public readonly ThroughputMeasuse Throughput_ReportSessionAdd = new ThroughputMeasuse();
