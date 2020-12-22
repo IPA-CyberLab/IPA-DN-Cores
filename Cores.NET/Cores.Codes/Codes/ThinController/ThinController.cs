@@ -1738,7 +1738,7 @@ namespace IPA.Cores.Codes
                     // 非プロキシのユーザーリクエスト
                     this.Throughput_Request_NonProxy.Add(1);
                 }
-                else
+                else if (clientInfo.IsProxyMode)
                 {
                     // プロキシ経由のユーザーリクエスト
                     this.Throughput_Request_Proxy.Add(1);
