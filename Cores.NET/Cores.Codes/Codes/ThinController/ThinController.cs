@@ -187,9 +187,10 @@ namespace IPA.Cores.Codes
         public double Throughput_ReportSessionList;
         public double Throughput_ReportSessionAdd;
         public double Throughput_ReportSessionDel;
-
         public double Throughput_DatabaseRead;
         public double Throughput_DatabaseWrite;
+        public double Throughput_Request_NonProxy;
+        public double Throughput_Request_Proxy;
 
         public int Sys_DotNet_NumRunningTasks;
         public int Sys_DotNet_NumDelayedTasks;
@@ -1968,9 +1969,10 @@ namespace IPA.Cores.Codes
                 Throughput_ReportSessionList = this.Throughput_ReportSessionList,
                 Throughput_ReportSessionAdd = this.Throughput_ReportSessionAdd,
                 Throughput_ReportSessionDel = this.Throughput_ReportSessionDel,
-
                 Throughput_DatabaseRead = this.Throughput_DatabaseRead,
                 Throughput_DatabaseWrite = this.Throughput_DatabaseWrite,
+                Throughput_Request_NonProxy = this.Throughput_Request_NonProxy,
+                Throughput_Request_Proxy = this.Throughput_Request_Proxy,
 
                 Sys_DotNet_NumRunningTasks = sys.Task,
                 Sys_DotNet_NumDelayedTasks = sys.D,
