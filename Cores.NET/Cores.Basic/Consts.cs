@@ -411,6 +411,9 @@ namespace IPA.Cores.Basic
             public const int AutoArchivePollingInterval = 12 * 60 * 1000;
 
             public const int UiAutomationDefaultInterval = 50;
+
+            public const int DefaultThroughtputMeasutementUnitMsecs = 60 * 1000;
+            public const int DefaultThroughtputInitialMinMeasutementUnitMsecs = 1 * 1000;
         }
 
         public static partial class Timeouts

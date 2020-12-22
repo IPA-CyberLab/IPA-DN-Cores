@@ -952,6 +952,28 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                ThroughputMeasuse m = new ThroughputMeasuse(5000, 1000);
+                AsyncAwait(async () =>
+                {
+                    while (true)
+                    {
+                        double t = m.CurrentThroughput;
+                        t.ToString("F3")._Print();
+                        await Task.Delay(100);
+                    }
+                });
+
+                while (true)
+                {
+                    Con.ReadLine();
+                    m.Increment(1);
+                }
+
+                return;
+            }
+
+            if (true)
+            {
                 Test_201215();
                 return;
             }

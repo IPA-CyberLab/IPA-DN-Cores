@@ -178,6 +178,19 @@ namespace IPA.Cores.Codes
         public double Stat_TotalServerConnectRequestsKilo;
         public double Stat_TotalClientConnectRequestsKilo;
 
+        public double Throughput_ClientGetWolMacList;
+        public double Throughput_ClientConnect;
+        public double Throughput_RenameMachine;
+        public double Throughput_RegistMachine;
+        public double Throughput_SendOtpEmail;
+        public double Throughput_ServerConnect;
+        public double Throughput_ReportSessionList;
+        public double Throughput_ReportSessionAdd;
+        public double Throughput_ReportSessionDel;
+
+        public double Throughput_DatabaseRead;
+        public double Throughput_DatabaseWrite;
+
         public int Sys_DotNet_NumRunningTasks;
         public int Sys_DotNet_NumDelayedTasks;
         public int Sys_DotNet_NumTimerTasks;
@@ -403,6 +416,7 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("WoL_MacList", machine.WOL_MACLIST._NonNullTrim());
 
             Controller.StatMan!.AddReport("ProcClientGetWolMacList_Total", 1);
+            Controller.Throughput_ClientGetWolMacList.Add(1);
 
             return ret;
         }
@@ -502,6 +516,7 @@ namespace IPA.Cores.Codes
             Controller.Db.UpdateDbForClientConnect(machine.MSID, DtNow, ClientInfo.ClientIp);
 
             Controller.StatMan!.AddReport("ProcClientConnectAsync_Total", 1);
+            Controller.Throughput_ClientConnect.Add(1);
 
             return ret;
         }
@@ -542,6 +557,7 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("NewPcid", newPcid);
 
             Controller.StatMan!.AddReport("ProcRenameMachine_Total", 1);
+            Controller.Throughput_RegistMachine.Add(1);
 
             return ret;
         }
@@ -656,6 +672,7 @@ namespace IPA.Cores.Codes
             }
 
             Controller.StatMan!.AddReport("ProcRegistMachine_Total", 1);
+            Controller.Throughput_RegistMachine.Add(1);
 
             return ret;
         }
@@ -741,6 +758,7 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("pcidMasked", pcidMasked);
 
             Controller.StatMan!.AddReport("ProcSendOtpEmailAsync_Total", 1);
+            Controller.Throughput_SendOtpEmail.Add(1);
 
             return ret;
         }
@@ -852,6 +870,7 @@ namespace IPA.Cores.Codes
                 serverMask64);
 
             Controller.StatMan!.AddReport("ProcServerConnectAsync_Total", 1);
+            Controller.Throughput_ClientConnect.Add(1);
 
             return ret;
         }
@@ -1018,6 +1037,7 @@ namespace IPA.Cores.Codes
             AddGateSettingsToPack(ret.Pack);
 
             Controller.StatMan!.AddReport("ProcReportSessionListAsync_Total", 1);
+            Controller.Throughput_ReportSessionList.Add(1);
 
             return ret;
         }
@@ -1078,6 +1098,7 @@ namespace IPA.Cores.Codes
             AddGateSettingsToPack(ret.Pack);
 
             Controller.StatMan!.AddReport("ProcReportSessionAddAsync_Total", 1);
+            Controller.Throughput_ReportSessionAdd.Add(1);
 
             return ret;
         }
@@ -1127,6 +1148,7 @@ namespace IPA.Cores.Codes
             AddGateSettingsToPack(ret.Pack);
 
             Controller.StatMan!.AddReport("ProcReportSessionDelAsync_Total", 1);
+            Controller.Throughput_ReportSessionDel.Add(1);
 
             return ret;
         }
@@ -1353,6 +1375,18 @@ namespace IPA.Cores.Codes
         readonly Task RecordStatTask;
 
         public StatMan StatMan { get; }
+
+        public readonly ThroughputMeasuse Throughput_ClientGetWolMacList = new ThroughputMeasuse(10 * 60 * 1000, 1 * 60 * 1000);
+        public readonly ThroughputMeasuse Throughput_ClientConnect = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_RenameMachine = new ThroughputMeasuse(10 * 60 * 1000, 1 * 60 * 1000);
+        public readonly ThroughputMeasuse Throughput_RegistMachine = new ThroughputMeasuse(10 * 60 * 1000, 1 * 60 * 1000);
+        public readonly ThroughputMeasuse Throughput_SendOtpEmail = new ThroughputMeasuse(10 * 60 * 1000, 1 * 60 * 1000);
+        public readonly ThroughputMeasuse Throughput_ServerConnect = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_ReportSessionList = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_ReportSessionAdd = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_ReportSessionDel = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_DatabaseRead = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_DatabaseWrite = new ThroughputMeasuse();
 
         public RateLimiter<string> HeavyRequestRateLimiter { get; } = new RateLimiter<string>(new RateLimiterOptions(burst: 50, limitPerSecond: 5, mode: RateLimiterMode.NoPenalty));
 
@@ -1913,6 +1947,19 @@ namespace IPA.Cores.Codes
                 Stat_YestardaysNewServers = mem.MachineList.Where(x => x.CREATE_DATE >= yesterday && x.CREATE_DATE < today).Count(),
                 Stat_TotalServerConnectRequestsKilo = (double)mem.MachineList.Sum(x => (long)x.NUM_SERVER) / 1000.0,
                 Stat_TotalClientConnectRequestsKilo = (double)mem.MachineList.Sum(x => (long)x.NUM_CLIENT) / 1000.0,
+
+                Throughput_ClientGetWolMacList = this.Throughput_ClientGetWolMacList,
+                Throughput_ClientConnect = this.Throughput_ClientConnect,
+                Throughput_RenameMachine = this.Throughput_RenameMachine,
+                Throughput_RegistMachine = this.Throughput_RegistMachine,
+                Throughput_SendOtpEmail = this.Throughput_SendOtpEmail,
+                Throughput_ServerConnect = this.Throughput_ServerConnect,
+                Throughput_ReportSessionList = this.Throughput_ReportSessionList,
+                Throughput_ReportSessionAdd = this.Throughput_ReportSessionAdd,
+                Throughput_ReportSessionDel = this.Throughput_ReportSessionDel,
+
+                Throughput_DatabaseRead = this.Throughput_DatabaseRead,
+                Throughput_DatabaseWrite = this.Throughput_DatabaseWrite,
 
                 Sys_DotNet_NumRunningTasks = sys.Task,
                 Sys_DotNet_NumDelayedTasks = sys.D,

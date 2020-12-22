@@ -453,6 +453,8 @@ namespace IPA.Cores.Codes
                 {
                     await using var db = await OpenDatabaseForReadAsync(cancel);
 
+                    Controller.Throughput_DatabaseRead.Add(1);
+
                     await db.TranReadSnapshotIfNecessaryAsync(async () =>
                     {
                         allSvcs = await db.EasySelectAsync<ThinDbSvc>("select * from SVC", cancel: cancel);
@@ -584,6 +586,8 @@ namespace IPA.Cores.Codes
                     break;
                 }
 
+                Controller.Throughput_DatabaseWrite.Add(1);
+
                 RetryHelper<int> r = new RetryHelper<int>(100, 10);
 
                 await r.RunAsync(async c =>
@@ -688,6 +692,8 @@ namespace IPA.Cores.Codes
 
             await using var db = await OpenDatabaseForWriteAsync(cancel);
 
+            Controller.Throughput_DatabaseWrite.Add(1);
+
             await db.QueryWithNoReturnAsync("UPDATE MACHINE SET LAST_SERVER_DATE = @, WOL_MACLIST = @, SERVERMASK64 = @ WHERE MSID = @",
                 now, wolMacList, serverMask64, msid);
         }
@@ -757,6 +763,8 @@ namespace IPA.Cores.Codes
             }
 
             await using var db = await OpenDatabaseForWriteAsync(cancel);
+
+            Controller.Throughput_DatabaseWrite.Add(1);
 
             ThinDbMachine? updatedMachine = null;
 
@@ -847,6 +855,8 @@ namespace IPA.Cores.Codes
 
             await using var db = await OpenDatabaseForWriteAsync(cancel);
 
+            Controller.Throughput_DatabaseWrite.Add(1);
+
             // トランザクションを確立し厳格なチェックを実施
             // (DB サーバー側で一意インデックスによりチェックするが、インデックスが間違っていた場合に備えて、トランザクションでも厳密にチェックするのである)
             if (await db.TranAsync(async () =>
@@ -904,6 +914,8 @@ namespace IPA.Cores.Codes
 
             cancel.ThrowIfCancellationRequested();
 
+            Controller.Throughput_DatabaseRead.Add(1);
+
             // ローカルメモリデータベースの検索でヒットしなかった場合 (たとえば、最近作成されたホストの場合) は、マスタデータベースを物理的に検索する
             await using var db = await OpenDatabaseForReadAsync(cancel);
 
@@ -945,6 +957,8 @@ namespace IPA.Cores.Codes
 
             // ローカルメモリデータベースの検索でヒットしなかった場合 (たとえば、最近作成されたホストの場合) は、マスタデータベースを物理的に検索する
             await using var db = await OpenDatabaseForReadAsync(cancel);
+
+            Controller.Throughput_DatabaseRead.Add(1);
 
             var foundMachine2 = await db.TranReadSnapshotIfNecessaryAsync(async () =>
             {
@@ -989,6 +1003,8 @@ namespace IPA.Cores.Codes
                     // データベースに hostSecret2 を登録する (つまり、アップグレード)
                     await using var db2 = await OpenDatabaseForWriteAsync(cancel);
 
+                    Controller.Throughput_DatabaseWrite.Add(1);
+
                     await db2.QueryWithNoReturnAsync("UPDATE MACHINE SET HOST_SECRET2 = @ WHERE MSID = @ and HOST_SECRET2 = ''",
                         hostSecret2, foundMachine.MSID);
 
@@ -1008,6 +1024,8 @@ namespace IPA.Cores.Codes
 
             // ローカルメモリデータベースの検索でヒットしなかった場合 (たとえば、最近作成されたホストの場合) は、マスタデータベースを物理的に検索する
             await using var db = await OpenDatabaseForReadAsync(cancel);
+
+            Controller.Throughput_DatabaseRead.Add(1);
 
             var foundMachine2 = await db.TranReadSnapshotIfNecessaryAsync(async () =>
             {
