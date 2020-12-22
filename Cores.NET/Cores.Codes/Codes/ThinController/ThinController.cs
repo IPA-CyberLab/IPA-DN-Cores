@@ -557,7 +557,7 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("NewPcid", newPcid);
 
             Controller.StatMan!.AddReport("ProcRenameMachine_Total", 1);
-            Controller.Throughput_RegistMachine.Add(1);
+            Controller.Throughput_RenameMachine.Add(1);
 
             return ret;
         }
@@ -870,7 +870,7 @@ namespace IPA.Cores.Codes
                 serverMask64);
 
             Controller.StatMan!.AddReport("ProcServerConnectAsync_Total", 1);
-            Controller.Throughput_ClientConnect.Add(1);
+            Controller.Throughput_ServerConnect.Add(1);
 
             return ret;
         }
