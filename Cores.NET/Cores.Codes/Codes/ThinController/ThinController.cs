@@ -1387,6 +1387,8 @@ namespace IPA.Cores.Codes
         public readonly ThroughputMeasuse Throughput_ReportSessionDel = new ThroughputMeasuse();
         public readonly ThroughputMeasuse Throughput_DatabaseRead = new ThroughputMeasuse();
         public readonly ThroughputMeasuse Throughput_DatabaseWrite = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_Request_NonProxy = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_Request_Proxy = new ThroughputMeasuse();
 
         public RateLimiter<string> HeavyRequestRateLimiter { get; } = new RateLimiter<string>(new RateLimiterOptions(burst: 50, limitPerSecond: 5, mode: RateLimiterMode.NoPenalty));
 
@@ -1672,7 +1674,7 @@ namespace IPA.Cores.Codes
             if (urlPath._InStr("api/", true) && urlPath._InStr("/info", true))
             {
                 StringWriter w = new StringWriter();
-                
+
                 w.WriteLine($"Current time: {DtOffsetNow.ToString()}");
                 w.WriteLine($"Hostname: {Env.MachineName}");
                 w.WriteLine($"Server Endpoint: {box.LocalEndpoint.ToString()}");
@@ -1721,6 +1723,15 @@ namespace IPA.Cores.Codes
                         errStr._Error();
                         return new HttpErrorResult(Consts.HttpStatusCodes.Forbidden, errStr);
                     }
+                }
+
+                if (clientInfo.IsProxyMode == false)
+                {
+                    this.Throughput_Request_NonProxy.Add(1);
+                }
+                else
+                {
+                    this.Throughput_Request_Proxy.Add(1);
                 }
 
                 // 特別ハンドリングの試行
