@@ -106,13 +106,13 @@ namespace IPA.Cores.Codes
             if (this.DbConnectionString_Read._IsEmpty())
             {
                 // デフォルトダミー文字列 (安全)
-                this.DbConnectionString_Read = "Data Source=127.0.0.1;Initial Catalog=THIN;Persist Security Info=True;User ID=thin_read;Password=db_read_password;";
+                this.DbConnectionString_Read = ThinControllerConsts.Default_DbConnectionString_Read;
             }
 
             if (this.DbConnectionString_Write._IsEmpty())
             {
                 // デフォルトダミー文字列 (安全)
-                this.DbConnectionString_Write = "Data Source=127.0.0.1;Initial Catalog=THIN;Persist Security Info=True;User ID=thin_write;Password=db_write_password;";
+                this.DbConnectionString_Write = ThinControllerConsts.Default_DbConnectionString_Write;
             }
         }
     }
