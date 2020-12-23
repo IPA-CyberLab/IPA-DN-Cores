@@ -99,6 +99,9 @@ namespace IPA.Cores.Codes
         public const int Max_ControllerDbBackupFileWriteIntervalMsecs = 24 * 60 * 60 * 1000;
         public const int Max_ControllerRecordStatIntervalMsecs = 60 * 60 * 1000;
 
+        public static readonly Copenhagen<string> ControllerDefaultAdminUsername = "admin";
+        public static readonly Copenhagen<string> ControllerDefaultAdminPassword = "ipantt";
+
     }
 
     [Flags]

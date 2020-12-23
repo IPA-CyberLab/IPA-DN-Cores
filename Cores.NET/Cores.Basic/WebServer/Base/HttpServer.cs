@@ -83,6 +83,19 @@ using IHostApplicationLifetime = Microsoft.AspNetCore.Hosting.IApplicationLifeti
 
 namespace IPA.Cores.Basic
 {
+    public static partial class CoresConfig
+    {
+        public static partial class HttpServerSimpleBasicAuthDatabaseConfig
+        {
+            public static readonly Copenhagen<Action<HttpServerSimpleBasicAuthDatabase>> InitAuthDatabaseUsernameAndPasswordCallback
+                = new Copenhagen<Action<HttpServerSimpleBasicAuthDatabase>>((db) =>
+                {
+                    db.UsernameAndPassword.Add("user1", Str.GenRandPassword());
+                    db.UsernameAndPassword.Add("user2", Str.GenRandPassword());
+                });
+        }
+    }
+
     public class HttpServerStartupConfig
     {
     }
@@ -93,10 +106,9 @@ namespace IPA.Cores.Basic
 
         public HttpServerSimpleBasicAuthDatabase() { }
 
-        public HttpServerSimpleBasicAuthDatabase(EnsureSpecial withRandom)
+        public HttpServerSimpleBasicAuthDatabase(EnsureSpecial createInitialAdminUsers)
         {
-            this.UsernameAndPassword.Add("user1", Str.GenRandPassword());
-            this.UsernameAndPassword.Add("user2", Str.GenRandPassword());
+            CoresConfig.HttpServerSimpleBasicAuthDatabaseConfig.InitAuthDatabaseUsernameAndPasswordCallback.Value(this);
         }
 
         public bool Authenticate(string username, string password)
