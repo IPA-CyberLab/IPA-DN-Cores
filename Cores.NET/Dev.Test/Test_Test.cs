@@ -593,7 +593,7 @@ namespace IPA.TestDev
         {
             string baseDir = @"M:\\Projects\ThinTelework_OSS\Certs\201120_Certs\";
 
-            if (true)
+            if (false)
             {
                 string password = "microsoft";
 
@@ -613,13 +613,42 @@ namespace IPA.TestDev
                 Lfs.WriteDataToFile(baseDir + @"00_Master.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
             }
 
-            if (true)
+            if (false)
             {
                 string password = "microsoft";
 
                 CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(baseDir + @"00_Master.pfx").Span);
 
                 IssueCert("Thin Telework System Open Source Version Sample Gateway Certificate 01", baseDir + @"01_GatewaySystem");
+
+                void IssueCert(string cn, string fileNameBase)
+                {
+                    PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
+
+                    var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, cn, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256,
+                        keyUsages: Org.BouncyCastle.Asn1.X509.KeyUsage.DigitalSignature | Org.BouncyCastle.Asn1.X509.KeyUsage.KeyEncipherment | Org.BouncyCastle.Asn1.X509.KeyUsage.DataEncipherment,
+                        extendedKeyUsages:
+                            new Org.BouncyCastle.Asn1.X509.KeyPurposeID[] {
+                                Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPServerAuth, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPClientAuth,
+                                Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecEndSystem, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecTunnel, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecUser }));
+
+                    var store = new CertificateStore(cert, priv);
+                    Lfs.WriteDataToFile(fileNameBase + ".pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+                    Lfs.WriteDataToFile(fileNameBase + "_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                    Lfs.WriteDataToFile(fileNameBase + ".cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                    Lfs.WriteDataToFile(fileNameBase + ".key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+                }
+            }
+
+            if (true)
+            {
+                string password = "microsoft";
+
+                CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(baseDir + @"00_Master.pfx").Span);
+
+                IssueCert("Thin Telework System Open Source Version Sample Controller Certificate 02", baseDir + @"02_Controller");
 
                 void IssueCert(string cn, string fileNameBase)
                 {
@@ -952,6 +981,12 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                Test_MakeThinOssCerts_201120();
+                return;
+            }
+
+            if (true)
+            {
                 ThroughputMeasuse m = new ThroughputMeasuse(5000, 1000);
                 AsyncAwait(async () =>
                 {
@@ -966,7 +1001,7 @@ namespace IPA.TestDev
                 while (true)
                 {
                     Con.ReadLine();
-                    m.Increment(1);
+                    m.Add(1);
                 }
 
                 return;
@@ -1194,12 +1229,6 @@ namespace IPA.TestDev
             if (true)
             {
                 ZipTest_201201();
-                return;
-            }
-
-            if (true)
-            {
-                Test_MakeThinOssCerts_201120();
                 return;
             }
 
