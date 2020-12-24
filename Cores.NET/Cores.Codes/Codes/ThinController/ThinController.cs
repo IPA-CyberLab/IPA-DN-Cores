@@ -959,6 +959,8 @@ namespace IPA.Cores.Codes
                 BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
             };
 
+            if (gate.Performance == 0) gate.Performance = 100;
+
             // Performance の値を DB の Vars で上書き
             int v = this.Controller.Db.GetVarInt($"PerformanceOverride_{gate.IpAddress}");
             if (v != 0)
@@ -1082,6 +1084,8 @@ namespace IPA.Cores.Codes
                 BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
             };
 
+            if (gate.Performance == 0) gate.Performance = 100;
+
             gate.Normalize();
             gate.Validate();
 
@@ -1129,6 +1133,8 @@ namespace IPA.Cores.Codes
                 CurrentTime = p["CurrentTime"].DateTimeValue.ToLocalTime(),
                 BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
             };
+
+            if (gate.Performance == 0) gate.Performance = 100;
 
             gate.Normalize();
             gate.Validate();
