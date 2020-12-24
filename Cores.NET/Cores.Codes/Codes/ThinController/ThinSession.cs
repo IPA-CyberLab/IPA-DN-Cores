@@ -249,6 +249,9 @@ namespace IPA.Cores.Codes
             // 「force_random_mode」の場合は、最小セッション数は無関係にすべての適応ホストから無作為に 1 つ選択する。
             bool force_random_mode = Util.RandBool();
 
+            $"********** SelectBestGateForServer() preferAcl = {preferAcl}, gateMaxSessions = {gateMaxSessions}, allowCandidate2 = {allowCandidate2}, preferGate = {preferGate}"._Debug();
+            $"force_random_mode = {force_random_mode}"._Debug();
+
             foreach (var candidates in candidatesList)
             {
                 IEnumerable<ThinGate> selectedGates;
@@ -269,21 +272,28 @@ namespace IPA.Cores.Codes
                     double minLoad = sortList.OrderBy(x => x.B).Select(x => x.B).FirstOrDefault();
                     var minLoadCandidates = sortList.Where(x => x.B == minLoad);
                     selectedGates = minLoadCandidates.Select(x => x.A);
+
+                    $"minLoad = {minLoad}"._Debug();
+                    $"minLoadCandidates = {minLoadCandidates.ToList()._ObjectToJson(compact: true)}"._Debug();
+                    $"selectedGates = {selectedGates.ToList()._ObjectToJson(compact: true)}"._Debug();
                 }
                 else
                 {
                     selectedGates = candidates;
+                    $"selectedGates = {selectedGates.ToList()._ObjectToJson(compact: true)}"._Debug();
                 }
 
                 var selectedGate = selectedGates._Shuffle().FirstOrDefault();
                 if (selectedGate != null)
                 {
+                    $"return = {selectedGate._ObjectToJson(compact: true)}"._Debug();
                     // 1 つ選定完了!
                     return selectedGate;
                 }
             }
 
             // 全部失敗
+            $"return = null;"._Debug();
             return null;
         }
 
