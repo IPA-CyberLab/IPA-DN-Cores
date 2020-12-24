@@ -70,6 +70,8 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<int> DefaultDatabaseTransactionRetryAverageIntervalSecs = 100;
 
             public static readonly Copenhagen<int> DefaultDatabaseTransactionRetryCount = 10;
+
+            public static readonly Copenhagen<int> DefaultOpenTryCount = 2;
         }
     }
 
@@ -439,6 +441,7 @@ namespace IPA.Cores.Basic
         public bool IsOpened { get; private set; } = false;
 
         public const int DefaultCommandTimeoutSecs = 60;
+
         public int CommandTimeoutSecs { get; set; } = DefaultCommandTimeoutSecs;
 
         public static readonly DeadlockRetryConfig DefaultDeadlockRetryConfig
@@ -448,13 +451,19 @@ namespace IPA.Cores.Basic
 
         public IsolationLevel DefaultIsolationLevel { get; } = CoresConfig.Database.DefaultIsolationLevel;
 
+        public int OpenTryCount = CoresConfig.Database.DefaultOpenTryCount;
+
         // コンストラクタ
-        public Database(string dbServerConnectionString, IsolationLevel? defaultIsolationLevel = null, DeadlockRetryConfig? deadlockRetryConfig = null, DatabaseServerType serverType = DatabaseServerType.SQLServer)
+        public Database(string dbServerConnectionString, IsolationLevel? defaultIsolationLevel = null, DeadlockRetryConfig? deadlockRetryConfig = null, DatabaseServerType serverType = DatabaseServerType.SQLServer,
+            int openTryCount = 0)
         {
             try
             {
                 if (deadlockRetryConfig != null) DeadlockRetryConfig = deadlockRetryConfig;
                 if (defaultIsolationLevel != null) this.DefaultIsolationLevel = defaultIsolationLevel.Value;
+                if (openTryCount <= 0) openTryCount = CoresConfig.Database.DefaultOpenTryCount;
+
+                this.OpenTryCount = openTryCount;
 
                 DbConnection? conn;
 
@@ -478,10 +487,14 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public Database(DbConnection dbConnection, IsolationLevel? defaultIsolationLevel = null, DeadlockRetryConfig? deadlockRetryConfig = null)
+        public Database(DbConnection dbConnection, IsolationLevel? defaultIsolationLevel = null, DeadlockRetryConfig? deadlockRetryConfig = null,
+            int openTryCount = 0)
         {
             if (deadlockRetryConfig != null) DeadlockRetryConfig = deadlockRetryConfig;
             if (defaultIsolationLevel != null) this.DefaultIsolationLevel = defaultIsolationLevel.Value;
+            if (openTryCount <= 0) openTryCount = CoresConfig.Database.DefaultOpenTryCount;
+
+            this.OpenTryCount = openTryCount;
 
             Connection = dbConnection;
         }
@@ -497,8 +510,16 @@ namespace IPA.Cores.Basic
             {
                 if (IsOpened == false)
                 {
-                    await Connection.OpenAsync(cancel);
+                    await RetryHelper.RunAsync(async () =>
+                    {
+                        await Connection.OpenAsync(cancel);
+                    },
+                    0,
+                    this.OpenTryCount,
+                    cancel);
+
                     IsOpened = true;
+
                 }
             }
         }

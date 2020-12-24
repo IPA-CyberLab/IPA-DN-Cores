@@ -3773,6 +3773,27 @@ namespace IPA.Cores.Basic
             => RunAsync((c) => proc(), retryInterval, tryCount, cancel);
     }
 
+    public static class RetryHelper
+    {
+        public static async Task RunAsync(Func<Task> proc, int retryInterval = 0, int tryCount = 1, CancellationToken cancel = default)
+        {
+            RetryHelper<int> helper = new RetryHelper<int>(retryInterval, tryCount);
+
+            await helper.RunAsync(async () =>
+            {
+                await proc();
+                return 0;
+            }, cancel: cancel);
+        }
+
+        public static async Task RunAsync<T>(Func<Task<T>> proc, int retryInterval = 0, int tryCount = 1, CancellationToken cancel = default)
+        {
+            RetryHelper<T> helper = new RetryHelper<T>(retryInterval, tryCount);
+
+            await helper.RunAsync(proc, cancel: cancel);
+        }
+    }
+
     public class StaticModule : StaticModule<int, int>
     {
         public StaticModule(Action initProc, Action freeProc)
