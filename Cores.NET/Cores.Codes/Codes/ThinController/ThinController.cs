@@ -1667,9 +1667,18 @@ namespace IPA.Cores.Codes
                 string password2 = Db.GetVarString("QueryPassword_Sessions")._NonNullTrim();
                 if (password2._IsEmpty() || password2 == password)
                 {
-                    var sessions = SessionManager.GateTable.Values.SelectMany(x => x.SessionTable.Values).OrderBy(x => x.SessionId).ThenBy(x => x.EstablishedDateTime);
+                    var result = new Dictionary<string, List<ThinSession>>();
 
-                    return new HttpStringResult(sessions._ObjectToJson(), Consts.MimeTypes.Json);
+                    var gateTable = SessionManager.GateTable.Values;
+
+                    foreach (var gate in gateTable)
+                    {
+                        var list = result._GetOrNew(gate.GateId, () => new List<ThinSession>());
+
+                        gate.SessionTable.Values.OrderBy(x => x.SessionId).ThenBy(x => x.EstablishedDateTime)._DoForEach(x => list.Add(x));
+                    }
+
+                    return new HttpStringResult(result._ObjectToJson(), Consts.MimeTypes.Json);
                 }
                 else
                 {
