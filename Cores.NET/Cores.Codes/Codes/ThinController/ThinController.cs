@@ -1557,7 +1557,7 @@ namespace IPA.Cores.Codes
 
             ret.GatesList = this.SessionManager.GateTable.Values.OrderBy(x => x.IpAddress, StrComparer.IpAddressStrComparer).ThenBy(x => x.GateId);
 
-            ret.VarsList = (this.Db.MemDb?.VarList.OrderBy(x => x.VAR_NAME).ThenBy(x => x.VAR_ID) ?? null)!.ToList()._CloneWithJson() ?? null;
+            ret.VarsList = (this.Db.MemDb?.VarList.OrderBy(x => x.VAR_NAME).ThenBy(x => x.VAR_ID) ?? null)?.ToList()._CloneWithJson() ?? null;
 
             ret.VarsList?._DoForEach(x =>
             {
