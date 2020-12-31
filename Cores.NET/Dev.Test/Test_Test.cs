@@ -981,9 +981,7 @@ namespace IPA.TestDev
         {
             using WideTunnel wt = new WideTunnel(new WideTunnelOptions("DESK", new string[] { "https://c__TIME__.controller.dynamic-ip.thin.cyber.ipa.go.jp/widecontrol/" }));
 
-            var c = await wt.WideClientConnectInnerAsync("greenrdp2");
-
-            c._PrintAsJson();
+            await using var c = await wt.WideClientConnectAsync("greenrdp2");
         }
 
         public static void Test_Generic()

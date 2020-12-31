@@ -75,6 +75,12 @@ namespace IPA.Cores.Basic
 
     public class WtcOptions : NetMiddleProtocolOptionsBase
     {
+        public WtConnectParam ConnectParam { get; }
+
+        public WtcOptions(WtConnectParam param)
+        {
+            this.ConnectParam = param;
+        }
     }
 
     public class NetWtcProtocolStack : NetMiddleProtocolStackBase
@@ -116,43 +122,16 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class WtcConnectOptions
-    {
-        public TcpIpSystem TcpIp { get; }
-        public WtcOptions WtcOptions { get; }
-        public PalSslClientAuthenticationOptions SslOptions { get; }
-
-        public WtcConnectOptions(WtcOptions? wtcOptions = null, PalSslClientAuthenticationOptions? sslOptions = null, TcpIpSystem? tcpIp = null)
-        {
-            this.TcpIp = tcpIp ?? LocalNet;
-            this.WtcOptions = wtcOptions ?? new WtcOptions();
-
-            if (sslOptions == null)
-            {
-                this.SslOptions = new PalSslClientAuthenticationOptions(true);
-            }
-            else
-            {
-                this.SslOptions = (PalSslClientAuthenticationOptions)sslOptions.Clone();
-            }
-        }
-    }
-
     public class WtcSocket : MiddleConnSock
     {
         protected new NetWtcProtocolStack Stack => (NetWtcProtocolStack)base.Stack;
 
-        public WtcSocket(ConnSock lowerSock, WtcOptions? options = null) : base(new NetWtcProtocolStack(lowerSock.UpperPoint, null, options._FilledOrDefault(new WtcOptions())))
+        public WtcSocket(ConnSock lowerSock, WtcOptions options) : base(new NetWtcProtocolStack(lowerSock.UpperPoint, null, options))
         {
         }
 
         public async Task StartWtcAsync(CancellationToken cancel = default)
             => await Stack.StartWtcAsync(cancel);
-
-        //public static async Task<WtcSocket> ConnectAsync(WtcConnectOptions? options = null, CancellationToken cancel = default)
-        //{
-        //    if (options == null) options = new WtcConnectOptions();
-        //}
     }
 
     [Flags]
@@ -256,7 +235,52 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public async Task<WtConnectParam> WideClientConnectInnerAsync(string pcid, WideTunnelClientOptions clientOptions = WideTunnelClientOptions.None, CancellationToken cancel = default)
+        public async Task<WtcSocket> WideClientConnectAsync(string pcid, WideTunnelClientOptions clientOptions = WideTunnelClientOptions.None, CancellationToken cancel = default)
+        {
+            WtConnectParam connectParam = await WideClientConnectInnerAsync(pcid, clientOptions, cancel);
+
+            ConnSock tcpSock = await this.TcpIp.ConnectAsync(new TcpConnectParam(connectParam.HostName, connectParam.Port, AddressFamily.InterNetwork, connectTimeout: CoresConfig.WtcConfig.WpcTimeoutMsec, dnsTimeout: CoresConfig.WtcConfig.WpcTimeoutMsec), cancel);
+            try
+            {
+                ConnSock targetSock = tcpSock;
+
+                try
+                {
+                    PalSslClientAuthenticationOptions sslOptions = new PalSslClientAuthenticationOptions(connectParam.HostName, false, (cert) => this.CheckValidationCallback(this, cert.NativeCertificate, null, SslPolicyErrors.None));
+
+                    SslSock sslSock = new SslSock(tcpSock);
+                    try
+                    {
+                        await sslSock.StartSslClientAsync(sslOptions, cancel);
+
+                        targetSock = sslSock;
+                    }
+                    catch
+                    {
+                        await sslSock._DisposeSafeAsync();
+                        throw;
+                    }
+
+                    WtcSocket wtcSocket = new WtcSocket(targetSock, new WtcOptions(connectParam));
+
+                    await wtcSocket.StartWtcAsync(cancel);
+
+                    return wtcSocket;
+                }
+                catch
+                {
+                    await targetSock._DisposeSafeAsync();
+                    throw;
+                }
+            }
+            catch
+            {
+                await tcpSock._DisposeSafeAsync();
+                throw;
+            }
+        }
+
+        async Task<WtConnectParam> WideClientConnectInnerAsync(string pcid, WideTunnelClientOptions clientOptions = WideTunnelClientOptions.None, CancellationToken cancel = default)
         {
             // TODO: cache
 
