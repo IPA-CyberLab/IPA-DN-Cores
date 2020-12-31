@@ -2463,6 +2463,26 @@ namespace IPA.Cores.Helper.Basic
 
         public static IPEndPoint? _ToIPEndPoint(this string? str, int defaultPort, AllowedIPVersions allowed = AllowedIPVersions.All, bool noExceptionAndReturnNull = false)
             => IPUtil.StrToIPEndPoint(str, defaultPort, allowed, noExceptionAndReturnNull);
+
+        public static bool IsCommunicationError(this VpnErrors error)
+        {
+            if (error == VpnErrors.ERR_SSL_X509_UNTRUSTED || error == VpnErrors.ERR_CERT_NOT_TRUSTED ||
+                error == VpnErrors.ERR_SSL_X509_EXPIRED ||
+                error == VpnErrors.ERR_PROTOCOL_ERROR || error == VpnErrors.ERR_CONNECT_FAILED ||
+                error == VpnErrors.ERR_TIMEOUTED || error == VpnErrors.ERR_DISCONNECTED)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        public static bool _IsVpnCommuncationError(this Exception exception)
+        {
+            if (exception == null) return true;
+            if (exception is VpnException vpnEx) return vpnEx.IsCommuncationError;
+            return true;
+        }
     }
 }
 

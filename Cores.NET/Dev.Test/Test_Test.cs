@@ -977,8 +977,23 @@ namespace IPA.TestDev
             a._PrintAsJson(compact: true);
         }
 
+        static async Task Test_201231Async()
+        {
+            using WideTunnel wt = new WideTunnel(new WideTunnelOptions("DESK", new string[] { "https://c__TIME__.controller.dynamic-ip.thin.cyber.ipa.go.jp/widecontrol/" }));
+
+            var c = await wt.WideClientConnectInnerAsync("greenrdp2");
+
+            c._PrintAsJson();
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_201231Async()._GetResult();
+                return;
+            }
+
             if (true)
             {
                 Test_MakeThinOssCerts_201120();

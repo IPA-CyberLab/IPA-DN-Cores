@@ -360,6 +360,8 @@ namespace IPA.Cores.Basic
         public int SIntValueSafeNum => Math.Min(SIntValue, 65535);
         public string StrValueNonNull => StrValue._NonNull();
         public string UniStrValueNonNull => UniStrValue._NonNull();
+        public string StrValueNonNullCheck => StrValue._NullCheck();
+        public string UniStrValueNonNullCheck => UniStrValue._NullCheck();
         public ReadOnlyMemory<byte> DataValueNonNull => DataValue == null ? ReadOnlyMemory<byte>.Empty : DataValue;
         public string DataValueHexStr => DataValueNonNull._GetHexString();
     }
@@ -477,6 +479,11 @@ namespace IPA.Cores.Basic
             e.AddValue(new PackValue(index, intValue));
         }
 
+        public void AddSInt(string name, int intValue)
+            => AddInt(name, (uint)intValue);
+        public void AddSInt(string name, int intValue, uint index)
+            => AddInt(name, (uint)intValue);
+
         public void AddBool(string name, bool boolValue)
         {
             AddBool(name, boolValue, 0);
@@ -504,6 +511,10 @@ namespace IPA.Cores.Basic
             PackElement e = getElementAndCreateIfNotExists(name, PackValueType.Int64);
             e.AddValue(new PackValue(index, int64Value));
         }
+        public void AddSInt64(string name, long int64Value)
+            => AddInt64(name, (ulong)int64Value);
+        public void AddSInt64(string name, long int64Value, uint index)
+            => AddInt64(name, (ulong)int64Value, index);
 
         public void AddData(string name, byte[] data)
         {
@@ -514,6 +525,14 @@ namespace IPA.Cores.Basic
             PackElement e = getElementAndCreateIfNotExists(name, PackValueType.Data);
             e.AddValue(new PackValue(index, data));
         }
+        public void AddData(string name, ReadOnlySpan<byte> data)
+            => AddData(name, data.ToArray());
+        public void AddData(string name, ReadOnlySpan<byte> data, uint index)
+            => AddData(name, data.ToArray(), index);
+        public void AddData(string name, ReadOnlyMemory<byte> data)
+            => AddData(name, data.Span);
+        public void AddData(string name, ReadOnlyMemory<byte> data, uint index)
+            => AddData(name, data.Span, index);
 
         // 要素の取得
         PackElement? getElement(string name)
@@ -721,6 +740,42 @@ namespace IPA.Cores.Basic
             get
             {
                 return WriteToBuf().ByteData;
+            }
+        }
+
+        public Pack Clone()
+        {
+            Buf buf = this.WriteToBuf();
+            buf.SeekToBegin();
+            return Pack.CreateFromBuf(buf);
+        }
+
+        public VpnErrors GetErrorFromPack()
+        {
+            int err = this["error"].SIntValue;
+
+            return (VpnErrors)err;
+        }
+
+        public VpnException? GetExceptionFromPack()
+        {
+            VpnErrors err = GetErrorFromPack();
+
+            if (err == VpnErrors.ERR_NO_ERROR)
+            {
+                return null;
+            }
+
+            return new VpnException(err, this);
+        }
+
+        public void ThrowIfError()
+        {
+            VpnException? ex = GetExceptionFromPack();
+
+            if (ex != null)
+            {
+                throw ex;
             }
         }
     }

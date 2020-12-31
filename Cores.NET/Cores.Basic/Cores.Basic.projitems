@@ -44,6 +44,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Container\ZipWriter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\RawDiskFs.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Network\DnsResolver.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Network\WideTunnel.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Network\InternetChecker.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Ui\UiAutomation.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\WebApi\ClientApi\AuthenticodeSignClient.cs" />
