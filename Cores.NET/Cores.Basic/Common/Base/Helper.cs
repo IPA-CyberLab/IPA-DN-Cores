@@ -201,7 +201,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _GetHexString(this ReadOnlyMemory<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray.Span, padding);
         public static byte[] _GetHexBytes(this string? str) => Str.HexToByte(str);
 
-        public static byte[] _GetHexOrString(this string? str, Encoding ?encoding = null)
+        public static byte[] _GetHexOrString(this string? str, Encoding? encoding = null)
         {
             if (str._IsNullOrZeroLen()) return new byte[0];
 
@@ -437,7 +437,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _TrimEndsWith(this string s, string key, bool caseSensitive = false) { Str.TrimEndsWith(ref s, key, caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase); return s; }
         public static string _NonNull(this string? s) { if (s == null) return ""; else return s; }
         public static string _NonNullTrim(this string? s) { if (s == null) return ""; else return s.Trim(); }
-        public static string? _TrimIfNonNull(this string ?s) { if (s == null) return null; else return s.Trim(); }
+        public static string? _TrimIfNonNull(this string? s) { if (s == null) return null; else return s.Trim(); }
         public static string _NonNullTrimSe(this string? s) { return Str.NormalizeStrSoftEther(s._NonNullTrim(), true); }
         public static string _TrimNonNull(this string? s) => s._NonNullTrim();
         public static bool _TryTrimStartWith(this string srcStr, out string outStr, StringComparison comparison, params string[] keys) => Str.TryTrimStartWith(srcStr, out outStr, comparison, keys);
@@ -972,6 +972,15 @@ namespace IPA.Cores.Helper.Basic
             });
         }
 
+        public static async Task<byte> _ReadOneAsync(this Stream stream, CancellationToken cancel = default)
+        {
+            Memory<byte> tmp = new byte[1];
+
+            await stream._ReadAllAsync(tmp, cancel);
+
+            return tmp.Span[0];
+        }
+
         public static async Task<Memory<byte>> _ReadAsync(this Stream stream, int bufferSize = Consts.Numbers.DefaultSmallBufferSize, CancellationToken cancel = default)
         {
             Memory<byte> tmp = new byte[bufferSize];
@@ -982,6 +991,83 @@ namespace IPA.Cores.Helper.Basic
         }
         public static Memory<byte> _Read(this Stream stream, int bufferSize = Consts.Numbers.DefaultSmallBufferSize, CancellationToken cancel = default)
             => _ReadAsync(stream, bufferSize, cancel)._GetResult();
+
+        public static async Task<string> _ReadLineAsync(this Stream stream, int maxLineSize = Consts.Numbers.DefaultMaxLineSizeStreamRecv, Encoding? encoding = null, CancellationToken cancel = default)
+        {
+            MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+            encoding ??= Str.Utf8Encoding;
+
+            while (true)
+            {
+                byte c = await stream._ReadOneAsync(cancel);
+                buf.WriteByte(c);
+
+                if (buf.Length > maxLineSize)
+                {
+                    throw new CoresLibException("buf.Length > maxLineSize");
+                }
+
+                if (buf.Length >= 1)
+                {
+                    if (buf.Span[buf.Length - 1] == '\n')
+                    {
+                        buf = buf.Slice(0, buf.Length - 1);
+
+                        if (buf.Length >= 1)
+                        {
+                            if (buf.Span[buf.Length - 1] == '\r')
+                            {
+                                buf = buf.Slice(0, buf.Length - 1);
+                            }
+                        }
+
+                        return encoding.GetString(buf);
+                    }
+                }
+            }
+        }
+
+        public static async Task<HttpHeader> _RecvHttpHeaderAsync(this Stream stream, CancellationToken cancel = default)
+            => await HttpHeader.RecvHttpHeaderAsync(stream, cancel);
+
+        public static async Task<Pack> _HttpClientRecvPackAsync(this Stream stream, CancellationToken cancel = default)
+        {
+            var h = await stream._RecvHttpHeaderAsync(cancel);
+
+            if (h.Method._IsSamei("HTTP/1.1") == false || h.Target._IsSamei("200") == false)
+            {
+                throw new CoresLibException($"Invalid HTTP response: {h.Method} {h.Target}");
+            }
+
+            string type = h.ValueList._GetStrFirst("Content-Type");
+            if (type._IsSamei("application/octet-stream") == false)
+            {
+                throw new CoresLibException($"Invalid HTTP Content-Type: {type}");
+            }
+
+            int length = h.ValueList._GetStrFirst("Content-Length")._ToInt();
+            if (length <= 0 || length > Pack.MaxPackSize)
+            {
+                throw new CoresLibException($"length <= 0 || length > Pack.MaxPackSize: {length}");
+            }
+
+            var data = await stream._ReadAllAsync(length, cancel);
+
+            return Pack.CreateFromMemory(data);
+        }
+
+        public static async Task _HttpClientSendPackAsync(this Stream stream, Pack pack, CancellationToken cancel = default)
+        {
+            var packData = pack.ByteData;
+
+            HttpHeader h = new HttpHeader("POST", "/vpnsvc/vpn.cgi", "HTTP/1.1");
+            h.ValueList.Add("Host", "Dummy");
+            h.ValueList.Add("Keep-Alive", "timeout=15; max=19");
+            h.ValueList.Add("Connection", "Keep-Alive");
+            h.ValueList.Add("Content-Type", "application/octet-stream");
+
+            await h.PostHttpAsync(stream, packData, cancel);
+        }
 
         // 指定したサイズを超えないデータを切断されるまでに受信する
         // 必要に応じて受信中のデータをリアルタイムで指定されたコールバック関数に提供する
@@ -2482,6 +2568,14 @@ namespace IPA.Cores.Helper.Basic
             if (exception == null) return true;
             if (exception is VpnException vpnEx) return vpnEx.IsCommuncationError;
             return true;
+        }
+
+        public static void ThrowIfError(this VpnErrors error, Pack? pack = null)
+        {
+            if (error != VpnErrors.ERR_NO_ERROR)
+            {
+                throw new VpnException(error, pack);
+            }
         }
     }
 }

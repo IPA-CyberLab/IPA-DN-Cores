@@ -979,7 +979,11 @@ namespace IPA.TestDev
 
         static async Task Test_201231Async()
         {
-            using WideTunnel wt = new WideTunnel(new WideTunnelOptions("DESK", new string[] { "https://c__TIME__.controller.dynamic-ip.thin.cyber.ipa.go.jp/widecontrol/" }));
+            var mem = Str.CHexArrayToBinary(Lfs.ReadStringFromFile(@"C:\git\IPA-DNP-ThinApps-Public\src\Vars\VarsActivePatch.h"));
+
+            CoresConfig.WtcConfig.DefaultWaterMark.TrySet(mem);
+
+            using WideTunnel wt = new WideTunnel(new WideTunnelOptions("DESK", "TestSan", new string[] { "https://c__TIME__.controller.dynamic-ip.thin.cyber.ipa.go.jp/widecontrol/" }));
 
             await using var c = await wt.WideClientConnectAsync("greenrdp2");
         }

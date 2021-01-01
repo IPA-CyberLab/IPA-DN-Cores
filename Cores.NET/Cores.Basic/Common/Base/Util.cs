@@ -6497,6 +6497,18 @@ namespace IPA.Cores.Basic
         {
             this.Add(new KeyValuePair<TKey, TValue>(key, value));
         }
+
+        public KeyValueList<TKey, TValue> Clone()
+        {
+            KeyValueList<TKey, TValue> ret = new KeyValueList<TKey, TValue>();
+
+            foreach (var kv in this)
+            {
+                ret.Add(kv.Key, kv.Value);
+            }
+
+            return ret;
+        }
     }
 
     [Flags]

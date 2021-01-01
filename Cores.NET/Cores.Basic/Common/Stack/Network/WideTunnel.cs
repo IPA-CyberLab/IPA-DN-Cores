@@ -62,6 +62,18 @@ using System.Net.Security;
 
 namespace IPA.Cores.Basic
 {
+    public static partial class Consts
+    {
+        public static partial class WideTunnelConsts
+        {
+            public const int TunnelTimeout = 30 * 1000;
+            public const int TunnelKeepAlive = 10 * 1000;
+
+            public const int TunnelTimeoutHardMax = 5 * 60 * 1000;
+            public const int TunnelKeepAliveHardMax = 2 * 60 * 1000;
+        }
+    }
+
     public static partial class CoresConfig
     {
         public static partial class WtcConfig
@@ -70,15 +82,119 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<int> PseudoBuild = 9999;
 
             public static readonly Copenhagen<int> WpcTimeoutMsec = 15 * 1000;
+            public static readonly Copenhagen<int> ConnectingTimeoutMsec = 15 * 1000;
+
+            public static readonly Copenhagen<ReadOnlyMemory<byte>> DefaultWaterMark = (ReadOnlyMemory<byte>)Str.CHexArrayToBinary(CoresRes["210101_DefaultWaterMark.txt"].String);
+        }
+    }
+
+    public class HttpHeader
+    {
+        public string Method = "";
+        public string Target = "";
+        public string Version = "";
+        public KeyValueList<string, string> ValueList = new KeyValueList<string, string>();
+
+        public HttpHeader() { }
+
+        public HttpHeader(string method, string target, string version)
+        {
+            this.Method = method;
+            this.Target = target;
+            this.Version = version;
+        }
+
+        public string WriteHttpHeader(KeyValueList<string, string>? headerValues = null)
+        {
+            StringWriter w = new StringWriter();
+            w.NewLine = Str.NewLine_Str_Windows;
+
+            if (headerValues == null) headerValues = this.ValueList;
+
+            w.WriteLine($"{this.Method} {this.Target} {this.Version}");
+
+            foreach (var kv in headerValues)
+            {
+                w.WriteLine($"{kv.Key}: {kv.Value}");
+            }
+
+            w.WriteLine();
+
+            return w.ToString();
+        }
+
+        public Memory<byte> GeneratePostBinary(ReadOnlyMemory<byte> postData)
+        {
+            var list = this.ValueList.Clone();
+
+            list._SetSingle("Content-Length", postData.Length.ToString());
+
+            string headerBody = WriteHttpHeader(list);
+
+            MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+            buf.Write(headerBody._GetBytes());
+            buf.Write(postData);
+
+            return buf.Memory;
+        }
+
+        public async Task PostHttpAsync(Stream stream, ReadOnlyMemory<byte> postData, CancellationToken cancel = default)
+        {
+            await stream.WriteAsync(GeneratePostBinary(postData), cancel);
+        }
+
+        public static async Task<HttpHeader> RecvHttpHeaderAsync(Stream stream, CancellationToken cancel = default)
+        {
+            // Get the first line
+            string firstLine = await stream._ReadLineAsync(cancel: cancel);
+            firstLine = firstLine.Trim();
+
+            // Split into tokens
+            string[] tokens = firstLine._Split(StringSplitOptions.None, ' ');
+            if (tokens.Length < 3)
+            {
+                throw new CoresLibException($"tokens.Length < 3 ('{firstLine}')");
+            }
+
+            var header = new HttpHeader(tokens[0], tokens[1], tokens[2]);
+
+            if (header.Version._IsSamei("HTTP/0.9"))
+            {
+                // The header ends with this line
+                return header;
+            }
+
+            // Get the subsequent lines
+            while (true)
+            {
+                string line = await stream._ReadLineAsync(cancel: cancel);
+
+                if (line.Length == 0)
+                {
+                    // End of the header
+                    break;
+                }
+
+                line = line.Trim();
+
+                if (line._GetKeyAndValue(out string key, out string value, ":"))
+                {
+                    header.ValueList.Add(key, value);
+                }
+            }
+
+            return header;
         }
     }
 
     public class WtcOptions : NetMiddleProtocolOptionsBase
     {
+        public WideTunnel WideTunnel { get; }
         public WtConnectParam ConnectParam { get; }
 
-        public WtcOptions(WtConnectParam param)
+        public WtcOptions(WideTunnel wt, WtConnectParam param)
         {
+            this.WideTunnel = wt;
             this.ConnectParam = param;
         }
     }
@@ -86,6 +202,8 @@ namespace IPA.Cores.Basic
     public class NetWtcProtocolStack : NetMiddleProtocolStackBase
     {
         public new WtcOptions Options => (WtcOptions)base.Options;
+
+        public WideTunnel WideTunnel => Options.WideTunnel;
 
         PipeStream LowerStream;
         PipeStream UpperStream;
@@ -106,6 +224,67 @@ namespace IPA.Cores.Basic
             {
                 throw new ApplicationException("Already started.");
             }
+
+            LowerStream.ReadTimeout = CoresConfig.WtcConfig.ConnectingTimeoutMsec;
+            LowerStream.WriteTimeout = CoresConfig.WtcConfig.ConnectingTimeoutMsec;
+
+            // TODO: check certificate
+
+            // シグネチャをアップロードする
+            HttpHeader h = new HttpHeader("POST", "/widetunnel/connect.cgi", "HTTP/1.1");
+            h.ValueList.Add("Content-Type", "image/jpeg");
+            h.ValueList.Add("Connection", "Keep-Alive");
+
+            // 透かしデータのアップロード
+            int randSize = Util.RandSInt31() % 2000;
+            MemoryBuffer<byte> water = new MemoryBuffer<byte>();
+            water.Write(this.WideTunnel.Options.WaterMark);
+            water.Write(Util.Rand(randSize));
+            await h.PostHttpAsync(LowerStream, water, cancel);
+
+            // Hello パケットのダウンロード
+            var hello = await LowerStream._HttpClientRecvPackAsync(cancel);
+            if (hello["hello"].BoolValue == false)
+            {
+                throw new CoresLibException("Hello packet recv error.");
+            }
+
+            // 接続パラメータの送信
+            var p = new Pack();
+            p.AddData("client_id", WideTunnel.Options.ClientId);
+            p.AddStr("method", "connect_session");
+            p.AddBool("use_compress", false);
+            p.AddData("session_id", this.Options.ConnectParam.SessionId);
+            p.AddSInt("ver", CoresConfig.WtcConfig.PseudoVer);
+            p.AddSInt("build", CoresConfig.WtcConfig.PseudoBuild);
+            p.AddStr("name_suite", this.WideTunnel.Options.NameSuite);
+            p.AddBool("support_timeout_param", true);
+
+            await LowerStream._HttpClientSendPackAsync(p, cancel);
+
+            // 結果の受信
+            p = await LowerStream._HttpClientRecvPackAsync(cancel);
+            int code = p["code"].SIntValue;
+            VpnErrors err = (VpnErrors)code;
+            err.ThrowIfError(p);
+
+            int tunnelTimeout = Consts.WideTunnelConsts.TunnelTimeout;
+            int tunnelKeepalive = Consts.WideTunnelConsts.TunnelKeepAlive;
+            bool tunnelUseAggressiveTimeout = false;
+
+            int tunnelTimeout2 = p["tunnel_timeout"].SIntValue;
+            int tunnelKeepAlive2 = p["tunnel_keepalive"].SIntValue;
+            bool tunnelUseAggressiveTimeout2 = p["tunnel_use_aggressive_timeout"].BoolValue;
+
+            if (tunnelTimeout2 >= 1 && tunnelKeepAlive2 >= 1)
+            {
+                tunnelTimeout = tunnelTimeout2;
+                tunnelKeepalive = tunnelKeepAlive2;
+                tunnelUseAggressiveTimeout = tunnelUseAggressiveTimeout2;
+            }
+
+            LowerStream.ReadTimeout = tunnelTimeout;
+            LowerStream.WriteTimeout = tunnelTimeout;
         }
 
         protected override async Task CleanupImplAsync(Exception? ex)
@@ -178,12 +357,15 @@ namespace IPA.Cores.Basic
         public IEnumerable<string> EntryUrlList { get; }
         public TcpIpSystem TcpIp { get; }
         public WebApiOptions? WebApiOptions { get; }
+        public ReadOnlyMemory<byte> WaterMark { get; }
+        public string NameSuite { get; }
 
         public ReadOnlyMemory<byte> GenNewClientId() => Secure.Rand(20);
 
-        public WideTunnelOptions(string svcName, IEnumerable<string> entryUrlList, ReadOnlyMemory<byte> clientId = default, WebApiOptions? webApiOptions = null, TcpIpSystem? tcpIp = null)
+        public WideTunnelOptions(string svcName, string nameSuite, IEnumerable<string> entryUrlList, ReadOnlyMemory<byte> clientId = default, ReadOnlyMemory<byte> waterMark = default, WebApiOptions? webApiOptions = null, TcpIpSystem? tcpIp = null)
         {
             if (clientId.IsEmpty) clientId = GenNewClientId();
+            if (waterMark.IsEmpty) waterMark = CoresConfig.WtcConfig.DefaultWaterMark;
             if (webApiOptions == null) webApiOptions = new WebApiOptions(
                 new WebApiSettings
                 {
@@ -195,11 +377,14 @@ namespace IPA.Cores.Basic
             if (clientId.Length != 20) throw new ArgumentException($"{nameof(clientId)} must be 20 bytes.");
             if (tcpIp == null) tcpIp = LocalNet;
 
+            this.NameSuite = nameSuite;
+
             SvcName = svcName._NonNullTrim();
             ClientId = clientId;
             this.EntryUrlList = entryUrlList;
             this.TcpIp = tcpIp;
             this.WebApiOptions = webApiOptions;
+            this.WaterMark = waterMark;
         }
     }
 
@@ -239,6 +424,8 @@ namespace IPA.Cores.Basic
         {
             WtConnectParam connectParam = await WideClientConnectInnerAsync(pcid, clientOptions, cancel);
 
+            $"WideClientConnect: Redirecting to {connectParam.HostName}:{connectParam.Port} ..."._Debug();
+
             ConnSock tcpSock = await this.TcpIp.ConnectAsync(new TcpConnectParam(connectParam.HostName, connectParam.Port, AddressFamily.InterNetwork, connectTimeout: CoresConfig.WtcConfig.WpcTimeoutMsec, dnsTimeout: CoresConfig.WtcConfig.WpcTimeoutMsec), cancel);
             try
             {
@@ -261,7 +448,7 @@ namespace IPA.Cores.Basic
                         throw;
                     }
 
-                    WtcSocket wtcSocket = new WtcSocket(targetSock, new WtcOptions(connectParam));
+                    WtcSocket wtcSocket = new WtcSocket(targetSock, new WtcOptions(this, connectParam));
 
                     await wtcSocket.StartWtcAsync(cancel);
 

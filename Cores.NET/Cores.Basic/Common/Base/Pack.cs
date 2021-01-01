@@ -715,6 +715,13 @@ namespace IPA.Cores.Basic
             return p;
         }
 
+        public static Pack CreateFromMemory(ReadOnlySpan<byte> data)
+        {
+            return CreateFromBuf(new Buf(data.ToArray()));
+        }
+        public static Pack CreateFromMemory(ReadOnlyMemory<byte> data)
+            => CreateFromMemory(data.Span);
+
         // バッファに変換
         public Buf WriteToBuf()
         {

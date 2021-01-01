@@ -77,6 +77,8 @@ namespace IPA.Cores.Basic
             public const int DefaultLargeBufferSize = 65536;
             public const int DefaultVeryLargeBufferSize = 400000;
 
+            public const int DefaultMaxLineSizeStreamRecv = 16 * 1024;
+
             public static readonly int MaxYear = (Util.MaxDateTimeValue.Year - 1);
             public static readonly int MinYear = Util.ZeroDateTimeValue.Year;
 
