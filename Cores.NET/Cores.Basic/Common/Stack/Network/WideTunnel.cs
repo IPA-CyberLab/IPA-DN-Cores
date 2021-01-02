@@ -71,6 +71,8 @@ namespace IPA.Cores.Basic
 
             public const int TunnelTimeoutHardMax = 5 * 60 * 1000;
             public const int TunnelKeepAliveHardMax = 2 * 60 * 1000;
+
+            public const int MaxBlockSize = 65536;
         }
     }
 
@@ -216,10 +218,11 @@ namespace IPA.Cores.Basic
 
         Once Started;
 
+        Task? SendTask;
+        Task? RecvTask;
+
         public async Task StartWtcAsync(CancellationToken cancel = default)
         {
-            await Task.CompletedTask;
-
             if (Started.IsFirstCall() == false)
             {
                 throw new ApplicationException("Already started.");
@@ -284,7 +287,101 @@ namespace IPA.Cores.Basic
             }
 
             LowerStream.ReadTimeout = tunnelTimeout;
-            LowerStream.WriteTimeout = tunnelTimeout;
+            LowerStream.WriteTimeout = Timeout.Infinite;
+
+            this.SendTask = SendLoopAsync(tunnelKeepalive)._LeakCheck();
+            this.RecvTask = RecvLoopAsync()._LeakCheck();
+        }
+
+        async Task SendLoopAsync(int keepaliveInterval)
+        {
+            try
+            {
+                CancellationToken cancel = this.GrandCancel;
+
+                LocalTimer timer = new LocalTimer();
+
+                long nextPingTick = timer.AddTimeout(0);
+
+                while (true)
+                {
+                    await LowerStream.WaitReadyToSendAsync(cancel, Timeout.Infinite);
+
+                    await UpperStream.WaitReadyToReceiveAsync(cancel, timer.GetNextInterval(), noTimeoutException: true);
+
+                    IReadOnlyList<ReadOnlyMemory<byte>> userDataList = UpperStream.FastReceiveNonBlock(out int totalSendSize, maxSize: Consts.WideTunnelConsts.MaxBlockSize);
+
+                    MemoryBuffer<byte> sendBuffer = new MemoryBuffer<byte>();
+
+                    if (totalSendSize >= 1)
+                    {
+                        // Send data
+                        foreach (var mem in userDataList)
+                        {
+                            sendBuffer.WriteSInt32(mem.Length);
+                            sendBuffer.Write(mem);
+                        }
+                    }
+
+                    if (timer.Now >= nextPingTick)
+                    {
+                        // Send ping
+                        sendBuffer.WriteSInt32(0);
+
+                        nextPingTick = timer.AddTimeout(Util.GenRandInterval(keepaliveInterval));
+                    }
+
+                    if (sendBuffer.IsThisEmpty() == false)
+                    {
+                        LowerStream.FastSendNonBlock(sendBuffer);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ex._Debug();
+                this.UpperStream.Disconnect();
+                await this.CleanupAsync(ex);
+            }
+        }
+
+        async Task RecvLoopAsync()
+        {
+            try
+            {
+                CancellationToken cancel = this.GrandCancel;
+
+                while (true)
+                {
+                    // データサイズを受信
+                    int dataSize = await LowerStream.ReceiveSInt32Async(cancel).FlushOtherStreamIfPending(UpperStream);
+
+                    if (dataSize < 0 || dataSize > Consts.WideTunnelConsts.MaxBlockSize)
+                    {
+                        // 不正なデータサイズを受信。通信エラーか
+                        throw new CoresLibException($"dataSize < 0 || dataSize > Consts.WideTunnelConsts.MaxBlockSize ({dataSize})");
+                    }
+
+                    // データ本体を受信
+                    var data = await LowerStream.ReceiveAllAsync(dataSize, cancel);
+
+                    // データが 1 バイト以上あるか (0 バイトの場合は Keep Alive であるので無視する)
+                    if (data.IsEmpty == false)
+                    {
+                        // 上位レイヤに渡す
+                        await UpperStream.WaitReadyToSendAsync(cancel, Timeout.Infinite);
+
+                        UpperStream.FastSendNonBlock(data, false);
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                ex._Debug();
+                this.UpperStream.Disconnect();
+                await this.CleanupAsync(ex);
+            }
         }
 
         protected override async Task CleanupImplAsync(Exception? ex)

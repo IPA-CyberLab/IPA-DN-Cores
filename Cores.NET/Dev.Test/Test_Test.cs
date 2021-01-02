@@ -977,7 +977,7 @@ namespace IPA.TestDev
             a._PrintAsJson(compact: true);
         }
 
-        static async Task Test_201231Async()
+        static async Task Test_201231Async(CancellationToken cancel)
         {
             var mem = Str.CHexArrayToBinary(Lfs.ReadStringFromFile(@"C:\git\IPA-DNP-ThinApps-Public\src\Vars\VarsActivePatch.h"));
 
@@ -986,13 +986,19 @@ namespace IPA.TestDev
             using WideTunnel wt = new WideTunnel(new WideTunnelOptions("DESK", "TestSan", new string[] { "https://c__TIME__.controller.dynamic-ip.thin.cyber.ipa.go.jp/widecontrol/" }));
 
             await using var c = await wt.WideClientConnectAsync("greenrdp2");
+
+            await cancel._WaitUntilCanceledAsync();
         }
 
         public static void Test_Generic()
         {
             if (true)
             {
-                Test_201231Async()._GetResult();
+                CancellationTokenSource cts = new CancellationTokenSource();
+                var task = Test_201231Async(cts.Token);
+                Con.ReadLine();
+                cts.Cancel();
+                task._GetResult();
                 return;
             }
 
