@@ -431,8 +431,8 @@ namespace IPA.Cores.Basic
             public const int DefaultShellPromptRecvTimeout = 30 * 1000;
             public const int DefaultShellPromptSendTimeout = 30 * 1000;
 
-            public const int DefaultDialogSessionExpiresAfterFinishedMsecs = 5 * 1000;
-            public const int DefaultDialogSessionGcIntervals = 1 * 1000;
+            public const int DefaultDialogSessionExpiresAfterFinishedMsecs = 300 * 1000;
+            public const int DefaultDialogSessionGcIntervals = 10 * 1000;
         }
 
         public static partial class LinuxCommands

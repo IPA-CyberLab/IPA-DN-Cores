@@ -990,8 +990,87 @@ namespace IPA.TestDev
             await cancel._WaitUntilCanceledAsync();
         }
 
+        class TestRequest1 : IDialogRequestData
+        {
+            public string A = "";
+        }
+
+        class TestResponse1 : IDialogResponseData
+        {
+            public string B = "";
+        }
+
+        static void Test_210102()
+        {
+            using DialogSessionManager sm = new DialogSessionManager();
+
+            var sess = sm.StartNewSession(new DialogSessionOptions(async (sess, cancel) =>
+            {
+                for (int i = 0; ; i++)
+                {
+                    Dbg.Where();
+                    var response = await sess.RequestAndWaitResponseAsync(new TestRequest1 { A = "abc" }, 10000, 1000);
+                    Dbg.Where();
+                    TestResponse1 res2 = (TestResponse1)response;
+                    res2._PrintAsJson();
+                    Dbg.Where();
+
+                    //await Task.Delay(Util.RandSInt31() % 100);
+                }
+
+            }, null));
+
+            string sessId = sess.SessionId;
+
+            $"Session ID = {sessId}"._Print();
+
+            var t = AsyncAwait(async () =>
+            {
+                while (true)
+                {
+                    Dbg.Where();
+                    var next = await sm.GetNextRequestAsync(sessId);
+
+                    Dbg.Where();
+                    if (next == null)
+                    {
+                        break;
+                    }
+
+                    var request = (TestRequest1)next.RequestData;
+
+                    request._Print();
+
+                    var response = new TestResponse1 { B = request.A + "--OK" };
+
+                    if ((Util.RandSInt31() % 4) == 0)
+                    {
+                        //sm.SetResponseCancel(sessId, next.RequestId);
+                        //sm.SetResponseException(sessId, next.RequestId, new CoresLibException("Neko"));
+                    }
+                    string s = Con.ReadLine(">")!;
+                    if (s._IsSamei("q"))
+                    {
+                        sm.SetResponseCancel(sessId, next.RequestId);
+                    }
+                    //sm.SetResponseData(sessId, next.RequestId, response);
+                    sm.SendHeartBeat(sessId, next.RequestId);
+                }
+
+                "All finished."._Print();
+            });
+
+            t._TryGetResult();
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210102();
+                return;
+            }
+
             if (true)
             {
                 CancellationTokenSource cts = new CancellationTokenSource();
