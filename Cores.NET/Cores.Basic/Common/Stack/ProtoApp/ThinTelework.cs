@@ -89,9 +89,25 @@ namespace IPA.Cores.Basic
     [Flags]
     public enum ThinServerCaps
     {
+        None = 0,
         Urdp2 = 2,
         UrdpVeryLimited = 4,
         WinRdpEnabled = 8,
+    }
+
+    [Flags]
+    public enum ThinServerMask64 : long
+    {
+        None = 0,
+        UrdpClient = 1,
+        WinRdpNormal = 2,
+        WinRdpTs = 4,
+        UserMode = 8,
+        ServiceMode = 16,
+        PolicyEnforced = 32,
+        OtpEnabled = 64,
+        SupportWolTrigger = 128,
+        IsLimitedMode = 256,
     }
 
     public class ThinClientAuthRequest : IDialogRequestData
@@ -135,6 +151,40 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class ThinClientConnectResult : AsyncService
+    {
+        public WtcSocket Socket { get; }
+        public PipeStream Stream { get; }
+        public ThinSvcType SvcType { get; }
+        public bool IsShareDisabled { get; }
+        public ThinServerCaps Caps { get; }
+        public ThinServerMask64 ServerMask64 => (ThinServerMask64)Socket.Options.ConnectParam.ServerMask64;
+        public bool RunInspect { get; }
+
+        public ThinClientConnectResult(WtcSocket socket, PipeStream stream, ThinSvcType svcType, bool isShareDisabled, ThinServerCaps caps, bool runInspect)
+        {
+            Socket = socket;
+            Stream = stream;
+            SvcType = svcType;
+            IsShareDisabled = isShareDisabled;
+            Caps = caps;
+            RunInspect = runInspect;
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                await this.Stream._DisposeSafeAsync();
+                await this.Socket._DisposeSafeAsync();
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
+        }
+    }
+
     public class ThinClient
     {
         public ThinClientOptions Options { get; }
@@ -159,99 +209,131 @@ namespace IPA.Cores.Basic
             await ConnectMainAsync(wt, connectOptions, cancel, true, true, null!);
         }
 
-        async Task ConnectMainAsync(WideTunnel wt, ThinClientConnectOptions connectOptions, CancellationToken cancel, bool checkPort, bool firstConnection,
+        async Task<ThinClientConnectResult> ConnectMainAsync(WideTunnel wt, ThinClientConnectOptions connectOptions, CancellationToken cancel, bool checkPort, bool firstConnection,
             Func<ThinClientAuthRequest, Task<ThinClientAuthResponse>> authCallback)
         {
-            await using var sock = await wt.WideClientConnectAsync(connectOptions.Pcid, connectOptions.ClientOptions, cancel);
+            WtcSocket? sock = null;
+            PipeStream? st = null;
 
-            await using var st = sock.GetStream(true);
-
-            st.ReadTimeout = st.WriteTimeout = Consts.ThinClient.ProtocolCommTimeoutMsecs;
-
-            // バージョンを送信
-            Pack p = new Pack();
-            p.AddInt("ClientVer", Consts.ThinClient.DummyClientVer);
-            p.AddInt("ClientBuild", Consts.ThinClient.DummyClientBuild);
-            p.AddBool("CheckPort", checkPort);
-            p.AddBool("FirstConnection", firstConnection);
-            p.AddBool("HasURDP2Client", true);
-            p.AddBool("SupportOtp", true);
-            p.AddBool("SupportOtpEnforcement", true);
-            p.AddBool("SupportInspect", true);
-            p.AddBool("SupportServerAllowedMacListErr", true);
-            p.AddIp("ClientLocalIP", connectOptions.ClientIpAddress);
-            p.AddUniStr("UserName", "WebClient");
-            p.AddUniStr("ComputerName", "WebClient");
-            p.AddBool("SupportWatermark", true);
-
-            await st._SendPackAsync(p, cancel);
-
-            // 認証パラメータを受信
-            p = await st._RecvPackAsync(cancel);
-
-            var err = p.GetErrorFromPack();
-            err.ThrowIfError(p);
-
-            var authType = (ThinAuthType)p["AuthType"].SIntValueSafeNum;
-            var svcType = (ThinSvcType)p["ServiceType"].SIntValueSafeNum;
-            var caps = (ThinServerCaps)p["DsCaps"].SIntValueSafeNum;
-            var rand = p["Rand"].DataValueNonNull;
-            var machineKey = p["MachineKey"].DataValueNonNull;
-            var isShareEnabled = p["IsShareDisabled"].BoolValue;
-            var useAdvancedSecurity = p["UseAdvancedSecurity"].BoolValue;
-            var isOtpEnabled = p["IsOtpEnabled"].BoolValue;
-            var runInspect = p["RunInspect"].BoolValue;
-            var lifeTime = p["Lifetime"].SIntValue;
-            var lifeTimeMsg = p["LifeTimeMsg"].UniStrValueNonNull;
-            var waterMarkStr1 = p["WatermarkStr1"].UniStrValueNonNull;
-            var waterMarkStr2 = p["WatermarkStr2"].UniStrValueNonNull;
-
-            if (isOtpEnabled)
+            try
             {
-                throw new NotImplementedException();
-            }
+                sock = await wt.WideClientConnectAsync(connectOptions.Pcid, connectOptions.ClientOptions, cancel);
+                st = sock.GetStream(true);
 
-            if (runInspect)
-            {
-                throw new NotImplementedException();
-            }
+                st.ReadTimeout = st.WriteTimeout = Consts.ThinClient.ProtocolCommTimeoutMsecs;
 
-            // ユーザー認証
-            if (useAdvancedSecurity == false)
-            {
-                // 古いユーザー認証
-                if (authType == ThinAuthType.None)
+                // バージョンを送信
+                Pack p = new Pack();
+                p.AddInt("ClientVer", Consts.ThinClient.DummyClientVer);
+                p.AddInt("ClientBuild", Consts.ThinClient.DummyClientBuild);
+                p.AddBool("CheckPort", checkPort);
+                p.AddBool("FirstConnection", firstConnection);
+                p.AddBool("HasURDP2Client", true);
+                p.AddBool("SupportOtp", true);
+                p.AddBool("SupportOtpEnforcement", true);
+                p.AddBool("SupportInspect", true);
+                p.AddBool("SupportServerAllowedMacListErr", true);
+                p.AddIp("ClientLocalIP", connectOptions.ClientIpAddress);
+                p.AddUniStr("UserName", "WebClient");
+                p.AddUniStr("ComputerName", "WebClient");
+                p.AddBool("SupportWatermark", true);
+
+                await st._SendPackAsync(p, cancel);
+
+                // 認証パラメータを受信
+                p = await st._RecvPackAsync(cancel);
+
+                var err = p.GetErrorFromPack();
+                err.ThrowIfError(p);
+
+                var authType = (ThinAuthType)p["AuthType"].SIntValueSafeNum;
+                var svcType = (ThinSvcType)p["ServiceType"].SIntValueSafeNum;
+                var caps = (ThinServerCaps)p["DsCaps"].SIntValueSafeNum;
+                var rand = p["Rand"].DataValueNonNull;
+                var machineKey = p["MachineKey"].DataValueNonNull;
+                var isShareEnabled = p["IsShareDisabled"].BoolValue;
+                var useAdvancedSecurity = p["UseAdvancedSecurity"].BoolValue;
+                var isOtpEnabled = p["IsOtpEnabled"].BoolValue;
+                var runInspect = p["RunInspect"].BoolValue;
+                var lifeTime = p["Lifetime"].SIntValue;
+                var lifeTimeMsg = p["LifeTimeMsg"].UniStrValueNonNull;
+                var waterMarkStr1 = p["WatermarkStr1"].UniStrValueNonNull;
+                var waterMarkStr2 = p["WatermarkStr2"].UniStrValueNonNull;
+
+                if (isOtpEnabled)
                 {
-                    // 匿名認証
-                    ThinClientAuthRequest authReq = new ThinClientAuthRequest
-                    {
-                        AuthType = ThinAuthType.None,
-                        UseAdvancedSecurity = false,
-                    };
-
-                    var authRes = await authCallback(authReq);
+                    throw new NotImplementedException();
                 }
-                else if (authType == ThinAuthType.Password)
+
+                if (runInspect)
                 {
-                    // パスワード認証
-                    ThinClientAuthRequest authReq = new ThinClientAuthRequest
-                    {
-                        AuthType = ThinAuthType.Password,
-                        UseAdvancedSecurity = false,
-                    };
-
-                    var authRes = await authCallback(authReq);
-
-                    var passwordHash = Secure.HashSHA1(authRes.Password._GetBytes_UTF8());
-
-                    MemoryBuffer<byte> hashSrc = new MemoryBuffer<byte>();
-                    hashSrc.Write(passwordHash);
-                    hashSrc.Write(rand);
+                    throw new NotImplementedException();
                 }
+
+                // ユーザー認証
+                p = new Pack();
+
+                if (useAdvancedSecurity == false)
+                {
+                    // 古いユーザー認証
+                    if (authType == ThinAuthType.None)
+                    {
+                        // 匿名認証
+                        ThinClientAuthRequest authReq = new ThinClientAuthRequest
+                        {
+                            AuthType = ThinAuthType.None,
+                            UseAdvancedSecurity = false,
+                        };
+
+                        var authRes = await authCallback(authReq);
+                    }
+                    else if (authType == ThinAuthType.Password)
+                    {
+                        // パスワード認証
+                        ThinClientAuthRequest authReq = new ThinClientAuthRequest
+                        {
+                            AuthType = ThinAuthType.Password,
+                            UseAdvancedSecurity = false,
+                        };
+
+                        var authRes = await authCallback(authReq);
+
+                        var passwordHash = Secure.HashSHA1(authRes.Password._GetBytes_UTF8());
+
+                        MemoryBuffer<byte> hashSrc = new MemoryBuffer<byte>();
+                        hashSrc.Write(passwordHash);
+                        hashSrc.Write(rand);
+
+                        p.AddData("SecurePassword", Secure.SoftEther_SecurePassword(authRes.Password, rand));
+                    }
+                    else
+                    {
+                        // 不明な認証方法
+                        throw new VpnException(VpnErrors.ERR_DESK_UNKNOWN_AUTH_TYPE);
+                    }
+                }
+                else
+                {
+                    // 高度なユーザー認証
+                    throw new NotImplementedException();
+                }
+
+                await st._SendPackAsync(p, cancel);
+
+                // 結果を受信
+                p = await st._RecvPackAsync(cancel);
+                err = p.GetErrorFromPack();
+                err.ThrowIfError(p);
+
+                st.ReadTimeout = st.WriteTimeout = Timeout.Infinite;
+
+                return new ThinClientConnectResult(sock, st, svcType, !isShareEnabled, caps, runInspect);
             }
-            else
+            catch
             {
-                throw new NotImplementedException();
+                await st._DisposeSafeAsync();
+                await sock._DisposeSafeAsync();
+                throw;
             }
         }
     }

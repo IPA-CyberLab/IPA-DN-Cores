@@ -401,6 +401,7 @@ namespace IPA.Cores.Basic
     public class WtcSocket : MiddleConnSock
     {
         protected new NetWtcProtocolStack Stack => (NetWtcProtocolStack)base.Stack;
+        public WtcOptions Options => Stack.Options;
 
         public WtcSocket(ConnSock lowerSock, WtcOptions options) : base(new NetWtcProtocolStack(lowerSock.UpperPoint, null, options))
         {

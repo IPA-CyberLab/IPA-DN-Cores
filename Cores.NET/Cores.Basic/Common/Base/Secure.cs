@@ -441,6 +441,14 @@ namespace IPA.Cores.Basic
         }
 
         public static CertSelectorCallback StaticServerCertSelector(X509Certificate2 cert) => (obj, sni) => cert;
+
+        public static byte[] SoftEther_SecurePassword(string password, ReadOnlyMemory<byte> random)
+        {
+            SpanBuffer<byte> b = new SpanBuffer<byte>();
+            b.Write(password._GetBytes_UTF8());
+            b.Write(random);
+            return Secure.HashSHA0(b);
+        }
     }
 
 
