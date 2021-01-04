@@ -1090,8 +1090,8 @@ namespace IPA.Cores.Helper.Basic
             int size = packData.Length;
 
             MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
-            buf.Write(packData);
             buf.WriteSInt32(size);
+            buf.Write(packData);
 
             await stream.WriteAsync(buf, cancel);
         }

@@ -1063,8 +1063,38 @@ namespace IPA.TestDev
             t._TryGetResult();
         }
 
+        static async Task Test_210104Async(CancellationToken cancel)
+        {
+            var mem = Str.CHexArrayToBinary(Lfs.ReadStringFromFile(@"C:\git\IPA-DNP-ThinApps-Public\src\Vars\VarsActivePatch.h"));
+
+            CoresConfig.WtcConfig.DefaultWaterMark.TrySet(mem);
+
+            var wideOptions = new WideTunnelOptions("DESK", "TestSan", new string[] { "https://c__TIME__.controller.dynamic-ip.thin.cyber.ipa.go.jp/widecontrol/" });
+            await using var sm = new DialogSessionManager();
+
+            ThinClient tc = new ThinClient(new ThinClientOptions(wideOptions, sm));
+
+            var sess = tc.StartConnect(new ThinClientConnectOptions("pc373", IPUtil.LoopbackAddress, IPUtil.LoopbackAddress.ToString()));
+
+            await cancel._WaitUntilCanceledAsync();
+
+            await sm._DisposeSafeAsync();
+
+            $"Session Error = {sess.Exception?.Message ?? "ok"}"._Print();
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+                var task = Test_210104Async(cts.Token);
+                Con.ReadLine();
+                cts.Cancel();
+                task._GetResult();
+                return;
+            }
+
             if (true)
             {
                 while (true)

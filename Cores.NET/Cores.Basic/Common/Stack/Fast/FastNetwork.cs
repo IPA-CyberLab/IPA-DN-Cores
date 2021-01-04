@@ -1694,7 +1694,9 @@ namespace IPA.Cores.Basic
                             if (size == 0)
                                 break;
 
-                            await WriteStream.WriteAsync(buffer.Slice(0, size), cancel);
+                            var sendData = buffer.Slice(0, size);
+
+                            await WriteStream.WriteAsync(sendData, cancel);
                             flush = true;
                         }
                     }

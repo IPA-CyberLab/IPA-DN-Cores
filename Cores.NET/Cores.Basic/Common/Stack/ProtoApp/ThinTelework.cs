@@ -206,11 +206,23 @@ namespace IPA.Cores.Basic
 
             await using WideTunnel wt = new WideTunnel(this.Options.WideTunnelOptions);
 
-            await ConnectMainAsync(wt, connectOptions, cancel, true, true, null!);
+            await using var connectResult = await ConnectMainAsync(wt, connectOptions, cancel, true, true, async (req, c) =>
+            {
+                await Task.CompletedTask;
+
+                var response = new ThinClientAuthResponse
+                {
+                    Password = Lfs.ReadStringFromFile(@"C:\tmp\yagi\TestPass.txt", oneLine: true),
+                };
+
+                return response;
+            });
+
+            Dbg.Where();
         }
 
         async Task<ThinClientConnectResult> ConnectMainAsync(WideTunnel wt, ThinClientConnectOptions connectOptions, CancellationToken cancel, bool checkPort, bool firstConnection,
-            Func<ThinClientAuthRequest, Task<ThinClientAuthResponse>> authCallback)
+            Func<ThinClientAuthRequest, CancellationToken, Task<ThinClientAuthResponse>> authCallback)
         {
             WtcSocket? sock = null;
             PipeStream? st = null;
@@ -285,7 +297,7 @@ namespace IPA.Cores.Basic
                             UseAdvancedSecurity = false,
                         };
 
-                        var authRes = await authCallback(authReq);
+                        var authRes = await authCallback(authReq, cancel);
                     }
                     else if (authType == ThinAuthType.Password)
                     {
@@ -296,15 +308,11 @@ namespace IPA.Cores.Basic
                             UseAdvancedSecurity = false,
                         };
 
-                        var authRes = await authCallback(authReq);
+                        var authRes = await authCallback(authReq, cancel);
 
                         var passwordHash = Secure.HashSHA1(authRes.Password._GetBytes_UTF8());
 
-                        MemoryBuffer<byte> hashSrc = new MemoryBuffer<byte>();
-                        hashSrc.Write(passwordHash);
-                        hashSrc.Write(rand);
-
-                        p.AddData("SecurePassword", Secure.SoftEther_SecurePassword(authRes.Password, rand));
+                        p.AddData("SecurePassword", Secure.SoftEther_SecurePassword(passwordHash, rand));
                     }
                     else
                     {

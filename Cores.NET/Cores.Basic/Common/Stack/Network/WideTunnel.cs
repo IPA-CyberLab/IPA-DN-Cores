@@ -303,21 +303,30 @@ namespace IPA.Cores.Basic
 
                 long nextPingTick = timer.AddTimeout(0);
 
+                bool initialFourZeroSent = false;
+
                 while (true)
                 {
-                    await LowerStream.WaitReadyToSendAsync(cancel, Timeout.Infinite);
-
-                    await UpperStream.WaitReadyToReceiveAsync(cancel, timer.GetNextInterval(), noTimeoutException: true);
-
-                    IReadOnlyList<ReadOnlyMemory<byte>> userDataList = UpperStream.FastReceiveNonBlock(out int totalSendSize, maxSize: Consts.WideTunnelConsts.MaxBlockSize);
-
                     MemoryBuffer<byte> sendBuffer = new MemoryBuffer<byte>();
+
+                    if (initialFourZeroSent == false)
+                    {
+                        // 最初の 0x00000000 (4 バイト) を送信
+                        initialFourZeroSent = true;
+                        sendBuffer.WriteSInt32(4);
+                        sendBuffer.WriteSInt32(0x00000000);
+                    }
+
+                    // 上位ストリームからのデータを送信
+                    IReadOnlyList<ReadOnlyMemory<byte>> userDataList = UpperStream.FastReceiveNonBlock(out int totalSendSize, maxSize: Consts.WideTunnelConsts.MaxBlockSize);
 
                     if (totalSendSize >= 1)
                     {
                         // Send data
                         foreach (var mem in userDataList)
                         {
+                            //$"Send: {mem.Length}"._Debug();
+                            //$"SendData: {mem._GetHexString()}"._Debug();
                             sendBuffer.WriteSInt32(mem.Length);
                             sendBuffer.Write(mem);
                         }
@@ -333,8 +342,13 @@ namespace IPA.Cores.Basic
 
                     if (sendBuffer.IsThisEmpty() == false)
                     {
+                        //$"RawSendData: {sendBuffer.Span._GetHexString()}"._Debug();
                         LowerStream.FastSendNonBlock(sendBuffer);
                     }
+
+                    await LowerStream.WaitReadyToSendAsync(cancel, Timeout.Infinite);
+
+                    await UpperStream.WaitReadyToReceiveAsync(cancel, timer.GetNextInterval(), noTimeoutException: true);
                 }
             }
             catch (Exception ex)
