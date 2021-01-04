@@ -553,7 +553,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    public enum VpnErrors
+    public enum VpnError
     {
         // By ConvertCErrorsToCsErrors
         ERR_NO_ERROR = 0, // No error

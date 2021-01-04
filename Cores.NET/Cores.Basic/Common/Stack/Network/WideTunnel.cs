@@ -268,7 +268,7 @@ namespace IPA.Cores.Basic
             // 結果の受信
             p = await LowerStream._HttpClientRecvPackAsync(cancel);
             int code = p["code"].SIntValue;
-            VpnErrors err = (VpnErrors)code;
+            VpnError err = (VpnError)code;
             err.ThrowIfError(p);
 
             int tunnelTimeout = Consts.WideTunnelConsts.TunnelTimeout;
@@ -353,7 +353,7 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-                ex._Debug();
+//                ex._Debug();
                 this.UpperStream.Disconnect();
                 await this.CleanupAsync(ex);
             }
@@ -392,7 +392,7 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-                ex._Debug();
+//                ex._Debug();
                 this.UpperStream.Disconnect();
                 await this.CleanupAsync(ex);
             }
@@ -502,11 +502,11 @@ namespace IPA.Cores.Basic
 
     public class VpnException : CoresException
     {
-        public VpnErrors Error { get; }
+        public VpnError Error { get; }
 
         public Pack? Pack { get; }
 
-        public VpnException(VpnErrors error, Pack? pack = null) : base($"{error.ToString()}")
+        public VpnException(VpnError error, Pack? pack = null) : base($"{error.ToString()}")
         {
             this.Error = error;
             this.Pack = pack?.Clone() ?? null;
@@ -672,7 +672,7 @@ namespace IPA.Cores.Basic
             }
 
             // エラーがない。おかしいな
-            throw new VpnException(VpnErrors.ERR_INTERNAL_ERROR);
+            throw new VpnException(VpnError.ERR_INTERNAL_ERROR);
         }
 
         async Task<Pack> WtWpcCallInner(string functionName, Pack requestPack, string url, CancellationToken cancel = default)

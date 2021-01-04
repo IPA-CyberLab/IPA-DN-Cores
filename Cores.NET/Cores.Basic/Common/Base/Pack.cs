@@ -737,18 +737,18 @@ namespace IPA.Cores.Basic
             return Pack.CreateFromBuf(buf);
         }
 
-        public VpnErrors GetErrorFromPack()
+        public VpnError GetErrorFromPack()
         {
             int err = this["error"].SIntValue;
 
-            return (VpnErrors)err;
+            return (VpnError)err;
         }
 
         public VpnException? GetExceptionFromPack()
         {
-            VpnErrors err = GetErrorFromPack();
+            VpnError err = GetErrorFromPack();
 
-            if (err == VpnErrors.ERR_NO_ERROR)
+            if (err == VpnError.ERR_NO_ERROR)
             {
                 return null;
             }

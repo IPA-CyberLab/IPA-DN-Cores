@@ -317,7 +317,7 @@ namespace IPA.Cores.Basic
                     else
                     {
                         // 不明な認証方法
-                        throw new VpnException(VpnErrors.ERR_DESK_UNKNOWN_AUTH_TYPE);
+                        throw new VpnException(VpnError.ERR_DESK_UNKNOWN_AUTH_TYPE);
                     }
                 }
                 else

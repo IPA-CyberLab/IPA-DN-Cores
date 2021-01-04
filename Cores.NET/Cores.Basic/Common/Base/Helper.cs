@@ -2577,12 +2577,12 @@ namespace IPA.Cores.Helper.Basic
         public static IPEndPoint? _ToIPEndPoint(this string? str, int defaultPort, AllowedIPVersions allowed = AllowedIPVersions.All, bool noExceptionAndReturnNull = false)
             => IPUtil.StrToIPEndPoint(str, defaultPort, allowed, noExceptionAndReturnNull);
 
-        public static bool IsCommunicationError(this VpnErrors error)
+        public static bool IsCommunicationError(this VpnError error)
         {
-            if (error == VpnErrors.ERR_SSL_X509_UNTRUSTED || error == VpnErrors.ERR_CERT_NOT_TRUSTED ||
-                error == VpnErrors.ERR_SSL_X509_EXPIRED ||
-                error == VpnErrors.ERR_PROTOCOL_ERROR || error == VpnErrors.ERR_CONNECT_FAILED ||
-                error == VpnErrors.ERR_TIMEOUTED || error == VpnErrors.ERR_DISCONNECTED)
+            if (error == VpnError.ERR_SSL_X509_UNTRUSTED || error == VpnError.ERR_CERT_NOT_TRUSTED ||
+                error == VpnError.ERR_SSL_X509_EXPIRED ||
+                error == VpnError.ERR_PROTOCOL_ERROR || error == VpnError.ERR_CONNECT_FAILED ||
+                error == VpnError.ERR_TIMEOUTED || error == VpnError.ERR_DISCONNECTED)
             {
                 return true;
             }
@@ -2597,9 +2597,9 @@ namespace IPA.Cores.Helper.Basic
             return true;
         }
 
-        public static void ThrowIfError(this VpnErrors error, Pack? pack = null)
+        public static void ThrowIfError(this VpnError error, Pack? pack = null)
         {
-            if (error != VpnErrors.ERR_NO_ERROR)
+            if (error != VpnError.ERR_NO_ERROR)
             {
                 throw new VpnException(error, pack);
             }
