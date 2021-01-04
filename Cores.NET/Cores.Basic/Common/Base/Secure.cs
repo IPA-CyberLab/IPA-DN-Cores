@@ -234,6 +234,21 @@ namespace IPA.Cores.Basic
         }
 
 
+        // SHA0
+        public static byte[] HashSHA0(ReadOnlySpan<byte> src)
+        {
+            return FromC.Internal_SHA0(src);
+        }
+
+        public static int HashSHA0(ReadOnlySpan<byte> src, Span<byte> dest)
+        {
+            byte[] tmp = HashSHA0(src);
+
+            tmp.CopyTo(dest);
+
+            return tmp.Length;
+        }
+
         // SHA256
         public static byte[] HashSHA256(ReadOnlySpan<byte> src)
         {

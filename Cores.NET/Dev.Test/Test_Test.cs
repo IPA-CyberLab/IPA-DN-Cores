@@ -1067,6 +1067,17 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                while (true)
+                {
+                    string line = Con.ReadLine()!;
+
+                    Secure.HashSHA0(line._GetBytes_Ascii())._GetHexString()._Print();
+                }
+                return;
+            }
+
+            if (false)
+            {
                 Test_210102();
                 return;
             }

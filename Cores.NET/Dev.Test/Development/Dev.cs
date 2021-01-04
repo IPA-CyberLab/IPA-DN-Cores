@@ -50,6 +50,7 @@ using System.Text;
 using System.Runtime.InteropServices;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
+using System.Runtime.CompilerServices;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Basic.Internal;

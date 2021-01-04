@@ -861,6 +861,8 @@ namespace IPA.Cores.Helper.Basic
         [return: NotNullIfNotNull("a")]
         public static IPAddress? _UnmapIPv4(this IPAddress? a) => IPUtil.UnmapIPv6AddressToIPv4Address(a);
 
+        public static uint _IPToUINT(this IPAddress? addr) => IPUtil.IPToUINT(addr);
+
         public static IPAddressType _GetIPAddressType(this IPAddress ip) => IPUtil.GetIPAddressType(ip);
         public static IPAddressType _GetIPAddressType(this string ip) => IPUtil.GetIPAddressType(ip);
 
@@ -1067,6 +1069,31 @@ namespace IPA.Cores.Helper.Basic
             h.ValueList.Add("Content-Type", "application/octet-stream");
 
             await h.PostHttpAsync(stream, packData, cancel);
+        }
+
+        public static async Task<Pack> _RecvPackAsync(this Stream stream, CancellationToken cancel = default)
+        {
+            int sz = await stream.ReceiveSInt32Async(cancel);
+            if (sz > Pack.MaxPackSize)
+            {
+                throw new CoresLibException($"sz ({sz}) > Pack.MaxPackSize");
+            }
+
+            var data = await stream._ReadAllAsync(sz, cancel);
+
+            return Pack.CreateFromMemory(data);
+        }
+
+        public static async Task _SendPackAsync(this Stream stream, Pack pack, CancellationToken cancel = default)
+        {
+            var packData = pack.ByteData;
+            int size = packData.Length;
+
+            MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+            buf.Write(packData);
+            buf.WriteSInt32(size);
+
+            await stream.WriteAsync(buf, cancel);
         }
 
         // 指定したサイズを超えないデータを切断されるまでに受信する

@@ -32,6 +32,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -449,89 +451,79 @@ namespace IPA.Cores.Basic
             elements.Add(e);
             elementsSorted = false;
         }
-        public void AddStr(string name, string strValue)
-        {
-            AddStr(name, strValue, 0);
-        }
-        public void AddStr(string name, string strValue, uint index)
+        public void AddStr(string name, string strValue, uint index = 0)
         {
             PackElement e = getElementAndCreateIfNotExists(name, PackValueType.Str);
             e.AddValue(new PackValue(index, strValue));
         }
 
-        public void AddUniStr(string name, string strValue)
-        {
-            AddUniStr(name, strValue, 0);
-        }
-        public void AddUniStr(string name, string strValue, uint index)
+        public void AddUniStr(string name, string strValue, uint index = 0)
         {
             PackElement e = getElementAndCreateIfNotExists(name, PackValueType.UniStr);
             e.AddValue(new PackValue(index, strValue));
         }
 
-        public void AddInt(string name, uint intValue)
-        {
-            AddInt(name, intValue, 0);
-        }
-        public void AddInt(string name, uint intValue, uint index)
+        public void AddInt(string name, uint intValue, uint index = 0)
         {
             PackElement e = getElementAndCreateIfNotExists(name, PackValueType.Int);
             e.AddValue(new PackValue(index, intValue));
         }
 
-        public void AddSInt(string name, int intValue)
-            => AddInt(name, (uint)intValue);
-        public void AddSInt(string name, int intValue, uint index)
+        public void AddSInt(string name, int intValue, uint index = 0)
             => AddInt(name, (uint)intValue);
 
-        public void AddBool(string name, bool boolValue)
-        {
-            AddBool(name, boolValue, 0);
-        }
-        public void AddBool(string name, bool boolValue, uint index)
+        public void AddBool(string name, bool boolValue, uint index = 0)
         {
             AddInt(name, (uint)(boolValue ? 1 : 0), index);
         }
 
-        public void AddDateTime(string name, DateTime dt)
+        public void AddIp(string name, IPAddress ip, uint index = 0)
         {
-            AddDateTime(name, dt, 0);
+            if (ip.AddressFamily != AddressFamily.InterNetwork && ip.AddressFamily != AddressFamily.InterNetworkV6)
+            {
+                throw new ArgumentException(nameof(ip));
+            }
+
+            bool isIPv6 = ip.AddressFamily == AddressFamily.InterNetworkV6;
+
+            this.AddBool($"{name}@ipv6_bool", isIPv6, index);
+
+            if (isIPv6)
+            {
+                this.AddData($"{name}@ipv6_array", ip.GetAddressBytes(), index);
+                this.AddInt($"{name}@ipv6_scope_id", (uint)ip.ScopeId, index);
+            }
+            else
+            {
+                this.AddData($"{name}@ipv6_array", new byte[16], index);
+                this.AddInt($"{name}@ipv6_scope_id", 0, index);
+            }
+
+            this.AddInt(name, ip._IPToUINT()._ReverseEndian32_U(), index);
         }
-        public void AddDateTime(string name, DateTime dt, uint index)
+
+        public void AddDateTime(string name, DateTime dt, uint index = 0)
         {
             AddInt64(name, (ulong)Util.ConvertDateTime(dt), index);
         }
 
-        public void AddInt64(string name, ulong int64Value)
-        {
-            AddInt64(name, int64Value, 0);
-        }
-        public void AddInt64(string name, ulong int64Value, uint index)
+        public void AddInt64(string name, ulong int64Value, uint index = 0)
         {
             PackElement e = getElementAndCreateIfNotExists(name, PackValueType.Int64);
             e.AddValue(new PackValue(index, int64Value));
         }
-        public void AddSInt64(string name, long int64Value)
-            => AddInt64(name, (ulong)int64Value);
-        public void AddSInt64(string name, long int64Value, uint index)
+        public void AddSInt64(string name, long int64Value, uint index = 0)
             => AddInt64(name, (ulong)int64Value, index);
 
-        public void AddData(string name, byte[] data)
-        {
-            AddData(name, data, 0);
-        }
-        public void AddData(string name, byte[] data, uint index)
+        public void AddData(string name, byte[] data, uint index = 0)
         {
             PackElement e = getElementAndCreateIfNotExists(name, PackValueType.Data);
             e.AddValue(new PackValue(index, data));
         }
-        public void AddData(string name, ReadOnlySpan<byte> data)
-            => AddData(name, data.ToArray());
-        public void AddData(string name, ReadOnlySpan<byte> data, uint index)
+        public void AddData(string name, ReadOnlySpan<byte> data, uint index = 0)
             => AddData(name, data.ToArray(), index);
-        public void AddData(string name, ReadOnlyMemory<byte> data)
-            => AddData(name, data.Span);
-        public void AddData(string name, ReadOnlyMemory<byte> data, uint index)
+
+        public void AddData(string name, ReadOnlyMemory<byte> data, uint index = 0)
             => AddData(name, data.Span, index);
 
         // 要素の取得
@@ -615,11 +607,7 @@ namespace IPA.Cores.Basic
             return v.StrValue;
         }
 
-        public uint GetInt(string name)
-        {
-            return GetInt(name, 0);
-        }
-        public uint GetInt(string name, uint index)
+        public uint GetInt(string name, uint index = 0)
         {
             PackElement? e = getElement(name);
             if (e == null)
@@ -638,20 +626,12 @@ namespace IPA.Cores.Basic
             return v.IntValue;
         }
 
-        public bool GetBool(string name)
-        {
-            return GetBool(name, 0);
-        }
-        public bool GetBool(string name, uint index)
+        public bool GetBool(string name, uint index = 0)
         {
             return (GetInt(name, index) == 0 ? false : true);
         }
 
-        public ulong GetInt64(string name)
-        {
-            return GetInt64(name, 0);
-        }
-        public ulong GetInt64(string name, uint index)
+        public ulong GetInt64(string name, uint index = 0)
         {
             PackElement? e = getElement(name);
             if (e == null)
