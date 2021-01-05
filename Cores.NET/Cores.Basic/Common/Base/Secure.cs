@@ -234,6 +234,21 @@ namespace IPA.Cores.Basic
         }
 
 
+        // SHA0
+        public static byte[] HashSHA0(ReadOnlySpan<byte> src)
+        {
+            return FromC.Internal_SHA0(src);
+        }
+
+        public static int HashSHA0(ReadOnlySpan<byte> src, Span<byte> dest)
+        {
+            byte[] tmp = HashSHA0(src);
+
+            tmp.CopyTo(dest);
+
+            return tmp.Length;
+        }
+
         // SHA256
         public static byte[] HashSHA256(ReadOnlySpan<byte> src)
         {
@@ -426,6 +441,14 @@ namespace IPA.Cores.Basic
         }
 
         public static CertSelectorCallback StaticServerCertSelector(X509Certificate2 cert) => (obj, sni) => cert;
+
+        public static byte[] SoftEther_SecurePassword(ReadOnlyMemory<byte> passwordSha1Hash, ReadOnlyMemory<byte> random)
+        {
+            SpanBuffer<byte> b = new SpanBuffer<byte>();
+            b.Write(passwordSha1Hash);
+            b.Write(random);
+            return Secure.HashSHA0(b);
+        }
     }
 
 

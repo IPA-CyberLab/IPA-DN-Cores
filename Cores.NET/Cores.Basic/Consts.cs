@@ -77,6 +77,8 @@ namespace IPA.Cores.Basic
             public const int DefaultLargeBufferSize = 65536;
             public const int DefaultVeryLargeBufferSize = 400000;
 
+            public const int DefaultMaxLineSizeStreamRecv = 16 * 1024;
+
             public static readonly int MaxYear = (Util.MaxDateTimeValue.Year - 1);
             public static readonly int MinYear = Util.ZeroDateTimeValue.Year;
 
@@ -411,6 +413,11 @@ namespace IPA.Cores.Basic
             public const int AutoArchivePollingInterval = 12 * 60 * 1000;
 
             public const int UiAutomationDefaultInterval = 50;
+
+            public const int DefaultThroughtputMeasutementUnitMsecs = 60 * 1000;
+            public const int DefaultThroughtputInitialMinMeasutementUnitMsecs = 1 * 1000;
+
+            public const int WtEntranceUrlTimeUpdateMsecs = 5 * 60 * 1000;
         }
 
         public static partial class Timeouts
@@ -423,6 +430,9 @@ namespace IPA.Cores.Basic
 
             public const int DefaultShellPromptRecvTimeout = 30 * 1000;
             public const int DefaultShellPromptSendTimeout = 30 * 1000;
+
+            public const int DefaultDialogSessionExpiresAfterFinishedMsecs = 300 * 1000;
+            public const int DefaultDialogSessionGcIntervals = 10 * 1000;
         }
 
         public static partial class LinuxCommands
@@ -543,7 +553,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    public enum VpnErrors
+    public enum VpnError
     {
         // By ConvertCErrorsToCsErrors
         ERR_NO_ERROR = 0, // No error

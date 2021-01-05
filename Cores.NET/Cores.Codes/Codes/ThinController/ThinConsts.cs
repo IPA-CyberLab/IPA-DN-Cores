@@ -86,6 +86,9 @@ namespace IPA.Cores.Codes
         public static readonly Copenhagen<int> ControllerStatCacheExpiresMsecs = 30 * 1000;
         public static readonly Copenhagen<int> ControllerMaxDatabaseWriteQueueLength = 100000; // 1 レコードあたり 10KB として 1GB 分まで
 
+        public static readonly Copenhagen<string> Default_DbConnectionString_Read = "Data Source=127.0.0.1;Initial Catalog=THINDB;Persist Security Info=True;Pooling=False;User ID=sql_thin_reader;Password=sql_password;";
+        public static readonly Copenhagen<string> Default_DbConnectionString_Write = "Data Source=127.0.0.1;Initial Catalog=THINDB;Persist Security Info=True;Pooling=False;User ID=sql_thin_writer;Password=sql_password;";
+
         // DB の Var で設定可能な変数のデフォルト値
         public static readonly Copenhagen<int> Default_ControllerMaxConcurrentWpcRequestProcessingForUsers = 500;
         public static readonly Copenhagen<int> Default_ControllerDbFullReloadIntervalMsecs = 10 * 1000;
@@ -98,6 +101,9 @@ namespace IPA.Cores.Codes
         public const int Max_ControllerDbWriteUpdateIntervalMsecs = 5 * 60 * 1000;
         public const int Max_ControllerDbBackupFileWriteIntervalMsecs = 24 * 60 * 60 * 1000;
         public const int Max_ControllerRecordStatIntervalMsecs = 60 * 60 * 1000;
+
+        public static readonly Copenhagen<string> ControllerDefaultAdminUsername = "admin";
+        public static readonly Copenhagen<string> ControllerDefaultAdminPassword = "ipantt";
 
     }
 

@@ -39,11 +39,14 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Compress.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Console.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\WpcPacket.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Base\FromC.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Container\FileContainer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Container\ZipFileFormat.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Container\ZipWriter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\RawDiskFs.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Network\DnsResolver.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Network\WideTunnel.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\ProtoApp\ThinTelework.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Network\InternetChecker.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Ui\UiAutomation.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\WebApi\ClientApi\AuthenticodeSignClient.cs" />

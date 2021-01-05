@@ -339,7 +339,7 @@ namespace IPA.Cores.Basic
                     dataCopy = this.Database._CloneWithJson();
                 }
 
-                await Lfs.WriteJsonToFileEncryptedAsync(this.FileNameFullPath, this.Database,  Consts.Strings.StatManEncryptKey, FileFlags.AutoCreateDirectory, cancel: cancel)._TryWaitAsync();
+                await Lfs.WriteJsonToFileEncryptedAsync(this.FileNameFullPath, dataCopy,  Consts.Strings.StatManEncryptKey, FileFlags.AutoCreateDirectory, cancel: cancel)._TryWaitAsync();
             }
         }
 

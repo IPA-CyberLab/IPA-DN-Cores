@@ -45,6 +45,16 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    public static partial class CoresConfig
+    {
+        public static partial class RandomPortConfig
+        {
+            public static readonly Copenhagen<int> RandomPortMin = 10000;
+            public static readonly Copenhagen<int> RandomPortMax = 60000;
+            public static readonly Copenhagen<int> RandomPortNumTry = 1000;
+        }
+    }
+
     public abstract class NetStackOptionsBase { }
 
     public abstract class NetStackBase : AsyncService
@@ -842,6 +852,69 @@ namespace IPA.Cores.Basic
         Stopped,
     }
 
+    public class RandomPortAssigner
+    {
+        readonly CriticalSection<RandomPortAssigner> LockObj = new CriticalSection<RandomPortAssigner>();
+
+        readonly List<int> Stocks = new List<int>();
+        readonly List<int> Uses = new List<int>();
+
+        public RandomPortAssigner(int min, int max)
+        {
+            min = Math.Max(min, 1);
+            max = Math.Max(min, max);
+            int count = max - min + 1;
+            if (count >= 65536)
+            {
+                throw new ArgumentOutOfRangeException(nameof(max));
+            }
+
+            for (int i = min; i <= max; i++)
+            {
+                this.Stocks.Add(i);
+            }
+        }
+
+        public int Assign()
+        {
+            lock (this.LockObj)
+            {
+                int count = this.Stocks.Count;
+
+                if (count == 0)
+                {
+                    // もうない
+                    return 0;
+                }
+
+                int index = Util.RandSInt31() % count;
+
+                int port = this.Stocks[index];
+
+                this.Stocks.RemoveAt(index);
+
+                this.Uses.Add(port);
+
+                return port;
+            }
+        }
+
+        public void Release(int port)
+        {
+            lock (this.LockObj)
+            {
+                int index = this.Uses.IndexOf(port);
+                if (index != -1)
+                {
+                    this.Uses.RemoveAt(index);
+                    this.Stocks.Add(port);
+                }
+            }
+        }
+
+        public static RandomPortAssigner GlobalRandomPortAssigner { get; } = new RandomPortAssigner(CoresConfig.RandomPortConfig.RandomPortMin, CoresConfig.RandomPortConfig.RandomPortMax);
+    }
+
     public delegate Task NetTcpListenerAcceptedProcCallback(NetTcpListenerPort listener, ConnSock newSock);
 
     public class NetTcpListenerPort
@@ -849,6 +922,7 @@ namespace IPA.Cores.Basic
         public IPVersion IPVersion { get; }
         public IPAddress IPAddress { get; }
         public int Port { get; }
+        public bool IsRandomPortMode { get; }
 
         public ListenStatus Status { get; internal set; }
         public Exception? LastError { get; internal set; }
@@ -863,7 +937,7 @@ namespace IPA.Cores.Basic
         public const long RetryIntervalStandard = 1 * 512;
         public const long RetryIntervalMax = 60 * 1000;
 
-        internal NetTcpListenerPort(NetTcpListener listener, IPVersion ver, IPAddress addr, int port)
+        internal NetTcpListenerPort(NetTcpListener listener, IPVersion ver, IPAddress addr, int port, bool isRandomPortMode = false)
         {
             TcpListener = listener;
             IPVersion = ver;
@@ -871,9 +945,56 @@ namespace IPA.Cores.Basic
             Port = port;
             LastError = null;
             Status = ListenStatus.Trying;
+            IsRandomPortMode = isRandomPortMode;
+            if (isRandomPortMode)
+            {
+                Port = 0;
+            }
+
             _InternalSelfCancelSource = new CancellationTokenSource();
 
-            _InternalTask = ListenLoopAsync();
+            NetTcpProtocolStubBase? initialListenTcp = null;
+
+            if (IsRandomPortMode)
+            {
+                int portAssignedRandom = 0;
+
+                NetTcpProtocolStubBase listenTcp = TcpListener.CreateNewTcpStubForListenImpl(_InternalSelfCancelToken);
+
+                // ランダムポートモードの場合は 1 つポートを決める
+                for (int i = 0; i < CoresConfig.RandomPortConfig.RandomPortNumTry; i++)
+                {
+                    int portTmp = RandomPortAssigner.GlobalRandomPortAssigner.Assign();
+
+                    try
+                    {
+                        listenTcp.Listen(new IPEndPoint(IPAddress, portTmp));
+
+                        // OK!
+                        portAssignedRandom = portTmp;
+
+                        initialListenTcp = listenTcp;
+
+                        break;
+                    }
+                    catch
+                    {
+                        // Listen 失敗
+                        RandomPortAssigner.GlobalRandomPortAssigner.Release(portTmp);
+                    }
+                }
+
+                if (portAssignedRandom == 0)
+                {
+                    // 十分な回数試行したが、ランダムポートの割当てに失敗した
+                    throw new CoresLibException("Failed to assign a new random port.");
+                }
+
+                // ランダムポートの割り当て成功
+                this.Port = portAssignedRandom;
+            }
+
+            _InternalTask = ListenLoopAsync(initialListenTcp);
         }
 
         static internal string MakeHashKey(IPVersion ipVer, IPAddress ipAddress, int port)
@@ -881,7 +1002,7 @@ namespace IPA.Cores.Basic
             return $"{port} / {ipAddress} / {ipAddress.AddressFamily} / {ipVer}";
         }
 
-        async Task ListenLoopAsync()
+        async Task ListenLoopAsync(NetTcpProtocolStubBase? initialListener = null)
         {
             Status = ListenStatus.Trying;
 
@@ -905,11 +1026,25 @@ namespace IPA.Cores.Basic
 
                     _InternalSelfCancelToken.ThrowIfCancellationRequested();
 
-                    NetTcpProtocolStubBase listenTcp = TcpListener.CreateNewTcpStubForListenImpl(_InternalSelfCancelToken);
+                    NetTcpProtocolStubBase listenTcp;
+
+                    if (initialListener != null)
+                    {
+                        // ランダムポート割当てで成功した Listener をそのまま利用開始する
+                        listenTcp = initialListener;
+                        initialListener = null;
+                    }
+                    else
+                    {
+                        listenTcp = TcpListener.CreateNewTcpStubForListenImpl(_InternalSelfCancelToken);
+                    }
 
                     try
                     {
-                        listenTcp.Listen(new IPEndPoint(IPAddress, Port));
+                        if (listenTcp.IsListening == false)
+                        {
+                            listenTcp.Listen(new IPEndPoint(IPAddress, Port));
+                        }
 
                         numRetry = 0;
 
@@ -994,6 +1129,30 @@ namespace IPA.Cores.Basic
         }
 
         internal protected abstract NetTcpProtocolStubBase CreateNewTcpStubForListenImpl(CancellationToken cancel);
+
+        public NetTcpListenerPort AddRandom(IPVersion? ipVer = null, IPAddress? addr = null)
+        {
+            if (addr == null)
+                addr = ((ipVer ?? IPVersion.IPv4) == IPVersion.IPv4) ? IPAddress.Any : IPAddress.IPv6Any;
+            if (ipVer == null)
+            {
+                if (addr.AddressFamily == AddressFamily.InterNetwork)
+                    ipVer = IPVersion.IPv4;
+                else if (addr.AddressFamily == AddressFamily.InterNetworkV6)
+                    ipVer = IPVersion.IPv6;
+                else
+                    throw new ArgumentException("Unsupported AddressFamily.");
+            }
+
+            lock (LockObj)
+            {
+                CheckNotCanceled();
+
+                var s = new NetTcpListenerPort(this, (IPVersion)ipVer, addr, 0, isRandomPortMode: true);
+                List.Add(NetTcpListenerPort.MakeHashKey((IPVersion)ipVer, addr, s.Port), s);
+                return s;
+            }
+        }
 
         public NetTcpListenerPort Add(int port, IPVersion? ipVer = null, IPAddress? addr = null)
         {

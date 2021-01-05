@@ -80,12 +80,6 @@ using System.Runtime.CompilerServices;
 
 namespace IPA.Cores.Codes
 {
-    // ThinController 設定 (アプリの起動時にコード中から設定可能な設定項目)
-    public static class ThinControllerBasicSettings
-    {
-        public static Action<HttpRequestRateLimiterOptions<HttpRequestRateLimiterHashKeys.SrcIPAddress>> ConfigureHttpRequestRateLimiterOptionsForUsers = _ => { };
-    }
-
     // ThinController 設定 (JSON 設定ファイルで動的に設定変更可能な設定項目)
     [Serializable]
     public sealed class ThinControllerSettings : INormalizable
@@ -112,13 +106,13 @@ namespace IPA.Cores.Codes
             if (this.DbConnectionString_Read._IsEmpty())
             {
                 // デフォルトダミー文字列 (安全)
-                this.DbConnectionString_Read = "Data Source=127.0.0.1;Initial Catalog=THIN;Persist Security Info=True;User ID=thin_read;Password=password1;";
+                this.DbConnectionString_Read = ThinControllerConsts.Default_DbConnectionString_Read;
             }
 
             if (this.DbConnectionString_Write._IsEmpty())
             {
                 // デフォルトダミー文字列 (安全)
-                this.DbConnectionString_Write = "Data Source=127.0.0.1;Initial Catalog=THIN;Persist Security Info=True;User ID=thin_write;Password=password2;";
+                this.DbConnectionString_Write = ThinControllerConsts.Default_DbConnectionString_Write;
             }
         }
     }
@@ -184,6 +178,20 @@ namespace IPA.Cores.Codes
         public double Stat_TotalServerConnectRequestsKilo;
         public double Stat_TotalClientConnectRequestsKilo;
 
+        public double Throughput_ClientGetWolMacList;
+        public double Throughput_ClientConnect;
+        public double Throughput_RenameMachine;
+        public double Throughput_RegistMachine;
+        public double Throughput_SendOtpEmail;
+        public double Throughput_ServerConnect;
+        public double Throughput_ReportSessionList;
+        public double Throughput_ReportSessionAdd;
+        public double Throughput_ReportSessionDel;
+        public double Throughput_DatabaseRead;
+        public double Throughput_DatabaseWrite;
+        public double Throughput_Request_NonProxy;
+        public double Throughput_Request_Proxy;
+
         public int Sys_DotNet_NumRunningTasks;
         public int Sys_DotNet_NumDelayedTasks;
         public int Sys_DotNet_NumTimerTasks;
@@ -220,6 +228,8 @@ namespace IPA.Cores.Codes
 
         public int ConsumingConcurrentProcessCount { get; }
 
+        public string ClientIpForRateLimiter { get; } = "";
+
         public ThinControllerSessionClientInfo(HttpEasyContextBox box, ThinControllerServiceType serviceType, int consumingConcurrentProcessCount)
         {
             this.ServiceType = serviceType;
@@ -245,6 +255,23 @@ namespace IPA.Cores.Codes
             this.HttpQueryStringList = box.QueryStringList;
 
             this.ClientIpFqdn = this.ClientIp;
+
+            // Rate limiter 用 IP アドレス
+            var clientIpAddress = ClientIp._ToIPAddress(noExceptionAndReturnNull: true);
+            if (clientIpAddress != null)
+            {
+                // サブネットマスクの AND をする
+                if (clientIpAddress.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    // IPv4
+                    ClientIpForRateLimiter = (IPUtil.IPAnd(clientIpAddress, IPUtil.IntToSubnetMask4(24))).ToString();
+                }
+                else
+                {
+                    // IPv6
+                    ClientIpForRateLimiter = (IPUtil.IPAnd(clientIpAddress, IPUtil.IntToSubnetMask6(56))).ToString();
+                }
+            }
         }
 
         public async Task ResolveClientIpFqdnIfPossibleAsync(DnsResolver resolver, CancellationToken cancel = default)
@@ -286,6 +313,27 @@ namespace IPA.Cores.Codes
                 this._DisposeSafe();
                 throw;
             }
+        }
+
+        // 重い処理の Rate Limiter を開始
+        public WpcResult? TryEnterHeavyRateLimiter()
+        {
+            if (this.ClientInfo.ClientIpForRateLimiter._IsFilled())
+            {
+                if (this.Controller.HeavyRequestRateLimiter.TryInput(this.ClientInfo.ClientIpForRateLimiter, out RateLimiterEntry? e) == false)
+                {
+                    var ret = new WpcResult(VpnErrors.ERR_TEMP_ERROR);
+                    if (e != null)
+                    {
+                        ret.AdditionalInfo.Add("HeavyRequestRateLimiter.CurrentAmount", e.CurrentAmount.ToString());
+                        ret.AdditionalInfo.Add("HeavyRequestRateLimiter.Burst", e.Options.Burst.ToString());
+                        ret.AdditionalInfo.Add("HeavyRequestRateLimiter.LimitPerSecond", e.Options.LimitPerSecond.ToString());
+                    }
+                    return ret;
+                }
+            }
+
+            return null;
         }
 
         // 設定文字列の取得
@@ -369,6 +417,7 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("WoL_MacList", machine.WOL_MACLIST._NonNullTrim());
 
             Controller.StatMan!.AddReport("ProcClientGetWolMacList_Total", 1);
+            Controller.Throughput_ClientGetWolMacList.Add(1);
 
             return ret;
         }
@@ -468,6 +517,7 @@ namespace IPA.Cores.Codes
             Controller.Db.UpdateDbForClientConnect(machine.MSID, DtNow, ClientInfo.ClientIp);
 
             Controller.StatMan!.AddReport("ProcClientConnectAsync_Total", 1);
+            Controller.Throughput_ClientConnect.Add(1);
 
             return ret;
         }
@@ -484,6 +534,7 @@ namespace IPA.Cores.Codes
         public async Task<WpcResult> ProcRenameMachine(WpcPack req, CancellationToken cancel)
         {
             var notAuthedErr = RequireMachineAuth(); if (notAuthedErr != null) return notAuthedErr; // 認証を要求
+            var heavyErr = TryEnterHeavyRateLimiter(); if (heavyErr != null) return heavyErr; // 重い処理なので Rate Limit を設定
 
             var q = req.Pack;
             string newPcid = q["NewName"].StrValueNonNull;
@@ -507,6 +558,7 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("NewPcid", newPcid);
 
             Controller.StatMan!.AddReport("ProcRenameMachine_Total", 1);
+            Controller.Throughput_RenameMachine.Add(1);
 
             return ret;
         }
@@ -518,6 +570,8 @@ namespace IPA.Cores.Codes
             {
                 return NewWpcResult(VpnErrors.ERR_PROTOCOL_ERROR);
             }
+
+            var heavyErr = TryEnterHeavyRateLimiter(); if (heavyErr != null) return heavyErr; // 重い処理なので Rate Limit を設定
 
             var q = req.Pack;
 
@@ -619,6 +673,7 @@ namespace IPA.Cores.Codes
             }
 
             Controller.StatMan!.AddReport("ProcRegistMachine_Total", 1);
+            Controller.Throughput_RegistMachine.Add(1);
 
             return ret;
         }
@@ -704,6 +759,7 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("pcidMasked", pcidMasked);
 
             Controller.StatMan!.AddReport("ProcSendOtpEmailAsync_Total", 1);
+            Controller.Throughput_SendOtpEmail.Add(1);
 
             return ret;
         }
@@ -815,6 +871,7 @@ namespace IPA.Cores.Codes
                 serverMask64);
 
             Controller.StatMan!.AddReport("ProcServerConnectAsync_Total", 1);
+            Controller.Throughput_ServerConnect.Add(1);
 
             return ret;
         }
@@ -902,6 +959,8 @@ namespace IPA.Cores.Codes
                 BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
             };
 
+            if (gate.Performance == 0) gate.Performance = 100;
+
             // Performance の値を DB の Vars で上書き
             int v = this.Controller.Db.GetVarInt($"PerformanceOverride_{gate.IpAddress}");
             if (v != 0)
@@ -981,6 +1040,7 @@ namespace IPA.Cores.Codes
             AddGateSettingsToPack(ret.Pack);
 
             Controller.StatMan!.AddReport("ProcReportSessionListAsync_Total", 1);
+            Controller.Throughput_ReportSessionList.Add(1);
 
             return ret;
         }
@@ -1024,6 +1084,8 @@ namespace IPA.Cores.Codes
                 BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
             };
 
+            if (gate.Performance == 0) gate.Performance = 100;
+
             gate.Normalize();
             gate.Validate();
 
@@ -1041,6 +1103,7 @@ namespace IPA.Cores.Codes
             AddGateSettingsToPack(ret.Pack);
 
             Controller.StatMan!.AddReport("ProcReportSessionAddAsync_Total", 1);
+            Controller.Throughput_ReportSessionAdd.Add(1);
 
             return ret;
         }
@@ -1071,6 +1134,8 @@ namespace IPA.Cores.Codes
                 BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
             };
 
+            if (gate.Performance == 0) gate.Performance = 100;
+
             gate.Normalize();
             gate.Validate();
 
@@ -1090,6 +1155,7 @@ namespace IPA.Cores.Codes
             AddGateSettingsToPack(ret.Pack);
 
             Controller.StatMan!.AddReport("ProcReportSessionDelAsync_Total", 1);
+            Controller.Throughput_ReportSessionDel.Add(1);
 
             return ret;
         }
@@ -1315,7 +1381,23 @@ namespace IPA.Cores.Codes
 
         readonly Task RecordStatTask;
 
-        public StatMan StatMan {get;}
+        public StatMan StatMan { get; }
+
+        public readonly ThroughputMeasuse Throughput_ClientGetWolMacList = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_ClientConnect = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_RenameMachine = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_RegistMachine = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_SendOtpEmail = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_ServerConnect = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_ReportSessionList = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_ReportSessionAdd = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_ReportSessionDel = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_DatabaseRead = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_DatabaseWrite = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_Request_NonProxy = new ThroughputMeasuse();
+        public readonly ThroughputMeasuse Throughput_Request_Proxy = new ThroughputMeasuse();
+
+        public RateLimiter<string> HeavyRequestRateLimiter { get; } = new RateLimiter<string>(new RateLimiterOptions(burst: 50, limitPerSecond: 5, mode: RateLimiterMode.NoPenalty));
 
         public ThinController(ThinControllerSettings settings, ThinControllerHookBase hook, Func<ThinControllerSettings>? getDefaultSettings = null)
         {
@@ -1475,7 +1557,7 @@ namespace IPA.Cores.Codes
 
             ret.GatesList = this.SessionManager.GateTable.Values.OrderBy(x => x.IpAddress, StrComparer.IpAddressStrComparer).ThenBy(x => x.GateId);
 
-            ret.VarsList = (this.Db.MemDb?.VarList.OrderBy(x => x.VAR_NAME).ThenBy(x => x.VAR_ID) ?? null)!.ToList()._CloneWithJson() ?? null;
+            ret.VarsList = (this.Db.MemDb?.VarList.OrderBy(x => x.VAR_NAME).ThenBy(x => x.VAR_ID) ?? null)?.ToList()._CloneWithJson() ?? null;
 
             ret.VarsList?._DoForEach(x =>
             {
@@ -1585,14 +1667,36 @@ namespace IPA.Cores.Codes
                 string password2 = Db.GetVarString("QueryPassword_Sessions")._NonNullTrim();
                 if (password2._IsEmpty() || password2 == password)
                 {
-                    var sessions = SessionManager.GateTable.Values.SelectMany(x => x.SessionTable.Values).OrderBy(x => x.SessionId).ThenBy(x => x.EstablishedDateTime);
+                    var result = new Dictionary<string, List<ThinSession>>();
 
-                    return new HttpStringResult(sessions._ObjectToJson(), Consts.MimeTypes.Json);
+                    var gateTable = SessionManager.GateTable.Values;
+
+                    foreach (var gate in gateTable)
+                    {
+                        var list = result._GetOrNew(gate.GateId, () => new List<ThinSession>());
+
+                        gate.SessionTable.Values.OrderBy(x => x.SessionId).ThenBy(x => x.EstablishedDateTime)._DoForEach(x => list.Add(x));
+                    }
+
+                    return new HttpStringResult(result._ObjectToJson(), Consts.MimeTypes.Json);
                 }
                 else
                 {
                     return new HttpErrorResult(Consts.HttpStatusCodes.Forbidden, $"Invalid query password.");
                 }
+            }
+
+            // ホスト情報モード
+            if (urlPath._InStr("api/", true) && urlPath._InStr("/info", true))
+            {
+                StringWriter w = new StringWriter();
+
+                w.WriteLine($"Current time: {DtOffsetNow.ToString()}");
+                w.WriteLine($"Hostname: {Env.MachineName}");
+                w.WriteLine($"Server Endpoint: {box.LocalEndpoint.ToString()}");
+                w.WriteLine($"Client Endpoint: {box.RemoteEndpoint.ToString()}");
+
+                return new HttpStringResult(w.ToString());
             }
 
             return null;
@@ -1642,6 +1746,17 @@ namespace IPA.Cores.Codes
                 if (specialResult != null)
                 {
                     return specialResult;
+                }
+
+                if (clientInfo.IsProxyMode == false && param.ServiceType == ThinControllerServiceType.ApiServiceForUsers)
+                {
+                    // 非プロキシのユーザーリクエスト
+                    this.Throughput_Request_NonProxy.Add(1);
+                }
+                else if (clientInfo.IsProxyMode)
+                {
+                    // プロキシ経由のユーザーリクエスト
+                    this.Throughput_Request_Proxy.Add(1);
                 }
 
                 // WPC リクエスト文字列の受信
@@ -1861,6 +1976,20 @@ namespace IPA.Cores.Codes
                 Stat_YestardaysNewServers = mem.MachineList.Where(x => x.CREATE_DATE >= yesterday && x.CREATE_DATE < today).Count(),
                 Stat_TotalServerConnectRequestsKilo = (double)mem.MachineList.Sum(x => (long)x.NUM_SERVER) / 1000.0,
                 Stat_TotalClientConnectRequestsKilo = (double)mem.MachineList.Sum(x => (long)x.NUM_CLIENT) / 1000.0,
+
+                Throughput_ClientGetWolMacList = this.Throughput_ClientGetWolMacList,
+                Throughput_ClientConnect = this.Throughput_ClientConnect,
+                Throughput_RenameMachine = this.Throughput_RenameMachine,
+                Throughput_RegistMachine = this.Throughput_RegistMachine,
+                Throughput_SendOtpEmail = this.Throughput_SendOtpEmail,
+                Throughput_ServerConnect = this.Throughput_ServerConnect,
+                Throughput_ReportSessionList = this.Throughput_ReportSessionList,
+                Throughput_ReportSessionAdd = this.Throughput_ReportSessionAdd,
+                Throughput_ReportSessionDel = this.Throughput_ReportSessionDel,
+                Throughput_DatabaseRead = this.Throughput_DatabaseRead,
+                Throughput_DatabaseWrite = this.Throughput_DatabaseWrite,
+                Throughput_Request_NonProxy = this.Throughput_Request_NonProxy,
+                Throughput_Request_Proxy = this.Throughput_Request_Proxy,
 
                 Sys_DotNet_NumRunningTasks = sys.Task,
                 Sys_DotNet_NumDelayedTasks = sys.D,

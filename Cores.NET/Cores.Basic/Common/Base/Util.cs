@@ -3773,6 +3773,27 @@ namespace IPA.Cores.Basic
             => RunAsync((c) => proc(), retryInterval, tryCount, cancel);
     }
 
+    public static class RetryHelper
+    {
+        public static async Task RunAsync(Func<Task> proc, int retryInterval = 0, int tryCount = 1, CancellationToken cancel = default)
+        {
+            RetryHelper<int> helper = new RetryHelper<int>(retryInterval, tryCount);
+
+            await helper.RunAsync(async () =>
+            {
+                await proc();
+                return 0;
+            }, cancel: cancel);
+        }
+
+        public static async Task RunAsync<T>(Func<Task<T>> proc, int retryInterval = 0, int tryCount = 1, CancellationToken cancel = default)
+        {
+            RetryHelper<T> helper = new RetryHelper<T>(retryInterval, tryCount);
+
+            await helper.RunAsync(proc, cancel: cancel);
+        }
+    }
+
     public class StaticModule : StaticModule<int, int>
     {
         public StaticModule(Action initProc, Action freeProc)
@@ -6476,6 +6497,18 @@ namespace IPA.Cores.Basic
         {
             this.Add(new KeyValuePair<TKey, TValue>(key, value));
         }
+
+        public KeyValueList<TKey, TValue> Clone()
+        {
+            KeyValueList<TKey, TValue> ret = new KeyValueList<TKey, TValue>();
+
+            foreach (var kv in this)
+            {
+                ret.Add(kv.Key, kv.Value);
+            }
+
+            return ret;
+        }
     }
 
     [Flags]
@@ -7806,6 +7839,77 @@ namespace IPA.Cores.Basic
             }
         }
     }
+
+    public class ThroughputMeasuse
+    {
+        public long BaseUnitMsecs { get; }
+        public long InitialMinUnitMsecs { get; }
+        public long StartTick { get; }
+        public double CurrentThroughput => GetCurrentThroughput();
+
+        readonly CriticalSection LockObj = new CriticalSection<ThroughputMeasuse>();
+
+        public ThroughputMeasuse(int baseUnitMsecs = Consts.Intervals.DefaultThroughtputMeasutementUnitMsecs, int initialMinUnitMsecs = Consts.Intervals.DefaultThroughtputInitialMinMeasutementUnitMsecs)
+        {
+            if (baseUnitMsecs <= 0) baseUnitMsecs = Consts.Intervals.DefaultThroughtputMeasutementUnitMsecs;
+            if (initialMinUnitMsecs <= 0) baseUnitMsecs = Consts.Intervals.DefaultThroughtputMeasutementUnitMsecs;
+
+            this.BaseUnitMsecs = baseUnitMsecs;
+            this.InitialMinUnitMsecs = initialMinUnitMsecs;
+            this.StartTick = TickNow;
+        }
+
+        long LastCycle = 0;
+        long LastTotal = 0;
+        double CurrentThroughputInternal = 0.0;
+
+        public void Add(int amount)
+        {
+            amount = Math.Max(amount, 0);
+
+            long now = TickNow;
+            long pastTick = now - StartTick;
+            long cycle = pastTick / BaseUnitMsecs;
+
+            Interlocked.Add(ref LastTotal, amount);
+
+            if ((cycle > LastCycle) || (cycle == 0 && LastCycle == 0))
+            {
+                lock (LockObj)
+                {
+                    if ((cycle >= 1) && (cycle > LastCycle))
+                    {
+                        long lastTotal = Interlocked.Exchange(ref LastTotal, 0);
+                        if (cycle != (LastCycle + 1))
+                        {
+                            lastTotal = 0;
+                        }
+
+                        CurrentThroughputInternal = (double)lastTotal / ((double)BaseUnitMsecs / 1000.0);
+                        LastCycle = cycle;
+                    }
+                    else if (cycle == 0 && LastCycle == 0 && pastTick >= InitialMinUnitMsecs)
+                    {
+                        long lastTotal = Interlocked.Read(ref LastTotal);
+                        CurrentThroughputInternal = (double)lastTotal / ((double)BaseUnitMsecs / 1000.0);
+                    }
+                }
+            }
+        }
+
+        public double GetCurrentThroughput()
+        {
+            Add(0);
+
+            lock (LockObj)
+            {
+                return CurrentThroughputInternal;
+            }
+        }
+
+        public static  implicit operator double(ThroughputMeasuse m) => m.GetCurrentThroughput();
+    }
+
 
     public static class EmptyEnumerable<T>
     {
