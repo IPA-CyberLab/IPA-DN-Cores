@@ -49,8 +49,8 @@ namespace IPA.Cores.Basic
     {
         public static partial class RandomPortConfig
         {
-            public static readonly Copenhagen<int> RandomPortMin = 10000;
-            public static readonly Copenhagen<int> RandomPortMax = 60000;
+            public static readonly Copenhagen<int> RandomPortMin = 3333;
+            public static readonly Copenhagen<int> RandomPortMax = 3334;
             public static readonly Copenhagen<int> RandomPortNumTry = 1000;
         }
     }

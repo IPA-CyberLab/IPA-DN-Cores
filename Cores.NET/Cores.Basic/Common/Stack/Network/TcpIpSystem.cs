@@ -188,6 +188,7 @@ namespace IPA.Cores.Basic
         public string? RateLimiterConfigName { get; }
         public bool IsRandomPortMode { get; }
         public AddressFamily RandomPortModeAddressFamily { get; }
+        public IPAddress? RandomPortListenAddress { get; }
 
         static IPEndPoint[] PortsToEndPoints(int[] ports)
         {
@@ -212,12 +213,29 @@ namespace IPA.Cores.Basic
             this.RateLimiterConfigName = rateLimiterConfigName;
         }
 
-        public TcpListenParam(EnsureSpecial isRandomPortMode, NetTcpListenerAcceptedProcCallback? acceptCallback = null, AddressFamily family = AddressFamily.InterNetwork)
+        public TcpListenParam(EnsureSpecial isRandomPortMode, NetTcpListenerAcceptedProcCallback? acceptCallback = null, AddressFamily family = AddressFamily.InterNetwork, IPAddress? address = null)
         {
             this.EndPointsList = new IPEndPoint[0];
             this.AcceptCallback = acceptCallback;
             this.IsRandomPortMode = true;
             this.RandomPortModeAddressFamily = family;
+            if (address == null)
+            {
+                if (family == AddressFamily.InterNetwork)
+                {
+                    address = IPAddress.Any;
+                }
+                else if (family == AddressFamily.InterNetworkV6)
+                {
+                    address = IPAddress.IPv6Any;
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(family));
+                }
+            }
+
+            this.RandomPortListenAddress = address;
         }
 
         public TcpListenParam(EnsureSpecial compatibleWithKestrel, NetTcpListenerAcceptedProcCallback? acceptCallback, IPEndPoint endPoint, string? rateLimiterConfigName = null)
@@ -567,7 +585,7 @@ namespace IPA.Cores.Basic
                     }
                     else
                     {
-                        ret.AddRandom(param.RandomPortModeAddressFamily.GetIPVersion());
+                        ret.AddRandom(param.RandomPortModeAddressFamily.GetIPVersion(), param.RandomPortListenAddress);
                     }
 
                     return ret;
