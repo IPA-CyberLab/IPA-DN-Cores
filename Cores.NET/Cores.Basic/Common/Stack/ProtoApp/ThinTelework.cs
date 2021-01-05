@@ -52,6 +52,7 @@ using System.Runtime.CompilerServices;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 using System.Net;
+using System.Net.Sockets;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -115,6 +116,7 @@ namespace IPA.Cores.Basic
 
     public class ThinClientAcceptReadyNotification : IDialogRequestData
     {
+        public IPEndPoint? ListenEndPoint = null;
     }
 
     public class ThinClientAuthRequest : IDialogRequestData
@@ -215,7 +217,7 @@ namespace IPA.Cores.Basic
 
             ThinClientAuthResponse authResponseCache = null!;
 
-            await using ThinClientConnection connection = await DcConnectEx(wt, connectOptions, cancel, true, true, async (req, c) =>
+            await using ThinClientConnection firstConnection = await DcConnectEx(wt, connectOptions, cancel, true, true, async (req, c) =>
             {
                 // 認証コールバック
                 await Task.CompletedTask;
@@ -232,82 +234,126 @@ namespace IPA.Cores.Basic
 
             using var abort = new CancelWatcher(cancel);
 
-            // このコネクションをキューに追加する
-            ConcurrentQueue<ThinClientConnection> connectionQueue = new ConcurrentQueue<ThinClientConnection>();
-            connectionQueue.Enqueue(connection);
-
             AsyncAutoResetEvent connectionAddedEvent = new AsyncAutoResetEvent();
             AsyncAutoResetEvent connectedEvent = new AsyncAutoResetEvent();
+            Task? connectionKeepTask = null;
+            NetTcpListener? listener = null;
 
-            // コネクションのキューの長さが ConnectionQueueLength 未満になると自動的にコネクションを張る非同期タスクを開始する
-            var connectionKeepTask = TaskUtil.StartAsyncTaskAsync(async () =>
+            // このコネクションをキューに追加する
+            ConcurrentQueue<ThinClientConnection> connectionQueue = new ConcurrentQueue<ThinClientConnection>();
+            try
             {
-                int numRetry = 0;
+                connectionQueue.Enqueue(firstConnection);
 
-                while (abort.IsCancellationRequested == false)
+                // コネクションのキューの長さが ConnectionQueueLength 未満になると自動的にコネクションを張る非同期タスクを開始する
+                connectionKeepTask = TaskUtil.StartAsyncTaskAsync(async () =>
                 {
-                    // キューの長さが少なくなれば追加コネクションを接続する
+                    int numRetry = 0;
+
                     while (abort.IsCancellationRequested == false)
                     {
-                        if (connectionQueue.Count < Consts.ThinClient.ConnectionQueueLength)
+                        // キューの長さが少なくなれば追加コネクションを接続する
+                        while (abort.IsCancellationRequested == false)
                         {
-                            try
+                            if (connectionQueue.Count < Consts.ThinClient.ConnectionQueueLength)
                             {
-                                // 追加接続
-                                ThinClientConnection additionalConnection = await DcConnectEx(wt, connectOptions, abort, false, false, async (req, c) =>
+                                try
                                 {
-                                    await Task.CompletedTask;
-                                    // 認証コールバック
-                                    // キャッシュされた認証情報をそのまま応答
-                                    return authResponseCache;
-                                });
+                                    // 追加接続
+                                    ThinClientConnection additionalConnection = await DcConnectEx(wt, connectOptions, abort, false, false, async (req, c) =>
+                                    {
+                                        await Task.CompletedTask;
+                                        // 認証コールバック
+                                        // キャッシュされた認証情報をそのまま応答
+                                        return authResponseCache;
+                                    });
 
-                                // 接続に成功したのでキューに追加
-                                connectionQueue.Enqueue(additionalConnection);
-                                connectionAddedEvent.Set(true);
+                                    // 接続に成功したのでキューに追加
+                                    connectionQueue.Enqueue(additionalConnection);
+                                    connectionAddedEvent.Set(true);
 
-                                numRetry = 0;
+                                    numRetry = 0;
+                                }
+                                catch (Exception ex)
+                                {
+                                    // 接続に失敗したので一定時間待ってリトライする
+                                    ex._Debug();
+
+                                    numRetry++;
+
+                                    int waitTime = Util.GenRandIntervalWithRetry(Consts.ThinClient.ReconnectRetrySpanMsecs, numRetry, Consts.ThinClient.ReconnectRetrySpanMaxMsecs);
+                                    if (waitTime == 0) waitTime = 1;
+
+                                    $"Additional tunnel establish failed. Wait for {waitTime} msecs..."._Debug();
+
+                                    await connectedEvent.WaitOneAsync(waitTime, abort);
+                                }
                             }
-                            catch (Exception ex)
+                            else
                             {
-                                // 接続に失敗したので一定時間待ってリトライする
-                                ex._Debug();
-
-                                numRetry++;
-
-                                int waitTime = Util.GenRandIntervalWithRetry(Consts.ThinClient.ReconnectRetrySpanMsecs, numRetry, Consts.ThinClient.ReconnectRetrySpanMaxMsecs);
-                                if (waitTime == 0) waitTime = 1;
-
-                                $"Additional tunnel establish failed. Wait for {waitTime} msecs..."._Debug();
-
-                                await connectedEvent.WaitOneAsync(waitTime, abort);
+                                break;
                             }
                         }
-                        else
-                        {
-                            break;
-                        }
+
+                        if (cancel.IsCancellationRequested) break;
+
+                        await connectedEvent.WaitOneAsync(1000, abort);
+                    }
+                });
+
+                // Listen ソケットの開始
+                listener = LocalNet.CreateListener(new TcpListenParam(isRandomPortMode: EnsureSpecial.Yes, async (listen, sock) =>
+                {
+                    ThinClientConnection? connection = null;
+                    // キューにコネクションが貯まるまで待機する
+                    while (connectionQueue.TryDequeue(out connection) == false)
+                    {
+                        abort.ThrowIfCancellationRequested();
+                        await connectionAddedEvent.WaitOneAsync(100, abort.CancelToken);
+                    }
+                    await using ThinClientConnection connection2 = connection;
+
+                    // 'A' を送信
+                    byte[] a = new byte[] { (byte)'A' };
+                    await connection.Stream.SendAsync(a, abort);
+
+                    var sockStream = sock.GetStream(true);
+
+                    await Util.RelayDuplexStreamAsync(sockStream, connection.Stream, abort);
+
+                    // RDP の場合はダミーデータを最後に流す
+                    if (connection.SvcType == ThinSvcType.Rdp)
+                    {
+                        byte[] dummySize = new byte[4096];
+                        await sockStream.SendAsync(dummySize, abort);
+                        await Task.Delay(50, abort);
                     }
 
-                    if (cancel.IsCancellationRequested) break;
+                }, family: AddressFamily.InterNetwork, address: IPAddress.Loopback));
 
-                    await connectedEvent.WaitOneAsync(1000, abort);
-                }
-            });
+                // 接続が完了いたしました
+                var ready = new ThinClientAcceptReadyNotification
+                {
+                    ListenEndPoint = new IPEndPoint(listener.AssignedRandomPort!.IPAddress, listener.AssignedRandomPort.Port),
+                };
 
-            // Listen ソケットの開始
-            //LocalNet.CreateListener(new TcpListenParam(
-
-            // 接続が完了いたしました
-            var ready = new ThinClientAcceptReadyNotification
+                Dbg.Where();
+                await session.RequestAndWaitResponseAsync(ready, Timeout.Infinite, Timeout.Infinite, cancel);
+            }
+            finally
             {
-            };
+                abort.Cancel();
 
-            Dbg.Where();
-            await session.RequestAndWaitResponseAsync(ready, Timeout.Infinite, Timeout.Infinite, cancel);
+                await connectionKeepTask._TryAwait(noDebugMessage: true);
+                await listener._DisposeSafeAsync();
 
-            abort.Cancel();
-            Dbg.Where();
+                foreach (var connection in connectionQueue)
+                {
+                    await connection._DisposeSafeAsync();
+                }
+
+                Dbg.Where();
+            }
         }
 
         async Task<ThinClientConnection> DcConnectEx(WideTunnel wt, ThinClientConnectOptions connectOptions, CancellationToken cancel, bool checkPort, bool firstConnection,

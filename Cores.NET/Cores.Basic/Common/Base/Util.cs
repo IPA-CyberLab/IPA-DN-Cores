@@ -2956,6 +2956,43 @@ namespace IPA.Cores.Basic
             return ms.ToArray();
         }
 
+        // Stream 間のデータ中継 (双方向)
+        public static async Task RelayDuplexStreamAsync(Stream st1, Stream st2, CancellationToken cancel = default, int bufferSize = Consts.Numbers.DefaultLargeBufferSize)
+        {
+            using CancelWatcher w = new CancelWatcher(cancel);
+
+            Task relay1to2 = RelaySimplexStreamAsync(st1, st2, cancel, bufferSize);
+            Task relay2to1 = RelaySimplexStreamAsync(st2, st1, cancel, bufferSize);
+
+            await TaskUtil.WaitObjectsAsync(new Task[] { relay1to2, relay2to1 }, cancel._SingleArray());
+
+            w.Cancel();
+
+            await relay1to2._TryAwait();
+            await relay2to1._TryWaitAsync();
+
+            if (relay1to2.Exception != null) throw relay1to2.Exception;
+            if (relay2to1.Exception != null) throw relay2to1.Exception;
+        }
+
+        // Stream 間のデータ中継 (一方向)
+        public static async Task RelaySimplexStreamAsync(Stream src, Stream dest, CancellationToken cancel = default, int bufferSize = Consts.Numbers.DefaultLargeBufferSize)
+        {
+            await Task.Yield();
+
+            Memory<byte> buffer = new byte[bufferSize];
+            while (true)
+            {
+                int sz = await src.ReadAsync(buffer, cancel);
+                if (sz <= 0)
+                {
+                    break;
+                }
+
+                await dest.WriteAsync(buffer.Slice(0, sz), cancel);
+            }
+        }
+
         // Stream から Stream へのコピー (ファイルのダウンロードなど)
         public static async Task<long> CopyBetweenStreamAsync(Stream src, Stream dest, CopyFileParams? param = null, ProgressReporterBase? reporter = null,
             long estimatedSize = -1, CancellationToken cancel = default, Ref<uint>? srcZipCrc = null, long truncateSize = -1, bool flush = false, int readTimeout = Timeout.Infinite, int writeTimeout = Timeout.Infinite)

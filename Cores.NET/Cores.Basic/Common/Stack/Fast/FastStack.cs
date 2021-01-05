@@ -49,8 +49,8 @@ namespace IPA.Cores.Basic
     {
         public static partial class RandomPortConfig
         {
-            public static readonly Copenhagen<int> RandomPortMin = 3333;
-            public static readonly Copenhagen<int> RandomPortMax = 3333;
+            public static readonly Copenhagen<int> RandomPortMin = 4444;
+            public static readonly Copenhagen<int> RandomPortMax = 4444;
             public static readonly Copenhagen<int> RandomPortNumTry = 1000;
         }
     }
@@ -1131,6 +1131,8 @@ namespace IPA.Cores.Basic
 
         internal protected abstract NetTcpProtocolStubBase CreateNewTcpStubForListenImpl(CancellationToken cancel);
 
+        public NetTcpListenerPort? AssignedRandomPort { get; private set; } = null;
+
         public NetTcpListenerPort AddRandom(IPVersion? ipVer = null, IPAddress? addr = null)
         {
             if (addr == null)
@@ -1151,6 +1153,10 @@ namespace IPA.Cores.Basic
 
                 var s = new NetTcpListenerPort(this, (IPVersion)ipVer, addr, 0, isRandomPortMode: true);
                 List.Add(NetTcpListenerPort.MakeHashKey((IPVersion)ipVer, addr, s.Port), s);
+                if (AssignedRandomPort == null)
+                {
+                    this.AssignedRandomPort = s;
+                }
                 return s;
             }
         }

@@ -1074,7 +1074,7 @@ namespace IPA.TestDev
 
             ThinClient tc = new ThinClient(new ThinClientOptions(wideOptions, sm));
 
-            var sess = tc.StartConnect(new ThinClientConnectOptions("pc373", IPUtil.LoopbackAddress, IPUtil.LoopbackAddress.ToString()));
+            var sess = tc.StartConnect(new ThinClientConnectOptions("pc342", IPUtil.LoopbackAddress, IPUtil.LoopbackAddress.ToString()));
 
             await cancel._WaitUntilCanceledAsync();
 
@@ -1085,7 +1085,7 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (true)
+            if (false)
             {
                 using var l = LocalNet.CreateListener(new TcpListenParam(isRandomPortMode: EnsureSpecial.Yes, async (listen, sock) =>
                 {
