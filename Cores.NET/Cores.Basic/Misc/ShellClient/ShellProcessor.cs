@@ -247,7 +247,7 @@ namespace IPA.Cores.Basic
                 StringWriter w = new StringWriter();
                 multiLineEof = "EOF_" + Str.GenRandStr().Substring(16);
                 w.NewLine = Settings.SendNewLineStr;
-                w.WriteLine($"bash << {multiLineEof}");
+                w.WriteLine($"bash << \\{multiLineEof}");
                 w.WriteLine(contents);
                 w.WriteLine(multiLineEof);
                 cmdLine = w.ToString();
