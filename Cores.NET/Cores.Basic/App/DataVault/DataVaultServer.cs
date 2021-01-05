@@ -73,7 +73,7 @@ namespace IPA.Cores.Basic
         public string? StatGitCommitId;
         public string? StatGlobalIp;
         public string? StatGlobalFqdn;
-        public int StatGlobalPort;
+        public int? StatGlobalPort;
         public string? StatLocalIp;
         public string? StatLocalFqdn;
 
