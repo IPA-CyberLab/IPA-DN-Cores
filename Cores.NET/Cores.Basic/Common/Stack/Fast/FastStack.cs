@@ -50,7 +50,7 @@ namespace IPA.Cores.Basic
         public static partial class RandomPortConfig
         {
             public static readonly Copenhagen<int> RandomPortMin = 3333;
-            public static readonly Copenhagen<int> RandomPortMax = 3334;
+            public static readonly Copenhagen<int> RandomPortMax = 3333;
             public static readonly Copenhagen<int> RandomPortNumTry = 1000;
         }
     }
@@ -987,6 +987,7 @@ namespace IPA.Cores.Basic
                 if (portAssignedRandom == 0)
                 {
                     // 十分な回数試行したが、ランダムポートの割当てに失敗した
+                    listenTcp._DisposeSafe();
                     throw new CoresLibException("Failed to assign a new random port.");
                 }
 

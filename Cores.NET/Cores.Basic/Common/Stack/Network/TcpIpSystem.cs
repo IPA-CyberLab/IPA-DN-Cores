@@ -557,38 +557,46 @@ namespace IPA.Cores.Basic
                         }
                     }, param.RateLimiterConfigName);
 
-                    if (acceptQueueUtil != null)
+                    try
                     {
-                        // Listener が廃棄される際は GenericAcceptQueueUtil キューをキャンセルするよう登録する
-                        ret.AddOnCancelAction(() => TaskUtil.StartSyncTaskAsync(() => acceptQueueUtil._DisposeSafe(new OperationCanceledException()))._LaissezFaire(false));
-
-                        // Listner クラスの AcceptNextSocketFromQueueUtilAsync を登録する
-                        ret.AcceptNextSocketFromQueueUtilAsync = (cancel) => acceptQueueUtil.AcceptAsync(cancel);
-                    }
-
-                    if (param.IsRandomPortMode == false)
-                    {
-                        foreach (IPEndPoint ep in param.EndPointsList)
+                        if (acceptQueueUtil != null)
                         {
-                            try
-                            {
-                                if (hostInfo.IsIPv4Supported && ep.AddressFamily == AddressFamily.InterNetwork) ret.Add(ep.Port, IPVersion.IPv4, ep.Address);
-                            }
-                            catch { }
+                            // Listener が廃棄される際は GenericAcceptQueueUtil キューをキャンセルするよう登録する
+                            ret.AddOnCancelAction(() => TaskUtil.StartSyncTaskAsync(() => acceptQueueUtil._DisposeSafe(new OperationCanceledException()))._LaissezFaire(false));
 
-                            try
-                            {
-                                if (hostInfo.IsIPv6Supported && ep.AddressFamily == AddressFamily.InterNetworkV6) ret.Add(ep.Port, IPVersion.IPv6, ep.Address);
-                            }
-                            catch { }
+                            // Listner クラスの AcceptNextSocketFromQueueUtilAsync を登録する
+                            ret.AcceptNextSocketFromQueueUtilAsync = (cancel) => acceptQueueUtil.AcceptAsync(cancel);
                         }
-                    }
-                    else
-                    {
-                        ret.AddRandom(param.RandomPortModeAddressFamily.GetIPVersion(), param.RandomPortListenAddress);
-                    }
 
-                    return ret;
+                        if (param.IsRandomPortMode == false)
+                        {
+                            foreach (IPEndPoint ep in param.EndPointsList)
+                            {
+                                try
+                                {
+                                    if (hostInfo.IsIPv4Supported && ep.AddressFamily == AddressFamily.InterNetwork) ret.Add(ep.Port, IPVersion.IPv4, ep.Address);
+                                }
+                                catch { }
+
+                                try
+                                {
+                                    if (hostInfo.IsIPv6Supported && ep.AddressFamily == AddressFamily.InterNetworkV6) ret.Add(ep.Port, IPVersion.IPv6, ep.Address);
+                                }
+                                catch { }
+                            }
+                        }
+                        else
+                        {
+                            ret.AddRandom(param.RandomPortModeAddressFamily.GetIPVersion(), param.RandomPortListenAddress);
+                        }
+
+                        return ret;
+                    }
+                    catch
+                    {
+                        ret._DisposeSafe();
+                        throw;
+                    }
                 }
             }
             catch (Exception ex)
