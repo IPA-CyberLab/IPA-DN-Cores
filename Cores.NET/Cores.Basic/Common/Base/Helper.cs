@@ -2604,6 +2604,26 @@ namespace IPA.Cores.Helper.Basic
                 throw new VpnException(error, pack);
             }
         }
+
+        public static AddressFamily GetAddressFamily(this IPVersion ver)
+        {
+            if (ver == IPVersion.IPv4)
+                return AddressFamily.InterNetwork;
+            else if (ver == IPVersion.IPv6)
+                return AddressFamily.InterNetworkV6;
+            else
+                throw new ArgumentOutOfRangeException(nameof(ver));
+        }
+
+        public static IPVersion GetIPVersion(this AddressFamily family)
+        {
+            if (family == AddressFamily.InterNetwork)
+                return IPVersion.IPv4;
+            else if (family == AddressFamily.InterNetworkV6)
+                return IPVersion.IPv6;
+            else
+                throw new ArgumentOutOfRangeException(nameof(family));
+        }
     }
 }
 

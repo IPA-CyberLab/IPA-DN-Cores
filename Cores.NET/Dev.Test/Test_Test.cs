@@ -1087,6 +1087,24 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                using var l = LocalNet.CreateListener(new TcpListenParam(isRandomPortMode: EnsureSpecial.Yes, async (listen, sock) =>
+                {
+                    using var x = sock.GetStream();
+                    using var w = new StreamWriter(x);
+
+                    while (true)
+                    {
+                        await w.WriteLineAsync(DtNow.ToString());
+                        await w.FlushAsync();
+                        await Task.Delay(100);
+                    }
+                }));
+                Con.ReadLine();
+                return;
+            }
+
+            if (true)
+            {
                 CancellationTokenSource cts = new CancellationTokenSource();
                 var task = Test_210104Async(cts.Token);
                 Con.ReadLine();

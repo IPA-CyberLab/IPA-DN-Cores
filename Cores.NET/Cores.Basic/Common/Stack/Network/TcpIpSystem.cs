@@ -186,6 +186,8 @@ namespace IPA.Cores.Basic
         public NetTcpListenerAcceptedProcCallback? AcceptCallback { get; }
         public IReadOnlyList<IPEndPoint> EndPointsList { get; }
         public string? RateLimiterConfigName { get; }
+        public bool IsRandomPortMode { get; }
+        public AddressFamily RandomPortModeAddressFamily { get; }
 
         static IPEndPoint[] PortsToEndPoints(int[] ports)
         {
@@ -208,6 +210,14 @@ namespace IPA.Cores.Basic
             this.EndPointsList = endPoints.ToList();
             this.AcceptCallback = acceptCallback;
             this.RateLimiterConfigName = rateLimiterConfigName;
+        }
+
+        public TcpListenParam(EnsureSpecial isRandomPortMode, NetTcpListenerAcceptedProcCallback? acceptCallback = null, AddressFamily family = AddressFamily.InterNetwork)
+        {
+            this.EndPointsList = new IPEndPoint[0];
+            this.AcceptCallback = acceptCallback;
+            this.IsRandomPortMode = true;
+            this.RandomPortModeAddressFamily = family;
         }
 
         public TcpListenParam(EnsureSpecial compatibleWithKestrel, NetTcpListenerAcceptedProcCallback? acceptCallback, IPEndPoint endPoint, string? rateLimiterConfigName = null)
@@ -538,19 +548,26 @@ namespace IPA.Cores.Basic
                         ret.AcceptNextSocketFromQueueUtilAsync = (cancel) => acceptQueueUtil.AcceptAsync(cancel);
                     }
 
-                    foreach (IPEndPoint ep in param.EndPointsList)
+                    if (param.IsRandomPortMode == false)
                     {
-                        try
+                        foreach (IPEndPoint ep in param.EndPointsList)
                         {
-                            if (hostInfo.IsIPv4Supported && ep.AddressFamily == AddressFamily.InterNetwork) ret.Add(ep.Port, IPVersion.IPv4, ep.Address);
-                        }
-                        catch { }
+                            try
+                            {
+                                if (hostInfo.IsIPv4Supported && ep.AddressFamily == AddressFamily.InterNetwork) ret.Add(ep.Port, IPVersion.IPv4, ep.Address);
+                            }
+                            catch { }
 
-                        try
-                        {
-                            if (hostInfo.IsIPv6Supported && ep.AddressFamily == AddressFamily.InterNetworkV6) ret.Add(ep.Port, IPVersion.IPv6, ep.Address);
+                            try
+                            {
+                                if (hostInfo.IsIPv6Supported && ep.AddressFamily == AddressFamily.InterNetworkV6) ret.Add(ep.Port, IPVersion.IPv6, ep.Address);
+                            }
+                            catch { }
                         }
-                        catch { }
+                    }
+                    else
+                    {
+                        ret.AddRandom(param.RandomPortModeAddressFamily.GetIPVersion());
                     }
 
                     return ret;

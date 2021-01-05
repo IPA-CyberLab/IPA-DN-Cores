@@ -66,6 +66,9 @@ namespace IPA.Cores.Basic
             public const int ProtocolCommTimeoutMsecs = 3 * 60 * 1000;
             public const int DummyClientVer = 18;
             public const int DummyClientBuild = 9876;
+            public const int ConnectionQueueLength = 2;
+            public const int ReconnectRetrySpanMsecs = 2 * 1000;
+            public const int ReconnectRetrySpanMaxMsecs = 3 * 60 * 1000;
         }
     }
 
@@ -110,6 +113,10 @@ namespace IPA.Cores.Basic
         IsLimitedMode = 256,
     }
 
+    public class ThinClientAcceptReadyNotification : IDialogRequestData
+    {
+    }
+
     public class ThinClientAuthRequest : IDialogRequestData
     {
         public bool UseAdvancedSecurity;
@@ -151,7 +158,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class ThinClientConnectResult : AsyncService
+    public class ThinClientConnection : AsyncService
     {
         public WtcSocket Socket { get; }
         public PipeStream Stream { get; }
@@ -161,7 +168,7 @@ namespace IPA.Cores.Basic
         public ThinServerMask64 ServerMask64 => (ThinServerMask64)Socket.Options.ConnectParam.ServerMask64;
         public bool RunInspect { get; }
 
-        public ThinClientConnectResult(WtcSocket socket, PipeStream stream, ThinSvcType svcType, bool isShareDisabled, ThinServerCaps caps, bool runInspect)
+        public ThinClientConnection(WtcSocket socket, PipeStream stream, ThinSvcType svcType, bool isShareDisabled, ThinServerCaps caps, bool runInspect)
         {
             Socket = socket;
             Stream = stream;
@@ -197,17 +204,20 @@ namespace IPA.Cores.Basic
 
         public DialogSession StartConnect(ThinClientConnectOptions connectOptions)
         {
-            return this.SessionManager.StartNewSession(new DialogSessionOptions(SessionMainProcAsync, connectOptions));
+            return this.SessionManager.StartNewSession(new DialogSessionOptions(DialogSessionMainProcAsync, connectOptions));
         }
 
-        async Task SessionMainProcAsync(DialogSession session, CancellationToken cancel)
+        async Task DialogSessionMainProcAsync(DialogSession session, CancellationToken cancel)
         {
             ThinClientConnectOptions connectOptions = (ThinClientConnectOptions)session.Options.Param!;
 
             await using WideTunnel wt = new WideTunnel(this.Options.WideTunnelOptions);
 
-            await using var connectResult = await ConnectMainAsync(wt, connectOptions, cancel, true, true, async (req, c) =>
+            ThinClientAuthResponse authResponseCache = null!;
+
+            await using ThinClientConnection connection = await DcConnectEx(wt, connectOptions, cancel, true, true, async (req, c) =>
             {
+                // 認証コールバック
                 await Task.CompletedTask;
 
                 var response = new ThinClientAuthResponse
@@ -215,13 +225,92 @@ namespace IPA.Cores.Basic
                     Password = Lfs.ReadStringFromFile(@"C:\tmp\yagi\TestPass.txt", oneLine: true),
                 };
 
+                authResponseCache = response;
+
                 return response;
             });
 
+            using var abort = new CancelWatcher(cancel);
+
+            // このコネクションをキューに追加する
+            ConcurrentQueue<ThinClientConnection> connectionQueue = new ConcurrentQueue<ThinClientConnection>();
+            connectionQueue.Enqueue(connection);
+
+            AsyncAutoResetEvent connectionAddedEvent = new AsyncAutoResetEvent();
+            AsyncAutoResetEvent connectedEvent = new AsyncAutoResetEvent();
+
+            // コネクションのキューの長さが ConnectionQueueLength 未満になると自動的にコネクションを張る非同期タスクを開始する
+            var connectionKeepTask = TaskUtil.StartAsyncTaskAsync(async () =>
+            {
+                int numRetry = 0;
+
+                while (abort.IsCancellationRequested == false)
+                {
+                    // キューの長さが少なくなれば追加コネクションを接続する
+                    while (abort.IsCancellationRequested == false)
+                    {
+                        if (connectionQueue.Count < Consts.ThinClient.ConnectionQueueLength)
+                        {
+                            try
+                            {
+                                // 追加接続
+                                ThinClientConnection additionalConnection = await DcConnectEx(wt, connectOptions, abort, false, false, async (req, c) =>
+                                {
+                                    await Task.CompletedTask;
+                                    // 認証コールバック
+                                    // キャッシュされた認証情報をそのまま応答
+                                    return authResponseCache;
+                                });
+
+                                // 接続に成功したのでキューに追加
+                                connectionQueue.Enqueue(additionalConnection);
+                                connectionAddedEvent.Set(true);
+
+                                numRetry = 0;
+                            }
+                            catch (Exception ex)
+                            {
+                                // 接続に失敗したので一定時間待ってリトライする
+                                ex._Debug();
+
+                                numRetry++;
+
+                                int waitTime = Util.GenRandIntervalWithRetry(Consts.ThinClient.ReconnectRetrySpanMsecs, numRetry, Consts.ThinClient.ReconnectRetrySpanMaxMsecs);
+                                if (waitTime == 0) waitTime = 1;
+
+                                $"Additional tunnel establish failed. Wait for {waitTime} msecs..."._Debug();
+
+                                await connectedEvent.WaitOneAsync(waitTime, abort);
+                            }
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+
+                    if (cancel.IsCancellationRequested) break;
+
+                    await connectedEvent.WaitOneAsync(1000, abort);
+                }
+            });
+
+            // Listen ソケットの開始
+            //LocalNet.CreateListener(new TcpListenParam(
+
+            // 接続が完了いたしました
+            var ready = new ThinClientAcceptReadyNotification
+            {
+            };
+
+            Dbg.Where();
+            await session.RequestAndWaitResponseAsync(ready, Timeout.Infinite, Timeout.Infinite, cancel);
+
+            abort.Cancel();
             Dbg.Where();
         }
 
-        async Task<ThinClientConnectResult> ConnectMainAsync(WideTunnel wt, ThinClientConnectOptions connectOptions, CancellationToken cancel, bool checkPort, bool firstConnection,
+        async Task<ThinClientConnection> DcConnectEx(WideTunnel wt, ThinClientConnectOptions connectOptions, CancellationToken cancel, bool checkPort, bool firstConnection,
             Func<ThinClientAuthRequest, CancellationToken, Task<ThinClientAuthResponse>> authCallback)
         {
             WtcSocket? sock = null;
@@ -335,7 +424,7 @@ namespace IPA.Cores.Basic
 
                 st.ReadTimeout = st.WriteTimeout = Timeout.Infinite;
 
-                return new ThinClientConnectResult(sock, st, svcType, !isShareEnabled, caps, runInspect);
+                return new ThinClientConnection(sock, st, svcType, !isShareEnabled, caps, runInspect);
             }
             catch
             {
