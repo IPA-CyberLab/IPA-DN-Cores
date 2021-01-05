@@ -733,7 +733,7 @@ namespace IPA.Cores.Codes
         }
 
         // PCID 変更実行
-        public async Task<VpnErrors> RenamePcidAsync(string msid, string newPcid, DateTime now, CancellationToken cancel = default)
+        public async Task<VpnError> RenamePcidAsync(string msid, string newPcid, DateTime now, CancellationToken cancel = default)
         {
             // この関数は同時に 1 ユーザーからしか実行されないようにする
             // (ローカルメモリデータベースをいじるため)
@@ -742,10 +742,10 @@ namespace IPA.Cores.Codes
             msid = msid._NonNullTrim();
             newPcid = newPcid._NonNullTrim();
 
-            VpnErrors err2 = ThinController.CheckPCID(newPcid);
-            if (err2 != VpnErrors.ERR_NO_ERROR) return err2;
+            VpnError err2 = ThinController.CheckPCID(newPcid);
+            if (err2 != VpnError.ERR_NO_ERROR) return err2;
 
-            VpnErrors err = VpnErrors.ERR_INTERNAL_ERROR;
+            VpnError err = VpnError.ERR_INTERNAL_ERROR;
 
             // ローカルメモリデータベース上の PCID 情報を確認
             var memDb = this.MemDb!;
@@ -753,13 +753,13 @@ namespace IPA.Cores.Codes
             if (memDb.MachineList.Where(x => x.PCID._IsSamei(newPcid)).Any())
             {
                 // ローカルメモリデータベース上で重複
-                return VpnErrors.ERR_PCID_ALREADY_EXISTS;
+                return VpnError.ERR_PCID_ALREADY_EXISTS;
             }
 
             if (this.IsDatabaseConnected == false)
             {
                 // データベースエラー発生中はこの処理は実行できない
-                return VpnErrors.ERR_TEMP_ERROR;
+                return VpnError.ERR_TEMP_ERROR;
             }
 
             await using var db = await OpenDatabaseForWriteAsync(cancel);
@@ -777,14 +777,14 @@ namespace IPA.Cores.Codes
                 if (machine == null)
                 {
                     // おかしいな
-                    err = VpnErrors.ERR_SECURITY_ERROR;
+                    err = VpnError.ERR_SECURITY_ERROR;
                     return false;
                 }
 
                 // 同一 PCID が存在しないかどうかチェック
                 if ((await db.QueryWithValueAsync("SELECT COUNT(MACHINE_ID) FROM MACHINE WHERE PCID = @ AND SVC_NAME = @", newPcid, machine.SVC_NAME)).Int != 0)
                 {
-                    err = VpnErrors.ERR_PCID_ALREADY_EXISTS;
+                    err = VpnError.ERR_PCID_ALREADY_EXISTS;
                     return false;
                 }
 
@@ -797,7 +797,7 @@ namespace IPA.Cores.Codes
                 if (updatedMachine == null)
                 {
                     // おかしいな
-                    err = VpnErrors.ERR_SECURITY_ERROR;
+                    err = VpnError.ERR_SECURITY_ERROR;
                     return false;
                 }
 
@@ -827,11 +827,11 @@ namespace IPA.Cores.Codes
                 this.PcidChangeHistoryCache.Add(machine.MSID, new ThinDatabasePcidChangeHistory(machine.MSID, machine.PCID_VER, newPcid, updatedMachine.PCID_UPDATE_DATE));
             }
 
-            return VpnErrors.ERR_NO_ERROR;
+            return VpnError.ERR_NO_ERROR;
         }
 
         // サーバー登録実行
-        public async Task<VpnErrors> RegisterMachineAsync(string svcName, string msid, string pcid, string hostKey, string hostSecret2, DateTime now, string ip, string fqdn, string initialJsonAttributes, CancellationToken cancel = default)
+        public async Task<VpnError> RegisterMachineAsync(string svcName, string msid, string pcid, string hostKey, string hostSecret2, DateTime now, string ip, string fqdn, string initialJsonAttributes, CancellationToken cancel = default)
         {
             svcName = svcName._NonNullTrim();
             msid = msid._NonNullTrim();
@@ -842,16 +842,16 @@ namespace IPA.Cores.Codes
             fqdn = fqdn._NonNullTrim();
             initialJsonAttributes = initialJsonAttributes._NonNullTrim();
 
-            VpnErrors err2 = ThinController.CheckPCID(pcid);
-            if (err2 != VpnErrors.ERR_NO_ERROR) return err2;
+            VpnError err2 = ThinController.CheckPCID(pcid);
+            if (err2 != VpnError.ERR_NO_ERROR) return err2;
 
             // データベースエラー時は処理禁止
             if (IsDatabaseConnected == false)
             {
-                return VpnErrors.ERR_TEMP_ERROR;
+                return VpnError.ERR_TEMP_ERROR;
             }
 
-            VpnErrors err = VpnErrors.ERR_INTERNAL_ERROR;
+            VpnError err = VpnError.ERR_INTERNAL_ERROR;
 
             await using var db = await OpenDatabaseForWriteAsync(cancel);
 
@@ -864,21 +864,21 @@ namespace IPA.Cores.Codes
                 // 同一 hostKey が存在しないかどうか確認
                 if ((await db.QueryWithValueAsync("SELECT COUNT(MACHINE_ID) FROM MACHINE WHERE CERT_HASH = @", hostKey)).Int != 0)
                 {
-                    err = VpnErrors.ERR_SECURITY_ERROR;
+                    err = VpnError.ERR_SECURITY_ERROR;
                     return false;
                 }
 
                 // 同一シークレットが存在しないかどうかチェック
                 if ((await db.QueryWithValueAsync("SELECT COUNT(MACHINE_ID) FROM MACHINE WHERE HOST_SECRET2 = @", hostSecret2)).Int != 0)
                 {
-                    err = VpnErrors.ERR_SECURITY_ERROR;
+                    err = VpnError.ERR_SECURITY_ERROR;
                     return false;
                 }
 
                 // 同一 PCID が存在しないかどうかチェック
                 if ((await db.QueryWithValueAsync("SELECT COUNT(MACHINE_ID) FROM MACHINE WHERE PCID = @ AND SVC_NAME = @", pcid, svcName)).Int != 0)
                 {
-                    err = VpnErrors.ERR_PCID_ALREADY_EXISTS;
+                    err = VpnError.ERR_PCID_ALREADY_EXISTS;
                     return false;
                 }
 
@@ -900,7 +900,7 @@ namespace IPA.Cores.Codes
 
             Controller.AddPcidToRecentPcidCandidateCache(pcid);
 
-            return VpnErrors.ERR_NO_ERROR;
+            return VpnError.ERR_NO_ERROR;
         }
 
         // MSID によるデータベースからの最新の Machine の取得
