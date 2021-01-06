@@ -211,8 +211,7 @@ namespace IPA.Cores.Basic
 
     public class RefInt : IEquatable<RefInt>, IComparable<RefInt>
     {
-        public RefInt() : this(0) { }
-        public RefInt(int value)
+        public RefInt(int value = 0)
         {
             this.Value = value;
         }
@@ -239,8 +238,7 @@ namespace IPA.Cores.Basic
 
     public class RefLong : IEquatable<RefLong>, IComparable<RefLong>
     {
-        public RefLong() : this(0) { }
-        public RefLong(long value)
+        public RefLong(long value = 0)
         {
             this.Value = value;
         }
@@ -268,8 +266,7 @@ namespace IPA.Cores.Basic
 
     public class RefBool : IEquatable<RefBool>, IComparable<RefBool>
     {
-        public RefBool() : this(false) { }
-        public RefBool(bool value)
+        public RefBool(bool value = false)
         {
             this.Value = value;
         }
@@ -295,8 +292,7 @@ namespace IPA.Cores.Basic
         public T Value;
         public readonly int Size = Marshal.SizeOf<T>();
 
-        public ValueRef() : this(default) { }
-        public ValueRef(T value)
+        public ValueRef(T value = default)
         {
             Value = value;
         }
@@ -2957,26 +2953,26 @@ namespace IPA.Cores.Basic
         }
 
         // Stream 間のデータ中継 (双方向)
-        public static async Task RelayDuplexStreamAsync(Stream st1, Stream st2, CancellationToken cancel = default, int bufferSize = Consts.Numbers.DefaultLargeBufferSize)
+        public static async Task RelayDuplexStreamAsync(Stream st1, Stream st2, CancellationToken cancel = default, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalBytes = null)
         {
             using CancelWatcher w = new CancelWatcher(cancel);
 
-            Task relay1to2 = RelaySimplexStreamAsync(st1, st2, cancel, bufferSize);
-            Task relay2to1 = RelaySimplexStreamAsync(st2, st1, cancel, bufferSize);
+            Task relay1to2 = RelaySimplexStreamAsync(st1, st2, w.CancelToken, bufferSize, totalBytes);
+            Task relay2to1 = RelaySimplexStreamAsync(st2, st1, w.CancelToken, bufferSize, totalBytes);
 
             await TaskUtil.WaitObjectsAsync(new Task[] { relay1to2, relay2to1 }, cancel._SingleArray());
 
             w.Cancel();
 
             await relay1to2._TryAwait();
-            await relay2to1._TryWaitAsync();
+            await relay2to1._TryAwait();
 
             if (relay1to2.Exception != null) throw relay1to2.Exception;
             if (relay2to1.Exception != null) throw relay2to1.Exception;
         }
 
         // Stream 間のデータ中継 (一方向)
-        public static async Task RelaySimplexStreamAsync(Stream src, Stream dest, CancellationToken cancel = default, int bufferSize = Consts.Numbers.DefaultLargeBufferSize)
+        public static async Task RelaySimplexStreamAsync(Stream src, Stream dest, CancellationToken cancel = default, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalBytes = null)
         {
             await Task.Yield();
 
@@ -2990,6 +2986,8 @@ namespace IPA.Cores.Basic
                 }
 
                 await dest.WriteAsync(buffer.Slice(0, sz), cancel);
+
+                totalBytes?.Add(sz);
             }
         }
 

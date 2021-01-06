@@ -1070,13 +1070,42 @@ namespace IPA.TestDev
             CoresConfig.WtcConfig.DefaultWaterMark.TrySet(mem);
 
             var wideOptions = new WideTunnelOptions("DESK", "TestSan", new string[] { "https://c__TIME__.controller.dynamic-ip.thin.cyber.ipa.go.jp/widecontrol/" });
-            await using var sm = new DialogSessionManager();
+            await using var sm = new DialogSessionManager(cancel: cancel);
 
             ThinClient tc = new ThinClient(new ThinClientOptions(wideOptions, sm));
 
-            var sess = tc.StartConnect(new ThinClientConnectOptions("pc342", IPUtil.LoopbackAddress, IPUtil.LoopbackAddress.ToString()));
+            var sess = tc.StartConnect(new ThinClientConnectOptions("pc342", IPAddress.Loopback, IPAddress.Loopback.ToString()));
 
-            await cancel._WaitUntilCanceledAsync();
+            while (cancel.IsCancellationRequested == false)
+            {
+                var req = await sess.GetNextRequestAsync(cancel: cancel);
+
+                if (req == null)
+                {
+                    break;
+                }
+
+                switch (req.RequestData)
+                {
+                    case ThinClientAuthRequest authReq:
+                        req.SetResponseData(new ThinClientAuthResponse
+                        {
+                            Password = Lfs.ReadStringFromFile(@"C:\tmp\yagi\TestPass.txt", oneLine: true),
+                        });
+                        break;
+
+                    case ThinClientAcceptReadyNotification ready:
+                        req.SetResponseData(new EmptyDialogResponseData());
+                        break;
+
+                    case ThinClientOtpRequest otp:
+                        req.SetResponseData(new ThinClientOtpResponse
+                        {
+                            Otp = "422262100362311531048070455606",
+                        });
+                        break;
+                }
+            }
 
             await sm._DisposeSafeAsync();
 

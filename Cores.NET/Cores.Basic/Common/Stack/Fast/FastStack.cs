@@ -1085,6 +1085,11 @@ namespace IPA.Cores.Basic
             finally
             {
                 Status = ListenStatus.Stopped;
+
+                if (this.IsRandomPortMode)
+                {
+                    RandomPortAssigner.GlobalRandomPortAssigner.Release(this.Port);
+                }
             }
         }
 

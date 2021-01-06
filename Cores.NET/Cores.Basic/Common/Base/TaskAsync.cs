@@ -4972,6 +4972,8 @@ namespace IPA.Cores.Basic
 
     public interface IDialogResponseData { }
 
+    public class EmptyDialogResponseData : IDialogResponseData { }
+
     [Flags]
     public enum DialogRequestStatus
     {
@@ -5149,6 +5151,20 @@ namespace IPA.Cores.Basic
 
         Once Started;
 
+        public void Debug(object? obj)
+        {
+            string str = obj._GetObjectDump()._NonNullTrim();
+
+            $"Session '{this.SessionId}': {str}"._Debug();
+        }
+
+        public void Error(object? obj)
+        {
+            string str = obj._GetObjectDump()._NonNullTrim();
+
+            $"Session '{this.SessionId}': {str}"._Error();
+        }
+
         internal void StartInternal()
         {
             if (Started.IsFirstCall())
@@ -5205,14 +5221,28 @@ namespace IPA.Cores.Basic
 
         public async Task<IDialogResponseData> RequestAndWaitResponseAsync(IDialogRequestData requestData, int hardTimeout, int? softTimeout = null, CancellationToken cancel = default)
         {
-            cancel.ThrowIfCancellationRequested();
-            this.GrandCancel.ThrowIfCancellationRequested();
-
-            var req = this.Request(requestData, hardTimeout, softTimeout);
-
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancel2, cancel, this.GrandCancel))
+            try
             {
-                return await req.WaitForResponseAsync(cancel2);
+                this.Debug($"RequestAndWaitResponseAsync start. Requested Data = {requestData.GetType().ToString()}");
+
+                cancel.ThrowIfCancellationRequested();
+                this.GrandCancel.ThrowIfCancellationRequested();
+
+                var req = this.Request(requestData, hardTimeout, softTimeout);
+
+                using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancel2, cancel, this.GrandCancel))
+                {
+                    var ret = await req.WaitForResponseAsync(cancel2);
+
+                    this.Debug($"RequestAndWaitResponseAsync finished. Response Data = {requestData.GetType().ToString()}");
+
+                    return ret;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.Error($"RequestAndWaitResponseAsync Error. Exception = {ex._GetObjectDump()}");
+                throw;
             }
         }
 
@@ -5220,38 +5250,43 @@ namespace IPA.Cores.Basic
 
         public async Task<DialogRequest?> GetNextRequestAsync(int timeout = Timeout.Infinite, CancellationToken cancel = default)
         {
-            var waiter = Pulse.GetPulseWaiter();
+            await Task.Yield();
 
-            long giveupTick = (timeout < 0) ? long.MaxValue : TickNow + timeout;
-
-            while (this.GrandCancel.IsCancellationRequested == false && this.IsFinished == false)
+            using (this.CreatePerTaskCancellationToken(out CancellationToken cancel2, cancel))
             {
-                lock (this.RequestListLockObj)
+                var waiter = Pulse.GetPulseWaiter();
+
+                long giveupTick = (timeout < 0) ? long.MaxValue : TickNow + timeout;
+
+                while (cancel2.IsCancellationRequested == false && this.IsFinished == false)
                 {
-                    if (this.RequestList.Count >= 1)
+                    lock (this.RequestListLockObj)
                     {
-                        return this.RequestList[0];
+                        if (this.RequestList.Count >= 1)
+                        {
+                            return this.RequestList[0];
+                        }
                     }
+
+                    int timeout2 = giveupTick == long.MaxValue ? int.MaxValue : (int)(giveupTick - TickNow);
+
+                    if (timeout2 <= 0) throw new TimeoutException();
+
+                    await waiter.WaitAsync(timeout2, cancel2);
                 }
 
-                int timeout2 = giveupTick == long.MaxValue ? int.MaxValue : (int)(giveupTick - TickNow);
-
-                if (timeout2 <= 0) throw new TimeoutException();
-
-                await waiter.WaitAsync(timeout2, this.GrandCancel);
-            }
-
-            if (this.IsFinished == false)
-            {
-                throw new OperationCanceledException();
-            }
-            else if (this.Exception != null)
-            {
-                throw this.Exception;
-            }
-            else
-            {
-                return null;
+                if (this.IsFinished == false)
+                {
+                    throw new OperationCanceledException();
+                }
+                else if (this.Exception != null)
+                {
+                    throw this.Exception;
+                }
+                else
+                {
+                    return null;
+                }
             }
         }
 
@@ -5307,7 +5342,7 @@ namespace IPA.Cores.Basic
 
         ImmutableDictionary<string, DialogSession> SessionList = ImmutableDictionary<string, DialogSession>.Empty.WithComparers(StrComparer.IgnoreCaseComparer);
 
-        public DialogSessionManager(DialogSessionManagerOptions? options = null)
+        public DialogSessionManager(DialogSessionManagerOptions? options = null, CancellationToken cancel = default) : base(cancel)
         {
             try
             {
@@ -5379,14 +5414,17 @@ namespace IPA.Cores.Basic
 
         public async Task<DialogRequest?> GetNextRequestAsync(string sessionId, int timeout = Timeout.Infinite, CancellationToken cancel = default)
         {
-            var session = GetSessionById(sessionId);
-            if (session != null)
+            using (base.CreatePerTaskCancellationToken(out CancellationToken cancel2, cancel))
             {
-                return await session.GetNextRequestAsync(timeout, cancel);
-            }
-            else
-            {
-                throw new CoresException($"Session ID '{sessionId}' not found.");
+                var session = GetSessionById(sessionId);
+                if (session != null)
+                {
+                    return await session.GetNextRequestAsync(timeout, cancel2);
+                }
+                else
+                {
+                    throw new CoresException($"Session ID '{sessionId}' not found.");
+                }
             }
         }
 

@@ -70,6 +70,11 @@ namespace IPA.Cores.Basic
             public const int ConnectionQueueLength = 2;
             public const int ReconnectRetrySpanMsecs = 2 * 1000;
             public const int ReconnectRetrySpanMaxMsecs = 3 * 60 * 1000;
+
+            public const int RequestHardTimeoutMsecs = 150 * 1000;
+            public const int RequestSoftTimeoutMsecs = 15 * 1000;
+            public const int ConnectionQueueWaitTimeout = 10 * 1000;
+            public const int ConnectionZeroTimeout = 30 * 1000;
         }
     }
 
@@ -119,6 +124,15 @@ namespace IPA.Cores.Basic
         public IPEndPoint? ListenEndPoint = null;
     }
 
+    public class ThinClientOtpRequest : IDialogRequestData
+    {
+    }
+
+    public class ThinClientOtpResponse : IDialogResponseData
+    {
+        public string Otp = "";
+    }
+
     public class ThinClientAuthRequest : IDialogRequestData
     {
         public bool UseAdvancedSecurity;
@@ -126,7 +140,7 @@ namespace IPA.Cores.Basic
         public ReadOnlyMemory<byte> Rand;
     }
 
-    public class ThinClientAuthResponse : IDialogRequestData
+    public class ThinClientAuthResponse : IDialogResponseData
     {
         public string Password = "";
         public string Username = "";
@@ -169,8 +183,9 @@ namespace IPA.Cores.Basic
         public ThinServerCaps Caps { get; }
         public ThinServerMask64 ServerMask64 => (ThinServerMask64)Socket.Options.ConnectParam.ServerMask64;
         public bool RunInspect { get; }
+        public string OtpTicket { get; }
 
-        public ThinClientConnection(WtcSocket socket, PipeStream stream, ThinSvcType svcType, bool isShareDisabled, ThinServerCaps caps, bool runInspect)
+        public ThinClientConnection(WtcSocket socket, PipeStream stream, ThinSvcType svcType, bool isShareDisabled, ThinServerCaps caps, bool runInspect, string otpTicket)
         {
             Socket = socket;
             Stream = stream;
@@ -178,6 +193,7 @@ namespace IPA.Cores.Basic
             IsShareDisabled = isShareDisabled;
             Caps = caps;
             RunInspect = runInspect;
+            OtpTicket = otpTicket;
         }
 
         protected override async Task CleanupImplAsync(Exception? ex)
@@ -211,26 +227,34 @@ namespace IPA.Cores.Basic
 
         async Task DialogSessionMainProcAsync(DialogSession session, CancellationToken cancel)
         {
+            session.Debug("Start");
+
             ThinClientConnectOptions connectOptions = (ThinClientConnectOptions)session.Options.Param!;
 
             await using WideTunnel wt = new WideTunnel(this.Options.WideTunnelOptions);
 
             ThinClientAuthResponse authResponseCache = null!;
 
+            session.Debug($"Begin DcConnectEx. connectOptions: {connectOptions._GetObjectDump()}");
+
             await using ThinClientConnection firstConnection = await DcConnectEx(wt, connectOptions, cancel, true, true, async (req, c) =>
             {
                 // 認証コールバック
-                await Task.CompletedTask;
-
-                var response = new ThinClientAuthResponse
-                {
-                    Password = Lfs.ReadStringFromFile(@"C:\tmp\yagi\TestPass.txt", oneLine: true),
-                };
+                var response = (ThinClientAuthResponse)(await session.RequestAndWaitResponseAsync(req, Consts.ThinClient.RequestHardTimeoutMsecs, Consts.ThinClient.RequestSoftTimeoutMsecs, cancel));
 
                 authResponseCache = response;
 
                 return response;
+            },
+            async (req, c) =>
+            {
+                // OTP コールバック
+                var response = (ThinClientOtpResponse)(await session.RequestAndWaitResponseAsync(req, Consts.ThinClient.RequestHardTimeoutMsecs, Consts.ThinClient.RequestSoftTimeoutMsecs, cancel));
+
+                return response;
             });
+
+            session.Debug("First WideTunnel Connected.");
 
             using var abort = new CancelWatcher(cancel);
 
@@ -257,19 +281,30 @@ namespace IPA.Cores.Basic
                         {
                             if (connectionQueue.Count < Consts.ThinClient.ConnectionQueueLength)
                             {
+                                session.Debug($"connectionQueue.Count ({connectionQueue.Count}) < Consts.ThinClient.ConnectionQueueLength ({Consts.ThinClient.ConnectionQueueLength})");
+
                                 try
                                 {
                                     // 追加接続
                                     ThinClientConnection additionalConnection = await DcConnectEx(wt, connectOptions, abort, false, false, async (req, c) =>
                                     {
-                                        await Task.CompletedTask;
                                         // 認証コールバック
+                                        await Task.CompletedTask;
                                         // キャッシュされた認証情報をそのまま応答
                                         return authResponseCache;
+                                    },
+                                    async (req, c) =>
+                                    {
+                                        // OTP コールバック
+                                        await Task.CompletedTask;
+                                        // OTP チケットを応答
+                                        return new ThinClientOtpResponse { Otp = firstConnection.OtpTicket };
                                     });
 
                                     // 接続に成功したのでキューに追加
                                     connectionQueue.Enqueue(additionalConnection);
+                                    session.Debug($"Additional WideTunnel Connected. connectionQueue.Count = ({connectionQueue.Count})");
+
                                     connectionAddedEvent.Set(true);
 
                                     numRetry = 0;
@@ -279,12 +314,14 @@ namespace IPA.Cores.Basic
                                     // 接続に失敗したので一定時間待ってリトライする
                                     ex._Debug();
 
+                                    session.Error(ex._GetObjectDump());
+
                                     numRetry++;
 
                                     int waitTime = Util.GenRandIntervalWithRetry(Consts.ThinClient.ReconnectRetrySpanMsecs, numRetry, Consts.ThinClient.ReconnectRetrySpanMaxMsecs);
                                     if (waitTime == 0) waitTime = 1;
 
-                                    $"Additional tunnel establish failed. Wait for {waitTime} msecs..."._Debug();
+                                    session.Debug($"Additional tunnel establish failed. numRetry = {numRetry}. Wait for {waitTime} msecs...");
 
                                     await connectedEvent.WaitOneAsync(waitTime, abort);
                                 }
@@ -295,7 +332,7 @@ namespace IPA.Cores.Basic
                             }
                         }
 
-                        if (cancel.IsCancellationRequested) break;
+                        if (abort.IsCancellationRequested) break;
 
                         await connectedEvent.WaitOneAsync(1000, abort);
                     }
@@ -304,14 +341,25 @@ namespace IPA.Cores.Basic
                 // Listen ソケットの開始
                 listener = LocalNet.CreateListener(new TcpListenParam(isRandomPortMode: EnsureSpecial.Yes, async (listen, sock) =>
                 {
+                    session.Debug($"Listener ({sock.EndPointInfo._GetObjectDump()}) Accepted.");
+
                     ThinClientConnection? connection = null;
+                    long giveupTick = TickNow + Consts.ThinClient.ConnectionQueueWaitTimeout;
                     // キューにコネクションが貯まるまで待機する
                     while (connectionQueue.TryDequeue(out connection) == false)
                     {
+                        if (TickNow >= giveupTick)
+                        {
+                            session.Debug($"Listener ({sock.EndPointInfo._GetObjectDump()}): TickNow ({TickNow}) >= giveupTick ({giveupTick})");
+                            return;
+                        }
+
                         abort.ThrowIfCancellationRequested();
                         await connectionAddedEvent.WaitOneAsync(100, abort.CancelToken);
                     }
                     await using ThinClientConnection connection2 = connection;
+
+                    session.Debug($"Listener ({sock.EndPointInfo._GetObjectDump()}) Starting Relay Operation.");
 
                     // 'A' を送信
                     byte[] a = new byte[] { (byte)'A' };
@@ -319,7 +367,18 @@ namespace IPA.Cores.Basic
 
                     var sockStream = sock.GetStream(true);
 
-                    await Util.RelayDuplexStreamAsync(sockStream, connection.Stream, abort);
+                    RefLong totalBytes = new RefLong();
+
+                    try
+                    {
+                        await Util.RelayDuplexStreamAsync(sockStream, connection.Stream, abort, totalBytes: totalBytes);
+                    }
+                    catch (Exception ex)
+                    {
+                        session.Debug($"Listener ({sock.EndPointInfo._GetObjectDump()}) RelayDuplexStreamAsync Exception = {ex._GetObjectDump()}");
+                    }
+
+                    session.Debug($"Listener ({sock.EndPointInfo._GetObjectDump()}) Finished Relay Operation. Total Bytes = {totalBytes.Value}");
 
                     // RDP の場合はダミーデータを最後に流す
                     if (connection.SvcType == ThinSvcType.Rdp)
@@ -331,6 +390,8 @@ namespace IPA.Cores.Basic
 
                 }, family: AddressFamily.InterNetwork, address: IPAddress.Loopback));
 
+                session.Debug($"Create Listener. Assigned Random Port = {listener.AssignedRandomPort}");
+
                 // 接続が完了いたしました
                 var ready = new ThinClientAcceptReadyNotification
                 {
@@ -338,7 +399,39 @@ namespace IPA.Cores.Basic
                 };
 
                 Dbg.Where();
-                await session.RequestAndWaitResponseAsync(ready, Timeout.Infinite, Timeout.Infinite, cancel);
+                await session.RequestAndWaitResponseAsync(ready, Consts.ThinClient.RequestHardTimeoutMsecs, Consts.ThinClient.RequestSoftTimeoutMsecs, abort);
+
+                // コネクション数が 0 の状態が 30 秒以上継続した場合は終了します
+                long connectionZeroStartTick = 0;
+                while (true)
+                {
+                    abort.ThrowIfCancellationRequested();
+
+                    long now = TickNow;
+
+                    $"listener.CurrentConnections = {listener.CurrentConnections}"._Debug();
+                    if (listener.CurrentConnections == 0)
+                    {
+                        if (connectionZeroStartTick == 0) connectionZeroStartTick = now;
+                    }
+                    else
+                    {
+                        connectionZeroStartTick = 0;
+                    }
+
+                    if (connectionZeroStartTick != 0 && now >= (connectionZeroStartTick + Consts.ThinClient.ConnectionZeroTimeout))
+                    {
+                        session.Debug($"All client connections disconnected. No more connection exists. connectionZeroStartTick = {connectionZeroStartTick}, now = {now}");
+                        throw new CoresException("All client connections disconnected. No more connection exists.");
+                    }
+
+                    await abort.CancelToken._WaitUntilCanceledAsync(1000);
+                }
+            }
+            catch (Exception ex)
+            {
+                session.Error(ex);
+                throw;
             }
             finally
             {
@@ -357,8 +450,10 @@ namespace IPA.Cores.Basic
         }
 
         async Task<ThinClientConnection> DcConnectEx(WideTunnel wt, ThinClientConnectOptions connectOptions, CancellationToken cancel, bool checkPort, bool firstConnection,
-            Func<ThinClientAuthRequest, CancellationToken, Task<ThinClientAuthResponse>> authCallback)
+            Func<ThinClientAuthRequest, CancellationToken, Task<ThinClientAuthResponse>> authCallback,
+            Func<ThinClientOtpRequest, CancellationToken, Task<ThinClientOtpResponse>> otpCallback)
         {
+            string otpTicket = "";
             WtcSocket? sock = null;
             PipeStream? st = null;
 
@@ -409,7 +504,21 @@ namespace IPA.Cores.Basic
 
                 if (isOtpEnabled)
                 {
-                    throw new NotImplementedException();
+                    // OTP 認証
+                    ThinClientOtpRequest otpReq = new ThinClientOtpRequest();
+
+                    var otpRes = await otpCallback(otpReq, cancel);
+
+                    p = new Pack();
+                    p.AddStr("Otp", otpRes.Otp._NonNull());
+                    await st._SendPackAsync(p, cancel);
+
+                    // 結果を受信
+                    p = await st._RecvPackAsync(cancel);
+                    p.ThrowIfError();
+
+                    // OTP チケットを保存
+                    otpTicket = p["OtpTicket"].StrValueNonNull;
                 }
 
                 if (runInspect)
@@ -470,7 +579,7 @@ namespace IPA.Cores.Basic
 
                 st.ReadTimeout = st.WriteTimeout = Timeout.Infinite;
 
-                return new ThinClientConnection(sock, st, svcType, !isShareEnabled, caps, runInspect);
+                return new ThinClientConnection(sock, st, svcType, !isShareEnabled, caps, runInspect, otpTicket);
             }
             catch
             {
