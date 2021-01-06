@@ -1104,6 +1104,15 @@ namespace IPA.TestDev
                             Otp = "422262100362311531048070455606",
                         });
                         break;
+
+                    case ThinClientInspectRequest insp:
+                        req.SetResponseData(new ThinClientInspectResponse
+                        {
+                            AntiVirusOk = true,
+                            WindowsUpdateOk = true,
+                            MacAddressList = "11-BB-22-44-CC-DD",
+                        });
+                        break;
                 }
             }
 

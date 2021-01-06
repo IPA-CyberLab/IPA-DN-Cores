@@ -124,6 +124,18 @@ namespace IPA.Cores.Basic
         public IPEndPoint? ListenEndPoint = null;
     }
 
+    public class ThinClientInspectRequest : IDialogRequestData
+    {
+    }
+
+    public class ThinClientInspectResponse : IDialogResponseData
+    {
+        public bool AntiVirusOk;
+        public bool WindowsUpdateOk;
+        public string MacAddressList = "";
+        public string Ticket = "";
+    }
+
     public class ThinClientOtpRequest : IDialogRequestData
     {
     }
@@ -184,8 +196,9 @@ namespace IPA.Cores.Basic
         public ThinServerMask64 ServerMask64 => (ThinServerMask64)Socket.Options.ConnectParam.ServerMask64;
         public bool RunInspect { get; }
         public string OtpTicket { get; }
+        public string InspectTicket { get; }
 
-        public ThinClientConnection(WtcSocket socket, PipeStream stream, ThinSvcType svcType, bool isShareDisabled, ThinServerCaps caps, bool runInspect, string otpTicket)
+        public ThinClientConnection(WtcSocket socket, PipeStream stream, ThinSvcType svcType, bool isShareDisabled, ThinServerCaps caps, bool runInspect, string otpTicket, string inspectTicket)
         {
             Socket = socket;
             Stream = stream;
@@ -194,6 +207,7 @@ namespace IPA.Cores.Basic
             Caps = caps;
             RunInspect = runInspect;
             OtpTicket = otpTicket;
+            InspectTicket = inspectTicket;
         }
 
         protected override async Task CleanupImplAsync(Exception? ex)
@@ -252,6 +266,13 @@ namespace IPA.Cores.Basic
                 var response = (ThinClientOtpResponse)(await session.RequestAndWaitResponseAsync(req, Consts.ThinClient.RequestHardTimeoutMsecs, Consts.ThinClient.RequestSoftTimeoutMsecs, cancel));
 
                 return response;
+            },
+            async (req, c) =>
+            {
+                // 検疫・MAC アドレスコールバック
+                var response = (ThinClientInspectResponse)(await session.RequestAndWaitResponseAsync(req, Consts.ThinClient.RequestHardTimeoutMsecs, Consts.ThinClient.RequestSoftTimeoutMsecs, cancel));
+
+                return response;
             });
 
             session.Debug("First WideTunnel Connected.");
@@ -299,6 +320,13 @@ namespace IPA.Cores.Basic
                                         await Task.CompletedTask;
                                         // OTP チケットを応答
                                         return new ThinClientOtpResponse { Otp = firstConnection.OtpTicket };
+                                    },
+                                    async (req, c) =>
+                                    {
+                                        // 検疫・MAC コールバック
+                                        await Task.CompletedTask;
+                                        // チケットを応答
+                                        return new ThinClientInspectResponse { Ticket = firstConnection.InspectTicket };
                                     });
 
                                     // 接続に成功したのでキューに追加
@@ -451,9 +479,11 @@ namespace IPA.Cores.Basic
 
         async Task<ThinClientConnection> DcConnectEx(WideTunnel wt, ThinClientConnectOptions connectOptions, CancellationToken cancel, bool checkPort, bool firstConnection,
             Func<ThinClientAuthRequest, CancellationToken, Task<ThinClientAuthResponse>> authCallback,
-            Func<ThinClientOtpRequest, CancellationToken, Task<ThinClientOtpResponse>> otpCallback)
+            Func<ThinClientOtpRequest, CancellationToken, Task<ThinClientOtpResponse>> otpCallback,
+            Func<ThinClientInspectRequest, CancellationToken, Task<ThinClientInspectResponse>> inspectCallback)
         {
             string otpTicket = "";
+            string inspectTicket = "";
             WtcSocket? sock = null;
             PipeStream? st = null;
 
@@ -523,7 +553,24 @@ namespace IPA.Cores.Basic
 
                 if (runInspect)
                 {
-                    throw new NotImplementedException();
+                    // 検疫および MAC アドレス認証
+                    ThinClientInspectRequest inspectReq = new ThinClientInspectRequest();
+
+                    var inspectRes = await inspectCallback(inspectReq, cancel);
+
+                    p = new Pack();
+                    p.AddBool("AntiVirusOk", inspectRes.AntiVirusOk);
+                    p.AddBool("WindowsUpdateOk", inspectRes.WindowsUpdateOk);
+                    p.AddStr("MacAddressList", inspectRes.MacAddressList._NonNull());
+                    p.AddStr("Ticket", inspectRes.Ticket._NonNull());
+                    await st._SendPackAsync(p, cancel);
+
+                    // 結果を受信
+                    p = await st._RecvPackAsync(cancel);
+                    p.ThrowIfError();
+
+                    // OTP チケットを保存
+                    inspectTicket = p["InspectionTicket"].StrValueNonNull;
                 }
 
                 // ユーザー認証
@@ -579,7 +626,7 @@ namespace IPA.Cores.Basic
 
                 st.ReadTimeout = st.WriteTimeout = Timeout.Infinite;
 
-                return new ThinClientConnection(sock, st, svcType, !isShareEnabled, caps, runInspect, otpTicket);
+                return new ThinClientConnection(sock, st, svcType, !isShareEnabled, caps, runInspect, otpTicket, inspectTicket);
             }
             catch
             {
