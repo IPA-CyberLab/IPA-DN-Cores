@@ -48,3 +48,5 @@ rename snmpwork snmpwork.aarch64
 
 copy /y C:\TMP\build_snmpwork\* \\ossvault\data1\vault\pub\open\snmpwork\
 
+call H:\Secure\210110_Upload_SnmpWork\UploadSnmpWork.cmd
+
