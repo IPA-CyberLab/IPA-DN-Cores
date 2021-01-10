@@ -341,7 +341,7 @@ namespace IPA.Cores.Basic
                     w.WriteLine($"Digest SHA1: {cert.DigestSHA1Str}");
                     w.WriteLine($"Digest SHA256: {cert.DigestSHA256Str}");
                     w.WriteLine($"Digest SHA512: {cert.DigestSHA512Str}");
-                    w.WriteLine($"Digest SHA256 Base64: sha256//{cert.DigestSHA256Data._Base64Encode()}");
+                    w.WriteLine($"Public Key SHA256 Base64: sha256//{cert.PublicKey.GetPubKeySha256Base64()}");
 
                     w.WriteLine();
                 }
@@ -515,6 +515,43 @@ namespace IPA.Cores.Basic
 
                 return w.ToString()._GetBytes_UTF8();
             }
+        }
+
+        public string GetPubKeySha256Base64()
+        {
+            var tmp = ConvertToPemIfDer(Export().Span);
+            string strBody = tmp._GetString();
+            int mode = 0;
+
+            StringBuilder sb = new StringBuilder();
+
+            foreach (string line in strBody._GetLines(true).Select(x=>x.Trim()))
+            {
+                if (mode == 0)
+                {
+                    if (line._InStr("-----BEGIN PUBLIC KEY-----", true))
+                    {
+                        mode = 1;
+                    }
+                }
+                else if (mode == 1)
+                {
+                    if (line._InStr("-----END PUBLIC KEY-----", true))
+                    {
+                        mode = 2;
+                    }
+                    else
+                    {
+                        sb.Append(line);
+                    }
+                }
+            }
+
+            string pubkeyBase64Data = sb.ToString();
+
+            var pubkeyBinaryData = pubkeyBase64Data._Base64Decode();
+
+            return Secure.HashSHA256(pubkeyBinaryData)._Base64Encode();
         }
 
         static ReadOnlySpan<byte> ConvertToPemIfDer(ReadOnlySpan<byte> src)

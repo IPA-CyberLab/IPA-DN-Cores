@@ -1121,8 +1121,21 @@ namespace IPA.TestDev
             $"Session Error = {sess.Exception?.Message ?? "ok"}"._Print();
         }
 
+        static void Test_210110()
+        {
+            CertificateStore store = new CertificateStore(Lfs.ReadDataFromFile(@"H:\Crypto\static.lts.dn.ipantt.net\static.lts.dn.ipantt.net.pfx").Span);
+
+            store.PrimaryCertificate.PublicKey.GetPubKeySha256Base64()._Print();
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210110();
+                return;
+            }
+
             if (false)
             {
                 using var l = LocalNet.CreateListener(new TcpListenParam(isRandomPortMode: EnsureSpecial.Yes, async (listen, sock) =>
