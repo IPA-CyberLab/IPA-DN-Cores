@@ -617,6 +617,11 @@ namespace IPA.Cores.Basic
             opt.Limits.MaxConcurrentConnections = this.KestrelMaxConcurrentConnections;
             opt.Limits.MaxConcurrentUpgradedConnections = this.KestrelMaxUpgradedConnections;
 
+            opt.ConfigureHttpsDefaults(s =>
+            {
+                s.SslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersions;
+            });
+
             void EnableHttps(ListenOptions listenOptions)
             {
                 listenOptions.UseHttps(httpsOptions =>
