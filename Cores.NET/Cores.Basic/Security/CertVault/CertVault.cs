@@ -531,6 +531,13 @@ namespace IPA.Cores.Basic
 
             //Con.WriteLine(dnsResults.IPAddressList.Select(x => x.ToString())._Combine(","));
 
+            if (dnsResults.IPAddressList.Where(ip => ip._GetIPAddressType().Bit(IPAddressType.Loopback)).Any())
+            {
+                // 応答された DNS 応答の IP アドレスが 127.0.0.1 または ::1 の場合は、true を返すものとする。
+                // (Liunx ホストで、hostname と全く一致する場合はこうなるため)
+                return true;
+            }
+
             if (dnsResults.IPAddressList.Where(ip => ip._GetIPAddressType().Bit(IPAddressType.GlobalIp) == false).Any())
             {
                 // 応答された DNS 応答の IP アドレスに 1 つでも非グローバル IP アドレスが含まれている場合は、false を返すものとする。
