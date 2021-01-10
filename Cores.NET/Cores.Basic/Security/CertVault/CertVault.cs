@@ -506,9 +506,10 @@ namespace IPA.Cores.Basic
                 {
                     foreach (string host in hosts)
                     {
-                        CertificateHostName hn = new CertificateHostName(host);
-
-                        if (hn.IsMatchForHost(hostname)) return true;
+                        if (hostname._WildcardMatch(host, true))
+                        {
+                            return true;
+                        }
                     }
                 }
             }
