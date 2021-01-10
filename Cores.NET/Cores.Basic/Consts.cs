@@ -302,6 +302,7 @@ namespace IPA.Cores.Basic
             public const string Certificate_Acme = ".crt";
             public const string Pkcs12 = ".pfx";
             public const string GenericKey = ".key";
+            public const string Text = ".txt";
 
             public const string Filter_Pkcs12s = "*.p12;*.pfx";
             public const string Filter_Certificates = "*.cer;*.crt";

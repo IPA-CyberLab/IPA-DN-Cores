@@ -1165,6 +1165,10 @@ namespace IPA.Cores.Basic
 
         public static implicit operator FilePath(string fileName) => new FilePath(fileName, flags: FileFlags.AutoCreateDirectory);
 
+        public FilePath GetPath(string pathString) => new FilePath(pathString, this.FileSystem, this.Flags);
+
+        public FilePath Concat(string concatStr) => new FilePath(this.PathString + concatStr._NonNull(), this.FileSystem, this.Flags);
+
         public Task<FileObject> CreateFileAsync(FileMode mode = FileMode.Open, FileAccess access = FileAccess.Read, FileShare share = FileShare.Read, FileFlags additionalFlags = FileFlags.None, CancellationToken cancel = default)
             => this.FileSystem.CreateFileAsync(new FileParameters(this.PathString, mode, access, share, this.Flags | additionalFlags), cancel);
 
