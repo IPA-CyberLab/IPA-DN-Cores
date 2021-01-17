@@ -138,12 +138,14 @@ namespace IPA.Cores.Basic
 
         public class Prefecture
         {
+            public int Number { get; }
             public string Kanji { get; }
             public string Kana { get; }
             public string English { get; }
 
-            public Prefecture(string kanji, string kana, string english)
+            public Prefecture(int number, string kanji, string kana, string english)
             {
+                Number = number;
                 Kanji = kanji;
                 Kana = kana;
                 English = english;
@@ -162,12 +164,14 @@ namespace IPA.Cores.Basic
             {
                 string[] lines = body._GetLines(true, true);
 
+                int number = 0;
+
                 foreach (string line in lines)
                 {
                     string[] tokens = line._Split(StringSplitOptions.None, ',');
                     if (tokens.Length == 3)
                     {
-                        Prefecture p = new Prefecture(tokens[0], tokens[1], tokens[2]);
+                        Prefecture p = new Prefecture(++number, tokens[0], tokens[1], tokens[2]);
 
                         _List.Add(p);
                     }
