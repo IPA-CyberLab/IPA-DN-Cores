@@ -2076,8 +2076,6 @@ namespace IPA.Cores.Basic
         public virtual long GetPhysicalSize(CancellationToken cancel = default) => GetPhysicalSizeAsync(cancel)._GetResult();
 
         public void Flush(CancellationToken cancel = default) => FlushAsync(cancel)._GetResult();
-        public abstract Task CloseAsync();
-
 
         public FileStream GetStream(bool disposeObject, long? initialPosition = null) => FileBaseStream.CreateFromFileObject(this, disposeObject, initialPosition);
         public FileStream GetStream() => GetStream(false);
@@ -2128,17 +2126,25 @@ namespace IPA.Cores.Basic
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
+        public async Task CloseAsync()
+        {
+            await DisposeAsync();
+        }
+        public virtual async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-
-            try
-            {
-                CloseAsync()._GetResult();
-            }
-            catch { }
-
+            DisposeInternalAsync()._GetResult();
+        }
+        Task DisposeInternalAsync()
+        {
             this.Leak._DisposeSafe();
+
+            return TaskCompleted;
         }
 
         protected void CheckIsOpened()

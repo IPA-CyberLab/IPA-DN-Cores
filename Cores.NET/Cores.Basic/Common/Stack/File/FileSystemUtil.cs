@@ -103,6 +103,58 @@ namespace IPA.Cores.Basic
             return false;
         }
 
+        public async Task<ExcelFile> OpenExcelReadWriteAsync(string path, int maxSize = int.MaxValue, bool noShare = false, bool readLock = false, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+        {
+            var file = await this.OpenAsync(path, writeMode: true, noShare: noShare, readLock: readLock, flags: flags, cancel: cancel);
+            try
+            {
+                var stream = file.GetStream(true);
+                try
+                {
+                    ExcelFile excel = new ExcelFile(stream);
+
+                    return excel;
+                }
+                catch
+                {
+                    throw;
+                }
+            }
+            catch
+            {
+                await file._DisposeSafeAsync();
+                throw;
+            }
+        }
+        public ExcelFile OpenExcelReadWrite(string path, int maxSize = int.MaxValue, bool noShare = false, bool readLock = false, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+            => OpenExcelReadWriteAsync(path, maxSize, noShare, readLock, flags, cancel)._GetResult();
+
+        public async Task<ExcelFile> OpenExcelReadOnlyAsync(string path, int maxSize = int.MaxValue, bool noShare = false, bool readLock = false, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+        {
+            var file = await this.OpenAsync(path, writeMode: false, noShare: noShare, readLock: readLock, flags: flags, cancel: cancel);
+            try
+            {
+                var stream = file.GetStream(true);
+                try
+                {
+                    ExcelFile excel = new ExcelFile(stream);
+
+                    return excel;
+                }
+                catch
+                {
+                    throw;
+                }
+            }
+            catch
+            {
+                await file._DisposeSafeAsync();
+                throw;
+            }
+        }
+        public ExcelFile OpenExcelReadOnly(string path, int maxSize = int.MaxValue, bool noShare = false, bool readLock = false, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+            => OpenExcelReadOnlyAsync(path, maxSize, noShare, readLock, flags, cancel)._GetResult();
+
         public async Task<long> WriteHugeMemoryBufferToFileAsync(string path, HugeMemoryBuffer<byte> hugeMemoryBuffer, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
         {
             if (flags.Bit(FileFlags.WriteOnlyIfChanged)) throw new ArgumentException(nameof(flags));

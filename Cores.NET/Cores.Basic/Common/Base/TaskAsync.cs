@@ -4433,9 +4433,8 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public interface IAsyncClosable : IDisposable
+    public interface IAsyncClosable : IAsyncDisposable, IDisposable
     {
-        Task CloseAsync();
         Exception? LastError { get; }
     }
 
@@ -4580,7 +4579,7 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    await this.Object.CloseAsync();
+                    await this.Object.DisposeAsync();
                 }
                 catch { }
 

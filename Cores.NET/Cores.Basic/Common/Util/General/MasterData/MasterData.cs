@@ -106,6 +106,12 @@ namespace IPA.Cores.Basic
                 body: CoresRes["MasterData/DomainPublicSuffixList/public_suffix_list.txt"].String
                 ));
 
+        public static PrefectureList Prefectures => PrefectureListSingleton;
+        static readonly Singleton<PrefectureList> PrefectureListSingleton =
+            new Singleton<PrefectureList>(() => new PrefectureList(
+                body: CoresRes["MasterData/PrefectureList/PrefectureList.txt"].String
+                ));
+
         public static Tuple<string, string> GetFasIconFromExtension(string extensionOrMimeType)
         {
             if (extensionOrMimeType._InStr("/"))
@@ -127,6 +133,50 @@ namespace IPA.Cores.Basic
 
                 // Last resort
                 return new Tuple<string, string>("fas", "fa-file-download");
+            }
+        }
+
+        public class Prefecture
+        {
+            public string Kanji { get; }
+            public string Kana { get; }
+            public string English { get; }
+
+            public Prefecture(string kanji, string kana, string english)
+            {
+                Kanji = kanji;
+                Kana = kana;
+                English = english;
+            }
+        }
+
+        public class PrefectureList
+        {
+            public IEnumerable<Prefecture> List => _List;
+            public IReadOnlyDictionary<string, Prefecture> ByKanji => _ByKanji;
+
+            readonly List<Prefecture> _List = new List<Prefecture>();
+            readonly Dictionary<string, Prefecture> _ByKanji = new Dictionary<string, Prefecture>(StrComparer.IgnoreCaseTrimComparer);
+
+            public PrefectureList(string body)
+            {
+                string[] lines = body._GetLines(true, true);
+
+                foreach (string line in lines)
+                {
+                    string[] tokens = line._Split(StringSplitOptions.None, ',');
+                    if (tokens.Length == 3)
+                    {
+                        Prefecture p = new Prefecture(tokens[0], tokens[1], tokens[2]);
+
+                        _List.Add(p);
+                    }
+                }
+
+                foreach (var p in _List)
+                {
+                    this._ByKanji.TryAdd(p.Kanji, p);
+                }
             }
         }
 

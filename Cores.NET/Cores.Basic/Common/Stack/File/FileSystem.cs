@@ -604,7 +604,30 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public sealed override async Task CloseAsync()
+
+        Once DisposeFlag;
+        public override async ValueTask DisposeAsync()
+        {
+            try
+            {
+                if (DisposeFlag.IsFirstCall() == false) return;
+                await DisposeInternalAsync();
+            }
+            finally
+            {
+                await base.DisposeAsync();
+            }
+        }
+        protected override void Dispose(bool disposing)
+        {
+            try
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                DisposeInternalAsync()._GetResult();
+            }
+            finally { base.Dispose(disposing); }
+        }
+        async Task DisposeInternalAsync()
         {
             Con.WriteTrace($"CloseAsync({this.FileSystem}) '{FileParams.Path}'");
 
@@ -670,17 +693,6 @@ namespace IPA.Cores.Basic
                     }
                 }
             }
-        }
-
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
-        {
-            try
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                CancelSource._TryCancelNoBlock();
-            }
-            finally { base.Dispose(disposing); }
         }
     }
 
