@@ -1132,6 +1132,19 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                while (true)
+                {
+                    string line = Con.ReadLine()!;
+
+                    VlanRange r = new VlanRange(line);
+
+                    r.ToString( VlanRangeStyle.Apresia)._Print();
+                }
+                return;
+            }
+
+            if (true)
+            {
                 Test_210110();
                 return;
             }

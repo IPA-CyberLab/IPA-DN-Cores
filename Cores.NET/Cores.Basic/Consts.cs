@@ -107,6 +107,9 @@ namespace IPA.Cores.Basic
 
             public const int DefaultCacheExpiresMsecs = 60 * 1000;
             public const int MinCacheGcIntervalsMsecs = 100;
+
+            public const int VlanMin = 1;
+            public const int VlanMax = 4094;
         }
 
         public static partial class MaxLens

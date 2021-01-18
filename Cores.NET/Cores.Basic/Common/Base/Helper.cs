@@ -2624,6 +2624,8 @@ namespace IPA.Cores.Helper.Basic
             else
                 throw new ArgumentOutOfRangeException(nameof(family));
         }
+
+        public static bool _IsValidVlanId(this int number) => number >= Consts.Numbers.VlanMin && number <= Consts.Numbers.VlanMax;
     }
 }
 
