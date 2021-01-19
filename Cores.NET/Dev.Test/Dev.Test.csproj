@@ -27,13 +27,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DefineConstants></DefineConstants>
+    <DefineConstants>CORES_CODES_AWS</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DefineConstants>TRACE;DEBUG;</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;CORES_CODES_AWS</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -61,7 +61,12 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="5.0.0" />
   </ItemGroup>
-  
+
+  <ItemGroup>
+    <PackageReference Include="AWSSDK.Core" Version="3.5.1.59" />
+    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="3.5.1.31" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Cores.Lib\Cores.Lib.Full.csproj" />
   </ItemGroup>

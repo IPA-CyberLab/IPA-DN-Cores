@@ -78,6 +78,7 @@ using System.IO.Compression;
 using IPA.Cores.Basic.HttpClientCore;
 using Microsoft.Extensions.Hosting;
 
+using IPA.Cores.Codes;
 
 
 #pragma warning disable CS0219
@@ -1130,6 +1131,30 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                while (true)
+                {
+                    string line = Con.ReadLine()!;
+
+                    AwsSns.NormalizePhoneNumber(line)._Print();
+                }
+            }
+
+            if (true)
+            {
+                // TODO!!!
+                Async(async () =>
+                {
+                    AwsSnsSettings settings = new AwsSnsSettings("ap-northeast-1", "XXXXX", Lfs.ReadStringFromFile(@"h:\tmp\210119sak.txt", oneLine: true), "");
+
+                    AwsSns sns = new AwsSns(settings);
+
+                    await sns.SendAsync("こんにちは！", "+819000000000");
+                });
+                return;
+            }
+
             if (true)
             {
                 while (true)
