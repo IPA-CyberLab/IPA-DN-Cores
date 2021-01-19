@@ -790,7 +790,7 @@ namespace IPA.Cores.Codes
                 // 適合 Gate なし (混雑?)
                 return NewWpcResult(VpnErrors.ERR_NO_GATE_CAN_ACCEPT);
             }
-
+            
             // 選択された Gate のセッション数を仮に 1 つ増加させる
             Interlocked.Increment(ref bestGate.NumSessions);
 
