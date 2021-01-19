@@ -96,6 +96,11 @@ namespace IPA.Cores.Basic
 
         public bool AllowZipDownload = false;
 
+        public string DeleteCode = "";
+        public bool IsDeleted = false;
+        public DateTimeOffset DeletedTimeStamp = Util.ZeroDateTimeOffsetValue;
+        public string DeleteIp = "";
+
         public void Normalize()
         {
             if (this.AuthDatabase == null) this.AuthDatabase = new KeyValueList<string, string>();
@@ -643,7 +648,7 @@ namespace IPA.Cores.Basic
                         return new HttpResult(streamPair.StreamA, 0, null, Consts.MimeTypes.Zip, additionalHeaders: headers, onDisposeAsync: () => streamPair._DisposeSafeAsync2());
                     }
 
-                    string htmlBody = await BuildDirectoryHtmlAsync(new DirectoryPath(physicalPath, RootFs), logicalPath, footer, cancel);
+                    string htmlBody = await BuildDirectoryHtmlAsync(new DirectoryPath(physicalPath, RootFs), logicalPath, footer, (secureJson?.IsDeleted ?? false) && isAccessToAccessLog == false, cancel);
 
                     Options.Stat?.AddReport("DownloadBrowseDirectory_Total", 1);
 
@@ -656,6 +661,11 @@ namespace IPA.Cores.Basic
                     {
                         // _secure.json そのものにはアクセスできません
                         return new HttpStringResult("403 Forbidden", statusCode: 403);
+                    }
+
+                    if (secureJson != null && secureJson.IsDeleted && isAccessToAccessLog == false)
+                    {
+                        return new HttpStringResult("404 Files are deleted by the administrator", statusCode: 404);
                     }
 
                     if (secureJson != null && secureJson.AllowOnlyOnce && isAccessToAccessLog == false)
@@ -926,7 +936,7 @@ namespace IPA.Cores.Basic
             return body;
         }
 
-        async Task<string> BuildDirectoryHtmlAsync(DirectoryPath dir, string logicalPath, string footer = "", CancellationToken cancel = default)
+        async Task<string> BuildDirectoryHtmlAsync(DirectoryPath dir, string logicalPath, string footer = "", bool empty = false, CancellationToken cancel = default)
         {
             string body = CoresRes["LogBrowser/Html/Directory.html"].String;
 
@@ -960,6 +970,7 @@ namespace IPA.Cores.Basic
             StringWriter dirHtml = new StringWriter();
 
             var fileListSorted = list
+                .Where(x => empty == false)
                 .Where(x => x.Name.IndexOf('\"') == -1)
                 .OrderByDescending(x => x.IsCurrentDirectory)
                 .ThenByDescending(x => x.IsParentDirectory)

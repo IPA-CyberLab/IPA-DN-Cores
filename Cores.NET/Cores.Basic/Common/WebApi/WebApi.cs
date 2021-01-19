@@ -50,6 +50,7 @@ using IPA.Cores.Basic.HttpClientCore;
 using System.Security.Cryptography;
 using System.Linq;
 using Org.BouncyCastle.Ocsp;
+using System.Net.Security;
 
 #pragma warning disable CA2235 // Mark all non-serializable fields
 
@@ -328,7 +329,9 @@ namespace IPA.Cores.Basic
 
         public bool DebugPrintResponse => this.Settings.DebugPrintResponse;
 
-        public WebApi(WebApiOptions? options = null)
+        public RemoteCertificateValidationCallback? SslServerCertValicationCallback { get; }
+
+        public WebApi(WebApiOptions? options = null, RemoteCertificateValidationCallback? sslServerCertValicationCallback = null)
         {
             if (options == null) options = new WebApiOptions();
 
@@ -344,6 +347,7 @@ namespace IPA.Cores.Basic
             this.Client = new HttpClient(this.ClientHandler, true);
             this.MaxRecvSize = this.Settings.MaxRecvSize;
             this.TimeoutMsecs = this.Settings.Timeout;
+            this.SslServerCertValicationCallback = sslServerCertValicationCallback;
         }
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
@@ -420,7 +424,11 @@ namespace IPA.Cores.Basic
 
             try
             {
-                if (this.Settings.SslAcceptAnyCerts)
+                if (this.SslServerCertValicationCallback != null)
+                {
+                    this.ClientHandler.SslOptions.RemoteCertificateValidationCallback = this.SslServerCertValicationCallback;
+                }
+                else if (this.Settings.SslAcceptAnyCerts)
                 {
                     this.ClientHandler.SslOptions.RemoteCertificateValidationCallback = (message, cert, chain, errors) => true;
                 }

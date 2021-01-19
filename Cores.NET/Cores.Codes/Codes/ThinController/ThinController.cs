@@ -322,7 +322,7 @@ namespace IPA.Cores.Codes
             {
                 if (this.Controller.HeavyRequestRateLimiter.TryInput(this.ClientInfo.ClientIpForRateLimiter, out RateLimiterEntry? e) == false)
                 {
-                    var ret = new WpcResult(VpnErrors.ERR_TEMP_ERROR);
+                    var ret = new WpcResult(VpnError.ERR_TEMP_ERROR);
                     if (e != null)
                     {
                         ret.AdditionalInfo.Add("HeavyRequestRateLimiter.CurrentAmount", e.CurrentAmount.ToString());
@@ -359,7 +359,7 @@ namespace IPA.Cores.Codes
 
             p.AddStr("test", req.Pack["1"].Int64Value.ToString());
 
-            return new WpcResult(VpnErrors.ERR_SECURITY_ERROR);
+            return new WpcResult(VpnError.ERR_SECURITY_ERROR);
         }
 
         // 通信テスト
@@ -379,7 +379,7 @@ namespace IPA.Cores.Codes
 
             // svcName を取得 (正規化)
             string svcName = NormalizeSvcName(q["SvcName"].StrValueNonNull);
-            if (svcName._IsEmpty()) return NewWpcResult(VpnErrors.ERR_SVCNAME_NOT_FOUND);
+            if (svcName._IsEmpty()) return NewWpcResult(VpnError.ERR_SVCNAME_NOT_FOUND);
 
             string pcid = q["Pcid"].StrValueNonNull;
 
@@ -389,7 +389,7 @@ namespace IPA.Cores.Codes
             if (machine == null)
             {
                 // PCID が見つからない
-                var ret2 = NewWpcResult(VpnErrors.ERR_PCID_NOT_FOUND);
+                var ret2 = NewWpcResult(VpnError.ERR_PCID_NOT_FOUND);
                 ret2.AdditionalInfo.Add("SvcName", svcName);
                 ret2.AdditionalInfo.Add("Pcid", pcid);
                 return ret2;
@@ -429,7 +429,7 @@ namespace IPA.Cores.Codes
 
             // svcName を取得 (正規化)
             string svcName = NormalizeSvcName(q["SvcName"].StrValueNonNull);
-            if (svcName._IsEmpty()) return NewWpcResult(VpnErrors.ERR_SVCNAME_NOT_FOUND);
+            if (svcName._IsEmpty()) return NewWpcResult(VpnError.ERR_SVCNAME_NOT_FOUND);
 
             string pcid = q["Pcid"].StrValueNonNull;
             int ver = q["Ver"].SIntValue;
@@ -443,7 +443,7 @@ namespace IPA.Cores.Codes
             if (machine == null)
             {
                 // PCID が見つからない
-                var ret2 = NewWpcResult(VpnErrors.ERR_PCID_NOT_FOUND);
+                var ret2 = NewWpcResult(VpnError.ERR_PCID_NOT_FOUND);
                 ret2.AdditionalInfo.Add("SvcName", svcName);
                 ret2.AdditionalInfo.Add("Pcid", pcid);
                 return ret2;
@@ -458,7 +458,7 @@ namespace IPA.Cores.Codes
             if (gateAndSession == null)
             {
                 // PCID はデータベースに存在するがセッションが存在しない
-                var ret2 = NewWpcResult(VpnErrors.ERR_DEST_MACHINE_NOT_EXISTS);
+                var ret2 = NewWpcResult(VpnError.ERR_DEST_MACHINE_NOT_EXISTS);
                 ret2.AdditionalInfo.Add("SvcName", svcName);
                 ret2.AdditionalInfo.Add("Pcid", pcid);
                 return ret2;
@@ -470,7 +470,7 @@ namespace IPA.Cores.Codes
             if (prohibitedMessage._IsFilled())
             {
                 // 接続禁止メッセージを応答
-                var ret2 = NewWpcResult(VpnErrors.ERR_RECV_MSG);
+                var ret2 = NewWpcResult(VpnError.ERR_RECV_MSG);
                 ret2.Pack.AddUniStr("Msg", prohibitedMessage);
                 ret2.AdditionalInfo.Add("SvcName", svcName);
                 ret2.AdditionalInfo.Add("Pcid", pcid);
@@ -484,7 +484,7 @@ namespace IPA.Cores.Codes
                 if ((gateAndSession.B.ServerMask64 & 128) == 0)
                 {
                     // トリガー PC のバージョンが WoL トリガー機能がない古いバージョンである
-                    var ret2 = NewWpcResult(VpnErrors.ERR_WOL_TRIGGER_NOT_SUPPORTED);
+                    var ret2 = NewWpcResult(VpnError.ERR_WOL_TRIGGER_NOT_SUPPORTED);
                     ret2.AdditionalInfo.Add("SvcName", svcName);
                     ret2.AdditionalInfo.Add("Pcid", pcid);
                     return ret2;
@@ -542,7 +542,7 @@ namespace IPA.Cores.Codes
             // 変更の実行
             var now = DtNow;
             var err = await Controller.Db.RenamePcidAsync(this.ClientInfo.AuthedMachine!.MSID, newPcid, now, cancel);
-            if (err != VpnErrors.ERR_NO_ERROR)
+            if (err != VpnError.ERR_NO_ERROR)
             {
                 // 登録エラー
                 var ret2 = NewWpcResult(err);
@@ -568,7 +568,7 @@ namespace IPA.Cores.Codes
         {
             if (req.HostKey._IsEmpty() || req.HostSecret2._IsEmpty())
             {
-                return NewWpcResult(VpnErrors.ERR_PROTOCOL_ERROR);
+                return NewWpcResult(VpnError.ERR_PROTOCOL_ERROR);
             }
 
             var heavyErr = TryEnterHeavyRateLimiter(); if (heavyErr != null) return heavyErr; // 重い処理なので Rate Limit を設定
@@ -577,14 +577,14 @@ namespace IPA.Cores.Codes
 
             // svcName を取得 (正規化)
             string svcName = NormalizeSvcName(q["SvcName"].StrValueNonNull);
-            if (svcName._IsEmpty()) return NewWpcResult(VpnErrors.ERR_SVCNAME_NOT_FOUND);
+            if (svcName._IsEmpty()) return NewWpcResult(VpnError.ERR_SVCNAME_NOT_FOUND);
 
             string pcid = q["Pcid"].StrValueNonNull;
 
             // データベースエラー時は処理禁止
             if (Controller.Db.IsDatabaseConnected == false)
             {
-                return NewWpcResult(VpnErrors.ERR_TEMP_ERROR);
+                return NewWpcResult(VpnError.ERR_TEMP_ERROR);
             }
 
             // 登録キーのチェック (DB に RegistrationKey がある場合のみ)
@@ -602,7 +602,7 @@ namespace IPA.Cores.Codes
                 if (registrationKeyOk == false)
                 {
                     // 登録キー不正
-                    var ret2 = NewWpcResult(registrationPassword._IsEmpty() ? VpnErrors.ERR_REG_PASSWORD_EMPTY : VpnErrors.ERR_REG_PASSWORD_INCORRECT);
+                    var ret2 = NewWpcResult(registrationPassword._IsEmpty() ? VpnError.ERR_REG_PASSWORD_EMPTY : VpnError.ERR_REG_PASSWORD_INCORRECT);
                     ret2.AdditionalInfo.Add("RegistrationPassword", registrationPassword);
                     ret2.AdditionalInfo.Add("RegistrationEmail", registrationEmail);
                     return ret2;
@@ -611,7 +611,7 @@ namespace IPA.Cores.Codes
 
             // PCID チェック
             var err = ThinController.CheckPCID(pcid);
-            if (err != VpnErrors.ERR_NO_ERROR)
+            if (err != VpnError.ERR_NO_ERROR)
             {
                 // PCID 不正
                 var ret2 = NewWpcResult(err);
@@ -626,7 +626,7 @@ namespace IPA.Cores.Codes
             if (await Controller.Db.SearchMachineByPcidAsync(svcName, pcid, cancel) != null)
             {
                 // 既に存在する
-                var ret2 = NewWpcResult(VpnErrors.ERR_PCID_ALREADY_EXISTS);
+                var ret2 = NewWpcResult(VpnError.ERR_PCID_ALREADY_EXISTS);
                 ret2.AdditionalInfo.Add("SvcName", svcName);
                 ret2.AdditionalInfo.Add("Pcid", pcid);
                 return ret2;
@@ -647,7 +647,7 @@ namespace IPA.Cores.Codes
             var now = DtNow;
             err = await Controller.Db.RegisterMachineAsync(svcName, msid, q["Pcid"].StrValueNonNull, req.HostKey, req.HostSecret2, now, this.ClientInfo.ClientIp, this.ClientInfo.ClientIpFqdn,
                 attributes, cancel);
-            if (err != VpnErrors.ERR_NO_ERROR)
+            if (err != VpnError.ERR_NO_ERROR)
             {
                 // 登録エラー
                 var ret2 = NewWpcResult(err);
@@ -685,12 +685,12 @@ namespace IPA.Cores.Codes
 
             // svcName を取得 (正規化)
             string svcName = NormalizeSvcName(q["SvcName"].StrValueNonNull);
-            if (svcName._IsEmpty()) return NewWpcResult(VpnErrors.ERR_SVCNAME_NOT_FOUND);
+            if (svcName._IsEmpty()) return NewWpcResult(VpnError.ERR_SVCNAME_NOT_FOUND);
 
             // データベースエラー時は処理禁止
             if (Controller.Db.IsDatabaseConnected == false)
             {
-                return NewWpcResult(VpnErrors.ERR_TEMP_ERROR);
+                return NewWpcResult(VpnError.ERR_TEMP_ERROR);
             }
 
             string fqdn = await Controller.DnsResolver.GetHostNameSingleOrIpAsync(this.ClientInfo.ClientIp, cancel);
@@ -788,7 +788,7 @@ namespace IPA.Cores.Codes
             if (bestGate == null)
             {
                 // 適合 Gate なし (混雑?)
-                return NewWpcResult(VpnErrors.ERR_NO_GATE_CAN_ACCEPT);
+                return NewWpcResult(VpnError.ERR_NO_GATE_CAN_ACCEPT);
             }
             
             // 選択された Gate のセッション数を仮に 1 つ増加させる
@@ -849,7 +849,7 @@ namespace IPA.Cores.Codes
                 if (Controller.Db.IsDatabaseConnected == false)
                 {
                     // データベースエラー時は処理禁止
-                    return NewWpcResult(VpnErrors.ERR_TEMP_ERROR);
+                    return NewWpcResult(VpnError.ERR_TEMP_ERROR);
                 }
 
                 await Controller.Db.UpdateDbForWolMac(ClientInfo.AuthedMachine!.MSID, wolMacList, serverMask64, DtNow, cancel);
@@ -882,7 +882,7 @@ namespace IPA.Cores.Codes
         {
             if (this.ClientInfo.IsAuthed == false)
             {
-                return NewWpcResult(VpnErrors.ERR_NO_INIT_CONFIG);
+                return NewWpcResult(VpnError.ERR_NO_INIT_CONFIG);
             }
             return null;
         }
@@ -1244,7 +1244,7 @@ namespace IPA.Cores.Codes
 
                     default:
                         // 適切な関数が見つからない
-                        return NewWpcResult(VpnErrors.ERR_NOT_SUPPORTED);
+                        return NewWpcResult(VpnError.ERR_NOT_SUPPORTED);
                 }
             }
             catch (Exception ex)
@@ -1316,7 +1316,7 @@ namespace IPA.Cores.Codes
         }
 
         // 通常エラー WPC 応答の生成
-        public WpcResult NewWpcResult(VpnErrors errorCode, Pack? pack = null, string? additionalErrorStr = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        public WpcResult NewWpcResult(VpnError errorCode, Pack? pack = null, string? additionalErrorStr = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
         {
             WpcResult ret = new WpcResult(errorCode, pack, additionalErrorStr, filename, line, caller);
 
@@ -1557,7 +1557,7 @@ namespace IPA.Cores.Codes
 
             ret.GatesList = this.SessionManager.GateTable.Values.OrderBy(x => x.IpAddress, StrComparer.IpAddressStrComparer).ThenBy(x => x.GateId);
 
-            ret.VarsList = (this.Db.MemDb?.VarList.OrderBy(x => x.VAR_NAME).ThenBy(x => x.VAR_ID) ?? null)!.ToList()._CloneWithJson() ?? null;
+            ret.VarsList = (this.Db.MemDb?.VarList.OrderBy(x => x.VAR_NAME).ThenBy(x => x.VAR_ID) ?? null)?.ToList()._CloneWithJson() ?? null;
 
             ret.VarsList?._DoForEach(x =>
             {
@@ -1667,9 +1667,18 @@ namespace IPA.Cores.Codes
                 string password2 = Db.GetVarString("QueryPassword_Sessions")._NonNullTrim();
                 if (password2._IsEmpty() || password2 == password)
                 {
-                    var sessions = SessionManager.GateTable.Values.SelectMany(x => x.SessionTable.Values).OrderBy(x => x.SessionId).ThenBy(x => x.EstablishedDateTime);
+                    var result = new Dictionary<string, List<ThinSession>>();
 
-                    return new HttpStringResult(sessions._ObjectToJson(), Consts.MimeTypes.Json);
+                    var gateTable = SessionManager.GateTable.Values;
+
+                    foreach (var gate in gateTable)
+                    {
+                        var list = result._GetOrNew(gate.GateId, () => new List<ThinSession>());
+
+                        gate.SessionTable.Values.OrderBy(x => x.SessionId).ThenBy(x => x.EstablishedDateTime)._DoForEach(x => list.Add(x));
+                    }
+
+                    return new HttpStringResult(result._ObjectToJson(), Consts.MimeTypes.Json);
                 }
                 else
                 {
@@ -1771,7 +1780,7 @@ namespace IPA.Cores.Codes
                 else
                 {
                     // プロトコルエラー (リクエストがない)
-                    WpcResult result = new WpcResult(VpnErrors.ERR_PROTOCOL_ERROR);
+                    WpcResult result = new WpcResult(VpnError.ERR_PROTOCOL_ERROR);
                     return new HttpStringResult(result.ToWpcPack().ToPacketString());
                 }
 
@@ -2199,27 +2208,27 @@ namespace IPA.Cores.Codes
         }
 
         // PCID のチェック
-        public static VpnErrors CheckPCID(string pcid)
+        public static VpnError CheckPCID(string pcid)
         {
             int i, len;
             len = pcid.Length;
             if (len == 0)
             {
-                return VpnErrors.ERR_PCID_NOT_SPECIFIED;
+                return VpnError.ERR_PCID_NOT_SPECIFIED;
             }
             if (len > ThinControllerConsts.MaxPcidLen)
             {
-                return VpnErrors.ERR_PCID_TOO_LONG;
+                return VpnError.ERR_PCID_TOO_LONG;
             }
             for (i = 0; i < len; i++)
             {
                 if (IsSafeCharForPcid(pcid[i]) == false)
                 {
-                    return VpnErrors.ERR_PCID_INVALID;
+                    return VpnError.ERR_PCID_INVALID;
                 }
             }
 
-            return VpnErrors.ERR_NO_ERROR;
+            return VpnError.ERR_NO_ERROR;
         }
 
         // MSID の生成

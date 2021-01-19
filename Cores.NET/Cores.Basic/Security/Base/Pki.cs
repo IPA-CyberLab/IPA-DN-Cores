@@ -148,7 +148,14 @@ namespace IPA.Cores.Basic
 
         public CertificateStore(IEnumerable<Certificate> chainedCertList, PrivKey privateKey)
         {
-            this.InternalContainers.Add("default", new CertificateStoreContainer("default", chainedCertList.ToArray(), privateKey));
+            string? name = chainedCertList.FirstOrDefault()?.CommonNameOrFirstDnsName;
+
+            if (name._IsEmpty())
+            {
+                name = "default";
+            }
+
+            this.InternalContainers.Add(name, new CertificateStoreContainer(name, chainedCertList.ToArray(), privateKey));
 
             InitFields();
         }
@@ -308,6 +315,39 @@ namespace IPA.Cores.Basic
 
                 return ms.ToArray();
             }
+        }
+
+        public string ExportCertInfo()
+        {
+            StringWriter w = new StringWriter();
+            w.NewLine = Str.NewLine_Str_Local;
+
+            int index = 0;
+
+            foreach (CertificateStoreContainer container in this.InternalContainers.Values)
+            {
+                foreach (var cert in container.CertificateList.Select(x => new Certificate(x.CertData)))
+                {
+                    index++;
+
+                    w.WriteLine($"--- Certificate #{index} ---");
+
+                    w.WriteLine($"Subject: {cert.CertData.SubjectDN.ToString()}");
+                    w.WriteLine($"Issuer: {cert.CertData.IssuerDN.ToString()}");
+                    w.WriteLine($"Common Name: {cert.CommonNameOrFirstDnsName}");
+                    w.WriteLine($"DNS Hostname(s): {cert.HostNameList.Select(x => x.HostName)._Combine(", ")}");
+                    w.WriteLine($"Not Before: {cert.CertData.NotBefore.ToLocalTime()._ToDtStr()}");
+                    w.WriteLine($"Not After: {cert.CertData.NotAfter.ToLocalTime()._ToDtStr()}");
+                    w.WriteLine($"Digest SHA1: {cert.DigestSHA1Str}");
+                    w.WriteLine($"Digest SHA256: {cert.DigestSHA256Str}");
+                    w.WriteLine($"Digest SHA512: {cert.DigestSHA512Str}");
+                    w.WriteLine($"Public Key SHA256 Base64: sha256//{cert.PublicKey.GetPubKeySha256Base64()}");
+
+                    w.WriteLine();
+                }
+            }
+
+            return w.ToString();
         }
 
         public void ExportChainedPem(out ReadOnlyMemory<byte> certFile, out ReadOnlyMemory<byte> privateKeyFile, string? password = null)
@@ -475,6 +515,43 @@ namespace IPA.Cores.Basic
 
                 return w.ToString()._GetBytes_UTF8();
             }
+        }
+
+        public string GetPubKeySha256Base64()
+        {
+            var tmp = ConvertToPemIfDer(Export().Span);
+            string strBody = tmp._GetString();
+            int mode = 0;
+
+            StringBuilder sb = new StringBuilder();
+
+            foreach (string line in strBody._GetLines(true).Select(x=>x.Trim()))
+            {
+                if (mode == 0)
+                {
+                    if (line._InStr("-----BEGIN PUBLIC KEY-----", true))
+                    {
+                        mode = 1;
+                    }
+                }
+                else if (mode == 1)
+                {
+                    if (line._InStr("-----END PUBLIC KEY-----", true))
+                    {
+                        mode = 2;
+                    }
+                    else
+                    {
+                        sb.Append(line);
+                    }
+                }
+            }
+
+            string pubkeyBase64Data = sb.ToString();
+
+            var pubkeyBinaryData = pubkeyBase64Data._Base64Decode();
+
+            return Secure.HashSHA256(pubkeyBinaryData)._Base64Encode();
         }
 
         static ReadOnlySpan<byte> ConvertToPemIfDer(ReadOnlySpan<byte> src)
@@ -695,6 +772,8 @@ namespace IPA.Cores.Basic
         public ReadOnlyMemory<byte> DigestSHA512Data { get; private set; } = null!;
         public string DigestSHA512Str { get; private set; } = null!;
 
+        public string CommonNameOrFirstDnsName { get; private set; } = "";
+
         public IList<CertificateHostName> HostNameList => HostNameListInternal;
 
         List<CertificateHostName> HostNameListInternal = new List<CertificateHostName>();
@@ -817,6 +896,8 @@ namespace IPA.Cores.Basic
 
             ICollection altNamesList = this.CertData.GetSubjectAlternativeNames();
 
+            string? commonName = null;
+
             if (altNamesList != null)
             {
                 try
@@ -851,13 +932,15 @@ namespace IPA.Cores.Basic
                 {
                     try
                     {
-                        DerObjectIdentifier? key = (DerObjectIdentifier ?)subjectKeyList[i];
-                        string ? value = (string ?)subjectValuesList[i];
+                        DerObjectIdentifier? key = (DerObjectIdentifier?)subjectKeyList[i];
+                        string? value = (string?)subjectValuesList[i];
                         if (key != null && value != null)
                         {
                             if (key.Equals(X509Name.CN))
                             {
                                 dnsNames.Add(value.ToLower());
+
+                                if (commonName._IsEmpty()) commonName = value;
                             }
                         }
                     }
@@ -870,6 +953,15 @@ namespace IPA.Cores.Basic
             foreach (string fqdn in dnsNames)
             {
                 HostNameListInternal.Add(new CertificateHostName(fqdn));
+            }
+
+            if (commonName._IsFilled())
+            {
+                this.CommonNameOrFirstDnsName = commonName;
+            }
+            else
+            {
+                this.CommonNameOrFirstDnsName = dnsNames.FirstOrDefault()._NonNullTrim();
             }
 
             byte[] der = this.CertData.GetEncoded();

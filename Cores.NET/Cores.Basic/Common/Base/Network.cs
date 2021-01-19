@@ -939,6 +939,7 @@ namespace IPA.Cores.Basic
             }
         }
 
+
         // IPv6 射影アドレスを IPv4 アドレスに変換
         [return: NotNullIfNotNull("addr")]
         public static IPAddress? UnmapIPv6AddressToIPv4Address(IPAddress? addr)
@@ -1522,9 +1523,15 @@ namespace IPA.Cores.Basic
             }
         }
 
+        static readonly IPAddress DummyIPv4ForIPv6 = IPAddress.Parse("223.255.255.254");
+        
         // IPv4 を uint に変換する
-        public static uint IPToUINT(IPAddress ip)
+        public static uint IPToUINT(IPAddress? ip)
         {
+            if (ip == null) return 0;
+
+            if (ip.AddressFamily == AddressFamily.InterNetworkV6) ip = DummyIPv4ForIPv6;
+
             int i;
             Buf b = new Buf();
             if (IsIPv4(ip) == false)

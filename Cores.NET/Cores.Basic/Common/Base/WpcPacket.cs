@@ -287,14 +287,14 @@ namespace IPA.Cores.Basic
 
     public class WpcResult
     {
-        public bool IsOk => ErrorCode == VpnErrors.ERR_NO_ERROR;
+        public bool IsOk => ErrorCode == VpnError.ERR_NO_ERROR;
         public bool IsError => !IsOk;
 
         [JsonIgnore]
         [NoDebugDump]
         public Pack Pack { get; }
 
-        public VpnErrors ErrorCode { get; }
+        public VpnError ErrorCode { get; }
         public string ErrorCodeString => ErrorCode.ToString();
 
         public KeyValueList<string, string> AdditionalInfo { get; } = new KeyValueList<string, string>();
@@ -304,9 +304,9 @@ namespace IPA.Cores.Basic
         public string? ErrorLocation { get; }
         public string? AdditionalErrorStr { get; }
 
-        public WpcResult(Pack? pack = null) : this(VpnErrors.ERR_NO_ERROR, pack) { }
+        public WpcResult(Pack? pack = null) : this(VpnError.ERR_NO_ERROR, pack) { }
 
-        public WpcResult(VpnErrors errorCode, Pack? pack = null, string? additionalErrorStr = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        public WpcResult(VpnError errorCode, Pack? pack = null, string? additionalErrorStr = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
         {
             if (pack == null) pack = new Pack();
 
@@ -329,7 +329,7 @@ namespace IPA.Cores.Basic
             if (pack == null) pack = new Pack();
 
             this.Pack = pack;
-            this.ErrorCode = VpnErrors.ERR_TEMP_ERROR;
+            this.ErrorCode = VpnError.ERR_TEMP_ERROR;
             this.Pack.AddInt("Error", (uint)this.ErrorCode);
             this.ErrorLocation = ex.StackTrace?.ToString() ?? "Unknown";
             this.AdditionalErrorStr = ex.Message;

@@ -31,13 +31,14 @@
 // LAW OR COURT RULE.
 
 // Author: Daiyuu Nobori
-// 開発中のクラスの一時置き場
+// Description
 
 #if true
 
 #pragma warning disable CA2235 // Mark all non-serializable fields
 
 using System;
+using System.Buffers;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -48,20 +49,59 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Runtime.InteropServices;
-using System.Diagnostics.CodeAnalysis;
-using System.Net;
 using System.Runtime.CompilerServices;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.Serialization;
+
+using OfficeOpenXml;
 
 using IPA.Cores.Basic;
-using IPA.Cores.Basic.Internal;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using Microsoft.AspNetCore.Server.IIS.Core;
-using Microsoft.EntityFrameworkCore.Query.Internal;
-using System.Net.Sockets;
 
 namespace IPA.Cores.Basic
 {
+    public class ExcelFile : AsyncService
+    {
+        public ExcelPackage Excel { get; }
+
+        public ExcelWorkbook Workbook => this.Excel.Workbook;
+
+        public ExcelWorksheets Worksheets => this.Workbook.Worksheets;
+
+        readonly Stream TargetStream;
+
+        public ExcelFile(ReadOnlySpan<byte> data) : this(new MemoryStream(data.ToArray())) { }
+
+        public ExcelFile(Stream st)
+        {
+            try
+            {
+                this.TargetStream = st;
+
+                this.Excel = new ExcelPackage(this.TargetStream);
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                await this.Excel._DisposeSafeAsync2();
+
+                await this.TargetStream._DisposeSafeAsync();
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
+        }
+    }
 }
 
 #endif

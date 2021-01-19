@@ -186,6 +186,9 @@ namespace IPA.Cores.Basic
         public NetTcpListenerAcceptedProcCallback? AcceptCallback { get; }
         public IReadOnlyList<IPEndPoint> EndPointsList { get; }
         public string? RateLimiterConfigName { get; }
+        public bool IsRandomPortMode { get; }
+        public AddressFamily RandomPortModeAddressFamily { get; }
+        public IPAddress? RandomPortListenAddress { get; }
 
         static IPEndPoint[] PortsToEndPoints(int[] ports)
         {
@@ -208,6 +211,31 @@ namespace IPA.Cores.Basic
             this.EndPointsList = endPoints.ToList();
             this.AcceptCallback = acceptCallback;
             this.RateLimiterConfigName = rateLimiterConfigName;
+        }
+
+        public TcpListenParam(EnsureSpecial isRandomPortMode, NetTcpListenerAcceptedProcCallback? acceptCallback = null, AddressFamily family = AddressFamily.InterNetwork, IPAddress? address = null)
+        {
+            this.EndPointsList = new IPEndPoint[0];
+            this.AcceptCallback = acceptCallback;
+            this.IsRandomPortMode = true;
+            this.RandomPortModeAddressFamily = family;
+            if (address == null)
+            {
+                if (family == AddressFamily.InterNetwork)
+                {
+                    address = IPAddress.Any;
+                }
+                else if (family == AddressFamily.InterNetworkV6)
+                {
+                    address = IPAddress.IPv6Any;
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(family));
+                }
+            }
+
+            this.RandomPortListenAddress = address;
         }
 
         public TcpListenParam(EnsureSpecial compatibleWithKestrel, NetTcpListenerAcceptedProcCallback? acceptCallback, IPEndPoint endPoint, string? rateLimiterConfigName = null)
@@ -529,31 +557,46 @@ namespace IPA.Cores.Basic
                         }
                     }, param.RateLimiterConfigName);
 
-                    if (acceptQueueUtil != null)
+                    try
                     {
-                        // Listener が廃棄される際は GenericAcceptQueueUtil キューをキャンセルするよう登録する
-                        ret.AddOnCancelAction(() => TaskUtil.StartSyncTaskAsync(() => acceptQueueUtil._DisposeSafe(new OperationCanceledException()))._LaissezFaire(false));
+                        if (acceptQueueUtil != null)
+                        {
+                            // Listener が廃棄される際は GenericAcceptQueueUtil キューをキャンセルするよう登録する
+                            ret.AddOnCancelAction(() => TaskUtil.StartSyncTaskAsync(() => acceptQueueUtil._DisposeSafe(new OperationCanceledException()))._LaissezFaire(false));
 
-                        // Listner クラスの AcceptNextSocketFromQueueUtilAsync を登録する
-                        ret.AcceptNextSocketFromQueueUtilAsync = (cancel) => acceptQueueUtil.AcceptAsync(cancel);
+                            // Listner クラスの AcceptNextSocketFromQueueUtilAsync を登録する
+                            ret.AcceptNextSocketFromQueueUtilAsync = (cancel) => acceptQueueUtil.AcceptAsync(cancel);
+                        }
+
+                        if (param.IsRandomPortMode == false)
+                        {
+                            foreach (IPEndPoint ep in param.EndPointsList)
+                            {
+                                try
+                                {
+                                    if (hostInfo.IsIPv4Supported && ep.AddressFamily == AddressFamily.InterNetwork) ret.Add(ep.Port, IPVersion.IPv4, ep.Address);
+                                }
+                                catch { }
+
+                                try
+                                {
+                                    if (hostInfo.IsIPv6Supported && ep.AddressFamily == AddressFamily.InterNetworkV6) ret.Add(ep.Port, IPVersion.IPv6, ep.Address);
+                                }
+                                catch { }
+                            }
+                        }
+                        else
+                        {
+                            ret.AddRandom(param.RandomPortModeAddressFamily.GetIPVersion(), param.RandomPortListenAddress);
+                        }
+
+                        return ret;
                     }
-
-                    foreach (IPEndPoint ep in param.EndPointsList)
+                    catch
                     {
-                        try
-                        {
-                            if (hostInfo.IsIPv4Supported && ep.AddressFamily == AddressFamily.InterNetwork) ret.Add(ep.Port, IPVersion.IPv4, ep.Address);
-                        }
-                        catch { }
-
-                        try
-                        {
-                            if (hostInfo.IsIPv6Supported && ep.AddressFamily == AddressFamily.InterNetworkV6) ret.Add(ep.Port, IPVersion.IPv6, ep.Address);
-                        }
-                        catch { }
+                        ret._DisposeSafe();
+                        throw;
                     }
-
-                    return ret;
                 }
             }
             catch (Exception ex)

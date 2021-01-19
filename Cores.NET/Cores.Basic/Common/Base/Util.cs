@@ -46,6 +46,7 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Reflection;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Reflection.Emit;
 using System.Runtime.Serialization.Json;
 using System.Diagnostics.CodeAnalysis;
@@ -55,7 +56,6 @@ using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Collections.Immutable;
-using System.Collections.Concurrent;
 using System.IO.Pipelines;
 using System.Text;
 using Microsoft.EntityFrameworkCore.Internal;
@@ -211,8 +211,7 @@ namespace IPA.Cores.Basic
 
     public class RefInt : IEquatable<RefInt>, IComparable<RefInt>
     {
-        public RefInt() : this(0) { }
-        public RefInt(int value)
+        public RefInt(int value = 0)
         {
             this.Value = value;
         }
@@ -239,8 +238,7 @@ namespace IPA.Cores.Basic
 
     public class RefLong : IEquatable<RefLong>, IComparable<RefLong>
     {
-        public RefLong() : this(0) { }
-        public RefLong(long value)
+        public RefLong(long value = 0)
         {
             this.Value = value;
         }
@@ -268,8 +266,7 @@ namespace IPA.Cores.Basic
 
     public class RefBool : IEquatable<RefBool>, IComparable<RefBool>
     {
-        public RefBool() : this(false) { }
-        public RefBool(bool value)
+        public RefBool(bool value = false)
         {
             this.Value = value;
         }
@@ -295,8 +292,7 @@ namespace IPA.Cores.Basic
         public T Value;
         public readonly int Size = Marshal.SizeOf<T>();
 
-        public ValueRef() : this(default) { }
-        public ValueRef(T value)
+        public ValueRef(T value = default)
         {
             Value = value;
         }
@@ -2954,6 +2950,45 @@ namespace IPA.Cores.Basic
             }
 
             return ms.ToArray();
+        }
+
+        // Stream 間のデータ中継 (双方向)
+        public static async Task RelayDuplexStreamAsync(Stream st1, Stream st2, CancellationToken cancel = default, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalBytes = null)
+        {
+            using CancelWatcher w = new CancelWatcher(cancel);
+
+            Task relay1to2 = RelaySimplexStreamAsync(st1, st2, w.CancelToken, bufferSize, totalBytes);
+            Task relay2to1 = RelaySimplexStreamAsync(st2, st1, w.CancelToken, bufferSize, totalBytes);
+
+            await TaskUtil.WaitObjectsAsync(new Task[] { relay1to2, relay2to1 }, cancel._SingleArray());
+
+            w.Cancel();
+
+            await relay1to2._TryAwait();
+            await relay2to1._TryAwait();
+
+            if (relay1to2.Exception != null) throw relay1to2.Exception;
+            if (relay2to1.Exception != null) throw relay2to1.Exception;
+        }
+
+        // Stream 間のデータ中継 (一方向)
+        public static async Task RelaySimplexStreamAsync(Stream src, Stream dest, CancellationToken cancel = default, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalBytes = null)
+        {
+            await Task.Yield();
+
+            Memory<byte> buffer = new byte[bufferSize];
+            while (true)
+            {
+                int sz = await src.ReadAsync(buffer, cancel);
+                if (sz <= 0)
+                {
+                    break;
+                }
+
+                await dest.WriteAsync(buffer.Slice(0, sz), cancel);
+
+                totalBytes?.Add(sz);
+            }
         }
 
         // Stream から Stream へのコピー (ファイルのダウンロードなど)
@@ -6337,6 +6372,67 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class WPair2<TA, TB>
+    {
+        public TA A { get; set; }
+        public TB B { get; set; }
+
+        public WPair2(TA a, TB b)
+        {
+            this.A = a;
+            this.B = b;
+        }
+    }
+
+    public class WPair3<TA, TB, TC>
+    {
+        public TA A { get; set; }
+        public TB B { get; set; }
+        public TC C { get; set; }
+
+        public WPair3(TA a, TB b, TC c)
+        {
+            this.A = a;
+            this.B = b;
+            this.C = c;
+        }
+    }
+
+    public class WPair4<TA, TB, TC, TD>
+    {
+        public TA A { get; set; }
+        public TB B { get; set; }
+        public TC C { get; set; }
+        public TD D { get; set; }
+
+        public WPair4(TA a, TB b, TC c, TD d)
+        {
+            this.A = a;
+            this.B = b;
+            this.C = c;
+            this.D = d;
+        }
+    }
+
+    public class WPair5<TA, TB, TC, TD, TE>
+    {
+        public TA A { get; set; }
+        public TB B { get; set; }
+        public TC C { get; set; }
+        public TD D { get; set; }
+        public TE E { get; set; }
+
+        public WPair5(TA a, TB b, TC c, TD d, TE e)
+        {
+            this.A = a;
+            this.B = b;
+            this.C = c;
+            this.D = d;
+            this.E = e;
+        }
+    }
+
+
     public class Pair2<TA, TB>
     {
         public TA A { get; }
@@ -6496,6 +6592,18 @@ namespace IPA.Cores.Basic
         public void Add(TKey key, TValue value)
         {
             this.Add(new KeyValuePair<TKey, TValue>(key, value));
+        }
+
+        public KeyValueList<TKey, TValue> Clone()
+        {
+            KeyValueList<TKey, TValue> ret = new KeyValueList<TKey, TValue>();
+
+            foreach (var kv in this)
+            {
+                ret.Add(kv.Key, kv.Value);
+            }
+
+            return ret;
         }
     }
 
@@ -7896,6 +8004,140 @@ namespace IPA.Cores.Basic
         }
 
         public static  implicit operator double(ThroughputMeasuse m) => m.GetCurrentThroughput();
+    }
+
+    [Flags]
+    public enum VlanRangeStyle
+    {
+        Cisco = 0,
+        Apresia = 1,
+    }
+
+    public class VlanRange
+    {
+        readonly Memory<bool> VlanArray = new bool[Consts.Numbers.VlanMax + 1];
+
+        public VlanRange()
+        {
+        }
+
+        public VlanRange(string rangeString)
+        {
+            Add(rangeString);
+        }
+
+        public void Add(string rangeString)
+        {
+            var span = VlanArray.Span;
+
+            string[] tokens = rangeString._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ',', ';', ' ', '　', '\t');
+
+            foreach (var token in tokens)
+            {
+                string[] tokens2 = token._Split(StringSplitOptions.TrimEntries, '-');
+                if (tokens2.Length == 1)
+                {
+                    int number = tokens2[0]._ToInt();
+
+                    if (number._IsValidVlanId())
+                    {
+                        span[number] = true;
+                    }
+                }
+                else if (tokens2.Length == 2)
+                {
+                    int number1 = tokens2[0]._ToInt();
+                    int number2 = tokens2[1]._ToInt();
+                    int start = Math.Min(number1, number2);
+                    int end = Math.Max(number1, number2);
+                    if (start._IsValidVlanId() && end._IsValidVlanId())
+                    {
+                        for (int i = start; i <= end; i++)
+                        {
+                            span[i] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        public override string ToString() => ToString(VlanRangeStyle.Cisco);
+
+        public string ToString(VlanRangeStyle style)
+        {
+            var span = VlanArray.Span;
+
+            List<WPair2<int, int>> segments = new List<WPair2<int, int>>();
+
+            WPair2<int, int>? current = null;
+
+            for (int i = Consts.Numbers.VlanMin; i <= Consts.Numbers.VlanMax; i++)
+            {
+                if (span[i])
+                {
+                    if (current == null)
+                    {
+                        current = new WPair2<int, int>(i, i);
+                        segments.Add(current);
+                    }
+                    else
+                    {
+                        current.B = i;
+                    }
+                }
+                else
+                {
+                    if (current != null)
+                    {
+                        current = null;
+                    }
+                }
+            }
+
+            switch (style)
+            {
+                case VlanRangeStyle.Cisco:
+                    {
+                        StringBuilder sb = new StringBuilder();
+                        foreach (var segment in segments)
+                        {
+                            string str;
+
+                            if (segment.A == segment.B)
+                            {
+                                str = segment.A.ToString();
+                            }
+                            else
+                            {
+                                str = $"{segment.A}-{segment.B}";
+                            }
+
+                            sb.Append(str);
+
+                            sb.Append(",");
+                        }
+
+                        return sb.ToString().TrimEnd(',');
+                    }
+
+                case VlanRangeStyle.Apresia:
+                    {
+                        StringWriter w = new StringWriter();
+                        foreach (var segment in segments)
+                        {
+                            for (int i = segment.A; i <= segment.B; i++)
+                            {
+                                w.WriteLine($"vlan {i} name {i}");
+                            }
+                        }
+
+                        return w.ToString();
+                    }
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(style));
+            }
+        }
     }
 
 

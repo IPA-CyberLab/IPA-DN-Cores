@@ -977,8 +977,233 @@ namespace IPA.TestDev
             a._PrintAsJson(compact: true);
         }
 
+        static async Task Test_201231Async(CancellationToken cancel)
+        {
+            var mem = Str.CHexArrayToBinary(Lfs.ReadStringFromFile(@"C:\git\IPA-DNP-ThinApps-Public\src\Vars\VarsActivePatch.h"));
+
+            CoresConfig.WtcConfig.DefaultWaterMark.TrySet(mem);
+
+            using WideTunnel wt = new WideTunnel(new WideTunnelOptions("DESK", "TestSan", new string[] { "https://c__TIME__.controller.dynamic-ip.thin.cyber.ipa.go.jp/widecontrol/" }));
+
+            await using var c = await wt.WideClientConnectAsync("greenrdp2");
+
+            await cancel._WaitUntilCanceledAsync();
+        }
+
+        class TestRequest1 : IDialogRequestData
+        {
+            public string A = "";
+        }
+
+        class TestResponse1 : IDialogResponseData
+        {
+            public string B = "";
+        }
+
+        static void Test_210102()
+        {
+            using DialogSessionManager sm = new DialogSessionManager();
+
+            var sess = sm.StartNewSession(new DialogSessionOptions(async (sess, cancel) =>
+            {
+                for (int i = 0; ; i++)
+                {
+                    Dbg.Where();
+                    var response = await sess.RequestAndWaitResponseAsync(new TestRequest1 { A = "abc" }, 10000, 1000);
+                    Dbg.Where();
+                    TestResponse1 res2 = (TestResponse1)response;
+                    res2._PrintAsJson();
+                    Dbg.Where();
+
+                    //await Task.Delay(Util.RandSInt31() % 100);
+                }
+
+            }, null));
+
+            string sessId = sess.SessionId;
+
+            $"Session ID = {sessId}"._Print();
+
+            var t = AsyncAwait(async () =>
+            {
+                while (true)
+                {
+                    Dbg.Where();
+                    var next = await sm.GetNextRequestAsync(sessId);
+
+                    Dbg.Where();
+                    if (next == null)
+                    {
+                        break;
+                    }
+
+                    var request = (TestRequest1)next.RequestData;
+
+                    request._Print();
+
+                    var response = new TestResponse1 { B = request.A + "--OK" };
+
+                    if ((Util.RandSInt31() % 4) == 0)
+                    {
+                        //sm.SetResponseCancel(sessId, next.RequestId);
+                        //sm.SetResponseException(sessId, next.RequestId, new CoresLibException("Neko"));
+                    }
+                    string s = Con.ReadLine(">")!;
+                    if (s._IsSamei("q"))
+                    {
+                        sm.SetResponseCancel(sessId, next.RequestId);
+                    }
+                    //sm.SetResponseData(sessId, next.RequestId, response);
+                    sm.SendHeartBeat(sessId, next.RequestId);
+                }
+
+                "All finished."._Print();
+            });
+
+            t._TryGetResult();
+        }
+
+        static async Task Test_210104Async(CancellationToken cancel)
+        {
+            var mem = Str.CHexArrayToBinary(Lfs.ReadStringFromFile(@"C:\git\IPA-DNP-ThinApps-Public\src\Vars\VarsActivePatch.h"));
+
+            CoresConfig.WtcConfig.DefaultWaterMark.TrySet(mem);
+
+            var wideOptions = new WideTunnelOptions("DESK", "TestSan", new string[] { "https://c__TIME__.controller.dynamic-ip.thin.cyber.ipa.go.jp/widecontrol/" });
+            await using var sm = new DialogSessionManager(cancel: cancel);
+
+            ThinClient tc = new ThinClient(new ThinClientOptions(wideOptions, sm));
+
+            var sess = tc.StartConnect(new ThinClientConnectOptions("pc342", IPAddress.Loopback, IPAddress.Loopback.ToString()));
+
+            while (cancel.IsCancellationRequested == false)
+            {
+                var req = await sess.GetNextRequestAsync(cancel: cancel);
+
+                if (req == null)
+                {
+                    break;
+                }
+
+                switch (req.RequestData)
+                {
+                    case ThinClientAuthRequest authReq:
+                        req.SetResponseData(new ThinClientAuthResponse
+                        {
+                            Password = Lfs.ReadStringFromFile(@"C:\tmp\yagi\TestPass.txt", oneLine: true),
+                        });
+                        break;
+
+                    case ThinClientAcceptReadyNotification ready:
+                        req.SetResponseData(new EmptyDialogResponseData());
+                        break;
+
+                    case ThinClientOtpRequest otp:
+                        req.SetResponseData(new ThinClientOtpResponse
+                        {
+                            Otp = "422262100362311531048070455606",
+                        });
+                        break;
+
+                    case ThinClientInspectRequest insp:
+                        req.SetResponseData(new ThinClientInspectResponse
+                        {
+                            AntiVirusOk = true,
+                            WindowsUpdateOk = true,
+                            MacAddressList = "11-BB-22-44-CC-DD",
+                        });
+                        break;
+                }
+            }
+
+            await sm._DisposeSafeAsync();
+
+            $"Session Error = {sess.Exception?.Message ?? "ok"}"._Print();
+        }
+
+        static void Test_210110()
+        {
+            CertificateStore store = new CertificateStore(Lfs.ReadDataFromFile(@"H:\Crypto\static.lts.dn.ipantt.net\static.lts.dn.ipantt.net.pfx").Span);
+
+            store.PrimaryCertificate.PublicKey.GetPubKeySha256Base64()._Print();
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                while (true)
+                {
+                    string line = Con.ReadLine()!;
+
+                    VlanRange r = new VlanRange(line);
+
+                    r.ToString( VlanRangeStyle.Apresia)._Print();
+                }
+                return;
+            }
+
+            if (true)
+            {
+                Test_210110();
+                return;
+            }
+
+            if (false)
+            {
+                using var l = LocalNet.CreateListener(new TcpListenParam(isRandomPortMode: EnsureSpecial.Yes, async (listen, sock) =>
+                {
+                    using var x = sock.GetStream();
+                    using var w = new StreamWriter(x);
+
+                    while (true)
+                    {
+                        await w.WriteLineAsync(DtNow.ToString());
+                        await w.FlushAsync();
+                        await Task.Delay(100);
+                    }
+                }));
+                Con.ReadLine();
+                return;
+            }
+
+            if (true)
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+                var task = Test_210104Async(cts.Token);
+                Con.ReadLine();
+                cts.Cancel();
+                task._GetResult();
+                return;
+            }
+
+            if (true)
+            {
+                while (true)
+                {
+                    string line = Con.ReadLine()!;
+
+                    Secure.HashSHA0(line._GetBytes_Ascii())._GetHexString()._Print();
+                }
+                return;
+            }
+
+            if (false)
+            {
+                Test_210102();
+                return;
+            }
+
+            if (true)
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+                var task = Test_201231Async(cts.Token);
+                Con.ReadLine();
+                cts.Cancel();
+                task._GetResult();
+                return;
+            }
+
             if (true)
             {
                 Test_MakeThinOssCerts_201120();

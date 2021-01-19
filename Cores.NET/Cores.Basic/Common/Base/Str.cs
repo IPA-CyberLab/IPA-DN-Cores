@@ -1075,6 +1075,32 @@ namespace IPA.Cores.Basic
             return fqdn._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
         }
 
+        public static Memory<byte> CHexArrayToBinary(string body)
+        {
+            SpanBuffer<byte> buf = new SpanBuffer<byte>();
+
+            string[] lines = body._GetLines(true, true);
+
+            foreach (string line in lines)
+            {
+                string[] tokens = line._Split(StringSplitOptions.RemoveEmptyEntries, ' ', '\t', '　', '{', '}', ',', '\r', '\n');
+
+                foreach (string token in tokens)
+                {
+                    string tmp = token.Trim();
+
+                    if (tmp.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string tmp2 = tmp._Slice(2);
+
+                        buf.WriteOne(Convert.ToByte(tmp2, 16));
+                    }
+                }
+            }
+
+            return buf.Span.ToArray();
+        }
+
         // 指定されたディレクトリ名が "YYMMDD_なんとか" または "YYMMDD なんとか" または "YYYYMMDD_なんとか" または "YYYYMMDD なんとか" である場合は日付を返す
         static readonly char[] YymmddSplitChars = new char[] { '_', ' ', '　', '\t' };
         public static bool TryParseYYMMDDDirName(string name, out DateTime date)
