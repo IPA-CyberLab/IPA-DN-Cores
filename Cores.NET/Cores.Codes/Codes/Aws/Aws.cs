@@ -80,7 +80,7 @@ namespace IPA.Cores.Codes
         }
     }
 
-    public class AwsSns
+    public class AwsSns : AsyncService
     {
         public AwsSnsSettings Settings { get; }
 
