@@ -136,6 +136,7 @@ namespace IPA.Cores.Codes
             PublishRequest req = new PublishRequest();
             req.Message = message;
             req.PhoneNumber = NormalizePhoneNumber(phoneNumber, this.Settings.DefaultCountryCode);
+            req.PhoneNumber._Print();
 
             var response = await c.PublishAsync(req, cancel);
             response.MessageId._Print();

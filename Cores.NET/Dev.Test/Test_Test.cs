@@ -1131,7 +1131,7 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (true)
+            if (false)
             {
                 while (true)
                 {
@@ -1146,11 +1146,14 @@ namespace IPA.TestDev
                 // TODO!!!
                 Async(async () =>
                 {
-                    AwsSnsSettings settings = new AwsSnsSettings("ap-northeast-1", "XXXXX", Lfs.ReadStringFromFile(@"h:\tmp\210119sak.txt", oneLine: true), "");
+                    for (int i = 0; i < 15; i++)
+                    {
+                        AwsSnsSettings settings = new AwsSnsSettings("ap-northeast-1", "aaa", Lfs.ReadStringFromFile(@"h:\tmp\210119sak.txt", oneLine: true));
 
-                    AwsSns sns = new AwsSns(settings);
+                        AwsSns sns = new AwsSns(settings);
 
-                    await sns.SendAsync("こんにちは！", "+819000000000");
+                        await sns.SendAsync($"こんにちは！{i}", "aaa");
+                    }
                 });
                 return;
             }
