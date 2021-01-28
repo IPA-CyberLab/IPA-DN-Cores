@@ -109,7 +109,7 @@ namespace IPA.Cores.Basic
                         {
                             File.Delete(v.FullPath);
 
-                            Dbg.WriteLine($"OldFileEraser: File '{v.FullPath}' deleted.");
+                            //Dbg.WriteLine($"OldFileEraser: File '{v.FullPath}' deleted.");
 
                             // 削除に成功したら delete_size を減じる
                             delete_size -= v.FileSize;
@@ -120,7 +120,7 @@ namespace IPA.Cores.Basic
                             {
                                 Directory.Delete(v.FullPath._GetDirectoryName()!);
 
-                                Dbg.WriteLine($"OldFileEraser: Directory '{v.FullPath._GetDirectoryName()}' deleted.");
+                                //Dbg.WriteLine($"OldFileEraser: Directory '{v.FullPath._GetDirectoryName()}' deleted.");
                             }
                         }
                         catch
