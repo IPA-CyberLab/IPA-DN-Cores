@@ -41,6 +41,7 @@ using System.IO;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Net;
 
 namespace IPA.Cores.Basic
 {
@@ -112,6 +113,12 @@ namespace IPA.Cores.Basic
                 body: CoresRes["MasterData/PrefectureList/PrefectureList.txt"].String
                 ));
 
+        public static NgnRouteInfoList NgnRouteInfoData => NgnRouteInfoListSingleton;
+        static readonly Singleton<NgnRouteInfoList> NgnRouteInfoListSingleton =
+            new Singleton<NgnRouteInfoList>(() => new NgnRouteInfoList(
+                body: CoresRes["MasterData/NgnRouteInfo/NgnRouteInfo.txt"].String
+                ));
+
         public static Tuple<string, string> GetFasIconFromExtension(string extensionOrMimeType)
         {
             if (extensionOrMimeType._InStr("/"))
@@ -181,6 +188,81 @@ namespace IPA.Cores.Basic
                 {
                     this._ByKanji.TryAdd(p.Kanji, p);
                 }
+            }
+        }
+
+        public class NgnRouteInfo
+        {
+            public int Id { get; }
+            public EasyIpAclRule Prefix { get; }
+            public string Comment { get; }
+
+            public NgnRouteInfo(int id, string prefixStr, string comment)
+            {
+                this.Id = id;
+                this.Prefix = new EasyIpAclRule(prefixStr);
+                this.Comment = comment._NonNullTrim().ToUpper();
+            }
+        }
+
+        public class NgnRouteInfoList
+        {
+            public IReadOnlyList<NgnRouteInfo> RouteInfoList;
+
+            public NgnRouteInfoList(string body)
+            {
+                List<NgnRouteInfo> list = new List<NgnRouteInfo>();
+                this.RouteInfoList = list;
+
+                string[] lines = body._GetLines();
+
+                foreach (string line in lines)
+                {
+                    if (Str.GetKeyAndValue(line, out string s1, out string s2, "#"))
+                    {
+                        s1 = s1._NonNullTrim();
+                        s2 = s2._NonNullTrim();
+                        if (s1._IsFilled() && s2._IsFilled())
+                        {
+                            string[] tokens = s1._Split(StringSplitOptions.None, ",");
+                            if (tokens.Length == 2)
+                            {
+                                try
+                                {
+                                    NgnRouteInfo info = new NgnRouteInfo(tokens[0]._ToInt(), tokens[1], s2);
+
+                                    if (info.Prefix.SubnetLength >= 1)
+                                    {
+                                        list.Add(info);
+                                    }
+                                }
+                                catch { }
+                            }
+                        }
+                    }
+                }
+            }
+
+            public NgnRouteInfo? Lookup(IPAddress ipv6)
+            {
+                foreach (var item in this.RouteInfoList)
+                {
+                    if (item.Prefix.IsMatch(ipv6))
+                    {
+                        return item;
+                    }
+                }
+
+                return null;
+            }
+
+            public NgnRouteInfo? Lookup(string ipv6)
+            {
+                if (IPAddress.TryParse(ipv6, out IPAddress? ip))
+                {
+                    return Lookup(ip);
+                }
+                return null;
             }
         }
 

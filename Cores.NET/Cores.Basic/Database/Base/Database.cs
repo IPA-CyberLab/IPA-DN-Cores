@@ -705,6 +705,9 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        public IEnumerable<T> EasySelect<T>(string selectStr, object? selectParam = null, bool throwErrorIfNotFound = false, CancellationToken cancel = default) where T : class
+            => EasySelectAsync<T>(selectStr, selectParam, throwErrorIfNotFound, cancel)._GetResult();
+
         public async Task<T?> EasyGetAsync<T>(dynamic id, bool throwErrorIfNotFound = true, CancellationToken cancel = default) where T : class
         {
             await EnsureOpenAsync(cancel);
