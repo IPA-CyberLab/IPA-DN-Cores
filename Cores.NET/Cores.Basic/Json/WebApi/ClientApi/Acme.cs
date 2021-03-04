@@ -342,7 +342,7 @@ namespace IPA.Cores.ClientApi.Acme
                 if (this.Info.status != AcmeOrderStatus.pending)
                 {
                     // Completed
-                    Con.WriteDebug($"ACME: Completed authorization for '{this.Info.identifiers.Where(x => x != null).Select(x => x!.value)._Combine(", ")}'.");
+                    Con.WriteDebug($"ACME: Completed authorization for '{this.Info.identifiers!.Where(x => x != null).Select(x => x!.value)._Combine(", ")}'.");
                     return;
                 }
 
@@ -468,7 +468,7 @@ namespace IPA.Cores.ClientApi.Acme
 
                     CertificateStore store = new CertificateStore(certificateBody, certPrivateKey);
 
-                    Con.WriteDebug($"ACME: Downloaded the certificate for '{this.Info.identifiers.Where(x => x != null).Select(x => x!.value)._Combine(", ")}'.");
+                    Con.WriteDebug($"ACME: Downloaded the certificate for '{this.Info.identifiers!.Where(x => x != null).Select(x => x!.value)._Combine(", ")}'.");
 
                     return store;
                 }
@@ -582,7 +582,7 @@ namespace IPA.Cores.ClientApi.Acme
 
             WebRet webret = await Web.RequestWithJwsObjectAsync(method, key, kid, nonce, url, request, cancel, Consts.MimeTypes.JoseJson);
 
-            TResponse ret = webret.Deserialize<TResponse>(true);
+            TResponse? ret = webret.Deserialize<TResponse>(true);
 
             //webret.Headers._DebugHeaders();
             //webret.ToString()._Debug();

@@ -776,7 +776,7 @@ namespace IPA.Cores.Helper.Basic
             where TValue : new()
             where TKey : notnull
         {
-            if (d.TryGetValue(key, out TValue value))
+            if (d.TryGetValue(key, out TValue? value))
             {
                 return value;
             }
@@ -789,19 +789,19 @@ namespace IPA.Cores.Helper.Basic
         public static TValue? _GetOrDefault<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key, TValue? defaultValue = default)
             where TKey : notnull
         {
-            if (d.TryGetValue(key, out TValue value))
+            if (d.TryGetValue(key, out TValue? value))
             {
                 return value;
             }
 
-            TValue n = defaultValue;
+            TValue? n = defaultValue;
             return n;
         }
 
         public static TValue _GetOrNew<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key, Func<TValue> newProc)
             where TKey : notnull
         {
-            if (d.TryGetValue(key, out TValue value))
+            if (d.TryGetValue(key, out TValue? value))
             {
                 return value;
             }
@@ -815,7 +815,7 @@ namespace IPA.Cores.Helper.Basic
             where TValue : new()
             where TKey : notnull
         {
-            if (d.TryGetValue(key, out TValue value))
+            if (d.TryGetValue(key, out TValue? value))
             {
                 return value;
             }
@@ -828,19 +828,19 @@ namespace IPA.Cores.Helper.Basic
         public static TValue? _GetOrDefault<TKey, TValue>(this SortedDictionary<TKey, TValue> d, TKey key, TValue? defaultValue = default)
             where TKey : notnull
         {
-            if (d.TryGetValue(key, out TValue value))
+            if (d.TryGetValue(key, out TValue? value))
             {
                 return value;
             }
 
-            TValue n = defaultValue;
+            TValue? n = defaultValue;
             return n;
         }
 
         public static TValue _GetOrNew<TKey, TValue>(this SortedDictionary<TKey, TValue> d, TKey key, Func<TValue> newProc)
             where TKey : notnull
         {
-            if (d.TryGetValue(key, out TValue value))
+            if (d.TryGetValue(key, out TValue? value))
             {
                 return value;
             }
@@ -1650,7 +1650,7 @@ namespace IPA.Cores.Helper.Basic
         [MethodImpl(Inline)]
         [return: NotNullIfNotNull("defaultValue")]
         [return: MaybeNull]
-        public static T _FilledOrDefault<T>(this T obj, T defaultValue = default, bool zeroValueIsEmpty = true) => (obj._IsFilled(zeroValueIsEmpty) ? obj : defaultValue);
+        public static T _FilledOrDefault<T>(this T obj, T? defaultValue = default, bool zeroValueIsEmpty = true) => (obj._IsFilled(zeroValueIsEmpty) ? obj : defaultValue);
 
         [MethodImpl(Inline)]
         public static int _ZeroOrDefault(this int i, int defaultValue, int min = 0, int max = int.MaxValue)
@@ -1794,7 +1794,7 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [return: MaybeNull]
-        public static T _DequeueOrNull<T>(this Queue<T> queue) => (queue.TryDequeue(out T ret) ? ret : default);
+        public static T _DequeueOrNull<T>(this Queue<T> queue) => (queue.TryDequeue(out T? ret) ? ret : default);
 
         public static async Task<bool> _WaitUntilCanceledAsync(this CancellationToken cancel, int timeout = Timeout.Infinite)
         {

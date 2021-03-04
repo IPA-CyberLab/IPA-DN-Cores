@@ -186,10 +186,10 @@ namespace IPA.Cores.Basic
         public ulong UInt64 => this.IsNull ? 0 : (ulong)Object!;
         public bool Bool => this.IsNull ? false : (bool)Object!;
         public byte[]? Data => this.IsNull ? null : (byte[])Object!;
-        public short Short => this.IsNull ? 0 : (short)Object!;
-        public ushort UShort => this.IsNull ? 0 : (ushort)Object!;
-        public byte Byte => this.IsNull ? 0 : (byte)Object!;
-        public sbyte SByte => this.IsNull ? 0 : (sbyte)Object!;
+        public short Short => this.IsNull ? (short)0 : (short)Object!;
+        public ushort UShort => this.IsNull ? (ushort)0 : (ushort)Object!;
+        public byte Byte => this.IsNull ? (byte)0 : (byte)Object!;
+        public sbyte SByte => this.IsNull ? (sbyte)0 : (sbyte)Object!;
 
         public object? Object { get; }
 
@@ -638,7 +638,7 @@ namespace IPA.Cores.Basic
             if (selectParam == null) selectParam = new { };
 
             IEnumerable<T> ret = await QueryAsync<T>(selectStr, selectParam);
-            T t = ret.SingleOrDefault();
+            T? t = ret.SingleOrDefault();
             if (t._IsNullOrDefault())
             {
                 await ExecuteScalarAsync<T>(insertStr, insertParam);
@@ -1341,7 +1341,7 @@ namespace IPA.Cores.Basic
 
         public async Task<T> TranReadSnapshotAsync<T>(TransactionalReadOnlyTaskAsync<T> task)
         {
-            T ret = default;
+            T? ret = default;
 
             await TranAsync(IsolationLevel.Snapshot, async () =>
             {
@@ -1371,7 +1371,7 @@ namespace IPA.Cores.Basic
 
         public async Task<T> TranReadSnapshotIfNecessaryAsync<T>(TransactionalReadOnlyTaskAsync<T> task)
         {
-            T ret = default;
+            T? ret = default;
 
             if (this.Transaction == null)
             {

@@ -262,7 +262,7 @@ namespace IPA.Cores.Globals
         }
 
         [return: NotNullIfNotNull("defaultValue")]
-        public static T? TryIfErrorRetDefault<T>(Func<T> func, T defaultValue = default, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
+        public static T? TryIfErrorRetDefault<T>(Func<T> func, T? defaultValue = default, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
         {
             try
             {
@@ -279,7 +279,7 @@ namespace IPA.Cores.Globals
             }
         }
 
-        public static async Task<T?> TryIfErrorRetDefaultAsync<T>(Func<Task<T>> func, T defaultValue = default, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
+        public static async Task<T?> TryIfErrorRetDefaultAsync<T>(Func<Task<T>> func, T? defaultValue = default, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
         {
             try
             {

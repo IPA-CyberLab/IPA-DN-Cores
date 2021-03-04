@@ -311,7 +311,9 @@ namespace IPA.Cores.Basic
         }
 
         [return: MaybeNull]
+#pragma warning disable CS8768 // 戻り値の型における参照型の NULL 値の許容が、実装されるメンバーと一致しません。おそらく、NULL 値の許容の属性が原因です。
         TFeature IFeatureCollection.Get<TFeature>()
+#pragma warning restore CS8768 // 戻り値の型における参照型の NULL 値の許容が、実装されるメンバーと一致しません。おそらく、NULL 値の許容の属性が原因です。
         {
             TFeature feature = default!;
             if (typeof(TFeature) == typeof(IConnectionIdFeature))

@@ -300,7 +300,7 @@ namespace IPA.Cores.Basic
 
     public class Ref<T>
     {
-        public Ref(T value = default)
+        public Ref(T? value = default)
         {
             Value = value;
         }

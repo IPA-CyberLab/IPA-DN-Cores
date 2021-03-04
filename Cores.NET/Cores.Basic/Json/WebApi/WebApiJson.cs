@@ -63,7 +63,7 @@ namespace IPA.Cores.Basic
         [return: MaybeNull]
         public T Deserialize<T>(bool checkError = false)
         {
-            T ret = Json.Deserialize<T>(this.ToString(), this.Api.Json_IncludeNull, this.Api.Json_MaxDepth);
+            T? ret = Json.Deserialize<T>(this.ToString(), this.Api.Json_IncludeNull, this.Api.Json_MaxDepth);
 
             if (checkError)
             {

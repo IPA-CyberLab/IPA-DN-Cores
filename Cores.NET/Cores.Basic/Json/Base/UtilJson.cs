@@ -109,7 +109,7 @@ namespace IPA.Cores.Basic
 
                 string json = jsonData._GetString_UTF8();
 
-                T ret = json._JsonToObject<T>();
+                T? ret = json._JsonToObject<T>();
 
                 if (ret is INormalizable n) n.Normalize();
 

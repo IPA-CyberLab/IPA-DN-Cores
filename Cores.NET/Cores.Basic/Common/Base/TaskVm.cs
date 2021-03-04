@@ -203,7 +203,7 @@ namespace IPA.Cores.Basic
             this.ThreadObj.WaitForInit();
         }
 
-        public static Task<TResult> NewTaskVm(Func<TIn?, Task<TResult>> rootAction, TIn inputParameter = default(TIn), CancellationToken gracefulCancel = default(CancellationToken), CancellationToken abortCancel = default(CancellationToken))
+        public static Task<TResult> NewTaskVm(Func<TIn?, Task<TResult>> rootAction, TIn? inputParameter = default, CancellationToken gracefulCancel = default(CancellationToken), CancellationToken abortCancel = default(CancellationToken))
         {
             TaskVm<TResult, TIn> vm = new TaskVm<TResult, TIn>(rootAction, inputParameter, gracefulCancel, abortCancel);
 
@@ -233,7 +233,7 @@ namespace IPA.Cores.Basic
 
         public bool Wait(bool ignoreError = false, int timeout = Timeout.Infinite, CancellationToken cancel = default(CancellationToken))
         {
-            TResult ret = GetResult(out bool timeouted, ignoreError, timeout, cancel);
+            TResult? ret = GetResult(out bool timeouted, ignoreError, timeout, cancel);
 
             return !timeouted;
         }
