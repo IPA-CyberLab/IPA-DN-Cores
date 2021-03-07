@@ -72,11 +72,12 @@ namespace IPA.Cores.Basic
         public FileMetadata MetaData = null!;
     }
 
+    [Flags]
     public enum DirSuperBackupFlags
     {
         None = 0,
         RestoreOnlyNewer = 1,
-        RestoreExactlySame = 2,
+        RestoreDoNotSkipExactSame = 2,
         RestoreMakeBackup = 4,
         RestoreNoAcl = 8,
     }
@@ -319,7 +320,14 @@ namespace IPA.Cores.Basic
                 // ディレクトリの属性を設定する
                 try
                 {
-                    await Fs.SetDirectoryMetadataAsync(destDir, dirMetaData.DirMetadata, cancel);
+                    var newDirMetadata = dirMetaData.DirMetadata;
+
+                    if (Options.Flags.Bit(DirSuperBackupFlags.RestoreNoAcl))
+                    {
+                        newDirMetadata.Security = null;
+                    }
+
+                    await Fs.SetDirectoryMetadataAsync(destDir, newDirMetadata, cancel);
                 }
                 catch (Exception ex)
                 {
@@ -360,7 +368,7 @@ namespace IPA.Cores.Basic
                             if (Options.Flags.Bit(DirSuperBackupFlags.RestoreOnlyNewer) == false)
                             {
                                 // 古いファイルも復元する
-                                if (Options.Flags.Bit(DirSuperBackupFlags.RestoreExactlySame))
+                                if (Options.Flags.Bit(DirSuperBackupFlags.RestoreDoNotSkipExactSame))
                                 {
                                     // 必ず上書きする
                                     restoreThisFile = true;
@@ -417,7 +425,7 @@ namespace IPA.Cores.Basic
                                 if (Options.Flags.Bit(DirSuperBackupFlags.RestoreMakeBackup))
                                 {
                                     // 復元先に同名のファイルがすでに存在する場合は、
-                                    // .original.xxxx.0123.original のような形式でまだ存在しない連番に古いファイル名をリネームする
+                                    // .original.0123.xxxx.original のような形式でまだ存在しない連番に古いファイル名をリネームする
                                     using (await SafeLock.LockWithAwait(cancel))
                                     {
                                         string newOldFileName;
@@ -425,7 +433,7 @@ namespace IPA.Cores.Basic
                                         // 連番でかつ存在していないファイル名を決定する
                                         for (int i = 0; ; i++)
                                         {
-                                            string newOldFileNameCandidate = $".original.{srcFile.FileName}.{i:D4}.original";
+                                            string newOldFileNameCandidate = $".original.{i:D4}.{srcFile.FileName}.original";
 
                                             if (await Fs.IsFileExistsAsync(Fs.PathParser.Combine(destDir, newOldFileNameCandidate), cancel) == false)
                                             {

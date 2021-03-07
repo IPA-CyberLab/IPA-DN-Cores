@@ -1534,6 +1534,12 @@ namespace IPA.Cores.Helper.Basic
             return Str.StrToEnumBits<T>(str, defaultValue, separators);
         }
 
+        public static IEnumerable<string> _GetDefinedEnumElementsStrList<T>(this T anyOfEnumSampleElement)
+            where T : unmanaged, Enum
+        {
+            return Str.GetDefinedEnumElementsStrList(anyOfEnumSampleElement);
+        }
+
         [MethodImpl(Inline)]
         public static bool IsAnyOfThem<T>(T value, params T[] flags) where T : unmanaged, Enum
         {

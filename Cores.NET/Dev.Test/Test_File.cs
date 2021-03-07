@@ -378,6 +378,69 @@ namespace IPA.TestDev
             return err ? 1 : 0;
         }
 
+        // 指定されたディレクトリを DirSuperRestore を用いてリストアする
+        // 指定されたディレクトリやサブディレクトリを列挙し結果をファイルに書き出す
+        [ConsoleCommand(
+            "DirSuperRestore command",
+            "DirSuperRestore [src] /dst:dst /options:options1,options1,... [/errorlog:errorlog] [/infolog:infolog] [/ignoredirs:dir1,dir2,...]",
+            "DirSuperRestore command")]
+        static int DirSuperRestore(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[src]", ConsoleService.Prompt, "Source directory path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("dst", ConsoleService.Prompt, "Destination directory path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("options", ConsoleService.Prompt, $"Options ({DirSuperBackupFlags.None._GetDefinedEnumElementsStrList()._Combine(",")}) ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("errorlog"),
+                new ConsoleParam("infolog"),
+                new ConsoleParam("ignoredirs"),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            string src = vl.DefaultParam.StrValue;
+            string dst = vl["dst"].StrValue;
+            string errorlog = vl["errorlog"].StrValue;
+            string infolog = vl["infolog"].StrValue;
+            string ignoredirs = vl["ignoredirs"].StrValue;
+            string options = vl["options"].StrValue;
+
+            bool err = false;
+
+            try
+            {
+                Lfs.EnableBackupPrivilege();
+            }
+            catch (Exception ex)
+            {
+                Con.WriteError(ex);
+            }
+
+            var optionsValues = options._ParseEnumBits(DirSuperBackupFlags.None, ',', '|', ' ');
+
+            Con.WriteInfo($"Options: {optionsValues.ToString()}");
+
+            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, optionsValues)))
+            {
+                Async(async () =>
+                {
+                    await b.DoSingleDirRestoreAsync(src, dst, default, ignoredirs);
+                });
+
+                if (b.Stat.Error_Dir != 0 || b.Stat.Error_NumFiles != 0)
+                {
+                    err = true;
+                }
+            }
+
+            if (err)
+            {
+                Con.WriteError("Error occured.");
+            }
+
+            return err ? 1 : 0;
+        }
+
         // 指定されたディレクトリやサブディレクトリを列挙し結果をファイルに書き出す
         [ConsoleCommand(
             "EnumDir command",

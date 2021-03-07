@@ -4953,8 +4953,10 @@ namespace IPA.Cores.Basic
 
         static class EnumCacheRawValue<T> where T : unmanaged, Enum
         {
-            public static Dictionary<string, ulong> DictCastSensitive = new Dictionary<string, ulong>();
-            public static Dictionary<string, ulong> DictCastIgnore = new Dictionary<string, ulong>(StrComparer.IgnoreCaseComparer);
+            public static readonly Dictionary<string, ulong> DictCastSensitive = new Dictionary<string, ulong>();
+            public static readonly Dictionary<string, ulong> DictCastIgnore = new Dictionary<string, ulong>(StrComparer.IgnoreCaseComparer);
+            public static readonly IEnumerable<string> ElementNamesOrderByValue;
+            public static readonly IEnumerable<string> ElementNamesOrderByName;
 
             static EnumCacheRawValue()
             {
@@ -4967,6 +4969,9 @@ namespace IPA.Cores.Basic
                     DictCastSensitive.Add(name, value._RawReadValueUInt64());
                     DictCastIgnore.Add(name, value._RawReadValueUInt64());
                 }
+
+                ElementNamesOrderByValue = DictCastSensitive.OrderBy(x => x.Value).Select(x => x.Key).Distinct();
+                ElementNamesOrderByName = DictCastSensitive.OrderBy(x => x.Key, StrComparer.IgnoreCaseComparer).Select(x => x.Key).Distinct();
             }
         }
 
@@ -4992,14 +4997,18 @@ namespace IPA.Cores.Basic
             return d;
         });
 
+        public static IEnumerable<string> GetDefinedEnumElementsStrList<T>(T anyOfEnumSampleElement)
+             where T : unmanaged, Enum
+        {
+            return EnumCacheRawValue<T>.ElementNamesOrderByValue;
+        }
+
         public static T StrToEnumBits<T>(string? str, T defaultValue, params char[] separators)
              where T : unmanaged, Enum
         {
             if (str._IsNullOrZeroLen()) return defaultValue;
 
-            string[] strs = str._Split(StringSplitOptions.RemoveEmptyEntries, separators);
-
-            Type type = defaultValue.GetType();
+            string[] strs = str._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, separators);
 
             var dict1 = EnumCacheRawValue<T>.DictCastSensitive;
             var dict2 = EnumCacheRawValue<T>.DictCastIgnore;
