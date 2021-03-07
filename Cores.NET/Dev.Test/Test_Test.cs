@@ -1129,8 +1129,98 @@ namespace IPA.TestDev
             store.PrimaryCertificate.PublicKey.GetPubKeySha256Base64()._Print();
         }
 
+        static void Test_210307_Backup()
+        {
+            string infolog = @"C:\TMP\210307\log\info.log";
+            string errorlog = @"C:\TMP\210307\log\error.log";
+
+            string src = @"C:\TMP\210307\1";
+            string dst = @"C:\TMP\210307\2";
+
+            bool err = false;
+            
+            try
+            {
+                Lfs.EnableBackupPrivilege();
+            }
+            catch (Exception ex)
+            {
+                Con.WriteError(ex);
+            }
+
+            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog)))
+            {
+                Async(async () =>
+                {
+                    await b.DoSingleDirBackupAsync(src, dst, default);
+                });
+
+                if (b.Stat.Error_Dir != 0 || b.Stat.Error_NumFiles != 0)
+                {
+                    err = true;
+                }
+            }
+
+            if (err)
+            {
+                Con.WriteError("Error occured.");
+            }
+            else
+            {
+                Con.WriteLine("Ok!!");
+            }
+        }
+
+        static void Test_210307_Restore()
+        {
+            string infolog = @"C:\TMP\210307\log\restore_info.log";
+            string errorlog = @"C:\TMP\210307\log\restore_error.log";
+
+            string src = @"C:\TMP\210307\2";
+            string dst = @"C:\TMP\210307\3";
+
+            bool err = false;
+
+            try
+            {
+                Lfs.EnableBackupPrivilege();
+            }
+            catch (Exception ex)
+            {
+                Con.WriteError(ex);
+            }
+
+            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, DirSuperBackupFlags.None)))
+            {
+                Async(async () =>
+                {
+                    await b.DoSingleDirRestoreAsync(src, dst, default);
+                });
+
+                if (b.Stat.Error_Dir != 0 || b.Stat.Error_NumFiles != 0)
+                {
+                    err = true;
+                }
+            }
+
+            if (err)
+            {
+                Con.WriteError("Error occured.");
+            }
+            else
+            {
+                Con.WriteLine("Ok!!");
+            }
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210307_Restore();
+                return;
+            }
+
             if (false)
             {
                 while (true)
@@ -1148,7 +1238,7 @@ namespace IPA.TestDev
                 {
                     for (int i = 0; i < 15; i++)
                     {
-                        AwsSnsSettings settings = new AwsSnsSettings("ap-northeast-1", "aaa", Lfs.ReadStringFromFile(@"h:\tmp\210119sak.txt", oneLine: true));
+                        AwsSnsSettings settings = new AwsSnsSettings("ap -northeast-1", "aaa", Lfs.ReadStringFromFile(@"h:\tmp\210119sak.txt", oneLine: true));
 
                         AwsSns sns = new AwsSns(settings);
 

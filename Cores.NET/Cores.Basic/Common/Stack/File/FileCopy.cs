@@ -235,14 +235,14 @@ namespace IPA.Cores.Basic
 
     public abstract partial class FileSystem
     {
-        public async Task CopyFileAsync(string srcPath, string destPath, CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, FileSystem? destFileSystem = null, RefBool? readErrorIgnored = null)
+        public async Task CopyFileAsync(string srcPath, string destPath, CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, FileSystem? destFileSystem = null, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null)
         {
             if (destFileSystem == null) destFileSystem = this;
 
-            await FileUtil.CopyFileAsync(this, srcPath, destFileSystem, destPath, param, state, cancel, readErrorIgnored);
+            await FileUtil.CopyFileAsync(this, srcPath, destFileSystem, destPath, param, state, cancel, readErrorIgnored, newFileMeatadata);
         }
-        public void CopyFile(string srcPath, string destPath, CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, FileSystem? destFileSystem = null, RefBool? readErrorIgnored = null)
-            => CopyFileAsync(srcPath, destPath, param, state, cancel, destFileSystem, readErrorIgnored)._GetResult();
+        public void CopyFile(string srcPath, string destPath, CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, FileSystem? destFileSystem = null, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null)
+            => CopyFileAsync(srcPath, destPath, param, state, cancel, destFileSystem, readErrorIgnored, newFileMeatadata)._GetResult();
 
         public async Task<CopyDirectoryStatus> CopyDirAsync(string srcPath, string destPath, FileSystem? destFileSystem = null,
             CopyDirectoryParams? param = null, object? state = null, CopyDirectoryStatus? statusObject = null, CancellationToken cancel = default)
@@ -494,7 +494,7 @@ namespace IPA.Cores.Basic
         }
 
         public static async Task CopyFileAsync(FileSystem srcFileSystem, string srcPath, FileSystem destFileSystem, string destPath,
-            CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null)
+            CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null)
         {
             if (readErrorIgnored == null)
                 readErrorIgnored = new RefBool(false);
@@ -581,7 +581,7 @@ namespace IPA.Cores.Basic
 
                                 try
                                 {
-                                    await destFileSystem.SetFileMetadataAsync(destPath, param.MetadataCopier.Copy(srcFileMetadata), cancel);
+                                    await destFileSystem.SetFileMetadataAsync(destPath, newFileMeatadata ?? param.MetadataCopier.Copy(srcFileMetadata), cancel);
                                 }
                                 catch (Exception ex)
                                 {
