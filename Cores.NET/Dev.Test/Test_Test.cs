@@ -3198,7 +3198,7 @@ namespace IPA.TestDev
                     {
                         while (true)
                         {
-                            string line = Console.ReadLine();
+                            string line = Console.ReadLine()!;
 
                             if (line == "q")
                             {
