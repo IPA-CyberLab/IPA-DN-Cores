@@ -91,14 +91,24 @@ namespace IPA.Cores.Basic
         public string? ErrorLogFileName { get; }
         public DirSuperBackupFlags Flags { get; }
         public string EncryptPassword { get; }
+        public int NumThreads { get; }
 
-        public DirSuperBackupOptions(FileSystem? fs = null, string? infoLogFileName = null, string? errorLogFileName = null, DirSuperBackupFlags flags = DirSuperBackupFlags.None, string encryptPassword = "")
+        public DirSuperBackupOptions(FileSystem? fs = null, string? infoLogFileName = null, string? errorLogFileName = null, DirSuperBackupFlags flags = DirSuperBackupFlags.None, string encryptPassword = "", int numThreads = 0)
         {
             Fs = fs ?? Lfs;
             InfoLogFileName = infoLogFileName;
             ErrorLogFileName = errorLogFileName;
             Flags = flags;
             EncryptPassword = encryptPassword._NonNull();
+
+            if (numThreads <= 0)
+            {
+                numThreads = Math.Max(Env.NumCpus, 8);
+            }
+
+            numThreads = Math.Min(numThreads, 128);
+
+            this.NumThreads = numThreads;
         }
     }
 
@@ -345,7 +355,7 @@ namespace IPA.Cores.Basic
 
                 AsyncLock SafeLock = new AsyncLock();
 
-                await TaskUtil.ForEachAsync(Env.NumCpus, dirMetaData.FileList, async (srcFile, cancel) =>
+                await TaskUtil.ForEachAsync(Options.NumThreads, dirMetaData.FileList, async (srcFile, cancel) =>
                 {
                     await Task.Yield();
 
@@ -687,7 +697,7 @@ namespace IPA.Cores.Basic
 
                 AsyncLock SafeLock = new AsyncLock();
 
-                await TaskUtil.ForEachAsync(Env.NumCpus, fileEntries, async (srcFile, cancel) =>
+                await TaskUtil.ForEachAsync(Options.NumThreads, fileEntries, async (srcFile, cancel) =>
                 {
                     long? encryptedPhysicalSize = null;
 
