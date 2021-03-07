@@ -517,7 +517,7 @@ namespace IPA.Cores.Basic
                 {
                     // 新旧両方のファイルが存在する場合、ファイル内容が同一かチェックし、同一の場合はコピーをスキップする
                     RefLong skippedFileSize = new RefLong();
-                    var sameRet = await CompareFileHashAsync(new FilePath(srcPath, srcFileSystem), new FilePath(destPath, destFileSystem), fileSize: skippedFileSize, cancel: cancel);
+                    var sameRet = await CompareFileHashAsync(new FilePath(srcPath, srcFileSystem, flags: param.Flags), new FilePath(destPath, destFileSystem, flags: param.Flags), fileSize: skippedFileSize, cancel: cancel);
 
                     if (sameRet.IsOk && sameRet.Value == 0)
                     {

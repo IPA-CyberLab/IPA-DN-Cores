@@ -1190,7 +1190,7 @@ namespace IPA.TestDev
                 Con.WriteError(ex);
             }
 
-            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, DirSuperBackupFlags.None)))
+            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, DirSuperBackupFlags.RestoreMakeBackup | DirSuperBackupFlags.RestoreExactlySame)))
             {
                 Async(async () =>
                 {

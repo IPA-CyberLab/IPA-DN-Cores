@@ -1500,6 +1500,20 @@ namespace IPA.Cores.Helper.Basic
             return ret;
         }
 
+        [MethodImpl(Inline)]
+        public static T BitAdd<T>(this T value, T removingBit) where T : unmanaged, Enum
+        {
+            ulong value1 = value._RawReadValueUInt64();
+            ulong value2 = removingBit._RawReadValueUInt64();
+
+            value1 |= value2;
+
+            T ret = default;
+            ret._RawWriteValueUInt64(value1);
+
+            return ret;
+        }
+
         public static T ParseAsDefault<T>(this T defaultValue, string str, bool exactOnly = false, bool noMatchError = false) where T : unmanaged, Enum
         {
             return Str.ParseEnum<T>(str, defaultValue, exactOnly, noMatchError);
