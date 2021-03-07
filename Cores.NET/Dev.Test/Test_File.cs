@@ -325,7 +325,7 @@ namespace IPA.TestDev
         // 指定されたディレクトリやサブディレクトリを列挙し結果をファイルに書き出す
         [ConsoleCommand(
             "DirSuperBackup command",
-            "DirSuperBackup [src] /dst:dst [/errorlog:errorlog] [/infolog:infolog] [/ignoredirs:dir1,dir2,...]",
+            "DirSuperBackup [src] /dst:dst [/errorlog:errorlog] [/infolog:infolog] [/password:password] [/ignoredirs:dir1,dir2,...]",
             "DirSuperBackup command")]
         static int DirSuperBackup(ConsoleService c, string cmdName, string str)
         {
@@ -335,6 +335,7 @@ namespace IPA.TestDev
                 new ConsoleParam("dst", ConsoleService.Prompt, "Destination directory path: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("errorlog"),
                 new ConsoleParam("infolog"),
+                new ConsoleParam("password"),
                 new ConsoleParam("ignoredirs"),
             };
 
@@ -344,6 +345,7 @@ namespace IPA.TestDev
             string dst = vl["dst"].StrValue;
             string errorlog = vl["errorlog"].StrValue;
             string infolog = vl["infolog"].StrValue;
+            string password = vl["password"].StrValue;
             string ignoredirs = vl["ignoredirs"].StrValue;
 
             bool err = false;
@@ -357,7 +359,7 @@ namespace IPA.TestDev
                 Con.WriteError(ex);
             }
 
-            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog)))
+            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, encryptPassword: password)))
             {
                 Async(async () =>
                 {
@@ -382,7 +384,7 @@ namespace IPA.TestDev
         // 指定されたディレクトリやサブディレクトリを列挙し結果をファイルに書き出す
         [ConsoleCommand(
             "DirSuperRestore command",
-            "DirSuperRestore [src] /dst:dst /options:options1,options1,... [/errorlog:errorlog] [/infolog:infolog] [/ignoredirs:dir1,dir2,...]",
+            "DirSuperRestore [src] /dst:dst /options:options1,options1,... [/errorlog:errorlog] [/infolog:infolog] [/password:password] [/ignoredirs:dir1,dir2,...]",
             "DirSuperRestore command")]
         static int DirSuperRestore(ConsoleService c, string cmdName, string str)
         {
@@ -393,6 +395,7 @@ namespace IPA.TestDev
                 new ConsoleParam("options", ConsoleService.Prompt, $"Options ({DirSuperBackupFlags.None._GetDefinedEnumElementsStrList()._Combine(",")}) ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("errorlog"),
                 new ConsoleParam("infolog"),
+                new ConsoleParam("password"),
                 new ConsoleParam("ignoredirs"),
             };
 
@@ -403,6 +406,7 @@ namespace IPA.TestDev
             string errorlog = vl["errorlog"].StrValue;
             string infolog = vl["infolog"].StrValue;
             string ignoredirs = vl["ignoredirs"].StrValue;
+            string password = vl["password"].StrValue;
             string options = vl["options"].StrValue;
 
             bool err = false;
@@ -420,7 +424,7 @@ namespace IPA.TestDev
 
             Con.WriteInfo($"Options: {optionsValues.ToString()}");
 
-            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, optionsValues)))
+            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, optionsValues, encryptPassword: password)))
             {
                 Async(async () =>
                 {
