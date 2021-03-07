@@ -1135,7 +1135,7 @@ namespace IPA.TestDev
             string errorlog = @"C:\TMP\210307\log\error.log";
 
             string src = @"C:\TMP\210307\1";
-            string dst = @"C:\TMP\210307\2";
+            string dst = @"C:\TMP\210307\9";
 
             bool err = false;
             
@@ -1148,7 +1148,7 @@ namespace IPA.TestDev
                 Con.WriteError(ex);
             }
 
-            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog)))
+            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, encryptPassword: "test")))
             {
                 Async(async () =>
                 {
@@ -1176,8 +1176,8 @@ namespace IPA.TestDev
             string infolog = @"C:\TMP\210307\log\restore_info.log";
             string errorlog = @"C:\TMP\210307\log\restore_error.log";
 
-            string src = @"C:\TMP\210307\2";
-            string dst = @"C:\TMP\210307\3";
+            string src = @"C:\TMP\210307\9";
+            string dst = @"C:\TMP\210307\A";
 
             bool err = false;
 
@@ -1190,7 +1190,7 @@ namespace IPA.TestDev
                 Con.WriteError(ex);
             }
 
-            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, DirSuperBackupFlags.RestoreMakeBackup | DirSuperBackupFlags.RestoreDoNotSkipExactSame)))
+            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, DirSuperBackupFlags.RestoreMakeBackup, encryptPassword: "test")))
             {
                 Async(async () =>
                 {
@@ -1213,8 +1213,26 @@ namespace IPA.TestDev
             }
         }
 
+        static void Test_210307_EncCopy()
+        {
+            string src = @"C:\tmp\190314_copy_log_ex_1.log";
+            string dst = @"C:\tmp\enc1\test.log";
+            string dst2 = @"C:\tmp\enc1\test2.log";
+            string pass = "pass";
+
+            //FileUtil.CopyFileAsync(Lfs, src, Lfs, dst, new CopyFileParams(encryptOption: EncryptOption.Encrypt, encryptPassword: "test", flags: FileFlags.AutoCreateDirectory | FileFlags.CopyFile_Verify | FileFlags.WriteOnlyIfChanged))._GetResult();
+
+            FileUtil.CopyFileAsync(Lfs, dst, Lfs, dst2, new CopyFileParams(encryptOption: EncryptOption.Decrypt, encryptPassword: "test", flags: FileFlags.AutoCreateDirectory | FileFlags.CopyFile_Verify | FileFlags.WriteOnlyIfChanged))._GetResult();
+        }
+
         public static void Test_Generic()
         {
+            if (false)
+            {
+                Test_210307_Backup();
+                return;
+            }
+
             if (true)
             {
                 Test_210307_Restore();

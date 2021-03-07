@@ -69,6 +69,7 @@ namespace IPA.Cores.Basic
     public class DirSuperBackupMetadataFile
     {
         public string FileName = null!;
+        public string? EncrypedFileName;
         public FileMetadata MetaData = null!;
     }
 
@@ -88,13 +89,15 @@ namespace IPA.Cores.Basic
         public string? InfoLogFileName { get; }
         public string? ErrorLogFileName { get; }
         public DirSuperBackupFlags Flags { get; }
+        public string EncryptPassword { get; }
 
-        public DirSuperBackupOptions(FileSystem? fs = null, string? infoLogFileName = null, string? errorLogFileName = null, DirSuperBackupFlags flags = DirSuperBackupFlags.None)
+        public DirSuperBackupOptions(FileSystem? fs = null, string? infoLogFileName = null, string? errorLogFileName = null, DirSuperBackupFlags flags = DirSuperBackupFlags.None, string encryptPassword = "")
         {
             Fs = fs ?? Lfs;
             InfoLogFileName = infoLogFileName;
             ErrorLogFileName = errorLogFileName;
             Flags = flags;
+            EncryptPassword = encryptPassword._NonNull();
         }
     }
 
@@ -353,9 +356,27 @@ namespace IPA.Cores.Basic
 
                     try
                     {
+                        bool isEncrypted = false;
+                        string encryptPassword = "";
+
+                        if (srcFile.EncrypedFileName._IsNullOrZeroLen() == false)
+                        {
+                            srcFilePath = Fs.PathParser.Combine(srcDir, srcFile.EncrypedFileName);
+
+                            // 暗号化ファイルである
+                            if (Options.EncryptPassword._IsNullOrZeroLen())
+                            {
+                                // パスワードが指定されていない
+                                throw new CoresException($"The file '{srcFilePath}' is encrypted, but no password is specified.");
+                            }
+
+                            isEncrypted = true;
+                            encryptPassword = this.Options.EncryptPassword;
+                        }
+
                         srcFileMetadata = srcFile.MetaData;
 
-                        // このファイルと同一のファイル名がすでに宛先ディレクトリに物理的に存在するかどうか確認する
+                        // このファイルと同一の先ファイル名がすでに宛先ディレクトリに物理的に存在するかどうか確認する
                         bool exists = await Fs.IsFileExistsAsync(destFilePath, cancel);
 
                         bool restoreThisFile = false;
@@ -392,7 +413,16 @@ namespace IPA.Cores.Basic
                                     if (restoreThisFile == false)
                                     {
                                         // 新旧両方のファイルが存在する場合で、ファイルサイズも日付も同じであれば、復元先ファイル内容がバックアップファイルと同一かチェックし、同一の場合はコピーをスキップする
-                                        var sameRet = await FileUtil.CompareFileHashAsync(new FilePath(srcFilePath, Fs, flags: FileFlags.BackupMode), new FilePath(destFilePath, Fs, flags: FileFlags.BackupMode), cancel: cancel);
+                                        ResultOrError<int> sameRet;
+
+                                        if (isEncrypted == false)
+                                        {
+                                            sameRet = await FileUtil.CompareFileHashAsync(new FilePath(srcFilePath, Fs, flags: FileFlags.BackupMode), new FilePath(destFilePath, Fs, flags: FileFlags.BackupMode), cancel: cancel);
+                                        }
+                                        else
+                                        {
+                                            sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, new FilePath(destFilePath, Fs, flags: FileFlags.BackupMode), new FilePath(srcFilePath, Fs, flags: FileFlags.BackupMode), cancel: cancel);
+                                        }
 
                                         if (sameRet.IsOk == false || sameRet.Value != 0)
                                         {
@@ -469,7 +499,9 @@ namespace IPA.Cores.Basic
                             // ファイルをコピーする
                             await Fs.CopyFileAsync(srcFilePath, destFilePath,
                                 new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify | FileFlags.Async,
-                                metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll)),
+                                metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
+                                encryptOption: isEncrypted ? EncryptOption.Decrypt : EncryptOption.None,
+                                encryptPassword: encryptPassword),
                                 cancel: cancel,
                                 newFileMeatadata: Options.Flags.Bit(DirSuperBackupFlags.RestoreNoAcl) ? null : srcFileMetadata);
 
@@ -659,6 +691,12 @@ namespace IPA.Cores.Basic
                     await Task.Yield();
 
                     string destFilePath = Fs.PathParser.Combine(destDir, srcFile.Name);
+
+                    if (Options.EncryptPassword._IsNullOrZeroLen() == false)
+                    {
+                        destFilePath += Consts.Extensions.EncryptedXtsAes256;
+                    }
+
                     FileMetadata? srcFileMetadata = null;
 
                     concurrentNum.Increment();
@@ -677,11 +715,39 @@ namespace IPA.Cores.Basic
                             // すでに宛先ディレクトリに存在する物理的なファイルのメタデータを取得する
                             FileMetadata destExistsMetadata = await Fs.GetFileMetadataAsync(destFilePath, cancel: cancel);
 
-                            // ファイルサイズを比較する
-                            if (destExistsMetadata.Size != srcFile.Size)
+                            if (Options.EncryptPassword._IsNullOrZeroLen())
                             {
-                                // ファイルサイズが異なる
-                                fileChangedOrNew = true;
+                                // 暗号化なし
+                                // ファイルサイズを比較する
+                                if (destExistsMetadata.Size != srcFile.Size)
+                                {
+                                    // ファイルサイズが異なる
+                                    fileChangedOrNew = true;
+                                }
+                            }
+                            else
+                            {
+                                // 暗号化ヘッダ内のファイルサイズを取得する
+                                try
+                                {
+                                    await using var destFileObj = await Fs.OpenAsync(destFilePath, flags: FileFlags.BackupMode, cancel: cancel);
+                                    await using var destFileXts = new XtsAesRandomAccess(destFileObj, Options.EncryptPassword, disposeObject: true);
+                                    long destFileEncryptedSize = await destFileXts.GetFileSizeAsync(cancel: cancel);
+                                    if (destFileEncryptedSize != srcFile.Size)
+                                    {
+                                        // ファイルサイズが異なる
+                                        fileChangedOrNew = true;
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    // 軽微なエラーが発生した
+                                    await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DestExistingEncryptedFileReadError", srcFile.FullPath, destFilePath, ex.Message));
+                                    Stat.Error_NumFiles++;
+
+                                    // この場合は変化したとみなす
+                                    fileChangedOrNew = true;
+                                }
                             }
 
                             // 日付を比較する。ただし宛先ディレクトリの物理的なファイルの日付は信用できないので、メタデータ上のファイルサイズと比較する
@@ -729,7 +795,7 @@ namespace IPA.Cores.Basic
                                     // 連番でかつ存在していないファイル名を決定する
                                     for (int i = 0; ; i++)
                                     {
-                                        string newOldFileNameCandidate = $"{srcFile.Name}.{i:D4}.old";
+                                        string newOldFileNameCandidate = $"{PP.GetFileName(destFilePath)}.{i:D4}.old";
 
                                         if (srcDirEnum.Where(x => x.Name._IsSamei(newOldFileNameCandidate)).Any() == false)
                                         {
@@ -750,8 +816,12 @@ namespace IPA.Cores.Basic
                             // ファイルをコピーする
                             // 属性は、ファイルの日付情報のみコピーする
                             await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileCopy", srcFile.FullPath, destFilePath));
-                            await Fs.CopyFileAsync(srcFile.FullPath, destFilePath, new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify | FileFlags.Async, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll)),
-                                cancel: cancel);
+
+                            await Fs.CopyFileAsync(srcFile.FullPath, destFilePath,
+                                new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify | FileFlags.Async, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
+                                encryptOption: Options.EncryptPassword._IsNullOrZeroLen() ? EncryptOption.None : EncryptOption.Encrypt,
+                                encryptPassword: Options.EncryptPassword),
+                                cancel: cancel); ;
 
                             Stat.Copy_NumFiles++;
                             Stat.Copy_TotalSize += srcFile.Size;
@@ -788,7 +858,7 @@ namespace IPA.Cores.Basic
                     // このファイルに関するメタデータを追加する
                     if (srcFileMetadata != null)
                     {
-                        destDirNewMetaData.FileList.Add(new DirSuperBackupMetadataFile() { FileName = srcFile.Name, MetaData = srcFileMetadata });
+                        destDirNewMetaData.FileList.Add(new DirSuperBackupMetadataFile() { FileName = srcFile.Name, EncrypedFileName = Options.EncryptPassword._IsNullOrZeroLen() ? null : srcFile.Name + Consts.Extensions.EncryptedXtsAes256, MetaData = srcFileMetadata }); ;
                     }
                 }, cancel: cancel);
 

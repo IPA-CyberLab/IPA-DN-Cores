@@ -194,6 +194,14 @@ namespace IPA.Cores.Basic
 
     }
 
+    [Flags]
+    public enum EncryptOption
+    {
+        None = 0,
+        Encrypt,
+        Decrypt,
+    }
+
     public class CopyFileParams
     {
         public static FileMetadataCopier DefaultFileMetadataCopier { get; } = new FileMetadataCopier(FileMetadataCopyMode.Default);
@@ -205,6 +213,8 @@ namespace IPA.Cores.Basic
         public bool AsyncCopy { get; }
         public bool IgnoreReadError { get; }
         public int IgnoreReadErrorSectorSize { get; }
+        public EncryptOption EncryptOption { get; }
+        public string EncryptPassword { get; }
 
         public ProgressReporterFactoryBase ProgressReporterFactory { get; }
 
@@ -214,7 +224,7 @@ namespace IPA.Cores.Basic
 
         public CopyFileParams(bool overwrite = true, FileFlags flags = FileFlags.None, FileMetadataCopier? metadataCopier = null, int bufferSize = 0, bool asyncCopy = true,
             bool ignoreReadError = false, int ignoreReadErrorSectorSize = 0,
-            ProgressReporterFactoryBase? reporterFactory = null)
+            ProgressReporterFactoryBase? reporterFactory = null, EncryptOption encryptOption = EncryptOption.None, string encryptPassword = "")
         {
             if (metadataCopier == null) metadataCopier = DefaultFileMetadataCopier;
             if (bufferSize <= 0) bufferSize = CoresConfig.FileUtilSettings.FileCopyBufferSize;
@@ -229,6 +239,9 @@ namespace IPA.Cores.Basic
             this.ProgressReporterFactory = reporterFactory;
             this.IgnoreReadError = ignoreReadError;
             this.IgnoreReadErrorSectorSize = ignoreReadErrorSectorSize;
+
+            this.EncryptOption = encryptOption;
+            this.EncryptPassword = encryptPassword._NonNull();
         }
     }
 
@@ -293,6 +306,47 @@ namespace IPA.Cores.Basic
                 }
 
                 hash2 = await CalcFileHashAsync(file2, sha1, bufferSize: bufferSize, cancel: cancel);
+            }
+            catch
+            {
+                return new ResultOrError<int>(EnsureError.Error);
+            }
+
+            return hash1._MemCompare(hash2);
+        }
+
+        public static async Task<ResultOrError<int>> CompareEncryptedFileHashAsync(string encryptPassword, FilePath filePlain, FilePath fileEncrypted, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? fileSize = null, CancellationToken cancel = default)
+        {
+            using SHA1Managed sha1 = new SHA1Managed();
+
+            byte[] hash1, hash2;
+
+            try
+            {
+                if (await filePlain.IsFileExistsAsync(cancel) == false)
+                {
+                    return new ResultOrError<int>(EnsureError.Error);
+                }
+
+                hash1 = await CalcFileHashAsync(filePlain, sha1, bufferSize: bufferSize, fileSize: fileSize, cancel: cancel);
+            }
+            catch
+            {
+                return new ResultOrError<int>(EnsureError.Error);
+            }
+
+            try
+            {
+                if (await fileEncrypted.IsFileExistsAsync(cancel) == false)
+                {
+                    return new ResultOrError<int>(EnsureError.Error);
+                }
+
+                await using var fileEncryptedObject = await fileEncrypted.OpenAsync(cancel: cancel);
+                await using var xts = new XtsAesRandomAccess(fileEncryptedObject, encryptPassword, disposeObject: true);
+                await using var xtsStream = xts.GetStream(disposeTarget: true);
+
+                hash2 = await Secure.CalcStreamHashAsync(xtsStream, sha1, bufferSize: bufferSize, cancel: cancel);
             }
             catch
             {
@@ -517,7 +571,21 @@ namespace IPA.Cores.Basic
                 {
                     // 新旧両方のファイルが存在する場合、ファイル内容が同一かチェックし、同一の場合はコピーをスキップする
                     RefLong skippedFileSize = new RefLong();
-                    var sameRet = await CompareFileHashAsync(new FilePath(srcPath, srcFileSystem, flags: param.Flags), new FilePath(destPath, destFileSystem, flags: param.Flags), fileSize: skippedFileSize, cancel: cancel);
+
+                    ResultOrError<int> sameRet;
+
+                    if (param.EncryptOption == EncryptOption.Encrypt)
+                    {
+                        sameRet = await CompareEncryptedFileHashAsync(param.EncryptPassword, new FilePath(srcPath, srcFileSystem, flags: param.Flags), new FilePath(destPath, destFileSystem, flags: param.Flags), fileSize: skippedFileSize, cancel: cancel);
+                    }
+                    else if (param.EncryptOption == EncryptOption.Decrypt)
+                    {
+                        sameRet = await CompareEncryptedFileHashAsync(param.EncryptPassword, new FilePath(destPath, destFileSystem, flags: param.Flags), new FilePath(srcPath, srcFileSystem, flags: param.Flags), fileSize: skippedFileSize, cancel: cancel);
+                    }
+                    else
+                    {
+                        sameRet = await CompareFileHashAsync(new FilePath(srcPath, srcFileSystem, flags: param.Flags), new FilePath(destPath, destFileSystem, flags: param.Flags), fileSize: skippedFileSize, cancel: cancel);
+                    }
 
                     if (sameRet.IsOk && sameRet.Value == 0)
                     {
@@ -525,6 +593,7 @@ namespace IPA.Cores.Basic
                         FileMetadata srcFileMetadata = await srcFileSystem.GetFileMetadataAsync(srcPath, param.MetadataCopier.OptimizedMetadataGetFlags, cancel);
                         try
                         {
+                            Dbg.Where();
                             await destFileSystem.SetFileMetadataAsync(destPath, param.MetadataCopier.Copy(srcFileMetadata), cancel);
                         }
                         catch (Exception ex)
@@ -538,7 +607,7 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                using (var srcFile = await srcFileSystem.OpenAsync(srcPath, flags: param.Flags, cancel: cancel))
+                await using(var srcFile = await srcFileSystem.OpenAsync(srcPath, flags: param.Flags, cancel: cancel))
                 {
                     try
                     {
@@ -554,28 +623,118 @@ namespace IPA.Cores.Basic
 
                                 Ref<uint> srcZipCrc = new Ref<uint>();
 
-                                long copiedSize = await CopyBetweenFileBaseAsync(srcFile, destFile, param, reporter, srcFileMetadata.Size, cancel, readErrorIgnored, srcZipCrc);
-
-                                if (param.Flags.Bit(FileFlags.CopyFile_Verify) && param.IgnoreReadError == false)
+                                if (param.EncryptOption == EncryptOption.Encrypt || param.EncryptOption == EncryptOption.Decrypt)
                                 {
-                                    // Verify を実施する
-                                    // キャッシュを無効にするため、一度ファイルを閉じて再度開く
+                                    long copiedSize2 = 0;
 
-                                    await destFile.CloseAsync();
+                                    // Encryption or Decryption
+                                    Stream? srcStream = null;
+                                    Stream? destStream = null;
+                                    XtsAesRandomAccess? xts = null;
 
-                                    using (var destFile2 = await destFileSystem.OpenAsync(destPath, flags: param.Flags, cancel: cancel))
+                                    try
                                     {
-                                        uint destZipCrc = await CalcZipCrc32HandleAsync(destFile2, param, cancel);
-
-                                        if (srcZipCrc.Value != destZipCrc)
+                                        if (param.EncryptOption == EncryptOption.Encrypt)
                                         {
-                                            // なんと Verify に失敗したぞ
-                                            throw new CoresException($"CopyFile_Verify error. Src file: '{srcPath}', Dest file: '{destPath}', srcCrc: {srcZipCrc.Value}, destCrc = {destZipCrc}");
+                                            // Encryption
+                                            srcStream = srcFile.GetStream(disposeTarget: true);
+
+                                            xts = new XtsAesRandomAccess(destFile, param.EncryptPassword, disposeObject: true);
+                                            destStream = xts.GetStream(disposeTarget: true);
+                                        }
+                                        else
+                                        {
+                                            // Decryption
+                                            destStream = destFile.GetStream(disposeTarget: true);
+
+                                            xts = new XtsAesRandomAccess(srcFile, param.EncryptPassword, disposeObject: true);
+                                            srcStream = xts.GetStream(disposeTarget: true);
+                                        }
+
+                                        copiedSize2 = await CopyBetweenStreamAsync(srcStream, destStream, param, reporter, srcFileMetadata.Size, cancel, readErrorIgnored, srcZipCrc);
+                                    }
+                                    finally
+                                    {
+                                        await xts._DisposeSafeAsync();
+                                        await srcStream._DisposeSafeAsync();
+                                        await destStream._DisposeSafeAsync();
+                                    }
+
+                                    srcStream = null;
+                                    destStream = null;
+                                    xts = null;
+
+                                    if (param.Flags.Bit(FileFlags.CopyFile_Verify) && param.IgnoreReadError == false)
+                                    {
+                                        await using var srcFile2 = await srcFileSystem.OpenAsync(srcPath, flags: param.Flags, cancel: cancel);
+
+                                        // Verify を実施する
+                                        // キャッシュを無効にするため、一度ファイルを閉じて再度開く
+                                        await using(var destFile2 = await destFileSystem.OpenAsync(destPath, flags: param.Flags, cancel: cancel))
+                                        {
+                                            try
+                                            {
+                                                if (param.EncryptOption == EncryptOption.Encrypt)
+                                                {
+                                                    // Encryption
+                                                    srcStream = srcFile2.GetStream(disposeTarget: true);
+
+                                                    xts = new XtsAesRandomAccess(destFile2, param.EncryptPassword, disposeObject: true);
+                                                    destStream = xts.GetStream(disposeTarget: true);
+                                                }
+                                                else
+                                                {
+                                                    // Decryption
+                                                    destStream = destFile2.GetStream(disposeTarget: true);
+
+                                                    xts = new XtsAesRandomAccess(srcFile2, param.EncryptPassword, disposeObject: true);
+                                                    srcStream = xts.GetStream(disposeTarget: true);
+                                                }
+
+                                                uint destZipCrc = await CalcZipCrc32HandleAsync(destStream, param, cancel);
+
+                                                if (srcZipCrc.Value != destZipCrc)
+                                                {
+                                                    // なんと Verify に失敗したぞ
+                                                    throw new CoresException($"CopyFile_Verify error. Src file: '{srcPath}', Dest file: '{destPath}', srcCrc: {srcZipCrc.Value}, destCrc = {destZipCrc}");
+                                                }
+                                            }
+                                            finally
+                                            {
+                                                await xts._DisposeSafeAsync();
+                                                await srcStream._DisposeSafeAsync();
+                                                await destStream._DisposeSafeAsync();
+                                            }
                                         }
                                     }
-                                }
 
-                                reporter.ReportProgress(new ProgressData(copiedSize, copiedSize, true));
+                                    reporter.ReportProgress(new ProgressData(copiedSize2, copiedSize2, true));
+                                }
+                                else
+                                {
+                                    long copiedSize = await CopyBetweenFileBaseAsync(srcFile, destFile, param, reporter, srcFileMetadata.Size, cancel, readErrorIgnored, srcZipCrc);
+
+                                    if (param.Flags.Bit(FileFlags.CopyFile_Verify) && param.IgnoreReadError == false)
+                                    {
+                                        // Verify を実施する
+                                        // キャッシュを無効にするため、一度ファイルを閉じて再度開く
+
+                                        await destFile.CloseAsync();
+
+                                        await using(var destFile2 = await destFileSystem.OpenAsync(destPath, flags: param.Flags, cancel: cancel))
+                                        {
+                                            uint destZipCrc = await CalcZipCrc32HandleAsync(destFile2, param, cancel);
+
+                                            if (srcZipCrc.Value != destZipCrc)
+                                            {
+                                                // なんと Verify に失敗したぞ
+                                                throw new CoresException($"CopyFile_Verify error. Src file: '{srcPath}', Dest file: '{destPath}', srcCrc: {srcZipCrc.Value}, destCrc = {destZipCrc}");
+                                            }
+                                        }
+                                    }
+
+                                    reporter.ReportProgress(new ProgressData(copiedSize, copiedSize, true));
+                                }
 
                                 await destFile.CloseAsync();
 
@@ -632,6 +791,29 @@ namespace IPA.Cores.Basic
             => CopyFileAsync(src, dest, param, state, cancel, readErrorIgnored)._GetResult();
 
         static async Task<uint> CalcZipCrc32HandleAsync(FileBase src, CopyFileParams param, CancellationToken cancel)
+        {
+            ZipCrc32 srcCrc = new ZipCrc32();
+
+            using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer))
+            {
+                while (true)
+                {
+                    int readSize = await src.ReadAsync(buffer, cancel);
+
+                    Debug.Assert(readSize <= buffer.Length);
+
+                    if (readSize <= 0) break;
+
+                    ReadOnlyMemory<byte> sliced = buffer.Slice(0, readSize);
+
+                    srcCrc.Append(sliced.Span);
+                }
+            }
+
+            return srcCrc.Value;
+        }
+
+        static async Task<uint> CalcZipCrc32HandleAsync(Stream src, CopyFileParams param, CancellationToken cancel)
         {
             ZipCrc32 srcCrc = new ZipCrc32();
 
@@ -839,6 +1021,141 @@ namespace IPA.Cores.Basic
                 return currentPosition;
             }
         }
+
+        public static async Task<long> CopyBetweenStreamAsync(Stream src, Stream dest, CopyFileParams? param = null, ProgressReporterBase? reporter = null,
+            long estimatedSize = -1, CancellationToken cancel = default, RefBool? readErrorIgnored = null, Ref<uint>? srcZipCrc = null, long truncateSize = -1)
+        {
+            if (param == null) param = new CopyFileParams();
+            if (reporter == null) reporter = new NullProgressReporter(null);
+            if (readErrorIgnored == null) readErrorIgnored = new RefBool();
+            if (srcZipCrc == null) srcZipCrc = new Ref<uint>();
+            if (estimatedSize < 0) estimatedSize = src.Length;
+
+            if (truncateSize >= 0)
+            {
+                estimatedSize = Math.Min(estimatedSize, truncateSize);
+            }
+
+            ZipCrc32 srcCrc = new ZipCrc32();
+
+            readErrorIgnored.Set(false);
+
+            checked
+            {
+                long currentPosition = 0;
+
+                if (param.AsyncCopy == false)
+                {
+                    // Normal copy
+                    using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer))
+                    {
+                        while (true)
+                        {
+                            Memory<byte> thisTimeBuffer = buffer;
+
+                            if (truncateSize >= 0)
+                            {
+                                // Truncate
+                                long remainSize = Math.Max(truncateSize - currentPosition, 0);
+
+                                if (thisTimeBuffer.Length > remainSize)
+                                {
+                                    thisTimeBuffer = thisTimeBuffer.Slice(0, (int)remainSize);
+                                }
+
+                                if (remainSize == 0) break;
+                            }
+
+                            int readSize = await src.ReadAsync(thisTimeBuffer, cancel);
+
+                            Debug.Assert(readSize <= thisTimeBuffer.Length);
+
+                            if (readSize <= 0) break;
+
+                            ReadOnlyMemory<byte> sliced = thisTimeBuffer.Slice(0, readSize);
+
+                            if (param.Flags.Bit(FileFlags.CopyFile_Verify))
+                            {
+                                srcCrc.Append(sliced.Span);
+                            }
+
+                            await dest.WriteAsync(sliced, cancel);
+
+                            currentPosition += readSize;
+                            reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));
+                        }
+                    }
+                }
+                else
+                {
+                    // Async copy
+                    using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer1))
+                    {
+                        using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer2))
+                        {
+                            ValueTask? lastWriteTask = null;
+                            int number = 0;
+                            int writeSize = 0;
+
+                            long currentReadPosition = 0;
+
+                            Memory<byte>[] buffers = new Memory<byte>[2] { buffer1, buffer2 };
+
+                            while (true)
+                            {
+                                Memory<byte> buffer = buffers[(number++) % 2];
+
+                                Memory<byte> thisTimeBuffer = buffer;
+
+                                if (truncateSize >= 0)
+                                {
+                                    // Truncate
+                                    long remainSize = Math.Max(truncateSize - currentReadPosition, 0);
+
+                                    if (thisTimeBuffer.Length > remainSize)
+                                    {
+                                        thisTimeBuffer = thisTimeBuffer.Slice(0, (int)remainSize);
+                                    }
+                                }
+
+                                int readSize = await src.ReadAsync(thisTimeBuffer, cancel);
+
+                                Debug.Assert(readSize <= buffer.Length);
+
+                                if (lastWriteTask != null)
+                                {
+                                    await lastWriteTask.Value;
+                                    currentPosition += writeSize;
+                                    reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));
+                                }
+
+                                if (readSize <= 0) break;
+
+                                currentReadPosition += readSize;
+
+                                writeSize = readSize;
+
+                                ReadOnlyMemory<byte> sliced = buffer.Slice(0, writeSize);
+
+                                if (param.Flags.Bit(FileFlags.CopyFile_Verify))
+                                {
+                                    srcCrc.Append(sliced.Span);
+                                }
+
+                                lastWriteTask = dest.WriteAsync(sliced, cancel);
+                            }
+
+                            reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));
+                        }
+                    }
+                }
+
+                srcZipCrc.Set(srcCrc.Value);
+
+                return currentPosition;
+            }
+        }
+
         // 指定されたディレクトリ内の最新のいくつかのサブディレクトリのみコピー (同期) し、他は削除する
         public static async Task SyncLatestFewDirsAsync(DirectoryPath srcDir, DirectoryPath dstDir, int num = 1, CancellationToken cancel = default)
         {
