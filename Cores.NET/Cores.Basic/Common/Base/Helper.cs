@@ -50,6 +50,7 @@ using Microsoft.Win32.SafeHandles;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Diagnostics.CodeAnalysis;
+using System.IO.Compression;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Basic.Legacy;
@@ -2496,6 +2497,42 @@ namespace IPA.Cores.Helper.Basic
 
         public static RandomAccessBasedStream GetStream(this IRandomAccess<byte> target, bool disposeTarget = false)
             => new RandomAccessBasedStream(target, disposeTarget);
+
+        public static async Task<DeflateStream> GetCompressStreamAsync(this IRandomAccess<byte> target, CompressionLevel compressionLevel = CompressionLevel.Optimal)
+        {
+            RandomAccessBasedStream? baseStream = null;
+
+            try
+            {
+                baseStream = target.GetStream(disposeTarget: true);
+
+                return new DeflateStream(baseStream, compressionLevel, leaveOpen: false);
+            }
+            catch
+            {
+                await baseStream._DisposeSafeAsync();
+
+                throw;
+            }
+        }
+
+        public static async Task<DeflateStream> GetDecompressStreamAsync(this IRandomAccess<byte> target)
+        {
+            RandomAccessBasedStream? baseStream = null;
+
+            try
+            {
+                baseStream = target.GetStream(disposeTarget: true);
+
+                return new DeflateStream(baseStream, CompressionMode.Decompress);
+            }
+            catch
+            {
+                await baseStream._DisposeSafeAsync();
+
+                throw;
+            }
+        }
 
         [MethodImpl(Inline)]
         [return: NotNullIfNotNull("src")]

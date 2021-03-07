@@ -198,8 +198,9 @@ namespace IPA.Cores.Basic
     public enum EncryptOption
     {
         None = 0,
-        Encrypt,
-        Decrypt,
+        Encrypt = 1,
+        Decrypt = 2,
+        Compress = 4,
     }
 
     public class CopyFileParams
@@ -315,7 +316,7 @@ namespace IPA.Cores.Basic
             return hash1._MemCompare(hash2);
         }
 
-        public static async Task<ResultOrError<int>> CompareEncryptedFileHashAsync(string encryptPassword, FilePath filePlain, FilePath fileEncrypted, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? fileSize = null, CancellationToken cancel = default)
+        public static async Task<ResultOrError<int>> CompareEncryptedFileHashAsync(string encryptPassword, bool isCompressed, FilePath filePlain, FilePath fileEncrypted, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? fileSize = null, CancellationToken cancel = default)
         {
             using SHA1Managed sha1 = new SHA1Managed();
 
@@ -344,9 +345,9 @@ namespace IPA.Cores.Basic
 
                 await using var fileEncryptedObject = await fileEncrypted.OpenAsync(cancel: cancel);
                 await using var xts = new XtsAesRandomAccess(fileEncryptedObject, encryptPassword, disposeObject: true);
-                await using var xtsStream = xts.GetStream(disposeTarget: true);
+                await using Stream internalStream = isCompressed == false ? xts.GetStream(disposeTarget: true) : await xts.GetDecompressStreamAsync();
 
-                hash2 = await Secure.CalcStreamHashAsync(xtsStream, sha1, bufferSize: bufferSize, cancel: cancel);
+                hash2 = await Secure.CalcStreamHashAsync(internalStream, sha1, bufferSize: bufferSize, cancel: cancel);
             }
             catch
             {
@@ -574,13 +575,13 @@ namespace IPA.Cores.Basic
 
                     ResultOrError<int> sameRet;
 
-                    if (param.EncryptOption == EncryptOption.Encrypt)
+                    if (param.EncryptOption.Bit(EncryptOption.Encrypt))
                     {
-                        sameRet = await CompareEncryptedFileHashAsync(param.EncryptPassword, new FilePath(srcPath, srcFileSystem, flags: param.Flags), new FilePath(destPath, destFileSystem, flags: param.Flags), fileSize: skippedFileSize, cancel: cancel);
+                        sameRet = await CompareEncryptedFileHashAsync(param.EncryptPassword, param.EncryptOption.Bit(EncryptOption.Compress), new FilePath(srcPath, srcFileSystem, flags: param.Flags), new FilePath(destPath, destFileSystem, flags: param.Flags), fileSize: skippedFileSize, cancel: cancel);
                     }
-                    else if (param.EncryptOption == EncryptOption.Decrypt)
+                    else if (param.EncryptOption.Bit(EncryptOption.Decrypt))
                     {
-                        sameRet = await CompareEncryptedFileHashAsync(param.EncryptPassword, new FilePath(destPath, destFileSystem, flags: param.Flags), new FilePath(srcPath, srcFileSystem, flags: param.Flags), fileSize: skippedFileSize, cancel: cancel);
+                        sameRet = await CompareEncryptedFileHashAsync(param.EncryptPassword, param.EncryptOption.Bit(EncryptOption.Compress), new FilePath(destPath, destFileSystem, flags: param.Flags), new FilePath(srcPath, srcFileSystem, flags: param.Flags), fileSize: skippedFileSize, cancel: cancel);
                     }
                     else
                     {
@@ -593,7 +594,6 @@ namespace IPA.Cores.Basic
                         FileMetadata srcFileMetadata = await srcFileSystem.GetFileMetadataAsync(srcPath, param.MetadataCopier.OptimizedMetadataGetFlags, cancel);
                         try
                         {
-                            Dbg.Where();
                             await destFileSystem.SetFileMetadataAsync(destPath, param.MetadataCopier.Copy(srcFileMetadata), cancel);
                         }
                         catch (Exception ex)
@@ -607,7 +607,7 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                await using(var srcFile = await srcFileSystem.OpenAsync(srcPath, flags: param.Flags, cancel: cancel))
+                await using (var srcFile = await srcFileSystem.OpenAsync(srcPath, flags: param.Flags, cancel: cancel))
                 {
                     try
                     {
@@ -623,7 +623,7 @@ namespace IPA.Cores.Basic
 
                                 Ref<uint> srcZipCrc = new Ref<uint>();
 
-                                if (param.EncryptOption == EncryptOption.Encrypt || param.EncryptOption == EncryptOption.Decrypt)
+                                if (param.EncryptOption.Bit(EncryptOption.Encrypt) || param.EncryptOption.Bit(EncryptOption.Decrypt))
                                 {
                                     long copiedSize2 = 0;
 
@@ -634,13 +634,21 @@ namespace IPA.Cores.Basic
 
                                     try
                                     {
-                                        if (param.EncryptOption == EncryptOption.Encrypt)
+                                        if (param.EncryptOption.Bit(EncryptOption.Encrypt))
                                         {
                                             // Encryption
                                             srcStream = srcFile.GetStream(disposeTarget: true);
 
                                             xts = new XtsAesRandomAccess(destFile, param.EncryptPassword, disposeObject: true);
-                                            destStream = xts.GetStream(disposeTarget: true);
+
+                                            if (param.EncryptOption.Bit(EncryptOption.Compress) == false)
+                                            {
+                                                destStream = xts.GetStream(disposeTarget: true);
+                                            }
+                                            else
+                                            {
+                                                destStream = await xts.GetCompressStreamAsync();
+                                            }
                                         }
                                         else
                                         {
@@ -648,16 +656,24 @@ namespace IPA.Cores.Basic
                                             destStream = destFile.GetStream(disposeTarget: true);
 
                                             xts = new XtsAesRandomAccess(srcFile, param.EncryptPassword, disposeObject: true);
-                                            srcStream = xts.GetStream(disposeTarget: true);
+
+                                            if (param.EncryptOption.Bit(EncryptOption.Compress) == false)
+                                            {
+                                                srcStream = xts.GetStream(disposeTarget: true);
+                                            }
+                                            else
+                                            {
+                                                srcStream = await xts.GetDecompressStreamAsync();
+                                            }
                                         }
 
                                         copiedSize2 = await CopyBetweenStreamAsync(srcStream, destStream, param, reporter, srcFileMetadata.Size, cancel, readErrorIgnored, srcZipCrc);
                                     }
                                     finally
                                     {
+                                        await destStream._DisposeSafeAsync();
                                         await xts._DisposeSafeAsync();
                                         await srcStream._DisposeSafeAsync();
-                                        await destStream._DisposeSafeAsync();
                                     }
 
                                     srcStream = null;
@@ -670,25 +686,28 @@ namespace IPA.Cores.Basic
 
                                         // Verify を実施する
                                         // キャッシュを無効にするため、一度ファイルを閉じて再度開く
-                                        await using(var destFile2 = await destFileSystem.OpenAsync(destPath, flags: param.Flags, cancel: cancel))
+                                        await using (var destFile2 = await destFileSystem.OpenAsync(destPath, flags: param.Flags, cancel: cancel))
                                         {
                                             try
                                             {
-                                                if (param.EncryptOption == EncryptOption.Encrypt)
+                                                if (param.EncryptOption.Bit(EncryptOption.Encrypt))
                                                 {
                                                     // Encryption
-                                                    srcStream = srcFile2.GetStream(disposeTarget: true);
-
                                                     xts = new XtsAesRandomAccess(destFile2, param.EncryptPassword, disposeObject: true);
-                                                    destStream = xts.GetStream(disposeTarget: true);
+
+                                                    if (param.EncryptOption.Bit(EncryptOption.Compress) == false)
+                                                    {
+                                                        destStream = xts.GetStream(disposeTarget: true);
+                                                    }
+                                                    else
+                                                    {
+                                                        destStream = await xts.GetDecompressStreamAsync();
+                                                    }
                                                 }
                                                 else
                                                 {
                                                     // Decryption
                                                     destStream = destFile2.GetStream(disposeTarget: true);
-
-                                                    xts = new XtsAesRandomAccess(srcFile2, param.EncryptPassword, disposeObject: true);
-                                                    srcStream = xts.GetStream(disposeTarget: true);
                                                 }
 
                                                 uint destZipCrc = await CalcZipCrc32HandleAsync(destStream, param, cancel);
@@ -721,7 +740,7 @@ namespace IPA.Cores.Basic
 
                                         await destFile.CloseAsync();
 
-                                        await using(var destFile2 = await destFileSystem.OpenAsync(destPath, flags: param.Flags, cancel: cancel))
+                                        await using (var destFile2 = await destFileSystem.OpenAsync(destPath, flags: param.Flags, cancel: cancel))
                                         {
                                             uint destZipCrc = await CalcZipCrc32HandleAsync(destFile2, param, cancel);
 

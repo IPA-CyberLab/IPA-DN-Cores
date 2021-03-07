@@ -320,6 +320,7 @@ namespace IPA.Cores.Basic
             public const string Filter_SourceCodes = "*.c;*.cpp;*.h;*.rc;*.stb;*.cs;*.fx;*.hlsl;*.cxx;*.cc;*.hh;*.hpp;*.hxx;*.hh;*.txt";
 
             public const string EncryptedXtsAes256 = "._encrypted_xtsaes256";
+            public const string CompressedXtsAes256 = "._compressed_xtsaes256";
         }
 
         public static partial class Urls

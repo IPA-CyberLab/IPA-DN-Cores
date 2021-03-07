@@ -1135,7 +1135,7 @@ namespace IPA.TestDev
             string errorlog = @"C:\TMP\210307\log\error.log";
 
             string src = @"C:\TMP\210307\1";
-            string dst = @"C:\TMP\210307\9";
+            string dst = @"C:\TMP\210307\X";
 
             bool err = false;
             
@@ -1176,8 +1176,8 @@ namespace IPA.TestDev
             string infolog = @"C:\TMP\210307\log\restore_info.log";
             string errorlog = @"C:\TMP\210307\log\restore_error.log";
 
-            string src = @"C:\TMP\210307\9";
-            string dst = @"C:\TMP\210307\A";
+            string src = @"C:\TMP\210307\X";
+            string dst = @"C:\TMP\210307\Y";
 
             bool err = false;
 
@@ -1216,17 +1216,23 @@ namespace IPA.TestDev
         static void Test_210307_EncCopy()
         {
             string src = @"C:\tmp\190314_copy_log_ex_1.log";
-            string dst = @"C:\tmp\enc1\test.log";
-            string dst2 = @"C:\tmp\enc1\test2.log";
+            string dst = @"C:\tmp\enc2\test.log";
+            string dst2 = @"C:\tmp\enc2\test2.log";
             string pass = "pass";
 
-            //FileUtil.CopyFileAsync(Lfs, src, Lfs, dst, new CopyFileParams(encryptOption: EncryptOption.Encrypt, encryptPassword: "test", flags: FileFlags.AutoCreateDirectory | FileFlags.CopyFile_Verify | FileFlags.WriteOnlyIfChanged))._GetResult();
+            FileUtil.CopyFileAsync(Lfs, src, Lfs, dst, new CopyFileParams(encryptOption: EncryptOption.Encrypt | EncryptOption.Compress, encryptPassword: "test", flags: FileFlags.AutoCreateDirectory | FileFlags.CopyFile_Verify | FileFlags.WriteOnlyIfChanged))._GetResult();
 
-            FileUtil.CopyFileAsync(Lfs, dst, Lfs, dst2, new CopyFileParams(encryptOption: EncryptOption.Decrypt, encryptPassword: "test", flags: FileFlags.AutoCreateDirectory | FileFlags.CopyFile_Verify | FileFlags.WriteOnlyIfChanged))._GetResult();
+            FileUtil.CopyFileAsync(Lfs, dst, Lfs, dst2, new CopyFileParams(encryptOption: EncryptOption.Decrypt | EncryptOption.Compress, encryptPassword: "test", flags: FileFlags.AutoCreateDirectory | FileFlags.CopyFile_Verify | FileFlags.WriteOnlyIfChanged))._GetResult();
         }
 
         public static void Test_Generic()
         {
+            if (false)
+            {
+                Test_210307_EncCopy();
+                return;
+            }
+
             if (false)
             {
                 Test_210307_Backup();

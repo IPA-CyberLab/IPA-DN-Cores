@@ -70,6 +70,7 @@ namespace IPA.Cores.Basic
     {
         public string FileName = null!;
         public string? EncrypedFileName;
+        public long? EncryptedPhysicalSize;
         public FileMetadata MetaData = null!;
     }
 
@@ -421,7 +422,7 @@ namespace IPA.Cores.Basic
                                         }
                                         else
                                         {
-                                            sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, new FilePath(destFilePath, Fs, flags: FileFlags.BackupMode), new FilePath(srcFilePath, Fs, flags: FileFlags.BackupMode), cancel: cancel);
+                                            sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, true, new FilePath(destFilePath, Fs, flags: FileFlags.BackupMode), new FilePath(srcFilePath, Fs, flags: FileFlags.BackupMode), cancel: cancel);
                                         }
 
                                         if (sameRet.IsOk == false || sameRet.Value != 0)
@@ -500,7 +501,7 @@ namespace IPA.Cores.Basic
                             await Fs.CopyFileAsync(srcFilePath, destFilePath,
                                 new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify | FileFlags.Async,
                                 metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
-                                encryptOption: isEncrypted ? EncryptOption.Decrypt : EncryptOption.None,
+                                encryptOption: isEncrypted ? EncryptOption.Decrypt | EncryptOption.Compress : EncryptOption.None,
                                 encryptPassword: encryptPassword),
                                 cancel: cancel,
                                 newFileMeatadata: Options.Flags.Bit(DirSuperBackupFlags.RestoreNoAcl) ? null : srcFileMetadata);
@@ -688,13 +689,15 @@ namespace IPA.Cores.Basic
 
                 await TaskUtil.ForEachAsync(32, fileEntries, async (srcFile, cancel) =>
                 {
+                    long? encryptedPhysicalSize = null;
+
                     await Task.Yield();
 
                     string destFilePath = Fs.PathParser.Combine(destDir, srcFile.Name);
 
                     if (Options.EncryptPassword._IsNullOrZeroLen() == false)
                     {
-                        destFilePath += Consts.Extensions.EncryptedXtsAes256;
+                        destFilePath += Consts.Extensions.CompressedXtsAes256;
                     }
 
                     FileMetadata? srcFileMetadata = null;
@@ -727,25 +730,15 @@ namespace IPA.Cores.Basic
                             }
                             else
                             {
-                                // 暗号化ヘッダ内のファイルサイズを取得する
-                                try
-                                {
-                                    await using var destFileObj = await Fs.OpenAsync(destFilePath, flags: FileFlags.BackupMode, cancel: cancel);
-                                    await using var destFileXts = new XtsAesRandomAccess(destFileObj, Options.EncryptPassword, disposeObject: true);
-                                    long destFileEncryptedSize = await destFileXts.GetFileSizeAsync(cancel: cancel);
-                                    if (destFileEncryptedSize != srcFile.Size)
-                                    {
-                                        // ファイルサイズが異なる
-                                        fileChangedOrNew = true;
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    // 軽微なエラーが発生した
-                                    await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DestExistingEncryptedFileReadError", srcFile.FullPath, destFilePath, ex.Message));
-                                    Stat.Error_NumFiles++;
+                                // 暗号化あり
+                                // 宛先ディレクトリのメタデータにファイル情報が存在し、そのメタデータ情報におけるファイルサイズが元ファイルと同じであり、
+                                // かつそのメタデータ情報に記載されている EncryptedPhysicalSize が宛先ディレクトリにある物理ファイルと全く同一である
+                                // 場合は、宛先ファイルが正しく存在すると仮定する
 
-                                    // この場合は変化したとみなす
+                                string tmp1 = PP.GetFileName(destFilePath);
+                                if ((destDirOldMetaData?.FileList.Where(x => x.EncrypedFileName._IsSamei(tmp1) && x.EncryptedPhysicalSize == destExistsMetadata.Size && x.MetaData.Size == srcFile.Size).Any() ?? false) == false)
+                                {
+                                    // ファイルサイズが異なるとみなす
                                     fileChangedOrNew = true;
                                 }
                             }
@@ -819,15 +812,40 @@ namespace IPA.Cores.Basic
 
                             await Fs.CopyFileAsync(srcFile.FullPath, destFilePath,
                                 new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify | FileFlags.Async, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
-                                encryptOption: Options.EncryptPassword._IsNullOrZeroLen() ? EncryptOption.None : EncryptOption.Encrypt,
+                                encryptOption: Options.EncryptPassword._IsNullOrZeroLen() ? EncryptOption.None : EncryptOption.Encrypt | EncryptOption.Compress,
                                 encryptPassword: Options.EncryptPassword),
                                 cancel: cancel); ;
+
+                            try
+                            {
+                                var newFileMetadata = await Fs.GetFileMetadataAsync(destFilePath, FileMetadataGetFlags.NoPhysicalFileSize, cancel);
+
+                                if (Options.EncryptPassword._IsNullOrZeroLen() == false)
+                                {
+                                    encryptedPhysicalSize = newFileMetadata.Size;
+                                }
+                            }
+                            catch
+                            {
+                            }
 
                             Stat.Copy_NumFiles++;
                             Stat.Copy_TotalSize += srcFile.Size;
                         }
                         else
                         {
+                            if (Options.EncryptPassword._IsNullOrZeroLen() == false)
+                            {
+                                string tmp1 = PP.GetFileName(destFilePath);
+
+                                encryptedPhysicalSize = destDirOldMetaData?.FileList.Where(x => x.EncrypedFileName._IsSame(tmp1) && x.MetaData.Size == srcFile.Size).FirstOrDefault()?.EncryptedPhysicalSize;
+
+                                if (encryptedPhysicalSize.HasValue == false)
+                                {
+                                    encryptedPhysicalSize = destDirOldMetaData?.FileList.Where(x => x.EncrypedFileName._IsSamei(tmp1) && x.MetaData.Size == srcFile.Size).FirstOrDefault()?.EncryptedPhysicalSize;
+                                }
+                            }
+
                             Stat.Skip_NumFiles++;
                             Stat.Skip_TotalSize += srcFile.Size;
 
@@ -858,7 +876,13 @@ namespace IPA.Cores.Basic
                     // このファイルに関するメタデータを追加する
                     if (srcFileMetadata != null)
                     {
-                        destDirNewMetaData.FileList.Add(new DirSuperBackupMetadataFile() { FileName = srcFile.Name, EncrypedFileName = Options.EncryptPassword._IsNullOrZeroLen() ? null : srcFile.Name + Consts.Extensions.EncryptedXtsAes256, MetaData = srcFileMetadata }); ;
+                        destDirNewMetaData.FileList.Add(new DirSuperBackupMetadataFile()
+                        {
+                            FileName = srcFile.Name,
+                            EncrypedFileName = Options.EncryptPassword._IsNullOrZeroLen() ? null : srcFile.Name + Consts.Extensions.CompressedXtsAes256,
+                            MetaData = srcFileMetadata,
+                            EncryptedPhysicalSize = encryptedPhysicalSize,
+                        });
                     }
                 }, cancel: cancel);
 
