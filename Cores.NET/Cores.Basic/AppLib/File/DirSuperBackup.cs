@@ -345,7 +345,7 @@ namespace IPA.Cores.Basic
 
                 AsyncLock SafeLock = new AsyncLock();
 
-                await TaskUtil.ForEachAsync(32, dirMetaData.FileList, async (srcFile, cancel) =>
+                await TaskUtil.ForEachAsync(Env.NumCpus, dirMetaData.FileList, async (srcFile, cancel) =>
                 {
                     await Task.Yield();
 
@@ -687,7 +687,7 @@ namespace IPA.Cores.Basic
 
                 AsyncLock SafeLock = new AsyncLock();
 
-                await TaskUtil.ForEachAsync(32, fileEntries, async (srcFile, cancel) =>
+                await TaskUtil.ForEachAsync(Env.NumCpus, fileEntries, async (srcFile, cancel) =>
                 {
                     long? encryptedPhysicalSize = null;
 
