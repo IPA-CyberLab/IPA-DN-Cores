@@ -321,6 +321,8 @@ namespace IPA.Cores.Basic
 
             public const string EncryptedXtsAes256 = "._encrypted_xtsaes256";
             public const string CompressedXtsAes256 = "._compressed_xtsaes256";
+
+            public const string DirSuperBackupHistory = "._backup_history";
         }
 
         public static partial class Urls

@@ -78,10 +78,14 @@ namespace IPA.Cores.Basic
     public enum DirSuperBackupFlags
     {
         Default = 0,
+
         RestoreOnlyNewer = 1,
         RestoreDoNotSkipExactSame = 2,
         RestoreMakeBackup = 4,
         RestoreNoAcl = 8,
+
+        BackupMakeHistory = 65536,
+        BackupSync = 131072,
     }
 
     public class DirSuperBackupOptions
@@ -127,10 +131,16 @@ namespace IPA.Cores.Basic
         public long Skip_NumFiles;
         public long Skip_TotalSize;
 
+        public long SyncDelete_NumFiles;
+        public long SyncDelete_NumDirs;
+
         public long Error_Dir;
 
         public long Error_NumFiles;
         public long Error_TotalSize;
+
+        public long Error_NumDeleteDirs;
+        public long Error_NumDeleteFiles;
     }
 
     // ディレクトリ単位の世代対応バックアップユーティリティ
@@ -178,6 +188,10 @@ namespace IPA.Cores.Basic
 
                 WriteLogAsync(DirSuperBackupLogType.Error, "------------------")._GetResult();
                 WriteLogAsync(DirSuperBackupLogType.Error, "Start")._GetResult();
+
+                WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("Options_Flags", this.Options.Flags.ToString()))._GetResult();
+                WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("Options_NumThreads", this.Options.NumThreads.ToString()))._GetResult();
+                WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("Options_Encryption", (!this.Options.EncryptPassword._IsNullOrZeroLen()).ToString()))._GetResult();
             }
             catch
             {
@@ -190,9 +204,15 @@ namespace IPA.Cores.Basic
         {
             try
             {
+                WriteLogAsync(DirSuperBackupLogType.Error, "---")._GetResult();
+                WriteLogAsync(DirSuperBackupLogType.Error, "Finish")._TryGetResult();
+                WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("Options_Flags", this.Options.Flags.ToString()))._GetResult();
+                WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("Options_NumThreads", this.Options.NumThreads.ToString()))._GetResult();
+                WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("Options_Encryption", (!this.Options.EncryptPassword._IsNullOrZeroLen()).ToString()))._GetResult();
+
                 WriteStatAsync()._TryGetResult();
 
-                WriteLogAsync(DirSuperBackupLogType.Error, "Finish")._TryGetResult();
+                WriteLogAsync(DirSuperBackupLogType.Error, "------------------")._GetResult();
 
                 InfoLogWriter._DisposeSafe();
                 InfoLogFileStream._DisposeSafe();
@@ -256,7 +276,7 @@ namespace IPA.Cores.Basic
         // Stat をログに書き込む
         public async Task WriteStatAsync()
         {
-            await WriteLogAsync(DirSuperBackupLogType.Error, this.Stat._ObjectToJson(compact: true));
+            await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("Stat", this.Stat._ObjectToJson(compact: true)));
         }
 
         // 1 つのディレクトリを復元する
@@ -466,7 +486,7 @@ namespace IPA.Cores.Basic
                                 if (Options.Flags.Bit(DirSuperBackupFlags.RestoreMakeBackup))
                                 {
                                     // 復元先に同名のファイルがすでに存在する場合は、
-                                    // .original.0123.xxxx.original のような形式でまだ存在しない連番に古いファイル名をリネームする
+                                    // .original.xxxx.0123.original のような形式でまだ存在しない連番に古いファイル名をリネームする
                                     using (await SafeLock.LockWithAwait(cancel))
                                     {
                                         string newOldFileName;
@@ -474,7 +494,7 @@ namespace IPA.Cores.Basic
                                         // 連番でかつ存在していないファイル名を決定する
                                         for (int i = 0; ; i++)
                                         {
-                                            string newOldFileNameCandidate = $".original.{i:D4}.{srcFile.FileName}.original";
+                                            string newOldFileNameCandidate = $".original.{srcFile.FileName}.{i:D4}.original";
 
                                             if (await Fs.IsFileExistsAsync(Fs.PathParser.Combine(destDir, newOldFileNameCandidate), cancel) == false)
                                             {
@@ -628,6 +648,8 @@ namespace IPA.Cores.Basic
 
             FileMetadata? srcDirMetadata = null;
 
+            bool noError = true;
+
             try
             {
                 if (srcDir._IsSamei(destDir))
@@ -745,7 +767,7 @@ namespace IPA.Cores.Basic
                                 // かつそのメタデータ情報に記載されている EncryptedPhysicalSize が宛先ディレクトリにある物理ファイルと全く同一である
                                 // 場合は、宛先ファイルが正しく存在すると仮定する
 
-                                string tmp1 = PP.GetFileName(destFilePath);
+                                string tmp1 = Fs.PathParser.GetFileName(destFilePath);
                                 if ((destDirOldMetaData?.FileList.Where(x => x.EncrypedFileName._IsSamei(tmp1) && x.EncryptedPhysicalSize == destExistsMetadata.Size && x.MetaData.Size == srcFile.Size).Any() ?? false) == false)
                                 {
                                     // ファイルサイズが異なるとみなす
@@ -783,22 +805,25 @@ namespace IPA.Cores.Basic
                             fileChangedOrNew = true;
                         }
 
+                        string? oldFilePathToDelete = null;
+
                         if (fileChangedOrNew)
                         {
                             // ファイルが新しいか、または更新された場合は、そのファイルをバックアップする
                             // ただし、バックアップ先に同名のファイルがすでに存在する場合は、
-                            // xxxx.0123.old のような形式でまだ存在しない連番に古いファイル名をリネームする
+                            // .old.xxxx.YYYYMMDD_HHMMSS.0123._backup_history のような形式でまだ存在しない連番に古いファイル名をリネームする
 
                             if (exists)
                             {
                                 using (await SafeLock.LockWithAwait(cancel))
                                 {
+                                    string yymmdd = Str.DateTimeToStrShort(DateTime.UtcNow);
                                     string newOldFileName;
 
                                     // 連番でかつ存在していないファイル名を決定する
                                     for (int i = 0; ; i++)
                                     {
-                                        string newOldFileNameCandidate = $"{PP.GetFileName(destFilePath)}.{i:D4}.old";
+                                        string newOldFileNameCandidate = $".old.{Fs.PathParser.GetFileName(destFilePath)}.{yymmdd}.{i:D4}{Consts.Extensions.DirSuperBackupHistory}";
 
                                         if (srcDirEnum.Where(x => x.Name._IsSamei(newOldFileNameCandidate)).Any() == false)
                                         {
@@ -810,9 +835,25 @@ namespace IPA.Cores.Basic
                                         }
                                     }
 
-                                    // 変更されたファイル名を .old ファイルにリネーム実行する
-                                    await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileRename", destFilePath, Fs.PathParser.Combine(destDir, newOldFileName)));
-                                    await Fs.MoveFileAsync(destFilePath, Fs.PathParser.Combine(destDir, newOldFileName), cancel);
+                                    // 変更されたファイル名を ._backup_history ファイルにリネーム実行する
+                                    string newOldFilePath = Fs.PathParser.Combine(destDir, newOldFileName);
+                                    await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileRename", destFilePath, newOldFilePath));
+                                    await Fs.MoveFileAsync(destFilePath, newOldFilePath, cancel);
+
+                                    oldFilePathToDelete = newOldFilePath;
+
+                                    // 隠しファイルにする
+                                    try
+                                    {
+                                        var meta = await Fs.GetFileMetadataAsync(newOldFilePath, cancel: cancel);
+                                        if (meta.Attributes != null && meta.Attributes.Bit(FileAttributes.Hidden) == false)
+                                        {
+                                            FileMetadata meta2 = new FileMetadata(attributes: meta.Attributes.BitAdd(FileAttributes.Hidden));
+
+                                            await Fs.SetFileMetadataAsync(newOldFilePath, meta2, cancel);
+                                        }
+                                    }
+                                    catch { }
                                 }
                             }
 
@@ -839,6 +880,22 @@ namespace IPA.Cores.Basic
                             {
                             }
 
+                            if (Options.Flags.Bit(DirSuperBackupFlags.BackupMakeHistory) == false)
+                            {
+                                // History を残さない場合
+                                // コピーに成功したので ._backup_history ファイルは削除する
+                                if (oldFilePathToDelete._IsNotZeroLen())
+                                {
+                                    try
+                                    {
+                                        await Fs.DeleteFileAsync(oldFilePathToDelete, flags: FileFlags.BackupMode | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                                    }
+                                    catch
+                                    {
+                                    }
+                                }
+                            }
+
                             Stat.Copy_NumFiles++;
                             Stat.Copy_TotalSize += srcFile.Size;
                         }
@@ -846,7 +903,7 @@ namespace IPA.Cores.Basic
                         {
                             if (Options.EncryptPassword._IsNullOrZeroLen() == false)
                             {
-                                string tmp1 = PP.GetFileName(destFilePath);
+                                string tmp1 = Fs.PathParser.GetFileName(destFilePath);
 
                                 encryptedPhysicalSize = destDirOldMetaData?.FileList.Where(x => x.EncrypedFileName._IsSame(tmp1) && x.MetaData.Size == srcFile.Size).FirstOrDefault()?.EncryptedPhysicalSize;
 
@@ -877,6 +934,8 @@ namespace IPA.Cores.Basic
 
                         // ファイル単位のエラー発生
                         await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("FileError", srcFile.FullPath, destFilePath, ex.Message));
+
+                        noError = false;
                     }
                     finally
                     {
@@ -906,11 +965,13 @@ namespace IPA.Cores.Basic
                 // 新しいメタデータを書き込む
                 string newMetadataFilePath = Fs.PathParser.Combine(destDir, $"{PrefixMetadata}{Str.DateTimeToStrShortWithMilliSecs(now.UtcDateTime)}{SuffixMetadata}");
 
-                await Fs.WriteJsonToFileAsync(newMetadataFilePath, destDirNewMetaData, FileFlags.BackupMode, cancel: cancel);
+                await Fs.WriteJsonToFileAsync(newMetadataFilePath, destDirNewMetaData, FileFlags.BackupMode | FileFlags.OnCreateSetCompressionFlag, cancel: cancel);
             }
             catch (Exception ex)
             {
                 Stat.Error_Dir++;
+
+                noError = false;
 
                 // ディレクトリ単位のエラー発生
                 await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError", srcDir, destDir, ex.Message));
@@ -931,6 +992,8 @@ namespace IPA.Cores.Basic
 
             if (srcDirEnum != null)
             {
+                bool ok = false;
+
                 try
                 {
                     // ソースディレクトリの列挙に成功した場合は、サブディレクトリに対して再帰的に実行する
@@ -946,6 +1009,8 @@ namespace IPA.Cores.Basic
                             }
                         }
                     }
+
+                    ok = true;
                 }
                 catch (Exception ex)
                 {
@@ -954,6 +1019,81 @@ namespace IPA.Cores.Basic
 
                     // ディレクトリ単位のエラー発生
                     await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError", srcDir, destDir, ex.Message));
+                }
+
+                if (ok)
+                {
+                    if (noError)
+                    {
+                        // ここまでの処理で何も問題がなければ (このディレクトリ内のすべてのファイルのコピーやメタデータの更新に成功しているなであれば)
+                        // Sync オプションが付与されている場合、不要なサブディレクトリとファイルを削除する
+
+                        if (this.Options.Flags.Bit(DirSuperBackupFlags.BackupSync))
+                        {
+                            try
+                            {
+                                // 両方のディレクトリを再列挙いたします
+                                var srcDirEnum2 = (await Fs.EnumDirectoryAsync(srcDir, false, EnumDirectoryFlags.NoGetPhysicalSize, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
+                                var destDirEnum2 = (await Fs.EnumDirectoryAsync(destDir, false, EnumDirectoryFlags.NoGetPhysicalSize, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
+
+                                // 余分なファイルを削除いたします
+                                var extraFiles = destDirEnum2.Where(x => x.IsFile && x.IsSymbolicLink == false)
+                                    .Where(x => x.Name._StartWithi(DirSuperBackup.PrefixMetadata) == false && x.Name._EndsWithi(DirSuperBackup.SuffixMetadata) == false)
+                                    .Where(x => srcDirEnum2.Where(y => y.IsFile && y.Name._IsSameiTrim(x.Name)).Any() == false)
+                                    .Where(x => srcDirEnum2.Where(y => y.IsFile && (y.Name + Consts.Extensions.CompressedXtsAes256)._IsSameiTrim(x.Name)).Any() == false);
+
+                                foreach (var extraFile in extraFiles)
+                                {
+                                    string fullPath = Fs.PathParser.Combine(destDir, extraFile.Name);
+
+                                    await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("DirSyncDeleteFile", fullPath));
+
+                                    try
+                                    {
+                                        await Fs.DeleteFileAsync(fullPath, FileFlags.BackupMode | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+
+                                        Stat.SyncDelete_NumFiles++;
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Stat.Error_NumDeleteFiles++;
+                                        await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirSyncDeleteFileError", fullPath, ex.Message));
+                                    }
+                                }
+
+                                // 余分なサブディレクトリを削除いたします
+                                var extraSubDirs = destDirEnum2.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false && x.IsSymbolicLink == false)
+                                   .Where(x => srcDirEnum2.Where(y => y.IsDirectory && y.IsCurrentOrParentDirectory == false && y.Name._IsSameiTrim(x.Name)).Any() == false);
+
+                                foreach (var extraSubDir in extraSubDirs)
+                                {
+                                    string fullPath = Fs.PathParser.Combine(destDir, extraSubDir.Name);
+
+                                    await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("DirSyncDeleteSubDir", fullPath));
+
+                                    try
+                                    {
+                                        await Fs.DeleteDirectoryAsync(fullPath, true, cancel);
+
+                                        Stat.SyncDelete_NumDirs++;
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Stat.Error_NumDeleteDirs++;
+                                        await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirSyncDeleteSubDirError", fullPath, ex.Message));
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                // 何らかのディレクトリ単位のエラーで catch されていないものが発生
+                                Stat.Error_Dir++;
+
+                                // ディレクトリ単位のエラー発生
+                                await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirSyncEnumError", srcDir, destDir, ex.Message));
+                            }
+                        }
+                    }
                 }
             }
 

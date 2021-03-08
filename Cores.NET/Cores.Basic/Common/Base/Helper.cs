@@ -342,6 +342,8 @@ namespace IPA.Cores.Helper.Basic
         public static bool _IsSameIPAddress(this string? ip1, string? ip2) => IPUtil.CompareIPAddress(ip1, ip2);
         public static int _CmpIPAddress(this string? ip1, string? ip2) => IPUtil.CompareIPAddressRetInt(ip1, ip2);
 
+        public static bool _StartWithi(this string? str, string value) => str?.StartsWith(value, StringComparison.OrdinalIgnoreCase) ?? false;
+        public static bool _EndsWithi(this string? str, string value) => str?.EndsWith(value, StringComparison.OrdinalIgnoreCase) ?? false;
 
         public static int _CmpTrim(this string? s, string? t, StringComparison comparison = StringComparison.Ordinal)
         {
@@ -360,6 +362,7 @@ namespace IPA.Cores.Helper.Basic
             return string.Equals(s, t, comparison);
         }
         public static bool _IsSameTrimi(this string? s, string? t) => _IsSameTrim(s, t, StringComparison.OrdinalIgnoreCase);
+        public static bool _IsSameiTrim(this string? s, string? t) => _IsSameTrim(s, t, StringComparison.OrdinalIgnoreCase);
 
         public static bool _IsAscii(this char c) => Str.IsAscii(c);
         public static bool _IsAscii(this string str) => Str.IsAscii(str);
@@ -1478,6 +1481,10 @@ namespace IPA.Cores.Helper.Basic
             => value.HasFlag(flag);
 
         [MethodImpl(Inline)]
+        public static bool Bit<T>(this T? value, T flag) where T : unmanaged, Enum
+            => value?.Bit(flag) ?? false;
+
+        [MethodImpl(Inline)]
         public static bool BitAny<T>(this T value, T flags) where T : unmanaged, Enum
         {
             ulong value1 = value._RawReadValueUInt64();
@@ -1486,6 +1493,9 @@ namespace IPA.Cores.Helper.Basic
 
             return ((value1 & value2) == 0) ? false : true;
         }
+        [MethodImpl(Inline)]
+        public static bool BitAny<T>(this T? value, T flags) where T : unmanaged, Enum
+            => value?.BitAny(flags) ?? false;
 
         [MethodImpl(Inline)]
         public static T BitRemove<T>(this T value, T removingBit) where T : unmanaged, Enum
@@ -1500,6 +1510,9 @@ namespace IPA.Cores.Helper.Basic
 
             return ret;
         }
+        [MethodImpl(Inline)]
+        public static T BitRemove<T>(this T? value, T removingBit) where T : unmanaged, Enum
+            => value?.BitRemove(removingBit) ?? default;
 
         [MethodImpl(Inline)]
         public static T BitAdd<T>(this T value, T removingBit) where T : unmanaged, Enum
@@ -1514,6 +1527,9 @@ namespace IPA.Cores.Helper.Basic
 
             return ret;
         }
+        [MethodImpl(Inline)]
+        public static T BitAdd<T>(this T? value, T removingBit) where T : unmanaged, Enum
+            => value?.BitAdd(removingBit) ?? default;
 
         public static T ParseAsDefault<T>(this T defaultValue, string str, bool exactOnly = false, bool noMatchError = false) where T : unmanaged, Enum
         {
@@ -1542,7 +1558,7 @@ namespace IPA.Cores.Helper.Basic
         }
 
         [MethodImpl(Inline)]
-        public static bool IsAnyOfThem<T>(T value, params T[] flags) where T : unmanaged, Enum
+        public static bool IsAnyOfThem<T>(this T value, params T[] flags) where T : unmanaged, Enum
         {
             if (flags == null || flags.Length == 0) return false;
             ulong value1 = value._RawReadValueUInt64();
@@ -1554,6 +1570,9 @@ namespace IPA.Cores.Helper.Basic
 
             return false;
         }
+        [MethodImpl(Inline)]
+        public static bool IsAnyOfThem<T>(this T? value, params T[] flags) where T : unmanaged, Enum
+            => value?.IsAnyOfThem(flags) ?? false;
 
         [MethodImpl(Inline)]
         public static bool EqualsAny<T>(this T value, T v1) where T : unmanaged, Enum
@@ -1652,6 +1671,8 @@ namespace IPA.Cores.Helper.Basic
         public static bool _IsZeroFast(this Memory<byte> data) => Util.IsZeroFast(data);
 
         public static bool _IsNullOrZeroLen([NotNullWhen(false)] this string? str) => string.IsNullOrEmpty(str);
+
+        public static bool _IsNotZeroLen([NotNullWhen(true)] this string? str) => !string.IsNullOrEmpty(str);
 
         public static bool _IsNullOrZeroLen<T>([NotNullWhen(false)] this T[]? array) => !(array != null && array.Length != 0);
 

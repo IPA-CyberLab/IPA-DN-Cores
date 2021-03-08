@@ -325,7 +325,7 @@ namespace IPA.TestDev
         // 指定されたディレクトリやサブディレクトリを列挙し結果をファイルに書き出す
         [ConsoleCommand(
             "DirSuperBackup command",
-            "DirSuperBackup [src] /dst:dst [/errorlog:errorlog] [/infolog:infolog] [/password:password] [/ignoredirs:dir1,dir2,...]",
+            "DirSuperBackup [src] /dst:dst /options:options1,options1,... [/errorlog:errorlog] [/infolog:infolog] [/password:password] [/numthreads:num] [/ignoredirs:dir1,dir2,...]",
             "DirSuperBackup command")]
         static int DirSuperBackup(ConsoleService c, string cmdName, string str)
         {
@@ -333,9 +333,11 @@ namespace IPA.TestDev
             {
                 new ConsoleParam("[src]", ConsoleService.Prompt, "Source directory path: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("dst", ConsoleService.Prompt, "Destination directory path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("options", ConsoleService.Prompt, $"Options ({DirSuperBackupFlags.Default._GetDefinedEnumElementsStrList().Where(x=>!x._StartWithi("Restore"))._Combine(",")}) ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("errorlog"),
                 new ConsoleParam("infolog"),
                 new ConsoleParam("password"),
+                new ConsoleParam("numthreads"),
                 new ConsoleParam("ignoredirs"),
             };
 
@@ -347,6 +349,8 @@ namespace IPA.TestDev
             string infolog = vl["infolog"].StrValue;
             string password = vl["password"].StrValue;
             string ignoredirs = vl["ignoredirs"].StrValue;
+            string options = vl["options"].StrValue;
+            string numthreads = vl["numthreads"].StrValue;
 
             bool err = false;
 
@@ -359,7 +363,9 @@ namespace IPA.TestDev
                 Con.WriteError(ex);
             }
 
-            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, encryptPassword: password)))
+            var optionsValues = options._ParseEnumBits(DirSuperBackupFlags.Default, ',', '|', ' ');
+
+            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, flags: optionsValues, encryptPassword: password, numThreads: numthreads._ToInt())))
             {
                 Async(async () =>
                 {
@@ -376,6 +382,10 @@ namespace IPA.TestDev
             {
                 Con.WriteError("Error occured.");
             }
+            else
+            {
+                Con.WriteError("All OK!");
+            }
 
             return err ? 1 : 0;
         }
@@ -384,7 +394,7 @@ namespace IPA.TestDev
         // 指定されたディレクトリやサブディレクトリを列挙し結果をファイルに書き出す
         [ConsoleCommand(
             "DirSuperRestore command",
-            "DirSuperRestore [src] /dst:dst /options:options1,options1,... [/errorlog:errorlog] [/infolog:infolog] [/password:password] [/ignoredirs:dir1,dir2,...]",
+            "DirSuperRestore [src] /dst:dst /options:options1,options1,... [/errorlog:errorlog] [/infolog:infolog] [/password:password] [/numthreads:num] [/ignoredirs:dir1,dir2,...]",
             "DirSuperRestore command")]
         static int DirSuperRestore(ConsoleService c, string cmdName, string str)
         {
@@ -392,10 +402,11 @@ namespace IPA.TestDev
             {
                 new ConsoleParam("[src]", ConsoleService.Prompt, "Source directory path: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("dst", ConsoleService.Prompt, "Destination directory path: ", ConsoleService.EvalNotEmpty, null),
-                new ConsoleParam("options", ConsoleService.Prompt, $"Options ({DirSuperBackupFlags.Default._GetDefinedEnumElementsStrList()._Combine(",")}) ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("options", ConsoleService.Prompt, $"Options ({DirSuperBackupFlags.Default._GetDefinedEnumElementsStrList().Where(x=>!x._StartWithi("Backup"))._Combine(",")}) ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("errorlog"),
                 new ConsoleParam("infolog"),
                 new ConsoleParam("password"),
+                new ConsoleParam("numthreads"),
                 new ConsoleParam("ignoredirs"),
             };
 
@@ -408,6 +419,7 @@ namespace IPA.TestDev
             string ignoredirs = vl["ignoredirs"].StrValue;
             string password = vl["password"].StrValue;
             string options = vl["options"].StrValue;
+            string numthreads = vl["numthreads"].StrValue;
 
             bool err = false;
 
@@ -422,9 +434,7 @@ namespace IPA.TestDev
 
             var optionsValues = options._ParseEnumBits(DirSuperBackupFlags.Default, ',', '|', ' ');
 
-            Con.WriteInfo($"Options: {optionsValues.ToString()}");
-
-            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, optionsValues, encryptPassword: password)))
+            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, optionsValues, encryptPassword: password, numThreads: numthreads._ToInt())))
             {
                 Async(async () =>
                 {
@@ -440,6 +450,10 @@ namespace IPA.TestDev
             if (err)
             {
                 Con.WriteError("Error occured.");
+            }
+            else
+            {
+                Con.WriteError("All OK!");
             }
 
             return err ? 1 : 0;
