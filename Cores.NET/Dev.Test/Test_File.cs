@@ -392,7 +392,7 @@ namespace IPA.TestDev
             {
                 new ConsoleParam("[src]", ConsoleService.Prompt, "Source directory path: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("dst", ConsoleService.Prompt, "Destination directory path: ", ConsoleService.EvalNotEmpty, null),
-                new ConsoleParam("options", ConsoleService.Prompt, $"Options ({DirSuperBackupFlags.None._GetDefinedEnumElementsStrList()._Combine(",")}) ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("options", ConsoleService.Prompt, $"Options ({DirSuperBackupFlags.Default._GetDefinedEnumElementsStrList()._Combine(",")}) ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("errorlog"),
                 new ConsoleParam("infolog"),
                 new ConsoleParam("password"),
@@ -420,7 +420,7 @@ namespace IPA.TestDev
                 Con.WriteError(ex);
             }
 
-            var optionsValues = options._ParseEnumBits(DirSuperBackupFlags.None, ',', '|', ' ');
+            var optionsValues = options._ParseEnumBits(DirSuperBackupFlags.Default, ',', '|', ' ');
 
             Con.WriteInfo($"Options: {optionsValues.ToString()}");
 

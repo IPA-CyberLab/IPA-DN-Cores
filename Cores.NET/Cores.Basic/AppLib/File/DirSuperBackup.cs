@@ -77,7 +77,7 @@ namespace IPA.Cores.Basic
     [Flags]
     public enum DirSuperBackupFlags
     {
-        None = 0,
+        Default = 0,
         RestoreOnlyNewer = 1,
         RestoreDoNotSkipExactSame = 2,
         RestoreMakeBackup = 4,
@@ -93,7 +93,7 @@ namespace IPA.Cores.Basic
         public string EncryptPassword { get; }
         public int NumThreads { get; }
 
-        public DirSuperBackupOptions(FileSystem? fs = null, string? infoLogFileName = null, string? errorLogFileName = null, DirSuperBackupFlags flags = DirSuperBackupFlags.None, string encryptPassword = "", int numThreads = 0)
+        public DirSuperBackupOptions(FileSystem? fs = null, string? infoLogFileName = null, string? errorLogFileName = null, DirSuperBackupFlags flags = DirSuperBackupFlags.Default, string encryptPassword = "", int numThreads = 0)
         {
             Fs = fs ?? Lfs;
             InfoLogFileName = infoLogFileName;
@@ -886,13 +886,16 @@ namespace IPA.Cores.Basic
                     // このファイルに関するメタデータを追加する
                     if (srcFileMetadata != null)
                     {
-                        destDirNewMetaData.FileList.Add(new DirSuperBackupMetadataFile()
+                        lock (destDirNewMetaData.FileList)
                         {
-                            FileName = srcFile.Name,
-                            EncrypedFileName = Options.EncryptPassword._IsNullOrZeroLen() ? null : srcFile.Name + Consts.Extensions.CompressedXtsAes256,
-                            MetaData = srcFileMetadata,
-                            EncryptedPhysicalSize = encryptedPhysicalSize,
-                        });
+                            destDirNewMetaData.FileList.Add(new DirSuperBackupMetadataFile()
+                            {
+                                FileName = srcFile.Name,
+                                EncrypedFileName = Options.EncryptPassword._IsNullOrZeroLen() ? null : srcFile.Name + Consts.Extensions.CompressedXtsAes256,
+                                MetaData = srcFileMetadata,
+                                EncryptedPhysicalSize = encryptedPhysicalSize,
+                            });
+                        }
                     }
                 }, cancel: cancel);
 
