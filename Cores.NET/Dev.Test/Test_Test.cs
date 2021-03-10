@@ -1138,7 +1138,7 @@ namespace IPA.TestDev
             string dst = @"C:\TMP\210307\X";
 
             bool err = false;
-            
+
             try
             {
                 Lfs.EnableBackupPrivilege();
@@ -1225,8 +1225,583 @@ namespace IPA.TestDev
             FileUtil.CopyFileAsync(Lfs, dst, Lfs, dst2, new CopyFileParams(encryptOption: EncryptOption.Decrypt | EncryptOption.Compress, encryptPassword: "test", flags: FileFlags.AutoCreateDirectory | FileFlags.CopyFile_Verify | FileFlags.WriteOnlyIfChanged))._GetResult();
         }
 
+        static async Task Test_210309_Samba()
+        {
+            string dirName = @"\\lts\DataRoot\tmp\test3\";
+
+            await Lfs.CreateDirectoryAsync(dirName);
+
+            while (true)
+            {
+                List<int> o = new List<int>();
+
+                for (int i = 0; i < 1024; i++)
+                {
+                    o.Add(i);
+                }
+
+                await Lfs.EnumDirectoryAsync(dirName, false, EnumDirectoryFlags.NoGetPhysicalSize);
+
+                await TaskUtil.ForEachAsync(256, o, async (number, cancel) =>
+                {
+                    await Task.Yield();
+
+                    string fileName = $"test.{number:D4}.dat";
+                    string filePath = Path.Combine(dirName, fileName);
+
+                    Console.WriteLine(filePath);
+
+                    int size = Secure.RandSInt31() % 100000;
+
+                    byte[] randomData = Util.Rand(size);
+                    byte[] readData = new byte[size];
+
+                    await using (var obj = await Lfs.CreateAsync(filePath))
+                    {
+                        await using var f = obj.GetStream();
+
+                        await f.WriteAsync(randomData, 0, randomData.Length);
+                    }
+
+                    await using (var obj = await Lfs.OpenAsync(filePath))
+                    {
+                        await using var f = obj.GetStream();
+
+                        await f.ReadAsync(readData);
+                    }
+
+                    int r = randomData.AsSpan().SequenceCompareTo(readData.AsSpan());
+                    if (r != 0)
+                    {
+                        Console.WriteLine($"*** Different !!!!!!!!!");
+                    }
+                });
+            }
+        }
+
+        static async Task Test_210309_Samba2()
+        {
+            Random rand = new Random((int)DateTime.Now.Ticks);
+            string dirName = @"\\lts\DataRoot\tmp\test2\";
+
+            string srcFile = @"C:\dropbox\COECTRL\tmp\Intel IntelDev\x64 - 1 - 253665-sdm-vol-1.pdf";
+
+            await Lfs.CreateDirectoryAsync(dirName);
+
+            while (true)
+            {
+                List<int> o = new List<int>();
+
+                for (int i = 0; i < 1024; i++)
+                {
+                    o.Add(i);
+                }
+
+                await TaskUtil.ForEachAsync(32, o, async (number, cancel) =>
+                {
+                    await Task.Yield();
+
+                    string fileName = $"test.{number:D4}.dat";
+                    string filePath = Path.Combine(dirName, fileName);
+
+                    Console.WriteLine(filePath);
+
+                    await FileUtil.CopyFileAsync(srcFile, filePath,
+                        new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll))
+                        );
+                });
+            }
+        }
+
+        static async Task Test_210309_Samba3()
+        {
+            Random rand = new Random((int)DateTime.Now.Ticks);
+            string dirName = @"\\lts\DataRoot\tmp\test2\";
+
+            string srcDir = @"c:\dropbox\.dropbox.cache\2020-01-15\";
+
+            await Lfs.CreateDirectoryAsync(dirName);
+
+            for (int j = 0; ; j++)
+            {
+                string destDir = $@"\\lts\DataRoot\tmp\test4\{j:D4}";
+
+                CancellationToken cancel = default;
+
+                string? ignoreDirNames = null;
+
+                var srcEnum = await Lfs.EnumDirectoryAsync(srcDir);
+
+                var srcFiles = srcEnum.Where(x => x.IsFile);
+
+                await Lfs.CreateDirectoryAsync(destDir);
+
+                await TaskUtil.ForEachAsync(32, srcFiles, async (srcFile, cancel) =>
+                {
+                    try
+                    {
+                        await Task.Yield();
+
+                        string fileName = Lfs.PathParser.Combine(destDir, srcFile.Name);
+                        string filePath = Path.Combine(dirName, fileName);
+
+                        Console.WriteLine(filePath);
+
+                        await FileUtil.CopyFileAsync(srcFile.FullPath, filePath,
+                            new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll))
+                            );
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                        throw;
+                    }
+                });
+            }
+        }
+
+        static async Task Test_210309_Samba4()
+        {
+            try
+            {
+                Lfs.EnableBackupPrivilege();
+            }
+            catch (Exception ex)
+            {
+                Con.WriteError(ex);
+            }
+            
+            Random rand = new Random((int)DateTime.Now.Ticks);
+            string dirName = @"\\lts\DataRoot\tmp\test9\";
+
+            string srcDir = @"c:\dropbox\.dropbox.cache\2020-01-15\";
+
+            await Lfs.CreateDirectoryAsync(dirName);
+
+            DirSuperBackupStat Stat = new DirSuperBackupStat();
+
+            var Fs = Lfs;
+
+            for (int j = 0; ; j++)
+            {
+                string destDir = $@"\\lts\DataRoot\tmp\test4\{j:D4}";
+
+                CancellationToken cancel = default;
+
+                string? ignoreDirNames = null;
+
+                {
+
+                    {
+                        DateTimeOffset now = DateTimeOffset.Now;
+
+                        FileSystemEntity[]? srcDirEnum = null;
+
+                        string[] ignoreDirNamesList = ignoreDirNames._NonNull()._Split(StringSplitOptions.RemoveEmptyEntries, ",", ";");
+
+                        FileMetadata? srcDirMetadata = null;
+
+                        bool noError = true;
+
+                        try
+                        {
+                            if (srcDir._IsSamei(destDir))
+                            {
+                                throw new CoresException($"srcDir == destDir. Directory path: '{srcDir}'");
+                            }
+
+                            srcDirMetadata = await Fs.GetDirectoryMetadataAsync(srcDir, cancel: cancel);
+
+                            srcDirEnum = (await Fs.EnumDirectoryAsync(srcDir, false, EnumDirectoryFlags.NoGetPhysicalSize, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
+
+                            FileSystemEntity[] destDirEnum = new FileSystemEntity[0];
+
+                            DirSuperBackupMetadata? destDirOldMetaData = null;
+
+                            DirSuperBackupMetadata destDirNewMetaData;
+
+                            // 宛先ディレクトリがすでに存在しているかどうか検査する
+                            if (await Fs.IsDirectoryExistsAsync(destDir, cancel))
+                            {
+                                destDirEnum = await Fs.EnumDirectoryAsync(destDir, false, EnumDirectoryFlags.NoGetPhysicalSize, cancel);
+
+                                // 宛先ディレクトリに存在するメタデータファイルのうち最新のファイルを取得する
+                                //destDirOldMetaData = await GetLatestMetaDataFileNameAsync(destDir, destDirEnum, cancel);
+                            }
+                            else
+                            {
+                                // 宛先ディレクトリがまだ存在していない場合は作成する
+                                await Fs.CreateDirectoryAsync(destDir, FileFlags.BackupMode | FileFlags.AutoCreateDirectory, cancel);
+                            }
+
+                            // 宛先ディレクトリの日付情報のみ属性書き込みする
+                            try
+                            {
+                                await Fs.SetFileMetadataAsync(destDir, srcDirMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
+                            }
+                            catch
+                            {
+                                // 属性書き込みは失敗してもよい
+                            }
+
+                            // 新しいメタデータを作成する
+                            destDirNewMetaData = new DirSuperBackupMetadata();
+                            destDirNewMetaData.FileList = new List<DirSuperBackupMetadataFile>();
+                            destDirNewMetaData.TimeStamp = now;
+                            destDirNewMetaData.DirMetadata = srcDirMetadata;
+                            destDirNewMetaData.DirList = new List<string>();
+
+                            // 元ディレクトリに存在するサブディレクトリ名一覧をメタデータに追記する
+                            foreach (var subDir in srcDirEnum.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false))
+                            {
+                                // シンボリックリンクは無視する
+                                if (subDir.IsSymbolicLink == false)
+                                {
+                                    // 無視リストのいずれにも合致しない場合のみ
+                                    if (ignoreDirNamesList.Where(x => x._IsSamei(subDir.Name)).Any() == false)
+                                    {
+                                        destDirNewMetaData.DirList.Add(subDir.Name);
+                                    }
+                                }
+                            }
+
+                            // 元ディレクトリに存在するファイルを 1 つずつバックアップする
+                            var fileEntries = srcDirEnum.Where(x => x.IsFile);
+
+                            RefInt concurrentNum = new RefInt();
+
+                            AsyncLock SafeLock = new AsyncLock();
+
+                            await TaskUtil.ForEachAsync(32, fileEntries, async (srcFile, cancel) =>
+                            {
+                                long? encryptedPhysicalSize = null;
+
+                                await Task.Yield();
+
+                                string destFilePath = Fs.PathParser.Combine(destDir, srcFile.Name);
+
+                                //if (Options.EncryptPassword._IsNullOrZeroLen() == false)
+                                //{
+                                //    destFilePath += Consts.Extensions.CompressedXtsAes256;
+                                //}
+
+                                FileMetadata? srcFileMetadata = null;
+
+                                concurrentNum.Increment();
+
+                                try
+                                {
+                                    srcFileMetadata = await Fs.GetFileMetadataAsync(srcFile.FullPath, cancel: cancel);
+
+                                    // このファイルと同一のファイル名がすでに宛先ディレクトリに物理的に存在するかどうか確認する
+                                    bool exists = await Fs.IsFileExistsAsync(destFilePath, cancel);
+
+                                    bool fileChangedOrNew = false;
+
+                                    if (exists)
+                                    {
+                                        // すでに宛先ディレクトリに存在する物理的なファイルのメタデータを取得する
+                                        FileMetadata destExistsMetadata = await Fs.GetFileMetadataAsync(destFilePath, cancel: cancel);
+
+                                        // 暗号化なし
+                                        // ファイルサイズを比較する
+                                        if (destExistsMetadata.Size != srcFile.Size)
+                                        {
+                                            // ファイルサイズが異なる
+                                            fileChangedOrNew = true;
+                                        }
+
+                                        // 日付を比較する。ただし宛先ディレクトリの物理的なファイルの日付は信用できないので、メタデータ上のファイルサイズと比較する
+                                        if (destDirOldMetaData != null)
+                                        {
+                                            DirSuperBackupMetadataFile? existsFileMetadataFromDirMetadata = destDirOldMetaData.FileList.Where(x => x.FileName._IsSamei(srcFile.Name)).SingleOrDefault();
+                                            if (existsFileMetadataFromDirMetadata == null)
+                                            {
+                                                // メタデータ上に存在しない
+                                                fileChangedOrNew = true;
+                                            }
+                                            else
+                                            {
+                                                if (existsFileMetadataFromDirMetadata.MetaData!.LastWriteTime!.Value.Ticks != srcFileMetadata.LastWriteTime!.Value.Ticks)
+                                                {
+                                                    // 最終更新日時が異なる
+                                                    fileChangedOrNew = true;
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            // 宛先ディレクトリ上にメタデータがない
+                                            fileChangedOrNew = true;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // 新しいファイルである
+                                        fileChangedOrNew = true;
+                                    }
+
+                                    string? oldFilePathToDelete = null;
+
+                                    if (fileChangedOrNew)
+                                    {
+                                        // ファイルが新しいか、または更新された場合は、そのファイルをバックアップする
+                                        // ただし、バックアップ先に同名のファイルがすでに存在する場合は、
+                                        // .old.xxxx.YYYYMMDD_HHMMSS.0123._backup_history のような形式でまだ存在しない連番に古いファイル名をリネームする
+
+                                        if (exists)
+                                        {
+                                            using (await SafeLock.LockWithAwait(cancel))
+                                            {
+                                                string yymmdd = Str.DateTimeToStrShort(DateTime.UtcNow);
+                                                string newOldFileName;
+
+                                                // 連番でかつ存在していないファイル名を決定する
+                                                for (int i = 0; ; i++)
+                                                {
+                                                    string newOldFileNameCandidate = $".old.{Fs.PathParser.GetFileName(destFilePath)}.{yymmdd}.{i:D4}{Consts.Extensions.DirSuperBackupHistory}";
+
+                                                    if (srcDirEnum.Where(x => x.Name._IsSamei(newOldFileNameCandidate)).Any() == false)
+                                                    {
+                                                        if (await Fs.IsFileExistsAsync(Fs.PathParser.Combine(destDir, newOldFileNameCandidate), cancel) == false)
+                                                        {
+                                                            newOldFileName = newOldFileNameCandidate;
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+
+                                                // 変更されたファイル名を ._backup_history ファイルにリネーム実行する
+                                                string newOldFilePath = Fs.PathParser.Combine(destDir, newOldFileName);
+                                                //await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileRename", destFilePath, newOldFilePath));
+                                                await Fs.MoveFileAsync(destFilePath, newOldFilePath, cancel);
+
+                                                oldFilePathToDelete = newOldFilePath;
+
+                                                // 隠しファイルにする
+                                                try
+                                                {
+                                                    var meta = await Fs.GetFileMetadataAsync(newOldFilePath, cancel: cancel);
+                                                    if (meta.Attributes != null && meta.Attributes.Bit(FileAttributes.Hidden) == false)
+                                                    {
+                                                        FileMetadata meta2 = new FileMetadata(attributes: meta.Attributes.BitAdd(FileAttributes.Hidden));
+
+                                                        await Fs.SetFileMetadataAsync(newOldFilePath, meta2, cancel);
+                                                    }
+                                                }
+                                                catch { }
+                                            }
+                                        }
+
+                                        // ファイルをコピーする
+                                        // 属性は、ファイルの日付情報のみコピーする
+                                        //await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileCopy", srcFile.FullPath, destFilePath));
+
+                                        destFilePath._Debug();
+
+                                        await Fs.CopyFileAsync(srcFile.FullPath, destFilePath,
+                                            new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify/* | FileFlags.Async*/, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
+                                            encryptOption: EncryptOption.None),
+                                            cancel: cancel); ;
+
+                                        try
+                                        {
+                                            var newFileMetadata = await Fs.GetFileMetadataAsync(destFilePath, FileMetadataGetFlags.NoPhysicalFileSize, cancel);
+
+                                            //if (Options.EncryptPassword._IsNullOrZeroLen() == false)
+                                            //{
+                                            //    encryptedPhysicalSize = newFileMetadata.Size;
+                                            //}
+                                        }
+                                        catch
+                                        {
+                                        }
+
+                                        if (false)
+                                        {
+                                            // History を残さない場合
+                                            // コピーに成功したので ._backup_history ファイルは削除する
+                                            if (oldFilePathToDelete._IsNotZeroLen())
+                                            {
+                                                try
+                                                {
+                                                    await Fs.DeleteFileAsync(oldFilePathToDelete, flags: FileFlags.BackupMode | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                                                }
+                                                catch
+                                                {
+                                                }
+                                            }
+                                        }
+
+                                        Stat.Copy_NumFiles++;
+                                        Stat.Copy_TotalSize += srcFile.Size;
+                                    }
+                                    else
+                                    {
+                                        //if (Options.EncryptPassword._IsNullOrZeroLen() == false)
+                                        //{
+                                        //    string tmp1 = Fs.PathParser.GetFileName(destFilePath);
+
+                                        //    encryptedPhysicalSize = destDirOldMetaData?.FileList.Where(x => x.EncrypedFileName._IsSame(tmp1) && x.MetaData.Size == srcFile.Size).FirstOrDefault()?.EncryptedPhysicalSize;
+
+                                        //    if (encryptedPhysicalSize.HasValue == false)
+                                        //    {
+                                        //        encryptedPhysicalSize = destDirOldMetaData?.FileList.Where(x => x.EncrypedFileName._IsSamei(tmp1) && x.MetaData.Size == srcFile.Size).FirstOrDefault()?.EncryptedPhysicalSize;
+                                        //    }
+                                        //}
+
+                                        Stat.Skip_NumFiles++;
+                                        Stat.Skip_TotalSize += srcFile.Size;
+
+                                        // ファイルの日付情報のみ更新する
+                                        try
+                                        {
+                                            await Fs.SetFileMetadataAsync(destFilePath, srcFileMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
+                                        }
+                                        catch
+                                        {
+                                            // ファイルの日付情報の更新は失敗してもよい
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Stat.Error_NumFiles++;
+                                    Stat.Error_TotalSize += srcFile.Size;
+
+                                    // ファイル単位のエラー発生
+                                    //await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("FileError", srcFile.FullPath, destFilePath, ex.ToString()));
+
+                                    ex._Debug();
+
+                                    noError = false;
+                                }
+                                finally
+                                {
+                                    concurrentNum.Decrement();
+                                }
+
+                                // このファイルに関するメタデータを追加する
+                                if (srcFileMetadata != null)
+                                {
+                                    lock (destDirNewMetaData.FileList)
+                                    {
+                                        destDirNewMetaData.FileList.Add(new DirSuperBackupMetadataFile()
+                                        {
+                                            FileName = srcFile.Name,
+                                            //EncrypedFileName = Options.EncryptPassword._IsNullOrZeroLen() ? null : srcFile.Name + Consts.Extensions.CompressedXtsAes256,
+                                            MetaData = srcFileMetadata,
+                                            EncryptedPhysicalSize = encryptedPhysicalSize,
+                                        });
+                                    }
+                                }
+                            }, cancel: cancel);
+
+                            // 新しいメタデータをファイル名でソートする
+                            destDirNewMetaData.FileList = destDirNewMetaData.FileList.OrderBy(x => x.FileName, StrComparer.IgnoreCaseComparer).ToList();
+                            destDirNewMetaData.DirList = destDirNewMetaData.DirList.OrderBy(x => x, StrComparer.IgnoreCaseComparer).ToList();
+
+                            // 新しいメタデータを書き込む
+                            //string newMetadataFilePath = Fs.PathParser.Combine(destDir, $"{PrefixMetadata}{Str.DateTimeToStrShortWithMilliSecs(now.UtcDateTime)}{SuffixMetadata}");
+
+                            //await Fs.WriteJsonToFileAsync(newMetadataFilePath, destDirNewMetaData, FileFlags.BackupMode | FileFlags.OnCreateSetCompressionFlag, cancel: cancel);
+                        }
+                        catch (Exception ex)
+                        {
+                            Stat.Error_Dir++;
+
+                            noError = false;
+
+                            // ディレクトリ単位のエラー発生
+                            //await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError", srcDir, destDir, ex.Message));
+
+                            ex._Debug();
+                        }
+
+                        // 再度 宛先ディレクトリの日付情報のみ属性書き込みする (Linux の場合、中のファイルを更新するとディレクトリの日時が変ってしまうため)
+                        try
+                        {
+                            if (srcDirMetadata != null)
+                            {
+                                await Fs.SetFileMetadataAsync(destDir, srcDirMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
+                            }
+                        }
+                        catch
+                        {
+                            // 属性書き込みは失敗してもよい
+                        }
+
+                        if (srcDirEnum != null)
+                        {
+                            bool ok = false;
+
+                            try
+                            {
+                                // ソースディレクトリの列挙に成功した場合は、サブディレクトリに対して再帰的に実行する
+                                foreach (var subDir in srcDirEnum.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false))
+                                {
+                                    // シンボリックリンクは無視する
+                                    if (subDir.IsSymbolicLink == false)
+                                    {
+                                        // 無視リストのいずれにも合致しない場合のみ
+                                        if (ignoreDirNamesList.Where(x => x._IsSamei(subDir.Name)).Any() == false)
+                                        {
+                                            //await DoSingleDirBackupAsync(Fs.PathParser.Combine(srcDir, subDir.Name), Fs.PathParser.Combine(destDir, subDir.Name), cancel, ignoreDirNames);
+                                        }
+                                    }
+                                }
+
+                                ok = true;
+                            }
+                            catch (Exception ex)
+                            {
+                                // 何らかのディレクトリ単位のエラーで catch されていないものが発生
+                                Stat.Error_Dir++;
+
+                                // ディレクトリ単位のエラー発生
+                                //await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError", srcDir, destDir, ex.Message));
+                                ex._Debug();
+                            }
+
+                            if (ok)
+                            {
+                                if (noError)
+                                {
+                                    // ここまでの処理で何も問題がなければ (このディレクトリ内のすべてのファイルのコピーやメタデータの更新に成功しているなであれば)
+                                    // Sync オプションが付与されている場合、不要なサブディレクトリとファイルを削除する
+
+                                }
+                            }
+                        }
+
+
+                        // 再度 宛先ディレクトリの日付情報のみ属性書き込みする (Linux の場合、中のファイルを更新するとディレクトリの日時が変ってしまうため)
+                        try
+                        {
+                            if (srcDirMetadata != null)
+                            {
+                                await Fs.SetFileMetadataAsync(destDir, srcDirMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
+                            }
+                        }
+                        catch
+                        {
+                            // 属性書き込みは失敗してもよい
+                        }
+                    }
+
+
+                }
+            }
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210309_Samba4()._GetResult();
+                return;
+            }
+
             if (false)
             {
                 Test_210307_EncCopy();
@@ -1280,7 +1855,7 @@ namespace IPA.TestDev
 
                     VlanRange r = new VlanRange(line);
 
-                    r.ToString( VlanRangeStyle.Apresia)._Print();
+                    r.ToString(VlanRangeStyle.Apresia)._Print();
                 }
                 return;
             }
