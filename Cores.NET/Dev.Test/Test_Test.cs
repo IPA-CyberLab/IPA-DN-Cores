@@ -1134,8 +1134,8 @@ namespace IPA.TestDev
             string infolog = @"C:\TMP\210307\log\info.log";
             string errorlog = @"C:\TMP\210307\log\error.log";
 
-            string src = @"C:\TMP\210307\1";
-            string dst = @"C:\TMP\210307\X";
+            string src = @"C:\Dropbox\yagi\00 おもしろ写真集\";
+            string dst = @"\\lts\DataRoot\tmp\test13\";
 
             bool err = false;
 
@@ -1227,7 +1227,7 @@ namespace IPA.TestDev
 
         static async Task Test_210309_Samba()
         {
-            string dirName = @"\\lts\DataRoot\tmp\test3\";
+            string dirName = @"\\lts\DataRoot\tmp\test11\";
 
             await Lfs.CreateDirectoryAsync(dirName);
 
@@ -1372,9 +1372,9 @@ namespace IPA.TestDev
             }
             
             Random rand = new Random((int)DateTime.Now.Ticks);
-            string dirName = @"\\lts\DataRoot\tmp\test9\";
+            string dirName = @"\\lts\DataRoot\tmp\test13\";
 
-            string srcDir = @"c:\dropbox\.dropbox.cache\2020-01-15\";
+            string srcDir = @"C:\Dropbox\yagi\00 おもしろ写真集\";
 
             await Lfs.CreateDirectoryAsync(dirName);
 
@@ -1384,7 +1384,7 @@ namespace IPA.TestDev
 
             for (int j = 0; ; j++)
             {
-                string destDir = $@"\\lts\DataRoot\tmp\test4\{j:D4}";
+                string destDir = $@"\\lts\DataRoot\tmp\test13\{j:D4}";
 
                 CancellationToken cancel = default;
 
@@ -1796,6 +1796,12 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (false)
+            {
+                Test_210307_Backup();
+                return;
+            }
+
             if (true)
             {
                 Test_210309_Samba4()._GetResult();
@@ -1805,12 +1811,6 @@ namespace IPA.TestDev
             if (false)
             {
                 Test_210307_EncCopy();
-                return;
-            }
-
-            if (false)
-            {
-                Test_210307_Backup();
                 return;
             }
 
