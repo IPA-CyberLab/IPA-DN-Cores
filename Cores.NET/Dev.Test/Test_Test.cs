@@ -1134,8 +1134,8 @@ namespace IPA.TestDev
             string infolog = @"C:\TMP\210307\log\info.log";
             string errorlog = @"C:\TMP\210307\log\error.log";
 
-            string src = @"C:\Dropbox\yagi\00 おもしろ写真集\";
-            string dst = @"\\lts\DataRoot\tmp\test13\";
+            string src = @"C:\tmp\yagi\test2\";
+            string dst = $@"\\lts\DataRoot\tmp\test16\{Str.DateTimeToStrShortWithMilliSecs(DateTime.Now)}";
 
             bool err = false;
 
@@ -1372,9 +1372,9 @@ namespace IPA.TestDev
             }
             
             Random rand = new Random((int)DateTime.Now.Ticks);
-            string dirName = @"\\lts\DataRoot\tmp\test13\";
+            string dirName = $@"\\lts\DataRoot\tmp\test16\{Str.DateTimeToStrShortWithMilliSecs(DateTime.Now)}";
 
-            string srcDir = @"C:\Dropbox\yagi\00 おもしろ写真集\";
+            string srcDir = @"C:\tmp\yagi\test2\";
 
             await Lfs.CreateDirectoryAsync(dirName);
 
@@ -1384,7 +1384,7 @@ namespace IPA.TestDev
 
             for (int j = 0; ; j++)
             {
-                string destDir = $@"\\lts\DataRoot\tmp\test13\{j:D4}";
+                string destDir = Lfs.PathParser.Combine(dirName, $"{j:D4}");
 
                 CancellationToken cancel = default;
 
@@ -1600,7 +1600,7 @@ namespace IPA.TestDev
                                         destFilePath._Debug();
 
                                         await Fs.CopyFileAsync(srcFile.FullPath, destFilePath,
-                                            new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify/* | FileFlags.Async*/, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
+                                            new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify | FileFlags.Async, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
                                             encryptOption: EncryptOption.None),
                                             cancel: cancel); ;
 

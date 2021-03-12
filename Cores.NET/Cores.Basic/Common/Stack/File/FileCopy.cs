@@ -778,7 +778,7 @@ namespace IPA.Cores.Basic
 
                                     try
                                     {
-                                        await destFileSystem.DeleteFileAsync(destPath);
+                                        //await destFileSystem.DeleteFileAsync(destPath);
                                     }
                                     catch { }
                                 }
