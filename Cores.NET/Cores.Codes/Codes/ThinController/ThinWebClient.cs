@@ -50,6 +50,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.Security;
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
@@ -64,6 +65,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
@@ -72,52 +76,86 @@ using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
 
+using System.Runtime.CompilerServices;
+
 namespace IPA.Cores.Codes
 {
-    public static partial class ThinControllerConsts
+    // ThinWebClient 設定 (JSON 設定ファイルで動的に設定変更可能な設定項目)
+    [Serializable]
+    public sealed class ThinWebClientSettings : INormalizable
     {
-        public const int MaxPcidLen = 31;
+        public string ABC = "";
 
-        public static readonly Copenhagen<string> AccessLogTag = "ThinControlerLog";
+        public ThinWebClientSettings()
+        {
+        }
 
-        public static readonly Copenhagen<int> ControllerMaxBodySizeForUsers = 64 * 1024;
-        public static readonly Copenhagen<int> ControllerMaxBodySizeForGateway = (int)Pack.MaxPackSize;
-        public static readonly Copenhagen<int> ControllerMaxConcurrentKestrelConnectionsForUsers = 1000 * Math.Max(Environment.ProcessorCount, 1);
-        public static readonly Copenhagen<int> ControllerStatCacheExpiresMsecs = 30 * 1000;
-        public static readonly Copenhagen<int> ControllerMaxDatabaseWriteQueueLength = 100000; // 1 レコードあたり 10KB として 1GB 分まで
-
-        public static readonly Copenhagen<string> Default_DbConnectionString_Read = "Data Source=127.0.0.1;Initial Catalog=THINDB;Persist Security Info=True;Pooling=False;User ID=sql_thin_reader;Password=sql_password;";
-        public static readonly Copenhagen<string> Default_DbConnectionString_Write = "Data Source=127.0.0.1;Initial Catalog=THINDB;Persist Security Info=True;Pooling=False;User ID=sql_thin_writer;Password=sql_password;";
-
-        // DB の Var で設定可能な変数のデフォルト値
-        public static readonly Copenhagen<int> Default_ControllerMaxConcurrentWpcRequestProcessingForUsers = 500;
-        public static readonly Copenhagen<int> Default_ControllerDbFullReloadIntervalMsecs = 10 * 1000;
-        public static readonly Copenhagen<int> Default_ControllerDbWriteUpdateIntervalMsecs = 1 * 1000;
-        public static readonly Copenhagen<int> Default_ControllerDbBackupFileWriteIntervalMsecs = 5 * 60 * 1000;
-        public static readonly Copenhagen<int> Default_ControllerRecordStatIntervalMsecs = 5 * 60 * 1000;
-
-        // DB の Var で設定可能な変数の最大値
-        public const int Max_ControllerDbReadFullReloadIntervalMsecs = 30 * 60 * 1000;
-        public const int Max_ControllerDbWriteUpdateIntervalMsecs = 5 * 60 * 1000;
-        public const int Max_ControllerDbBackupFileWriteIntervalMsecs = 24 * 60 * 60 * 1000;
-        public const int Max_ControllerRecordStatIntervalMsecs = 60 * 60 * 1000;
-
-        public static readonly Copenhagen<string> ControllerDefaultAdminUsername = "admin";
-        public static readonly Copenhagen<string> ControllerDefaultAdminPassword = "ipantt";
-
+        public void Normalize()
+        {
+        }
     }
 
-    public static partial class ThinWebClientConsts
+#pragma warning disable CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
+    // ThinWebClient の動作をカスタマイズ可能なフック抽象クラス
+    public abstract class ThinWebClientHookBase
     {
-        public static readonly Copenhagen<int> ControllerMaxBodySizeForUsers = 1 * 1024 * 1024;
-        public static readonly Copenhagen<int> ControllerMaxConcurrentKestrelConnectionsForUsers = 10000;
     }
+#pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
 
-    [Flags]
-    public enum ThinControllerServiceType
+    public class ThinWebClient : AsyncService
     {
-        ApiServiceForUsers,
-        ApiServiceForGateway,
+        // Hive
+        readonly HiveData<ThinWebClientSettings> SettingsHive;
+
+        // 設定へのアクセスを容易にするための自動プロパティ
+        CriticalSection ManagedSettingsLock => SettingsHive.DataLock;
+        ThinWebClientSettings ManagedSettings => SettingsHive.ManagedData;
+
+        public ThinWebClientSettings SettingsFastSnapshot => SettingsHive.CachedFastSnapshot;
+
+        public DnsResolver DnsResolver { get; }
+
+        public DateTimeOffset BootDateTime { get; } = DtOffsetNow;
+
+        public long BootTick { get; } = TickNow;
+
+        public ThinWebClientHookBase Hook { get; }
+
+        public ThinWebClient(ThinWebClientSettings settings, ThinWebClientHookBase hook, Func<ThinWebClientSettings>? getDefaultSettings = null)
+        {
+            try
+            {
+                this.Hook = hook;
+
+                this.SettingsHive = new HiveData<ThinWebClientSettings>(
+                    Hive.SharedLocalConfigHive,
+                    "ThinWebClient",
+                    getDefaultSettings,
+                    HiveSyncPolicy.AutoReadWriteFile,
+                    HiveSerializerSelection.RichJson);
+
+                this.DnsResolver = new DnsClientLibBasedDnsResolver(new DnsResolverSettings());
+            }
+            catch (Exception ex)
+            {
+                this._DisposeSafe(ex);
+                throw;
+            }
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                await this.DnsResolver._DisposeSafeAsync();
+
+                this.SettingsHive._DisposeSafe();
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
+        }
     }
 }
 
