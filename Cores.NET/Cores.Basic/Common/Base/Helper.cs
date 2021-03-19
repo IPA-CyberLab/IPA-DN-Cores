@@ -152,7 +152,7 @@ namespace IPA.Cores.Helper.Basic
         public static byte[] _GetBytes_Ascii(this string str) => Str.AsciiEncoding.GetBytes(str);
         public static byte[] _GetBytes_Euc(this string str) => Str.EucJpEncoding.GetBytes(str);
         public static byte[] _GetBytes(this string str, bool appendBom = false) => Util.CombineByteArray(appendBom ? Str.GetBOM(Str.Utf8Encoding) : null, Str.Utf8Encoding.GetBytes(str));
-        public static byte[] _GetBytes(this string str, Encoding encoding) => encoding.GetBytes(str);
+        public static byte[] _GetBytes(this string str, Encoding? encoding) => (encoding ?? Str.Utf8Encoding).GetBytes(str);
 
         public static string _GetString_UTF8(this byte[] byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.Utf8Encoding, out _, untilNullByte);
         public static string _GetString_UTF16LE(this byte[] byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.UniEncoding, out _, untilNullByte);
