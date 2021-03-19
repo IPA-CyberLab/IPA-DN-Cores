@@ -643,7 +643,7 @@ namespace IPA.TestDev
                 }
             }
 
-            if (true)
+            if (false)
             {
                 string password = "microsoft";
 
@@ -670,6 +670,24 @@ namespace IPA.TestDev
 
                     Lfs.WriteDataToFile(fileNameBase + ".key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
                 }
+            }
+
+            if (false)
+            {
+                string password = "microsoft";
+
+                PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
+
+                var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "*.thinwebclient.example.org", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256));
+
+                CertificateStore store = new CertificateStore(cert, priv);
+
+                Lfs.WriteDataToFile(baseDir + @"03_WebClient.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+                Lfs.WriteDataToFile(baseDir + @"03_WebClient_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"03_WebClient.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"03_WebClient.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
             }
         }
 
@@ -1798,6 +1816,12 @@ namespace IPA.TestDev
         {
             if (false)
             {
+                Test_MakeThinOssCerts_201120();
+                return;
+            }
+
+            if (false)
+            {
                 Test_210307_Backup();
                 return;
             }
@@ -1918,12 +1942,6 @@ namespace IPA.TestDev
                 Con.ReadLine();
                 cts.Cancel();
                 task._GetResult();
-                return;
-            }
-
-            if (true)
-            {
-                Test_MakeThinOssCerts_201120();
                 return;
             }
 
