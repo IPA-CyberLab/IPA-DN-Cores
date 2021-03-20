@@ -5137,7 +5137,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                this.SessionId = Str.NewUid("SESSION", '_');
+                this.SessionId = Str.NewUid(manager.Options.SessionIdPrefix, '_');
                 this.Manager = manager;
                 this.Options = options;
             }
@@ -5326,12 +5326,16 @@ namespace IPA.Cores.Basic
     {
         public int ExpiresAfterFinishedMsec { get; }
         public int GcIntervals { get; }
+        public string SessionIdPrefix { get; }
 
-        public DialogSessionManagerOptions(int sessionExpiresAfterFinishedMsecs = Consts.Timeouts.DefaultDialogSessionExpiresAfterFinishedMsecs, int gcIntervals = Consts.Timeouts.DefaultDialogSessionGcIntervals)
+        public DialogSessionManagerOptions(int sessionExpiresAfterFinishedMsecs = Consts.Timeouts.DefaultDialogSessionExpiresAfterFinishedMsecs, int gcIntervals = Consts.Timeouts.DefaultDialogSessionGcIntervals,
+            string sessionIdPrefix = Consts.Strings.DefaultSessionIdPrefix)
         {
+            if (sessionIdPrefix._IsEmpty()) sessionIdPrefix = Consts.Strings.DefaultSessionIdPrefix;
             ExpiresAfterFinishedMsec = sessionExpiresAfterFinishedMsecs;
             if (gcIntervals < 0) gcIntervals = Consts.Timeouts.DefaultDialogSessionGcIntervals;
             this.GcIntervals = gcIntervals;
+            this.SessionIdPrefix = sessionIdPrefix;
         }
     }
 

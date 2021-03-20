@@ -76,6 +76,10 @@ using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
 
+using IPA.Cores.Web;
+using IPA.Cores.Helper.Web;
+using static IPA.Cores.Globals.Web;
+
 using System.Runtime.CompilerServices;
 
 namespace IPA.Cores.Codes
@@ -102,6 +106,87 @@ namespace IPA.Cores.Codes
     }
 #pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
 
+    public class ThinWebClientModelStartPage
+    {
+        public string? Pcid { get; set; } = "dn-ttwin1";
+    }
+
+    public class ThinWebClientController : Controller
+    {
+        public ThinWebClient Client { get; }
+
+        public ThinWebClientController(ThinWebClient client)
+        {
+            this.Client = client;
+        }
+
+        public async Task<IActionResult> StartAsync(ThinWebClientModelStartPage form)
+        {
+            string? pcid = form?.Pcid._NonNullTrim();
+
+            if (this._IsPostBack())
+            {
+                if (pcid._IsFilled())
+                {
+                    var tc = this.Client.CreateThinClient();
+
+                    var clientIp = Request.HttpContext.Connection.RemoteIpAddress._UnmapIPv4()!;
+                    string clientFqdn = await Client.DnsResolver.GetHostNameSingleOrIpAsync(clientIp);
+
+                    // セッションの開始
+                    var session = tc.StartConnect(new ThinClientConnectOptions(pcid, clientIp, clientFqdn));
+                    string sessionId = session.SessionId;
+
+                    // セッション ID をもとにした URL にリダイレクト
+                    return Redirect($"/ThinWebClient/Session/{sessionId}/");
+                }
+            }
+
+            return View(form);
+        }
+
+        public async Task<IActionResult> SessionAsync(string? id)
+        {
+            var cancel = Request._GetRequestCancellationToken();
+            id = id._NonNullTrim();
+
+            var session = this.Client.SessionManager.GetSessionById(id);
+
+            if (session == null)
+            {
+                // セッション ID が見つからない。トップページに戻る
+                return Redirect("/");
+            }
+            else
+            {
+                var request = await session.GetNextRequestAsync(cancel: cancel);
+
+                if (request != null)
+                {
+                    session.SendHeartBeat(request.RequestId);
+                    request.ToString()._Debug();
+                }
+                else
+                {
+                    Dbg.Where();
+                }
+            }
+
+            return View();
+        }
+
+        public IActionResult Privacy()
+        {
+            return View();
+        }
+
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public IActionResult Error()
+        {
+            return View(new AspNetErrorModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        }
+    }
+
     public class ThinWebClient : AsyncService
     {
         // Hive
@@ -121,6 +206,8 @@ namespace IPA.Cores.Codes
 
         public ThinWebClientHookBase Hook { get; }
 
+        public DialogSessionManager SessionManager { get; }
+
         public ThinWebClient(ThinWebClientSettings settings, ThinWebClientHookBase hook, Func<ThinWebClientSettings>? getDefaultSettings = null)
         {
             try
@@ -135,6 +222,8 @@ namespace IPA.Cores.Codes
                     HiveSerializerSelection.RichJson);
 
                 this.DnsResolver = new DnsClientLibBasedDnsResolver(new DnsResolverSettings());
+
+                this.SessionManager = new DialogSessionManager(new DialogSessionManagerOptions(sessionIdPrefix: "thin"), cancel: this.GrandCancel);
             }
             catch (Exception ex)
             {
@@ -143,11 +232,20 @@ namespace IPA.Cores.Codes
             }
         }
 
+        public ThinClient CreateThinClient()
+        {
+            ThinClient tc = new ThinClient(new ThinClientOptions(new WideTunnelOptions("DESK", nameof(ThinWebClient), StrList("https://pc34.sehosts.com/thincontrol/")), this.SessionManager));
+
+            return tc;
+        }
+
         protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
                 await this.DnsResolver._DisposeSafeAsync();
+
+                await this.SessionManager._DisposeSafeAsync();
 
                 this.SettingsHive._DisposeSafe();
             }

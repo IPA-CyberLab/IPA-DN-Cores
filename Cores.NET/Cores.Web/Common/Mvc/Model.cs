@@ -53,6 +53,15 @@ using Microsoft.AspNetCore.Mvc.Razor;
 
 namespace IPA.Cores.Web
 {
+    // ASP.NET Core のテンプレートの「ErrorViewModel.cs」からもらってきた。
+    // 共通クラスにするのである。
+    public class AspNetErrorModel
+    {
+        public string RequestId { get; set; } = null!;
+
+        public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+    }
+
     [Flags]
     public enum ModelMode
     {

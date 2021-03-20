@@ -240,6 +240,13 @@ namespace IPA.Cores.Helper.Web
         [return: MaybeNull]
         public static T _EasyLoadCookie<T>(this Controller controller, string cookieName)
             => controller.HttpContext._EasyLoadCookie<T>(cookieName);
+
+        public static bool _IsPostBack(this Controller controller)
+        {
+            var method = controller.Request.Method._ParseEnum<WebMethods>(WebMethods.GET, false, false);
+
+            return (method == WebMethods.POST);
+        }
     }
 }
 
