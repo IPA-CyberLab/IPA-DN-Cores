@@ -637,6 +637,7 @@ namespace IPA.Cores.Basic
         }
 
         // byte 配列を結合する
+        [MethodImpl(Inline)]
         public static byte[] CombineByteArray(byte[]? b1, byte[]? b2)
         {
             if (b1 == null && b2 == null) return new byte[0];

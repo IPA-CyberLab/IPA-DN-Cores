@@ -146,53 +146,95 @@ namespace IPA.Cores.Helper.Basic
 
         public static byte[] _UntilNullByte(this byte[] src) => src.AsSpan()._UntilNullByte().ToArray();
 
+        [MethodImpl(Inline)]
         public static byte[] _GetBytes_UTF8(this string str, bool bom = false) => Util.CombineByteArray(bom ? Str.GetBOM(Str.Utf8Encoding) : null, Str.Utf8Encoding.GetBytes(str));
+        [MethodImpl(Inline)]
         public static byte[] _GetBytes_UTF16LE(this string str, bool bom = false) => Util.CombineByteArray(bom ? Str.GetBOM(Str.Utf8Encoding) : null, Str.UniEncoding.GetBytes(str));
+        [MethodImpl(Inline)]
         public static byte[] _GetBytes_ShiftJis(this string str) => Str.ShiftJisEncoding.GetBytes(str);
+        [MethodImpl(Inline)]
         public static byte[] _GetBytes_Ascii(this string str) => Str.AsciiEncoding.GetBytes(str);
+        [MethodImpl(Inline)]
         public static byte[] _GetBytes_Euc(this string str) => Str.EucJpEncoding.GetBytes(str);
+        [MethodImpl(Inline)]
         public static byte[] _GetBytes(this string str, bool appendBom = false) => Util.CombineByteArray(appendBom ? Str.GetBOM(Str.Utf8Encoding) : null, Str.Utf8Encoding.GetBytes(str));
+        [MethodImpl(Inline)]
         public static byte[] _GetBytes(this string str, Encoding? encoding) => (encoding ?? Str.Utf8Encoding).GetBytes(str);
 
+        [MethodImpl(Inline)]
         public static string _GetString_UTF8(this byte[] byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.Utf8Encoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_UTF16LE(this byte[] byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.UniEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_ShiftJis(this byte[] byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.ShiftJisEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_Ascii(this byte[] byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.AsciiEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_Euc(this byte[] byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.EucJpEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString(this byte[] byteArray, Encoding defaultEncoding, bool untilNullByte = false) => Str.DecodeString(byteArray, defaultEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString(this byte[] byteArray, bool untilNullByte = false) => Str.DecodeStringAutoDetect(byteArray, out _, untilNullByte);
 
+        [MethodImpl(Inline)] 
         public static string _GetString_UTF8(this ReadOnlySpan<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.Utf8Encoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_UTF16LE(this ReadOnlySpan<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.UniEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_ShiftJis(this ReadOnlySpan<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.ShiftJisEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_Ascii(this ReadOnlySpan<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.AsciiEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_Euc(this ReadOnlySpan<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.EucJpEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString(this ReadOnlySpan<byte> byteArray, Encoding defaultEncoding, bool untilNullByte = false) => Str.DecodeString(byteArray, defaultEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString(this ReadOnlySpan<byte> byteArray, bool untilNullByte = false) => Str.DecodeStringAutoDetect(byteArray, out _, untilNullByte);
 
+        [MethodImpl(Inline)] 
         public static string _GetString_UTF8(this Span<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.Utf8Encoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_UTF16LE(this Span<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.UniEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_ShiftJis(this Span<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.ShiftJisEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_Ascii(this Span<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.AsciiEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_Euc(this Span<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.EucJpEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString(this Span<byte> byteArray, Encoding defaultEncoding, bool untilNullByte = false) => Str.DecodeString(byteArray, defaultEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString(this Span<byte> byteArray, bool untilNullByte = false) => Str.DecodeStringAutoDetect(byteArray, out _, untilNullByte);
 
 
+        [MethodImpl(Inline)] 
         public static string _GetString_UTF8(this ReadOnlyMemory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.Utf8Encoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_UTF16LE(this ReadOnlyMemory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.UniEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_ShiftJis(this ReadOnlyMemory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.ShiftJisEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_Ascii(this ReadOnlyMemory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.AsciiEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_Euc(this ReadOnlyMemory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.EucJpEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString(this ReadOnlyMemory<byte> byteArray, Encoding default_encoding, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, default_encoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString(this ReadOnlyMemory<byte> byteArray, bool untilNullByte = false) => Str.DecodeStringAutoDetect(byteArray.Span, out _, untilNullByte);
 
+        [MethodImpl(Inline)]
         public static string _GetString_UTF8(this Memory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.Utf8Encoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_UTF16LE(this Memory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.UniEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_ShiftJis(this Memory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.ShiftJisEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_Ascii(this Memory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.AsciiEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString_Euc(this Memory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.EucJpEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString(this Memory<byte> byteArray, Encoding defaultEncoding, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, defaultEncoding, out _, untilNullByte);
+        [MethodImpl(Inline)]
         public static string _GetString(this Memory<byte> byteArray, bool untilNullByte = false) => Str.DecodeStringAutoDetect(byteArray.Span, out _, untilNullByte);
 
         public static string _GetHexString(this byte[] byteArray, string padding = "") => Str.ByteToHex(byteArray, padding);
@@ -316,8 +358,11 @@ namespace IPA.Cores.Helper.Basic
         public static void _SetMax(this ref uint i, uint target) => i = Math.Max(i, target);
         public static void _SetMax(this ref ulong i, ulong target) => i = Math.Max(i, target);
 
+        [MethodImpl(Inline)]
+        public static string _ToBoolStr(this bool b) => b ? "True" : "False";
 
-
+        [MethodImpl(Inline)]
+        public static string _ToBoolStrLower(this bool b) => b ? "true" : "false";
 
         public static bool _ToBool(this string? str, bool defaultValue = false) => Str.StrToBool(str, defaultValue);
         public static byte[] _ToByte(this string? str) => Str.StrToByte(str);
@@ -439,6 +484,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _TrimCrlf(this string? s) => Str.TrimCrlf(s);
         public static string _TrimStartWith(this string s, string key, bool caseSensitive = false) { Str.TrimStartWith(ref s, key, caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase); return s; }
         public static string _TrimEndsWith(this string s, string key, bool caseSensitive = false) { Str.TrimEndsWith(ref s, key, caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase); return s; }
+        [MethodImpl(Inline)]
         public static string _NonNull(this string? s) { if (s == null) return ""; else return s; }
         public static string _NonNullTrim(this string? s) { if (s == null) return ""; else return s.Trim(); }
         public static string? _TrimIfNonNull(this string? s) { if (s == null) return null; else return s.Trim(); }

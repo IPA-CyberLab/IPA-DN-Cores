@@ -57,8 +57,54 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
+using IPA.Cores.Helper.GuaHelper;
+
+namespace IPA.Cores.Helper.GuaHelper
+{
+    public static class GuaHelper
+    {
+        public static string ResizeMethodToStr(this GuaResizeMethods m)
+        {
+            switch (m)
+            {
+                case GuaResizeMethods.DisplayUpdate: return "display-update";
+                case GuaResizeMethods.Reconnect: return "reconnect";
+                default: throw new CoresLibException($"Unknown resize value: {m}");
+            }
+        }
+
+        public static string GuaProtocolToStr(this GuaProtocol p)
+        {
+            switch (p)
+            {
+                case GuaProtocol.Rdp: return "rdp";
+                case GuaProtocol.Vnc: return "vnc";
+                default: throw new CoresLibException($"Unknown protocol value: {p}");
+            }
+        }
+
+        public static GuaProtocol StrToGuaProtocol(this string str)
+        {
+            switch (str.ToLower())
+            {
+                case "rdp": return GuaProtocol.Rdp;
+                case "vnc": return GuaProtocol.Vnc;
+                default: throw new CoresLibException($"Unknown protocol str: '{str}'");
+            }
+        }
+    }
+}
+
 namespace IPA.Cores.Basic
 {
+    public static partial class CoresConfig
+    {
+        public static partial class GuaClient
+        {
+            public static readonly Copenhagen<int> TimeoutMsecs = 15 * 1000;
+        }
+    }
+
     [Flags]
     public enum GuaProtocol
     {
@@ -71,13 +117,24 @@ namespace IPA.Cores.Basic
         public string Opcode { get; set; } = "";
         public List<string> Args { get; set; } = new List<string>();
 
-        public async Task SendPacket(Stream st, CancellationToken cancel = default)
+        public static GuaPacket CreateConnectPacket(KeyValueList<string, string> options, IReadOnlyList<string> supportedOptions)
         {
-            if (this.Opcode._IsEmpty())
+            List<string> tmp = new List<string>();
+
+            for (int i = 0; i < supportedOptions.Count; i++)
             {
-                throw new CoresLibException("Opcode is empty.");
+                string opt = supportedOptions[i];
+
+                string value = options.Where(x => x.Key._IsSameiTrim(opt)).Select(x => x.Value).FirstOrDefault()._NonNull();
+
+                tmp.Add(value);
             }
 
+            return new GuaPacket { Opcode = "connect", Args = tmp, };
+        }
+
+        public async Task SendPacketAsync(Stream st, CancellationToken cancel = default)
+        {
             List<string> tmp = new List<string>();
             tmp.Add(this.Opcode);
             tmp.AddRange(this.Args);
@@ -87,7 +144,7 @@ namespace IPA.Cores.Basic
             await st.WriteAsync(data, cancel);
         }
 
-        public static async Task<GuaPacket> RecvPacket(Stream st, CancellationToken cancel = default)
+        public static async Task<GuaPacket> RecvPacketAsync(Stream st, CancellationToken cancel = default)
         {
             List<string> tokens = await RecvAndParseTokensAsync(st, cancel);
 
@@ -212,6 +269,7 @@ namespace IPA.Cores.Basic
 
     public class GuaPreference
     {
+        public bool EnableAudio { get; set; } = true;
         public bool EnableWallPaper { get; set; } = true;
         public bool EnableTheming { get; set; } = true;
         public bool EnableFontSmoothing { get; set; } = true;
@@ -221,6 +279,26 @@ namespace IPA.Cores.Basic
         public GuaResizeMethods ResizeMethod { get; set; } = GuaResizeMethods.DisplayUpdate;
         public int InitialWidth { get; set; } = 1024;
         public int InitialHeight { get; set; } = 768;
+        public string Username { get; set; } = "";
+        public string Password { get; set; } = "";
+        public string Domain { get; set; } = "";
+
+        public void AddToKeyValueList(KeyValueList<string, string> list)
+        {
+            list.Add("domain", this.Domain);
+            list.Add("username", this.Username);
+            list.Add("password", this.Password);
+            list.Add("disable-audio", (!this.EnableAudio)._ToBoolStrLower());
+            list.Add("ignore-cert", true._ToBoolStrLower());
+            list.Add("enable-wallpaper", this.EnableWallPaper._ToBoolStrLower());
+            list.Add("enable-theming", this.EnableTheming._ToBoolStrLower());
+            list.Add("enable-font-smoothing", this.EnableFontSmoothing._ToBoolStrLower());
+            list.Add("enable-full-window-drag", this.EnableFullWindowDrag._ToBoolStrLower());
+            list.Add("enable-desktop-composition", this.EnableDesktopComposition._ToBoolStrLower());
+            list.Add("enable-menu-animations", this.EnableMenuAnimations._ToBoolStrLower());
+            list.Add("disable-bitmap-caching", true._ToBoolStrLower());
+            list.Add("resize-method", ResizeMethod.ResizeMethodToStr());
+        }
     }
 
     public class GuaClientSettings
@@ -243,11 +321,21 @@ namespace IPA.Cores.Basic
             ServerPort = serverPort;
             Preference = preference._CloneWithJson();
         }
+
+        public void AddToKeyValueList(KeyValueList<string, string> list)
+        {
+            list.Add("hostname", this.ServerHostname);
+            list.Add("port", this.ServerPort.ToString());
+
+            this.Preference.AddToKeyValueList(list);
+        }
     }
 
     public class GuaClient : AsyncService
     {
         public GuaClientSettings Settings { get; }
+
+        public string ConnectionId { get; private set; } = "";
 
         public GuaClient(GuaClientSettings settings)
         {
@@ -265,8 +353,63 @@ namespace IPA.Cores.Basic
 
             try
             {
-                Sock = await Settings.TcpIp.ConnectIPv4v6DualAsync(new TcpConnectParam(this.Settings.GuacdHostname, this.Settings.GuacdPort), cancel);
-                Stream = Sock.GetStream(true);
+                this.Sock = await Settings.TcpIp.ConnectIPv4v6DualAsync(new TcpConnectParam(this.Settings.GuacdHostname, this.Settings.GuacdPort), cancel);
+                this.Stream = Sock.GetStream(true);
+
+                this.Stream.ReadTimeout = CoresConfig.GuaClient.TimeoutMsecs;
+                this.Stream.WriteTimeout = CoresConfig.GuaClient.TimeoutMsecs;
+
+                GuaPacket hello = new GuaPacket
+                {
+                    Opcode = "select",
+                    Args = Settings.Protocol.GuaProtocolToStr()._SingleList(),
+                };
+
+                // こんにちは！
+                await hello.SendPacketAsync(this.Stream, cancel);
+
+                var args = await GuaPacket.RecvPacketAsync(this.Stream, cancel);
+
+                if (args.Opcode._IsSamei("args") == false)
+                {
+                    throw new CoresLibException($"Protocol error: Received unexpected opcode: '{args.Opcode}'");
+                }
+
+                // サポートされているオプション文字列一覧を取得
+                var supportedOptions = args.Args;
+
+                // size, audio, video, image, timezone の 5 項目 (固定) を送付
+                var opSize = new GuaPacket { Opcode = "size", Args = StrList(Settings.Preference.InitialWidth, Settings.Preference.InitialHeight, 96), };
+                var opAudio = new GuaPacket { Opcode = "audio", Args = StrList("audio/L8", "audio/L16"), };
+                var opVideo = new GuaPacket { Opcode = "video", Args = StrList(), };
+                var opImage = new GuaPacket { Opcode = "image", Args = StrList("image/jpeg", "image/png", "image/webp"), };
+                var opTimezone = new GuaPacket { Opcode = "timezone", Args = StrList("Asia/Tokyo"), };
+
+                await opSize.SendPacketAsync(this.Stream, cancel);
+                await opAudio.SendPacketAsync(this.Stream, cancel);
+                await opVideo.SendPacketAsync(this.Stream, cancel);
+                await opImage.SendPacketAsync(this.Stream, cancel);
+                await opTimezone.SendPacketAsync(this.Stream, cancel);
+
+                // Connect パケットを送付
+                KeyValueList<string, string> connectOptions = new KeyValueList<string, string>();
+                this.Settings.AddToKeyValueList(connectOptions);
+                var opConnect = GuaPacket.CreateConnectPacket(connectOptions, supportedOptions);
+                await opConnect.SendPacketAsync(this.Stream, cancel);
+
+                // Ready パケットを受信
+                var ready = await GuaPacket.RecvPacketAsync(this.Stream, cancel);
+
+                if (ready.Opcode._IsSamei("ready") == false)
+                {
+                    throw new CoresLibException($"Protocol error: Received unexpected opcode: '{ready.Opcode}'");
+                }
+
+                this.ConnectionId = ready.Args.FirstOrDefault()._NonNullTrim();
+                if (this.ConnectionId._IsEmpty())
+                {
+                    throw new CoresLibException($"Protocol error: Connection ID not returned.");
+                }
             }
             catch
             {
@@ -281,6 +424,8 @@ namespace IPA.Cores.Basic
         {
             try
             {
+                await Sock._DisposeSafeAsync();
+                await Stream._DisposeSafeAsync();
             }
             finally
             {
