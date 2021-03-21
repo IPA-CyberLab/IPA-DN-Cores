@@ -272,7 +272,7 @@ namespace IPA.TestDev
 
                     //await slack.GetConversationsListAsync();
 
-                    using (WebSocket ws = await slack.RealtimeConnectAsync())
+                    using (WebSocketSock ws = await slack.RealtimeConnectAsync())
                     {
                         using (var st = ws.GetStream())
                         {

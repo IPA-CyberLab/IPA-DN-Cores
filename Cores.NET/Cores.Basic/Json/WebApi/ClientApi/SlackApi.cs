@@ -368,13 +368,13 @@ namespace IPA.Cores.ClientApi.SlackApi
             return res!.prefs!.muted_channels!.Split(',', StringSplitOptions.RemoveEmptyEntries);
         }
 
-        public async Task<WebSocket> RealtimeConnectAsync(CancellationToken cancel = default)
+        public async Task<WebSocketSock> RealtimeConnectAsync(CancellationToken cancel = default)
         {
             WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/rtm.connect", cancel, null);
 
             string url = ret.Deserialize<RealtimeResponse>(true)!.url!;
 
-            return await WebSocket.ConnectAsync(url, cancel: cancel, options: new WebSocketConnectOptions(new WebSocketOptions { RespectMessageDelimiter = true }));
+            return await WebSocketSock.ConnectAsync(url, cancel: cancel, options: new WebSocketConnectOptions(new WebSocketOptions { RespectMessageDelimiter = true }));
         }
 
         public async Task<Message[]> GetConversationHistoryAsync(string channelId, decimal oldest = 0, int maxCount = int.MaxValue, CancellationToken cancel = default)

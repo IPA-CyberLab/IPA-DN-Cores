@@ -531,18 +531,18 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class WebSocket : MiddleConnSock
+    public class WebSocketSock : MiddleConnSock
     {
         protected new NetWebSocketProtocolStack Stack => (NetWebSocketProtocolStack)base.Stack;
 
-        public WebSocket(ConnSock lowerSock, WebSocketOptions? options = null) : base(new NetWebSocketProtocolStack(lowerSock.UpperPoint, null, options._FilledOrDefault(new WebSocketOptions())))
+        public WebSocketSock(ConnSock lowerSock, WebSocketOptions? options = null) : base(new NetWebSocketProtocolStack(lowerSock.UpperPoint, null, options._FilledOrDefault(new WebSocketOptions())))
         {
         }
 
         public async Task StartWebSocketClientAsync(string uri, CancellationToken cancel = default)
             => await Stack.StartWebSocketClientAsync(uri, cancel);
 
-        public static async Task<WebSocket> ConnectAsync(string uri, WebSocketConnectOptions? options = null, CancellationToken cancel = default)
+        public static async Task<WebSocketSock> ConnectAsync(string uri, WebSocketConnectOptions? options = null, CancellationToken cancel = default)
         {
             if (options == null) options = new WebSocketConnectOptions();
 
@@ -595,7 +595,7 @@ namespace IPA.Cores.Basic
                         }
                     }
 
-                    WebSocket webSock = new WebSocket(targetSock, options.WebSocketOptions);
+                    WebSocketSock webSock = new WebSocketSock(targetSock, options.WebSocketOptions);
 
                     await webSock.StartWebSocketClientAsync(uri, cancel);
 

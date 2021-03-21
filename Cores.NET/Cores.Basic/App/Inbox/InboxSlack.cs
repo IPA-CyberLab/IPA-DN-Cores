@@ -185,7 +185,7 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    using (WebSocket ws = await Api!.RealtimeConnectAsync(cancel))
+                    using (WebSocketSock ws = await Api!.RealtimeConnectAsync(cancel))
                     {
                         using (PipeStream st = ws.GetStream())
                         {
