@@ -277,53 +277,47 @@ namespace IPA.Cores.Codes
         [HttpPost("/ws")]
         public async Task AcceptWebSocketAsync(string? id)
         {
-            var cancel = this._GetRequestCancellationToken();
-
-            if (HttpContext.WebSockets.IsWebSocketRequest)
+            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancel, this._GetRequestCancellationToken(), this.Client.GrandCancel))
             {
-                // 指定されたセッション ID を元に検索
-                var session = this.Client.SessionManager.GetSessionById(id);
-
-                if (session != null)
+                if (HttpContext.WebSockets.IsWebSocketRequest)
                 {
-                    ThinClientConnectOptions connectOptions = (ThinClientConnectOptions)session.Param!;
+                    // 指定されたセッション ID を元に検索
+                    var session = this.Client.SessionManager.GetSessionById(id);
 
-                    var req = session.GetFinalAnswerRequest();
-
-                    if (req?.RequestData is ThinClientAcceptReadyNotification ready)
+                    if (session != null)
                     {
-                        var pref = new GuaPreference();
+                        ThinClientConnectOptions connectOptions = (ThinClientConnectOptions)session.Param!;
 
-                        await using var gc = new GuaClient(
-                            new GuaClientSettings(
-                                Client.SettingsFastSnapshot.GuacdHostname,
-                                Client.SettingsFastSnapshot.GuacdPort,
-                                ready.FirstConnection!.SvcType.ToString().StrToGuaProtocol(),
-                                "",
-                                ready.ListenEndPoint!.Port,
-                                pref));
+                        var req = session.GetFinalAnswerRequest();
 
-                        await gc.StartAsync(cancel);
-
-                        await using var gcStream = gc.Stream._NullCheck();
-
-                        using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync("guacamole");
-
-                        await using var wsStream = webSocket._GetStream(true);
-
-                        await Util.RelayDuplexStreamAsync(gcStream, wsStream, cancel, peakCallbackAsync: async (mem, st1tost2) =>
+                        if (req?.RequestData is ThinClientAcceptReadyNotification ready)
                         {
-                            if (st1tost2 == false)
-                            {
-                            }
-                        });
+                            var pref = new GuaPreference();
 
-                        return;
+                            await using var gc = new GuaClient(
+                                new GuaClientSettings(
+                                    Client.SettingsFastSnapshot.GuacdHostname,
+                                    Client.SettingsFastSnapshot.GuacdPort,
+                                    ready.FirstConnection!.SvcType.ToString().StrToGuaProtocol(),
+                                    "",
+                                    ready.ListenEndPoint!.Port,
+                                    pref));
+
+                            await gc.StartAsync(cancel);
+
+                            await using var gcStream = gc.Stream._NullCheck();
+
+                            using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync("guacamole");
+
+                            await GuaWebSocketUtil.RelayBetweenWebSocketAndStreamDuplex(gcStream, webSocket, cancel: cancel);
+
+                            return;
+                        }
                     }
                 }
-            }
 
-            HttpContext.Response.StatusCode = 400;
+                HttpContext.Response.StatusCode = 400;
+            }
         }
 
         public IActionResult Privacy()

@@ -52,6 +52,9 @@ using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
+using System.Net;
+using System.Net.Sockets;
+using System.Net.WebSockets;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -438,6 +441,130 @@ namespace IPA.Cores.Basic
             finally
             {
                 await base.CleanupImplAsync(ex);
+            }
+        }
+    }
+
+    public static class GuaWebSocketUtil
+    {
+        public static async Task RelayBetweenWebSocketAndStreamDuplex(Stream st, System.Net.WebSockets.WebSocket ws, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalBytes = null, CancellationToken cancel = default)
+        {
+            using CancelWatcher w = new CancelWatcher(cancel);
+
+            Task relayStreamToWebSocket = RelayStreamToWebSocketAsync(st, ws, bufferSize, totalBytes, w.CancelToken);
+            Task relayWebSocketToStream = RelayWebSocketToStreamAsync(ws, st, bufferSize, totalBytes, w.CancelToken);
+
+            await TaskUtil.WaitObjectsAsync(new Task[] { relayStreamToWebSocket, relayWebSocketToStream }, cancel._SingleArray());
+
+            w.Cancel();
+
+            await relayStreamToWebSocket._TryAwait();
+            await relayWebSocketToStream._TryAwait();
+
+            if (relayStreamToWebSocket.Exception != null) throw relayStreamToWebSocket.Exception;
+            if (relayWebSocketToStream.Exception != null) throw relayWebSocketToStream.Exception;
+        }
+
+        public static async Task RelayStreamToWebSocketAsync(Stream src, System.Net.WebSockets.WebSocket dst, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalBytes = null, CancellationToken cancel = default)
+        {
+            bool isDisconnected = false;
+
+            while (isDisconnected == false)
+            {
+                // 1 個のパケットを TCP で受信
+                MemoryBuffer<byte> packet = new MemoryBuffer<byte>();
+
+                while (isDisconnected == false)
+                {
+                    StringBuilder sb = new StringBuilder();
+                    while (isDisconnected == false)
+                    {
+                        byte a;
+                        try
+                        {
+                            a = (await src.ReceiveByteAsync(cancel));
+                        }
+                        catch (DisconnectedException)
+                        {
+                            isDisconnected = true;
+                            break;
+                        }
+                        packet.WriteByte(a);
+                        if (a == '.')
+                        {
+                            break;
+                        }
+                        sb.Append((char)a);
+                        if (sb.Length >= 7)
+                        {
+                            throw new CoresLibException("Protocol Error: sb.Length >= 7");
+                        }
+                    }
+                    if (isDisconnected)
+                    {
+                        break;
+                    }
+
+                    int dataSize = sb.ToString()._ToInt();
+                    if (dataSize < 0)
+                    {
+                        throw new CoresLibException($"Protocol Error: dataSize == {dataSize}");
+                    }
+
+                    if (packet.Length > Consts.Numbers.GenericMaxSize_Middle)
+                    {
+                        throw new CoresLibException($"Protocol Error: packet.Length == {packet.Length}");
+                    }
+
+                    var data = await src._ReadAllAsync(dataSize, cancel);
+                    packet.Write(data);
+
+                    byte c = (await src.ReceiveByteAsync(cancel));
+                    packet.WriteByte(c);
+                    if (c == ',')
+                    {
+                        continue;
+                    }
+                    else if (c == ';')
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        throw new CoresLibException($"Protocol Error: Unexpected character: '{(char)c}' ({(int)c})");
+                    }
+                }
+
+                totalBytes?.Add(packet.Length);
+                await dst.SendAsync(packet, WebSocketMessageType.Text, true, cancel);
+            }
+
+            await dst.SendAsync(ReadOnlyMemory<byte>.Empty, WebSocketMessageType.Close, true, cancel);
+        }
+
+        public static async Task RelayWebSocketToStreamAsync(System.Net.WebSockets.WebSocket src, Stream dst, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalBytes = null, CancellationToken cancel = default)
+        {
+            using (MemoryHelper.FastAllocMemoryWithUsing(bufferSize, out Memory<byte> buffer))
+            {
+                while (true)
+                {
+                    var result = await src.ReceiveAsync(buffer, cancel);
+
+                    if (result.MessageType == WebSocketMessageType.Close || result.Count <= 0)
+                    {
+                        break;
+                    }
+
+                    var data = buffer.Slice(0, result.Count);
+
+                    totalBytes?.Add(data.Length);
+                    await dst.WriteAsync(data, cancel);
+
+                    if (result.EndOfMessage)
+                    {
+                        await dst.FlushAsync(cancel);
+                    }
+                }
             }
         }
     }
