@@ -2752,6 +2752,9 @@ namespace IPA.Cores.Helper.Basic
         }
 
         public static bool _IsValidVlanId(this int number) => number >= Consts.Numbers.VlanMin && number <= Consts.Numbers.VlanMax;
+
+        public static WebSocketStream _GetStream(this System.Net.WebSockets.WebSocket webSocket, bool autoDispose = false)
+            => new WebSocketStream(webSocket, autoDispose);
     }
 }
 

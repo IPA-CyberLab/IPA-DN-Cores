@@ -322,9 +322,17 @@ namespace IPA.Cores.Basic
             Preference = preference._CloneWithJson();
         }
 
-        public void AddToKeyValueList(KeyValueList<string, string> list)
+        public void AddToKeyValueList(KeyValueList<string, string> list, string serverHostnameIfEmpty)
         {
-            list.Add("hostname", this.ServerHostname);
+            string hostname = this.ServerHostname;
+
+            if (hostname._IsEmpty())
+            {
+                hostname = serverHostnameIfEmpty;
+            }
+
+            list.Add("hostname", hostname);
+
             list.Add("port", this.ServerPort.ToString());
 
             this.Preference.AddToKeyValueList(list);
@@ -344,8 +352,8 @@ namespace IPA.Cores.Basic
 
         Once Started;
 
-        ConnSock? Sock = null!;
-        PipeStream? Stream = null!;
+        public ConnSock? Sock { get; private set; }
+        public PipeStream? Stream { get; private set; }
 
         public async Task StartAsync(CancellationToken cancel = default)
         {
@@ -393,7 +401,7 @@ namespace IPA.Cores.Basic
 
                 // Connect パケットを送付
                 KeyValueList<string, string> connectOptions = new KeyValueList<string, string>();
-                this.Settings.AddToKeyValueList(connectOptions);
+                this.Settings.AddToKeyValueList(connectOptions, this.Sock.EndPointInfo.LocalIP._NullCheck());
                 var opConnect = GuaPacket.CreateConnectPacket(connectOptions, supportedOptions);
                 await opConnect.SendPacketAsync(this.Stream, cancel);
 

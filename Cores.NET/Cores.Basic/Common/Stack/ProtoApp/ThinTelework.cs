@@ -121,7 +121,8 @@ namespace IPA.Cores.Basic
 
     public class ThinClientAcceptReadyNotification : IDialogRequestData
     {
-        public IPEndPoint? ListenEndPoint = null;
+        public IPEndPoint? ListenEndPoint;
+        public ThinClientConnection? FirstConnection;
     }
 
     public class ThinClientInspectRequest : IDialogRequestData
@@ -433,6 +434,7 @@ namespace IPA.Cores.Basic
                 var ready = new ThinClientAcceptReadyNotification
                 {
                     ListenEndPoint = new IPEndPoint(listener.AssignedRandomPort!.IPAddress, listener.AssignedRandomPort.Port),
+                    FirstConnection = firstConnection,
                 };
 
                 Dbg.Where();
