@@ -126,6 +126,10 @@ namespace IPA.Cores.Codes
         public ThinClientAuthResponse? Response { get; set; }
     }
 
+    public class ThinWebClientModelSessionMain : ThinWebClientModelSessionBase
+    {
+    }
+
     public class ThinWebClientController : Controller
     {
         public ThinWebClient Client { get; }
@@ -159,6 +163,36 @@ namespace IPA.Cores.Codes
             }
 
             return View(form);
+        }
+
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public async Task<IActionResult> RemoteAsync(string? id)
+        {
+            var cancel = Request._GetRequestCancellationToken();
+            id = id._NonNullTrim();
+
+            // 指定されたセッション ID を元に検索
+            var session = this.Client.SessionManager.GetSessionById(id);
+
+            if (session != null)
+            {
+                ThinClientConnectOptions connectOptions = (ThinClientConnectOptions)session.Param!;
+
+                var req = session.GetFinalAnswerRequest();
+
+                if (req != null)
+                {
+                    ThinWebClientModelSessionMain main = new ThinWebClientModelSessionMain()
+                    {
+                        ConnectOptions = connectOptions,
+                    };
+
+                    return View(main);
+                }
+            }
+
+            await TaskCompleted;
+            return Redirect("/");
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
@@ -215,7 +249,8 @@ namespace IPA.Cores.Codes
                         case ThinClientAcceptReadyNotification ready:
                             ready.ListenEndPoint?.ToString()._Debug();
                             req.SetResponseDataEmpty();
-                            break;
+
+                            return Redirect($"/ThinWebClient/Remote/{session.SessionId}/");
 
                         default:
                             throw new CoresException($"Unknown request data: {req.RequestData.GetType().ToString()}");

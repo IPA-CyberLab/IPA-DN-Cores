@@ -5003,7 +5003,7 @@ namespace IPA.Cores.Basic
             this.RequestData = requestData;
             this.HardTimeout = hardTimeout;
             this.SoftTimeout = softTimeout ?? hardTimeout;
-            this.IsFinalAnswer = IsFinalAnswer;
+            this.IsFinalAnswer = isFinalAnswer;
         }
 
         Once SetResponseOrErrorOnce;
@@ -5254,6 +5254,33 @@ namespace IPA.Cores.Basic
         }
 
         readonly AsyncPulse Pulse = new AsyncPulse();
+
+        public DialogRequest? GetFinalAnswerRequest()
+        {
+            if (this.IsFinished == false)
+            {
+                lock (this.RequestListLockObj)
+                {
+                    if (this.RequestList.Count >= 1)
+                    {
+                        var r = this.RequestList[0];
+                        if (r.IsFinalAnswer)
+                        {
+                            return r;
+                        }
+                    }
+                }
+            }
+
+            if (this.Exception != null)
+            {
+                throw this.Exception;
+            }
+            else
+            {
+                return null;
+            }
+        }
 
         public async Task<DialogRequest?> GetNextRequestAsync(int timeout = Timeout.Infinite, CancellationToken cancel = default)
         {
