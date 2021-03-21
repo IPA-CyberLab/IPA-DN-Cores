@@ -418,7 +418,7 @@ namespace IPA.TestDev
         {
             string target = "wss://echo.websocket.org";
 
-            using (WebSocketSock ws = await WebSocketSock.ConnectAsync(target))
+            using (WebSocket ws = await WebSocket.ConnectAsync(target))
             {
                 using (var stream = ws.GetStream())
                 using (var r = new StreamReader(stream))
@@ -452,7 +452,7 @@ namespace IPA.TestDev
         {
             using (ConnSock sock = LocalNet.Connect(new TcpConnectParam("echo.websocket.org", 80)))
             {
-                using (WebSocketSock ws = new WebSocketSock(sock))
+                using (WebSocket ws = new WebSocket(sock))
                 {
                     await ws.StartWebSocketClientAsync("wss://echo.websocket.org");
 

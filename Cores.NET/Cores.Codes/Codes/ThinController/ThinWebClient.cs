@@ -51,6 +51,7 @@ using System.Runtime.Serialization;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.Security;
+using System.Net.WebSockets;
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
