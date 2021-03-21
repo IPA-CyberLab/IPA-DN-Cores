@@ -144,13 +144,28 @@ namespace IPA.Cores.Helper.Web
         {
             try
             {
-                var errorContext = controller.HttpContext.Features.Get<IExceptionHandlerFeature>();
+                var errorContext = controller.HttpContext.Features.Get<IExceptionHandlerPathFeature>();
 
                 return errorContext.Error;
             }
             catch
             {
-                throw new CoresLibException("Unknown exception: Failed to Get IExceptionHandlerFeature.");
+                throw new CoresLibException("Unknown exception: Failed to Get IExceptionHandlerPathFeature.");
+            }
+        }
+
+        // エラーハンドラページで利用できる、最後のエラーパスの取得
+        public static string _GetLastErrorPath(this Controller controller)
+        {
+            try
+            {
+                var errorContext = controller.HttpContext.Features.Get<IExceptionHandlerPathFeature>();
+
+                return errorContext.Path;
+            }
+            catch
+            {
+                throw new CoresLibException("Unknown exception: Failed to Get IExceptionHandlerPathFeature.");
             }
         }
 

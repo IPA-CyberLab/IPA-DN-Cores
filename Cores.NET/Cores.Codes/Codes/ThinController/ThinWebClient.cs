@@ -89,6 +89,9 @@ namespace IPA.Cores.Codes
     public sealed class ThinWebClientSettings : INormalizable
     {
         public string ABC = "";
+        public bool ProxyPortListenAllowAny = false;
+        public string GuacdHostname = "dn-ttguacd1.sec.softether.co.jp";
+        public int GuacdPort = 4822;
 
         public ThinWebClientSettings()
         {
@@ -106,9 +109,21 @@ namespace IPA.Cores.Codes
     }
 #pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
 
-    public class ThinWebClientModelStartPage
+    public class ThinWebClientModelStart
     {
         public string? Pcid { get; set; } = "dn-ttwin1";
+    }
+
+    public abstract class ThinWebClientModelSessionBase
+    {
+        public string? RequestId { get; set; }
+        public ThinClientConnectOptions? ConnectOptions { get; set; }
+    }
+
+    public class ThinWebClientModelSessionAuth : ThinWebClientModelSessionBase
+    {
+        public ThinClientAuthRequest? Request { get; set; }
+        public ThinClientAuthResponse? Response { get; set; }
     }
 
     public class ThinWebClientController : Controller
@@ -120,7 +135,8 @@ namespace IPA.Cores.Codes
             this.Client = client;
         }
 
-        public async Task<IActionResult> StartAsync(ThinWebClientModelStartPage form)
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public async Task<IActionResult> StartAsync(ThinWebClientModelStart form)
         {
             string? pcid = form?.Pcid._NonNullTrim();
 
@@ -145,11 +161,13 @@ namespace IPA.Cores.Codes
             return View(form);
         }
 
-        public async Task<IActionResult> SessionAsync(string? id)
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public async Task<IActionResult> SessionAsync(string? id, string? requestid, string? formtype, string? password)
         {
             var cancel = Request._GetRequestCancellationToken();
             id = id._NonNullTrim();
 
+            // 指定されたセッション ID を元に検索
             var session = this.Client.SessionManager.GetSessionById(id);
 
             if (session == null)
@@ -159,12 +177,49 @@ namespace IPA.Cores.Codes
             }
             else
             {
-                var request = await session.GetNextRequestAsync(cancel: cancel);
+                ThinClientConnectOptions connectOptions = (ThinClientConnectOptions)session.Param!;
 
-                if (request != null)
+                if (requestid._IsFilled() && formtype._IsFilled())
                 {
-                    session.SendHeartBeat(request.RequestId);
-                    request.ToString()._Debug();
+                    IDialogResponseData? responseData = null;
+                    switch (formtype.ToLower())
+                    {
+                        case "auth":
+                            responseData = new ThinClientAuthResponse { Username = "", Password = password._NonNull() };
+                            break;
+                    }
+                    if (responseData != null)
+                    {
+                        session.SetResponseData(requestid, responseData);
+                    }
+                }
+
+                var req = await session.GetNextRequestAsync(cancel: cancel);
+
+                if (req != null)
+                {
+                    session.SendHeartBeat(req.RequestId);
+
+                    switch (req.RequestData)
+                    {
+                        case ThinClientAuthRequest authReq:
+                            ThinWebClientModelSessionAuth page = new ThinWebClientModelSessionAuth
+                            {
+                                RequestId = req.RequestId,
+                                ConnectOptions = connectOptions,
+                                Request = authReq,
+                            };
+
+                            return View("SessionAuth", page);
+
+                        case ThinClientAcceptReadyNotification ready:
+                            ready.ListenEndPoint?.ToString()._Debug();
+                            req.SetResponseDataEmpty();
+                            break;
+
+                        default:
+                            throw new CoresException($"Unknown request data: {req.RequestData.GetType().ToString()}");
+                    }
                 }
                 else
                 {
@@ -183,7 +238,7 @@ namespace IPA.Cores.Codes
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
-            return View(new AspNetErrorModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+            return View(new AspNetErrorModel(this));
         }
     }
 
@@ -234,7 +289,16 @@ namespace IPA.Cores.Codes
 
         public ThinClient CreateThinClient()
         {
-            ThinClient tc = new ThinClient(new ThinClientOptions(new WideTunnelOptions("DESK", nameof(ThinWebClient), StrList("https://pc34.sehosts.com/thincontrol/")), this.SessionManager));
+            AddressFamily listenFamily = AddressFamily.InterNetwork;
+            IPAddress listenAddress = IPAddress.Loopback;
+
+            if (this.SettingsFastSnapshot.ProxyPortListenAllowAny)
+            {
+                listenAddress = IPAddress.Any;
+            }
+
+            ThinClient tc = new ThinClient(new ThinClientOptions(new WideTunnelOptions("DESK", nameof(ThinWebClient), StrList("https://pc34.sehosts.com/thincontrol/")), this.SessionManager,
+                listenFamily, listenAddress));
 
             return tc;
         }

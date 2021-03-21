@@ -8223,6 +8223,102 @@ namespace IPA.Cores.Basic
         }
     }
 
+
+
+    public class Bag
+        : IEnumerable<KeyValuePair<string, object?>>, IEnumerable, IDictionary<string, object?>, IReadOnlyDictionary<string, object?>
+    {
+        ImmutableDictionary<string, object?> Dict;
+
+        public Bag(string? text = null, IEqualityComparer<string>? comparer = null)
+        {
+            comparer = comparer ?? StrComparer.IgnoreCaseComparer;
+
+            this.Dict = ImmutableDictionary<string, object?>.Empty.WithComparers(comparer);
+        }
+
+        public object? this[string key]
+        {
+            get => this.Dict._GetOrDefault(key._NonNull());
+            set
+            {
+                if (value == null)
+                {
+                    ImmutableInterlocked.TryRemove(ref Dict, key, out object? dummy);
+                }
+                else
+                {
+                    ImmutableInterlocked.AddOrUpdate(ref Dict, key._NonNull(), k => value, (k, o) => value);
+                }
+            }
+        }
+
+        public int Count => Dict.Count;
+
+        public bool IsReadOnly => false;
+
+        public IEnumerable<string> Keys => Dict.Keys;
+
+        public IEnumerable<object?> Values => Dict.Values;
+
+        public bool IsSynchronized => true;
+
+        readonly CriticalSection LockObj = new CriticalSection<Bag>();
+        public object SyncRoot => LockObj;
+
+        public bool IsFixedSize => false;
+
+        IEnumerable<string> IReadOnlyDictionary<string, object?>.Keys => Dict.Keys;
+
+        ICollection<string> IDictionary<string, object?>.Keys => (ICollection<string>)this.Dict.Keys;
+
+        ICollection<object?> IDictionary<string, object?>.Values => (ICollection<object?>)this.Dict.Values;
+
+        public void Add(KeyValuePair<string, object?> item) => this[item.Key] = item.Value;
+
+        public void Add(string key, object? value) => this[key] = value;
+
+        public void Clear()
+        {
+            Dict = Dict.Clear();
+        }
+
+        public bool ContainsKey(string key)
+        {
+            return this.Dict.ContainsKey(key._NonNull());
+        }
+
+        public void CopyTo(KeyValuePair<string, object?>[] array, int arrayIndex)
+            => throw new NotImplementedException();
+
+        public void CopyTo(Array array, int index)
+            => throw new NotImplementedException();
+
+        public IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
+            => this.Dict.GetEnumerator();
+
+        public bool Remove(KeyValuePair<string, object?> item)
+            => throw new NotImplementedException();
+
+        public bool Remove(string key)
+        {
+            return ImmutableInterlocked.TryRemove(ref Dict, key._NonNull(), out object? dummy);
+        }
+
+        public bool TryGetValue(string key, [MaybeNullWhen(false)] out object value)
+        {
+            bool ret = this.Dict.TryGetValue(key._NonNull(), out value);
+
+            return ret;
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+            => this.Dict.GetEnumerator();
+
+        public bool Contains(KeyValuePair<string, object?> item)
+            => this[item.Key._NonNull()]?.Equals(item.Value) ?? false;
+    }
+
     [Flags]
     public enum EnsureCtor
     {

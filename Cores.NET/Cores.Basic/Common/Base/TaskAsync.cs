@@ -4991,20 +4991,24 @@ namespace IPA.Cores.Basic
         public IDialogRequestData RequestData { get; }
         public IDialogResponseData? ResponseData { get; private set; }
         public Exception? Exception { get; private set; }
+        public bool IsFinalAnswer { get; }
         readonly RefInt HeartBeatCounter = new RefInt();
 
         readonly AsyncManualResetEvent FinishedEvent = new AsyncManualResetEvent();
 
-        internal DialogRequest(EnsureSpecial internalOnly, DialogSession session, IDialogRequestData requestData, int hardTimeout, int? softTimeout = null)
+        internal DialogRequest(EnsureSpecial internalOnly, DialogSession session, IDialogRequestData requestData, int hardTimeout, int? softTimeout = null, bool isFinalAnswer = false)
         {
             this.RequestId = Str.NewUid("REQUEST", '_');
             this.Session = session;
             this.RequestData = requestData;
             this.HardTimeout = hardTimeout;
             this.SoftTimeout = softTimeout ?? hardTimeout;
+            this.IsFinalAnswer = IsFinalAnswer;
         }
 
         Once SetResponseOrErrorOnce;
+
+        public void SetResponseDataEmpty() => SetResponseData(new EmptyDialogResponseData());
 
         public void SetResponseData(IDialogResponseData response)
         {
@@ -5123,6 +5127,7 @@ namespace IPA.Cores.Basic
         public string SessionId { get; }
         public DialogSessionManager Manager { get; }
         public DialogSessionOptions Options { get; }
+        public object? Param => Options.Param;
         public Task? MainTask { get; private set; } = null;
 
         public Exception? Exception { get; private set; } = null;
@@ -5194,19 +5199,22 @@ namespace IPA.Cores.Basic
 
         internal void NoticeResponseFulfilledInternal(DialogRequest request)
         {
-            lock (this.RequestListLockObj)
+            if (request.IsFinalAnswer == false)
             {
-                this.RequestList.Remove(request);
+                lock (this.RequestListLockObj)
+                {
+                    this.RequestList.Remove(request);
+                }
             }
 
             Pulse.FirePulse(true);
         }
 
-        public DialogRequest Request(IDialogRequestData requestData, int hardTimeout, int? softTimeout = null)
+        public DialogRequest Request(IDialogRequestData requestData, int hardTimeout, int? softTimeout = null, bool isFinalAnswer = false)
         {
             this.GrandCancel.ThrowIfCancellationRequested();
 
-            DialogRequest request = new DialogRequest(EnsureSpecial.Yes, this, requestData, hardTimeout, softTimeout);
+            DialogRequest request = new DialogRequest(EnsureSpecial.Yes, this, requestData, hardTimeout, softTimeout, isFinalAnswer);
 
             lock (this.RequestListLockObj)
             {
@@ -5218,7 +5226,7 @@ namespace IPA.Cores.Basic
             return request;
         }
 
-        public async Task<IDialogResponseData> RequestAndWaitResponseAsync(IDialogRequestData requestData, int hardTimeout, int? softTimeout = null, CancellationToken cancel = default)
+        public async Task<IDialogResponseData> RequestAndWaitResponseAsync(IDialogRequestData requestData, int hardTimeout, int? softTimeout = null, CancellationToken cancel = default, bool isFinalAnswer = false)
         {
             try
             {
@@ -5227,7 +5235,7 @@ namespace IPA.Cores.Basic
                 cancel.ThrowIfCancellationRequested();
                 this.GrandCancel.ThrowIfCancellationRequested();
 
-                var req = this.Request(requestData, hardTimeout, softTimeout);
+                var req = this.Request(requestData, hardTimeout, softTimeout, isFinalAnswer);
 
                 using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancel2, cancel, this.GrandCancel))
                 {
@@ -5388,6 +5396,7 @@ namespace IPA.Cores.Basic
 
         public DialogSession? GetSessionById(string sessionId)
         {
+            Gc();
             return this.SessionList.GetValueOrDefault(sessionId);
         }
 

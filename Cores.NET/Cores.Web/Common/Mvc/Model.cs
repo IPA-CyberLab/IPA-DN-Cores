@@ -49,6 +49,7 @@ using IPA.Cores.Web;
 using IPA.Cores.Helper.Web;
 using static IPA.Cores.Globals.Web;
 
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Razor;
 
 namespace IPA.Cores.Web
@@ -57,9 +58,28 @@ namespace IPA.Cores.Web
     // 共通クラスにするのである。
     public class AspNetErrorModel
     {
-        public string RequestId { get; set; } = null!;
+        public string RequestId { get; set; } = "";
 
         public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+
+        public Exception ErrorInfo { get; set; } = null!;
+
+        public string ErrorPath { get; set; } = "Unknown";
+
+        public string WebServerName { get; set; } = "Unknown";
+
+        public string WebClientName { get; set; } = "Unknown";
+
+        public AspNetErrorModel() { }
+
+        public AspNetErrorModel(Controller controller)
+        {
+            RequestId = controller.HttpContext.TraceIdentifier;
+            ErrorInfo = controller._GetLastError();
+            ErrorPath = controller._GetLastErrorPath();
+            WebServerName = controller.Request.Host.ToString();
+            WebClientName = controller.HttpContext.Connection.RemoteIpAddress!.MapToIPv4().ToString();
+        }
     }
 
     [Flags]
