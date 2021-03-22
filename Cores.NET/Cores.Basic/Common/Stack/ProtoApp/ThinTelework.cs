@@ -447,7 +447,7 @@ namespace IPA.Cores.Basic
                     abort.ThrowIfCancellationRequested();
 
                     long now = TickNow;
-
+                    
                     $"listener.CurrentConnections = {listener.CurrentConnections}"._Debug();
                     if (listener.CurrentConnections == 0)
                     {
