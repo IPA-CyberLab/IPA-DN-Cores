@@ -4366,7 +4366,7 @@ namespace IPA.Cores.Basic
         // 任意のファイルパスを安全な Ascii 文字のみを含む、かつ、空白文字を含まないファイル名に変換する
         public static string MakeSafeAsciiOnlyNonSpaceFileName(string? fullPath)
         {
-            if (fullPath._IsEmpty()) return "_";
+            if (fullPath._IsEmpty()) return "";
             fullPath = fullPath._NonNullTrim();
 
             string fn = PathParser.Windows.GetFileName(fullPath);
@@ -4390,12 +4390,12 @@ namespace IPA.Cores.Basic
             }
 
             string ret = sb.ToString();
-            ret = ret.Trim('_');
             ret = ret.Trim();
-            if (ret._IsEmpty())
-            {
-                ret = "_";
-            }
+
+            ret = ret._Split(StringSplitOptions.RemoveEmptyEntries, '_')._Combine("_", true);
+
+            ret = ret.Trim();
+
             return ret;
         }
 
