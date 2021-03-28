@@ -110,6 +110,9 @@ namespace IPA.Cores.Basic
 
             public const int VlanMin = 1;
             public const int VlanMax = 4094;
+
+            public const int GenericMaxEntities_Small = 512;
+            public const int GenericMaxSize_Middle = 1_000_000;
         }
 
         public static partial class MaxLens
@@ -214,6 +217,8 @@ namespace IPA.Cores.Basic
             public const string StatManEncryptKey = "e6B8zNWgCEXuH44LNaNynyJS";
 
             public const string SmsDefaultCountryCode = "+81";
+
+            public const string DefaultSessionIdPrefix = "SESSION";
         }
 
         public static partial class HiveNames

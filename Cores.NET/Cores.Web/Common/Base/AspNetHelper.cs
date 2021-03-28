@@ -144,13 +144,28 @@ namespace IPA.Cores.Helper.Web
         {
             try
             {
-                var errorContext = controller.HttpContext.Features.Get<IExceptionHandlerFeature>();
+                var errorContext = controller.HttpContext.Features.Get<IExceptionHandlerPathFeature>();
 
                 return errorContext.Error;
             }
             catch
             {
-                throw new CoresLibException("Unknown exception: Failed to Get IExceptionHandlerFeature.");
+                throw new CoresLibException("Unknown exception: Failed to Get IExceptionHandlerPathFeature.");
+            }
+        }
+
+        // エラーハンドラページで利用できる、最後のエラーパスの取得
+        public static string _GetLastErrorPath(this Controller controller)
+        {
+            try
+            {
+                var errorContext = controller.HttpContext.Features.Get<IExceptionHandlerPathFeature>();
+
+                return errorContext.Path;
+            }
+            catch
+            {
+                throw new CoresLibException("Unknown exception: Failed to Get IExceptionHandlerPathFeature.");
             }
         }
 
@@ -240,6 +255,13 @@ namespace IPA.Cores.Helper.Web
         [return: MaybeNull]
         public static T _EasyLoadCookie<T>(this Controller controller, string cookieName)
             => controller.HttpContext._EasyLoadCookie<T>(cookieName);
+
+        public static bool _IsPostBack(this Controller controller)
+        {
+            var method = controller.Request.Method._ParseEnum<WebMethods>(WebMethods.GET, false, false);
+
+            return (method == WebMethods.POST);
+        }
     }
 }
 

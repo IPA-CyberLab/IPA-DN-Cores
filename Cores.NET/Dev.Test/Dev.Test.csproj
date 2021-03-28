@@ -28,12 +28,14 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DefineConstants>CORES_CODES_AWS</DefineConstants>
+    <WarningsAsErrors>NU1605;CA2245;</WarningsAsErrors>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DefineConstants>TRACE;DEBUG;CORES_CODES_AWS</DefineConstants>
+    <WarningsAsErrors>NU1605;CA2245;</WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>

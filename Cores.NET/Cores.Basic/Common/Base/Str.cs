@@ -52,6 +52,7 @@ using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using System.Runtime.CompilerServices;
 
 namespace IPA.Cores.Basic
 {
@@ -1947,10 +1948,12 @@ namespace IPA.Cores.Basic
         }
 
         // 指定したデータに BOM が付いているかどうか判別する
+        [MethodImpl(Inline)]
         public static Encoding? CheckBOM(ReadOnlySpan<byte> data)
         {
             return CheckBOM(data, out _);
         }
+        [MethodImpl(Inline)]
         public static Encoding? CheckBOM(ReadOnlySpan<byte> data, out int bomNumBytes)
         {
             bomNumBytes = 0;
@@ -2127,6 +2130,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列をデコードする (BOM があれば BOM に従う)
+        [MethodImpl(Inline)]
         public static string DecodeString(ReadOnlySpan<byte> data, Encoding defaultEncoding, out Encoding detectedEncoding, bool untilNullByte = false)
         {
             int bomSize;

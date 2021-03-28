@@ -40,6 +40,7 @@ using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Linq;
+using System.Text;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -2686,6 +2687,7 @@ namespace IPA.Cores.Basic
         public static void WriteSInt16(this ref SpanBuffer<byte> buf, short value, bool littleEndian = false) => value._SetSInt16(buf.Walk(2, false), littleEndian);
         public static void WriteSInt32(this ref SpanBuffer<byte> buf, int value, bool littleEndian = false) => value._SetSInt32(buf.Walk(4, false), littleEndian);
         public static void WriteSInt64(this ref SpanBuffer<byte> buf, long value, bool littleEndian = false) => value._SetSInt64(buf.Walk(8, false), littleEndian);
+        public static void WriteStr(this ref SpanBuffer<byte> buf, string str, Encoding? encoding = null) => buf.Write(str._GetBytes(encoding));
 
         public static void SetBool8(this ref SpanBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, true));
         public static void SetUInt8(this ref SpanBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, true));
@@ -2751,6 +2753,7 @@ namespace IPA.Cores.Basic
         public static void WriteSInt16(this ref FastMemoryBuffer<byte> buf, short value, bool littleEndian = false) => value._SetSInt16(buf.Walk(2, false), littleEndian);
         public static void WriteSInt32(this ref FastMemoryBuffer<byte> buf, int value, bool littleEndian = false) => value._SetSInt32(buf.Walk(4, false), littleEndian);
         public static void WriteSInt64(this ref FastMemoryBuffer<byte> buf, long value, bool littleEndian = false) => value._SetSInt64(buf.Walk(8, false), littleEndian);
+        public static void WriteStr(this ref FastMemoryBuffer<byte> buf, string str, Encoding? encoding = null) => buf.Write(str._GetBytes(encoding));
 
         public static void SetBool8(this ref FastMemoryBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, true));
         public static void SetUInt8(this ref FastMemoryBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, true));
@@ -2805,6 +2808,7 @@ namespace IPA.Cores.Basic
         public static int PeekSInt32(ref this FastReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(4)._GetSInt32(littleEndian);
         public static long PeekSInt64(ref this FastReadOnlyMemoryBuffer<byte> buf, bool littleEndian = false) => buf.Peek(8)._GetSInt64(littleEndian);
 
+
         public static void WriteBool8(this MemoryBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, false));
         public static void WriteUInt8(this MemoryBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, false));
         public static void WriteByte(this MemoryBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, false));
@@ -2815,6 +2819,7 @@ namespace IPA.Cores.Basic
         public static void WriteSInt16(this MemoryBuffer<byte> buf, short value, bool littleEndian = false) => value._SetSInt16(buf.Walk(2, false), littleEndian);
         public static void WriteSInt32(this MemoryBuffer<byte> buf, int value, bool littleEndian = false) => value._SetSInt32(buf.Walk(4, false), littleEndian);
         public static void WriteSInt64(this MemoryBuffer<byte> buf, long value, bool littleEndian = false) => value._SetSInt64(buf.Walk(8, false), littleEndian);
+        public static void WriteStr(this MemoryBuffer<byte> buf, string str, Encoding? encoding = null) => buf.Write(str._GetBytes(encoding));
 
         public static void SetBool8(this MemoryBuffer<byte> buf, bool value) => value._SetBool8(buf.Walk(1, true));
         public static void SetUInt8(this MemoryBuffer<byte> buf, byte value) => value._SetUInt8(buf.Walk(1, true));

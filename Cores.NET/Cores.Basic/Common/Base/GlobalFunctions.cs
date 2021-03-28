@@ -385,6 +385,20 @@ namespace IPA.Cores.Globals
 
         public static Memory<byte> Load(string path, FileFlags flags, FileSystem? fs = null, int maxSize = int.MaxValue, CancellationToken cancel = default) =>
             path._Load(maxSize, flags, fs, cancel);
+
+        public static List<string> StrList() => StrList(new string[0]);
+        public static List<string> StrList(params object?[] args)
+        {
+            List<string> ret = new List<string>();
+            foreach (object? obj in args)
+            {
+                if (obj is string str)
+                    ret.Add(str._NonNull());
+                else
+                    ret.Add(obj?.ToString()._NonNull() ?? "");
+            }
+            return ret;
+        }
     }
 }
 

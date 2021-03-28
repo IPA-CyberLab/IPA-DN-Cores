@@ -1812,8 +1812,26 @@ namespace IPA.TestDev
             }
         }
 
+        public static async Task GuaTest_210320()
+        {
+            await using GuaClient gc = new GuaClient(new GuaClientSettings("dn-ttguacd1.sec.softether.co.jp", 4822, GuaProtocol.Rdp, "pc37.sec.softether.co.jp", 3333,
+                new GuaPreference()));
+
+            await gc.StartAsync();
+
+            Con.ReadLine("OK>");
+
+            gc.ConnectionId._Print();
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                GuaTest_210320()._GetResult();
+                return;
+            }
+
             if (false)
             {
                 Test_MakeThinOssCerts_201120();
