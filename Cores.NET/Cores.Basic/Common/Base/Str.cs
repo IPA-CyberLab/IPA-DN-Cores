@@ -4359,6 +4359,42 @@ namespace IPA.Cores.Basic
             return sb.ToString();
         }
 
+        // 任意のファイルパスを安全な Ascii 文字のみを含む、かつ、空白文字を含まないファイル名に変換する
+        public static string MakeSafeAsciiOnlyNonSpaceFileName(string? fullPath)
+        {
+            if (fullPath._IsEmpty()) return "_";
+            fullPath = fullPath._NonNullTrim();
+
+            string fn = PathParser.Windows.GetFileName(fullPath);
+
+            Str.NormalizeString(ref fn, true, true, false, false);
+
+            string okChars = "0123456789-_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+            StringBuilder sb = new StringBuilder();
+
+            foreach (char c in fn)
+            {
+                if (okChars.IndexOf(c) != -1)
+                {
+                    sb.Append(c);
+                }
+                else
+                {
+                    sb.Append("_");
+                }
+            }
+
+            string ret = sb.ToString();
+            ret = ret.Trim('_');
+            ret = ret.Trim();
+            if (ret._IsEmpty())
+            {
+                ret = "_";
+            }
+            return ret;
+        }
+
         // ファイル名を安全にする
         static readonly char[] InvalidFileNameChars = Win32PathInternal.GetInvalidFileNameChars();
         public static string MakeSafeFileName(string name)
