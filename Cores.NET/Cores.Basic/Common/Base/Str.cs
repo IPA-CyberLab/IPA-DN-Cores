@@ -4364,7 +4364,7 @@ namespace IPA.Cores.Basic
         }
 
         // 任意のファイルパスを安全な Ascii 文字のみを含む、かつ、空白文字を含まないファイル名に変換する
-        public static string MakeSafeAsciiOnlyNonSpaceFileName(string? fullPath)
+        public static string MakeVerySafeAsciiOnlyNonSpaceFileName(string? fullPath)
         {
             if (fullPath._IsEmpty()) return "";
             fullPath = fullPath._NonNullTrim();
