@@ -1824,8 +1824,39 @@ namespace IPA.TestDev
             gc.ConnectionId._Print();
         }
 
+        static void Test_210401()
+        {
+            //QueryStringList q = new QueryStringList();
+            //q.Add("aaa", "123=456<789>?abc def");
+
+            //q = new QueryStringList(q.ToString());
+            //q.ToString()._Print();
+            //return;
+
+            while (true)
+            {
+                string str = Con.ReadLine("STR>")!;
+
+                $"EncodeUrl          : {str._EncodeUrl()}"._Print();
+                $"EncodeUrlPath      : {str._EncodeUrlPath()}"._Print();
+                $"DecodeUrlPath      : {str._EncodeUrlPath()._DecodeUrlPath()}"._Print();
+                $"DecodeUrlPath2     : {str._DecodeUrlPath()}"._Print();
+                $"EscapeDataString   : {Uri.EscapeDataString(str)}"._Print();
+                $"UnescapeDataString : {Uri.UnescapeDataString(Uri.EscapeDataString(str))}"._Print();
+                $"UnescapeDataString2: {Uri.UnescapeDataString(str)}"._Print();
+
+                ""._Print();
+            }
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210401();
+                return;
+            }
+
             if (true)
             {
                 GuaTest_210320()._GetResult();
