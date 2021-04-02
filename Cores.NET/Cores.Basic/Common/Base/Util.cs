@@ -34,6 +34,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Xml.Serialization;
 using System.Runtime.InteropServices;
@@ -55,7 +56,6 @@ using IPA.Cores.Basic;
 using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using System.Collections.Immutable;
 using System.IO.Pipelines;
 using System.Text;
 using Microsoft.EntityFrameworkCore.Internal;
@@ -637,6 +637,7 @@ namespace IPA.Cores.Basic
         }
 
         // byte 配列を結合する
+        [MethodImpl(Inline)]
         public static byte[] CombineByteArray(byte[]? b1, byte[]? b2)
         {
             if (b1 == null && b2 == null) return new byte[0];
@@ -2953,12 +2954,12 @@ namespace IPA.Cores.Basic
         }
 
         // Stream 間のデータ中継 (双方向)
-        public static async Task RelayDuplexStreamAsync(Stream st1, Stream st2, CancellationToken cancel = default, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalBytes = null)
+        public static async Task RelayDuplexStreamAsync(Stream st1, Stream st2, CancellationToken cancel = default, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalBytes = null, Func<Memory<byte>, bool, Task>? peakCallbackAsync = null)
         {
             using CancelWatcher w = new CancelWatcher(cancel);
 
-            Task relay1to2 = RelaySimplexStreamAsync(st1, st2, w.CancelToken, bufferSize, totalBytes);
-            Task relay2to1 = RelaySimplexStreamAsync(st2, st1, w.CancelToken, bufferSize, totalBytes);
+            Task relay1to2 = RelaySimplexStreamAsync(st1, st2, w.CancelToken, bufferSize, totalBytes, true, peakCallbackAsync);
+            Task relay2to1 = RelaySimplexStreamAsync(st2, st1, w.CancelToken, bufferSize, totalBytes, false, peakCallbackAsync);
 
             await TaskUtil.WaitObjectsAsync(new Task[] { relay1to2, relay2to1 }, cancel._SingleArray());
 
@@ -2972,7 +2973,7 @@ namespace IPA.Cores.Basic
         }
 
         // Stream 間のデータ中継 (一方向)
-        public static async Task RelaySimplexStreamAsync(Stream src, Stream dest, CancellationToken cancel = default, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalBytes = null)
+        public static async Task RelaySimplexStreamAsync(Stream src, Stream dest, CancellationToken cancel = default, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalBytes = null, bool st1Tost2 = false, Func<Memory<byte>, bool, Task>? peakCallbackAsync = null)
         {
             await Task.Yield();
 
@@ -2985,7 +2986,14 @@ namespace IPA.Cores.Basic
                     break;
                 }
 
-                await dest.WriteAsync(buffer.Slice(0, sz), cancel);
+                var recvData = buffer.Slice(0, sz);
+
+                if (peakCallbackAsync != null)
+                {
+                    await peakCallbackAsync(recvData, st1Tost2);
+                }
+
+                await dest.WriteAsync(recvData, cancel);
 
                 totalBytes?.Add(sz);
             }

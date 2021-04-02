@@ -643,7 +643,7 @@ namespace IPA.TestDev
                 }
             }
 
-            if (true)
+            if (false)
             {
                 string password = "microsoft";
 
@@ -670,6 +670,24 @@ namespace IPA.TestDev
 
                     Lfs.WriteDataToFile(fileNameBase + ".key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
                 }
+            }
+
+            if (false)
+            {
+                string password = "microsoft";
+
+                PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
+
+                var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "*.thinwebclient.example.org", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256));
+
+                CertificateStore store = new CertificateStore(cert, priv);
+
+                Lfs.WriteDataToFile(baseDir + @"03_WebClient.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+                Lfs.WriteDataToFile(baseDir + @"03_WebClient_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"03_WebClient.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"03_WebClient.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
             }
         }
 
@@ -1482,8 +1500,63 @@ namespace IPA.TestDev
             }
         }
 
+        public static async Task GuaTest_210320()
+        {
+            await using GuaClient gc = new GuaClient(new GuaClientSettings("dn-ttguacd1.sec.softether.co.jp", 4822, GuaProtocol.Rdp, "pc37.sec.softether.co.jp", 3333,
+                new GuaPreference()));
+
+            await gc.StartAsync();
+
+            Con.ReadLine("OK>");
+
+            gc.ConnectionId._Print();
+        }
+
+        static void Test_210401()
+        {
+            //QueryStringList q = new QueryStringList();
+            //q.Add("aaa", "123=456<789>?abc def");
+
+            //q = new QueryStringList(q.ToString());
+            //q.ToString()._Print();
+            //return;
+
+            while (true)
+            {
+                string str = Con.ReadLine("STR>")!;
+
+                $"EncodeUrl          : {str._EncodeUrl()}"._Print();
+                $"EncodeUrlPath      : {str._EncodeUrlPath()}"._Print();
+                $"DecodeUrlPath      : {str._EncodeUrlPath()._DecodeUrlPath()}"._Print();
+                $"DecodeUrlPath2     : {str._DecodeUrlPath()}"._Print();
+                $"EscapeDataString   : {Uri.EscapeDataString(str)}"._Print();
+                $"UnescapeDataString : {Uri.UnescapeDataString(Uri.EscapeDataString(str))}"._Print();
+                $"UnescapeDataString2: {Uri.UnescapeDataString(str)}"._Print();
+
+                ""._Print();
+            }
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210401();
+                return;
+            }
+
+            if (true)
+            {
+                GuaTest_210320()._GetResult();
+                return;
+            }
+
+            if (false)
+            {
+                Test_MakeThinOssCerts_201120();
+                return;
+            }
+
             if (false)
             {
                 Test_210307_Backup();
@@ -1606,12 +1679,6 @@ namespace IPA.TestDev
                 Con.ReadLine();
                 cts.Cancel();
                 task._GetResult();
-                return;
-            }
-
-            if (true)
-            {
-                Test_MakeThinOssCerts_201120();
                 return;
             }
 

@@ -47,6 +47,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Network\DnsResolver.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Network\WideTunnel.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\ProtoApp\ThinTelework.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\ProtoApp\GuaClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\File\MiscFileUtil.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Network\InternetChecker.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Ui\UiAutomation.cs" />

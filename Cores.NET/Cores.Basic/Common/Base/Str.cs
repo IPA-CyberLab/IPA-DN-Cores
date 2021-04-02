@@ -52,6 +52,7 @@ using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using System.Runtime.CompilerServices;
 
 namespace IPA.Cores.Basic
 {
@@ -1947,10 +1948,12 @@ namespace IPA.Cores.Basic
         }
 
         // 指定したデータに BOM が付いているかどうか判別する
+        [MethodImpl(Inline)]
         public static Encoding? CheckBOM(ReadOnlySpan<byte> data)
         {
             return CheckBOM(data, out _);
         }
+        [MethodImpl(Inline)]
         public static Encoding? CheckBOM(ReadOnlySpan<byte> data, out int bomNumBytes)
         {
             bomNumBytes = 0;
@@ -2127,6 +2130,7 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列をデコードする (BOM があれば BOM に従う)
+        [MethodImpl(Inline)]
         public static string DecodeString(ReadOnlySpan<byte> data, Encoding defaultEncoding, out Encoding detectedEncoding, bool untilNullByte = false)
         {
             int bomSize;
@@ -2971,43 +2975,77 @@ namespace IPA.Cores.Basic
         // URL パスエンコード
         public static string EncodeUrlPath(string? str, Encoding? encoding = null)
         {
-            if (encoding == null) encoding = Str.Utf8Encoding;
-            str = str._NonNullTrim();
+            if (str == null) str = "";
 
-            str = HttpUtility.UrlPathEncode(str);
+            List<string> tokenList = new List<string>();
 
-            str = str.Replace("\"", "%22");
-            str = str.Replace("<", "%3C");
-            str = str.Replace(">", "%3E");
+            StringBuilder currentToken = new StringBuilder();
 
-            return str;
+            foreach (char c in str)
+            {
+                if (PathParser.Windows.PossibleDirectorySeparators.Where(x => x == c).Any())
+                {
+                    tokenList.Add(EncodeUrl(currentToken.ToString(), encoding));
+                    currentToken.Clear();
+
+                    tokenList.Add("/");
+                }
+                else
+                {
+                    currentToken.Append(c);
+                }
+            }
+
+            tokenList.Add(EncodeUrl(currentToken.ToString(), encoding));
+            currentToken.Clear();
+
+            return tokenList._Combine();
         }
 
         // URL パスデコード
         public static string DecodeUrlPath(string? str, Encoding? encoding = null)
         {
-            if (encoding == null) encoding = Str.Utf8Encoding;
-            str = str._NonNullTrim();
+            if (str == null) str = "";
 
-            str = HttpUtility.UrlDecode(str, encoding);
+            List<string> tokenList = new List<string>();
 
-            return str;
+            StringBuilder currentToken = new StringBuilder();
+
+            foreach (char c in str)
+            {
+                if (PathParser.Windows.PossibleDirectorySeparators.Where(x => x == c).Any())
+                {
+                    tokenList.Add(DecodeUrl(currentToken.ToString(), encoding));
+                    currentToken.Clear();
+
+                    tokenList.Add("/");
+                }
+                else
+                {
+                    currentToken.Append(c);
+                }
+            }
+
+            tokenList.Add(DecodeUrl(currentToken.ToString(), encoding));
+            currentToken.Clear();
+
+            return tokenList._Combine();
         }
 
         // URL エンコード
         public static string EncodeUrl(string? str, Encoding? encoding = null)
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
-            Str.NormalizeString(ref str);
-            return HttpUtility.UrlEncode(str, encoding);
+            if (str == null) str = "";
+            return Uri.EscapeDataString(str);
         }
 
         // URL デコード
         public static string DecodeUrl(string? str, Encoding? encoding = null)
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
-            Str.NormalizeString(ref str);
-            return HttpUtility.UrlDecode(str, encoding);
+            if (str == null) str = "";
+            return Uri.UnescapeDataString(str);
         }
 
         // URL デコード (バイト配列に)
@@ -4357,6 +4395,42 @@ namespace IPA.Cores.Basic
             }
 
             return sb.ToString();
+        }
+
+        // 任意のファイルパスを安全な Ascii 文字のみを含む、かつ、空白文字を含まないファイル名に変換する
+        public static string MakeVerySafeAsciiOnlyNonSpaceFileName(string? fullPath)
+        {
+            if (fullPath._IsEmpty()) return "";
+            fullPath = fullPath._NonNullTrim();
+
+            string fn = PathParser.Windows.GetFileName(fullPath);
+
+            Str.NormalizeString(ref fn, true, true, false, false);
+
+            string okChars = "0123456789-_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+            StringBuilder sb = new StringBuilder();
+
+            foreach (char c in fn)
+            {
+                if (okChars.IndexOf(c) != -1)
+                {
+                    sb.Append(c);
+                }
+                else
+                {
+                    sb.Append("_");
+                }
+            }
+
+            string ret = sb.ToString();
+            ret = ret.Trim();
+
+            ret = ret._Split(StringSplitOptions.RemoveEmptyEntries, '_')._Combine("_", true);
+
+            ret = ret.Trim();
+
+            return ret;
         }
 
         // ファイル名を安全にする
@@ -8045,8 +8119,8 @@ namespace IPA.Cores.Basic
                     string value = kv.Value._NonNull();
 
                     // key と value を URL エンコードする
-                    key = key._EncodeUrlPath(encoding);
-                    value = value._EncodeUrlPath(encoding);
+                    key = key._EncodeUrl(encoding);
+                    value = value._EncodeUrl(encoding);
 
                     if (value._IsEmpty())
                     {

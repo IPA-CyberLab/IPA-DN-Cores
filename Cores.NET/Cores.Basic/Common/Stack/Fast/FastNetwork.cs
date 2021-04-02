@@ -2289,6 +2289,98 @@ namespace IPA.Cores.Basic
             this.Pair.Release();
         }
     }
+
+    public class WebSocketStream : StreamImplBase
+    {
+        public bool AutoDispose { get; }
+        public System.Net.WebSockets.WebSocket BaseSocket;
+
+        public WebSocketStream(System.Net.WebSockets.WebSocket webSocket, bool autoDispose = false) : base(new StreamImplBaseOptions(true, true, false))
+        {
+            try
+            {
+                this.AutoDispose = autoDispose;
+                this.BaseSocket = webSocket;
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+        Once DisposeFlag;
+        public override async ValueTask DisposeAsync()
+        {
+            try
+            {
+                if (DisposeFlag.IsFirstCall() == false) return;
+                await DisposeInternalAsync();
+            }
+            finally
+            {
+                await base.DisposeAsync();
+            }
+        }
+        protected override void Dispose(bool disposing)
+        {
+            try
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                DisposeInternalAsync()._GetResult();
+            }
+            finally { base.Dispose(disposing); }
+        }
+        async Task DisposeInternalAsync()
+        {
+            RecvDisconnected.Set();
+            SendDisconnected.Set();
+
+            if (this.AutoDispose)
+            {
+                try
+                {
+                    await this.BaseSocket.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, null, default);
+                }
+                catch { }
+
+                await this.BaseSocket._DisposeSafeAsync2();
+            }
+        }
+
+        public override bool DataAvailable => throw new NotImplementedException();
+        protected override Task FlushImplAsync(CancellationToken cancellationToken = default) => TaskCompleted;
+        protected override long GetLengthImpl() => throw new NotImplementedException();
+        protected override long GetPositionImpl() => throw new NotImplementedException();
+        protected override void SetLengthImpl(long length) => throw new NotImplementedException();
+        protected override void SetPositionImpl(long position) => throw new NotImplementedException();
+        protected override long SeekImpl(long offset, SeekOrigin origin) => throw new NotImplementedException();
+
+        Once RecvDisconnected;
+        Once SendDisconnected;
+
+        protected override async ValueTask<int> ReadImplAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (RecvDisconnected.IsSet) return 0;
+
+            var ret = await this.BaseSocket.ReceiveAsync(buffer, cancellationToken);
+            if (ret.Count == 0 || ret.MessageType == System.Net.WebSockets.WebSocketMessageType.Close)
+            {
+                RecvDisconnected.Set();
+
+                return 0;
+            }
+
+            return ret.Count;
+        }
+
+        protected override async ValueTask WriteImplAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (SendDisconnected.IsSet) throw new DisconnectedException();
+
+            await this.BaseSocket.SendAsync(buffer, System.Net.WebSockets.WebSocketMessageType.Text, false, cancellationToken);
+        }
+    }
 }
 
 

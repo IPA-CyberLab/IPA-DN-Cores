@@ -24,12 +24,14 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DefineConstants>CORES_BASIC_DAEMON;CORES_BASIC_DATABASE;CORES_BASIC_JSON;CORES_BASIC_SECURITY;CORES_BASIC_WEBAPP;CORES_BASIC_MISC;</DefineConstants>
+    <WarningsAsErrors>NU1605;CA2245;</WarningsAsErrors>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DefineConstants>TRACE;DEBUG;CORES_BASIC_DAEMON;CORES_BASIC_DATABASE;CORES_BASIC_JSON;CORES_BASIC_SECURITY;CORES_BASIC_WEBAPP;CORES_BASIC_MISC;</DefineConstants>
+    <WarningsAsErrors>NU1605;CA2245;</WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>

@@ -72,9 +72,9 @@ namespace IPA.Cores.Basic
             public const int ReconnectRetrySpanMaxMsecs = 3 * 60 * 1000;
 
             public const int RequestHardTimeoutMsecs = 150 * 1000;
-            public const int RequestSoftTimeoutMsecs = 15 * 1000;
+            public const int RequestSoftTimeoutMsecs = 5 * 1000; // TODO 15
             public const int ConnectionQueueWaitTimeout = 10 * 1000;
-            public const int ConnectionZeroTimeout = 30 * 1000;
+            public const int ConnectionZeroTimeout = 30 * 1000; // ここで指定された秒数、コネクション数が 0 の場合は、セッションを解除いたします
         }
     }
 
@@ -121,7 +121,8 @@ namespace IPA.Cores.Basic
 
     public class ThinClientAcceptReadyNotification : IDialogRequestData
     {
-        public IPEndPoint? ListenEndPoint = null;
+        public IPEndPoint? ListenEndPoint;
+        public ThinClientConnection? FirstConnection;
     }
 
     public class ThinClientInspectRequest : IDialogRequestData
@@ -178,11 +179,20 @@ namespace IPA.Cores.Basic
     {
         public WideTunnelOptions WideTunnelOptions { get; }
         public DialogSessionManager SessionManager { get; }
+        public AddressFamily ListenAddressFamily { get; }
+        public IPAddress ListenAddress { get; }
 
-        public ThinClientOptions(WideTunnelOptions wideTunnelOptions, DialogSessionManager sessionManager)
+        public ThinClientOptions(WideTunnelOptions wideTunnelOptions, DialogSessionManager sessionManager, AddressFamily listenAddressFamily = AddressFamily.InterNetwork, IPAddress? listenAddress = null)
         {
             this.WideTunnelOptions = wideTunnelOptions;
             this.SessionManager = sessionManager;
+
+            this.ListenAddressFamily = listenAddressFamily;
+            if (listenAddress == null)
+            {
+                listenAddress = listenAddressFamily == AddressFamily.InterNetworkV6 ? IPAddress.IPv6Loopback : IPAddress.Loopback;
+            }
+            this.ListenAddress = listenAddress;
         }
     }
 
@@ -243,7 +253,7 @@ namespace IPA.Cores.Basic
         {
             session.Debug("Start");
 
-            ThinClientConnectOptions connectOptions = (ThinClientConnectOptions)session.Options.Param!;
+            ThinClientConnectOptions connectOptions = (ThinClientConnectOptions)session.Param!;
 
             await using WideTunnel wt = new WideTunnel(this.Options.WideTunnelOptions);
 
@@ -416,7 +426,7 @@ namespace IPA.Cores.Basic
                         await Task.Delay(50, abort);
                     }
 
-                }, family: AddressFamily.InterNetwork, address: IPAddress.Loopback));
+                }, family: Options.ListenAddressFamily, address: Options.ListenAddress));
 
                 session.Debug($"Create Listener. Assigned Random Port = {listener.AssignedRandomPort}");
 
@@ -424,10 +434,11 @@ namespace IPA.Cores.Basic
                 var ready = new ThinClientAcceptReadyNotification
                 {
                     ListenEndPoint = new IPEndPoint(listener.AssignedRandomPort!.IPAddress, listener.AssignedRandomPort.Port),
+                    FirstConnection = firstConnection,
                 };
 
                 Dbg.Where();
-                await session.RequestAndWaitResponseAsync(ready, Consts.ThinClient.RequestHardTimeoutMsecs, Consts.ThinClient.RequestSoftTimeoutMsecs, abort);
+                await session.RequestAndWaitResponseAsync(ready, Consts.ThinClient.RequestHardTimeoutMsecs, Consts.ThinClient.RequestSoftTimeoutMsecs, abort, isFinalAnswer: true);
 
                 // コネクション数が 0 の状態が 30 秒以上継続した場合は終了します
                 long connectionZeroStartTick = 0;
@@ -436,7 +447,7 @@ namespace IPA.Cores.Basic
                     abort.ThrowIfCancellationRequested();
 
                     long now = TickNow;
-
+                    
                     $"listener.CurrentConnections = {listener.CurrentConnections}"._Debug();
                     if (listener.CurrentConnections == 0)
                     {
