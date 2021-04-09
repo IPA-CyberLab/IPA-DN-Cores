@@ -282,7 +282,7 @@ namespace IPA.Cores.Codes
                 if (HttpContext.WebSockets.IsWebSocketRequest)
                 {
                     // 指定されたセッション ID を元に検索
-                    var session = this.Client.SessionManager.GetSessionById(id);
+                    var session = this.Client.SessionManager.GetSessionById(id._NonNull());
 
                     if (session != null)
                     {
