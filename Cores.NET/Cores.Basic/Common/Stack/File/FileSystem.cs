@@ -1385,7 +1385,7 @@ namespace IPA.Cores.Basic
         public string GetFileNameWithoutExtension(string path, bool longExtension = false)
         {
             if (path == null) throw new ArgumentNullException(nameof(path));
-            if (path._IsEmpty()) return "";
+            if (path == "") return "";
             path = GetFileName(path);
             int[] dots = path._FindStringIndexes(".", true);
             if (dots.Length == 0)
@@ -1399,7 +1399,7 @@ namespace IPA.Cores.Basic
         public string GetExtension(string path, bool longExtension = false)
         {
             if (path == null) throw new ArgumentNullException(nameof(path));
-            if (path._IsEmpty()) return "";
+            if (path == "") return "";
             path = GetFileName(path);
             int[] dots = path._FindStringIndexes(".", true);
             if (dots.Length == 0)

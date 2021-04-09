@@ -544,6 +544,7 @@ namespace IPA.Cores.Helper.Basic
         public static bool _IsSafeAsFileName(this string str, bool pathCharsAreNotGood = false) => Str.IsSafe(str, pathCharsAreNotGood);
         public static string _MakeSafePath(this string str, PathParser? pathParser = null) => Str.MakeSafePathName(str, pathParser);
         public static string _MakeSafeFileName(this string str) => Str.MakeSafeFileName(str);
+        public static string _MakeVerySafeAsciiOnlyNonSpaceFileName(this string fullPath) => Str.MakeVerySafeAsciiOnlyNonSpaceFileName(fullPath);
         public static string _TruncStr(this string? str, int len) => Str.TruncStr(str, len);
         public static string _TruncStrEx(this string? str, int len, string? appendCode = "...") => Str.TruncStrEx(str, len, appendCode);
         public static string _TruncStrMiddle(this string? str, int maxLen, string appendCode = "..") => Str.TruncStrMiddle(str, maxLen, appendCode);
