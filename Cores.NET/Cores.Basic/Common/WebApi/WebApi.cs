@@ -612,7 +612,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                var http = new WebApi(options, sslServerCertValicationCallback);
+                using var http = new WebApi(options, sslServerCertValicationCallback);
 
                 if (printStatus) $"HTTP Accessing to '{url}' ..."._Print();
 

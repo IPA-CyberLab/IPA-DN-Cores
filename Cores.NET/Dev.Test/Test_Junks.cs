@@ -80,7 +80,7 @@ namespace IPA.TestDev
 
                     string url = $"https://streetviewpixels-pa.googleapis.com/v1/tile?cb_client=maps_sv.tactile&panoid={this.PhotoKey.Key}&x={this.X}&y={this.Y}&zoom={this.Zoom}";
 
-                    this.PhotoKey.Point.WriteLog($"StreetView 写真キー '{this.PhotoKey.Key}' を、パラメータ zoom = {this.Zoom}, x = {this.X}, y = {this.Y} で取得するための URL を組み立てた。URL は、'{url}' である。この URL からの取得を開始する。");
+                    this.PhotoKey.Point.WriteLog($"Google Street View 写真キー '{this.PhotoKey.Key}' を、パラメータ zoom = {this.Zoom}, x = {this.X}, y = {this.Y} で取得するための URL を組み立てた。URL は、'{url}' である。この URL からの取得を開始する。");
 
                     var downloadResult = await SimpleHttpDownloader.DownloadAsync(url, printStatus: true, cancel: cancel);
 
@@ -175,6 +175,19 @@ namespace IPA.TestDev
 
     public class GmapPoint
     {
+        public const string TemplateHtml = @"
+<nobr>
+<p>
+<B>Google Street View のアクセス URL: __URL__</b><BR>
+<b>画像キー: __KEY__, ズームレベル: __ZOOM__, X 方向の画像数: __X__, Y 方向の画像数: __Y__</b><BR>
+以下は、上記の URL と 画像キー __KEY__、ズームレベルを指定して Google 社のサーバーコンピュータに照会し、URL に含まれる Street View 画像を問い合わせ、得た結果の回答画像を縦横に配列したものです。<BR>
+__ZOOMLIST__
+</p>
+__IMG__
+</nobr>
+
+";
+
         public DateTimeOffset TimeStamp { get; private set; }
         public string Name { get; }
         public string RootDir { get; }
@@ -204,14 +217,16 @@ namespace IPA.TestDev
 
             this.Log.WriteLine(str2);
 
-            Console.Write(str2);
+            Console.WriteLine(str2);
         }
 
         public async Task GmapDownloadPointDataAsync(CancellationToken cancel = default)
         {
             this.TimeStamp = DtOffsetNow;
 
-            this.WriteLog($"GmapDownloadPointDataAsync() 関数の処理を開始。\nGoogle StreetView のアクセス先 URL: {this.AccessUrl}");
+            this.WriteLog($"Google Maps 情報分析ツール (サイバー調査用)\n作成: 2021/04 IPA サイバー技術研究室 登\n本ツールは、正当業務目的でのみ利用してください。");
+
+            this.WriteLog($"GmapDownloadPointDataAsync() 関数の処理を開始。\nGoogle Street View のアクセス先 URL: {this.AccessUrl}");
 
             List<string> ret = new List<string>();
 
@@ -246,11 +261,11 @@ namespace IPA.TestDev
                 }
             }
 
-            ret = ret.Distinct().OrderBy(x=>x).ToList();
+            ret = ret.Distinct().OrderBy(x => x).ToList();
 
             if (ret.Any() == false)
             {
-                this.WriteLog($"URL '{this.AccessUrl}' の結果 (上記) には、Google StreetView の写真キーであると思われるキー文字列は 1 件も存在しなかった。URL に誤りがある可能性がある。十分確認して、再実行すること。");
+                this.WriteLog($"URL '{this.AccessUrl}' の結果 (上記) には、Google Street View の写真キーであると思われるキー文字列は 1 件も存在しなかった。URL に誤りがある可能性がある。十分確認して、再実行すること。");
             }
             else
             {
@@ -260,10 +275,10 @@ namespace IPA.TestDev
                     tmp.WriteLine($"{i + 1} 件目のキーは、'{ret[i]}' であった。");
                 }
 
-                this.WriteLog($"上記の取得結果のうち、Google StreetView の写真キーであると思われるキー文字列は合計 {ret.Count} 件あった。\n" +
+                this.WriteLog($"上記の取得結果のうち、Google Street View の写真キーであると思われるキー文字列は合計 {ret.Count} 件あった。\n" +
                     tmp.ToString());
 
-                this.WriteLog($"そこで、今から、これらのキーに 1 つずつアクセスを試みて、Google StreetView の画像をダウンロードするのである。");
+                this.WriteLog($"そこで、今から、これらのキーに 1 つずつアクセスを試みて、Google Street View の画像をダウンロードするのである。");
 
                 this.PhotoKeyList = new List<GmapPhotoKey>();
 
@@ -271,7 +286,7 @@ namespace IPA.TestDev
                 {
                     var key = ret[i];
 
-                    this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google StreetView の写真キー '{key}' への取得処理を開始する。");
+                    this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google Street View の写真キー '{key}' への取得処理を開始する。");
 
                     GmapPhotoKey photoKey = new GmapPhotoKey(this, key);
 
@@ -279,23 +294,65 @@ namespace IPA.TestDev
 
                     if (photoKey.ObtainedPhotoList.Any())
                     {
-                        this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google StreetView の写真キー '{key}' への取得処理は完了した。このキーでは、合計 {photoKey.ObtainedPhotoList.Count} 枚の写真が取得できたのである。");
+                        this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google Street View の写真キー '{key}' への取得処理は完了した。このキーでは、合計 {photoKey.ObtainedPhotoList.Count} 枚の写真が取得できたのである。");
 
                         this.PhotoKeyList.Add(photoKey);
+
+                        string imgRootPath = Lfs.PP.Combine(this.RootDir, $"{i:D4}_{key}");
 
                         // 写真の保存
                         foreach (var photo in photoKey.ObtainedPhotoList)
                         {
-                            string photoPath = Lfs.PP.Combine(this.RootDir, $"{i:D4}_{key}", $"zoom_level_{photo.Zoom}", $"{i:D4}_{key}__zoom_level_{photo.Zoom}__x_{photo.X}__y_{photo.Y}.jpg");
+                            string photoPath = Lfs.PP.Combine(imgRootPath, $"zoom_level_{photo.Zoom}", $"{i:D4}_{key}__zoom_level_{photo.Zoom}__y_{photo.Y:D2}__x_{photo.X:D2}.jpg");
 
                             photo.PhotoData._Save(photoPath, FileFlags.AutoCreateDirectory, cancel: cancel);
 
-                            this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google StreetView の写真キー '{key}' のズームレベル = {photo.Zoom}, x = {photo.X}, y = {photo.Y} の写真データを、ファイル '{photoPath}' として保存した。ファイルサイズは、{photo.PhotoData.Length._ToString3()} bytes である。");
+                            this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google Street View の写真キー '{key}' のズームレベル = {photo.Zoom}, x = {photo.X}, y = {photo.Y} の写真データを、ファイル '{photoPath}' として保存した。ファイルサイズは、{photo.PhotoData.Length._ToString3()} bytes である。");
+                        }
+
+                        // HTML の生成
+                        foreach (var zoom in photoKey.ObtainedPhotoList.Select(x => x.Zoom).Distinct().OrderBy(x => x))
+                        {
+                            StringWriter imgHtml = new StringWriter();
+
+                            foreach (var y in photoKey.ObtainedPhotoList.Where(x => x.Zoom == zoom).Select(x => x.Y).Distinct().OrderBy(x => x))
+                            {
+                                foreach (var photo in photoKey.ObtainedPhotoList.Where(x => x.Zoom == zoom && x.Y == y).OrderBy(x => x.X))
+                                {
+                                    imgHtml.Write($"<img src=\"zoom_level_{photo.Zoom}/{i:D4}_{key}__zoom_level_{zoom}__y_{photo.Y:D2}__x_{photo.X:D2}.jpg\">");
+                                }
+
+                                imgHtml.Write($"<BR>");
+                            }
+
+                            var zoomLevelList = photoKey.ObtainedPhotoList.Select(x => x.Zoom).Distinct().OrderBy(x => x);
+
+                            List<string> zoomLinkList = new List<string>();
+
+                            zoomLevelList._DoForEach(x => zoomLinkList.Add($"<b><a href=\"./取得画像_簡易ビューア_{i:D4}_{key}_ズームレベル_{x}.html\">ズームレベル ＃{x}</a></b>"));
+
+                            string htmlBody = Str.ReplaceStrWithReplaceClass(TemplateHtml,
+                                new
+                                {
+                                    __URL__ = this.AccessUrl._EncodeHtml(true),
+                                    __KEY__ = photoKey.Key,
+                                    __ZOOM__ = zoom,
+                                    __X__ = photoKey.ObtainedPhotoList.Where(x => x.Zoom == zoom).Select(x => x.X).Distinct().Count(),
+                                    __Y__ = photoKey.ObtainedPhotoList.Where(x => x.Zoom == zoom).Select(x => x.Y).Distinct().Count(),
+                                    __IMG__ = imgHtml.ToString(),
+                                    __ZOOMLIST__ = zoomLinkList._Combine(" | "),
+                                });
+
+                            htmlBody = htmlBody._NormalizeCrlf(CrlfStyle.CrLf, true);
+
+                            string htmlPath = Lfs.PP.Combine(imgRootPath, $"取得画像_簡易ビューア_{i:D4}_{key}_ズームレベル_{zoom}.html");
+
+                            Lfs.WriteStringToFile(htmlPath, htmlBody, FileFlags.AutoCreateDirectory, writeBom: true, cancel: cancel);
                         }
                     }
                     else
                     {
-                        this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google StreetView の写真キー '{key}' への取得処理は完了した。このキーでは、写真は 1 枚も取得することができなかった。");
+                        this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google Street View の写真キー '{key}' への取得処理は完了した。このキーでは、写真は 1 枚も取得することができなかった。");
                     }
                 }
 
@@ -312,6 +369,30 @@ namespace IPA.TestDev
 
     partial class TestDevCommands
     {
+        [ConsoleCommand(
+           "Google Street View アナライザ (情報分析用)",
+           "GoogleStreetViewAnalyzer /NAME:<name> /URL:<url> /DEST:<dir>",
+           "Google Street View アナライザ (情報分析用)"
+           )]
+        static int GoogleStreetViewAnalyzer(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("NAME", ConsoleService.Prompt, "識別名: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("URL", ConsoleService.Prompt, "URL: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("DEST", ConsoleService.Prompt, "保存先ディレクトリ: ", ConsoleService.EvalNotEmpty, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            Async(async () =>
+            {
+                await GmapStreetViewPhotoUrlAnalysisAsync(vl["URL"].StrValue, vl["DEST"].StrValue, vl["NAME"].StrValue);
+            });
+
+            return 0;
+        }
+
         public static async Task GmapStreetViewPhotoUrlAnalysisAsync(string photoUrl, string destDir, string name, CancellationToken cancel = default)
         {
             string rootDir = Lfs.PP.Combine(destDir, $"{Str.DateTimeToStrShortWithMilliSecs(DateTime.Now)}_{name}");
