@@ -52,9 +52,11 @@ namespace IPA.TestDev
         public int X { get; }
         public int Y { get; }
         public string AccessUrl { get; }
-        public ReadOnlyMemory<byte> PhotoData { get; private set; }
-        public GmapPhotoKey PhotoKey { get; }
+        public byte[] PhotoData { get; private set; } = new byte[0];
         public SimpleHttpDownloaderResult? HttpAccessLog { get; private set; } = null;
+
+        [JsonIgnore]
+        public GmapPhotoKey PhotoKey { get; }
 
         public GmapPhoto(GmapPhotoKey key, int x, int y, int zoom)
         {
@@ -67,7 +69,7 @@ namespace IPA.TestDev
 
         public async Task<bool> GmapDownloadStreetViewPhotoCoreAsync(CancellationToken cancel = default)
         {
-            this.PhotoData = Memory<byte>.Empty;
+            this.PhotoData = new byte[0];
             this.TimeStamp = DtOffsetNow;
 
             try
@@ -78,15 +80,20 @@ namespace IPA.TestDev
 
                     string url = $"https://streetviewpixels-pa.googleapis.com/v1/tile?cb_client=maps_sv.tactile&panoid={this.PhotoKey.Key}&x={this.X}&y={this.Y}&zoom={this.Zoom}";
 
+                    this.PhotoKey.Point.WriteLog($"StreetView 写真キー '{this.PhotoKey.Key}' を、パラメータ zoom = {this.Zoom}, x = {this.X}, y = {this.Y} で取得するための URL を組み立てた。URL は、'{url}' である。この URL からの取得を開始する。");
+
                     var downloadResult = await SimpleHttpDownloader.DownloadAsync(url, printStatus: true, cancel: cancel);
 
                     if (downloadResult.Data.Length <= 2000)
                     {
+                        this.PhotoKey.Point.WriteLog($"上記 URL からのデータは受信できたが、サイズは 2,000 バイト以下であった。おそらく、このパラメータ zoom = {this.Zoom}, x = {this.X}, y = {this.Y} の画像は、Google 社のサーバーには、存在しないのであろう。");
                         return false;
                     }
 
-                    this.PhotoData = downloadResult.Data;
+                    this.PhotoData = downloadResult.Data.ToArray();
                     this.HttpAccessLog = downloadResult;
+
+                    this.PhotoKey.Point.WriteLog($"上記 URL からの画像データの受信に成功した。サイズ: {this.PhotoData.Length._ToString3()} bytes");
 
                     return true;
                 },
@@ -98,6 +105,8 @@ namespace IPA.TestDev
             {
                 ex._Debug();
 
+                this.PhotoKey.Point.WriteLog($"予期しない HTTP エラーが発生した。詳細: {ex.ToString()}");
+
                 return false;
             }
         }
@@ -106,8 +115,10 @@ namespace IPA.TestDev
     public class GmapPhotoKey
     {
         public string Key { get; }
-        public GmapPoint Point { get; }
         public List<GmapPhoto> ObtainedPhotoList { get; private set; } = new List<GmapPhoto>();
+
+        [JsonIgnore]
+        public GmapPoint Point { get; }
 
         public GmapPhotoKey(GmapPoint point, string key)
         {
@@ -171,24 +182,53 @@ namespace IPA.TestDev
         public SimpleHttpDownloaderResult? HttpAccessLog { get; private set; } = null;
         public List<GmapPhotoKey> PhotoKeyList { get; private set; } = new List<GmapPhotoKey>();
 
+        [JsonIgnore]
+        public StringWriter Log { get; } = new StringWriter();
+
         public GmapPoint(string name, string accessUrl, string rootDir)
         {
             this.Name = name;
             this.AccessUrl = accessUrl;
             this.RootDir = rootDir;
+            this.Log.NewLine = Str.CrLf_Str;
+        }
+
+        public void WriteLog(string str)
+        {
+            StringWriter tmp = new StringWriter();
+            tmp.WriteLine($"■ {DtOffsetNow._ToDtStr(true)}");
+            tmp.WriteLine(str._NormalizeCrlf(CrlfStyle.CrLf).Trim());
+            tmp.WriteLine();
+
+            string str2 = tmp.ToString()._NormalizeCrlf(CrlfStyle.CrLf);
+
+            this.Log.WriteLine(str2);
+
+            Console.Write(str2);
         }
 
         public async Task GmapDownloadPointDataAsync(CancellationToken cancel = default)
         {
             this.TimeStamp = DtOffsetNow;
 
+            this.WriteLog($"GmapDownloadPointDataAsync() 関数の処理を開始。\nGoogle StreetView のアクセス先 URL: {this.AccessUrl}");
+
             List<string> ret = new List<string>();
 
             using var http = new WebApi();
 
+            this.WriteLog($"URL '{this.AccessUrl}' にアクセス中...");
+
             this.HttpAccessLog = await SimpleHttpDownloader.DownloadAsync(this.AccessUrl, printStatus: true, cancel: cancel);
 
+            this.WriteLog($"URL '{this.AccessUrl}' から応答があった。応答コード: {this.HttpAccessLog.StatusCode}, データサイズ: {this.HttpAccessLog.DataSize._ToString3()} bytes");
+
             string body = this.HttpAccessLog.Data._GetString_UTF8();
+
+            this.WriteLog($"URL '{this.AccessUrl}' の取得結果は、以下のとおり。\n" +
+                "---------- ここから ----------\n" +
+                body + "\n" +
+                "---------- ここまで ----------");
 
             for (int i = 0; i < body.Length; i++)
             {
@@ -206,26 +246,78 @@ namespace IPA.TestDev
                 }
             }
 
-            this.PhotoKeyList = new List<GmapPhotoKey>();
+            ret = ret.Distinct().OrderBy(x=>x).ToList();
 
-            foreach (var key in ret.Distinct().OrderBy(x => x))
+            if (ret.Any() == false)
             {
-                GmapPhotoKey photoKey = new GmapPhotoKey(this, key);
-
-                await photoKey.GmapDownloadStreetViewAllPhotosAsync(cancel);
-
-                if (photoKey.ObtainedPhotoList.Any())
-                {
-                    this.PhotoKeyList.Add(photoKey);
-                }
+                this.WriteLog($"URL '{this.AccessUrl}' の結果 (上記) には、Google StreetView の写真キーであると思われるキー文字列は 1 件も存在しなかった。URL に誤りがある可能性がある。十分確認して、再実行すること。");
             }
+            else
+            {
+                StringWriter tmp = new StringWriter();
+                for (int i = 0; i < ret.Count; i++)
+                {
+                    tmp.WriteLine($"{i + 1} 件目のキーは、'{ret[i]}' であった。");
+                }
+
+                this.WriteLog($"上記の取得結果のうち、Google StreetView の写真キーであると思われるキー文字列は合計 {ret.Count} 件あった。\n" +
+                    tmp.ToString());
+
+                this.WriteLog($"そこで、今から、これらのキーに 1 つずつアクセスを試みて、Google StreetView の画像をダウンロードするのである。");
+
+                this.PhotoKeyList = new List<GmapPhotoKey>();
+
+                for (int i = 0; i < ret.Count; i++)
+                {
+                    var key = ret[i];
+
+                    this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google StreetView の写真キー '{key}' への取得処理を開始する。");
+
+                    GmapPhotoKey photoKey = new GmapPhotoKey(this, key);
+
+                    await photoKey.GmapDownloadStreetViewAllPhotosAsync(cancel);
+
+                    if (photoKey.ObtainedPhotoList.Any())
+                    {
+                        this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google StreetView の写真キー '{key}' への取得処理は完了した。このキーでは、合計 {photoKey.ObtainedPhotoList.Count} 枚の写真が取得できたのである。");
+
+                        this.PhotoKeyList.Add(photoKey);
+
+                        // 写真の保存
+                        foreach (var photo in photoKey.ObtainedPhotoList)
+                        {
+                            string photoPath = Lfs.PP.Combine(this.RootDir, $"{i:D4}_{key}", $"zoom_level_{photo.Zoom}", $"{i:D4}_{key}__zoom_level_{photo.Zoom}__x_{photo.X}__y_{photo.Y}.jpg");
+
+                            photo.PhotoData._Save(photoPath, FileFlags.AutoCreateDirectory, cancel: cancel);
+
+                            this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google StreetView の写真キー '{key}' のズームレベル = {photo.Zoom}, x = {photo.X}, y = {photo.Y} の写真データを、ファイル '{photoPath}' として保存した。ファイルサイズは、{photo.PhotoData.Length._ToString3()} bytes である。");
+                        }
+                    }
+                    else
+                    {
+                        this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google StreetView の写真キー '{key}' への取得処理は完了した。このキーでは、写真は 1 枚も取得することができなかった。");
+                    }
+                }
+
+                this.WriteLog($"{ret.Count} 件のキーすべてに対するアクセス試行が完了した。URL '{this.AccessUrl}' に関する処理は、これですべて終了した。");
+            }
+
+            string logPath = Lfs.PP.Combine(this.RootDir, "アクセスログ.txt");
+            Lfs.WriteStringToFile(logPath, this.Log.ToString()._NormalizeCrlf(CrlfStyle.CrLf, true), FileFlags.AutoCreateDirectory, writeBom: true, cancel: cancel);
+
+            string recordLogPath = Lfs.PP.Combine(this.RootDir, "すべての通信ログ.json");
+            Lfs.WriteJsonToFile(recordLogPath, this, FileFlags.AutoCreateDirectory);
         }
     }
 
     partial class TestDevCommands
     {
-        public static async Task GmapStreetViewPhotoUrlAnalysisAsync(string photoUrl, string rootDir, string name, CancellationToken cancel = default)
+        public static async Task GmapStreetViewPhotoUrlAnalysisAsync(string photoUrl, string destDir, string name, CancellationToken cancel = default)
         {
+            string rootDir = Lfs.PP.Combine(destDir, $"{Str.DateTimeToStrShortWithMilliSecs(DateTime.Now)}_{name}");
+
+            Lfs.CreateDirectory(rootDir);
+
             GmapPoint p = new GmapPoint(name, photoUrl, rootDir);
 
             await p.GmapDownloadPointDataAsync(cancel);

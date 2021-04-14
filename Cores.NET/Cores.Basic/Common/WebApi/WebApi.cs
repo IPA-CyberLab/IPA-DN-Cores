@@ -647,7 +647,7 @@ namespace IPA.Cores.Basic
         public string Url { get; set; } = "";
         public WebMethods Method { get; set; } = WebMethods.GET;
         public string ContentType { get; set; } = "";
-        public Memory<byte> Data { get; set; }
+        public byte[] Data { get; set; } = new byte[0];
         public string MediaType { get; set; } = "";
         public int DataSize { get; set; }
         public int StatusCode { get; set; }
