@@ -605,6 +605,54 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // 大変シンプルな HTTP ダウンローダ
+    public static class SimpleHttpDownloader
+    {
+        public static async Task<SimpleHttpDownloaderResult> DownloadAsync(string url, WebMethods method = WebMethods.GET, bool printStatus = false, WebApiOptions? options = null, RemoteCertificateValidationCallback? sslServerCertValicationCallback = null, CancellationToken cancel = default, string? postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string? value)[] queryList)
+        {
+            try
+            {
+                var http = new WebApi(options, sslServerCertValicationCallback);
+
+                if (printStatus) $"HTTP Accessing to '{url}' ..."._Print();
+
+                var webret = await http.SimpleQueryAsync(method, url, cancel, postContentType, queryList);
+
+                SimpleHttpDownloaderResult ret = new SimpleHttpDownloaderResult
+                {
+                    Url = url,
+                    Method = method,
+                    ContentType = webret.ContentType,
+                    MediaType = webret.MediaType,
+                    Data = webret.Data,
+                    DataSize = webret.Data.Length,
+                    StatusCode = (int)webret.StatusCode,
+                };
+
+                if (printStatus) $"HTTP Result: code = {ret.StatusCode}, size = {ret.DataSize}"._Print();
+
+                return ret;
+            }
+            catch (Exception ex)
+            {
+                $"HTTP Result: error = {ex.Message}"._Print();
+
+                throw;
+            }
+        }
+    }
+
+    public class SimpleHttpDownloaderResult
+    {
+        public string Url { get; set; } = "";
+        public WebMethods Method { get; set; } = WebMethods.GET;
+        public string ContentType { get; set; } = "";
+        public Memory<byte> Data { get; set; }
+        public string MediaType { get; set; } = "";
+        public int DataSize { get; set; }
+        public int StatusCode { get; set; }
+    }
+
     // 任意の Stream の一部を HTTP 応答するクラス
     public partial class HttpResult : IDisposable, IAsyncDisposable
     {

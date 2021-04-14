@@ -3829,11 +3829,11 @@ namespace IPA.Cores.Basic
             }, cancel: cancel);
         }
 
-        public static async Task RunAsync<T>(Func<Task<T>> proc, int retryInterval = 0, int tryCount = 1, CancellationToken cancel = default)
+        public static async Task<T> RunAsync<T>(Func<Task<T>> proc, int retryInterval = 0, int tryCount = 1, CancellationToken cancel = default)
         {
             RetryHelper<T> helper = new RetryHelper<T>(retryInterval, tryCount);
 
-            await helper.RunAsync(proc, cancel: cancel);
+            return await helper.RunAsync(proc, cancel: cancel);
         }
     }
 

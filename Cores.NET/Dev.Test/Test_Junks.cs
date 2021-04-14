@@ -45,8 +45,192 @@ using IPA.Cores.ClientApi.GoogleApi;
 
 namespace IPA.TestDev
 {
+    public class GmapPhoto
+    {
+        public DateTimeOffset TimeStamp { get; private set; }
+        public int Zoom { get; }
+        public int X { get; }
+        public int Y { get; }
+        public string AccessUrl { get; }
+        public ReadOnlyMemory<byte> PhotoData { get; private set; }
+        public GmapPhotoKey PhotoKey { get; }
+        public SimpleHttpDownloaderResult? HttpAccessLog { get; private set; } = null;
+
+        public GmapPhoto(GmapPhotoKey key, int x, int y, int zoom)
+        {
+            this.PhotoKey = key;
+            this.X = x;
+            this.Y = y;
+            this.Zoom = zoom;
+            this.AccessUrl = $"https://streetviewpixels-pa.googleapis.com/v1/tile?cb_client=maps_sv.tactile&panoid={key}&x={x}&y={y}&zoom={zoom}";
+        }
+
+        public async Task<bool> GmapDownloadStreetViewPhotoCoreAsync(CancellationToken cancel = default)
+        {
+            this.PhotoData = Memory<byte>.Empty;
+            this.TimeStamp = DtOffsetNow;
+
+            try
+            {
+                return await RetryHelper.RunAsync(async () =>
+                {
+                    using var http = new WebApi();
+
+                    string url = $"https://streetviewpixels-pa.googleapis.com/v1/tile?cb_client=maps_sv.tactile&panoid={this.PhotoKey.Key}&x={this.X}&y={this.Y}&zoom={this.Zoom}";
+
+                    var downloadResult = await SimpleHttpDownloader.DownloadAsync(url, printStatus: true, cancel: cancel);
+
+                    if (downloadResult.Data.Length <= 2000)
+                    {
+                        return false;
+                    }
+
+                    this.PhotoData = downloadResult.Data;
+                    this.HttpAccessLog = downloadResult;
+
+                    return true;
+                },
+                retryInterval: 300,
+                tryCount: 3,
+                cancel);
+            }
+            catch (Exception ex)
+            {
+                ex._Debug();
+
+                return false;
+            }
+        }
+    }
+
+    public class GmapPhotoKey
+    {
+        public string Key { get; }
+        public GmapPoint Point { get; }
+        public List<GmapPhoto> ObtainedPhotoList { get; private set; } = new List<GmapPhoto>();
+
+        public GmapPhotoKey(GmapPoint point, string key)
+        {
+            this.Key = key;
+            this.Point = point;
+        }
+
+        public async Task GmapDownloadStreetViewAllPhotosAsync(CancellationToken cancel = default)
+        {
+            using var http = new WebApi();
+
+            List<GmapPhoto> obtainedPhotoList = new List<GmapPhoto>();
+
+            for (int zoom = 0; zoom <= 5; zoom++)
+            {
+                int numOkInThisZoom = 0;
+
+                for (int x = 0; x < 32; x++)
+                {
+                    int numOkInThisX = 0;
+
+                    for (int y = 0; y < 32; y++)
+                    {
+                        var photo = new GmapPhoto(this, x, y, zoom);
+
+                        if (await photo.GmapDownloadStreetViewPhotoCoreAsync(cancel) == false)
+                        {
+                            break;
+                        }
+
+                        obtainedPhotoList.Add(photo);
+
+                        numOkInThisX++;
+                        numOkInThisZoom++;
+
+                        await Task.Delay(Util.GenRandInterval(200));
+                    }
+
+                    if (numOkInThisX == 0)
+                    {
+                        break;
+                    }
+                }
+
+                if (numOkInThisZoom == 0)
+                {
+                    break;
+                }
+            }
+
+            this.ObtainedPhotoList = obtainedPhotoList;
+        }
+    }
+
+    public class GmapPoint
+    {
+        public DateTimeOffset TimeStamp { get; private set; }
+        public string Name { get; }
+        public string RootDir { get; }
+        public string AccessUrl { get; }
+        public SimpleHttpDownloaderResult? HttpAccessLog { get; private set; } = null;
+        public List<GmapPhotoKey> PhotoKeyList { get; private set; } = new List<GmapPhotoKey>();
+
+        public GmapPoint(string name, string accessUrl, string rootDir)
+        {
+            this.Name = name;
+            this.AccessUrl = accessUrl;
+            this.RootDir = rootDir;
+        }
+
+        public async Task GmapDownloadPointDataAsync(CancellationToken cancel = default)
+        {
+            this.TimeStamp = DtOffsetNow;
+
+            List<string> ret = new List<string>();
+
+            using var http = new WebApi();
+
+            this.HttpAccessLog = await SimpleHttpDownloader.DownloadAsync(this.AccessUrl, printStatus: true, cancel: cancel);
+
+            string body = this.HttpAccessLog.Data._GetString_UTF8();
+
+            for (int i = 0; i < body.Length; i++)
+            {
+                if (body[i] == '\"')
+                {
+                    if (body.ElementAtOrDefault(i + 23) == '\"')
+                    {
+                        string keyword = body.Substring(i + 1, 22);
+
+                        if (keyword.Any(c => c == '\"' || c == '\'') == false && keyword.All(c => c <= 127))
+                        {
+                            ret.Add(keyword);
+                        }
+                    }
+                }
+            }
+
+            this.PhotoKeyList = new List<GmapPhotoKey>();
+
+            foreach (var key in ret.Distinct().OrderBy(x => x))
+            {
+                GmapPhotoKey photoKey = new GmapPhotoKey(this, key);
+
+                await photoKey.GmapDownloadStreetViewAllPhotosAsync(cancel);
+
+                if (photoKey.ObtainedPhotoList.Any())
+                {
+                    this.PhotoKeyList.Add(photoKey);
+                }
+            }
+        }
+    }
+
     partial class TestDevCommands
     {
+        public static async Task GmapStreetViewPhotoUrlAnalysisAsync(string photoUrl, string rootDir, string name, CancellationToken cancel = default)
+        {
+            GmapPoint p = new GmapPoint(name, photoUrl, rootDir);
+
+            await p.GmapDownloadPointDataAsync(cancel);
+        }
+
         public static void ConvertCErrorsToCsErrors(string dir, string outputFileName)
         {
             List<Pair2<int, string>> list = new List<Pair2<int, string>>();

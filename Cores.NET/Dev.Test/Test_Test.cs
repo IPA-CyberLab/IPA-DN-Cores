@@ -1537,8 +1537,28 @@ namespace IPA.TestDev
             }
         }
 
+        static async Task Test_210414_Async()
+        {
+            /*var ret = await TestDevCommands.GmapAccessToPhotoUrlAsync(
+                "https://www.google.co.jp/maps/preview/photo?authuser=0&hl=ja&gl=jp&pb=!1e3!5m62!2m2!1i203!2i100!3m3!2i4!3sCAEIBAgFCAYgAQ!5b1!7m50!1m3!1e1!2b0!3e3!1m3!1e2!2b1!3e2!1m3!1e2!2b0!3e3!1m3!1e3!2b0!3e3!1m3!1e8!2b0!3e3!1m3!1e3!2b1!3e2!1m3!1e10!2b0!3e3!1m3!1e10!2b1!3e2!1m3!1e9!2b1!3e2!1m3!1e10!2b0!3e3!1m3!1e10!2b1!3e2!1m3!1e10!2b0!3e4!2b1!4b1!8m0!9b0!11m1!4b1!6m3!1sFWd2YLrVJsLd-Qaa2JuoDg!7e81!15i11021!9m2!2d139.7667263527284!3d35.67531462990534!10d25"
+                );
+
+            ret._PrintAsJson();*/
+
+            string url =
+                "https://www.google.co.jp/maps/preview/photo?authuser=0&hl=ja&gl=jp&pb=!1e3!5m62!2m2!1i203!2i100!3m3!2i4!3sCAEIBAgFCAYgAQ!5b1!7m50!1m3!1e1!2b0!3e3!1m3!1e2!2b1!3e2!1m3!1e2!2b0!3e3!1m3!1e3!2b0!3e3!1m3!1e8!2b0!3e3!1m3!1e3!2b1!3e2!1m3!1e10!2b0!3e3!1m3!1e10!2b1!3e2!1m3!1e9!2b1!3e2!1m3!1e10!2b0!3e3!1m3!1e10!2b1!3e2!1m3!1e10!2b0!3e4!2b1!4b1!8m0!9b0!11m1!4b1!6m3!1sFWd2YLrVJsLd-Qaa2JuoDg!7e81!15i11021!9m2!2d139.7667263527284!3d35.67531462990534!10d25";
+
+            await TestDevCommands.GmapStreetViewPhotoUrlAnalysisAsync(url, @"c:\tmp\sv\", "abc");
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210414_Async()._GetResult();
+                return;
+            }
+
             if (true)
             {
                 Test_210401();
