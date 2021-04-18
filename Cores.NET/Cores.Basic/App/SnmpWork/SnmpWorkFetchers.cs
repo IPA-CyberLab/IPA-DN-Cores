@@ -783,7 +783,7 @@ namespace IPA.Cores.Basic
 
             string[] lines = result.OutputStr._GetLines();
 
-            string[] ignores = "/dev /run /sys /var /snap /tmp /proc"._Split(StringSplitOptions.RemoveEmptyEntries, " ");
+            string[] ignores = "/dev /run /sys /snap /tmp /proc"._Split(StringSplitOptions.RemoveEmptyEntries, " ");
 
             foreach (string line in lines)
             {
