@@ -301,6 +301,8 @@ namespace IPA.Cores.Basic
             list.Add("enable-menu-animations", this.EnableMenuAnimations._ToBoolStrLower());
             list.Add("disable-bitmap-caching", true._ToBoolStrLower());
             list.Add("resize-method", ResizeMethod.ResizeMethodToStr());
+            list.Add("client-name", "Thin Telework");
+            list.Add("server-layout", "ja-jp-qwerty");
         }
     }
 

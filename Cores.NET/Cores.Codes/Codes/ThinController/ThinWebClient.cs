@@ -294,18 +294,18 @@ namespace IPA.Cores.Codes
                         {
                             var pref = new GuaPreference();
 
-                            await using var gc = new GuaClient(
+                            await using var guaClient = new GuaClient(
                                 new GuaClientSettings(
                                     Client.SettingsFastSnapshot.GuacdHostname,
                                     Client.SettingsFastSnapshot.GuacdPort,
                                     ready.FirstConnection!.SvcType.ToString().StrToGuaProtocol(),
-                                    "",
-                                    ready.ListenEndPoint!.Port,
+                                    "", ready.ListenEndPoint!.Port,
+                                    //"dn-ttwin7.sec.softether.co.jp", 3389,
                                     pref));
 
-                            await gc.StartAsync(cancel);
+                            await guaClient.StartAsync(cancel);
 
-                            await using var gcStream = gc.Stream._NullCheck();
+                            await using var gcStream = guaClient.Stream._NullCheck();
 
                             using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync("guacamole");
 
