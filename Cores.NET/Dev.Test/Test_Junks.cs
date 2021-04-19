@@ -116,14 +116,16 @@ namespace IPA.TestDev
     {
         public string Key { get; }
         public List<GmapPhoto> ObtainedPhotoList { get; private set; } = new List<GmapPhoto>();
+        public int MaxZoom { get; }
 
         [JsonIgnore]
         public GmapPoint Point { get; }
 
-        public GmapPhotoKey(GmapPoint point, string key)
+        public GmapPhotoKey(GmapPoint point, string key, int maxZoom = 5)
         {
             this.Key = key;
             this.Point = point;
+            this.MaxZoom = Math.Max(Math.Min(maxZoom, 5), 0);
         }
 
         public async Task GmapDownloadStreetViewAllPhotosAsync(CancellationToken cancel = default)
@@ -132,7 +134,7 @@ namespace IPA.TestDev
 
             List<GmapPhoto> obtainedPhotoList = new List<GmapPhoto>();
 
-            for (int zoom = 0; zoom <= 5; zoom++)
+            for (int zoom = 0; zoom <= this.MaxZoom; zoom++)
             {
                 int numOkInThisZoom = 0;
 
@@ -194,16 +196,18 @@ __IMG__
         public string AccessUrl { get; }
         public SimpleHttpDownloaderResult? HttpAccessLog { get; private set; } = null;
         public List<GmapPhotoKey> PhotoKeyList { get; private set; } = new List<GmapPhotoKey>();
+        public int MaxZoom { get; }
 
         [JsonIgnore]
         public StringWriter Log { get; } = new StringWriter();
 
-        public GmapPoint(string name, string accessUrl, string rootDir)
+        public GmapPoint(string name, string accessUrl, string rootDir, int maxZoom)
         {
             this.Name = name;
             this.AccessUrl = accessUrl;
             this.RootDir = rootDir;
             this.Log.NewLine = Str.CrLf_Str;
+            this.MaxZoom = maxZoom;
         }
 
         public void WriteLog(string str)
@@ -232,32 +236,48 @@ __IMG__
 
             using var http = new WebApi();
 
-            this.WriteLog($"URL '{this.AccessUrl}' にアクセス中...");
-
-            this.HttpAccessLog = await SimpleHttpDownloader.DownloadAsync(this.AccessUrl, printStatus: true, cancel: cancel);
-
-            this.WriteLog($"URL '{this.AccessUrl}' から応答があった。応答コード: {this.HttpAccessLog.StatusCode}, データサイズ: {this.HttpAccessLog.DataSize._ToString3()} bytes");
-
-            string body = this.HttpAccessLog.Data._GetString_UTF8();
-
-            this.WriteLog($"URL '{this.AccessUrl}' の取得結果は、以下のとおり。\n" +
-                "---------- ここから ----------\n" +
-                body + "\n" +
-                "---------- ここまで ----------");
-
-            for (int i = 0; i < body.Length; i++)
+            if (this.AccessUrl._InStr("/maps/photometa/") == false)
             {
-                if (body[i] == '\"')
-                {
-                    if (body.ElementAtOrDefault(i + 23) == '\"')
-                    {
-                        string keyword = body.Substring(i + 1, 22);
+                // 普通の動作モード。URL に実際にアクセスしていって、取ってきた body に含まれている画像キーと思われる 22 文字のキーを取ってくる。
+                this.WriteLog($"URL '{this.AccessUrl}' にアクセス中...");
 
-                        if (keyword.Any(c => c == '\"' || c == '\'') == false && keyword.All(c => c <= 127))
+                this.HttpAccessLog = await SimpleHttpDownloader.DownloadAsync(this.AccessUrl, printStatus: true, cancel: cancel);
+
+                this.WriteLog($"URL '{this.AccessUrl}' から応答があった。応答コード: {this.HttpAccessLog.StatusCode}, データサイズ: {this.HttpAccessLog.DataSize._ToString3()} bytes");
+
+                string body = this.HttpAccessLog.Data._GetString_UTF8();
+
+                this.WriteLog($"URL '{this.AccessUrl}' の取得結果は、以下のとおり。\n" +
+                    "---------- ここから ----------\n" +
+                    body + "\n" +
+                    "---------- ここまで ----------");
+
+                for (int i = 0; i < body.Length; i++)
+                {
+                    if (body[i] == '\"')
+                    {
+                        if (body.ElementAtOrDefault(i + 23) == '\"')
                         {
-                            ret.Add(keyword);
+                            string keyword = body.Substring(i + 1, 22);
+
+                            if (keyword.Any(c => c == '\"' || c == '\'') == false && keyword.All(c => c <= 127))
+                            {
+                                ret.Add(keyword);
+                            }
                         }
                     }
+                }
+            }
+            else
+            {
+                // Photometa URL が指定された場合は、すでに URL に画像キーが入っているので、その URL から画像キーを抽出する。
+                this.WriteLog($"URL '{this.AccessUrl}' を検討したところ、これには photometa という文字が含まれているので、この URL の pb パラメータから画像キーを抽出する。");
+
+                var uri = this.AccessUrl._ParseUrl(out QueryStringList qs);
+                if (qs._TryGetFirstValue("pb", out string pb))
+                {
+                    var tokens = pb._Split(StringSplitOptions.RemoveEmptyEntries, "!");
+                    ret = tokens.Where(x => x.StartsWith("2s") && x.Length == 24).Select(x => x.Substring(2)).ToList();
                 }
             }
 
@@ -288,7 +308,7 @@ __IMG__
 
                     this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google Street View の写真キー '{key}' への取得処理を開始する。");
 
-                    GmapPhotoKey photoKey = new GmapPhotoKey(this, key);
+                    GmapPhotoKey photoKey = new GmapPhotoKey(this, key, this.MaxZoom);
 
                     await photoKey.GmapDownloadStreetViewAllPhotosAsync(cancel);
 
@@ -381,25 +401,26 @@ __IMG__
                 new ConsoleParam("NAME", ConsoleService.Prompt, "識別名: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("URL", ConsoleService.Prompt, "URL: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("DEST", ConsoleService.Prompt, "保存先ディレクトリ: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("MAXZOOM", ConsoleService.Prompt, "最大ズームレベル (0 ～ 5 を指定): ", ConsoleService.EvalNotEmpty, null),
             };
 
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
             Async(async () =>
             {
-                await GmapStreetViewPhotoUrlAnalysisAsync(vl["URL"].StrValue, vl["DEST"].StrValue, vl["NAME"].StrValue);
+                await GmapStreetViewPhotoUrlAnalysisAsync(vl["URL"].StrValue, vl["DEST"].StrValue, vl["NAME"].StrValue, vl["MAXZOOM"].IntValue);
             });
 
             return 0;
         }
 
-        public static async Task GmapStreetViewPhotoUrlAnalysisAsync(string photoUrl, string destDir, string name, CancellationToken cancel = default)
+        public static async Task GmapStreetViewPhotoUrlAnalysisAsync(string photoUrl, string destDir, string name, int maxZoom, CancellationToken cancel = default)
         {
             string rootDir = Lfs.PP.Combine(destDir, $"{Str.DateTimeToStrShortWithMilliSecs(DateTime.Now)}_{name}");
 
             Lfs.CreateDirectory(rootDir);
 
-            GmapPoint p = new GmapPoint(name, photoUrl, rootDir);
+            GmapPoint p = new GmapPoint(name, photoUrl, rootDir, maxZoom);
 
             await p.GmapDownloadPointDataAsync(cancel);
         }
