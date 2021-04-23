@@ -145,7 +145,7 @@ namespace IPA.Cores.Codes
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public async Task<IActionResult> StartAsync(ThinWebClientModelStart form)
+        public async Task<IActionResult> IndexAsync(ThinWebClientModelStart form)
         {
             string? pcid = form?.Pcid._NonNullTrim();
 
