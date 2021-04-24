@@ -66,33 +66,103 @@ namespace IPA.Cores.Helper.GuaHelper
 {
     public static class GuaHelper
     {
-        public static string ResizeMethodToStr(this GuaResizeMethods m)
+        public static string KeyboardLayoutToStr(this GuaKeyboardLayout k, bool unknownAsDefault = false)
+        {
+            switch (k)
+            {
+                case GuaKeyboardLayout.EnglishUs: return "en-us-qwerty";
+                case GuaKeyboardLayout.Japanese: return "ja-jp-qwerty";
+                default:
+                    if (unknownAsDefault == false)
+                        throw new CoresLibException($"Unknown keyboard layout value: {k}");
+                    else
+                        return "en-us-qwerty";
+            }
+        }
+
+        public static GuaKeyboardLayout StrToKeyboardLayout(this string str, bool unknownAsDefault = false)
+        {
+            switch (str.ToLower())
+            {
+                case "en-us-qwerty": return GuaKeyboardLayout.EnglishUs;
+                case "ja-jp-qwerty": return GuaKeyboardLayout.Japanese;
+                default:
+                    if (unknownAsDefault == false)
+                        throw new CoresLibException($"Unknown keyboard layout str: '{str}'");
+                    else
+                        return GuaKeyboardLayout.Japanese;
+            }
+        }
+
+        public static List<Tuple<string, string>> GetKeyboardLayoutList()
+        {
+            List<Tuple<string, string>> ret = new List<Tuple<string, string>>();
+            ret.Add(new Tuple<string, string>("ja-jp-qwerty", "Japanese Keyboard"));
+            ret.Add(new Tuple<string, string>("en-us-qwerty", "English Keyboard"));
+            return ret;
+        }
+
+        public static List<Tuple<string, string>> GetResizeMethodList()
+        {
+            List<Tuple<string, string>> ret = new List<Tuple<string, string>>();
+            ret.Add(new Tuple<string, string>("display-update", "Allow Dynamic Resize"));
+            ret.Add(new Tuple<string, string>("reconnect", "Always Reconnect"));
+            return ret;
+        }
+
+        public static string ResizeMethodToStr(this GuaResizeMethods m, bool unknownAsDefault = false)
         {
             switch (m)
             {
                 case GuaResizeMethods.DisplayUpdate: return "display-update";
                 case GuaResizeMethods.Reconnect: return "reconnect";
-                default: throw new CoresLibException($"Unknown resize value: {m}");
+                default:
+                    if (unknownAsDefault == false)
+                        throw new CoresLibException($"Unknown resize value: {m}");
+                    else
+                        return "display-update";
             }
         }
 
-        public static string GuaProtocolToStr(this GuaProtocol p)
+        public static GuaResizeMethods StrToResizeMethod(this string str, bool unknownAsDefault = false)
+        {
+            switch (str.ToLower())
+            {
+                case "display-update": return GuaResizeMethods.DisplayUpdate;
+                case "reconnect": return GuaResizeMethods.Reconnect;
+                default:
+                    if (unknownAsDefault == false)
+                        throw new CoresLibException($"Unknown resize method str: '{str}'");
+                    else
+                        return GuaResizeMethods.DisplayUpdate;
+            }
+        }
+
+        public static string GuaProtocolToStr(this GuaProtocol p, bool unknownAsDefault = false)
         {
             switch (p)
             {
                 case GuaProtocol.Rdp: return "rdp";
                 case GuaProtocol.Vnc: return "vnc";
-                default: throw new CoresLibException($"Unknown protocol value: {p}");
+                default:
+                    if (unknownAsDefault == false)
+                        throw new CoresLibException($"Unknown protocol value: {p}");
+                    else
+                        return "rdp";
             }
         }
 
-        public static GuaProtocol StrToGuaProtocol(this string str)
+        public static GuaProtocol StrToGuaProtocol(this string str, bool unknownAsDefault = false)
         {
             switch (str.ToLower())
             {
                 case "rdp": return GuaProtocol.Rdp;
                 case "vnc": return GuaProtocol.Vnc;
-                default: throw new CoresLibException($"Unknown protocol str: '{str}'");
+                default:
+                    if (unknownAsDefault == false)
+                        throw new CoresLibException($"Unknown protocol str: '{str}'");
+                    else
+                        return GuaProtocol.Rdp;
             }
         }
     }
@@ -270,7 +340,14 @@ namespace IPA.Cores.Basic
         Reconnect,
     }
 
-    public class GuaPreference
+    [Flags]
+    public enum GuaKeyboardLayout
+    {
+        EnglishUs = 0x00000409,
+        Japanese = 0x00000411,
+    }
+
+    public class GuaPreference : INormalizable
     {
         public bool EnableAudio { get; set; } = true;
         public bool EnableWallPaper { get; set; } = true;
@@ -279,7 +356,10 @@ namespace IPA.Cores.Basic
         public bool EnableFullWindowDrag { get; set; } = true;
         public bool EnableDesktopComposition { get; set; } = true;
         public bool EnableMenuAnimations { get; set; } = true;
+        public string ResizeMethodStr { get => this.ResizeMethod.ResizeMethodToStr(); set => this.ResizeMethod = value.StrToResizeMethod(true); }
         public GuaResizeMethods ResizeMethod { get; set; } = GuaResizeMethods.DisplayUpdate;
+        public string KeyboardLayoutStr { get => this.KeyboardLayout.KeyboardLayoutToStr(); set => this.KeyboardLayout = value.StrToKeyboardLayout(true); }
+        public GuaKeyboardLayout KeyboardLayout { get; set; } = GuaKeyboardLayout.Japanese;
         public int InitialWidth { get; set; } = 1024;
         public int InitialHeight { get; set; } = 768;
         public string Username { get; set; } = "";
@@ -288,6 +368,8 @@ namespace IPA.Cores.Basic
 
         public void AddToKeyValueList(KeyValueList<string, string> list)
         {
+            this.Normalize();
+
             list.Add("domain", this.Domain);
             list.Add("username", this.Username);
             list.Add("password", this.Password);
@@ -300,9 +382,18 @@ namespace IPA.Cores.Basic
             list.Add("enable-desktop-composition", this.EnableDesktopComposition._ToBoolStrLower());
             list.Add("enable-menu-animations", this.EnableMenuAnimations._ToBoolStrLower());
             list.Add("disable-bitmap-caching", true._ToBoolStrLower());
-            list.Add("resize-method", ResizeMethod.ResizeMethodToStr());
+            list.Add("resize-method", ResizeMethod.ResizeMethodToStr(true));
             list.Add("client-name", "Thin Telework");
-            list.Add("server-layout", "ja-jp-qwerty");
+            list.Add("server-layout", this.KeyboardLayout.KeyboardLayoutToStr(true));
+        }
+
+        public void Normalize()
+        {
+            this.Username = this.Username._NonNullTrim();
+            this.Password = this.Password._NonNull();
+            this.Domain = this.Domain._NonNullTrim();
+            if (this.InitialWidth < 640) this.InitialWidth = 1024;
+            if (this.InitialHeight < 480) this.InitialHeight = 768;
         }
     }
 

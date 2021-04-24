@@ -2714,6 +2714,11 @@ namespace IPA.Cores.Basic
                 str = KanaHankakuToZenkaku(str);
             }
         }
+        public static string NormalizeString(string src, bool space, bool toHankaku, bool toZenkaku, bool toZenkakuKana)
+        {
+            NormalizeString(ref src, space, toHankaku, toZenkaku, toZenkakuKana);
+            return src;
+        }
 
         // 指定した文字幅に満ちるまでスペースを追加する
         public static string AddSpacePadding(string? srcStr, int totalWidth, bool addOnLeft = false, char spaceChar = ' ')

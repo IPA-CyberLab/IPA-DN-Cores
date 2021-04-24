@@ -84,6 +84,7 @@ using static IPA.Cores.Globals.Web;
 using IPA.Cores.Helper.GuaHelper;
 
 using System.Runtime.CompilerServices;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace IPA.Cores.Codes
 {
@@ -91,7 +92,6 @@ namespace IPA.Cores.Codes
     [Serializable]
     public sealed class ThinWebClientSettings : INormalizable
     {
-        public string ABC = "";
         public bool ProxyPortListenAllowAny = false;
         public string GuacdHostname = "dn-ttguacd1.sec.softether.co.jp";
         public int GuacdPort = 4822;
@@ -112,9 +112,42 @@ namespace IPA.Cores.Codes
     }
 #pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
 
-    public class ThinWebClientModelStart
+    // サーバー接続プロファイル
+    public class ThinWebClientProfile : INormalizable
     {
-        public string? Pcid { get; set; } = "dn-ttwin1";
+        public string Pcid { get; set; } = ""; // 接続先コンピュータ ID
+        public GuaPreference Preference { get; set; } = new GuaPreference(); // 接続設定
+
+        public void Normalize()
+        {
+            this.Pcid = Str.NormalizeString(this.Pcid, false, true, false, true);
+        }
+    }
+
+    public class ThinWebClientModelIndex
+    {
+        public ThinWebClientProfile CurrentProfile { get; set; } = new ThinWebClientProfile();
+
+        // リサイズ方式の選択肢
+        public List<SelectListItem> ResizeMethodItems { get; }
+
+        // キーボードの選択肢
+        public List<SelectListItem> KeyboardLayoutItems { get; }
+
+        public ThinWebClientModelIndex()
+        {
+            this.ResizeMethodItems = new List<SelectListItem>();
+            foreach (var item in GuaHelper.GetResizeMethodList())
+            {
+                this.ResizeMethodItems.Add(new SelectListItem(item.Item2, item.Item1));
+            }
+
+            this.KeyboardLayoutItems = new List<SelectListItem>();
+            foreach (var item in GuaHelper.GetKeyboardLayoutList())
+            {
+                this.KeyboardLayoutItems.Add(new SelectListItem(item.Item2, item.Item1));
+            }
+        }
     }
 
     public abstract class ThinWebClientModelSessionBase
@@ -145,9 +178,9 @@ namespace IPA.Cores.Codes
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public async Task<IActionResult> IndexAsync(ThinWebClientModelStart form)
+        public async Task<IActionResult> IndexAsync(ThinWebClientModelIndex form)
         {
-            string? pcid = form?.Pcid._NonNullTrim();
+            string? pcid = form?.CurrentProfile.Pcid._NonNullTrim();
 
             if (this._IsPostBack())
             {
