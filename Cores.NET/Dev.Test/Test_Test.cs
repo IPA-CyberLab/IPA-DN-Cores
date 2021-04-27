@@ -1557,7 +1557,9 @@ namespace IPA.TestDev
         {
             if (true)
             {
-                //Test_210414_Async()._GetResult();
+                string src = "abc/123/ねこ";
+
+                src._EncodeUrl()._Print();
                 return;
             }
 

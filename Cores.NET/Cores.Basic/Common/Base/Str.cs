@@ -3037,6 +3037,22 @@ namespace IPA.Cores.Basic
             return tokenList._Combine();
         }
 
+        // 任意の文字列を安全にエンコード (JavaScript 用)
+        public static string JavaScriptSafeStrEncode(string? str)
+        {
+            str = str._NonNull();
+
+            return str._EncodeUrl()._GetBytes_Ascii()._Base64Encode();
+        }
+
+        // 任意の文字列を安全にデコード (JavaScript 用)
+        public static string JavaScriptSafeStrDecode(string? str)
+        {
+            str = str._NonNull();
+
+            return str._Base64Decode()._GetString_Ascii()._DecodeUrl();
+        }
+
         // URL エンコード
         public static string EncodeUrl(string? str, Encoding? encoding = null)
         {
