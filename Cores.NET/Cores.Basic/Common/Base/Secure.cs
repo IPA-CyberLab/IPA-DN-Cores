@@ -295,6 +295,18 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        public static Memory<byte> EasyEncrypt(ReadOnlyMemory<byte> src, string? password = null)
+        {
+            if (password._IsNullOrZeroLen()) password = Consts.Strings.EasyEncryptDefaultPassword;
+            return ChaChaPoly.EasyEncryptWithPassword(src, password);
+        }
+
+        public static Memory<byte> EasyDecrypt(ReadOnlyMemory<byte> src, string? password = null)
+        {
+            if (password._IsNullOrZeroLen()) password = Consts.Strings.EasyEncryptDefaultPassword;
+            return ChaChaPoly.EasyDecryptWithPassword(src, password);
+        }
+
         public static async Task<byte[]> CalcStreamHashAsync(Stream stream, HashAlgorithm hash, long truncateSize = long.MaxValue, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalReadSize = null, CancellationToken cancel = default)
         {
             checked

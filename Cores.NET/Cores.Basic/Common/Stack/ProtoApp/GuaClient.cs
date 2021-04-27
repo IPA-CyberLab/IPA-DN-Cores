@@ -61,6 +61,7 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
 using IPA.Cores.Helper.GuaHelper;
+using Newtonsoft.Json;
 
 namespace IPA.Cores.Helper.GuaHelper
 {
@@ -356,12 +357,22 @@ namespace IPA.Cores.Basic
         public bool EnableFullWindowDrag { get; set; } = true;
         public bool EnableDesktopComposition { get; set; } = true;
         public bool EnableMenuAnimations { get; set; } = true;
-        public string ResizeMethodStr { get => this.ResizeMethod.ResizeMethodToStr(); set => this.ResizeMethod = value.StrToResizeMethod(true); }
+
+        [JsonIgnore]
         public GuaResizeMethods ResizeMethod { get; set; } = GuaResizeMethods.DisplayUpdate;
-        public string KeyboardLayoutStr { get => this.KeyboardLayout.KeyboardLayoutToStr(); set => this.KeyboardLayout = value.StrToKeyboardLayout(true); }
+
+        [JsonIgnore]
         public GuaKeyboardLayout KeyboardLayout { get; set; } = GuaKeyboardLayout.Japanese;
+
+        public string ResizeMethodStr { get => this.ResizeMethod.ResizeMethodToStr(); set => this.ResizeMethod = value.StrToResizeMethod(true); }
+        public string KeyboardLayoutStr { get => this.KeyboardLayout.KeyboardLayoutToStr(); set => this.KeyboardLayout = value.StrToKeyboardLayout(true); }
+
+        [JsonIgnore]
         public int InitialWidth { get; set; } = 1024;
+
+        [JsonIgnore]
         public int InitialHeight { get; set; } = 768;
+
         public string Username { get; set; } = "";
         public string Password { get; set; } = "";
         public string Domain { get; set; } = "";
@@ -394,6 +405,17 @@ namespace IPA.Cores.Basic
             this.Domain = this.Domain._NonNullTrim();
             if (this.InitialWidth < 640) this.InitialWidth = 1024;
             if (this.InitialHeight < 480) this.InitialHeight = 768;
+        }
+
+        public GuaPreference CloneAsDefault()
+        {
+            var ret = this._CloneWithJson();
+
+            ret.Username = "";
+            ret.Password = "";
+            ret.Domain = "";
+
+            return ret;
         }
     }
 

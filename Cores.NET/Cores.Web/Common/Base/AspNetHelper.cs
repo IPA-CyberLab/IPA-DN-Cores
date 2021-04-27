@@ -201,13 +201,13 @@ namespace IPA.Cores.Helper.Web
 
         // --- Cookie 関係 ---
 
-        public static void _EasySaveCookie<T>(this HttpResponse response, string cookieName, T value, AspNetCookieOptions? options = null)
+        public static void _EasySaveCookie<T>(this HttpResponse response, string cookieName, T value, AspNetCookieOptions? options = null, bool easyEncrypt = false)
         {
             if (options == null) options = new AspNetCookieOptions();
 
             cookieName = Consts.Strings.EasyCookieNamePrefix + cookieName;
 
-            string valueStr = EasyCookieUtil.SerializeObject(value);
+            string valueStr = EasyCookieUtil.SerializeObject(value, easyEncrypt);
 
             if (valueStr._IsEmpty())
             {
@@ -227,34 +227,34 @@ namespace IPA.Cores.Helper.Web
         }
 
         [return: MaybeNull]
-        public static T _EasyLoadCookie<T>(this HttpRequest request, string cookieName)
+        public static T _EasyLoadCookie<T>(this HttpRequest request, string cookieName, bool easyDecrypt = false)
         {
             cookieName = Consts.Strings.EasyCookieNamePrefix + cookieName;
 
             string? valueStr = request.Cookies[cookieName];
 
-            return EasyCookieUtil.DeserializeObject<T>(valueStr);
+            return EasyCookieUtil.DeserializeObject<T>(valueStr, easyDecrypt);
         }
 
-        public static void _EasySaveCookie<T>(this HttpContext context, string cookieName, T value, AspNetCookieOptions? options = null)
-            => context.Response._EasySaveCookie(cookieName, value, options);
+        public static void _EasySaveCookie<T>(this HttpContext context, string cookieName, T value, AspNetCookieOptions? options = null, bool easyEncrypt = false)
+            => context.Response._EasySaveCookie(cookieName, value, options, easyEncrypt);
 
         public static void _EasyDeleteCookie(this HttpContext context, string cookieName)
             => context.Response._EasyDeleteCookie(cookieName);
 
         [return: MaybeNull]
-        public static T _EasyLoadCookie<T>(this HttpContext context, string cookieName)
-            => context.Request._EasyLoadCookie<T>(cookieName);
+        public static T _EasyLoadCookie<T>(this HttpContext context, string cookieName, bool easyDecrypt = false)
+            => context.Request._EasyLoadCookie<T>(cookieName, easyDecrypt);
 
-        public static void _EasySaveCookie<T>(this Controller controller, string cookieName, T value, AspNetCookieOptions? options = null)
-            => controller.HttpContext._EasySaveCookie(cookieName, value, options);
+        public static void _EasySaveCookie<T>(this Controller controller, string cookieName, T value, AspNetCookieOptions? options = null, bool easyDecrypt = false)
+            => controller.HttpContext._EasySaveCookie(cookieName, value, options, easyDecrypt);
 
         public static void _EasyDeleteCookie(this Controller controller, string cookieName)
             => controller.HttpContext._EasyDeleteCookie(cookieName);
 
         [return: MaybeNull]
-        public static T _EasyLoadCookie<T>(this Controller controller, string cookieName)
-            => controller.HttpContext._EasyLoadCookie<T>(cookieName);
+        public static T _EasyLoadCookie<T>(this Controller controller, string cookieName, bool easyDecrypt = false)
+            => controller.HttpContext._EasyLoadCookie<T>(cookieName, easyDecrypt);
 
         public static bool _IsPostBack(this Controller controller)
         {
