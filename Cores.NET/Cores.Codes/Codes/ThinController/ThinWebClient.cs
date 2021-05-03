@@ -263,7 +263,6 @@ namespace IPA.Cores.Codes
     public class ThinWebClientModelRemote : ThinWebClientModelSessionBase
     {
         public string? WebSocketUrl { get; set; }
-        public string? SessionId { get; set; }
     }
 
     public class ThinWebClientController : Controller
@@ -319,6 +318,9 @@ namespace IPA.Cores.Codes
                     // Cookie の History をすべて消去する
                     history.Clear();
                     history.SaveToCookie(this, GetCookieOption());
+
+                    // トップページにリダイレクトする
+                    return Redirect("/");
                 }
                 else if (id._IsFilled())
                 {
@@ -436,7 +438,7 @@ namespace IPA.Cores.Codes
                                 case ThinAuthType.Password:
                                     ThinWebClientModelSessionAuthPassword page = new ThinWebClientModelSessionAuthPassword
                                     {
-                                        SessionId = id,
+                                        SessionId = session.SessionId,
                                         RequestId = req.RequestId,
                                         ConnectOptions = connectOptions,
                                         Request = authReq,
@@ -474,11 +476,34 @@ namespace IPA.Cores.Codes
             sessionId = sessionId._NonNullTrim();
             requestId = requestId._NonNullTrim();
 
-            string ret = "Error";
+            string ret = "error";
 
             if (sessionId._IsFilled() && requestId._IsFilled())
             {
-                this.Client.SessionManager.SendHeartBeat(sessionId, requestId);
+                if (this.Client.SessionManager.SendHeartBeat(sessionId, requestId))
+                {
+                    ret = "ok";
+                }
+            }
+
+            await TaskCompleted;
+
+            return new TextActionResult(ret);
+        }
+
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public async Task<IActionResult> SessionHealthCheckAsync(string sessionId)
+        {
+            sessionId = sessionId._NonNullTrim();
+
+            string ret = "error";
+
+            if (sessionId._IsFilled())
+            {
+                if (this.Client.SessionManager.CheckSessionHealth(sessionId))
+                {
+                    ret = "ok";
+                }
             }
 
             await TaskCompleted;

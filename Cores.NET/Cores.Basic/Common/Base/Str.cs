@@ -3272,9 +3272,12 @@ namespace IPA.Cores.Basic
             // 改行コード
             str = str.Replace("\r\n", HtmlCrlf);
 
-            if (str._IsEmpty())
+            if (spaceIfEmpty)
             {
-                str = Str.HtmlSpacing;
+                if (str._IsEmpty())
+                {
+                    str = Str.HtmlSpacing;
+                }
             }
 
             return str;
@@ -5178,6 +5181,21 @@ namespace IPA.Cores.Basic
             }
 
             if (s.StartsWith("t", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (s.StartsWith("ok", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (s.StartsWith("on", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (s.StartsWith("enable", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
