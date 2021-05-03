@@ -160,6 +160,11 @@ namespace IPA.Cores.Codes
             }
         }
 
+        public void Clear()
+        {
+            this.Items.Clear();
+        }
+
         public void SaveToCookie(Controller c, AspNetCookieOptions? options = null)
         {
             for (int i = 0; i < ThinWebClientConsts.MaxHistory; i++)
@@ -210,6 +215,8 @@ namespace IPA.Cores.Codes
 
         // 選択されている History
         public string? SelectedHistory { get; set; }
+
+        public bool FocusToPcid { get; set; } = false;
 
         public ThinWebClientModelIndex()
         {
@@ -269,7 +276,7 @@ namespace IPA.Cores.Codes
         protected AspNetCookieOptions GetCookieOption() => new AspNetCookieOptions(domain: ""); // TODO
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public async Task<IActionResult> IndexAsync(ThinWebClientModelIndex form, string? id)
+        public async Task<IActionResult> IndexAsync(ThinWebClientModelIndex form, string? id, string? deleteAll)
         {
             ThinWebClientProfile? historySelectedProfile = null;
 
@@ -309,7 +316,14 @@ namespace IPA.Cores.Codes
             }
             else
             {
-                if (id._IsFilled())
+                if (deleteAll._ToBool())
+                {
+                    // History をすべて消去するよう指示された
+                    // Cookie の History をすべて消去する
+                    history.Clear();
+                    history.SaveToCookie(this, GetCookieOption());
+                }
+                else if (id._IsFilled())
                 {
                     // History から履歴を指定された。id を元に履歴からプロファイルを読み出す
                     historySelectedProfile = history.Items.Where(h => h.Pcid._IsSamei(id)).FirstOrDefault();
@@ -329,6 +343,9 @@ namespace IPA.Cores.Codes
 
                 profile.Normalize();
                 form.CurrentProfile = profile;
+
+                // GET の場合は必ず PCID 入力ボックスをフォーカスする
+                form.FocusToPcid = true;
             }
 
             form.FillHistory(history);
