@@ -248,12 +248,14 @@ namespace IPA.Cores.Codes
 
     public abstract class ThinWebClientModelSessionBase
     {
+        public string? SessionId { get; set; }
         public string? RequestId { get; set; }
         public ThinClientConnectOptions? ConnectOptions { get; set; }
     }
 
-    public class ThinWebClientModelSessionAuth : ThinWebClientModelSessionBase
+    public class ThinWebClientModelSessionAuthPassword : ThinWebClientModelSessionBase
     {
+        public ThinWebClientProfile? Profile { get; set; }
         public ThinClientAuthRequest? Request { get; set; }
         public ThinClientAuthResponse? Response { get; set; }
     }
@@ -408,9 +410,9 @@ namespace IPA.Cores.Codes
                 if (requestid._IsFilled() && formtype._IsFilled())
                 {
                     IDialogResponseData? responseData = null;
-                    switch (formtype.ToLower())
+                    switch (formtype)
                     {
-                        case "auth":
+                        case "SessionAuthPassword":
                             responseData = new ThinClientAuthResponse { Username = "", Password = password._NonNull() };
                             break;
                     }
@@ -429,14 +431,23 @@ namespace IPA.Cores.Codes
                     switch (req.RequestData)
                     {
                         case ThinClientAuthRequest authReq:
-                            ThinWebClientModelSessionAuth page = new ThinWebClientModelSessionAuth
+                            switch (authReq.AuthType)
                             {
-                                RequestId = req.RequestId,
-                                ConnectOptions = connectOptions,
-                                Request = authReq,
-                            };
+                                case ThinAuthType.Password:
+                                    ThinWebClientModelSessionAuthPassword page = new ThinWebClientModelSessionAuthPassword
+                                    {
+                                        SessionId = id,
+                                        RequestId = req.RequestId,
+                                        ConnectOptions = connectOptions,
+                                        Request = authReq,
+                                        Profile = profile._CloneWithJson(),
+                                    };
 
-                            return View("SessionAuth", page);
+                                    return View("SessionAuthPassword", page);
+
+                                default:
+                                    throw new CoresException($"authReq.AuthType = {authReq.AuthType}: Unsupported auth type.");
+                            }
 
                         case ThinClientAcceptReadyNotification ready:
                             ready.ListenEndPoint?.ToString()._Debug();
@@ -455,6 +466,24 @@ namespace IPA.Cores.Codes
             }
 
             return View();
+        }
+
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public async Task<IActionResult> SendHeartBeatAsync(string sessionId, string requestId)
+        {
+            sessionId = sessionId._NonNullTrim();
+            requestId = requestId._NonNullTrim();
+
+            string ret = "Error";
+
+            if (sessionId._IsFilled() && requestId._IsFilled())
+            {
+                this.Client.SessionManager.SendHeartBeat(sessionId, requestId);
+            }
+
+            await TaskCompleted;
+
+            return new TextActionResult(ret);
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
