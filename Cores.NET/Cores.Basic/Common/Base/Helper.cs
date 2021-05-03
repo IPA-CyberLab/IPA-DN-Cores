@@ -521,8 +521,10 @@ namespace IPA.Cores.Helper.Basic
         public static string _EncodeEasy(this string? str) => Str.EncodeEasy(str);
         public static string _DecodeEasy(this string? str) => Str.DecodeEasy(str);
 
-        public static string JavaScriptSafeStrEncode(this string? str) => Str.JavaScriptSafeStrEncode(str);
-        public static string JavaScriptSafeStrDecode(this string? str) => Str.JavaScriptSafeStrDecode(str);
+        public static string _JavaScriptSafeStrEncode(this string? str) => Str.JavaScriptSafeStrEncode(str);
+        public static string _JavaScriptSafeStrDecode(this string? str) => Str.JavaScriptSafeStrDecode(str);
+
+        public static string _JavaScriptEasyStrEncrypt(this string? srcString, string? password) => Secure.JavaScriptEasyStrEncrypt(srcString, password);
 
         //public static bool _IsSafeAndPrintable(this string str, bool crlfIsOk = true, bool html_tag_ng = false) => Str.IsSafeAndPrintable(str, crlfIsOk, html_tag_ng);
         public static string _EncodeCEscape(this string s) => Str.EncodeCEscape(s);

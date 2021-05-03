@@ -251,11 +251,11 @@ namespace IPA.Cores.Codes
         public string? SessionId { get; set; }
         public string? RequestId { get; set; }
         public ThinClientConnectOptions? ConnectOptions { get; set; }
+        public ThinWebClientProfile? Profile { get; set; }
     }
 
     public class ThinWebClientModelSessionAuthPassword : ThinWebClientModelSessionBase
     {
-        public ThinWebClientProfile? Profile { get; set; }
         public ThinClientAuthRequest? Request { get; set; }
         public ThinClientAuthResponse? Response { get; set; }
     }
@@ -263,6 +263,7 @@ namespace IPA.Cores.Codes
     public class ThinWebClientModelRemote : ThinWebClientModelSessionBase
     {
         public string? WebSocketUrl { get; set; }
+        public ThinSvcType SvcType { get; set; }
     }
 
     public class ThinWebClientController : Controller
@@ -326,7 +327,6 @@ namespace IPA.Cores.Codes
                 {
                     // History から履歴を指定された。id を元に履歴からプロファイルを読み出す
                     historySelectedProfile = history.Items.Where(h => h.Pcid._IsSamei(id)).FirstOrDefault();
-                    historySelectedProfile._PrintAsJson();
                 }
 
                 if (historySelectedProfile == null)
@@ -380,6 +380,8 @@ namespace IPA.Cores.Codes
                         ConnectOptions = connectOptions,
                         WebSocketUrl = $"/ws/",
                         SessionId = session.SessionId,
+                        Profile = profile,
+                        SvcType = connectOptions.ConnectedSvcType!.Value,
                     };
 
                     return View(main);
@@ -452,6 +454,7 @@ namespace IPA.Cores.Codes
                             }
 
                         case ThinClientAcceptReadyNotification ready:
+                            connectOptions.UpdateConnectedSvcType(ready.FirstConnection!.SvcType);
                             ready.ListenEndPoint?.ToString()._Debug();
                             req.SetResponseDataEmpty();
 
@@ -532,7 +535,7 @@ namespace IPA.Cores.Codes
 
                         if (req?.RequestData is ThinClientAcceptReadyNotification ready)
                         {
-                            var pref = new GuaPreference();
+                            var pref = profile.Preference;
 
                             await using var guaClient = new GuaClient(
                                 new GuaClientSettings(

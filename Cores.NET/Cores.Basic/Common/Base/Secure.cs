@@ -295,7 +295,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public static string JavaScriptEasyStrEncrypt(string srcString, string password)
+        public static string JavaScriptEasyStrEncrypt(string? srcString, string? password)
         {
             srcString = srcString._NonNull();
             password = password._NonNull();
@@ -315,7 +315,7 @@ namespace IPA.Cores.Basic
             stream.Write(srcString._GetBytes_UTF8());
             stream.FlushFinalBlock();
 
-            return mem.ToArray()._GetHexString().JavaScriptSafeStrEncode();
+            return mem.ToArray()._GetHexString()._JavaScriptSafeStrEncode();
         }
 
         public static Memory<byte> EasyEncrypt(ReadOnlyMemory<byte> src, string? password = null)

@@ -166,6 +166,7 @@ namespace IPA.Cores.Basic
         public IPAddress ClientIpAddress { get; }
         public string ClientFqdn { get; }
         public object? AppParams { get; }
+        public ThinSvcType? ConnectedSvcType { get; private set; } = null;
 
         public ThinClientConnectOptions(string pcid, IPAddress clientIp, string clientFqdn, WideTunnelClientOptions clientOptions = WideTunnelClientOptions.None, object ?appParams = null)
         {
@@ -174,6 +175,18 @@ namespace IPA.Cores.Basic
             this.ClientIpAddress = clientIp;
             this.ClientFqdn = clientFqdn;
             this.AppParams = appParams;
+        }
+
+        public void UpdateConnectedSvcType(ThinSvcType type)
+        {
+            if (this.ConnectedSvcType == null)
+            {
+                this.ConnectedSvcType = type;
+            }
+            else
+            {
+                throw new CoresLibException("this.ConnectedSvcType is already set.");
+            }
         }
     }
 

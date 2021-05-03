@@ -405,6 +405,14 @@ namespace IPA.Cores.Basic
             this.Domain = this.Domain._NonNullTrim();
             if (this.InitialWidth < 640) this.InitialWidth = 1024;
             if (this.InitialHeight < 480) this.InitialHeight = 768;
+
+            if (this.Username._IsEmpty() || this.Password._IsNullOrZeroLen())
+            {
+                // ユーザー名またはパスワードのいずれかが空の場合、NLA 認証パラメータは一切送信しない
+                this.Username = "";
+                this.Password = "";
+                this.Domain = "";
+            }
         }
 
         public GuaPreference CloneAsDefault()
