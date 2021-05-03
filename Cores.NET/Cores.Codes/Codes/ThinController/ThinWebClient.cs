@@ -308,7 +308,7 @@ namespace IPA.Cores.Codes
                     string sessionId = session.SessionId;
 
                     // セッション ID をもとにした URL にリダイレクト
-                    return Redirect($"/ThinWebClient/Session/{sessionId}/");
+                    return Redirect($"/ThinWebClient/Session/{sessionId}/?id={profile.Pcid._MakeVerySafeAsciiOnlyNonSpaceFileName()}");
                 }
             }
             else
