@@ -289,29 +289,24 @@ namespace IPA.Cores.Codes
             {
                 if (profile.Pcid._IsFilled())
                 {
-                    if (true)
-                    {
-                        // 現在のプロファイルの保存
-                        this._EasySaveCookie("thin_current_profile", profile.CloneAsDefault(), GetCookieOption(), true);
+                    // 現在のプロファイルの保存
+                    this._EasySaveCookie("thin_current_profile", profile.CloneAsDefault(), GetCookieOption(), true);
 
-                        // ヒストリへの追加
-                        history.Add(profile);
-                        history.SaveToCookie(this, GetCookieOption());
-                    }
-                    else
-                    {
-                        var tc = this.Client.CreateThinClient();
+                    // ヒストリへの追加
+                    history.Add(profile);
+                    history.SaveToCookie(this, GetCookieOption());
 
-                        var clientIp = Request.HttpContext.Connection.RemoteIpAddress._UnmapIPv4()!;
-                        string clientFqdn = await Client.DnsResolver.GetHostNameSingleOrIpAsync(clientIp);
+                    var tc = this.Client.CreateThinClient();
 
-                        // セッションの開始
-                        var session = tc.StartConnect(new ThinClientConnectOptions(profile.Pcid, clientIp, clientFqdn));
-                        string sessionId = session.SessionId;
+                    var clientIp = Request.HttpContext.Connection.RemoteIpAddress._UnmapIPv4()!;
+                    string clientFqdn = await Client.DnsResolver.GetHostNameSingleOrIpAsync(clientIp);
 
-                        // セッション ID をもとにした URL にリダイレクト
-                        return Redirect($"/ThinWebClient/Session/{sessionId}/");
-                    }
+                    // セッションの開始
+                    var session = tc.StartConnect(new ThinClientConnectOptions(profile.Pcid, clientIp, clientFqdn, WideTunnelClientOptions.None, profile._CloneWithJson()));
+                    string sessionId = session.SessionId;
+
+                    // セッション ID をもとにした URL にリダイレクト
+                    return Redirect($"/ThinWebClient/Session/{sessionId}/");
                 }
             }
             else
@@ -370,6 +365,7 @@ namespace IPA.Cores.Codes
             if (session != null)
             {
                 ThinClientConnectOptions connectOptions = (ThinClientConnectOptions)session.Param!;
+                ThinWebClientProfile profile = (ThinWebClientProfile)connectOptions.AppParams!;
 
                 var req = session.GetFinalAnswerRequest();
 
@@ -407,6 +403,7 @@ namespace IPA.Cores.Codes
             else
             {
                 ThinClientConnectOptions connectOptions = (ThinClientConnectOptions)session.Param!;
+                ThinWebClientProfile profile = (ThinWebClientProfile)connectOptions.AppParams!;
 
                 if (requestid._IsFilled() && formtype._IsFilled())
                 {
@@ -475,6 +472,7 @@ namespace IPA.Cores.Codes
                     if (session != null)
                     {
                         ThinClientConnectOptions connectOptions = (ThinClientConnectOptions)session.Param!;
+                        ThinWebClientProfile profile = (ThinWebClientProfile)connectOptions.AppParams!;
 
                         var req = session.GetFinalAnswerRequest();
 

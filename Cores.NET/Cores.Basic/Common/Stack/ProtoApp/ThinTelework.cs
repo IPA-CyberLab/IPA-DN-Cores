@@ -165,13 +165,15 @@ namespace IPA.Cores.Basic
         public WideTunnelClientOptions ClientOptions { get; }
         public IPAddress ClientIpAddress { get; }
         public string ClientFqdn { get; }
+        public object? AppParams { get; }
 
-        public ThinClientConnectOptions(string pcid, IPAddress clientIp, string clientFqdn, WideTunnelClientOptions clientOptions = WideTunnelClientOptions.None)
+        public ThinClientConnectOptions(string pcid, IPAddress clientIp, string clientFqdn, WideTunnelClientOptions clientOptions = WideTunnelClientOptions.None, object ?appParams = null)
         {
             this.Pcid = pcid;
             this.ClientOptions = clientOptions;
             this.ClientIpAddress = clientIp;
             this.ClientFqdn = clientFqdn;
+            this.AppParams = appParams;
         }
     }
 

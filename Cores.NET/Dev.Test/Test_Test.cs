@@ -1553,8 +1553,21 @@ namespace IPA.TestDev
             await TestDevCommands.GmapStreetViewPhotoUrlAnalysisAsync(url, @"c:\tmp\sv2\", "abc", 1);
         }
 
+        static void Test_210503()
+        {
+            string src = "Hello";
+            string dst = Secure.JavaScriptEasyStrEncrypt(src, "abc");
+            dst._Print();
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210503();
+                return;
+            }
+
             if (true)
             {
                 string src = "abc/123/ねこ";
