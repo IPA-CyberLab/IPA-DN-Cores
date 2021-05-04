@@ -517,7 +517,7 @@ namespace IPA.Cores.Codes
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         [HttpGet("/ws")]
         [HttpPost("/ws")]
-        public async Task AcceptWebSocketAsync(string? id)
+        public async Task AcceptWebSocketAsync(string? id, string? width, string? height)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancel, this._GetRequestCancellationToken(), this.Client.GrandCancel))
             {
@@ -535,7 +535,17 @@ namespace IPA.Cores.Codes
 
                         if (req?.RequestData is ThinClientAcceptReadyNotification ready)
                         {
-                            var pref = profile.Preference;
+                            var pref = profile.Preference._CloneWithJson();
+
+                            // ws 接続時に width と height がパラメータとして指定されていた場合は、preference の内容を更新する
+                            int widthInt = width._ToInt();
+                            int heightInt = height._ToInt();
+
+                            if (widthInt >= 1 && heightInt >= 1)
+                            {
+                                pref.ScreenWidth = widthInt;
+                                pref.ScreenHeight = heightInt;
+                            }
 
                             await using var guaClient = new GuaClient(
                                 new GuaClientSettings(
