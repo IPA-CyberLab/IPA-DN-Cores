@@ -176,6 +176,15 @@ namespace IPA.Cores.Basic
         public static partial class GuaClient
         {
             public static readonly Copenhagen<int> TimeoutMsecs = 15 * 1000;
+
+            public static readonly Copenhagen<int> MinScreenWidth = 800;
+            public static readonly Copenhagen<int> MinScreenHeight = 600;
+
+            public static readonly Copenhagen<int> DefaultScreenWidth = 1024;
+            public static readonly Copenhagen<int> DefaultScreenHeight = 768;
+
+            public static readonly Copenhagen<int> MaxScreenWidth = 5760;
+            public static readonly Copenhagen<int> MaxScreenHeight = 2400;
         }
     }
 
@@ -358,6 +367,14 @@ namespace IPA.Cores.Basic
         public bool EnableDesktopComposition { get; set; } = true;
         public bool EnableMenuAnimations { get; set; } = true;
 
+        public bool Win_ShiftWin { get; set; } = true;
+        public bool Cad_CtrlAltEnd { get; set; } = true;
+        public bool Cad_CtrlAltHome { get; set; } = true;
+        public bool Cad_CtrlAltBackspace { get; set; } = true;
+        public bool Ime_LeftCtrlSpace { get; set; } = true;
+        public bool Ime_LeftShiftSpace { get; set; } = true;
+        public bool Ime_OptionSpace { get; set; } = true;
+
         [JsonIgnore]
         public GuaResizeMethods ResizeMethod { get; set; } = GuaResizeMethods.DisplayUpdate;
 
@@ -367,11 +384,9 @@ namespace IPA.Cores.Basic
         public string ResizeMethodStr { get => this.ResizeMethod.ResizeMethodToStr(); set => this.ResizeMethod = value.StrToResizeMethod(true); }
         public string KeyboardLayoutStr { get => this.KeyboardLayout.KeyboardLayoutToStr(); set => this.KeyboardLayout = value.StrToKeyboardLayout(true); }
 
-        [JsonIgnore]
-        public int InitialWidth { get; set; } = 1024;
-
-        [JsonIgnore]
-        public int InitialHeight { get; set; } = 768;
+        public bool ScreenGetAutoSize { get; set; } = true;
+        public int ScreenWidth { get; set; } = CoresConfig.GuaClient.DefaultScreenWidth;
+        public int ScreenHeight { get; set; } = CoresConfig.GuaClient.DefaultScreenHeight;
 
         public string Username { get; set; } = "";
         public string Password { get; set; } = "";
@@ -405,8 +420,15 @@ namespace IPA.Cores.Basic
             this.Username = this.Username._NonNullTrim();
             this.Password = this.Password._NonNull();
             this.Domain = this.Domain._NonNullTrim();
-            if (this.InitialWidth < 640) this.InitialWidth = 1024;
-            if (this.InitialHeight < 480) this.InitialHeight = 768;
+
+            if (this.ScreenWidth <= 0) this.ScreenWidth = CoresConfig.GuaClient.DefaultScreenWidth;
+            if (this.ScreenHeight <= 0) this.ScreenWidth = CoresConfig.GuaClient.DefaultScreenHeight;
+
+            if (this.ScreenWidth < CoresConfig.GuaClient.MinScreenWidth) this.ScreenWidth = CoresConfig.GuaClient.MinScreenWidth;
+            if (this.ScreenWidth > CoresConfig.GuaClient.MaxScreenWidth) this.ScreenWidth = CoresConfig.GuaClient.MaxScreenWidth;
+
+            if (this.ScreenHeight < CoresConfig.GuaClient.MinScreenHeight) this.ScreenHeight = CoresConfig.GuaClient.MinScreenHeight;
+            if (this.ScreenHeight > CoresConfig.GuaClient.MaxScreenHeight) this.ScreenHeight = CoresConfig.GuaClient.MaxScreenHeight;
 
             if (this.Username._IsEmpty() || this.Password._IsNullOrZeroLen())
             {
@@ -515,7 +537,7 @@ namespace IPA.Cores.Basic
                 var supportedOptions = args.Args;
 
                 // size, audio, video, image, timezone の 5 項目 (固定) を送付
-                var opSize = new GuaPacket { Opcode = "size", Args = StrList(Settings.Preference.InitialWidth, Settings.Preference.InitialHeight, 96), };
+                var opSize = new GuaPacket { Opcode = "size", Args = StrList(Settings.Preference.ScreenWidth, Settings.Preference.ScreenHeight, 96), };
                 var opAudio = new GuaPacket { Opcode = "audio", Args = StrList("audio/L8", "audio/L16"), };
                 var opVideo = new GuaPacket { Opcode = "video", Args = StrList(), };
                 var opImage = new GuaPacket { Opcode = "image", Args = StrList("image/jpeg", "image/png", "image/webp"), };
