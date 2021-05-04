@@ -463,7 +463,7 @@ namespace IPA.Cores.Basic
 
                     long now = TickNow;
                     
-                    $"listener.CurrentConnections = {listener.CurrentConnections}"._Debug();
+                    //$"listener.CurrentConnections = {listener.CurrentConnections}"._Debug();
                     if (listener.CurrentConnections == 0)
                     {
                         if (connectionZeroStartTick == 0) connectionZeroStartTick = now;

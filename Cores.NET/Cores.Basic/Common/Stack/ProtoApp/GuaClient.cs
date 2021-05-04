@@ -384,6 +384,8 @@ namespace IPA.Cores.Basic
         public string ResizeMethodStr { get => this.ResizeMethod.ResizeMethodToStr(); set => this.ResizeMethod = value.StrToResizeMethod(true); }
         public string KeyboardLayoutStr { get => this.KeyboardLayout.KeyboardLayoutToStr(); set => this.KeyboardLayout = value.StrToKeyboardLayout(true); }
 
+        public bool ScreenAutoResize { get; set; } = true;
+
         public bool ScreenGetAutoSize { get; set; } = true;
         public int ScreenWidth { get; set; } = CoresConfig.GuaClient.DefaultScreenWidth;
         public int ScreenHeight { get; set; } = CoresConfig.GuaClient.DefaultScreenHeight;
@@ -429,6 +431,15 @@ namespace IPA.Cores.Basic
 
             if (this.ScreenHeight < CoresConfig.GuaClient.MinScreenHeight) this.ScreenHeight = CoresConfig.GuaClient.MinScreenHeight;
             if (this.ScreenHeight > CoresConfig.GuaClient.MaxScreenHeight) this.ScreenHeight = CoresConfig.GuaClient.MaxScreenHeight;
+
+            if (this.ScreenAutoResize)
+            {
+                this.ResizeMethod = GuaResizeMethods.DisplayUpdate;
+            }
+            else
+            {
+                this.ResizeMethod = GuaResizeMethods.Reconnect;
+            }
 
             if (this.Username._IsEmpty() || this.Password._IsNullOrZeroLen())
             {
