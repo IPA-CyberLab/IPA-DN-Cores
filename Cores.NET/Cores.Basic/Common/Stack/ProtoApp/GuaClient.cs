@@ -377,6 +377,8 @@ namespace IPA.Cores.Basic
         public string Password { get; set; } = "";
         public string Domain { get; set; } = "";
 
+        public bool EnableDebug { get; set; } = false;
+
         public void AddToKeyValueList(KeyValueList<string, string> list)
         {
             this.Normalize();
