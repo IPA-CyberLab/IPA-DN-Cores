@@ -183,6 +183,10 @@ namespace IPA.Cores.Basic
             {
                 this.ConnectedSvcType = type;
             }
+            else if (this.ConnectedSvcType != type)
+            {
+                throw new CoresLibException("this.ConnectedSvcType is already set.");
+            }
         }
     }
 
