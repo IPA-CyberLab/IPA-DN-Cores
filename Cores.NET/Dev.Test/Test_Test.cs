@@ -1553,8 +1553,145 @@ namespace IPA.TestDev
             await TestDevCommands.GmapStreetViewPhotoUrlAnalysisAsync(url, @"c:\tmp\sv2\", "abc", 1);
         }
 
+        public class PhotoCsvEntry
+        {
+            public string No1 = "";
+            public string No2 = "";
+            public string Url = "";
+            public string DateTimeStr = "";
+            public string Result = "";
+        }
+
+        static async Task Test_210419_02_photometa_csv_analyze_Async()
+        {
+            string src = @"C:\TMP\210419_csv_analyze\0_before_all_urls.csv";
+            string dst = @"C:\TMP\210419_csv_analyze\1_after_photometa.csv";
+
+            string body = await Lfs.ReadStringFromFileAsync(src);
+            var lines = body._GetLines();
+
+            List<PhotoCsvEntry> list = new List<PhotoCsvEntry>();
+
+            foreach (var line in lines)
+            {
+                if (line._InStr("/photometa"))
+                {
+                    var tokens = line._Split(StringSplitOptions.None, ",");
+                    if (tokens.Length >= 4)
+                    {
+                        PhotoCsvEntry e = new PhotoCsvEntry
+                        {
+                            No1 = tokens[0].Trim(),
+                            No2 = tokens[1].Trim(),
+                            Url = tokens[2].Trim(),
+                        };
+
+                        e.DateTimeStr = tokens[3];
+
+                        e.Result = "";
+
+                        list.Add(e);
+                    }
+                }
+            }
+
+            int pos = 0;
+
+            foreach (var e in list)
+            {
+                pos++;
+
+                try
+                {
+                    string url = $"https://streetviewpixels-pa.googleapis.com/v1/tile?cb_client=maps_sv.tactile&panoid={GmapPoint.GetPhotoKeyFromPhotoMetaUrl(e.Url)}&x=0&y=0&zoom=0";
+                    var downloadResult = await SimpleHttpDownloader.DownloadAsync(url, printStatus: false);
+
+                    if (downloadResult.Data.Length >= 2000)
+                    {
+                        e.Result = "OK";
+                    }
+                    else
+                    {
+                        e.Result = "Deleted";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                    e.Result = "ERROR: " + ex.ToString()._OneLine();
+                }
+
+                Con.WriteLine($"Status: total = {list.Count}, pos = {pos}, num_ok = {list.Where(x => x.Result == "OK").Count()}");
+            }
+
+            string csvBody = list._ObjectArrayToCsv(true);
+
+            await Lfs.WriteStringToFileAsync(dst, csvBody, FileFlags.AutoCreateDirectory);
+        }
+
+        class PhotoMetaTest
+        {
+            public string Url = "";
+            public bool Ok;
+        }
+
+        static async Task Test_210419_Async()
+        {
+            string fn = @"c:\tmp\210419.txt";
+            string body = await Lfs.ReadStringFromFileAsync(fn);
+            var lines = body._GetLines();
+
+            List<PhotoMetaTest> list = new List<PhotoMetaTest>();
+
+            foreach (var line in lines)
+            {
+                if (line._InStr("photometa"))
+                {
+                    PhotoMetaTest t = new PhotoMetaTest { Url = line.Trim(), Ok = false };
+
+                    list.Add(t);
+                }
+            }
+
+            Con.WriteLine($"件数: {list.Count}");
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                var t = list[i];
+
+                Con.WriteLine($"Current pos: {i} / {list.Count}: {t.Url}");
+
+
+                try
+                {
+                    string url = $"https://streetviewpixels-pa.googleapis.com/v1/tile?cb_client=maps_sv.tactile&panoid={GmapPoint.GetPhotoKeyFromPhotoMetaUrl(t.Url)}&x=0&y=0&zoom=0";
+                    var downloadResult = await SimpleHttpDownloader.DownloadAsync(url, printStatus: false);
+
+                    if (downloadResult.Data.Length >= 2000)
+                    {
+                        t.Ok = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
+
+                Con.WriteLine($"Current result: OK = {(list.Where(x => x.Ok).Count())} / Total = i");
+
+                Con.WriteLine();
+            }
+
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210419_02_photometa_csv_analyze_Async()._GetResult();
+                return;
+            }
+
             if (true)
             {
                 //Test_210414_Async()._GetResult();

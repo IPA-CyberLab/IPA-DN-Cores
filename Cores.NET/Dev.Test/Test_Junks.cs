@@ -224,6 +224,19 @@ __IMG__
             Console.WriteLine(str2);
         }
 
+        public static string GetPhotoKeyFromPhotoMetaUrl(string url)
+        {
+            var uri = url._ParseUrl(out QueryStringList qs);
+            if (qs._TryGetFirstValue("pb", out string pb))
+            {
+                var tokens = pb._Split(StringSplitOptions.RemoveEmptyEntries, "!");
+                var ret = tokens.Where(x => x.StartsWith("2s") && x.Length == 24).Select(x => x.Substring(2)).ToList();
+                return ret.FirstOrDefault()._NonNullTrim();
+            }
+
+            return "";
+        }
+
         public async Task GmapDownloadPointDataAsync(CancellationToken cancel = default)
         {
             this.TimeStamp = DtOffsetNow;
