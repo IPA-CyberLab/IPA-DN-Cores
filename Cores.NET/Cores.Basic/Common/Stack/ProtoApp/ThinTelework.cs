@@ -74,7 +74,7 @@ namespace IPA.Cores.Basic
             public const int RequestHardTimeoutMsecs = 150 * 1000;
             public const int RequestSoftTimeoutMsecs = 5 * 1000; // TODO 15
             public const int ConnectionQueueWaitTimeout = 10 * 1000;
-            public const int ConnectionZeroTimeout = 30 * 1000; // ここで指定された秒数、コネクション数が 0 の場合は、セッションを解除いたします
+            public const int ConnectionZeroTimeout = 15 * 1000; // ここで指定された秒数、コネクション数が 0 の場合は、セッションを解除いたします
         }
     }
 
@@ -165,13 +165,28 @@ namespace IPA.Cores.Basic
         public WideTunnelClientOptions ClientOptions { get; }
         public IPAddress ClientIpAddress { get; }
         public string ClientFqdn { get; }
+        public object? AppParams { get; }
+        public ThinSvcType? ConnectedSvcType { get; private set; } = null;
 
-        public ThinClientConnectOptions(string pcid, IPAddress clientIp, string clientFqdn, WideTunnelClientOptions clientOptions = WideTunnelClientOptions.None)
+        public ThinClientConnectOptions(string pcid, IPAddress clientIp, string clientFqdn, WideTunnelClientOptions clientOptions = WideTunnelClientOptions.None, object ?appParams = null)
         {
             this.Pcid = pcid;
             this.ClientOptions = clientOptions;
             this.ClientIpAddress = clientIp;
             this.ClientFqdn = clientFqdn;
+            this.AppParams = appParams;
+        }
+
+        public void UpdateConnectedSvcType(ThinSvcType type)
+        {
+            if (this.ConnectedSvcType == null)
+            {
+                this.ConnectedSvcType = type;
+            }
+            else if (this.ConnectedSvcType != type)
+            {
+                throw new CoresLibException("this.ConnectedSvcType is already set.");
+            }
         }
     }
 
@@ -448,7 +463,7 @@ namespace IPA.Cores.Basic
 
                     long now = TickNow;
                     
-                    $"listener.CurrentConnections = {listener.CurrentConnections}"._Debug();
+                    //$"listener.CurrentConnections = {listener.CurrentConnections}"._Debug();
                     if (listener.CurrentConnections == 0)
                     {
                         if (connectionZeroStartTick == 0) connectionZeroStartTick = now;

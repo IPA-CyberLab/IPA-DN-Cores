@@ -219,6 +219,8 @@ namespace IPA.Cores.Basic
             public const string SmsDefaultCountryCode = "+81";
 
             public const string DefaultSessionIdPrefix = "SESSION";
+
+            public const string EasyEncryptDefaultPassword = "pLkw4jkN8YxcD54AJ2rVvaD3sdnJEzMN";
         }
 
         public static partial class HiveNames

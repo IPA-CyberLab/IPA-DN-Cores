@@ -60,7 +60,7 @@ namespace IPA.Cores.Basic
     // EasyCookie ユーティリティ
     public static class EasyCookieUtil
     {
-        public static string SerializeObject<T>(T obj)
+        public static string SerializeObject<T>(T obj, bool easyEncrypt = false)
         {
             if (obj == null) return "";
 
@@ -74,7 +74,14 @@ namespace IPA.Cores.Basic
             buf.Write(jsonData);
             buf.WriteSInt64(Secure.HashSHA1AsLong(jsonData));
 
-            string cookieStr = buf.Span._EasyCompress()._Base64UrlEncode();
+            Memory<byte> data = buf.Span._EasyCompress();
+
+            if (easyEncrypt)
+            {
+                data = Secure.EasyEncrypt(data);
+            }
+
+            string cookieStr = data._Base64UrlEncode();
 
             cookieStr = Consts.Strings.EasyCookieValuePrefix + cookieStr;
 
@@ -87,7 +94,7 @@ namespace IPA.Cores.Basic
         }
 
         [return: MaybeNull]
-        public static T DeserializeObject<T>(string? cookieStr = null)
+        public static T DeserializeObject<T>(string? cookieStr = null, bool easyDecrypt = false)
         {
             try
             {
@@ -97,12 +104,16 @@ namespace IPA.Cores.Basic
 
                 cookieStr = cookieStr._Slice(Consts.Strings.EasyCookieValuePrefix.Length);
 
-                Span<byte> data = cookieStr._Base64UrlDecode()._EasyDecompress();
+                Memory<byte> data = cookieStr._Base64UrlDecode();
+
+                if (easyDecrypt) data = Secure.EasyDecrypt(data);
+
+                data = data._EasyDecompress();
 
                 var jsonData = data._SliceHead(data.Length - sizeof(long));
                 var hash = data._SliceTail(sizeof(long))._GetSInt64();
 
-                if (Secure.HashSHA1AsLong(jsonData) != hash)
+                if (Secure.HashSHA1AsLong(jsonData.Span) != hash)
                 {
                     return default;
                 }

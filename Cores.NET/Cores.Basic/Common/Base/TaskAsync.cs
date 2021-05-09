@@ -5332,28 +5332,52 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void SetResponseData(string requestId, IDialogResponseData response)
+        public bool SetResponseData(string requestId, IDialogResponseData response)
         {
             var request = GetRequestById(requestId);
-            if (request != null) request.SetResponseData(response);
+            if (request != null)
+            {
+                request.SetResponseData(response);
+                return true;
+            }
+
+            return false;
         }
 
-        public void SetResponseException(string requestId, Exception exception)
+        public bool SetResponseException(string requestId, Exception exception)
         {
             var request = GetRequestById(requestId);
-            if (request != null) request.SetResponseException(exception);
+            if (request != null)
+            {
+                request.SetResponseException(exception);
+                return true;
+            }
+
+            return false;
         }
 
-        public void SetResponseCancel(string requestId)
+        public bool SetResponseCancel(string requestId)
         {
             var request = GetRequestById(requestId);
-            if (request != null) request.SetResponseCancel();
+            if (request != null)
+            {
+                request.SetResponseCancel();
+                return true;
+            }
+
+            return false;
         }
 
-        public void SendHeartBeat(string requestId)
+        public bool SendHeartBeat(string requestId)
         {
             var request = GetRequestById(requestId);
-            if (request != null) request.HeartBeat();
+            if (request != null)
+            {
+                request.HeartBeat();
+                return true;
+            }
+
+            return false;
         }
     }
 
@@ -5427,28 +5451,69 @@ namespace IPA.Cores.Basic
             return this.SessionList.GetValueOrDefault(sessionId);
         }
 
-        public void SetResponseData(string sessionId, string requestId, IDialogResponseData response)
+        public bool SetResponseData(string sessionId, string requestId, IDialogResponseData response)
         {
             var session = GetSessionById(sessionId);
-            if (session != null) session.SetResponseData(requestId, response);
+            if (session != null)
+            {
+                return session.SetResponseData(requestId, response);
+            }
+            else
+            {
+                return false;
+            }
         }
 
-        public void SetResponseException(string sessionId, string requestId, Exception exception)
+        public bool SetResponseException(string sessionId, string requestId, Exception exception)
         {
             var session = GetSessionById(sessionId);
-            if (session != null) session.SetResponseException(requestId, exception);
+            if (session != null)
+            {
+                return session.SetResponseException(requestId, exception);
+            }
+            else
+            {
+                return false;
+            }
         }
 
-        public void SetResponseCancel(string sessionId, string requestId)
+        public bool SetResponseCancel(string sessionId, string requestId)
         {
             var session = GetSessionById(sessionId);
-            if (session != null) session.SetResponseCancel(requestId);
+            if (session != null)
+            {
+                return session.SetResponseCancel(requestId);
+            }
+            else
+            {
+                return false;
+            }
         }
 
-        public void SendHeartBeat(string sessionId, string requestId)
+        public bool SendHeartBeat(string sessionId, string requestId)
         {
             var session = GetSessionById(sessionId);
-            if (session != null) session.SendHeartBeat(requestId);
+            if (session != null)
+            {
+                return session.SendHeartBeat(requestId);
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public bool CheckSessionHealth(string sessionId)
+        {
+            var session = GetSessionById(sessionId);
+            if (session != null)
+            {
+                return !session.IsFinished;
+            }
+            else
+            {
+                return false;
+            }
         }
 
         public async Task<DialogRequest?> GetNextRequestAsync(string sessionId, int timeout = Timeout.Infinite, CancellationToken cancel = default)

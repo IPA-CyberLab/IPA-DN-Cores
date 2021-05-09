@@ -295,6 +295,41 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        public static string JavaScriptEasyStrEncrypt(string? srcString, string? password)
+        {
+            srcString = srcString._NonNull();
+            password = password._NonNull();
+
+            using var aes = new AesManaged();
+            aes.Mode = CipherMode.CBC;
+            aes.KeySize = 256;
+            aes.BlockSize = 128;
+            aes.Padding = PaddingMode.PKCS7;
+            aes.IV = Secure.HashSHA256(("1" + password)._GetBytes_UTF8()).AsSpan(0, 128 / 8).ToArray();
+            aes.Key = Secure.HashSHA256(("2" + password)._GetBytes_UTF8()).AsSpan(0, 256 / 8).ToArray();
+
+            using var mem = new MemoryStream();
+            using var enc = aes.CreateEncryptor();
+            using var stream = new CryptoStream(mem, enc, CryptoStreamMode.Write);
+
+            stream.Write(srcString._GetBytes_UTF8());
+            stream.FlushFinalBlock();
+
+            return mem.ToArray()._GetHexString()._JavaScriptSafeStrEncode();
+        }
+
+        public static Memory<byte> EasyEncrypt(ReadOnlyMemory<byte> src, string? password = null)
+        {
+            if (password._IsNullOrZeroLen()) password = Consts.Strings.EasyEncryptDefaultPassword;
+            return ChaChaPoly.EasyEncryptWithPassword(src, password);
+        }
+
+        public static Memory<byte> EasyDecrypt(ReadOnlyMemory<byte> src, string? password = null)
+        {
+            if (password._IsNullOrZeroLen()) password = Consts.Strings.EasyEncryptDefaultPassword;
+            return ChaChaPoly.EasyDecryptWithPassword(src, password);
+        }
+
         public static async Task<byte[]> CalcStreamHashAsync(Stream stream, HashAlgorithm hash, long truncateSize = long.MaxValue, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalReadSize = null, CancellationToken cancel = default)
         {
             checked

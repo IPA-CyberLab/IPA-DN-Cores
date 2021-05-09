@@ -2714,6 +2714,11 @@ namespace IPA.Cores.Basic
                 str = KanaHankakuToZenkaku(str);
             }
         }
+        public static string NormalizeString(string src, bool space, bool toHankaku, bool toZenkaku, bool toZenkakuKana)
+        {
+            NormalizeString(ref src, space, toHankaku, toZenkaku, toZenkakuKana);
+            return src;
+        }
 
         // 指定した文字幅に満ちるまでスペースを追加する
         public static string AddSpacePadding(string? srcStr, int totalWidth, bool addOnLeft = false, char spaceChar = ' ')
@@ -3032,6 +3037,22 @@ namespace IPA.Cores.Basic
             return tokenList._Combine();
         }
 
+        // 任意の文字列を安全にエンコード (JavaScript 用)
+        public static string JavaScriptSafeStrEncode(string? str)
+        {
+            str = str._NonNull();
+
+            return str._EncodeUrl()._GetBytes_Ascii()._Base64Encode();
+        }
+
+        // 任意の文字列を安全にデコード (JavaScript 用)
+        public static string JavaScriptSafeStrDecode(string? str)
+        {
+            str = str._NonNull();
+
+            return str._Base64Decode()._GetString_Ascii()._DecodeUrl();
+        }
+
         // URL エンコード
         public static string EncodeUrl(string? str, Encoding? encoding = null)
         {
@@ -3251,9 +3272,12 @@ namespace IPA.Cores.Basic
             // 改行コード
             str = str.Replace("\r\n", HtmlCrlf);
 
-            if (str._IsEmpty())
+            if (spaceIfEmpty)
             {
-                str = Str.HtmlSpacing;
+                if (str._IsEmpty())
+                {
+                    str = Str.HtmlSpacing;
+                }
             }
 
             return str;
@@ -5157,6 +5181,21 @@ namespace IPA.Cores.Basic
             }
 
             if (s.StartsWith("t", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (s.StartsWith("ok", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (s.StartsWith("on", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (s.StartsWith("enable", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }

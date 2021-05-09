@@ -178,7 +178,7 @@ namespace IPA.Cores.Helper.Basic
         [MethodImpl(Inline)]
         public static string _GetString(this byte[] byteArray, bool untilNullByte = false) => Str.DecodeStringAutoDetect(byteArray, out _, untilNullByte);
 
-        [MethodImpl(Inline)] 
+        [MethodImpl(Inline)]
         public static string _GetString_UTF8(this ReadOnlySpan<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.Utf8Encoding, out _, untilNullByte);
         [MethodImpl(Inline)]
         public static string _GetString_UTF16LE(this ReadOnlySpan<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.UniEncoding, out _, untilNullByte);
@@ -193,7 +193,7 @@ namespace IPA.Cores.Helper.Basic
         [MethodImpl(Inline)]
         public static string _GetString(this ReadOnlySpan<byte> byteArray, bool untilNullByte = false) => Str.DecodeStringAutoDetect(byteArray, out _, untilNullByte);
 
-        [MethodImpl(Inline)] 
+        [MethodImpl(Inline)]
         public static string _GetString_UTF8(this Span<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.Utf8Encoding, out _, untilNullByte);
         [MethodImpl(Inline)]
         public static string _GetString_UTF16LE(this Span<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray, Str.UniEncoding, out _, untilNullByte);
@@ -209,7 +209,7 @@ namespace IPA.Cores.Helper.Basic
         public static string _GetString(this Span<byte> byteArray, bool untilNullByte = false) => Str.DecodeStringAutoDetect(byteArray, out _, untilNullByte);
 
 
-        [MethodImpl(Inline)] 
+        [MethodImpl(Inline)]
         public static string _GetString_UTF8(this ReadOnlyMemory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.Utf8Encoding, out _, untilNullByte);
         [MethodImpl(Inline)]
         public static string _GetString_UTF16LE(this ReadOnlyMemory<byte> byteArray, bool untilNullByte = false) => Str.DecodeString(byteArray.Span, Str.UniEncoding, out _, untilNullByte);
@@ -520,6 +520,11 @@ namespace IPA.Cores.Helper.Basic
 
         public static string _EncodeEasy(this string? str) => Str.EncodeEasy(str);
         public static string _DecodeEasy(this string? str) => Str.DecodeEasy(str);
+
+        public static string _JavaScriptSafeStrEncode(this string? str) => Str.JavaScriptSafeStrEncode(str);
+        public static string _JavaScriptSafeStrDecode(this string? str) => Str.JavaScriptSafeStrDecode(str);
+
+        public static string _JavaScriptEasyStrEncrypt(this string? srcString, string? password) => Secure.JavaScriptEasyStrEncrypt(srcString, password);
 
         //public static bool _IsSafeAndPrintable(this string str, bool crlfIsOk = true, bool html_tag_ng = false) => Str.IsSafeAndPrintable(str, crlfIsOk, html_tag_ng);
         public static string _EncodeCEscape(this string s) => Str.EncodeCEscape(s);

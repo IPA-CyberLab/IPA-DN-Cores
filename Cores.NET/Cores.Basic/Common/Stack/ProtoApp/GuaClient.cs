@@ -61,38 +61,109 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
 using IPA.Cores.Helper.GuaHelper;
+using Newtonsoft.Json;
 
 namespace IPA.Cores.Helper.GuaHelper
 {
     public static class GuaHelper
     {
-        public static string ResizeMethodToStr(this GuaResizeMethods m)
+        public static string KeyboardLayoutToStr(this GuaKeyboardLayout k, bool unknownAsDefault = false)
+        {
+            switch (k)
+            {
+                case GuaKeyboardLayout.EnglishUs: return "en-us-qwerty";
+                case GuaKeyboardLayout.Japanese: return "ja-jp-qwerty";
+                default:
+                    if (unknownAsDefault == false)
+                        throw new CoresLibException($"Unknown keyboard layout value: {k}");
+                    else
+                        return "en-us-qwerty";
+            }
+        }
+
+        public static GuaKeyboardLayout StrToKeyboardLayout(this string str, bool unknownAsDefault = false)
+        {
+            switch (str.ToLower())
+            {
+                case "en-us-qwerty": return GuaKeyboardLayout.EnglishUs;
+                case "ja-jp-qwerty": return GuaKeyboardLayout.Japanese;
+                default:
+                    if (unknownAsDefault == false)
+                        throw new CoresLibException($"Unknown keyboard layout str: '{str}'");
+                    else
+                        return GuaKeyboardLayout.Japanese;
+            }
+        }
+
+        public static List<Tuple<string, string>> GetKeyboardLayoutList()
+        {
+            List<Tuple<string, string>> ret = new List<Tuple<string, string>>();
+            ret.Add(new Tuple<string, string>("ja-jp-qwerty", "Japanese Keyboard"));
+            ret.Add(new Tuple<string, string>("en-us-qwerty", "English Keyboard"));
+            return ret;
+        }
+
+        public static List<Tuple<string, string>> GetResizeMethodList()
+        {
+            List<Tuple<string, string>> ret = new List<Tuple<string, string>>();
+            ret.Add(new Tuple<string, string>("display-update", "Allow Dynamic Resize"));
+            ret.Add(new Tuple<string, string>("reconnect", "Always Reconnect"));
+            return ret;
+        }
+
+        public static string ResizeMethodToStr(this GuaResizeMethods m, bool unknownAsDefault = false)
         {
             switch (m)
             {
                 case GuaResizeMethods.DisplayUpdate: return "display-update";
                 case GuaResizeMethods.Reconnect: return "reconnect";
-                default: throw new CoresLibException($"Unknown resize value: {m}");
+                default:
+                    if (unknownAsDefault == false)
+                        throw new CoresLibException($"Unknown resize value: {m}");
+                    else
+                        return "display-update";
             }
         }
 
-        public static string GuaProtocolToStr(this GuaProtocol p)
+        public static GuaResizeMethods StrToResizeMethod(this string str, bool unknownAsDefault = false)
+        {
+            switch (str.ToLower())
+            {
+                case "display-update": return GuaResizeMethods.DisplayUpdate;
+                case "reconnect": return GuaResizeMethods.Reconnect;
+                default:
+                    if (unknownAsDefault == false)
+                        throw new CoresLibException($"Unknown resize method str: '{str}'");
+                    else
+                        return GuaResizeMethods.DisplayUpdate;
+            }
+        }
+
+        public static string GuaProtocolToStr(this GuaProtocol p, bool unknownAsDefault = false)
         {
             switch (p)
             {
                 case GuaProtocol.Rdp: return "rdp";
                 case GuaProtocol.Vnc: return "vnc";
-                default: throw new CoresLibException($"Unknown protocol value: {p}");
+                default:
+                    if (unknownAsDefault == false)
+                        throw new CoresLibException($"Unknown protocol value: {p}");
+                    else
+                        return "rdp";
             }
         }
 
-        public static GuaProtocol StrToGuaProtocol(this string str)
+        public static GuaProtocol StrToGuaProtocol(this string str, bool unknownAsDefault = false)
         {
             switch (str.ToLower())
             {
                 case "rdp": return GuaProtocol.Rdp;
                 case "vnc": return GuaProtocol.Vnc;
-                default: throw new CoresLibException($"Unknown protocol str: '{str}'");
+                default:
+                    if (unknownAsDefault == false)
+                        throw new CoresLibException($"Unknown protocol str: '{str}'");
+                    else
+                        return GuaProtocol.Rdp;
             }
         }
     }
@@ -105,6 +176,15 @@ namespace IPA.Cores.Basic
         public static partial class GuaClient
         {
             public static readonly Copenhagen<int> TimeoutMsecs = 15 * 1000;
+
+            public static readonly Copenhagen<int> MinScreenWidth = 800;
+            public static readonly Copenhagen<int> MinScreenHeight = 600;
+
+            public static readonly Copenhagen<int> DefaultScreenWidth = 1024;
+            public static readonly Copenhagen<int> DefaultScreenHeight = 768;
+
+            public static readonly Copenhagen<int> MaxScreenWidth = 5760;
+            public static readonly Copenhagen<int> MaxScreenHeight = 2400;
         }
     }
 
@@ -270,7 +350,14 @@ namespace IPA.Cores.Basic
         Reconnect,
     }
 
-    public class GuaPreference
+    [Flags]
+    public enum GuaKeyboardLayout
+    {
+        EnglishUs = 0x00000409,
+        Japanese = 0x00000411,
+    }
+
+    public class GuaPreference : INormalizable
     {
         public bool EnableAudio { get; set; } = true;
         public bool EnableWallPaper { get; set; } = true;
@@ -279,15 +366,40 @@ namespace IPA.Cores.Basic
         public bool EnableFullWindowDrag { get; set; } = true;
         public bool EnableDesktopComposition { get; set; } = true;
         public bool EnableMenuAnimations { get; set; } = true;
+
+        public bool Win_ShiftWin { get; set; } = true;
+        public bool Cad_CtrlAltEnd { get; set; } = true;
+        public bool Cad_CtrlAltHome { get; set; } = true;
+        public bool Cad_CtrlAltBackspace { get; set; } = true;
+        public bool Ime_LeftCtrlSpace { get; set; } = true;
+        public bool Ime_LeftShiftSpace { get; set; } = true;
+        public bool Ime_OptionSpace { get; set; } = true;
+
+        [JsonIgnore]
         public GuaResizeMethods ResizeMethod { get; set; } = GuaResizeMethods.DisplayUpdate;
-        public int InitialWidth { get; set; } = 1024;
-        public int InitialHeight { get; set; } = 768;
+
+        [JsonIgnore]
+        public GuaKeyboardLayout KeyboardLayout { get; set; } = GuaKeyboardLayout.Japanese;
+
+        public string ResizeMethodStr { get => this.ResizeMethod.ResizeMethodToStr(); set => this.ResizeMethod = value.StrToResizeMethod(true); }
+        public string KeyboardLayoutStr { get => this.KeyboardLayout.KeyboardLayoutToStr(); set => this.KeyboardLayout = value.StrToKeyboardLayout(true); }
+
+        public bool ScreenAutoResize { get; set; } = true;
+
+        public bool ScreenGetAutoSize { get; set; } = true;
+        public int ScreenWidth { get; set; } = CoresConfig.GuaClient.DefaultScreenWidth;
+        public int ScreenHeight { get; set; } = CoresConfig.GuaClient.DefaultScreenHeight;
+
         public string Username { get; set; } = "";
         public string Password { get; set; } = "";
         public string Domain { get; set; } = "";
 
+        public bool EnableDebug { get; set; } = false;
+
         public void AddToKeyValueList(KeyValueList<string, string> list)
         {
+            this.Normalize();
+
             list.Add("domain", this.Domain);
             list.Add("username", this.Username);
             list.Add("password", this.Password);
@@ -300,9 +412,53 @@ namespace IPA.Cores.Basic
             list.Add("enable-desktop-composition", this.EnableDesktopComposition._ToBoolStrLower());
             list.Add("enable-menu-animations", this.EnableMenuAnimations._ToBoolStrLower());
             list.Add("disable-bitmap-caching", true._ToBoolStrLower());
-            list.Add("resize-method", ResizeMethod.ResizeMethodToStr());
+            list.Add("resize-method", ResizeMethod.ResizeMethodToStr(true));
             list.Add("client-name", "Thin Telework");
-            list.Add("server-layout", "ja-jp-qwerty");
+            list.Add("server-layout", this.KeyboardLayout.KeyboardLayoutToStr(true));
+        }
+
+        public void Normalize()
+        {
+            this.Username = this.Username._NonNullTrim();
+            this.Password = this.Password._NonNull();
+            this.Domain = this.Domain._NonNullTrim();
+
+            if (this.ScreenWidth <= 0) this.ScreenWidth = CoresConfig.GuaClient.DefaultScreenWidth;
+            if (this.ScreenHeight <= 0) this.ScreenWidth = CoresConfig.GuaClient.DefaultScreenHeight;
+
+            if (this.ScreenWidth < CoresConfig.GuaClient.MinScreenWidth) this.ScreenWidth = CoresConfig.GuaClient.MinScreenWidth;
+            if (this.ScreenWidth > CoresConfig.GuaClient.MaxScreenWidth) this.ScreenWidth = CoresConfig.GuaClient.MaxScreenWidth;
+
+            if (this.ScreenHeight < CoresConfig.GuaClient.MinScreenHeight) this.ScreenHeight = CoresConfig.GuaClient.MinScreenHeight;
+            if (this.ScreenHeight > CoresConfig.GuaClient.MaxScreenHeight) this.ScreenHeight = CoresConfig.GuaClient.MaxScreenHeight;
+
+            if (this.ScreenAutoResize)
+            {
+                this.ResizeMethod = GuaResizeMethods.DisplayUpdate;
+            }
+            else
+            {
+                this.ResizeMethod = GuaResizeMethods.Reconnect;
+            }
+
+            if (this.Username._IsEmpty() || this.Password._IsNullOrZeroLen())
+            {
+                // ユーザー名またはパスワードのいずれかが空の場合、NLA 認証パラメータは一切送信しない
+                this.Username = "";
+                this.Password = "";
+                this.Domain = "";
+            }
+        }
+
+        public GuaPreference CloneAsDefault()
+        {
+            var ret = this._CloneWithJson();
+
+            ret.Username = "";
+            ret.Password = "";
+            ret.Domain = "";
+
+            return ret;
         }
     }
 
@@ -392,7 +548,7 @@ namespace IPA.Cores.Basic
                 var supportedOptions = args.Args;
 
                 // size, audio, video, image, timezone の 5 項目 (固定) を送付
-                var opSize = new GuaPacket { Opcode = "size", Args = StrList(Settings.Preference.InitialWidth, Settings.Preference.InitialHeight, 96), };
+                var opSize = new GuaPacket { Opcode = "size", Args = StrList(Settings.Preference.ScreenWidth, Settings.Preference.ScreenHeight, 96), };
                 var opAudio = new GuaPacket { Opcode = "audio", Args = StrList("audio/L8", "audio/L16"), };
                 var opVideo = new GuaPacket { Opcode = "video", Args = StrList(), };
                 var opImage = new GuaPacket { Opcode = "image", Args = StrList("image/jpeg", "image/png", "image/webp"), };

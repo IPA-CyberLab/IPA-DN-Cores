@@ -84,6 +84,7 @@ using static IPA.Cores.Globals.Web;
 using IPA.Cores.Helper.GuaHelper;
 
 using System.Runtime.CompilerServices;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace IPA.Cores.Codes
 {
@@ -91,7 +92,6 @@ namespace IPA.Cores.Codes
     [Serializable]
     public sealed class ThinWebClientSettings : INormalizable
     {
-        public string ABC = "";
         public bool ProxyPortListenAllowAny = false;
         public string GuacdHostname = "dn-ttguacd1.sec.softether.co.jp";
         public int GuacdPort = 4822;
@@ -112,18 +112,149 @@ namespace IPA.Cores.Codes
     }
 #pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
 
-    public class ThinWebClientModelStart
+    // サーバー接続プロファイル
+    public class ThinWebClientProfile : INormalizable
     {
-        public string? Pcid { get; set; } = "dn-ttwin1";
+        public string Pcid { get; set; } = ""; // 接続先コンピュータ ID
+        public GuaPreference Preference { get; set; } = new GuaPreference(); // 接続設定
+
+        public void Normalize()
+        {
+            this.Pcid = Str.NormalizeString(this.Pcid, false, true, false, true);
+            this.Preference.Normalize();
+        }
+
+        public ThinWebClientProfile CloneAsDefault()
+        {
+            ThinWebClientProfile ret = this._CloneWithJson();
+
+            ret.Pcid = "";
+
+            ret.Preference = ret.Preference.CloneAsDefault();
+
+            ret.Normalize();
+
+            return ret;
+        }
+    }
+
+    // ヒストリ
+    public class ThinWebClientHistory
+    {
+        public List<ThinWebClientProfile> Items = new List<ThinWebClientProfile>();
+
+        public void Add(ThinWebClientProfile profile)
+        {
+            var clone = profile._CloneWithJson();
+            clone.Normalize();
+            if (clone.Pcid._IsEmpty()) return;
+
+            var deleteList = this.Items.Where(x => x.Pcid._IsSamei(clone.Pcid)).ToList();
+            deleteList.ForEach(x => this.Items.Remove(x));
+
+            this.Items.Add(clone);
+
+            while (this.Items.Count >= 1 && this.Items.Count > ThinWebClientConsts.MaxHistory)
+            {
+                this.Items.RemoveAt(0);
+            }
+        }
+
+        public void Clear()
+        {
+            this.Items.Clear();
+        }
+
+        public void SaveToCookie(Controller c, AspNetCookieOptions? options = null)
+        {
+            for (int i = 0; i < ThinWebClientConsts.MaxHistory; i++)
+            {
+                var item = this.Items.ElementAtOrDefault(i);
+                string tagName = $"thin_history_{i:D4}";
+                if (item != null)
+                {
+                    c._EasySaveCookie(tagName, item, options, true);
+                }
+                else
+                {
+                    c._EasyDeleteCookie(tagName);
+                }
+            }
+        }
+
+        public static ThinWebClientHistory LoadFromCookie(Controller c)
+        {
+            ThinWebClientHistory ret = new ThinWebClientHistory();
+
+            for (int i = 0; i < ThinWebClientConsts.MaxHistory; i++)
+            {
+                string tagName = $"thin_history_{i:D4}";
+                var data = c._EasyLoadCookie<ThinWebClientProfile>(tagName, true);
+                if (data != null)
+                {
+                    ret.Items.Add(data);
+                }
+            }
+
+            return ret;
+        }
+    }
+
+    public class ThinWebClientModelIndex
+    {
+        public ThinWebClientProfile CurrentProfile { get; set; } = new ThinWebClientProfile();
+
+        // リサイズ方式の選択肢
+        public List<SelectListItem> ResizeMethodItems { get; }
+
+        // キーボードの選択肢
+        public List<SelectListItem> KeyboardLayoutItems { get; }
+
+        // History 選択肢
+        public List<SelectListItem> HistoryItems { get; private set; } = new List<SelectListItem>();
+
+        // 選択されている History
+        public string? SelectedHistory { get; set; }
+
+        public bool FocusToPcid { get; set; } = false;
+
+        public ThinWebClientModelIndex()
+        {
+            this.ResizeMethodItems = new List<SelectListItem>();
+            foreach (var item in GuaHelper.GetResizeMethodList())
+            {
+                this.ResizeMethodItems.Add(new SelectListItem(item.Item2, item.Item1));
+            }
+
+            this.KeyboardLayoutItems = new List<SelectListItem>();
+            foreach (var item in GuaHelper.GetKeyboardLayoutList())
+            {
+                this.KeyboardLayoutItems.Add(new SelectListItem(item.Item2, item.Item1));
+            }
+        }
+
+        public void FillHistory(ThinWebClientHistory history)
+        {
+            this.HistoryItems = new List<SelectListItem>();
+
+            this.HistoryItems.Add(new SelectListItem("", ""));
+
+            foreach (var item in history.Items.AsEnumerable().Reverse())
+            {
+                this.HistoryItems.Add(new SelectListItem(item.Pcid, $"/?id={item.Pcid._MakeVerySafeAsciiOnlyNonSpaceFileName()}"));
+            }
+        }
     }
 
     public abstract class ThinWebClientModelSessionBase
     {
+        public string? SessionId { get; set; }
         public string? RequestId { get; set; }
         public ThinClientConnectOptions? ConnectOptions { get; set; }
+        public ThinWebClientProfile? Profile { get; set; }
     }
 
-    public class ThinWebClientModelSessionAuth : ThinWebClientModelSessionBase
+    public class ThinWebClientModelSessionAuthPassword : ThinWebClientModelSessionBase
     {
         public ThinClientAuthRequest? Request { get; set; }
         public ThinClientAuthResponse? Response { get; set; }
@@ -132,7 +263,7 @@ namespace IPA.Cores.Codes
     public class ThinWebClientModelRemote : ThinWebClientModelSessionBase
     {
         public string? WebSocketUrl { get; set; }
-        public string? SessionId { get; set; }
+        public ThinSvcType SvcType { get; set; }
     }
 
     public class ThinWebClientController : Controller
@@ -144,27 +275,83 @@ namespace IPA.Cores.Codes
             this.Client = client;
         }
 
+        protected AspNetCookieOptions GetCookieOption() => new AspNetCookieOptions(domain: ""); // TODO
+
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public async Task<IActionResult> StartAsync(ThinWebClientModelStart form)
+        public async Task<IActionResult> IndexAsync(ThinWebClientModelIndex form, string? id, string? deleteAll)
         {
-            string? pcid = form?.Pcid._NonNullTrim();
+            ThinWebClientProfile? historySelectedProfile = null;
+
+            ThinWebClientProfile profile = form.CurrentProfile;
+            profile.Normalize();
+
+            ThinWebClientHistory history = ThinWebClientHistory.LoadFromCookie(this);
 
             if (this._IsPostBack())
             {
-                if (pcid._IsFilled())
+                if (profile.Pcid._IsFilled())
                 {
+                    // 現在のプロファイルの保存
+                    this._EasySaveCookie("thin_current_profile", profile.CloneAsDefault(), GetCookieOption(), true);
+
+                    // ヒストリへの追加
+                    history.Add(profile);
+                    history.SaveToCookie(this, GetCookieOption());
+
                     var tc = this.Client.CreateThinClient();
 
                     var clientIp = Request.HttpContext.Connection.RemoteIpAddress._UnmapIPv4()!;
                     string clientFqdn = await Client.DnsResolver.GetHostNameSingleOrIpAsync(clientIp);
 
                     // セッションの開始
-                    var session = tc.StartConnect(new ThinClientConnectOptions(pcid, clientIp, clientFqdn));
+                    var session = tc.StartConnect(new ThinClientConnectOptions(profile.Pcid, clientIp, clientFqdn, WideTunnelClientOptions.None, profile._CloneWithJson()));
                     string sessionId = session.SessionId;
 
                     // セッション ID をもとにした URL にリダイレクト
-                    return Redirect($"/ThinWebClient/Session/{sessionId}/");
+                    return Redirect($"/ThinWebClient/Session/{sessionId}/?id={profile.Pcid._MakeVerySafeAsciiOnlyNonSpaceFileName()}");
                 }
+            }
+            else
+            {
+                if (deleteAll._ToBool())
+                {
+                    // History をすべて消去するよう指示された
+                    // Cookie の History をすべて消去する
+                    history.Clear();
+                    history.SaveToCookie(this, GetCookieOption());
+
+                    // トップページにリダイレクトする
+                    return Redirect("/");
+                }
+                else if (id._IsFilled())
+                {
+                    // History から履歴を指定された。id を元に履歴からプロファイルを読み出す
+                    historySelectedProfile = history.Items.Where(h => h.Pcid._IsSamei(id)).FirstOrDefault();
+                }
+
+                if (historySelectedProfile == null)
+                {
+                    // デフォルト値
+                    profile = this._EasyLoadCookie<ThinWebClientProfile>("thin_current_profile", true) ?? new ThinWebClientProfile();
+                }
+                else
+                {
+                    // History で選択された値
+                    profile = historySelectedProfile;
+                }
+
+                profile.Normalize();
+                form.CurrentProfile = profile;
+
+                // GET の場合は必ず PCID 入力ボックスをフォーカスする
+                form.FocusToPcid = true;
+            }
+
+            form.FillHistory(history);
+
+            if (historySelectedProfile != null)
+            {
+                form.SelectedHistory = form.HistoryItems.Where(x => x.Text._IsSamei(historySelectedProfile.Pcid)).FirstOrDefault()?.Value ?? "";
             }
 
             return View(form);
@@ -182,6 +369,7 @@ namespace IPA.Cores.Codes
             if (session != null)
             {
                 ThinClientConnectOptions connectOptions = (ThinClientConnectOptions)session.Param!;
+                ThinWebClientProfile profile = (ThinWebClientProfile)connectOptions.AppParams!;
 
                 var req = session.GetFinalAnswerRequest();
 
@@ -192,6 +380,8 @@ namespace IPA.Cores.Codes
                         ConnectOptions = connectOptions,
                         WebSocketUrl = $"/ws/",
                         SessionId = session.SessionId,
+                        Profile = profile,
+                        SvcType = connectOptions.ConnectedSvcType!.Value,
                     };
 
                     return View(main);
@@ -219,13 +409,14 @@ namespace IPA.Cores.Codes
             else
             {
                 ThinClientConnectOptions connectOptions = (ThinClientConnectOptions)session.Param!;
+                ThinWebClientProfile profile = (ThinWebClientProfile)connectOptions.AppParams!;
 
                 if (requestid._IsFilled() && formtype._IsFilled())
                 {
                     IDialogResponseData? responseData = null;
-                    switch (formtype.ToLower())
+                    switch (formtype)
                     {
-                        case "auth":
+                        case "SessionAuthPassword":
                             responseData = new ThinClientAuthResponse { Username = "", Password = password._NonNull() };
                             break;
                     }
@@ -244,16 +435,26 @@ namespace IPA.Cores.Codes
                     switch (req.RequestData)
                     {
                         case ThinClientAuthRequest authReq:
-                            ThinWebClientModelSessionAuth page = new ThinWebClientModelSessionAuth
+                            switch (authReq.AuthType)
                             {
-                                RequestId = req.RequestId,
-                                ConnectOptions = connectOptions,
-                                Request = authReq,
-                            };
+                                case ThinAuthType.Password:
+                                    ThinWebClientModelSessionAuthPassword page = new ThinWebClientModelSessionAuthPassword
+                                    {
+                                        SessionId = session.SessionId,
+                                        RequestId = req.RequestId,
+                                        ConnectOptions = connectOptions,
+                                        Request = authReq,
+                                        Profile = profile._CloneWithJson(),
+                                    };
 
-                            return View("SessionAuth", page);
+                                    return View("SessionAuthPassword", page);
+
+                                default:
+                                    throw new CoresException($"authReq.AuthType = {authReq.AuthType}: Unsupported auth type.");
+                            }
 
                         case ThinClientAcceptReadyNotification ready:
+                            connectOptions.UpdateConnectedSvcType(ready.FirstConnection!.SvcType);
                             ready.ListenEndPoint?.ToString()._Debug();
                             req.SetResponseDataEmpty();
 
@@ -273,9 +474,50 @@ namespace IPA.Cores.Codes
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public async Task<IActionResult> SendHeartBeatAsync(string sessionId, string requestId)
+        {
+            sessionId = sessionId._NonNullTrim();
+            requestId = requestId._NonNullTrim();
+
+            string ret = "error";
+
+            if (sessionId._IsFilled() && requestId._IsFilled())
+            {
+                if (this.Client.SessionManager.SendHeartBeat(sessionId, requestId))
+                {
+                    ret = "ok";
+                }
+            }
+
+            await TaskCompleted;
+
+            return new TextActionResult(ret);
+        }
+
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public async Task<IActionResult> SessionHealthCheckAsync(string sessionId)
+        {
+            sessionId = sessionId._NonNullTrim();
+
+            string ret = "error";
+
+            if (sessionId._IsFilled())
+            {
+                if (this.Client.SessionManager.CheckSessionHealth(sessionId))
+                {
+                    ret = "ok";
+                }
+            }
+
+            await TaskCompleted;
+
+            return new TextActionResult(ret);
+        }
+
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         [HttpGet("/ws")]
         [HttpPost("/ws")]
-        public async Task AcceptWebSocketAsync(string? id)
+        public async Task AcceptWebSocketAsync(string? id, string? width, string? height)
         {
             using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancel, this._GetRequestCancellationToken(), this.Client.GrandCancel))
             {
@@ -287,12 +529,23 @@ namespace IPA.Cores.Codes
                     if (session != null)
                     {
                         ThinClientConnectOptions connectOptions = (ThinClientConnectOptions)session.Param!;
+                        ThinWebClientProfile profile = (ThinWebClientProfile)connectOptions.AppParams!;
 
                         var req = session.GetFinalAnswerRequest();
 
                         if (req?.RequestData is ThinClientAcceptReadyNotification ready)
                         {
-                            var pref = new GuaPreference();
+                            var pref = profile.Preference._CloneWithJson();
+
+                            // ws 接続時に width と height がパラメータとして指定されていた場合は、preference の内容を更新する
+                            int widthInt = width._ToInt();
+                            int heightInt = height._ToInt();
+
+                            if (widthInt >= 1 && heightInt >= 1)
+                            {
+                                pref.ScreenWidth = widthInt;
+                                pref.ScreenHeight = heightInt;
+                            }
 
                             await using var guaClient = new GuaClient(
                                 new GuaClientSettings(

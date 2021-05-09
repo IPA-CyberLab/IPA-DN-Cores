@@ -114,7 +114,7 @@ namespace IPA.Cores.Helper.Basic
         [MethodImpl(Inline)]
         public static ReadOnlyMemory<T> _AsReadOnlyMemory<T>(this T[] array, int start, int length) => array.AsMemory(start, length);
 
-        [MethodImpl(Inline)] 
+        [MethodImpl(Inline)]
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this T[] array, int start) => array.AsSpan(start);
         [MethodImpl(Inline)]
         public static ReadOnlySpan<T> _AsReadOnlySpan<T>(this T[] array) => array.AsSpan();
@@ -142,13 +142,13 @@ namespace IPA.Cores.Helper.Basic
         [MethodImpl(Inline)]
         public static ReadOnlySpanBuffer<T> _SliceHead<T>(this ReadOnlySpanBuffer<T> target, int length) => target.Slice(0, length);
 
-        [MethodImpl(Inline)] 
+        [MethodImpl(Inline)]
         public static Memory<T> _SliceTail<T>(this Memory<T> target, int length) => target.Slice(target.Length - length);
-        [MethodImpl(Inline)] 
+        [MethodImpl(Inline)]
         public static ReadOnlyMemory<T> _SliceTail<T>(this ReadOnlyMemory<T> target, int length) => target.Slice(target.Length - length);
-        [MethodImpl(Inline)] 
+        [MethodImpl(Inline)]
         public static Span<T> _SliceTail<T>(this Span<T> target, int length) => target.Slice(target.Length - length);
-        [MethodImpl(Inline)] 
+        [MethodImpl(Inline)]
         public static ReadOnlySpan<T> _SliceTail<T>(this ReadOnlySpan<T> target, int length) => target.Slice(target.Length - length);
         [MethodImpl(Inline)]
         public static MemoryBuffer<T> _SliceTail<T>(this MemoryBuffer<T> target, int length) => target.Slice(target.Length - length);
@@ -187,6 +187,18 @@ namespace IPA.Cores.Helper.Basic
         public static byte[] _EasyDecompress(this Memory<byte> src) => DeflateUtil.EasyDecompress(src);
         public static byte[] _EasyDecompress(this ReadOnlyMemory<byte> src) => DeflateUtil.EasyDecompress(src);
         public static byte[] _EasyDecompress(this byte[] src) => DeflateUtil.EasyDecompress(src._AsReadOnlyMemory());
+
+        public static Memory<byte> _EasyEncrypt(this Span<byte> src, string? password = null) => Secure.EasyEncrypt(src._CloneMemory(), password);
+        public static Memory<byte> _EasyEncrypt(this ReadOnlySpan<byte> src, string? password = null) => Secure.EasyEncrypt(src._CloneMemory(), password);
+        public static Memory<byte> _EasyEncrypt(this Memory<byte> src, string? password = null) => Secure.EasyEncrypt(src, password);
+        public static Memory<byte> _EasyEncrypt(this ReadOnlyMemory<byte> src, string? password = null) => Secure.EasyEncrypt(src, password);
+        public static Memory<byte> _EasyEncrypt(this byte[] src, string? password = null) => Secure.EasyEncrypt(src, password);
+
+        public static Memory<byte> _EasyDecrypt(this Span<byte> src, string? password = null) => Secure.EasyDecrypt(src._CloneMemory(), password);
+        public static Memory<byte> _EasyDecrypt(this ReadOnlySpan<byte> src, string? password = null) => Secure.EasyDecrypt(src._CloneMemory(), password);
+        public static Memory<byte> _EasyDecrypt(this Memory<byte> src, string? password = null) => Secure.EasyDecrypt(src, password);
+        public static Memory<byte> _EasyDecrypt(this ReadOnlyMemory<byte> src, string? password = null) => Secure.EasyDecrypt(src, password);
+        public static Memory<byte> _EasyDecrypt(this byte[] src, string? password = null) => Secure.EasyDecrypt(src._AsReadOnlyMemory(), password);
 
         // For BigEndian-standard world
         [MethodImpl(Inline)]
