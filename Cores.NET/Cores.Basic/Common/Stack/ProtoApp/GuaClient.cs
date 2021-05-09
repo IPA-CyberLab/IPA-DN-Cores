@@ -368,9 +368,12 @@ namespace IPA.Cores.Basic
         public bool EnableMenuAnimations { get; set; } = true;
 
         public bool Win_ShiftWin { get; set; } = true;
+        public bool Win_Ctrl2Alt2 { get; set; } = true;
         public bool Cad_CtrlAltEnd { get; set; } = true;
         public bool Cad_CtrlAltHome { get; set; } = true;
         public bool Cad_CtrlAltBackspace { get; set; } = true;
+        public bool Cad_CtrlShiftBackspace { get; set; } = true;
+        public bool Tab_AltShift { get; set; } = true;
         public bool Ime_LeftCtrlSpace { get; set; } = true;
         public bool Ime_LeftShiftSpace { get; set; } = true;
         public bool Ime_OptionSpace { get; set; } = true;
@@ -389,6 +392,9 @@ namespace IPA.Cores.Basic
         public bool ScreenGetAutoSize { get; set; } = true;
         public int ScreenWidth { get; set; } = CoresConfig.GuaClient.DefaultScreenWidth;
         public int ScreenHeight { get; set; } = CoresConfig.GuaClient.DefaultScreenHeight;
+
+        public bool ShowLocalMouseCursor { get; set; } = true;
+        public bool ShowRemoteMouseCursor { get; set; } = true;
 
         public string Username { get; set; } = "";
         public string Password { get; set; } = "";
