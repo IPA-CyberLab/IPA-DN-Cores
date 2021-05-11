@@ -387,6 +387,8 @@ namespace IPA.Cores.Basic
         public string ResizeMethodStr { get => this.ResizeMethod.ResizeMethodToStr(); set => this.ResizeMethod = value.StrToResizeMethod(true); }
         public string KeyboardLayoutStr { get => this.KeyboardLayout.KeyboardLayoutToStr(); set => this.KeyboardLayout = value.StrToKeyboardLayout(true); }
 
+        public bool ScreenAutoFullScreen { get; set; } = true;
+
         public bool ScreenAutoResize { get; set; } = true;
 
         public bool ScreenGetAutoSize { get; set; } = true;
