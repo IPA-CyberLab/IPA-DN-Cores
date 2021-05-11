@@ -418,6 +418,8 @@ namespace IPA.Cores.Basic
             list.Add("enable-desktop-composition", this.EnableDesktopComposition._ToBoolStrLower());
             list.Add("enable-menu-animations", this.EnableMenuAnimations._ToBoolStrLower());
             list.Add("disable-bitmap-caching", true._ToBoolStrLower());
+            list.Add("disable-offscreen-caching", true._ToBoolStrLower());
+            list.Add("disable-glyph-caching", true._ToBoolStrLower());
             list.Add("resize-method", ResizeMethod.ResizeMethodToStr(true));
             list.Add("client-name", "Thin Telework");
             list.Add("server-layout", this.KeyboardLayout.KeyboardLayoutToStr(true));

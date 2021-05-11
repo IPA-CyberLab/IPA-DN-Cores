@@ -553,7 +553,7 @@ namespace IPA.Cores.Codes
                                     Client.SettingsFastSnapshot.GuacdPort,
                                     ready.FirstConnection!.SvcType.ToString().StrToGuaProtocol(),
                                     "", ready.ListenEndPoint!.Port,
-                                    //"dn-ttwin7.sec.softether.co.jp", 3389,
+                                    //"dn-ttwin1.sec.softether.co.jp", 3389, // testtest
                                     pref));
 
                             await guaClient.StartAsync(cancel);
