@@ -27,9 +27,13 @@ echo %DTSTR%> c:\tmp\build_snmpwork\timestamp.txt
 copy /y c:\tmp\build_snmpwork\timestamp.txt c:\tmp\build_snmpwork\snmpwork.x86_64\
 copy /y c:\tmp\build_snmpwork\timestamp.txt c:\tmp\build_snmpwork\snmpwork.aarch64\
 
-copy /y C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bld\linux-x64\Dev.Test\Dev.Test c:\tmp\build_snmpwork\snmpwork.x86_64\se_snmpwork
+copy /y C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bld\linux-x64\Dev.Test\Dev.Test c:\tmp\build_snmpwork\snmpwork.x86_64\se_snmpwork2
 
-copy /y C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bld\linux-arm64\Dev.Test\Dev.Test c:\tmp\build_snmpwork\snmpwork.aarch64\se_snmpwork
+copy /y C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\_SnmpWork_ShellScript.sh c:\tmp\build_snmpwork\snmpwork.x86_64\se_snmpwork
+
+copy /y C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bld\linux-arm64\Dev.Test\Dev.Test c:\tmp\build_snmpwork\snmpwork.aarch64\se_snmpwork2
+
+copy /y C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\_SnmpWork_ShellScript.sh c:\tmp\build_snmpwork\snmpwork.aarch64\se_snmpwork
 
 cd /d c:\tmp\build_snmpwork\
 
