@@ -361,7 +361,7 @@ namespace IPA.Cores.Basic
                             cancelWatcher.Cancel();
                         });
 
-                        using (new DelayAction(TimeSpan * 3 + 180 * 1000, x =>
+                        await using (new DelayAction(TimeSpan * 3 + 180 * 1000, x =>
                         {
                             cancelWatcher.Cancel();
                         }, doNotBlockOnDispose: true))
@@ -427,11 +427,11 @@ namespace IPA.Cores.Basic
         {
             Result ret = new Result();
 
-            using (NetPalTcpProtocolStub tcp = new NetPalTcpProtocolStub(cancel: cancel))
+            await using (NetPalTcpProtocolStub tcp = new NetPalTcpProtocolStub(cancel: cancel))
             {
                 await tcp.ConnectAsync(ServerIP, ServerPort, cancel, ConnectTimeout);
 
-                using (ConnSock sock = new ConnSock(tcp))
+                await using (ConnSock sock = new ConnSock(tcp))
                 {
                     NetAppStub app = sock.GetNetAppProtocolStub();
 
