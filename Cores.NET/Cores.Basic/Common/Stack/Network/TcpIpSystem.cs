@@ -428,9 +428,9 @@ namespace IPA.Cores.Basic
         public async Task<SendPingReply> SendPingAsync(string hostName, AddressFamily? v4v6 = null, byte[]? data = null,
             int pingTimeout = Consts.Timeouts.DefaultSendPingTimeout, CancellationToken pingCancel = default, int dnsTimeout = 0, CancellationToken dnsCancel = default)
         {
-            using (CreatePerTaskCancellationToken(out CancellationToken opPingCancel, dnsCancel))
+            await using (CreatePerTaskCancellationToken(out CancellationToken opPingCancel, dnsCancel))
             {
-                using (CreatePerTaskCancellationToken(out CancellationToken opDnsCancel, dnsCancel))
+                await using (CreatePerTaskCancellationToken(out CancellationToken opDnsCancel, dnsCancel))
                 {
                     using (EnterCriticalCounter())
                     {
@@ -485,7 +485,7 @@ namespace IPA.Cores.Basic
 
         public async Task<ConnSock> ConnectAsync(TcpConnectParam param, CancellationToken cancel = default)
         {
-            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 await param.ResolveDestHostnameIfNecessaryAsync(this, opCancel);
 
@@ -677,7 +677,7 @@ namespace IPA.Cores.Basic
 
         public async Task<DnsResponse> QueryDnsAsync(DnsQueryParamBase param, CancellationToken cancel = default)
         {
-            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
                 {

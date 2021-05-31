@@ -245,7 +245,7 @@ namespace IPA.Cores.Basic
         // false: キャンセルされた
         async Task<bool> WaitForInternetAsync(CancellationToken cancel = default)
         {
-            using (this.CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            await using (this.CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 AsyncAutoResetEvent networkChangedEvent = new AsyncAutoResetEvent();
                 int eventRegisterId = TcpIp.RegisterHostInfoChangedEvent(networkChangedEvent);
@@ -283,7 +283,7 @@ namespace IPA.Cores.Basic
 
             CancellationTokenSource cts = new CancellationTokenSource();
 
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, cts.Token))
+            await using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken opCancel, cancel, cts.Token))
             {
                 // テストをシャッフルする
                 var shuffledTests = Options.GetTestItemList()._Shuffle();
@@ -406,10 +406,10 @@ namespace IPA.Cores.Basic
         // 1 個の HTTP テストを実行する
         async Task<bool> PerformSingleHttpTestAsync(InternetCheckerHttpTestItem http, CancellationToken cancel = default)
         {
-            using ConnSock sock = await this.TcpIp.ConnectAsync(new TcpConnectParam(http.Fqdn, http.Port, http.Family, connectTimeout: Options.HttpTimeout, dnsTimeout: Options.HttpTimeout), cancel);
-            using PipeStream stream = sock.GetStream();
+            await using ConnSock sock = await this.TcpIp.ConnectAsync(new TcpConnectParam(http.Fqdn, http.Port, http.Family, connectTimeout: Options.HttpTimeout, dnsTimeout: Options.HttpTimeout), cancel);
+            await using PipeStream stream = sock.GetStream();
             stream.ReadTimeout = stream.WriteTimeout = Options.HttpTimeout;
-            using StringWriter w = new StringWriter();
+            await using StringWriter w = new StringWriter();
 
             // リクエスト
             w.WriteLine($"GET {http.Path} HTTP/1.1");

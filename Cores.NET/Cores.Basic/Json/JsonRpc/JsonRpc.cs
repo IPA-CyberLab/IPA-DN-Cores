@@ -867,7 +867,7 @@ namespace IPA.Cores.Basic
             {
                 Uri uri = new Uri(this.ApiBaseUrl);
 
-                using (var sock = await LocalNet.ConnectIPv4v6DualAsync(new TcpConnectParam(uri.Host, uri.Port, connectTimeout: Consts.Timeouts.Rapid, dnsTimeout: Consts.Timeouts.Rapid)))
+                await using (var sock = await LocalNet.ConnectIPv4v6DualAsync(new TcpConnectParam(uri.Host, uri.Port, connectTimeout: Consts.Timeouts.Rapid, dnsTimeout: Consts.Timeouts.Rapid)))
                 {
                     LastLocalIp = sock.EndPointInfo.LocalIP._NonNull();
                     LastLocalPort = sock.EndPointInfo.LocalPort;

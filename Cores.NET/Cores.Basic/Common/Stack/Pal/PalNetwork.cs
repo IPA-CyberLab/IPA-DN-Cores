@@ -357,7 +357,7 @@ namespace IPA.Cores.Basic
                 }
                 catch { }
                 _Socket._DisposeSafe();
-
+                
                 Leak._DisposeSafe();
             }
         }

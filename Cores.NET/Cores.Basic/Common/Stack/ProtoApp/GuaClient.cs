@@ -617,7 +617,7 @@ namespace IPA.Cores.Basic
     {
         public static async Task RelayBetweenWebSocketAndStreamDuplex(Stream st, System.Net.WebSockets.WebSocket ws, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalBytes = null, CancellationToken cancel = default)
         {
-            using CancelWatcher w = new CancelWatcher(cancel);
+            await using CancelWatcher w = new CancelWatcher(cancel);
 
             Task relayStreamToWebSocket = RelayStreamToWebSocketAsync(st, ws, bufferSize, totalBytes, w.CancelToken);
             Task relayWebSocketToStream = RelayWebSocketToStreamAsync(ws, st, bufferSize, totalBytes, w.CancelToken);

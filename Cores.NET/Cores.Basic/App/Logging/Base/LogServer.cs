@@ -116,7 +116,7 @@ namespace IPA.Cores.Basic
 
         protected override async Task SslAcceptedImplAsync(NetTcpListenerPort listener, SslSock sock)
         {
-            using (PipeStream st = sock.GetStream())
+            await using (PipeStream st = sock.GetStream())
             {
                 sock.AttachHandle.SetStreamReceiveTimeout(this.Options.RecvTimeout);
 

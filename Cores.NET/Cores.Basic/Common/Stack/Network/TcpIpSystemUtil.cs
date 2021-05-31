@@ -222,7 +222,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                using (var sock = await this.ConnectAsync(new TcpConnectParam(hostname, port, connectTimeout: 5000, dnsTimeout: 5000)))
+                await using (var sock = await this.ConnectAsync(new TcpConnectParam(hostname, port, connectTimeout: 5000, dnsTimeout: 5000)))
                 {
                     return sock.EndPointInfo.LocalIP._ToIPAddress(AllowedIPVersions.IPv4);
                 }
@@ -421,7 +421,7 @@ namespace IPA.Cores.Basic
                 cancel.ThrowIfCancellationRequested();
                 this.GrandCancel.ThrowIfCancellationRequested();
 
-                using (this.CreatePerTaskCancellationToken(out CancellationToken cancel2, cancel))
+                await using (this.CreatePerTaskCancellationToken(out CancellationToken cancel2, cancel))
                 {
                     await AcceptedEvent.WaitOneAsync(cancel: cancel2);
                 }

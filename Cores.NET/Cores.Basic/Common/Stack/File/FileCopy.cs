@@ -615,7 +615,7 @@ namespace IPA.Cores.Basic
 
                         bool destFileExists = await destFileSystem.IsFileExistsAsync(destPath, cancel);
 
-                        using (var destFile = await destFileSystem.CreateAsync(destPath, flags: param.Flags, doNotOverwrite: !param.Overwrite, cancel: cancel))
+                        await using (var destFile = await destFileSystem.CreateAsync(destPath, flags: param.Flags, doNotOverwrite: !param.Overwrite, cancel: cancel))
                         {
                             try
                             {

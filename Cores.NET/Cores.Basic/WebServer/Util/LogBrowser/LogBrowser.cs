@@ -621,7 +621,7 @@ namespace IPA.Cores.Basic
                         // ZIP ファイルとしてまとめてダウンロード
                         PipeStreamPairWithSubTask streamPair = new PipeStreamPairWithSubTask(async (writeMe) =>
                         {
-                            using WriteOnlyStreamBasedRandomAccess r = new WriteOnlyStreamBasedRandomAccess(writeMe);
+                            await using WriteOnlyStreamBasedRandomAccess r = new WriteOnlyStreamBasedRandomAccess(writeMe);
 
                             await using ZipWriter zipWriter = new ZipWriter(new ZipContainerOptions(r), cancel);
 
@@ -739,7 +739,7 @@ namespace IPA.Cores.Basic
                         // ZIP ファイルとしてまとめてダウンロード
                         PipeStreamPairWithSubTask streamPair = new PipeStreamPairWithSubTask(async (writeMe) =>
                         {
-                            using WriteOnlyStreamBasedRandomAccess r = new WriteOnlyStreamBasedRandomAccess(writeMe);
+                            await using WriteOnlyStreamBasedRandomAccess r = new WriteOnlyStreamBasedRandomAccess(writeMe);
 
                             await using ZipWriter zipWriter = new ZipWriter(new ZipContainerOptions(r), cancel);
 

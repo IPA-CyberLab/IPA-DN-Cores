@@ -232,7 +232,7 @@ namespace IPA.Cores.Basic
             {
                 client = new ComPortClient(this.Settings.ComSettings);
 
-                using ShellClientSock sock = await client.ConnectAndGetSockAsync(cancel);
+                await using ShellClientSock sock = await client.ConnectAndGetSockAsync(cancel);
 
                 await TaskUtil.DoAsyncWithTimeout(async (c) =>
                 {

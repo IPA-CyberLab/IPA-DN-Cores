@@ -535,7 +535,7 @@ namespace IPA.Cores.Basic
         public override void Flush() => File.FlushAsync()._GetResult();
         public override async Task FlushAsync(CancellationToken cancellationToken = default)
         {
-            using (cancellationToken.Register(() => File.Close()))
+            await using (cancellationToken.Register(() => File.Close()))
             {
                 await File.FlushAsync();
             }
@@ -543,7 +543,7 @@ namespace IPA.Cores.Basic
 
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
         {
-            using (cancellationToken.Register(() => File.Close()))
+            await using (cancellationToken.Register(() => File.Close()))
             {
                 return await File.ReadAsync(buffer.AsMemory(offset, count));
             }
@@ -551,7 +551,7 @@ namespace IPA.Cores.Basic
 
         public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
         {
-            using (cancellationToken.Register(() => File.Close()))
+            await using (cancellationToken.Register(() => File.Close()))
             {
                 try
                 {
@@ -680,7 +680,7 @@ namespace IPA.Cores.Basic
 
         override public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
-            using (cancellationToken.Register(() => File.Close()))
+            await using (cancellationToken.Register(() => File.Close()))
             {
                 return await File.ReadAsync(buffer);
             }
@@ -712,7 +712,7 @@ namespace IPA.Cores.Basic
 
         override public async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
         {
-            using (cancellationToken.Register(() => File.Close()))
+            await using (cancellationToken.Register(() => File.Close()))
             {
                 await File.WriteAsync(buffer);
             }
@@ -774,14 +774,14 @@ namespace IPA.Cores.Basic
 
         public Exception? LastError { get; private set; }
 
-        readonly Action? OnDispose = null;
+        readonly Func<Task>? OnDispose = null;
 
         bool IsNotFirst = false;
         long StartVirtualPosition = 0;
 
         long CurrentLength = 0;
 
-        public SequentialWritableBasedRandomAccess(ISequentialWritable<T> baseWritable, Action? onDispose = null)
+        public SequentialWritableBasedRandomAccess(ISequentialWritable<T> baseWritable, Func<Task>? onDispose = null)
         {
             this.BaseWritable = baseWritable;
             this.OnDispose = onDispose;
@@ -789,13 +789,21 @@ namespace IPA.Cores.Basic
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
+        public virtual async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
             if (this.OnDispose != null)
             {
-                this.OnDispose();
+                await this.OnDispose();
             }
         }
 
@@ -919,14 +927,24 @@ namespace IPA.Cores.Basic
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
+        public virtual async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
             if (this.AutoDisposeBase)
             {
-                BaseStream._DisposeSafe();
+                await BaseStream._DisposeSafeAsync();
             }
         }
+
 
         public void CheckIsOpened()
         {
@@ -1091,9 +1109,21 @@ namespace IPA.Cores.Basic
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
+        public virtual async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            DisposeInternalAsync()._GetResult();
+        }
+#pragma warning disable CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
+        async Task DisposeInternalAsync()
+#pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
+        {
+            // Here
         }
 
         void CheckState()
@@ -1883,7 +1913,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public interface IRandomAccess<T> : IDisposable
+    public interface IRandomAccess<T> : IDisposable, IAsyncDisposable
     {
         Task<int> ReadRandomAsync(long position, Memory<T> data, CancellationToken cancel = default);
 
@@ -1960,7 +1990,7 @@ namespace IPA.Cores.Basic
             => me.FlushAsync(cancel)._GetResult();
     }
 
-    public class RandomAccessHandle : IRandomAccess<byte>, IDisposable
+    public class RandomAccessHandle : IRandomAccess<byte>, IDisposable, IAsyncDisposable
     {
         readonly RefCounterObjectHandle<FileBase>? Ref;
         readonly FileBase File;
@@ -1983,15 +2013,23 @@ namespace IPA.Cores.Basic
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
+        public virtual async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
             if (Ref != null)
                 this.Ref._DisposeSafe();
 
             if (DisposeFile)
-                this.File._DisposeSafe();
+                await this.File._DisposeSafeAsync();
         }
 
         public FileStream GetStream() => this.File.GetStream();

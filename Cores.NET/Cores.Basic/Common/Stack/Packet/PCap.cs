@@ -220,8 +220,8 @@ namespace IPA.Cores.Basic
         async Task RecvMainLoopAsync()
         {
             FastDatagramBuffer r = MyPoint[0].DatagramReader;
-            using (var stub = MyPoint[0].GetNetAppProtocolStub())
-            using (var st = stub.GetStream())
+            await using (var stub = MyPoint[0].GetNetAppProtocolStub())
+            await using (var st = stub.GetStream())
             {
                 try
                 {

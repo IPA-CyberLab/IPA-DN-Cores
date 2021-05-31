@@ -176,7 +176,7 @@ namespace IPA.Cores.Basic
 
                     if (data.IsEmpty) return 0;
 
-                    using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
+                    await using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
                         using (await AsyncLockObj.LockWithAwait(operationCancel))
                         {
@@ -257,7 +257,7 @@ namespace IPA.Cores.Basic
 
                     if (data.IsEmpty) return 0;
 
-                    using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
+                    await using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
                         using (await AsyncLockObj.LockWithAwait(operationCancel))
                         {
@@ -328,7 +328,7 @@ namespace IPA.Cores.Basic
 
                     if (data.IsEmpty) return;
 
-                    using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
+                    await using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
                         using (await AsyncLockObj.LockWithAwait(operationCancel))
                         {
@@ -380,7 +380,7 @@ namespace IPA.Cores.Basic
 
                     if (data.IsEmpty) return;
 
-                    using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
+                    await using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
                         using (await AsyncLockObj.LockWithAwait(operationCancel))
                         {
@@ -437,7 +437,7 @@ namespace IPA.Cores.Basic
 
                     EventListeners.Fire(this, FileObjectEventType.Seek);
 
-                    using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
+                    await using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
                         using (await AsyncLockObj.LockWithAwait(operationCancel))
                         {
@@ -527,7 +527,7 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
+                    await using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
                         using (await AsyncLockObj.LockWithAwait(operationCancel))
                         {
@@ -556,7 +556,7 @@ namespace IPA.Cores.Basic
                 {
                     EventListeners.Fire(this, FileObjectEventType.SetFileSize);
 
-                    using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
+                    await using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                     {
                         using (await AsyncLockObj.LockWithAwait(operationCancel))
                         {
@@ -585,7 +585,7 @@ namespace IPA.Cores.Basic
             {
                 EventListeners.Fire(this, FileObjectEventType.Flush);
 
-                using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
+                await using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken operationCancel, this.CancelToken, cancel))
                 {
                     using (await AsyncLockObj.LockWithAwait(operationCancel))
                     {
@@ -1866,7 +1866,7 @@ namespace IPA.Cores.Basic
         {
             path = path._NonNull();
 
-            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
                 {
@@ -1891,7 +1891,7 @@ namespace IPA.Cores.Basic
             if (option.Mode == FileMode.Append || option.Mode == FileMode.Create || option.Mode == FileMode.CreateNew || option.Mode == FileMode.OpenOrCreate || option.Mode == FileMode.Truncate)
                 CheckWriteable(option.Path);
 
-            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
                 {
@@ -1974,7 +1974,7 @@ namespace IPA.Cores.Basic
         {
             CheckWriteable(path);
 
-            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
                 {
@@ -1994,7 +1994,7 @@ namespace IPA.Cores.Basic
         {
             CheckWriteable(path);
 
-            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
                 {
@@ -2090,7 +2090,7 @@ namespace IPA.Cores.Basic
         {
             CheckNotCanceled();
 
-            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 opCancel.ThrowIfCancellationRequested();
 
@@ -2112,7 +2112,7 @@ namespace IPA.Cores.Basic
 
         public async Task<FileMetadata> GetFileMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
         {
-            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
                 {
@@ -2129,7 +2129,7 @@ namespace IPA.Cores.Basic
 
         public async Task<FileMetadata> GetDirectoryMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
         {
-            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
                 {
@@ -2178,7 +2178,7 @@ namespace IPA.Cores.Basic
         {
             CheckWriteable(path);
 
-            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
                 {
@@ -2197,7 +2197,7 @@ namespace IPA.Cores.Basic
         {
             CheckWriteable(path);
 
-            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
                 {
@@ -2216,7 +2216,7 @@ namespace IPA.Cores.Basic
         {
             CheckWriteable(path);
 
-            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
                 {
@@ -2236,7 +2236,7 @@ namespace IPA.Cores.Basic
         {
             CheckWriteable(srcPath);
 
-            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
                 {
@@ -2256,7 +2256,7 @@ namespace IPA.Cores.Basic
         {
             CheckWriteable(srcPath);
 
-            using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 using (EnterCriticalCounter())
                 {

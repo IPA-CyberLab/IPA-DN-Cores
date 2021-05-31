@@ -240,7 +240,7 @@ namespace IPA.Cores.Basic
                 if (IsConnected) throw new ApplicationException("Already connected.");
                 if (IsListening) throw new ApplicationException("Already listening.");
 
-                using (CreatePerTaskCancellationToken(out CancellationToken cancelOp, cancel))
+                await using (CreatePerTaskCancellationToken(out CancellationToken cancelOp, cancel))
                 {
                     await ConnectImplAsync(remoteEndPoint, connectTimeout, cancelOp);
                 }
@@ -719,7 +719,7 @@ namespace IPA.Cores.Basic
             if (Wrapper != null)
                 throw new ApplicationException("SSL is already established.");
 
-            using (this.CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            await using (this.CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 PipeStream lowerStream = LowerAttach.GetStream(autoFlush: false);
                 try
@@ -774,7 +774,7 @@ namespace IPA.Cores.Basic
             if (Wrapper != null)
                 throw new ApplicationException("SSL is already established.");
 
-            using (this.CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+            await using (this.CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
                 PipeStream lowerStream = LowerAttach.GetStream(autoFlush: false);
                 try

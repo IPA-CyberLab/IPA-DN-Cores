@@ -310,8 +310,8 @@ namespace IPA.Cores.Basic
                 {
                     try
                     {
-                        using (var sock = await LocalNet.ConnectAsync(new TcpConnectParam(IPAddress.Loopback, port), cancel))
-                        using (var stream = sock.GetStream())
+                        await using (var sock = await LocalNet.ConnectAsync(new TcpConnectParam(IPAddress.Loopback, port), cancel))
+                        await using (var stream = sock.GetStream())
                         using (MemoryHelper.FastAllocMemoryWithUsing(65536, out Memory<byte> tmp))
                         {
                             Con.WriteLine("The real-time log session is connected.");

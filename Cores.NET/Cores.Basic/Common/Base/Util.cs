@@ -2956,7 +2956,7 @@ namespace IPA.Cores.Basic
         // Stream 間のデータ中継 (双方向)
         public static async Task RelayDuplexStreamAsync(Stream st1, Stream st2, CancellationToken cancel = default, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalBytes = null, Func<Memory<byte>, bool, Task>? peakCallbackAsync = null)
         {
-            using CancelWatcher w = new CancelWatcher(cancel);
+            await using CancelWatcher w = new CancelWatcher(cancel);
 
             Task relay1to2 = RelaySimplexStreamAsync(st1, st2, w.CancelToken, bufferSize, totalBytes, true, peakCallbackAsync);
             Task relay2to1 = RelaySimplexStreamAsync(st2, st1, w.CancelToken, bufferSize, totalBytes, false, peakCallbackAsync);

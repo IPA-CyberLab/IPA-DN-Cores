@@ -205,7 +205,7 @@ namespace IPA.Cores.Basic
 
                 if (newFille)
                 {
-                    using (var handle = await GetUnderlayRandomAccessHandle(0, cancel))
+                    await using (var handle = await GetUnderlayRandomAccessHandle(0, cancel))
                     {
                     }
                 }
@@ -259,7 +259,7 @@ namespace IPA.Cores.Basic
 
         protected override async Task FlushImplAsync(CancellationToken cancel = default)
         {
-            using (var handle = await GetUnderlayRandomAccessHandle(this.CurrentFileSize, cancel))
+            await using (var handle = await GetUnderlayRandomAccessHandle(this.CurrentFileSize, cancel))
             {
                 await handle.FlushAsync(cancel);
             }
@@ -337,7 +337,7 @@ namespace IPA.Cores.Basic
 
                     if (handle != null)
                     {
-                        using (handle)
+                        await using (handle)
                         {
                             int r = await handle.ReadRandomAsync(cursor.PhysicalPosition, subMemory, cancel);
 
@@ -379,7 +379,7 @@ namespace IPA.Cores.Basic
                 {
                     if (cursorList[0].PhysicalFileNumber != lastWriteCursor.PhysicalFileNumber)
                     {
-                        using (var handle = await GetUnderlayRandomAccessHandle(lastWriteCursor.LogicalPosition, cancel))
+                        await using (var handle = await GetUnderlayRandomAccessHandle(lastWriteCursor.LogicalPosition, cancel))
                         {
                             await handle.FlushAsync();
                         }
@@ -430,7 +430,7 @@ namespace IPA.Cores.Basic
                         Debug.Assert(firstCursor.LogicalPosition == position);
                         Debug.Assert(secondCursor.LogicalPosition == (firstCursor.LogicalPosition + firstCursor.PhysicalRemainingLength));
 
-                        using (var handle = await GetUnderlayRandomAccessHandle(position, cancel))
+                        await using (var handle = await GetUnderlayRandomAccessHandle(position, cancel))
                         {
                             // Write the zero-cleared block toward the end of the first physical file
                             byte[] appendBytes = new byte[firstCursor.PhysicalRemainingLength];
@@ -452,7 +452,7 @@ namespace IPA.Cores.Basic
                             this.CurrentFileSize += firstCursor.PhysicalRemainingLength;
                         }
 
-                        using (var handle = await GetUnderlayRandomAccessHandle(secondCursor.LogicalPosition, cancel))
+                        await using (var handle = await GetUnderlayRandomAccessHandle(secondCursor.LogicalPosition, cancel))
                         {
                             // Write the data from the beginning of the second physical file
                             await handle.WriteRandomAsync(0, data, cancel);
@@ -470,7 +470,7 @@ namespace IPA.Cores.Basic
                         Cursor cursor = cursorList[i];
                         bool isPastFile = (i != cursorList.Count - 1);
 
-                        using (var handle = await GetUnderlayRandomAccessHandle(cursor.LogicalPosition, cancel))
+                        await using (var handle = await GetUnderlayRandomAccessHandle(cursor.LogicalPosition, cancel))
                         {
                             await handle.WriteRandomAsync(cursor.PhysicalPosition, data.Slice((int)(cursor.LogicalPosition - position), (int)cursor.PhysicalDataLength), cancel);
 
@@ -544,7 +544,7 @@ namespace IPA.Cores.Basic
                 cancel);
             }
 
-            using (var handle = await GetUnderlayRandomAccessHandle(cursor.LogicalPosition, cancel))
+            await using (var handle = await GetUnderlayRandomAccessHandle(cursor.LogicalPosition, cancel))
             {
                 await handle.SetFileSizeAsync(cursor.PhysicalPosition, cancel);
 
@@ -751,7 +751,7 @@ namespace IPA.Cores.Basic
             if (fileName.IndexOf(Params.SplitStr) != -1)
                 throw new ApplicationException($"The original filename '{fileName}' contains '{Params.SplitStr}'.");
 
-            using (CreatePerTaskCancellationToken(out CancellationToken operationCancel, cancel))
+            await using (CreatePerTaskCancellationToken(out CancellationToken operationCancel, cancel))
             {
                 using (await AsyncLockObj.LockWithAwait(operationCancel))
                 {

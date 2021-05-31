@@ -183,7 +183,7 @@ namespace IPA.Cores.Basic
                 long headerOffset = 0;
                 long physicalSize = physicalMetadata.Size;
 
-                using (FileObject physicalFile = await UnderlayFileSystem.OpenAsync(path))
+                await using (FileObject physicalFile = await UnderlayFileSystem.OpenAsync(path))
                 {
                     byte[] bomRead = new byte[3];
                     Memory<byte> tmp = new byte[3];

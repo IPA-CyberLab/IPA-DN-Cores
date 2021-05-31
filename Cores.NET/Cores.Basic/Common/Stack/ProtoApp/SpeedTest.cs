@@ -140,7 +140,7 @@ namespace IPA.Cores.Basic
 
                     using (var session = sessions.Enter(sessionId))
                     {
-                        using (var delay = new DelayAction((int)(Math.Min(timespan * 3 + 180 * 1000, int.MaxValue)), x => app._CancelSafe(new TimeoutException())))
+                        await using (var delay = new DelayAction((int)(Math.Min(timespan * 3 + 180 * 1000, int.MaxValue)), x => app._CancelSafe(new TimeoutException())))
                         {
                             if (dir == Direction.Recv)
                             {
@@ -324,7 +324,7 @@ namespace IPA.Cores.Basic
                 List<Task<Result>> tasks = new List<Task<Result>>();
                 List<AsyncManualResetEvent> readyEvents = new List<AsyncManualResetEvent>();
 
-                using (CancelWatcher cancelWatcher = new CancelWatcher(this.Cancel))
+                await using (CancelWatcher cancelWatcher = new CancelWatcher(this.Cancel))
                 {
                     for (int i = 0; i < NumConnection; i++)
                     {

@@ -182,8 +182,8 @@ namespace IPA.Cores.Basic
 
                 bool same = (srcFilePath.Equals(destFilePath));
 
-                using FileObject srcFile = same ? await srcFilePath.OpenAsync(true, cancel: cancel, additionalFlags: additionalFlags) : await srcFilePath.OpenAsync(false, cancel: cancel, additionalFlags: additionalFlags);
-                using FileObject destFile = same ? srcFile : await destFilePath.CreateAsync(cancel: cancel, additionalFlags: additionalFlags);
+                await using FileObject srcFile = same ? await srcFilePath.OpenAsync(true, cancel: cancel, additionalFlags: additionalFlags) : await srcFilePath.OpenAsync(false, cancel: cancel, additionalFlags: additionalFlags);
+                await using FileObject destFile = same ? srcFile : await destFilePath.CreateAsync(cancel: cancel, additionalFlags: additionalFlags);
 
                 long filesize = await srcFile.GetFileSizeAsync(cancel: cancel);
 
@@ -252,9 +252,9 @@ namespace IPA.Cores.Basic
                 $"------- {item.Host} ------"._Print();
                 try
                 {
-                    using SecureShellClient ssh = new SecureShellClient(new SecureShellClientSettings(item.Host, item.Port, item.Username, item.Password));
-                    using ShellClientSock sock = await ssh.ConnectAndGetSockAsync();
-                    using var proc = sock.CreateUnixShellProcessor(settings);
+                    await using SecureShellClient ssh = new SecureShellClient(new SecureShellClientSettings(item.Host, item.Port, item.Username, item.Password));
+                    await using ShellClientSock sock = await ssh.ConnectAndGetSockAsync();
+                    await using var proc = sock.CreateUnixShellProcessor(settings);
 
                     var result = await proc.ExecBashCommandAsync(item.CommandLine);
 
@@ -856,7 +856,7 @@ namespace IPA.Cores.Basic
 
                 Ref<Exception?> lastException = new Ref<Exception?>(null);
 
-                using var cancel2 = new CancelWatcher(cancel);
+                await using var cancel2 = new CancelWatcher(cancel);
                 AsyncManualResetEvent finishedEvent = new AsyncManualResetEvent();
                 //bool isTimeout = false;
 
@@ -1087,7 +1087,7 @@ namespace IPA.Cores.Basic
                 using var reporter = reporterFactory.CreateNewReporter(destFileName);
 
                 using var file = await Lfs.CreateAsync(destFileFullPath, false, FileFlags.AutoCreateDirectory, cancel: cancel);
-                using var fileStream = file.GetStream();
+                await using var fileStream = file.GetStream();
 
                 await DownloadFileParallelAsync(fileUrl, fileStream, option, progressReporter: reporter, cancel: cancel);
             }, cancel: cancel);

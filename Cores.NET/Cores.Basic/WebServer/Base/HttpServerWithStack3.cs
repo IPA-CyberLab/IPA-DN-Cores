@@ -514,7 +514,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                using (var wrapper = new PipePointDuplexPipeWrapper(this.Sock.UpperPoint, this.Application!))
+                await using (var wrapper = new PipePointDuplexPipeWrapper(this.Sock.UpperPoint, this.Application!))
                 {
                     // Now wait for complete
                     await wrapper.MainLoopToWaitComplete!;

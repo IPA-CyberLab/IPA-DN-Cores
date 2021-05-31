@@ -302,7 +302,7 @@ namespace IPA.Cores.Basic
 
             session.Debug("First WideTunnel Connected.");
 
-            using var abort = new CancelWatcher(cancel);
+            await using var abort = new CancelWatcher(cancel);
 
             AsyncAutoResetEvent connectionAddedEvent = new AsyncAutoResetEvent();
             AsyncAutoResetEvent connectedEvent = new AsyncAutoResetEvent();

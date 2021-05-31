@@ -211,9 +211,9 @@ namespace IPA.Cores.Basic
 
             HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
 
-            using (BufferBasedStream stream = new BufferBasedStream(mem))
+            await using (BufferBasedStream stream = new BufferBasedStream(mem))
             {
-                using (StreamWriter w = new StreamWriter(stream, new UTF8Encoding(true), Consts.Numbers.DefaultVeryLargeBufferSize))
+                await using (StreamWriter w = new StreamWriter(stream, new UTF8Encoding(true), Consts.Numbers.DefaultVeryLargeBufferSize))
                 {
                     obj._ObjectToJsonTextWriter(w, includeNull, escapeHtml, maxDepth, compact, referenceHandling);
                 }
@@ -244,7 +244,7 @@ namespace IPA.Cores.Basic
 
                 HugeMemoryBuffer<byte> mem = await this.ReadHugeMemoryBufferFromFileAsync(path, maxSize, flags, cancel);
 
-                using (BufferBasedStream stream = new BufferBasedStream(mem))
+                await using (BufferBasedStream stream = new BufferBasedStream(mem))
                 {
                     using (StreamReader r = new StreamReader(stream, Str.Utf8Encoding, true, Consts.Numbers.DefaultVeryLargeBufferSize))
                     {

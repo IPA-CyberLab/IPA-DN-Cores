@@ -2633,7 +2633,19 @@ namespace IPA.Cores.Basic
             cancel.ThrowIfCancellationRequested();
         }
 
-        public void Dispose() { }
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+        Once DisposeFlag;
+        public async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
+        void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            DisposeInternalAsync()._GetResult();
+        }
+        Task DisposeInternalAsync() => TaskCompleted;
 
         public Task<long> GetPhysicalSizeAsync(CancellationToken cancel = default)
         {

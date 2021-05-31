@@ -260,7 +260,7 @@ namespace IPA.Cores.Basic
                 {
                     if (item.Name._InStr("/") == false && item.Name._InStr(@"\") == false)
                     {
-                        using (this.AddFileAsync(new FileParameters("/" + item.Name, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite),
+                        await using (this.AddFileAsync(new FileParameters("/" + item.Name, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite),
                             async (newFilename, newFileOption, c) =>
                             {
                                 return await CreateRawDiskFileImplAsync(item, cancel);

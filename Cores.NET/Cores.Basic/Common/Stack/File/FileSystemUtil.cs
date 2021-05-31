@@ -161,7 +161,7 @@ namespace IPA.Cores.Basic
 
             long size = hugeMemoryBuffer.LongLength;
 
-            using (var file = await CreateAsync(path, false, flags & ~FileFlags.WriteOnlyIfChanged, doNotOverwrite, cancel))
+            await using (var file = await CreateAsync(path, false, flags & ~FileFlags.WriteOnlyIfChanged, doNotOverwrite, cancel))
             {
                 try
                 {
@@ -201,7 +201,7 @@ namespace IPA.Cores.Basic
                 catch { }
             }
 
-            using (var file = await CreateAsync(path, false, flags & ~FileFlags.WriteOnlyIfChanged, doNotOverwrite, cancel))
+            await using (var file = await CreateAsync(path, false, flags & ~FileFlags.WriteOnlyIfChanged, doNotOverwrite, cancel))
             {
                 try
                 {
@@ -291,7 +291,7 @@ namespace IPA.Cores.Basic
 
         public async Task<int> AppendDataToFileAsync(string path, ReadOnlyMemory<byte> srcMemory, FileFlags flags = FileFlags.None, CancellationToken cancel = default, ReadOnlyMemory<byte> prefixDataForNewFile = default)
         {
-            using (var file = await OpenOrCreateAppendAsync(path, false, flags, cancel))
+            await using (var file = await OpenOrCreateAppendAsync(path, false, flags, cancel))
             {
                 try
                 {
@@ -364,7 +364,7 @@ namespace IPA.Cores.Basic
 
         public async Task<int> ReadDataFromFileAsync(string path, Memory<byte> destMemory, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         {
-            using (var file = await OpenAsync(path, false, false, false, flags, cancel))
+            await using (var file = await OpenAsync(path, false, false, false, flags, cancel))
             {
                 try
                 {
@@ -381,7 +381,7 @@ namespace IPA.Cores.Basic
 
         public async Task<Memory<byte>> ReadDataFromFileAsync(string path, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         {
-            using (var file = await OpenAsync(path, false, false, false, flags, cancel))
+            await using (var file = await OpenAsync(path, false, false, false, flags, cancel))
             {
                 try
                 {
@@ -398,7 +398,7 @@ namespace IPA.Cores.Basic
 
         public async Task<HugeMemoryBuffer<byte>> ReadHugeMemoryBufferFromFileAsync(string path, long maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         {
-            using (var file = await OpenAsync(path, false, false, false, flags, cancel))
+            await using (var file = await OpenAsync(path, false, false, false, flags, cancel))
             {
                 try
                 {
@@ -495,7 +495,7 @@ namespace IPA.Cores.Basic
 
         public async Task ReadTextLinesFromFileAsync(string path, Func<List<string>, long, long, bool> proc, Encoding? encoding = null, long startPosition = 0, FileFlags flags = FileFlags.None, int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, CancellationToken cancel = default)
         {
-            using (var file = await OpenAsync(path, false, false, false, flags, cancel))
+            await using (var file = await OpenAsync(path, false, false, false, flags, cancel))
             {
                 try
                 {
@@ -519,7 +519,7 @@ namespace IPA.Cores.Basic
 
                     await file.SeekAsync(startPosition, SeekOrigin.Begin, cancel);
 
-                    using var rawStream = file.GetStream(false);
+                    await using var rawStream = file.GetStream(false);
 
                     var reader = new BinaryLineReader(rawStream, bufferSize);
 
@@ -600,8 +600,8 @@ namespace IPA.Cores.Basic
             string? directoryPrefix = null,
             CancellationToken cancel = default)
         {
-            using var outFile = await destZipFilePath.CreateAsync(cancel: cancel);
-            using var zip = new ZipWriter(new ZipContainerOptions(outFile));
+            await using var outFile = await destZipFilePath.CreateAsync(cancel: cancel);
+            await using var zip = new ZipWriter(new ZipContainerOptions(outFile));
 
             await zip.ImportDirectoryAsync(srcRootDir, paramTemplate, fileFilter, exceptionHandler, directoryPrefix, cancel);
 

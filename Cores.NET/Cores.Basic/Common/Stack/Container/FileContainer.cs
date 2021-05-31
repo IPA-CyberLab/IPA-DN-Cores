@@ -190,7 +190,7 @@ namespace IPA.Cores.Basic
             param.Validate();
 
             using var doorHolder = Door.Enter();
-            using var cancelHolder = this.CreatePerTaskCancellationToken(out CancellationToken c, cancel);
+            await using var cancelHolder = this.CreatePerTaskCancellationToken(out CancellationToken c, cancel);
 
             if (this.CanWrite == false) throw new CoresException("Current state doesn't allow write operations.");
 
@@ -233,7 +233,7 @@ namespace IPA.Cores.Basic
         public async Task FinishAsync(CancellationToken cancel = default)
         {
             using var doorHolder = Door.Enter();
-            using var cancelHolder = this.CreatePerTaskCancellationToken(out CancellationToken c, cancel);
+            await using var cancelHolder = this.CreatePerTaskCancellationToken(out CancellationToken c, cancel);
 
             if (this.CanWrite == false) throw new CoresException("Current state doesn't allow write operations.");
 
@@ -304,7 +304,7 @@ namespace IPA.Cores.Basic
             destParam.MetaData = metaData;
 
             // 元ファイルを開く
-            using (var srcFile = await srcFilePath.OpenAsync(false, cancel: cancel))
+            await using (var srcFile = await srcFilePath.OpenAsync(false, cancel: cancel))
             {
                 // ストリームの内容をインポートする
                 return await ImportVirtualFileAsync(srcFile.GetStream(false), destParam, cancel);

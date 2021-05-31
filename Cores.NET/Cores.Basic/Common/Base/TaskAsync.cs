@@ -883,7 +883,7 @@ namespace IPA.Cores.Basic
         {
             AsyncConcurrentTask at = new AsyncConcurrentTask(maxConcurrentTasks);
 
-            using var cancel2 = new CancelWatcher(cancel);
+            await using var cancel2 = new CancelWatcher(cancel);
 
             List<Exception> exceptionList = new List<Exception>();
 
@@ -1551,12 +1551,12 @@ namespace IPA.Cores.Basic
             public List<CancellationTokenRegistration> RegList = new List<CancellationTokenRegistration>();
         }
 
-        public static ValueHolder<object> CreateCombinedCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)
+        public static AsyncHolder<object> CreateCombinedCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)
         {
             if (cancels == null)
             {
                 combinedToken = default;
-                return new ValueHolder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
+                return new AsyncHolder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
             }
 
             cancels = cancels.Where(x => x.CanBeCanceled).ToArray();
@@ -1564,13 +1564,13 @@ namespace IPA.Cores.Basic
             if (cancels.Length == 0)
             {
                 combinedToken = default;
-                return new ValueHolder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
+                return new AsyncHolder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
             }
 
             if (cancels.Length == 1)
             {
                 combinedToken = cancels[0];
-                return new ValueHolder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
+                return new AsyncHolder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
             }
 
             foreach (CancellationToken c in cancels)
@@ -1578,7 +1578,7 @@ namespace IPA.Cores.Basic
                 if (c.IsCancellationRequested)
                 {
                     combinedToken = new CancellationToken(true);
-                    return new ValueHolder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
+                    return new AsyncHolder<object>(null, null, LeakCounterKind.CreateCombinedCancellationToken);
                 }
             }
 
@@ -1599,13 +1599,13 @@ namespace IPA.Cores.Basic
 
             combinedToken = ctx.Cts.Token;
 
-            return new ValueHolder<object>(obj =>
+            return new AsyncHolder<object>(async obj =>
             {
                 CombinedCancelContext x = (CombinedCancelContext)obj;
 
                 foreach (var reg in x.RegList)
                 {
-                    reg._DisposeSafe();
+                    await reg._DisposeSafeAsync();
                 }
             },
             ctx, LeakCounterKind.CreateCombinedCancellationToken);
@@ -1630,7 +1630,7 @@ namespace IPA.Cores.Basic
 
             CancellationTokenSource ctsOnError = new CancellationTokenSource();
 
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken combinedCancel, cancel, ctsOnError.Token))
+            await using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken combinedCancel, cancel, ctsOnError.Token))
             {
                 using (SemaphoreSlim sem = new SemaphoreSlim(maxConcurrent, maxConcurrent))
                 {
@@ -2162,7 +2162,7 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+                    await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
                     {
                         opCancel.ThrowIfCancellationRequested();
 
@@ -2187,7 +2187,7 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+                    await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
                     {
                         opCancel.ThrowIfCancellationRequested();
 
@@ -2205,7 +2205,7 @@ namespace IPA.Cores.Basic
         protected Task<AsyncLock.LockHolder> CriticalProcessLockWithAwait(CancellationToken cancel = default)
             => CriticalProcessAsyncLock.LockWithAwait(cancel);
 
-        protected ValueHolder<object> CreatePerTaskCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)
+        protected AsyncHolder<object> CreatePerTaskCancellationToken(out CancellationToken combinedToken, params CancellationToken[] cancels)
             => TaskUtil.CreateCombinedCancellationToken(out combinedToken, this.GrandCancel._SingleArray().Concat(cancels).ToArray());
 
         protected ValueHolder EnterCriticalCounter()
@@ -2611,13 +2611,13 @@ namespace IPA.Cores.Basic
         [AllowNull]
         public T Value { get; }
 
-        Func<T, Task> DisposeProcAsync;
+        Func<T, Task>? DisposeProcAsync;
         IHolder? Leak = null;
         LeakCounterKind LeakKind;
 
         static readonly bool FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
 
-        public AsyncHolder(Func<T, Task> disposeProcAsync, [AllowNull] T value = default(T), LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
+        public AsyncHolder(Func<T, Task>? disposeProcAsync, [AllowNull] T value = default(T), LeakCounterKind leakCheckKind = LeakCounterKind.OthersCounter)
         {
             this.Value = value;
             this.DisposeProcAsync = disposeProcAsync;
@@ -2875,8 +2875,8 @@ namespace IPA.Cores.Basic
     {
         readonly CancellationTokenSource GrandCancelTokenSource;
         readonly IDisposable LeakHolder;
-        readonly IDisposable ObjectHolder;
-        readonly IDisposable RegisterHolder;
+        readonly IAsyncDisposable ObjectHolder;
+        readonly IAsyncDisposable RegisterHolder;
 
         public FastEventListenerList<CancelWatcher, NonsenseEventType> EventList { get; } = new FastEventListenerList<CancelWatcher, NonsenseEventType>();
 
@@ -2902,22 +2902,33 @@ namespace IPA.Cores.Basic
         public void Cancel()
         {
             if (CancelFlag.IsFirstCall())
-                this.GrandCancelTokenSource._TryCancel();
+            {
+                this.GrandCancelTokenSource._TryCancelNoBlock();
+            }
         }
+
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
+        public virtual async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
             Cancel();
 
-            this.RegisterHolder._DisposeSafe();
-            this.ObjectHolder._DisposeSafe();
+            await this.RegisterHolder._DisposeSafeAsync();
+            await this.ObjectHolder._DisposeSafeAsync();
             this.LeakHolder._DisposeSafe();
-
         }
+
 
         public static implicit operator CancellationToken(CancelWatcher c) => c.CancelToken;
 
@@ -3083,7 +3094,7 @@ namespace IPA.Cores.Basic
         async Task WaitMain(Task[] tasks, bool throwException)
         {
             Task cancelTask = TaskUtil.WhenCanceled(CancelSource.Token, out CancellationTokenRegistration reg);
-            using (reg)
+            await using (reg)
             {
                 bool allOk = true;
                 foreach (Task t in tasks)
@@ -4619,7 +4630,7 @@ namespace IPA.Cores.Basic
 
         public async Task<RefCounterObjectHandle<TObject>> OpenOrGetAsync(string key, TParam param, CancellationToken cancel = default)
         {
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelOp, CancelSource.Token, cancel))
+            await using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelOp, CancelSource.Token, cancel))
             {
                 int numRetry = 0;
                 if (this.DisposeFlag.IsSet)
@@ -4672,7 +4683,7 @@ namespace IPA.Cores.Basic
 
         public async Task EnumAndCloseHandlesAsync(Func<string, TObject, bool> enumProc, Action? afterClosedProc = null, Comparison<TObject>? sortProc = null, CancellationToken cancel = default)
         {
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelOp, CancelSource.Token, cancel))
+            await using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelOp, CancelSource.Token, cancel))
             {
                 using (await LockAsyncObj.LockWithAwait(cancelOp))
                 {
@@ -5237,7 +5248,7 @@ namespace IPA.Cores.Basic
 
                 var req = this.Request(requestData, hardTimeout, softTimeout, isFinalAnswer);
 
-                using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancel2, cancel, this.GrandCancel))
+                await using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancel2, cancel, this.GrandCancel))
                 {
                     var ret = await req.WaitForResponseAsync(cancel2);
 
@@ -5286,7 +5297,7 @@ namespace IPA.Cores.Basic
         {
             await Task.Yield();
 
-            using (this.CreatePerTaskCancellationToken(out CancellationToken cancel2, cancel))
+            await using (this.CreatePerTaskCancellationToken(out CancellationToken cancel2, cancel))
             {
                 var waiter = Pulse.GetPulseWaiter();
 
@@ -5518,7 +5529,7 @@ namespace IPA.Cores.Basic
 
         public async Task<DialogRequest?> GetNextRequestAsync(string sessionId, int timeout = Timeout.Infinite, CancellationToken cancel = default)
         {
-            using (base.CreatePerTaskCancellationToken(out CancellationToken cancel2, cancel))
+            await using (base.CreatePerTaskCancellationToken(out CancellationToken cancel2, cancel))
             {
                 var session = GetSessionById(sessionId);
                 if (session != null)

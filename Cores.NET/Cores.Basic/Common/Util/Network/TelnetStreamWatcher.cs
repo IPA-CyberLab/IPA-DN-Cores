@@ -87,7 +87,7 @@ namespace IPA.Cores.Basic
                 {
                     Con.WriteDebug($"TelnetStreamWatcher({this.ToString()}: Connected: {sock.EndPointInfo._GetObjectDump()}");
 
-                    using (var destStream = sock.GetStream())
+                    await using (var destStream = sock.GetStream())
                     {
                         if (sock.Info.Ip.RemoteIPAddress == null || Options.IPAccessFilter(sock.Info.Ip.RemoteIPAddress) == false)
                         {
@@ -197,8 +197,8 @@ namespace IPA.Cores.Basic
                             try
                             {
                                 // ソケットに対して、pipePoint のストリームをそのまま非同期で流し込む
-                                using (var pipeStub = pipePoint.GetNetAppProtocolStub())
-                                using (var srcStream = pipeStub.GetStream())
+                                await using (var pipeStub = pipePoint.GetNetAppProtocolStub())
+                                await using (var srcStream = pipeStub.GetStream())
                                 {
                                     await srcStream.CopyToAsync(destStream, sock.GrandCancel);
                                 }

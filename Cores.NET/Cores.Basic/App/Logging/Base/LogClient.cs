@@ -161,7 +161,7 @@ namespace IPA.Cores.Basic
             try
             {
                 int numRetry = 0;
-                using (PipeStream reader = new PipeStream(this.Reader))
+                await using (PipeStream reader = new PipeStream(this.Reader))
                 {
                     while (true)
                     {
@@ -200,13 +200,13 @@ namespace IPA.Cores.Basic
 
         async Task ConnectAndSendAsync(PipeStream reader, CancellationToken cancel)
         {
-            using (ConnSock sock = await Options.TcpIp.ConnectIPv4v6DualAsync(new TcpConnectParam(Options.ServerHostname, Options.ServerPort), cancel))
+            await using (ConnSock sock = await Options.TcpIp.ConnectIPv4v6DualAsync(new TcpConnectParam(Options.ServerHostname, Options.ServerPort), cancel))
             {
-                using (SslSock ssl = new SslSock(sock))
+                await using (SslSock ssl = new SslSock(sock))
                 {
                     await ssl.StartSslClientAsync(Options.SslAuthOptions);
 
-                    using (PipeStream writer = ssl.GetStream())
+                    await using (PipeStream writer = ssl.GetStream())
                     {
                         MemoryBuffer<byte> initSendBuf = new MemoryBuffer<byte>();
                         initSendBuf.WriteSInt32(LogServerBase.MagicNumber);

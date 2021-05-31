@@ -519,7 +519,7 @@ namespace IPA.Cores.Codes
         [HttpPost("/ws")]
         public async Task AcceptWebSocketAsync(string? id, string? width, string? height)
         {
-            using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancel, this._GetRequestCancellationToken(), this.Client.GrandCancel))
+            await using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancel, this._GetRequestCancellationToken(), this.Client.GrandCancel))
             {
                 if (HttpContext.WebSockets.IsWebSocketRequest)
                 {

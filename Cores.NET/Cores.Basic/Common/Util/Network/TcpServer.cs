@@ -124,7 +124,7 @@ namespace IPA.Cores.Basic
 
         protected sealed override async Task TcpAcceptedImplAsync(NetTcpListenerPort listener, ConnSock s)
         {
-            using (SslSock ssl = new SslSock(s))
+            await using (SslSock ssl = new SslSock(s))
             {
                 await ssl.StartSslServerAsync(this.Options.SslServerAuthenticationOptions, s.GrandCancel);
 
