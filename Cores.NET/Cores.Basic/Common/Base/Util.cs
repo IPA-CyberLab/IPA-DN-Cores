@@ -1541,7 +1541,7 @@ namespace IPA.Cores.Basic
         public static ulong SafeTime64(ulong time64)
         {
             time64 = Math.Max(time64, 0);
-            time64 = Math.Min(time64, 4102243323123UL);
+            time64 = Math.Min(time64, 253370732400000UL);
             return time64;
         }
 

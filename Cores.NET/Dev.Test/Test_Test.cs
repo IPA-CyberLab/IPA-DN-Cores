@@ -1684,8 +1684,21 @@ namespace IPA.TestDev
 
         }
 
+        static void Test_210604()
+        {
+            Time.Time64ToDateTimeOffsetUtc(1000)._Print();
+            Time.DateTimeToTime64(DateTime.UtcNow)._Print();
+            Time.DateTimeToTime64(new DateTime(9999, 1, 1))._Print();
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210604();
+                return;
+            }
+
             if (true)
             {
                 Test_210419_02_photometa_csv_analyze_Async()._GetResult();
