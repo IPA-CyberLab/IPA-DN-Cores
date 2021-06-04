@@ -851,6 +851,9 @@ namespace IPA.Cores.Basic
         }
         public FileObject CreateDynamicTempFile(string extension = ".dat", string prefix = "", CancellationToken cancel = default)
             => CreateDynamicTempFileAsync(extension, prefix, cancel)._GetResult();
+
+        public string GetFullPath(string src) => Path.GetFullPath(src);
+        public string GetCurrentDirectory() => Directory.GetCurrentDirectory();
     }
 
     public class LocalFileObject : FileObject
