@@ -195,6 +195,8 @@ namespace IPA.Cores.Basic
 
             public static readonly IEnumerable<string> CommentStartString = new string[] { "#", "//", ";" };
 
+            public static readonly IEnumerable<string> CommentStartStringForMimeList = new string[] { "#", "//" };
+
             public static readonly IEnumerable<string> CommentStartStringForEasyIpAcl = new string[] { "#", "//" };
 
             public static readonly IEnumerable<string> AutoEnrollCertificateSubjectInStrList = new string[] { "Let's Encrypt", "Google Internet Authority", "Google Trust Services" };

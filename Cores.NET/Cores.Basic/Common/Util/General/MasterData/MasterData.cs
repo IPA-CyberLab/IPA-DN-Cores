@@ -343,7 +343,7 @@ namespace IPA.Cores.Basic
 
                 foreach (string line in lines)
                 {
-                    string line2 = line._StripCommentFromLine()._NonNullTrim();
+                    string line2 = line._StripCommentFromLine(Consts.Strings.CommentStartStringForMimeList)._NonNullTrim();
 
                     if (line2._IsFilled())
                     {
