@@ -2110,6 +2110,6 @@ woff application/font-woff
 
 
 # 特別上書き
-.sh text/plain #overwrite
+.sh text/plain;charset=UTF-8 #overwrite
 
 
