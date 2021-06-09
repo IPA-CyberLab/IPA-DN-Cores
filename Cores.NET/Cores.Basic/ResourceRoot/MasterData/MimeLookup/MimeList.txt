@@ -1,4 +1,7 @@
-﻿# From https://gist.github.com/PawelGerr/cb5886ee26c41ae2386b
+﻿# 特別上書き
+.sh text/plain
+
+# From https://gist.github.com/PawelGerr/cb5886ee26c41ae2386b
 
 .123 application/vnd.lotus-1-2-3
 .323 text/h323
