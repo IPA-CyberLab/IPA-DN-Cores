@@ -358,6 +358,11 @@ namespace IPA.Cores.Basic
                             {
                                 extToMime.Add(key, value);
                                 mimeToExt.Add(value, key);
+
+                                if (line._InStr("#overwrite") || line._InStr("# overwrite"))
+                                {
+                                    this.ExtToMimeDictionary.TryAdd(key, value);
+                                }
                             }
                         }
                     }
@@ -368,7 +373,7 @@ namespace IPA.Cores.Basic
                     string? mime = extInfo.Value.OrderBy(x => mimeToExt[x].Count).FirstOrDefault();
                     if (mime._IsFilled())
                     {
-                        this.ExtToMimeDictionary.Add(extInfo.Key, mime);
+                        this.ExtToMimeDictionary.TryAdd(extInfo.Key, mime);
                     }
                 }
             }
