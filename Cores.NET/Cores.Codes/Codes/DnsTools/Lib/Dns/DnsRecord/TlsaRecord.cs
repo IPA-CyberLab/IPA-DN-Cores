@@ -219,7 +219,14 @@ namespace ARSoft.Tools.Net.Dns
 			CertificateAssociationData = GetCertificateAssocicationData(selector, matchingType, certificate);
 		}
 
-		internal static byte[] GetCertificateAssocicationData(TlsaSelector selector, TlsaMatchingType matchingType, X509Certificate certificate)
+		// from bc-csharp-master\crypto\src\security\DotNetUtilities.cs
+		public static Org.BouncyCastle.X509.X509Certificate DotNetUtilities_FromX509Certificate(
+            X509Certificate x509Cert)
+        {
+            return new X509CertificateParser().ReadCertificate(x509Cert.GetRawCertData());
+        }
+
+        internal static byte[] GetCertificateAssocicationData(TlsaSelector selector, TlsaMatchingType matchingType, X509Certificate certificate)
 		{
 			byte[] selectedBytes;
 			switch (selector)
@@ -229,7 +236,7 @@ namespace ARSoft.Tools.Net.Dns
 					break;
 
 				case TlsaSelector.SubjectPublicKeyInfo:
-					selectedBytes = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(DotNetUtilities.FromX509Certificate(certificate).GetPublicKey()).GetDerEncoded();
+					selectedBytes = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(DotNetUtilities_FromX509Certificate(certificate).GetPublicKey()).GetDerEncoded();
 					break;
 
 				default:

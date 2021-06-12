@@ -33,7 +33,7 @@ namespace ARSoft.Tools.Net.Dns
 {
 	public abstract class DnsClientBase
 	{
-		private static readonly SecureRandom _secureRandom = new SecureRandom(new CryptoApiRandomGenerator());
+		private static readonly SecureRandom _secureRandom = new SecureRandom();
 
 		private readonly List<IPAddress> _servers;
 		private readonly bool _isAnyServerMulticast;

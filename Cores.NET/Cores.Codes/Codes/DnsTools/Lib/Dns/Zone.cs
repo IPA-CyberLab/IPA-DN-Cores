@@ -33,7 +33,7 @@ namespace ARSoft.Tools.Net.Dns
 	/// </summary>
 	public class Zone : ICollection<DnsRecordBase>
 	{
-		private static readonly SecureRandom _secureRandom = new SecureRandom(new CryptoApiRandomGenerator());
+		private static readonly SecureRandom _secureRandom = new SecureRandom();
 
 		private static readonly Regex _commentRemoverRegex = new Regex(@"^(?<data>(\\\""|[^\""]|(?<!\\)\"".*?(?<!\\)\"")*?)(;.*)?$", RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 		private static readonly Regex _lineSplitterRegex = new Regex("([^\\s\"]+)|\"(.*?(?<!\\\\))\"", RegexOptions.Compiled);

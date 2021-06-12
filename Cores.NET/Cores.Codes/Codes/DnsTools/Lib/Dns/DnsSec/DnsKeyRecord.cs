@@ -48,7 +48,7 @@ namespace ARSoft.Tools.Net.Dns
 	/// </summary>
 	public class DnsKeyRecord : DnsRecordBase
 	{
-		private static readonly SecureRandom _secureRandom = new SecureRandom(new CryptoApiRandomGenerator());
+		private static readonly SecureRandom _secureRandom = new SecureRandom();
 
 		/// <summary>
 		///   Flags of the key
