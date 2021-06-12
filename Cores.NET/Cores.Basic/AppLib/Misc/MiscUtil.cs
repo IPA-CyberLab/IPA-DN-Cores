@@ -1636,6 +1636,173 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class CSharpEasyParse
+    {
+        public HashSet<string> UsingList = new HashSet<string>();
+        public Dictionary<string, StringWriter> CodeList = new Dictionary<string, StringWriter>();
+
+        public static CSharpEasyParse ParseFile(FilePath path)
+        {
+            var ret = ParseCode(path.ReadStringFromFile());
+
+            return ret;
+        }
+
+        public static CSharpEasyParse ParseCode(string code)
+        {
+            CSharpEasyParse ret = new CSharpEasyParse();
+
+            var lines = code._GetLines();
+
+            int mode = 0;
+
+            StringWriter? currentWriter = null;
+
+            foreach (var line in lines)
+            {
+                if (mode == 0)
+                {
+                    if (line.StartsWith("using", StringComparison.Ordinal))
+                    {
+                        mode = 1;
+                    }
+                }
+
+                if (line.StartsWith("namespace", StringComparison.Ordinal))
+                {
+                    var tokens = line._Split(StringSplitOptions.RemoveEmptyEntries, ' ', '\t');
+                    if (tokens.Length >= 2)
+                    {
+                        string ns = tokens[1];
+
+                        currentWriter = ret.CodeList._GetOrNew(ns, () => new StringWriter());
+
+                        mode = 2;
+                    }
+                }
+
+                if (mode == 2)
+                {
+                    if (line.StartsWith("{"))
+                    {
+                        mode = 3;
+                    }
+                }
+
+                if (mode == 3)
+                {
+                    if (line.StartsWith("}"))
+                    {
+                        currentWriter?.WriteLine();
+                        mode = 0;
+                        currentWriter = null;
+                    }
+                }
+
+                switch (mode)
+                {
+                    case 1:
+                        if (line.StartsWith("using", StringComparison.Ordinal))
+                        {
+                            ret.UsingList.Add(line._NormalizeSoftEther(true));
+                        }
+                        break;
+
+                    case 3:
+                        if (line.StartsWith("{") == false)
+                        {
+                            currentWriter!.WriteLine(line);
+                        }
+                        break;
+                }
+            }
+
+            return ret;
+        }
+    }
+
+    public static class CSharpConcatUtil
+    {
+        public static void DoConcat(string srcRootDir, string destRootDir)
+        {
+            var dirs = Lfs.EnumDirectory(srcRootDir, true).Where(x => x.IsDirectory).OrderBy(x => x.FullPath, StrComparer.IgnoreCaseComparer);
+
+            List<Tuple<string, CSharpEasyParse>> data = new List<Tuple<string, CSharpEasyParse>>();
+
+            foreach (var dir in dirs)
+            {
+                var files = Lfs.EnumDirectory(dir.FullPath, false).Where(x => Lfs.PathParser.GetExtension(x.Name)._IsSamei(".cs")).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer);
+
+                foreach (var file in files)
+                {
+                    Con.WriteLine($"Parsing '{file.FullPath}' ...");
+                    CSharpEasyParse parsed = CSharpEasyParse.ParseFile(file.FullPath);
+
+                    data.Add(new Tuple<string, CSharpEasyParse>(PP.GetRelativeDirectoryName(PP.GetDirectoryName(file.FullPath), srcRootDir), parsed));
+                }
+            }
+
+            foreach (var dir in data.Select(x => x.Item1).Distinct(StrComparer.IgnoreCaseComparer).OrderBy(x => x, StrComparer.IgnoreCaseComparer))
+            {
+                HashSet<string> usingList = new HashSet<string>();
+                Dictionary<string, StringWriter> codeList = new Dictionary<string, StringWriter>();
+
+                foreach (var file in data.Where(x => x.Item1._IsSamei(dir)).Select(x => x.Item2))
+                {
+                    file.UsingList._DoForEach(x => usingList.Add(x));
+
+                    foreach (var code in file.CodeList)
+                    {
+                        var tmp = codeList._GetOrNew(code.Key, () => new StringWriter());
+                        tmp.Write(code.Value.ToString());
+                    }
+                }
+
+                StringWriter w = new StringWriter();
+
+                int mode = 0;
+
+                usingList.OrderBy(x => x, StrComparer.DevToolsCsUsingComparer)._DoForEach(x =>
+                {
+                    if (x.StartsWith("using"))
+                    {
+                        Str.GetKeyAndValue(x, out _, out x);
+                    }
+
+                    if (x.StartsWith("System"))
+                    {
+                        mode = 1;
+                    }
+                    else
+                    {
+                        if (mode == 1)
+                        {
+                            w.WriteLine();
+                        }
+                        mode = 2;
+                    }
+
+                    w.WriteLine("using " + x);
+                });
+
+                codeList.OrderBy(x => x.Key, StrComparer.IgnoreCaseComparer)._DoForEach(x =>
+                {
+                    w.WriteLine();
+                    w.WriteLine($"namespace {x.Key}");
+                    w.WriteLine("{");
+                    w.Write(x.Value.ToString());
+                    w.WriteLine("}");
+                });
+
+                w.WriteLine();
+
+                string dstPath = PP.Combine(destRootDir, dir) + ".cs";
+
+                Lfs.WriteStringToFile(dstPath, w.ToString(), FileFlags.AutoCreateDirectory, writeBom: true);
+            }
+        }
+    }
+
 }
 
 #endif

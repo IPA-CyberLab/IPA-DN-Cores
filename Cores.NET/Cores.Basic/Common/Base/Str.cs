@@ -661,6 +661,49 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class DevToolsCsUsingStrComparer : IEqualityComparer<string?>, IComparer<string?>
+    {
+        public int Compare(string? x, string? y)
+        {
+            x = x._NonNullTrim();
+            y = y._NonNullTrim();
+
+            if (x.StartsWith("using"))
+            {
+                Str.GetKeyAndValue(x, out _, out x);
+            }
+
+            if (x.EndsWith(";")) x = x.Substring(0, x.Length - 1);
+
+            if (y.StartsWith("using"))
+            {
+                Str.GetKeyAndValue(y, out _, out y);
+            }
+
+            if (y.EndsWith(";")) y = y.Substring(0, y.Length - 1);
+
+            bool b1 = (x.StartsWith("using System") || x.StartsWith("System"));
+            bool b2 = (y.StartsWith("using System") || y.StartsWith("System"));
+
+            if (b1 != b2)
+            {
+                return -b1.CompareTo(b2);
+            }
+            
+            return x._CmpTrim(y);
+        }
+
+        public bool Equals(string? x, string? y)
+        {
+            return x._IsSameTrim(y);
+        }
+
+        public int GetHashCode(string? obj)
+        {
+            return obj._NonNullTrim().GetHashCode();
+        }
+    }
+
     public class ExtendedStrComparer : IEqualityComparer<string?>, IComparer<string?>
     {
         public StringComparison Comparison { get; }
@@ -861,6 +904,8 @@ namespace IPA.Cores.Basic
     {
         public static StrComparer IgnoreCaseComparer { get; } = new StrComparer(false);
         public static StrComparer SensitiveCaseComparer { get; } = new StrComparer(true);
+
+        public static DevToolsCsUsingStrComparer DevToolsCsUsingComparer { get; } = new DevToolsCsUsingStrComparer();
 
         public static ExtendedStrComparer IgnoreCaseTrimComparer { get; } = new ExtendedStrComparer(StringComparison.OrdinalIgnoreCase);
         public static ExtendedStrComparer SensitiveCaseTrimComparer { get; } = new ExtendedStrComparer(StringComparison.Ordinal);
