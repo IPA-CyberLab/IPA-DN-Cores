@@ -88,16 +88,16 @@ using static IPA.Cores.Globals.Codes;
 
 using X509Certificate = System.Security.Cryptography.X509Certificates.X509Certificate;
 
-namespace ARSoft.Tools.Net.Dns
+namespace IPA.Cores.Codes.DnsTools
 {
-	/// <summary>
-	///   <para>IPv6 address</para>
-	///   <para>
-	///     Defined in
-	///     <see cref="!:http://tools.ietf.org/html/rfc3596">RFC 3596</see>
-	///   </para>
-	/// </summary>
-	public class AaaaRecord : AddressRecordBase
+    /// <summary>
+    ///   <para>IPv6 address</para>
+    ///   <para>
+    ///     Defined in
+    ///     <see cref="!:http://tools.ietf.org/html/rfc3596">RFC 3596</see>
+    ///   </para>
+    /// </summary>
+    public class AaaaRecord : AddressRecordBase
 	{
 		internal AaaaRecord() {}
 
@@ -1508,7 +1508,7 @@ namespace ARSoft.Tools.Net.Dns
 					return new CSyncRecord();
 #pragma warning disable 0612
 				case RecordType.Spf:
-					return new SpfRecord();
+					return new SpfRecord2();
 #pragma warning restore 0612
 				case RecordType.NId:
 					return new NIdRecord();
@@ -3807,9 +3807,9 @@ namespace ARSoft.Tools.Net.Dns
 	///   </para>
 	/// </summary>
 	[Obsolete]
-	public class SpfRecord : TextRecordBase
+	public class SpfRecord2 : TextRecordBase
 	{
-		internal SpfRecord() {}
+		internal SpfRecord2() {}
 
 		/// <summary>
 		///   Creates a new instance of the SpfRecord class
@@ -3817,7 +3817,7 @@ namespace ARSoft.Tools.Net.Dns
 		/// <param name="name"> Name of the record </param>
 		/// <param name="timeToLive"> Seconds the record should be cached at most </param>
 		/// <param name="textData"> Text data of the record </param>
-		public SpfRecord(DomainName name, int timeToLive, string textData)
+		public SpfRecord2(DomainName name, int timeToLive, string textData)
 			: base(name, RecordType.Spf, timeToLive, textData) {}
 
 		/// <summary>
@@ -3826,7 +3826,7 @@ namespace ARSoft.Tools.Net.Dns
 		/// <param name="name"> Name of the record </param>
 		/// <param name="timeToLive"> Seconds the record should be cached at most </param>
 		/// <param name="textParts"> All parts of the text data </param>
-		public SpfRecord(DomainName name, int timeToLive, IEnumerable<string> textParts)
+		public SpfRecord2(DomainName name, int timeToLive, IEnumerable<string> textParts)
 			: base(name, RecordType.Spf, timeToLive, textParts) {}
 	}
 

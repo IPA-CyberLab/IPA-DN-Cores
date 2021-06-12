@@ -78,7 +78,7 @@ using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
 
-namespace ARSoft.Tools.Net.Dns
+namespace IPA.Cores.Codes.DnsTools
 {
 	internal class DnsCacheRecordList<T> : List<T>
 	{

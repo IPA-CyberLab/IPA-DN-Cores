@@ -77,12 +77,12 @@ using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
 
-namespace ARSoft.Tools.Net.Dns.DynamicUpdate
+namespace IPA.Cores.Codes.DnsTools
 {
-	/// <summary>
-	///   Add record action
-	/// </summary>
-	public class AddRecordUpdate : UpdateBase
+    /// <summary>
+    ///   Add record action
+    /// </summary>
+    public class AddRecordUpdate : UpdateBase
 	{
 		/// <summary>
 		///   Record which should be added

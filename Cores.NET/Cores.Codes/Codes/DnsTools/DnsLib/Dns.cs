@@ -54,6 +54,7 @@
 // limitations under the License.
 
 #nullable disable
+
 using System;
 using System.Buffers;
 using System.Linq;
@@ -76,7 +77,6 @@ using System.Text.RegularExpressions;
 
 using Org.BouncyCastle.Crypto.Prng;
 using Org.BouncyCastle.Security;
-using ARSoft.Tools.Net.Dns.DynamicUpdate;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -87,13 +87,12 @@ using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
 
 
-
-namespace ARSoft.Tools.Net.Dns
+namespace IPA.Cores.Codes.DnsTools
 {
-	/// <summary>
-	///   Event arguments of <see cref="DnsServer.ClientConnected" /> event.
-	/// </summary>
-	public class ClientConnectedEventArgs : EventArgs
+    /// <summary>
+    ///   Event arguments of <see cref="DnsServer.ClientConnected" /> event.
+    /// </summary>
+    public class ClientConnectedEventArgs : EventArgs
 	{
 		/// <summary>
 		///   Protocol used by the client

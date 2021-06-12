@@ -82,15 +82,13 @@ using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
 
-using ARSoft.Tools.Net.Dns;
-
-namespace ARSoft.Tools.Net.Net
+namespace IPA.Cores.Codes.DnsTools
 {
-	/// <summary>
-	///   Provides a stream used for client-server communication that uses SSL/TLS and DANE/TLSA validation to authenticate
-	///   the server.
-	/// </summary>
-	public class DaneStream : AuthenticatedStream
+    /// <summary>
+    ///   Provides a stream used for client-server communication that uses SSL/TLS and DANE/TLSA validation to authenticate
+    ///   the server.
+    /// </summary>
+    public class DaneStream : AuthenticatedStream
 	{
 		private readonly IDnsSecResolver _resolver;
 		private readonly bool _enforceTlsaValidation;

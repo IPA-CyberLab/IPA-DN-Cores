@@ -81,18 +81,16 @@ using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
 
-using ARSoft.Tools.Net.Dns;
-
-namespace ARSoft.Tools.Net.Spf
+namespace IPA.Cores.Codes.DnsTools
 {
-	/// <summary>
-	///   <para>Parsed instance of the textual representation of a SenderID record</para>
-	///   <para>
-	///     Defined in
-	///     <see cref="!:http://tools.ietf.org/html/rfc4406">RFC 4406</see>
-	///   </para>
-	/// </summary>
-	public class SenderIDRecord : SpfRecordBase
+    /// <summary>
+    ///   <para>Parsed instance of the textual representation of a SenderID record</para>
+    ///   <para>
+    ///     Defined in
+    ///     <see cref="!:http://tools.ietf.org/html/rfc4406">RFC 4406</see>
+    ///   </para>
+    /// </summary>
+    public class SenderIDRecord : SpfRecordBase
 	{
 		private static readonly Regex _prefixRegex = new Regex(@"^v=spf((?<version>1)|(?<version>2)\.(?<minor>\d)/(?<scopes>(([a-z0-9]+,)*[a-z0-9]+)))$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 

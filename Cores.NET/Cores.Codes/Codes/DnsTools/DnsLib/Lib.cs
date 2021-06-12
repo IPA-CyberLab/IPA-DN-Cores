@@ -85,11 +85,9 @@ using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
 
-using ARSoft.Tools.Net.Dns;
-
-namespace ARSoft.Tools.Net
+namespace IPA.Cores.Codes.DnsTools
 {
-	public delegate Task AsyncEventHandler<T>(object sender, T eventArgs) where T : EventArgs;
+    public delegate Task AsyncEventHandler<T>(object sender, T eventArgs) where T : EventArgs;
 
 	internal static class AsyncEventHandlerExtensions
 	{

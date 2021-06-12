@@ -78,13 +78,13 @@ using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
 
-namespace ARSoft.Tools.Net.Dns
+namespace IPA.Cores.Codes.DnsTools
 {
-	/// <summary>
-	///   Type of algorithm
-	/// </summary>
-	// ReSharper disable once InconsistentNaming
-	public enum TSigAlgorithm
+    /// <summary>
+    ///   Type of algorithm
+    /// </summary>
+    // ReSharper disable once InconsistentNaming
+    public enum TSigAlgorithm
 	{
 		/// <summary>
 		///   Unknown
