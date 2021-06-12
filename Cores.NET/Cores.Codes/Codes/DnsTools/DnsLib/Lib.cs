@@ -53,6 +53,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if CORES_CODES_DNSTOOLS
+
 #nullable disable
 
 using System;
@@ -110,7 +112,7 @@ namespace IPA.Cores.Codes.DnsTools
 	/// </summary>
 	public static class BaseEncoding
 	{
-		#region Helper
+#region Helper
 		private static Dictionary<char, byte> GetAlphabet(string alphabet, bool isCaseIgnored)
 		{
 			Dictionary<char, byte> res = new Dictionary<char, byte>(isCaseIgnored ? 2 * alphabet.Length : alphabet.Length);
@@ -131,9 +133,9 @@ namespace IPA.Cores.Codes.DnsTools
 
 			return res;
 		}
-		#endregion
+#endregion
 
-		#region Base16
+#region Base16
 		private const string _BASE16_ALPHABET = "0123456789ABCDEF";
 		private static readonly char[] _base16Alphabet = _BASE16_ALPHABET.ToCharArray();
 		private static readonly Dictionary<char, byte> _base16ReverseAlphabet = GetAlphabet(_BASE16_ALPHABET, true);
@@ -213,9 +215,9 @@ namespace IPA.Cores.Codes.DnsTools
 
 			return new string(outData);
 		}
-		#endregion
+#endregion
 
-		#region Base32
+#region Base32
 		private const string _BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567=";
 		private static readonly char[] _base32Alphabet = _BASE32_ALPHABET.ToCharArray();
 		private static readonly Dictionary<char, byte> _base32ReverseAlphabet = GetAlphabet(_BASE32_ALPHABET, true);
@@ -488,9 +490,9 @@ namespace IPA.Cores.Codes.DnsTools
 
 			return new string(outData);
 		}
-		#endregion
+#endregion
 
-		#region Base64
+#region Base64
 		private const string _BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 		private static readonly char[] _base64Alphabet = _BASE64_ALPHABET.ToCharArray();
 		private static readonly Dictionary<char, byte> _base64ReverseAlphabet = GetAlphabet(_BASE64_ALPHABET, false);
@@ -708,7 +710,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 			return new string(outData);
 		}
-		#endregion
+#endregion
 	}
 
 	/// <summary>
@@ -1627,3 +1629,5 @@ namespace IPA.Cores.Codes.DnsTools
 
 }
 
+
+#endif

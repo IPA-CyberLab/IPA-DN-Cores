@@ -53,6 +53,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if CORES_CODES_DNSTOOLS
+
 #nullable disable
 
 using System;
@@ -1538,7 +1540,7 @@ namespace IPA.Cores.Codes.DnsTools
 			}
 		}
 
-		#region ToString
+#region ToString
 		internal abstract string RecordDataToString();
 
 		/// <summary>
@@ -1550,9 +1552,9 @@ namespace IPA.Cores.Codes.DnsTools
 			string recordData = RecordDataToString();
 			return Name + " " + TimeToLive + " " + RecordClass.ToShortString() + " " + RecordType.ToShortString() + (String.IsNullOrEmpty(recordData) ? "" : " " + recordData);
 		}
-		#endregion
+#endregion
 
-		#region Parsing
+#region Parsing
 		internal abstract void ParseRecordData(byte[] resultData, int startPosition, int length);
 
 		internal abstract void ParseRecordData(DomainName origin, string[] stringRepresentation);
@@ -1585,9 +1587,9 @@ namespace IPA.Cores.Codes.DnsTools
 
 			return DomainName.ParseFromMasterfile(name) + origin;
 		}
-		#endregion
+#endregion
 
-		#region Encoding
+#region Encoding
 		internal override sealed int MaximumLength => Name.MaximumRecordDataLength + 12 + MaximumRecordDataLength;
 
 		internal void Encode(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical = false)
@@ -1621,7 +1623,7 @@ namespace IPA.Cores.Codes.DnsTools
 		protected internal abstract int MaximumRecordDataLength { get; }
 
 		protected internal abstract void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical);
-		#endregion
+#endregion
 
 		internal T Clone<T>()
 			where T : DnsRecordBase
@@ -2832,7 +2834,7 @@ namespace IPA.Cores.Codes.DnsTools
 			DnsMessageBase.EncodeInt(messageData, ref currentPosition, ConvertAltitude(Altitude));
 		}
 
-		#region Convert Precision
+#region Convert Precision
 		private static readonly int[] _powerOften = new int[] { 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000 };
 
 		private static double ConvertPrecision(byte precision)
@@ -2859,9 +2861,9 @@ namespace IPA.Cores.Codes.DnsTools
 
 			return (byte) ((mantissa << 4) | exponent);
 		}
-		#endregion
+#endregion
 
-		#region Convert Degree
+#region Convert Degree
 		private static Degree ConvertDegree(int degrees)
 		{
 			degrees -= (1 << 31);
@@ -2896,9 +2898,9 @@ namespace IPA.Cores.Codes.DnsTools
 
 			return res + (1 << 31);
 		}
-		#endregion
+#endregion
 
-		#region Convert Altitude
+#region Convert Altitude
 		private const int _ALTITUDE_REFERENCE = 10000000;
 
 		private static double ConvertAltitude(int altitude)
@@ -2911,7 +2913,7 @@ namespace IPA.Cores.Codes.DnsTools
 			int centimeter = (int) (altitude * 100);
 			return ((centimeter > 0) ? (_ALTITUDE_REFERENCE + centimeter) : (centimeter + _ALTITUDE_REFERENCE));
 		}
-		#endregion
+#endregion
 	}
 
 	/// <summary>
@@ -4908,3 +4910,5 @@ namespace IPA.Cores.Codes.DnsTools
 
 }
 
+
+#endif

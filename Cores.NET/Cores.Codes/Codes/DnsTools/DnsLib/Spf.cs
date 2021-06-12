@@ -53,6 +53,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if CORES_CODES_DNSTOOLS
+
 #nullable disable
 
 using System;
@@ -711,7 +713,7 @@ namespace IPA.Cores.Codes.DnsTools
 				return false;
 			}
 
-			#region Parse Mechanism
+#region Parse Mechanism
 			Match match = _parseMechanismRegex.Match(s);
 			if (match.Success)
 			{
@@ -758,9 +760,9 @@ namespace IPA.Cores.Codes.DnsTools
 				value = mechanism;
 				return true;
 			}
-			#endregion
+#endregion
 
-			#region Parse Modifier
+#region Parse Modifier
 			match = _parseModifierRegex.Match(s);
 			if (match.Success)
 			{
@@ -773,7 +775,7 @@ namespace IPA.Cores.Codes.DnsTools
 				value = modifier;
 				return true;
 			}
-			#endregion
+#endregion
 
 			value = null;
 			return false;
@@ -974,7 +976,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 			ValidationResult result = new ValidationResult() { Result = loadResult.ErrorResult };
 
-			#region Evaluate mechanism
+#region Evaluate mechanism
 			foreach (SpfMechanism mechanism in record.Terms.OfType<SpfMechanism>())
 			{
 				if (state.DnsLookupCount > DnsLookupLimit)
@@ -988,9 +990,9 @@ namespace IPA.Cores.Codes.DnsTools
 					break;
 				}
 			}
-			#endregion
+#endregion
 
-			#region Evaluate modifiers
+#region Evaluate modifiers
 			if (result.Result == SpfQualifier.None)
 			{
 				SpfModifier redirectModifier = record.Terms.OfType<SpfModifier>().FirstOrDefault(m => m.Type == SpfModifierType.Redirect);
@@ -1039,7 +1041,7 @@ namespace IPA.Cores.Codes.DnsTools
 					}
 				}
 			}
-			#endregion
+#endregion
 
 			if (result.Result == SpfQualifier.None)
 				result.Result = SpfQualifier.Neutral;
@@ -1445,3 +1447,5 @@ namespace IPA.Cores.Codes.DnsTools
 
 }
 
+
+#endif

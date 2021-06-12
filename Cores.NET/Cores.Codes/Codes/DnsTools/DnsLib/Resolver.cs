@@ -53,6 +53,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if CORES_CODES_DNSTOOLS
+
 #nullable disable
 
 using System;
@@ -1537,3 +1539,5 @@ namespace IPA.Cores.Codes.DnsTools
 
 }
 
+
+#endif

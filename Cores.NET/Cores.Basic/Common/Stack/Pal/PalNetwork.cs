@@ -55,10 +55,12 @@ namespace IPA.Cores.Basic
     {
         public static partial class SslSettings
         {
+            public const SslProtocols DefaultSslProtocolVersionsConst = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12 | SslProtocols.Tls13;
+
             public static readonly Copenhagen<int> DefaultNegotiationRecvTimeout = 15 * 1000;
 
 #pragma warning disable CS0618 // 型またはメンバーが旧型式です
-            public static readonly Copenhagen<SslProtocols> DefaultSslProtocolVersions = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12 | SslProtocols.Tls13;
+            public static readonly Copenhagen<SslProtocols> DefaultSslProtocolVersions = DefaultSslProtocolVersionsConst;
 #pragma warning restore CS0618 // 型またはメンバーが旧型式です
         }
     }

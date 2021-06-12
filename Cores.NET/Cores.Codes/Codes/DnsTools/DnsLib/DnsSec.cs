@@ -53,6 +53,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if CORES_CODES_DNSTOOLS
+
 #nullable disable
 
 using System;
@@ -1805,7 +1807,7 @@ namespace IPA.Cores.Codes.DnsTools
 		/// </summary>
 		public DnsSecAlgorithm Algorithm { get; private set; }
 
-		#region Flags
+#region Flags
 		/// <summary>
 		///   Type of key
 		/// </summary>
@@ -1926,7 +1928,7 @@ namespace IPA.Cores.Codes.DnsTools
 				}
 			}
 		}
-		#endregion
+#endregion
 
 		protected KeyRecordBase() {}
 
@@ -2813,3 +2815,5 @@ namespace IPA.Cores.Codes.DnsTools
 
 }
 
+
+#endif

@@ -53,6 +53,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if CORES_CODES_DNSTOOLS
+
 #nullable disable
 
 using System;
@@ -1392,7 +1394,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return Parse<DnsMessage>(data);
 		}
 
-		#region Header
+#region Header
 		/// <summary>
 		///   <para>Gets or sets the autoritive answer (AA) flag</para>
 		///   <para>
@@ -1530,7 +1532,7 @@ namespace IPA.Cores.Codes.DnsTools
 				}
 			}
 		}
-		#endregion
+#endregion
 
 		/// <summary>
 		///   Gets or sets the entries in the question section
@@ -1668,7 +1670,7 @@ namespace IPA.Cores.Codes.DnsTools
 		internal abstract bool IsTcpResendingRequested { get; }
 		internal abstract bool IsTcpNextMessageWaiting(bool isSubsequentResponseMessage);
 
-		#region Header
+#region Header
 		/// <summary>
 		///   Gets or sets the transaction identifier (ID) of the message
 		/// </summary>
@@ -1753,9 +1755,9 @@ namespace IPA.Cores.Codes.DnsTools
 				Flags = (ushort) (clearedOp | ((ushort) value & 0x0f));
 			}
 		}
-		#endregion
+#endregion
 
-		#region EDNS
+#region EDNS
 		/// <summary>
 		///   Enables or disables EDNS
 		/// </summary>
@@ -1816,9 +1818,9 @@ namespace IPA.Cores.Codes.DnsTools
 				}
 			}
 		}
-		#endregion
+#endregion
 
-		#region TSig
+#region TSig
 		/// <summary>
 		///   Gets or set the TSigRecord for the tsig signed messages
 		/// </summary>
@@ -1959,12 +1961,12 @@ namespace IPA.Cores.Codes.DnsTools
 				return (hashAlgorithm.ComputeHash(validationBuffer, 0, currentPosition).SequenceEqual(TSigOptions.Mac)) ? ReturnCode.NoError : ReturnCode.BadSig;
 			}
 		}
-		#endregion
+#endregion
 
-		#region Parsing
+#region Parsing
 		protected virtual void FinishParsing() {}
 
-		#region Methods for parsing answer
+#region Methods for parsing answer
 		private static void ParseSection(byte[] resultData, ref int currentPosition, List<DnsRecordBase> sectionList, int recordCount)
 		{
 			for (int i = 0; i < recordCount; i++)
@@ -2005,9 +2007,9 @@ namespace IPA.Cores.Codes.DnsTools
 				Questions.Add(question);
 			}
 		}
-		#endregion
+#endregion
 
-		#region Helper methods for parsing records
+#region Helper methods for parsing records
 		internal static string ParseText(byte[] resultData, ref int currentPosition)
 		{
 			int length = resultData[currentPosition++];
@@ -2201,11 +2203,11 @@ namespace IPA.Cores.Codes.DnsTools
 				return res;
 			}
 		}
-		#endregion
+#endregion
 
-		#endregion
+#endregion
 
-		#region Serializing
+#region Serializing
 		protected virtual void PrepareEncoding() {}
 
 		internal int Encode(bool addLengthPrefix, out byte[] messageData)
@@ -2243,13 +2245,13 @@ namespace IPA.Cores.Codes.DnsTools
 				maxLength += TSigOptions.MaximumLength;
 			}
 
-			#region Get Message Length
+#region Get Message Length
 			maxLength += 12;
 			maxLength += Questions.Sum(question => question.MaximumLength);
 			maxLength += AnswerRecords.Sum(record => record.MaximumLength);
 			maxLength += AuthorityRecords.Sum(record => record.MaximumLength);
 			maxLength += _additionalRecords.Sum(record => record.MaximumLength);
-			#endregion
+#endregion
 
 			messageData = new byte[maxLength];
 			int currentPosition = offset;
@@ -2485,7 +2487,7 @@ namespace IPA.Cores.Codes.DnsTools
 				currentPosition += length;
 			}
 		}
-		#endregion
+#endregion
 	}
 
 	/// <summary>
@@ -2921,7 +2923,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 				int length = response.Encode(false, originalMac, out buffer);
 
-				#region Truncating
+#region Truncating
 				DnsMessage message = response as DnsMessage;
 
 				if (message != null)
@@ -3007,7 +3009,7 @@ namespace IPA.Cores.Codes.DnsTools
 						}
 					}
 				}
-				#endregion
+#endregion
 
 				await _udpListener.SendAsync(buffer, length, receiveResult.RemoteEndPoint);
 			}
@@ -3401,7 +3403,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return Parse<LlmnrMessage>(data);
 		}
 
-		#region Header
+#region Header
 		/// <summary>
 		///   <para>Gets or sets the conflict (C) flag</para>
 		///   <para>
@@ -3470,7 +3472,7 @@ namespace IPA.Cores.Codes.DnsTools
 				}
 			}
 		}
-		#endregion
+#endregion
 
 		/// <summary>
 		///   Gets or sets the entries in the question section
@@ -3524,7 +3526,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return Parse<MulticastDnsMessage>(data);
 		}
 
-		#region Header
+#region Header
 		/// <summary>
 		///   <para>Gets or sets the autoritive answer (AA) flag</para>
 		///   <para>
@@ -3662,7 +3664,7 @@ namespace IPA.Cores.Codes.DnsTools
 				}
 			}
 		}
-		#endregion
+#endregion
 
 		/// <summary>
 		///   Gets or sets the entries in the question section
@@ -5641,3 +5643,5 @@ namespace IPA.Cores.Codes.DnsTools
 
 }
 
+
+#endif
