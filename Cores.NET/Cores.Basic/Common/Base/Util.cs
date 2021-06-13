@@ -1108,6 +1108,12 @@ namespace IPA.Cores.Basic
             srcSpan.CopyTo(dst);
         }
 
+        [MethodImpl(Inline)]
+        public static void BlockCopy(ReadOnlySpan<byte> src, int srcOffset, Span<byte> dst, int dstOffset, int count)
+        {
+            src.Slice(srcOffset).CopyTo(dst.Slice(dstOffset, count));
+        }
+
         public static DateTime NormalizeDateTime(DateTime dt)
         {
             if (IsZero(dt)) return Util.ZeroDateTimeValue;
