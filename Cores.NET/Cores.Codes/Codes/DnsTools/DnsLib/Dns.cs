@@ -1827,7 +1827,7 @@ namespace IPA.Cores.Codes.DnsTools
 		// ReSharper disable once InconsistentNaming
 		public TSigRecord TSigOptions { get; set; }
 
-		internal static DnsMessageBase CreateByFlag(byte[] data, DnsServer.SelectTsigKey tsigKeySelector, byte[] originalMac)
+		internal static DnsMessageBase CreateByFlag(ReadOnlySpan<byte> data, DnsServer.SelectTsigKey tsigKeySelector, byte[] originalMac)
 		{
 			int flagPosition = 2;
 			ushort flags = ParseUShort(data, ref flagPosition);
@@ -1864,7 +1864,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return result;
 		}
 
-		private void ParseInternal(byte[] data, DnsServer.SelectTsigKey tsigKeySelector, byte[] originalMac)
+		private void ParseInternal(ReadOnlySpan<byte> data, DnsServer.SelectTsigKey tsigKeySelector, byte[] originalMac)
 		{
 			int currentPosition = 0;
 
@@ -1897,7 +1897,7 @@ namespace IPA.Cores.Codes.DnsTools
 			FinishParsing();
 		}
 
-		private ReturnCode ValidateTSig(byte[] resultData, DnsServer.SelectTsigKey tsigKeySelector, byte[] originalMac)
+		private ReturnCode ValidateTSig(ReadOnlySpan<byte> resultData, DnsServer.SelectTsigKey tsigKeySelector, byte[] originalMac)
 		{
 			byte[] keyData;
 			if ((TSigOptions.Algorithm == TSigAlgorithm.Unknown) || (tsigKeySelector == null) || ((keyData = tsigKeySelector(TSigOptions.Algorithm, TSigOptions.Name)) == null))
@@ -1937,7 +1937,8 @@ namespace IPA.Cores.Codes.DnsTools
 				}
 
 				// original unsiged buffer
-				Buffer.BlockCopy(resultData, 0, validationBuffer, currentPosition, TSigOptions.StartPosition);
+				resultData.CopyTo(validationBuffer.AsSpan(currentPosition, TSigOptions.StartPosition));
+				//Buffer.BlockCopy(resultData, 0, validationBuffer, currentPosition, TSigOptions.StartPosition);
 
 				// update original transaction id and ar count in message
 				EncodeUShort(validationBuffer, currentPosition, TSigOptions.OriginalID);
@@ -1967,7 +1968,7 @@ namespace IPA.Cores.Codes.DnsTools
 		protected virtual void FinishParsing() {}
 
 #region Methods for parsing answer
-		private static void ParseSection(byte[] resultData, ref int currentPosition, List<DnsRecordBase> sectionList, int recordCount)
+		private static void ParseSection(ReadOnlySpan<byte> resultData, ref int currentPosition, List<DnsRecordBase> sectionList, int recordCount)
 		{
 			for (int i = 0; i < recordCount; i++)
 			{
@@ -1975,7 +1976,7 @@ namespace IPA.Cores.Codes.DnsTools
 			}
 		}
 
-		private static DnsRecordBase ParseRecord(byte[] resultData, ref int currentPosition)
+		private static DnsRecordBase ParseRecord(ReadOnlySpan<byte> resultData, ref int currentPosition)
 		{
 			int startPosition = currentPosition;
 
@@ -1998,7 +1999,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return record;
 		}
 
-		private void ParseQuestions(byte[] resultData, ref int currentPosition, int recordCount)
+		private void ParseQuestions(ReadOnlySpan<byte> resultData, ref int currentPosition, int recordCount)
 		{
 			for (int i = 0; i < recordCount; i++)
 			{
@@ -2010,21 +2011,21 @@ namespace IPA.Cores.Codes.DnsTools
 #endregion
 
 #region Helper methods for parsing records
-		internal static string ParseText(byte[] resultData, ref int currentPosition)
+		internal static string ParseText(ReadOnlySpan<byte> resultData, ref int currentPosition)
 		{
 			int length = resultData[currentPosition++];
 			return ParseText(resultData, ref currentPosition, length);
 		}
 
-		internal static string ParseText(byte[] resultData, ref int currentPosition, int length)
+		internal static string ParseText(ReadOnlySpan<byte> resultData, ref int currentPosition, int length)
 		{
-			string res = Encoding.ASCII.GetString(resultData, currentPosition, length);
+			string res = Encoding.ASCII.GetString(resultData.Slice(currentPosition, length));
 			currentPosition += length;
 
 			return res;
 		}
 
-		internal static DomainName ParseDomainName(byte[] resultData, ref int currentPosition)
+		internal static DomainName ParseDomainName(ReadOnlySpan<byte> resultData, ref int currentPosition)
 		{
 			int firstLabelLength;
 			DomainName res = ParseDomainName(resultData, currentPosition, out firstLabelLength);
@@ -2032,7 +2033,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return res;
 		}
 
-		internal static ushort ParseUShort(byte[] resultData, ref int currentPosition)
+		internal static ushort ParseUShort(ReadOnlySpan<byte> resultData, ref int currentPosition)
 		{
 			ushort res;
 
@@ -2048,7 +2049,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return res;
 		}
 
-		internal static int ParseInt(byte[] resultData, ref int currentPosition)
+		internal static int ParseInt(ReadOnlySpan<byte> resultData, ref int currentPosition)
 		{
 			int res;
 
@@ -2064,7 +2065,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return res;
 		}
 
-		internal static uint ParseUInt(byte[] resultData, ref int currentPosition)
+		internal static uint ParseUInt(ReadOnlySpan<byte> resultData, ref int currentPosition)
 		{
 			uint res;
 
@@ -2080,7 +2081,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return res;
 		}
 
-		internal static ulong ParseULong(byte[] resultData, ref int currentPosition)
+		internal static ulong ParseULong(ReadOnlySpan<byte> resultData, ref int currentPosition)
 		{
 			ulong res;
 
@@ -2096,7 +2097,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return res;
 		}
 
-		private static DomainName ParseDomainName(byte[] resultData, int currentPosition, out int uncompressedLabelBytes)
+		private static DomainName ParseDomainName(ReadOnlySpan<byte> resultData, int currentPosition, out int uncompressedLabelBytes)
 		{
 			List<string> labels = new List<string>();
 
@@ -2181,7 +2182,7 @@ namespace IPA.Cores.Codes.DnsTools
 					if (isInUncompressedSpace)
 						uncompressedLabelBytes += 1 + currentByte;
 
-					labels.Add(Encoding.ASCII.GetString(resultData, currentPosition, currentByte));
+					labels.Add(Encoding.ASCII.GetString(resultData.Slice(currentPosition, currentByte)));
 					currentPosition += currentByte;
 				}
 			}
@@ -2189,7 +2190,7 @@ namespace IPA.Cores.Codes.DnsTools
 			throw new FormatException("Domain name could not be parsed. Invalid message?");
 		}
 
-		internal static byte[] ParseByteData(byte[] resultData, ref int currentPosition, int length)
+		internal static byte[] ParseByteData(ReadOnlySpan<byte> resultData, ref int currentPosition, int length)
 		{
 			if (length == 0)
 			{
@@ -2198,7 +2199,8 @@ namespace IPA.Cores.Codes.DnsTools
 			else
 			{
 				byte[] res = new byte[length];
-				Buffer.BlockCopy(resultData, currentPosition, res, 0, length);
+				resultData.Slice(currentPosition).CopyTo(res);
+				//Buffer.BlockCopy(resultData, currentPosition, res, 0, length);
 				currentPosition += length;
 				return res;
 			}

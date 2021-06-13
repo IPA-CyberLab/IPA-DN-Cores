@@ -133,7 +133,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Address = address;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Address = new IPAddress(DnsMessageBase.ParseByteData(resultData, ref startPosition, MaximumRecordDataLength));
 		}
@@ -218,7 +218,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Hostname = hostname ?? DomainName.Root;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			SubType = (AfsSubType) DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			Hostname = DnsMessageBase.ParseDomainName(resultData, ref startPosition);
@@ -363,7 +363,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Prefixes = prefixes ?? new List<AddressPrefix>();
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int currentPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int currentPosition, int length)
 		{
 			int endPosition = currentPosition + length;
 
@@ -382,7 +382,7 @@ namespace IPA.Cores.Codes.DnsTools
 				}
 
 				byte[] addressData = new byte[(family == Family.IpV4) ? 4 : 16];
-				Buffer.BlockCopy(resultData, currentPosition, addressData, 0, addressLength);
+				Util.BlockCopy(resultData, currentPosition, addressData, 0, addressLength);
 				currentPosition += addressLength;
 
 				Prefixes.Add(new AddressPrefix(isNegated, new IPAddress(addressData), prefix));
@@ -494,7 +494,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Value = value;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Flags = resultData[startPosition++];
 			Tag = DnsMessageBase.ParseText(resultData, ref startPosition);
@@ -700,7 +700,7 @@ namespace IPA.Cores.Codes.DnsTools
 			PrivateKey = privateKey;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Flags = (DnsKeyFlags) DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			Protocol = resultData[startPosition++];
@@ -788,7 +788,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Digest = digest ?? new byte[] { };
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			KeyTag = DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			Algorithm = (DnsSecAlgorithm) resultData[startPosition++];
@@ -980,7 +980,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Certificate = certificate ?? new byte[] { };
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Type = (CertType) DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			KeyTag = DnsMessageBase.ParseUShort(resultData, ref startPosition);
@@ -1046,7 +1046,7 @@ namespace IPA.Cores.Codes.DnsTools
 			CanonicalName = canonicalName ?? DomainName.Root;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			CanonicalName = DnsMessageBase.ParseDomainName(resultData, ref startPosition);
 		}
@@ -1147,7 +1147,7 @@ namespace IPA.Cores.Codes.DnsTools
 			}
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int currentPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int currentPosition, int length)
 		{
 			int endPosition = currentPosition + length;
 
@@ -1156,7 +1156,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Types = ParseTypeBitMap(resultData, ref currentPosition, endPosition);
 		}
 
-		internal static List<RecordType> ParseTypeBitMap(byte[] resultData, ref int currentPosition, int endPosition)
+		internal static List<RecordType> ParseTypeBitMap(ReadOnlySpan<byte> resultData, ref int currentPosition, int endPosition)
 		{
 			List<RecordType> types = new List<RecordType>();
 			while (currentPosition < endPosition)
@@ -1300,7 +1300,7 @@ namespace IPA.Cores.Codes.DnsTools
 			RecordData = recordData ?? new byte[] { };
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			RecordData = DnsMessageBase.ParseByteData(resultData, ref startPosition, length);
 		}
@@ -1354,7 +1354,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Target = target ?? DomainName.Root;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Target = DnsMessageBase.ParseDomainName(resultData, ref startPosition);
 		}
@@ -1406,7 +1406,7 @@ namespace IPA.Cores.Codes.DnsTools
 			TimeToLive = timeToLive;
 		}
 
-		internal static DnsRecordBase Create(RecordType type, byte[] resultData, int recordDataPosition)
+		internal static DnsRecordBase Create(RecordType type, ReadOnlySpan<byte> resultData, int recordDataPosition)
 		{
 			if ((type == RecordType.Key) && (resultData[recordDataPosition + 3] == (byte) DnsSecAlgorithm.DiffieHellman))
 			{
@@ -1555,7 +1555,7 @@ namespace IPA.Cores.Codes.DnsTools
 #endregion
 
 #region Parsing
-		internal abstract void ParseRecordData(byte[] resultData, int startPosition, int length);
+		internal abstract void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length);
 
 		internal abstract void ParseRecordData(DomainName origin, string[] stringRepresentation);
 
@@ -1723,7 +1723,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Address = address ?? new byte[6];
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Address = DnsMessageBase.ParseByteData(resultData, ref startPosition, 6);
 		}
@@ -1780,7 +1780,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Address = address ?? new byte[8];
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Address = DnsMessageBase.ParseByteData(resultData, ref startPosition, 8);
 		}
@@ -1851,7 +1851,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Altitude = altitude;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int currentPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int currentPosition, int length)
 		{
 			Longitude = Double.Parse(DnsMessageBase.ParseText(resultData, ref currentPosition), CultureInfo.InvariantCulture);
 			Latitude = Double.Parse(DnsMessageBase.ParseText(resultData, ref currentPosition), CultureInfo.InvariantCulture);
@@ -1920,7 +1920,7 @@ namespace IPA.Cores.Codes.DnsTools
 			OperatingSystem = operatingSystem ?? String.Empty;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Cpu = DnsMessageBase.ParseText(resultData, ref startPosition);
 			OperatingSystem = DnsMessageBase.ParseText(resultData, ref startPosition);
@@ -1999,7 +1999,7 @@ namespace IPA.Cores.Codes.DnsTools
 			RendezvousServers = rendezvousServers ?? new List<DomainName>();
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int currentPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int currentPosition, int length)
 		{
 			int endPosition = currentPosition + length;
 
@@ -2212,7 +2212,7 @@ namespace IPA.Cores.Codes.DnsTools
 			PublicKey = publicKey ?? new byte[] { };
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int currentPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int currentPosition, int length)
 		{
 			int startPosition = currentPosition;
 
@@ -2360,7 +2360,7 @@ namespace IPA.Cores.Codes.DnsTools
 			SubAddress = subAddress ?? String.Empty;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int currentPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int currentPosition, int length)
 		{
 			int endPosition = currentPosition + length;
 
@@ -2443,7 +2443,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Exchanger = ParseDomainName(origin, stringRepresentation[1]);
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Preference = DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			Exchanger = DnsMessageBase.ParseDomainName(resultData, ref startPosition);
@@ -2499,7 +2499,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Locator32 = locator32;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Preference = DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			Locator32 = DnsMessageBase.ParseUInt(resultData, ref startPosition);
@@ -2563,7 +2563,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Locator64 = locator64;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Preference = DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			Locator64 = DnsMessageBase.ParseULong(resultData, ref startPosition);
@@ -2780,7 +2780,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Altitude = altitude;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int currentPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int currentPosition, int length)
 		{
 			Version = resultData[currentPosition++];
 			Size = ConvertPrecision(resultData[currentPosition++]);
@@ -2953,7 +2953,7 @@ namespace IPA.Cores.Codes.DnsTools
 			FQDN = fqdn;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Preference = DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			FQDN = DnsMessageBase.ParseDomainName(resultData, ref startPosition);
@@ -3017,7 +3017,7 @@ namespace IPA.Cores.Codes.DnsTools
 			ExchangeDomainName = exchangeDomainName ?? DomainName.Root;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Preference = DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			ExchangeDomainName = DnsMessageBase.ParseDomainName(resultData, ref startPosition);
@@ -3114,7 +3114,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Replacement = replacement ?? DomainName.Root;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Order = DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			Preference = DnsMessageBase.ParseUShort(resultData, ref startPosition);
@@ -3195,7 +3195,7 @@ namespace IPA.Cores.Codes.DnsTools
 			NodeID = nodeID;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Preference = DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			NodeID = DnsMessageBase.ParseULong(resultData, ref startPosition);
@@ -3268,7 +3268,7 @@ namespace IPA.Cores.Codes.DnsTools
 			RecordData = recordData ?? new byte[] { };
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			RecordData = DnsMessageBase.ParseByteData(resultData, ref startPosition, length);
 		}
@@ -3325,7 +3325,7 @@ namespace IPA.Cores.Codes.DnsTools
 			NameServer = nameServer ?? DomainName.Root;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			NameServer = DnsMessageBase.ParseDomainName(resultData, ref startPosition);
 		}
@@ -3380,7 +3380,7 @@ namespace IPA.Cores.Codes.DnsTools
 			PublicKey = publicKey ?? new byte[] { };
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			PublicKey = DnsMessageBase.ParseByteData(resultData, ref startPosition, length);
 		}
@@ -3434,7 +3434,7 @@ namespace IPA.Cores.Codes.DnsTools
 			PointerDomainName = pointerDomainName ?? DomainName.Root;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			PointerDomainName = DnsMessageBase.ParseDomainName(resultData, ref startPosition);
 		}
@@ -3502,7 +3502,7 @@ namespace IPA.Cores.Codes.DnsTools
 			MapX400 = mapX400 ?? DomainName.Root;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Preference = DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			Map822 = DnsMessageBase.ParseDomainName(resultData, ref startPosition);
@@ -3573,7 +3573,7 @@ namespace IPA.Cores.Codes.DnsTools
 			TxtDomainName = txtDomainName ?? DomainName.Root;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			MailBox = DnsMessageBase.ParseDomainName(resultData, ref startPosition);
 			TxtDomainName = DnsMessageBase.ParseDomainName(resultData, ref startPosition);
@@ -3647,7 +3647,7 @@ namespace IPA.Cores.Codes.DnsTools
 			IntermediateHost = ParseDomainName(origin, stringRepresentation[1]);
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Preference = DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			IntermediateHost = DnsMessageBase.ParseDomainName(resultData, ref startPosition);
@@ -3750,7 +3750,7 @@ namespace IPA.Cores.Codes.DnsTools
 			NegativeCachingTTL = negativeCachingTTL;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			MasterName = DnsMessageBase.ParseDomainName(resultData, ref startPosition);
 			ResponsibleName = DnsMessageBase.ParseDomainName(resultData, ref startPosition);
@@ -3881,7 +3881,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Target = target ?? DomainName.Root;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Priority = DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			Weight = DnsMessageBase.ParseUShort(resultData, ref startPosition);
@@ -4037,7 +4037,7 @@ namespace IPA.Cores.Codes.DnsTools
 			FingerPrint = fingerPrint ?? new byte[] { };
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int currentPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int currentPosition, int length)
 		{
 			Algorithm = (SshFpAlgorithm) resultData[currentPosition++];
 			FingerPrintType = (SshFpFingerPrintType) resultData[currentPosition++];
@@ -4102,7 +4102,7 @@ namespace IPA.Cores.Codes.DnsTools
 			get { return TextParts.Sum(p => p.Length + (p.Length / 255) + (p.Length % 255 == 0 ? 0 : 1)); }
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			int endPosition = startPosition + length;
 
@@ -4259,7 +4259,7 @@ namespace IPA.Cores.Codes.DnsTools
 			OtherData = otherData ?? new byte[] { };
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Algorithm = TSigAlgorithmHelper.GetAlgorithmByName(DnsMessageBase.ParseDomainName(resultData, ref startPosition));
 			Inception = ParseDateTime(resultData, ref startPosition);
@@ -4309,7 +4309,7 @@ namespace IPA.Cores.Codes.DnsTools
 			DnsMessageBase.EncodeInt(buffer, ref currentPosition, timeStamp);
 		}
 
-		private static DateTime ParseDateTime(byte[] buffer, ref int currentPosition)
+		private static DateTime ParseDateTime(ReadOnlySpan<byte> buffer, ref int currentPosition)
 		{
 			int timeStamp = DnsMessageBase.ParseInt(buffer, ref currentPosition);
 			return new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(timeStamp).ToLocalTime();
@@ -4560,7 +4560,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return matchingBytes;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			CertificateUsage = (TlsaCertificateUsage) resultData[startPosition++];
 			Selector = (TlsaSelector) resultData[startPosition++];
@@ -4654,7 +4654,7 @@ namespace IPA.Cores.Codes.DnsTools
 			RecordData = recordData ?? new byte[] { };
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			RecordData = DnsMessageBase.ParseByteData(resultData, ref startPosition, length);
 		}
@@ -4719,7 +4719,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Target = target ?? String.Empty;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Priority = DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			Weight = DnsMessageBase.ParseUShort(resultData, ref startPosition);
@@ -4794,7 +4794,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Ports = ports ?? new List<ushort>();
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int currentPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int currentPosition, int length)
 		{
 			int endPosition = currentPosition + length;
 
@@ -4882,7 +4882,7 @@ namespace IPA.Cores.Codes.DnsTools
 			X25Address = x25Address ?? String.Empty;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			X25Address += DnsMessageBase.ParseText(resultData, ref startPosition);
 		}

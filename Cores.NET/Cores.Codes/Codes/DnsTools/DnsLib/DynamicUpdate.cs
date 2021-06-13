@@ -103,7 +103,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Record = record;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length) {}
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length) {}
 
 		internal override string RecordDataToString()
 		{
@@ -163,7 +163,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Record = record;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length) {}
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length) {}
 
 		internal override string RecordDataToString()
 		{
@@ -348,7 +348,7 @@ namespace IPA.Cores.Codes.DnsTools
 		public NameIsInUsePrequisite(DomainName name)
 			: base(name, RecordType.Any, RecordClass.Any, 0) {}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length) {}
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length) {}
 
 		protected internal override int MaximumRecordDataLength => 0;
 
@@ -369,7 +369,7 @@ namespace IPA.Cores.Codes.DnsTools
 		public NameIsNotInUsePrequisite(DomainName name)
 			: base(name, RecordType.Any, RecordClass.None, 0) {}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length) {}
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length) {}
 
 		protected internal override int MaximumRecordDataLength => 0;
 
@@ -427,7 +427,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Record = record;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length) {}
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length) {}
 
 		protected internal override int MaximumRecordDataLength => Record?.MaximumRecordDataLength ?? 0;
 
@@ -452,7 +452,7 @@ namespace IPA.Cores.Codes.DnsTools
 		public RecordNotExistsPrequisite(DomainName name, RecordType recordType)
 			: base(name, recordType, RecordClass.None, 0) {}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length) {}
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length) {}
 
 		protected internal override int MaximumRecordDataLength => 0;
 

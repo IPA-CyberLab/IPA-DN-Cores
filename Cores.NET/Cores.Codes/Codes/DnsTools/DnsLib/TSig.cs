@@ -304,7 +304,7 @@ namespace IPA.Cores.Codes.DnsTools
 			KeyData = keyData;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Algorithm = TSigAlgorithmHelper.GetAlgorithmByName(DnsMessageBase.ParseDomainName(resultData, ref startPosition));
 			TimeSigned = ParseDateTime(resultData, ref startPosition);
@@ -387,7 +387,7 @@ namespace IPA.Cores.Codes.DnsTools
 			}
 		}
 
-		private static DateTime ParseDateTime(byte[] buffer, ref int currentPosition)
+		private static DateTime ParseDateTime(ReadOnlySpan<byte> buffer, ref int currentPosition)
 		{
 			long timeStamp;
 

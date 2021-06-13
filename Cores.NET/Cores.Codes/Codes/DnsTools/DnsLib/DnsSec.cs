@@ -149,7 +149,7 @@ namespace IPA.Cores.Codes.DnsTools
 			PublicValue = publicValue ?? new byte[] { };
 		}
 
-		protected override void ParsePublicKey(byte[] resultData, int startPosition, int length)
+		protected override void ParsePublicKey(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			int primeLength = DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			Prime = DnsMessageBase.ParseByteData(resultData, ref startPosition, primeLength);
@@ -237,7 +237,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Digest = digest ?? new byte[] { };
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			KeyTag = DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			Algorithm = (DnsSecAlgorithm) resultData[startPosition++];
@@ -488,7 +488,7 @@ namespace IPA.Cores.Codes.DnsTools
 			PrivateKey = privateKey;
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Flags = (DnsKeyFlags) DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			Protocol = resultData[startPosition++];
@@ -1479,7 +1479,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Digest = CalculateKeyHash(key);
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			KeyTag = DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			Algorithm = (DnsSecAlgorithm) resultData[startPosition++];
@@ -1616,7 +1616,7 @@ namespace IPA.Cores.Codes.DnsTools
 			PublicKey = publicKey ?? new byte[] { };
 		}
 
-		protected override void ParsePublicKey(byte[] resultData, int startPosition, int length)
+		protected override void ParsePublicKey(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			PublicKey = DnsMessageBase.ParseByteData(resultData, ref startPosition, length);
 		}
@@ -1940,7 +1940,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Algorithm = algorithm;
 		}
 
-		internal override sealed void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override sealed void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Flags = DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			Protocol = (ProtocolType) resultData[startPosition++];
@@ -1948,7 +1948,7 @@ namespace IPA.Cores.Codes.DnsTools
 			ParsePublicKey(resultData, startPosition, length - 4);
 		}
 
-		protected abstract void ParsePublicKey(byte[] resultData, int startPosition, int length);
+		protected abstract void ParsePublicKey(ReadOnlySpan<byte> resultData, int startPosition, int length);
 
 		internal override sealed string RecordDataToString()
 		{
@@ -2067,7 +2067,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Salt = salt ?? new byte[] { };
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int currentPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int currentPosition, int length)
 		{
 			HashAlgorithm = (NSec3HashAlgorithm) resultData[currentPosition++];
 			Flags = resultData[currentPosition++];
@@ -2179,7 +2179,7 @@ namespace IPA.Cores.Codes.DnsTools
 			}
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int currentPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int currentPosition, int length)
 		{
 			int endPosition = currentPosition + length;
 
@@ -2286,7 +2286,7 @@ namespace IPA.Cores.Codes.DnsTools
 			}
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int currentPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int currentPosition, int length)
 		{
 			int endPosition = currentPosition + length;
 
@@ -2295,7 +2295,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Types = ParseTypeBitMap(resultData, ref currentPosition, endPosition);
 		}
 
-		internal static List<RecordType> ParseTypeBitMap(byte[] resultData, ref int currentPosition, int endPosition)
+		internal static List<RecordType> ParseTypeBitMap(ReadOnlySpan<byte> resultData, ref int currentPosition, int endPosition)
 		{
 			List<RecordType> types = new List<RecordType>();
 			while (currentPosition < endPosition)
@@ -2526,7 +2526,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Signature = key.Sign(signBuffer, signBufferLength);
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			int currentPosition = startPosition;
 
@@ -2598,7 +2598,7 @@ namespace IPA.Cores.Codes.DnsTools
 			DnsMessageBase.EncodeInt(buffer, ref currentPosition, timeStamp);
 		}
 
-		private static DateTime ParseDateTime(byte[] buffer, ref int currentPosition)
+		private static DateTime ParseDateTime(ReadOnlySpan<byte> buffer, ref int currentPosition)
 		{
 			int timeStamp = DnsMessageBase.ParseInt(buffer, ref currentPosition);
 			return new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(timeStamp).ToLocalTime();
@@ -2741,7 +2741,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Signature = signature ?? new byte[] { };
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			int currentPosition = startPosition;
 
@@ -2806,7 +2806,7 @@ namespace IPA.Cores.Codes.DnsTools
 			DnsMessageBase.EncodeInt(buffer, ref currentPosition, timeStamp);
 		}
 
-		private static DateTime ParseDateTime(byte[] buffer, ref int currentPosition)
+		private static DateTime ParseDateTime(ReadOnlySpan<byte> buffer, ref int currentPosition)
 		{
 			int timeStamp = DnsMessageBase.ParseInt(buffer, ref currentPosition);
 			return new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(timeStamp).ToLocalTime();

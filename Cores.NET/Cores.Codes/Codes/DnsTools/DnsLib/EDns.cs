@@ -138,14 +138,14 @@ namespace IPA.Cores.Codes.DnsTools
 			Address = address;
 		}
 
-		internal override void ParseData(byte[] resultData, int startPosition, int length)
+		internal override void ParseData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			ushort family = DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			SourceNetmask = resultData[startPosition++];
 			ScopeNetmask = resultData[startPosition++];
 
 			byte[] addressData = new byte[family == 1 ? 4 : 16];
-			Buffer.BlockCopy(resultData, startPosition, addressData, 0, GetAddressLength());
+			Util.BlockCopy(resultData, startPosition, addressData, 0, GetAddressLength());
 
 			Address = new IPAddress(addressData);
 		}
@@ -216,7 +216,7 @@ namespace IPA.Cores.Codes.DnsTools
 			ServerCookie = serverCookie ?? new byte[] { };
 		}
 
-		internal override void ParseData(byte[] resultData, int startPosition, int length)
+		internal override void ParseData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			ClientCookie = DnsMessageBase.ParseByteData(resultData, ref startPosition, 8);
 			ServerCookie = DnsMessageBase.ParseByteData(resultData, ref startPosition, length - 8);
@@ -258,7 +258,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Algorithms = algorithms;
 		}
 
-		internal override void ParseData(byte[] resultData, int startPosition, int length)
+		internal override void ParseData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Algorithms = new List<DnsSecAlgorithm>(length);
 			for (int i = 0; i < length; i++)
@@ -305,7 +305,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Algorithms = algorithms;
 		}
 
-		internal override void ParseData(byte[] resultData, int startPosition, int length)
+		internal override void ParseData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Algorithms = new List<DnsSecAlgorithm>(length);
 			for (int i = 0; i < length; i++)
@@ -340,7 +340,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Type = optionType;
 		}
 
-		internal abstract void ParseData(byte[] resultData, int startPosition, int length);
+		internal abstract void ParseData(ReadOnlySpan<byte> resultData, int startPosition, int length);
 		internal abstract ushort DataLength { get; }
 		internal abstract void EncodeData(byte[] messageData, ref int currentPosition);
 	}
@@ -471,7 +471,7 @@ namespace IPA.Cores.Codes.DnsTools
 			SoaExpire = soaExpire;
 		}
 
-		internal override void ParseData(byte[] resultData, int startPosition, int length)
+		internal override void ParseData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			if (length == 4)
 				SoaExpire = DnsMessageBase.ParseInt(resultData, ref startPosition);
@@ -614,7 +614,7 @@ namespace IPA.Cores.Codes.DnsTools
 			LeaseTime = leaseTime;
 		}
 
-		internal override void ParseData(byte[] resultData, int startPosition, int length)
+		internal override void ParseData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Version = DnsMessageBase.ParseUShort(resultData, ref startPosition);
 			OperationCode = (LlqOperationCode) DnsMessageBase.ParseUShort(resultData, ref startPosition);
@@ -662,7 +662,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Algorithms = algorithms;
 		}
 
-		internal override void ParseData(byte[] resultData, int startPosition, int length)
+		internal override void ParseData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Algorithms = new List<DnsSecAlgorithm>(length);
 			for (int i = 0; i < length; i++)
@@ -708,7 +708,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Payload = payload;
 		}
 
-		internal override void ParseData(byte[] resultData, int startPosition, int length)
+		internal override void ParseData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Payload = DnsMessageBase.ParseByteData(resultData, ref startPosition, length);
 		}
@@ -805,7 +805,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Options = new List<EDnsOptionBase>();
 		}
 
-		internal override void ParseRecordData(byte[] resultData, int startPosition, int length)
+		internal override void ParseRecordData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			int endPosition = startPosition + length;
 
@@ -1020,7 +1020,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Password = password;
 		}
 
-		internal override void ParseData(byte[] resultData, int startPosition, int length)
+		internal override void ParseData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Version = resultData[startPosition++];
 			Sequence = resultData[startPosition++];
@@ -1068,7 +1068,7 @@ namespace IPA.Cores.Codes.DnsTools
 			Data = data;
 		}
 
-		internal override void ParseData(byte[] resultData, int startPosition, int length)
+		internal override void ParseData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			Data = DnsMessageBase.ParseByteData(resultData, ref startPosition, length);
 		}
@@ -1107,7 +1107,7 @@ namespace IPA.Cores.Codes.DnsTools
 			LeaseTime = leaseTime;
 		}
 
-		internal override void ParseData(byte[] resultData, int startPosition, int length)
+		internal override void ParseData(ReadOnlySpan<byte> resultData, int startPosition, int length)
 		{
 			LeaseTime = TimeSpan.FromSeconds(DnsMessageBase.ParseInt(resultData, ref startPosition));
 		}
