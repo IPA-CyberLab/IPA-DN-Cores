@@ -49,6 +49,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Collections;
+using IPA.Cores.Codes.DnsTools;
 
 #pragma warning disable CS0162
 #pragma warning disable CS0219
@@ -474,6 +475,7 @@ namespace IPA.TestDev
             BenchMask_BoostUp_PacketParser("190527_vlan_simple_tcp");
             BenchMask_BoostUp_PacketParser("190531_vlan_pppoe_l2tp_tcp");
             BenchMask_BoostUp_PacketParser("190531_vlan_pppoe_l2tp_udp");
+            BenchMask_BoostUp_PacketParser("210613_novlan_dns_query_simple");
 
             Memory<byte> allZeroTest = new byte[4000];
 
@@ -481,6 +483,23 @@ namespace IPA.TestDev
             var aclSampleIp = "192.168.5.0"._ToIPAddress()!;
 
             var queue = new MicroBenchmarkQueue()
+
+            .Add(new MicroBenchmark($"DnsTools_Parse", Benchmark_CountForNormal, count =>
+            {
+                // 元: DnsTools_Parse: 208.81 ns, 4,789,072 / sec
+
+                var packetMem = Res.AppRoot["210613_novlan_dns_query_simple.txt"].HexParsedBinary;
+                Packet packet = new Packet(default, packetMem._CloneSpan());
+                var parsed = new PacketParsed(ref packet);
+                var dnsPacket = parsed.L7.Generic.GetSpan(ref packet);
+
+                var array = dnsPacket.ToArray();
+
+                for (int c = 0; c < count; c++)
+                {
+                    var msg = DnsMessageBase.CreateByFlag(array, null, null);
+                }
+            }), enabled: true, priority: 210613)
 
             .Add(new MicroBenchmark($"EvaluateAclNormal", Benchmark_CountForNormal, count =>
             {

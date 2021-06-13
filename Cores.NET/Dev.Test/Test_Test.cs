@@ -79,6 +79,7 @@ using IPA.Cores.Basic.HttpClientCore;
 using Microsoft.Extensions.Hosting;
 
 using IPA.Cores.Codes;
+using IPA.Cores.Codes.DnsTools;
 
 
 #pragma warning disable CS0219
@@ -1713,8 +1714,26 @@ namespace IPA.TestDev
             Time.DateTimeToTime64(new DateTime(9999, 1, 1))._Print();
         }
 
+        static void Test_210613()
+        {
+            var packetMem = Res.AppRoot["210613_novlan_dns_query_simple.txt"].HexParsedBinary;
+            Packet packet = new Packet(default, packetMem._CloneSpan());
+            var parsed = new PacketParsed(ref packet);
+            var dnsPacket = parsed.L7.Generic.GetSpan(ref packet);
+
+            var msg = DnsMessageBase.CreateByFlag(dnsPacket.ToArray(), null, null);
+
+            msg._DebugAsJson();
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210613();
+                return;
+            }
+
             if (true)
             {
                 CSharpConcatUtil.DoConcat(@"C:\tmp2\210612test\src\", @"C:\tmp2\210612test\dst\");
