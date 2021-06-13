@@ -2239,11 +2239,11 @@ namespace IPA.Cores.Codes.DnsTools
 			int messageOffset = offset;
 			int maxLength = addLengthPrefix ? 2 : 0;
 
-			originalTsigMac = originalTsigMac ?? new byte[] { };
-
 			if (TSigOptions != null)
 			{
-				if (!IsQuery)
+                originalTsigMac = originalTsigMac ?? new byte[] { };
+
+                if (!IsQuery)
 				{
 					offset += 2 + originalTsigMac.Length;
 					maxLength += 2 + originalTsigMac.Length;
@@ -2254,13 +2254,31 @@ namespace IPA.Cores.Codes.DnsTools
 
 #region Get Message Length
 			maxLength += 12;
-			maxLength += Questions.Sum(question => question.MaximumLength);
-			maxLength += AnswerRecords.Sum(record => record.MaximumLength);
-			maxLength += AuthorityRecords.Sum(record => record.MaximumLength);
-			maxLength += _additionalRecords.Sum(record => record.MaximumLength);
-#endregion
 
-			messageData = new byte[maxLength];
+			if (Questions.Count >= 1)
+                foreach (var item in Questions)
+                    maxLength += item.MaximumLength;
+
+			if (AnswerRecords.Count >= 1)
+                foreach (var item in AnswerRecords)
+                    maxLength += item.MaximumLength;
+
+            if (AuthorityRecords.Count >= 1)
+                foreach (var item in AuthorityRecords)
+                    maxLength += item.MaximumLength;
+
+            if (_additionalRecords.Count >= 1)
+                foreach (var item in _additionalRecords)
+                    maxLength += item.MaximumLength;
+#endregion
+            if (false)
+			{
+                messageData = null;
+                newTSigMac = null;
+                return 0;
+            }
+
+            messageData = new byte[maxLength];
 			int currentPosition = offset;
 
 			Dictionary<DomainName, ushort> domainNames = new Dictionary<DomainName, ushort>();
@@ -2356,11 +2374,13 @@ namespace IPA.Cores.Codes.DnsTools
 			return currentPosition;
 		}
 
+		[MethodImpl(Inline)]
 		internal static void EncodeUShort(byte[] buffer, int currentPosition, ushort value)
 		{
 			EncodeUShort(buffer, ref currentPosition, value);
 		}
 
+		[MethodImpl(Inline)]
 		internal static void EncodeUShort(byte[] buffer, ref int currentPosition, ushort value)
 		{
 			if (BitConverter.IsLittleEndian)
@@ -2375,6 +2395,7 @@ namespace IPA.Cores.Codes.DnsTools
 			}
 		}
 
+		[MethodImpl(Inline)]
 		internal static void EncodeInt(byte[] buffer, ref int currentPosition, int value)
 		{
 			if (BitConverter.IsLittleEndian)
@@ -2393,6 +2414,7 @@ namespace IPA.Cores.Codes.DnsTools
 			}
 		}
 
+		[MethodImpl(Inline)]
 		internal static void EncodeUInt(byte[] buffer, ref int currentPosition, uint value)
 		{
 			if (BitConverter.IsLittleEndian)
@@ -2411,6 +2433,7 @@ namespace IPA.Cores.Codes.DnsTools
 			}
 		}
 
+		[MethodImpl(Inline)]
 		internal static void EncodeULong(byte[] buffer, ref int currentPosition, ulong value)
 		{
 			if (BitConverter.IsLittleEndian)
