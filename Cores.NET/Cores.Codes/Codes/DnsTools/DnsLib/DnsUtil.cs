@@ -77,10 +77,9 @@ namespace IPA.Cores.Codes.DnsTools
         }
 
         [MethodImpl(Inline)]
-        public static ReadOnlySpan<byte> Build(DnsMessageBase message)
+        public static Span<byte> Build(DnsMessageBase message)
         {
-            int len = message.Encode(false, out byte[] buf);
-            return default;
+            return message.Encode(false);
         }
     }
 }

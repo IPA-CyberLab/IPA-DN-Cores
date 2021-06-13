@@ -2219,23 +2219,51 @@ namespace IPA.Cores.Codes.DnsTools
 #endregion
 
 #region Serializing
+		[MethodImpl(Inline)]
 		protected virtual void PrepareEncoding() {}
 
+		[MethodImpl(Inline)]
 		internal int Encode(bool addLengthPrefix, out byte[] messageData)
 		{
-			byte[] newTSigMac;
+            byte[] newTSigMac;
 
-			return Encode(addLengthPrefix, null, false, out messageData, out newTSigMac);
+            return Encode(addLengthPrefix, null, false, out messageData, out newTSigMac);
+        }
+
+		[MethodImpl(Inline)]
+		internal int Encode(bool addLengthPrefix, byte[] originalTsigMac, out byte[] messageData)
+		{
+            byte[] newTSigMac;
+
+            return Encode(addLengthPrefix, originalTsigMac, false, out messageData, out newTSigMac);
+        }
+
+		[MethodImpl(Inline)]
+		internal int Encode(bool addLengthPrefix, byte[] originalTsigMac, bool isSubSequentResponse, out byte[] messageData, out byte[] newTSigMac)
+		{
+			var span = Encode(addLengthPrefix, originalTsigMac, isSubSequentResponse, out newTSigMac);
+			messageData = span.ToArray();
+			return span.Length;
 		}
 
-		internal int Encode(bool addLengthPrefix, byte[] originalTsigMac, out byte[] messageData)
+		[MethodImpl(Inline)]
+		internal Span<byte> Encode(bool addLengthPrefix)
 		{
 			byte[] newTSigMac;
 
-			return Encode(addLengthPrefix, originalTsigMac, false, out messageData, out newTSigMac);
+			return Encode(addLengthPrefix, null, false, out newTSigMac);
 		}
 
-		internal int Encode(bool addLengthPrefix, byte[] originalTsigMac, bool isSubSequentResponse, out byte[] messageData, out byte[] newTSigMac)
+		[MethodImpl(Inline)]
+		internal Span<byte> Encode(bool addLengthPrefix, byte[] originalTsigMac)
+		{
+			byte[] newTSigMac;
+
+			return Encode(addLengthPrefix, originalTsigMac, false, out newTSigMac);
+		}
+
+		[MethodImpl(Inline)]
+		internal Span<byte> Encode(bool addLengthPrefix, byte[] originalTsigMac, bool isSubSequentResponse, out byte[] newTSigMac)
 		{
 			PrepareEncoding();
 
@@ -2275,14 +2303,8 @@ namespace IPA.Cores.Codes.DnsTools
                 foreach (var item in _additionalRecords)
                     maxLength += item.MaximumLength;
 #endregion
-            if (false)
-			{
-                messageData = null;
-                newTSigMac = null;
-                return 0;
-            }
 
-            messageData = new byte[maxLength];
+            Span<byte> messageData = new byte[maxLength];
 			int currentPosition = offset;
 
 			Dictionary<DomainName, ushort> domainNames = new Dictionary<DomainName, ushort>();
@@ -2320,7 +2342,7 @@ namespace IPA.Cores.Codes.DnsTools
 				if (!IsQuery)
 				{
 					EncodeUShort(messageData, messageOffset, (ushort) originalTsigMac.Length);
-					Buffer.BlockCopy(originalTsigMac, 0, messageData, messageOffset + 2, originalTsigMac.Length);
+					Util.BlockCopy(originalTsigMac, 0, messageData, messageOffset + 2, originalTsigMac.Length);
 				}
 
 				EncodeUShort(messageData, offset, TSigOptions.OriginalID);
@@ -2349,7 +2371,7 @@ namespace IPA.Cores.Codes.DnsTools
 				if ((hashAlgorithm != null) && (TSigOptions.KeyData != null) && (TSigOptions.KeyData.Length > 0))
 				{
 					hashAlgorithm.Key = TSigOptions.KeyData;
-					newTSigMac = hashAlgorithm.ComputeHash(messageData, messageOffset, tsigVariablesPosition);
+					newTSigMac = hashAlgorithm.ComputeHash(messageData.ToArray(), messageOffset, tsigVariablesPosition);
 				}
 				else
 				{
@@ -2363,29 +2385,29 @@ namespace IPA.Cores.Codes.DnsTools
 
 				if (!IsQuery)
 				{
-					Buffer.BlockCopy(messageData, offset, messageData, messageOffset, (currentPosition - offset));
+					Util.BlockCopy(messageData, offset, messageData, messageOffset, (currentPosition - offset));
 					currentPosition -= (2 + originalTsigMac.Length);
 				}
 			}
 
 			if (addLengthPrefix)
 			{
-				Buffer.BlockCopy(messageData, 0, messageData, 2, currentPosition);
+				Util.BlockCopy(messageData, 0, messageData, 2, currentPosition);
 				EncodeUShort(messageData, 0, (ushort) (currentPosition));
 				currentPosition += 2;
 			}
 
-			return currentPosition;
+			return messageData.Slice(0, currentPosition);
 		}
 
 		[MethodImpl(Inline)]
-		internal static void EncodeUShort(byte[] buffer, int currentPosition, ushort value)
+		internal static void EncodeUShort(Span<byte> buffer, int currentPosition, ushort value)
 		{
 			EncodeUShort(buffer, ref currentPosition, value);
 		}
 
 		[MethodImpl(Inline)]
-		internal static void EncodeUShort(byte[] buffer, ref int currentPosition, ushort value)
+		internal static void EncodeUShort(Span<byte> buffer, ref int currentPosition, ushort value)
 		{
 			if (BitConverter.IsLittleEndian)
 			{
@@ -2400,26 +2422,7 @@ namespace IPA.Cores.Codes.DnsTools
 		}
 
 		[MethodImpl(Inline)]
-		internal static void EncodeInt(byte[] buffer, ref int currentPosition, int value)
-		{
-			if (BitConverter.IsLittleEndian)
-			{
-				buffer[currentPosition++] = (byte) ((value >> 24) & 0xff);
-				buffer[currentPosition++] = (byte) ((value >> 16) & 0xff);
-				buffer[currentPosition++] = (byte) ((value >> 8) & 0xff);
-				buffer[currentPosition++] = (byte) (value & 0xff);
-			}
-			else
-			{
-				buffer[currentPosition++] = (byte) (value & 0xff);
-				buffer[currentPosition++] = (byte) ((value >> 8) & 0xff);
-				buffer[currentPosition++] = (byte) ((value >> 16) & 0xff);
-				buffer[currentPosition++] = (byte) ((value >> 24) & 0xff);
-			}
-		}
-
-		[MethodImpl(Inline)]
-		internal static void EncodeUInt(byte[] buffer, ref int currentPosition, uint value)
+		internal static void EncodeInt(Span<byte> buffer, ref int currentPosition, int value)
 		{
 			if (BitConverter.IsLittleEndian)
 			{
@@ -2438,7 +2441,26 @@ namespace IPA.Cores.Codes.DnsTools
 		}
 
 		[MethodImpl(Inline)]
-		internal static void EncodeULong(byte[] buffer, ref int currentPosition, ulong value)
+		internal static void EncodeUInt(Span<byte> buffer, ref int currentPosition, uint value)
+		{
+			if (BitConverter.IsLittleEndian)
+			{
+				buffer[currentPosition++] = (byte) ((value >> 24) & 0xff);
+				buffer[currentPosition++] = (byte) ((value >> 16) & 0xff);
+				buffer[currentPosition++] = (byte) ((value >> 8) & 0xff);
+				buffer[currentPosition++] = (byte) (value & 0xff);
+			}
+			else
+			{
+				buffer[currentPosition++] = (byte) (value & 0xff);
+				buffer[currentPosition++] = (byte) ((value >> 8) & 0xff);
+				buffer[currentPosition++] = (byte) ((value >> 16) & 0xff);
+				buffer[currentPosition++] = (byte) ((value >> 24) & 0xff);
+			}
+		}
+
+		[MethodImpl(Inline)]
+		internal static void EncodeULong(Span<byte> buffer, ref int currentPosition, ulong value)
 		{
 			if (BitConverter.IsLittleEndian)
 			{
@@ -2452,7 +2474,7 @@ namespace IPA.Cores.Codes.DnsTools
 			}
 		}
 
-		internal static void EncodeDomainName(byte[] messageData, int offset, ref int currentPosition, DomainName name, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		internal static void EncodeDomainName(Span<byte> messageData, int offset, ref int currentPosition, DomainName name, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			if (name.LabelCount == 0)
 			{
@@ -2477,14 +2499,14 @@ namespace IPA.Cores.Codes.DnsTools
 			messageData[currentPosition++] = (byte) label.Length;
 
 			if (useCanonical)
-				label = label.ToLowerInvariant();
+				label = label.ToLower();
 
 			EncodeByteArray(messageData, ref currentPosition, Encoding.ASCII.GetBytes(label));
 
 			EncodeDomainName(messageData, offset, ref currentPosition, name.GetParentName(), domainNames, useCanonical);
 		}
 
-		internal static void EncodeTextBlock(byte[] messageData, ref int currentPosition, string text)
+		internal static void EncodeTextBlock(Span<byte> messageData, ref int currentPosition, string text)
 		{
 			byte[] textData = Encoding.ASCII.GetBytes(text);
 
@@ -2493,19 +2515,19 @@ namespace IPA.Cores.Codes.DnsTools
 				int blockLength = Math.Min(255, (textData.Length - i));
 				messageData[currentPosition++] = (byte) blockLength;
 
-				Buffer.BlockCopy(textData, i, messageData, currentPosition, blockLength);
+				Util.BlockCopy(textData, i, messageData, currentPosition, blockLength);
 				currentPosition += blockLength;
 			}
 		}
 
-		internal static void EncodeTextWithoutLength(byte[] messageData, ref int currentPosition, string text)
+		internal static void EncodeTextWithoutLength(Span<byte> messageData, ref int currentPosition, string text)
 		{
 			byte[] textData = Encoding.ASCII.GetBytes(text);
-			Buffer.BlockCopy(textData, 0, messageData, currentPosition, textData.Length);
+			Util.BlockCopy(textData, 0, messageData, currentPosition, textData.Length);
 			currentPosition += textData.Length;
 		}
 
-		internal static void EncodeByteArray(byte[] messageData, ref int currentPosition, byte[] data)
+		internal static void EncodeByteArray(Span<byte> messageData, ref int currentPosition, byte[] data)
 		{
 			if (data != null)
 			{
@@ -2513,11 +2535,11 @@ namespace IPA.Cores.Codes.DnsTools
 			}
 		}
 
-		internal static void EncodeByteArray(byte[] messageData, ref int currentPosition, byte[] data, int length)
+		internal static void EncodeByteArray(Span<byte> messageData, ref int currentPosition, byte[] data, int length)
 		{
 			if ((data != null) && (length > 0))
 			{
-				Buffer.BlockCopy(data, 0, messageData, currentPosition, length);
+				Util.BlockCopy(data, 0, messageData, currentPosition, length);
 				currentPosition += length;
 			}
 		}
@@ -2690,7 +2712,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		internal override int MaximumLength => Name.MaximumRecordDataLength + 6;
 
-		internal void Encode(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames)
+		internal void Encode(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames)
 		{
 			DnsMessageBase.EncodeDomainName(messageData, offset, ref currentPosition, Name, domainNames, false);
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, (ushort) RecordType);

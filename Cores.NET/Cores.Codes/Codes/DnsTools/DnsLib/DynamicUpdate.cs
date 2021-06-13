@@ -112,7 +112,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => Record.MaximumRecordDataLength;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			Record.EncodeRecordData(messageData, offset, ref currentPosition, domainNames, useCanonical);
 		}
@@ -172,7 +172,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => Record?.MaximumRecordDataLength ?? 0;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			Record?.EncodeRecordData(messageData, offset, ref currentPosition, domainNames, useCanonical);
 		}
@@ -352,7 +352,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 0;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical) {}
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical) {}
 	}
 
 	/// <summary>
@@ -373,7 +373,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 0;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical) {}
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical) {}
 	}
 
 	/// <summary>
@@ -431,7 +431,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => Record?.MaximumRecordDataLength ?? 0;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			Record?.EncodeRecordData(messageData, offset, ref currentPosition, domainNames, useCanonical);
 		}
@@ -456,7 +456,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 0;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical) {}
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical) {}
 	}
 
 	/// <summary>

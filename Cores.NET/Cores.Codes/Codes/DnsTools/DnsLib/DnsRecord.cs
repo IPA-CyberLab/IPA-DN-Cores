@@ -151,7 +151,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return Address.ToString();
 		}
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeByteArray(messageData, ref currentPosition, Address.GetAddressBytes());
 		}
@@ -241,7 +241,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => Hostname.MaximumRecordDataLength + 4;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, (ushort) SubType);
 			DnsMessageBase.EncodeDomainName(messageData, offset, ref currentPosition, Hostname, null, useCanonical);
@@ -404,7 +404,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => Prefixes.Count * 20;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			foreach (AddressPrefix addressPrefix in Prefixes)
 			{
@@ -518,7 +518,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 2 + Tag.Length + Value.Length;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			messageData[currentPosition++] = Flags;
 			DnsMessageBase.EncodeTextBlock(messageData, ref currentPosition, Tag);
@@ -729,7 +729,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 4 + PublicKey.Length;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, (ushort) Flags);
 			messageData[currentPosition++] = Protocol;
@@ -817,7 +817,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 4 + Digest.Length;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, KeyTag);
 			messageData[currentPosition++] = (byte) Algorithm;
@@ -1009,7 +1009,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 5 + Certificate.Length;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, (ushort) Type);
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, KeyTag);
@@ -1066,7 +1066,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => CanonicalName.MaximumRecordDataLength + 2;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeDomainName(messageData, offset, ref currentPosition, CanonicalName, domainNames, useCanonical);
 		}
@@ -1219,14 +1219,14 @@ namespace IPA.Cores.Codes.DnsTools
 			return res + 3 + lastType % 256 / 8;
 		}
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeUInt(messageData, ref currentPosition, SerialNumber);
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, (ushort) Flags);
 			EncodeTypeBitmap(messageData, ref currentPosition, Types);
 		}
 
-		internal static void EncodeTypeBitmap(byte[] messageData, ref int currentPosition, List<RecordType> types)
+		internal static void EncodeTypeBitmap(Span<byte> messageData, ref int currentPosition, List<RecordType> types)
 		{
 			int windowEnd = 255;
 			byte[] windowData = new byte[32];
@@ -1320,7 +1320,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => RecordData.Length;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeByteArray(messageData, ref currentPosition, RecordData);
 		}
@@ -1374,7 +1374,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => Target.MaximumRecordDataLength + 2;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeDomainName(messageData, offset, ref currentPosition, Target, null, useCanonical);
 		}
@@ -1592,13 +1592,13 @@ namespace IPA.Cores.Codes.DnsTools
 #region Encoding
 		internal override sealed int MaximumLength => Name.MaximumRecordDataLength + 12 + MaximumRecordDataLength;
 
-		internal void Encode(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical = false)
+		internal void Encode(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical = false)
 		{
 			EncodeRecordHeader(messageData, offset, ref currentPosition, domainNames, useCanonical);
 			EncodeRecordBody(messageData, offset, ref currentPosition, domainNames, useCanonical);
 		}
 
-		internal void EncodeRecordHeader(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		internal void EncodeRecordHeader(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeDomainName(messageData, offset, ref currentPosition, Name, domainNames, useCanonical);
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, (ushort) RecordType);
@@ -1606,14 +1606,14 @@ namespace IPA.Cores.Codes.DnsTools
 			DnsMessageBase.EncodeInt(messageData, ref currentPosition, TimeToLive);
 		}
 
-		internal void EncodeRecordBody(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		internal void EncodeRecordBody(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			int recordDataOffset = currentPosition + 2;
 			EncodeRecordData(messageData, offset, ref recordDataOffset, domainNames, useCanonical);
 			EncodeRecordLength(messageData, offset, ref currentPosition, domainNames, recordDataOffset);
 		}
 
-		internal void EncodeRecordLength(byte[] messageData, int offset, ref int recordDataOffset, Dictionary<DomainName, ushort> domainNames, int recordPosition)
+		internal void EncodeRecordLength(Span<byte> messageData, int offset, ref int recordDataOffset, Dictionary<DomainName, ushort> domainNames, int recordPosition)
 		{
 			DnsMessageBase.EncodeUShort(messageData, ref recordDataOffset, (ushort) (recordPosition - recordDataOffset - 2));
 			recordDataOffset = recordPosition;
@@ -1622,7 +1622,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal abstract int MaximumRecordDataLength { get; }
 
-		protected internal abstract void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical);
+		protected internal abstract void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical);
 #endregion
 
 		internal T Clone<T>()
@@ -1746,7 +1746,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 6;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeByteArray(messageData, ref currentPosition, Address);
 		}
@@ -1803,7 +1803,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 8;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeByteArray(messageData, ref currentPosition, Address);
 		}
@@ -1877,7 +1877,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 3 + Longitude.ToString(CultureInfo.InvariantCulture).Length + Latitude.ToString(CultureInfo.InvariantCulture).Length + Altitude.ToString(CultureInfo.InvariantCulture).Length;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeTextBlock(messageData, ref currentPosition, Longitude.ToString(CultureInfo.InvariantCulture));
 			DnsMessageBase.EncodeTextBlock(messageData, ref currentPosition, Latitude.ToString(CultureInfo.InvariantCulture));
@@ -1943,7 +1943,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 2 + Cpu.Length + OperatingSystem.Length;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeTextBlock(messageData, ref currentPosition, Cpu);
 			DnsMessageBase.EncodeTextBlock(messageData, ref currentPosition, OperatingSystem);
@@ -2046,7 +2046,7 @@ namespace IPA.Cores.Codes.DnsTools
 			}
 		}
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			messageData[currentPosition++] = (byte) Hit.Length;
 			messageData[currentPosition++] = (byte) Algorithm;
@@ -2296,7 +2296,7 @@ namespace IPA.Cores.Codes.DnsTools
 			}
 		}
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			messageData[currentPosition++] = Precedence;
 			messageData[currentPosition++] = (byte) GatewayType;
@@ -2387,7 +2387,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 2 + IsdnAddress.Length + SubAddress.Length;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeTextBlock(messageData, ref currentPosition, IsdnAddress);
 			DnsMessageBase.EncodeTextBlock(messageData, ref currentPosition, SubAddress);
@@ -2457,7 +2457,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => Exchanger.MaximumRecordDataLength + 4;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, Preference);
 			DnsMessageBase.EncodeDomainName(messageData, offset, ref currentPosition, Exchanger, domainNames, useCanonical);
@@ -2521,7 +2521,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 6;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, Preference);
 			DnsMessageBase.EncodeUInt(messageData, ref currentPosition, Locator32);
@@ -2586,7 +2586,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 10;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, Preference);
 			DnsMessageBase.EncodeULong(messageData, ref currentPosition, Locator64);
@@ -2823,7 +2823,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 16;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			messageData[currentPosition++] = Version;
 			messageData[currentPosition++] = ConvertPrecision(Size);
@@ -2975,7 +2975,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 4 + FQDN.MaximumRecordDataLength;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, Preference);
 			DnsMessageBase.EncodeDomainName(messageData, offset, ref currentPosition, FQDN, null, false);
@@ -3040,7 +3040,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => ExchangeDomainName.MaximumRecordDataLength + 4;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, Preference);
 			DnsMessageBase.EncodeDomainName(messageData, offset, ref currentPosition, ExchangeDomainName, domainNames, useCanonical);
@@ -3149,7 +3149,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => Flags.Length + Services.Length + RegExp.Length + Replacement.MaximumRecordDataLength + 13;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, Order);
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, Preference);
@@ -3231,7 +3231,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 10;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, Preference);
 			DnsMessageBase.EncodeULong(messageData, ref currentPosition, NodeID);
@@ -3291,7 +3291,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => RecordData.Length;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeByteArray(messageData, ref currentPosition, RecordData);
 		}
@@ -3345,7 +3345,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => NameServer.MaximumRecordDataLength + 2;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeDomainName(messageData, offset, ref currentPosition, NameServer, domainNames, useCanonical);
 		}
@@ -3400,7 +3400,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => PublicKey.Length;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeByteArray(messageData, ref currentPosition, PublicKey);
 		}
@@ -3454,7 +3454,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => PointerDomainName.MaximumRecordDataLength + 2;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeDomainName(messageData, offset, ref currentPosition, PointerDomainName, domainNames, useCanonical);
 		}
@@ -3528,7 +3528,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 6 + Map822.MaximumRecordDataLength + MapX400.MaximumRecordDataLength;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, Preference);
 			DnsMessageBase.EncodeDomainName(messageData, offset, ref currentPosition, Map822, null, useCanonical);
@@ -3596,7 +3596,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 4 + MailBox.MaximumRecordDataLength + TxtDomainName.MaximumRecordDataLength;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeDomainName(messageData, offset, ref currentPosition, MailBox, null, useCanonical);
 			DnsMessageBase.EncodeDomainName(messageData, offset, ref currentPosition, TxtDomainName, null, useCanonical);
@@ -3661,7 +3661,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => IntermediateHost.MaximumRecordDataLength + 4;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, Preference);
 			DnsMessageBase.EncodeDomainName(messageData, offset, ref currentPosition, IntermediateHost, null, useCanonical);
@@ -3787,7 +3787,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => MasterName.MaximumRecordDataLength + ResponsibleName.MaximumRecordDataLength + 24;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeDomainName(messageData, offset, ref currentPosition, MasterName, domainNames, useCanonical);
 			DnsMessageBase.EncodeDomainName(messageData, offset, ref currentPosition, ResponsibleName, domainNames, useCanonical);
@@ -3910,7 +3910,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => Target.MaximumRecordDataLength + 8;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, Priority);
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, Weight);
@@ -4063,7 +4063,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 2 + FingerPrint.Length;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			messageData[currentPosition++] = (byte) Algorithm;
 			messageData[currentPosition++] = (byte) FingerPrintType;
@@ -4128,7 +4128,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return String.Join(" ", TextParts.Select(x => "\"" + x.ToMasterfileLabelRepresentation() + "\""));
 		}
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			foreach (var part in TextParts)
 			{
@@ -4290,7 +4290,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 18 + TSigAlgorithmHelper.GetDomainName(Algorithm).MaximumRecordDataLength + Key.Length + OtherData.Length;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeDomainName(messageData, offset, ref currentPosition, TSigAlgorithmHelper.GetDomainName(Algorithm), null, false);
 			EncodeDateTime(messageData, ref currentPosition, Inception);
@@ -4303,7 +4303,7 @@ namespace IPA.Cores.Codes.DnsTools
 			DnsMessageBase.EncodeByteArray(messageData, ref currentPosition, OtherData);
 		}
 
-		internal static void EncodeDateTime(byte[] buffer, ref int currentPosition, DateTime value)
+		internal static void EncodeDateTime(Span<byte> buffer, ref int currentPosition, DateTime value)
 		{
 			int timeStamp = (int) (value.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
 			DnsMessageBase.EncodeInt(buffer, ref currentPosition, timeStamp);
@@ -4589,7 +4589,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 3 + CertificateAssociationData.Length;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			messageData[currentPosition++] = (byte) CertificateUsage;
 			messageData[currentPosition++] = (byte) Selector;
@@ -4671,7 +4671,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => RecordData.Length;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeByteArray(messageData, ref currentPosition, RecordData);
 		}
@@ -4744,7 +4744,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => Target.Length + 4;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, Priority);
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, Weight);
@@ -4837,7 +4837,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 5 + Ports.Max() / 8 + 1;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeByteArray(messageData, ref currentPosition, Address.GetAddressBytes());
 			messageData[currentPosition++] = (byte) Protocol;
@@ -4902,7 +4902,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => 1 + X25Address.Length;
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			DnsMessageBase.EncodeTextBlock(messageData, ref currentPosition, X25Address);
 		}

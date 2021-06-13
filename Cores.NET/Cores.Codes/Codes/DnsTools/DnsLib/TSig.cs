@@ -337,7 +337,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		protected internal override int MaximumRecordDataLength => TSigAlgorithmHelper.GetDomainName(Algorithm).MaximumRecordDataLength + 18 + TSigAlgorithmHelper.GetHashSize(Algorithm) + OtherData.Length;
 
-		internal void Encode(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, byte[] mac)
+		internal void Encode(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, byte[] mac)
 		{
 			EncodeRecordHeader(messageData, offset, ref currentPosition, domainNames, false);
 			int recordDataOffset = currentPosition + 2;
@@ -345,7 +345,7 @@ namespace IPA.Cores.Codes.DnsTools
 			EncodeRecordLength(messageData, offset, ref currentPosition, domainNames, recordDataOffset);
 		}
 
-		private void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, byte[] mac)
+		private void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, byte[] mac)
 		{
 			DnsMessageBase.EncodeDomainName(messageData, offset, ref currentPosition, TSigAlgorithmHelper.GetDomainName(Algorithm), null, false);
 			EncodeDateTime(messageData, ref currentPosition, TimeSigned);
@@ -358,12 +358,12 @@ namespace IPA.Cores.Codes.DnsTools
 			DnsMessageBase.EncodeByteArray(messageData, ref currentPosition, OtherData);
 		}
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			EncodeRecordData(messageData, offset, ref currentPosition, Mac);
 		}
 
-		internal static void EncodeDateTime(byte[] buffer, ref int currentPosition, DateTime value)
+		internal static void EncodeDateTime(Span<byte> buffer, ref int currentPosition, DateTime value)
 		{
 			long timeStamp = (long) (value.ToUniversalTime() - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
 

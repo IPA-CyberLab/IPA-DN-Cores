@@ -152,7 +152,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		internal override ushort DataLength => (ushort) (4 + GetAddressLength());
 
-		internal override void EncodeData(byte[] messageData, ref int currentPosition)
+		internal override void EncodeData(Span<byte> messageData, ref int currentPosition)
 		{
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, (ushort) (Family == AddressFamily.InterNetwork ? 1 : 2));
 			messageData[currentPosition++] = SourceNetmask;
@@ -224,7 +224,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		internal override ushort DataLength => (ushort) (8 + ServerCookie.Length);
 
-		internal override void EncodeData(byte[] messageData, ref int currentPosition)
+		internal override void EncodeData(Span<byte> messageData, ref int currentPosition)
 		{
 			DnsMessageBase.EncodeByteArray(messageData, ref currentPosition, ClientCookie);
 			DnsMessageBase.EncodeByteArray(messageData, ref currentPosition, ServerCookie);
@@ -269,7 +269,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		internal override ushort DataLength => (ushort) (Algorithms?.Count ?? 0);
 
-		internal override void EncodeData(byte[] messageData, ref int currentPosition)
+		internal override void EncodeData(Span<byte> messageData, ref int currentPosition)
 		{
 			foreach (var algorithm in Algorithms)
 			{
@@ -316,7 +316,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		internal override ushort DataLength => (ushort) (Algorithms?.Count ?? 0);
 
-		internal override void EncodeData(byte[] messageData, ref int currentPosition)
+		internal override void EncodeData(Span<byte> messageData, ref int currentPosition)
 		{
 			foreach (var algorithm in Algorithms)
 			{
@@ -342,7 +342,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		internal abstract void ParseData(ReadOnlySpan<byte> resultData, int startPosition, int length);
 		internal abstract ushort DataLength { get; }
-		internal abstract void EncodeData(byte[] messageData, ref int currentPosition);
+		internal abstract void EncodeData(Span<byte> messageData, ref int currentPosition);
 	}
 
 	/// <summary>
@@ -479,7 +479,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		internal override ushort DataLength => (ushort) (SoaExpire.HasValue ? 4 : 0);
 
-		internal override void EncodeData(byte[] messageData, ref int currentPosition)
+		internal override void EncodeData(Span<byte> messageData, ref int currentPosition)
 		{
 			if (SoaExpire.HasValue)
 				DnsMessageBase.EncodeInt(messageData, ref currentPosition, SoaExpire.Value);
@@ -625,7 +625,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		internal override ushort DataLength => 18;
 
-		internal override void EncodeData(byte[] messageData, ref int currentPosition)
+		internal override void EncodeData(Span<byte> messageData, ref int currentPosition)
 		{
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, Version);
 			DnsMessageBase.EncodeUShort(messageData, ref currentPosition, (ushort) OperationCode);
@@ -673,7 +673,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		internal override ushort DataLength => (ushort) (Algorithms?.Count ?? 0);
 
-		internal override void EncodeData(byte[] messageData, ref int currentPosition)
+		internal override void EncodeData(Span<byte> messageData, ref int currentPosition)
 		{
 			foreach (var algorithm in Algorithms)
 			{
@@ -715,7 +715,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		internal override ushort DataLength => (ushort) (Payload?.Length ?? 0);
 
-		internal override void EncodeData(byte[] messageData, ref int currentPosition)
+		internal override void EncodeData(Span<byte> messageData, ref int currentPosition)
 		{
 			DnsMessageBase.EncodeByteArray(messageData, ref currentPosition, Payload);
 		}
@@ -905,7 +905,7 @@ namespace IPA.Cores.Codes.DnsTools
 			}
 		}
 
-		protected internal override void EncodeRecordData(byte[] messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
+		protected internal override void EncodeRecordData(Span<byte> messageData, int offset, ref int currentPosition, Dictionary<DomainName, ushort> domainNames, bool useCanonical)
 		{
 			if ((Options != null) && (Options.Count != 0))
 			{
@@ -1033,7 +1033,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		internal override ushort DataLength => (ushort) (8 + (WakeupMacAddress != null ? 6 : 0) + (Password?.Length ?? 0));
 
-		internal override void EncodeData(byte[] messageData, ref int currentPosition)
+		internal override void EncodeData(Span<byte> messageData, ref int currentPosition)
 		{
 			messageData[currentPosition++] = Version;
 			messageData[currentPosition++] = Sequence;
@@ -1075,7 +1075,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		internal override ushort DataLength => (ushort) (Data?.Length ?? 0);
 
-		internal override void EncodeData(byte[] messageData, ref int currentPosition)
+		internal override void EncodeData(Span<byte> messageData, ref int currentPosition)
 		{
 			DnsMessageBase.EncodeByteArray(messageData, ref currentPosition, Data);
 		}
@@ -1114,7 +1114,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 		internal override ushort DataLength => 4;
 
-		internal override void EncodeData(byte[] messageData, ref int currentPosition)
+		internal override void EncodeData(Span<byte> messageData, ref int currentPosition)
 		{
 			DnsMessageBase.EncodeInt(messageData, ref currentPosition, (int) LeaseTime.TotalSeconds);
 		}

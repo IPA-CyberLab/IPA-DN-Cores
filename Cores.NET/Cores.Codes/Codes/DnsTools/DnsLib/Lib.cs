@@ -86,6 +86,7 @@ using static IPA.Cores.Globals.Basic;
 using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
+using System.Runtime.CompilerServices;
 
 namespace IPA.Cores.Codes.DnsTools
 {
@@ -124,7 +125,7 @@ namespace IPA.Cores.Codes.DnsTools
 
 			if (isCaseIgnored)
 			{
-				alphabet = alphabet.ToLowerInvariant();
+				alphabet = alphabet.ToLower();
 				for (byte i = 0; i < alphabet.Length; i++)
 				{
 					res[alphabet[i]] = i;
@@ -1016,7 +1017,8 @@ namespace IPA.Cores.Codes.DnsTools
 		/// </summary>
 		/// <returns>The hash code for this domain name</returns>
 		[SuppressMessage("ReSharper", "NonReadonlyMemberInGetHashCode")]
-		public override int GetHashCode()
+        [MethodImpl(Inline)]
+        public override int GetHashCode()
 		{
 			if (_hashCode.HasValue)
 				return _hashCode.Value;
@@ -1027,7 +1029,7 @@ namespace IPA.Cores.Codes.DnsTools
 			{
 				unchecked
 				{
-					hash = hash * 17 + _labels[i].ToLowerInvariant().GetHashCode();
+					hash = hash * 17 + _labels[i].GetHashCode(StringComparison.OrdinalIgnoreCase);
 				}
 			}
 
@@ -1078,12 +1080,13 @@ namespace IPA.Cores.Codes.DnsTools
 			return !(name1 == name2);
 		}
 
-		/// <summary>
-		///   Checks, whether this name is equal to an other object (case insensitive)
-		/// </summary>
-		/// <param name="obj">The other object</param>
-		/// <returns>true, if the names are equal</returns>
-		public override bool Equals(object obj)
+        /// <summary>
+        ///   Checks, whether this name is equal to an other object (case insensitive)
+        /// </summary>
+        /// <param name="obj">The other object</param>
+        /// <returns>true, if the names are equal</returns>
+        [MethodImpl(Inline)]
+        public override bool Equals(object obj)
 		{
 			return Equals(obj as DomainName);
 		}
@@ -1093,6 +1096,7 @@ namespace IPA.Cores.Codes.DnsTools
 		/// </summary>
 		/// <param name="other">The other name</param>
 		/// <returns>true, if the names are equal</returns>
+		[MethodImpl(Inline)]
 		public bool Equals(DomainName other)
 		{
 			return Equals(other, true);
@@ -1104,6 +1108,7 @@ namespace IPA.Cores.Codes.DnsTools
 		/// <param name="other">The other name</param>
 		/// <param name="ignoreCase">true, if the case should ignored on checking</param>
 		/// <returns>true, if the names are equal</returns>
+		[MethodImpl(Inline)]
 		public bool Equals(DomainName other, bool ignoreCase)
 		{
 			if (ReferenceEquals(other, null))
@@ -1136,7 +1141,7 @@ namespace IPA.Cores.Codes.DnsTools
 		{
 			for (int i = 1; i <= Math.Min(LabelCount, other.LabelCount); i++)
 			{
-				int labelCompare = String.Compare(Labels[LabelCount - i].ToLowerInvariant(), other.Labels[other.LabelCount - i].ToLowerInvariant(), StringComparison.Ordinal);
+				int labelCompare = String.Compare(Labels[LabelCount - i].ToLower(), other.Labels[other.LabelCount - i].ToLower(), StringComparison.Ordinal);
 
 				if (labelCompare != 0)
 					return labelCompare;
