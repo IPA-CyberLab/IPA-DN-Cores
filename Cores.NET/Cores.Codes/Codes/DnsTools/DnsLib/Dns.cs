@@ -1767,7 +1767,11 @@ namespace IPA.Cores.Codes.DnsTools
 			{
 				if (_additionalRecords != null)
 				{
-					return _additionalRecords.Any(record => (record.RecordType == RecordType.Opt));
+					foreach (var item in _additionalRecords)
+						if (item.RecordType == RecordType.Opt)
+							return true;
+
+					return false;
 				}
 				else
 				{

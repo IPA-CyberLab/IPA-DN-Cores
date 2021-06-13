@@ -756,7 +756,15 @@ namespace IPA.Cores.Codes.DnsTools
 
 		internal int MaximumRecordDataLength
 		{
-			get { return LabelCount + _labels.Sum(x => x.Length); }
+			get
+			{
+				int ret = LabelCount;
+				foreach (var item in _labels)
+				{
+					ret += item.Length;
+				}
+				return ret;
+			}
 		}
 
 		// ReSharper disable once InconsistentNaming
