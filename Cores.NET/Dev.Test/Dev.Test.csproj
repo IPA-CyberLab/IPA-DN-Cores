@@ -27,7 +27,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DefineConstants>CORES_CODES_AWS</DefineConstants>
+    <DefineConstants>CORES_CODES_AWS;CORES_CODES_DNSTOOLS</DefineConstants>
     <WarningsAsErrors>NU1605;CA2245;</WarningsAsErrors>
   </PropertyGroup>
 
