@@ -53,7 +53,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if CORES_CODES_DNSTOOLS
+#if CORES_BASIC_SECURITY
 
 #nullable disable
 
@@ -75,6 +75,8 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text.RegularExpressions;
+using System.Runtime.CompilerServices;
+using Newtonsoft.Json;
 
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Digests;
@@ -83,13 +85,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-using IPA.Cores.Codes;
-using IPA.Cores.Helper.Codes;
-using static IPA.Cores.Globals.Codes;
-using System.Runtime.CompilerServices;
-using Newtonsoft.Json;
-
-namespace IPA.Cores.Codes.DnsTools
+namespace IPA.Cores.Basic.DnsLib
 {
     public delegate Task AsyncEventHandler<T>(object sender, T eventArgs) where T : EventArgs;
 

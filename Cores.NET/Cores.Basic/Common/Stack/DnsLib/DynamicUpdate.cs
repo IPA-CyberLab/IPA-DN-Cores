@@ -53,7 +53,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if CORES_CODES_DNSTOOLS
+#if CORES_BASIC_SECURITY
 
 #nullable disable
 
@@ -75,11 +75,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-using IPA.Cores.Codes;
-using IPA.Cores.Helper.Codes;
-using static IPA.Cores.Globals.Codes;
-
-namespace IPA.Cores.Codes.DnsTools
+namespace IPA.Cores.Basic.DnsLib
 {
     /// <summary>
     ///   Add record action

@@ -53,7 +53,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if CORES_CODES_DNSTOOLS
+#if CORES_BASIC_SECURITY
 
 #nullable disable
 
@@ -76,6 +76,7 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using System.Runtime.CompilerServices;
 
 using Org.BouncyCastle.Crypto.Prng;
 using Org.BouncyCastle.Security;
@@ -84,12 +85,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-using IPA.Cores.Codes;
-using IPA.Cores.Helper.Codes;
-using static IPA.Cores.Globals.Codes;
-using System.Runtime.CompilerServices;
-
-namespace IPA.Cores.Codes.DnsTools
+namespace IPA.Cores.Basic.DnsLib
 {
     /// <summary>
     ///   Event arguments of <see cref="DnsServer.ClientConnected" /> event.
@@ -120,18 +116,18 @@ namespace IPA.Cores.Codes.DnsTools
 
 	internal class DnsAsyncState : IAsyncResult
 	{
-		internal List<IPAddress> Servers;
-		internal int ServerIndex;
+		internal List<IPAddress> Servers = null;
+		internal int ServerIndex = 0;
 		internal byte[] QueryData;
-		internal int QueryLength;
+		internal int QueryLength = 0;
 
-		internal DnsServer.SelectTsigKey TSigKeySelector;
-		internal byte[] TSigOriginalMac;
+		internal DnsServer.SelectTsigKey TSigKeySelector = null;
+		internal byte[] TSigOriginalMac = null;
 
-		internal DnsMessage Response;
+		internal DnsMessage Response = null;
 
 		internal Timer Timer;
-		internal bool TimedOut;
+		internal bool TimedOut = false;
 
 		private long _timeOutUtcTicks;
 
@@ -145,15 +141,15 @@ namespace IPA.Cores.Codes.DnsTools
 			set { _timeOutUtcTicks = DateTime.UtcNow.Ticks + value * TimeSpan.TicksPerMillisecond; }
 		}
 
-		internal UdpClient UdpClient;
-		internal IPEndPoint UdpEndpoint;
+		internal UdpClient UdpClient = null;
+		internal IPEndPoint UdpEndpoint = null;
 
-		internal TcpClient TcpClient;
-		internal NetworkStream TcpStream;
-		internal byte[] TcpBuffer;
-		internal int TcpBytesToReceive;
+		internal TcpClient TcpClient = null;
+		internal NetworkStream TcpStream = null;
+		internal byte[] TcpBuffer = null;
+		internal int TcpBytesToReceive = 0;
 
-		internal AsyncCallback UserCallback;
+		internal AsyncCallback UserCallback = null;
 		public object AsyncState { get; internal set; }
 		public bool IsCompleted { get; private set; }
 
@@ -474,11 +470,11 @@ namespace IPA.Cores.Codes.DnsTools
 		internal DnsServer.SelectTsigKey TSigKeySelector;
 		internal byte[] TSigOriginalMac;
 
-		internal TMessage PartialMessage;
+		internal TMessage PartialMessage = null;
 		internal List<TMessage> Responses;
 
 		internal Timer Timer;
-		internal bool TimedOut;
+		internal bool TimedOut = false;
 
 		private long _timeOutUtcTicks;
 
@@ -492,16 +488,16 @@ namespace IPA.Cores.Codes.DnsTools
 			set { _timeOutUtcTicks = DateTime.UtcNow.Ticks + value * TimeSpan.TicksPerMillisecond; }
 		}
 
-		internal System.Net.Sockets.Socket UdpClient;
-		internal EndPoint UdpEndpoint;
+		internal System.Net.Sockets.Socket UdpClient = null;
+		internal EndPoint UdpEndpoint = null;
 
-		internal byte[] Buffer;
+		internal byte[] Buffer = null;
 
-		internal TcpClient TcpClient;
-		internal NetworkStream TcpStream;
-		internal int TcpBytesToReceive;
+		internal TcpClient TcpClient = null;
+		internal NetworkStream TcpStream = null;
+		internal int TcpBytesToReceive = 0;
 
-		internal AsyncCallback UserCallback;
+		internal AsyncCallback UserCallback = null;
 		public object AsyncState { get; internal set; }
 		public bool IsCompleted { get; private set; }
 
@@ -1340,10 +1336,10 @@ namespace IPA.Cores.Codes.DnsTools
 	internal class DnsClientParallelAsyncState<TMessage> : IAsyncResult
 		where TMessage : DnsMessageBase
 	{
-		internal int ResponsesToReceive;
-		internal List<TMessage> Responses;
+		internal int ResponsesToReceive = 0;
+		internal List<TMessage> Responses = null;
 
-		internal AsyncCallback UserCallback;
+		internal AsyncCallback UserCallback = null;
 		public object AsyncState { get; internal set; }
 		public bool IsCompleted { get; private set; }
 
@@ -1375,8 +1371,8 @@ namespace IPA.Cores.Codes.DnsTools
 		where TMessage : DnsMessageBase
 	{
 		internal object Lock = new object();
-		internal IAsyncResult SingleMessageAsyncResult;
-		internal DnsClientParallelAsyncState<TMessage> ParallelMessageAsyncState;
+		internal IAsyncResult SingleMessageAsyncResult = null;
+		internal DnsClientParallelAsyncState<TMessage> ParallelMessageAsyncState = null;
 	}
 
 	/// <summary>

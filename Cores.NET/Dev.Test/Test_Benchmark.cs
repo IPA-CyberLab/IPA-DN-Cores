@@ -49,7 +49,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Collections;
-using IPA.Cores.Codes.DnsTools;
+
+using IPA.Cores.Basic.DnsLib;
 
 #pragma warning disable CS0162
 #pragma warning disable CS0219
@@ -495,11 +496,11 @@ namespace IPA.TestDev
 
                 var array = dnsPacket.ToArray().AsSpan();
 
-                var msg = DnsUtil.Parse(array);
+                var msg = DnsUtil.ParsePacket(array);
 
                 for (int c = 0; c < count; c++)
                 {
-                    DnsUtil.Build(msg);
+                    msg.BuildPacket();
                 }
             }), enabled: true, priority: 210613)
 
@@ -516,7 +517,7 @@ namespace IPA.TestDev
 
                 for (int c = 0; c < count; c++)
                 {
-                    DnsUtil.Parse(dnsPacket);
+                    DnsUtil.ParsePacket(dnsPacket);
                 }
             }), enabled: true, priority: 210613)
 

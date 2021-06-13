@@ -52,6 +52,7 @@ using System.Diagnostics;
 using System.Reflection;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.DnsLib;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Runtime.InteropServices;
@@ -79,7 +80,6 @@ using IPA.Cores.Basic.HttpClientCore;
 using Microsoft.Extensions.Hosting;
 
 using IPA.Cores.Codes;
-using IPA.Cores.Codes.DnsTools;
 
 
 #pragma warning disable CS0219
@@ -1723,15 +1723,14 @@ namespace IPA.TestDev
 
             dnsPacket._GetHexString()._Print();
 
-            var msg = DnsUtil.Parse(dnsPacket);
+            var msg = DnsUtil.ParsePacket(dnsPacket);
 
             msg._DebugAsJson();
 
-            int len = msg.Encode(false, out byte[] data2);
-            var data3 = data2.AsSpan().Slice(0, len);
+            var data3 = msg.BuildPacket();
             data3._GetHexString()._Print();
 
-            DnsUtil.Parse(data3)._DebugAsJson();
+            DnsUtil.ParsePacket(data3)._DebugAsJson();
         }
 
         public static void Test_Generic()

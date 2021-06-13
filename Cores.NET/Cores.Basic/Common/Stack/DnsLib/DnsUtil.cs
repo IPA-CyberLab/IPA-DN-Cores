@@ -30,7 +30,7 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
-#if CORES_CODES_DNSTOOLS
+#if CORES_BASIC_SECURITY
 
 #nullable disable
 
@@ -62,22 +62,18 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-using IPA.Cores.Codes;
-using IPA.Cores.Helper.Codes;
-using static IPA.Cores.Globals.Codes;
-
-namespace IPA.Cores.Codes.DnsTools
+namespace IPA.Cores.Basic.DnsLib
 {
     public static class DnsUtil
     {
         [MethodImpl(Inline)]
-        public static DnsMessageBase Parse(ReadOnlySpan<byte> data)
+        public static DnsMessageBase ParsePacket(ReadOnlySpan<byte> data)
         {
             return DnsMessageBase.CreateByFlag(data, null, null);
         }
 
         [MethodImpl(Inline)]
-        public static Span<byte> Build(DnsMessageBase message)
+        public static Span<byte> BuildPacket(this DnsMessageBase message)
         {
             return message.Encode(false);
         }
