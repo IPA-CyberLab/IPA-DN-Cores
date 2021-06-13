@@ -81,7 +81,7 @@ namespace IPA.Cores.Basic
         {
             this.Options = options;
 
-            Listener = TcpIp.CreateListener(new TcpListenParam(async (listener, sock) =>
+            Listener = TcpIp.CreateTcpListener(new TcpListenParam(async (listener, sock) =>
             {
                 try
                 {

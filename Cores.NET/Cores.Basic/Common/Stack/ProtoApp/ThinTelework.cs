@@ -392,7 +392,7 @@ namespace IPA.Cores.Basic
                 });
 
                 // Listen ソケットの開始
-                listener = LocalNet.CreateListener(new TcpListenParam(isRandomPortMode: EnsureSpecial.Yes, async (listen, sock) =>
+                listener = LocalNet.CreateTcpListener(new TcpListenParam(isRandomPortMode: EnsureSpecial.Yes, async (listen, sock) =>
                 {
                     session.Debug($"Listener ({sock.EndPointInfo._GetObjectDump()}) Accepted.");
 

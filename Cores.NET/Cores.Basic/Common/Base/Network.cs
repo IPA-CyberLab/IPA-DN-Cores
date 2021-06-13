@@ -350,6 +350,36 @@ namespace IPA.Cores.Basic
     }
 
 
+    public class IpEndPointComparer : IEqualityComparer<IPEndPoint?>, IComparer<IPEndPoint?>
+    {
+        public static IpEndPointComparer Comparer { get; } = new IpEndPointComparer();
+
+        public int Compare(IPEndPoint? x, IPEndPoint? y)
+        {
+            if (x == null && y != null) return 1;
+            if (x != null && y == null) return -1;
+            if (x == null && y == null) return 0;
+
+            x._MarkNotNull();
+            y._MarkNotNull();
+
+            int r = IpComparer.Comparer.Compare(x.Address, y.Address);
+            if (r != 0) return r;
+
+            r = x.Port.CompareTo(y.Port);
+            return r;
+        }
+
+        public bool Equals(IPEndPoint? x, IPEndPoint? y)
+            => (Compare(x, y) == 0);
+
+        public int GetHashCode(IPEndPoint? obj)
+        {
+            if (obj == null) return 0;
+
+            return obj.GetHashCode();
+        }
+    }
 
     public class IpComparer : IEqualityComparer<IPAddress?>, IComparer<IPAddress?>
     {
@@ -4162,7 +4192,7 @@ namespace IPA.Cores.Basic
                 {
                     while (cancel.IsCancellationRequested == false)
                     {
-                        Datagram[]? recvPackets = await UdpBulkReader!.Recv(cancel);
+                        Datagram[]? recvPackets = await UdpBulkReader!.RecvAsync(cancel);
 
                         if (recvPackets == null)
                         {

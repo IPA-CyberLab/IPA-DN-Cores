@@ -234,8 +234,16 @@ namespace IPA.Cores.Basic
         public void Bind(EndPoint localEP)
         {
             this.TrySetRecommendedSettings();
-
-            _Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ExclusiveAddressUse, true);
+            if (this.SocketType == SocketType.Stream)
+            {
+                // TCP
+                _Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ExclusiveAddressUse, true);
+            }
+            else
+            {
+                // UDP
+                _Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ExclusiveAddressUse, false);
+            }
             _Socket.Bind(localEP);
             this.LocalEndPoint.Flush();
             this.RemoteEndPoint.Flush();

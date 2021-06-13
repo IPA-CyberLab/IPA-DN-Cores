@@ -143,7 +143,19 @@ namespace IPA.Cores.Basic
             return tcp;
         }
 
-        protected override NetTcpListener CreateListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc, string? rateLimiterConfigName = null)
+        protected override NetUdpProtocolStubBase CreateUdpProtocolStubImpl(CancellationToken cancel)
+        {
+            NetPalUdpProtocolStub udp = new NetPalUdpProtocolStub(cancel: cancel);
+
+            return udp;
+        }
+
+        protected override NetUdpListener CreateUdpListenerImpl()
+        {
+            return new NetPalUdpListener();
+        }
+
+        protected override NetTcpListener CreateTcpListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc, string? rateLimiterConfigName = null)
         {
             NetPalTcpListener ret = new NetPalTcpListener(acceptedProc, rateLimiterConfigName);
 

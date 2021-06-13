@@ -2761,6 +2761,12 @@ namespace IPA.Cores.Helper.Basic
 
         public static WebSocketStream _GetStream(this System.Net.WebSockets.WebSocket webSocket, bool autoDispose = false)
             => new WebSocketStream(webSocket, autoDispose);
+
+        public static int _CompareTo(this IPEndPoint? ep, IPEndPoint? other)
+            => IpEndPointComparer.Comparer.Compare(ep, other);
+
+        public static bool _IsAny(this IPAddress ip)
+            => ip.GetAddressBytes()._IsZeroFast();
     }
 }
 

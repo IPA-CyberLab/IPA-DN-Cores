@@ -1714,6 +1714,17 @@ namespace IPA.TestDev
             Time.DateTimeToTime64(new DateTime(9999, 1, 1))._Print();
         }
 
+        static void Test_210613_02()
+        {
+            using var uu = LocalNet.CreateUdpListener();
+            uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
+
+            using var sock = uu.GetSocket();
+
+            Con.ReadLine(">");
+        }
+
+
         static void Test_210613()
         {
             var packetMem = Res.AppRoot["210613_novlan_dns_query_simple.txt"].HexParsedBinary;
@@ -1735,6 +1746,12 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210613_02();
+                return;
+            }
+
             if (true)
             {
                 Test_210613();
@@ -1855,7 +1872,7 @@ namespace IPA.TestDev
 
             if (false)
             {
-                using var l = LocalNet.CreateListener(new TcpListenParam(isRandomPortMode: EnsureSpecial.Yes, async (listen, sock) =>
+                using var l = LocalNet.CreateTcpListener(new TcpListenParam(isRandomPortMode: EnsureSpecial.Yes, async (listen, sock) =>
                 {
                     using var x = sock.GetStream();
                     using var w = new StreamWriter(x);

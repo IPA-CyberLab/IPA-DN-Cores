@@ -3345,7 +3345,7 @@ namespace IPA.Cores.Basic
 
         Task<ValueOrClosed<TUserReturnElement>>? pushedUserTask = null;
 
-        public async Task<TUserReturnElement[]?> Recv(CancellationToken cancel, [AllowNull] TUserState state = default(TUserState), int? maxCount = null)
+        public async Task<TUserReturnElement[]?> RecvAsync(CancellationToken cancel, [AllowNull] TUserState state = default(TUserState), int? maxCount = null)
         {
             if (maxCount == null) maxCount = DefaultMaxCount;
             if (maxCount <= 0) maxCount = int.MaxValue;

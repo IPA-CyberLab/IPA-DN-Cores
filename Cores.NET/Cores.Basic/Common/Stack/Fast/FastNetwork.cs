@@ -1570,7 +1570,7 @@ namespace IPA.Cores.Basic
         {
             if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Stream) == false) throw new NotSupportedException();
 
-            ReadOnlyMemory<byte>[]? recvList = await StreamBulkReceiver.Recv(cancel, this);
+            ReadOnlyMemory<byte>[]? recvList = await StreamBulkReceiver.RecvAsync(cancel, this);
 
             if (recvList == null)
             {
@@ -1626,7 +1626,7 @@ namespace IPA.Cores.Basic
         {
             if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Datagram) == false) throw new NotSupportedException();
 
-            Datagram[]? pkts = await DatagramBulkReceiver.Recv(cancel, this);
+            Datagram[]? pkts = await DatagramBulkReceiver.RecvAsync(cancel, this);
 
             if (pkts == null)
             {
@@ -1733,7 +1733,7 @@ namespace IPA.Cores.Basic
         {
             if (SupportedDataTypes.Bit(PipeSupportedDataTypes.Stream) == false) throw new NotSupportedException();
 
-            ReadOnlyMemory<byte>[]? recvList = await StreamBulkReceiver.Recv(cancel, this);
+            ReadOnlyMemory<byte>[]? recvList = await StreamBulkReceiver.RecvAsync(cancel, this);
 
             if (recvList == null)
             {

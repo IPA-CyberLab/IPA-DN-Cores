@@ -105,7 +105,7 @@ namespace IPA.Cores.Basic
             if (Listener != null)
                 throw new ApplicationException("Listener is already bound.");
 
-            this.Listener = this.Server.Options.TcpIp.CreateListener(new TcpListenParam(compatibleWithKestrel: EnsureSpecial.Yes, null, (IPEndPoint)EndPoint, "Kestrel3"));
+            this.Listener = this.Server.Options.TcpIp.CreateTcpListener(new TcpListenParam(compatibleWithKestrel: EnsureSpecial.Yes, null, (IPEndPoint)EndPoint, "Kestrel3"));
         }
 
         public async ValueTask<ConnectionContext> AcceptAsync(CancellationToken cancellationToken = default)

@@ -38,6 +38,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Collections.Generic;
 using System.Linq;
+using System.Collections.Immutable;
+using System.Collections.Concurrent;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -203,6 +205,83 @@ namespace IPA.Cores.Basic
 
         public NetBottomProtocolStubBase(PipePoint? upper, NetProtocolOptionsBase options, CancellationToken cancel = default, bool noCheckDisconnected = false) : base(upper, options, cancel, noCheckDisconnected)
         {
+        }
+    }
+
+    public class NetUdpProtocolOptions : NetBottomProtocolOptionsBase
+    {
+        public int PollingIntervalMsecs { get; set; } = 1 * 250;
+    }
+
+    public class NetUdpEndPoint : IEquatable<NetUdpEndPoint>, IComparable<NetUdpEndPoint>
+    {
+        public IPEndPoint EndPoint { get; }
+        public IPVersion IPVer { get; }
+
+        public NetUdpEndPoint(IPEndPoint ep)
+        {
+            this.EndPoint = ep;
+            this.IPVer = ep.Address._GetIPVersion();
+        }
+
+        public override int GetHashCode() => this.EndPoint.GetHashCode();
+        public override bool Equals(object? obj) => this.EndPoint.Equals(((NetUdpEndPoint)obj!).EndPoint);
+        public bool Equals(NetUdpEndPoint? other) => this.EndPoint.Equals(other!.EndPoint);
+        public int CompareTo(NetUdpEndPoint? other) => this.EndPoint._CompareTo(other?.EndPoint);
+
+        public override string ToString() => $"{this.IPVer}: {this.EndPoint}";
+    }
+
+    public abstract class NetUdpProtocolStubBase : NetBottomProtocolStubBase
+    {
+        public new NetUdpProtocolOptions Options => (NetUdpProtocolOptions)base.Options;
+
+        public NetUdpProtocolStubBase(PipePoint? upper, NetUdpProtocolOptions options, CancellationToken cancel = default) : base(upper, options, cancel)
+        {
+        }
+
+        readonly CriticalSection LockObj = new CriticalSection<NetUdpProtocolStubBase>();
+
+        protected readonly ConcurrentHashSet<NetUdpEndPoint> _EndPointList = new ConcurrentHashSet<NetUdpEndPoint>();
+
+        public IReadOnlyList<NetUdpEndPoint> GetEndPointList() => _EndPointList.Keys.ToList();
+
+        protected abstract void EndPointListUpdatedImpl(IReadOnlyList<NetUdpEndPoint> list);
+
+        public bool AddEndPoint(NetUdpEndPoint ep)
+        {
+            bool ret = _EndPointList.Add(ep);
+
+            if (ret)
+            {
+                UpdatedInternal();
+            }
+
+            return ret;
+        }
+
+        public bool DeleteEndPoint(NetUdpEndPoint ep)
+        {
+            bool ret = _EndPointList.Remove(ep);
+
+            if (ret)
+            {
+                UpdatedInternal();
+            }
+
+            return ret;
+        }
+
+        void UpdatedInternal()
+        {
+            try
+            {
+                EndPointListUpdatedImpl(this.GetEndPointList());
+            }
+            catch (Exception ex)
+            {
+                ex._Debug();
+            }
         }
     }
 
@@ -467,6 +546,281 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class NetPalUdpProtocolStub : NetUdpProtocolStubBase
+    {
+        public class UdpSocketItem : AsyncServiceWithMainLoop
+        {
+            public NetUdpEndPoint EndPoint { get; }
+
+            public UdpSocketItem(NetUdpEndPoint ep)
+            {
+                try
+                {
+                    this.EndPoint = ep;
+
+                    this.StartMainLoop(MainLoopProcAsync);
+                }
+                catch
+                {
+                    this._DisposeSafe();
+                    throw;
+                }
+            }
+
+            async Task MainLoopProcAsync(CancellationToken cancel)
+            {
+                await Task.Yield();
+
+                FastMemoryPool<byte> FastMemoryAllocatorForDatagram = new FastMemoryPool<byte>();
+
+                int numRetry = 0;
+
+                var datagramBulkReceiver = new AsyncBulkReceiver<Datagram, PalSocket>(async (s, cancel) =>
+                {
+                    Memory<byte> tmp = FastMemoryAllocatorForDatagram.Reserve(65536);
+
+                    var ret = await s.ReceiveFromAsync(tmp);
+
+                    FastMemoryAllocatorForDatagram.Commit(ref tmp, ret.ReceivedBytes);
+
+                    Datagram pkt = new Datagram(tmp, ret.RemoteEndPoint);
+                    return new ValueOrClosed<Datagram>(pkt);
+                });
+
+                while (cancel.IsCancellationRequested == false)
+                {
+                    PalSocket? s = null;
+
+                    try
+                    {
+                        s = new PalSocket(EndPoint.EndPoint.AddressFamily, SocketType.Dgram, ProtocolType.Udp, TcpDirectionType.Server);
+                        s.Bind(EndPoint.EndPoint);
+                        Con.WriteDebug($"UDP Listener OK: {this.EndPoint}");
+                        numRetry = 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        s._DisposeSafe();
+                        s = null;
+                        if (numRetry == 0)
+                        {
+                            Con.WriteDebug($"UDP Listener Error: {this.EndPoint}: {ex.Message}");
+                        }
+                        numRetry++;
+                    }
+
+                    try
+                    {
+                        if (s != null)
+                        {
+                            await using CancelWatcher w = new CancelWatcher(cancel);
+
+                            // 受信ループの定義
+                            async Task RecvLoopAsync(CancellationToken c1)
+                            {
+                                while (c1.IsCancellationRequested == false)
+                                {
+                                    Datagram[]? recvList;
+
+                                    recvList = await datagramBulkReceiver!.RecvAsync(c1, s);
+
+                                    if (recvList == null)
+                                    {
+                                        // 切断された
+                                        throw new SocketDisconnectedException();
+                                    }
+
+                                    Con.WriteLine($"Recv: {recvList.Length}");
+                                }
+                            }
+
+                            // 送信ループの定義
+                            async Task SendLoopAsync(CancellationToken c1)
+                            {
+                                await c1._WaitUntilCanceledAsync();
+                            }
+
+                            // 受信・送信の両方を並列実行
+                            Task recvTask = TaskUtil.StartAsyncTaskAsync(async () => await RecvLoopAsync(w.CancelToken));
+                            Task sendTask = TaskUtil.StartAsyncTaskAsync(async () => await SendLoopAsync(w.CancelToken));
+
+                            // 受信・送信のいずれかのタスクが終了するまで待機する (つまり、何らかのエラーが発生するまで)
+                            await TaskUtil.WaitObjectsAsync(new Task[] { recvTask, sendTask }, cancel._SingleArray());
+
+                            // キャンセルする
+                            w.Cancel();
+
+                            // 受信・送信の両方のタスクの完了を待機する
+                            await recvTask._TryAwait(noDebugMessage: true);
+                            await sendTask._TryAwait(noDebugMessage: true);
+                        }
+                    }
+                    catch
+                    {
+                    }
+                    finally
+                    {
+                        if (numRetry == 0)
+                        {
+                            Con.WriteDebug($"UDP Listener Stopped: {this.EndPoint}");
+                        }
+                        numRetry++;
+
+                        s._DisposeSafe();
+                        s = null;
+                    }
+
+                    if (cancel.IsCancellationRequested) break;
+
+                    // wait for retry
+                    await cancel._WaitUntilCanceledAsync(Util.GenRandIntervalWithRetry(100, numRetry, 30 * 1000));
+                }
+            }
+
+            protected override async Task CleanupImplAsync(Exception? ex)
+            {
+                try
+                {
+                    await this.MainLoopToWaitComplete._TryWaitAsync();
+                }
+                finally
+                {
+                    await base.CleanupImplAsync(ex);
+                }
+            }
+        }
+
+        public NetPalUdpProtocolStub(PipePoint? upper = null, NetUdpProtocolOptions? options = null, CancellationToken cancel = default)
+            : base(upper, options ?? new NetUdpProtocolOptions(), cancel)
+        {
+        }
+
+        Once Started;
+
+        Task? PollTask = null;
+
+        readonly AsyncAutoResetEvent PollingEvent = new AsyncAutoResetEvent();
+
+        protected override void EndPointListUpdatedImpl(IReadOnlyList<NetUdpEndPoint> list)
+        {
+            if (Started.IsFirstCall())
+            {
+                this.PollTask = PollTaskProcAsync()._LeakCheck();
+            }
+
+            // 更新通知
+            PollingEvent.Set(true);
+        }
+
+        readonly Dictionary<NetUdpEndPoint, UdpSocketItem> UdpSocketItemList = new Dictionary<NetUdpEndPoint, UdpSocketItem>();
+
+        // 定期的にポーリングを行ない、必要に応じて新しいソケットを作成し、不要なソケットを停止するタスク
+        async Task PollTaskProcAsync()
+        {
+            CancellationToken cancel = this.GrandCancel;
+
+            await Task.Yield();
+
+            while (cancel.IsCancellationRequested == false)
+            {
+                try
+                {
+                    await PollMainAsync();
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
+
+                await this.PollingEvent.WaitOneAsync(Util.GenRandInterval(this.Options.PollingIntervalMsecs), cancel);
+            }
+
+            // 終了時には現時点で動作しているすべてのソケットの bind 解除を行なう
+            await UdpSocketItemList.ToList()._DoForEachAsync(async x =>
+            {
+                await x.Value._DisposeSafeAsync();
+            });
+        }
+
+        int LastVersion = -1;
+
+        // ポーリングのメインさん
+        async Task PollMainAsync()
+        {
+            var hostInfo = LocalNet.GetHostInfo(false);
+
+            if (LastVersion != hostInfo.InfoVersion)
+            {
+                LastVersion = hostInfo.InfoVersion;
+
+                var candidateList = GenerateEndPointCandidateList(hostInfo);
+
+                // UdpSocketItemList になく candidateList にあるものの bind を行なう
+                candidateList.Where(x => UdpSocketItemList.ContainsKey(x) == false).ToList()._DoForEach(x =>
+                  {
+                      UdpSocketItemList.Add(x, new UdpSocketItem(x));
+                  });
+
+                // UdpSocketItemList にあり candidateList にないものの bind 解除を行なう
+                await UdpSocketItemList.Where(x => candidateList.Contains(x.Key) == false).ToList()._DoForEachAsync(async x =>
+                  {
+                      await x.Value._DisposeSafeAsync();
+                      UdpSocketItemList.Remove(x.Key);
+                  });
+            }
+        }
+
+        // 物理的に bind すべき EndPoint のリストを生成する
+        List<NetUdpEndPoint> GenerateEndPointCandidateList(TcpIpSystemHostInfo hostInfo)
+        {
+            var list = this.GetEndPointList();
+            HashSet<NetUdpEndPoint> table = new HashSet<NetUdpEndPoint>();
+
+            foreach (var item in list.Where(x => x.EndPoint.Port >= 1 && x.EndPoint.Port <= 65535))
+            {
+                table.Add(item);
+
+                if (item.IPVer == IPVersion.IPv4)
+                {
+                    if (item.EndPoint.Address._IsAny())
+                    {
+                        hostInfo.IPAddressList.Where(x => x._GetIPVersion() == IPVersion.IPv4)
+                            .Where(x => x._IsAny() == false)
+                            .Where(x => x._GetIPAddressType().Bit(IPAddressType.Unicast))
+                            ._DoForEach(x => table.Add(new NetUdpEndPoint(new IPEndPoint(x, item.EndPoint.Port))));
+                    }
+                }
+                else if (item.IPVer == IPVersion.IPv6)
+                {
+                    if (item.EndPoint.Address._IsAny())
+                    {
+                        hostInfo.IPAddressList.Where(x => x._GetIPVersion() == IPVersion.IPv6)
+                            .Where(x => x._IsAny() == false)
+                            .Where(x => x._GetIPAddressType().Bit(IPAddressType.Unicast))
+                            ._DoForEach(x => table.Add(new NetUdpEndPoint(new IPEndPoint(x, item.EndPoint.Port))));
+                    }
+                }
+            }
+
+            return table.OrderBy(x => x).ToList();
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                if (this.PollTask != null)
+                {
+                    await PollTask._TryAwait();
+                }
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
+        }
+    }
+
     public abstract class NetSock : AsyncService
     {
         NetAppStub? AppStub = null;
@@ -555,6 +909,13 @@ namespace IPA.Cores.Basic
         public void EnsureAttach(bool autoFlush = true) => GetStream(autoFlush); // Ensure attach
 
         public AttachHandle AttachHandle => this.AppStub?.AttachHandle ?? throw new ApplicationException("You need to call GetStream() first before accessing to AttachHandle.");
+    }
+
+    public class DatagramSock : NetSock
+    {
+        public DatagramSock(NetProtocolBase protocolStack) : base(protocolStack)
+        {
+        }
     }
 
     public class ConnSock : NetSock
@@ -1104,6 +1465,70 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public abstract class NetUdpListener : AsyncService
+    {
+        readonly CriticalSection LockObj = new CriticalSection<NetUdpListener>();
+
+        internal protected abstract NetUdpProtocolStubBase CreateNewUdpStubImpl(CancellationToken cancel);
+
+        NetUdpProtocolStubBase? Protocol = null;
+
+        Once Inited;
+
+        void EnsureProtocolCreated()
+        {
+            if (Inited.IsFirstCall())
+            {
+                this.Protocol = CreateNewUdpStubImpl(this.GrandCancel);
+            }
+        }
+
+        public bool AddEndPoint(IPEndPoint ep)
+        {
+            EnsureProtocolCreated();
+
+            bool ret = this.Protocol!.AddEndPoint(new NetUdpEndPoint(ep));
+
+            return ret;
+        }
+
+        public bool DeleteEndPoint(IPEndPoint ep)
+        {
+            if (this.Protocol == null) return false;
+
+            bool ret = this.Protocol.DeleteEndPoint(new NetUdpEndPoint(ep));
+
+            return ret;
+        }
+
+        DatagramSock? _Socket = null;
+
+        public DatagramSock GetSocket()
+        {
+            EnsureProtocolCreated();
+
+            if (_Socket == null)
+            {
+                _Socket = new DatagramSock(this.Protocol!);
+            }
+
+            return _Socket;
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                await _Socket._DisposeSafeAsync();
+                await this.Protocol._DisposeSafeAsync();
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
+        }
+    }
+
     public delegate Task<ConnSock> NetTcpListenerAcceptNextAsync(CancellationToken cancel = default);
 
     public abstract class NetTcpListener : AsyncService
@@ -1339,6 +1764,18 @@ namespace IPA.Cores.Basic
             };
 
             return new NetPalTcpProtocolStub(null, options, cancel);
+        }
+    }
+
+    public class NetPalUdpListener : NetUdpListener
+    {
+        public NetPalUdpListener() : base()
+        {
+        }
+
+        protected internal override NetUdpProtocolStubBase CreateNewUdpStubImpl(CancellationToken cancel)
+        {
+            return new NetPalUdpProtocolStub(cancel: cancel);
         }
     }
 }

@@ -73,7 +73,7 @@ namespace IPA.Cores.Basic
             {
                 this.Options = options;
 
-                Listener = this.Options.TcpIp.CreateListener(new TcpListenParam(ListenerCallbackAsync, options.RateLimiterConfigName, this.Options.EndPoints.ToArray()));
+                Listener = this.Options.TcpIp.CreateTcpListener(new TcpListenParam(ListenerCallbackAsync, options.RateLimiterConfigName, this.Options.EndPoints.ToArray()));
             }
             catch
             {

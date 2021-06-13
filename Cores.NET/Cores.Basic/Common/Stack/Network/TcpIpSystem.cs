@@ -43,6 +43,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Net.NetworkInformation;
+using System.ComponentModel;
 
 namespace IPA.Cores.Basic
 {
@@ -389,8 +390,10 @@ namespace IPA.Cores.Basic
         protected abstract void UnregisterHostInfoChangedEventImpl(int registerId);
         protected abstract NetTcpProtocolStubBase CreateTcpProtocolStubImpl(TcpConnectParam param, CancellationToken cancel);
         protected abstract Task<DnsResponse> QueryDnsImplAsync(DnsQueryParamBase param, CancellationToken cancel);
-        protected abstract NetTcpListener CreateListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc, string? rateLimiterConfigName = null);
+        protected abstract NetTcpListener CreateTcpListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc, string? rateLimiterConfigName = null);
         protected abstract DnsResolver CreateDnsResolverImpl();
+        protected abstract NetUdpListener CreateUdpListenerImpl();
+        protected abstract NetUdpProtocolStubBase CreateUdpProtocolStubImpl(CancellationToken cancel);
 
         readonly Singleton<DnsResolver> DnsResolverSingleton;
         public DnsResolver DnsResolver => DnsResolverSingleton;
@@ -521,9 +524,21 @@ namespace IPA.Cores.Basic
         public ConnSock Connect(TcpConnectParam param, CancellationToken cancel = default)
             => ConnectAsync(param, cancel)._GetResult();
 
-        // リスナーを作成する
+        // UDP リスナーを作成する
+        public NetUdpListener CreateUdpListener()
+        {
+            NetUdpListener ret = CreateUdpListenerImpl();
+
+            return ret;
+        }
+
+        // TCP リスナーを作成する
         // 注意: param.AcceptCallback == null の場合は NetTcpListener.AcceptNextSocketFromQueueUtilAsync() で通常のソケット Accept() 動作と同様の動作が可能となる
+        [Obsolete]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public NetTcpListener CreateListener(TcpListenParam param)
+            => CreateTcpListener(param);
+        public NetTcpListener CreateTcpListener(TcpListenParam param)
         {
             var hostInfo = GetHostInfo(true);
 
@@ -538,7 +553,7 @@ namespace IPA.Cores.Basic
             {
                 using (EnterCriticalCounter())
                 {
-                    NetTcpListener ret = CreateListenerImpl(async (listener, sock) =>
+                    NetTcpListener ret = CreateTcpListenerImpl(async (listener, sock) =>
                     {
                         this.AddToOpenedSockList(sock, LogTag.SocketAccepted);
 

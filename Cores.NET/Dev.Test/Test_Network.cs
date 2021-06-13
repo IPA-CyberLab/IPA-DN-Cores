@@ -676,7 +676,7 @@ namespace IPA.TestDev
 
             if (true)
             {
-                NetTcpListener listener = LocalNet.CreateListener(new TcpListenParam(
+                NetTcpListener listener = LocalNet.CreateTcpListener(new TcpListenParam(
                         async (listener2, sock) =>
                         {
                             while (true)
@@ -743,7 +743,7 @@ Content-Length: {totalSize}
                 });
             }
 
-            using (var listener = LocalNet.CreateListener(new TcpListenParam(
+            using (var listener = LocalNet.CreateTcpListener(new TcpListenParam(
                     async (listener2, sock) =>
                     {
                         while (true)
@@ -788,7 +788,7 @@ Content-Length: {totalSize}
 
         static void Net_Test3_PlainTcp_Server()
         {
-            using (var listener = LocalNet.CreateListener(new TcpListenParam(
+            using (var listener = LocalNet.CreateTcpListener(new TcpListenParam(
                     async (listener2, sock) =>
                     {
                         sock.StartPCapRecorder(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190611\" + Str.DateTimeToStrShortWithMilliSecs(DateTime.Now) + ".pcapng", flags: FileFlags.AutoCreateDirectory))));
@@ -810,7 +810,7 @@ Content-Length: {totalSize}
 
         static void Net_Test3_2_PlainTcp_Server_AcceptQueue()
         {
-            using (var listener = LocalNet.CreateListener(new TcpListenParam(null, null, 9821)))
+            using (var listener = LocalNet.CreateTcpListener(new TcpListenParam(null, null, 9821)))
             {
                 Task acceptTask = TaskUtil.StartAsyncTaskAsync(async () =>
                 {
