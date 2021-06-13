@@ -87,7 +87,7 @@ using static IPA.Cores.Globals.Basic;
 using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
-
+using System.Runtime.CompilerServices;
 
 namespace IPA.Cores.Codes.DnsTools
 {
@@ -1866,38 +1866,38 @@ namespace IPA.Cores.Codes.DnsTools
 
 		private void ParseInternal(ReadOnlySpan<byte> data, DnsServer.SelectTsigKey tsigKeySelector, byte[] originalMac)
 		{
-			int currentPosition = 0;
+            int currentPosition = 0;
 
-			TransactionID = ParseUShort(data, ref currentPosition);
-			Flags = ParseUShort(data, ref currentPosition);
+            TransactionID = ParseUShort(data, ref currentPosition);
+            Flags = ParseUShort(data, ref currentPosition);
 
-			int questionCount = ParseUShort(data, ref currentPosition);
-			int answerRecordCount = ParseUShort(data, ref currentPosition);
-			int authorityRecordCount = ParseUShort(data, ref currentPosition);
-			int additionalRecordCount = ParseUShort(data, ref currentPosition);
+            int questionCount = ParseUShort(data, ref currentPosition);
+            int answerRecordCount = ParseUShort(data, ref currentPosition);
+            int authorityRecordCount = ParseUShort(data, ref currentPosition);
+            int additionalRecordCount = ParseUShort(data, ref currentPosition);
 
-			ParseQuestions(data, ref currentPosition, questionCount);
-			ParseSection(data, ref currentPosition, AnswerRecords, answerRecordCount);
-			ParseSection(data, ref currentPosition, AuthorityRecords, authorityRecordCount);
-			ParseSection(data, ref currentPosition, _additionalRecords, additionalRecordCount);
+            ParseQuestions(data, ref currentPosition, questionCount);
+            ParseSection(data, ref currentPosition, AnswerRecords, answerRecordCount);
+            ParseSection(data, ref currentPosition, AuthorityRecords, authorityRecordCount);
+            ParseSection(data, ref currentPosition, _additionalRecords, additionalRecordCount);
 
-			if (_additionalRecords.Count > 0)
-			{
-				int tSigPos = _additionalRecords.FindIndex(record => (record.RecordType == RecordType.TSig));
-				if (tSigPos == (_additionalRecords.Count - 1))
-				{
-					TSigOptions = (TSigRecord) _additionalRecords[tSigPos];
+            if (_additionalRecords.Count > 0)
+            {
+                int tSigPos = _additionalRecords.FindIndex(record => (record.RecordType == RecordType.TSig));
+                if (tSigPos == (_additionalRecords.Count - 1))
+                {
+                    TSigOptions = (TSigRecord)_additionalRecords[tSigPos];
 
-					_additionalRecords.RemoveAt(tSigPos);
+                    _additionalRecords.RemoveAt(tSigPos);
 
-					TSigOptions.ValidationResult = ValidateTSig(data, tsigKeySelector, originalMac);
-				}
-			}
+                    TSigOptions.ValidationResult = ValidateTSig(data, tsigKeySelector, originalMac);
+                }
+            }
 
-			FinishParsing();
-		}
+            FinishParsing();
+        }
 
-		private ReturnCode ValidateTSig(ReadOnlySpan<byte> resultData, DnsServer.SelectTsigKey tsigKeySelector, byte[] originalMac)
+        private ReturnCode ValidateTSig(ReadOnlySpan<byte> resultData, DnsServer.SelectTsigKey tsigKeySelector, byte[] originalMac)
 		{
 			byte[] keyData;
 			if ((TSigOptions.Algorithm == TSigAlgorithm.Unknown) || (tsigKeySelector == null) || ((keyData = tsigKeySelector(TSigOptions.Algorithm, TSigOptions.Name)) == null))
@@ -2025,6 +2025,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return res;
 		}
 
+		[MethodImpl(Inline)]
 		internal static DomainName ParseDomainName(ReadOnlySpan<byte> resultData, ref int currentPosition)
 		{
 			int firstLabelLength;
@@ -2033,6 +2034,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return res;
 		}
 
+		[MethodImpl(Inline)]
 		internal static ushort ParseUShort(ReadOnlySpan<byte> resultData, ref int currentPosition)
 		{
 			ushort res;
@@ -2049,6 +2051,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return res;
 		}
 
+		[MethodImpl(Inline)]
 		internal static int ParseInt(ReadOnlySpan<byte> resultData, ref int currentPosition)
 		{
 			int res;
@@ -2065,6 +2068,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return res;
 		}
 
+		[MethodImpl(Inline)]
 		internal static uint ParseUInt(ReadOnlySpan<byte> resultData, ref int currentPosition)
 		{
 			uint res;
@@ -2081,6 +2085,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return res;
 		}
 
+		[MethodImpl(Inline)]
 		internal static ulong ParseULong(ReadOnlySpan<byte> resultData, ref int currentPosition)
 		{
 			ulong res;

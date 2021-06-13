@@ -493,7 +493,7 @@ namespace IPA.TestDev
                 var parsed = new PacketParsed(ref packet);
                 var dnsPacket = parsed.L7.Generic.GetSpan(ref packet);
 
-                var array = dnsPacket.ToArray();
+                var array = dnsPacket.ToArray().AsSpan();
 
                 for (int c = 0; c < count; c++)
                 {
