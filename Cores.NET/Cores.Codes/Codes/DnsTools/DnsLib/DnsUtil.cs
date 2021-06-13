@@ -53,6 +53,7 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using System.Runtime.CompilerServices;
 
 using Org.BouncyCastle.Crypto.Prng;
 using Org.BouncyCastle.Security;
@@ -65,14 +66,21 @@ using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
 
-
 namespace IPA.Cores.Codes.DnsTools
 {
     public static class DnsUtil
     {
-        public static DnsMessageBase ParseMessage(ReadOnlySpan<byte> data)
+        [MethodImpl(Inline)]
+        public static DnsMessageBase Parse(ReadOnlySpan<byte> data)
         {
-            return DnsMessageBase.CreateByFlag(data.ToArray(), null, null);
+            return DnsMessageBase.CreateByFlag(data, null, null);
+        }
+
+        [MethodImpl(Inline)]
+        public static ReadOnlySpan<byte> Build(DnsMessageBase message)
+        {
+            int len = message.Encode(false, out byte[] buf);
+            return default;
         }
     }
 }

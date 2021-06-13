@@ -1721,9 +1721,17 @@ namespace IPA.TestDev
             var parsed = new PacketParsed(ref packet);
             var dnsPacket = parsed.L7.Generic.GetSpan(ref packet);
 
-            var msg = DnsMessageBase.CreateByFlag(dnsPacket.ToArray(), null, null);
+            dnsPacket._GetHexString()._Print();
+
+            var msg = DnsUtil.Parse(dnsPacket);
 
             msg._DebugAsJson();
+
+            int len = msg.Encode(false, out byte[] data2);
+            var data3 = data2.AsSpan().Slice(0, len);
+            data3._GetHexString()._Print();
+
+            DnsUtil.Parse(data3)._DebugAsJson();
         }
 
         public static void Test_Generic()

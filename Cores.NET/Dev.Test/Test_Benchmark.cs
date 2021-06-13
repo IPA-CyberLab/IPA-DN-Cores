@@ -484,6 +484,25 @@ namespace IPA.TestDev
 
             var queue = new MicroBenchmarkQueue()
 
+            .Add(new MicroBenchmark($"DnsTools_Build", Benchmark_CountForNormal, count =>
+            {
+                // 元: DnsTools_Build: 537.80 ns, 1,859,419 / sec
+
+                var packetMem = Res.AppRoot["210613_novlan_dns_query_simple.txt"].HexParsedBinary;
+                Packet packet = new Packet(default, packetMem._CloneSpan());
+                var parsed = new PacketParsed(ref packet);
+                var dnsPacket = parsed.L7.Generic.GetSpan(ref packet);
+
+                var array = dnsPacket.ToArray().AsSpan();
+
+                var msg = DnsUtil.Parse(array);
+
+                for (int c = 0; c < count; c++)
+                {
+                    DnsUtil.Build(msg);
+                }
+            }), enabled: true, priority: 210613)
+
             .Add(new MicroBenchmark($"DnsTools_Parse", Benchmark_CountForNormal, count =>
             {
                 // 元: DnsTools_Parse: 208.81 ns, 4,789,072 / sec
@@ -497,7 +516,7 @@ namespace IPA.TestDev
 
                 for (int c = 0; c < count; c++)
                 {
-                    var msg = DnsMessageBase.CreateByFlag(array, null, null);
+                    DnsUtil.Parse(dnsPacket);
                 }
             }), enabled: true, priority: 210613)
 
