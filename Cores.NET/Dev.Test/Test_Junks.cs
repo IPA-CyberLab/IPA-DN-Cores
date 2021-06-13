@@ -403,6 +403,27 @@ __IMG__
     partial class TestDevCommands
     {
         [ConsoleCommand(
+      "C# ソースコード結合",
+      "CSharpConcat [src_dir] /DEST:<dest_dir>",
+      "C# ソースコード結合"
+      )]
+        static int CSharpConcat(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[src_dir]", ConsoleService.Prompt, "Source dir: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("DEST", ConsoleService.Prompt, "Dest dir: ", ConsoleService.EvalNotEmpty, null),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            CSharpConcatUtil.DoConcat(vl.DefaultParam.StrValue, vl["DEST"].StrValue);
+
+            return 0;
+        }
+
+
+        [ConsoleCommand(
            "Google Street View アナライザ (情報分析用)",
            "GoogleStreetViewAnalyzer /NAME:<name> /URL:<url> /DEST:<dir>",
            "Google Street View アナライザ (情報分析用)"

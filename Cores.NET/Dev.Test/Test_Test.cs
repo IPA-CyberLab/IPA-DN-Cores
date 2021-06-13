@@ -1717,6 +1717,12 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                CSharpConcatUtil.DoConcat(@"C:\tmp2\210612test\src\", @"C:\tmp2\210612test\dst\");
+                return;
+            }
+
+            if (true)
+            {
                 Test_MakeDummyCerts_210604();
                 return;
             }
