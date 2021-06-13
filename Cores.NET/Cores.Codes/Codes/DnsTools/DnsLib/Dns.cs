@@ -2491,7 +2491,7 @@ namespace IPA.Cores.Codes.DnsTools
 				return;
 			}
 
-			string label = name.Labels[0];
+			string label = name.Labels.Span[0];
 
 			if (isCompressionAllowed)
 				domainNames[name] = (ushort) ((currentPosition | 0xc000) - offset);

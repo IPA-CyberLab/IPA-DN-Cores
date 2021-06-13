@@ -87,6 +87,7 @@ using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
 using System.Runtime.CompilerServices;
+using Newtonsoft.Json;
 
 namespace IPA.Cores.Codes.DnsTools
 {
@@ -719,7 +720,7 @@ namespace IPA.Cores.Codes.DnsTools
 	/// </summary>
 	public class DomainName : IEquatable<DomainName>, IComparable<DomainName>
 	{
-		private readonly string[] _labels;
+		private readonly ReadOnlyMemory<string> _labels;
 
 		/// <summary>
 		///   The DNS root name (.)
@@ -732,23 +733,28 @@ namespace IPA.Cores.Codes.DnsTools
 		///   Creates a new instance of the DomainName class
 		/// </summary>
 		/// <param name="labels">The labels of the DomainName</param>
-		public DomainName(string[] labels)
+		public DomainName(ReadOnlyMemory<string> labels)
 		{
 			_labels = labels;
 		}
 
 		internal DomainName(string label, DomainName parent)
 		{
-			_labels = new string[1 + parent.LabelCount];
+			var labels = new string[1 + parent.LabelCount];
 
-			_labels[0] = label;
-			Array.Copy(parent._labels, 0, _labels, 1, parent.LabelCount);
+			labels[0] = label;
+			Array.Copy(parent._labels.ToArray(), 0, labels, 1, parent.LabelCount);
+
+			this._labels = labels;
 		}
 
 		/// <summary>
 		///   Gets the labels of the domain name
 		/// </summary>
-		public string[] Labels => _labels;
+		[JsonIgnore]
+		public ReadOnlyMemory<string> Labels => _labels;
+
+		public string[] LabelStrings => Labels.ToArray();
 
 		/// <summary>
 		///   Gets the count of labels this domain name contains
@@ -759,8 +765,9 @@ namespace IPA.Cores.Codes.DnsTools
 		{
 			get
 			{
-				int ret = LabelCount;
-				foreach (var item in _labels)
+				var span = _labels.Span;
+				int ret = span.Length;
+				foreach (var item in span)
 				{
 					ret += item.Length;
 				}
@@ -773,9 +780,12 @@ namespace IPA.Cores.Codes.DnsTools
 		{
 			string[] newLabels = new string[LabelCount];
 
-			for (int i = 0; i < LabelCount; i++)
+			var span = Labels.Span;
+			int count = span.Length;
+
+			for (int i = 0; i < count; i++)
 			{
-				newLabels[i] = Labels[i].Add0x20Bits();
+				newLabels[i] = span[i].Add0x20Bits();
 			}
 
 			return new DomainName(newLabels) { _hashCode = _hashCode };
@@ -797,8 +807,10 @@ namespace IPA.Cores.Codes.DnsTools
 			if (removeLabels == 0)
 				return this;
 
-			string[] newLabels = new string[LabelCount - removeLabels];
-			Array.Copy(_labels, removeLabels, newLabels, 0, newLabels.Length);
+			var newLabels = _labels.Slice(removeLabels, LabelCount - removeLabels);
+
+			//string[] newLabels = new string[LabelCount - removeLabels];
+			//Array.Copy(_labels, removeLabels, newLabels, 0, newLabels.Length);
 
 			return new DomainName(newLabels);
 		}
@@ -1007,7 +1019,7 @@ namespace IPA.Cores.Codes.DnsTools
 			if (_toString != null)
 				return _toString;
 
-			return (_toString = String.Join(".", _labels.Select(x => x.ToMasterfileLabelRepresentation(true))) + ".");
+			return (_toString = String.Join(".", _labels.Span.ToArray().Select(x => x.ToMasterfileLabelRepresentation(true))) + ".");
 		}
 
 		private int? _hashCode;
@@ -1023,13 +1035,16 @@ namespace IPA.Cores.Codes.DnsTools
 			if (_hashCode.HasValue)
 				return _hashCode.Value;
 
-			int hash = LabelCount;
+			var span = _labels.Span;
 
-			for (int i = 0; i < LabelCount; i++)
+			int count = span.Length;
+			int hash = count;
+
+			for (int i = 0; i < count; i++)
 			{
 				unchecked
 				{
-					hash = hash * 17 + _labels[i].GetHashCode(StringComparison.OrdinalIgnoreCase);
+					hash = hash * 17 + span[i].GetHashCode(StringComparison.OrdinalIgnoreCase);
 				}
 			}
 
@@ -1046,8 +1061,8 @@ namespace IPA.Cores.Codes.DnsTools
 		{
 			string[] newLabels = new string[name1.LabelCount + name2.LabelCount];
 
-			Array.Copy(name1._labels, newLabels, name1.LabelCount);
-			Array.Copy(name2._labels, 0, newLabels, name1.LabelCount, name2.LabelCount);
+			Array.Copy(name1._labels.ToArray(), newLabels, name1.LabelCount);
+			Array.Copy(name2._labels.ToArray(), 0, newLabels, name1.LabelCount, name2.LabelCount);
 
 			return new DomainName(newLabels);
 		}
@@ -1114,17 +1129,23 @@ namespace IPA.Cores.Codes.DnsTools
 			if (ReferenceEquals(other, null))
 				return false;
 
-			if (LabelCount != other.LabelCount)
-				return false;
+			var span1 = _labels.Span;
+			int count1 = span1.Length;
 
-			if (_hashCode.HasValue && other._hashCode.HasValue && (_hashCode != other._hashCode))
-				return false;
+			var span2 = other._labels.Span;
+			int count2 = span2.Length;
 
-			StringComparison comparison = ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            if (count1 != count2)
+                return false;
 
-			for (int i = 0; i < LabelCount; i++)
+            if (_hashCode.HasValue && other._hashCode.HasValue && (_hashCode != other._hashCode))
+                return false;
+
+            StringComparison comparison = ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
+            for (int i = 0; i < count1; i++)
 			{
-				if (!String.Equals(_labels[i], other._labels[i], comparison))
+				if (!String.Equals(span1[i], span2[i], comparison))
 					return false;
 			}
 
@@ -1139,15 +1160,23 @@ namespace IPA.Cores.Codes.DnsTools
 		/// <returns>A value that indicates the relative order of the objects being compared.</returns>
 		public int CompareTo(DomainName other)
 		{
-			for (int i = 1; i <= Math.Min(LabelCount, other.LabelCount); i++)
+			var span1 = this._labels.Span;
+			int count1 = span1.Length;
+
+			var span2 = other._labels.Span;
+			int count2 = span2.Length;
+
+			int minCount = Math.Min(count1, count2);
+
+			for (int i = 1; i <= minCount; i++)
 			{
-				int labelCompare = String.Compare(Labels[LabelCount - i].ToLower(), other.Labels[other.LabelCount - i].ToLower(), StringComparison.Ordinal);
+				int labelCompare = String.Compare(span1[count1 - i], span2[count2 - i], StringComparison.OrdinalIgnoreCase);
 
 				if (labelCompare != 0)
 					return labelCompare;
 			}
 
-			return LabelCount.CompareTo(other.LabelCount);
+			return count1.CompareTo(count2);
 		}
 	}
 

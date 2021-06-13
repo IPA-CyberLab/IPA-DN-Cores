@@ -1280,7 +1280,7 @@ namespace IPA.Cores.Codes.DnsTools
 						return DnsSecValidationResult.Bogus;
 				}
 
-				current = DomainName.Asterisk + current.GetParentName(current.Labels[0] == "*" ? 2 : 1);
+				current = DomainName.Asterisk + current.GetParentName(current.Labels.Span[0] == "*" ? 2 : 1);
 			}
 		}
 
@@ -1360,7 +1360,7 @@ namespace IPA.Cores.Codes.DnsTools
 				if (res == DnsSecValidationResult.Signed)
 				{
 					if ((record.Labels == name.LabelCount)
-					    || ((name.Labels[0] == "*") && (record.Labels == name.LabelCount - 1)))
+					    || ((name.Labels.Span[0] == "*") && (record.Labels == name.LabelCount - 1)))
 						return DnsSecValidationResult.Signed;
 
 					if (await ValidateNonExistenceAsync(name, recordType, recordClass, rrSigRecords, DomainName.Asterisk + record.Name.GetParentName(record.Name.LabelCount - record.Labels), zoneApex, msg, state, token) == DnsSecValidationResult.Signed)
@@ -2511,7 +2511,7 @@ namespace IPA.Cores.Codes.DnsTools
 		{
 			TypeCovered = records[0].RecordType;
 			Algorithm = key.Algorithm;
-			Labels = (byte) (records[0].Name.Labels[0] == DomainName.Asterisk.Labels[0] ? records[0].Name.LabelCount - 1 : records[0].Name.LabelCount);
+			Labels = (byte) (records[0].Name.Labels.Span[0] == DomainName.Asterisk.Labels.Span[0] ? records[0].Name.LabelCount - 1 : records[0].Name.LabelCount);
 			OriginalTimeToLive = records[0].TimeToLive;
 			SignatureExpiration = expiration;
 			SignatureInception = inception;
