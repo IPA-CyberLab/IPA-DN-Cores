@@ -76,6 +76,7 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using System.Runtime.CompilerServices;
 
 using Org.BouncyCastle.Crypto.Prng;
 using Org.BouncyCastle.Security;
@@ -2024,6 +2025,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return res;
 		}
 
+		[MethodImpl(Inline)]
 		internal static DomainName ParseDomainName(byte[] resultData, ref int currentPosition)
 		{
 			int firstLabelLength;
@@ -2032,6 +2034,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return res;
 		}
 
+		[MethodImpl(Inline)]
 		internal static ushort ParseUShort(byte[] resultData, ref int currentPosition)
 		{
 			ushort res;
@@ -2048,6 +2051,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return res;
 		}
 
+		[MethodImpl(Inline)]
 		internal static int ParseInt(byte[] resultData, ref int currentPosition)
 		{
 			int res;
@@ -2064,6 +2068,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return res;
 		}
 
+		[MethodImpl(Inline)]
 		internal static uint ParseUInt(byte[] resultData, ref int currentPosition)
 		{
 			uint res;
@@ -2080,6 +2085,7 @@ namespace IPA.Cores.Codes.DnsTools
 			return res;
 		}
 
+		[MethodImpl(Inline)]
 		internal static ulong ParseULong(byte[] resultData, ref int currentPosition)
 		{
 			ulong res;
