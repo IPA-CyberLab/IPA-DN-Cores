@@ -434,6 +434,7 @@ namespace IPA.Cores.Basic
 
             public const int DefaultThroughtputMeasutementUnitMsecs = 60 * 1000;
             public const int DefaultThroughtputInitialMinMeasutementUnitMsecs = 1 * 1000;
+            public const int DefaultThroughtputMeasutementPrintMsecs = 1 * 1000;
 
             public const int WtEntranceUrlTimeUpdateMsecs = 5 * 60 * 1000;
         }

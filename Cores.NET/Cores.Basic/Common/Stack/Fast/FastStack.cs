@@ -571,17 +571,17 @@ namespace IPA.Cores.Basic
             {
                 await Task.Yield();
 
-                FastMemoryPool<byte> FastMemoryAllocatorForDatagram = new FastMemoryPool<byte>();
+                FastMemoryPool<byte> memAlloc = new FastMemoryPool<byte>();
 
                 int numRetry = 0;
 
                 var datagramBulkReceiver = new AsyncBulkReceiver<Datagram, PalSocket>(async (s, cancel) =>
                 {
-                    Memory<byte> tmp = FastMemoryAllocatorForDatagram.Reserve(65536);
+                    Memory<byte> tmp = memAlloc.Reserve(65536);
 
                     var ret = await s.ReceiveFromAsync(tmp);
 
-                    FastMemoryAllocatorForDatagram.Commit(ref tmp, ret.ReceivedBytes);
+                    memAlloc.Commit(ref tmp, ret.ReceivedBytes);
 
                     Datagram pkt = new Datagram(tmp, ret.RemoteEndPoint);
                     return new ValueOrClosed<Datagram>(pkt);

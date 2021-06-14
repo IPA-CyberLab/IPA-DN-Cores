@@ -4412,9 +4412,9 @@ namespace IPA.Cores.Basic
     public class AsyncOneShotTester : AsyncService
     {
         Task t;
-        public AsyncOneShotTester(Func<Task> Proc)
+        public AsyncOneShotTester(Func<CancellationToken, Task> Proc)
         {
-            t = Proc();
+            t = Proc(this.GrandCancel);
             t._TryWaitAsync(false)._LaissezFaire();
         }
 

@@ -8017,7 +8017,34 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static  implicit operator double(ThroughputMeasuse m) => m.GetCurrentThroughput();
+        public static implicit operator double(ThroughputMeasuse m) => m.GetCurrentThroughput();
+
+        public AsyncOneShotTester StartPrinter(string prefix = "", int intervalMsecs = Consts.Intervals.DefaultThroughtputMeasutementPrintMsecs, bool toStr3 = false)
+        {
+            if (intervalMsecs <= 0) intervalMsecs = 1;
+
+            AsyncOneShotTester ret = new AsyncOneShotTester(async c =>
+            {
+                while (c.IsCancellationRequested == false)
+                {
+                    double value = this.GetCurrentThroughput();
+                    string s;
+                    if (toStr3 == false)
+                    {
+                        s = value.ToString("F3");
+                    }
+                    else
+                    {
+                        s = ((long)value)._ToString3();
+                    }
+                    $"{prefix}{s}"._Print();
+
+                    await c._WaitUntilCanceledAsync(intervalMsecs);
+                }
+            });
+
+            return ret;
+        }
     }
 
     [Flags]

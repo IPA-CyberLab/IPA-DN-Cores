@@ -1744,8 +1744,54 @@ namespace IPA.TestDev
             DnsUtil.ParsePacket(data3)._DebugAsJson();
         }
 
+        static void Test_210614()
+        {
+            FastMemoryPool<byte> memAlloc = new FastMemoryPool<byte>();
+
+            var datagramBulkReceiver = new AsyncBulkReceiver<Datagram, PalSocket>(async (s, cancel) =>
+            {
+                Memory<byte> tmp = memAlloc.Reserve(65536);
+
+                var ret = await s.ReceiveFromAsync(tmp);
+
+                memAlloc.Commit(ref tmp, ret.ReceivedBytes);
+
+                Datagram pkt = new Datagram(tmp, ret.RemoteEndPoint);
+                return new ValueOrClosed<Datagram>(pkt);
+            });
+
+            using PalSocket? s = new PalSocket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp, TcpDirectionType.Server);
+            s.Bind(new IPEndPoint(IPAddress.Any, 5454));
+
+            using CancelWatcher w = new CancelWatcher();
+
+            ThroughputMeasuse measure = new ThroughputMeasuse(1000, 1000);
+
+            using var printer = measure.StartPrinter("UDP: ", toStr3: true);
+
+            using AsyncOneShotTester test = new AsyncOneShotTester(async c =>
+            {
+                byte[] mem = new byte[65536];
+
+                while (c.IsCancellationRequested == false)
+                {
+                    var res = await s.ReceiveFromAsync(mem);
+
+                    measure.Add(1);
+                }
+            });
+
+            Con.ReadLine(">");
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210614();
+                return;
+            }
+
             if (true)
             {
                 Test_210613_02();
