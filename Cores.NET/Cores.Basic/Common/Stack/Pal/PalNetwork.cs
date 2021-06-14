@@ -305,10 +305,7 @@ namespace IPA.Cores.Basic
             try
             {
                 //Task<int> t = _Socket.SendToAsync(buffer._AsSegment(), SocketFlags.None, remoteEP);
-                ValueTask<int> t = _Socket.SendToAsync(remoteEP, buffer._AsSegment());
-                if (t.IsCompleted == false)
-                    await t;
-                int ret = t._GetResult();
+                int ret = await _Socket.SendToAsync(remoteEP, buffer);
                 if (ret <= 0) throw new SocketDisconnectedException();
                 return ret;
             }
