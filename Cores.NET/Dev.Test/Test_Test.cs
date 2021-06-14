@@ -1747,11 +1747,15 @@ namespace IPA.TestDev
         static void Test_210614_UdpRecvBench()
         {
             // ベンチマークメモ
+            // 
+            // --- 受信 ---
             // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
             // Async (MS SocketTaskExtensions): 1 コア: 360 kpps くらい, 8 コア: 776 kpps くらい
             // Async (UdpSocketExtensions): 1 コア: 450 kpps くらい, 8 コア: 850 ～ 900 kpps くらい
             // Sync:  1 コア: 550 kpps くらい、8 コア: 1000 kpps くらい出るぞ
             // これらの結果から、 UdpSocketExtensions を用いた async が一番良さそうだぞ
+            // 
+            // Async + BulkRecv + UdpSocketExtensions  8 コア 800 kpps くらい
 
             int numCpu = Env.NumCpus;
 
@@ -1788,7 +1792,7 @@ namespace IPA.TestDev
 
                         async Task LoopAsync(PalSocket s)
                         {
-                            FastMemoryPool<byte> memAlloc = new FastMemoryPool<byte>();
+                            FastMemoryPool<byte> memAlloc = new FastMemoryPool<byte>(50);
 
                             var datagramBulkReceiver = new AsyncBulkReceiver<Datagram, PalSocket>(async (s, cancel) =>
                             {
