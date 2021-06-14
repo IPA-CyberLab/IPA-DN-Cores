@@ -1749,7 +1749,7 @@ namespace IPA.TestDev
             // ベンチマークメモ
             // pktlinux (Xeon 4C) -> dn-vpnvault2 (Xeon 4C)
             // Async: 1 コア: 360 kpps くらい, 8 コア: 776 kpps くらい
-            // Sync:  8 コア: 1000 kpps くらい出るぞ
+            // Sync:  1 コア: 550 kpps くらい、8 コア: 1000 kpps くらい出るぞ
 
             FastMemoryPool<byte> memAlloc = new FastMemoryPool<byte>();
 
@@ -1789,6 +1789,7 @@ namespace IPA.TestDev
             using AsyncOneShotTester test = new AsyncOneShotTester(async c =>
             {
                 byte[] mem = new byte[65536];
+                var array = new ArraySegment<byte>(mem);
 
                 List<Task> taskList = new List<Task>();
                 try
@@ -1804,14 +1805,26 @@ namespace IPA.TestDev
                             while (c.IsCancellationRequested == false)
                             {
                                 var ss = s.NativeSocket;
+                                IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
+                                EndPoint ep2 = ep;
+
                                 for (int i = 0; i < 1000; i++)
                                 {
-                                    //var result = await s.ReceiveFromAsync(mem);
-                                    IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
-                                    EndPoint ep2 = ep;
-                                    ss.ReceiveFrom(mem, ref ep2);
-
-                                    //s.NativeHandle._Print();
+                                    if (true)
+                                    {
+                                        ss.ReceiveFrom(mem, ref ep2);
+                                    }
+                                    else
+                                    {
+                                        if (false)
+                                        {
+                                            var result = await s.ReceiveFromAsync(mem);
+                                        }
+                                        else
+                                        {
+                                            await ss.ReceiveFromAsync(array, SocketFlags.None, ep);
+                                        }
+                                    }
 
                                     measure.AddFast(1);
                                 }
