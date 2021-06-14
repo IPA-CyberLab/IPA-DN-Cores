@@ -392,8 +392,7 @@ namespace IPA.Cores.Basic
         protected abstract Task<DnsResponse> QueryDnsImplAsync(DnsQueryParamBase param, CancellationToken cancel);
         protected abstract NetTcpListener CreateTcpListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc, string? rateLimiterConfigName = null);
         protected abstract DnsResolver CreateDnsResolverImpl();
-        protected abstract NetUdpListener CreateUdpListenerImpl();
-        protected abstract NetUdpProtocolStubBase CreateUdpProtocolStubImpl(CancellationToken cancel);
+        protected abstract NetUdpListener CreateUdpListenerImpl(NetUdpListenerOptions options);
 
         readonly Singleton<DnsResolver> DnsResolverSingleton;
         public DnsResolver DnsResolver => DnsResolverSingleton;
@@ -525,9 +524,9 @@ namespace IPA.Cores.Basic
             => ConnectAsync(param, cancel)._GetResult();
 
         // UDP リスナーを作成する
-        public NetUdpListener CreateUdpListener()
+        public NetUdpListener CreateUdpListener(NetUdpListenerOptions options)
         {
-            NetUdpListener ret = CreateUdpListenerImpl();
+            NetUdpListener ret = CreateUdpListenerImpl(options);
 
             return ret;
         }

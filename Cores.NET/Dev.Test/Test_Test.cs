@@ -1717,10 +1717,31 @@ namespace IPA.TestDev
 
         static void Test_210613_02()
         {
-            using var uu = LocalNet.CreateUdpListener();
+            using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(numCpus: 8));
             uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
 
-            using var sock = uu.GetSocket();
+            var sock = uu.GetSocket();
+            ThroughputMeasuse recvMeasure = new ThroughputMeasuse(1000, 1000);
+            using var recvPrinter = recvMeasure.StartPrinter("UDP Recv: ", toStr3: true);
+
+            using AsyncOneShotTester test = new AsyncOneShotTester(async c =>
+            {
+                var r = sock.UpperPoint.DatagramReader;
+
+                while (c.IsCancellationRequested == false)
+                {
+                    while (c.IsCancellationRequested == false)
+                    {
+                        var list = r.DequeueAllWithLock(out _);
+                        if (list == null || list.Count == 0)
+                        {
+                            break;
+                        }
+                        recvMeasure.Add(list.Count);
+                    }
+                    await r.WaitForReadyToReadAsync(c, Timeout.Infinite);
+                }
+            });
 
             Con.ReadLine(">");
         }
@@ -1751,17 +1772,18 @@ namespace IPA.TestDev
             // 
             // --- 受信 ---
             // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
-            // Async (MS SocketTaskExtensions): 1 コア: 360 kpps くらい, 8 コア: 776 kpps くらい
-            // Async (UdpSocketExtensions): 1 コア: 450 kpps くらい, 8 コア: 850 ～ 900 kpps くらい
-            // Sync:  1 コア: 550 kpps くらい、8 コア: 1000 kpps くらい出るぞ
+            // Async (MS SocketTaskExtensions): 1 コア: 360 kpps くらい, 4 コア: 776 kpps くらい
+            // Async (UdpSocketExtensions): 1 コア: 450 kpps くらい, 4 コア: 850 ～ 900 kpps くらい
+            // Sync:  1 コア: 550 kpps くらい、4 コア: 1000 kpps くらい出るぞ
             // これらの結果から、 UdpSocketExtensions を用いた async が一番良さそうだぞ
             // 
-            // Async + BulkRecv + UdpSocketExtensions  8 コア 800 kpps くらい
+            // Async + BulkRecv + UdpSocketExtensions  4 コア 800 kpps くらい
             // RasPi4 で 30 kpps くらい 遅いなあ
             // 
             // --- pktlinux --> dn-vpnvault2 --> pktlinux 受信したものを別スレッド打ち返して送信 ---
-            // 8 コア: 400 ～ 500 kpps くらい
+            // 4 コア: 400 ～ 500 kpps くらい
             // 1 コア: 180 kpps くらい
+            // RasPi4 で 30 kpps くらい 遅いなあ
 
             int numCpu = Env.NumCpus;
 
@@ -1918,7 +1940,7 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (true)
+            if (false)
             {
                 Test_210614_UdpRecvBench();
                 return;

@@ -210,26 +210,39 @@ namespace IPA.Cores.Basic
 
     public class NetUdpProtocolOptions : NetBottomProtocolOptionsBase
     {
-        public int PollingIntervalMsecs { get; set; } = 1 * 250;
+        public NetUdpListenerOptions ListenerOptions { get; }
+
+        public NetUdpProtocolOptions(NetUdpListenerOptions listnerOptions)
+        {
+            this.ListenerOptions = listnerOptions;
+        }
     }
 
-    public class NetUdpEndPoint : IEquatable<NetUdpEndPoint>, IComparable<NetUdpEndPoint>
+    public class NetUdpBindPoint : IEquatable<NetUdpBindPoint>, IComparable<NetUdpBindPoint>
     {
         public IPEndPoint EndPoint { get; }
         public IPVersion IPVer { get; }
+        public int CpuId { get; }
 
-        public NetUdpEndPoint(IPEndPoint ep)
+        public NetUdpBindPoint(IPEndPoint ep, int cpuId)
         {
             this.EndPoint = ep;
             this.IPVer = ep.Address._GetIPVersion();
+            this.CpuId = cpuId;
         }
 
-        public override int GetHashCode() => this.EndPoint.GetHashCode();
-        public override bool Equals(object? obj) => this.EndPoint.Equals(((NetUdpEndPoint)obj!).EndPoint);
-        public bool Equals(NetUdpEndPoint? other) => this.EndPoint.Equals(other!.EndPoint);
-        public int CompareTo(NetUdpEndPoint? other) => this.EndPoint._CompareTo(other?.EndPoint);
+        public override int GetHashCode() => this.EndPoint.GetHashCode() + this.CpuId;
+        public override bool Equals(object? obj) => this.EndPoint.Equals(((NetUdpBindPoint)obj!).EndPoint) && this.CpuId.Equals(((NetUdpBindPoint)obj!).CpuId);
+        public bool Equals(NetUdpBindPoint? other) => this.EndPoint.Equals(other!.EndPoint) && this.CpuId.Equals(other!.CpuId);
+        public int CompareTo(NetUdpBindPoint? other)
+        {
+            int r = this.EndPoint._CompareTo(other?.EndPoint);
+            if (r != 0) return r;
+            r = this.CpuId.CompareTo(other?.CpuId);
+            return r;
+        }
 
-        public override string ToString() => $"{this.IPVer}: {this.EndPoint}";
+        public override string ToString() => $"{this.IPVer}: {this.EndPoint}: CPU {this.CpuId}";
     }
 
     public abstract class NetUdpProtocolStubBase : NetBottomProtocolStubBase
@@ -242,13 +255,13 @@ namespace IPA.Cores.Basic
 
         readonly CriticalSection LockObj = new CriticalSection<NetUdpProtocolStubBase>();
 
-        protected readonly ConcurrentHashSet<NetUdpEndPoint> _EndPointList = new ConcurrentHashSet<NetUdpEndPoint>();
+        protected readonly ConcurrentHashSet<NetUdpBindPoint> _EndPointList = new ConcurrentHashSet<NetUdpBindPoint>();
 
-        public IReadOnlyList<NetUdpEndPoint> GetEndPointList() => _EndPointList.Keys.ToList();
+        public IReadOnlyList<NetUdpBindPoint> GetEndPointList() => _EndPointList.Keys.ToList();
 
-        protected abstract void EndPointListUpdatedImpl(IReadOnlyList<NetUdpEndPoint> list);
+        protected abstract void EndPointListUpdatedImpl(IReadOnlyList<NetUdpBindPoint> list);
 
-        public bool AddEndPoint(NetUdpEndPoint ep)
+        public bool AddBindPoint(NetUdpBindPoint ep)
         {
             bool ret = _EndPointList.Add(ep);
 
@@ -260,7 +273,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public bool DeleteEndPoint(NetUdpEndPoint ep)
+        public bool DeleteBindPoint(NetUdpBindPoint ep)
         {
             bool ret = _EndPointList.Remove(ep);
 
@@ -548,14 +561,16 @@ namespace IPA.Cores.Basic
 
     public class NetPalUdpProtocolStub : NetUdpProtocolStubBase
     {
-        public class UdpSocketItem : AsyncServiceWithMainLoop
+        public class UdpBindInstance : AsyncServiceWithMainLoop
         {
-            public NetUdpEndPoint EndPoint { get; }
+            public NetUdpBindPoint EndPoint { get; }
+            public NetPalUdpProtocolStub Protocol { get; }
 
-            public UdpSocketItem(NetUdpEndPoint ep)
+            public UdpBindInstance(NetPalUdpProtocolStub protocol, NetUdpBindPoint ep)
             {
                 try
                 {
+                    this.Protocol = protocol;
                     this.EndPoint = ep;
 
                     this.StartMainLoop(MainLoopProcAsync);
@@ -594,7 +609,7 @@ namespace IPA.Cores.Basic
                     try
                     {
                         s = new PalSocket(EndPoint.EndPoint.AddressFamily, SocketType.Dgram, ProtocolType.Udp, TcpDirectionType.Server);
-                        s.Bind(EndPoint.EndPoint);
+                        s.Bind(EndPoint.EndPoint, Protocol.Options.ListenerOptions.NumCpus >= 2);
                         Con.WriteDebug($"UDP Listener OK: {this.EndPoint}");
                         numRetry = 0;
                     }
@@ -618,6 +633,8 @@ namespace IPA.Cores.Basic
                             // 受信ループの定義
                             async Task RecvLoopAsync(CancellationToken c1)
                             {
+                                var writer = this.Protocol.Upper.DatagramWriter;
+
                                 while (c1.IsCancellationRequested == false)
                                 {
                                     Datagram[]? recvList;
@@ -630,7 +647,12 @@ namespace IPA.Cores.Basic
                                         throw new SocketDisconnectedException();
                                     }
 
-                                    Con.WriteLine($"Recv: {recvList.Length}");
+                                    //Con.WriteLine($"Recv: {recvList.Length}");
+
+                                    if (writer.IsReadyToWrite())
+                                    {
+                                        writer.EnqueueAllWithLock(recvList, true);
+                                    }
                                 }
                             }
 
@@ -690,8 +712,8 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public NetPalUdpProtocolStub(PipePoint? upper = null, NetUdpProtocolOptions? options = null, CancellationToken cancel = default)
-            : base(upper, options ?? new NetUdpProtocolOptions(), cancel)
+        public NetPalUdpProtocolStub(NetUdpProtocolOptions options, PipePoint? upper = null, CancellationToken cancel = default)
+            : base(upper, options, cancel)
         {
         }
 
@@ -701,7 +723,7 @@ namespace IPA.Cores.Basic
 
         readonly AsyncAutoResetEvent PollingEvent = new AsyncAutoResetEvent();
 
-        protected override void EndPointListUpdatedImpl(IReadOnlyList<NetUdpEndPoint> list)
+        protected override void EndPointListUpdatedImpl(IReadOnlyList<NetUdpBindPoint> list)
         {
             if (Started.IsFirstCall())
             {
@@ -712,7 +734,7 @@ namespace IPA.Cores.Basic
             PollingEvent.Set(true);
         }
 
-        readonly Dictionary<NetUdpEndPoint, UdpSocketItem> UdpSocketItemList = new Dictionary<NetUdpEndPoint, UdpSocketItem>();
+        readonly Dictionary<NetUdpBindPoint, UdpBindInstance> UdpBindInstanceList = new Dictionary<NetUdpBindPoint, UdpBindInstance>();
 
         // 定期的にポーリングを行ない、必要に応じて新しいソケットを作成し、不要なソケットを停止するタスク
         async Task PollTaskProcAsync()
@@ -732,11 +754,11 @@ namespace IPA.Cores.Basic
                     ex._Debug();
                 }
 
-                await this.PollingEvent.WaitOneAsync(Util.GenRandInterval(this.Options.PollingIntervalMsecs), cancel);
+                await this.PollingEvent.WaitOneAsync(Util.GenRandInterval(this.Options.ListenerOptions.PollingMsecs), cancel);
             }
 
             // 終了時には現時点で動作しているすべてのソケットの bind 解除を行なう
-            await UdpSocketItemList.ToList()._DoForEachAsync(async x =>
+            await UdpBindInstanceList.ToList()._DoForEachAsync(async x =>
             {
                 await x.Value._DisposeSafeAsync();
             });
@@ -755,26 +777,26 @@ namespace IPA.Cores.Basic
 
                 var candidateList = GenerateEndPointCandidateList(hostInfo);
 
-                // UdpSocketItemList になく candidateList にあるものの bind を行なう
-                candidateList.Where(x => UdpSocketItemList.ContainsKey(x) == false).ToList()._DoForEach(x =>
+                // UdpBindInstanceList になく candidateList にあるものの bind を行なう
+                candidateList.Where(x => UdpBindInstanceList.ContainsKey(x) == false).ToList()._DoForEach(x =>
                   {
-                      UdpSocketItemList.Add(x, new UdpSocketItem(x));
+                      UdpBindInstanceList.Add(x, new UdpBindInstance(this, x));
                   });
 
-                // UdpSocketItemList にあり candidateList にないものの bind 解除を行なう
-                await UdpSocketItemList.Where(x => candidateList.Contains(x.Key) == false).ToList()._DoForEachAsync(async x =>
+                // UdpBindInstanceList にあり candidateList にないものの bind 解除を行なう
+                await UdpBindInstanceList.Where(x => candidateList.Contains(x.Key) == false).ToList()._DoForEachAsync(async x =>
                   {
                       await x.Value._DisposeSafeAsync();
-                      UdpSocketItemList.Remove(x.Key);
+                      UdpBindInstanceList.Remove(x.Key);
                   });
             }
         }
 
         // 物理的に bind すべき EndPoint のリストを生成する
-        List<NetUdpEndPoint> GenerateEndPointCandidateList(TcpIpSystemHostInfo hostInfo)
+        List<NetUdpBindPoint> GenerateEndPointCandidateList(TcpIpSystemHostInfo hostInfo)
         {
             var list = this.GetEndPointList();
-            HashSet<NetUdpEndPoint> table = new HashSet<NetUdpEndPoint>();
+            HashSet<NetUdpBindPoint> table = new HashSet<NetUdpBindPoint>();
 
             foreach (var item in list.Where(x => x.EndPoint.Port >= 1 && x.EndPoint.Port <= 65535))
             {
@@ -787,7 +809,7 @@ namespace IPA.Cores.Basic
                         hostInfo.IPAddressList.Where(x => x._GetIPVersion() == IPVersion.IPv4)
                             .Where(x => x._IsAny() == false)
                             .Where(x => x._GetIPAddressType().Bit(IPAddressType.Unicast))
-                            ._DoForEach(x => table.Add(new NetUdpEndPoint(new IPEndPoint(x, item.EndPoint.Port))));
+                            ._DoForEach(x => table.Add(new NetUdpBindPoint(new IPEndPoint(x, item.EndPoint.Port), item.CpuId)));
                     }
                 }
                 else if (item.IPVer == IPVersion.IPv6)
@@ -797,7 +819,7 @@ namespace IPA.Cores.Basic
                         hostInfo.IPAddressList.Where(x => x._GetIPVersion() == IPVersion.IPv6)
                             .Where(x => x._IsAny() == false)
                             .Where(x => x._GetIPAddressType().Bit(IPAddressType.Unicast))
-                            ._DoForEach(x => table.Add(new NetUdpEndPoint(new IPEndPoint(x, item.EndPoint.Port))));
+                            ._DoForEach(x => table.Add(new NetUdpBindPoint(new IPEndPoint(x, item.EndPoint.Port), item.CpuId)));
                     }
                 }
             }
@@ -1465,21 +1487,41 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class NetUdpListenerOptions
+    {
+        public int PollingMsecs { get; } 
+        public int NumCpus { get; }
+
+        public NetUdpListenerOptions(int pollingMsecs = 1 * 1000, int numCpus = 1)
+        {
+            if (pollingMsecs >= 0) pollingMsecs = Math.Max(pollingMsecs, 250);
+            this.PollingMsecs = pollingMsecs;
+            this.NumCpus = Math.Min(Math.Max(numCpus, 1), 64);
+        }
+    }
+
     public abstract class NetUdpListener : AsyncService
     {
         readonly CriticalSection LockObj = new CriticalSection<NetUdpListener>();
 
-        internal protected abstract NetUdpProtocolStubBase CreateNewUdpStubImpl(CancellationToken cancel);
+        internal protected abstract NetUdpProtocolStubBase CreateNewUdpStubImpl(CancellationToken cancel, NetUdpListenerOptions options);
+
+        public NetUdpListenerOptions Options { get; }
 
         NetUdpProtocolStubBase? Protocol = null;
 
         Once Inited;
 
+        public NetUdpListener(NetUdpListenerOptions options)
+        {
+            this.Options = options;
+        }
+
         void EnsureProtocolCreated()
         {
             if (Inited.IsFirstCall())
             {
-                this.Protocol = CreateNewUdpStubImpl(this.GrandCancel);
+                this.Protocol = CreateNewUdpStubImpl(this.GrandCancel, this.Options);
             }
         }
 
@@ -1487,7 +1529,12 @@ namespace IPA.Cores.Basic
         {
             EnsureProtocolCreated();
 
-            bool ret = this.Protocol!.AddEndPoint(new NetUdpEndPoint(ep));
+            bool ret = false;
+
+            for (int i = 0; i < this.Options.NumCpus; i++)
+            {
+                ret |= this.Protocol!.AddBindPoint(new NetUdpBindPoint(ep, i));
+            }
 
             return ret;
         }
@@ -1496,7 +1543,12 @@ namespace IPA.Cores.Basic
         {
             if (this.Protocol == null) return false;
 
-            bool ret = this.Protocol.DeleteEndPoint(new NetUdpEndPoint(ep));
+            bool ret = false;
+
+            for (int i = 0; i < this.Options.NumCpus; i++)
+            {
+                ret |= this.Protocol!.DeleteBindPoint(new NetUdpBindPoint(ep, i));
+            }
 
             return ret;
         }
@@ -1769,13 +1821,13 @@ namespace IPA.Cores.Basic
 
     public class NetPalUdpListener : NetUdpListener
     {
-        public NetPalUdpListener() : base()
+        public NetPalUdpListener(NetUdpListenerOptions options) : base(options)
         {
         }
 
-        protected internal override NetUdpProtocolStubBase CreateNewUdpStubImpl(CancellationToken cancel)
+        protected internal override NetUdpProtocolStubBase CreateNewUdpStubImpl(CancellationToken cancel, NetUdpListenerOptions options)
         {
-            return new NetPalUdpProtocolStub(cancel: cancel);
+            return new NetPalUdpProtocolStub(new NetUdpProtocolOptions(options), cancel: cancel);
         }
     }
 }
