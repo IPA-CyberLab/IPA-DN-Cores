@@ -1749,8 +1749,9 @@ namespace IPA.TestDev
             // ベンチマークメモ
             // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
             // Async (MS SocketTaskExtensions): 1 コア: 360 kpps くらい, 8 コア: 776 kpps くらい
-            // Async (UdpSocketExtensions): 1 コア: 450 kpps くらい, 8 コア: 900 kpps くらい
+            // Async (UdpSocketExtensions): 1 コア: 450 kpps くらい, 8 コア: 850 ～ 900 kpps くらい
             // Sync:  1 コア: 550 kpps くらい、8 コア: 1000 kpps くらい出るぞ
+            // これらの結果から、 UdpSocketExtensions を用いた async が一番良さそうだぞ
 
             FastMemoryPool<byte> memAlloc = new FastMemoryPool<byte>();
 
@@ -1811,6 +1812,7 @@ namespace IPA.TestDev
 
                                 for (int i = 0; i < 1000; i++)
                                 {
+                                    Limbo.ObjectSlow = new byte[1];
                                     if (false)
                                     {
                                         ss.ReceiveFrom(mem, ref ep2);
@@ -1820,6 +1822,9 @@ namespace IPA.TestDev
                                         if (true)
                                         {
                                             var result = await s.ReceiveFromAsync(mem);
+
+                                            // 打ち返し
+                                            await s.SendToAsync(mem, result.RemoteEndPoint);
                                         }
                                         else if (false)
                                         {
