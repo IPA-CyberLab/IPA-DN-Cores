@@ -48,6 +48,7 @@ using System.Text;
 using System.Runtime.InteropServices;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
+using System.Runtime.CompilerServices;
 using System.Net;
 using System.Net.Sockets;
 

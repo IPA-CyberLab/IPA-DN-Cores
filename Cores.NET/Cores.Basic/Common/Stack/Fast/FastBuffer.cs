@@ -178,9 +178,9 @@ namespace IPA.Cores.Basic
     public interface IFastBuffer<T> : IFastBufferState
     {
         void Clear();
-        void Enqueue(T item);
-        void EnqueueAll(ReadOnlySpan<T> itemList);
-        void EnqueueAllWithLock(ReadOnlySpan<T> itemList, bool completeWrite = false);
+        long Enqueue(T item);
+        long EnqueueAll(ReadOnlySpan<T> itemList);
+        long EnqueueAllWithLock(ReadOnlySpan<T> itemList, bool completeWrite = false);
         IReadOnlyList<T> Dequeue(long minReadSize, out long totalReadSize, bool allowSplitSegments = true);
         IReadOnlyList<T> DequeueWithLock(long minReadSize, out long totalReadSize, bool allowSplitSegments = true);
         IReadOnlyList<T> DequeueAll(out long totalReadSize);
@@ -674,36 +674,49 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Enqueue(ReadOnlyMemory<T> item)
+        public long Enqueue(ReadOnlyMemory<T> item)
         {
             CheckDisconnected();
             long oldLen = Length;
-            if (item.Length == 0) return;
+            if (item.Length == 0) return Length;
             InsertTail(item);
             EventListeners.Fire(this, FastBufferCallbackEventType.Written);
             if (Length != 0 && oldLen == 0)
                 EventListeners.Fire(this, FastBufferCallbackEventType.EmptyToNonEmpty);
+            return Length;
         }
 
-        public void EnqueueWithLock(ReadOnlyMemory<T> item, bool completeWrite = false)
+        public long EnqueueWithLock(ReadOnlyMemory<T> item, bool completeWrite = false)
         {
+            long ret = 0;
+
             lock (LockObj)
-                Enqueue(item);
+            {
+                ret = Enqueue(item);
+            }
 
             if (completeWrite)
                 CompleteWrite();
+
+            return ret;
         }
 
-        public void EnqueueAllWithLock(ReadOnlySpan<ReadOnlyMemory<T>> itemList, bool completeWrite = false)
+        public long EnqueueAllWithLock(ReadOnlySpan<ReadOnlyMemory<T>> itemList, bool completeWrite = false)
         {
+            long ret = 0;
+
             lock (LockObj)
-                EnqueueAll(itemList);
+            {
+                ret = EnqueueAll(itemList);
+            }
 
             if (completeWrite)
                 CompleteWrite();
+
+            return ret;
         }
 
-        public void EnqueueAll(ReadOnlySpan<ReadOnlyMemory<T>> itemList)
+        public long EnqueueAll(ReadOnlySpan<ReadOnlyMemory<T>> itemList)
         {
             CheckDisconnected();
             checked
@@ -726,6 +739,8 @@ namespace IPA.Cores.Basic
                     if (Length != 0 && oldLen == 0)
                         EventListeners.Fire(this, FastBufferCallbackEventType.EmptyToNonEmpty);
                 }
+
+                return Length;
             }
         }
 
@@ -1430,7 +1445,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public void Enqueue(T item)
+        public long Enqueue(T item)
         {
             CheckDisconnected();
             checked
@@ -1441,21 +1456,28 @@ namespace IPA.Cores.Basic
                 EventListeners.Fire(this, FastBufferCallbackEventType.Written);
                 if (Length != 0 && oldLen == 0)
                     EventListeners.Fire(this, FastBufferCallbackEventType.EmptyToNonEmpty);
+                return Length;
             }
         }
 
-        public void EnqueueAllWithLock(ReadOnlySpan<T> itemList, bool completeWrite = false)
+        public long EnqueueAllWithLock(ReadOnlySpan<T> itemList, bool completeWrite = false)
         {
+            long ret = 0;
+
             lock (LockObj)
-                EnqueueAll(itemList);
+            {
+                ret = EnqueueAll(itemList);
+            }
 
             if (completeWrite)
             {
                 this.CompleteWrite();
             }
+
+            return ret;
         }
 
-        public void EnqueueAll(ReadOnlySpan<T> itemList)
+        public long EnqueueAll(ReadOnlySpan<T> itemList)
         {
             CheckDisconnected();
             checked
@@ -1466,6 +1488,7 @@ namespace IPA.Cores.Basic
                 EventListeners.Fire(this, FastBufferCallbackEventType.Written);
                 if (Length != 0 && oldLen == 0)
                     EventListeners.Fire(this, FastBufferCallbackEventType.EmptyToNonEmpty);
+                return Length;
             }
         }
 

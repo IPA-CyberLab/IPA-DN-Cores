@@ -70,13 +70,24 @@ namespace IPA.Cores.Basic
         int InternalStart;
         int InternalSize;
 
-        public Memory<byte> Data => this.InternalBuffer.Slice(this.InternalStart, this.InternalSize);
+        public Memory<byte> Data
+        {
+            [MethodImpl(Inline)]
+            get => this.InternalBuffer.Slice(this.InternalStart, this.InternalSize);
+        }
 
         public EndPoint? EndPoint;
         public DatagramFlag Flag;
         public long TimeStamp;
 
-        public IPEndPoint? IPEndPoint { get => (IPEndPoint?)EndPoint; set => EndPoint = value; }
+        public IPEndPoint? IPEndPoint
+        {
+            [MethodImpl(Inline)]
+            get => (IPEndPoint?)EndPoint;
+
+            [MethodImpl(Inline)]
+            set => EndPoint = value;
+        }
 
         // For UDP
         public Datagram(Memory<byte> data, EndPoint udpEndPoint, DatagramFlag flag = 0)

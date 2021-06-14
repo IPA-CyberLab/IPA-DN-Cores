@@ -39,6 +39,7 @@ using System.IO.Enumeration;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Net;
 using System.Data;
@@ -1714,12 +1715,52 @@ namespace IPA.TestDev
             Time.DateTimeToTime64(new DateTime(9999, 1, 1))._Print();
         }
 
-        static void Test_210613_02()
+        // UDP ソケット Pipe 経由間接叩き 送受信ベンチマーク
+        static void Test_210613_02_Udp_Indirect_SendRecv_Bench()
         {
-            using var uu = LocalNet.CreateUdpListener();
+            // --- 受信 ---
+            // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
+            // 受信のみ: 800 kpps くらい出た
+
+            bool reply = true;
+
+            using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(numCpus: 8));
             uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
 
             using var sock = uu.GetSocket();
+            ThroughputMeasuse recvMeasure = new ThroughputMeasuse(1000, 1000);
+
+            using var recvPrinter = recvMeasure.StartPrinter("UDP Recv: ", toStr3: true);
+
+            using AsyncOneShotTester test = new AsyncOneShotTester(async c =>
+            {
+                var r = sock.UpperPoint.DatagramReader;
+                var w = sock.UpperPoint.DatagramWriter;
+
+                while (c.IsCancellationRequested == false)
+                {
+                    while (c.IsCancellationRequested == false)
+                    {
+                        var list = r.DequeueAllWithLock(out _);
+                        if (list == null || list.Count == 0)
+                        {
+                            w.CompleteWrite(softly: true);
+                            break;
+                        }
+                        //$"User Loop: Dequeue OK: Fetch Length = {list.Count}, Remain Length = {r.Length}"._Debug();
+                        recvMeasure.Add(list.Count);
+
+                        if (reply)
+                        {
+                            if (w.IsReadyToWrite())
+                            {
+                                w.EnqueueAllWithLock(list.ToArray(), false);
+                            }
+                        }
+                    }
+                    await r.WaitForReadyToReadAsync(c, Timeout.Infinite);
+                }
+            });
 
             Con.ReadLine(">");
         }
@@ -1744,57 +1785,190 @@ namespace IPA.TestDev
             DnsUtil.ParsePacket(data3)._DebugAsJson();
         }
 
-        static void Test_210614()
+        // UDP ソケット直接叩き 送受信ベンチマーク
+        static void Test_210614_Udp_DirectRecvSendBench()
         {
-            FastMemoryPool<byte> memAlloc = new FastMemoryPool<byte>();
+            // ベンチマークメモ
+            // 
+            // --- 受信 ---
+            // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
+            // Async (MS SocketTaskExtensions): 1 コア: 360 kpps くらい, 4 コア: 776 kpps くらい
+            // Async (UdpSocketExtensions): 1 コア: 450 kpps くらい, 4 コア: 850 ～ 900 kpps くらい
+            // Sync:  1 コア: 550 kpps くらい、4 コア: 1000 kpps くらい出るぞ
+            // これらの結果から、 UdpSocketExtensions を用いた async が一番良さそうだぞ
+            // 
+            // Async + BulkRecv + UdpSocketExtensions  4 コア 800 kpps くらい
+            // RasPi4 で 30 kpps くらい 遅いなあ
+            // 
+            // --- pktlinux --> dn-vpnvault2 --> pktlinux 受信したものを別スレッド打ち返して送信 ---
+            // 4 コア: 400 ～ 500 kpps くらい
+            // 1 コア: 180 kpps くらい
+            // RasPi4 で 30 kpps くらい 遅いなあ
 
-            var datagramBulkReceiver = new AsyncBulkReceiver<Datagram, PalSocket>(async (s, cancel) =>
+            int numCpu = Env.NumCpus;
+
+            //numCpu = 1;
+
+            List<PalSocket> socketList = new List<PalSocket>();
+
+            for (int i = 0; i < numCpu; i++)
             {
-                Memory<byte> tmp = memAlloc.Reserve(65536);
+                PalSocket? s = new PalSocket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp, TcpDirectionType.Server);
+                s.Bind(new IPEndPoint(IPAddress.Any, 5454), true);
+                socketList.Add(s);
 
-                var ret = await s.ReceiveFromAsync(tmp);
-
-                memAlloc.Commit(ref tmp, ret.ReceivedBytes);
-
-                Datagram pkt = new Datagram(tmp, ret.RemoteEndPoint);
-                return new ValueOrClosed<Datagram>(pkt);
-            });
-
-            using PalSocket? s = new PalSocket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp, TcpDirectionType.Server);
-            s.Bind(new IPEndPoint(IPAddress.Any, 5454));
+                Con.WriteLine($"Socket #{i} Bind() ok.");
+            }
 
             using CancelWatcher w = new CancelWatcher();
 
-            ThroughputMeasuse measure = new ThroughputMeasuse(1000, 1000);
-
-            using var printer = measure.StartPrinter("UDP: ", toStr3: true);
+            ThroughputMeasuse recvMeasure = new ThroughputMeasuse(1000, 1000);
+            using var recvPrinter = recvMeasure.StartPrinter("UDP Recv: ", toStr3: true);
 
             using AsyncOneShotTester test = new AsyncOneShotTester(async c =>
             {
                 byte[] mem = new byte[65536];
+                var array = new ArraySegment<byte>(mem);
 
-                while (c.IsCancellationRequested == false)
+                List<Task> taskList = new List<Task>();
+                try
                 {
-                    var res = await s.ReceiveFromAsync(mem);
+                    foreach (var sock in socketList)
+                    {
+                        taskList.Add(LoopAsync(sock));
 
-                    measure.Add(1);
+                        async Task LoopAsync(PalSocket s)
+                        {
+                            bool reply = true;
+
+                            ConcurrentQueue<Datagram[]> sendQueue = new ConcurrentQueue<Datagram[]>();
+
+                            AsyncAutoResetEvent sendQueueEvent = new AsyncAutoResetEvent(true);
+
+                            FastMemoryPool<byte> memAlloc = new FastMemoryPool<byte>();
+
+                            var datagramBulkReceiver = new AsyncBulkReceiver<Datagram, PalSocket>(async (s, cancel) =>
+                            {
+                                Memory<byte> tmp = memAlloc.Reserve(65536);
+                                //Memory<byte> tmp = new byte[64];
+
+                                var ret = await s.ReceiveFromAsync(tmp);
+
+                                memAlloc.Commit(ref tmp, ret.ReceivedBytes);
+
+                                Datagram pkt = new Datagram(tmp, ret.RemoteEndPoint);
+                                return new ValueOrClosed<Datagram>(pkt);
+                            }, 256);
+
+                            var sendTask = TaskUtil.StartSyncTaskAsync(async () =>
+                            {
+                                if (reply)
+                                {
+                                    while (c.IsCancellationRequested == false)
+                                    {
+                                        var ss = s.NativeSocket;
+
+                                        while (sendQueue.TryDequeue(out Datagram[]? sendList))
+                                        {
+                                            foreach (var dg in sendList)
+                                            {
+                                                //await ss.SendToAsync(dg.EndPoint!, dg.Data);
+                                                await s.SendToAsync(dg.Data, dg.EndPoint!);
+                                            }
+                                        }
+
+                                        await sendQueueEvent.WaitOneAsync(cancel: c);
+                                    }
+                                }
+                            });
+
+                            try
+                            {
+                                await Task.Yield();
+
+                                while (c.IsCancellationRequested == false)
+                                {
+                                    var ss = s.NativeSocket;
+                                    IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
+                                    EndPoint ep2 = ep;
+
+                                    for (int i = 0; i < 1000; i++)
+                                    {
+                                        int count = 1;
+                                        if (false)
+                                        {
+                                            ss.ReceiveFrom(mem, ref ep2);
+                                        }
+                                        else
+                                        {
+                                            if (true)
+                                            {
+                                                var res = await datagramBulkReceiver.RecvAsync(c, s);
+                                                recvMeasure.Add(res!.Length);
+                                                //$"count = {res!.Length}"._Debug();
+                                                count = 0;
+
+                                                if (reply && sendQueue.Count <= 128)
+                                                {
+                                                    sendQueue.Enqueue(res);
+
+                                                    sendQueueEvent.Set();
+                                                }
+                                            }
+                                            else if (true)
+                                            {
+                                                var result = await s.ReceiveFromAsync(mem);
+                                                //mem.AsMemory().Slice(0, result.ReceivedBytes)._CloneMemory();
+
+                                                //// 打ち返し
+                                                //await s.SendToAsync(mem, result.RemoteEndPoint);
+                                            }
+                                            else if (false)
+                                            {
+                                                await ss.ReceiveFromAsync(array, SocketFlags.None, ep);
+                                            }
+                                            else
+                                            {
+                                                await ss.ReceiveFromAsync(mem);
+                                            }
+                                        }
+
+                                        recvMeasure.AddFast(count);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                ex._Debug();
+                            }
+
+                            await sendTask._TryWaitAsync();
+                        }
+                    }
+                }
+                finally
+                {
+                    await taskList._DoForEachAsync(async t => await t._TryAwait());
                 }
             });
 
+            Where();
             Con.ReadLine(">");
+            socketList.ForEach(x => x._DisposeSafe());
+            Where();
         }
 
         public static void Test_Generic()
         {
-            if (true)
+            if (false)
             {
-                Test_210614();
+                Test_210614_Udp_DirectRecvSendBench();
                 return;
             }
 
             if (true)
             {
-                Test_210613_02();
+                Test_210613_02_Udp_Indirect_SendRecv_Bench();
                 return;
             }
 

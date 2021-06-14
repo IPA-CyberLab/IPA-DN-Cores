@@ -77,6 +77,8 @@ namespace IPA.Cores.Globals
 
         public static Task SleepAsync(int msecs) => Task.Delay(msecs);
 
+        public static Task SleepRandIntervalAsync(int standard = 1000, double plusMinusPercentage = 30.0) => SleepAsync(Util.GenRandInterval(standard, plusMinusPercentage));
+
         public static T UnixOrWindows<T>(T unix, T windows) => Env.IsUnix ? unix : windows;
 
         public static DateTime DtUtcNow

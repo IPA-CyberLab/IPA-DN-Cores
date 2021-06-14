@@ -7973,7 +7973,21 @@ namespace IPA.Cores.Basic
         long LastTotal = 0;
         double CurrentThroughputInternal = 0.0;
 
-        public void Add(int amount)
+        long AddFastCurrentValue = 0;
+        int AddFastCurrentCount = 0;
+
+        [MethodImpl(Inline)]
+        public void AddFast(int amount, int countUnit = 1024)
+        {
+            Interlocked.Add(ref AddFastCurrentValue, Math.Max(amount, 0));
+            if ((Interlocked.Increment(ref AddFastCurrentCount) % countUnit) == 0)
+            {
+                long v = Interlocked.Exchange(ref AddFastCurrentValue, 0);
+                Add(v);
+            }
+        }
+
+        public void Add(long amount)
         {
             amount = Math.Max(amount, 0);
 
@@ -7990,10 +8004,10 @@ namespace IPA.Cores.Basic
                     if ((cycle >= 1) && (cycle > LastCycle))
                     {
                         long lastTotal = Interlocked.Exchange(ref LastTotal, 0);
-                        if (cycle != (LastCycle + 1))
-                        {
-                            lastTotal = 0;
-                        }
+                        //if (cycle != (LastCycle + 1))
+                        //{
+                        //    lastTotal = 0;
+                        //}
 
                         CurrentThroughputInternal = (double)lastTotal / ((double)BaseUnitMsecs / 1000.0);
                         LastCycle = cycle;
@@ -8008,12 +8022,28 @@ namespace IPA.Cores.Basic
         }
 
         public double GetCurrentThroughput()
+             => GetCurrentThroughput(out _);
+
+        public double GetCurrentThroughput(out long currentCycle)
         {
             Add(0);
 
+            long now = TickNow;
+            long pastTick = now - StartTick;
+            long cycle = pastTick / BaseUnitMsecs;
+
+            currentCycle = cycle;
+
             lock (LockObj)
             {
-                return CurrentThroughputInternal;
+                if (cycle == LastCycle)
+                {
+                    return CurrentThroughputInternal;
+                }
+                else
+                {
+                    return 0;
+                }
             }
         }
 
@@ -8025,21 +8055,27 @@ namespace IPA.Cores.Basic
 
             AsyncOneShotTester ret = new AsyncOneShotTester(async c =>
             {
+                long lastCycle = -1;
                 while (c.IsCancellationRequested == false)
                 {
-                    double value = this.GetCurrentThroughput();
-                    string s;
-                    if (toStr3 == false)
+                    double value = this.GetCurrentThroughput(out long currentCycle);
+                    if (currentCycle != lastCycle)
                     {
-                        s = value.ToString("F3");
-                    }
-                    else
-                    {
-                        s = ((long)value)._ToString3();
-                    }
-                    $"{prefix}{s}"._Print();
+                        lastCycle = currentCycle;
 
-                    await c._WaitUntilCanceledAsync(intervalMsecs);
+                        string s;
+                        if (toStr3 == false)
+                        {
+                            s = value.ToString("F3");
+                        }
+                        else
+                        {
+                            s = ((long)value)._ToString3();
+                        }
+                        $"{prefix}{s}"._Print();
+                    }
+
+                    await c._WaitUntilCanceledAsync(Util.GenRandInterval(intervalMsecs));
                 }
             });
 

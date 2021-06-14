@@ -3232,7 +3232,7 @@ namespace IPA.Cores.Basic
             // 重いサーバー (大量のインスタンスや大量のコンテナが稼働、または大量のコネクションを処理) における定数変更
             public static void ApplyHeavyLoadServerConfig()
             {
-                ExpandSizeMultipleBy.TrySet(1);
+                //ExpandSizeMultipleBy.TrySet(1);
             }
         }
     }
@@ -3250,13 +3250,9 @@ namespace IPA.Cores.Basic
             MinReserveSize = initialSize;
         }
 
+        [MethodImpl(Inline)]
         public Memory<T> Reserve(int maxSize)
         {
-            if (CoresConfig.FastMemoryPoolConfig.ExpandSizeMultipleBy <= 1)
-            {
-                return new T[maxSize];
-            }
-
             checked
             {
                 if (maxSize < 0) throw new ArgumentOutOfRangeException("size");
@@ -3266,7 +3262,7 @@ namespace IPA.Cores.Basic
 
                 if ((Pool.Length - CurrentPos) < maxSize)
                 {
-                    MinReserveSize = Math.Max(MinReserveSize, maxSize * CoresConfig.FastMemoryPoolConfig.ExpandSizeMultipleBy);
+                    MinReserveSize = Math.Max(MinReserveSize, maxSize * Math.Max(CoresConfig.FastMemoryPoolConfig.ExpandSizeMultipleBy, 2));
                     Pool = new T[MinReserveSize];
                     CurrentPos = 0;
                 }
@@ -3277,18 +3273,15 @@ namespace IPA.Cores.Basic
             }
         }
 
+        [MethodImpl(Inline)]
         public void Commit(ref Memory<T> reservedMemory, int commitSize)
         {
             reservedMemory = Commit(reservedMemory, commitSize);
         }
 
+        [MethodImpl(Inline)]
         public Memory<T> Commit(Memory<T> reservedMemory, int commitSize)
         {
-            if (CoresConfig.FastMemoryPoolConfig.ExpandSizeMultipleBy <= 1)
-            {
-                return reservedMemory._SliceHead(commitSize);
-            }
-
             checked
             {
                 int returnSize = reservedMemory.Length - commitSize;
