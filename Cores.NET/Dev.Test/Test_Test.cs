@@ -1800,9 +1800,12 @@ namespace IPA.TestDev
 
                             while (c.IsCancellationRequested == false)
                             {
-                                var result = await s.ReceiveFromAsync(mem);
+                                for (int i = 0; i < 1000; i++)
+                                {
+                                    var result = await s.ReceiveFromAsync(mem);
+                                }
 
-                                measure.Add(1);
+                                measure.Add(1000);
                             }
                         }
                     }
