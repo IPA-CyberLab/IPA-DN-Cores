@@ -1748,7 +1748,8 @@ namespace IPA.TestDev
         {
             // ベンチマークメモ
             // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
-            // Async: 1 コア: 360 kpps くらい, 8 コア: 776 kpps くらい
+            // Async (MS SocketTaskExtensions): 1 コア: 360 kpps くらい, 8 コア: 776 kpps くらい
+            // Async (UdpSocketExtensions): 1 コア: 450 kpps くらい, 8 コア: XXX kpps くらい
             // Sync:  1 コア: 550 kpps くらい、8 コア: 1000 kpps くらい出るぞ
 
             FastMemoryPool<byte> memAlloc = new FastMemoryPool<byte>();
@@ -1767,7 +1768,7 @@ namespace IPA.TestDev
 
             int numCpu = Env.NumCpus;
 
-            numCpu = 1;
+            //numCpu = 1;
 
             List<PalSocket> socketList = new List<PalSocket>();
 
