@@ -246,7 +246,7 @@ namespace IPA.Cores.Basic
 
                 if (udpReuse)
                 {
-                    _Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                    _Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, false);
                 }
             }
             _Socket.Bind(localEP);
