@@ -1827,10 +1827,8 @@ namespace IPA.TestDev
 
                                         while (sendQueue.TryDequeue(out Datagram[]? sendList))
                                         {
-                                            sendList.Length._Print();
                                             foreach (var dg in sendList)
                                             {
-                                                Limbo.ObjectSlow = dg;
                                                 await ss.SendToAsync(dg.EndPoint!, dg.Data);
                                             }
                                         }
