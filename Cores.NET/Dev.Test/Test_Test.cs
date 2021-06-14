@@ -1766,7 +1766,7 @@ namespace IPA.TestDev
 
                 Datagram pkt = new Datagram(tmp, ret.RemoteEndPoint);
                 return new ValueOrClosed<Datagram>(pkt);
-            }, 64);
+            }, 256);
 
             int numCpu = Env.NumCpus;
 

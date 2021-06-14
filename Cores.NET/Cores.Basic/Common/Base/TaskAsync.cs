@@ -3333,11 +3333,11 @@ namespace IPA.Cores.Basic
     {
         public delegate Task<ValueOrClosed<TUserReturnElement>> AsyncReceiveCallback([AllowNull] TUserState state, CancellationToken cancel);
 
-        public int DefaultMaxCount { get; } = 128;
+        public int DefaultMaxCount { get; } = 256;
 
         AsyncReceiveCallback AsyncReceiveProc;
 
-        public AsyncBulkReceiver(AsyncReceiveCallback asyncReceiveProc, int defaultMaxCount = 128)
+        public AsyncBulkReceiver(AsyncReceiveCallback asyncReceiveProc, int defaultMaxCount = 256)
         {
             DefaultMaxCount = defaultMaxCount;
             AsyncReceiveProc = asyncReceiveProc;
@@ -3353,7 +3353,7 @@ namespace IPA.Cores.Basic
 
             while (true)
             {
-                cancel.ThrowIfCancellationRequested();
+                //cancel.ThrowIfCancellationRequested();
 
                 Task<ValueOrClosed<TUserReturnElement>> userTask;
                 if (pushedUserTask != null)
