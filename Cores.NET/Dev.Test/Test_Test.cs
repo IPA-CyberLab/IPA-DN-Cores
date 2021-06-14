@@ -1802,47 +1802,54 @@ namespace IPA.TestDev
 
                         async Task LoopAsync(PalSocket s)
                         {
-                            await Task.Yield();
-
-                            while (c.IsCancellationRequested == false)
+                            try
                             {
-                                var ss = s.NativeSocket;
-                                IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
-                                EndPoint ep2 = ep;
+                                await Task.Yield();
 
-                                for (int i = 0; i < 1000; i++)
+                                while (c.IsCancellationRequested == false)
                                 {
-                                    int count = 1;
-                                    if (false)
-                                    {
-                                        ss.ReceiveFrom(mem, ref ep2);
-                                    }
-                                    else
-                                    {
-                                        if (true)
-                                        {
-                                            var res = await datagramBulkReceiver.RecvAsync(c, s);
-                                            count = res!.Length;
-                                        }
-                                        else if (false)
-                                        {
-                                            var result = await s.ReceiveFromAsync(mem);
+                                    var ss = s.NativeSocket;
+                                    IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
+                                    EndPoint ep2 = ep;
 
-                                            //// 打ち返し
-                                            //await s.SendToAsync(mem, result.RemoteEndPoint);
-                                        }
-                                        else if (false)
+                                    for (int i = 0; i < 1000; i++)
+                                    {
+                                        int count = 1;
+                                        if (false)
                                         {
-                                            await ss.ReceiveFromAsync(array, SocketFlags.None, ep);
+                                            ss.ReceiveFrom(mem, ref ep2);
                                         }
                                         else
                                         {
-                                            await ss.ReceiveFromAsync(mem);
-                                        }
-                                    }
+                                            if (true)
+                                            {
+                                                var res = await datagramBulkReceiver.RecvAsync(c, s);
+                                                count = res!.Length;
+                                            }
+                                            else if (false)
+                                            {
+                                                var result = await s.ReceiveFromAsync(mem);
 
-                                    measure.AddFast(count);
+                                                //// 打ち返し
+                                                //await s.SendToAsync(mem, result.RemoteEndPoint);
+                                            }
+                                            else if (false)
+                                            {
+                                                await ss.ReceiveFromAsync(array, SocketFlags.None, ep);
+                                            }
+                                            else
+                                            {
+                                                await ss.ReceiveFromAsync(mem);
+                                            }
+                                        }
+
+                                        measure.AddFast(count);
+                                    }
                                 }
+                            }
+                            catch (Exception ex)
+                            {
+                                ex._Debug();
                             }
                         }
                     }
