@@ -331,13 +331,7 @@ namespace IPA.Cores.Basic
             {
                 //Task<SocketReceiveFromResult> t = _Socket.ReceiveFromAsync(bufferSegment, SocketFlags.None,
                 //    this.AddressFamily == AddressFamily.InterNetworkV6 ? StaticUdpEndPointIPv6 : StaticUdpEndPointIPv4);
-                ValueTask<SocketReceiveFromResult> t = _Socket.ReceiveFromAsync(buffer);
-                if (t.IsCompleted == false)
-                {
-                    numRetry = 0;
-                    await t;
-                }
-                SocketReceiveFromResult ret = t._GetResult();
+                SocketReceiveFromResult ret = await _Socket.ReceiveFromAsync(buffer);
                 if (ret.ReceivedBytes <= 0) throw new SocketDisconnectedException();
                 return new PalSocketReceiveFromResult()
                 {
