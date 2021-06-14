@@ -1810,7 +1810,7 @@ namespace IPA.TestDev
 
                                 for (int i = 0; i < 1000; i++)
                                 {
-                                    if (true)
+                                    if (false)
                                     {
                                         ss.ReceiveFrom(mem, ref ep2);
                                     }
