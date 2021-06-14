@@ -1757,10 +1757,13 @@ namespace IPA.TestDev
             // これらの結果から、 UdpSocketExtensions を用いた async が一番良さそうだぞ
             // 
             // Async + BulkRecv + UdpSocketExtensions  8 コア 800 kpps くらい
+            // 
+            // --- 受信したものを別スレッド打ち返して送信 ---
+            // 8 コア: 400 kpps くらい
 
             int numCpu = Env.NumCpus;
 
-            //numCpu = 1;
+            numCpu = 1;
 
             List<PalSocket> socketList = new List<PalSocket>();
 
