@@ -1758,12 +1758,13 @@ namespace IPA.TestDev
             // 
             // Async + BulkRecv + UdpSocketExtensions  8 コア 800 kpps くらい
             // 
-            // --- 受信したものを別スレッド打ち返して送信 ---
+            // --- pktlinux --> dn-vpnvault2 --> pktlinux 受信したものを別スレッド打ち返して送信 ---
             // 8 コア: 400 kpps くらい
+            // 1 コア: 180 kpps くらい
 
             int numCpu = Env.NumCpus;
 
-            numCpu = 1;
+            //numCpu = 1;
 
             List<PalSocket> socketList = new List<PalSocket>();
 
@@ -1828,7 +1829,8 @@ namespace IPA.TestDev
                                         {
                                             foreach (var dg in sendList)
                                             {
-                                                await ss.SendToAsync(dg.EndPoint!, dg.Data);
+                                                Limbo.ObjectSlow = dg;
+                                                //await ss.SendToAsync(dg.EndPoint!, dg.Data);
                                             }
                                         }
 
