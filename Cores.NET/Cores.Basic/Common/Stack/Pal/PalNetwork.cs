@@ -325,14 +325,15 @@ namespace IPA.Cores.Basic
         {
             int numRetry = 0;
 
-            var bufferSegment = buffer._AsSegment();
+            //var bufferSegment = buffer._AsSegment();
 
             LABEL_RETRY:
 
             try
             {
-                Task<SocketReceiveFromResult> t = _Socket.ReceiveFromAsync(bufferSegment, SocketFlags.None,
-                    this.AddressFamily == AddressFamily.InterNetworkV6 ? StaticUdpEndPointIPv6 : StaticUdpEndPointIPv4);
+                //Task<SocketReceiveFromResult> t = _Socket.ReceiveFromAsync(bufferSegment, SocketFlags.None,
+                //    this.AddressFamily == AddressFamily.InterNetworkV6 ? StaticUdpEndPointIPv6 : StaticUdpEndPointIPv4);
+                ValueTask<SocketReceiveFromResult> t = _Socket.ReceiveFromAsync(buffer);
                 if (t.IsCompleted == false)
                 {
                     numRetry = 0;
@@ -378,7 +379,7 @@ namespace IPA.Cores.Basic
                 }
                 catch { }
                 _Socket._DisposeSafe();
-                
+
                 Leak._DisposeSafe();
             }
         }
