@@ -1821,7 +1821,7 @@ namespace IPA.TestDev
                                         }
                                         else
                                         {
-                                            if (false)
+                                            if (true)
                                             {
                                                 var res = await datagramBulkReceiver.RecvAsync(c, s);
                                                 measure.Add(res!.Length);
