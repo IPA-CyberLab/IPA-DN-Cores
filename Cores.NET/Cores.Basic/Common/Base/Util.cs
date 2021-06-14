@@ -7973,7 +7973,21 @@ namespace IPA.Cores.Basic
         long LastTotal = 0;
         double CurrentThroughputInternal = 0.0;
 
-        public void Add(int amount)
+        long AddFastCurrentValue = 0;
+        int AddFastCurrentCount = 0;
+
+        [MethodImpl(Inline)]
+        public void AddFast(int amount, int countUnit = 1024)
+        {
+            Interlocked.Add(ref AddFastCurrentValue, Math.Max(amount, 0));
+            if ((Interlocked.Increment(ref AddFastCurrentCount) % countUnit) == 0)
+            {
+                long v = Interlocked.Exchange(ref AddFastCurrentValue, 0);
+                Add(v);
+            }
+        }
+
+        public void Add(long amount)
         {
             amount = Math.Max(amount, 0);
 

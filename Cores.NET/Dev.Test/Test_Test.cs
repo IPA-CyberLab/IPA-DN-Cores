@@ -1803,9 +1803,11 @@ namespace IPA.TestDev
                                 for (int i = 0; i < 1000; i++)
                                 {
                                     var result = await s.ReceiveFromAsync(mem);
+
+                                    measure.AddFast(1);
                                 }
 
-                                measure.Add(1000);
+                                //measure.Add(1000);
                             }
                         }
                     }
