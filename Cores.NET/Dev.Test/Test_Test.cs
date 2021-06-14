@@ -1757,11 +1757,12 @@ namespace IPA.TestDev
 
             var datagramBulkReceiver = new AsyncBulkReceiver<Datagram, PalSocket>(async (s, cancel) =>
             {
-                Memory<byte> tmp = memAlloc.Reserve(65536);
+                //Memory<byte> tmp = memAlloc.Reserve(65536);
+                Memory<byte> tmp = new byte[64];
 
                 var ret = await s.ReceiveFromAsync(tmp);
 
-                memAlloc.Commit(ref tmp, ret.ReceivedBytes);
+                //memAlloc.Commit(ref tmp, ret.ReceivedBytes);
 
                 Datagram pkt = new Datagram(tmp, ret.RemoteEndPoint);
                 return new ValueOrClosed<Datagram>(pkt);
