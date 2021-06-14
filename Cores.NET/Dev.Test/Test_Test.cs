@@ -1781,7 +1781,9 @@ namespace IPA.TestDev
                 }
             });
 
+            Where();
             Con.ReadLine(">");
+            Where();
         }
 
         public static void Test_Generic()
