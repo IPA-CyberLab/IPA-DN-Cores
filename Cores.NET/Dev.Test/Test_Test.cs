@@ -1823,10 +1823,7 @@ namespace IPA.TestDev
                                         {
                                             if (true)
                                             {
-                                                Where();
                                                 var res = await datagramBulkReceiver.RecvAsync(c, s);
-                                                Where();
-                                                res!.Length._Debug();
                                                 measure.Add(res!.Length);
                                                 count = 0;
                                             }
