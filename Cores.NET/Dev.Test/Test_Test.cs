@@ -1800,11 +1800,15 @@ namespace IPA.TestDev
 
                             while (c.IsCancellationRequested == false)
                             {
+                                var ss = s.NativeSocket;
                                 for (int i = 0; i < 1000; i++)
                                 {
-                                    var result = await s.ReceiveFromAsync(mem);
+                                    //var result = await s.ReceiveFromAsync(mem);
+                                    IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
+                                    EndPoint ep2 = ep;
+                                    ss.ReceiveFrom(mem, ref ep2);
 
-                                    s.NativeHandle._Print();
+                                    //s.NativeHandle._Print();
 
                                     measure.AddFast(1);
                                 }

@@ -147,6 +147,7 @@ namespace IPA.Cores.Basic
         public CachedProperty<int> SendBufferSize { get; }
         public CachedProperty<int> ReceiveBufferSize { get; }
         public long NativeHandle { get; }
+        public Socket NativeSocket => _Socket;
 
         public CachedProperty<EndPoint> LocalEndPoint { get; }
         public CachedProperty<EndPoint> RemoteEndPoint { get; }
@@ -248,6 +249,12 @@ namespace IPA.Cores.Basic
             _Socket.Bind(localEP);
             this.LocalEndPoint.Flush();
             this.RemoteEndPoint.Flush();
+        }
+
+        public static bool IsUdpReuseSupported()
+        {
+            // 2021/6/14 時点で Linux でのみサポート。Windows では Reuse Bind() 自体は成功するが、実際には 1 つのソケットでしか受信されない。
+            return Env.IsLinux;
         }
 
         public void Listen(int backlog = int.MaxValue)
