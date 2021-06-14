@@ -1824,7 +1824,7 @@ namespace IPA.TestDev
                                             var res = await datagramBulkReceiver.RecvAsync(c, s);
                                             count = res!.Length;
                                         }
-                                        else
+                                        else if (false)
                                         {
                                             var result = await s.ReceiveFromAsync(mem);
 
