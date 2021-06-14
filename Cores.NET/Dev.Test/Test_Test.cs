@@ -1792,7 +1792,7 @@ namespace IPA.TestDev
 
                         async Task LoopAsync(PalSocket s)
                         {
-                            FastMemoryPool<byte> memAlloc = new FastMemoryPool<byte>(50);
+                            FastMemoryPool<byte> memAlloc = new FastMemoryPool<byte>();
 
                             var datagramBulkReceiver = new AsyncBulkReceiver<Datagram, PalSocket>(async (s, cancel) =>
                             {

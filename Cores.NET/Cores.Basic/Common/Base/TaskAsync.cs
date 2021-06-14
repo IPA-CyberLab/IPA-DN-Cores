@@ -3353,7 +3353,7 @@ namespace IPA.Cores.Basic
 
             while (true)
             {
-                //cancel.ThrowIfCancellationRequested();
+                cancel.ThrowIfCancellationRequested();
 
                 Task<ValueOrClosed<TUserReturnElement>> userTask;
                 if (pushedUserTask != null)
