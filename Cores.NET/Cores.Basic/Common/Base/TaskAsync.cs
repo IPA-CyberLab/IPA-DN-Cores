@@ -3374,11 +3374,13 @@ namespace IPA.Cores.Basic
                     }
                     else
                     {
-                        await TaskUtil.WaitObjectsAsync(
-                            tasks: new Task[] { userTask },
-                            cancels: new CancellationToken[] { cancel });
+                        //await TaskUtil.WaitObjectsAsync(
+                        //    tasks: new Task[] { userTask },
+                        //    cancels: new CancellationToken[] { cancel });
 
-                        cancel.ThrowIfCancellationRequested();
+                        //cancel.ThrowIfCancellationRequested();
+
+                        await userTask._TryAwait();
 
                         var result = userTask._GetResult();
 
