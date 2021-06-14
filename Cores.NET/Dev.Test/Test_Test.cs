@@ -1753,8 +1753,6 @@ namespace IPA.TestDev
             // Sync:  1 コア: 550 kpps くらい、8 コア: 1000 kpps くらい出るぞ
             // これらの結果から、 UdpSocketExtensions を用いた async が一番良さそうだぞ
 
-            FastMemoryPool<byte> memAlloc = new FastMemoryPool<byte>();
-
             int numCpu = Env.NumCpus;
 
             //numCpu = 1;
@@ -1790,6 +1788,8 @@ namespace IPA.TestDev
 
                         async Task LoopAsync(PalSocket s)
                         {
+                            FastMemoryPool<byte> memAlloc = new FastMemoryPool<byte>();
+
                             var datagramBulkReceiver = new AsyncBulkReceiver<Datagram, PalSocket>(async (s, cancel) =>
                             {
                                 Memory<byte> tmp = memAlloc.Reserve(65536);
