@@ -1815,19 +1815,22 @@ namespace IPA.TestDev
 
                             var sendTask = TaskUtil.StartSyncTaskAsync(async () =>
                             {
-                                while (c.IsCancellationRequested == false)
+                                if (reply)
                                 {
-                                    var ss = s.NativeSocket;
-
-                                    while (sendQueue.TryDequeue(out Datagram[]? sendList))
+                                    while (c.IsCancellationRequested == false)
                                     {
-                                        foreach (var dg in sendList)
-                                        {
-                                            await ss.SendToAsync(dg.EndPoint!, dg.Data);
-                                        }
-                                    }
+                                        var ss = s.NativeSocket;
 
-                                    await sendQueueEvent.WaitOneAsync(cancel: c);
+                                        while (sendQueue.TryDequeue(out Datagram[]? sendList))
+                                        {
+                                            foreach (var dg in sendList)
+                                            {
+                                                await ss.SendToAsync(dg.EndPoint!, dg.Data);
+                                            }
+                                        }
+
+                                        await sendQueueEvent.WaitOneAsync(cancel: c);
+                                    }
                                 }
                             });
 
@@ -1857,7 +1860,7 @@ namespace IPA.TestDev
                                                 //$"count = {res!.Length}"._Debug();
                                                 count = 0;
 
-                                                if (sendQueue.Count <= 128)
+                                                if (reply && sendQueue.Count <= 128)
                                                 {
                                                     sendQueue.Enqueue(res);
 
@@ -1890,6 +1893,8 @@ namespace IPA.TestDev
                             {
                                 ex._Debug();
                             }
+
+                            await sendTask._TryWaitAsync();
                         }
                     }
                 }
