@@ -1796,7 +1796,7 @@ namespace IPA.TestDev
 
                         async Task LoopAsync(PalSocket s)
                         {
-                            bool reply = true;
+                            bool reply = false;
 
                             ConcurrentQueue<Datagram[]> sendQueue = new ConcurrentQueue<Datagram[]>();
 
