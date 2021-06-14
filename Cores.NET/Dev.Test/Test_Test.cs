@@ -1822,7 +1822,7 @@ namespace IPA.TestDev
                                         }
                                         else
                                         {
-                                            if (true)
+                                            if (false)
                                             {
                                                 var res = await datagramBulkReceiver.RecvAsync(c, s);
                                                 measure.Add(res!.Length);
@@ -1832,6 +1832,7 @@ namespace IPA.TestDev
                                             else if (true)
                                             {
                                                 var result = await s.ReceiveFromAsync(mem);
+                                                mem.AsMemory()._CloneMemory();
 
                                                 //// 打ち返し
                                                 //await s.SendToAsync(mem, result.RemoteEndPoint);
