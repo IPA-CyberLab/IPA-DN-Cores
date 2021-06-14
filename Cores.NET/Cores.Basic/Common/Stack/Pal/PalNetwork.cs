@@ -1197,8 +1197,6 @@ namespace IPA.Cores.Helper.Basic
             {
                 var recvdBytes = await asyncArgs.DoReceiveFromAsync(socket);
 
-                $"ReceiveFromAsync: {asyncArgs.ReceiveMessageFromPacketInfo.Address.ToString()}"._Print();
-
                 return new SocketReceiveFromResult { ReceivedBytes = recvdBytes, RemoteEndPoint = asyncArgs.RemoteEndPoint };
 
             }

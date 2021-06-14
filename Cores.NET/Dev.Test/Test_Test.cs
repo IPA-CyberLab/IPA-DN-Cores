@@ -1832,8 +1832,6 @@ namespace IPA.TestDev
                                             {
                                                 Limbo.ObjectSlow = dg;
                                                 await ss.SendToAsync(dg.EndPoint!, dg.Data);
-                                                //ss.SendTo(dg.Data.ToArray(), dg.EndPoint!);
-
                                             }
                                         }
 
