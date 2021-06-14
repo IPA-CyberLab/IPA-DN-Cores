@@ -1744,8 +1744,12 @@ namespace IPA.TestDev
             DnsUtil.ParsePacket(data3)._DebugAsJson();
         }
 
-        static void Test_210614()
+        static void Test_210614_UdpRecvBench()
         {
+            // ベンチマークメモ
+            // pktlinux (Xeon 4C) -> dn-vpnvault2 (Xeon 4C)
+            // 最初: 300 kpps くらい
+
             FastMemoryPool<byte> memAlloc = new FastMemoryPool<byte>();
 
             var datagramBulkReceiver = new AsyncBulkReceiver<Datagram, PalSocket>(async (s, cancel) =>
@@ -1791,7 +1795,7 @@ namespace IPA.TestDev
         {
             if (true)
             {
-                Test_210614();
+                Test_210614_UdpRecvBench();
                 return;
             }
 
