@@ -1812,7 +1812,7 @@ namespace IPA.TestDev
 
                                 for (int i = 0; i < 1000; i++)
                                 {
-                                    Limbo.ObjectSlow = new byte[1];
+                                    int count = 1;
                                     if (false)
                                     {
                                         ss.ReceiveFrom(mem, ref ep2);
@@ -1821,10 +1821,15 @@ namespace IPA.TestDev
                                     {
                                         if (true)
                                         {
+                                            var res = await datagramBulkReceiver.RecvAsync(c, s);
+                                            count = res!.Length;
+                                        }
+                                        else
+                                        {
                                             var result = await s.ReceiveFromAsync(mem);
 
-                                            // 打ち返し
-                                            await s.SendToAsync(mem, result.RemoteEndPoint);
+                                            //// 打ち返し
+                                            //await s.SendToAsync(mem, result.RemoteEndPoint);
                                         }
                                         else if (false)
                                         {
@@ -1836,7 +1841,7 @@ namespace IPA.TestDev
                                         }
                                     }
 
-                                    measure.AddFast(1);
+                                    measure.AddFast(count);
                                 }
                             }
                         }
