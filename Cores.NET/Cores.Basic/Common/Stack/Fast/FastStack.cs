@@ -561,12 +561,41 @@ namespace IPA.Cores.Basic
 
     public class NetPalUdpProtocolStub : NetUdpProtocolStubBase
     {
-        public class UdpBindInstance : AsyncServiceWithMainLoop
+        // UDP 送信インスタンス
+        public class UdpSendInstance : AsyncServiceWithMainLoop
+        {
+            public NetPalUdpProtocolStub Protocol { get; }
+            public int CpuId;
+
+            public UdpSendInstance(NetPalUdpProtocolStub protocol, int cpuId)
+            {
+                try
+                {
+                    this.Protocol = protocol;
+                    this.CpuId = cpuId;
+
+                    this.StartMainLoop(MainLoopProcAsync);
+                }
+                catch
+                {
+                    this._DisposeSafe();
+                    throw;
+                }
+            }
+
+            async Task MainLoopProcAsync(CancellationToken cancel)
+            {
+                await Task.Yield();
+            }
+        }
+
+        // UDP 受信インスタンス
+        public class UdpRecvInstance : AsyncServiceWithMainLoop
         {
             public NetUdpBindPoint EndPoint { get; }
             public NetPalUdpProtocolStub Protocol { get; }
 
-            public UdpBindInstance(NetPalUdpProtocolStub protocol, NetUdpBindPoint ep)
+            public UdpRecvInstance(NetPalUdpProtocolStub protocol, NetUdpBindPoint ep)
             {
                 try
                 {
@@ -628,53 +657,29 @@ namespace IPA.Cores.Basic
                     {
                         if (s != null)
                         {
-                            await using CancelWatcher w = new CancelWatcher(cancel);
+                            // 受信ループ
+                            var writer = this.Protocol.Upper.DatagramWriter;
 
-                            // 受信ループの定義
-                            async Task RecvLoopAsync(CancellationToken c1)
+                            while (cancel.IsCancellationRequested == false)
                             {
-                                var writer = this.Protocol.Upper.DatagramWriter;
+                                Datagram[]? recvList;
 
-                                while (c1.IsCancellationRequested == false)
+                                recvList = await datagramBulkReceiver!.RecvAsync(cancel, s);
+
+                                if (recvList == null)
                                 {
-                                    Datagram[]? recvList;
+                                    // 切断された
+                                    throw new SocketDisconnectedException();
+                                }
 
-                                    recvList = await datagramBulkReceiver!.RecvAsync(c1, s);
+                                //Con.WriteLine($"Recv: {recvList.Length}");
 
-                                    if (recvList == null)
-                                    {
-                                        // 切断された
-                                        throw new SocketDisconnectedException();
-                                    }
-
-                                    //Con.WriteLine($"Recv: {recvList.Length}");
-
-                                    if (writer.IsReadyToWrite())
-                                    {
-                                        writer.EnqueueAllWithLock(recvList, true);
-                                    }
+                                if (writer.IsReadyToWrite())
+                                {
+                                    writer.EnqueueAllWithLock(recvList, true);
                                 }
                             }
 
-                            // 送信ループの定義
-                            async Task SendLoopAsync(CancellationToken c1)
-                            {
-                                await c1._WaitUntilCanceledAsync();
-                            }
-
-                            // 受信・送信の両方を並列実行
-                            Task recvTask = TaskUtil.StartAsyncTaskAsync(async () => await RecvLoopAsync(w.CancelToken));
-                            Task sendTask = TaskUtil.StartAsyncTaskAsync(async () => await SendLoopAsync(w.CancelToken));
-
-                            // 受信・送信のいずれかのタスクが終了するまで待機する (つまり、何らかのエラーが発生するまで)
-                            await TaskUtil.WaitObjectsAsync(new Task[] { recvTask, sendTask }, cancel._SingleArray());
-
-                            // キャンセルする
-                            w.Cancel();
-
-                            // 受信・送信の両方のタスクの完了を待機する
-                            await recvTask._TryAwait(noDebugMessage: true);
-                            await sendTask._TryAwait(noDebugMessage: true);
                         }
                     }
                     catch
@@ -734,7 +739,7 @@ namespace IPA.Cores.Basic
             PollingEvent.Set(true);
         }
 
-        readonly Dictionary<NetUdpBindPoint, UdpBindInstance> UdpBindInstanceList = new Dictionary<NetUdpBindPoint, UdpBindInstance>();
+        readonly Dictionary<NetUdpBindPoint, UdpRecvInstance> UdpRecvInstanceList = new Dictionary<NetUdpBindPoint, UdpRecvInstance>();
 
         // 定期的にポーリングを行ない、必要に応じて新しいソケットを作成し、不要なソケットを停止するタスク
         async Task PollTaskProcAsync()
@@ -758,13 +763,21 @@ namespace IPA.Cores.Basic
             }
 
             // 終了時には現時点で動作しているすべてのソケットの bind 解除を行なう
-            await UdpBindInstanceList.ToList()._DoForEachAsync(async x =>
+            await UdpRecvInstanceList.ToList()._DoForEachAsync(async x =>
             {
                 await x.Value._DisposeSafeAsync();
             });
+
+            // すべての受信タスクを終了する
+            if (this.UdpSendInstanceList != null)
+            {
+                await UdpSendInstanceList._DoForEachAsync(async x => await x._DisposeSafeAsync());
+            }
         }
 
         int LastVersion = -1;
+
+        UdpSendInstance[] UdpSendInstanceList = null!;
 
         // ポーリングのメインさん
         async Task PollMainAsync()
@@ -777,18 +790,28 @@ namespace IPA.Cores.Basic
 
                 var candidateList = GenerateEndPointCandidateList(hostInfo);
 
-                // UdpBindInstanceList になく candidateList にあるものの bind を行なう
-                candidateList.Where(x => UdpBindInstanceList.ContainsKey(x) == false).ToList()._DoForEach(x =>
+                // UdpRecvInstanceList になく candidateList にあるものの bind を行なう
+                candidateList.Where(x => UdpRecvInstanceList.ContainsKey(x) == false).ToList()._DoForEach(x =>
                   {
-                      UdpBindInstanceList.Add(x, new UdpBindInstance(this, x));
+                      UdpRecvInstanceList.Add(x, new UdpRecvInstance(this, x));
                   });
 
-                // UdpBindInstanceList にあり candidateList にないものの bind 解除を行なう
-                await UdpBindInstanceList.Where(x => candidateList.Contains(x.Key) == false).ToList()._DoForEachAsync(async x =>
+                // UdpRecvInstanceList にあり candidateList にないものの bind 解除を行なう
+                await UdpRecvInstanceList.Where(x => candidateList.Contains(x.Key) == false).ToList()._DoForEachAsync(async x =>
                   {
                       await x.Value._DisposeSafeAsync();
-                      UdpBindInstanceList.Remove(x.Key);
+                      UdpRecvInstanceList.Remove(x.Key);
                   });
+            }
+
+            // CPU の数だけ送信タスクを作成する (まだなければ)
+            if (UdpSendInstanceList == null)
+            {
+                UdpSendInstanceList = new UdpSendInstance[this.Options.ListenerOptions.NumCpus];
+                for (int i = 0; i < this.Options.ListenerOptions.NumCpus; i++)
+                {
+                    UdpSendInstanceList[i] = new UdpSendInstance(this, i);
+                }
             }
         }
 
@@ -1489,7 +1512,7 @@ namespace IPA.Cores.Basic
 
     public class NetUdpListenerOptions
     {
-        public int PollingMsecs { get; } 
+        public int PollingMsecs { get; }
         public int NumCpus { get; }
 
         public NetUdpListenerOptions(int pollingMsecs = 1 * 1000, int numCpus = 1)

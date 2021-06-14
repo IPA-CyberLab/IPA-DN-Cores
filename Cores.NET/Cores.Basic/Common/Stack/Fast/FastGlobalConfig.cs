@@ -51,7 +51,7 @@ namespace IPA.Cores.Basic
         public static partial class PipeConfig
         {
             public static readonly Copenhagen<int> MaxStreamBufferLength = 4 * 65536;
-            public static readonly Copenhagen<int> MaxDatagramQueueLength = 65536;
+            public static readonly Copenhagen<int> MaxDatagramQueueLength = 1024;
             public static readonly Copenhagen<int> MaxPollingTimeout = 256 * 1000;
 
             // 重いサーバー (大量のインスタンスや大量のコンテナが稼働、または大量のコネクションを処理) における定数変更
@@ -59,7 +59,7 @@ namespace IPA.Cores.Basic
             {
                 MaxStreamBufferLength.TrySet(65536);
                 MaxPollingTimeout.TrySet(4321);
-                MaxDatagramQueueLength.TrySet(1024);
+                MaxDatagramQueueLength.TrySet(256);
             }
 
             public static int PollingTimeout

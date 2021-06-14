@@ -1715,18 +1715,27 @@ namespace IPA.TestDev
             Time.DateTimeToTime64(new DateTime(9999, 1, 1))._Print();
         }
 
-        static void Test_210613_02()
+        // UDP ソケット Pipe 経由間接叩き 送受信ベンチマーク
+        static void Test_210613_02_Udp_Indirect_SendRecv_Bench()
         {
+            // --- 受信 ---
+            // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
+            // 受信のみ: 800 kpps くらい出た
+
+            bool reply = true;
+
             using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(numCpus: 8));
             uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
 
             var sock = uu.GetSocket();
             ThroughputMeasuse recvMeasure = new ThroughputMeasuse(1000, 1000);
+
             using var recvPrinter = recvMeasure.StartPrinter("UDP Recv: ", toStr3: true);
 
             using AsyncOneShotTester test = new AsyncOneShotTester(async c =>
             {
                 var r = sock.UpperPoint.DatagramReader;
+                var w = sock.UpperPoint.DatagramWriter;
 
                 while (c.IsCancellationRequested == false)
                 {
@@ -1738,6 +1747,14 @@ namespace IPA.TestDev
                             break;
                         }
                         recvMeasure.Add(list.Count);
+
+                        if (reply)
+                        {
+                            if (w.IsReadyToWrite())
+                            {
+                                w.EnqueueAllWithLock(list.ToArray(), true);
+                            }
+                        }
                     }
                     await r.WaitForReadyToReadAsync(c, Timeout.Infinite);
                 }
@@ -1766,7 +1783,8 @@ namespace IPA.TestDev
             DnsUtil.ParsePacket(data3)._DebugAsJson();
         }
 
-        static void Test_210614_UdpRecvBench()
+        // UDP ソケット直接叩き 送受信ベンチマーク
+        static void Test_210614_Udp_DirectRecvSendBench()
         {
             // ベンチマークメモ
             // 
@@ -1942,13 +1960,13 @@ namespace IPA.TestDev
         {
             if (false)
             {
-                Test_210614_UdpRecvBench();
+                Test_210614_Udp_DirectRecvSendBench();
                 return;
             }
 
             if (true)
             {
-                Test_210613_02();
+                Test_210613_02_Udp_Indirect_SendRecv_Bench();
                 return;
             }
 
