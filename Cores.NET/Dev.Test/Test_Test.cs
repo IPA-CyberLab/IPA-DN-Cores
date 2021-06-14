@@ -1833,8 +1833,6 @@ namespace IPA.TestDev
 
                                     measure.AddFast(1);
                                 }
-
-                                ThreadObj.CurrentThreadId._Print();
                             }
                         }
                     }
