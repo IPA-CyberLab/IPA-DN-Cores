@@ -243,11 +243,7 @@ namespace IPA.Cores.Basic
             {
                 // UDP
                 _Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ExclusiveAddressUse, false);
-
-                if (udpReuse)
-                {
-                    _Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, false);
-                }
+                _Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, udpReuse);
             }
             _Socket.Bind(localEP);
             this.LocalEndPoint.Flush();
