@@ -3250,6 +3250,7 @@ namespace IPA.Cores.Basic
             MinReserveSize = initialSize;
         }
 
+        [MethodImpl(Inline)]
         public Memory<T> Reserve(int maxSize)
         {
             if (CoresConfig.FastMemoryPoolConfig.ExpandSizeMultipleBy <= 1)
@@ -3277,11 +3278,13 @@ namespace IPA.Cores.Basic
             }
         }
 
+        [MethodImpl(Inline)]
         public void Commit(ref Memory<T> reservedMemory, int commitSize)
         {
             reservedMemory = Commit(reservedMemory, commitSize);
         }
 
+        [MethodImpl(Inline)]
         public Memory<T> Commit(Memory<T> reservedMemory, int commitSize)
         {
             if (CoresConfig.FastMemoryPoolConfig.ExpandSizeMultipleBy <= 1)

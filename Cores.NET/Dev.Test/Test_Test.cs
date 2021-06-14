@@ -1821,12 +1821,12 @@ namespace IPA.TestDev
                                         }
                                         else
                                         {
-                                            if (true)
+                                            if (false)
                                             {
                                                 var res = await datagramBulkReceiver.RecvAsync(c, s);
                                                 count = res!.Length;
                                             }
-                                            else if (false)
+                                            else if (true)
                                             {
                                                 var result = await s.ReceiveFromAsync(mem);
 
