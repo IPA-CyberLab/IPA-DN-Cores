@@ -1766,8 +1766,6 @@ namespace IPA.TestDev
 
             int numCpu = Env.NumCpus;
 
-            numCpu = 1;
-
             List<PalSocket> socketList = new List<PalSocket>();
 
             for (int i = 0; i < numCpu; i++)
