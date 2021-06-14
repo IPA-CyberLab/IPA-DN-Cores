@@ -1796,6 +1796,8 @@ namespace IPA.TestDev
 
                             ConcurrentQueue<Datagram[]> sendQueue = new ConcurrentQueue<Datagram[]>();
 
+                            AsyncAutoResetEvent sendQueueEvent = new AsyncAutoResetEvent(true);
+
                             FastMemoryPool<byte> memAlloc = new FastMemoryPool<byte>();
 
                             var datagramBulkReceiver = new AsyncBulkReceiver<Datagram, PalSocket>(async (s, cancel) =>
@@ -1811,21 +1813,23 @@ namespace IPA.TestDev
                                 return new ValueOrClosed<Datagram>(pkt);
                             }, 256);
 
-                            //var sendTask = TaskUtil.StartSyncTaskAsync(async () =>
-                            //{
-                            //    while (c.IsCancellationRequested == false)
-                            //    {
-                            //        var ss = s.NativeSocket;
+                            var sendTask = TaskUtil.StartSyncTaskAsync(async () =>
+                            {
+                                while (c.IsCancellationRequested == false)
+                                {
+                                    var ss = s.NativeSocket;
 
-                            //        if (sendQueue.TryDequeue(out Datagram[]? sendList))
-                            //        {
-                            //            foreach (var dg in sendList)
-                            //            {
-                            //                await ss.SendToAsync(dg.
-                            //            }
-                            //        }
-                            //    }
-                            //});
+                                    while (sendQueue.TryDequeue(out Datagram[]? sendList))
+                                    {
+                                        foreach (var dg in sendList)
+                                        {
+                                            await ss.SendToAsync(dg.EndPoint!, dg.Data);
+                                        }
+                                    }
+
+                                    await sendQueueEvent.WaitOneAsync(cancel: c);
+                                }
+                            });
 
                             try
                             {
@@ -1852,9 +1856,13 @@ namespace IPA.TestDev
                                                 recvMeasure.Add(res!.Length);
                                                 //$"count = {res!.Length}"._Debug();
                                                 count = 0;
-                                                res[0].EndPoint.ToString()._Print();
 
-                                                sendQueue.Enqueue(res);
+                                                if (sendQueue.Count <= 128)
+                                                {
+                                                    sendQueue.Enqueue(res);
+
+                                                    sendQueueEvent.Set();
+                                                }
                                             }
                                             else if (true)
                                             {
