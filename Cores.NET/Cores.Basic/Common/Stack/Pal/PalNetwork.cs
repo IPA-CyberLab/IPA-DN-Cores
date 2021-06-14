@@ -231,7 +231,7 @@ namespace IPA.Cores.Basic
 
         public void Connect(IPAddress address, int port) => _Socket.Connect(address, port);
 
-        public void Bind(EndPoint localEP)
+        public void Bind(EndPoint localEP, bool udpReuse = false)
         {
             this.TrySetRecommendedSettings();
             if (this.SocketType == SocketType.Stream)
@@ -243,6 +243,11 @@ namespace IPA.Cores.Basic
             {
                 // UDP
                 _Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ExclusiveAddressUse, false);
+
+                if (udpReuse)
+                {
+                    _Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                }
             }
             _Socket.Bind(localEP);
             this.LocalEndPoint.Flush();

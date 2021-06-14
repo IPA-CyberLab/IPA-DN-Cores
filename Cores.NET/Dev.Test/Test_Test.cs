@@ -1764,8 +1764,18 @@ namespace IPA.TestDev
                 return new ValueOrClosed<Datagram>(pkt);
             });
 
-            using PalSocket? s = new PalSocket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp, TcpDirectionType.Server);
-            s.Bind(new IPEndPoint(IPAddress.Any, 5454));
+            int numCpu = Env.NumCpus;
+
+            List<PalSocket> socketList = new List<PalSocket>();
+
+            for (int i = 0; i < numCpu; i++)
+            {
+                PalSocket? s = new PalSocket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp, TcpDirectionType.Server);
+                s.Bind(new IPEndPoint(IPAddress.Any, 5454));
+                socketList.Add(s);
+
+                Con.WriteLine($"Socket #{i} Bind() ok.");
+            }
 
             using CancelWatcher w = new CancelWatcher();
 
@@ -1777,17 +1787,35 @@ namespace IPA.TestDev
             {
                 byte[] mem = new byte[65536];
 
-                while (c.IsCancellationRequested == false)
+                List<Task> taskList = new List<Task>();
+                try
                 {
-                    var res = await s.ReceiveFromAsync(mem);
+                    foreach (var sock in socketList)
+                    {
+                        taskList.Add(LoopAsync(sock));
 
-                    measure.Add(1);
+                        async Task LoopAsync(PalSocket s)
+                        {
+                            await Task.Yield();
+
+                            while (c.IsCancellationRequested == false)
+                            {
+                                var result = await s.ReceiveFromAsync(mem);
+
+                                measure.Add(1);
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    await taskList._DoForEachAsync(async t => await t._TryAwait());
                 }
             });
 
             Where();
             Con.ReadLine(">");
-            s._DisposeSafe();
+            socketList.ForEach(x => x._DisposeSafe());
             Where();
         }
 
