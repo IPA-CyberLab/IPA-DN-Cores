@@ -1783,6 +1783,7 @@ namespace IPA.TestDev
 
             Where();
             Con.ReadLine(">");
+            s._DisposeSafe();
             Where();
         }
 
