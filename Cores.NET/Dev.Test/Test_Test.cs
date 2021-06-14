@@ -1747,7 +1747,7 @@ namespace IPA.TestDev
         static void Test_210614_UdpRecvBench()
         {
             // ベンチマークメモ
-            // pktlinux (Xeon 4C) -> dn-vpnvault2 (Xeon 4C)
+            // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
             // Async: 1 コア: 360 kpps くらい, 8 コア: 776 kpps くらい
             // Sync:  1 コア: 550 kpps くらい、8 コア: 1000 kpps くらい出るぞ
 
@@ -1767,7 +1767,7 @@ namespace IPA.TestDev
 
             int numCpu = Env.NumCpus;
 
-            //numCpu = 1;
+            numCpu = 1;
 
             List<PalSocket> socketList = new List<PalSocket>();
 
@@ -1820,9 +1820,13 @@ namespace IPA.TestDev
                                         {
                                             var result = await s.ReceiveFromAsync(mem);
                                         }
-                                        else
+                                        else if (false)
                                         {
                                             await ss.ReceiveFromAsync(array, SocketFlags.None, ep);
+                                        }
+                                        else
+                                        {
+                                            await ss.ReceiveFromAsync(mem);
                                         }
                                     }
 
