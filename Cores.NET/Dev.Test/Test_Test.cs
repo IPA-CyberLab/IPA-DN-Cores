@@ -39,6 +39,7 @@ using System.IO.Enumeration;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Net;
 using System.Data;
@@ -1774,9 +1775,8 @@ namespace IPA.TestDev
 
             using CancelWatcher w = new CancelWatcher();
 
-            ThroughputMeasuse measure = new ThroughputMeasuse(1000, 1000);
-
-            using var printer = measure.StartPrinter("UDP: ", toStr3: true);
+            ThroughputMeasuse recvMeasure = new ThroughputMeasuse(1000, 1000);
+            using var recvPrinter = recvMeasure.StartPrinter("UDP Recv: ", toStr3: true);
 
             using AsyncOneShotTester test = new AsyncOneShotTester(async c =>
             {
@@ -1792,6 +1792,10 @@ namespace IPA.TestDev
 
                         async Task LoopAsync(PalSocket s)
                         {
+                            bool reply = true;
+
+                            ConcurrentQueue<Datagram[]> sendQueue = new ConcurrentQueue<Datagram[]>();
+
                             FastMemoryPool<byte> memAlloc = new FastMemoryPool<byte>();
 
                             var datagramBulkReceiver = new AsyncBulkReceiver<Datagram, PalSocket>(async (s, cancel) =>
@@ -1806,6 +1810,22 @@ namespace IPA.TestDev
                                 Datagram pkt = new Datagram(tmp, ret.RemoteEndPoint);
                                 return new ValueOrClosed<Datagram>(pkt);
                             }, 256);
+
+                            //var sendTask = TaskUtil.StartSyncTaskAsync(async () =>
+                            //{
+                            //    while (c.IsCancellationRequested == false)
+                            //    {
+                            //        var ss = s.NativeSocket;
+
+                            //        if (sendQueue.TryDequeue(out Datagram[]? sendList))
+                            //        {
+                            //            foreach (var dg in sendList)
+                            //            {
+                            //                await ss.SendToAsync(dg.
+                            //            }
+                            //        }
+                            //    }
+                            //});
 
                             try
                             {
@@ -1829,9 +1849,12 @@ namespace IPA.TestDev
                                             if (true)
                                             {
                                                 var res = await datagramBulkReceiver.RecvAsync(c, s);
-                                                measure.Add(res!.Length);
+                                                recvMeasure.Add(res!.Length);
                                                 //$"count = {res!.Length}"._Debug();
                                                 count = 0;
+                                                res[0].EndPoint.ToString()._Print();
+
+                                                sendQueue.Enqueue(res);
                                             }
                                             else if (true)
                                             {
@@ -1851,7 +1874,7 @@ namespace IPA.TestDev
                                             }
                                         }
 
-                                        measure.AddFast(count);
+                                        recvMeasure.AddFast(count);
                                     }
                                 }
                             }
