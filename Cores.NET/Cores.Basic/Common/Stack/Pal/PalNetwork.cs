@@ -948,6 +948,10 @@ namespace IPA.Cores.Basic
 
     }
 
+    // From: https://github.com/enclave-networks/research.udp-perf/tree/e5e5afd5107cd6d64dff951e0deaa5dca26d549a
+    // Copyright (c) 2021 Enclave Networks
+    // MIT License
+
     /// <summary>
     /// Provides a derived implementation of <see cref="SocketAsyncEventArgs"/> that allows fast UDP send/receive activity.
     /// </summary>
@@ -1192,6 +1196,8 @@ namespace IPA.Cores.Helper.Basic
             try
             {
                 var recvdBytes = await asyncArgs.DoReceiveFromAsync(socket);
+
+                $"ReceiveFromAsync: {asyncArgs.ReceiveMessageFromPacketInfo.Address.ToString()}"._Print();
 
                 return new SocketReceiveFromResult { ReceivedBytes = recvdBytes, RemoteEndPoint = asyncArgs.RemoteEndPoint };
 
