@@ -1748,7 +1748,7 @@ namespace IPA.TestDev
         {
             // ベンチマークメモ
             // pktlinux (Xeon 4C) -> dn-vpnvault2 (Xeon 4C)
-            // 最初: 300 kpps くらい
+            // 1 コア: 360 kpps くらい, 8 コア並列: 776 kpps くらい
 
             FastMemoryPool<byte> memAlloc = new FastMemoryPool<byte>();
 
@@ -1773,7 +1773,7 @@ namespace IPA.TestDev
             for (int i = 0; i < numCpu; i++)
             {
                 PalSocket? s = new PalSocket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp, TcpDirectionType.Server);
-                s.Bind(new IPEndPoint(IPAddress.Any, 5454));
+                s.Bind(new IPEndPoint(IPAddress.Any, 5454), true);
                 socketList.Add(s);
 
                 Con.WriteLine($"Socket #{i} Bind() ok.");
