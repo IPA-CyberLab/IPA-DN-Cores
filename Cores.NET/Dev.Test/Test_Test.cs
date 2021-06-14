@@ -1766,6 +1766,8 @@ namespace IPA.TestDev
 
             int numCpu = Env.NumCpus;
 
+            numCpu = 1;
+
             List<PalSocket> socketList = new List<PalSocket>();
 
             for (int i = 0; i < numCpu; i++)
@@ -1804,10 +1806,8 @@ namespace IPA.TestDev
                                 {
                                     var result = await s.ReceiveFromAsync(mem);
 
-                                    measure.Add(1);
+                                    measure.AddFast(1);
                                 }
-
-                                //measure.Add(1000);
                             }
                         }
                     }
