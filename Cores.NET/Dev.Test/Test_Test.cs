@@ -1757,6 +1757,7 @@ namespace IPA.TestDev
             // これらの結果から、 UdpSocketExtensions を用いた async が一番良さそうだぞ
             // 
             // Async + BulkRecv + UdpSocketExtensions  8 コア 800 kpps くらい
+            // RasPi4 で 30 kpps くらい 遅いなあ
             // 
             // --- pktlinux --> dn-vpnvault2 --> pktlinux 受信したものを別スレッド打ち返して送信 ---
             // 8 コア: 400 ～ 500 kpps くらい
@@ -1796,7 +1797,7 @@ namespace IPA.TestDev
 
                         async Task LoopAsync(PalSocket s)
                         {
-                            bool reply = false;
+                            bool reply = true;
 
                             ConcurrentQueue<Datagram[]> sendQueue = new ConcurrentQueue<Datagram[]>();
 

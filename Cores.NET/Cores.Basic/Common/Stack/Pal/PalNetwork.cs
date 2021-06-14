@@ -319,7 +319,7 @@ namespace IPA.Cores.Basic
         static readonly IPEndPoint StaticUdpEndPointIPv6 = new IPEndPoint(IPAddress.IPv6Any, 0);
         const int UdpMaxRetryOnIgnoreError = 1000;
 
-        public async ValueTask<PalSocketReceiveFromResult> ReceiveFromAsync(Memory<byte> buffer)
+        public async Task<PalSocketReceiveFromResult> ReceiveFromAsync(Memory<byte> buffer)
         {
             int numRetry = 0;
 
