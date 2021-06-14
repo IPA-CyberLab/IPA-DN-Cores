@@ -1759,7 +1759,7 @@ namespace IPA.TestDev
             // Async + BulkRecv + UdpSocketExtensions  8 コア 800 kpps くらい
             // 
             // --- pktlinux --> dn-vpnvault2 --> pktlinux 受信したものを別スレッド打ち返して送信 ---
-            // 8 コア: 400 kpps くらい
+            // 8 コア: 400 ～ 500 kpps くらい
             // 1 コア: 180 kpps くらい
 
             int numCpu = Env.NumCpus;
@@ -1829,7 +1829,8 @@ namespace IPA.TestDev
                                         {
                                             foreach (var dg in sendList)
                                             {
-                                                await ss.SendToAsync(dg.EndPoint!, dg.Data);
+                                                //await ss.SendToAsync(dg.EndPoint!, dg.Data);
+                                                await s.SendToAsync(dg.Data, dg.EndPoint!);
                                             }
                                         }
 
