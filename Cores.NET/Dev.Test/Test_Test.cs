@@ -1766,7 +1766,7 @@ namespace IPA.TestDev
 
                 Datagram pkt = new Datagram(tmp, ret.RemoteEndPoint);
                 return new ValueOrClosed<Datagram>(pkt);
-            });
+            }, 64);
 
             int numCpu = Env.NumCpus;
 
@@ -1826,6 +1826,7 @@ namespace IPA.TestDev
                                             {
                                                 var res = await datagramBulkReceiver.RecvAsync(c, s);
                                                 measure.Add(res!.Length);
+                                                //$"count = {res!.Length}"._Debug();
                                                 count = 0;
                                             }
                                             else if (true)
