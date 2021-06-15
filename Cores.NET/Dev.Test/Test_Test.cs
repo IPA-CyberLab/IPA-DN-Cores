@@ -1746,6 +1746,7 @@ namespace IPA.TestDev
                         {
                             break;
                         }
+                        $"User Loop: Dequeue OK: Fetch Length = {list.Count}, Remain Length = {r.Length}"._Debug();
                         recvMeasure.Add(list.Count);
 
                         if (reply)
