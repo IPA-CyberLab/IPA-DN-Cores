@@ -1720,7 +1720,7 @@ namespace IPA.TestDev
         {
             // --- 受信 ---
             // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
-            // 受信とパース: 800 kpps くらい出た
+            // 受信とパース: 440 kpps くらい出た
             // 打ち返し: 220 kqps くらい出た
 
             bool reply = false;
@@ -1736,7 +1736,7 @@ namespace IPA.TestDev
             {
                 while (true)
                 {
-                    var list = await sock.ReceiveDatagramsAsync();
+                    var list = await sock.ReceiveDatagramsAsync(64);
 
                     recvMeasure.Add(list.Count);
 
