@@ -701,7 +701,7 @@ namespace IPA.Cores.Basic
                                 break;
                             }
 
-                            $"Send Loop: Cpu {this.CpuId}: packets = {sendList.Count}, Remain = {reader.Length}"._Debug();
+                            //$"Send Loop: Cpu {this.CpuId}: packets = {sendList.Count}, Remain = {reader.Length}"._Debug();
 
                             foreach (var sendItem in sendList)
                             {
