@@ -701,7 +701,7 @@ namespace IPA.Cores.Basic
                                 break;
                             }
 
-                            $"Send Loop: Cpu {this.CpuId}: packets = {sendList.Count}, Remain = {reader.Length}"._Debug();
+                            //$"Send Loop: Cpu {this.CpuId}: packets = {sendList.Count}, Remain = {reader.Length}"._Debug();
 
                             foreach (var sendItem in sendList)
                             {
@@ -845,7 +845,8 @@ namespace IPA.Cores.Basic
 
                                 if (writer.IsReadyToWrite())
                                 {
-                                    long length = writer.EnqueueAllWithLock(recvList, true);
+                                    long length = writer.EnqueueAllWithLock(recvList, false);
+                                    writer.CompleteWrite(softly: true);
                                     //$"Recv Loop: Insert OK: CPU {this.CpuId}: Length = {length}"._Print();
                                 }
                                 else
