@@ -1287,7 +1287,7 @@ namespace IPA.Cores.Basic
 
     public class FastDatagramBuffer<T> : IFastBuffer<T>
     {
-        Fifo<T> Fifo = new Fifo<T>();
+        Fifo<T> Fifo = new Fifo<T>(clearUnused: true);
 
         public long PinHead { get; private set; } = 0;
         public long PinTail { get; private set; } = 0;
@@ -1566,7 +1566,7 @@ namespace IPA.Cores.Basic
                     long length = this.Length;
                     Debug.Assert(other.Fifo.Size == 0);
                     other.Fifo = this.Fifo;
-                    this.Fifo = new Fifo<T>();
+                    this.Fifo = new Fifo<T>(clearUnused: true);
                     this.PinHead = this.PinTail;
                     other.PinTail += length;
                     EventListeners.Fire(this, FastBufferCallbackEventType.Read);
