@@ -1739,6 +1739,8 @@ namespace IPA.TestDev
                 var r = sock.UpperPoint.DatagramReader;
                 var w = sock.UpperPoint.DatagramWriter;
 
+                long start = TickNow;
+
                 while (c.IsCancellationRequested == false)
                 {
                     while (c.IsCancellationRequested == false)
@@ -1760,6 +1762,7 @@ namespace IPA.TestDev
                             }
                         }
                     }
+
                     await r.WaitForReadyToReadAsync(c, Timeout.Infinite);
                 }
             });

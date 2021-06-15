@@ -1155,6 +1155,10 @@ namespace IPA.Cores.Basic
         public DatagramSock(NetProtocolBase protocolStack) : base(protocolStack)
         {
         }
+
+        //public async Task<IReadOnlyList<Datagram>> ReceiveDatagramsAsync(int maxDatagrams = int.MaxValue, CancellationToken cancel = default)
+        //{
+        //}
     }
 
     public class ConnSock : NetSock
