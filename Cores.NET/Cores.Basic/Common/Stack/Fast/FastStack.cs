@@ -701,6 +701,8 @@ namespace IPA.Cores.Basic
                                 break;
                             }
 
+                            reader.CompleteRead(softly: true);
+
                             //$"Send Loop: Cpu {this.CpuId}: packets = {sendList.Count}, Remain = {reader.Length}"._Debug();
 
                             foreach (var sendItem in sendList)
@@ -1156,9 +1158,68 @@ namespace IPA.Cores.Basic
         {
         }
 
-        //public async Task<IReadOnlyList<Datagram>> ReceiveDatagramsAsync(int maxDatagrams = int.MaxValue, CancellationToken cancel = default)
-        //{
-        //}
+        public async Task SendDatagramsAsync(ReadOnlyMemory<Datagram> list, CancellationToken cancel = default, int timeout = Timeout.Infinite, bool noTimeoutException = false)
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            if (list.IsEmpty)
+            {
+                return;
+            }
+
+            var w = this.UpperPoint.DatagramWriter;
+
+            while (true)
+            {
+                cancel.ThrowIfCancellationRequested();
+
+                if (w.IsReadyToWrite())
+                {
+                    w.EnqueueAllWithLock(list.Span, false);
+
+                    w.CompleteWrite(checkDisconnect: false, softly: true);
+
+                    return;
+                }
+
+                cancel.ThrowIfCancellationRequested();
+
+                await w.WaitForReadyToWriteAsync(cancel, timeout, noTimeoutException: noTimeoutException);
+            }
+        }
+
+        public async Task<IReadOnlyList<Datagram>> ReceiveDatagramsAsync(int maxDatagrams = int.MaxValue, CancellationToken cancel = default, int timeout = Timeout.Infinite, bool noTimeoutException = false)
+        {
+            maxDatagrams = Math.Max(maxDatagrams, 1);
+
+            var r = this.UpperPoint.DatagramReader;
+
+            while (true)
+            {
+                cancel.ThrowIfCancellationRequested();
+
+                IReadOnlyList<Datagram> list;
+
+                if (maxDatagrams == int.MaxValue)
+                {
+                    list = r.DequeueAllWithLock(out _);
+                }
+                else
+                {
+                    list = r.DequeueWithLock(maxDatagrams, out _);
+                }
+
+                if (list != null && list.Count >= 1)
+                {
+                    r.CompleteRead(softly: true);
+                    return list;
+                }
+
+                cancel.ThrowIfCancellationRequested();
+
+                await r.WaitForReadyToReadAsync(cancel, timeout, noTimeoutException: noTimeoutException);
+            }
+        }
     }
 
     public class ConnSock : NetSock

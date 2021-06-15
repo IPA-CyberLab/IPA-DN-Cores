@@ -1702,7 +1702,7 @@ namespace IPA.TestDev
                 }
 
                 Con.WriteLine($"Current result: OK = {(list.Where(x => x.Ok).Count())} / Total = i");
-
+                
                 Con.WriteLine();
             }
 
@@ -1713,6 +1713,33 @@ namespace IPA.TestDev
             Time.Time64ToDateTimeOffsetUtc(1000)._Print();
             Time.DateTimeToTime64(DateTime.UtcNow)._Print();
             Time.DateTimeToTime64(new DateTime(9999, 1, 1))._Print();
+        }
+
+        // UDP ソケット DatagramSock 経由間接叩き 送受信ベンチマーク
+        static void Test_210615_Udp_Indirect_SendRecv_Bench()
+        {
+            bool reply = false;
+            using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(numCpus: 8));
+            uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
+
+            using var sock = uu.GetSocket();
+            ThroughputMeasuse recvMeasure = new ThroughputMeasuse(1000, 1000);
+
+            using var recvPrinter = recvMeasure.StartPrinter("UDP Recv: ", toStr3: true);
+
+            using AsyncOneShotTester test = new AsyncOneShotTester(async c =>
+            {
+                while (true)
+                {
+                    var list = await sock.ReceiveDatagramsAsync();
+
+                    recvMeasure.Add(list.Count);
+                }
+            });
+
+            Con.ReadLine(">");
+
+            sock.Disconnect();
         }
 
         // UDP ソケット Pipe 経由間接叩き 送受信ベンチマーク
@@ -1965,6 +1992,12 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210615_Udp_Indirect_SendRecv_Bench();
+                return;
+            }
+
             if (false)
             {
                 Test_210614_Udp_DirectRecvSendBench();

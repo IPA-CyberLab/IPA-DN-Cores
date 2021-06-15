@@ -96,7 +96,7 @@ namespace IPA.Cores.Basic
 
         FastEventListenerList<IFastBufferState, FastBufferCallbackEventType> EventListeners { get; }
 
-        void CompleteRead();
+        void CompleteRead(bool checkDisconnect = false, bool softly = false);
         void CompleteWrite(bool checkDisconnect = true, bool softly = false);
     }
 
@@ -320,7 +320,7 @@ namespace IPA.Cores.Basic
 
         long LastHeadPin = long.MinValue;
 
-        public void CompleteRead()
+        public void CompleteRead(bool checkDisconnect = false, bool softly = false)
         {
             if (IsEventsEnabled)
             {
@@ -341,9 +341,12 @@ namespace IPA.Cores.Basic
 
                 if (setFlag)
                 {
-                    EventWriteReady?.Set();
+                    EventWriteReady?.Set(softly);
                 }
             }
+
+            if (checkDisconnect)
+                CheckDisconnected();
         }
 
         long LastTailPin = long.MinValue;
@@ -1383,7 +1386,7 @@ namespace IPA.Cores.Basic
 
         long LastHeadPin = long.MinValue;
 
-        public void CompleteRead()
+        public void CompleteRead(bool checkDisconnect = false, bool softly = false)
         {
             if (IsEventsEnabled)
             {
@@ -1404,9 +1407,12 @@ namespace IPA.Cores.Basic
 
                 if (setFlag)
                 {
-                    EventWriteReady?.Set();
+                    EventWriteReady?.Set(softly);
                 }
             }
+
+            if (checkDisconnect)
+                CheckDisconnected();
         }
 
         long LastTailPin = long.MinValue;
