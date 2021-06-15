@@ -695,7 +695,7 @@ namespace IPA.Cores.Basic
 
                         while (true)
                         {
-                            var sendList = reader.DequeueWithLock(256, out _);
+                            var sendList = reader.DequeueAllWithLock(out _);
                             if (sendList == null || sendList.Count == 0)
                             {
                                 break;
