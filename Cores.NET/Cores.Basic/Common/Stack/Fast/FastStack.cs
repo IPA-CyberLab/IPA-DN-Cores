@@ -701,6 +701,8 @@ namespace IPA.Cores.Basic
                                 break;
                             }
 
+                            $"Send Loop: Cpu {this.CpuId}: packets = {sendList.Count}"._Debug();
+
                             foreach (var sendItem in sendList)
                             {
                                 var s = socketDb.SearchSocket(sendItem.IPEndPoint!);

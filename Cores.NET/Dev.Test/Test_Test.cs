@@ -1754,7 +1754,7 @@ namespace IPA.TestDev
                         {
                             if (w.IsReadyToWrite())
                             {
-                                w.EnqueueAllWithLock(list.ToArray(), false);
+                                w.EnqueueAllWithLock(list.ToArray(), true);
                             }
                         }
                     }
