@@ -2060,7 +2060,7 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (false)
+            if (true)
             {
                 Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server();
                 return;
