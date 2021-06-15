@@ -1721,6 +1721,8 @@ namespace IPA.TestDev
             // --- 受信 ---
             // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
             // 受信のみ: 800 kpps くらい出た
+            // 打ち返し: 450 ～ 500 kpps くらい出た。コツは、ユーザースレッドからのパケット挿入時に softly: true にすること。複数スレッドの CPU に分散して処理されるので高速。
+            //          (Windows でも 250 kpps くらい出た)
 
             bool reply = true;
 
