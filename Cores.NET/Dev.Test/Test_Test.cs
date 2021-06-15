@@ -1819,7 +1819,7 @@ namespace IPA.TestDev
             // 打ち返し: 450 ～ 500 kpps くらい出た。コツは、ユーザースレッドからのパケット挿入時に softly: true にすること。複数スレッドの CPU に分散して処理されるので高速。
             //          (Windows でも 250 kpps くらい出た)
 
-            bool reply = true;
+            bool reply = false;
 
             using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(numCpus: 8));
             uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
@@ -2060,21 +2060,21 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (true)
-            {
-                Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server();
-                return;
-            }
-
             if (false)
             {
-                Test_210614_Udp_DirectRecvSendBench();
+                Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server();
                 return;
             }
 
             if (true)
             {
                 Test_210613_02_Udp_Indirect_SendRecv_Bench();
+                return;
+            }
+
+            if (false)
+            {
+                Test_210614_Udp_DirectRecvSendBench();
                 return;
             }
 
