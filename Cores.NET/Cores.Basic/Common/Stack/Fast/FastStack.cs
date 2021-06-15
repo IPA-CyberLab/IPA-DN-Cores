@@ -40,6 +40,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Collections.Immutable;
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -565,7 +566,104 @@ namespace IPA.Cores.Basic
         public class UdpSendInstance : AsyncServiceWithMainLoop
         {
             public NetPalUdpProtocolStub Protocol { get; }
-            public int CpuId;
+            public int CpuId { get; }
+            public int NumOkSockets => this.CurrentSocketDatabase.SocketListByEndPoint.Count;
+
+            public class SocketDatabase
+            {
+                // マスターデータ
+                public KeyValueList<IPEndPoint, PalSocket> SocketList = new KeyValueList<IPEndPoint, PalSocket>();
+
+                // マスターデータからその都度作成される高速検索データ構造
+                public Dictionary<IPEndPoint, PalSocket> SocketListByEndPoint = null!;
+                public PalSocket? WildcardSocket = null;
+
+                public SocketDatabase()
+                {
+                    Rebuild();
+                }
+
+                public SocketDatabase Clone()
+                {
+                    SocketDatabase ret = new SocketDatabase();
+
+                    ret.SocketList = this.SocketList.Clone();
+
+                    ret.Rebuild();
+
+                    return ret;
+                }
+
+                void Rebuild()
+                {
+                    this.SocketListByEndPoint = new Dictionary<IPEndPoint, PalSocket>();
+                    this.WildcardSocket = null;
+
+                    foreach (var item in this.SocketList)
+                    {
+                        this.SocketListByEndPoint.TryAdd(item.Key, item.Value);
+                        if (item.Key.Address._IsAny())
+                        {
+                            this.WildcardSocket = item.Value;
+                        }
+                    }
+                }
+
+                [MethodImpl(Inline)]
+                public PalSocket? SearchSocket(IPEndPoint localEp)
+                {
+                    if (this.SocketListByEndPoint.TryGetValue(localEp, out PalSocket? s1))
+                        return s1;
+
+                    return this.WildcardSocket;
+                }
+
+                public void RegisterSocketThreadUnsafe(IPEndPoint ep, PalSocket s)
+                {
+                    this.SocketList.Add(ep, s);
+
+                    this.Rebuild();
+                }
+
+                public void UnregisterSocketThreadUnsafe(PalSocket s)
+                {
+                    var deleteList = this.SocketList.Where(x => x.Value == s).ToList();
+
+                    foreach (var item in deleteList)
+                    {
+                        this.SocketList.Remove(item);
+                    }
+
+                    this.Rebuild();
+                }
+            }
+
+            readonly CriticalSection<SocketDatabase> SocketDatabaseWriteLock = new CriticalSection<SocketDatabase>();
+            volatile SocketDatabase CurrentSocketDatabase = new SocketDatabase();
+
+            public void RegisterSocket(IPEndPoint ep, PalSocket s)
+            {
+                lock (SocketDatabaseWriteLock)
+                {
+                    var newDb = this.CurrentSocketDatabase.Clone();
+
+                    newDb.RegisterSocketThreadUnsafe(ep, s);
+
+                    this.CurrentSocketDatabase = newDb;
+                }
+            }
+
+            public void UnregisterSocket(PalSocket s)
+            {
+                lock (SocketDatabaseWriteLock)
+                {
+                    var newDb = this.CurrentSocketDatabase.Clone();
+
+                    newDb.UnregisterSocketThreadUnsafe(s);
+
+                    this.CurrentSocketDatabase = newDb;
+                }
+            }
 
             public UdpSendInstance(NetPalUdpProtocolStub protocol, int cpuId)
             {
@@ -586,6 +684,73 @@ namespace IPA.Cores.Basic
             async Task MainLoopProcAsync(CancellationToken cancel)
             {
                 await Task.Yield();
+
+                var reader = this.Protocol.Upper.DatagramWriter;
+
+                while (cancel.IsCancellationRequested == false)
+                {
+                    try
+                    {
+                        if (DetermineThisCpuShouldWork())
+                        {
+                            var socketDb = this.CurrentSocketDatabase;
+
+                            while (true)
+                            {
+                                var sendList = reader.DequeueWithLock(256, out _);
+                                if (sendList == null || sendList.Count == 0)
+                                {
+                                    break;
+                                }
+
+                                foreach (var sendItem in sendList)
+                                {
+                                    //var s = socketDb.SearchSocket(sendItem.IPEndPoint!);
+                                    var s = socketDb.WildcardSocket;
+
+                                    if (s != null)
+                                    {
+                                        //Where();
+                                        await s.SendToAsync(sendItem.Data, sendItem.IPEndPoint!);
+                                    }
+                                    else
+                                    {
+                                        Where();
+                                    }
+                                }
+                            }
+                        }
+
+                        if (cancel.IsCancellationRequested) break;
+
+                        await reader.WaitForReadyToReadAsync(cancel, Util.GenRandInterval(1000), noTimeoutException: true);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                        await SleepRandIntervalAsync();
+                    }
+                }
+            }
+
+            // この CPU スレッドが稼働するべきどうか判断する
+            // 他の CPU 番号の付いたスレッドとの間で NumOkSockets を比較し、他よりもこのスレッドが小さな値であれば
+            // このスレッドは回さないことにする
+            bool DetermineThisCpuShouldWork()
+            {
+                int minValue = int.MinValue;
+                foreach (var other in this.Protocol.GetUdpSendInstanceList())
+                {
+                    if (other != this)
+                    {
+                        minValue = Math.Max(minValue, other.NumOkSockets);
+                    }
+                }
+                return (this.NumOkSockets >= minValue);
             }
         }
 
@@ -594,6 +759,7 @@ namespace IPA.Cores.Basic
         {
             public NetUdpBindPoint EndPoint { get; }
             public NetPalUdpProtocolStub Protocol { get; }
+            public int CpuId => EndPoint.CpuId;
 
             public UdpRecvInstance(NetPalUdpProtocolStub protocol, NetUdpBindPoint ep)
             {
@@ -639,6 +805,7 @@ namespace IPA.Cores.Basic
                     {
                         s = new PalSocket(EndPoint.EndPoint.AddressFamily, SocketType.Dgram, ProtocolType.Udp, TcpDirectionType.Server);
                         s.Bind(EndPoint.EndPoint, Protocol.Options.ListenerOptions.NumCpus >= 2);
+                        this.Protocol.RegisterAvailableUdpSocketInternal(this, s);
                         Con.WriteDebug($"UDP Listener OK: {this.EndPoint}");
                         numRetry = 0;
                     }
@@ -662,9 +829,21 @@ namespace IPA.Cores.Basic
 
                             while (cancel.IsCancellationRequested == false)
                             {
-                                Datagram[]? recvList;
+                                Datagram[]? recvList = null;
 
-                                recvList = await datagramBulkReceiver!.RecvAsync(cancel, s);
+                                try
+                                {
+                                    recvList = await datagramBulkReceiver!.RecvAsync(cancel, s);
+                                }
+                                catch (OperationCanceledException)
+                                {
+                                    throw;
+                                }
+                                catch (Exception ex)
+                                {
+                                    ex._Debug();
+                                    await SleepRandIntervalAsync();
+                                }
 
                                 if (recvList == null)
                                 {
@@ -674,9 +853,21 @@ namespace IPA.Cores.Basic
 
                                 //Con.WriteLine($"Recv: {recvList.Length}");
 
-                                if (writer.IsReadyToWrite())
+                                try
                                 {
-                                    writer.EnqueueAllWithLock(recvList, true);
+                                    if (writer.IsReadyToWrite())
+                                    {
+                                        writer.EnqueueAllWithLock(recvList, true);
+                                    }
+                                }
+                                catch (OperationCanceledException)
+                                {
+                                    throw;
+                                }
+                                catch (Exception ex)
+                                {
+                                    ex._Debug();
+                                    await SleepRandIntervalAsync();
                                 }
                             }
 
@@ -693,8 +884,13 @@ namespace IPA.Cores.Basic
                         }
                         numRetry++;
 
-                        s._DisposeSafe();
-                        s = null;
+                        if (s != null)
+                        {
+                            this.Protocol.UnregisterAvailableUdpSocketInternal(this, s);
+
+                            s._DisposeSafe();
+                            s = null;
+                        }
                     }
 
                     if (cancel.IsCancellationRequested) break;
@@ -769,20 +965,44 @@ namespace IPA.Cores.Basic
             });
 
             // すべての受信タスクを終了する
-            if (this.UdpSendInstanceList != null)
+            if (this._UdpSendInstanceList != null)
             {
-                await UdpSendInstanceList._DoForEachAsync(async x => await x._DisposeSafeAsync());
+                await _UdpSendInstanceList._DoForEachAsync(async x => await x._DisposeSafeAsync());
             }
+        }
+
+        // 利用可能な UDP ソケットを高速ソケットテーブルに登録する
+        public void RegisterAvailableUdpSocketInternal(UdpRecvInstance inst, PalSocket s)
+        {
+            this._UdpSendInstanceList[inst.CpuId].RegisterSocket(inst.EndPoint.EndPoint, s);
+        }
+
+        // 利用可能な UDP ソケットを高速ソケットテーブルから登録解除する
+        public void UnregisterAvailableUdpSocketInternal(UdpRecvInstance inst, PalSocket s)
+        {
+            this._UdpSendInstanceList[inst.CpuId].UnregisterSocket(s);
         }
 
         int LastVersion = -1;
 
-        UdpSendInstance[] UdpSendInstanceList = null!;
+        UdpSendInstance[] _UdpSendInstanceList = null!;
+
+        public IEnumerable<UdpSendInstance> GetUdpSendInstanceList() => _UdpSendInstanceList._ToArrayList();
 
         // ポーリングのメインさん
         async Task PollMainAsync()
         {
             var hostInfo = LocalNet.GetHostInfo(false);
+
+            // CPU の数だけ送信タスクを作成する (まだなければ)
+            if (_UdpSendInstanceList == null)
+            {
+                _UdpSendInstanceList = new UdpSendInstance[this.Options.ListenerOptions.NumCpus];
+                for (int i = 0; i < this.Options.ListenerOptions.NumCpus; i++)
+                {
+                    _UdpSendInstanceList[i] = new UdpSendInstance(this, i);
+                }
+            }
 
             if (LastVersion != hostInfo.InfoVersion)
             {
@@ -802,16 +1022,6 @@ namespace IPA.Cores.Basic
                       await x.Value._DisposeSafeAsync();
                       UdpRecvInstanceList.Remove(x.Key);
                   });
-            }
-
-            // CPU の数だけ送信タスクを作成する (まだなければ)
-            if (UdpSendInstanceList == null)
-            {
-                UdpSendInstanceList = new UdpSendInstance[this.Options.ListenerOptions.NumCpus];
-                for (int i = 0; i < this.Options.ListenerOptions.NumCpus; i++)
-                {
-                    UdpSendInstanceList[i] = new UdpSendInstance(this, i);
-                }
             }
         }
 

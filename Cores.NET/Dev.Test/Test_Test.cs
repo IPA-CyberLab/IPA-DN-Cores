@@ -1727,7 +1727,7 @@ namespace IPA.TestDev
             using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(numCpus: 8));
             uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
 
-            var sock = uu.GetSocket();
+            using var sock = uu.GetSocket();
             ThroughputMeasuse recvMeasure = new ThroughputMeasuse(1000, 1000);
 
             using var recvPrinter = recvMeasure.StartPrinter("UDP Recv: ", toStr3: true);
