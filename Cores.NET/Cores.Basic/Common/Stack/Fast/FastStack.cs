@@ -848,7 +848,7 @@ namespace IPA.Cores.Basic
                                 }
                                 else
                                 {
-                                    $"Recv Loop: Insert NG: CPU {this.CpuId}: Length = {writer.Length}"._Print();
+                                    //$"Recv Loop: Insert NG: CPU {this.CpuId}: Length = {writer.Length}"._Print();
                                 }
                             }
 
