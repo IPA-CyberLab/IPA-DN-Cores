@@ -844,6 +844,7 @@ namespace IPA.Cores.Basic
                                 if (writer.IsReadyToWrite())
                                 {
                                     writer.EnqueueAllWithLock(recvList, true);
+                                    $"Recv Loop:CPU {this.CpuId}: Length = {writer.Length}"._Print();
                                 }
                             }
 
@@ -1011,26 +1012,26 @@ namespace IPA.Cores.Basic
             {
                 table.Add(item);
 
-                //if (item.IPVer == IPVersion.IPv4)
-                //{
-                //    if (item.EndPoint.Address._IsAny())
-                //    {
-                //        hostInfo.IPAddressList.Where(x => x._GetIPVersion() == IPVersion.IPv4)
-                //            .Where(x => x._IsAny() == false)
-                //            .Where(x => x._GetIPAddressType().Bit(IPAddressType.Unicast))
-                //            ._DoForEach(x => table.Add(new NetUdpBindPoint(new IPEndPoint(x, item.EndPoint.Port), item.CpuId)));
-                //    }
-                //}
-                //else if (item.IPVer == IPVersion.IPv6)
-                //{
-                //    if (item.EndPoint.Address._IsAny())
-                //    {
-                //        hostInfo.IPAddressList.Where(x => x._GetIPVersion() == IPVersion.IPv6)
-                //            .Where(x => x._IsAny() == false)
-                //            .Where(x => x._GetIPAddressType().Bit(IPAddressType.Unicast))
-                //            ._DoForEach(x => table.Add(new NetUdpBindPoint(new IPEndPoint(x, item.EndPoint.Port), item.CpuId)));
-                //    }
-                //}
+                if (item.IPVer == IPVersion.IPv4)
+                {
+                    if (item.EndPoint.Address._IsAny())
+                    {
+                        hostInfo.IPAddressList.Where(x => x._GetIPVersion() == IPVersion.IPv4)
+                            .Where(x => x._IsAny() == false)
+                            .Where(x => x._GetIPAddressType().Bit(IPAddressType.Unicast))
+                            ._DoForEach(x => table.Add(new NetUdpBindPoint(new IPEndPoint(x, item.EndPoint.Port), item.CpuId)));
+                    }
+                }
+                else if (item.IPVer == IPVersion.IPv6)
+                {
+                    if (item.EndPoint.Address._IsAny())
+                    {
+                        hostInfo.IPAddressList.Where(x => x._GetIPVersion() == IPVersion.IPv6)
+                            .Where(x => x._IsAny() == false)
+                            .Where(x => x._GetIPAddressType().Bit(IPAddressType.Unicast))
+                            ._DoForEach(x => table.Add(new NetUdpBindPoint(new IPEndPoint(x, item.EndPoint.Port), item.CpuId)));
+                    }
+                }
             }
 
             return table.OrderBy(x => x).ToList();
