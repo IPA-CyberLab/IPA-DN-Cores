@@ -1736,7 +1736,7 @@ namespace IPA.TestDev
             {
                 while (true)
                 {
-                    var list = await sock.ReceiveDatagramsAsync(64);
+                    var list = await sock.ReceiveDatagramsAsync();
 
                     recvMeasure.Add(list.Count);
 
