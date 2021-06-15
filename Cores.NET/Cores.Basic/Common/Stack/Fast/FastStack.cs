@@ -703,8 +703,8 @@ namespace IPA.Cores.Basic
 
                             foreach (var sendItem in sendList)
                             {
-                                //var s = socketDb.SearchSocket(sendItem.IPEndPoint!);
-                                var s = socketDb.WildcardSocket;
+                                var s = socketDb.SearchSocket(sendItem.IPEndPoint!);
+                                //var s = socketDb.WildcardSocket;
 
                                 if (s != null)
                                 {
