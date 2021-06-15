@@ -223,11 +223,14 @@ namespace IPA.Cores.Basic
 
         public int ReAllocMemSize { get; }
 
-        public Fifo(int reAllocMemSize = FifoReAllocSize)
+        public bool ClearUnused { get; }
+
+        public Fifo(int reAllocMemSize = FifoReAllocSize, bool clearUnused = false)
         {
             ReAllocMemSize = reAllocMemSize;
             Size = Position = 0;
             PhysicalData = new T[FifoInitSize];
+            ClearUnused = clearUnused;
         }
 
         public void Clear()
@@ -332,20 +335,29 @@ namespace IPA.Cores.Basic
                 {
                     Position = 0;
                 }
-
-                if (this.Position >= FifoInitSize &&
-                    this.PhysicalData.Length >= this.ReAllocMemSize &&
-                    (this.PhysicalData.Length / 2) > this.Size)
+                else
                 {
-                    int newPhysicalSize;
+                    if (this.Position >= FifoInitSize &&
+                        this.PhysicalData.Length >= this.ReAllocMemSize &&
+                        (this.PhysicalData.Length / 2) > this.Size)
+                    {
+                        int newPhysicalSize;
 
-                    newPhysicalSize = Math.Max(this.PhysicalData.Length / 2, FifoInitSize);
+                        newPhysicalSize = Math.Max(this.PhysicalData.Length / 2, FifoInitSize);
 
-                    T[] newArray = new T[newPhysicalSize];
-                    this.PhysicalData.AsSpan(this.Position, this.Size).CopyTo(newArray);
-                    this.PhysicalData = newArray;
+                        T[] newArray = new T[newPhysicalSize];
+                        this.PhysicalData.AsSpan(this.Position, this.Size).CopyTo(newArray);
+                        this.PhysicalData = newArray;
 
-                    this.Position = 0;
+                        this.Position = 0;
+                    }
+                    else
+                    {
+                        if (this.ClearUnused)
+                        {
+                            Array.Clear(this.PhysicalData, Position - readSize, readSize);
+                        }
+                    }
                 }
 
                 return readSize;

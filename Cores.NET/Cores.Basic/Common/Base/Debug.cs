@@ -1510,16 +1510,23 @@ namespace IPA.Cores.Basic
                     int r = CurrentCounter.Increment();
                     int x = CoresConfig.DebugSettings.AutoGcCollectIntervalSecs;
 
+                    bool runGc = false;
+
                     if (x >= 1)
                     {
                         if ((r % x) == 0)
                         {
                             // 定期的 GC
-                            Dbg.GcCollect();
+                            runGc = true;
                         }
                     }
 
-                    current.Refresh();
+                    if (CoresConfig.DebugSettings.CoresStatPrintToConsole)
+                    {
+                        runGc = true;
+                    }
+
+                    current.Refresh(runGc);
 
                     return Task.CompletedTask;
                 });
