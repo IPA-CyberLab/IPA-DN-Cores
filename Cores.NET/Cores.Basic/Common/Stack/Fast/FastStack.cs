@@ -844,7 +844,7 @@ namespace IPA.Cores.Basic
                                 if (writer.IsReadyToWrite())
                                 {
                                     long length = writer.EnqueueAllWithLock(recvList, true);
-                                    $"Recv Loop: Insert OK: CPU {this.CpuId}: Length = {length}"._Print();
+                                    //$"Recv Loop: Insert OK: CPU {this.CpuId}: Length = {length}"._Print();
                                 }
                                 else
                                 {
