@@ -1741,7 +1741,7 @@ namespace IPA.TestDev
 
                     recvMeasure.Add(list.Count);
 
-                    List<Datagram> sendList = new List<Datagram>();
+                    List<Datagram> sendList = new List<Datagram>(list.Count);
 
                     foreach (var item in list)
                     {
