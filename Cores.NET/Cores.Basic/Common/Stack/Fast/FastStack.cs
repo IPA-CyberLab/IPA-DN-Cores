@@ -843,8 +843,8 @@ namespace IPA.Cores.Basic
 
                                 if (writer.IsReadyToWrite())
                                 {
-                                    long length = writer.EnqueueAllWithLock(recvList, false);
-                                    writer.CompleteWrite(softly: true);
+                                    long length = writer.EnqueueAllWithLock(recvList, true);
+                                    //writer.CompleteWrite(softly: true);
                                     //$"Recv Loop: Insert OK: CPU {this.CpuId}: Length = {length}"._Print();
                                 }
                                 else
