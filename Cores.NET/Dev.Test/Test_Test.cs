@@ -1723,7 +1723,7 @@ namespace IPA.TestDev
             // 受信とパース: 440 kpps くらい出た
             // 打ち返し: 220 kqps くらい出た
 
-            bool reply = false;
+            bool reply = true;
             using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(numCpus: 8));
             uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
 
