@@ -1749,13 +1749,13 @@ namespace IPA.TestDev
                         //$"User Loop: Dequeue OK: Fetch Length = {list.Count}, Remain Length = {r.Length}"._Debug();
                         recvMeasure.Add(list.Count);
 
-                        //if (reply)
-                        //{
-                        //    if (w.IsReadyToWrite())
-                        //    {
-                        //        w.EnqueueAllWithLock(list.ToArray(), true);
-                        //    }
-                        //}
+                        if (reply)
+                        {
+                            if (w.IsReadyToWrite())
+                            {
+                                w.EnqueueAllWithLock(list.ToArray(), true);
+                            }
+                        }
                     }
                     await r.WaitForReadyToReadAsync(c, Timeout.Infinite);
                 }
