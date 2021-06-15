@@ -1747,6 +1747,7 @@ namespace IPA.TestDev
                             break;
                         }
                         recvMeasure.Add(list.Count);
+                        list.Count._Debug();
 
                         if (reply)
                         {
