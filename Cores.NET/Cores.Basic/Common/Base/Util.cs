@@ -8004,10 +8004,10 @@ namespace IPA.Cores.Basic
                     if ((cycle >= 1) && (cycle > LastCycle))
                     {
                         long lastTotal = Interlocked.Exchange(ref LastTotal, 0);
-                        if (cycle != (LastCycle + 1))
-                        {
-                            lastTotal = 0;
-                        }
+                        //if (cycle != (LastCycle + 1))
+                        //{
+                        //    lastTotal = 0;
+                        //}
 
                         CurrentThroughputInternal = (double)lastTotal / ((double)BaseUnitMsecs / 1000.0);
                         LastCycle = cycle;
@@ -8025,9 +8025,20 @@ namespace IPA.Cores.Basic
         {
             Add(0);
 
+            long now = TickNow;
+            long pastTick = now - StartTick;
+            long cycle = pastTick / BaseUnitMsecs;
+
             lock (LockObj)
             {
-                return CurrentThroughputInternal;
+                if (cycle == LastCycle)
+                {
+                    return CurrentThroughputInternal;
+                }
+                else
+                {
+                    return 0;
+                }
             }
         }
 

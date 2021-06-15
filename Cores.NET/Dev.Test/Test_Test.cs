@@ -1730,7 +1730,7 @@ namespace IPA.TestDev
             using var sock = uu.GetSocket();
             ThroughputMeasuse recvMeasure = new ThroughputMeasuse(1000, 1000);
 
-            using var recvPrinter = recvMeasure.StartPrinter("UDP Recv: ", toStr3: true);
+            using var recvPrinter = recvMeasure.StartPrinter("UDP Recv: ", toStr3: true, intervalMsecs: 300);
 
             using AsyncOneShotTester test = new AsyncOneShotTester(async c =>
             {
