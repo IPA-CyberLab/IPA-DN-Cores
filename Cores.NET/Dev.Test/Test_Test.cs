@@ -1744,7 +1744,7 @@ namespace IPA.TestDev
                         var list = r.DequeueAllWithLock(out _);
                         if (list == null || list.Count == 0)
                         {
-                            w.CompleteWrite(softly: false);
+                            w.CompleteWrite(softly: true);
                             break;
                         }
                         //$"User Loop: Dequeue OK: Fetch Length = {list.Count}, Remain Length = {r.Length}"._Debug();
