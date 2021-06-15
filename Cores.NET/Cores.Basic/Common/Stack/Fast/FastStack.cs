@@ -715,10 +715,6 @@ namespace IPA.Cores.Basic
                                     //Where();
                                     await s.SendToAsync(sendItem.Data, sendItem.IPEndPoint!);
                                 }
-                                else
-                                {
-                                    Where();
-                                }
                             }
                         }
                     }
