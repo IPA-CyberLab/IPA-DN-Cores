@@ -689,51 +689,39 @@ namespace IPA.Cores.Basic
 
                 while (cancel.IsCancellationRequested == false)
                 {
-                    try
+                    if (DetermineThisCpuShouldWork())
                     {
-                        if (DetermineThisCpuShouldWork())
+                        var socketDb = this.CurrentSocketDatabase;
+
+                        while (true)
                         {
-                            var socketDb = this.CurrentSocketDatabase;
-
-                            while (true)
+                            var sendList = reader.DequeueWithLock(256, out _);
+                            if (sendList == null || sendList.Count == 0)
                             {
-                                var sendList = reader.DequeueWithLock(256, out _);
-                                if (sendList == null || sendList.Count == 0)
+                                break;
+                            }
+
+                            foreach (var sendItem in sendList)
+                            {
+                                //var s = socketDb.SearchSocket(sendItem.IPEndPoint!);
+                                var s = socketDb.WildcardSocket;
+
+                                if (s != null)
                                 {
-                                    break;
+                                    //Where();
+                                    await s.SendToAsync(sendItem.Data, sendItem.IPEndPoint!);
                                 }
-
-                                foreach (var sendItem in sendList)
+                                else
                                 {
-                                    //var s = socketDb.SearchSocket(sendItem.IPEndPoint!);
-                                    var s = socketDb.WildcardSocket;
-
-                                    if (s != null)
-                                    {
-                                        //Where();
-                                        await s.SendToAsync(sendItem.Data, sendItem.IPEndPoint!);
-                                    }
-                                    else
-                                    {
-                                        Where();
-                                    }
+                                    Where();
                                 }
                             }
                         }
+                    }
 
-                        if (cancel.IsCancellationRequested) break;
+                    if (cancel.IsCancellationRequested) break;
 
-                        await reader.WaitForReadyToReadAsync(cancel, Util.GenRandInterval(1000), noTimeoutException: true);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        throw;
-                    }
-                    catch (Exception ex)
-                    {
-                        ex._Debug();
-                        await SleepRandIntervalAsync();
-                    }
+                    await reader.WaitForReadyToReadAsync(cancel, Util.GenRandInterval(1000), noTimeoutException: true);
                 }
             }
 
@@ -853,21 +841,9 @@ namespace IPA.Cores.Basic
 
                                 //Con.WriteLine($"Recv: {recvList.Length}");
 
-                                try
+                                if (writer.IsReadyToWrite())
                                 {
-                                    if (writer.IsReadyToWrite())
-                                    {
-                                        writer.EnqueueAllWithLock(recvList, true);
-                                    }
-                                }
-                                catch (OperationCanceledException)
-                                {
-                                    throw;
-                                }
-                                catch (Exception ex)
-                                {
-                                    ex._Debug();
-                                    await SleepRandIntervalAsync();
+                                    writer.EnqueueAllWithLock(recvList, true);
                                 }
                             }
 
