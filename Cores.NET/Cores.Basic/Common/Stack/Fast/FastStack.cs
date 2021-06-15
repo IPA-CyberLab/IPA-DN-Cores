@@ -685,7 +685,7 @@ namespace IPA.Cores.Basic
             {
                 await Task.Yield();
 
-                var reader = this.Protocol.Upper.DatagramWriter;
+                var reader = this.Protocol.Upper.DatagramReader;
 
                 while (cancel.IsCancellationRequested == false)
                 {
