@@ -8022,12 +8022,17 @@ namespace IPA.Cores.Basic
         }
 
         public double GetCurrentThroughput()
+             => GetCurrentThroughput(out _);
+
+        public double GetCurrentThroughput(out long currentCycle)
         {
             Add(0);
 
             long now = TickNow;
             long pastTick = now - StartTick;
             long cycle = pastTick / BaseUnitMsecs;
+
+            currentCycle = cycle;
 
             lock (LockObj)
             {
@@ -8050,21 +8055,27 @@ namespace IPA.Cores.Basic
 
             AsyncOneShotTester ret = new AsyncOneShotTester(async c =>
             {
+                long lastCycle = -1;
                 while (c.IsCancellationRequested == false)
                 {
-                    double value = this.GetCurrentThroughput();
-                    string s;
-                    if (toStr3 == false)
+                    double value = this.GetCurrentThroughput(out long currentCycle);
+                    if (currentCycle != lastCycle)
                     {
-                        s = value.ToString("F3");
-                    }
-                    else
-                    {
-                        s = ((long)value)._ToString3();
-                    }
-                    $"{prefix}{s}"._Print();
+                        lastCycle = currentCycle;
 
-                    await c._WaitUntilCanceledAsync(intervalMsecs);
+                        string s;
+                        if (toStr3 == false)
+                        {
+                            s = value.ToString("F3");
+                        }
+                        else
+                        {
+                            s = ((long)value)._ToString3();
+                        }
+                        $"{prefix}{s}"._Print();
+                    }
+
+                    await c._WaitUntilCanceledAsync(Util.GenRandInterval(intervalMsecs));
                 }
             });
 
