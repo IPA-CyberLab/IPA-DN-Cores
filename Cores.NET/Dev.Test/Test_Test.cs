@@ -1718,7 +1718,13 @@ namespace IPA.TestDev
         // UDP ソケット DatagramSock 経由間接叩き 送受信ベンチマーク
         static void Test_210615_Udp_Indirect_SendRecv_Bench()
         {
-            bool reply = false;
+            // --- 受信 ---
+            // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
+            // 受信のみ: 800 kpps くらい出た
+            // 打ち返し: 450 ～ 500 kpps くらい出た。コツは、ユーザースレッドからのパケット挿入時に softly: true にすること。複数スレッドの CPU に分散して処理されるので高速。
+            //          (Windows でも 250 kpps くらい出た)
+
+            bool reply = true;
             using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(numCpus: 8));
             uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
 
@@ -1734,6 +1740,11 @@ namespace IPA.TestDev
                     var list = await sock.ReceiveDatagramsAsync();
 
                     recvMeasure.Add(list.Count);
+
+                    if (reply)
+                    {
+                        await sock.SendDatagramsAsync(list.ToArray());
+                    }
                 }
             });
 
