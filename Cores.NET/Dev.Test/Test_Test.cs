@@ -1819,7 +1819,7 @@ namespace IPA.TestDev
             // 打ち返し: 450 ～ 500 kpps くらい出た。コツは、ユーザースレッドからのパケット挿入時に softly: true にすること。複数スレッドの CPU に分散して処理されるので高速。
             //          (Windows でも 250 kpps くらい出た)
 
-            bool reply = false;
+            bool reply = true;
 
             using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(numCpus: 8));
             uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
