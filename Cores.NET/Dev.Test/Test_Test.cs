@@ -1715,6 +1715,60 @@ namespace IPA.TestDev
             Time.DateTimeToTime64(new DateTime(9999, 1, 1))._Print();
         }
 
+        // UDP ソケット DatagramSock 経由間接叩き 送受信ベンチマーク (DNS Server 模擬)
+        static void Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server()
+        {
+            // --- 受信 ---
+            // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
+            // 受信のみ: 800 kpps くらい出た
+            // 打ち返し: 450 ～ 500 kpps くらい出た。コツは、ユーザースレッドからのパケット挿入時に softly: true にすること。複数スレッドの CPU に分散して処理されるので高速。
+            //          (Windows でも 250 kpps くらい出た)
+
+            bool reply = true;
+            using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(numCpus: 8));
+            uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
+
+            using var sock = uu.GetSocket();
+            ThroughputMeasuse recvMeasure = new ThroughputMeasuse(1000, 1000);
+
+            using var recvPrinter = recvMeasure.StartPrinter("UDP Recv: ", toStr3: true);
+
+            using AsyncOneShotTester test = new AsyncOneShotTester(async c =>
+            {
+                while (true)
+                {
+                    var list = await sock.ReceiveDatagramsAsync();
+
+                    recvMeasure.Add(list.Count);
+
+                    List<Datagram> sendList = new List<Datagram>();
+
+                    foreach (var item in list)
+                    {
+                        try
+                        {
+                            var msg = DnsUtil.ParsePacket(item.Data.Span);
+                            var newData = msg.BuildPacket().ToArray().AsMemory();
+                            var newDg = new Datagram(newData, item.IPEndPoint!);
+                            sendList.Add(newDg);
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Debug();
+                        }
+                    }
+
+                    if (reply)
+                    {
+                        await sock.SendDatagramsAsync(sendList.ToArray());
+                    }
+                }
+            });
+
+            Con.ReadLine(">");
+
+            sock.Disconnect();
+        }
         // UDP ソケット DatagramSock 経由間接叩き 送受信ベンチマーク
         static void Test_210615_Udp_Indirect_SendRecv_Bench()
         {
@@ -2005,7 +2059,7 @@ namespace IPA.TestDev
         {
             if (true)
             {
-                Test_210615_Udp_Indirect_SendRecv_Bench();
+                Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server();
                 return;
             }
 
