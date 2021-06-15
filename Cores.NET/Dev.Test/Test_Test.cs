@@ -1720,11 +1720,10 @@ namespace IPA.TestDev
         {
             // --- 受信 ---
             // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
-            // 受信のみ: 800 kpps くらい出た
-            // 打ち返し: 450 ～ 500 kpps くらい出た。コツは、ユーザースレッドからのパケット挿入時に softly: true にすること。複数スレッドの CPU に分散して処理されるので高速。
-            //          (Windows でも 250 kpps くらい出た)
+            // 受信とパース: 800 kpps くらい出た
+            // 打ち返し: 220 kqps くらい出た
 
-            bool reply = true;
+            bool reply = false;
             using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(numCpus: 8));
             uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
 
@@ -1748,9 +1747,13 @@ namespace IPA.TestDev
                         try
                         {
                             var msg = DnsUtil.ParsePacket(item.Data.Span);
-                            var newData = msg.BuildPacket().ToArray().AsMemory();
-                            var newDg = new Datagram(newData, item.IPEndPoint!);
-                            sendList.Add(newDg);
+
+                            if (reply)
+                            {
+                                var newData = msg.BuildPacket().ToArray().AsMemory();
+                                var newDg = new Datagram(newData, item.IPEndPoint!);
+                                sendList.Add(newDg);
+                            }
                         }
                         catch (Exception ex)
                         {
