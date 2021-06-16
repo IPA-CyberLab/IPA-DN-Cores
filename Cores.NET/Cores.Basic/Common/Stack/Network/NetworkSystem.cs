@@ -201,7 +201,7 @@ namespace IPA.Cores.Basic
 
         public override string ToString() => this.Param?.Name ?? "NetworkSystemBase";
 
-        protected override Task CancelImplAsync(Exception? ex) => Task.CompletedTask;
+        protected override Task CancelImplAsync(Exception? ex) => base.CancelImplAsync(ex);
 
         protected override async Task CleanupImplAsync(Exception? ex)
         {

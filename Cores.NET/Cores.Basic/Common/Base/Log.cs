@@ -404,7 +404,7 @@ namespace IPA.Cores.Basic
 
         protected override async Task CancelImplAsync(Exception? ex)
         {
-            await this.Eraser._CancelSafe(ex);
+            await this.Eraser._CancelSafeAsync(ex);
         }
 
         protected override async Task CleanupImplAsync(Exception? ex)

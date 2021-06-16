@@ -2116,7 +2116,7 @@ namespace IPA.Cores.Basic
             }
             finally
             {
-                await sock._CancelSafe(new DisconnectedException());
+                await sock._CancelSafeAsync(new DisconnectedException());
                 await sock._CleanupSafeAsync();
                 await sock._DisposeSafeAsync();
             }
@@ -2156,7 +2156,8 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override Task CancelImplAsync(Exception? ex) => Task.CompletedTask;
+        protected override Task CancelImplAsync(Exception? ex)
+            => base.CancelImplAsync(ex);
 
         protected override async Task CleanupImplAsync(Exception? ex)
         {

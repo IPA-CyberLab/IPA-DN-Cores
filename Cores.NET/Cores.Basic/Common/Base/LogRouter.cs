@@ -235,7 +235,7 @@ namespace IPA.Cores.Basic
             var routeList = this.RouteList;
             foreach (LogRouteBase route in routeList)
             {
-                await route._CancelSafe();
+                await route._CancelSafeAsync();
             }
         }
 
@@ -269,7 +269,7 @@ namespace IPA.Cores.Basic
                 this.RouteList = this.RouteList.Remove(route);
             }
 
-            await route._CancelSafe();
+            await route._CancelSafeAsync();
             await route._CleanupSafeAsync();
             await route._DisposeSafeAsync();
         }

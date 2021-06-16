@@ -2122,11 +2122,11 @@ namespace IPA.Cores.Basic
         {
             // Direct
             foreach (var obj in GetDirectDisposeLinkList())
-                await obj._CancelSafe(ex);
+                await obj._CancelSafeAsync(ex);
 
             // Indirect
             foreach (var obj in GetIndirectDisposeLinkList())
-                TaskUtil.StartAsyncTaskAsync(() => obj._CancelSafe(ex))._LaissezFaire();
+                TaskUtil.StartAsyncTaskAsync(() => obj._CancelSafeAsync(ex))._LaissezFaire();
         }
 
         async Task CleanupDisposeLinksAsync(Exception? ex)
@@ -2361,7 +2361,7 @@ namespace IPA.Cores.Basic
 
         public async Task DisposeWithCleanupAsync(Exception? ex = null)
         {
-            await this._CancelSafe(ex);
+            await this._CancelSafeAsync(ex);
             await this._CleanupSafeAsync(ex);
             this._DisposeSafe(ex);
         }
@@ -2941,7 +2941,7 @@ namespace IPA.Cores.Basic
         public void ThrowIfCancellationRequested() => this.CancelToken.ThrowIfCancellationRequested();
     }
 
-    public delegate Task<bool> TimeoutDetectorCallback(TimeoutDetector detector);
+    public delegate Task<bool> TimeoutDetectorAsyncCallback(TimeoutDetector detector);
 
     public class TimeoutDetector : AsyncService
     {
@@ -2964,10 +2964,10 @@ namespace IPA.Cores.Basic
 
         CancelWatcher? cancelWatcherToCancel;
 
-        TimeoutDetectorCallback? Callback;
+        TimeoutDetectorAsyncCallback? CallbackAsync;
 
         public TimeoutDetector(int timeout, CancelWatcher? watcher = null, AsyncAutoResetEvent? eventAuto = null, AsyncManualResetEvent? eventManual = null,
-            TimeoutDetectorCallback? callback = null, object? userState = null)
+            TimeoutDetectorAsyncCallback? callback = null, object? userState = null)
         {
             if (timeout == System.Threading.Timeout.Infinite || timeout == int.MaxValue)
             {
@@ -2978,11 +2978,11 @@ namespace IPA.Cores.Basic
             this.Timeout = timeout;
             this.eventAuto = eventAuto;
             this.eventManual = eventManual;
-            this.Callback = callback;
+            this.CallbackAsync = callback;
             this.UserState = userState;
 
             NextTimeout = FastTick64.Now + this.Timeout;
-            MainTask = TimeoutDetectorMainLoop();
+            MainTask = TimeoutDetectorMainLoopAsync();
         }
 
         public void Keep()
@@ -2990,7 +2990,7 @@ namespace IPA.Cores.Basic
             Interlocked.Exchange(ref this.NextTimeout, FastTick64.Now + this.Timeout);
         }
 
-        async Task TimeoutDetectorMainLoop()
+        async Task TimeoutDetectorMainLoopAsync()
         {
             using (LeakChecker.Enter())
             {
@@ -3004,7 +3004,7 @@ namespace IPA.Cores.Basic
 
                     if (remainTime <= 0)
                     {
-                        if (Callback != null && await Callback(this))
+                        if (CallbackAsync != null && await CallbackAsync(this))
                         {
                             Keep();
                         }
@@ -3249,7 +3249,7 @@ namespace IPA.Cores.Basic
 
     public class DelayAction : AsyncService
     {
-        public Func<object?, Task> Action { get; }
+        public Func<object?, Task> ActionAsync { get; }
         public object? UserState { get; }
         public int Timeout { get; }
 
@@ -3261,13 +3261,13 @@ namespace IPA.Cores.Basic
 
         public Exception? Exception { get; private set; } = null;
 
-        public DelayAction(int timeout, Func<object?, Task> action, object? userState = null, bool doNotBlockOnDispose = false)
+        public DelayAction(int timeout, Func<object?, Task> actionAsync, object? userState = null, bool doNotBlockOnDispose = false)
         {
             if (timeout < 0 || timeout == int.MaxValue) timeout = System.Threading.Timeout.Infinite;
 
             this.DoNotBlockOnDispose = doNotBlockOnDispose;
             this.Timeout = timeout;
-            this.Action = action;
+            this.ActionAsync = actionAsync;
             this.UserState = userState;
 
             this.MainTask = MainTaskProcAsync();
@@ -3277,7 +3277,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                await this.Action(this.UserState);
+                await this.ActionAsync(this.UserState);
 
                 IsCompleted = true;
                 IsCompletedSuccessfully = true;

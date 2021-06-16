@@ -140,7 +140,7 @@ namespace IPA.Cores.Basic
 
                     using (var session = sessions.Enter(sessionId))
                     {
-                        await using (var delay = new DelayAction((int)(Math.Min(timespan * 3 + 180 * 1000, int.MaxValue)), x => app._CancelSafe(new TimeoutException())))
+                        await using (var delay = new DelayAction((int)(Math.Min(timespan * 3 + 180 * 1000, int.MaxValue)), x => app._CancelSafeAsync(new TimeoutException())))
                         {
                             if (dir == Direction.Recv)
                             {

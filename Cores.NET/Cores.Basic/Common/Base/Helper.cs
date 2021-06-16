@@ -1428,7 +1428,7 @@ namespace IPA.Cores.Helper.Basic
             catch { }
         }
 
-        public static async Task _CancelSafe(this IAsyncService? obj, Exception? ex = null)
+        public static async Task _CancelSafeAsync(this IAsyncService? obj, Exception? ex = null)
         {
             try
             {
