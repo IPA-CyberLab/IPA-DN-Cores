@@ -1724,7 +1724,7 @@ namespace IPA.TestDev
             // 打ち返し: 220 kqps くらい出た
 
             bool reply = true;
-            using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(numCpus: 8));
+            using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions());
             uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
 
             using var sock = uu.GetSocket();
@@ -1782,7 +1782,7 @@ namespace IPA.TestDev
             //          (Windows でも 250 kpps くらい出た)
 
             bool reply = true;
-            using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(numCpus: 8));
+            using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions());
             uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
 
             using var sock = uu.GetSocket();
@@ -1821,7 +1821,7 @@ namespace IPA.TestDev
 
             bool reply = true;
 
-            using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(numCpus: 8));
+            using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions());
             uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
 
             using var sock = uu.GetSocket();

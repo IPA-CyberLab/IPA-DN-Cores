@@ -1779,8 +1779,9 @@ namespace IPA.Cores.Basic
         public int PollingMsecs { get; }
         public int NumCpus { get; }
 
-        public NetUdpListenerOptions(int pollingMsecs = 1 * 1000, int numCpus = 1)
+        public NetUdpListenerOptions(int pollingMsecs = 1 * 1000, int numCpus = 0)
         {
+            if (numCpus <= 0) numCpus = Env.NumCpus;
             if (pollingMsecs >= 0) pollingMsecs = Math.Max(pollingMsecs, 250);
             this.PollingMsecs = pollingMsecs;
             this.NumCpus = Math.Min(Math.Max(numCpus, 1), 64);
