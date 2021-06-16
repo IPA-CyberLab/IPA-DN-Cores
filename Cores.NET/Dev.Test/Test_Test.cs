@@ -1729,15 +1729,9 @@ namespace IPA.TestDev
                 
                 await sock.SendDatagramAsync(new Datagram(dnsQueryMessage, IPEndPoint.Parse("8.8.8.8:53"), null));
 
-                Where();
-
                 var recv = await sock.ReceiveDatagramAsync();
 
-                Where();
-
                 await sock.DisconnectAsync();
-
-                Where();
             });
         }
 
@@ -2087,7 +2081,7 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (true)
+            if (false)
             {
                 Test_210616_Udp_Indirect_Socket_DNS_Client();
                 return;
