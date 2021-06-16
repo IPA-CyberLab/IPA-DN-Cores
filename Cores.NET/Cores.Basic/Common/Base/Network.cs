@@ -4134,7 +4134,7 @@ namespace IPA.Cores.Basic
                 UdpBulkReader = new AsyncBulkReceiver<Datagram, int>(async (x, cancel2) =>
                 {
                     PalSocketReceiveFromResult ret = await Sock.ReceiveFromAsync(TmpRecvBuffer);
-                    return new ValueOrClosed<Datagram>(new Datagram(TmpRecvBuffer.AsSpan().Slice(0, ret.ReceivedBytes).ToArray(), (IPEndPoint)ret.RemoteEndPoint));
+                    return new ValueOrClosed<Datagram>(new Datagram(TmpRecvBuffer.AsSpan().Slice(0, ret.ReceivedBytes).ToArray(), (IPEndPoint)ret.RemoteEndPoint, (IPEndPoint?)ret.LocalEndPoint));
                 });
 
                 RecvLoopTask = UDP_RecvLoop();
@@ -4319,7 +4319,7 @@ namespace IPA.Cores.Basic
                                 events: new AsyncAutoResetEvent[] { EventSendNow });
                         }
 
-                        int r = await Sock.SendToAsync(pkt!.Data._AsSegment(), pkt.IPEndPoint!);
+                        int r = await Sock.SendToAsync(pkt!.Data._AsSegment(), pkt.RemoteIPEndPoint!);
                         if (r <= 0) break;
 
                         EventSendReady.Set();

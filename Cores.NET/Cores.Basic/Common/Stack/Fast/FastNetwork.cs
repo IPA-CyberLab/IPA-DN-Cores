@@ -586,7 +586,7 @@ namespace IPA.Cores.Basic
                         // パイプを切断する。デッドロック防止のため非同期呼び出しとする。
                         // (Cancel -> Detach -> SetStreamReceiveTimeout 解除 -> 上の if 文の _DisposeSafe(); でデッドロックするため)
                         TaskUtil.StartSyncTaskAsync(() => PipePoint.Pipe.Cancel(new TimeoutException("StreamSendTimeout")))._LaissezFaire(noDebugMessage: true);
-                        
+
                         return false;
                     });
 
@@ -992,17 +992,17 @@ namespace IPA.Cores.Basic
             if (flush) FastFlush(false, true, checkDisconnect: false);
         }
 
-        public async Task SendToAsync(ReadOnlyMemory<byte> buffer, EndPoint remoteEndPoint, CancellationToken cancel = default)
+        public async Task SendToAsync(ReadOnlyMemory<byte> buffer, EndPoint remoteEndPoint, EndPoint? localEndPoint, DatagramFlag flag = DatagramFlag.None, CancellationToken cancel = default)
         {
-            Datagram sendData = new Datagram(buffer.Span.ToArray(), remoteEndPoint);
+            Datagram sendData = new Datagram(buffer.Span.ToArray(), remoteEndPoint, localEndPoint, flag);
 
             await FastSendToAsync(sendData, cancel);
 
             if (AutoFlush) FastFlush(false, true, checkDisconnect: false);
         }
 
-        public void SendTo(ReadOnlyMemory<byte> buffer, EndPoint remoteEndPoint, CancellationToken cancel = default)
-            => SendToAsync(buffer, remoteEndPoint, cancel)._GetResult();
+        public void SendTo(ReadOnlyMemory<byte> buffer, EndPoint remoteEndPoint, EndPoint? localEndPoint, DatagramFlag flag = DatagramFlag.None, CancellationToken cancel = default)
+            => SendToAsync(buffer, remoteEndPoint, localEndPoint, flag, cancel)._GetResult();
 
         public async Task<IReadOnlyList<Datagram>> FastReceiveFromAsync(CancellationToken cancel = default)
         {
@@ -1052,15 +1052,17 @@ namespace IPA.Cores.Basic
 
             PalSocketReceiveFromResult ret = new PalSocketReceiveFromResult();
             ret.ReceivedBytes = datagram.Data.Length;
-            ret.RemoteEndPoint = datagram.EndPoint!;
+            ret.RemoteEndPoint = datagram.RemoteEndPoint!;
+            ret.LocalEndPoint = datagram.LocalEndPoint;
             return ret;
         }
 
-        public int ReceiveFrom(Memory<byte> buffer, out EndPoint remoteEndPoint, CancellationToken cancel = default)
+        public int ReceiveFrom(Memory<byte> buffer, out EndPoint remoteEndPoint, out EndPoint? localEndPoint, CancellationToken cancel = default)
         {
             PalSocketReceiveFromResult r = ReceiveFromAsync(buffer, cancel)._GetResult();
 
             remoteEndPoint = r.RemoteEndPoint!;
+            localEndPoint = r.LocalEndPoint;
 
             return r.ReceivedBytes;
         }
@@ -1601,7 +1603,7 @@ namespace IPA.Cores.Basic
                     foreach (Datagram data in sendList)
                     {
                         cancel.ThrowIfCancellationRequested();
-                        await Socket.SendToAsync(data.Data._AsSegment(), data.EndPoint!);
+                        await Socket.SendToAsync(data.Data._AsSegment(), data.RemoteEndPoint!);
                     }
                     return 0;
                 },
@@ -1618,7 +1620,7 @@ namespace IPA.Cores.Basic
 
             me.FastMemoryAllocatorForDatagram.Commit(ref tmp, ret.ReceivedBytes);
 
-            Datagram pkt = new Datagram(tmp, ret.RemoteEndPoint);
+            Datagram pkt = new Datagram(tmp, ret.RemoteEndPoint, ret.LocalEndPoint);
             return new ValueOrClosed<Datagram>(pkt);
         });
 

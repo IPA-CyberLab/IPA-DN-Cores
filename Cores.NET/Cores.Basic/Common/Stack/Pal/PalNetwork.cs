@@ -130,6 +130,7 @@ namespace IPA.Cores.Basic
     {
         public int ReceivedBytes;
         public EndPoint RemoteEndPoint;
+        public EndPoint? LocalEndPoint;
     }
 
     public class PalSocket : IDisposable
@@ -154,6 +155,11 @@ namespace IPA.Cores.Basic
 
         public CachedProperty<EndPoint> LocalEndPoint { get; }
         public CachedProperty<EndPoint> RemoteEndPoint { get; }
+
+        public IPEndPoint LocalIPEndPoint => (IPEndPoint)LocalEndPoint;
+        public IPEndPoint RemoteIPEndPoint => (IPEndPoint)RemoteEndPoint;
+
+        IPEndPoint? UdpLocalEndPointCache = null;
 
         public TcpDirectionType Direction { get; }
 
@@ -252,6 +258,8 @@ namespace IPA.Cores.Basic
             _Socket.Bind(localEP);
             this.LocalEndPoint.Flush();
             this.RemoteEndPoint.Flush();
+
+            this.UdpLocalEndPointCache = (IPEndPoint)this.LocalEndPoint;
         }
 
         public static bool IsUdpReuseSupported()
@@ -343,6 +351,7 @@ namespace IPA.Cores.Basic
                 {
                     ReceivedBytes = ret.ReceivedBytes,
                     RemoteEndPoint = ret.RemoteEndPoint,
+                    LocalEndPoint = this.UdpLocalEndPointCache,
                 };
             }
             catch (SocketException e) when (CanUdpSocketErrorBeIgnored(e) || _Socket.Available >= 1)

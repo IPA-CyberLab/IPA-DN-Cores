@@ -1751,7 +1751,7 @@ namespace IPA.TestDev
                             if (reply)
                             {
                                 var newData = msg.BuildPacket().ToArray().AsMemory();
-                                var newDg = new Datagram(newData, item.IPEndPoint!);
+                                var newDg = new Datagram(newData, item.RemoteIPEndPoint!, item.LocalIPEndPoint);
                                 sendList.Add(newDg);
                             }
                         }
@@ -1956,7 +1956,7 @@ namespace IPA.TestDev
 
                                 memAlloc.Commit(ref tmp, ret.ReceivedBytes);
 
-                                Datagram pkt = new Datagram(tmp, ret.RemoteEndPoint);
+                                Datagram pkt = new Datagram(tmp, ret.RemoteEndPoint, ret.LocalEndPoint);
                                 return new ValueOrClosed<Datagram>(pkt);
                             }, 256);
 
@@ -1973,7 +1973,7 @@ namespace IPA.TestDev
                                             foreach (var dg in sendList)
                                             {
                                                 //await ss.SendToAsync(dg.EndPoint!, dg.Data);
-                                                await s.SendToAsync(dg.Data, dg.EndPoint!);
+                                                await s.SendToAsync(dg.Data, dg.RemoteEndPoint!);
                                             }
                                         }
 

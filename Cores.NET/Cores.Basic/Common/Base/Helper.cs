@@ -2274,9 +2274,15 @@ namespace IPA.Cores.Helper.Basic
             return (ex is OperationCanceledException || ex is TaskCanceledException);
         }
 
+        [MethodImpl(Inline)]
+        public static IPVersion _GetIPVersion(this IPEndPoint ip)
+            => _GetIPVersion(ip.AddressFamily);
+
+        [MethodImpl(Inline)]
         public static IPVersion _GetIPVersion(this IPAddress addr)
             => _GetIPVersion(addr.AddressFamily);
 
+        [MethodImpl(Inline)]
         public static IPVersion _GetIPVersion(this AddressFamily af)
         {
             if (af == AddressFamily.InterNetwork)
@@ -2285,6 +2291,16 @@ namespace IPA.Cores.Helper.Basic
                 return IPVersion.IPv6;
 
             throw new ArgumentOutOfRangeException("Invalid AddressFamily");
+        }
+
+        [MethodImpl(Inline)]
+        public static IPAddress _GetAnyAddress(this IPVersion ver)
+        {
+            if (ver == IPVersion.IPv4)
+                return IPAddress.Any;
+            else if (ver == IPVersion.IPv6)
+                return IPAddress.IPv6Any;
+            throw new ArgumentOutOfRangeException(nameof(ver));
         }
 
         public static string _Base64Encode(this byte[] data) => Str.Base64Encode(data);

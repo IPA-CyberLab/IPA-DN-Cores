@@ -610,10 +610,13 @@ namespace IPA.Cores.Basic
                 }
 
                 [MethodImpl(Inline)]
-                public PalSocket? SearchSocket(IPEndPoint localEp)
+                public PalSocket? SearchSocket(IPEndPoint? localEp)
                 {
-                    if (this.SocketListByEndPoint.TryGetValue(localEp, out PalSocket? s1))
-                        return s1;
+                    if (localEp != null)
+                    {
+                        if (this.SocketListByEndPoint.TryGetValue(localEp, out PalSocket? s1))
+                            return s1;
+                    }
 
                     return this.WildcardSocket;
                 }
@@ -707,13 +710,15 @@ namespace IPA.Cores.Basic
 
                             foreach (var sendItem in sendList)
                             {
-                                var s = socketDb.SearchSocket(sendItem.IPEndPoint!);
+                                var s = socketDb.SearchSocket(sendItem.LocalIPEndPoint);
                                 //var s = socketDb.WildcardSocket;
+
+                                $"Selected Socket = {s.LocalIPEndPoint}"._Debug();
 
                                 if (s != null)
                                 {
                                     //Where();
-                                    await s.SendToAsync(sendItem.Data, sendItem.IPEndPoint!);
+                                    await s.SendToAsync(sendItem.Data, sendItem.RemoteIPEndPoint!);
                                 }
                             }
                         }
@@ -781,7 +786,7 @@ namespace IPA.Cores.Basic
 
                     memAlloc.Commit(ref tmp, ret.ReceivedBytes);
 
-                    Datagram pkt = new Datagram(tmp, ret.RemoteEndPoint);
+                    Datagram pkt = new Datagram(tmp, ret.RemoteEndPoint, ret.LocalEndPoint);
                     return new ValueOrClosed<Datagram>(pkt);
                 });
 
