@@ -567,7 +567,6 @@ namespace IPA.Cores.Basic
         {
             if (Direction == AttachDirection.A_LowerSide)
                 throw new ApplicationException("The attachment direction is From_Lower_To_A_LowerSide.");
-
             using (await AsyncLock.LockWithAwait())
             {
                 if (timeout < 0 || timeout == int.MaxValue)
@@ -616,13 +615,10 @@ namespace IPA.Cores.Basic
 
         protected override async Task CancelImplAsync(Exception? ex)
         {
-            using (await AsyncLock.LockWithAwait())
+            if (Direction == AttachDirection.B_UpperSide)
             {
-                if (Direction == AttachDirection.B_UpperSide)
-                {
-                    await SetStreamReceiveTimeoutAsync(Timeout.Infinite);
-                    await SetStreamSendTimeoutAsync(Timeout.Infinite);
-                }
+                await SetStreamReceiveTimeoutAsync(Timeout.Infinite);
+                await SetStreamSendTimeoutAsync(Timeout.Infinite);
             }
 
             if (PipePoint != null)
