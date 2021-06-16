@@ -713,7 +713,7 @@ namespace IPA.Cores.Basic
                                 var s = socketDb.SearchSocket(sendItem.LocalIPEndPoint);
                                 //var s = socketDb.WildcardSocket;
 
-                                $"Selected Socket = {s.LocalIPEndPoint}"._Debug();
+                                //$"Selected Socket = {s.LocalIPEndPoint}"._Debug();
 
                                 if (s != null)
                                 {
