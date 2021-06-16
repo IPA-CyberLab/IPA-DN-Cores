@@ -2092,7 +2092,7 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (true)
+            if (false)
             {
                 Test_210616_Udp_Indirect_Socket_DNS_Client();
                 return;
