@@ -33,7 +33,7 @@
 // Author: Daiyuu Nobori
 // Description
 
-#if CORES_CODES_THINCONTROLLER
+#if CORES_CODES_THINWEBCLIENT
 
 using System;
 using System.Buffers;
