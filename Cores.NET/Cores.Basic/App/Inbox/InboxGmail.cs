@@ -90,9 +90,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception? ex)
+        protected override Task CancelImplAsync(Exception? ex)
         {
-            base.CancelImpl(ex);
+            return base.CancelImplAsync(ex);
         }
 
         protected override Task CleanupImplAsync(Exception? ex)

@@ -256,7 +256,7 @@ namespace IPA.Cores.Basic
 
         public static readonly long DefaultThreshold = CoresConfig.FastBufferConfig.DefaultFastStreamBufferThreshold;
 
-        public List<Action> OnDisconnected { get; } = new List<Action>();
+        public List<Func<Task>> OnDisconnected { get; } = new List<Func<Task>>();
 
         public CriticalSection LockObj { get; } = new CriticalSection<FastStreamBuffer<T>>();
 
@@ -1323,7 +1323,7 @@ namespace IPA.Cores.Basic
         Once internalDisconnectedFlag;
         public bool IsDisconnected { get => internalDisconnectedFlag.IsSet; }
 
-        public List<Action> OnDisconnected { get; } = new List<Action>();
+        public List<Func<Task>> OnDisconnected { get; } = new List<Func<Task>>();
 
         public static readonly long DefaultThreshold = CoresConfig.FastBufferConfig.DefaultFastDatagramBufferThreshold;
 

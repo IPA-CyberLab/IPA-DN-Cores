@@ -1070,9 +1070,9 @@ namespace IPA.Cores.Basic
             return (X509Certificate2)X509CertificateSelector(sniHostname, true).NativeCertificate;
         }
 
-        protected override void CancelImpl(Exception? ex)
+        protected override Task CancelImplAsync(Exception? ex)
         {
-            base.CancelImpl(ex);
+            return base.CancelImplAsync(ex);
         }
 
         protected override async Task CleanupImplAsync(Exception? ex)

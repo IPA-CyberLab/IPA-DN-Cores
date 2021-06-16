@@ -149,10 +149,10 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception? ex)
+        protected override async Task CancelImplAsync(Exception? ex)
         {
-            StreamCache._DisposeSafe();
-            base.CancelImpl(ex);
+            await StreamCache._DisposeSafeAsync();
+            await base.CancelImplAsync(ex);
         }
 
         protected override void DisposeImpl(Exception? ex)
@@ -549,12 +549,12 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception? ex)
+        protected override async Task CancelImplAsync(Exception? ex)
         {
             this.ConnectedSocket._DisposeSafe();
             this.ListeningSocket._DisposeSafe();
 
-            base.CancelImpl(ex);
+            await base .CancelImplAsync(ex);
         }
 
         protected override void DisposeImpl(Exception? ex)
@@ -1178,10 +1178,10 @@ namespace IPA.Cores.Basic
                 UpperPoint = AddDirectDisposeLink(counterPart);
                 Pipe = AddDirectDisposeLink(UpperPoint.Pipe);
 
-                this.Pipe.OnDisconnected.Add(() =>
+                this.Pipe.OnDisconnected.Add(async () =>
                 {
                     this.Disconnected = DateTimeOffset.Now;
-                    this._DisposeSafe();
+                    await this._DisposeSafeAsync();
                 });
             }
             catch
@@ -1347,7 +1347,7 @@ namespace IPA.Cores.Basic
         {
             var ret = new PCapConnSockRecorder(this, initialEmitter, bufferSize, discardMode);
 
-            this.AddOnCancelAction(() =>
+            this.AddOnCancelAction(async () =>
             {
                 try
                 {
@@ -1355,8 +1355,10 @@ namespace IPA.Cores.Basic
                 }
                 catch { }
 
-                TaskUtil.StartSyncTaskAsync(() => ret._DisposeSafe())._LaissezFaire();
-            });
+                TaskUtil.StartAsyncTaskAsync(() => ret._DisposeSafeAsync())._LaissezFaire();
+
+                await Task.CompletedTask;
+            })._LaissezFaire();
 
             return ret;
         }
@@ -1446,8 +1448,8 @@ namespace IPA.Cores.Basic
                 Lower.ExceptionQueue.Encounter(Upper.ExceptionQueue);
                 Lower.LayerInfo.Encounter(Upper.LayerInfo);
 
-                Lower.AddOnDisconnected(() => Upper.Cancel(new DisconnectedException()));
-                Upper.AddOnDisconnected(() => Lower.Cancel(new DisconnectedException()));
+                Lower.AddOnDisconnected(() => Upper.CancelAsync(new DisconnectedException()));
+                Upper.AddOnDisconnected(() => Lower.CancelAsync(new DisconnectedException()));
             }
             catch
             {
@@ -1590,12 +1592,12 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception? ex)
+        protected override async Task CancelImplAsync(Exception? ex)
         {
-            this.SslStream._DisposeSafe();
-            this.LowerStream._DisposeSafe();
+            await this.SslStream._DisposeSafeAsync();
+            await this.LowerStream._DisposeSafeAsync();
 
-            base.CancelImpl(ex);
+            await base.CancelImplAsync(ex);
         }
 
         protected override void DisposeImpl(Exception? ex)
@@ -2114,9 +2116,9 @@ namespace IPA.Cores.Basic
             }
             finally
             {
-                sock._CancelSafe(new DisconnectedException());
+                await sock._CancelSafe(new DisconnectedException());
                 await sock._CleanupSafeAsync();
-                sock._DisposeSafe();
+                await sock._DisposeSafeAsync();
             }
         }
 
@@ -2154,9 +2156,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception? ex)
-        {
-        }
+        protected override Task CancelImplAsync(Exception? ex) => Task.CompletedTask;
 
         protected override async Task CleanupImplAsync(Exception? ex)
         {

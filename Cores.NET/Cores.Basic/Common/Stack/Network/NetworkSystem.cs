@@ -146,10 +146,11 @@ namespace IPA.Cores.Basic
                 OpenedSockList.Add(sock);
             }
 
-            sock.AddOnCancelAction(() =>
+            sock.AddOnCancelAction(async () =>
             {
                 this.RemoveFromOpenedSockList(sock);
-            });
+                await Task.CompletedTask;
+            })._LaissezFaire();
 
             if (CoresConfig.SocketLogSettings.DisableSocketLog == false)
             {
@@ -200,7 +201,7 @@ namespace IPA.Cores.Basic
 
         public override string ToString() => this.Param?.Name ?? "NetworkSystemBase";
 
-        protected override void CancelImpl(Exception? ex) { }
+        protected override Task CancelImplAsync(Exception? ex) => Task.CompletedTask;
 
         protected override async Task CleanupImplAsync(Exception? ex)
         {

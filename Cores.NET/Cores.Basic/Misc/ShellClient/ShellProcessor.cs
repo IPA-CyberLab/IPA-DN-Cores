@@ -163,7 +163,7 @@ namespace IPA.Cores.Basic
             if (result == null || isEof)
             {
                 // 期待されたプロンプト等が現われず EOF に達してしまったので、途中のごみは出さずに切断されたことにする
-                this.Sock.Disconnect();
+                await this.Sock.DisconnectAsync();
                 throw new DisconnectedException();
             }
 

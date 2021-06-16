@@ -402,9 +402,9 @@ namespace IPA.Cores.Basic
             LogTask = LogThreadAsync()._LeakCheck();
         }
 
-        protected override void CancelImpl(Exception? ex)
+        protected override async Task CancelImplAsync(Exception? ex)
         {
-            this.Eraser._CancelSafe(ex);
+            await this.Eraser._CancelSafe(ex);
         }
 
         protected override async Task CleanupImplAsync(Exception? ex)
@@ -419,11 +419,11 @@ namespace IPA.Cores.Basic
             this.Eraser._DisposeSafe(ex);
         }
 
-        public void Stop(bool abandonUnwritenData)
+        public async Task Stop(bool abandonUnwritenData)
         {
             this.DiscardPendingDataOnDispose = abandonUnwritenData;
 
-            this.Cancel();
+            await this.CancelAsync();
         }
 
         async Task LogThreadAsync()

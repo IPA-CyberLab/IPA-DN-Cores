@@ -118,7 +118,7 @@ namespace IPA.Cores.Basic
 
                     var attachHandle = app.AttachHandle;
 
-                    attachHandle.SetStreamReceiveTimeout(RecvTimeout);
+                    await attachHandle.SetStreamReceiveTimeoutAsync(RecvTimeout);
 
                     await st.SendAsync("TrafficServer\r\n\0"._GetBytes_Ascii());
 
@@ -163,8 +163,8 @@ namespace IPA.Cores.Basic
                                         break;
                                 }
 
-                                attachHandle.SetStreamReceiveTimeout(Timeout.Infinite);
-                                attachHandle.SetStreamSendTimeout(60 * 5 * 1000);
+                                await attachHandle.SetStreamReceiveTimeoutAsync(Timeout.Infinite);
+                                await attachHandle.SetStreamSendTimeoutAsync(60 * 5 * 1000);
 
                                 session.Context.NoMoreData = true;
 
@@ -180,8 +180,8 @@ namespace IPA.Cores.Basic
                             }
                             else
                             {
-                                attachHandle.SetStreamReceiveTimeout(Timeout.Infinite);
-                                attachHandle.SetStreamSendTimeout(Timeout.Infinite);
+                                await attachHandle.SetStreamReceiveTimeoutAsync(Timeout.Infinite);
+                                await attachHandle.SetStreamSendTimeoutAsync(Timeout.Infinite);
 
                                 while (true)
                                 {
@@ -364,6 +364,7 @@ namespace IPA.Cores.Basic
                         await using (new DelayAction(TimeSpan * 3 + 180 * 1000, x =>
                         {
                             cancelWatcher.Cancel();
+                            return Task.CompletedTask;
                         }, doNotBlockOnDispose: true))
                         {
                             ClientStartEvent.Set(true);
@@ -440,7 +441,7 @@ namespace IPA.Cores.Basic
                     PipeStream st = app.GetStream();
 
                     if (dir == Direction.Recv)
-                        app.AttachHandle.SetStreamReceiveTimeout(RecvTimeout);
+                        await app.AttachHandle.SetStreamReceiveTimeoutAsync(RecvTimeout);
 
                     try
                     {
@@ -490,7 +491,7 @@ namespace IPA.Cores.Basic
                         }
                         else
                         {
-                            attachHandle.SetStreamReceiveTimeout(Timeout.Infinite);
+                            await attachHandle.SetStreamReceiveTimeoutAsync(Timeout.Infinite);
 
                             while (true)
                             {

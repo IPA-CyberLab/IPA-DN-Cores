@@ -1745,7 +1745,7 @@ namespace IPA.Cores.Basic
         public RandomAccessHandle GetRandomAccessHandle(string fileName, bool writeMode, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
             => GetRandomAccessHandleAsync(fileName, writeMode, flags, cancel)._GetResult();
 
-        protected override void CancelImpl(Exception? ex) { }
+        protected override Task CancelImplAsync(Exception? ex) => Task.CompletedTask;
 
         protected override async Task CleanupImplAsync(Exception? ex)
         {

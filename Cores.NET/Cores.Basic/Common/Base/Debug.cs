@@ -1505,7 +1505,7 @@ namespace IPA.Cores.Basic
                     }
                     await Task.CompletedTask;
                 },
-                (current, nonsense, userState) =>
+                (current, nonsense, userState, _) =>
                 {
                     int r = CurrentCounter.Increment();
                     int x = CoresConfig.DebugSettings.AutoGcCollectIntervalSecs;

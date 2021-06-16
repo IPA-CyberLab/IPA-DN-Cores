@@ -576,7 +576,7 @@ namespace IPA.Cores.Basic
                         if (acceptQueueUtil != null)
                         {
                             // Listener が廃棄される際は GenericAcceptQueueUtil キューをキャンセルするよう登録する
-                            ret.AddOnCancelAction(() => TaskUtil.StartSyncTaskAsync(() => acceptQueueUtil._DisposeSafe(new OperationCanceledException()))._LaissezFaire(false));
+                            ret.AddOnCancelAction(() => TaskUtil.StartAsyncTaskAsync(() => acceptQueueUtil._DisposeSafeAsync(new OperationCanceledException())))._LaissezFaire(true);
 
                             // Listner クラスの AcceptNextSocketFromQueueUtilAsync を登録する
                             ret.AcceptNextSocketFromQueueUtilAsync = (cancel) => acceptQueueUtil.AcceptAsync(cancel);

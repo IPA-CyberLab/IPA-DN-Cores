@@ -192,7 +192,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public List<Action> OnDisconnected { get; } = new List<Action>();
+        public List<Func<Task>> OnDisconnected { get; } = new List<Func<Task>>();
 
         public AsyncManualResetEvent OnDisconnectedEvent { get; } = new AsyncManualResetEvent();
 
@@ -221,11 +221,11 @@ namespace IPA.Cores.Basic
                 DatagramAtoB.Info.Encounter(LayerInfo);
                 DatagramBtoA.Info.Encounter(LayerInfo);
 
-                StreamAtoB.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
-                StreamBtoA.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
+                StreamAtoB.OnDisconnected.Add(() => this.CancelAsync(new DisconnectedException()));
+                StreamBtoA.OnDisconnected.Add(() => this.CancelAsync(new DisconnectedException()));
 
-                DatagramAtoB.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
-                DatagramBtoA.OnDisconnected.Add(() => this.Cancel(new DisconnectedException()));
+                DatagramAtoB.OnDisconnected.Add(() => this.CancelAsync(new DisconnectedException()));
+                DatagramBtoA.OnDisconnected.Add(() => this.CancelAsync(new DisconnectedException()));
 
                 A_LowerSide = new PipePoint(this, PipePointSide.A_LowerSide, CancelWatcher, StreamAtoB, StreamBtoA, DatagramAtoB, DatagramBtoA);
                 B_UpperSide = new PipePoint(this, PipePointSide.B_UpperSide, CancelWatcher, StreamBtoA, StreamAtoB, DatagramBtoA, DatagramAtoB);
@@ -298,14 +298,14 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception? ex)
+        protected override async Task CancelImplAsync(Exception? ex)
         {
             if (ex != null)
             {
                 ExceptionQueue.Add(ex);
             }
 
-            Action[] evList;
+            Func<Task>[] evList;
             lock (OnDisconnected)
                 evList = OnDisconnected.ToArray();
 
@@ -313,7 +313,7 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    ev();
+                    await ev();
                 }
                 catch { }
             }
@@ -385,7 +385,7 @@ namespace IPA.Cores.Basic
         public LayerInfo LayerInfo { get => Pipe.LayerInfo; }
 
         public bool IsCanceled { get => this.Pipe.IsCanceled; }
-        public void AddOnDisconnected(Action action)
+        public void AddOnDisconnected(Func<Task> action)
         {
             lock (Pipe.OnDisconnected)
                 Pipe.OnDisconnected.Add(action);
@@ -427,15 +427,16 @@ namespace IPA.Cores.Basic
         public void CheckCanceled() => Pipe.CheckDisconnected();
         public void CheckCanceledAndNoMoreData() => Pipe.CheckDisconnectedAndNoMoreData();
 
-        public void Disconnect() => Cancel(new DisconnectedException());
+        public void Disconnect() => CancelAsync(new DisconnectedException());
 
-        public void Cancel(Exception? ex = null) { this.Pipe.Cancel(ex); }
+        public Task CancelAsync(Exception? ex = null) { return this.Pipe.CancelAsync(ex); }
 
         public Task CleanupAsync(Exception? ex = null) => this.Pipe.CleanupAsync(ex);
 
         public void Dispose() => this.Pipe.Dispose();
         public void Dispose(Exception? ex = null) => this.Pipe.Dispose(ex);
         public Task DisposeWithCleanupAsync(Exception? ex = null) => this.Pipe.DisposeWithCleanupAsync(ex);
+        public ValueTask DisposeAsync(Exception? ex) => this.Pipe.DisposeAsync(ex);
     }
 
     public class AttachHandle : AsyncService
@@ -504,18 +505,20 @@ namespace IPA.Cores.Basic
         int receiveTimeoutProcId = 0;
         TimeoutDetector? receiveTimeoutDetector = null;
 
-        public void SetStreamTimeout(int recvTimeout = Timeout.Infinite, int sendTimeout = Timeout.Infinite)
+        public async Task SetStreamTimeoutAsync(int recvTimeout = Timeout.Infinite, int sendTimeout = Timeout.Infinite)
         {
-            SetStreamReceiveTimeout(recvTimeout);
-            SetStreamSendTimeout(sendTimeout);
+            await SetStreamReceiveTimeoutAsync(recvTimeout);
+            await SetStreamSendTimeoutAsync(sendTimeout);
         }
 
-        public void SetStreamReceiveTimeout(int timeout = Timeout.Infinite)
+        readonly AsyncLock AsyncLock = new AsyncLock();
+
+        public async Task SetStreamReceiveTimeoutAsync(int timeout = Timeout.Infinite)
         {
             if (Direction == AttachDirection.A_LowerSide)
                 throw new ApplicationException("The attachment direction is From_Lower_To_A_LowerSide.");
 
-            lock (LockObj)
+            using (await AsyncLock.LockWithAwait())
             {
                 if (timeout < 0 || timeout == int.MaxValue)
                 {
@@ -523,23 +526,27 @@ namespace IPA.Cores.Basic
                     {
                         PipePoint.StreamReader.EventListeners.UnregisterCallback(receiveTimeoutProcId);
                         receiveTimeoutProcId = 0;
-                        receiveTimeoutDetector._DisposeSafe();
+                        await receiveTimeoutDetector._DisposeSafeAsync();
                     }
                 }
                 else
                 {
                     CheckNotCanceled();
 
-                    SetStreamReceiveTimeout(Timeout.Infinite);
+                    if (receiveTimeoutProcId != 0)
+                    {
+                        PipePoint.StreamReader.EventListeners.UnregisterCallback(receiveTimeoutProcId);
+                        receiveTimeoutProcId = 0;
+                        await receiveTimeoutDetector._DisposeSafeAsync();
+                    }
 
-                    receiveTimeoutDetector = new TimeoutDetector(timeout, callback: (x) =>
+                    receiveTimeoutDetector = new TimeoutDetector(timeout, callback: async (x) =>
                     {
                         if (PipePoint.StreamReader.IsReadyToWrite() == false)
                             return true;
 
-                        // パイプを切断する。デッドロック防止のため非同期呼び出しとする。
-                        // (Cancel -> Detach -> SetStreamReceiveTimeout 解除 -> 上の if 文の _DisposeSafe(); でデッドロックするため)
-                        TaskUtil.StartSyncTaskAsync(() => PipePoint.Pipe.Cancel(new TimeoutException("StreamReceiveTimeout")))._LaissezFaire(noDebugMessage: true);
+                        // パイプを切断する。
+                        await PipePoint.Pipe.CancelAsync(new TimeoutException("StreamReceiveTimeout"));
 
                         return false;
                     });
@@ -556,12 +563,12 @@ namespace IPA.Cores.Basic
         int sendTimeoutProcId = 0;
         TimeoutDetector? sendTimeoutDetector = null;
 
-        public void SetStreamSendTimeout(int timeout = Timeout.Infinite)
+        public async Task SetStreamSendTimeoutAsync(int timeout = Timeout.Infinite)
         {
             if (Direction == AttachDirection.A_LowerSide)
                 throw new ApplicationException("The attachment direction is From_Lower_To_A_LowerSide.");
 
-            lock (LockObj)
+            using (await AsyncLock.LockWithAwait())
             {
                 if (timeout < 0 || timeout == int.MaxValue)
                 {
@@ -569,23 +576,27 @@ namespace IPA.Cores.Basic
                     {
                         PipePoint.StreamWriter.EventListeners.UnregisterCallback(sendTimeoutProcId);
                         sendTimeoutProcId = 0;
-                        sendTimeoutDetector._DisposeSafe();
+                        await sendTimeoutDetector._DisposeSafeAsync();
                     }
                 }
                 else
                 {
                     CheckNotCanceled();
 
-                    SetStreamSendTimeout(Timeout.Infinite);
+                    if (sendTimeoutProcId != 0)
+                    {
+                        PipePoint.StreamWriter.EventListeners.UnregisterCallback(sendTimeoutProcId);
+                        sendTimeoutProcId = 0;
+                        await sendTimeoutDetector._DisposeSafeAsync();
+                    }
 
-                    sendTimeoutDetector = new TimeoutDetector(timeout, callback: (x) =>
+                    sendTimeoutDetector = new TimeoutDetector(timeout, callback: async (x) =>
                     {
                         if (PipePoint.StreamWriter.IsReadyToRead() == false)
                             return true;
 
-                        // パイプを切断する。デッドロック防止のため非同期呼び出しとする。
-                        // (Cancel -> Detach -> SetStreamReceiveTimeout 解除 -> 上の if 文の _DisposeSafe(); でデッドロックするため)
-                        TaskUtil.StartSyncTaskAsync(() => PipePoint.Pipe.Cancel(new TimeoutException("StreamSendTimeout")))._LaissezFaire(noDebugMessage: true);
+                        // パイプを切断する。
+                        await PipePoint.Pipe.CancelAsync(new TimeoutException("StreamSendTimeout"));
 
                         return false;
                     });
@@ -603,14 +614,14 @@ namespace IPA.Cores.Basic
         public PipeStream GetStream(bool autoFlush = true, bool noCheckDisconnected = false)
             => PipePoint._InternalGetStream(autoFlush, noCheckDisconnected: noCheckDisconnected);
 
-        protected override void CancelImpl(Exception? ex)
+        protected override async Task CancelImplAsync(Exception? ex)
         {
-            lock (LockObj)
+            using (await AsyncLock.LockWithAwait())
             {
                 if (Direction == AttachDirection.B_UpperSide)
                 {
-                    SetStreamReceiveTimeout(Timeout.Infinite);
-                    SetStreamSendTimeout(Timeout.Infinite);
+                    await SetStreamReceiveTimeoutAsync(Timeout.Infinite);
+                    await SetStreamSendTimeoutAsync(Timeout.Infinite);
                 }
             }
 
@@ -1078,7 +1089,7 @@ namespace IPA.Cores.Basic
                 Point.DatagramWriter.CompleteWrite(checkDisconnect: checkDisconnect);
         }
 
-        public void Disconnect() => Point.Cancel(new DisconnectedException());
+        public void Disconnect() => Point.CancelAsync(new DisconnectedException());
 
         public override bool DataAvailable => IsReadyToReceive(1);
 
@@ -1262,11 +1273,11 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-                this.Cancel(ex);
+                await this.CancelAsync(ex);
             }
             finally
             {
-                this.Cancel();
+                await this.CancelAsync();
             }
         }
 
@@ -1329,7 +1340,7 @@ namespace IPA.Cores.Basic
 
                         if (isDisconnectedNow)
                         {
-                            this.Cancel(new DisconnectedException());
+                            await this.CancelAsync(new DisconnectedException());
                             break;
                         }
 
@@ -1343,11 +1354,11 @@ namespace IPA.Cores.Basic
                 catch (Exception ex)
                 {
                     ExceptionQueue.Raise(ex);
-                    this.Cancel(ex);
+                    await this.CancelAsync(ex);
                 }
                 finally
                 {
-                    this.Cancel();
+                    await this.CancelAsync();
                 }
             }
         }
@@ -1397,7 +1408,7 @@ namespace IPA.Cores.Basic
 
                         if (isDisconnectedNow)
                         {
-                            this.Cancel(new DisconnectedException());
+                            await this.CancelAsync(new DisconnectedException());
                             break;
                         }
 
@@ -1411,11 +1422,11 @@ namespace IPA.Cores.Basic
                 catch (Exception ex)
                 {
                     ExceptionQueue.Raise(ex);
-                    this.Cancel(ex);
+                    await this.CancelAsync(ex);
                 }
                 finally
                 {
-                    this.Cancel();
+                    await this.CancelAsync();
                 }
             }
         }
@@ -1454,11 +1465,11 @@ namespace IPA.Cores.Basic
                 catch (Exception ex)
                 {
                     ExceptionQueue.Raise(ex);
-                    this.Cancel(ex);
+                    await this.CancelAsync(ex);
                 }
                 finally
                 {
-                    this.Cancel();
+                    await this.CancelAsync();
                 }
             }
         }
@@ -1502,11 +1513,11 @@ namespace IPA.Cores.Basic
                 catch (Exception ex)
                 {
                     ExceptionQueue.Raise(ex);
-                    this.Cancel(ex);
+                    await this.CancelAsync(ex);
                 }
                 finally
                 {
-                    this.Cancel();
+                    await this.CancelAsync();
                 }
             }
         }
@@ -1642,11 +1653,11 @@ namespace IPA.Cores.Basic
             fifo.CompleteWrite();
         }
 
-        protected override void CancelImpl(Exception? ex)
+        protected override async Task CancelImplAsync(Exception? ex)
         {
             Socket._DisposeSafe();
 
-            base.CancelImpl(ex);
+            await base.CancelImplAsync(ex);
         }
 
         protected override void DisposeImpl(Exception? ex)
@@ -1758,12 +1769,12 @@ namespace IPA.Cores.Basic
             => throw new NotSupportedException();
 
 
-        protected override void CancelImpl(Exception? ex)
+        protected override async Task CancelImplAsync(Exception? ex)
         {
-            ReadStream._DisposeSafe();
-            if (WriteStream != ReadStream) WriteStream._DisposeSafe();
+            await ReadStream._DisposeSafeAsync();
+            if (WriteStream != ReadStream) await WriteStream._DisposeSafeAsync();
 
-            base.CancelImpl(ex);
+            await base.CancelImplAsync(ex);
         }
 
         protected override void DisposeImpl(Exception? ex)
@@ -1842,38 +1853,38 @@ namespace IPA.Cores.Basic
         protected override Task DatagramWriteToObjectImplAsync(FastDatagramBuffer fifo, CancellationToken cancel) => throw new NotImplementedException();
 
         Once DisconnectFlag;
-        void InternalDisconnect(Exception? ex)
+        async Task InternalDisconnectAsync(Exception? ex)
         {
             if (DisconnectFlag.IsFirstCall())
             {
-                try { PipeToRead.Complete(); } catch { }
+                try { await PipeToRead.CompleteAsync(); } catch { }
                 try { PipeToRead.CancelPendingRead(); } catch { }
-                try { PipeToWrite.Complete(); } catch { }
+                try { await PipeToWrite.CompleteAsync(); } catch { }
                 try { PipeToWrite.CancelPendingFlush(); } catch { }
             }
         }
 
-        protected override void CancelImpl(Exception? ex)
+        protected override async Task CancelImplAsync(Exception? ex)
         {
             try
             {
-                InternalDisconnect(ex);
+                await InternalDisconnectAsync(ex);
             }
             finally
             {
-                base.CancelImpl(ex);
+                await base.CancelImplAsync(ex);
             }
         }
 
-        protected override void DisposeImpl(Exception? ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
-                InternalDisconnect(ex);
+                await InternalDisconnectAsync(ex);
             }
             finally
             {
-                base.DisposeImpl(ex);
+                await base.CleanupImplAsync(ex);
             }
         }
     }

@@ -1952,8 +1952,9 @@ namespace IPA.Cores.Basic
     {
         Task CleanupAsync(Exception? ex = null);
         Task DisposeWithCleanupAsync(Exception? ex = null);
-        void Cancel(Exception? ex = null);
+        Task CancelAsync(Exception? ex = null);
         void Dispose(Exception? ex = null);
+        ValueTask DisposeAsync(Exception? ex = null);
     }
 
 #pragma warning disable CA1063 // Implement IDisposable Correctly
@@ -1969,7 +1970,7 @@ namespace IPA.Cores.Basic
         readonly RefInt CriticalCounter = new RefInt();
 
         readonly List<Action> OnDisposeList = new List<Action>();
-        readonly List<Action> OnCancelList = new List<Action>();
+        readonly List<Func<Task>> OnCancelList = new List<Func<Task>>();
 
         readonly List<IAsyncService> DirectDisposeList = new List<IAsyncService>();
         readonly List<IAsyncService> IndirectDisposeList = new List<IAsyncService>();
@@ -1986,10 +1987,10 @@ namespace IPA.Cores.Basic
 
             this.CancelWatcher = new CancelWatcher(cancel);
 
-            this.CancelWatcher.EventList.RegisterCallback(CanceledCallback);
+            this.CancelWatcher.AsyncEventList.RegisterCallback(CanceledCallbackAsync);
         }
 
-        public void AddOnCancelAction(Action proc)
+        public async Task AddOnCancelAction(Func<Task> proc)
         {
             if (proc != null)
             {
@@ -2012,7 +2013,7 @@ namespace IPA.Cores.Basic
                     // 既にキャンセルされているので今すぐ呼び出す
                     try
                     {
-                        proc();
+                        await proc();
                     }
                     catch { }
                 }
@@ -2117,15 +2118,15 @@ namespace IPA.Cores.Basic
                 return IndirectDisposeList.ToArray();
         }
 
-        void CancelDisposeLinks(Exception? ex)
+        async Task CancelDisposeLinks(Exception? ex)
         {
             // Direct
             foreach (var obj in GetDirectDisposeLinkList())
-                obj._CancelSafe(ex);
+                await obj._CancelSafe(ex);
 
             // Indirect
             foreach (var obj in GetIndirectDisposeLinkList())
-                TaskUtil.StartSyncTaskAsync(() => obj._CancelSafe(ex))._LaissezFaire();
+                TaskUtil.StartAsyncTaskAsync(() => obj._CancelSafe(ex))._LaissezFaire();
         }
 
         async Task CleanupDisposeLinksAsync(Exception? ex)
@@ -2235,10 +2236,10 @@ namespace IPA.Cores.Basic
 
         Exception CancelReason = new OperationCanceledException();
 
-        public void Disconnect() => Cancel(new DisconnectedException());
+        public Task DisconnectAsync() => CancelAsync(new DisconnectedException());
 
         Once Canceled;
-        public void Cancel(Exception? ex = null)
+        public async Task CancelAsync(Exception? ex = null)
         {
             if (Canceled.IsFirstCall() == false) return;
 
@@ -2247,35 +2248,35 @@ namespace IPA.Cores.Basic
 
             this.CancelWatcher.Cancel();
 
-            CancelInternalMain();
+            await CancelInternalMainAsync();
         }
 
-        protected virtual void CancelImpl(Exception? ex) { }
+        protected virtual Task CancelImplAsync(Exception? ex) => Task.CompletedTask;
         protected virtual Task CleanupImplAsync(Exception? ex) => Task.CompletedTask;
         protected virtual void DisposeImpl(Exception? ex) { }
 
-        void CanceledCallback(CancelWatcher caller, NonsenseEventType type, object? userState, object? eventState)
-            => CancelInternalMain();
+        Task CanceledCallbackAsync(CancelWatcher caller, NonsenseEventType type, object? userState, object? eventState)
+            => CancelInternalMainAsync();
 
         Once CanceledInternal;
-        void CancelInternalMain()
+        async Task CancelInternalMainAsync()
         {
             IsCanceledPrivateFlag = true;
 
             if (CanceledInternal.IsFirstCall())
             {
-                CancelDisposeLinks(CancelReason);
+                await CancelDisposeLinks(CancelReason);
 
                 try
                 {
-                    CancelImpl(CancelReason);
+                    await CancelImplAsync(CancelReason);
                 }
                 catch (Exception ex)
                 {
                     Dbg.WriteLine("CancelInternal exception: " + ex._GetSingleException().ToString());
                 }
 
-                Action[]? procList = null;
+                Func<Task>[]? procList = null;
 
                 lock (LockObj)
                 {
@@ -2283,11 +2284,11 @@ namespace IPA.Cores.Basic
                     OnCancelList.Clear();
                 }
 
-                foreach (Action proc in procList)
+                foreach (Func<Task> proc in procList)
                 {
                     try
                     {
-                        proc();
+                        await proc();
                     }
                     catch { }
                 }
@@ -2302,7 +2303,7 @@ namespace IPA.Cores.Basic
 
             if (Cleanuped.IsFirstCall())
             {
-                Cancel(ex);
+                await CancelAsync(ex);
 
                 while (CriticalCounter.Value >= 1)
                     await Task.Delay(10);
@@ -2360,7 +2361,7 @@ namespace IPA.Cores.Basic
 
         public async Task DisposeWithCleanupAsync(Exception? ex = null)
         {
-            this._CancelSafe(ex);
+            await this._CancelSafe(ex);
             await this._CleanupSafeAsync(ex);
             this._DisposeSafe(ex);
         }
@@ -2801,7 +2802,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public delegate Task AsyncEventCallback<TCaller, TEventType>(TCaller caller, TEventType type, object? userState);
+    public delegate Task AsyncEventCallback<TCaller, TEventType>(TCaller caller, TEventType type, object? userState, object? eventParam);
 
     public class AsyncEvent<TCaller, TEventType>
     {
@@ -2814,11 +2815,11 @@ namespace IPA.Cores.Basic
             this.UserState = userState;
         }
 
-        public async Task CallSafeAsync(TCaller buffer, TEventType type)
+        public async Task CallSafeAsync(TCaller buffer, TEventType type, object? eventState)
         {
             try
             {
-                await this.Proc(buffer, type, UserState);
+                await this.Proc(buffer, type, UserState, eventState);
             }
             catch { }
         }
@@ -2857,12 +2858,12 @@ namespace IPA.Cores.Basic
         public ValueHolder<int> RegisterAsyncEventWithUsing(AsyncAutoResetEvent ev)
             => new ValueHolder<int>(id => UnregisterAsyncEvent(id), RegisterAsyncEvent(ev));
 
-        public async Task FireAsync(TCaller caller, TEventType type)
+        public async Task FireAsync(TCaller caller, TEventType type, object? eventState = null)
         {
             var listenerList = ListenerList.GetListFast();
             if (listenerList != null)
                 foreach (var e in listenerList)
-                    await e.CallSafeAsync(caller, type);
+                    await e.CallSafeAsync(caller, type, eventState);
 
             var asyncEventList = AsyncEventList.GetListFast();
             if (asyncEventList != null)
@@ -2879,6 +2880,7 @@ namespace IPA.Cores.Basic
         readonly IAsyncDisposable RegisterHolder;
 
         public FastEventListenerList<CancelWatcher, NonsenseEventType> EventList { get; } = new FastEventListenerList<CancelWatcher, NonsenseEventType>();
+        public AsyncEventListenerList<CancelWatcher, NonsenseEventType> AsyncEventList { get; } = new AsyncEventListenerList<CancelWatcher, NonsenseEventType>();
 
         public CancellationToken CancelToken { get; }
 
@@ -2892,7 +2894,11 @@ namespace IPA.Cores.Basic
             CancellationToken[] tokens = this.GrandCancelTokenSource.Token._SingleArray().Concat(cancels).ToArray();
 
             this.ObjectHolder = TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelToken, tokens);
-            this.RegisterHolder = cancelToken.Register(() => this.EventList.Fire(this, NonsenseEventType.Nonsense));
+            this.RegisterHolder = cancelToken.Register(() =>
+            {
+                this.EventList.Fire(this, NonsenseEventType.Nonsense);
+                this.AsyncEventList.FireAsync(this, NonsenseEventType.Nonsense)._LaissezFaire();
+            });
             this.CancelToken = cancelToken;
 
             this.LeakHolder = LeakChecker.Enter(LeakCounterKind.CancelWatcher);
@@ -2935,7 +2941,7 @@ namespace IPA.Cores.Basic
         public void ThrowIfCancellationRequested() => this.CancelToken.ThrowIfCancellationRequested();
     }
 
-    public delegate bool TimeoutDetectorCallback(TimeoutDetector detector);
+    public delegate Task<bool> TimeoutDetectorCallback(TimeoutDetector detector);
 
     public class TimeoutDetector : AsyncService
     {
@@ -2998,7 +3004,7 @@ namespace IPA.Cores.Basic
 
                     if (remainTime <= 0)
                     {
-                        if (Callback != null && Callback(this))
+                        if (Callback != null && await Callback(this))
                         {
                             Keep();
                         }
@@ -3243,7 +3249,7 @@ namespace IPA.Cores.Basic
 
     public class DelayAction : AsyncService
     {
-        public Action<object?> Action { get; }
+        public Func<object?, Task> Action { get; }
         public object? UserState { get; }
         public int Timeout { get; }
 
@@ -3255,7 +3261,7 @@ namespace IPA.Cores.Basic
 
         public Exception? Exception { get; private set; } = null;
 
-        public DelayAction(int timeout, Action<object?> action, object? userState = null, bool doNotBlockOnDispose = false)
+        public DelayAction(int timeout, Func<object?, Task> action, object? userState = null, bool doNotBlockOnDispose = false)
         {
             if (timeout < 0 || timeout == int.MaxValue) timeout = System.Threading.Timeout.Infinite;
 
@@ -3264,14 +3270,14 @@ namespace IPA.Cores.Basic
             this.Action = action;
             this.UserState = userState;
 
-            this.MainTask = MainTaskProc();
+            this.MainTask = MainTaskProcAsync();
         }
 
-        void InternalInvokeAction()
+        async Task InternalInvokeActionAsync()
         {
             try
             {
-                this.Action(this.UserState);
+                await this.Action(this.UserState);
 
                 IsCompleted = true;
                 IsCompletedSuccessfully = true;
@@ -3285,7 +3291,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        async Task MainTaskProc()
+        async Task MainTaskProcAsync()
         {
             using (LeakChecker.Enter())
             {
@@ -3295,7 +3301,7 @@ namespace IPA.Cores.Basic
                         cancels: this.GrandCancel._SingleArray(),
                         exceptions: ExceptionWhen.CancelException);
 
-                    InternalInvokeAction();
+                    await InternalInvokeActionAsync();
                 }
                 catch
                 {

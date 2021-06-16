@@ -332,7 +332,6 @@ namespace IPA.Cores.Basic
             {
                 if (target.IsDisconnected)
                 {
-                    Dbg.Where();
                     if (FinishedFlags[(int)direction].IsFirstCall())
                     {
                         if (FinishedOrReset.IsFirstCall())
@@ -352,7 +351,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void CancelImpl(Exception? ex)
+        protected override async Task CancelImplAsync(Exception? ex)
         {
             try
             {
@@ -363,7 +362,7 @@ namespace IPA.Cores.Basic
             }
             finally
             {
-                base.CancelImpl(ex);
+                await base.CancelImplAsync(ex);
             }
         }
     }

@@ -1392,6 +1392,15 @@ namespace IPA.Cores.Helper.Basic
             catch { }
         }
 
+        public static async Task _DisposeSafeAsync(this IAsyncService? obj, Exception ?ex)
+        {
+            try
+            {
+                if (obj != null) await obj.DisposeAsync(ex);
+            }
+            catch { }
+        }
+
         public static async Task _DisposeSafeAsync(this IAsyncDisposable? obj)
         {
             try
@@ -1419,11 +1428,12 @@ namespace IPA.Cores.Helper.Basic
             catch { }
         }
 
-        public static void _CancelSafe(this IAsyncService? obj, Exception? ex = null)
+        public static async Task _CancelSafe(this IAsyncService? obj, Exception? ex = null)
         {
             try
             {
-                if (obj != null) obj.Cancel(ex);
+                if (obj != null)
+                    await obj.CancelAsync(ex);
             }
             catch { }
         }

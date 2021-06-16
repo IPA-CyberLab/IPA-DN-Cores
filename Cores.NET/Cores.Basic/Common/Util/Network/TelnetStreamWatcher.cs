@@ -282,8 +282,7 @@ namespace IPA.Cores.Basic
 
         protected override Task UnsubscribeImplAsync(PipePoint pipe)
         {
-            LocalLogRouter.BufferedLogRoute.Unsubscribe(pipe);
-            return Task.CompletedTask;
+            return LocalLogRouter.BufferedLogRoute.UnsubscribeAsync(pipe);
         }
     }
 }

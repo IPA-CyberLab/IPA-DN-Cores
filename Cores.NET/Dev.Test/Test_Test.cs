@@ -515,7 +515,7 @@ namespace IPA.TestDev
                                 await Task.Delay(waittime);
                             }
 
-                            sock.Disconnect();
+                            await sock.DisconnectAsync();
 
                             DisconnectCounter.Increment();
                         }
@@ -546,7 +546,7 @@ namespace IPA.TestDev
                                 await Task.Delay(waittime);
                             }
 
-                            sock.Disconnect();
+                            await sock.DisconnectAsync();
 
                             DisconnectCounter.Increment();
                         }
@@ -1735,7 +1735,7 @@ namespace IPA.TestDev
 
                 Where();
 
-                sock.Disconnect();
+                await sock.DisconnectAsync();
 
                 Where();
             });
@@ -1797,7 +1797,7 @@ namespace IPA.TestDev
 
             Con.ReadLine(">");
 
-            sock.Disconnect();
+            sock.DisconnectAsync();
         }
         // UDP ソケット DatagramSock 経由間接叩き 送受信ベンチマーク
         static void Test_210615_Udp_Indirect_SendRecv_Bench()
@@ -1834,7 +1834,7 @@ namespace IPA.TestDev
 
             Con.ReadLine(">");
 
-            sock.Disconnect();
+            sock.DisconnectAsync();
         }
 
         // UDP ソケット Pipe 経由間接叩き 送受信ベンチマーク
@@ -4248,7 +4248,7 @@ namespace IPA.TestDev
 
                             if (line == "q")
                             {
-                                inst.Cancel();
+                                await inst.CancelAsync();
                             }
 
                             await stdStream.WriteAsync((line + Env.NewLine)._GetBytes(inst.InputEncoding));

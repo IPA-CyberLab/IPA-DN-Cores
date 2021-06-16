@@ -261,7 +261,7 @@ namespace IPA.Cores.Basic
                 }
                 finally
                 {
-                    exec.Cancel();
+                    await exec.CancelAsync();
                 }
 
                 result = new EasyExecResult(exec);
@@ -311,7 +311,7 @@ namespace IPA.Cores.Basic
                 }
                 finally
                 {
-                    exec.Cancel();
+                    await exec.CancelAsync();
                 }
 
                 result = new EasyExecResult(exec);
@@ -864,7 +864,7 @@ namespace IPA.Cores.Basic
         public int WaitForExit(int timeout = Timeout.Infinite, CancellationToken cancel = default)
             => WaitForExitAsync(timeout, cancel)._GetResult();
 
-        protected override void CancelImpl(Exception? ex)
+        protected override async Task CancelImplAsync(Exception? ex)
         {
             try
             {
@@ -889,7 +889,7 @@ namespace IPA.Cores.Basic
             }
             finally
             {
-                base.CancelImpl(ex);
+                await base.CancelImplAsync(ex);
             }
         }
 

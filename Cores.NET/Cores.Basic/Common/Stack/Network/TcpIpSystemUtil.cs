@@ -347,7 +347,8 @@ namespace IPA.Cores.Basic
                 this.Socket.AddOnCancelAction(() =>
                 {
                     this.DisconnectedEvent.Set(true);
-                });
+                    return Task.CompletedTask;
+                })._LaissezFaire();
             }
         }
 

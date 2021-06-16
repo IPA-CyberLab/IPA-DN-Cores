@@ -523,8 +523,8 @@ namespace IPA.Cores.Basic
             catch (Exception ex)
             {
                 // Stop the socket (for just in case)
-                this.Sock._CancelSafe(new DisconnectedException());
-                this.Sock._DisposeSafe(new DisconnectedException());
+                await this.Sock._CancelSafe(new DisconnectedException());
+                await this.Sock._DisposeSafeAsync(new DisconnectedException());
 
                 ex._Debug();
             }
@@ -547,14 +547,14 @@ namespace IPA.Cores.Basic
 
         public override void Abort()
         {
-            this.Sock._CancelSafe();
+            this.Sock._CancelSafe()._LaissezFaire(true);
             this.Sock._DisposeSafe();
             base.Abort();
         }
 
         public override void Abort(ConnectionAbortedException abortReason)
         {
-            this.Sock._CancelSafe(abortReason);
+            this.Sock._CancelSafe(abortReason)._LaissezFaire(true);
             this.Sock._DisposeSafe(abortReason);
             base.Abort(abortReason);
         }

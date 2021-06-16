@@ -343,8 +343,8 @@ namespace IPA.TestDev
 
             TcpIpSystemHostInfo hostInfo = LocalNet.GetHostInfo(true);
 
-            //Net_Test1_PlainTcp_Client();
-            //return 0;
+            Net_Test1_PlainTcp_Client();
+            return 0;
 
             //Net_Test2_Ssl_Client();
 

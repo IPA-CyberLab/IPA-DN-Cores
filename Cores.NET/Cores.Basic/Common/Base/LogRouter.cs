@@ -110,7 +110,7 @@ namespace IPA.Cores.Basic
 
             mySide.CounterPart._MarkNotNull();
 
-            mySide.AddOnDisconnected(() => Unsubscribe(mySide.CounterPart));
+            mySide.AddOnDisconnected(() => UnsubscribeAsync(mySide.CounterPart));
 
             lock (this.MasterBuffer.LockObj)
             {
@@ -130,12 +130,14 @@ namespace IPA.Cores.Basic
             return mySide.CounterPart;
         }
 
-        public void Unsubscribe(PipePoint pipePoint)
+        public async Task UnsubscribeAsync(PipePoint pipePoint)
         {
             lock (LockObj)
             {
                 this.SubscribersList.Remove(pipePoint);
             }
+
+            await Task.CompletedTask;
         }
     }
 
@@ -228,12 +230,12 @@ namespace IPA.Cores.Basic
 
         ImmutableList<LogRouteBase> RouteList = ImmutableList<LogRouteBase>.Empty;
 
-        protected override void CancelImpl(Exception? ex)
+        protected override async Task CancelImplAsync(Exception? ex)
         {
             var routeList = this.RouteList;
             foreach (LogRouteBase route in routeList)
             {
-                route._CancelSafe();
+                await route._CancelSafe();
             }
         }
 
@@ -267,9 +269,9 @@ namespace IPA.Cores.Basic
                 this.RouteList = this.RouteList.Remove(route);
             }
 
-            route._CancelSafe();
+            await route._CancelSafe();
             await route._CleanupSafeAsync();
-            route._DisposeSafe();
+            await route._DisposeSafeAsync();
         }
         public void UninstallLogRoute(LogRouteBase route)
             => UninstallLogRouteAsync(route)._GetResult();

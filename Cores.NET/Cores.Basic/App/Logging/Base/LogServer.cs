@@ -118,7 +118,7 @@ namespace IPA.Cores.Basic
         {
             await using (PipeStream st = sock.GetStream())
             {
-                sock.AttachHandle.SetStreamReceiveTimeout(this.Options.RecvTimeout);
+                await sock.AttachHandle.SetStreamReceiveTimeoutAsync(this.Options.RecvTimeout);
 
                 int magicNumber = await st.ReceiveSInt32Async();
                 if (magicNumber != MagicNumber) throw new ApplicationException($"Invalid magicNumber = 0x{magicNumber:X}");
