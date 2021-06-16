@@ -5650,7 +5650,7 @@ ZIP ファイルのパスワード:
                 Con.ReadLine("Exit>");
 
                 cts.Cancel();
-                client._CancelSafe();
+                client._CancelSafeAsync();
 
                 testTask._TryWait();
             }

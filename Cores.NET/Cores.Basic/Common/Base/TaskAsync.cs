@@ -2992,6 +2992,7 @@ namespace IPA.Cores.Basic
 
         async Task TimeoutDetectorMainLoopAsync()
         {
+            await Task.Yield();
             using (LeakChecker.Enter())
             {
                 while (true)

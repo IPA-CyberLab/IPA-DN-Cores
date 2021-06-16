@@ -545,8 +545,10 @@ namespace IPA.Cores.Basic
                         if (PipePoint.StreamReader.IsReadyToWrite() == false)
                             return true;
 
-                        // パイプを切断する。
-                        await PipePoint.Pipe.CancelAsync(new TimeoutException("StreamReceiveTimeout"));
+                        // パイプを切断する。念のためデッドロック防止のため非同期とする。
+                        TaskUtil.StartAsyncTaskAsync(async () => await PipePoint.Pipe.CancelAsync(new TimeoutException("StreamReceiveTimeout")))._LaissezFaire();
+
+                        await Task.CompletedTask;
 
                         return false;
                     });
@@ -594,8 +596,10 @@ namespace IPA.Cores.Basic
                         if (PipePoint.StreamWriter.IsReadyToRead() == false)
                             return true;
 
-                        // パイプを切断する。
-                        await PipePoint.Pipe.CancelAsync(new TimeoutException("StreamSendTimeout"));
+                        // パイプを切断する。念のためデッドロック防止のため非同期とする。
+                        TaskUtil.StartAsyncTaskAsync(async () => await PipePoint.Pipe.CancelAsync(new TimeoutException("StreamSendTimeout")))._LaissezFaire();
+
+                        await Task.CompletedTask;
 
                         return false;
                     });
