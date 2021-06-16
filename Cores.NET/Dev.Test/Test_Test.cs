@@ -1702,7 +1702,7 @@ namespace IPA.TestDev
                 }
 
                 Con.WriteLine($"Current result: OK = {(list.Where(x => x.Ok).Count())} / Total = i");
-                
+
                 Con.WriteLine();
             }
 
@@ -1715,6 +1715,32 @@ namespace IPA.TestDev
             Time.DateTimeToTime64(new DateTime(9999, 1, 1))._Print();
         }
 
+        // UDP ソケットクライアント (DNS Client 動作テスト)
+        static void Test_210616_Udp_Indirect_Socket_DNS_Client()
+        {
+            var dnsQueryMessage = "0008010000010000000000000476706e3109736f66746574686572036e65740000010001"._GetHexBytes();
+
+            while (true)
+            Async(async () =>
+            {
+                await using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Client, new IPEndPoint(IPAddress.Any, 0)));
+
+                await using var sock = uu.GetSocket();
+                
+                await sock.SendDatagramAsync(new Datagram(dnsQueryMessage, IPEndPoint.Parse("8.8.8.8:53"), null));
+
+                Where();
+
+                var recv = await sock.ReceiveDatagramAsync();
+
+                Where();
+
+                sock.Disconnect();
+
+                Where();
+            });
+        }
+
         // UDP ソケット DatagramSock 経由間接叩き 送受信ベンチマーク (DNS Server 模擬)
         static void Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server()
         {
@@ -1722,9 +1748,10 @@ namespace IPA.TestDev
             // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
             // 受信とパース: 440 kpps くらい出た
             // 打ち返し: 220 kqps くらい出た
+            // RasPi4 で 6 kpps くらい 遅いなあ
 
             bool reply = true;
-            using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions());
+            using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Server));
             uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
 
             using var sock = uu.GetSocket();
@@ -1736,7 +1763,7 @@ namespace IPA.TestDev
             {
                 while (true)
                 {
-                    var list = await sock.ReceiveDatagramsAsync();
+                    var list = await sock.ReceiveDatagramsListAsync();
 
                     recvMeasure.Add(list.Count);
 
@@ -1763,7 +1790,7 @@ namespace IPA.TestDev
 
                     if (reply)
                     {
-                        await sock.SendDatagramsAsync(sendList.ToArray());
+                        await sock.SendDatagramsListAsync(sendList.ToArray());
                     }
                 }
             });
@@ -1782,7 +1809,7 @@ namespace IPA.TestDev
             //          (Windows でも 250 kpps くらい出た)
 
             bool reply = true;
-            using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions());
+            using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Server));
             uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
 
             using var sock = uu.GetSocket();
@@ -1794,13 +1821,13 @@ namespace IPA.TestDev
             {
                 while (true)
                 {
-                    var list = await sock.ReceiveDatagramsAsync();
+                    var list = await sock.ReceiveDatagramsListAsync();
 
                     recvMeasure.Add(list.Count);
 
                     if (reply)
                     {
-                        await sock.SendDatagramsAsync(list.ToArray());
+                        await sock.SendDatagramsListAsync(list.ToArray());
                     }
                 }
             });
@@ -1821,7 +1848,7 @@ namespace IPA.TestDev
 
             bool reply = true;
 
-            using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions());
+            using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Server));
             uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
 
             using var sock = uu.GetSocket();
@@ -2060,6 +2087,12 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210616_Udp_Indirect_Socket_DNS_Client();
+                return;
+            }
+
             if (true)
             {
                 Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server();

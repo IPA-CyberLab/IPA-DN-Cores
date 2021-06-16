@@ -264,6 +264,9 @@ namespace IPA.Cores.Basic
 
         public bool AddBindPoint(NetUdpBindPoint ep)
         {
+            if (this.Options.ListenerOptions.Mode == TcpDirectionType.Client)
+                throw new CoresException("UDP Listener mode is Client. Cannot modify bind ports dynamically.");
+
             bool ret = _EndPointList.Add(ep);
 
             if (ret)
@@ -276,6 +279,9 @@ namespace IPA.Cores.Basic
 
         public bool DeleteBindPoint(NetUdpBindPoint ep)
         {
+            if (this.Options.ListenerOptions.Mode == TcpDirectionType.Client)
+                throw new CoresException("UDP Listener mode is Client. Cannot modify bind ports dynamically.");
+
             bool ret = _EndPointList.Remove(ep);
 
             if (ret)
@@ -568,6 +574,8 @@ namespace IPA.Cores.Basic
             public NetPalUdpProtocolStub Protocol { get; }
             public int CpuId { get; }
             public int NumOkSockets => this.CurrentSocketDatabase.SocketListByEndPoint.Count;
+            PalSocket? ClientSocket { get; }
+            public TcpDirectionType Mode => this.Protocol.Options.ListenerOptions.Mode;
 
             public class SocketDatabase
             {
@@ -668,10 +676,11 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            public UdpSendInstance(NetPalUdpProtocolStub protocol, int cpuId)
+            public UdpSendInstance(NetPalUdpProtocolStub protocol, int cpuId, PalSocket? clientSocket = null)
             {
                 try
                 {
+                    this.ClientSocket = clientSocket;
                     this.Protocol = protocol;
                     this.CpuId = cpuId;
 
@@ -686,6 +695,8 @@ namespace IPA.Cores.Basic
 
             async Task MainLoopProcAsync(CancellationToken cancel)
             {
+                var mode = this.Mode;
+
                 await Task.Yield();
 
                 var reader = this.Protocol.Upper.DatagramReader;
@@ -710,7 +721,16 @@ namespace IPA.Cores.Basic
 
                             foreach (var sendItem in sendList)
                             {
-                                var s = socketDb.SearchSocket(sendItem.LocalIPEndPoint);
+                                PalSocket? s;
+
+                                if (mode == TcpDirectionType.Server)
+                                {
+                                    s = socketDb.SearchSocket(sendItem.LocalIPEndPoint);
+                                }
+                                else
+                                {
+                                    s = this.ClientSocket;
+                                }
                                 //var s = socketDb.WildcardSocket;
 
                                 //$"Selected Socket = {s.LocalIPEndPoint}"._Debug();
@@ -739,6 +759,8 @@ namespace IPA.Cores.Basic
             // このスレッドは回さないことにする
             bool DetermineThisCpuShouldWork()
             {
+                if (this.Mode == TcpDirectionType.Client) return true;
+
                 int minValue = int.MinValue;
                 foreach (var other in this.Protocol.GetUdpSendInstanceList())
                 {
@@ -757,11 +779,14 @@ namespace IPA.Cores.Basic
             public NetUdpBindPoint EndPoint { get; }
             public NetPalUdpProtocolStub Protocol { get; }
             public int CpuId => EndPoint.CpuId;
+            PalSocket? ClientSocket { get; }
+            public TcpDirectionType Mode => this.Protocol.Options.ListenerOptions.Mode;
 
-            public UdpRecvInstance(NetPalUdpProtocolStub protocol, NetUdpBindPoint ep)
+            public UdpRecvInstance(NetPalUdpProtocolStub protocol, NetUdpBindPoint ep, PalSocket? clientSocket = null)
             {
                 try
                 {
+                    this.ClientSocket = clientSocket;
                     this.Protocol = protocol;
                     this.EndPoint = ep;
 
@@ -798,23 +823,30 @@ namespace IPA.Cores.Basic
                 {
                     PalSocket? s = null;
 
-                    try
+                    if (this.Mode == TcpDirectionType.Client)
                     {
-                        s = new PalSocket(EndPoint.EndPoint.AddressFamily, SocketType.Dgram, ProtocolType.Udp, TcpDirectionType.Server);
-                        s.Bind(EndPoint.EndPoint, Protocol.Options.ListenerOptions.NumCpus >= 2);
-                        this.Protocol.RegisterAvailableUdpSocketInternal(this, s);
-                        Con.WriteDebug($"UDP Listener OK: {this.EndPoint}");
-                        numRetry = 0;
+                        s = this.ClientSocket;
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        s._DisposeSafe();
-                        s = null;
-                        if (numRetry == 0)
+                        try
                         {
-                            Con.WriteDebug($"UDP Listener Error: {this.EndPoint}: {ex.Message}");
+                            s = new PalSocket(EndPoint.EndPoint.AddressFamily, SocketType.Dgram, ProtocolType.Udp, this.Protocol.Options.ListenerOptions.Mode);
+                            s.Bind(EndPoint.EndPoint, Protocol.Options.ListenerOptions.NumCpus >= 2);
+                            this.Protocol.RegisterAvailableUdpSocketInternal(this, s);
+                            Con.WriteDebug($"UDP Listener OK: {this.EndPoint}");
+                            numRetry = 0;
                         }
-                        numRetry++;
+                        catch (Exception ex)
+                        {
+                            s._DisposeSafe();
+                            s = null;
+                            if (numRetry == 0)
+                            {
+                                Con.WriteDebug($"UDP Listener Error: {this.EndPoint}: {ex.Message}");
+                            }
+                            numRetry++;
+                        }
                     }
 
                     try
@@ -869,18 +901,21 @@ namespace IPA.Cores.Basic
                     }
                     finally
                     {
-                        if (numRetry == 0)
+                        if (this.Mode == TcpDirectionType.Server)
                         {
-                            Con.WriteDebug($"UDP Listener Stopped: {this.EndPoint}");
-                        }
-                        numRetry++;
+                            if (numRetry == 0)
+                            {
+                                Con.WriteDebug($"UDP Listener Stopped: {this.EndPoint}");
+                            }
+                            numRetry++;
 
-                        if (s != null)
-                        {
-                            this.Protocol.UnregisterAvailableUdpSocketInternal(this, s);
+                            if (s != null)
+                            {
+                                this.Protocol.UnregisterAvailableUdpSocketInternal(this, s);
 
-                            s._DisposeSafe();
-                            s = null;
+                                s._DisposeSafe();
+                                s = null;
+                            }
                         }
                     }
 
@@ -904,9 +939,30 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public NetPalUdpProtocolStub(NetUdpProtocolOptions options, PipePoint? upper = null, CancellationToken cancel = default)
+        public NetPalUdpProtocolStub(NetUdpProtocolOptions options, PipePoint? upper = null, CancellationToken cancel = default, PalSocket? clientSocket = null)
             : base(upper, options, cancel)
         {
+            try
+            {
+                if (options.ListenerOptions.Mode == TcpDirectionType.Client)
+                {
+                    // クライアントモードの場合は、EndPointListUpdatedImpl は決して呼ばれない。
+                    // したがって、コンストラクタの段階で必要なデータ構造とタスクを作成する必要がある。
+                    clientSocket._NullCheck(nameof(clientSocket));
+
+                    NetUdpBindPoint p = new NetUdpBindPoint(clientSocket.LocalIPEndPoint, 0);
+
+                    UdpRecvInstanceList.Add(p, new UdpRecvInstance(this, p, clientSocket));
+
+                    _UdpSendInstanceList = new UdpSendInstance[1];
+                    _UdpSendInstanceList[0] = new UdpSendInstance(this, 0, clientSocket);
+                }
+            }
+            catch (Exception ex)
+            {
+                this._DisposeSafe(ex);
+                throw;
+            }
         }
 
         Once Started;
@@ -917,6 +973,12 @@ namespace IPA.Cores.Basic
 
         protected override void EndPointListUpdatedImpl(IReadOnlyList<NetUdpBindPoint> list)
         {
+            if (Options.ListenerOptions.Mode == TcpDirectionType.Client)
+            {
+                // 異常。ここが呼ばれるはずはない
+                throw new CoresLibException("Abnormal state. Options.ListenerOptions.Mode == TcpDirectionType.Client");
+            }
+
             if (Started.IsFirstCall())
             {
                 this.PollTask = PollTaskProcAsync()._LeakCheck();
@@ -928,7 +990,7 @@ namespace IPA.Cores.Basic
 
         readonly Dictionary<NetUdpBindPoint, UdpRecvInstance> UdpRecvInstanceList = new Dictionary<NetUdpBindPoint, UdpRecvInstance>();
 
-        // 定期的にポーリングを行ない、必要に応じて新しいソケットを作成し、不要なソケットを停止するタスク
+        // 定期的にポーリングを行ない、必要に応じて新しいソケットを作成し、不要なソケットを停止するタスク (Server Mode のみ。Client の場合は呼ばれないはず)
         async Task PollTaskProcAsync()
         {
             CancellationToken cancel = this.GrandCancel;
@@ -954,6 +1016,7 @@ namespace IPA.Cores.Basic
             {
                 await x.Value._DisposeSafeAsync();
             });
+            UdpRecvInstanceList.Clear();
 
             // すべての受信タスクを終了する
             if (this._UdpSendInstanceList != null)
@@ -980,7 +1043,7 @@ namespace IPA.Cores.Basic
 
         public IEnumerable<UdpSendInstance> GetUdpSendInstanceList() => _UdpSendInstanceList._ToArrayList();
 
-        // ポーリングのメインさん
+        // ポーリングのメイン (Server Mode のみ。Client の場合は呼ばれないはず)
         async Task PollMainAsync()
         {
             var hostInfo = LocalNet.GetHostInfo(false);
@@ -1016,7 +1079,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        // 物理的に bind すべき EndPoint のリストを生成する
+        // 物理的に bind すべき EndPoint のリストを生成する (Server Mode のみ。Client の場合は呼ばれないはず)
         List<NetUdpBindPoint> GenerateEndPointCandidateList(TcpIpSystemHostInfo hostInfo)
         {
             var list = this.GetEndPointList();
@@ -1026,24 +1089,30 @@ namespace IPA.Cores.Basic
             {
                 table.Add(item);
 
-                if (item.IPVer == IPVersion.IPv4)
+                if (this.Options.ListenerOptions.Mode == TcpDirectionType.Server)
                 {
-                    if (item.EndPoint.Address._IsAny())
+                    // サーバーモードの場合、0.0.0.0 の EndPoint が指定されている場合は、
+                    // OS に存在するすべての IP インターフェイスの IP アドレスの EndPoint も Listen する。
+
+                    if (item.IPVer == IPVersion.IPv4)
                     {
-                        hostInfo.IPAddressList.Where(x => x._GetIPVersion() == IPVersion.IPv4)
-                            .Where(x => x._IsAny() == false)
-                            .Where(x => x._GetIPAddressType().Bit(IPAddressType.Unicast))
-                            ._DoForEach(x => table.Add(new NetUdpBindPoint(new IPEndPoint(x, item.EndPoint.Port), item.CpuId)));
+                        if (item.EndPoint.Address._IsAny())
+                        {
+                            hostInfo.IPAddressList.Where(x => x._GetIPVersion() == IPVersion.IPv4)
+                                .Where(x => x._IsAny() == false)
+                                .Where(x => x._GetIPAddressType().Bit(IPAddressType.Unicast))
+                                ._DoForEach(x => table.Add(new NetUdpBindPoint(new IPEndPoint(x, item.EndPoint.Port), item.CpuId)));
+                        }
                     }
-                }
-                else if (item.IPVer == IPVersion.IPv6)
-                {
-                    if (item.EndPoint.Address._IsAny())
+                    else if (item.IPVer == IPVersion.IPv6)
                     {
-                        hostInfo.IPAddressList.Where(x => x._GetIPVersion() == IPVersion.IPv6)
-                            .Where(x => x._IsAny() == false)
-                            .Where(x => x._GetIPAddressType().Bit(IPAddressType.Unicast))
-                            ._DoForEach(x => table.Add(new NetUdpBindPoint(new IPEndPoint(x, item.EndPoint.Port), item.CpuId)));
+                        if (item.EndPoint.Address._IsAny())
+                        {
+                            hostInfo.IPAddressList.Where(x => x._GetIPVersion() == IPVersion.IPv6)
+                                .Where(x => x._IsAny() == false)
+                                .Where(x => x._GetIPAddressType().Bit(IPAddressType.Unicast))
+                                ._DoForEach(x => table.Add(new NetUdpBindPoint(new IPEndPoint(x, item.EndPoint.Port), item.CpuId)));
+                        }
                     }
                 }
             }
@@ -1058,6 +1127,22 @@ namespace IPA.Cores.Basic
                 if (this.PollTask != null)
                 {
                     await PollTask._TryAwait();
+                }
+
+                if (this.Options.ListenerOptions.Mode == TcpDirectionType.Client)
+                {
+                    // 終了時には現時点で動作しているすべてのソケットの bind 解除を行なう
+                    await UdpRecvInstanceList.ToList()._DoForEachAsync(async x =>
+                    {
+                        await x.Value._DisposeSafeAsync();
+                    });
+                    UdpRecvInstanceList.Clear();
+
+                    // すべての受信タスクを終了する
+                    if (this._UdpSendInstanceList != null)
+                    {
+                        await _UdpSendInstanceList._DoForEachAsync(async x => await x._DisposeSafeAsync());
+                    }
                 }
             }
             finally
@@ -1163,7 +1248,10 @@ namespace IPA.Cores.Basic
         {
         }
 
-        public async Task SendDatagramsAsync(ReadOnlyMemory<Datagram> list, CancellationToken cancel = default, int timeout = Timeout.Infinite, bool noTimeoutException = false)
+        public Task SendDatagramAsync(Datagram dg, CancellationToken cancel = default, int timeout = Timeout.Infinite, bool noTimeoutException = false)
+            => SendDatagramsListAsync(dg._SingleArray(), cancel, timeout, noTimeoutException);
+
+        public async Task SendDatagramsListAsync(ReadOnlyMemory<Datagram> list, CancellationToken cancel = default, int timeout = Timeout.Infinite, bool noTimeoutException = false)
         {
             cancel.ThrowIfCancellationRequested();
 
@@ -1193,7 +1281,17 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<IReadOnlyList<Datagram>> ReceiveDatagramsAsync(int maxDatagrams = int.MaxValue, CancellationToken cancel = default, int timeout = Timeout.Infinite, bool noTimeoutException = false)
+        public async Task<Datagram> ReceiveDatagramAsync(CancellationToken cancel = default, int timeout = Timeout.Infinite, bool noTimeoutException = false)
+        {
+            var list = await ReceiveDatagramsListAsync(1, cancel, timeout, noTimeoutException);
+
+            if (list.Count == 0 || list.Count >= 2)
+                throw new CoresLibException("list.Count == 0 || list.Count >= 2");
+
+            return list[0];
+        }
+
+        public async Task<IReadOnlyList<Datagram>> ReceiveDatagramsListAsync(int maxDatagrams = int.MaxValue, CancellationToken cancel = default, int timeout = Timeout.Infinite, bool noTimeoutException = false)
         {
             maxDatagrams = Math.Max(maxDatagrams, 1);
 
@@ -1779,12 +1877,28 @@ namespace IPA.Cores.Basic
         public int PollingMsecs { get; }
         public int NumCpus { get; }
 
-        public NetUdpListenerOptions(int pollingMsecs = 1 * 1000, int numCpus = 0)
+        public TcpDirectionType Mode { get; }
+        public IPEndPoint? ClientEndPoint { get; }
+
+        public NetUdpListenerOptions(TcpDirectionType mode, IPEndPoint? clientEndPoint = null, int pollingMsecs = 1 * 1000, int numCpus = 0)
         {
+            this.Mode = mode;
             if (numCpus <= 0) numCpus = Env.NumCpus;
             if (pollingMsecs >= 0) pollingMsecs = Math.Max(pollingMsecs, 250);
             this.PollingMsecs = pollingMsecs;
             this.NumCpus = Math.Min(Math.Max(numCpus, 1), 64);
+
+            if (this.Mode == TcpDirectionType.Client)
+            {
+                clientEndPoint._NullCheck(nameof(clientEndPoint));
+
+                // クライアントモードの場合は、使用 CPU 数 は 1 とする。
+                this.NumCpus = 1;
+
+                this.ClientEndPoint = clientEndPoint;
+            }
+            else if (this.Mode == TcpDirectionType.Server) { }
+            else throw new ArgumentOutOfRangeException(nameof(mode));
         }
     }
 
@@ -2109,13 +2223,53 @@ namespace IPA.Cores.Basic
 
     public class NetPalUdpListener : NetUdpListener
     {
+        PalSocket? ClientSocket = null;
+
         public NetPalUdpListener(NetUdpListenerOptions options) : base(options)
         {
+            try
+            {
+                if (options.Mode == TcpDirectionType.Client)
+                {
+                    // クライアントモードの場合、この時点でソケットを作成してしまう。
+                    // UDP ポート番号が指定されている場合で、ポート競合が発生した場合は、ここで例外が発生する。
+                    // UDP ポート番号が指定されていない場合は、ランダムポートが割り当てられる。
+                    PalSocket s = new PalSocket(options.ClientEndPoint!.AddressFamily, SocketType.Dgram, ProtocolType.Udp, TcpDirectionType.Client);
+                    try
+                    {
+                        s.Bind(options.ClientEndPoint!, false);
+
+                        this.ClientSocket = s;
+                    }
+                    catch
+                    {
+                        s._DisposeSafe();
+                        throw;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this._DisposeSafe(ex);
+                throw;
+            }
         }
 
         protected internal override NetUdpProtocolStubBase CreateNewUdpStubImpl(CancellationToken cancel, NetUdpListenerOptions options)
         {
-            return new NetPalUdpProtocolStub(new NetUdpProtocolOptions(options), cancel: cancel);
+            return new NetPalUdpProtocolStub(new NetUdpProtocolOptions(options), cancel: cancel, clientSocket: this.ClientSocket);
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                this.ClientSocket._DisposeSafe();
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
         }
     }
 }
