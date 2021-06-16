@@ -1721,18 +1721,29 @@ namespace IPA.TestDev
             var dnsQueryMessage = "0008010000010000000000000476706e3109736f66746574686572036e65740000010001"._GetHexBytes();
 
             while (true)
-            Async(async () =>
             {
-                await using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Client, new IPEndPoint(IPAddress.Any, 0)));
+                Where();
+                Async(async () =>
+                {
+                    await using (var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Client, new IPEndPoint(IPAddress.Any, 0))))
+                    {
+                        await using var sock = uu.GetSocket();
 
-                await using var sock = uu.GetSocket();
-                
-                await sock.SendDatagramAsync(new Datagram(dnsQueryMessage, IPEndPoint.Parse("8.8.8.8:53"), null));
+                        await sock.SendDatagramAsync(new Datagram(dnsQueryMessage, IPEndPoint.Parse("8.8.8.8:53"), null));
 
-                var recv = await sock.ReceiveDatagramAsync();
+                        var recv = await sock.ReceiveDatagramAsync(timeout: 100, noTimeoutException: true);
 
-                await sock.DisconnectAsync();
-            });
+
+                        //var dns = DnsUtil.ParsePacket(recv.Data.Span);
+
+                        //dns._PrintAsJson();
+
+                        await sock.DisconnectAsync();
+                        await sock._DisposeSafeAsync();
+                    }
+                });
+                Where();
+            }
         }
 
         // UDP ソケット DatagramSock 経由間接叩き 送受信ベンチマーク (DNS Server 模擬)
@@ -2081,7 +2092,7 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (false)
+            if (true)
             {
                 Test_210616_Udp_Indirect_Socket_DNS_Client();
                 return;

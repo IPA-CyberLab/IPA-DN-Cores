@@ -2301,12 +2301,14 @@ namespace IPA.Cores.Basic
         {
             IsCanceledPrivateFlag = true;
 
+            await CancelAsync(ex);
+
             if (Cleanuped.IsFirstCall())
             {
-                await CancelAsync(ex);
-
                 while (CriticalCounter.Value >= 1)
+                {
                     await Task.Delay(10);
+                }
 
                 await CleanupDisposeLinksAsync(ex);
 
@@ -2321,11 +2323,37 @@ namespace IPA.Cores.Basic
 #pragma warning restore CA1063 // Implement IDisposable Correctly
         public void Dispose(Exception? ex)
         {
+            DisposeAsync(ex)._GetResult();
+        }
+
+        public async Task DisposeWithCleanupAsync(Exception? ex = null)
+        {
+            await this._CancelSafeAsync(ex);
+            await this._CleanupSafeAsync(ex);
+            this._DisposeSafe(ex);
+        }
+
+        // 非同期 Dispose
+        public ValueTask DisposeAsync() => DisposeAsync(null);
+
+        public async ValueTask DisposeAsync(Exception? ex)
+        {
+            // まず非同期 Cleanup をする
+            try
+            {
+                await CleanupAsync(ex);
+            }
+            catch (Exception ex2)
+            {
+                Dbg.WriteLine("Cleanup exception: " + ex2._GetSingleException().ToString());
+            }
+
+            // 次に Dispose のメイン処理を実施する
             IsCanceledPrivateFlag = true;
 
             if (Disposed.IsFirstCall())
             {
-                CleanupAsync(ex)._TryGetResult();
+                //await CleanupAsync(ex);
 
                 DisposeLinks(ex);
 
@@ -2355,34 +2383,8 @@ namespace IPA.Cores.Basic
                     catch { }
                 }
 
-                this.CancelWatcher._DisposeSafe();
+                await this.CancelWatcher._DisposeSafeAsync();
             }
-        }
-
-        public async Task DisposeWithCleanupAsync(Exception? ex = null)
-        {
-            await this._CancelSafeAsync(ex);
-            await this._CleanupSafeAsync(ex);
-            this._DisposeSafe(ex);
-        }
-
-        // 非同期 Dispose
-        public ValueTask DisposeAsync() => DisposeAsync(null);
-
-        public async ValueTask DisposeAsync(Exception? ex)
-        {
-            // まず非同期 Cleanup をする
-            try
-            {
-                await CleanupAsync(ex);
-            }
-            catch (Exception ex2)
-            {
-                Dbg.WriteLine("Cleanup exception: " + ex2._GetSingleException().ToString());
-            }
-
-            // 次に Dispose のメイン処理を実施する
-            Dispose(ex);
         }
     }
 
@@ -2872,7 +2874,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class CancelWatcher : IDisposable
+    public class CancelWatcher : IDisposable, IAsyncDisposable
     {
         readonly CancellationTokenSource GrandCancelTokenSource;
         readonly IDisposable LeakHolder;

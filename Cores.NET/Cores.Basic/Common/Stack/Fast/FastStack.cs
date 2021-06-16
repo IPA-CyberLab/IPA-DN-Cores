@@ -701,7 +701,7 @@ namespace IPA.Cores.Basic
 
                 var reader = this.Protocol.Upper.DatagramReader;
 
-                while (cancel.IsCancellationRequested == false)
+                while (this.IsCanceled == false)
                 {
                     if (DetermineThisCpuShouldWork())
                     {
@@ -819,7 +819,7 @@ namespace IPA.Cores.Basic
                     return new ValueOrClosed<Datagram>(pkt);
                 });
 
-                while (cancel.IsCancellationRequested == false)
+                while (this.IsCanceled == false)
                 {
                     PalSocket? s = null;
 
@@ -856,7 +856,7 @@ namespace IPA.Cores.Basic
                             // 受信ループ
                             var writer = this.Protocol.Upper.DatagramWriter;
 
-                            while (cancel.IsCancellationRequested == false)
+                            while (this.IsCanceled == false)
                             {
                                 Datagram[]? recvList = null;
 
@@ -871,7 +871,10 @@ namespace IPA.Cores.Basic
                                 catch (Exception ex)
                                 {
                                     ex._Debug();
-                                    await SleepRandIntervalAsync();
+                                    if (cancel.IsCancellationRequested == false)
+                                    {
+                                        await SleepRandIntervalAsync();
+                                    }
                                 }
 
                                 if (recvList == null)
@@ -920,7 +923,7 @@ namespace IPA.Cores.Basic
                     }
 
                     if (cancel.IsCancellationRequested) break;
-
+                    
                     // wait for retry
                     await cancel._WaitUntilCanceledAsync(Util.GenRandIntervalWithRetry(100, numRetry, 30 * 1000));
                 }
@@ -930,6 +933,7 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
+                    this.ClientSocket._DisposeSafe();
                     await this.MainLoopToWaitComplete._TryWaitAsync();
                 }
                 finally
@@ -1138,7 +1142,7 @@ namespace IPA.Cores.Basic
                     });
                     UdpRecvInstanceList.Clear();
 
-                    // すべての受信タスクを終了する
+                    // すべての送信タスクを終了する
                     if (this._UdpSendInstanceList != null)
                     {
                         await _UdpSendInstanceList._DoForEachAsync(async x => await x._DisposeSafeAsync());
