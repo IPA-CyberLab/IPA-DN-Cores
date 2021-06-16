@@ -717,12 +717,12 @@ namespace IPA.Cores.Basic
 
                                 if (s != null)
                                 {
-                                    Where();
+                                    //Where();
                                     await s.SendToAsync(sendItem.Data, sendItem.RemoteIPEndPoint!);
                                 }
                                 else
                                 {
-                                    Where();
+                                    //Where();
                                 }
                             }
                         }
