@@ -1963,13 +1963,18 @@ namespace IPA.Cores.Basic
 
         DatagramSock? _Socket = null;
 
-        public DatagramSock GetSocket()
+        public DatagramSock GetSocket(bool autoDisposeParentListener = false)
         {
             EnsureProtocolCreated();
 
             if (_Socket == null)
             {
                 _Socket = new DatagramSock(this.Protocol!);
+
+                if (autoDisposeParentListener)
+                {
+                    _Socket.AddIndirectDisposeLink(this);
+                }
             }
 
             return _Socket;

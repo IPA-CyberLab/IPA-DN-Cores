@@ -1720,14 +1720,14 @@ namespace IPA.TestDev
         {
             var dnsQueryMessage = "0008010000010000000000000476706e3109736f66746574686572036e65740000010001"._GetHexBytes();
 
-            while (true)
+            //while (true)
             {
                 Where();
                 Async(async () =>
                 {
-                    await using (var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Client, new IPEndPoint(IPAddress.Any, 0))))
+                    var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Client, new IPEndPoint(IPAddress.Any, 0)));
                     {
-                        await using var sock = uu.GetSocket();
+                        await using var sock = uu.GetSocket(true);
 
                         await sock.SendDatagramAsync(new Datagram(dnsQueryMessage, IPEndPoint.Parse("8.8.8.8:53"), null));
 

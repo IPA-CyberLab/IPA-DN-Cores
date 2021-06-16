@@ -343,8 +343,8 @@ namespace IPA.TestDev
 
             TcpIpSystemHostInfo hostInfo = LocalNet.GetHostInfo(true);
 
-            //Net_Test1_PlainTcp_Client();
-            //return 0;
+            Net_Test1_PlainTcp_Client();
+            return 0;
 
             //Net_Test2_Ssl_Client();
             //return 0;
@@ -638,7 +638,7 @@ namespace IPA.TestDev
 
             CancellationTokenSource cts = new CancellationTokenSource();
 
-            var client = new SpeedTestClient(LocalNet, LocalNet.GetIp(hostname), 9821, 32, 5 * 1000, SpeedTestModeFlag.Both, cts.Token);
+            var client = new SpeedTestClient(LocalNet, LocalNet.GetIp(hostname), 9821, 32, 1 * 1000, SpeedTestModeFlag.Both, cts.Token);
 
             var task = client.RunClientAsync();
 
