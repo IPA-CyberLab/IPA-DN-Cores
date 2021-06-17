@@ -294,7 +294,7 @@ namespace IPA.Cores.Basic.StressMon
                     DisableHiveBasedSetting = true,
                     DenyRobots = true,
                     UseGlobalCertVault = false,
-                    LocalHostOnly = true,
+                    LocalHostOnly = false,
                     HttpPortsList = new int[] { Consts.Ports.StressMonServerPort }.ToList(),
                     HttpsPortsList = new List<int>(),
                     UseKestrelWithIPACoreStack = true,
