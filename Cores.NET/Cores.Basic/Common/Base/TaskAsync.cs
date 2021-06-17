@@ -1384,7 +1384,10 @@ namespace IPA.Cores.Basic
 
             registration = cancel.Register(() =>
             {
-                tcs.SetResult(true);
+                Task.Factory.StartNew(() =>
+                {
+                    tcs.SetResult(true);
+                });
             });
 
             return tcs.Task;
