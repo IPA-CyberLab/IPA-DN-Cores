@@ -96,8 +96,8 @@ namespace IPA.Cores.Basic
 
         FastEventListenerList<IFastBufferState, FastBufferCallbackEventType> EventListeners { get; }
 
-        void CompleteRead(bool checkDisconnect = false, bool softly = false);
-        void CompleteWrite(bool checkDisconnect = true, bool softly = false);
+        void CompleteRead(bool checkDisconnect = false, bool softly = true);
+        void CompleteWrite(bool checkDisconnect = true, bool softly = true);
     }
 
     public static class IFastBufferStateHelper
@@ -320,7 +320,7 @@ namespace IPA.Cores.Basic
 
         long LastHeadPin = long.MinValue;
 
-        public void CompleteRead(bool checkDisconnect = false, bool softly = false)
+        public void CompleteRead(bool checkDisconnect = false, bool softly = true)
         {
             if (IsEventsEnabled)
             {
@@ -351,7 +351,7 @@ namespace IPA.Cores.Basic
 
         long LastTailPin = long.MinValue;
 
-        public void CompleteWrite(bool checkDisconnect = true, bool softly = false)
+        public void CompleteWrite(bool checkDisconnect = true, bool softly = true)
         {
             if (IsEventsEnabled)
             {
@@ -1386,7 +1386,7 @@ namespace IPA.Cores.Basic
 
         long LastHeadPin = long.MinValue;
 
-        public void CompleteRead(bool checkDisconnect = false, bool softly = false)
+        public void CompleteRead(bool checkDisconnect = false, bool softly = true)
         {
             if (IsEventsEnabled)
             {
@@ -1417,7 +1417,7 @@ namespace IPA.Cores.Basic
 
         long LastTailPin = long.MinValue;
 
-        public void CompleteWrite(bool checkDisconnect = true, bool softly = false)
+        public void CompleteWrite(bool checkDisconnect = true, bool softly = true)
         {
             if (IsEventsEnabled)
             {
