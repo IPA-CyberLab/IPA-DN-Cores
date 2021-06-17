@@ -13,5 +13,5 @@ export HOME=/root
 
 echo test > /etc/se_snmpwork/approot
 
-/etc/se_snmpwork/tmp/snmpwork/se_snmpwork2 -debugmode ReleaseNoLogs -nohup -notelnet SnmpWorkDaemon test
+/etc/se_snmpwork/tmp/snmpwork/se_snmpwork2 $@
 
