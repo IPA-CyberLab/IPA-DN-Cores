@@ -5952,14 +5952,14 @@ namespace IPA.Cores.Basic
             return dt.ToString("yyyyMMdd_HHmmss") + "." + msecStr.Split('.')[1];
         }
 
-        public static string DateTimeToDtstr(DateTime dt, bool withMSecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false)
+        public static string DateTimeToDtstr(DateTime dt, bool withMSecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false, string zeroDateTimeStr = "")
         {
             long ticks = dt.Ticks % 10000000;
             if (ticks >= 9999999) ticks = 9999999;
 
             if (dt._IsZeroDateTime())
             {
-                return "";
+                return zeroDateTimeStr;
             }
 
             string msecStr = "";
@@ -5986,14 +5986,14 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public static string DateTimeToDtstr(DateTimeOffset dt, bool withMSecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false)
+        public static string DateTimeToDtstr(DateTimeOffset dt, bool withMSecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false, string zeroDateTimeStr = "")
         {
             long ticks = dt.Ticks % 10000000;
             if (ticks >= 9999999) ticks = 9999999;
 
             if (dt._IsZeroDateTime())
             {
-                return "";
+                return zeroDateTimeStr;
             }
 
             string msecStr = "";

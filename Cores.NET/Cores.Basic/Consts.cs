@@ -168,6 +168,7 @@ namespace IPA.Cores.Basic
             public const int SnmpWorkHttp = 7007;
             public const int SnmpWorkTelnetStat = 7008;
             public const int DataVaultServerDefaultServicePort = 7009;
+            public const int StressMonServerPort = 7010;
         }
 
         public static partial class DaemonArgKeys

@@ -7,6 +7,10 @@
       "commandName": "Project",
       "commandLineArgs": "/cmd:Test"
     },
+    "TestDev /StressMonServerDaemon test": {
+      "commandName": "Project",
+      "commandLineArgs": "/cmd:StressMonServerDaemon test"
+    },
     "TestDev /SparseFile": {
       "commandName": "Project",
       "commandLineArgs": "/cmd:SparseFile"

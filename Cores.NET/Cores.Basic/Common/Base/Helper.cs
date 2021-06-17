@@ -730,10 +730,10 @@ namespace IPA.Cores.Helper.Basic
         public static string _ToString3(this ulong s) => Str.ToString3(s);
         public static string _ToString3(this uint s) => Str.ToString3(s);
 
-        public static string _ToDtStr(this DateTime dt, bool withMSecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false) => Str.DateTimeToDtstr(dt, withMSecs, option, withNanoSecs);
-        public static string _ToDtStr(this DateTimeOffset dt, bool withMSsecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false) => Str.DateTimeToDtstr(dt, withMSsecs, option, withNanoSecs);
-        public static string _ToLocalDtStr(this DateTimeOffset dt, bool withMSsecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false)
-            => dt.LocalDateTime._ToDtStr(withMSsecs, option, withNanoSecs);
+        public static string _ToDtStr(this DateTime dt, bool withMSecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false, string zeroDateTimeStr = "") => Str.DateTimeToDtstr(dt, withMSecs, option, withNanoSecs, zeroDateTimeStr);
+        public static string _ToDtStr(this DateTimeOffset dt, bool withMSsecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false, string zeroDateTimeStr = "") => Str.DateTimeToDtstr(dt, withMSsecs, option, withNanoSecs, zeroDateTimeStr);
+        public static string _ToLocalDtStr(this DateTimeOffset dt, bool withMSsecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false, string zeroDateTimeStr = "")
+            => dt.LocalDateTime._ToDtStr(withMSsecs, option, withNanoSecs, zeroDateTimeStr);
 
         public static string _ToFullDateTimeStr(this DateTime dt, bool toLocalTime = false, CoreLanguage lang = CoreLanguage.Japanese, FullDateTimeStrFlags flags = FullDateTimeStrFlags.None)
             => Str.DateTimeToStr(dt, toLocalTime, lang, flags);

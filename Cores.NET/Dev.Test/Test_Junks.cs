@@ -45,6 +45,76 @@ using IPA.Cores.ClientApi.GoogleApi;
 
 namespace IPA.TestDev
 {
+    class StressMonServerDaemon : Daemon
+    {
+        IPA.Cores.Basic.StressMon.StressMonServer? host = null;
+
+        public StressMonServerDaemon() : base(new DaemonOptions("StressMonServer", "StressMonServer Service", true))
+        {
+        }
+
+        protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
+        {
+            Con.WriteLine("StressMonServerDaemon: Starting...");
+
+            host = new IPA.Cores.Basic.StressMon.StressMonServer();
+
+            await Task.CompletedTask;
+
+            try
+            {
+                Con.WriteLine("StressMonServerDaemon: Started.");
+            }
+            catch
+            {
+                await host._DisposeSafeAsync();
+                host = null;
+                throw;
+            }
+        }
+
+        protected override async Task StopImplAsync(object? param)
+        {
+            Con.WriteLine("StressMonServerDaemon: Stopping...");
+
+            if (host != null)
+            {
+                await host._DisposeSafeAsync();
+
+                host = null;
+            }
+
+            Con.WriteLine("StressMonServerDaemon: Stopped.");
+        }
+    }
+
+    partial class TestDevCommands
+    {
+        [ConsoleCommand(
+            "Start or stop the StressMonServerDaemon daemon",
+            "StressMonServerDaemon [command]",
+            "Start or stop the StressMonServerDaemon daemon",
+            @"[command]:The control command.
+
+[UNIX / Windows common commands]
+start        - Start the daemon in the background mode.
+stop         - Stop the running daemon in the background mode.
+show         - Show the real-time log by the background daemon.
+test         - Start the daemon in the foreground testing mode.
+
+[Windows specific commands]
+winstart     - Start the daemon as a Windows service.
+winstop      - Stop the running daemon as a Windows service.
+wininstall   - Install the daemon as a Windows service.
+winuninstall - Uninstall the daemon as a Windows service.")]
+        static int StressMonServerDaemon(ConsoleService c, string cmdName, string str)
+        {
+            return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new StressMonServerDaemon(), new DaemonSettings());
+        }
+
+    }
+
+
     public class GmapPhoto
     {
         public DateTimeOffset TimeStamp { get; private set; }
