@@ -182,7 +182,7 @@ namespace IPA.Cores.Basic
             // すなわち Set() すると同一スレッドで継続するか、別スレッドになるか、の違いである。
             // TaskCreationOptions.RunContinuationsAsynchronously を指定すると、別スレッドで作成されるようになる。
             // デッドロック問題がある場合は、TaskCreationOptions.RunContinuationsAsynchronously にすると解決される場合がある。
-            public static readonly Copenhagen<TaskCreationOptions> AsyncEventTaskCreationOption = TaskCreationOptions.None;
+            public static readonly Copenhagen<TaskCreationOptions> AsyncEventTaskCreationOption = TaskCreationOptions.RunContinuationsAsynchronously;
         }
     }
 
