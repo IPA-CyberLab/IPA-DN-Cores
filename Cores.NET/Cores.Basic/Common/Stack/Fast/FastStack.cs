@@ -1176,16 +1176,19 @@ namespace IPA.Cores.Basic
                 if (protocolStack._InternalUpper.CounterPart == null)
                     throw new CoresException("Stack._InternalUpper.CounterPart == null");
 
-                Stack = AddDirectDisposeLink(protocolStack);
+                Stack = AddIndirectDisposeLink(protocolStack);
 
                 PipePoint counterPart = protocolStack._InternalUpper.CounterPart;
-                UpperPoint = AddDirectDisposeLink(counterPart);
-                Pipe = AddDirectDisposeLink(UpperPoint.Pipe);
+                UpperPoint = AddIndirectDisposeLink(counterPart);
+                Pipe = AddIndirectDisposeLink(UpperPoint.Pipe);
 
                 this.Pipe.OnDisconnected.Add(async () =>
                 {
                     this.Disconnected = DateTimeOffset.Now;
-                    await this._DisposeSafeAsync();
+                    // デッドロック防止 2021/06/19
+                    TaskUtil.StartAsyncTaskAsync(async () => await this._DisposeSafeAsync())._LaissezFaire(true);
+                    await Task.CompletedTask;
+                    //await this._DisposeSafeAsync();
                 });
             }
             catch
@@ -1226,7 +1229,7 @@ namespace IPA.Cores.Basic
 
         public NetAppStub GetNetAppProtocolStub()
         {
-            NetAppStub ret = AddDirectDisposeLink(UpperPoint.GetNetAppProtocolStub());
+            NetAppStub ret = AddIndirectDisposeLink(UpperPoint.GetNetAppProtocolStub());
 
             ret.AddIndirectDisposeLink(this);
 

@@ -1241,7 +1241,7 @@ namespace IPA.Cores.Basic
 
         public PipePointAsyncObjectWrapperBase(PipePoint pipePoint, CancellationToken cancel = default) : base(cancel)
         {
-            PipePoint = AddDirectDisposeLink(pipePoint);
+            PipePoint = AddIndirectDisposeLink(pipePoint);
         }
 
         protected Task StartBaseAsyncLoops()
