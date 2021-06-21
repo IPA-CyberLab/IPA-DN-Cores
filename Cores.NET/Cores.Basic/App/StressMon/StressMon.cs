@@ -297,7 +297,7 @@ namespace IPA.Cores.Basic.StressMon
                     LocalHostOnly = false,
                     HttpPortsList = new int[] { Consts.Ports.StressMonServerPort }.ToList(),
                     HttpsPortsList = new List<int>(),
-                    UseKestrelWithIPACoreStack = true,
+                    UseKestrelWithIPACoreStack = false,
                 },
                 true);
             }
