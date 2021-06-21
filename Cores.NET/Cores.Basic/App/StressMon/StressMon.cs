@@ -207,7 +207,7 @@ namespace IPA.Cores.Basic.StressMon
                     int count = this.ReportTable[svr.HostName].Count;
                     foreach (var hist in this.ReportTable[svr.HostName])
                     {
-                        w.WriteLine($"--- History {index++}/{count} of Hostname = {svr.HostName} ({hist.Timestamp._ToDtStr(zeroDateTimeStr: "none")}) ---");
+                        w.WriteLine($"--- History {(index++) + 1}/{count} of Hostname = {svr.HostName} ({hist.Timestamp._ToDtStr(zeroDateTimeStr: "none")}) ---");
                         w.WriteLine(hist.Body._NormalizeCrlf(CrlfStyle.CrLf, true));
                     }
 
