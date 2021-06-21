@@ -12,6 +12,7 @@
     <Nullable>enable</Nullable>
     <TieredCompilationQuickJit>false</TieredCompilationQuickJit>
     <TieredCompilation>false</TieredCompilation>
+    <UseSharedCompilation>false</UseSharedCompilation>
     <PublishReadyToRun>true</PublishReadyToRun>
     <PublishReadyToRunShowWarnings>true</PublishReadyToRunShowWarnings>
     <PublishTrimmed>false</PublishTrimmed>
