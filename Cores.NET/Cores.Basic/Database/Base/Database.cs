@@ -1205,17 +1205,6 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception? ex)
-        {
-            try
-            {
-            }
-            finally
-            {
-                base.DisposeImpl(ex);
-            }
-        }
-
         public delegate bool TransactionalTask();
         public delegate void TransactionalReadonlyTask();
 

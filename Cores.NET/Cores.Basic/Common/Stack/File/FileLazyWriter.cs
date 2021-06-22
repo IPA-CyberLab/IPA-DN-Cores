@@ -316,16 +316,16 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception? ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
-                this.Reader._DisposeSafe(ex);
-                this.Writer._DisposeSafe(ex);
+                await this.Reader._DisposeSafeAsync(ex);
+                await this.Writer._DisposeSafeAsync(ex);
             }
             finally
             {
-                base.DisposeImpl(ex);
+                await base.CleanupImplAsync(ex);
             }
         }
 

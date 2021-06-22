@@ -4139,7 +4139,8 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class Singleton<TObject> : IDisposable where TObject : class
+    public class Singleton<TObject> : IDisposable, IAsyncDisposable
+        where TObject : class
     {
         readonly CriticalSection LockObj = new CriticalSection<Singleton<TObject>>();
         readonly Func<TObject> CreateProc;
@@ -4175,14 +4176,22 @@ namespace IPA.Cores.Basic
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
+        public virtual async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-
-            Clear();
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
+            await ClearAsync()._TryAwait(true);
         }
 
-        public void Clear()
+        public async Task ClearAsync()
         {
             TObject? obj = null;
             lock (LockObj)
@@ -4193,8 +4202,14 @@ namespace IPA.Cores.Basic
 
             if (obj != null)
             {
-                if (obj is IDisposable disposeTarget)
+                if (obj is IAsyncDisposable asyncDisposableTarget)
+                {
+                    await asyncDisposableTarget._DisposeSafeAsync();
+                }
+                else if (obj is IDisposable disposeTarget)
+                {
                     disposeTarget._DisposeSafe();
+                }
             }
 
             IsCreated = false;

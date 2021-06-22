@@ -154,19 +154,19 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception? ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
-                this.LogBrowserHttpServer._DisposeSafe();
+                await this.LogBrowserHttpServer._DisposeSafeAsync();
 
-                this.LogServer._DisposeSafe();
+                await this.LogServer._DisposeSafeAsync();
 
-                this.CertVault._DisposeSafe();
+                await this.CertVault._DisposeSafeAsync();
             }
             finally
             {
-                base.DisposeImpl(ex);
+                await base.CleanupImplAsync(ex);
             }
         }
     }

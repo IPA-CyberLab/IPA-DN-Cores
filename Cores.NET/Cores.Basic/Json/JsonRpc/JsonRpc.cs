@@ -820,7 +820,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class JsonRpcHttpClient : JsonRpcClient, IDisposable
+    public class JsonRpcHttpClient : JsonRpcClient, IDisposable, IAsyncDisposable
     {
         public WebApi WebApi { get; private set; }
         public string ApiBaseUrl { get; set; }
@@ -882,11 +882,21 @@ namespace IPA.Cores.Basic
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
+        public virtual async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
             this.WebApi.Dispose();
             this.WebApi = null!;
+            await Task.CompletedTask;
         }
     }
 

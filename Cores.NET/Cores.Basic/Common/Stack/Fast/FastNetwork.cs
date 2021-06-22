@@ -427,7 +427,15 @@ namespace IPA.Cores.Basic
         public void CheckCanceled() => Pipe.CheckDisconnected();
         public void CheckCanceledAndNoMoreData() => Pipe.CheckDisconnectedAndNoMoreData();
 
-        public void Disconnect() => CancelAsync(new DisconnectedException());
+        public void Disconnect()
+        {
+            TaskUtil.StartAsyncTaskAsync(DisconnectAsync())._LaissezFaire(true);
+        }
+
+        public async Task DisconnectAsync()
+        {
+            await CancelAsync(new DisconnectedException());
+        }
 
         public Task CancelAsync(Exception? ex = null) { return this.Pipe.CancelAsync(ex); }
 
@@ -437,6 +445,7 @@ namespace IPA.Cores.Basic
         public void Dispose(Exception? ex = null) => this.Pipe.Dispose(ex);
         public Task DisposeWithCleanupAsync(Exception? ex = null) => this.Pipe.DisposeWithCleanupAsync(ex);
         public ValueTask DisposeAsync(Exception? ex) => this.Pipe.DisposeAsync(ex);
+        public ValueTask DisposeAsync() => DisposeAsync(null);
     }
 
     public class AttachHandle : AsyncService
@@ -1089,7 +1098,15 @@ namespace IPA.Cores.Basic
                 Point.DatagramWriter.CompleteWrite(checkDisconnect: checkDisconnect);
         }
 
-        public void Disconnect() => Point.CancelAsync(new DisconnectedException());
+        public void Disconnect()
+        {
+            TaskUtil.StartAsyncTaskAsync(this.DisconnectAsync())._LaissezFaire(true);
+        }
+
+        public async Task DisconnectAsync()
+        {
+            await Point.CancelAsync(new DisconnectedException());
+        }
 
         public override bool DataAvailable => IsReadyToReceive(1);
 
@@ -2150,7 +2167,7 @@ namespace IPA.Cores.Basic
             => this.Write(new byte[] { value }, 0, 1);
     }
 
-    public class DatagramExchangePoint : IDisposable
+    public class DatagramExchangePoint : IDisposable, IAsyncDisposable
     {
         public int NumPipes { get; }
         public PipePointSide Side { get; }
@@ -2165,25 +2182,36 @@ namespace IPA.Cores.Basic
             this.NumPipes = this.PipePointList.Count;
         }
 
-        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
-        Once DisposeFlag;
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            foreach (PipePoint pp in this.PipePointList)
-            {
-                pp.Dispose();
-            }
-        }
-
         public PipePoint this[int index]
         {
             [MethodImpl(Inline)]
             get => this.PipePointList[(int)((uint)index % (uint)NumPipes)];
         }
+
+
+
+        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+        Once DisposeFlag;
+        public virtual async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
+            foreach (PipePoint pp in this.PipePointList)
+            {
+                await pp.DisposeAsync();
+            }
+        }
     }
 
-    public class DatagramExchange : IDisposable
+    public class DatagramExchange : IDisposable, IAsyncDisposable
     {
         public DatagramExchangePoint A { get; }
         public DatagramExchangePoint B { get; }
@@ -2216,11 +2244,20 @@ namespace IPA.Cores.Basic
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
+        public virtual async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            this.A._DisposeSafe();
-            this.B._DisposeSafe();
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
+            await this.A._DisposeSafeAsync();
+            await this.B._DisposeSafeAsync();
         }
     }
 
@@ -2243,21 +2280,21 @@ namespace IPA.Cores.Basic
             StreamB = PointB!._InternalGetStream(autoFlush);
         }
 
-        public void Release()
+        public async Task ReleaseAsync()
         {
             if (Counter.Decrement() == 0)
             {
-                this.PointA._DisposeSafe();
-                this.PointB._DisposeSafe();
+                await this.PointA._DisposeSafeAsync();
+                await this.PointB._DisposeSafeAsync();
 
-                this.StreamA._DisposeSafe();
-                this.StreamB._DisposeSafe();
+                await this.StreamA._DisposeSafeAsync();
+                await this.StreamB._DisposeSafeAsync();
             }
         }
     }
 
     // PipeStreamPair で、かつ StreamB のほうを処理できる新たなタスクを立ち上げる。そのタスクが終了すると 1 回 Release をする。もう 1 回リリースするには、Dispose を呼び出す。
-    public class PipeStreamPairWithSubTask : IDisposable
+    public class PipeStreamPairWithSubTask : IDisposable, IAsyncDisposable
     {
         readonly PipeStreamPair Pair;
 
@@ -2286,20 +2323,28 @@ namespace IPA.Cores.Basic
                 }
                 finally
                 {
-                    this.Pair.StreamB.Disconnect();
-                    this.Pair.Release();
+                    await this.Pair.StreamB.DisconnectAsync()._TryAwait();
+                    await this.Pair.ReleaseAsync()._TryAwait();
                 }
             });
         }
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
+        public virtual async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-
-            this.Pair.StreamA.Disconnect();
-            this.Pair.Release();
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
+            await this.Pair.StreamA.DisconnectAsync()._TryAwait();
+            await this.Pair.ReleaseAsync()._TryAwait();
         }
     }
 

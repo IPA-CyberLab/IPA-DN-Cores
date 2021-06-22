@@ -546,11 +546,11 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception? ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
-                this.Cgi._DisposeSafe();
+                await this.Cgi._DisposeSafeAsync();
 
                 List<SnmpWorkFetcherBase> o = new List<SnmpWorkFetcherBase>();
 
@@ -562,7 +562,7 @@ namespace IPA.Cores.Basic
 
                 foreach (var fetcher in o)
                 {
-                    fetcher._DisposeSafe();
+                    await fetcher._DisposeSafeAsync();
                 }
 
                 this.SettingsHive._DisposeSafe();
@@ -571,7 +571,7 @@ namespace IPA.Cores.Basic
             }
             finally
             {
-                base.DisposeImpl(ex);
+                await base.CleanupImplAsync(ex);
             }
         }
     }

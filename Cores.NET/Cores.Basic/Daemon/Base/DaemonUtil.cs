@@ -59,7 +59,7 @@ namespace IPA.Cores.Basic
     {
         readonly OneLineParams Params;
 
-        List<IDisposable> DisposeList = new List<IDisposable>();
+        List<IAsyncDisposable> DisposeList = new List<IAsyncDisposable>();
 
         public DaemonUtil(string daemonName, CancellationToken cancel = default) : base(cancel)
         {
@@ -143,15 +143,15 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception? ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
-                DisposeList.ForEach(x => x._DisposeSafe());
+                await DisposeList._DoForEachAsync(async x => await x._DisposeSafeAsync());
             }
             finally
             {
-                base.DisposeImpl(ex);
+                await base.CleanupImplAsync(ex);
             }
         }
     }

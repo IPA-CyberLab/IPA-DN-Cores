@@ -1095,15 +1095,15 @@ namespace IPA.Cores.Basic
             return body;
         }
 
-        protected override void DisposeImpl(Exception? ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
-                this.RootFs._DisposeSafe();
+                await this.RootFs._DisposeSafeAsync();
             }
             finally
             {
-                base.DisposeImpl(ex);
+                await base.CleanupImplAsync(ex);
             }
         }
     }

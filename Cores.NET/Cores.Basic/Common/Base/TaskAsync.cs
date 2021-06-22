@@ -1951,7 +1951,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public interface IAsyncService : IDisposable
+    public interface IAsyncService : IDisposable, IAsyncDisposable
     {
         Task CleanupAsync(Exception? ex = null);
         Task DisposeWithCleanupAsync(Exception? ex = null);
@@ -4540,12 +4540,12 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public abstract class ObjectPoolBase<TObject, TParam> : IDisposable
+    public abstract class ObjectPoolBase<TObject, TParam> : IDisposable, IAsyncDisposable
         where TObject : IAsyncClosable
     {
         long AccessCounter = 0;
 
-        public class ObjectEntry : IDisposable
+        public class ObjectEntry : IDisposable, IAsyncDisposable
         {
             public RefCounter Counter { get; } = new RefCounter();
             public TObject Object { get; }
@@ -4606,15 +4606,24 @@ namespace IPA.Cores.Basic
                 }
                 catch { }
 
-                this._DisposeSafe();
+                await this._DisposeSafeAsync();
             }
 
             public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
             Once DisposeFlag;
+            public virtual async ValueTask DisposeAsync()
+            {
+                if (DisposeFlag.IsFirstCall() == false) return;
+                await DisposeInternalAsync();
+            }
             protected virtual void Dispose(bool disposing)
             {
                 if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-                this.Object._DisposeSafe();
+                DisposeInternalAsync()._GetResult();
+            }
+            async Task DisposeInternalAsync()
+            {
+                await this.Object._DisposeSafeAsync();
             }
         }
 
@@ -4815,19 +4824,27 @@ namespace IPA.Cores.Basic
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
+        public virtual async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
             this.CancelSource.Cancel();
 
-            GcTask._TryGetResult(true);
+            await GcTask._TryWaitAsync(true);
 
             using (LockAsyncObj.LockLegacy())
             {
                 foreach (ObjectEntry entry in this.ObjectList.Values)
                 {
-                    entry._DisposeSafe();
+                    await entry._DisposeSafeAsync();
                 }
                 this.ObjectList.Clear();
             }

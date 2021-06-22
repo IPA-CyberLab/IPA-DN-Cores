@@ -624,7 +624,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public unsafe class TcpPseudoPacketGenerator : IDisposable
+    public class TcpPseudoPacketGenerator : IDisposable, IAsyncDisposable
     {
         public TcpPseudoPacketGeneratorOptions Options { get; }
 
@@ -691,7 +691,7 @@ namespace IPA.Cores.Basic
             this.Output[0].DatagramWriter.EnqueueAllWithLock(queue.DequeueAll(), true);
         }
 
-        void EmitSegmentData(ref SpanBasedQueue<Datagram> queue, ReadOnlySpan<byte> data, Direction direction)
+        unsafe void EmitSegmentData(ref SpanBasedQueue<Datagram> queue, ReadOnlySpan<byte> data, Direction direction)
         {
             Packet pkt = new Packet(DefaultPacketSizeSet + data.Length);
 
@@ -729,7 +729,7 @@ namespace IPA.Cores.Basic
             queue.Enqueue(pkt.ToDatagram());
         }
 
-        public void EmitFinish(Direction direction)
+        public unsafe void EmitFinish(Direction direction)
         {
             Packet pkt = new Packet(DefaultPacketSizeSet);
 
@@ -779,7 +779,7 @@ namespace IPA.Cores.Basic
             this.Output[0].DatagramWriter.EnqueueAllWithLock(queue.DequeueAll(), true);
         }
 
-        void EmitResetOne(ref SpanBasedQueue<Datagram> queue, Direction direction)
+        unsafe void EmitResetOne(ref SpanBasedQueue<Datagram> queue, Direction direction)
         {
             Packet pkt = new Packet(DefaultPacketSizeSet);
 
@@ -809,7 +809,7 @@ namespace IPA.Cores.Basic
             queue.Enqueue(pkt.ToDatagram());
         }
 
-        public void EmitConnected()
+        public unsafe void EmitConnected()
         {
             SpanBasedQueue<Datagram> queue = new SpanBasedQueue<Datagram>(EnsureCtor.Yes);
 
@@ -931,7 +931,7 @@ namespace IPA.Cores.Basic
             this.Output[0].DatagramWriter.EnqueueAllWithLock(queue.DequeueAll(), true);
         }
 
-        void PrependIPHeader(ref Packet p, ref TCPHeader tcp, ReadOnlySpan<byte> tcpPayloadForChecksum, Direction direction)
+        unsafe void PrependIPHeader(ref Packet p, ref TCPHeader tcp, ReadOnlySpan<byte> tcpPayloadForChecksum, Direction direction)
         {
             ref IPv4Header ip = ref p.PrependSpan<IPv4Header>();
             ip.Version = 4;
@@ -969,10 +969,19 @@ namespace IPA.Cores.Basic
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
+        public virtual async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            this.Output._DisposeSafe();
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
+            await this.Output._DisposeSafeAsync();
         }
     }
 }

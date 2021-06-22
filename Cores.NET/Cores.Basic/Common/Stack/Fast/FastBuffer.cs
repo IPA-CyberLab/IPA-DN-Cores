@@ -1377,8 +1377,8 @@ namespace IPA.Cores.Basic
                     }
                     catch { }
                 }
-                EventReadReady?.Set();
-                EventWriteReady?.Set();
+                EventReadReady?.Set(softly: true);
+                EventWriteReady?.Set(softly: true);
 
                 EventListeners.Fire(this, FastBufferCallbackEventType.Disconnected);
             }

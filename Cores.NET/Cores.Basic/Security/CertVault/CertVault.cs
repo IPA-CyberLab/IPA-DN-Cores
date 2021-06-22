@@ -1087,17 +1087,6 @@ namespace IPA.Cores.Basic
                 await base.CleanupImplAsync(ex);
             }
         }
-
-        protected override void DisposeImpl(Exception? ex)
-        {
-            try
-            {
-            }
-            finally
-            {
-                base.DisposeImpl(ex);
-            }
-        }
     }
 
     public static class GlobalCertVault

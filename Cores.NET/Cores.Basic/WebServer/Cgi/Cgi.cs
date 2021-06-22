@@ -289,20 +289,20 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception? ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
-                HttpSvr._DisposeSafe(ex);
+                await HttpSvr._DisposeSafeAsync(ex);
 
                 if (this.AutoDisposeHandler)
                 {
-                    Handler._DisposeSafe(ex);
+                    await Handler._DisposeSafeAsync(ex);
                 }
             }
             finally
             {
-                base.DisposeImpl(ex);
+                await base.CleanupImplAsync(ex);
             }
         }
     }

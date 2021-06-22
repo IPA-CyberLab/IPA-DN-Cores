@@ -684,30 +684,20 @@ namespace IPA.Cores.Basic
             // Flush all managed hives
             try
             {
-                await SyncAllHiveDataAsync(default);
-            }
-            finally
-            {
-                await base.CleanupImplAsync(ex);
-            }
-        }
+                await SyncAllHiveDataAsync(default)._TryAwait();
 
-        protected override void DisposeImpl(Exception? ex)
-        {
-            try
-            {
                 lock (RunningHivesListLockObj)
                 {
                     RunningHivesList.Remove(this);
                 }
 
-                this.Archiver._DisposeSafe();
+                await this.Archiver._DisposeSafeAsync();
 
-                this.Options.StorageProvider._DisposeSafe();
+                await this.Options.StorageProvider._DisposeSafeAsync();
             }
             finally
             {
-                base.DisposeImpl(ex);
+                await base.CleanupImplAsync(ex);
             }
         }
 

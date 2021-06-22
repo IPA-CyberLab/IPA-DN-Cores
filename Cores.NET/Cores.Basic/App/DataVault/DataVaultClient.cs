@@ -303,18 +303,19 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception? ex)
+
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
-                this.MainProcTask._TryGetResult(true);
+                await this.MainProcTask._TryAwait(true);
 
-                this.Reader._DisposeSafe();
-                this.Writer._DisposeSafe();
+                await this.Reader._DisposeSafeAsync();
+                await this.Writer._DisposeSafeAsync();
             }
             finally
             {
-                base.DisposeImpl(ex);
+                await base.CleanupImplAsync(ex);
             }
         }
     }

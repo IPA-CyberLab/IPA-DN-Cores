@@ -57,15 +57,15 @@ namespace IPA.Cores.Basic
             this.Client = new JsonRpcHttpClient<TInterface>(baseUrl, webApiOptions);
         }
 
-        protected override void DisposeImpl(Exception? ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
-                this.Client._DisposeSafe();
+                await this.Client._DisposeSafeAsync();
             }
             finally
             {
-                base.DisposeImpl(ex);
+                await base.CleanupImplAsync(ex);
             }
         }
     }

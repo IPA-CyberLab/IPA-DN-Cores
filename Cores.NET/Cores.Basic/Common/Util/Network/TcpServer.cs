@@ -89,15 +89,15 @@ namespace IPA.Cores.Basic
             await TcpAcceptedImplAsync(listener, newSock);
         }
 
-        protected override void DisposeImpl(Exception? ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
-                this.Listener._DisposeSafe();
+                await this.Listener._DisposeSafeAsync();
             }
             finally
             {
-                base.DisposeImpl(ex);
+                await base.CleanupImplAsync(ex);
             }
         }
     }

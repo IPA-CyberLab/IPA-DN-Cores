@@ -274,16 +274,16 @@ namespace IPA.Cores.Basic
             return this.ProviderForWatch.Watch(filter);
         }
 
-        protected override void DisposeImpl(Exception? ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
-                this.ProviderForWatch._DisposeSafe();
-                this.FileSystem._DisposeSafe();
+                await this.ProviderForWatch._DisposeSafeAsync();
+                await this.FileSystem._DisposeSafeAsync();
             }
             finally
             {
-                base.DisposeImpl(ex);
+                await base.CleanupImplAsync(ex);
             }
         }
     }

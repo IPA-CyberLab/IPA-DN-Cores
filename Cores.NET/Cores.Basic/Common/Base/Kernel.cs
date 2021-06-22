@@ -893,30 +893,25 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception? ex)
-        {
-            this.EasyInputOutputStub._DisposeSafe();
-            this.EasyInputOutputStream._DisposeSafe();
-
-            this.EasyErrorStub._DisposeSafe();
-            this.EasyErrorStream._DisposeSafe();
-
-            this.StandardPipeWrapper._DisposeSafe();
-            this.ErrorPipeWrapper._DisposeSafe();
-
-            this.StandardPipePoint_MySide._DisposeSafe();
-            this.ErrorPipePoint_MySide._DisposeSafe();
-
-            this.EasyRealTimeStdOut._DisposeSafe();
-            this.EasyRealTimeStdErr._DisposeSafe();
-
-            base.DisposeImpl(ex);
-        }
 
         protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
+                await this.EasyInputOutputStub._DisposeSafeAsync();
+                await this.EasyInputOutputStream._DisposeSafeAsync();
+
+                await this.EasyErrorStub._DisposeSafeAsync();
+                await this.EasyErrorStream._DisposeSafeAsync();
+
+                await this.StandardPipeWrapper._DisposeSafeAsync();
+                await this.ErrorPipeWrapper._DisposeSafeAsync();
+
+                await this.StandardPipePoint_MySide._DisposeSafeAsync();
+                await this.ErrorPipePoint_MySide._DisposeSafeAsync();
+
+                await this.EasyRealTimeStdOut._DisposeSafeAsync();
+                await this.EasyRealTimeStdErr._DisposeSafeAsync();
             }
             finally
             {

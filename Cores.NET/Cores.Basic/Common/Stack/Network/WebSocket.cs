@@ -490,21 +490,17 @@ namespace IPA.Cores.Basic
             return base.CancelImplAsync(ex);
         }
 
-        protected override Task CleanupImplAsync(Exception? ex)
-        {
-            return base.CleanupImplAsync(ex);
-        }
 
-        protected override void DisposeImpl(Exception? ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
-                this.LowerStream._DisposeSafe();
-                this.UpperStream._DisposeSafe();
+                await this.LowerStream._DisposeSafeAsync();
+                await this.UpperStream._DisposeSafeAsync();
             }
             finally
             {
-                base.DisposeImpl(ex);
+                await base.CleanupImplAsync(ex);
             }
         }
     }

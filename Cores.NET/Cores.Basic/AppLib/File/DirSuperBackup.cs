@@ -200,34 +200,35 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override void DisposeImpl(Exception? ex)
+
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
-                WriteLogAsync(DirSuperBackupLogType.Error, "---")._GetResult();
-                WriteLogAsync(DirSuperBackupLogType.Error, "Finish")._TryGetResult();
-                WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("Options_Flags", this.Options.Flags.ToString()))._GetResult();
-                WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("Options_NumThreads", this.Options.NumThreads.ToString()))._GetResult();
-                WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("Options_Encryption", (!this.Options.EncryptPassword._IsNullOrZeroLen()).ToString()))._GetResult();
+                await WriteLogAsync(DirSuperBackupLogType.Error, "---");
+                await WriteLogAsync(DirSuperBackupLogType.Error, "Finish");
+                await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("Options_Flags", this.Options.Flags.ToString()));
+                await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("Options_NumThreads", this.Options.NumThreads.ToString()));
+                await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("Options_Encryption", (!this.Options.EncryptPassword._IsNullOrZeroLen()).ToString()));
 
-                WriteStatAsync()._TryGetResult();
+                await WriteStatAsync()._TryAwait();
 
-                WriteLogAsync(DirSuperBackupLogType.Error, "------------------")._GetResult();
+                await WriteLogAsync(DirSuperBackupLogType.Error, "------------------")._TryAwait();
 
-                InfoLogWriter._DisposeSafe();
-                InfoLogFileStream._DisposeSafe();
-                InfoLogFileObj._DisposeSafe();
+                await InfoLogWriter._DisposeSafeAsync();
+                await InfoLogFileStream._DisposeSafeAsync();
+                await InfoLogFileObj._DisposeSafeAsync();
 
-                ErrorLogWriter._DisposeSafe();
-                ErrorLogFileStream._DisposeSafe();
-                ErrorLogFileObj._DisposeSafe();
+                await ErrorLogWriter._DisposeSafeAsync();
+                await ErrorLogFileStream._DisposeSafeAsync();
+                await ErrorLogFileObj._DisposeSafeAsync();
 
-                this.LfsUtf8._DisposeSafe();
-                this.Lfs._DisposeSafe();
+                await this.LfsUtf8._DisposeSafeAsync();
+                await this.Lfs._DisposeSafeAsync();
             }
             finally
             {
-                base.DisposeImpl(ex);
+                await base.CleanupImplAsync(ex);
             }
         }
 

@@ -1881,16 +1881,16 @@ namespace IPA.Cores.Basic
             this.BufferedStream.Write(data);
         }
 
-        protected override void DisposeImpl(Exception? ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
-                BufferedStream._DisposeSafe();
-                FileStream._DisposeSafe();
+                await BufferedStream._DisposeSafeAsync();
+                await FileStream._DisposeSafeAsync();
             }
             finally
             {
-                base.DisposeImpl(ex);
+                await base.CleanupImplAsync(ex);
             }
         }
     }

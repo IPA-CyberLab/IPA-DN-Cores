@@ -155,6 +155,18 @@ namespace IPA.Cores.Basic
             await base.CancelImplAsync(ex);
         }
 
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                await StreamCache._DisposeSafeAsync();
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
+        }
+
         protected override void DisposeImpl(Exception? ex)
         {
             StreamCache._DisposeSafe();

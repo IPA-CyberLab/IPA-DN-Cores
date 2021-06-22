@@ -1750,24 +1750,28 @@ namespace IPA.Cores.Basic
 
         protected override async Task CleanupImplAsync(Exception? ex)
         {
-            FileBase[] fileHandles;
-
-            lock (LockObj)
+            try
             {
-                fileHandles = OpenedHandleList.ToArray();
-                OpenedHandleList.Clear();
-            }
+                FileBase[] fileHandles;
 
-            foreach (var fileHandle in fileHandles)
+                lock (LockObj)
+                {
+                    fileHandles = OpenedHandleList.ToArray();
+                    OpenedHandleList.Clear();
+                }
+
+                foreach (var fileHandle in fileHandles)
+                {
+                    await fileHandle.CloseAsync();
+                }
+
+                await ObjectPoolForRead._DisposeSafeAsync();
+                await ObjectPoolForWrite._DisposeSafeAsync();
+            }
+            finally
             {
-                await fileHandle.CloseAsync();
+                await base.CleanupImplAsync(ex);
             }
-        }
-
-        protected override void DisposeImpl(Exception? ex)
-        {
-            ObjectPoolForRead._DisposeSafe();
-            ObjectPoolForWrite._DisposeSafe();
         }
 
         protected abstract Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default);
@@ -2304,7 +2308,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class DisposableFileProvider : IFileProvider, IDisposable
+    public class DisposableFileProvider : IFileProvider, IDisposable, IAsyncDisposable
     {
         readonly IFileProvider Provider;
         readonly bool NoDispose;
@@ -2319,15 +2323,28 @@ namespace IPA.Cores.Basic
         public IDirectoryContents GetDirectoryContents(string subpath) => Provider.GetDirectoryContents(subpath);
         public IFileInfo GetFileInfo(string subpath) => Provider.GetFileInfo(subpath);
         public IChangeToken Watch(string filter) => Provider.Watch(filter);
+
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
+        public virtual async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
             if (NoDispose == false)
             {
-                if (Provider is IDisposable target)
+                if (Provider is IAsyncDisposable target2)
+                {
+                    await target2._DisposeSafeAsync();
+                }
+                else if (Provider is IDisposable target)
                 {
                     target._DisposeSafe();
                 }
@@ -2335,6 +2352,7 @@ namespace IPA.Cores.Basic
 
             LeakHolder._DisposeSafe();
         }
+
     }
 
     public class FileSystemEventWatcher : AsyncService

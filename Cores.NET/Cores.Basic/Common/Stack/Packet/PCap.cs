@@ -258,17 +258,17 @@ namespace IPA.Cores.Basic
             base.RegisterEmitter(emitter);
         }
 
-        protected override void DisposeImpl(Exception? ex)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
                 TcpGen._DisposeSafe();
-                Exchange._DisposeSafe();
-                MainLoop._TryWait();
+                await Exchange._DisposeSafeAsync();
+                await MainLoop._TryWaitAsync();
             }
             finally
             {
-                base.DisposeImpl(ex);
+                await base.CleanupImplAsync(ex);
             }
         }
     }
