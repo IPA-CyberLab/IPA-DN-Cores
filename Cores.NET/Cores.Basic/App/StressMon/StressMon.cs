@@ -102,11 +102,25 @@ namespace IPA.Cores.Basic.StressMon
             {
                 var q = ReportTable._GetOrNew(r.Hostname, () => new Queue<ReportedItem>());
 
-                q.Enqueue(r);
+                bool changed = true;
 
-                while (q.Count > CoresConfig.StressMonServer.MaxHistoryPerServer)
+                var last = q.LastOrDefault();
+                if (last != null)
                 {
-                    q.Dequeue();
+                    if (last.Body._IsSame(r.Body))
+                    {
+                        changed = false;
+                    }
+                }
+
+                if (changed)
+                {
+                    q.Enqueue(r);
+
+                    while (q.Count > CoresConfig.StressMonServer.MaxHistoryPerServer)
+                    {
+                        q.Dequeue();
+                    }
                 }
             }
         }
@@ -147,20 +161,7 @@ namespace IPA.Cores.Basic.StressMon
                         IpAddress = list.LastOrDefault()?.IpAddress ?? "",
                     };
 
-                    string initialStr = Str.GenRandStr();
-
-                    string last = initialStr;
-                    foreach (var item in list)
-                    {
-                        if (item.Body._IsSame(last) == false)
-                        {
-                            if (last != initialStr)
-                            {
-                                h.LastChanged = item.Timestamp;
-                            }
-                            last = item.Body;
-                        }
-                    }
+                    h.LastChanged = list.Max(x => x.Timestamp);
 
                     summaryList.Add(h);
                 }
