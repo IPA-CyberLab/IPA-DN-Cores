@@ -90,7 +90,7 @@ namespace IPA.Cores.Codes
         public static readonly Copenhagen<string> Default_DbConnectionString_Write = "Data Source=127.0.0.1;Initial Catalog=THINDB;Persist Security Info=True;Pooling=False;User ID=sql_thin_writer;Password=sql_password;";
 
         public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardDomainName = "websocket.jp";
-        public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl = "https://ssl-cert-server.websocket.jp/wildcard_cert_files/websocket.jp/latest/";
+        public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl = "http://ssl-cert-server.websocket.jp/wildcard_cert_files/websocket.jp/latest/";
         public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl_Username = "user123";
         public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl_Password = "pass123";
 

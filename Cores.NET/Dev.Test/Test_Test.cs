@@ -2092,27 +2092,46 @@ namespace IPA.TestDev
 
         static async Task Test_210627_Async()
         {
-            string url = "http://ssl-cert-server.websocket.jp/wildcard_cert_files/websocket.jp/latest/";
-            string username = "user123";
-            string password = "pass123";
+            while (true)
+            {
+                Where();
 
-            await using var http = new WebApi();
+                string url = "http://ssl-cert-server.wctest.ipantt.net/wildcard_cert_files/wctest.ipantt.net/latest/";
+                string username = "user123";
+                string password = "pass123";
 
-            http.SetBasicAuthHeader(username, password);
+                await using var http = new WebApi();
 
-            var res = await http.SimpleQueryAsync(WebMethods.GET, url + "/cert.cer");
+                http.SetBasicAuthHeader(username, password);
 
-            res.ToString()._Print();
+                var res = await http.SimpleQueryAsync(WebMethods.GET, url + "/cert.cer");
 
+                //res.ToString()._Print();
+            }
+        }
+
+        static async Task Test_210627_02_Async()
+        {
+            var r = await LocalNet.QueryDnsAsync(new DnsGetIpQueryParam("vpn1.v4.softether.net"));
+
+            "---"._Print();
+            r.IPAddressList._DoForEach(x => x.ToString()._Print());
+            "---"._Print();
         }
 
         public static void Test_Generic()
         {
+            if (false)
+            {
+                Test_210627_02_Async()._GetResult();
+                return;
+            }
             if (true)
             {
                 Test_210627_Async()._GetResult();
                 return;
             }
+
 
             if (false)
             {

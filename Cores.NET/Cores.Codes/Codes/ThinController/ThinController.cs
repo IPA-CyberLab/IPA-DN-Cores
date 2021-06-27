@@ -1181,6 +1181,22 @@ namespace IPA.Cores.Codes
                     }
                 });
             }
+
+            ThinControllerWebSocketCertData? webSocketCertData = Controller.WebSocketCertMaintainer?.GetCertData();
+            if (webSocketCertData != null)
+            {
+                // WebSocket 用証明書データ
+                if (webSocketCertData.CertsList.Count >= 1 && (webSocketCertData.Key?.Length ?? 0) >= 1 && webSocketCertData.DomainName._IsFilled())
+                {
+                    p.AddStr("WebSocketCertData_DomainName", webSocketCertData.DomainName);
+                    p.AddData("WebSocketCertData_Key", webSocketCertData.Key!);
+                    p.AddInt("WebSocketCertData_Cert_Count", (uint)webSocketCertData.CertsList.Count);
+                    for (int i = 0; i < webSocketCertData.CertsList.Count; i++)
+                    {
+                        p.AddData("WebSocketCertData_Cert", webSocketCertData.CertsList[i], (uint)i);
+                    }
+                }
+            }
         }
 
         public async Task<WpcResult> ProcessWpcRequestCoreAsync(string wpcRequestString, CancellationToken cancel = default)
@@ -1462,6 +1478,7 @@ namespace IPA.Cores.Codes
                 }
 
                 if (cancel.IsCancellationRequested) break;
+                nextWaitInterval = 100;
                 await cancel._WaitUntilCanceledAsync(nextWaitInterval);
             }
         }
@@ -1481,13 +1498,16 @@ namespace IPA.Cores.Codes
                     http.SetBasicAuthHeader(certUsername, certPassword);
                 }
 
+                Where(Time.Tick64);
                 string newTimestampBody = (await http.SimpleQueryAsync(WebMethods.GET, certUrl._CombineUrl("timestamp.txt").ToString())).ToString()._GetFirstFilledLineFromLines();
 
                 if (newTimestampBody._IsEmpty()) throw new CoresLibException("timestampBody is empty.");
 
+                Where(Time.Tick64);
                 var newCertBody = (await http.SimpleQueryAsync(WebMethods.GET, certUrl._CombineUrl("cert.cer").ToString())).Data;
+                Where(Time.Tick64);
                 var newKeyBody = (await http.SimpleQueryAsync(WebMethods.GET, certUrl._CombineUrl("cert.key").ToString())).Data;
-
+                Where(Time.Tick64);
                 // 証明書のパースを試行
                 var newCertStore = new CertificateStore(newCertBody, newKeyBody);
 
