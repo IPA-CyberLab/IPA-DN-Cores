@@ -653,8 +653,9 @@ namespace IPA.Cores.Codes
         public ThinDbVar? GetVar(string name)
             => GetVars(name)?.FirstOrDefault();
 
-        public string? GetVarString(string name)
-            => GetVar(name)?.VAR_VALUE1;
+        [return: NotNullIfNotNull("defaultValue")]
+        public string? GetVarString(string name, string? defaultValue = null)
+            => GetVar(name)?.VAR_VALUE1 ?? defaultValue;
 
         public int GetVarInt(string name, int defaultValue = 0)
             => GetVarString(name)?._ToInt() ?? defaultValue;

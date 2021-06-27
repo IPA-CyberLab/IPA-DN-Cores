@@ -132,12 +132,12 @@ namespace IPA.Cores.Codes
                 string fqdn;
                 int rand = Util.RandSInt31() % 120;
 
-                if (rand < 40)
+                if (rand < 80)
                 {
-                    fqdn = string.Format("{0}.{1}.{2}.{3}.xip.io",
+                    fqdn = string.Format("{0}-{1}-{2}-{3}.websocket.jp",
                         b[0], b[1], b[2], b[3]);
                 }
-                else if (rand < 80)
+                else if (rand < 100)
                 {
                     fqdn = string.Format("{0}.{1}.{2}.{3}.nip.io",
                         b[0], b[1], b[2], b[3]);
@@ -790,7 +790,7 @@ namespace IPA.Cores.Codes
                 // 適合 Gate なし (混雑?)
                 return NewWpcResult(VpnError.ERR_NO_GATE_CAN_ACCEPT);
             }
-            
+
             // 選択された Gate のセッション数を仮に 1 つ増加させる
             Interlocked.Increment(ref bestGate.NumSessions);
 
@@ -1355,6 +1355,182 @@ namespace IPA.Cores.Codes
         }
     }
 
+    public class ThinControllerWebSocketCertData
+    {
+        public string DomainName = "";
+        public List<byte[]> CertsList = new List<byte[]>();
+        public byte[] Key = new byte[0];
+    }
+
+    public class ThinControllerWebSocketCertMaintainer : AsyncServiceWithMainLoop
+    {
+        public DirectoryPath WebSocketCertCacheDir { get; }
+
+        public ThinController Controller { get; }
+
+        readonly CriticalSection<ThinControllerWebSocketCertMaintainer> FileLock = new CriticalSection<ThinControllerWebSocketCertMaintainer>();
+
+        public ThinControllerWebSocketCertMaintainer(ThinController controller)
+        {
+            try
+            {
+                this.Controller = controller;
+                this.WebSocketCertCacheDir = PP.Combine(Env.AppLocalDir, "Config", "WebSocketCertCache");
+
+                try
+                {
+                    this.WebSocketCertCacheDir.CreateDirectory();
+                }
+                catch { }
+
+                this.StartMainLoop(this.MainLoopAsync);
+            }
+            catch (Exception ex)
+            {
+                this._DisposeSafe(ex);
+                throw;
+            }
+        }
+
+        readonly FastSingleCache<ThinControllerWebSocketCertData?> CertDataCache = new FastSingleCache<ThinControllerWebSocketCertData?>();
+
+        public ThinControllerWebSocketCertData? GetCertData()
+        {
+            return this.CertDataCache.GetOrCreate(() => GetCertDataCore());
+        }
+
+        ThinControllerWebSocketCertData? GetCertDataCore()
+        {
+            ThinControllerWebSocketCertData ret = new ThinControllerWebSocketCertData();
+
+            try
+            {
+                Memory<byte> certsData = default;
+                Memory<byte> certsKey = default;
+
+                lock (FileLock)
+                {
+                    certsData = this.WebSocketCertCacheDir.Combine("cert.cer").ReadDataFromFile();
+                    certsKey = this.WebSocketCertCacheDir.Combine("cert.key").ReadDataFromFile();
+                }
+
+                var cs = new CertificateStore(certsData.Span, certsKey.Span);
+
+                cs.PrimaryContainer.CertificateList.ForEach(x => ret.CertsList.Add(x.Export().ToArray()));
+                ret.Key = cs.PrimaryPrivateKey.Export().ToArray();
+
+                ret.DomainName = Controller.Db.GetVarString("ThinWebClient_WebSocketWildCardDomainName", ThinControllerConsts.Default_ThinWebClient_WebSocketWildCardDomainName)._NormalizeFqdn();
+
+                return ret;
+            }
+            catch (Exception ex)
+            {
+                ex._Debug();
+                return null;
+            }
+        }
+
+        async Task MainLoopAsync(CancellationToken cancel)
+        {
+            int numFailed = 0;
+
+            while (cancel.IsCancellationRequested == false)
+            {
+                int nextWaitInterval;
+
+                if (Controller.Db.IsLoaded == false)
+                {
+                    nextWaitInterval = 100;
+                }
+                else
+                {
+                    try
+                    {
+                        await UpdateCoreAsync(cancel);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                        numFailed++;
+                    }
+
+                    nextWaitInterval = Util.GenRandInterval(3 * 1000);
+                    if (numFailed >= 1)
+                    {
+                        nextWaitInterval = Util.GenRandIntervalWithRetry(3 * 1000, numFailed, 6 * 1000);
+                    }
+                }
+
+                if (cancel.IsCancellationRequested) break;
+                await cancel._WaitUntilCanceledAsync(nextWaitInterval);
+            }
+        }
+
+        async Task UpdateCoreAsync(CancellationToken cancel)
+        {
+            string certUrl = Controller.Db.GetVarString("ThinWebClient_WebSocketWildCardCertServerLatestUrl", ThinControllerConsts.Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl);
+            string certUsername = Controller.Db.GetVarString("ThinWebClient_WebSocketWildCardCertServerLatestUrl_Username", ThinControllerConsts.Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl_Username);
+            string certPassword = Controller.Db.GetVarString("ThinWebClient_WebSocketWildCardCertServerLatestUrl_Password", ThinControllerConsts.Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl_Password);
+
+            if (certUrl._IsFilled())
+            {
+                await using var http = new WebApi(new WebApiOptions(new WebApiSettings { AllowAutoRedirect = true, SslAcceptAnyCerts = true, Timeout = 15 * 1000 }));
+
+                if (certUsername._IsFilled() && certPassword._IsFilled())
+                {
+                    http.SetBasicAuthHeader(certUsername, certPassword);
+                }
+
+                string newTimestampBody = (await http.SimpleQueryAsync(WebMethods.GET, certUrl._CombineUrl("timestamp.txt").ToString())).ToString()._GetFirstFilledLineFromLines();
+
+                if (newTimestampBody._IsEmpty()) throw new CoresLibException("timestampBody is empty.");
+
+                var newCertBody = (await http.SimpleQueryAsync(WebMethods.GET, certUrl._CombineUrl("cert.cer").ToString())).Data;
+                var newKeyBody = (await http.SimpleQueryAsync(WebMethods.GET, certUrl._CombineUrl("cert.key").ToString())).Data;
+
+                // 証明書のパースを試行
+                var newCertStore = new CertificateStore(newCertBody, newKeyBody);
+
+                // 現在保存されているキャッシュのタイムスタンプと比較
+                string localTimestampBody = "";
+                try
+                {
+                    localTimestampBody = (await this.WebSocketCertCacheDir.Combine("timestamp.txt").ReadStringFromFileAsync(cancel: cancel))._GetFirstFilledLineFromLines();
+                }
+                catch
+                {
+                }
+
+                DateTimeOffset localTimestampDt = Str.StrToDateTime(localTimestampBody, emptyToZeroDateTime: true);
+                DateTimeOffset newTimestampDt = Str.StrToDateTime(newTimestampBody, emptyToZeroDateTime: true);
+
+                if (newTimestampDt > localTimestampDt)
+                {
+                    // 新しく更新されているので証明書をローカルに保存する
+                    lock (FileLock)
+                    {
+                        this.WebSocketCertCacheDir.Combine("cert.cer").WriteDataToFile(newCertBody, FileFlags.AutoCreateDirectory);
+                        this.WebSocketCertCacheDir.Combine("cert.key").WriteDataToFile(newKeyBody, FileFlags.AutoCreateDirectory);
+                        this.WebSocketCertCacheDir.Combine("timestamp.txt").WriteStringToFile(newTimestampBody + Str.NewLine_Str_Local, FileFlags.AutoCreateDirectory);
+                    }
+
+                    this.CertDataCache.Clear();
+                }
+            }
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
+        }
+    }
+
     public class ThinController : AsyncService
     {
 
@@ -1378,6 +1554,7 @@ namespace IPA.Cores.Codes
         // データベース
         public ThinDatabase Db { get; }
         public ThinSessionManager SessionManager { get; }
+        public ThinControllerWebSocketCertMaintainer WebSocketCertMaintainer { get; }
 
         readonly Task RecordStatTask;
 
@@ -1467,6 +1644,8 @@ namespace IPA.Cores.Codes
                 });
 
                 StatMan!.AddReport("BootCount_Total", 1);
+
+                this.WebSocketCertMaintainer = new ThinControllerWebSocketCertMaintainer(this);
             }
             catch (Exception ex)
             {
@@ -1840,6 +2019,8 @@ namespace IPA.Cores.Codes
         {
             try
             {
+                await this.WebSocketCertMaintainer._DisposeSafeAsync();
+
                 await this.StatMan._DisposeSafeAsync();
 
                 await this.Db._DisposeSafeAsync();

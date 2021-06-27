@@ -89,6 +89,11 @@ namespace IPA.Cores.Codes
         public static readonly Copenhagen<string> Default_DbConnectionString_Read = "Data Source=127.0.0.1;Initial Catalog=THINDB;Persist Security Info=True;Pooling=False;User ID=sql_thin_reader;Password=sql_password;";
         public static readonly Copenhagen<string> Default_DbConnectionString_Write = "Data Source=127.0.0.1;Initial Catalog=THINDB;Persist Security Info=True;Pooling=False;User ID=sql_thin_writer;Password=sql_password;";
 
+        public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardDomainName = "websocket.jp";
+        public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl = "https://ssl-cert-server.websocket.jp/wildcard_cert_files/websocket.jp/latest/";
+        public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl_Username = "user123";
+        public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl_Password = "pass123";
+
         // DB の Var で設定可能な変数のデフォルト値
         public static readonly Copenhagen<int> Default_ControllerMaxConcurrentWpcRequestProcessingForUsers = 500;
         public static readonly Copenhagen<int> Default_ControllerDbFullReloadIntervalMsecs = 10 * 1000;

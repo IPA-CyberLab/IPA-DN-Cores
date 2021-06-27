@@ -2793,6 +2793,8 @@ namespace IPA.Cores.Helper.Basic
 
         public static bool _IsAny(this IPAddress ip)
             => ip.GetAddressBytes()._IsZeroFast();
+
+        public static string _NormalizeFqdn(this string src) => Str.NormalizeFqdn(src);
     }
 }
 
