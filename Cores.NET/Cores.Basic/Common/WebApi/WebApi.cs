@@ -310,7 +310,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public partial class WebApi : IDisposable
+    public partial class WebApi : IDisposable, IAsyncDisposable
     {
         WebApiSettings Settings;
 
@@ -352,13 +352,23 @@ namespace IPA.Cores.Basic
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
+        public virtual async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
             this.Client._DisposeSafe();
             this.Client = null!;
-        }
 
+            await Task.CompletedTask;
+        }
 
         public string BuildQueryString(params (string name, string? value)[]? queryList)
         {
@@ -380,6 +390,16 @@ namespace IPA.Cores.Basic
                 }
             }
             return w.ToString();
+        }
+
+        public void SetBasicAuthHeader(string username, string password)
+        {
+            username = username._NonNull();
+            password = password._NonNull();
+            string tmp = $"{username}:{password}";
+            string tmp2 = "Basic " + Str.Base64Encode(tmp._GetBytes_UTF8());
+
+            this.AddHeader("Authorization", tmp2);
         }
 
         public void AddHeader(string name, string value)

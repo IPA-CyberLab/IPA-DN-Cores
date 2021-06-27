@@ -2090,8 +2090,30 @@ namespace IPA.TestDev
             Where();
         }
 
+        static async Task Test_210627_Async()
+        {
+            string url = "http://ssl-cert-server.websocket.jp/wildcard_cert_files/websocket.jp/latest/";
+            string username = "user123";
+            string password = "pass123";
+
+            await using var http = new WebApi();
+
+            http.SetBasicAuthHeader(username, password);
+
+            var res = await http.SimpleQueryAsync(WebMethods.GET, url + "/cert.cer");
+
+            res.ToString()._Print();
+
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210627_Async()._GetResult();
+                return;
+            }
+
             if (false)
             {
                 Test_210616_Udp_Indirect_Socket_DNS_Client();
