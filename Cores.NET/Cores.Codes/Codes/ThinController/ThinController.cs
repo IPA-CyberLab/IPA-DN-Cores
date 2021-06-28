@@ -507,6 +507,7 @@ namespace IPA.Cores.Codes
             if (isLimitedMode)
                 serverMask64 |= 256; // 行政情報システム適合モード (ThinController が勝手に付ける)
             p.AddInt64("ServerMask64", serverMask64);
+            p.AddStr("WebSocketWildCardDomainName", this.Controller.WebSocketCertMaintainer.GetCertData()?.DomainName ?? "");
 
             ret.AdditionalInfo.Add("SvcName", machine.SVC_NAME);
             ret.AdditionalInfo.Add("Pcid", machine.PCID);

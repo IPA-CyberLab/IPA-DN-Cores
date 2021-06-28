@@ -477,9 +477,19 @@ namespace IPA.Cores.Basic
     {
         protected new NetWtcProtocolStack Stack => (NetWtcProtocolStack)base.Stack;
         public WtcOptions Options => Stack.Options;
+        public IPEndPoint GatePhysicalEndPoint { get; }
 
         public WtcSocket(ConnSock lowerSock, WtcOptions options) : base(new NetWtcProtocolStack(lowerSock.UpperPoint, null, options))
         {
+            try
+            {
+                this.GatePhysicalEndPoint = new IPEndPoint(IPAddress.Parse(lowerSock.EndPointInfo.RemoteIP!), lowerSock.EndPointInfo.RemotePort);
+            }
+            catch (Exception ex)
+            {
+                this._DisposeSafe(ex);
+                throw;
+            }
         }
 
         public async Task StartWtcAsync(CancellationToken cancel = default)
@@ -521,6 +531,7 @@ namespace IPA.Cores.Basic
         public bool MsgForServerOnce;
         public long SessionLifeTime;
         public string SessionLifeTimeMsg = "";
+        public string WebSocketWildCardDomainName = "";
 
         // Client 用
         public ReadOnlyMemory<byte> SessionId;
@@ -667,7 +678,13 @@ namespace IPA.Cores.Basic
                 Port = p["Port"].SIntValue,
                 SessionId = p["SessionId"].DataValueNonNull,
                 ServerMask64 = p["ServerMask64"].Int64Value,
+                WebSocketWildCardDomainName = p["WebSocketWildCardDomainName"].StrValueNonNull,
             };
+
+            if (c.WebSocketWildCardDomainName._IsEmpty())
+            {
+                throw new CoresLibException("c.WebSocketWildCardDomainName is empty.");
+            }
 
             if (c.HostName._IsSamei("<<!!samehost!!>>"))
             {

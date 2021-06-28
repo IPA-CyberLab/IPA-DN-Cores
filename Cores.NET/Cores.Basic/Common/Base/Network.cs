@@ -790,6 +790,30 @@ namespace IPA.Cores.Basic
     // IP ユーティリティ
     public static partial class IPUtil
     {
+        // IP アドレスからワイルドカード DNS 名を生成
+        public static string GenerateWildCardDnsFqdn(IPAddress ip, string baseDomainName, string prefix = "ws-")
+        {
+            prefix = prefix._NonNullTrim();
+            baseDomainName = baseDomainName._NormalizeFqdn();
+            if (baseDomainName._IsFilled())
+            {
+                baseDomainName = "." + baseDomainName;
+            }
+
+            if (ip.AddressFamily == AddressFamily.InterNetwork)
+            {
+                return prefix + ip.ToString()._ReplaceStr(".", "-") + baseDomainName;
+            }
+            else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                return prefix + ip.ToString()._ReplaceStr(":", "-") + baseDomainName;
+            }
+            else
+            {
+                throw new CoresLibException("ip.AddressFamily: out of range");
+            }
+        }
+
         // MAC アドレスのランダム生成
         public static ReadOnlyMemory<byte> GenRandomMac(string seedStr, byte firstByte = 0xAE)
         {

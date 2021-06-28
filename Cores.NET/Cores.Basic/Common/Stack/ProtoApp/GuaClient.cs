@@ -526,7 +526,7 @@ namespace IPA.Cores.Basic
         public ConnSock? Sock { get; private set; }
         public PipeStream? Stream { get; private set; }
 
-        public async Task StartAsync(CancellationToken cancel = default)
+        public async Task<GuaPacket> StartAsync(CancellationToken cancel = default)
         {
             if (Started.IsFirstCall() == false) throw new CoresLibException("StartAsync has already been called.");
 
@@ -577,7 +577,7 @@ namespace IPA.Cores.Basic
                 await opConnect.SendPacketAsync(this.Stream, cancel);
 
                 // Ready パケットを受信
-                var ready = await GuaPacket.RecvPacketAsync(this.Stream, cancel);
+                GuaPacket ready = await GuaPacket.RecvPacketAsync(this.Stream, cancel);
 
                 if (ready.Opcode._IsSamei("ready") == false)
                 {
@@ -589,6 +589,8 @@ namespace IPA.Cores.Basic
                 {
                     throw new CoresLibException($"Protocol error: Connection ID not returned.");
                 }
+
+                return ready;
             }
             catch
             {
@@ -687,6 +689,8 @@ namespace IPA.Cores.Basic
                     var data = await src._ReadAllAsync(dataSize, cancel);
                     packet.Write(data);
 
+                    //$"Stream -> WS: {data._GetString_Ascii()}"._Debug();
+
                     byte c = (await src.ReceiveByteAsync(cancel));
                     packet.WriteByte(c);
                     if (c == ',')
@@ -727,6 +731,8 @@ namespace IPA.Cores.Basic
 
                     totalBytes?.Add(data.Length);
                     await dst.WriteAsync(data, cancel);
+
+                    //$"WS -> Stream: {data._GetString_Ascii()}"._Debug();
 
                     if (result.EndOfMessage)
                     {

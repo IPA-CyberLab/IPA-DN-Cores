@@ -396,7 +396,7 @@ namespace IPA.Cores.Codes
                     ThinWebClientModelRemote main = new ThinWebClientModelRemote()
                     {
                         ConnectOptions = connectOptions,
-                        WebSocketUrl = $"/ws/",
+                        WebSocketUrl = "/ws/",
                         SessionId = session.SessionId,
                         Profile = profile,
                         SvcType = connectOptions.ConnectedSvcType!.Value,
@@ -473,7 +473,14 @@ namespace IPA.Cores.Codes
 
                         case ThinClientAcceptReadyNotification ready:
                             connectOptions.UpdateConnectedSvcType(ready.FirstConnection!.SvcType);
-                            ready.ListenEndPoint?.ToString()._Debug();
+                            if (ready.WebSocketFullUrl._IsFilled())
+                            {
+                                $"ready.WebSocketFullUrl = {ready.WebSocketFullUrl?.ToString()}"._Debug();
+                            }
+                            else
+                            {
+                                $"ready.ListenEndPoint = {ready.ListenEndPoint?.ToString()}"._Debug();
+                            }
                             req.SetResponseDataEmpty();
 
                             return Redirect($"/ThinWebClient/Remote/{session.SessionId}/");
@@ -574,11 +581,20 @@ namespace IPA.Cores.Codes
                                     //"dn-ttwin1.sec.softether.co.jp", 3389, // testtest
                                     pref));
 
-                            await guaClient.StartAsync(cancel);
+                            var readyPacket = await guaClient.StartAsync(cancel);
 
                             await using var gcStream = guaClient.Stream._NullCheck();
 
                             using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync("guacamole");
+
+                            //if (true)
+                            //{
+                            //    MemoryStream ms = new MemoryStream();
+                            //    await readyPacket.SendPacketAsync(ms);
+                            //    //var tmp = ms.ToArray();
+                            //    var tmp = "6.hello;"._GetBytes_Ascii();
+                            //    await webSocket.SendAsync(tmp, WebSocketMessageType.Text, true, cancel);
+                            //}
 
                             await GuaWebSocketUtil.RelayBetweenWebSocketAndStreamDuplex(gcStream, webSocket, cancel: cancel);
 
