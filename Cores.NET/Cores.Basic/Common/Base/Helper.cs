@@ -2795,6 +2795,12 @@ namespace IPA.Cores.Helper.Basic
             => ip.GetAddressBytes()._IsZeroFast();
 
         public static string _NormalizeFqdn(this string src) => Str.NormalizeFqdn(src);
+
+        public static int _ToYymmddInt(this DateTime dt, int zeroValue = 0) => Str.DateTimeToYymmddInt(dt, zeroValue);
+        public static int _ToHhmmssInt(this DateTime dt, int zeroValue = 0) => Str.DateTimeToHhmmssInt(dt, zeroValue);
+
+        public static int _ToYymmddInt(this DateTimeOffset dt, int zeroValue = 0) => Str.DateTimeToYymmddInt(dt.DateTime, zeroValue);
+        public static int _ToHhmmssInt(this DateTimeOffset dt, int zeroValue = 0) => Str.DateTimeToHhmmssInt(dt.DateTime, zeroValue);
     }
 }
 

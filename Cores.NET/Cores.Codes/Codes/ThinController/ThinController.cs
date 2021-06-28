@@ -208,6 +208,8 @@ namespace IPA.Cores.Codes
         public int Sys_Thin_ConcurrentRequests;
         public int Sys_Thin_LastDbReadTookMsecs;
         public int Sys_Thin_IsDatabaseConnected;
+        public int Sys_Thin_WebSocketCertTimestampDateYymmdd;
+        public int Sys_Thin_WebSocketCertTimestampTimeHHmmss;
     }
 
     public class ThinControllerSessionClientInfo
@@ -1376,6 +1378,7 @@ namespace IPA.Cores.Codes
         public string DomainName = "";
         public List<byte[]> CertsList = new List<byte[]>();
         public byte[] Key = new byte[0];
+        public DateTimeOffset TimeStamp;
     }
 
     public class ThinControllerWebSocketCertMaintainer : AsyncServiceWithMainLoop
@@ -1428,6 +1431,20 @@ namespace IPA.Cores.Codes
                 {
                     certsData = this.WebSocketCertCacheDir.Combine("cert.cer").ReadDataFromFile();
                     certsKey = this.WebSocketCertCacheDir.Combine("cert.key").ReadDataFromFile();
+
+                    string localTimestampBody = "";
+                    try
+                    {
+                        localTimestampBody = this.WebSocketCertCacheDir.Combine("timestamp.txt").ReadStringFromFile()._GetFirstFilledLineFromLines();
+
+                        if (localTimestampBody._IsFilled())
+                        {
+                            ret.TimeStamp = Str.StrToDateTime(localTimestampBody, emptyToZeroDateTime: true);
+                        }
+                    }
+                    catch
+                    {
+                    }
                 }
 
                 var cs = new CertificateStore(certsData.Span, certsKey.Span);
@@ -1463,6 +1480,7 @@ namespace IPA.Cores.Codes
                     try
                     {
                         await UpdateCoreAsync(cancel);
+                        numFailed = 0;
                     }
                     catch (Exception ex)
                     {
@@ -1470,15 +1488,17 @@ namespace IPA.Cores.Codes
                         numFailed++;
                     }
 
-                    nextWaitInterval = Util.GenRandInterval(3 * 1000);
+                    nextWaitInterval = Util.GenRandInterval(ThinControllerConsts.ThinWebClient_WebSocketCertMaintainer_Interval_Normal_Msecs);
                     if (numFailed >= 1)
                     {
-                        nextWaitInterval = Util.GenRandIntervalWithRetry(3 * 1000, numFailed, 6 * 1000);
+                        nextWaitInterval = Util.GenRandIntervalWithRetry(ThinControllerConsts.ThinWebClient_WebSocketCertMaintainer_Interval_Retry_Initial_Msecs,
+                            numFailed,
+                            ThinControllerConsts.ThinWebClient_WebSocketCertMaintainer_Interval_Retry_Max_Msecs);
                     }
                 }
 
                 if (cancel.IsCancellationRequested) break;
-                nextWaitInterval = 100;
+                
                 await cancel._WaitUntilCanceledAsync(nextWaitInterval);
             }
         }
@@ -1498,16 +1518,14 @@ namespace IPA.Cores.Codes
                     http.SetBasicAuthHeader(certUsername, certPassword);
                 }
 
-                Where(Time.Tick64);
                 string newTimestampBody = (await http.SimpleQueryAsync(WebMethods.GET, certUrl._CombineUrl("timestamp.txt").ToString())).ToString()._GetFirstFilledLineFromLines();
 
                 if (newTimestampBody._IsEmpty()) throw new CoresLibException("timestampBody is empty.");
 
-                Where(Time.Tick64);
                 var newCertBody = (await http.SimpleQueryAsync(WebMethods.GET, certUrl._CombineUrl("cert.cer").ToString())).Data;
-                Where(Time.Tick64);
+
                 var newKeyBody = (await http.SimpleQueryAsync(WebMethods.GET, certUrl._CombineUrl("cert.key").ToString())).Data;
-                Where(Time.Tick64);
+
                 // 証明書のパースを試行
                 var newCertStore = new CertificateStore(newCertBody, newKeyBody);
 
@@ -1515,7 +1533,7 @@ namespace IPA.Cores.Codes
                 string localTimestampBody = "";
                 try
                 {
-                    localTimestampBody = (await this.WebSocketCertCacheDir.Combine("timestamp.txt").ReadStringFromFileAsync(cancel: cancel))._GetFirstFilledLineFromLines();
+                    localTimestampBody = this.WebSocketCertCacheDir.Combine("timestamp.txt").ReadStringFromFile()._GetFirstFilledLineFromLines();
                 }
                 catch
                 {
@@ -1659,6 +1677,9 @@ namespace IPA.Cores.Codes
                             nums.Add("Sys_Thin_ConcurrentRequests", stat.Sys_Thin_ConcurrentRequests);
                             nums.Add("Sys_Thin_LastDbReadTookMsecs", stat.Sys_Thin_LastDbReadTookMsecs);
                             nums.Add("Sys_Thin_IsDatabaseConnected", stat.Sys_Thin_IsDatabaseConnected);
+
+                            nums.Add("Sys_Thin_WebSocketCertTimestampDateYymmdd", stat.Sys_Thin_WebSocketCertTimestampDateYymmdd);
+                            nums.Add("Sys_Thin_WebSocketCertTimestampTimeHHmmss", stat.Sys_Thin_WebSocketCertTimestampTimeHHmmss);
                         }
                     }
                 });
@@ -2162,6 +2183,8 @@ namespace IPA.Cores.Codes
             {
             }
 
+            ThinControllerWebSocketCertData? certData = this.WebSocketCertMaintainer.GetCertData();
+
             ThinControllerStat ret = new ThinControllerStat
             {
                 Stat_CurrentRelayGates = SessionManager.GateTable.Count,
@@ -2211,6 +2234,9 @@ namespace IPA.Cores.Codes
                 Sys_Thin_LastDbReadTookMsecs = this.Db.LastDbReadTookMsecs,
                 Sys_Thin_IsDatabaseConnected = this.Db.IsDatabaseConnected ? 1 : 0,
                 Sys_Thin_DbLazyUpdateQueueLength = this.Db.LazyUpdateJobQueueLength,
+
+                Sys_Thin_WebSocketCertTimestampDateYymmdd = certData?.TimeStamp._ToYymmddInt() ?? 0,
+                Sys_Thin_WebSocketCertTimestampTimeHHmmss = certData?.TimeStamp._ToHhmmssInt() ?? 0,
             };
 
             return ret;

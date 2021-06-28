@@ -93,6 +93,9 @@ namespace IPA.Cores.Codes
         public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl = "http://ssl-cert-server.websocket.jp/wildcard_cert_files/websocket.jp/latest/";
         public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl_Username = "user123";
         public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl_Password = "pass123";
+        public static readonly Copenhagen<int> ThinWebClient_WebSocketCertMaintainer_Interval_Normal_Msecs = 1 * 60 * 60 * 1000;
+        public static readonly Copenhagen<int> ThinWebClient_WebSocketCertMaintainer_Interval_Retry_Initial_Msecs = 15 * 1000;
+        public static readonly Copenhagen<int> ThinWebClient_WebSocketCertMaintainer_Interval_Retry_Max_Msecs = 5 * 60 * 1000;
 
         // DB の Var で設定可能な変数のデフォルト値
         public static readonly Copenhagen<int> Default_ControllerMaxConcurrentWpcRequestProcessingForUsers = 500;
