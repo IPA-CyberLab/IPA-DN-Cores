@@ -1749,7 +1749,30 @@ namespace IPA.Cores.Basic
     {
         object lockobj = new object();
         List<AsyncManualResetEvent> eventQueue = new List<AsyncManualResetEvent>();
-        bool isSet = false;
+        volatile bool isSet = false;
+        volatile int stateVersion = 1;
+
+        public int StateVersion
+        {
+            get
+            {
+                lock (lockobj)
+                {
+                    return this.stateVersion;
+                }
+            }
+        }
+
+        public bool IsSet
+        {
+            get
+            {
+                lock (lockobj)
+                {
+                    return this.isSet;
+                }
+            }
+        }
 
         public AsyncCallbackList CallbackList { get; } = new AsyncCallbackList();
 
@@ -1785,6 +1808,8 @@ namespace IPA.Cores.Basic
             {
                 if (isSet)
                 {
+                    Interlocked.Increment(ref this.stateVersion);
+
                     isSet = false;
                     cancel = () => { };
                     return Task.CompletedTask;
@@ -1825,6 +1850,8 @@ namespace IPA.Cores.Basic
             AsyncManualResetEvent? ev = null;
             lock (lockobj)
             {
+                Interlocked.Increment(ref this.stateVersion);
+
                 if (eventQueue.Count >= 1)
                 {
                     ev = eventQueue[eventQueue.Count - 1];

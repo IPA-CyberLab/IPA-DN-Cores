@@ -73,6 +73,12 @@ namespace IPA.Cores.Basic
             public const int TunnelKeepAliveHardMax = 2 * 60 * 1000;
 
             public const int MaxBlockSize = 65536;
+
+            public const int SpecialOpCode_Min = 16777000;
+            public const int SpecialOpCode_Max = 16777215;
+
+            public const int SpecialOpCode_C2S_SwitchToWebSocket_Request = 16777001;
+            public const int SpecialOpCode_S2C_SwitchToWebSocket_Ack = 16777002;
         }
     }
 
@@ -207,6 +213,13 @@ namespace IPA.Cores.Basic
 
         public WideTunnel WideTunnel => Options.WideTunnel;
 
+        // 特殊リクエスト処理系
+        readonly AsyncAutoResetEvent C2S_SpecialOp_Event = new AsyncAutoResetEvent();
+        volatile bool C2S_SwitchToWebSocket_Requested = false;
+        volatile bool S2C_SwitchToWebSocket_Completed = false;
+        readonly AsyncAutoResetEvent S2C_SoecialOp_Completed_Event = new AsyncAutoResetEvent();
+        string WebSocketUrl = "";
+
         PipeStream LowerStream;
         PipeStream UpperStream;
 
@@ -286,11 +299,37 @@ namespace IPA.Cores.Basic
                 tunnelUseAggressiveTimeout = tunnelUseAggressiveTimeout2;
             }
 
+            this.WebSocketUrl = p["websocket_url"].StrValue!;
+            if (this.WebSocketUrl._IsEmpty()) throw new CoresLibException("This version of the destination ThinGate has no WebSocket capability.");
+
             LowerStream.ReadTimeout = tunnelTimeout;
             LowerStream.WriteTimeout = Timeout.Infinite;
 
             this.SendTask = SendLoopAsync(tunnelKeepalive)._LeakCheck();
             this.RecvTask = RecvLoopAsync()._LeakCheck();
+        }
+
+        public async Task<string> RequestSwitchToWebSocketAsync(CancellationToken cancel = default, int timeout = -1)
+        {
+            if (this.C2S_SwitchToWebSocket_Requested) throw new CoresLibException("Already requested.");
+
+            cancel.ThrowIfCancellationRequested();
+            this.GrandCancel.ThrowIfCancellationRequested();
+
+            this.C2S_SwitchToWebSocket_Requested = true;
+            this.C2S_SpecialOp_Event.Set(true);
+
+            await using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken c2, cancel, this.GrandCancel))
+            {
+                await S2C_SoecialOp_Completed_Event.WaitOneAsync(timeout: timeout, cancel: c2);
+            }
+
+            if (this.S2C_SwitchToWebSocket_Completed == false)
+            {
+                throw new CoresException("RequestSwitchToWebSocketAsync timed out.");
+            }
+
+            return this.WebSocketUrl;
         }
 
         async Task SendLoopAsync(int keepaliveInterval)
@@ -304,6 +343,8 @@ namespace IPA.Cores.Basic
                 long nextPingTick = timer.AddTimeout(0);
 
                 bool initialFourZeroSent = false;
+
+                bool localFlag_C2S_SwitchToWebSocket_Requested = false;
 
                 while (true)
                 {
@@ -340,6 +381,14 @@ namespace IPA.Cores.Basic
                         nextPingTick = timer.AddTimeout(Util.GenRandInterval(keepaliveInterval));
                     }
 
+                    if (localFlag_C2S_SwitchToWebSocket_Requested == false && this.C2S_SwitchToWebSocket_Requested)
+                    {
+                        // Web socket switch request invoked (only once)
+                        $"Web socket switch request invoked"._Debug();
+                        localFlag_C2S_SwitchToWebSocket_Requested = true;
+                        sendBuffer.WriteSInt32(Consts.WideTunnelConsts.SpecialOpCode_C2S_SwitchToWebSocket_Request);
+                    }
+
                     if (sendBuffer.IsThisEmpty() == false)
                     {
                         //$"RawSendData: {sendBuffer.Span._GetHexString()}"._Debug();
@@ -348,7 +397,7 @@ namespace IPA.Cores.Basic
 
                     await LowerStream.WaitReadyToSendAsync(cancel, Timeout.Infinite);
 
-                    await UpperStream.WaitReadyToReceiveAsync(cancel, timer.GetNextInterval(), noTimeoutException: true);
+                    await UpperStream.WaitReadyToReceiveAsync(cancel, timer.GetNextInterval(), noTimeoutException: true, cancelEvent: C2S_SpecialOp_Event);
                 }
             }
             catch (Exception ex)
@@ -370,7 +419,19 @@ namespace IPA.Cores.Basic
                     // データサイズを受信
                     int dataSize = await LowerStream.ReceiveSInt32Async(cancel).FlushOtherStreamIfPending(UpperStream);
 
-                    if (dataSize < 0 || dataSize > Consts.WideTunnelConsts.MaxBlockSize)
+                    if (dataSize >= Consts.WideTunnelConsts.SpecialOpCode_Min && dataSize < Consts.WideTunnelConsts.SpecialOpCode_Max)
+                    {
+                        // 特殊コード受信
+                        int code = dataSize;
+
+                        if (code == Consts.WideTunnelConsts.SpecialOpCode_S2C_SwitchToWebSocket_Ack)
+                        {
+                            // WebSocket 切替え完了応答
+                            this.S2C_SwitchToWebSocket_Completed = true;
+                            this.S2C_SoecialOp_Completed_Event.Set(true);
+                        }
+                    }
+                    else if (dataSize < 0 || dataSize > Consts.WideTunnelConsts.MaxBlockSize)
                     {
                         // 不正なデータサイズを受信。通信エラーか
                         throw new CoresLibException($"dataSize < 0 || dataSize > Consts.WideTunnelConsts.MaxBlockSize ({dataSize})");
@@ -423,6 +484,11 @@ namespace IPA.Cores.Basic
 
         public async Task StartWtcAsync(CancellationToken cancel = default)
             => await Stack.StartWtcAsync(cancel);
+
+        public async Task<string> RequestSwitchToWebSocketAsync(CancellationToken cancel = default, int timeout = -1)
+        {
+            return await this.Stack.RequestSwitchToWebSocketAsync(cancel, timeout);
+        }
     }
 
     [Flags]
@@ -493,7 +559,7 @@ namespace IPA.Cores.Basic
 
             SvcName = svcName._NonNullTrim();
             ClientId = clientId;
-            this.EntryUrlList = entryUrlList;
+            this.EntryUrlList = entryUrlList.Distinct(StrComparer.IgnoreCaseTrimComparer).OrderBy(x => x, StrComparer.IgnoreCaseTrimComparer).ToList();
             this.TcpIp = tcpIp;
             this.WebApiOptions = webApiOptions;
             this.WaterMark = waterMark;

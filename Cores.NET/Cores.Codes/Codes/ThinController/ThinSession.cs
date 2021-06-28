@@ -111,6 +111,12 @@ namespace IPA.Cores.Codes
         }
     }
 
+    public enum ThinGateCaps : ulong
+    {
+        None = 0,
+        WebSocket = 1,
+    }
+
     public class ThinGate : IValidatable, INormalizable
     {
         [SimpleTableOrder(1)]
@@ -152,6 +158,9 @@ namespace IPA.Cores.Codes
         public int NumClients => this.SessionTable.Values.Sum(x => x.NumClients);
         [SimpleTableOrder(12.2)]
         public int NumClientsUnique => this.SessionTable.Values.Sum(x => x.NumClientsUnique);
+
+        [SimpleTableOrder(12.5)]
+        public ThinGateCaps Caps = ThinGateCaps.None;
 
         [NoDebugDump]
         [SimpleTableIgnore]

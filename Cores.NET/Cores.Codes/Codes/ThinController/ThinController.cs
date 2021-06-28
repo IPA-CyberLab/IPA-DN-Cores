@@ -959,6 +959,7 @@ namespace IPA.Cores.Codes
                 UltraCommitId = p["UltraCommitId"].StrValueNonNull,
                 CurrentTime = p["CurrentTime"].DateTimeValue.ToLocalTime(),
                 BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
+                Caps = (ThinGateCaps)p["Caps"].Int64Value,
             };
 
             if (gate.Performance == 0) gate.Performance = 100;

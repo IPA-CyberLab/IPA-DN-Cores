@@ -71,6 +71,7 @@ namespace IPA.Cores.Basic
             public const int ReconnectRetrySpanMsecs = 2 * 1000;
             public const int ReconnectRetrySpanMaxMsecs = 3 * 60 * 1000;
 
+            public const int RequestSwitchToWebSocketTimeoutMsecs = 5 * 1000; // TODO 10
             public const int RequestHardTimeoutMsecs = 150 * 1000;
             public const int RequestSoftTimeoutMsecs = 5 * 1000; // TODO 15
             public const int ConnectionQueueWaitTimeout = 10 * 1000;
@@ -167,14 +168,16 @@ namespace IPA.Cores.Basic
         public string ClientFqdn { get; }
         public object? AppParams { get; }
         public ThinSvcType? ConnectedSvcType { get; private set; } = null;
+        public bool DebugGuacMode { get; }
 
-        public ThinClientConnectOptions(string pcid, IPAddress clientIp, string clientFqdn, WideTunnelClientOptions clientOptions = WideTunnelClientOptions.None, object ?appParams = null)
+        public ThinClientConnectOptions(string pcid, IPAddress clientIp, string clientFqdn, bool debugGuacMode, WideTunnelClientOptions clientOptions = WideTunnelClientOptions.None, object ?appParams = null)
         {
             this.Pcid = pcid;
             this.ClientOptions = clientOptions;
             this.ClientIpAddress = clientIp;
             this.ClientFqdn = clientFqdn;
             this.AppParams = appParams;
+            this.DebugGuacMode = debugGuacMode;
         }
 
         public void UpdateConnectedSvcType(ThinSvcType type)
@@ -299,6 +302,13 @@ namespace IPA.Cores.Basic
 
                 return response;
             });
+
+            if (connectOptions.DebugGuacMode == false)
+            {
+                session.Debug("Switching to WebSocket mode...");
+                string webSocketUrl = await firstConnection.Socket.RequestSwitchToWebSocketAsync(cancel, Consts.ThinClient.RequestSwitchToWebSocketTimeoutMsecs);
+                session.Debug($"Switching to WebSocket mode OK. webSocketUrl = {webSocketUrl}");
+            }
 
             session.Debug("First WideTunnel Connected.");
 

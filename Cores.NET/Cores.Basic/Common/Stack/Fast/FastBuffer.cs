@@ -108,6 +108,8 @@ namespace IPA.Cores.Basic
         {
             LocalTimer timer = new LocalTimer();
 
+            int cancelEventInitialStateVer = cancelEvent?.StateVersion ?? 0;
+
             timer.AddTimeout(PollingTimeout);
             long timeoutTick = timer.AddTimeout(timeout);
 
@@ -127,6 +129,9 @@ namespace IPA.Cores.Basic
 
                 cancel.ThrowIfCancellationRequested();
 
+                if (cancelEvent?.IsSet ?? false) return;
+                if ((cancelEvent?.StateVersion ?? 0) != cancelEventInitialStateVer) return;
+
                 await TaskUtil.WaitObjectsAsync(
                     cancels: new CancellationToken[] { cancel },
                     events: new AsyncAutoResetEvent?[] { writer.EventWriteReady, cancelEvent },
@@ -140,6 +145,8 @@ namespace IPA.Cores.Basic
         public static async Task WaitForReadyToReadAsync(this IFastBufferState reader, CancellationToken cancel, int timeout, int sizeToRead = 1, bool noTimeoutException = false, AsyncAutoResetEvent? cancelEvent = null)
         {
             sizeToRead = Math.Max(sizeToRead, 1);
+
+            int cancelEventInitialStateVer = cancelEvent?.StateVersion ?? 0;
 
             if (sizeToRead > reader.Threshold) throw new ArgumentException("WaitForReadyToReadAsync: sizeToRead > reader.Threshold");
 
@@ -163,6 +170,9 @@ namespace IPA.Cores.Basic
                 }
 
                 cancel.ThrowIfCancellationRequested();
+
+                if (cancelEvent?.IsSet ?? false) return;
+                if ((cancelEvent?.StateVersion ?? 0) != cancelEventInitialStateVer) return;
 
                 await TaskUtil.WaitObjectsAsync(
                     cancels: new CancellationToken[] { cancel },

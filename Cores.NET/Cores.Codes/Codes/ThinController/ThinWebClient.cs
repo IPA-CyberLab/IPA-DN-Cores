@@ -92,9 +92,13 @@ namespace IPA.Cores.Codes
     [Serializable]
     public sealed class ThinWebClientSettings : INormalizable
     {
-        public bool ProxyPortListenAllowAny = false;
-        public string GuacdHostname = "dn-ttguacd1.sec.softether.co.jp";
-        public int GuacdPort = 4822;
+        public bool Debug_EnableGuacdMode = false;
+
+        public bool Debug_GuacdMode_ProxyPortListenAllowAny = false;
+        public string Debug_GuacdMode_GuacdHostname = "";
+        public int Debug_GuacdPort;
+
+        public List<string> ThinControllerUrlList = new List<string>();
 
         public ThinWebClientSettings()
         {
@@ -102,6 +106,20 @@ namespace IPA.Cores.Codes
 
         public void Normalize()
         {
+            if (this.ThinControllerUrlList.Count == 0)
+            {
+                this.ThinControllerUrlList.Add("https://specify_address_here.example.org/thincontrol/");
+            }
+
+            if (this.Debug_GuacdMode_GuacdHostname._IsEmpty())
+            {
+                this.Debug_GuacdMode_GuacdHostname = "none";
+            }
+
+            if (this.Debug_GuacdPort == 0)
+            {
+                this.Debug_GuacdPort = 4822;
+            }
         }
     }
 
@@ -304,7 +322,7 @@ namespace IPA.Cores.Codes
                     string clientFqdn = await Client.DnsResolver.GetHostNameSingleOrIpAsync(clientIp);
 
                     // セッションの開始
-                    var session = tc.StartConnect(new ThinClientConnectOptions(profile.Pcid, clientIp, clientFqdn, WideTunnelClientOptions.None, profile._CloneWithJson()));
+                    var session = tc.StartConnect(new ThinClientConnectOptions(profile.Pcid, clientIp, clientFqdn, this.Client.SettingsFastSnapshot.Debug_EnableGuacdMode, WideTunnelClientOptions.None, profile._CloneWithJson()));
                     string sessionId = session.SessionId;
 
                     // セッション ID をもとにした URL にリダイレクト
@@ -549,8 +567,8 @@ namespace IPA.Cores.Codes
 
                             await using var guaClient = new GuaClient(
                                 new GuaClientSettings(
-                                    Client.SettingsFastSnapshot.GuacdHostname,
-                                    Client.SettingsFastSnapshot.GuacdPort,
+                                    Client.SettingsFastSnapshot.Debug_GuacdMode_GuacdHostname,
+                                    Client.SettingsFastSnapshot.Debug_GuacdPort,
                                     ready.FirstConnection!.SvcType.ToString().StrToGuaProtocol(),
                                     "", ready.ListenEndPoint!.Port,
                                     //"dn-ttwin1.sec.softether.co.jp", 3389, // testtest
@@ -635,12 +653,12 @@ namespace IPA.Cores.Codes
             AddressFamily listenFamily = AddressFamily.InterNetwork;
             IPAddress listenAddress = IPAddress.Loopback;
 
-            if (this.SettingsFastSnapshot.ProxyPortListenAllowAny)
+            if (this.SettingsFastSnapshot.Debug_GuacdMode_ProxyPortListenAllowAny)
             {
                 listenAddress = IPAddress.Any;
             }
 
-            ThinClient tc = new ThinClient(new ThinClientOptions(new WideTunnelOptions("DESK", nameof(ThinWebClient), StrList("https://pc34.sehosts.com/thincontrol/")), this.SessionManager,
+            ThinClient tc = new ThinClient(new ThinClientOptions(new WideTunnelOptions("DESK", nameof(ThinWebClient), this.SettingsFastSnapshot.ThinControllerUrlList), this.SessionManager,
                 listenFamily, listenAddress));
 
             return tc;
