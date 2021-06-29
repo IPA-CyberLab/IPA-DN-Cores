@@ -430,6 +430,9 @@ namespace IPA.Cores.Basic
                             this.S2C_SwitchToWebSocket_Completed = true;
                             this.S2C_SoecialOp_Completed_Event.Set(true);
                         }
+
+                        // ループの最初に戻る
+                        continue;
                     }
                     else if (dataSize < 0 || dataSize > Consts.WideTunnelConsts.MaxBlockSize)
                     {

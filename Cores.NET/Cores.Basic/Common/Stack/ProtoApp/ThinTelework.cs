@@ -332,7 +332,6 @@ namespace IPA.Cores.Basic
                 // これを行なうことにより、guacd が、local PC の RDP/VNC に接続し通信を初期化する。
                 // その後、WebSocket への切替えを行ない、それ以降は guacd とクライアント Web ブラウザが直接対話する。
 
-                string webSocketUrl = await firstConnection.Socket.RequestSwitchToWebSocketAsync(cancel, Consts.ThinClient.RequestSwitchToWebSocketTimeoutMsecs);
 
                 await using var guaClient = new GuaClient(
                     new GuaClientSettings(
@@ -343,6 +342,8 @@ namespace IPA.Cores.Basic
                         connectOptions.GuaPreference!),
                     firstConnection.Stream);
 
+                string webSocketUrl = "";
+
                 var readyPacket = await guaClient.StartAsync(cancel, afterHelloCallbackAsync: async () =>
                 {
                     // この非同期コールバックは、Guacd Protocol で "select, rdp" のような最初の hello に相当するプロトコルを送付し、
@@ -351,9 +352,18 @@ namespace IPA.Cores.Basic
                     // そうすれば、この状態で、ThinGate がそれ以降うまく取り計らい、"ready なんとかかんとか;" の ";" という最初の ";" 文字までを
                     // この TCP クライアントに返した後に、それ以降のバッファは WebSocket 用に保留し、本 TCP クライアントには送付されなくなる
                     // はずである。このあたりの実装は ThinGate で実装されているので、ソースコードを参照すること。
+
+                    webSocketUrl = await firstConnection.Socket.RequestSwitchToWebSocketAsync(cancel, Consts.ThinClient.RequestSwitchToWebSocketTimeoutMsecs);
+                    $"webSocketUrl = {webSocketUrl}"._Debug();
                 });
 
                 readyPacket._DebugAsJson();
+
+                webSocketUrl._NotEmptyCheck(nameof(webSocketUrl));
+
+                // テストさん
+                var testmem = await firstConnection.Stream.ReceiveAsync(cancel: cancel);
+                $"Test: '{testmem._GetString_Ascii()}'"._Debug();
 
                 // フル WebSocket URL を生成する
                 var gateEndPoint = firstConnection.Socket.GatePhysicalEndPoint;
