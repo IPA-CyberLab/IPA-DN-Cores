@@ -127,6 +127,7 @@ namespace IPA.Cores.Basic
 
         public IPEndPoint? ListenEndPoint;
         public ThinClientConnection? FirstConnection;
+        public ThinSvcType? SvcType;
     }
 
     public class ThinClientInspectRequest : IDialogRequestData
@@ -173,6 +174,7 @@ namespace IPA.Cores.Basic
         public ThinSvcType? ConnectedSvcType { get; private set; } = null;
         public bool DebugGuacMode { get; }
         public GuaPreference? GuaPreference { get; }
+        public string? WebSocketUrl { get; private set; } = "/ws/";
 
         public ThinClientConnectOptions(string pcid, IPAddress clientIp, string clientFqdn, bool debugGuacMode, WideTunnelClientOptions clientOptions = WideTunnelClientOptions.None, GuaPreference? guaPreference = null, object? appParams = null)
         {
@@ -183,6 +185,11 @@ namespace IPA.Cores.Basic
             this.AppParams = appParams;
             this.DebugGuacMode = debugGuacMode;
             this.GuaPreference = guaPreference;
+        }
+
+        public void UpdateWebSocketUrl(string url)
+        {
+            this.WebSocketUrl = url;
         }
 
         public void UpdateConnectedSvcType(ThinSvcType type)
@@ -344,26 +351,19 @@ namespace IPA.Cores.Basic
 
                 string webSocketUrl = "";
 
-                var readyPacket = await guaClient.StartAsync(cancel, afterHelloCallbackAsync: async () =>
+                await guaClient.StartAsync(cancel, afterHelloCallbackAsync: async () =>
                 {
                     // この非同期コールバックは、Guacd Protocol で "select, rdp" のような最初の hello に相当するプロトコルを送付し、
                     // その後、最初の応答を受信してから、Connect パケットを送付する直前に呼び出される。
                     // ここで、ThinGate との下位プロトコルレベルにおける WebSocket への切替え要求を送付し、切替え OK 応答が戻ってくるまで待機する。
-                    // そうすれば、この状態で、ThinGate がそれ以降うまく取り計らい、"ready なんとかかんとか;" の ";" という最初の ";" 文字までを
-                    // この TCP クライアントに返した後に、それ以降のバッファは WebSocket 用に保留し、本 TCP クライアントには送付されなくなる
-                    // はずである。このあたりの実装は ThinGate で実装されているので、ソースコードを参照すること。
+                    // そうすれば、この状態で、ThinGate がそれ以降うまく取り計らい、connect パケットそのものは WebSocket への切替えが完了する
+                    // 瞬間まで ThinGate で保留され、サーバー機には送付されない。(WebSocket への切替えが完了した瞬間にサーバー機に送付される。)
 
                     webSocketUrl = await firstConnection.Socket.RequestSwitchToWebSocketAsync(cancel, Consts.ThinClient.RequestSwitchToWebSocketTimeoutMsecs);
                     $"webSocketUrl = {webSocketUrl}"._Debug();
                 });
 
-                readyPacket._DebugAsJson();
-
                 webSocketUrl._NotEmptyCheck(nameof(webSocketUrl));
-
-                // テストさん
-                var testmem = await firstConnection.Stream.ReceiveAsync(cancel: cancel);
-                $"Test: '{testmem._GetString_Ascii()}'"._Debug();
 
                 // フル WebSocket URL を生成する
                 var gateEndPoint = firstConnection.Socket.GatePhysicalEndPoint;
@@ -371,7 +371,11 @@ namespace IPA.Cores.Basic
                 // WebSocket URL を HTML クライアントに通知する
                 var ready = new ThinClientAcceptReadyNotification
                 {
-                    WebSocketFullUrl = IPUtil.GenerateWildCardDnsFqdn(gateEndPoint.Address, firstConnection.Socket.Options.ConnectParam.WebSocketWildCardDomainName),
+                    WebSocketFullUrl = "wss://" + IPUtil.GenerateWildCardDnsFqdn(gateEndPoint.Address, firstConnection.Socket.Options.ConnectParam.WebSocketWildCardDomainName) +
+                        (gateEndPoint.Port == 443 ? "" : ":" + gateEndPoint.Port.ToString()) +
+                        webSocketUrl,
+
+                    SvcType = firstConnection.SvcType,
                 };
 
                 Dbg.Where();

@@ -396,7 +396,7 @@ namespace IPA.Cores.Codes
                     ThinWebClientModelRemote main = new ThinWebClientModelRemote()
                     {
                         ConnectOptions = connectOptions,
-                        WebSocketUrl = "/ws/",
+                        WebSocketUrl = connectOptions.WebSocketUrl,
                         SessionId = session.SessionId,
                         Profile = profile,
                         SvcType = connectOptions.ConnectedSvcType!.Value,
@@ -472,7 +472,17 @@ namespace IPA.Cores.Codes
                             }
 
                         case ThinClientAcceptReadyNotification ready:
-                            connectOptions.UpdateConnectedSvcType(ready.FirstConnection!.SvcType);
+                            if (connectOptions.DebugGuacMode)
+                            {
+                                connectOptions.UpdateConnectedSvcType(ready.FirstConnection!.SvcType);
+                            }
+                            else
+                            {
+                                connectOptions.UpdateConnectedSvcType(ready.SvcType!.Value);
+                                ready.WebSocketFullUrl._NotEmptyCheck();
+                                connectOptions.UpdateWebSocketUrl(ready.WebSocketFullUrl);
+                            }
+
                             if (ready.WebSocketFullUrl._IsFilled())
                             {
                                 $"ready.WebSocketFullUrl = {ready.WebSocketFullUrl?.ToString()}"._Debug();

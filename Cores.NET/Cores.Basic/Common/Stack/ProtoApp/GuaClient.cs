@@ -535,7 +535,7 @@ namespace IPA.Cores.Basic
         public ConnSock? Sock { get; private set; }
         public PipeStream? Stream { get; private set; }
 
-        public async Task<GuaPacket> StartAsync(CancellationToken cancel = default, Func<Task>? afterHelloCallbackAsync = null)
+        public async Task<GuaPacket?> StartAsync(CancellationToken cancel = default, Func<Task>? afterHelloCallbackAsync = null)
         {
             if (Started.IsFirstCall() == false) throw new CoresLibException("StartAsync has already been called.");
 
@@ -605,6 +605,12 @@ namespace IPA.Cores.Basic
                 }
                 var opConnect = GuaPacket.CreateConnectPacket(connectOptions, supportedOptions);
                 await opConnect.SendPacketAsync(this.Stream, cancel);
+
+                if (this.ConnectedStreamMode)
+                {
+                    // Ready パケットは 届きません！
+                    return null;
+                }
 
                 // Ready パケットを受信
                 GuaPacket ready = await GuaPacket.RecvPacketAsync(this.Stream, cancel);
