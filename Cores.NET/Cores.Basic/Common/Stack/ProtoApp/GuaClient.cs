@@ -175,7 +175,7 @@ namespace IPA.Cores.Basic
     {
         public static partial class GuaClient
         {
-            public static readonly Copenhagen<int> TimeoutMsecs = 15 * 1000;
+            public static readonly Copenhagen<int> TimeoutMsecs = 30 * 1000;
 
             public static readonly Copenhagen<int> MinScreenWidth = 800;
             public static readonly Copenhagen<int> MinScreenHeight = 600;
@@ -475,12 +475,12 @@ namespace IPA.Cores.Basic
     public class GuaClientSettings
     {
         public GuaProtocol Protocol { get; }
-        public string GuacdHostname { get; }
-        public int GuacdPort { get; }
         public string ServerHostname { get; }
         public int ServerPort { get; }
         public GuaPreference Preference { get; }
         public TcpIpSystem TcpIp { get; }
+        public string GuacdHostname { get; }
+        public int GuacdPort { get; }
 
         public GuaClientSettings(string guacdHostname, int guacdPort, GuaProtocol protocol, string serverHostname, int serverPort, GuaPreference preference, TcpIpSystem? tcpIp = null)
         {
@@ -516,9 +516,18 @@ namespace IPA.Cores.Basic
 
         public string ConnectionId { get; private set; } = "";
 
+        public bool ConnectedStreamMode { get; } = false;
+
         public GuaClient(GuaClientSettings settings)
         {
             this.Settings = settings;
+        }
+
+        public GuaClient(GuaClientSettings settings, PipeStream connectedStream)
+        {
+            this.Settings = settings;
+            this.Stream = connectedStream;
+            this.ConnectedStreamMode = true;
         }
 
         Once Started;
@@ -526,14 +535,23 @@ namespace IPA.Cores.Basic
         public ConnSock? Sock { get; private set; }
         public PipeStream? Stream { get; private set; }
 
-        public async Task<GuaPacket> StartAsync(CancellationToken cancel = default)
+        public async Task<GuaPacket> StartAsync(CancellationToken cancel = default, Func<Task>? afterHelloCallbackAsync = null)
         {
             if (Started.IsFirstCall() == false) throw new CoresLibException("StartAsync has already been called.");
 
             try
             {
-                this.Sock = await Settings.TcpIp.ConnectIPv4v6DualAsync(new TcpConnectParam(this.Settings.GuacdHostname, this.Settings.GuacdPort), cancel);
-                this.Stream = Sock.GetStream(true);
+                if (this.ConnectedStreamMode == false)
+                {
+                    // TCP 接続モード
+                    this.Sock = await Settings.TcpIp.ConnectIPv4v6DualAsync(new TcpConnectParam(this.Settings.GuacdHostname, this.Settings.GuacdPort), cancel);
+                    this.Stream = Sock.GetStream(true);
+                }
+                else
+                {
+                    // すでに接続されている Stream を用いるモード
+                    this.Stream._MarkNotNull();
+                }
 
                 this.Stream.ReadTimeout = CoresConfig.GuaClient.TimeoutMsecs;
                 this.Stream.WriteTimeout = CoresConfig.GuaClient.TimeoutMsecs;
@@ -554,6 +572,11 @@ namespace IPA.Cores.Basic
                     throw new CoresLibException($"Protocol error: Received unexpected opcode: '{args.Opcode}'");
                 }
 
+                if (afterHelloCallbackAsync != null)
+                {
+                    await afterHelloCallbackAsync();
+                }
+
                 // サポートされているオプション文字列一覧を取得
                 var supportedOptions = args.Args;
 
@@ -572,7 +595,14 @@ namespace IPA.Cores.Basic
 
                 // Connect パケットを送付
                 KeyValueList<string, string> connectOptions = new KeyValueList<string, string>();
-                this.Settings.AddToKeyValueList(connectOptions, this.Sock.EndPointInfo.LocalIP._NullCheck());
+                if (this.ConnectedStreamMode == false)
+                {
+                    this.Settings.AddToKeyValueList(connectOptions, this.Sock!.EndPointInfo.LocalIP._NullCheck());
+                }
+                else
+                {
+                    this.Settings.AddToKeyValueList(connectOptions, "127.0.0.1");
+                }
                 var opConnect = GuaPacket.CreateConnectPacket(connectOptions, supportedOptions);
                 await opConnect.SendPacketAsync(this.Stream, cancel);
 
@@ -594,8 +624,11 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                await Sock._DisposeSafeAsync();
-                await Stream._DisposeSafeAsync();
+                if (this.ConnectedStreamMode == false)
+                {
+                    await Sock._DisposeSafeAsync();
+                    await Stream._DisposeSafeAsync();
+                }
 
                 throw;
             }
@@ -605,8 +638,11 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                await Sock._DisposeSafeAsync();
-                await Stream._DisposeSafeAsync();
+                if (this.ConnectedStreamMode == false)
+                {
+                    await Sock._DisposeSafeAsync();
+                    await Stream._DisposeSafeAsync();
+                }
             }
             finally
             {

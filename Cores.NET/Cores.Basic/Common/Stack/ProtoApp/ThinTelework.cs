@@ -103,6 +103,7 @@ namespace IPA.Cores.Basic
         Urdp2 = 2,
         UrdpVeryLimited = 4,
         WinRdpEnabled = 8,
+        GuacdSupported = 16,
     }
 
     [Flags]
@@ -171,8 +172,9 @@ namespace IPA.Cores.Basic
         public object? AppParams { get; }
         public ThinSvcType? ConnectedSvcType { get; private set; } = null;
         public bool DebugGuacMode { get; }
+        public GuaPreference? GuaPreference { get; }
 
-        public ThinClientConnectOptions(string pcid, IPAddress clientIp, string clientFqdn, bool debugGuacMode, WideTunnelClientOptions clientOptions = WideTunnelClientOptions.None, object? appParams = null)
+        public ThinClientConnectOptions(string pcid, IPAddress clientIp, string clientFqdn, bool debugGuacMode, WideTunnelClientOptions clientOptions = WideTunnelClientOptions.None, GuaPreference? guaPreference = null, object? appParams = null)
         {
             this.Pcid = pcid;
             this.ClientOptions = clientOptions;
@@ -180,6 +182,7 @@ namespace IPA.Cores.Basic
             this.ClientFqdn = clientFqdn;
             this.AppParams = appParams;
             this.DebugGuacMode = debugGuacMode;
+            this.GuaPreference = guaPreference;
         }
 
         public void UpdateConnectedSvcType(ThinSvcType type)
@@ -221,6 +224,7 @@ namespace IPA.Cores.Basic
         public WtcSocket Socket { get; }
         public PipeStream Stream { get; }
         public ThinSvcType SvcType { get; }
+        public int SvcPort { get; }
         public bool IsShareDisabled { get; }
         public ThinServerCaps Caps { get; }
         public ThinServerMask64 ServerMask64 => (ThinServerMask64)Socket.Options.ConnectParam.ServerMask64;
@@ -228,11 +232,12 @@ namespace IPA.Cores.Basic
         public string OtpTicket { get; }
         public string InspectTicket { get; }
 
-        public ThinClientConnection(WtcSocket socket, PipeStream stream, ThinSvcType svcType, bool isShareDisabled, ThinServerCaps caps, bool runInspect, string otpTicket, string inspectTicket)
+        public ThinClientConnection(WtcSocket socket, PipeStream stream, ThinSvcType svcType, int svcPort, bool isShareDisabled, ThinServerCaps caps, bool runInspect, string otpTicket, string inspectTicket)
         {
             Socket = socket;
             Stream = stream;
             SvcType = svcType;
+            SvcPort = svcPort;
             IsShareDisabled = isShareDisabled;
             Caps = caps;
             RunInspect = runInspect;
@@ -305,18 +310,50 @@ namespace IPA.Cores.Basic
                 return response;
             });
 
-            if (connectOptions.DebugGuacMode == false)
-            {
-                session.Debug("Switching to WebSocket mode...");
-                string webSocketUrl = await firstConnection.Socket.RequestSwitchToWebSocketAsync(cancel, Consts.ThinClient.RequestSwitchToWebSocketTimeoutMsecs);
-                session.Debug($"Switching to WebSocket mode OK. webSocketUrl = {webSocketUrl}");
-            }
+            //if (connectOptions.DebugGuacMode == false)
+            //{
+            //    session.Debug("Switching to WebSocket mode...");
+            //    string webSocketUrl = await firstConnection.Socket.RequestSwitchToWebSocketAsync(cancel, Consts.ThinClient.RequestSwitchToWebSocketTimeoutMsecs);
+            //    session.Debug($"Switching to WebSocket mode OK. webSocketUrl = {webSocketUrl}");
+            //}
 
             session.Debug("First WideTunnel Connected.");
 
             if (connectOptions.DebugGuacMode == false)
             {
-                // WebSocket 切替えモード (ThinGate が WebSocket を直接話す)
+                // ThinGate ネイティブ WebSocket モード (ThinGate が WebSocket を直接話す)
+
+                // 'A' を送信
+                // この段階でサーバー機の Guacd にソケットが接続された状態となる
+                byte[] a = new byte[] { (byte)'A' };
+                await firstConnection.Stream.SendAsync(a, cancel);
+
+                // 最初に少し Guacamole Protocol で ThinWebClient と guacd との間で対話を行なう。
+                // これを行なうことにより、guacd が、local PC の RDP/VNC に接続し通信を初期化する。
+                // その後、WebSocket への切替えを行ない、それ以降は guacd とクライアント Web ブラウザが直接対話する。
+
+                string webSocketUrl = await firstConnection.Socket.RequestSwitchToWebSocketAsync(cancel, Consts.ThinClient.RequestSwitchToWebSocketTimeoutMsecs);
+
+                await using var guaClient = new GuaClient(
+                    new GuaClientSettings(
+                        "", 0,
+                        firstConnection.SvcType == ThinSvcType.Rdp ? GuaProtocol.Rdp : GuaProtocol.Vnc,
+                        "127.0.0.1",
+                        firstConnection.SvcPort,
+                        connectOptions.GuaPreference!),
+                    firstConnection.Stream);
+
+                var readyPacket = await guaClient.StartAsync(cancel, afterHelloCallbackAsync: async () =>
+                {
+                    // この非同期コールバックは、Guacd Protocol で "select, rdp" のような最初の hello に相当するプロトコルを送付し、
+                    // その後、最初の応答を受信してから、Connect パケットを送付する直前に呼び出される。
+                    // ここで、ThinGate との下位プロトコルレベルにおける WebSocket への切替え要求を送付し、切替え OK 応答が戻ってくるまで待機する。
+                    // そうすれば、この状態で、ThinGate がそれ以降うまく取り計らい、"ready なんとかかんとか;" の ";" という最初の ";" 文字までを
+                    // この TCP クライアントに返した後に、それ以降のバッファは WebSocket 用に保留し、本 TCP クライアントには送付されなくなる
+                    // はずである。このあたりの実装は ThinGate で実装されているので、ソースコードを参照すること。
+                });
+
+                readyPacket._DebugAsJson();
 
                 // フル WebSocket URL を生成する
                 var gateEndPoint = firstConnection.Socket.GatePhysicalEndPoint;
@@ -548,6 +585,11 @@ namespace IPA.Cores.Basic
             WtcSocket? sock = null;
             PipeStream? st = null;
 
+            if (checkPort == false && connectOptions.DebugGuacMode == false)
+            {
+                throw new CoresLibException("checkPort == false && connectOptions.DebugGuacMode == false");
+            }
+
             try
             {
                 sock = await wt.WideClientConnectAsync(connectOptions.Pcid, connectOptions.ClientOptions, cancel);
@@ -570,6 +612,7 @@ namespace IPA.Cores.Basic
                 p.AddUniStr("UserName", "WebClient");
                 p.AddUniStr("ComputerName", "WebClient");
                 p.AddBool("SupportWatermark", true);
+                p.AddBool("GuacdMode", connectOptions.DebugGuacMode == false);
 
                 await st._SendPackAsync(p, cancel);
 
@@ -581,6 +624,7 @@ namespace IPA.Cores.Basic
 
                 var authType = (ThinAuthType)p["AuthType"].SIntValueSafeNum;
                 var svcType = (ThinSvcType)p["ServiceType"].SIntValueSafeNum;
+                var svcPort = (int)p["ServicePort"].SIntValueSafeNum;
                 var caps = (ThinServerCaps)p["DsCaps"].SIntValueSafeNum;
                 var rand = p["Rand"].DataValueNonNull;
                 var machineKey = p["MachineKey"].DataValueNonNull;
@@ -687,7 +731,7 @@ namespace IPA.Cores.Basic
 
                 st.ReadTimeout = st.WriteTimeout = Timeout.Infinite;
 
-                return new ThinClientConnection(sock, st, svcType, !isShareEnabled, caps, runInspect, otpTicket, inspectTicket);
+                return new ThinClientConnection(sock, st, svcType, svcPort, !isShareEnabled, caps, runInspect, otpTicket, inspectTicket);
             }
             catch
             {

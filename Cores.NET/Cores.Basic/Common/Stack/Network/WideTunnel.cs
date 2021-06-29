@@ -77,7 +77,7 @@ namespace IPA.Cores.Basic
             public const int SpecialOpCode_Min = 16777000;
             public const int SpecialOpCode_Max = 16777215;
 
-            public const int SpecialOpCode_C2S_SwitchToWebSocket_Request = 16777001;
+            public const int SpecialOpCode_C2S_SwitchToWebSocket_Request_Guacd = 16777001;
             public const int SpecialOpCode_S2C_SwitchToWebSocket_Ack = 16777002;
         }
     }
@@ -386,7 +386,7 @@ namespace IPA.Cores.Basic
                         // Web socket switch request invoked (only once)
                         $"Web socket switch request invoked"._Debug();
                         localFlag_C2S_SwitchToWebSocket_Requested = true;
-                        sendBuffer.WriteSInt32(Consts.WideTunnelConsts.SpecialOpCode_C2S_SwitchToWebSocket_Request);
+                        sendBuffer.WriteSInt32(Consts.WideTunnelConsts.SpecialOpCode_C2S_SwitchToWebSocket_Request_Guacd);
                     }
 
                     if (sendBuffer.IsThisEmpty() == false)

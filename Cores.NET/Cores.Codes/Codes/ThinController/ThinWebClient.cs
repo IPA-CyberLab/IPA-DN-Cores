@@ -322,7 +322,7 @@ namespace IPA.Cores.Codes
                     string clientFqdn = await Client.DnsResolver.GetHostNameSingleOrIpAsync(clientIp);
 
                     // セッションの開始
-                    var session = tc.StartConnect(new ThinClientConnectOptions(profile.Pcid, clientIp, clientFqdn, this.Client.SettingsFastSnapshot.Debug_EnableGuacdMode, WideTunnelClientOptions.None, profile._CloneWithJson()));
+                    var session = tc.StartConnect(new ThinClientConnectOptions(profile.Pcid, clientIp, clientFqdn, this.Client.SettingsFastSnapshot.Debug_EnableGuacdMode, WideTunnelClientOptions.None, profile.Preference, profile._CloneWithJson()));
                     string sessionId = session.SessionId;
 
                     // セッション ID をもとにした URL にリダイレクト
@@ -571,7 +571,7 @@ namespace IPA.Cores.Codes
                                 pref.ScreenWidth = widthInt;
                                 pref.ScreenHeight = heightInt;
                             }
-
+                            
                             await using var guaClient = new GuaClient(
                                 new GuaClientSettings(
                                     Client.SettingsFastSnapshot.Debug_GuacdMode_GuacdHostname,
