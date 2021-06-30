@@ -388,10 +388,17 @@ namespace IPA.Cores.Basic
 
                 // 確立済みの firstConnection は何か 1 バイトでもデータを受信するか切断されるまで待機する
                 // (このコネクションは ThinGate からみると用済みのため、新たなデータが届くことはないはずである)
-                Dbg.Where();
-                //await firstConnection.Stream.FastReceiveAsync(cancel);
-                var data2 = await firstConnection.Stream._ReadAsync(cancel: cancel);
-                Dbg.Where();
+                Dbg.Where("Waiting for unnecessary connection (already switched to WebSocket) disconnects.");
+                // タイムアウトは 30 秒であります。
+                try
+                {
+                    var data2 = await firstConnection.Stream._ReadAsyncWithTimeout(maxSize: 1024, timeout: 30 * 1000, cancel: cancel);
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
+                Dbg.Where("Unnecessary connection (already switched to WebSocket) is disconnected.");
             }
             else
             {
