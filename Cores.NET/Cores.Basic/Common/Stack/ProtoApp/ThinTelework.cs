@@ -386,8 +386,12 @@ namespace IPA.Cores.Basic
                 Dbg.Where();
                 await session.RequestAndWaitResponseAsync(ready, Consts.ThinClient.RequestHardTimeoutMsecs, Consts.ThinClient.RequestSoftTimeoutMsecs, isFinalAnswer: true);
 
-                // 確立済みの firstConnection はしばらく確立したままにしておく (TODO: デバッグ中)
-                await cancel._WaitUntilCanceledAsync(60 * 1000);
+                // 確立済みの firstConnection は何か 1 バイトでもデータを受信するか切断されるまで待機する
+                // (このコネクションは ThinGate からみると用済みのため、新たなデータが届くことはないはずである)
+                Dbg.Where();
+                //await firstConnection.Stream.FastReceiveAsync(cancel);
+                var data2 = await firstConnection.Stream._ReadAsync(cancel: cancel);
+                Dbg.Where();
             }
             else
             {
