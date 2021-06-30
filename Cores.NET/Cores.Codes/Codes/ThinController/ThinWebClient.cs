@@ -281,6 +281,7 @@ namespace IPA.Cores.Codes
     public class ThinWebClientModelRemote : ThinWebClientModelSessionBase
     {
         public string? WebSocketUrl { get; set; }
+        public string? ConnectPacketData { get; set; }
         public ThinSvcType SvcType { get; set; }
     }
 
@@ -400,6 +401,7 @@ namespace IPA.Cores.Codes
                         SessionId = session.SessionId,
                         Profile = profile,
                         SvcType = connectOptions.ConnectedSvcType!.Value,
+                        ConnectPacketData = connectOptions.ConnectPacketData,
                     };
 
                     return View(main);
@@ -481,6 +483,7 @@ namespace IPA.Cores.Codes
                                 connectOptions.UpdateConnectedSvcType(ready.SvcType!.Value);
                                 ready.WebSocketFullUrl._NotEmptyCheck();
                                 connectOptions.UpdateWebSocketUrl(ready.WebSocketFullUrl);
+                                connectOptions.UpdateConnectPacketData(ready.ConnectPacketData);
                             }
 
                             if (ready.WebSocketFullUrl._IsFilled())

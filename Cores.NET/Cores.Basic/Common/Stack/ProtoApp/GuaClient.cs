@@ -216,6 +216,17 @@ namespace IPA.Cores.Basic
             return new GuaPacket { Opcode = "connect", Args = tmp, };
         }
 
+        public override string ToString()
+        {
+            List<string> tmp = new List<string>();
+            tmp.Add(this.Opcode);
+            tmp.AddRange(this.Args);
+
+            var data = BuildTokens(tmp);
+
+            return data.Span._GetString_UTF8();
+        }
+
         public async Task SendPacketAsync(Stream st, CancellationToken cancel = default)
         {
             List<string> tmp = new List<string>();
@@ -535,7 +546,7 @@ namespace IPA.Cores.Basic
         public ConnSock? Sock { get; private set; }
         public PipeStream? Stream { get; private set; }
 
-        public async Task<GuaPacket?> StartAsync(CancellationToken cancel = default, Func<Task>? afterHelloCallbackAsync = null)
+        public async Task<string> StartAsync(CancellationToken cancel = default)
         {
             if (Started.IsFirstCall() == false) throw new CoresLibException("StartAsync has already been called.");
 
@@ -572,11 +583,6 @@ namespace IPA.Cores.Basic
                     throw new CoresLibException($"Protocol error: Received unexpected opcode: '{args.Opcode}'");
                 }
 
-                if (afterHelloCallbackAsync != null)
-                {
-                    await afterHelloCallbackAsync();
-                }
-
                 // サポートされているオプション文字列一覧を取得
                 var supportedOptions = args.Args;
 
@@ -604,13 +610,17 @@ namespace IPA.Cores.Basic
                     this.Settings.AddToKeyValueList(connectOptions, "127.0.0.1");
                 }
                 var opConnect = GuaPacket.CreateConnectPacket(connectOptions, supportedOptions);
-                await opConnect.SendPacketAsync(this.Stream, cancel);
 
                 if (this.ConnectedStreamMode)
                 {
+                    // Connect パケットは 送りません！
                     // Ready パケットは 届きません！
-                    return null;
+                    // connect パケットを文字列化して返す。
+                    // これは HTML5 クライアント経由で送付
+                    return opConnect.ToString();
                 }
+
+                await opConnect.SendPacketAsync(this.Stream, cancel);
 
                 // Ready パケットを受信
                 GuaPacket ready = await GuaPacket.RecvPacketAsync(this.Stream, cancel);
@@ -626,7 +636,7 @@ namespace IPA.Cores.Basic
                     throw new CoresLibException($"Protocol error: Connection ID not returned.");
                 }
 
-                return ready;
+                return "";
             }
             catch
             {
