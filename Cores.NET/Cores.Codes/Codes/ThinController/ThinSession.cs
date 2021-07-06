@@ -91,10 +91,12 @@ namespace IPA.Cores.Codes
         public string HostName = "";
         [SimpleTableOrder(6)]
         public int NumClients;
-        [SimpleTableOrder(5.5)]
-        public ulong ServerMask64;
+        [SimpleTableOrder(8)]
+        public ThinServerMask64 ServerMask64 = ThinServerMask64.None;
         [SimpleTableOrder(7)]
         public int NumClientsUnique;
+        [SimpleTableOrder(7.5)]
+        public int NumClientsWebSocket;
 
         public void Normalize()
         {
@@ -158,6 +160,8 @@ namespace IPA.Cores.Codes
         public int NumClients => this.SessionTable.Values.Sum(x => x.NumClients);
         [SimpleTableOrder(12.2)]
         public int NumClientsUnique => this.SessionTable.Values.Sum(x => x.NumClientsUnique);
+        [SimpleTableOrder(12.3)]
+        public int NumClientsWebSocket => this.SessionTable.Values.Sum(x => x.NumClientsWebSocket);
 
         [SimpleTableOrder(12.5)]
         public ThinGateCaps Caps = ThinGateCaps.None;

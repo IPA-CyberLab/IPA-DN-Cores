@@ -168,6 +168,7 @@ namespace IPA.Cores.Codes
         public int Stat_CurrentUserSessionsServer;
         public int Stat_CurrentUserSessionsClient1;
         public int Stat_CurrentUserSessionsClient2;
+        public int Stat_CurrentUserSessionsClient3_WebSocket;
         public int Stat_TotalServers;
         public int Stat_ActiveServers_Day01;
         public int Stat_ActiveServers_Day03;
@@ -483,7 +484,7 @@ namespace IPA.Cores.Codes
             if ((clientOptions & 1) != 0)
             {
                 // WoL クライアントである
-                if ((gateAndSession.B.ServerMask64 & 128) == 0)
+                if (gateAndSession.B.ServerMask64.Bit(ThinServerMask64.SupportWolTrigger) == false)
                 {
                     // トリガー PC のバージョンが WoL トリガー機能がない古いバージョンである
                     var ret2 = NewWpcResult(VpnError.ERR_WOL_TRIGGER_NOT_SUPPORTED);
@@ -503,10 +504,10 @@ namespace IPA.Cores.Codes
             p.AddStr("HostnameForProxy", fqdn);
             p.AddData("SessionId", gateAndSession.B.SessionId._GetHexBytes());
 
-            ulong serverMask64 = gateAndSession.B.ServerMask64;
+            ThinServerMask64 serverMask64 = gateAndSession.B.ServerMask64;
             if (isLimitedMode)
-                serverMask64 |= 256; // 行政情報システム適合モード (ThinController が勝手に付ける)
-            p.AddInt64("ServerMask64", serverMask64);
+                serverMask64 |= ThinServerMask64.IsLimitedMode; // 行政情報システム適合モード (ThinController が勝手に付ける)
+            p.AddInt64("ServerMask64", (ulong)serverMask64);
             p.AddStr("WebSocketWildCardDomainName", this.Controller.WebSocketCertMaintainer.GetCertData()?.DomainName ?? "");
 
             ret.AdditionalInfo.Add("SvcName", machine.SVC_NAME);
@@ -937,7 +938,7 @@ namespace IPA.Cores.Codes
                     IpAddress = p["IpAddress", i].StrValueNonNull,
                     HostName = p["Hostname", i].StrValueNonNull,
                     NumClients = p["NumClients", i].SIntValue,
-                    ServerMask64 = p["ServerMask64", i].Int64Value,
+                    ServerMask64 = (ThinServerMask64)p["ServerMask64", i].Int64Value,
                 };
 
                 sess.Normalize();
@@ -982,6 +983,7 @@ namespace IPA.Cores.Codes
             {
                 string sessionId = p["SC_SessionId", i].DataValueHexStr;
                 string clientId = p["SC_ClientID", i].DataValueHexStr;
+                bool isWebSocket = p["SC_IsWebSocket", i].BoolValue;
 
                 if (sessionId.Length == 40 && clientId.Length == 40)
                 {
@@ -989,6 +991,12 @@ namespace IPA.Cores.Codes
                     clientId = clientId.ToUpper();
 
                     sessionAndClientTable._GetOrNew(sessionId, () => new HashSet<string>()).Add(clientId);
+
+                    if (isWebSocket)
+                    {
+                        var sess = sessionList._GetOrDefault(sessionId);
+                        if (sess != null) sess.NumClientsWebSocket++;
+                    }
                 }
             }
 
@@ -1065,7 +1073,7 @@ namespace IPA.Cores.Codes
                 IpAddress = p["IpAddress", i].StrValueNonNull,
                 HostName = p["Hostname", i].StrValueNonNull,
                 NumClients = p["NumClients", i].SIntValue,
-                ServerMask64 = p["ServerMask64", i].Int64Value,
+                ServerMask64 = (ThinServerMask64)p["ServerMask64", i].Int64Value,
             };
 
             sess.Normalize();
@@ -1500,7 +1508,7 @@ namespace IPA.Cores.Codes
                 }
 
                 if (cancel.IsCancellationRequested) break;
-                
+
                 await cancel._WaitUntilCanceledAsync(nextWaitInterval);
             }
         }
@@ -1651,6 +1659,7 @@ namespace IPA.Cores.Codes
                             nums.Add("Stat_CurrentUserSessionsServer", stat.Stat_CurrentUserSessionsServer);
                             nums.Add("Stat_CurrentUserSessionsClient1", stat.Stat_CurrentUserSessionsClient1);
                             nums.Add("Stat_CurrentUserSessionsClient2", stat.Stat_CurrentUserSessionsClient2);
+                            nums.Add("Stat_CurrentUserSessionsClient3_WebSocket", stat.Stat_CurrentUserSessionsClient3_WebSocket);
                             nums.Add("Stat_TotalServers", stat.Stat_TotalServers);
                             nums.Add("Stat_ActiveServers_Day01", stat.Stat_ActiveServers_Day01);
                             nums.Add("Stat_ActiveServers_Day03", stat.Stat_ActiveServers_Day03);
@@ -2193,6 +2202,7 @@ namespace IPA.Cores.Codes
                 Stat_CurrentUserSessionsServer = SessionManager.GateTable.Values.Sum(x => x.SessionTable.Count),
                 Stat_CurrentUserSessionsClient1 = SessionManager.GateTable.Values.Sum(x => x.SessionTable.Values.Sum(s => s.NumClients)),
                 Stat_CurrentUserSessionsClient2 = SessionManager.GateTable.Values.Sum(x => x.SessionTable.Values.Sum(s => s.NumClientsUnique)),
+                Stat_CurrentUserSessionsClient3_WebSocket = SessionManager.GateTable.Values.Sum(x => x.SessionTable.Values.Sum(s => s.NumClientsWebSocket)),
                 Stat_TotalServers = mem.MachineList.Count,
                 Stat_ActiveServers_Day01 = mem.MachineList.Where(x => x.LAST_CLIENT_DATE >= days1).Count(),
                 Stat_ActiveServers_Day03 = mem.MachineList.Where(x => x.LAST_CLIENT_DATE >= days3).Count(),

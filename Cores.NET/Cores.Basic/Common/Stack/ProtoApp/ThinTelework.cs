@@ -107,7 +107,7 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
-    public enum ThinServerMask64 : long
+    public enum ThinServerMask64 : ulong
     {
         None = 0,
         UrdpClient = 1,
@@ -336,6 +336,11 @@ namespace IPA.Cores.Basic
             if (connectOptions.DebugGuacMode == false)
             {
                 // ThinGate ネイティブ WebSocket モード (ThinGate が WebSocket を直接話す)
+                if (firstConnection.Caps.Bit(ThinServerCaps.GuacdSupported) == false)
+                {
+                    // 古いバージョンであり、サポートされていない
+                    throw new CoresException("ThinServerCaps.GuacdSupported == false");
+                }
 
                 // 'A' を送信
                 // この段階でサーバー機の Guacd にソケットが接続された状態となる
