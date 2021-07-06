@@ -1117,7 +1117,7 @@ namespace IPA.TestDev
 
             ThinClient tc = new ThinClient(new ThinClientOptions(wideOptions, sm));
 
-            var sess = tc.StartConnect(new ThinClientConnectOptions("pc342", IPAddress.Loopback, IPAddress.Loopback.ToString()));
+            var sess = tc.StartConnect(new ThinClientConnectOptions("pc342", IPAddress.Loopback, IPAddress.Loopback.ToString(), false));
 
             while (cancel.IsCancellationRequested == false)
             {
@@ -2119,8 +2119,29 @@ namespace IPA.TestDev
             "---"._Print();
         }
 
+        static void Test_210706()
+        {
+            StrTable table = new StrTable();
+
+            table.ImportFile(@"C:\git\IPA-DN-ThinApps-Private\src\bin\hamcore\strtable_ja.patch.stb");
+            table.ImportFile(@"C:\git\IPA-DN-ThinApps-Private\submodules\IPA-DN-Ultra\src\bin\hamcore\strtable_ja.stb");
+
+            while (true)
+            {
+                string key = Con.ReadLine()!;
+
+                table[key]._Print();
+            }
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210706();
+                return;
+            }
+
             if (false)
             {
                 Test_210627_02_Async()._GetResult();

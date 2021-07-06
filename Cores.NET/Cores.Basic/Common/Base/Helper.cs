@@ -869,6 +869,18 @@ namespace IPA.Cores.Helper.Basic
             return n;
         }
 
+        public static TValue _GetOrNew<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key, TValue newValue)
+            where TKey : notnull
+        {
+            if (d.TryGetValue(key, out TValue? value))
+            {
+                return value;
+            }
+
+            d.Add(key, newValue);
+            return newValue;
+        }
+
         public static TValue _GetOrNew<TKey, TValue>(this SortedDictionary<TKey, TValue> d, TKey key)
             where TValue : new()
             where TKey : notnull

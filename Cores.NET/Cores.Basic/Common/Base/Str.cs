@@ -41,6 +41,8 @@ using System.Reflection;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Basic.Legacy;
@@ -8308,6 +8310,144 @@ namespace IPA.Cores.Basic
             srcList._DoForEach(x => o.Add(x));
 
             return o.GetList();
+        }
+    }
+
+    // StrTable
+    public class StrTable
+    {
+        readonly Dictionary<string, string> EntryList = new Dictionary<string, string>();
+        readonly KeyValueList<string, string> ReplaceList = new KeyValueList<string, string>();
+
+        string CurrentPrefix = "";
+
+        public string this[string key]
+        {
+            get => GetStr(key);
+        }
+
+        public string GetStr(string key, string notFoundValue = "")
+        {
+            key = key._NonNullTrim().ToUpper();
+
+            return this.EntryList._GetOrDefault(key, notFoundValue)._NonNull();
+        }
+
+        public async Task ImportFileAsync(FilePath file, CancellationToken cancel = default)
+        {
+            string body = await file.ReadStringFromFileAsync(cancel: cancel);
+
+            ImportLines(body._GetLines());
+        }
+        public void ImportFile(FilePath file, CancellationToken cancel = default)
+            => ImportFileAsync(file, cancel)._GetResult();
+
+        public void ImportLines(IEnumerable<string> lines)
+        {
+            this.CurrentPrefix = "";
+
+            lines._DoForEach(line => ImportLine(line));
+        }
+
+        public void ImportLine(string line)
+        {
+            line = line._NonNull().TrimStart(' ', '\t');
+            if (line._IsEmpty()) return;
+            if (line[0] == '#' || (line[0] == '/' && line[1] == '/')) return;
+
+            Str.GetKeyAndValue(line, out string key, out string value);
+            if (key._IsEmpty()) return;
+
+            key = key.ToUpper();
+
+            value = UnescapeStr(value);
+
+            if (key == "PREFIX")
+            {
+                value = value._NonNullTrim();
+
+                if (value == "$" || value._IsSamei("NULL"))
+                {
+                    value = "";
+                }
+
+                this.CurrentPrefix = value;
+                return;
+            }
+
+            if (this.CurrentPrefix._IsFilled())
+            {
+                key = this.CurrentPrefix + "@" + key;
+            }
+
+            if (key.StartsWith("$") && key.EndsWith("$") && key.Length >= 3)
+            {
+                if (this.ReplaceList.Where(x => x.Key._IsSamei(key)).Any() == false)
+                {
+                    this.ReplaceList.Add(key, value);
+                }
+            }
+            else
+            {
+                if (value._InStr("$"))
+                {
+                    foreach (var replaceItem in this.ReplaceList)
+                    {
+                        value = value._ReplaceStr(replaceItem.Key, replaceItem.Value, false);
+                    }
+                }
+            }
+
+            this.EntryList._GetOrNew(key, value);
+        }
+
+        public static string UnescapeStr(string str)
+        {
+            int i, len;
+            StringBuilder tmp = new StringBuilder();
+
+            len = str.Length;
+
+            for (i = 0; i < len; i++)
+            {
+                char c = str[i];
+                if (c == '\\')
+                {
+                    i++;
+                    char c2 = str[i];
+                    switch (c2)
+                    {
+                        case '\\':
+                            tmp.Append('\\');
+                            break;
+
+                        case ' ':
+                            tmp.Append(' ');
+                            break;
+
+                        case 'n':
+                        case 'N':
+                            tmp.Append('\n');
+                            break;
+
+                        case 'r':
+                        case 'R':
+                            tmp.Append('\r');
+                            break;
+
+                        case 't':
+                        case 'T':
+                            tmp.Append('\t');
+                            break;
+                    }
+                }
+                else
+                {
+                    tmp.Append(c);
+                }
+            }
+
+            return tmp.ToString();
         }
     }
 }
