@@ -273,6 +273,10 @@ namespace IPA.Cores.Codes
         public ThinWebClientProfile? Profile { get; set; }
     }
 
+    public class ThinWebClientModelOtp : ThinWebClientModelSessionBase
+    {
+    }
+
     public class ThinWebClientModelSessionAuthPassword : ThinWebClientModelSessionBase
     {
         public ThinClientAuthRequest? Request { get; set; }
@@ -422,7 +426,7 @@ namespace IPA.Cores.Codes
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public async Task<IActionResult> SessionAsync(string? id, string? requestid, string? formtype, string? password, string? username)
+        public async Task<IActionResult> SessionAsync(string? id, string? requestid, string? formtype, string? password, string? username, string ?otp)
         {
             var cancel = Request._GetRequestCancellationToken();
             id = id._NonNullTrim();
@@ -448,8 +452,13 @@ namespace IPA.Cores.Codes
                         case "SessionAuthPassword":
                             responseData = new ThinClientAuthResponse { Username = "", Password = password._NonNull() };
                             break;
+
                         case "SessionAuthAdvanced":
                             responseData = new ThinClientAuthResponse { Username = username._NonNull(), Password = password._NonNull() };
+                            break;
+
+                        case "SessionOtp":
+                            responseData = new ThinClientOtpResponse { Otp = otp._NonNull() };
                             break;
                     }
                     if (responseData != null)
@@ -501,6 +510,17 @@ namespace IPA.Cores.Codes
                                 default:
                                     throw new CoresException($"authReq.AuthType = {authReq.AuthType}: Unsupported auth type.");
                             }
+
+                        case ThinClientOtpRequest otpReq:
+                            ThinWebClientModelOtp page3 = new ThinWebClientModelOtp
+                            {
+                                SessionId = session.SessionId,
+                                RequestId = req.RequestId,
+                                ConnectOptions = connectOptions,
+                                Profile = profile._CloneWithJson(),
+                            };
+
+                            return View("SessionOtp", page3);
 
                         case ThinClientAcceptReadyNotification ready:
                             if (connectOptions.DebugGuacMode)
