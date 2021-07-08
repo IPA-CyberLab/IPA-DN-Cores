@@ -793,6 +793,8 @@ namespace IPA.Cores.Basic
         ERR_DESK_AUTH_LOCKOUT = 330, // 認証ロックアウト
         ERR_DESK_GUACD_START_ERROR = 331, // Guacd 起動失敗
         ERR_DESK_GUACD_NOT_SUPPORTED_OS = 332, // Guacd がサポートされていない OS
+        ERR_DESK_GUACD_PROHIBITED = 333,		// Guacd が禁止されている
+        ERR_DESK_GUACD_NOT_SUPPORTED_VER = 334,	// Guacd のバージョンが古い
     }
 }
 

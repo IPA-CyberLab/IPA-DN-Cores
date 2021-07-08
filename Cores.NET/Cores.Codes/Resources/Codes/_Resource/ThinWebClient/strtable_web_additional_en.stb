@@ -1,0 +1,7 @@
+﻿#
+#
+#
+
+ERR_328 The "Client MAC Address Authentication" function is enabled in the $APPSHORT_SERVER$ setting. HTML5 clients cannot obtain MAC addresses due to web browser security restrictions. Instead, specify the virtual MAC address in the HTML5 top page connection screen. The virtual MAC address must be registered in the list of allowed MAC addresses on the server side.
+
+

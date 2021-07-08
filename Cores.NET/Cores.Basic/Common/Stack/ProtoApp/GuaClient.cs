@@ -412,6 +412,7 @@ namespace IPA.Cores.Basic
         public string Username { get; set; } = "";
         public string Password { get; set; } = "";
         public string Domain { get; set; } = "";
+        public string MacAddress { get; set; } = "";
 
         public bool EnableDebug { get; set; } = false;
 
@@ -468,6 +469,11 @@ namespace IPA.Cores.Basic
                 this.Username = "";
                 this.Password = "";
                 this.Domain = "";
+            }
+
+            if (this.MacAddress._IsFilled())
+            {
+                this.MacAddress = Str.NormalizeMac(this.MacAddress, style: MacAddressStyle.Windows);
             }
         }
 

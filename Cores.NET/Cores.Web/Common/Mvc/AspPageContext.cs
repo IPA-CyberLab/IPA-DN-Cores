@@ -86,6 +86,21 @@ namespace IPA.Cores.Web
                 return SiteName._NonNullTrim();
             }
         }
+
+        // 現在の言語と文字列テーブル
+        public StrTableLanguageList LanguageList { get; private set; } = StrTableLanguageList.DefaultEmptyStrTableLanguageList;
+        public StrTableLanguage Language { get; private set; } = StrTableLanguageList.DefaultEmptyStrTableLanguageList.FindDefaultLanguage();
+        public StrTable StrTable => this.Language.Table;
+
+        public void SetLanguageList(StrTableLanguageList list)
+        {
+            this.LanguageList = list;
+        }
+
+        public void SetLanguageByHttpString(string str)
+        {
+            this.Language = this.LanguageList.FindLanguageByHttpAcceptLanguage(str);
+        }
     }
 }
 

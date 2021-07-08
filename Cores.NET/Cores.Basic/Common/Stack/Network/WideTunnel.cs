@@ -592,6 +592,17 @@ namespace IPA.Cores.Basic
             this.Pack = pack?.Clone() ?? null;
         }
 
+        public string GetFriendlyVpnErrorMessage(StrTable table)
+        {
+            string str = table.GetStr($"ERR_{(int)this.Error}");
+            if (str._IsEmpty())
+            {
+                str = this.ToString();
+            }
+
+            return str;
+        }
+
         public bool IsCommuncationError => this.Error.IsCommunicationError();
     }
 

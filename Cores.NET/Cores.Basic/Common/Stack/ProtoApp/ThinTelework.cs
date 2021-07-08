@@ -87,6 +87,7 @@ namespace IPA.Cores.Basic
         UserPassword = 2,
         Cert = 3,
         SmartCard = 4,
+        Advanced = 99,
     }
 
     [Flags]
@@ -154,7 +155,6 @@ namespace IPA.Cores.Basic
 
     public class ThinClientAuthRequest : IDialogRequestData
     {
-        public bool UseAdvancedSecurity;
         public ThinAuthType AuthType;
         public ReadOnlyMemory<byte> Rand;
     }
@@ -339,7 +339,7 @@ namespace IPA.Cores.Basic
                 if (firstConnection.Caps.Bit(ThinServerCaps.GuacdSupported) == false)
                 {
                     // 古いバージョンであり、サポートされていない
-                    throw new CoresException("ThinServerCaps.GuacdSupported == false");
+                    throw new VpnException(VpnError.ERR_DESK_GUACD_NOT_SUPPORTED_VER);
                 }
 
                 // 'A' を送信
@@ -725,7 +725,6 @@ namespace IPA.Cores.Basic
                         ThinClientAuthRequest authReq = new ThinClientAuthRequest
                         {
                             AuthType = ThinAuthType.None,
-                            UseAdvancedSecurity = false,
                         };
 
                         var authRes = await authCallback(authReq, cancel);
@@ -736,7 +735,6 @@ namespace IPA.Cores.Basic
                         ThinClientAuthRequest authReq = new ThinClientAuthRequest
                         {
                             AuthType = ThinAuthType.Password,
-                            UseAdvancedSecurity = false,
                         };
 
                         var authRes = await authCallback(authReq, cancel);
@@ -747,14 +745,23 @@ namespace IPA.Cores.Basic
                     }
                     else
                     {
-                        // 不明な認証方法
-                        throw new VpnException(VpnError.ERR_DESK_UNKNOWN_AUTH_TYPE);
+                        // そのような認証方法はサポートしていない
+                        throw new VpnException(VpnError.ERR_AUTHTYPE_NOT_SUPPORTED);
                     }
                 }
                 else
                 {
                     // 高度なユーザー認証
-                    throw new NotImplementedException();
+                    ThinClientAuthRequest authReq = new ThinClientAuthRequest
+                    {
+                        AuthType = ThinAuthType.Advanced,
+                    };
+
+                    var authRes = await authCallback(authReq, cancel);
+
+                    p.AddInt("authtype", 2); // CLIENT_AUTHTYPE_PLAIN_PASSWORD
+                    p.AddStr("username", authRes.Username);
+                    p.AddStr("plain_password", authRes.Password);
                 }
 
                 await st._SendPackAsync(p, cancel);

@@ -85,6 +85,7 @@ using IPA.Cores.Helper.GuaHelper;
 
 using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using IPA.App.ThinWebClientApp;
 
 namespace IPA.Cores.Codes
 {
@@ -288,13 +289,21 @@ namespace IPA.Cores.Codes
     public class ThinWebClientController : Controller
     {
         public ThinWebClient Client { get; }
+        public PageContext Page { get; }
 
-        public ThinWebClientController(ThinWebClient client)
+        public StrTableLanguage Language => Page.Language;
+        public StrTable StrTable => Page.StrTable;
+
+        public ThinWebClientController(ThinWebClient client, PageContext page)
         {
             this.Client = client;
+            this.Page = page;
+
+            this.Page.SetLanguageList(client.LanguageList);
+            this.Page.SetLanguageByHttpString("ja");
         }
 
-        protected AspNetCookieOptions GetCookieOption() => new AspNetCookieOptions(domain: ""); // TODO
+        protected AspNetCookieOptions GetCookieOption() => new AspNetCookieOptions(domain: ""); // Cookie のドメイン名は空文字 "" とする。これが最も安全である。参照: https://blog.tokumaru.org/2011/10/cookiedomain.html
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public async Task<IActionResult> IndexAsync(ThinWebClientModelIndex form, string? id, string? deleteAll)
@@ -413,7 +422,7 @@ namespace IPA.Cores.Codes
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public async Task<IActionResult> SessionAsync(string? id, string? requestid, string? formtype, string? password)
+        public async Task<IActionResult> SessionAsync(string? id, string? requestid, string? formtype, string? password, string? username)
         {
             var cancel = Request._GetRequestCancellationToken();
             id = id._NonNullTrim();
@@ -439,6 +448,9 @@ namespace IPA.Cores.Codes
                         case "SessionAuthPassword":
                             responseData = new ThinClientAuthResponse { Username = "", Password = password._NonNull() };
                             break;
+                        case "SessionAuthAdvanced":
+                            responseData = new ThinClientAuthResponse { Username = username._NonNull(), Password = password._NonNull() };
+                            break;
                     }
                     if (responseData != null)
                     {
@@ -446,6 +458,7 @@ namespace IPA.Cores.Codes
                     }
                 }
 
+                L_GET_NEXT:
                 var req = await session.GetNextRequestAsync(cancel: cancel);
 
                 if (req != null)
@@ -457,6 +470,10 @@ namespace IPA.Cores.Codes
                         case ThinClientAuthRequest authReq:
                             switch (authReq.AuthType)
                             {
+                                case ThinAuthType.None:
+                                    session.SetResponseData(req.RequestId, new ThinClientAuthResponse());
+                                    goto L_GET_NEXT;
+
                                 case ThinAuthType.Password:
                                     ThinWebClientModelSessionAuthPassword page = new ThinWebClientModelSessionAuthPassword
                                     {
@@ -468,6 +485,18 @@ namespace IPA.Cores.Codes
                                     };
 
                                     return View("SessionAuthPassword", page);
+
+                                case ThinAuthType.Advanced:
+                                    ThinWebClientModelSessionAuthPassword page2 = new ThinWebClientModelSessionAuthPassword
+                                    {
+                                        SessionId = session.SessionId,
+                                        RequestId = req.RequestId,
+                                        ConnectOptions = connectOptions,
+                                        Request = authReq,
+                                        Profile = profile._CloneWithJson(),
+                                    };
+
+                                    return View("SessionAuthAdvanced", page2);
 
                                 default:
                                     throw new CoresException($"authReq.AuthType = {authReq.AuthType}: Unsupported auth type.");
@@ -497,6 +526,18 @@ namespace IPA.Cores.Codes
                             req.SetResponseDataEmpty();
 
                             return Redirect($"/ThinWebClient/Remote/{session.SessionId}/");
+
+                        case ThinClientInspectRequest inspect:
+                            ThinClientInspectResponse insRes = new ThinClientInspectResponse
+                            {
+                                AntiVirusOk = true,
+                                Ticket = "",
+                                WindowsUpdateOk = true,
+                                MacAddressList = Str.NormalizeMac(profile.Preference.MacAddress, style: MacAddressStyle.Windows),
+                            };
+
+                            session.SetResponseData(req.RequestId, insRes);
+                            goto L_GET_NEXT;
 
                         default:
                             throw new CoresException($"Unknown request data: {req.RequestData.GetType().ToString()}");
@@ -568,6 +609,11 @@ namespace IPA.Cores.Codes
                     {
                         ThinClientConnectOptions connectOptions = (ThinClientConnectOptions)session.Param!;
                         ThinWebClientProfile profile = (ThinWebClientProfile)connectOptions.AppParams!;
+
+                        if (connectOptions.DebugGuacMode == false)
+                        {
+                            throw new CoresLibException("connectOptions.DebugGuacMode == false");
+                        }
 
                         var req = session.GetFinalAnswerRequest();
 
@@ -653,6 +699,8 @@ namespace IPA.Cores.Codes
 
         public DialogSessionManager SessionManager { get; }
 
+        public StrTableLanguageList LanguageList { get; private set; } = null!;
+
         public ThinWebClient(ThinWebClientSettings settings, ThinWebClientHookBase hook, Func<ThinWebClientSettings>? getDefaultSettings = null)
         {
             try
@@ -675,6 +723,11 @@ namespace IPA.Cores.Codes
                 this._DisposeSafe(ex);
                 throw;
             }
+        }
+
+        public void SetLanguageList(StrTableLanguageList list)
+        {
+            this.LanguageList = list;
         }
 
         public ThinClient CreateThinClient()

@@ -34,6 +34,8 @@ using System;
 using System.Text;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Web;
 using System.IO;
 using System.Xml.Serialization;
@@ -691,7 +693,7 @@ namespace IPA.Cores.Basic
             {
                 return -b1.CompareTo(b2);
             }
-            
+
             return x._CmpTrim(y);
         }
 
@@ -8313,6 +8315,124 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // StrTable 言語
+    public class StrTableLanguage
+    {
+        public string Key { get; }
+        public string Name_English { get; }
+        public string Name_Local { get; }
+        public int WindowsLocaleId { get; }
+        public HashSet<string> UnixLocalesList { get; } = new HashSet<string>();
+        public HashSet<string> HttpAcceptLanguageList { get; } = new HashSet<string>();
+        public StrTable Table { get; }
+
+        public StrTableLanguage(string key, string name_English, string name_Local, int windowsLocaleId, string unixLocalesStrList, string httpAcceptLanguageStartWithList, StrTable table)
+        {
+            Key = key._NonNullTrim().ToLower();
+            Name_English = name_English;
+            Name_Local = name_Local;
+            WindowsLocaleId = windowsLocaleId;
+
+            unixLocalesStrList._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",")._DoForEach(x => this.UnixLocalesList.Add(x.ToLower()));
+            httpAcceptLanguageStartWithList._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",")._DoForEach(x => this.HttpAcceptLanguageList.Add(x.ToLower()));
+
+            this.Table = table;
+        }
+    }
+
+    // StrTable 言語リスト
+    public class StrTableLanguageList
+    {
+        readonly CriticalSection<StrTableLanguageList> Lock = new CriticalSection<StrTableLanguageList>();
+        readonly List<StrTableLanguage> LaugnageList = new List<StrTableLanguage>();
+        readonly Singleton<string, StrTableLanguage> ByKeyCache;
+        readonly Singleton<string, StrTableLanguage> ByHttpAcceptLanguageCache;
+
+        public static StrTableLanguageList DefaultEmptyStrTableLanguageList { get; }
+
+        static StrTableLanguageList()
+        {
+            DefaultEmptyStrTableLanguageList = new StrTableLanguageList();
+            DefaultEmptyStrTableLanguageList.Add(new StrTableLanguage("zz", "Neutral", "Neutral", 0, "", "", new StrTable()));
+        }
+
+        public StrTableLanguageList()
+        {
+            ByKeyCache = new Singleton<string, StrTableLanguage>(key =>
+            {
+                key = key._NonNullTrim().ToLower()._TruncStr(2);
+
+                lock (this.Lock)
+                {
+                    if (key._IsEmpty()) return this.LaugnageList[0];
+
+                    foreach (var item in this.LaugnageList)
+                    {
+                        if (item.Key == key)
+                        {
+                            return item;
+                        }
+                    }
+                }
+
+                return this.LaugnageList[0];
+            });
+
+            ByHttpAcceptLanguageCache = new Singleton<string, StrTableLanguage>(language =>
+            {
+                language = language._NonNullTrim().ToLower()._TruncStr(2);
+
+                lock (this.Lock)
+                {
+                    if (language._IsEmpty()) return this.LaugnageList[0];
+
+                    foreach (var item in this.LaugnageList)
+                    {
+                        if (item.HttpAcceptLanguageList.Contains(language))
+                        {
+                            return item;
+                        }
+                    }
+                }
+
+                return this.LaugnageList[0];
+            });
+        }
+
+        IEnumerable<StrTableLanguage> GetLaugnageList()
+        {
+            lock (this.Lock)
+            {
+                return this.LaugnageList.ToArray();
+            }
+        }
+
+        public void Add(StrTableLanguage language)
+        {
+            lock (this.Lock)
+            {
+                this.LaugnageList.Add(language);
+            }
+        }
+
+        public StrTableLanguage DefaultLangage => FindDefaultLanguage();
+
+        public StrTableLanguage FindDefaultLanguage()
+            => FindLanguageByKey("");
+
+        public StrTableLanguage FindLanguageByKey(string key)
+        {
+            key = key._NonNullTrim().ToLower()._TruncStr(2);
+            return this.ByKeyCache[key];
+        }
+
+        public StrTableLanguage FindLanguageByHttpAcceptLanguage(string language)
+        {
+            language = language._NonNullTrim().ToLower()._TruncStr(2);
+            return this.ByHttpAcceptLanguageCache[language];
+        }
+    }
+
     // StrTable
     public class StrTable
     {
@@ -8320,6 +8440,17 @@ namespace IPA.Cores.Basic
         readonly KeyValueList<string, string> ReplaceList = new KeyValueList<string, string>();
 
         string CurrentPrefix = "";
+
+        public StrTable(params string[] bodyList)
+        {
+            if (bodyList != null)
+            {
+                foreach (string body in bodyList)
+                {
+                    this.ImportLines(body._GetLines());
+                }
+            }
+        }
 
         public string this[string key]
         {

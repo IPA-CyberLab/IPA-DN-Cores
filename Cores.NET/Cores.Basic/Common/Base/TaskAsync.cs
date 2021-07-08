@@ -36,6 +36,7 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -5196,6 +5197,7 @@ namespace IPA.Cores.Basic
         public DialogSessionOptions Options { get; }
         public object? Param => Options.Param;
         public Task? MainTask { get; private set; } = null;
+        public ConcurrentDictionary<string, object?> AppItemsList { get; } = new ConcurrentDictionary<string, object?>();
 
         public Exception? Exception { get; private set; } = null;
         public bool IsFinished { get; private set; } = false;
