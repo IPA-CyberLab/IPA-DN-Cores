@@ -178,7 +178,7 @@ namespace IPA.Cores.Basic
         public string? WebSocketUrl { get; private set; } = "/ws/";
         public string ConnectPacketData { get; private set; } = "";
 
-        public ThinClientConnectOptions(string pcid, IPAddress clientIp, string clientFqdn, bool debugGuacMode, WideTunnelClientOptions clientOptions = WideTunnelClientOptions.None, GuaPreference? guaPreference = null, object? appParams = null)
+        public ThinClientConnectOptions(string pcid, IPAddress clientIp, string clientFqdn, bool debugGuacMode, WideTunnelClientOptions clientOptions, GuaPreference? guaPreference = null, object? appParams = null)
         {
             this.Pcid = pcid;
             this.ClientOptions = clientOptions;
@@ -285,7 +285,43 @@ namespace IPA.Cores.Basic
 
         public DialogSession StartConnect(ThinClientConnectOptions connectOptions)
         {
+            if (connectOptions.ClientOptions.Flags.Bit(WideTunnelClientFlags.WoL))
+            {
+                throw new CoresLibException("connectOptions.ClientOptions.Flags.Bit(WideTunnelClientFlags.WoL) == true");
+            }
+
             return this.SessionManager.StartNewSession(new DialogSessionOptions(DialogSessionMainProcAsync, connectOptions));
+        }
+
+        public async Task ExecuteWoLAsync(ThinClientConnectOptions connectOptions, CancellationToken cancel = default)
+        {
+            if (connectOptions.ClientOptions.Flags.Bit(WideTunnelClientFlags.WoL) == false)
+            {
+                throw new CoresLibException("connectOptions.ClientOptions.Flags.Bit(WideTunnelClientFlags.WoL) == false");
+            }
+
+            await using WideTunnel wt = new WideTunnel(this.Options.WideTunnelOptions);
+
+            // Mac アドレスリストの取得
+            string macList = await wt.WideClientGetWoLMacList(connectOptions.Pcid, cancel);
+
+            // ターゲット PC に叩き起こし依頼
+            await using WtcSocket? sock = await wt.WideClientConnectAsync(connectOptions.Pcid, connectOptions.ClientOptions, cancel);
+            await using PipeStream? st = sock.GetStream(true);
+
+            st.ReadTimeout = st.WriteTimeout = Consts.ThinClient.ProtocolCommTimeoutMsecs;
+
+            // バージョンを送信
+            Pack p = new Pack();
+            p.AddInt("ClientVer", Consts.ThinClient.DummyClientVer);
+            p.AddInt("ClientBuild", Consts.ThinClient.DummyClientBuild);
+            p.AddBool("WoLMode", true);
+            p.AddStr("mac_list", macList);
+
+            await st._SendPackAsync(p, cancel);
+            var err = p.GetErrorFromPack();
+
+            err.ThrowIfError(p);
         }
 
         async Task DialogSessionMainProcAsync(DialogSession session, CancellationToken cancel)

@@ -414,6 +414,8 @@ namespace IPA.Cores.Basic
         public string Domain { get; set; } = "";
         public string MacAddress { get; set; } = "";
 
+        public string WoLTriggerPcid { get; set; } = "";
+
         public bool EnableDebug { get; set; } = false;
 
         public void AddToKeyValueList(KeyValueList<string, string> list)
@@ -444,6 +446,8 @@ namespace IPA.Cores.Basic
             this.Username = this.Username._NonNullTrim();
             this.Password = this.Password._NonNull();
             this.Domain = this.Domain._NonNullTrim();
+
+            this.WoLTriggerPcid = this.WoLTriggerPcid._NonNullTrim();
 
             if (this.ScreenWidth <= 0) this.ScreenWidth = CoresConfig.GuaClient.DefaultScreenWidth;
             if (this.ScreenHeight <= 0) this.ScreenWidth = CoresConfig.GuaClient.DefaultScreenHeight;

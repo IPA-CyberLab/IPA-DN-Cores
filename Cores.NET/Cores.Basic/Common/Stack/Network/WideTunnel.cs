@@ -276,6 +276,15 @@ namespace IPA.Cores.Basic
             p.AddStr("name_suite", this.WideTunnel.Options.NameSuite);
             p.AddBool("support_timeout_param", true);
 
+            var clientOptions = Options.ConnectParam.ClientOptions;
+            if (clientOptions.RealClientIp._IsFilled())
+            {
+                p.AddBool("is_trusted", true);
+                p.AddStr("trusted_real_client_ip", clientOptions.RealClientIp._NonNullTrim());
+                p.AddStr("trusted_real_client_fqdn", clientOptions.RealClientFqdn._NonNullTrim());
+                p.AddInt("trusted_real_client_port", (uint)clientOptions.RealClientPort);
+            }
+
             await LowerStream._HttpClientSendPackAsync(p, cancel);
 
             // 結果の受信
@@ -504,8 +513,24 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class WideTunnelClientOptions
+    {
+        public WideTunnelClientFlags Flags { get; }
+        public string RealClientIp { get; }
+        public string RealClientFqdn { get; }
+        public int RealClientPort { get; }
+
+        public WideTunnelClientOptions(WideTunnelClientFlags flags, string realClientIp, string realClientFqdn, int realClientPort)
+        {
+            Flags = flags;
+            RealClientIp = realClientIp;
+            RealClientFqdn = realClientFqdn;
+            RealClientPort = realClientPort;
+        }
+    }
+
     [Flags]
-    public enum WideTunnelClientOptions : uint
+    public enum WideTunnelClientFlags : uint
     {
         None = 0,
         WoL = 1,
@@ -535,6 +560,8 @@ namespace IPA.Cores.Basic
         public long SessionLifeTime;
         public string SessionLifeTimeMsg = "";
         public string WebSocketWildCardDomainName = "";
+
+        public WideTunnelClientOptions ClientOptions = null!;
 
         // Client 用
         public ReadOnlyMemory<byte> SessionId;
@@ -623,7 +650,7 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public async Task<WtcSocket> WideClientConnectAsync(string pcid, WideTunnelClientOptions clientOptions = WideTunnelClientOptions.None, CancellationToken cancel = default)
+        public async Task<WtcSocket> WideClientConnectAsync(string pcid, WideTunnelClientOptions clientOptions, CancellationToken cancel = default)
         {
             WtConnectParam connectParam = await WideClientConnectInnerAsync(pcid, clientOptions, cancel);
 
@@ -670,7 +697,26 @@ namespace IPA.Cores.Basic
             }
         }
 
-        async Task<WtConnectParam> WideClientConnectInnerAsync(string pcid, WideTunnelClientOptions clientOptions = WideTunnelClientOptions.None, CancellationToken cancel = default)
+        public async Task<string> WideClientGetWoLMacList(string pcid, CancellationToken cancel = default)
+        {
+            Pack r = new Pack();
+            r.AddStr("SvcName", Options.SvcName);
+            r.AddStr("Pcid", pcid);
+            r.AddSInt("Ver", CoresConfig.WtcConfig.PseudoVer);
+            r.AddSInt("Build", CoresConfig.WtcConfig.PseudoBuild);
+            r.AddData("ClientId", Options.ClientId);
+
+            var p = await WtWpcCall("ClientGetWoLMacList", r, cancel);
+            p.ThrowIfError();
+
+            string list = p["wol_maclist"].StrValueNonNull;
+
+            if (list._IsEmpty()) throw new VpnException(VpnError.ERR_WOL_TARGET_NOT_ENABLED);
+
+            return list;
+        }
+
+        async Task<WtConnectParam> WideClientConnectInnerAsync(string pcid, WideTunnelClientOptions clientOptions, CancellationToken cancel = default)
         {
             // TODO: cache
 
@@ -679,7 +725,7 @@ namespace IPA.Cores.Basic
             r.AddStr("Pcid", pcid);
             r.AddSInt("Ver", CoresConfig.WtcConfig.PseudoVer);
             r.AddSInt("Build", CoresConfig.WtcConfig.PseudoBuild);
-            r.AddInt("ClientOptions", (uint)clientOptions);
+            r.AddInt("ClientOptions", (uint)clientOptions.Flags);
             r.AddData("ClientId", Options.ClientId);
 
             var p = await WtWpcCall("ClientConnect", r, cancel);
@@ -693,6 +739,7 @@ namespace IPA.Cores.Basic
                 SessionId = p["SessionId"].DataValueNonNull,
                 ServerMask64 = p["ServerMask64"].Int64Value,
                 WebSocketWildCardDomainName = p["WebSocketWildCardDomainName"].StrValueNonNull,
+                ClientOptions = clientOptions,
             };
 
             if (c.WebSocketWildCardDomainName._IsEmpty())

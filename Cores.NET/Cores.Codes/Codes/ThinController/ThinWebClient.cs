@@ -310,7 +310,7 @@ namespace IPA.Cores.Codes
         protected AspNetCookieOptions GetCookieOption() => new AspNetCookieOptions(domain: ""); // Cookie のドメイン名は空文字 "" とする。これが最も安全である。参照: https://blog.tokumaru.org/2011/10/cookiedomain.html
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public async Task<IActionResult> IndexAsync(ThinWebClientModelIndex form, string? id, string? deleteAll)
+        public async Task<IActionResult> IndexAsync(ThinWebClientModelIndex form, string? id, string? deleteAll, string? button_wol)
         {
             ThinWebClientProfile? historySelectedProfile = null;
 
@@ -333,14 +333,25 @@ namespace IPA.Cores.Codes
                     var tc = this.Client.CreateThinClient();
 
                     var clientIp = Request.HttpContext.Connection.RemoteIpAddress._UnmapIPv4()!;
+                    var clientPort = Request.HttpContext.Connection.RemotePort;
                     string clientFqdn = await Client.DnsResolver.GetHostNameSingleOrIpAsync(clientIp);
 
-                    // セッションの開始
-                    var session = tc.StartConnect(new ThinClientConnectOptions(profile.Pcid, clientIp, clientFqdn, this.Client.SettingsFastSnapshot.Debug_EnableGuacdMode, WideTunnelClientOptions.None, profile.Preference, profile._CloneWithJson()));
-                    string sessionId = session.SessionId;
+                    if (button_wol._ToBool() == false)
+                    {
+                        // 普通の接続
+                        WideTunnelClientOptions wideOptions = new WideTunnelClientOptions(WideTunnelClientFlags.None, clientIp.ToString(), clientFqdn, clientPort);
 
-                    // セッション ID をもとにした URL にリダイレクト
-                    return Redirect($"/ThinWebClient/Session/{sessionId}/?id={profile.Pcid._MakeVerySafeAsciiOnlyNonSpaceFileName()}");
+                        // セッションの開始
+                        var session = tc.StartConnect(new ThinClientConnectOptions(profile.Pcid, clientIp, clientFqdn, this.Client.SettingsFastSnapshot.Debug_EnableGuacdMode, wideOptions, profile.Preference, profile._CloneWithJson()));
+                        string sessionId = session.SessionId;
+
+                        // セッション ID をもとにした URL にリダイレクト
+                        return Redirect($"/ThinWebClient/Session/{sessionId}/?id={profile.Pcid._MakeVerySafeAsciiOnlyNonSpaceFileName()}");
+                    }
+                    else
+                    {
+                        // WoL 信号の発射
+                    }
                 }
             }
             else
