@@ -130,6 +130,8 @@ namespace IPA.Cores.Basic
         public ThinClientConnection? FirstConnection;
         public ThinSvcType? SvcType;
         public string ConnectPacketData = "";
+        public string WatermarkStr1 = "";
+        public string WatermarkStr2 = "";
     }
 
     public class ThinClientInspectRequest : IDialogRequestData
@@ -177,6 +179,8 @@ namespace IPA.Cores.Basic
         public GuaPreference? GuaPreference { get; }
         public string? WebSocketUrl { get; private set; } = "/ws/";
         public string ConnectPacketData { get; private set; } = "";
+        public string WatermarkStr1 { get; private set; } = "";
+        public string WatermarkStr2 { get; private set; } = "";
 
         public ThinClientConnectOptions(string pcid, IPAddress clientIp, string clientFqdn, bool debugGuacMode, WideTunnelClientOptions clientOptions, GuaPreference? guaPreference = null, object? appParams = null)
         {
@@ -209,6 +213,12 @@ namespace IPA.Cores.Basic
             {
                 throw new CoresLibException("this.ConnectedSvcType is already set.");
             }
+        }
+
+        public void UpdateWatermarkStr(string str1, string str2)
+        {
+            this.WatermarkStr1 = str1._NonNull();
+            this.WatermarkStr2 = str2._NonNull();
         }
     }
 
@@ -245,8 +255,11 @@ namespace IPA.Cores.Basic
         public bool RunInspect { get; }
         public string OtpTicket { get; }
         public string InspectTicket { get; }
+        public string WatermarkStr1 { get; }
+        public string WatermarkStr2 { get; }
 
-        public ThinClientConnection(WtcSocket socket, PipeStream stream, ThinSvcType svcType, int svcPort, bool isShareDisabled, ThinServerCaps caps, bool runInspect, string otpTicket, string inspectTicket)
+        public ThinClientConnection(WtcSocket socket, PipeStream stream, ThinSvcType svcType, int svcPort, bool isShareDisabled, ThinServerCaps caps, bool runInspect, string otpTicket, string inspectTicket,
+            string watermarkStr1, string watermarkStr2)
         {
             Socket = socket;
             Stream = stream;
@@ -257,6 +270,8 @@ namespace IPA.Cores.Basic
             RunInspect = runInspect;
             OtpTicket = otpTicket;
             InspectTicket = inspectTicket;
+            WatermarkStr1 = watermarkStr1._NonNull();
+            WatermarkStr2 = watermarkStr2._NonNull();
         }
 
         protected override async Task CleanupImplAsync(Exception? ex)
@@ -424,6 +439,8 @@ namespace IPA.Cores.Basic
 
                     SvcType = firstConnection.SvcType,
                     ConnectPacketData = connectPacketData,
+                    WatermarkStr1 = firstConnection.WatermarkStr1,
+                    WatermarkStr2 = firstConnection.WatermarkStr2,
                 };
 
                 Dbg.Where();
@@ -682,8 +699,8 @@ namespace IPA.Cores.Basic
                 p.AddBool("SupportInspect", true);
                 p.AddBool("SupportServerAllowedMacListErr", true);
                 p.AddIp("ClientLocalIP", connectOptions.ClientIpAddress);
-                p.AddUniStr("UserName", "WebClient");
-                p.AddUniStr("ComputerName", "WebClient");
+                p.AddUniStr("UserName", "HTML5 WebClient");
+                p.AddUniStr("ComputerName", "HTML5 WebClient");
                 p.AddBool("SupportWatermark", true);
                 p.AddBool("GuacdMode", connectOptions.DebugGuacMode == false);
 
@@ -811,7 +828,7 @@ namespace IPA.Cores.Basic
 
                 st.ReadTimeout = st.WriteTimeout = Timeout.Infinite;
 
-                return new ThinClientConnection(sock, st, svcType, svcPort, !isShareEnabled, caps, runInspect, otpTicket, inspectTicket);
+                return new ThinClientConnection(sock, st, svcType, svcPort, !isShareEnabled, caps, runInspect, otpTicket, inspectTicket, waterMarkStr1, waterMarkStr2);
             }
             catch
             {

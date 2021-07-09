@@ -299,6 +299,8 @@ namespace IPA.Cores.Codes
         public string? WebSocketUrl { get; set; }
         public string? ConnectPacketData { get; set; }
         public ThinSvcType SvcType { get; set; }
+        public string WatermarkStr1 { get; set; } = "";
+        public string WatermarkStr2 { get; set; } = "";
     }
 
     public static class ThinWebClientErrorUtil
@@ -483,6 +485,8 @@ namespace IPA.Cores.Codes
                         Profile = profile,
                         SvcType = connectOptions.ConnectedSvcType!.Value,
                         ConnectPacketData = connectOptions.ConnectPacketData,
+                        WatermarkStr1 = connectOptions.WatermarkStr1,
+                        WatermarkStr2 = connectOptions.WatermarkStr2,
                     };
 
                     return View(main);
@@ -594,6 +598,7 @@ namespace IPA.Cores.Codes
                             if (connectOptions.DebugGuacMode)
                             {
                                 connectOptions.UpdateConnectedSvcType(ready.FirstConnection!.SvcType);
+                                connectOptions.UpdateWatermarkStr(ready.FirstConnection!.WatermarkStr1, ready.FirstConnection!.WatermarkStr2);
                             }
                             else
                             {
@@ -601,6 +606,7 @@ namespace IPA.Cores.Codes
                                 ready.WebSocketFullUrl._NotEmptyCheck();
                                 connectOptions.UpdateWebSocketUrl(ready.WebSocketFullUrl);
                                 connectOptions.UpdateConnectPacketData(ready.ConnectPacketData);
+                                connectOptions.UpdateWatermarkStr(ready.WatermarkStr1, ready.WatermarkStr2);
                             }
 
                             if (ready.WebSocketFullUrl._IsFilled())

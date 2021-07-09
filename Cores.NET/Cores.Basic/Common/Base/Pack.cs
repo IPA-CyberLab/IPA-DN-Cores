@@ -499,7 +499,14 @@ namespace IPA.Cores.Basic
                 this.AddInt($"{name}@ipv6_scope_id", 0, index);
             }
 
-            this.AddInt(name, ip._IPToUINT()._ReverseEndian32_U(), index);
+            uint ip_uint = ip._IPToUINT();
+
+            if (Env.IsBigEndian)
+            {
+                ip_uint = ip_uint._ReverseEndian32_U();
+            }
+
+            this.AddInt(name, ip_uint, index);
         }
 
         public void AddDateTime(string name, DateTime dt, uint index = 0)
