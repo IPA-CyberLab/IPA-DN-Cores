@@ -293,7 +293,7 @@ namespace IPA.Cores.Basic
             return this.SessionManager.StartNewSession(new DialogSessionOptions(DialogSessionMainProcAsync, connectOptions));
         }
 
-        public async Task ExecuteWoLAsync(ThinClientConnectOptions connectOptions, CancellationToken cancel = default)
+        public async Task ExecuteWoLAsync(ThinClientConnectOptions connectOptions, string targetPcid, CancellationToken cancel = default)
         {
             if (connectOptions.ClientOptions.Flags.Bit(WideTunnelClientFlags.WoL) == false)
             {
@@ -311,7 +311,6 @@ namespace IPA.Cores.Basic
 
             st.ReadTimeout = st.WriteTimeout = Consts.ThinClient.ProtocolCommTimeoutMsecs;
 
-            // バージョンを送信
             Pack p = new Pack();
             p.AddInt("ClientVer", Consts.ThinClient.DummyClientVer);
             p.AddInt("ClientBuild", Consts.ThinClient.DummyClientBuild);
@@ -319,6 +318,9 @@ namespace IPA.Cores.Basic
             p.AddStr("mac_list", macList);
 
             await st._SendPackAsync(p, cancel);
+
+            p = await st._RecvPackAsync(cancel);
+
             var err = p.GetErrorFromPack();
 
             err.ThrowIfError(p);

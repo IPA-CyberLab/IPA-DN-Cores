@@ -237,6 +237,10 @@ namespace IPA.Cores.Codes
 
         public bool FocusToPcid { get; set; } = false;
 
+        public string WolErrorMessage { get; set; } = "";
+        public string WolOkMessage { get; set; } = "";
+        public bool JumpToWol { get; set; } = false;
+
         public ThinWebClientModelIndex()
         {
             this.ResizeMethodItems = new List<SelectListItem>();
@@ -288,6 +292,26 @@ namespace IPA.Cores.Codes
         public string? WebSocketUrl { get; set; }
         public string? ConnectPacketData { get; set; }
         public ThinSvcType SvcType { get; set; }
+    }
+
+    public static class ThinWebClientErrorUtil
+    {
+        public static string GetFriendlyErrorMessage(Exception? ex, PageContext page)
+            => GetFriendlyErrorMessage(ex, page.StrTable);
+
+        public static string GetFriendlyErrorMessage(Exception? ex, StrTable table)
+        {
+            string msg = "エラー: " + (ex?.Message ?? "不明なエラーが発生しました。");
+
+            VpnException? vpnError = ex as VpnException;
+
+            if (vpnError != null)
+            {
+                msg = vpnError.GetFriendlyVpnErrorMessage(table);
+            }
+
+            return msg;
+        }
     }
 
     public class ThinWebClientController : Controller
@@ -350,7 +374,26 @@ namespace IPA.Cores.Codes
                     }
                     else
                     {
-                        // WoL 信号の発射
+                        try
+                        {
+                            // WoL 信号の発射
+                            WideTunnelClientOptions wideOptions = new WideTunnelClientOptions(WideTunnelClientFlags.WoL, clientIp.ToString(), clientFqdn, clientPort);
+
+                            await tc.ExecuteWoLAsync(new ThinClientConnectOptions(profile.Preference.WoLTriggerPcid, clientIp, clientFqdn, false, wideOptions, profile.Preference, profile._CloneWithJson()),
+                                profile.Pcid, this._GetRequestCancellationToken());
+
+                            // WoL OK メッセージ
+                            form.WolOkMessage = this.Page.StrTable["DU_WOL_MSG"]._FormatC(profile.Pcid, profile.Preference.WoLTriggerPcid);
+                        }
+                        catch (Exception ex)
+                        {
+                            // WoL エラーメッセージの文字列化
+                            string msg = ThinWebClientErrorUtil.GetFriendlyErrorMessage(ex, this.Page);
+
+                            form.WolErrorMessage = msg;
+
+                            form.JumpToWol = true;
+                        }
                     }
                 }
             }
