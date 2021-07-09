@@ -451,6 +451,12 @@ namespace IPA.Cores.Codes
             return View(form);
         }
 
+        public async Task<IActionResult> HelpAsync()
+        {
+            await Task.CompletedTask;
+            return View();
+        }
+
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public async Task<IActionResult> RemoteAsync(string? id)
         {
