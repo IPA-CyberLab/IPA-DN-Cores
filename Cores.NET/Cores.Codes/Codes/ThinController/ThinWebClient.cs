@@ -637,7 +637,7 @@ namespace IPA.Cores.Codes
                 }
             }
 
-            return View();
+            return Redirect("/");
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
