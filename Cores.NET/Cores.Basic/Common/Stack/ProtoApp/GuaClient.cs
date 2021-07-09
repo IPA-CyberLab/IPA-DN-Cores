@@ -401,6 +401,7 @@ namespace IPA.Cores.Basic
         public bool ScreenAutoFullScreen { get; set; } = true;
 
         public bool ScreenAutoResize { get; set; } = true;
+        public bool ScreenAutoResizeRemoteFit { get; set; } = false;
 
         public bool ScreenGetAutoSize { get; set; } = true;
         public int ScreenWidth { get; set; } = CoresConfig.GuaClient.DefaultScreenWidth;
@@ -408,6 +409,7 @@ namespace IPA.Cores.Basic
 
         public bool ShowLocalMouseCursor { get; set; } = true;
         public bool ShowRemoteMouseCursor { get; set; } = true;
+        public bool ShowHelpOnFullScreenUnset { get; set; } = true;
 
         public string Username { get; set; } = "";
         public string Password { get; set; } = "";
@@ -478,6 +480,11 @@ namespace IPA.Cores.Basic
             if (this.MacAddress._IsFilled())
             {
                 this.MacAddress = Str.NormalizeMac(this.MacAddress, style: MacAddressStyle.Windows);
+            }
+
+            if (this.ScreenAutoResizeRemoteFit)
+            {
+                this.ScreenAutoResize = true;
             }
         }
 
