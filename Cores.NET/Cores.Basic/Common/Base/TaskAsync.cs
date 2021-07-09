@@ -5025,13 +5025,17 @@ namespace IPA.Cores.Basic
     }
     public class DialogSessionOptions
     {
+        public int MaxSessionsPerQuotaKey { get; }
         public Func<DialogSession, CancellationToken, Task> MainAsyncCallback { get; }
         public object? Param { get; }
 
-        public DialogSessionOptions(Func<DialogSession, CancellationToken, Task> mainAsyncCallback, object? param = null)
+        public DialogSessionOptions(Func<DialogSession, CancellationToken, Task> mainAsyncCallback, int maxSessionsPerQuotaKey, object? param = null)
         {
             MainAsyncCallback = mainAsyncCallback;
             this.Param = param;
+
+            if (maxSessionsPerQuotaKey <= 0) maxSessionsPerQuotaKey = int.MaxValue;
+            this.MaxSessionsPerQuotaKey = maxSessionsPerQuotaKey;
         }
     }
 
@@ -5193,6 +5197,7 @@ namespace IPA.Cores.Basic
     public class DialogSession : AsyncService
     {
         public string SessionId { get; }
+        public string QuotaKey { get; }
         public DialogSessionManager Manager { get; }
         public DialogSessionOptions Options { get; }
         public object? Param => Options.Param;
@@ -5207,13 +5212,14 @@ namespace IPA.Cores.Basic
         readonly CriticalSection<DialogSession> RequestListLockObj = new CriticalSection<DialogSession>();
         readonly List<DialogRequest> RequestList = new List<DialogRequest>();
 
-        internal DialogSession(EnsureSpecial internalOnly, DialogSessionManager manager, DialogSessionOptions options)
+        internal DialogSession(EnsureSpecial internalOnly, DialogSessionManager manager, DialogSessionOptions options, string quotaKey)
         {
             try
             {
                 this.SessionId = Str.NewUid(manager.Options.SessionIdPrefix, '_');
                 this.Manager = manager;
                 this.Options = options;
+                this.QuotaKey = quotaKey._NonNull();
             }
             catch (Exception ex)
             {
@@ -5488,11 +5494,36 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public DialogSession StartNewSession(DialogSessionOptions options)
+        public DialogSession StartNewSession(DialogSessionOptions options, string quotaKey)
         {
             this.CheckNotCanceled();
 
-            DialogSession sess = new DialogSession(EnsureSpecial.Yes, this, options);
+            // Quota の検査
+            if (quotaKey._IsFilled())
+            {
+                Gc(true);
+
+                int currentSessionsForThisKey = 0;
+
+                var snapshot = this.SessionList;
+                foreach (var sess2 in snapshot.Values.ToList())
+                {
+                    if (sess2.IsFinished == false)
+                    {
+                        if (sess2.QuotaKey._IsSamei(quotaKey))
+                        {
+                            currentSessionsForThisKey++;
+                        }
+                    }
+                }
+
+                if (currentSessionsForThisKey >= options.MaxSessionsPerQuotaKey)
+                {
+                    throw new CoresException($"Session quota exceeded for the quota key '{quotaKey}'. Please wait for seconds and try again.");
+                }
+            }
+
+            DialogSession sess = new DialogSession(EnsureSpecial.Yes, this, options, quotaKey);
 
             if (ImmutableInterlocked.TryAdd(ref this.SessionList, sess.SessionId, sess) == false)
             {
@@ -5602,11 +5633,11 @@ namespace IPA.Cores.Basic
         }
 
         long lastGcTick = 0;
-        void Gc()
+        void Gc(bool force = false)
         {
             long now = TickNow;
 
-            if (lastGcTick == 0 || now >= (lastGcTick + Options.GcIntervals))
+            if (lastGcTick == 0 || now >= (lastGcTick + Options.GcIntervals) || force)
             {
                 lastGcTick = now;
 

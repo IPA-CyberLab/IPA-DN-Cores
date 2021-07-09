@@ -101,6 +101,8 @@ namespace IPA.Cores.Codes
 
         public List<string> ThinControllerUrlList = new List<string>();
 
+        public int MaxConcurrentSessionsPerClientIp;
+
         public ThinWebClientSettings()
         {
         }
@@ -120,6 +122,11 @@ namespace IPA.Cores.Codes
             if (this.Debug_GuacdPort == 0)
             {
                 this.Debug_GuacdPort = 4822;
+            }
+
+            if (this.MaxConcurrentSessionsPerClientIp <= 0)
+            {
+                this.MaxConcurrentSessionsPerClientIp = 5;
             }
         }
     }
@@ -366,7 +373,8 @@ namespace IPA.Cores.Codes
                         WideTunnelClientOptions wideOptions = new WideTunnelClientOptions(WideTunnelClientFlags.None, clientIp.ToString(), clientFqdn, clientPort);
 
                         // セッションの開始
-                        var session = tc.StartConnect(new ThinClientConnectOptions(profile.Pcid, clientIp, clientFqdn, this.Client.SettingsFastSnapshot.Debug_EnableGuacdMode, wideOptions, profile.Preference, profile._CloneWithJson()));
+                        var session = tc.StartConnect(new ThinClientConnectOptions(profile.Pcid, clientIp, clientFqdn, this.Client.SettingsFastSnapshot.Debug_EnableGuacdMode, wideOptions, profile.Preference, profile._CloneWithJson()),
+                            this.Client.SettingsFastSnapshot.MaxConcurrentSessionsPerClientIp);
                         string sessionId = session.SessionId;
 
                         // セッション ID をもとにした URL にリダイレクト

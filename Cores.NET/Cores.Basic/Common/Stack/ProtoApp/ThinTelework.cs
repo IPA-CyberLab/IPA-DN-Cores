@@ -71,9 +71,9 @@ namespace IPA.Cores.Basic
             public const int ReconnectRetrySpanMsecs = 2 * 1000;
             public const int ReconnectRetrySpanMaxMsecs = 3 * 60 * 1000;
 
-            public const int RequestSwitchToWebSocketTimeoutMsecs = 10 * 1000; // TODO 10
+            public const int RequestSwitchToWebSocketTimeoutMsecs = 10 * 1000;
             public const int RequestHardTimeoutMsecs = 150 * 1000;
-            public const int RequestSoftTimeoutMsecs = 15 * 1000; // TODO 15
+            public const int RequestSoftTimeoutMsecs = 15 * 1000;
             public const int ConnectionQueueWaitTimeout = 10 * 1000;
             public const int ConnectionZeroTimeout = 20 * 1000; // ここで指定された秒数、コネクション数が 0 の場合は、セッションを解除いたします
         }
@@ -283,14 +283,14 @@ namespace IPA.Cores.Basic
             this.Options = options;
         }
 
-        public DialogSession StartConnect(ThinClientConnectOptions connectOptions)
+        public DialogSession StartConnect(ThinClientConnectOptions connectOptions, int maxSessionsPerQuotaKey)
         {
             if (connectOptions.ClientOptions.Flags.Bit(WideTunnelClientFlags.WoL))
             {
                 throw new CoresLibException("connectOptions.ClientOptions.Flags.Bit(WideTunnelClientFlags.WoL) == true");
             }
 
-            return this.SessionManager.StartNewSession(new DialogSessionOptions(DialogSessionMainProcAsync, connectOptions));
+            return this.SessionManager.StartNewSession(new DialogSessionOptions(DialogSessionMainProcAsync, maxSessionsPerQuotaKey, connectOptions), connectOptions.ClientIpAddress.ToString());
         }
 
         public async Task ExecuteWoLAsync(ThinClientConnectOptions connectOptions, string targetPcid, CancellationToken cancel = default)

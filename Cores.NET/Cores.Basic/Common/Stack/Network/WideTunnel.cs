@@ -411,7 +411,7 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-//                ex._Debug();
+                //                ex._Debug();
                 this.UpperStream.Disconnect();
                 await this.CleanupAsync(ex);
             }
@@ -465,7 +465,7 @@ namespace IPA.Cores.Basic
             }
             catch (Exception ex)
             {
-//                ex._Debug();
+                //                ex._Debug();
                 this.UpperStream.Disconnect();
                 await this.CleanupAsync(ex);
             }
@@ -611,12 +611,33 @@ namespace IPA.Cores.Basic
     {
         public VpnError Error { get; }
 
+        public string RecvMsg { get; } = "";
+        public string RecvUrl { get; } = "";
+
+        public bool HasRecvMsg => this.RecvMsg._IsFilled();
+        public bool HasRecvUrl => this.RecvUrl._IsFilled();
+
         public Pack? Pack { get; }
 
         public VpnException(VpnError error, Pack? pack = null) : base($"{error.ToString()}")
         {
             this.Error = error;
             this.Pack = pack?.Clone() ?? null;
+
+            if (this.Pack != null)
+            {
+                if (error == VpnError.ERR_RECV_MSG)
+                {
+                    // メッセージ付きエラー
+                    this.RecvMsg = this.Pack["Msg"].UniStrValueNonNull;
+                }
+
+                if (error == VpnError.ERR_RECV_URL)
+                {
+                    // URL 付きエラー
+                    this.RecvUrl = this.Pack["Url"].StrValueNonNull;
+                }
+            }
         }
 
         public string GetFriendlyVpnErrorMessage(StrTable table)
@@ -624,7 +645,12 @@ namespace IPA.Cores.Basic
             string str = table.GetStr($"ERR_{(int)this.Error}");
             if (str._IsEmpty())
             {
-                str = this.ToString();
+                str = this.Message;
+            }
+
+            if (this.HasRecvMsg)
+            {
+                str = this.RecvMsg;
             }
 
             return str;
