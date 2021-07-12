@@ -616,7 +616,7 @@ namespace IPA.Cores.Basic
 
         public ISigner GetVerifier(string signatureAlgorithmOid)
         {
-            ISigner ret = SignerUtilities.GetSigner(signatureAlgorithmOid);
+            ISigner ret = PkiUtil.CreateSignerByOid(signatureAlgorithmOid);
 
             ret.Init(false, this.PublicKeyData);
 
@@ -1253,6 +1253,10 @@ namespace IPA.Cores.Basic
 
         public static ISigner CreateSignerByOid(string oid)
         {
+            // 署名アルゴリズムが安全なもの (本ライブラリコードによって認識可能なもの) かどうか確認
+            // (脆弱なアルゴリズムが指定されないようにするため)
+            GetSignatureAlgorithmAndShaSizeByOid(oid);
+
             return SignerUtilities.GetSigner(oid);
         }
 
