@@ -104,6 +104,7 @@ namespace IPA.Cores.Basic
         SHA256 = 0,
         SHA384,
         SHA512,
+        SHA1,
     }
 
     public class CertificateStoreContainer
@@ -255,6 +256,9 @@ namespace IPA.Cores.Basic
         public ReadOnlyMemory<byte>? DigestSHA256Data { get; private set; }
         public string? DigestSHA256Str { get; private set; }
 
+        public ReadOnlyMemory<byte>? DigestSHA384Data { get; private set; }
+        public string? DigestSHA384Str { get; private set; }
+
         public ReadOnlyMemory<byte>? DigestSHA512Data { get; private set; }
         public string? DigestSHA512Str { get; private set; }
 
@@ -273,6 +277,9 @@ namespace IPA.Cores.Basic
 
                     this.DigestSHA256Data = cert.DigestSHA256Data;
                     this.DigestSHA256Str = cert.DigestSHA256Str;
+
+                    this.DigestSHA384Data = cert.DigestSHA384Data;
+                    this.DigestSHA384Str = cert.DigestSHA384Str;
 
                     this.DigestSHA512Data = cert.DigestSHA512Data;
                     this.DigestSHA512Str = cert.DigestSHA512Str;
@@ -340,8 +347,11 @@ namespace IPA.Cores.Basic
                     w.WriteLine($"Not After: {cert.CertData.NotAfter.ToLocalTime()._ToDtStr()}");
                     w.WriteLine($"Digest SHA1: {cert.DigestSHA1Str}");
                     w.WriteLine($"Digest SHA256: {cert.DigestSHA256Str}");
+                    w.WriteLine($"Digest SHA384: {cert.DigestSHA384Str}");
                     w.WriteLine($"Digest SHA512: {cert.DigestSHA512Str}");
                     w.WriteLine($"Public Key SHA256 Base64: sha256//{cert.PublicKey.GetPubKeySha256Base64()}");
+                    w.WriteLine($"Public Key SHA384 Base64: sha384//{cert.PublicKey.GetPubKeySha384Base64()}");
+                    w.WriteLine($"Public Key SHA512 Base64: sha512//{cert.PublicKey.GetPubKeySha512Base64()}");
 
                     w.WriteLine();
                 }
@@ -517,7 +527,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public string GetPubKeySha256Base64()
+        public byte[] GetPubKeyBinaryData()
         {
             var tmp = ConvertToPemIfDer(Export().Span);
             string strBody = tmp._GetString();
@@ -525,7 +535,7 @@ namespace IPA.Cores.Basic
 
             StringBuilder sb = new StringBuilder();
 
-            foreach (string line in strBody._GetLines(true).Select(x=>x.Trim()))
+            foreach (string line in strBody._GetLines(true).Select(x => x.Trim()))
             {
                 if (mode == 0)
                 {
@@ -551,7 +561,28 @@ namespace IPA.Cores.Basic
 
             var pubkeyBinaryData = pubkeyBase64Data._Base64Decode();
 
+            return pubkeyBinaryData;
+        }
+
+        public string GetPubKeySha256Base64()
+        {
+            var pubkeyBinaryData = GetPubKeyBinaryData();
+
             return Secure.HashSHA256(pubkeyBinaryData)._Base64Encode();
+        }
+
+        public string GetPubKeySha384Base64()
+        {
+            var pubkeyBinaryData = GetPubKeyBinaryData();
+
+            return Secure.HashSHA384(pubkeyBinaryData)._Base64Encode();
+        }
+
+        public string GetPubKeySha512Base64()
+        {
+            var pubkeyBinaryData = GetPubKeyBinaryData();
+
+            return Secure.HashSHA512(pubkeyBinaryData)._Base64Encode();
         }
 
         static ReadOnlySpan<byte> ConvertToPemIfDer(ReadOnlySpan<byte> src)
@@ -577,6 +608,15 @@ namespace IPA.Cores.Basic
         public ISigner GetVerifier(PkiShaSize? shaSize = null)
         {
             ISigner ret = SignerUtilities.GetSigner(PkiUtil.GetSignatureAlgorithmOid(this.Algorithm, shaSize, this.BitsSize));
+
+            ret.Init(false, this.PublicKeyData);
+
+            return ret;
+        }
+
+        public ISigner GetVerifier(string signatureAlgorithmOid)
+        {
+            ISigner ret = SignerUtilities.GetSigner(signatureAlgorithmOid);
 
             ret.Init(false, this.PublicKeyData);
 
@@ -769,8 +809,14 @@ namespace IPA.Cores.Basic
         public ReadOnlyMemory<byte> DigestSHA256Data { get; private set; } = null!;
         public string DigestSHA256Str { get; private set; } = null!;
 
+        public ReadOnlyMemory<byte> DigestSHA384Data { get; private set; } = null!;
+        public string DigestSHA384Str { get; private set; } = null!;
+
         public ReadOnlyMemory<byte> DigestSHA512Data { get; private set; } = null!;
         public string DigestSHA512Str { get; private set; } = null!;
+
+        public string SignatureAlgorithmOid { get; set; } = null!;
+        public string SignatureAlgorithmName { get; set; } = null!;
 
         public string CommonNameOrFirstDnsName { get; private set; } = "";
 
@@ -886,6 +932,8 @@ namespace IPA.Cores.Basic
             InitFields();
         }
 
+        Singleton<PalX509Certificate> X509CertificateSingleton = null!;
+
         void InitFields()
         {
             byte[] publicKeyBytes = this.CertData.CertificateStructure.SubjectPublicKeyInfo.GetDerEncoded();
@@ -972,9 +1020,30 @@ namespace IPA.Cores.Basic
             this.DigestSHA256Data = Secure.HashSHA256(der);
             this.DigestSHA256Str = this.DigestSHA256Data._GetHexString();
 
+            this.DigestSHA384Data = Secure.HashSHA384(der);
+            this.DigestSHA384Str = this.DigestSHA384Data._GetHexString();
+
             this.DigestSHA512Data = Secure.HashSHA512(der);
             this.DigestSHA512Str = this.DigestSHA512Data._GetHexString();
+
+            X509CertificateSingleton = new Singleton<PalX509Certificate>(GetX509CertificateInternal);
+
+            this.SignatureAlgorithmName = this.CertData.SigAlgName._NonNull();
+            this.SignatureAlgorithmOid = this.CertData.SigAlgOid._NonNull();
         }
+
+        PalX509Certificate GetX509CertificateInternal()
+        {
+            PalX509Certificate x509 = new PalX509Certificate(this.Export().Span);
+
+            return x509;
+        }
+
+        public byte[] GetSignature() => this.CertData.GetSignature();
+
+        public PalX509Certificate GetX509Certificate() => X509CertificateSingleton;
+
+        public PalX509Certificate X509Certificate => GetX509Certificate();
 
         public bool IsMatchForHost(string hostname, out CertificateHostnameType matchType)
         {
@@ -1003,6 +1072,23 @@ namespace IPA.Cores.Basic
 
                 return w.ToString()._GetBytes_UTF8();
             }
+        }
+
+        public bool VerifySignedByKey(PubKey issuerPublicKey)
+        {
+            byte[] signature = this.GetSignature();
+
+            ISigner verifier = issuerPublicKey.GetVerifier(this.SignatureAlgorithmOid);
+
+            byte[] toSign = this.CertData.GetTbsCertificate();
+            verifier.BlockUpdate(toSign, 0, toSign.Length);
+
+            return verifier.VerifySignature(signature);
+        }
+
+        public bool VerifySignedByCertificate(Certificate issuerCertificate)
+        {
+            return VerifySignedByKey(issuerCertificate.PublicKey);
         }
     }
 
@@ -1165,6 +1251,59 @@ namespace IPA.Cores.Basic
             publicKey = new PubKey(pair.Public);
         }
 
+        public static ISigner CreateSignerByOid(string oid)
+        {
+            return SignerUtilities.GetSigner(oid);
+        }
+
+        public static ISigner CreateSignerByAlgotithmAndShaSize(PkiAlgorithm algo, PkiShaSize shaSize)
+        {
+            return CreateSignerByOid(GetSignatureAlgorithmOid(algo, shaSize, -1));
+        }
+
+        public static Tuple<PkiAlgorithm, PkiShaSize> GetSignatureAlgorithmAndShaSizeByOid(string oid)
+        {
+            PkiAlgorithm? alg = null;
+            PkiShaSize? sha = null;
+
+            if (oid == PkcsObjectIdentifiers.Sha1WithRsaEncryption.Id)
+            {
+                alg = PkiAlgorithm.RSA; sha = PkiShaSize.SHA1;
+            }
+            else if (oid == PkcsObjectIdentifiers.Sha256WithRsaEncryption.Id)
+            {
+                alg = PkiAlgorithm.RSA; sha = PkiShaSize.SHA256;
+            }
+            else if (oid == PkcsObjectIdentifiers.Sha384WithRsaEncryption.Id)
+            {
+                alg = PkiAlgorithm.RSA; sha = PkiShaSize.SHA384;
+            }
+            else if (oid == PkcsObjectIdentifiers.Sha512WithRsaEncryption.Id)
+            {
+                alg = PkiAlgorithm.RSA; sha = PkiShaSize.SHA512;
+            }
+            else if (oid == X9ObjectIdentifiers.ECDsaWithSha1.Id)
+            {
+                alg = PkiAlgorithm.ECDSA; sha = PkiShaSize.SHA1;
+            }
+            else if (oid == X9ObjectIdentifiers.ECDsaWithSha256.Id)
+            {
+                alg = PkiAlgorithm.ECDSA; sha = PkiShaSize.SHA256;
+            }
+            else if (oid == X9ObjectIdentifiers.ECDsaWithSha384.Id)
+            {
+                alg = PkiAlgorithm.ECDSA; sha = PkiShaSize.SHA384;
+            }
+            else if (oid == X9ObjectIdentifiers.ECDsaWithSha512.Id)
+            {
+                alg = PkiAlgorithm.ECDSA; sha = PkiShaSize.SHA512;
+            }
+
+            if (alg == null || sha == null) throw new ArgumentOutOfRangeException(nameof(oid));
+
+            return new Tuple<PkiAlgorithm, PkiShaSize>(alg.Value, sha.Value);
+        }
+
         public static string GetSignatureAlgorithmOid(PkiAlgorithm algorithm, PkiShaSize? shaSize = null, int size = 0)
         {
             string alg;
@@ -1175,8 +1314,12 @@ namespace IPA.Cores.Basic
                     shaSize = PkiShaSize.SHA512;
                 else if (size >= 384)
                     shaSize = PkiShaSize.SHA384;
-                else
+                else if (size >= 256 || size == 0) // default
                     shaSize = PkiShaSize.SHA256;
+                else if (size == 128)
+                    shaSize = PkiShaSize.SHA1;
+                else
+                    throw new ArgumentOutOfRangeException(nameof(size));
             }
 
             switch (algorithm)
@@ -1184,7 +1327,11 @@ namespace IPA.Cores.Basic
                 case PkiAlgorithm.RSA:
                     switch (shaSize)
                     {
-                        default:
+                        case PkiShaSize.SHA1:
+                            alg = PkcsObjectIdentifiers.Sha1WithRsaEncryption.Id;
+                            break;
+
+                        case PkiShaSize.SHA256:
                             alg = PkcsObjectIdentifiers.Sha256WithRsaEncryption.Id;
                             break;
 
@@ -1195,13 +1342,20 @@ namespace IPA.Cores.Basic
                         case PkiShaSize.SHA512:
                             alg = PkcsObjectIdentifiers.Sha512WithRsaEncryption.Id;
                             break;
+
+                        default:
+                            throw new ArgumentOutOfRangeException(nameof(shaSize));
                     }
                     break;
 
                 case PkiAlgorithm.ECDSA:
                     switch (shaSize)
                     {
-                        default:
+                        case PkiShaSize.SHA1:
+                            alg = X9ObjectIdentifiers.ECDsaWithSha1.Id;
+                            break;
+
+                        case PkiShaSize.SHA256:
                             alg = X9ObjectIdentifiers.ECDsaWithSha256.Id;
                             break;
 
@@ -1212,6 +1366,9 @@ namespace IPA.Cores.Basic
                         case PkiShaSize.SHA512:
                             alg = X9ObjectIdentifiers.ECDsaWithSha512.Id;
                             break;
+
+                        default:
+                            throw new ArgumentOutOfRangeException(nameof(shaSize));
                     }
                     break;
 
@@ -1259,7 +1416,7 @@ namespace IPA.Cores.Helper.Basic
         public static bool Verify(this ISigner signer, byte[] signature, byte[] data, int offset = 0, int size = DefaultSize)
         {
             size = size._DefaultSize(data.Length - offset);
-
+            
             signer.Reset();
 
             signer.BlockUpdate(data, offset, size);

@@ -567,7 +567,7 @@ namespace IPA.Cores.Basic.DnsLib
 		{
 			var signer = new DsaSigner();
 			signer.Init(true, new ParametersWithRandom(PrivateKeyFactory.CreateKey(PrivateKey), _secureRandom));
-
+			
 			var sha1 = new Sha1Digest();
 
 			sha1.BlockUpdate(buffer, 0, length);

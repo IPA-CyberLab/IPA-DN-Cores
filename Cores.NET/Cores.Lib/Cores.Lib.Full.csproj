@@ -80,6 +80,9 @@
     <PackageReference Include="DnsClient" Version="1.3.2" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
     <PackageReference Include="EPPlus" Version="5.5.1" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
 
+    <!-- Cores.Basic.WebServer -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Certificate" Version="5.0.0" Condition="$(DefineConstants.Contains('CORES_BASIC_WEBAPP;'))" />
+
   </ItemGroup>
 
   <ItemGroup>

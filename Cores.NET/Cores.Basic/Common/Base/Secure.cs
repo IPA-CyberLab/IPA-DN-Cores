@@ -54,6 +54,7 @@ namespace IPA.Cores.Basic
         static readonly MD5 MD5Shared = new MD5CryptoServiceProvider();
         public const int SHA1Size = 20;
         public const int SHA256Size = 32;
+        public const int SHA384Size = 48;
         public const int SHA512Size = 64;
         public const int MD5Size = 16;
         readonly static CriticalSection RandLock = new CriticalSection<Secure>();
@@ -261,6 +262,25 @@ namespace IPA.Cores.Basic
         public static int HashSHA256(ReadOnlySpan<byte> src, Span<byte> dest)
         {
             using SHA256 sha = new SHA256Managed();
+
+            if (sha.TryComputeHash(src, dest, out int ret) == false)
+                throw new ApplicationException("TryComputeHash error.");
+
+            return ret;
+        }
+
+        // SHA384
+        public static byte[] HashSHA384(ReadOnlySpan<byte> src)
+        {
+            Span<byte> dest = new byte[SHA384Size];
+            int r = HashSHA384(src, dest);
+            Debug.Assert(r == dest.Length);
+            return dest.ToArray();
+        }
+
+        public static int HashSHA384(ReadOnlySpan<byte> src, Span<byte> dest)
+        {
+            using SHA384 sha = new SHA384Managed();
 
             if (sha.TryComputeHash(src, dest, out int ret) == false)
                 throw new ApplicationException("TryComputeHash error.");

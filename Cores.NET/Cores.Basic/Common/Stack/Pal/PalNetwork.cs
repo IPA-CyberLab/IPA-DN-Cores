@@ -78,6 +78,8 @@ namespace IPA.Cores.Basic
 
         public string HashSHA1 => this.NativeCertificate.GetCertHashString();
         public string HashSHA256 => this.NativeCertificate.GetCertHashString(System.Security.Cryptography.HashAlgorithmName.SHA256);
+        public string HashSHA384 => this.NativeCertificate.GetCertHashString(System.Security.Cryptography.HashAlgorithmName.SHA384);
+        public string HashSHA512 => this.NativeCertificate.GetCertHashString(System.Security.Cryptography.HashAlgorithmName.SHA512);
 
         public IReadOnlyList<string> GetSHAHashStrList() => this.NativeCertificate._GetCertSHAHashStrList();
 
@@ -120,6 +122,11 @@ namespace IPA.Cores.Basic
             ReadOnlyMemory<byte> ret = this.NativeCertificate.Export(X509ContentType.Pfx, password);
 
             return ret;
+        }
+
+        public bool VerifySignedByCertificate(PalX509Certificate issuerCertificate)
+        {
+            return this.PkiCertificate.VerifySignedByCertificate(issuerCertificate.PkiCertificate);
         }
 
         public static implicit operator X509Certificate2(PalX509Certificate cert) => (X509Certificate2)cert.NativeCertificate;

@@ -1028,7 +1028,7 @@ namespace IPA.TestDev
 
             using WideTunnel wt = new WideTunnel(new WideTunnelOptions("DESK", "TestSan", new string[] { "https://c__TIME__.controller.dynamic-ip.thin.cyber.ipa.go.jp/widecontrol/" }));
 
-            await using var c = await wt.WideClientConnectAsync("greenrdp2");
+            await using var c = await wt.WideClientConnectAsync("greenrdp2", new WideTunnelClientOptions(WideTunnelClientFlags.None, "", "", 0));
 
             await cancel._WaitUntilCanceledAsync();
         }
@@ -1061,7 +1061,7 @@ namespace IPA.TestDev
                     //await Task.Delay(Util.RandSInt31() % 100);
                 }
 
-            }, null));
+            }, 0, null), "");
 
             string sessId = sess.SessionId;
 
@@ -1117,7 +1117,7 @@ namespace IPA.TestDev
 
             ThinClient tc = new ThinClient(new ThinClientOptions(wideOptions, sm));
 
-            var sess = tc.StartConnect(new ThinClientConnectOptions("pc342", IPAddress.Loopback, IPAddress.Loopback.ToString(), false));
+            var sess = tc.StartConnect(new ThinClientConnectOptions("pc342", IPAddress.Loopback, IPAddress.Loopback.ToString(), false, new WideTunnelClientOptions(WideTunnelClientFlags.None, "", "", 0)), 0);
 
             while (cancel.IsCancellationRequested == false)
             {
@@ -2134,8 +2134,30 @@ namespace IPA.TestDev
             }
         }
 
+        static void Test_210712()
+        {
+            while (true)
+            {
+                var parentCert = new Certificate(Lfs.ReadDataFromFile(@"S:\NTTVPN\Certs\200418_Certs\00_Master.cer").Span);
+                var parentPalCert = parentCert.X509Certificate;
+                //parentPalCert.PkiCertificate.Export()._DataToFile(@"c:\tmp\210712\test.cer", flags: FileFlags.AutoCreateDirectory);
+
+                var childCert = new Certificate(Lfs.ReadDataFromFile(@"S:\NTTVPN\Certs\200418_Certs\01_Controller.cer").Span);
+                var childPalCert = childCert.X509Certificate;
+                childCert.VerifySignedByCertificate(parentCert)._Print();
+
+                childPalCert.PkiCertificate.VerifySignedByCertificate(parentPalCert.PkiCertificate)._Print();
+            }
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210712();
+                return;
+            }
+
             if (true)
             {
                 Test_210706();
