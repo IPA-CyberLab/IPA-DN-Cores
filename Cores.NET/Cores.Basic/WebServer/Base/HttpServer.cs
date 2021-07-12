@@ -75,6 +75,9 @@ using Microsoft.Extensions.WebEncoders;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
 
+using Microsoft.AspNetCore.Authentication.Certificate;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
+
 #if CORES_BASIC_HTTPSERVER
 // ASP.NET Core 3.0 用の型名を無理やり ASP.NET Core 2.2 でコンパイルするための型エイリアスの設定
 using IWebHostEnvironment = Microsoft.AspNetCore.Hosting.IHostingEnvironment;
@@ -222,6 +225,24 @@ namespace IPA.Cores.Basic
                 });
             }
 
+            if (false)
+            {
+                services.AddAuthentication(CertificateAuthenticationDefaults.AuthenticationScheme)
+                    .AddCertificate(options =>
+                    {
+                        options.Events = new CertificateAuthenticationEvents
+                        {
+                            OnCertificateValidated = context =>
+                            {
+                                Where();
+                                context.Success();
+
+                                return Task.CompletedTask;
+                            }
+                        };
+                    }).AddCertificateCache();
+            }
+
             //    if (ServerOptions.RequireBasicAuthenticationToAllRequests)
             //    {
             //        services.AddAuthorization(options =>
@@ -346,6 +367,8 @@ namespace IPA.Cores.Basic
                     }
                 });
             }
+
+            //app.UseAuthentication();
 
             //if (ServerOptions.UseSimpleBasicAuthentication)
             //{
@@ -620,6 +643,7 @@ namespace IPA.Cores.Basic
             opt.ConfigureHttpsDefaults(s =>
             {
                 s.SslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersions;
+                // s.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
             });
 
             void EnableHttps(ListenOptions listenOptions)
@@ -627,6 +651,7 @@ namespace IPA.Cores.Basic
                 listenOptions.UseHttps(httpsOptions =>
                 {
                     httpsOptions.SslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersions;
+                    // httpsOptions.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
 
                     bool useGlobalCertVault = false;
 
@@ -671,6 +696,11 @@ namespace IPA.Cores.Basic
 #endif  // CORES_BASIC_JSON
 #endif  // CORES_BASIC_SECURITY;
 
+/*                    httpsOptions.ClientCertificateValidation = (cert, chain, err) =>
+                    {
+                        Where();
+                        return true;
+                    };*/
                 });
             }
         }
