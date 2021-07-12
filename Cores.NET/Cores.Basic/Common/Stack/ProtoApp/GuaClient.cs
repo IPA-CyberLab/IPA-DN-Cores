@@ -401,7 +401,7 @@ namespace IPA.Cores.Basic
         public bool ScreenAutoFullScreen { get; set; } = true;
 
         public bool ScreenAutoResize { get; set; } = true;
-        public bool ScreenAutoResizeRemoteFit { get; set; } = false;
+        public bool ScreenAutoResizeRemoteFit { get; set; } = true;
 
         public bool ScreenGetAutoSize { get; set; } = true;
         public int ScreenWidth { get; set; } = CoresConfig.GuaClient.DefaultScreenWidth;
