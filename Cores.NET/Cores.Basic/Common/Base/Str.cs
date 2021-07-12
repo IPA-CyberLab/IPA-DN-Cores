@@ -1151,6 +1151,14 @@ namespace IPA.Cores.Basic
             return buf.Span.ToArray();
         }
 
+        // 電話番号かどうか判定
+        public static bool IsPhoneNumber(string? str)
+        {
+            if (str._IsEmpty()) return false;
+
+            return str.All(x => (x >= '0' && x <= '9') || x == ' ' || x == '+' || x == '(' || x == ')');
+        }
+
         // 指定されたディレクトリ名が "YYMMDD_なんとか" または "YYMMDD なんとか" または "YYYYMMDD_なんとか" または "YYYYMMDD なんとか" である場合は日付を返す
         static readonly char[] YymmddSplitChars = new char[] { '_', ' ', '　', '\t' };
         public static bool TryParseYYMMDDDirName(string name, out DateTime date)

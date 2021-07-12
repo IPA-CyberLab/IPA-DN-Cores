@@ -640,7 +640,20 @@ namespace IPA.Cores.Basic
                     {
                         if (this.ServerCertSelector != null)
                         {
-                            httpsOptions.ServerCertificateSelector = ((ctx, sni) => this.ServerCertSelector(sslCertSelectorParam, sni));
+                            httpsOptions.ServerCertificateSelector = ((ctx, sni) =>
+                            {
+                                try
+                                {
+                                    var cert = this.ServerCertSelector(sslCertSelectorParam, sni);
+
+                                    return cert;
+                                }
+                                catch (Exception ex)
+                                {
+                                    ex._Error();
+                                    throw;
+                                }
+                            });
                         }
                     }
 

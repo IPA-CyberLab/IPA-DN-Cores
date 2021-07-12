@@ -157,7 +157,7 @@ namespace IPA.Cores.Codes
         public virtual async Task<string?> DetermineConnectionProhibitedAsync(ThinController controller, bool isClientConnectMode, string serverIp, string? clientIp, ThinDbMachine serverMachine, CancellationToken cancel = default) => null;
 
         public virtual async Task<bool> SendOtpEmailAsync(ThinController controller, string otp, string emailTo, string emailFrom, string clientIp, string clientFqdn, string pcidMasked, string pcid,
-            string smtpServerHostname, int smtpServerPort, string smtpUsername, string smtpPassword, CancellationToken cancel = default) => throw new NotImplementedException();
+            ThinControllerOtpServerSettings serverSettings, CancellationToken cancel = default) => throw new NotImplementedException();
     }
 #pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
 
@@ -290,6 +290,31 @@ namespace IPA.Cores.Codes
 
             this.AuthedMachine = machine;
             this.MachineGroupName = (await session.Controller.Hook.DetermineMachineGroupNameAsync(session, cancel))._NonNullTrim()._FilledOrDefault("Default");
+        }
+    }
+
+    public class ThinControllerOtpServerSettings
+    {
+        public string SmtpServerHostname { get; }
+        public int SmtpServerPort { get; }
+        public string SmtpServerUsername { get; }
+        public string SmtpServerPassword { get; }
+
+        public string AwsSnsRegionEndPointName { get; }
+        public string AwsSnsAccessKeyId { get; }
+        public string AwsSnsSecretAccessKey { get; }
+        public string AwsSnsDefaultCountryCode { get; }
+
+        public ThinControllerOtpServerSettings(string smtpServerHostname, int smtpServerPort, string smtpServerUsername, string smtpServerPassword, string awsSnsRegionEndPointName, string awsSnsAccessKeyId, string awsSnsSecretAccessKey, string awsSnsDefaultCountryCode)
+        {
+            this.SmtpServerHostname = smtpServerHostname;
+            this.SmtpServerPort = smtpServerPort._ZeroOrDefault(Consts.Ports.Smtp);
+            this.SmtpServerUsername = smtpServerUsername;
+            this.SmtpServerPassword = smtpServerPassword;
+            this.AwsSnsRegionEndPointName = awsSnsRegionEndPointName;
+            this.AwsSnsAccessKeyId = awsSnsAccessKeyId;
+            this.AwsSnsSecretAccessKey = awsSnsSecretAccessKey;
+            this.AwsSnsDefaultCountryCode = awsSnsDefaultCountryCode._FilledOrDefault("+81");
         }
     }
 
@@ -745,13 +770,20 @@ namespace IPA.Cores.Codes
                 pcidMasked += '*';
             }
 
-            string smtpServerHostname = Controller.Db.GetVarString("SmtpServerHostname")._NonNullTrim();
-            int smtpServerPort = Controller.Db.GetVarString("SmtpServerPort")._NonNullTrim()._ToInt()._ZeroOrDefault(Consts.Ports.Smtp);
-            string smtpUsername = Controller.Db.GetVarString("SmtpUsername")._NonNullTrim();
-            string smtpPassword = Controller.Db.GetVarString("SmtpPassword")._NonNullTrim();
             string otpFrom = Controller.Db.GetVarString("SmtpOtpFrom")._NonNullTrim();
 
-            bool ok = await Controller.Hook.SendOtpEmailAsync(Controller, otp, email, otpFrom, clientIp, clientFqdn, pcidMasked, pcid, smtpServerHostname, smtpServerPort, smtpUsername, smtpPassword, cancel);
+            ThinControllerOtpServerSettings serverSettings = new ThinControllerOtpServerSettings(
+                Controller.Db.GetVarString("SmtpServerHostname")._NonNullTrim(),
+                Controller.Db.GetVarString("SmtpServerPort")._NonNullTrim()._ToInt(),
+                Controller.Db.GetVarString("SmtpUsername")._NonNullTrim(),
+                Controller.Db.GetVarString("SmtpPassword")._NonNullTrim(),
+                Controller.Db.GetVarString("AwsSnsRegionEndPointName")._NonNullTrim(),
+                Controller.Db.GetVarString("AwsSnsAccessKeyId")._NonNullTrim(),
+                Controller.Db.GetVarString("AwsSnsSecretAccessKey")._NonNullTrim(),
+                Controller.Db.GetVarString("AwsSnsDefaultCountryCode")._NonNullTrim()
+                );
+
+            bool ok = await Controller.Hook.SendOtpEmailAsync(Controller, otp, email, otpFrom, clientIp, clientFqdn, pcidMasked, pcid, serverSettings, cancel);
             var ret = NewWpcResult();
             var p = ret.Pack;
 
