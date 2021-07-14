@@ -797,9 +797,15 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class Certificate
+    public class Certificate : IComparable<Certificate>, IEquatable<Certificate>
     {
         public X509Certificate CertData { get; }
+
+        public ReadOnlyMemory<byte> DerData { get; private set; }
+        public int HashCode { get; private set; }
+
+        public DateTimeOffset NotBefore { get; private set; }
+        public DateTimeOffset NotAfter { get; private set; }
 
         public PubKey PublicKey { get; private set; } = null!;
 
@@ -849,15 +855,11 @@ namespace IPA.Cores.Basic
 
         public Certificate(ReadOnlySpan<byte> import)
         {
+            var parser = new X509CertificateParser();
+
             using (StringReader r = new StringReader(import._GetString_UTF8()))
             {
-                PemReader pem = new PemReader(r);
-
-                object obj = pem.ReadObject();
-
-                X509Certificate data = (X509Certificate)obj;
-
-                if (data == null) throw new ArgumentException("Importing data parse failed.");
+                X509Certificate data = parser.ReadCertificate(import.ToArray());
 
                 this.CertData = data;
 
@@ -1030,6 +1032,12 @@ namespace IPA.Cores.Basic
 
             this.SignatureAlgorithmName = this.CertData.SigAlgName._NonNull();
             this.SignatureAlgorithmOid = this.CertData.SigAlgOid._NonNull();
+
+            this.DerData = der;
+            this.HashCode = this.DerData._HashMarvin();
+
+            this.NotBefore = this.CertData.NotBefore._AsDateTimeOffset(false, true);
+            this.NotAfter = this.CertData.NotAfter._AsDateTimeOffset(false, true);
         }
 
         PalX509Certificate GetX509CertificateInternal()
@@ -1090,6 +1098,70 @@ namespace IPA.Cores.Basic
         {
             return VerifySignedByKey(issuerCertificate.PublicKey);
         }
+
+        public bool IsSignedByParentCertOrExactSame(Certificate parentCert, out bool exactlyMatch)
+        {
+            exactlyMatch = false;
+            if (this.Equals(parentCert))
+            {
+                exactlyMatch = true;
+                return true;
+            }
+
+            if (this.VerifySignedByCertificate(parentCert))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool CheckIfSignedByAnyOfParentCertificatesListOrExactlyMatch(IEnumerable<Certificate> parentCertList, out bool exactlyMatch)
+        {
+            exactlyMatch = false;
+
+            foreach (Certificate parent in parentCertList)
+            {
+                if (this.IsSignedByParentCertOrExactSame(parent, out bool isExactlyMatch))
+                {
+                    exactlyMatch = isExactlyMatch;
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool IsExpired(DateTimeOffset? now = null)
+        {
+            if (now.HasValue == false)
+            {
+                now = DtOffsetNow;
+            }
+
+            if (now < this.NotBefore || now > this.NotAfter)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        public override int GetHashCode()
+            => this.HashCode;
+
+        public override bool Equals(object? obj)
+            => this.Equals((Certificate?)obj);
+
+        public override string ToString()
+            => this.CommonNameOrFirstDnsName;
+
+        public int CompareTo(Certificate? other)
+            => this.DerData._MemCompare(other!.DerData);
+
+        public bool Equals(Certificate? other)
+            => this.DerData._MemEquals(other!.DerData);
     }
 
     public class Csr

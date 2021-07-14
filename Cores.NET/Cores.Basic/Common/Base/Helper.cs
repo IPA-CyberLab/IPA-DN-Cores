@@ -1928,7 +1928,15 @@ namespace IPA.Cores.Helper.Basic
         public static DateTime _OverwriteKind(this DateTime dt, DateTimeKind kind) => new DateTime(dt.Ticks, kind);
 
         [MethodImpl(Inline)]
-        public static DateTimeOffset _AsDateTimeOffset(this DateTime dt, bool isLocalTime) => new DateTimeOffset(dt._OverwriteKind(isLocalTime ? DateTimeKind.Local : DateTimeKind.Utc));
+        public static DateTimeOffset _AsDateTimeOffset(this DateTime dt, bool isLocalTime, bool asLocalTime = false)
+        {
+            var ret = new DateTimeOffset(dt._OverwriteKind(isLocalTime ? DateTimeKind.Local : DateTimeKind.Utc));
+            if (asLocalTime)
+            {
+                ret = ret.ToLocalTime();
+            }
+            return ret;
+        }
 
         public static async Task _LeakCheck(this Task t, bool noCheck = false, LeakCounterKind kind = LeakCounterKind.TaskLeak, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
         {
@@ -2813,6 +2821,9 @@ namespace IPA.Cores.Helper.Basic
 
         public static int _ToYymmddInt(this DateTimeOffset dt, int zeroValue = 0) => Str.DateTimeToYymmddInt(dt.DateTime, zeroValue);
         public static int _ToHhmmssInt(this DateTimeOffset dt, int zeroValue = 0) => Str.DateTimeToHhmmssInt(dt.DateTime, zeroValue);
+
+        public static PalX509Certificate AsPalX509Certificate(this X509Certificate cert) => new PalX509Certificate(cert);
+        public static Certificate AsPkiCertificate(this X509Certificate cert) => new Certificate(new PalX509Certificate(cert));
     }
 }
 

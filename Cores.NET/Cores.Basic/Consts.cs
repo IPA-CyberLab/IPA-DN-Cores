@@ -795,6 +795,8 @@ namespace IPA.Cores.Basic
         ERR_DESK_GUACD_NOT_SUPPORTED_OS = 332, // Guacd がサポートされていない OS
         ERR_DESK_GUACD_PROHIBITED = 333,		// Guacd が禁止されている
         ERR_DESK_GUACD_NOT_SUPPORTED_VER = 334,	// Guacd のバージョンが古い
+        ERR_DESK_GUACD_CLIENT_REQUIRED = 335, // Guacd クライアントが必要である
+        ERR_DESK_GOVFW_HTML5_NO_SUPPORT = 336, // 完全閉域化 FW が強制されているが HTML5 版でサポートされていない
     }
 }
 

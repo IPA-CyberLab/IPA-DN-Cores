@@ -244,8 +244,6 @@ namespace IPA.Cores.Basic
             LowerStream.ReadTimeout = CoresConfig.WtcConfig.ConnectingTimeoutMsec;
             LowerStream.WriteTimeout = CoresConfig.WtcConfig.ConnectingTimeoutMsec;
 
-            // TODO: check certificate
-
             // シグネチャをアップロードする
             HttpHeader h = new HttpHeader("POST", "/widetunnel/connect.cgi", "HTTP/1.1");
             h.ValueList.Add("Content-Type", "image/jpeg");
@@ -578,10 +576,11 @@ namespace IPA.Cores.Basic
         public WebApiOptions? WebApiOptions { get; }
         public ReadOnlyMemory<byte> WaterMark { get; }
         public string NameSuite { get; }
+        public IEnumerable<Certificate> MasterCertificates { get; }
 
         public ReadOnlyMemory<byte> GenNewClientId() => Secure.Rand(20);
 
-        public WideTunnelOptions(string svcName, string nameSuite, IEnumerable<string> entryUrlList, ReadOnlyMemory<byte> clientId = default, ReadOnlyMemory<byte> waterMark = default, WebApiOptions? webApiOptions = null, TcpIpSystem? tcpIp = null)
+        public WideTunnelOptions(string svcName, string nameSuite, IEnumerable<string> entryUrlList, IEnumerable<Certificate> masterCertificates, ReadOnlyMemory<byte> clientId = default, ReadOnlyMemory<byte> waterMark = default, WebApiOptions? webApiOptions = null, TcpIpSystem? tcpIp = null)
         {
             if (clientId.IsEmpty) clientId = GenNewClientId();
             if (waterMark.IsEmpty) waterMark = CoresConfig.WtcConfig.DefaultWaterMark;
@@ -604,6 +603,7 @@ namespace IPA.Cores.Basic
             this.TcpIp = tcpIp;
             this.WebApiOptions = webApiOptions;
             this.WaterMark = waterMark;
+            this.MasterCertificates = masterCertificates;
         }
     }
 
@@ -670,9 +670,40 @@ namespace IPA.Cores.Basic
             this.Options = options;
         }
 
+        public void CheckCertificate(X509Certificate? cert)
+        {
+            if (cert == null) throw new CoresLibException("cert == null");
+
+            var pkiCert = cert.AsPkiCertificate();
+
+            if (pkiCert.CheckIfSignedByAnyOfParentCertificatesListOrExactlyMatch(Options.MasterCertificates, out bool exactlyMatch) == false)
+            {
+                throw new CoresLibException($"The SSL certificate '{pkiCert}' is not trusted by any of master certificates.");
+            }
+
+            if (exactlyMatch == false)
+            {
+                if (pkiCert.IsExpired())
+                {
+                    throw new CoresLibException($"The SSL certificate '{pkiCert}' is expired or not valid. NotBefore = '{pkiCert.NotBefore._ToDtStr()}', NotAfter = '{pkiCert.NotAfter._ToDtStr()}'");
+                }
+            }
+        }
+
         public bool CheckValidationCallback(object sender, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors sslPolicyErrors)
         {
-            // TODO: cert check
+            try
+            {
+                certificate.ToString()._Debug();
+                this.CheckCertificate(certificate);
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+
+                return false;
+            }
+
             return true;
         }
 
@@ -838,7 +869,7 @@ namespace IPA.Cores.Basic
             // 最初の通信エラーを throw する
             if (firstCommError != null)
             {
-                throw firstCommError;
+                throw new CoresLibException($"Fatal error: All Thin Telework controllers unreachable. Please wait for minutes and try again. Last error: '{firstCommError.Message}'");
             }
 
             // エラーがない。おかしいな

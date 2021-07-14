@@ -1066,7 +1066,7 @@ namespace IPA.Cores.Codes
                         {
                             AllowRenegotiation = false,
                             CertificateRevocationCheckMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck,
-                            EnabledSslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersions,
+                            EnabledSslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersionsAsClient,
                             TargetHost = gate.IpAddress.ToString(),
                         }, cancel
                         );

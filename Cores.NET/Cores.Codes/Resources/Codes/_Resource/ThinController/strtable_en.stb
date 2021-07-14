@@ -309,8 +309,10 @@ ERR_329					The destination $APPSHORT_SERVER$ is controlled by the Enterprise Po
 ERR_330					A lockout has occurred because the user authentication failed a certain number of times on the connection $APPSHORT_SERVER$. The same user cannot be authenticated until the lockout time expires. Please restart the service of the $APPSHORT_SERVER$ you are connecting to in order to release the lockout immediately.\r\n\r\nThe number of lockouts and the interval between lockouts are defined by the "AUTH_LOCKOUT_COUNT" and "AUTH_LOCKOUT_TIMEOUT" values of the policy server installed by the network administrator of the destination $APPSHORT_SERVER$. For more information, please contact your network administrator. For more information, please contact your network administrator.
 ERR_331         		Failed to start the protocol conversion module "ThinWebGateway.exe" required to support the HTML5 version of the client on the destination $APPSHORT_SERVER$ computer.\r\n\r\nThere may be a memory shortage on the computer you are connecting to, or a third party program such as anti-virus software or endpoint security may be causing the problem.\r\n\r\nTry connecting to the destination computer using the regular app version of $APPSHORT$ (not the HTML5 version). Also, reboot the destination computer and see if the problem goes away.\r\n\r\nIf the problem persists, install a clean Windows OS environment for verification (no anti-virus software or third-party programs installed that may cause problems, such as endpoint security) and see if the same problem occurs. Please test if the same problem occurs.
 ERR_332         		Connection by HTML5 client is not supported due to the version of Windows on the destination $APPSHORT_SERVER$ computer. HTML5 client requires Windows 7 or newer OS in the destination computer.
-ERR_333					Connection by HTML5 client is prohibited due to the policy regulation server of the destination $APPSHORT_SERVER$ or other system administrator's setting. Please contact the system administrator of the destination $APPSHORT_SERVER$.
+ERR_333					Connection by HTML5 client is prohibited due to the policy regulation server of the destination $APPSHORT_SERVER$ or other system administrator's setting. You can connect to the client using the normal application version. Please use the normal application client, or contact the system administrator of the $APPSHORT_SERVER$ you are connecting to.
 ERR_334					Because the version of $APPSHORT_SERVER$ you are connecting to is too old, you cannot connect using the HTML5 client.\r\n\r\nWe apologize for the inconvenience, but please update the version of $APPSHORT_SERVER$ to a version released after July 2021.\r\n\r\nIn order to connect to $APPSHORT_SERVER$ for updating, you can use the existing $APPSHORT_CLIENT$ version of the traditional client application.\r\n\r\nAfter the update, you will be able to connect to the server with this HTML5 version of the client from this web browser.
+ERR_335					Connection by Desktop App Client is prohibited due to the policy regulation server of the destination $APPSHORT_SERVER$ or other system administrator's setting. You can connect to the client using the HTML5 Web Client. Please use the HTML5 Web Client client, or contact the system administrator of the $APPSHORT_SERVER$ you are connecting to.
+ERR_336					The policy server of the connection destination $APPSHORT_SERVER$ enforces the use of the Strong Isolation Firewall function. the HTML5 version of the client cannot use the Strong Isolation Firewall function. No connections will be allowed. Please use the normal application client, or contact the system administrator of the $APPSHORT_SERVER$ you are connecting to.
 
 
 # PacketiX Desktop VPN 関係
@@ -431,9 +433,9 @@ DU_WOL_TARGET_EMPTY 			The Wake on LAN target computer ID is not specified.
 DU_WOL_TRIGGER_EMPTY 			The Wake on LAN trigger computer ID is not specified.
 DU_WOL_MSG 						Wake on LAN magic packet (power on signal) from trigger computer ID '%S' to the MAC address of target computer ID '%S' was physically sent successfully.\r\n\r\n\r\n\r\nIf the target computer and the trigger computer are connected to the same wired LAN, and the target computer's LAN card and BIOS settings are enabled for Wake on LAN, the target computer will be turned on and You can expect Windows to boot up in a few tens of seconds to a few minutes. \r\n\r\n\r\nBy its nature, the Wake on LAN feature cannot tell you the result of a successful power-up or not. Close the Wake on LAN tool screen, and after some time has passed, try to connect with the $APPSHORT_CLIENT$. When $APPSHORT_SERVER$ on the target computer is installed in user mode and the power is turned on from the power off state, the Windows user must be set to automatically log on. .
 
-DU_GOV_FW_MANDATE_MSG 			If the $APPSHORT_SERVER$ you are connecting to does not use the fully closed firewall feature, communication is not allowed. Do you want to interrupt the connection?
+DU_GOV_FW_MANDATE_MSG 			If the $APPSHORT_SERVER$ you are connecting to does not use the Strong Isolation Firewall feature, communication is not allowed. Do you want to interrupt the connection?
 DU_GOV_FW_MANDATE_CLOSE_BUTTON 	No (Suspend connection)
-DU_GOV_FW_CLOSE_MSG 			Would you like to terminate the fully closed firewall?
+DU_GOV_FW_CLOSE_MSG 			Would you like to terminate the Strong Isolation Firewall?
 
 DU_FELONY_STR1 					Classified // DO NOT COPY // NO PHOTO
 DU_FELONY_STR2 					$APPVERYSHORT$ Login date and time: %s\r\n%S\r\nServer computer: %s (IP: %r)\r\nClient computer: %s (%S)\r\nClient IP: %r/%r\r\nUser. Name: %s\r\n%S
@@ -492,7 +494,7 @@ DG_MAC_SETTINGS_REQUIRED		Client MAC Address Authentication is enabled, but no M
 
 DG_NO_LOCAL_MAC_ADDRESS_LIST	The $APPSHORT$ Enterprise Policy Enforcement Server currently enforces the Client MAC Address Authentication. The current policy enforces the central administration of the MAC adddress list by the CLIENT_ALLOWED_MAC_LIST_URL policy item.\r\n\rnAlso, the current policy enforces the NO_LOCAL_MAC_ADDRESS_LIST item to 1 (true).\r\n\r\nTherefore the local MAC address list cannot be edited manually by the local user.\r\n\r\nPlease contact to your system administrator to add / delete MAC addresses to the central list.
 
-DG_SMS_HELP     This Thin Telework System Private Version's relay system may use SMS authentication instead of email address authentication for One Time Password (OTP) authentication.\r\n\r\nIf the relay system uses SMS authentication, enter your cell phone number (e.g. 09001234567) instead of your e-mail address in the field.\r\n\r\nIf the relay system uses SMS authentication, you cannot use your e-mail address even if you enter it. To find out if this relay system uses SMS authentication, contact the administrator of the relay system.
+DG_SMS_HELP     This Thin Telework System Private Version's relay system may use SMS authentication instead of email address authentication for One Time Password (OTP) authentication.\r\n\r\nIf the relay system uses SMS authentication, enter your cell phone number (e.g. 09001234567) instead of your e-mail address in the field.\r\n\r\nTo find out if this relay system uses SMS authentication, contact the administrator of the relay system.
 
 DG_SMS_HELP_TITLE   About SMS Authentication
 
@@ -4760,6 +4762,7 @@ B_BROWSE				&Browse...
 C_ADDPARAM				Specify &additional Command-Line Parameters
 S_PARAMS				&Parameters (&G):
 C_PUBLIC				With Versio&n 6.0 of mstsc.exe, Use /public Additional Command-Line Parameter to prevent caching password data
+C_NO_FQDN				Directly specify 127.0.0.1 instead of specifying a special FQDN name that internally indicates 127.0.0.1 when starting the remote screen (try turning it on when a name resolution error occurs)
 IDOK					&OK
 IDCANCEL				Cancel
 S_UX					User experience features aimed at improving telework

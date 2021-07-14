@@ -2136,7 +2136,7 @@ namespace IPA.TestDev
 
         static void Test_210712()
         {
-            while (true)
+            //while (true)
             {
                 var parentCert = new Certificate(Lfs.ReadDataFromFile(@"S:\NTTVPN\Certs\200418_Certs\00_Master.cer").Span);
                 var parentPalCert = parentCert.X509Certificate;
@@ -2144,9 +2144,15 @@ namespace IPA.TestDev
 
                 var childCert = new Certificate(Lfs.ReadDataFromFile(@"S:\NTTVPN\Certs\200418_Certs\01_Controller.cer").Span);
                 var childPalCert = childCert.X509Certificate;
-                childCert.VerifySignedByCertificate(parentCert)._Print();
+                //childCert.VerifySignedByCertificate(parentCert)._Print();
 
-                childPalCert.PkiCertificate.VerifySignedByCertificate(parentPalCert.PkiCertificate)._Print();
+                //childPalCert.PkiCertificate.VerifySignedByCertificate(parentPalCert.PkiCertificate)._Print();
+
+                childCert.CertData.GetEncoded()._DataToFile(@"c:\tmp\210714\test.cer", flags: FileFlags.AutoCreateDirectory);
+                childCert.GetSignature()._GetHexString()._Print();
+                childCert.DigestSHA1Str._Print();
+
+                childCert.IsExpired()._Print();
             }
         }
 

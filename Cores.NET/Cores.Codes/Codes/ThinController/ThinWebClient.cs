@@ -301,6 +301,7 @@ namespace IPA.Cores.Codes
         public ThinSvcType SvcType { get; set; }
         public string WatermarkStr1 { get; set; } = "";
         public string WatermarkStr2 { get; set; } = "";
+        public ThinClientMiscParams Misc { get; set; } = new ThinClientMiscParams();
     }
 
     public static class ThinWebClientErrorUtil
@@ -487,6 +488,7 @@ namespace IPA.Cores.Codes
                         ConnectPacketData = connectOptions.ConnectPacketData,
                         WatermarkStr1 = connectOptions.WatermarkStr1,
                         WatermarkStr2 = connectOptions.WatermarkStr2,
+                        Misc = connectOptions.MiscParams,
                     };
 
                     return View(main);
@@ -599,6 +601,7 @@ namespace IPA.Cores.Codes
                             {
                                 connectOptions.UpdateConnectedSvcType(ready.FirstConnection!.SvcType);
                                 connectOptions.UpdateWatermarkStr(ready.FirstConnection!.WatermarkStr1, ready.FirstConnection!.WatermarkStr2);
+                                connectOptions.UpdateMiscParams(ready.FirstConnection.Misc);
                             }
                             else
                             {
@@ -607,6 +610,7 @@ namespace IPA.Cores.Codes
                                 connectOptions.UpdateWebSocketUrl(ready.WebSocketFullUrl);
                                 connectOptions.UpdateConnectPacketData(ready.ConnectPacketData);
                                 connectOptions.UpdateWatermarkStr(ready.WatermarkStr1, ready.WatermarkStr2);
+                                connectOptions.UpdateMiscParams(ready.Misc);
                             }
 
                             if (ready.WebSocketFullUrl._IsFilled())
@@ -772,6 +776,16 @@ namespace IPA.Cores.Codes
         }
     }
 
+    public class ThinWebClientOptions
+    {
+        public IEnumerable<Certificate> MasterCertificates { get; }
+
+        public ThinWebClientOptions(IEnumerable<Certificate> masterCertificates)
+        {
+            this.MasterCertificates = masterCertificates;
+        }
+    }
+
     public class ThinWebClient : AsyncService
     {
         // Hive
@@ -794,11 +808,15 @@ namespace IPA.Cores.Codes
         public DialogSessionManager SessionManager { get; }
 
         public StrTableLanguageList LanguageList { get; private set; } = null!;
+        
+        public ThinWebClientOptions Options { get; }
 
-        public ThinWebClient(ThinWebClientSettings settings, ThinWebClientHookBase hook, Func<ThinWebClientSettings>? getDefaultSettings = null)
+        public ThinWebClient(ThinWebClientOptions options, ThinWebClientHookBase hook, Func<ThinWebClientSettings>? getDefaultSettings = null)
         {
             try
             {
+                this.Options = options;
+
                 this.Hook = hook;
 
                 this.SettingsHive = new HiveData<ThinWebClientSettings>(
@@ -834,7 +852,7 @@ namespace IPA.Cores.Codes
                 listenAddress = IPAddress.Any;
             }
 
-            ThinClient tc = new ThinClient(new ThinClientOptions(new WideTunnelOptions("DESK", nameof(ThinWebClient), this.SettingsFastSnapshot.ThinControllerUrlList), this.SessionManager,
+            ThinClient tc = new ThinClient(new ThinClientOptions(new WideTunnelOptions("DESK", nameof(ThinWebClient), this.SettingsFastSnapshot.ThinControllerUrlList, this.Options.MasterCertificates), this.SessionManager,
                 listenFamily, listenAddress));
 
             return tc;

@@ -642,7 +642,7 @@ namespace IPA.Cores.Basic
 
             opt.ConfigureHttpsDefaults(s =>
             {
-                s.SslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersions;
+                s.SslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersionsAsServer;
                 // s.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
             });
 
@@ -650,7 +650,7 @@ namespace IPA.Cores.Basic
             {
                 listenOptions.UseHttps(httpsOptions =>
                 {
-                    httpsOptions.SslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersions;
+                    httpsOptions.SslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersionsAsServer;
                     // httpsOptions.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
 
                     bool useGlobalCertVault = false;
