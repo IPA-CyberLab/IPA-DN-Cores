@@ -200,6 +200,8 @@ namespace IPA.Cores.Codes
         public int ControllerDbBackupFileWriteIntervalMsecs;
         [JsonIgnore]
         public int ControllerRecordStatIntervalMsecs;
+        [JsonIgnore]
+        public string WildCardDnsDomainName = "";
 
         public ThinMemoryDb() { }
 
@@ -282,6 +284,7 @@ namespace IPA.Cores.Codes
             this.ControllerDbWriteUpdateIntervalMsecs = this.VarByName._GetOrDefault("ControllerDbWriteUpdateIntervalMsecs")?.FirstOrDefault()?.VAR_VALUE1._ToInt() ?? 0;
             this.ControllerDbBackupFileWriteIntervalMsecs = this.VarByName._GetOrDefault("ControllerDbBackupFileWriteIntervalMsecs")?.FirstOrDefault()?.VAR_VALUE1._ToInt() ?? 0;
             this.ControllerRecordStatIntervalMsecs = this.VarByName._GetOrDefault("ControllerRecordStatIntervalMsecs")?.FirstOrDefault()?.VAR_VALUE1._ToInt() ?? 0;
+            this.WildCardDnsDomainName = this.VarByName._GetOrDefault("WildCardDnsDomainName")?.FirstOrDefault()?.VAR_VALUE1._NonNullTrim() ?? ThinControllerConsts.Default_WildCardDnsDomainName;
         }
 
         // PCID 一覧のリビルド (PCID に変更が発生したので Dictionary をリビルドする)
