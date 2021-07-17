@@ -107,10 +107,10 @@ namespace IPA.Cores.Web
         {
             KeyValueList<string, KeyValueList<string, string>> obj = new KeyValueList<string, KeyValueList<string, string>>();
 
-            foreach (var lang in this.LanguageList.GetLaugnageList())
+            foreach (var lang in this.LanguageList.GetLaugnageList().OrderBy(x=>x.Key, StrComparer.IgnoreCaseComparer))
                 obj.Add(lang.Key.ToLower(), lang.Table.ToList());
 
-            string jsonBody = obj._ObjectToJson();
+            string jsonBody = obj._ObjectToJson(compact: true);
 
             StringWriter w = new StringWriter();
             w.WriteLine("// String table");
