@@ -791,9 +791,11 @@ namespace IPA.Cores.Basic
     public static partial class IPUtil
     {
         // IP アドレスからワイルドカード DNS 名を生成
-        public static string GenerateWildCardDnsFqdn(IPAddress ip, string baseDomainName, string prefix = "ws-")
+        public static string GenerateWildCardDnsFqdn(IPAddress ip, string baseDomainName, string prefix = "", string suffix = "")
         {
             prefix = prefix._NonNullTrim();
+            suffix = suffix._NonNullTrim();
+
             baseDomainName = baseDomainName._NormalizeFqdn();
             if (baseDomainName._IsFilled())
             {
@@ -802,11 +804,11 @@ namespace IPA.Cores.Basic
 
             if (ip.AddressFamily == AddressFamily.InterNetwork)
             {
-                return prefix + ip.ToString()._ReplaceStr(".", "-") + baseDomainName;
+                return prefix + ip.ToString()._ReplaceStr(".", "-") + suffix + baseDomainName;
             }
             else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
             {
-                return prefix + ip.ToString()._ReplaceStr(":", "-") + baseDomainName;
+                return prefix + ip.ToString()._ReplaceStr(":", "-") + suffix + baseDomainName;
             }
             else
             {

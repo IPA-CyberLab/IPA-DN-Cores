@@ -135,6 +135,7 @@ namespace IPA.Cores.Codes
     // ThinWebClient の動作をカスタマイズ可能なフック抽象クラス
     public abstract class ThinWebClientHookBase
     {
+        public abstract RateLimiter<string> GetRateLimiterForNewSession();
     }
 #pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
 
@@ -366,11 +367,17 @@ namespace IPA.Cores.Codes
                     history.Add(profile);
                     history.SaveToCookie(this, GetCookieOption());
 
-                    var tc = this.Client.CreateThinClient();
-
                     var clientIp = Request.HttpContext.Connection.RemoteIpAddress._UnmapIPv4()!;
                     var clientPort = Request.HttpContext.Connection.RemotePort;
                     string clientFqdn = await Client.DnsResolver.GetHostNameSingleOrIpAsync(clientIp);
+
+                    // Rate limit
+                    if (this.Client.RateLimit.TryInput(clientIp.ToString(), out _) == false)
+                    {
+                        throw new CoresException(this.Page.StrTable["THINWEBC_RATELIMIT_EXCEEDED"]);
+                    }
+
+                    var tc = this.Client.CreateThinClient();
 
                     if (button_wol._ToBool() == false)
                     {
@@ -814,6 +821,8 @@ namespace IPA.Cores.Codes
         
         public ThinWebClientOptions Options { get; }
 
+        public RateLimiter<string> RateLimit { get; }
+
         public ThinWebClient(ThinWebClientOptions options, ThinWebClientHookBase hook, Func<ThinWebClientSettings>? getDefaultSettings = null)
         {
             try
@@ -832,6 +841,8 @@ namespace IPA.Cores.Codes
                 this.DnsResolver = new DnsClientLibBasedDnsResolver(new DnsResolverSettings());
 
                 this.SessionManager = new DialogSessionManager(new DialogSessionManagerOptions(sessionIdPrefix: "thin"), cancel: this.GrandCancel);
+
+                this.RateLimit = this.Hook.GetRateLimiterForNewSession();
             }
             catch (Exception ex)
             {
