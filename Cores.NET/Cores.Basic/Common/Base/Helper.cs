@@ -384,7 +384,7 @@ namespace IPA.Cores.Helper.Basic
         public static bool _IsSameiIgnoreUnderscores(this string? s, string? t) => ((s == null && t == null) ? true : ((s == null || t == null) ? false : (s.Replace("_", "")._IsSamei(t.Replace("_", "")))));
         public static int _Cmp(this string? s, string? t, bool ignoreCase = false) => ((s == null && t == null) ? 0 : ((s == null ? 1 : t == null ? -1 : (ignoreCase ? Str.StrCmpiRetInt(s, t) : Str.StrCmpRetInt(s, t)))));
         public static int _Cmp(this string? s, string? t, StringComparison comparison) => ((s == null && t == null) ? 0 : ((s == null ? 1 : t == null ? -1 : string.Compare(s, t, comparison))));
-        public static int _Cmpi(this string? s, string? t, bool ignoreCase = false) => _Cmp(s, t, true);
+        public static int _Cmpi(this string? s, string? t) => _Cmp(s, t, true);
 
         public static bool _IsSameIPAddress(this string? ip1, string? ip2) => IPUtil.CompareIPAddress(ip1, ip2);
         public static int _CmpIPAddress(this string? ip1, string? ip2) => IPUtil.CompareIPAddressRetInt(ip1, ip2);

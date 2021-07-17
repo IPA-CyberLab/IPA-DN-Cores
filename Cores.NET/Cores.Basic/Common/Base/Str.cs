@@ -8474,6 +8474,8 @@ namespace IPA.Cores.Basic
                 ret.Add(item);
             }
 
+            ret.Sort((x, y) => x.Key._Cmpi(y.Key));
+
             return ret;
         }
 
