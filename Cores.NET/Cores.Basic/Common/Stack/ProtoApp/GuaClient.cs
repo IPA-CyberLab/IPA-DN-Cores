@@ -189,6 +189,13 @@ namespace IPA.Cores.Basic
     }
 
     [Flags]
+    public enum GuaDnFlags
+    {
+        None = 0,
+        AlwaysWebp = 1,
+    }
+
+    [Flags]
     public enum GuaProtocol
     {
         Rdp = 0,
@@ -376,7 +383,8 @@ namespace IPA.Cores.Basic
         public bool EnableFontSmoothing { get; set; } = true;
         public bool EnableFullWindowDrag { get; set; } = true;
         public bool EnableDesktopComposition { get; set; } = true;
-        public bool EnableMenuAnimations { get; set; } = true;
+        public bool EnableMenuAnimations { get; set; } = false;
+        public bool EnableAlwaysWebp { get; set; } = false;
 
         public bool Win_ShiftWin { get; set; } = true;
         public bool Win_Ctrl2Alt2 { get; set; } = true;
@@ -509,8 +517,9 @@ namespace IPA.Cores.Basic
         public TcpIpSystem TcpIp { get; }
         public string GuacdHostname { get; }
         public int GuacdPort { get; }
+        public bool EnableWebp { get; }
 
-        public GuaClientSettings(string guacdHostname, int guacdPort, GuaProtocol protocol, string serverHostname, int serverPort, GuaPreference preference, TcpIpSystem? tcpIp = null)
+        public GuaClientSettings(string guacdHostname, int guacdPort, GuaProtocol protocol, string serverHostname, int serverPort, GuaPreference preference, bool enableWebp, TcpIpSystem? tcpIp = null)
         {
             GuacdHostname = guacdHostname;
             GuacdPort = guacdPort;
@@ -519,6 +528,11 @@ namespace IPA.Cores.Basic
             ServerHostname = serverHostname;
             ServerPort = serverPort;
             Preference = preference._CloneWithJson();
+            EnableWebp = enableWebp;
+            if (this.EnableWebp == false)
+            {
+                Preference.EnableAlwaysWebp = false;
+            }
         }
 
         public void AddToKeyValueList(KeyValueList<string, string> list, string serverHostnameIfEmpty)
@@ -607,7 +621,15 @@ namespace IPA.Cores.Basic
                 var opSize = new GuaPacket { Opcode = "size", Args = StrList(Settings.Preference.ScreenWidth, Settings.Preference.ScreenHeight, 96), };
                 var opAudio = new GuaPacket { Opcode = "audio", Args = StrList("audio/L8", "audio/L16"), };
                 var opVideo = new GuaPacket { Opcode = "video", Args = StrList(), };
-                var opImage = new GuaPacket { Opcode = "image", Args = StrList("image/jpeg", "image/png", "image/webp"), };
+
+                List<string> imgList = StrList("image/jpeg", "image/png");
+
+                if (this.Settings.EnableWebp)
+                {
+                    imgList.Add("image/webp");
+                }
+
+                var opImage = new GuaPacket { Opcode = "image", Args = imgList, };
                 var opTimezone = new GuaPacket { Opcode = "timezone", Args = StrList("Asia/Tokyo"), };
 
                 await opSize.SendPacketAsync(this.Stream, cancel);

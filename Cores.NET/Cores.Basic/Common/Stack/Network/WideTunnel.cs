@@ -694,7 +694,6 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                certificate.ToString()._Debug();
                 this.CheckCertificate(certificate);
             }
             catch (Exception ex)

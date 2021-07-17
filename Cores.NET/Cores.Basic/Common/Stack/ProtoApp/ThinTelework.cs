@@ -200,9 +200,10 @@ namespace IPA.Cores.Basic
         public string ConnectPacketData { get; private set; } = "";
         public string WatermarkStr1 { get; private set; } = "";
         public string WatermarkStr2 { get; private set; } = "";
+        public bool IsWebpSupported { get; }
         public ThinClientMiscParams MiscParams { get; private set; } = new ThinClientMiscParams();
 
-        public ThinClientConnectOptions(string pcid, IPAddress clientIp, string clientFqdn, bool debugGuacMode, WideTunnelClientOptions clientOptions, GuaPreference? guaPreference = null, object? appParams = null)
+        public ThinClientConnectOptions(string pcid, IPAddress clientIp, string clientFqdn, bool debugGuacMode, WideTunnelClientOptions clientOptions, bool isWebpSupported, GuaPreference? guaPreference = null, object? appParams = null)
         {
             this.Pcid = pcid;
             this.ClientOptions = clientOptions;
@@ -211,6 +212,7 @@ namespace IPA.Cores.Basic
             this.AppParams = appParams;
             this.DebugGuacMode = debugGuacMode;
             this.GuaPreference = guaPreference;
+            this.IsWebpSupported = isWebpSupported;
         }
 
         public void UpdateConnectPacketData(string data)
@@ -438,7 +440,8 @@ namespace IPA.Cores.Basic
                         firstConnection.SvcType == ThinSvcType.Rdp ? GuaProtocol.Rdp : GuaProtocol.Vnc,
                         "127.0.0.1",
                         firstConnection.SvcPort,
-                        connectOptions.GuaPreference!),
+                        connectOptions.GuaPreference!,
+                        connectOptions.IsWebpSupported),
                     firstConnection.Stream);
 
                 string webSocketUrl = "";
@@ -731,6 +734,10 @@ namespace IPA.Cores.Basic
                 p.AddUniStr("ComputerName", "HTML5 WebClient");
                 p.AddBool("SupportWatermark", true);
                 p.AddBool("GuacdMode", connectOptions.DebugGuacMode == false);
+
+                GuaDnFlags flags = GuaDnFlags.None;
+                if (connectOptions.GuaPreference?.EnableAlwaysWebp ?? false) flags |= GuaDnFlags.AlwaysWebp;
+                p.AddInt("GuacdFlags", (uint)flags);
 
                 await st._SendPackAsync(p, cancel);
 

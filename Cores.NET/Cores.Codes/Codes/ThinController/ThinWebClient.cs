@@ -248,6 +248,8 @@ namespace IPA.Cores.Codes
         public string WolOkMessage { get; set; } = "";
         public bool JumpToWol { get; set; } = false;
 
+        public bool IsWebpSupported { get; set; }
+
         public ThinWebClientModelIndex()
         {
             this.ResizeMethodItems = new List<SelectListItem>();
@@ -376,7 +378,7 @@ namespace IPA.Cores.Codes
                         WideTunnelClientOptions wideOptions = new WideTunnelClientOptions(WideTunnelClientFlags.None, clientIp.ToString(), clientFqdn, clientPort);
 
                         // セッションの開始
-                        var session = tc.StartConnect(new ThinClientConnectOptions(profile.Pcid, clientIp, clientFqdn, this.Client.SettingsFastSnapshot.Debug_EnableGuacdMode, wideOptions, profile.Preference, profile._CloneWithJson()),
+                        var session = tc.StartConnect(new ThinClientConnectOptions(profile.Pcid, clientIp, clientFqdn, this.Client.SettingsFastSnapshot.Debug_EnableGuacdMode, wideOptions, form.IsWebpSupported, profile.Preference, profile._CloneWithJson()),
                             this.Client.SettingsFastSnapshot.MaxConcurrentSessionsPerClientIp);
                         string sessionId = session.SessionId;
 
@@ -390,7 +392,7 @@ namespace IPA.Cores.Codes
                             // WoL 信号の発射
                             WideTunnelClientOptions wideOptions = new WideTunnelClientOptions(WideTunnelClientFlags.WoL, clientIp.ToString(), clientFqdn, clientPort);
 
-                            await tc.ExecuteWoLAsync(new ThinClientConnectOptions(profile.Preference.WoLTriggerPcid, clientIp, clientFqdn, false, wideOptions, profile.Preference, profile._CloneWithJson()),
+                            await tc.ExecuteWoLAsync(new ThinClientConnectOptions(profile.Preference.WoLTriggerPcid, clientIp, clientFqdn, false, wideOptions, form.IsWebpSupported, profile.Preference, profile._CloneWithJson()),
                                 profile.Pcid, this._GetRequestCancellationToken());
 
                             // WoL OK メッセージ
@@ -736,7 +738,8 @@ namespace IPA.Cores.Codes
                                     ready.FirstConnection!.SvcType.ToString().StrToGuaProtocol(),
                                     //"", ready.ListenEndPoint!.Port,
                                     "pc37.sec.softether.co.jp", 3333, // testtest
-                                    pref));
+                                    pref,
+                                    connectOptions.IsWebpSupported));
 
                             var readyPacket = await guaClient.StartAsync(cancel);
 
