@@ -420,6 +420,7 @@ namespace IPA.Cores.Basic
         public bool ShowHelpOnFullScreenUnset { get; set; } = true;
 
         public string Username { get; set; } = "";
+        [NoDebugDumpAttribute]
         public string Password { get; set; } = "";
         public string Domain { get; set; } = "";
         public string MacAddress { get; set; } = "";

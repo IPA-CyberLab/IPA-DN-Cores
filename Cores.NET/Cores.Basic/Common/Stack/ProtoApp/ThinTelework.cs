@@ -57,6 +57,7 @@ using System.Net.Sockets;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using Newtonsoft.Json;
 
 namespace IPA.Cores.Basic
 {

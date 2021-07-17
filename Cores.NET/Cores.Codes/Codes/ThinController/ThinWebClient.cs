@@ -136,6 +136,8 @@ namespace IPA.Cores.Codes
     public abstract class ThinWebClientHookBase
     {
         public abstract RateLimiter<string> GetRateLimiterForNewSession();
+
+        public abstract ReadOnlyMemory<byte> GetProtocolWatermarkBinary();
     }
 #pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
 
@@ -866,7 +868,8 @@ namespace IPA.Cores.Codes
                 listenAddress = IPAddress.Any;
             }
 
-            ThinClient tc = new ThinClient(new ThinClientOptions(new WideTunnelOptions("DESK", nameof(ThinWebClient), this.SettingsFastSnapshot.ThinControllerUrlList, this.Options.MasterCertificates), this.SessionManager,
+            ThinClient tc = new ThinClient(new ThinClientOptions(new WideTunnelOptions("DESK", nameof(ThinWebClient), this.SettingsFastSnapshot.ThinControllerUrlList, this.Options.MasterCertificates,
+                waterMark: this.Hook.GetProtocolWatermarkBinary()), this.SessionManager,
                 listenFamily, listenAddress));
 
             return tc;
