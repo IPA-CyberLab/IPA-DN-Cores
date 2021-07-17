@@ -463,7 +463,7 @@ namespace IPA.Cores.Basic
                 // WebSocket URL を HTML クライアントに通知する
                 var ready = new ThinClientAcceptReadyNotification
                 {
-                    WebSocketFullUrl = "wss://" + IPUtil.GenerateWildCardDnsFqdn(gateEndPoint.Address, firstConnection.Socket.Options.ConnectParam.WebSocketWildCardDomainName, "", "--ws") +
+                    WebSocketFullUrl = "wss://" + IPUtil.GenerateWildCardDnsFqdn(gateEndPoint.Address, firstConnection.Socket.Options.ConnectParam.WebSocketWildCardDomainName, "ws-", "") +
                         (gateEndPoint.Port == 443 ? "" : ":" + gateEndPoint.Port.ToString()) +
                         webSocketUrl,
 

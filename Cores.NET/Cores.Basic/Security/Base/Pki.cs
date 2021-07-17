@@ -1155,13 +1155,17 @@ namespace IPA.Cores.Basic
             => this.Equals((Certificate?)obj);
 
         public override string ToString()
-            => this.CommonNameOrFirstDnsName;
+            => $"{this.CommonNameOrFirstDnsName} (sha1: {this.DigestSHA1Str})";
 
         public int CompareTo(Certificate? other)
             => this.DerData._MemCompare(other!.DerData);
 
         public bool Equals(Certificate? other)
             => this.DerData._MemEquals(other!.DerData);
+
+        public static implicit operator PalX509Certificate(Certificate cert) => cert.X509Certificate;
+        public static implicit operator System.Security.Cryptography.X509Certificates.X509Certificate(Certificate cert) => cert.X509Certificate.NativeCertificate;
+        public static implicit operator System.Security.Cryptography.X509Certificates.X509Certificate2(Certificate cert) => (System.Security.Cryptography.X509Certificates.X509Certificate2)cert.X509Certificate.NativeCertificate;
     }
 
     public class Csr
@@ -1471,6 +1475,9 @@ namespace IPA.Cores.Basic
 
             PkiCertificateStoreSingleton = new Singleton<CertificateStore>(() => new CertificateStore(this));
         }
+
+        public static implicit operator Certificate(PalX509Certificate cert) => cert.PkiCertificate;
+        public static implicit operator CertificateStore(PalX509Certificate cert) => cert.PkiCertificateStore;
     }
 }
 

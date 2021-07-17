@@ -77,6 +77,7 @@ using System.Text.Unicode;
 
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
+using System.Net.Security;
 
 #if CORES_BASIC_HTTPSERVER
 // ASP.NET Core 3.0 用の型名を無理やり ASP.NET Core 2.2 でコンパイルするための型エイリアスの設定
@@ -548,7 +549,12 @@ namespace IPA.Cores.Basic
 
         public List<string> StringOptions = new List<string>();
 
-        public bool DenyRobots = false;
+        public bool DenyRobots { get; set; } = false;
+
+        public ClientCertificateMode ClientCertficateMode { get; set; } = ClientCertificateMode.NoCertificate;
+
+        [JsonIgnore]
+        public Func<X509Certificate2, X509Chain, SslPolicyErrors, bool>? ClientCertificateValidator = null;
 
 #if CORES_BASIC_JSON
 #if CORES_BASIC_SECURITY
@@ -643,7 +649,7 @@ namespace IPA.Cores.Basic
             opt.ConfigureHttpsDefaults(s =>
             {
                 s.SslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersionsAsServer;
-                // s.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
+                s.ClientCertificateMode = this.ClientCertficateMode;
             });
 
             void EnableHttps(ListenOptions listenOptions)
@@ -651,7 +657,7 @@ namespace IPA.Cores.Basic
                 listenOptions.UseHttps(httpsOptions =>
                 {
                     httpsOptions.SslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersionsAsServer;
-                    // httpsOptions.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
+                    httpsOptions.ClientCertificateMode = this.ClientCertficateMode;
 
                     bool useGlobalCertVault = false;
 
@@ -696,11 +702,28 @@ namespace IPA.Cores.Basic
 #endif  // CORES_BASIC_JSON
 #endif  // CORES_BASIC_SECURITY;
 
-/*                    httpsOptions.ClientCertificateValidation = (cert, chain, err) =>
+                    if (this.ClientCertficateMode != ClientCertificateMode.NoCertificate)
                     {
-                        Where();
-                        return true;
-                    };*/
+                        httpsOptions.ClientCertificateValidation = (cert, chain, err) =>
+                        {
+                            try
+                            {
+                                if (this.ClientCertificateValidator == null)
+                                {
+                                    var ex = new CoresLibException("this.ClientCertificateValidator == null");
+                                    ex._Error();
+                                    return false;
+                                }
+
+                                return this.ClientCertificateValidator(cert, chain, err);
+                            }
+                            catch (Exception ex)
+                            {
+                                ex._Error();
+                                return false;
+                            }
+                        };
+                    }
                 });
             }
         }

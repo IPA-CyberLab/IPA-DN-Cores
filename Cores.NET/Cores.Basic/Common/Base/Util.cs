@@ -6686,7 +6686,6 @@ namespace IPA.Cores.Basic
 
         internal RateLimiterEntry(EnsureInternal yes, RateLimiterOptions options, long createdTick)
         {
-            Where();
             this.Options = options;
             this.CreatedTick = createdTick;
             this.LastInputTick = createdTick;
@@ -6718,7 +6717,6 @@ namespace IPA.Cores.Basic
 
                     // 流出をさせる
                     current -= flowOut;
-                    $"flowOut = {flowOut}"._Debug();
                     current = current._NonNegative();
                 }
 
@@ -6733,8 +6731,6 @@ namespace IPA.Cores.Basic
                 }
 
                 this.CurrentAmount = current;
-
-                $"CurrentAmount = {CurrentAmount}, ret = {ret}"._Debug();
 
                 return ret;
             }
@@ -6929,15 +6925,13 @@ namespace IPA.Cores.Basic
                 if (this.NextGcTick != 0 && this.NextGcTick <= now)
                 {
                     this.NextGcTick = now + Options.GcIntervalMsec;
-                }
 
-                $"before: this.Table: {this.Table.Count}"._Debug();
+                    GcCollect(now);
+                }
 
                 // エントリが作成されていない場合は作成する
                 if (this.Table.TryGetValue(key, out entry) == false)
                 {
-                    key.ToString()._Debug();
-                    Where();
                     if (Table.Count >= this.Options.MaxEntries)
                     {
                         // 最大登録可能数を超過しているため作成できない
@@ -6957,8 +6951,6 @@ namespace IPA.Cores.Basic
                     this.Table.Add(key, entry);
                 }
             }
-
-            $"after : this.Table: {this.Table.Count}"._Debug();
 
             // 取得されたエントリに対して流入操作を実行する
             bool ret = entry!.TryInput(now, amount);

@@ -123,35 +123,17 @@ namespace IPA.Cores.Codes
     {
         public virtual async Task<string?> DetermineMachineGroupNameAsync(ThinControllerSession session, CancellationToken cancel = default) => null;
 
-        public virtual async Task<string> GenerateFqdnForProxyAsync(string ipAddress, ThinControllerSession session, CancellationToken cancel = default)
+        public virtual async Task<string> GenerateFqdnForGateAsync(ThinGate gate, ThinControllerSession session, string prefix = "", string suffix = "", CancellationToken cancel = default)
         {
-            if (IPAddress.TryParse(ipAddress, out IPAddress? ip) && ip.AddressFamily == AddressFamily.InterNetwork)
+            if (IPAddress.TryParse(gate.IpAddress, out IPAddress? ip))
             {
-                byte[] b = ip.GetAddressBytes();
-
-                string fqdn;
-                int rand = Util.RandSInt31() % 120;
-
-                if (rand < 80)
-                {
-                    fqdn = string.Format("{0}-{1}-{2}-{3}.websocket.jp",
-                        b[0], b[1], b[2], b[3]);
-                }
-                else if (rand < 100)
-                {
-                    fqdn = string.Format("{0}.{1}.{2}.{3}.nip.io",
-                        b[0], b[1], b[2], b[3]);
-                }
-                else
-                {
-                    fqdn = string.Format("{0}.{1}.{2}.{3}.sslip.io",
-                        b[0], b[1], b[2], b[3]);
-                }
-
-                return fqdn;
+                return IPUtil.GenerateWildCardDnsFqdn(ip,
+                    session.Controller.Db.MemDb?.WildCardDnsDomainName ?? ThinControllerConsts.Default_WildCardDnsDomainName,
+                    prefix,
+                    suffix);
             }
 
-            return ipAddress;
+            return gate.IpAddress;
         }
 
         public virtual async Task<string?> DetermineConnectionProhibitedAsync(ThinController controller, bool isClientConnectMode, string serverIp, string? clientIp, ThinDbMachine serverMachine, CancellationToken cancel = default) => null;
@@ -522,9 +504,9 @@ namespace IPA.Cores.Codes
             var ret = NewWpcResult();
             var p = ret.Pack;
 
-            string fqdn = (await Controller.Hook.GenerateFqdnForProxyAsync(gateAndSession.A.IpAddress, this, cancel))._FilledOrDefault(gateAndSession.A.IpAddress);
+            string fqdn = (await Controller.Hook.GenerateFqdnForGateAsync(gateAndSession.A, this, "thinclient-", "", cancel))._FilledOrDefault(gateAndSession.A.IpAddress);
 
-            p.AddStr("Hostname", gateAndSession.A.IpAddress);
+            p.AddStr("Hostname", fqdn);
             p.AddInt("Port", (uint)gateAndSession.A.Port);
             p.AddStr("HostnameForProxy", fqdn);
             p.AddData("SessionId", gateAndSession.B.SessionId._GetHexBytes());
@@ -852,8 +834,8 @@ namespace IPA.Cores.Codes
             byte[] sign = Secure.HashSHA1(signSrc.Span);
             p.AddData("Signature2", sign);
             p.AddStr("Pcid", this.ClientInfo.AuthedMachine!.PCID);
-            p.AddStr("Hostname", bestGate.IpAddress);
-            string fqdn = (await Controller.Hook.GenerateFqdnForProxyAsync(bestGate.IpAddress, this, cancel))._FilledOrDefault(bestGate.IpAddress);
+            string fqdn = (await Controller.Hook.GenerateFqdnForGateAsync(bestGate, this, "thinserver-", "", cancel))._FilledOrDefault(bestGate.IpAddress);
+            p.AddStr("Hostname", fqdn);
             p.AddStr("HostnameForProxy", fqdn);
             p.AddInt("Port", (uint)bestGate.Port);
 
