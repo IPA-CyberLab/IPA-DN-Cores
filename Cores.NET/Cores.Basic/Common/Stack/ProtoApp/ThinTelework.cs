@@ -351,7 +351,7 @@ namespace IPA.Cores.Basic
             string macList = await wt.WideClientGetWoLMacList(connectOptions.Pcid, cancel);
 
             // ターゲット PC に叩き起こし依頼
-            await using WtcSocket? sock = await wt.WideClientConnectAsync(connectOptions.Pcid, connectOptions.ClientOptions, cancel);
+            await using WtcSocket? sock = await wt.WideClientConnectAsync(connectOptions.Pcid, connectOptions.ClientOptions, true, cancel);
             await using PipeStream? st = sock.GetStream(true);
 
             st.ReadTimeout = st.WriteTimeout = Consts.ThinClient.ProtocolCommTimeoutMsecs;
@@ -714,7 +714,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                sock = await wt.WideClientConnectAsync(connectOptions.Pcid, connectOptions.ClientOptions, cancel);
+                sock = await wt.WideClientConnectAsync(connectOptions.Pcid, connectOptions.ClientOptions, false, cancel);
                 st = sock.GetStream(true);
 
                 st.ReadTimeout = st.WriteTimeout = Consts.ThinClient.ProtocolCommTimeoutMsecs;

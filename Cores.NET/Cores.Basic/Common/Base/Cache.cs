@@ -526,7 +526,7 @@ namespace IPA.Cores.Basic
         Dictionary<TKey, Entry> list;
         CriticalSection LockObj;
 
-        public Cache(TimeSpan expireSpan = default, CacheType type = DefaultCacheType)
+        public Cache(TimeSpan expireSpan = default, CacheType type = DefaultCacheType, IEqualityComparer<TKey>? comparer = null)
         {
             if (expireSpan == default)
                 expireSpan = DefaultExpireSpan;
@@ -534,7 +534,15 @@ namespace IPA.Cores.Basic
             this.ExpireSpan = expireSpan;
             this.Type = type;
 
-            list = new Dictionary<TKey, Entry>();
+            if (comparer == null)
+            {
+                list = new Dictionary<TKey, Entry>();
+            }
+            else
+            {
+                list = new Dictionary<TKey, Entry>(comparer);
+            }
+
             LockObj = new CriticalSection<Cache<TKey, TValue>>();
         }
 
@@ -562,6 +570,8 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public TValue Get(TKey key) => this[key];
+
         public void Delete(TKey key)
         {
             lock (LockObj)
@@ -588,6 +598,11 @@ namespace IPA.Cores.Basic
 
                     return list[key].Value;
                 }
+            }
+
+            set
+            {
+                Add(key, value);
             }
         }
 

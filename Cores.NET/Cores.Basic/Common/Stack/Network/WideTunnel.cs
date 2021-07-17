@@ -511,6 +511,7 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [Serializable]
     public class WideTunnelClientOptions
     {
         public WideTunnelClientFlags Flags { get; }
@@ -542,6 +543,7 @@ namespace IPA.Cores.Basic
         Socks,
     }
 
+    [Serializable]
     public class WtConnectParam
     {
         public string HostName = "";
@@ -562,7 +564,7 @@ namespace IPA.Cores.Basic
         public WideTunnelClientOptions ClientOptions = null!;
 
         // Client 用
-        public ReadOnlyMemory<byte> SessionId;
+        public byte[] SessionId = new byte[0];
         public ulong ServerMask64;
         public bool CacheUsed;
     }
@@ -706,49 +708,71 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public async Task<WtcSocket> WideClientConnectAsync(string pcid, WideTunnelClientOptions clientOptions, CancellationToken cancel = default)
+        public async Task<WtcSocket> WideClientConnectAsync(string pcid, WideTunnelClientOptions clientOptions, bool noCache, CancellationToken cancel = default)
         {
-            WtConnectParam connectParam = await WideClientConnectInnerAsync(pcid, clientOptions, cancel);
+            bool retryFlag = false;
+            L_RETRY:
+            WtConnectParam connectParam = await WideClientConnectInnerAsync(pcid, clientOptions, noCache, cancel);
 
-            $"WideClientConnect: Redirecting to {connectParam.HostName}:{connectParam.Port} ..."._Debug();
+            $"WideClientConnect: pcid {pcid}: Redirecting to {connectParam.HostName}:{connectParam.Port} (CacheUsed = {connectParam.CacheUsed}) ..."._Debug();
 
-            ConnSock tcpSock = await this.TcpIp.ConnectAsync(new TcpConnectParam(connectParam.HostName, connectParam.Port, AddressFamily.InterNetwork, connectTimeout: CoresConfig.WtcConfig.WpcTimeoutMsec, dnsTimeout: CoresConfig.WtcConfig.WpcTimeoutMsec), cancel);
             try
             {
-                ConnSock targetSock = tcpSock;
+                ConnSock tcpSock = await this.TcpIp.ConnectAsync(new TcpConnectParam(connectParam.HostName, connectParam.Port, AddressFamily.InterNetwork, connectTimeout: CoresConfig.WtcConfig.WpcTimeoutMsec, dnsTimeout: CoresConfig.WtcConfig.WpcTimeoutMsec), cancel);
 
                 try
                 {
-                    PalSslClientAuthenticationOptions sslOptions = new PalSslClientAuthenticationOptions(connectParam.HostName, false, (cert) => this.CheckValidationCallback(this, cert.NativeCertificate, null, SslPolicyErrors.None));
+                    ConnSock targetSock = tcpSock;
 
-                    SslSock sslSock = new SslSock(tcpSock);
                     try
                     {
-                        await sslSock.StartSslClientAsync(sslOptions, cancel);
+                        PalSslClientAuthenticationOptions sslOptions = new PalSslClientAuthenticationOptions(connectParam.HostName, false, (cert) => this.CheckValidationCallback(this, cert.NativeCertificate, null, SslPolicyErrors.None));
 
-                        targetSock = sslSock;
+                        SslSock sslSock = new SslSock(tcpSock);
+                        try
+                        {
+                            await sslSock.StartSslClientAsync(sslOptions, cancel);
+
+                            targetSock = sslSock;
+                        }
+                        catch
+                        {
+                            await sslSock._DisposeSafeAsync();
+                            throw;
+                        }
+
+                        WtcSocket wtcSocket = new WtcSocket(targetSock, new WtcOptions(this, connectParam));
+
+                        await wtcSocket.StartWtcAsync(cancel);
+
+                        return wtcSocket;
                     }
                     catch
                     {
-                        await sslSock._DisposeSafeAsync();
+                        await targetSock._DisposeSafeAsync();
                         throw;
                     }
-
-                    WtcSocket wtcSocket = new WtcSocket(targetSock, new WtcOptions(this, connectParam));
-
-                    await wtcSocket.StartWtcAsync(cancel);
-
-                    return wtcSocket;
                 }
                 catch
                 {
-                    await targetSock._DisposeSafeAsync();
+                    await tcpSock._DisposeSafeAsync();
                     throw;
                 }
             }
             catch
             {
-                await tcpSock._DisposeSafeAsync();
+                if (connectParam.CacheUsed && retryFlag == false)
+                {
+                    retryFlag = true;
+
+                    // 接続キャッシュを使用して接続することに失敗した
+                    // 場合はキャッシュを消去して再試行する
+                    WideTunnel.ConnectParamCache.Delete(pcid);
+
+                    $"WideClientConnect: pcid {pcid}: Connect with Session Cache Failed. Retrying..."._Debug();
+                    goto L_RETRY;
+                }
+
                 throw;
             }
         }
@@ -772,9 +796,20 @@ namespace IPA.Cores.Basic
             return list;
         }
 
-        async Task<WtConnectParam> WideClientConnectInnerAsync(string pcid, WideTunnelClientOptions clientOptions, CancellationToken cancel = default)
+        static readonly Cache<string, WtConnectParam> ConnectParamCache = new Cache<string, WtConnectParam>(TimeSpan.FromSeconds(60), CacheType.DoNotUpdateExpiresWhenAccess, StrComparer.IgnoreCaseTrimComparer);
+
+        async Task<WtConnectParam> WideClientConnectInnerAsync(string pcid, WideTunnelClientOptions clientOptions, bool noCache, CancellationToken cancel = default)
         {
-            // TODO: cache
+            if (noCache == false)
+            {
+                WtConnectParam? cached = ConnectParamCache[pcid];
+                if (cached != null)
+                {
+                    var ret = cached._CloneDeep();
+                    ret.CacheUsed = true;
+                    return ret;
+                }
+            }
 
             Pack r = new Pack();
             r.AddStr("SvcName", Options.SvcName);
@@ -792,10 +827,10 @@ namespace IPA.Cores.Basic
                 HostName = p["Hostname"].StrValueNonNullCheck,
                 HostNameForProxy = p["HostNameForProxy"].StrValueNonNullCheck,
                 Port = p["Port"].SIntValue,
-                SessionId = p["SessionId"].DataValueNonNull,
+                SessionId = p["SessionId"].DataValueNonNull.ToArray(),
                 ServerMask64 = p["ServerMask64"].Int64Value,
                 WebSocketWildCardDomainName = p["WebSocketWildCardDomainName"].StrValueNonNull,
-                ClientOptions = clientOptions,
+                ClientOptions = clientOptions._CloneDeep(),
             };
 
             if (c.WebSocketWildCardDomainName._IsEmpty())
@@ -815,6 +850,11 @@ namespace IPA.Cores.Basic
             }
 
             c.CacheUsed = false;
+
+            if (noCache == false)
+            {
+                WideTunnel.ConnectParamCache[pcid] = c._CloneDeep();
+            }
 
             return c;
         }
