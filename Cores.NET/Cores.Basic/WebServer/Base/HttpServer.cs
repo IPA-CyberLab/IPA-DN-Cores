@@ -226,24 +226,6 @@ namespace IPA.Cores.Basic
                 });
             }
 
-            if (false)
-            {
-                services.AddAuthentication(CertificateAuthenticationDefaults.AuthenticationScheme)
-                    .AddCertificate(options =>
-                    {
-                        options.Events = new CertificateAuthenticationEvents
-                        {
-                            OnCertificateValidated = context =>
-                            {
-                                Where();
-                                context.Success();
-
-                                return Task.CompletedTask;
-                            }
-                        };
-                    }).AddCertificateCache();
-            }
-
             //    if (ServerOptions.RequireBasicAuthenticationToAllRequests)
             //    {
             //        services.AddAuthorization(options =>

@@ -60,7 +60,7 @@ namespace IPA.Cores.Basic
     // EasyCookie ユーティリティ
     public static class EasyCookieUtil
     {
-        public static string SerializeObject<T>(T obj, bool easyEncrypt = false)
+        public static string SerializeObject<T>(T obj, bool easyEncrypt = false, string? easyEncryptPassword = null)
         {
             if (obj == null) return "";
 
@@ -78,7 +78,7 @@ namespace IPA.Cores.Basic
 
             if (easyEncrypt)
             {
-                data = Secure.EasyEncrypt(data);
+                data = Secure.EasyEncrypt(data, easyEncryptPassword);
             }
 
             string cookieStr = data._Base64UrlEncode();
@@ -94,7 +94,7 @@ namespace IPA.Cores.Basic
         }
 
         [return: MaybeNull]
-        public static T DeserializeObject<T>(string? cookieStr = null, bool easyDecrypt = false)
+        public static T DeserializeObject<T>(string? cookieStr = null, bool easyDecrypt = false, string? easyDecryptPassword = null)
         {
             try
             {
@@ -106,7 +106,7 @@ namespace IPA.Cores.Basic
 
                 Memory<byte> data = cookieStr._Base64UrlDecode();
 
-                if (easyDecrypt) data = Secure.EasyDecrypt(data);
+                if (easyDecrypt) data = Secure.EasyDecrypt(data, easyDecryptPassword);
 
                 data = data._EasyDecompress();
 

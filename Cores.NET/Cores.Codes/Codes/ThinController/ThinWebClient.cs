@@ -101,6 +101,9 @@ namespace IPA.Cores.Codes
 
         public List<string> ThinControllerUrlList = new List<string>();
 
+        public string CookieDomainName = "";
+        public string CookieEncryptPassword = Consts.Strings.EasyEncryptDefaultPassword;
+
         public int MaxConcurrentSessionsPerClientIp;
 
         public ThinWebClientSettings()
@@ -128,6 +131,9 @@ namespace IPA.Cores.Codes
             {
                 this.MaxConcurrentSessionsPerClientIp = 5;
             }
+
+            this.CookieDomainName = this.CookieDomainName._NormalizeFqdn();
+            if (this.CookieEncryptPassword._IsNullOrZeroLen()) this.CookieEncryptPassword = Consts.Strings.EasyEncryptDefaultPassword;
         }
     }
 
@@ -194,7 +200,7 @@ namespace IPA.Cores.Codes
             this.Items.Clear();
         }
 
-        public void SaveToCookie(Controller c, AspNetCookieOptions? options = null)
+        public void SaveToCookie(Controller c, AspNetCookieOptions options, string easyEncryptPassword)
         {
             for (int i = 0; i < ThinWebClientConsts.MaxHistory; i++)
             {
@@ -202,7 +208,7 @@ namespace IPA.Cores.Codes
                 string tagName = $"thin_history_{i:D4}";
                 if (item != null)
                 {
-                    c._EasySaveCookie(tagName, item, options, true);
+                    c._EasySaveCookie(tagName, item, options, true, easyEncryptPassword);
                 }
                 else
                 {
@@ -211,14 +217,14 @@ namespace IPA.Cores.Codes
             }
         }
 
-        public static ThinWebClientHistory LoadFromCookie(Controller c)
+        public static ThinWebClientHistory LoadFromCookie(Controller c, string easyEncryptPassword)
         {
             ThinWebClientHistory ret = new ThinWebClientHistory();
 
             for (int i = 0; i < ThinWebClientConsts.MaxHistory; i++)
             {
                 string tagName = $"thin_history_{i:D4}";
-                var data = c._EasyLoadCookie<ThinWebClientProfile>(tagName, true);
+                var data = c._EasyLoadCookie<ThinWebClientProfile>(tagName, true, easyEncryptPassword);
                 if (data != null)
                 {
                     ret.Items.Add(data);
@@ -346,7 +352,7 @@ namespace IPA.Cores.Codes
             this.Page.SetLanguageByHttpString("ja");
         }
 
-        protected AspNetCookieOptions GetCookieOption() => new AspNetCookieOptions(domain: ""); // Cookie のドメイン名は空文字 "" とする。これが最も安全である。参照: https://blog.tokumaru.org/2011/10/cookiedomain.html
+        protected AspNetCookieOptions GetCookieOption() => new AspNetCookieOptions(domain: this.Client.SettingsFastSnapshot.CookieDomainName);
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public async Task<IActionResult> IndexAsync(ThinWebClientModelIndex form, string? id, string? deleteAll, string? button_wol)
@@ -356,18 +362,18 @@ namespace IPA.Cores.Codes
             ThinWebClientProfile profile = form.CurrentProfile;
             profile.Normalize();
 
-            ThinWebClientHistory history = ThinWebClientHistory.LoadFromCookie(this);
+            ThinWebClientHistory history = ThinWebClientHistory.LoadFromCookie(this, this.Client.SettingsFastSnapshot.CookieEncryptPassword);
 
             if (this._IsPostBack())
             {
                 if (profile.Pcid._IsFilled())
                 {
                     // 現在のプロファイルの保存
-                    this._EasySaveCookie("thin_current_profile", profile.CloneAsDefault(), GetCookieOption(), true);
+                    this._EasySaveCookie("thin_current_profile", profile.CloneAsDefault(), GetCookieOption(), true, this.Client.SettingsFastSnapshot.CookieEncryptPassword);
 
                     // ヒストリへの追加
                     history.Add(profile);
-                    history.SaveToCookie(this, GetCookieOption());
+                    history.SaveToCookie(this, GetCookieOption(), this.Client.SettingsFastSnapshot.CookieEncryptPassword);
 
                     var clientIp = Request.HttpContext.Connection.RemoteIpAddress._UnmapIPv4()!;
                     var clientPort = Request.HttpContext.Connection.RemotePort;
@@ -426,7 +432,7 @@ namespace IPA.Cores.Codes
                     // History をすべて消去するよう指示された
                     // Cookie の History をすべて消去する
                     history.Clear();
-                    history.SaveToCookie(this, GetCookieOption());
+                    history.SaveToCookie(this, GetCookieOption(), this.Client.SettingsFastSnapshot.CookieEncryptPassword);
 
                     // トップページにリダイレクトする
                     return Redirect("/");
@@ -440,7 +446,7 @@ namespace IPA.Cores.Codes
                 if (historySelectedProfile == null)
                 {
                     // デフォルト値
-                    profile = this._EasyLoadCookie<ThinWebClientProfile>("thin_current_profile", true) ?? new ThinWebClientProfile();
+                    profile = this._EasyLoadCookie<ThinWebClientProfile>("thin_current_profile", true, this.Client.SettingsFastSnapshot.CookieEncryptPassword) ?? new ThinWebClientProfile();
                 }
                 else
                 {

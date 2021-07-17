@@ -58,6 +58,18 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Html;
 using System.Net;
+using System.Security.Cryptography.X509Certificates;
+
+namespace IPA.Cores.Basic
+{
+    public static partial class CoresConfig
+    {
+        public static partial class AspNetHelperOptions
+        {
+            public static readonly Copenhagen<string> CookieEasyEncryptPassword = Consts.Strings.EasyEncryptDefaultPassword;
+        }
+    }
+}
 
 namespace IPA.Cores.Helper.Web
 {
@@ -65,7 +77,6 @@ namespace IPA.Cores.Helper.Web
     {
         public string Domain { get; set; } = "";
         public bool NoJavaScript { get; set; } = false;
-        public bool HttpsOnly { get; set; } = false;
         public int Days { get; set; } = Consts.Numbers.MaxCookieDays;
         public string Path { get; set; } = "/";
 
@@ -78,10 +89,9 @@ namespace IPA.Cores.Helper.Web
             Domain = Domain._NonNullTrim();
         }
 
-        public AspNetCookieOptions(int days = Consts.Numbers.MaxCookieDays, bool httpsOnly = false, bool noJs = false, string path = "/", string domain = "")
+        public AspNetCookieOptions(int days = Consts.Numbers.MaxCookieDays, bool noJs = false, string path = "/", string domain = "")
         {
             this.Days = days;
-            this.HttpsOnly = httpsOnly;
             this.NoJavaScript = noJs;
             this.Path = path;
             this.Domain = domain;
@@ -89,16 +99,16 @@ namespace IPA.Cores.Helper.Web
             this.Normalize();
         }
 
-        public CookieOptions ToCookieOptions()
+        public CookieOptions ToCookieOptions(bool httpsOnly)
         {
             this.Normalize();
 
             CookieOptions ret = new CookieOptions
             {
                 Domain = this.Domain._IsEmpty() ? null : this.Domain,
-                Expires = this.Days <= 0 ? (DateTimeOffset ?)null: DateTimeOffset.Now.AddDays(this.Days),
+                Expires = this.Days <= 0 ? (DateTimeOffset?)null : DateTimeOffset.Now.AddDays(this.Days),
                 HttpOnly = this.NoJavaScript,
-                Secure = this.HttpsOnly,
+                Secure = httpsOnly,
                 Path = this.Path,
                 SameSite = SameSiteMode.Lax,
             };
@@ -182,6 +192,8 @@ namespace IPA.Cores.Helper.Web
         public static Task<string> _GetLocalHostnameAsync(this HttpContext ctx, CancellationToken cancel = default) => ctx._GetLocalIp()._GetHostnameFromIpAsync(cancel);
         public static string _GetLocalHostname(this HttpContext ctx, CancellationToken cancel = default) => _GetLocalHostnameAsync(ctx)._GetResult();
         public static int _GetLocalPort(this HttpContext ctx) => ctx.Connection.LocalPort;
+        public static bool _IsHttps(this HttpContext ctx) => ctx.Request.IsHttps;
+        public static Task<X509Certificate2?> _GetClientCertificatAsync(this HttpContext ctx, CancellationToken cancel = default) => ctx.Connection.GetClientCertificateAsync(cancel);
 
         public static IPAddress _GetRemoteIp(this HttpContext ctx) => ctx.Connection.RemoteIpAddress!._UnmapIPv4();
         public static Task<string> _GetRemoteHostnameAsync(this HttpContext ctx, CancellationToken cancel = default) => ctx._GetRemoteIp()._GetHostnameFromIpAsync(cancel);
@@ -193,21 +205,31 @@ namespace IPA.Cores.Helper.Web
         public static Task<string> _GetLocalHostnameAsync(this Controller controller, CancellationToken cancel = default) => controller._GetLocalIp()._GetHostnameFromIpAsync(cancel);
         public static string _GetLocalHostname(this Controller controller, CancellationToken cancel = default) => _GetLocalHostnameAsync(controller)._GetResult();
         public static int _GetLocalPort(this Controller controller) => controller.HttpContext._GetLocalPort();
+        public static bool _IsHttps(this Controller controller) => controller.HttpContext.Request.IsHttps;
+        public static Task<X509Certificate2?> _GetClientCertificatAsync(this Controller controller, CancellationToken cancel = default) => controller.HttpContext.Connection.GetClientCertificateAsync(cancel);
 
         public static IPAddress _GetRemoteIp(this Controller controller) => controller.HttpContext._GetRemoteIp();
         public static Task<string> _GetRemoteHostnameAsync(this Controller controller, CancellationToken cancel = default) => controller._GetRemoteIp()._GetHostnameFromIpAsync(cancel);
         public static string _GetRemoteHostname(this Controller controller, CancellationToken cancel = default) => _GetRemoteHostnameAsync(controller)._GetResult();
         public static int _GetRemotePort(this Controller controller) => controller.HttpContext._GetRemotePort();
 
+
         // --- Cookie 関係 ---
 
-        public static void _EasySaveCookie<T>(this HttpResponse response, string cookieName, T value, AspNetCookieOptions? options = null, bool easyEncrypt = false)
+        public static void _EasySaveCookie<T>(this HttpResponse response, string cookieName, T value, AspNetCookieOptions? options = null, bool easyEncrypt = false, string? easyEncryptPassword = null)
         {
+            bool isHttps = response.HttpContext._IsHttps();
+
             if (options == null) options = new AspNetCookieOptions();
 
-            cookieName = Consts.Strings.EasyCookieNamePrefix + cookieName;
+            cookieName = (isHttps ? Consts.Strings.EasyCookieNamePrefix_Https : Consts.Strings.EasyCookieNamePrefix_Http) + cookieName;
 
-            string valueStr = EasyCookieUtil.SerializeObject(value, easyEncrypt);
+            if (easyEncryptPassword._IsNullOrZeroLen())
+            {
+                easyEncryptPassword = CoresConfig.AspNetHelperOptions.CookieEasyEncryptPassword;
+            }
+
+            string valueStr = EasyCookieUtil.SerializeObject(value, easyEncrypt, easyEncryptPassword);
 
             if (valueStr._IsEmpty())
             {
@@ -215,46 +237,55 @@ namespace IPA.Cores.Helper.Web
             }
             else
             {
-                response.Cookies.Append(cookieName, valueStr, options.ToCookieOptions());
+                response.Cookies.Append(cookieName, valueStr, options.ToCookieOptions(isHttps));
             }
         }
 
         public static void _EasyDeleteCookie(this HttpResponse response, string cookieName)
         {
-            cookieName = Consts.Strings.EasyCookieNamePrefix + cookieName;
+            bool isHttps = response.HttpContext._IsHttps();
+
+            cookieName = (isHttps ? Consts.Strings.EasyCookieNamePrefix_Https : Consts.Strings.EasyCookieNamePrefix_Http) + cookieName;
 
             response.Cookies.Delete(cookieName);
         }
 
         [return: MaybeNull]
-        public static T _EasyLoadCookie<T>(this HttpRequest request, string cookieName, bool easyDecrypt = false)
+        public static T _EasyLoadCookie<T>(this HttpRequest request, string cookieName, bool easyDecrypt = false, string? easyDecryptPassword = null)
         {
-            cookieName = Consts.Strings.EasyCookieNamePrefix + cookieName;
+            bool isHttps = request.HttpContext._IsHttps();
+
+            cookieName = (isHttps ? Consts.Strings.EasyCookieNamePrefix_Https : Consts.Strings.EasyCookieNamePrefix_Http) + cookieName;
 
             string? valueStr = request.Cookies[cookieName];
 
-            return EasyCookieUtil.DeserializeObject<T>(valueStr, easyDecrypt);
+            if (easyDecryptPassword._IsNullOrZeroLen())
+            {
+                easyDecryptPassword = CoresConfig.AspNetHelperOptions.CookieEasyEncryptPassword;
+            }
+
+            return EasyCookieUtil.DeserializeObject<T>(valueStr, easyDecrypt, easyDecryptPassword);
         }
 
-        public static void _EasySaveCookie<T>(this HttpContext context, string cookieName, T value, AspNetCookieOptions? options = null, bool easyEncrypt = false)
-            => context.Response._EasySaveCookie(cookieName, value, options, easyEncrypt);
+        public static void _EasySaveCookie<T>(this HttpContext context, string cookieName, T value, AspNetCookieOptions? options = null, bool easyEncrypt = false, string? easyEncryptPassword = null)
+            => context.Response._EasySaveCookie(cookieName, value, options, easyEncrypt, easyEncryptPassword);
 
         public static void _EasyDeleteCookie(this HttpContext context, string cookieName)
             => context.Response._EasyDeleteCookie(cookieName);
 
         [return: MaybeNull]
-        public static T _EasyLoadCookie<T>(this HttpContext context, string cookieName, bool easyDecrypt = false)
-            => context.Request._EasyLoadCookie<T>(cookieName, easyDecrypt);
+        public static T _EasyLoadCookie<T>(this HttpContext context, string cookieName, bool easyDecrypt = false, string? easyDecryptPassword = null)
+            => context.Request._EasyLoadCookie<T>(cookieName, easyDecrypt, easyDecryptPassword);
 
-        public static void _EasySaveCookie<T>(this Controller controller, string cookieName, T value, AspNetCookieOptions? options = null, bool easyDecrypt = false)
-            => controller.HttpContext._EasySaveCookie(cookieName, value, options, easyDecrypt);
+        public static void _EasySaveCookie<T>(this Controller controller, string cookieName, T value, AspNetCookieOptions? options = null, bool easyDecrypt = false, string? easyDecryptPassword = null)
+            => controller.HttpContext._EasySaveCookie(cookieName, value, options, easyDecrypt, easyDecryptPassword);
 
         public static void _EasyDeleteCookie(this Controller controller, string cookieName)
             => controller.HttpContext._EasyDeleteCookie(cookieName);
 
         [return: MaybeNull]
-        public static T _EasyLoadCookie<T>(this Controller controller, string cookieName, bool easyDecrypt = false)
-            => controller.HttpContext._EasyLoadCookie<T>(cookieName, easyDecrypt);
+        public static T _EasyLoadCookie<T>(this Controller controller, string cookieName, bool easyDecrypt = false, string? easyDecryptPassword = null)
+            => controller.HttpContext._EasyLoadCookie<T>(cookieName, easyDecrypt, easyDecryptPassword);
 
         public static bool _IsPostBack(this Controller controller)
         {

@@ -212,7 +212,8 @@ namespace IPA.Cores.Basic
 
             public const string DaemonExecModeLogFileSuffix = "daemon";
 
-            public const string EasyCookieNamePrefix = "Cores_EasyCookie_";
+            public const string EasyCookieNamePrefix_Http = "Cores_Http_EasyCookie_";
+            public const string EasyCookieNamePrefix_Https = "Cores_Https_EasyCookie_";
             public const string EasyCookieValuePrefix = "Ec_";
 
             public const string Sample = "__sample__";
