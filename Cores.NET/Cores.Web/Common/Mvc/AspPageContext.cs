@@ -105,12 +105,23 @@ namespace IPA.Cores.Web
         // 現在の Language List を元に文字列テーブルファイルを吐き出す 
         public void DumpStrTableJson(FilePath destFileName)
         {
-            KeyValueList<string, KeyValueList<string, string>> obj = new KeyValueList<string, KeyValueList<string, string>>();
+            var objRoot = Json.NewJsonObject();
 
-            foreach (var lang in this.LanguageList.GetLaugnageList().OrderBy(x=>x.Key, StrComparer.IgnoreCaseComparer))
-                obj.Add(lang.Key.ToLower(), lang.Table.ToList());
+            foreach (var lang in this.LanguageList.GetLaugnageList().OrderBy(x => x.Key, StrComparer.IgnoreCaseComparer))
+            {
+                var obj2 = Json.NewJsonObject();
 
-            string jsonBody = obj._ObjectToJson(compact: true);
+                var table = lang.Table.ToList();
+
+                foreach (var kv in table)
+                {
+                    obj2.Add(kv.Key.ToUpper(), new Newtonsoft.Json.Linq.JValue(kv.Value));
+                }
+
+                objRoot.Add(lang.Key.ToLower(), obj2);
+            }
+
+            string jsonBody = objRoot._ObjectToJson(compact: true);
 
             StringWriter w = new StringWriter();
             w.WriteLine("// String table");
