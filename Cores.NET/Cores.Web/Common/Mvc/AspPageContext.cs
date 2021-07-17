@@ -101,6 +101,31 @@ namespace IPA.Cores.Web
         {
             this.Language = this.LanguageList.FindLanguageByHttpAcceptLanguage(str);
         }
+
+        // 現在の Language List を元に文字列テーブルファイルを吐き出す 
+        public void DumpStrTableJson(FilePath destFileName)
+        {
+            KeyValueList<string, KeyValueList<string, string>> obj = new KeyValueList<string, KeyValueList<string, string>>();
+
+            foreach (var lang in this.LanguageList.GetLaugnageList())
+                obj.Add(lang.Key.ToLower(), lang.Table.ToList());
+
+            string jsonBody = obj._ObjectToJson();
+
+            StringWriter w = new StringWriter();
+            w.WriteLine("// String table");
+            w.WriteLine("// Automatically generated file");
+            w.WriteLine();
+            w.WriteLine("// --- BEGIN OF STRTABLE ---");
+            w.WriteLine();
+            w.WriteLine("var g_ipa_dn_cores_strtable =");
+            w.WriteLine(jsonBody);
+            w.WriteLine();
+            w.WriteLine("// --- END OF STRTABLE ---");
+            w.WriteLine();
+
+            destFileName.WriteStringToFile(w.ToString()._NormalizeCrlf(CrlfStyle.Lf), FileFlags.AutoCreateDirectory | FileFlags.WriteOnlyIfChanged, writeBom: true);
+        }
     }
 }
 

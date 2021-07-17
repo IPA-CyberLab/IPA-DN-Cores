@@ -349,7 +349,11 @@ namespace IPA.Cores.Codes
             this.Page = page;
 
             this.Page.SetLanguageList(client.LanguageList);
-            this.Page.SetLanguageByHttpString("ja");
+
+            // 文字列 JSON をダンプする
+            this.Page.DumpStrTableJson(Env.AppRootDir._CombinePath("wwwroot", "js", "strtable.js"));
+
+            this.Page.SetLanguageByHttpString("ja"); // TODO: language selection
         }
 
         protected AspNetCookieOptions GetCookieOption() => new AspNetCookieOptions(domain: this.Client.SettingsFastSnapshot.CookieDomainName);

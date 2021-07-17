@@ -8407,7 +8407,7 @@ namespace IPA.Cores.Basic
             });
         }
 
-        IEnumerable<StrTableLanguage> GetLaugnageList()
+        public IEnumerable<StrTableLanguage> GetLaugnageList()
         {
             lock (this.Lock)
             {
@@ -8463,6 +8463,18 @@ namespace IPA.Cores.Basic
         public string this[string key]
         {
             get => GetStr(key);
+        }
+
+        public KeyValueList<string, string> ToList()
+        {
+            KeyValueList<string, string> ret = new KeyValueList<string, string>();
+
+            foreach (var item in this.EntryList)
+            {
+                ret.Add(item);
+            }
+
+            return ret;
         }
 
         public string GetStr(string key, string notFoundValue = "")
