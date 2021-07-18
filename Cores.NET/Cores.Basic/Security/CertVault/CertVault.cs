@@ -55,6 +55,8 @@ namespace IPA.Cores.Basic
         public static partial class CertVaultSettings
         {
             public static readonly Copenhagen<bool> DefaultUseAcme = true;
+            public static readonly Copenhagen<bool> AcmeEnableFqdnIpCheck = true;
+            public static readonly Copenhagen<bool> DefaultNonAcmeEnableAutoGenerateSubjectNameCert = true;
 
             public static readonly Copenhagen<int> DefaultReloadInterval = 60 * 1000;
 
@@ -216,8 +218,8 @@ namespace IPA.Cores.Basic
             this.AcmeServiceDirectoryUrl = AcmeDefaultUrl;
             this.ReloadIntervalMsecs = CoresConfig.CertVaultSettings.DefaultReloadInterval;
             this.AcmeContactEmail = GenDefaultContactEmail();
-            this.AcmeEnableFqdnIpCheck = true;
-            this.NonAcmeEnableAutoGenerateSubjectNameCert = true;
+            this.AcmeEnableFqdnIpCheck = CoresConfig.CertVaultSettings.AcmeEnableFqdnIpCheck;
+            this.NonAcmeEnableAutoGenerateSubjectNameCert = CoresConfig.CertVaultSettings.DefaultNonAcmeEnableAutoGenerateSubjectNameCert;
             this.MaxAcmeCerts = CoresConfig.CertVaultSettings.DefaultMaxAcmeCerts;
 
             Normalize();

@@ -5112,6 +5112,7 @@ namespace IPA.Cores.Basic
         {
             public static readonly Dictionary<string, ulong> DictCastSensitive = new Dictionary<string, ulong>();
             public static readonly Dictionary<string, ulong> DictCastIgnore = new Dictionary<string, ulong>(StrComparer.IgnoreCaseComparer);
+            public static readonly Dictionary<ulong, string> DictULongToStr = new Dictionary<ulong, string>();
             public static readonly IEnumerable<string> ElementNamesOrderByValue;
             public static readonly IEnumerable<string> ElementNamesOrderByName;
 
@@ -5123,8 +5124,11 @@ namespace IPA.Cores.Basic
                 foreach (string name in names)
                 {
                     T value = (T)Enum.Parse(t, name);
-                    DictCastSensitive.Add(name, value._RawReadValueUInt64());
-                    DictCastIgnore.Add(name, value._RawReadValueUInt64());
+                    ulong u64 = value._RawReadValueUInt64();
+
+                    DictCastSensitive.Add(name, u64);
+                    DictCastIgnore.Add(name, u64);
+                    DictULongToStr.Add(u64, name);
                 }
 
                 ElementNamesOrderByValue = DictCastSensitive.OrderBy(x => x.Value).Select(x => x.Key).Distinct();
@@ -5222,6 +5226,25 @@ namespace IPA.Cores.Basic
             if (noMatchError)
                 throw new ArgumentException($"The string \"{str}\' doesn't match to any items of the type \"{type.Name}\".");
             return defaultValue;
+        }
+
+        public static string EnumToStrExact<T>(T value, string? defaultStr = null) where T : unmanaged, Enum
+        {
+            ulong u64 = value._RawReadValueUInt64();
+
+            if (EnumCacheRawValue<T>.DictULongToStr.TryGetValue(u64, out string? name))
+            {
+                return name;
+            }
+
+            if (defaultStr == null)
+            {
+                return u64.ToString();
+            }
+            else
+            {
+                return defaultStr;
+            }
         }
 
         // 文字列を bool に変換する

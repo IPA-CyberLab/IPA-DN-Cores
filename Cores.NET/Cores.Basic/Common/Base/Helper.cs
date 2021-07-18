@@ -1405,7 +1405,7 @@ namespace IPA.Cores.Helper.Basic
             catch { }
         }
 
-        public static async Task _DisposeSafeAsync(this IAsyncService? obj, Exception ?ex)
+        public static async Task _DisposeSafeAsync(this IAsyncService? obj, Exception? ex)
         {
             try
             {
@@ -1628,10 +1628,18 @@ namespace IPA.Cores.Helper.Basic
             return Str.StrToEnumBits<T>(str, defaultValue, separators);
         }
 
+        [MethodImpl(Inline)]
         public static IEnumerable<string> _GetDefinedEnumElementsStrList<T>(this T anyOfEnumSampleElement)
             where T : unmanaged, Enum
         {
             return Str.GetDefinedEnumElementsStrList(anyOfEnumSampleElement);
+        }
+
+        [MethodImpl(Inline)]
+        public static string EnumToStrExact<T>(this T value, string? defaultStr = null)
+            where T : unmanaged, Enum
+        {
+            return Str.EnumToStrExact(value, defaultStr);
         }
 
         [MethodImpl(Inline)]

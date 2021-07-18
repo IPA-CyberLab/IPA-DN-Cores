@@ -313,6 +313,8 @@ ERR_333					Connection by HTML5 client is prohibited due to the policy regulatio
 ERR_334					Because the version of $APPSHORT_SERVER$ you are connecting to is too old, you cannot connect using the HTML5 client.\r\n\r\nWe apologize for the inconvenience, but please update the version of $APPSHORT_SERVER$ to a version released after July 2021.\r\n\r\nIn order to connect to $APPSHORT_SERVER$ for updating, you can use the existing $APPSHORT_CLIENT$ version of the traditional client application.\r\n\r\nAfter the update, you will be able to connect to the server with this HTML5 version of the client from this web browser.
 ERR_335					Connection by Desktop App Client is prohibited due to the policy regulation server of the destination $APPSHORT_SERVER$ or other system administrator's setting. You can connect to the client using the HTML5 Web Client. Please use the HTML5 Web Client client, or contact the system administrator of the $APPSHORT_SERVER$ you are connecting to.
 ERR_336					The policy server of the connection destination $APPSHORT_SERVER$ enforces the use of the Strong Isolation Firewall function. the HTML5 version of the client cannot use the Strong Isolation Firewall function. No connections will be allowed. Please use the normal application client, or contact the system administrator of the $APPSHORT_SERVER$ you are connecting to.
+ERR_337					Invalid ControllerGateSecretKey value.
+
 
 
 # PacketiX Desktop VPN 関係
