@@ -626,7 +626,12 @@ namespace IPA.Cores.Basic
 
         public Pack? Pack { get; }
 
-        public VpnException(VpnError error, Pack? pack = null) : base($"{error.EnumToStrExact()}")
+        static string ErrorToStr(VpnError err)
+        {
+            return $"Error code {(int)err}: {err.EnumToStrExact("Unknown Error")}";
+        }
+
+        public VpnException(VpnError error, Pack? pack = null) : base($"{ErrorToStr(error)}")
         {
             this.Error = error;
             this.Pack = pack?.Clone() ?? null;

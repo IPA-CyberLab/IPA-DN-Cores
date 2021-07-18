@@ -1541,7 +1541,7 @@ namespace IPA.Cores.Codes
 
             if (certUrl._IsFilled())
             {
-                await using var http = new WebApi(new WebApiOptions(new WebApiSettings { AllowAutoRedirect = true, SslAcceptAnyCerts = true, Timeout = 15 * 1000 }));
+                await using var http = new WebApi(new WebApiOptions(new WebApiSettings { AllowAutoRedirect = true, SslAcceptAnyCerts = true, Timeout = 15 * 1000 }, doNotUseTcpStack: true));
 
                 if (certUsername._IsFilled() && certPassword._IsFilled())
                 {

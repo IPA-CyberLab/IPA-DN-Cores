@@ -368,7 +368,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class PrivKey
+    public class PrivKey : IEquatable<PrivKey>
     {
         public AsymmetricCipherKeyPair PrivateKeyData { get; }
 
@@ -453,6 +453,18 @@ namespace IPA.Cores.Basic
 
                 return w.ToString()._GetBytes_UTF8();
             }
+        }
+
+        // 手抜き実装 速度遅い
+        public override int GetHashCode()
+        {
+            return this.Export()._HashMarvin();
+        }
+        public override bool Equals(object? obj)
+            => this.Equals((PrivKey?)obj);
+        public bool Equals(PrivKey? other)
+        {
+            return Util.MemEquals(this.Export(), other!.Export());
         }
     }
 

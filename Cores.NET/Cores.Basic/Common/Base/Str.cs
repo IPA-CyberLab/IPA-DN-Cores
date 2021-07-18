@@ -4478,6 +4478,51 @@ namespace IPA.Cores.Basic
             return sb.ToString();
         }
 
+        // 任意文字列を安全な Ascii 文字のみを含む、かつ、空白文字を含まないファイル名に変換する
+        public static string MakeVerySafeAsciiOnlyNonSpaceString(string? src, bool allowDot = false)
+        {
+            if (src._IsEmpty()) return "";
+            src = src._NonNullTrim();
+
+            Str.NormalizeString(ref src, true, true, false, false);
+
+            string okChars = "0123456789-_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+            if (allowDot)
+            {
+                okChars += ".";
+            }
+
+            StringBuilder sb = new StringBuilder();
+
+            foreach (char c in src)
+            {
+                if (okChars.IndexOf(c) != -1)
+                {
+                    sb.Append(c);
+                }
+                else
+                {
+                    sb.Append("_");
+                }
+            }
+
+            string ret = sb.ToString();
+            ret = ret.Trim();
+
+            ret = ret._Split(StringSplitOptions.RemoveEmptyEntries, '_')._Combine("_", true);
+            ret = ret._Split(StringSplitOptions.RemoveEmptyEntries, '.')._Combine(".", true);
+
+            ret = ret.Trim();
+
+            if (ret.All(x => x == '.'))
+            {
+                ret = "_";
+            }
+
+            return ret;
+        }
+
         // 任意のファイルパスを安全な Ascii 文字のみを含む、かつ、空白文字を含まないファイル名に変換する
         public static string MakeVerySafeAsciiOnlyNonSpaceFileName(string? fullPath)
         {
@@ -5426,9 +5471,12 @@ namespace IPA.Cores.Basic
         }
         public static DateTime StrToDateTime(string? str, bool toUtc = false, bool emptyToZeroDateTime = false)
         {
-            if (emptyToZeroDateTime && str._IsEmpty()) return Util.ZeroDateTimeValue;
+            if (str._IsEmpty())
+            {
+                if (emptyToZeroDateTime) return Util.ZeroDateTimeValue;
+                return new DateTime(0);
+            }
             DateTime ret = new DateTime(0);
-            if (Str.IsEmptyStr(str)) return Util.ZeroDateTimeValue;
 
             Str.NormalizeString(ref str, true, true, false, false);
             str = str.Trim();

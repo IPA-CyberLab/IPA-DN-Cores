@@ -542,6 +542,8 @@ namespace IPA.Cores.Basic
 #if CORES_BASIC_SECURITY
         public bool UseGlobalCertVault { get; set; } = true;
 
+        public bool StartGlobalCertVaultOnHttpServerStartup { get; set; } = false;
+
         [JsonIgnore]
         public CertificateStore? GlobalCertVaultDefauleCert { get; set; } = null;
 #endif  // CORES_BASIC_JSON
@@ -677,6 +679,12 @@ namespace IPA.Cores.Basic
                         if (this.GlobalCertVaultDefauleCert != null)
                         {
                             GlobalCertVault.SetDefaultCertificate(this.GlobalCertVaultDefauleCert);
+                        }
+
+                        if (this.StartGlobalCertVaultOnHttpServerStartup)
+                        {
+                            // GlobalCertVault をすぐに起動する
+                            GlobalCertVault.GetGlobalCertVault();
                         }
 
                         httpsOptions.ServerCertificateSelector = ((ctx, sni) => (X509Certificate2)GlobalCertVault.GetGlobalCertVault().X509CertificateSelector(sni, !this.HasHttpPort80).NativeCertificate);
