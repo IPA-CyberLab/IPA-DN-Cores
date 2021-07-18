@@ -281,6 +281,9 @@ namespace IPA.Cores.Basic
                 p.AddStr("trusted_real_client_ip", clientOptions.RealClientIp._NonNullTrim());
                 p.AddStr("trusted_real_client_fqdn", clientOptions.RealClientFqdn._NonNullTrim());
                 p.AddInt("trusted_real_client_port", (uint)clientOptions.RealClientPort);
+
+                string auth_str = $"{clientOptions.RealClientIp._NonNullTrim()}/{clientOptions.RealClientFqdn._NonNullTrim()}/{(uint)clientOptions.RealClientPort}/{this.WideTunnel.Options.ControllerGateSecretKey}";
+                p.AddData("trusted_auth_sha1", auth_str._HashSHA1());
             }
 
             await LowerStream._HttpClientSendPackAsync(p, cancel);
@@ -579,10 +582,11 @@ namespace IPA.Cores.Basic
         public ReadOnlyMemory<byte> WaterMark { get; }
         public string NameSuite { get; }
         public IEnumerable<Certificate> MasterCertificates { get; }
+        public string ControllerGateSecretKey { get; }
 
         public ReadOnlyMemory<byte> GenNewClientId() => Secure.Rand(20);
 
-        public WideTunnelOptions(string svcName, string nameSuite, IEnumerable<string> entryUrlList, IEnumerable<Certificate> masterCertificates, ReadOnlyMemory<byte> clientId = default, ReadOnlyMemory<byte> waterMark = default, WebApiOptions? webApiOptions = null, TcpIpSystem? tcpIp = null)
+        public WideTunnelOptions(string svcName, string nameSuite, IEnumerable<string> entryUrlList, IEnumerable<Certificate> masterCertificates, ReadOnlyMemory<byte> clientId = default, ReadOnlyMemory<byte> waterMark = default, WebApiOptions? webApiOptions = null, string? controllerGateSecretKey = null, TcpIpSystem? tcpIp = null)
         {
             if (clientId.IsEmpty) clientId = GenNewClientId();
             if (waterMark.IsEmpty) waterMark = CoresConfig.WtcConfig.DefaultWaterMark;
@@ -606,6 +610,7 @@ namespace IPA.Cores.Basic
             this.WebApiOptions = webApiOptions;
             this.WaterMark = waterMark;
             this.MasterCertificates = masterCertificates;
+            this.ControllerGateSecretKey = controllerGateSecretKey._NonNullTrim();
         }
     }
 

@@ -79,6 +79,8 @@ using System.Security.Cryptography;
 using System.IO.Compression;
 using IPA.Cores.Basic.HttpClientCore;
 using Microsoft.Extensions.Hosting;
+using IPA.Cores.ClientApi;
+using IPA.Cores.ClientApi.SlackApi;
 
 using IPA.Cores.Codes;
 
@@ -1026,9 +1028,9 @@ namespace IPA.TestDev
 
             CoresConfig.WtcConfig.DefaultWaterMark.TrySet(mem);
 
-            using WideTunnel wt = new WideTunnel(new WideTunnelOptions("DESK", "TestSan", new string[] { "https://c__TIME__.controller.dynamic-ip.thin.cyber.ipa.go.jp/widecontrol/" }));
+            using WideTunnel wt = new WideTunnel(new WideTunnelOptions("DESK", "TestSan", new string[] { "https://c__TIME__.controller.dynamic-ip.thin.cyber.ipa.go.jp/widecontrol/" }, new List<Certificate>()));
 
-            await using var c = await wt.WideClientConnectAsync("greenrdp2", new WideTunnelClientOptions(WideTunnelClientFlags.None, "", "", 0));
+            await using var c = await wt.WideClientConnectAsync("greenrdp2", new WideTunnelClientOptions(WideTunnelClientFlags.None, "", "", 0), true);
 
             await cancel._WaitUntilCanceledAsync();
         }
@@ -1112,12 +1114,12 @@ namespace IPA.TestDev
 
             CoresConfig.WtcConfig.DefaultWaterMark.TrySet(mem);
 
-            var wideOptions = new WideTunnelOptions("DESK", "TestSan", new string[] { "https://c__TIME__.controller.dynamic-ip.thin.cyber.ipa.go.jp/widecontrol/" });
+            var wideOptions = new WideTunnelOptions("DESK", "TestSan", new string[] { "https://c__TIME__.controller.dynamic-ip.thin.cyber.ipa.go.jp/widecontrol/" }, new List<Certificate>());
             await using var sm = new DialogSessionManager(cancel: cancel);
 
             ThinClient tc = new ThinClient(new ThinClientOptions(wideOptions, sm));
 
-            var sess = tc.StartConnect(new ThinClientConnectOptions("pc342", IPAddress.Loopback, IPAddress.Loopback.ToString(), false, new WideTunnelClientOptions(WideTunnelClientFlags.None, "", "", 0)), 0);
+            var sess = tc.StartConnect(new ThinClientConnectOptions("pc342", IPAddress.Loopback, IPAddress.Loopback.ToString(), false, new WideTunnelClientOptions(WideTunnelClientFlags.None, "", "", 0), false), 0);
 
             while (cancel.IsCancellationRequested == false)
             {
@@ -1527,7 +1529,7 @@ namespace IPA.TestDev
         public static async Task GuaTest_210320()
         {
             await using GuaClient gc = new GuaClient(new GuaClientSettings("dn-ttguacd1.sec.softether.co.jp", 4822, GuaProtocol.Rdp, "pc37.sec.softether.co.jp", 3333,
-                new GuaPreference()));
+                new GuaPreference(), false));
 
             await gc.StartAsync();
 

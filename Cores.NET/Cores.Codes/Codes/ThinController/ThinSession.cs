@@ -97,6 +97,12 @@ namespace IPA.Cores.Codes
         public int NumClientsUnique;
         [SimpleTableOrder(7.5)]
         public int NumClientsWebSocket;
+        [SimpleTableOrder(20)]
+        public string LocalHostname = "";
+        [SimpleTableOrder(21)]
+        public string LocalIp = "";
+        [SimpleTableOrder(22)]
+        public string LocalVersion = "";
 
         public void Normalize()
         {
@@ -104,6 +110,9 @@ namespace IPA.Cores.Codes
             SessionId = SessionId._NonNull();
             IpAddress = IpAddress._NonNull();
             HostName = HostName._NonNull();
+            LocalHostname = LocalHostname._NonNull();
+            LocalIp = LocalIp._NonNull();
+            LocalVersion = LocalVersion._NonNull();
         }
 
         public void Validate()

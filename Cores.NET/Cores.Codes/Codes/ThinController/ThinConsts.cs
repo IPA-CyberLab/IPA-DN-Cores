@@ -114,6 +114,8 @@ namespace IPA.Cores.Codes
         public static readonly Copenhagen<string> ControllerDefaultAdminUsername = "admin";
         public static readonly Copenhagen<string> ControllerDefaultAdminPassword = "ipantt";
 
+        public static readonly Copenhagen<string> DefaultControllerGateSecretKey = "JuP4611KJd1dFTqenNpVPU6r";
+
     }
 
     public static partial class ThinWebClientConsts

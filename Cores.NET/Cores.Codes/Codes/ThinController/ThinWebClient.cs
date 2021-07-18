@@ -101,6 +101,8 @@ namespace IPA.Cores.Codes
 
         public List<string> ThinControllerUrlList = new List<string>();
 
+        public string ControllerGateSecretKey = ThinControllerConsts.DefaultControllerGateSecretKey;
+
         public string CookieDomainName = "";
         public string CookieEncryptPassword = Consts.Strings.EasyEncryptDefaultPassword;
 
@@ -134,6 +136,8 @@ namespace IPA.Cores.Codes
 
             this.CookieDomainName = this.CookieDomainName._NormalizeFqdn();
             if (this.CookieEncryptPassword._IsNullOrZeroLen()) this.CookieEncryptPassword = Consts.Strings.EasyEncryptDefaultPassword;
+
+            if (this.ControllerGateSecretKey._IsEmpty()) this.ControllerGateSecretKey = ThinControllerConsts.DefaultControllerGateSecretKey;
         }
     }
 
@@ -879,7 +883,7 @@ namespace IPA.Cores.Codes
             }
 
             ThinClient tc = new ThinClient(new ThinClientOptions(new WideTunnelOptions("DESK", nameof(ThinWebClient), this.SettingsFastSnapshot.ThinControllerUrlList, this.Options.MasterCertificates,
-                waterMark: this.Hook.GetProtocolWatermarkBinary()), this.SessionManager,
+                waterMark: this.Hook.GetProtocolWatermarkBinary(), controllerGateSecretKey: this.SettingsFastSnapshot.ControllerGateSecretKey), this.SessionManager,
                 listenFamily, listenAddress));
 
             return tc;

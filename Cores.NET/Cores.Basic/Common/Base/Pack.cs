@@ -215,6 +215,8 @@ namespace IPA.Cores.Basic
         Dictionary<uint, PackValue> values;
         uint maxIndex;
 
+        public PackValueType Type => this.type;
+
         // コンストラクタ
         public PackElement(string name, PackValueType type)
         {
@@ -655,6 +657,35 @@ namespace IPA.Cores.Basic
                 return 0;
             }
             return v.Int64Value;
+        }
+
+        public IPAddress? GetIp(string name, uint index = 0)
+        {
+            bool isIPv6 = this.GetBool($"{name}@ipv6_bool", index);
+
+            if (isIPv6)
+            {
+                byte[]? data = this.GetData($"{name}@ipv6_array", index);
+                if (data == null || data.Length != 16) return null;
+                uint scopeId = this.GetInt($"{name}@ipv6_scope_id", index);
+
+                return new IPAddress(data, (long)scopeId);
+            }
+            else
+            {
+                var e = getElement(name);
+                if (e == null) return null;
+                if (e.Type != PackValueType.Int) return null;
+
+                uint ip_uint = this.GetInt(name, index);
+
+                if (Env.IsBigEndian)
+                {
+                    ip_uint = ip_uint._ReverseEndian32_U();
+                }
+
+                return IPUtil.UINTToIP(ip_uint);
+            }
         }
 
         public byte[]? GetData(string name, uint index = 0)

@@ -953,6 +953,9 @@ namespace IPA.Cores.Codes
                     HostName = p["Hostname", i].StrValueNonNull,
                     NumClients = p["NumClients", i].SIntValue,
                     ServerMask64 = (ThinServerMask64)p["ServerMask64", i].Int64Value,
+                    LocalVersion = p["LocalVersion", i].StrValueNonNull,
+                    LocalHostname = p["LocalHostname", i].UniStrValueNonNull,
+                    LocalIp = p.GetIp("LocalIp", (uint)i)?.ToString() ?? "",
                 };
 
                 sess.Normalize();
@@ -1088,6 +1091,9 @@ namespace IPA.Cores.Codes
                 HostName = p["Hostname", i].StrValueNonNull,
                 NumClients = p["NumClients", i].SIntValue,
                 ServerMask64 = (ThinServerMask64)p["ServerMask64", i].Int64Value,
+                LocalVersion = p["LocalVersion", i].StrValueNonNull,
+                LocalHostname = p["LocalHostname", i].UniStrValueNonNull,
+                LocalIp = p.GetIp("LocalIp", (uint)i)?.ToString() ?? "",
             };
 
             sess.Normalize();

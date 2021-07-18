@@ -4926,9 +4926,11 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列をハッシュ
-        public static byte[] HashStr(string str)
+        public static byte[] HashStrSHA1(string? str)
+            => HashStr(str);
+        public static byte[] HashStr(string? str)
         {
-            return Secure.HashSHA1(Encoding.UTF8.GetBytes(str));
+            return Secure.HashSHA1(Encoding.UTF8.GetBytes(str._NonNull()));
         }
         public static ulong HashStrToLong(string str)
         {
