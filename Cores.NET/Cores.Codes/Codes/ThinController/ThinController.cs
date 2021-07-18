@@ -80,6 +80,14 @@ using System.Runtime.CompilerServices;
 
 namespace IPA.Cores.Codes
 {
+    [Flags]
+    public enum ThinControllerFqdnUsage
+    {
+        ClientConnect = 1,
+        ServerConnect = 2,
+        ViaProxy = 4,
+    }
+
     // ThinController 設定 (JSON 設定ファイルで動的に設定変更可能な設定項目)
     [Serializable]
     public sealed class ThinControllerSettings : INormalizable
@@ -123,7 +131,7 @@ namespace IPA.Cores.Codes
     {
         public virtual async Task<string?> DetermineMachineGroupNameAsync(ThinControllerSession session, CancellationToken cancel = default) => null;
 
-        public virtual async Task<string> GenerateFqdnForGateAsync(ThinGate gate, ThinControllerSession session, string prefix = "", string suffix = "", CancellationToken cancel = default)
+        public virtual async Task<string> GenerateFqdnForGateAsync(ThinGate gate, ThinControllerSession session, ThinControllerFqdnUsage usage, string prefix = "", string suffix = "", CancellationToken cancel = default)
         {
             if (IPAddress.TryParse(gate.IpAddress, out IPAddress? ip))
             {
@@ -504,11 +512,12 @@ namespace IPA.Cores.Codes
             var ret = NewWpcResult();
             var p = ret.Pack;
 
-            string fqdn = (await Controller.Hook.GenerateFqdnForGateAsync(gateAndSession.A, this, "thinclient-", "", cancel))._FilledOrDefault(gateAndSession.A.IpAddress);
+            string hostname = (await Controller.Hook.GenerateFqdnForGateAsync(gateAndSession.A, this, ThinControllerFqdnUsage.ClientConnect, "thinclient-", "", cancel))._FilledOrDefault(gateAndSession.A.IpAddress);
+            string hostnameForProxy = (await Controller.Hook.GenerateFqdnForGateAsync(gateAndSession.A, this, ThinControllerFqdnUsage.ClientConnect | ThinControllerFqdnUsage.ViaProxy, "thinclient-", "", cancel))._FilledOrDefault(gateAndSession.A.IpAddress);
 
-            p.AddStr("Hostname", fqdn);
+            p.AddStr("Hostname", hostname);
+            p.AddStr("HostnameForProxy", hostnameForProxy);
             p.AddInt("Port", (uint)gateAndSession.A.Port);
-            p.AddStr("HostnameForProxy", fqdn);
             p.AddData("SessionId", gateAndSession.B.SessionId._GetHexBytes());
 
             ThinServerMask64 serverMask64 = gateAndSession.B.ServerMask64;
@@ -520,8 +529,8 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("SvcName", machine.SVC_NAME);
             ret.AdditionalInfo.Add("Pcid", machine.PCID);
             ret.AdditionalInfo.Add("Msid", machine.MSID);
-            ret.AdditionalInfo.Add("GateHostname", gateAndSession.A.IpAddress);
-            ret.AdditionalInfo.Add("GateHostnameForProxy", fqdn);
+            ret.AdditionalInfo.Add("GateHostname", hostname);
+            ret.AdditionalInfo.Add("GateHostnameForProxy", hostnameForProxy);
             ret.AdditionalInfo.Add("GatePort", gateAndSession.A.Port.ToString());
 
             // データベース更新
@@ -834,9 +843,13 @@ namespace IPA.Cores.Codes
             byte[] sign = Secure.HashSHA1(signSrc.Span);
             p.AddData("Signature2", sign);
             p.AddStr("Pcid", this.ClientInfo.AuthedMachine!.PCID);
-            string fqdn = (await Controller.Hook.GenerateFqdnForGateAsync(bestGate, this, "thinserver-", "", cancel))._FilledOrDefault(bestGate.IpAddress);
-            p.AddStr("Hostname", fqdn);
-            p.AddStr("HostnameForProxy", fqdn);
+
+            string hostname = (await Controller.Hook.GenerateFqdnForGateAsync(bestGate, this, ThinControllerFqdnUsage.ServerConnect, "thinserver-", "", cancel))._FilledOrDefault(bestGate.IpAddress);
+            string hostnameForProxy = (await Controller.Hook.GenerateFqdnForGateAsync(bestGate, this, ThinControllerFqdnUsage.ServerConnect | ThinControllerFqdnUsage.ViaProxy, "thinserver-", "", cancel))._FilledOrDefault(bestGate.IpAddress);
+
+            p.AddStr("Hostname", hostname);
+            p.AddStr("HostnameForProxy", hostnameForProxy);
+
             p.AddInt("Port", (uint)bestGate.Port);
 
             // IP アドレス等を元にした接続禁止を行なう場合、禁止の旨のメッセージを応答する (接続処理自体は成功させる)
@@ -852,8 +865,8 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("SvcName", this.ClientInfo.AuthedMachine!.SVC_NAME);
             ret.AdditionalInfo.Add("Pcid", this.ClientInfo.AuthedMachine!.PCID);
             ret.AdditionalInfo.Add("Msid", this.ClientInfo.AuthedMachine!.MSID);
-            ret.AdditionalInfo.Add("GateHostname", bestGate.IpAddress);
-            ret.AdditionalInfo.Add("GateHostnameForProxy", fqdn);
+            ret.AdditionalInfo.Add("GateHostname", hostname);
+            ret.AdditionalInfo.Add("GateHostnameForProxy", hostnameForProxy);
             ret.AdditionalInfo.Add("GatePort", bestGate.Port.ToString());
 
             string wolMacList = req.Pack["wol_maclist"].StrValueNonNull;
