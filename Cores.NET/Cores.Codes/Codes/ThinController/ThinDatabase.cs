@@ -466,7 +466,7 @@ namespace IPA.Cores.Codes
                     });
 
                     IsDatabaseConnected = true;
-                    //$"ThinDatabase.ReadCoreAsync Read All Records from DB: {allMachines.Count()}"._Debug();
+                    $"ThinDatabase.ReadCoreAsync Read All Records from DB: {allMachines.Count()}"._Debug();
                 }
                 catch (Exception ex)
                 {
@@ -499,7 +499,7 @@ namespace IPA.Cores.Codes
                     {
                         long size = mem.SaveToFile(this.BackupFileName);
 
-                        //$"ThinDatabase.ReadCoreAsync Save to the backup file: {size._ToString3()} bytes, filename = '{this.BackupFileName}'"._Debug();
+                        $"ThinDatabase.ReadCoreAsync Save to the backup file: {size._ToString3()} bytes, filename = '{this.BackupFileName}'"._Debug();
 
                         LastBackupSaveTick = now;
                     }
@@ -532,13 +532,13 @@ namespace IPA.Cores.Codes
         async Task ReadMainLoopAsync(CancellationToken cancel)
         {
             int numCycle = 0;
-            //int numError = 0;
+            int numError = 0;
 
             while (cancel.IsCancellationRequested == false)
             {
                 numCycle++;
 
-                //$"ThinDatabase.ReadMainLoopAsync numCycle={numCycle}, numError={numError} Start."._Debug();
+                $"ThinDatabase.ReadMainLoopAsync numCycle={numCycle}, numError={numError} Start."._Debug();
 
                 long startTick = Time.HighResTick64;
 
@@ -565,7 +565,7 @@ namespace IPA.Cores.Codes
                     LastDbReadTookMsecs = 0;
                 }
 
-                //$"ThinDatabase.ReadMainLoopAsync numCycle={numCycle}, numError={numError} End. Took time: {endTick - startTick}"._Debug();
+                $"ThinDatabase.ReadMainLoopAsync numCycle={numCycle}, numError={numError} End. Took time: {endTick - startTick}"._Debug();
 
                 await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(Controller.CurrentValue_ControllerDbFullReloadIntervalMsecs));
             }
@@ -610,14 +610,14 @@ namespace IPA.Cores.Codes
         async Task WriteMainLoopAsync(CancellationToken cancel)
         {
             int numCycle = 0;
-            //int numError = 0;
+            int numError = 0;
             while (cancel.IsCancellationRequested == false)
             {
                 if (this.LazyUpdateJobQueue.Count >= 1)
                 {
                     numCycle++;
 
-                    //$"ThinDatabase.WriteMainLoopAsync numCycle={numCycle}, numError={numError} Start."._Debug();
+                    $"ThinDatabase.WriteMainLoopAsync numCycle={numCycle}, numError={numError} Start."._Debug();
 
                     long startTick = Time.HighResTick64;
                     int num = 0;
@@ -633,7 +633,7 @@ namespace IPA.Cores.Codes
 
                     long endTick = Time.HighResTick64;
 
-                    //$"ThinDatabase.WriteMainLoopAsync numCycle={numCycle}, numError={numError} End. Written items: {num}, Took time: {endTick - startTick}"._Debug();
+                    $"ThinDatabase.WriteMainLoopAsync numCycle={numCycle}, numError={numError} End. Written items: {num}, Took time: {endTick - startTick}"._Debug();
                 }
 
                 await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(Controller.CurrentValue_ControllerDbWriteUpdateIntervalMsecs));
