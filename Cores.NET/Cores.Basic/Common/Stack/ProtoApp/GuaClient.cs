@@ -381,7 +381,7 @@ namespace IPA.Cores.Basic
         public bool EnableWallPaper { get; set; } = true;
         public bool EnableTheming { get; set; } = true;
         public bool EnableFontSmoothing { get; set; } = true;
-        public bool EnableFullWindowDrag { get; set; } = true;
+        public bool EnableFullWindowDrag { get; set; } = false;
         public bool EnableDesktopComposition { get; set; } = true;
         public bool EnableMenuAnimations { get; set; } = false;
         public bool EnableAlwaysWebp { get; set; } = false;
@@ -418,6 +418,7 @@ namespace IPA.Cores.Basic
         public bool ShowLocalMouseCursor { get; set; } = true;
         public bool ShowRemoteMouseCursor { get; set; } = true;
         public bool ShowHelpOnFullScreenUnset { get; set; } = true;
+        public bool ShowOnceMsg { get; set; } = true;
 
         public string Username { get; set; } = "";
         [NoDebugDumpAttribute]
@@ -469,7 +470,7 @@ namespace IPA.Cores.Basic
             if (this.ScreenHeight < CoresConfig.GuaClient.MinScreenHeight) this.ScreenHeight = CoresConfig.GuaClient.MinScreenHeight;
             if (this.ScreenHeight > CoresConfig.GuaClient.MaxScreenHeight) this.ScreenHeight = CoresConfig.GuaClient.MaxScreenHeight;
 
-            if (this.ScreenAutoResize)
+            if (this.ScreenAutoResizeRemoteFit)
             {
                 this.ResizeMethod = GuaResizeMethods.DisplayUpdate;
             }
@@ -491,10 +492,10 @@ namespace IPA.Cores.Basic
                 this.MacAddress = Str.NormalizeMac(this.MacAddress, style: MacAddressStyle.Windows);
             }
 
-            if (this.ScreenAutoResizeRemoteFit)
-            {
-                this.ScreenAutoResize = true;
-            }
+            //if (this.ScreenAutoResizeRemoteFit)
+            //{
+            //    this.ScreenAutoResize = true;
+            //}
         }
 
         public GuaPreference CloneAsDefault()

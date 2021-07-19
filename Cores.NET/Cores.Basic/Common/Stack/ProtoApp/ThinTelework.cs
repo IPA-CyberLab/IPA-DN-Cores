@@ -147,6 +147,7 @@ namespace IPA.Cores.Basic
 
         public IPEndPoint? ListenEndPoint;
         public ThinClientConnection? FirstConnection;
+        public ThinServerCaps Caps;
         public ThinSvcType? SvcType;
         public string ConnectPacketData = "";
         public string WatermarkStr1 = "";
@@ -202,6 +203,7 @@ namespace IPA.Cores.Basic
         public string WatermarkStr1 { get; private set; } = "";
         public string WatermarkStr2 { get; private set; } = "";
         public bool IsWebpSupported { get; }
+        public ThinServerCaps Caps { get; private set; }
         public ThinClientMiscParams MiscParams { get; private set; } = new ThinClientMiscParams();
 
         public ThinClientConnectOptions(string pcid, IPAddress clientIp, string clientFqdn, bool debugGuacMode, WideTunnelClientOptions clientOptions, bool isWebpSupported, GuaPreference? guaPreference = null, object? appParams = null)
@@ -247,6 +249,11 @@ namespace IPA.Cores.Basic
         public void UpdateMiscParams(ThinClientMiscParams misc)
         {
             this.MiscParams = misc;
+        }
+
+        public void UpdateCaps(ThinServerCaps caps)
+        {
+            this.Caps = caps;
         }
     }
 
@@ -473,6 +480,7 @@ namespace IPA.Cores.Basic
                     WatermarkStr1 = firstConnection.WatermarkStr1,
                     WatermarkStr2 = firstConnection.WatermarkStr2,
                     Misc = firstConnection.Misc,
+                    Caps = firstConnection.Caps,
                 };
 
                 Dbg.Where();
@@ -643,6 +651,7 @@ namespace IPA.Cores.Basic
                     {
                         ListenEndPoint = new IPEndPoint(listener.AssignedRandomPort!.IPAddress, listener.AssignedRandomPort.Port),
                         FirstConnection = firstConnection,
+                        Caps = firstConnection.Caps,
                     };
 
                     Dbg.Where();

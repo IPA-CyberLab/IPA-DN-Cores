@@ -286,7 +286,7 @@ namespace IPA.Cores.Codes
 
             foreach (var item in history.Items.AsEnumerable().Reverse())
             {
-                this.HistoryItems.Add(new SelectListItem(item.Pcid, $"/?id={item.Pcid._MakeVerySafeAsciiOnlyNonSpaceFileName()}"));
+                this.HistoryItems.Add(new SelectListItem(item.Pcid, $"/?pcid={item.Pcid._MakeVerySafeAsciiOnlyNonSpaceString()}"));
             }
         }
     }
@@ -309,6 +309,12 @@ namespace IPA.Cores.Codes
         public ThinClientAuthResponse? Response { get; set; }
     }
 
+    public class ThinWebClientRemoteMisc2
+    {
+        public string OnceMsg { get; set; } = "";
+        public string OnceMsgTitle { get; set; } = "";
+    }
+
     public class ThinWebClientModelRemote : ThinWebClientModelSessionBase
     {
         public string? WebSocketUrl { get; set; }
@@ -317,6 +323,7 @@ namespace IPA.Cores.Codes
         public string WatermarkStr1 { get; set; } = "";
         public string WatermarkStr2 { get; set; } = "";
         public ThinClientMiscParams Misc { get; set; } = new ThinClientMiscParams();
+        public ThinWebClientRemoteMisc2 Misc2 { get; set; } = new ThinWebClientRemoteMisc2();
     }
 
     public static class ThinWebClientErrorUtil
@@ -363,7 +370,7 @@ namespace IPA.Cores.Codes
         protected AspNetCookieOptions GetCookieOption() => new AspNetCookieOptions(domain: this.Client.SettingsFastSnapshot.CookieDomainName);
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public async Task<IActionResult> IndexAsync(ThinWebClientModelIndex form, string? id, string? deleteAll, string? button_wol)
+        public async Task<IActionResult> IndexAsync(ThinWebClientModelIndex form, string? pcid, string? deleteAll, string? button_wol)
         {
             ThinWebClientProfile? historySelectedProfile = null;
 
@@ -406,7 +413,7 @@ namespace IPA.Cores.Codes
                         string sessionId = session.SessionId;
 
                         // セッション ID をもとにした URL にリダイレクト
-                        return Redirect($"/ThinWebClient/Session/{sessionId}/?id={profile.Pcid._MakeVerySafeAsciiOnlyNonSpaceFileName()}");
+                        return Redirect($"/ThinWebClient/Session/{sessionId}/?pcid={profile.Pcid._MakeVerySafeAsciiOnlyNonSpaceString()}");
                     }
                     else
                     {
@@ -445,10 +452,10 @@ namespace IPA.Cores.Codes
                     // トップページにリダイレクトする
                     return Redirect("/");
                 }
-                else if (id._IsFilled())
+                else if (pcid._IsFilled())
                 {
                     // History から履歴を指定された。id を元に履歴からプロファイルを読み出す
-                    historySelectedProfile = history.Items.Where(h => h.Pcid._IsSamei(id)).FirstOrDefault();
+                    historySelectedProfile = history.Items.Where(h => h.Pcid._IsSamei(pcid)).FirstOrDefault();
                 }
 
                 if (historySelectedProfile == null)
@@ -486,7 +493,7 @@ namespace IPA.Cores.Codes
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public async Task<IActionResult> RemoteAsync(string? id)
+        public async Task<IActionResult> RemoteAsync(string? id, string? pcid)
         {
             var cancel = Request._GetRequestCancellationToken();
             id = id._NonNullTrim();
@@ -503,6 +510,32 @@ namespace IPA.Cores.Codes
 
                 if (req != null)
                 {
+                    var misc2 = new ThinWebClientRemoteMisc2();
+
+                    var caps = connectOptions.Caps;
+
+                    // VNC の場合にメッセージを表示する
+                    if (connectOptions.ConnectedSvcType!.Value == ThinSvcType.Vnc)
+                    {
+                        if (caps.Bit(ThinServerCaps.UrdpVeryLimited))
+                        {
+                            misc2.OnceMsg = Page.StrTable["DU_ONCEMSG_1"];
+                        }
+                        else
+                        {
+                            if (caps.Bit(ThinServerCaps.WinRdpEnabled))
+                            {
+                                misc2.OnceMsg = Page.StrTable["DU_ONCEMSG_3"];
+                            }
+                            else
+                            {
+                                misc2.OnceMsg = Page.StrTable["DU_ONCEMSG_2"];
+                            }
+                        }
+                        misc2.OnceMsg = misc2.OnceMsg._FormatC(profile.Pcid);
+                        misc2.OnceMsgTitle = "操作のヒント";
+                    }
+
                     ThinWebClientModelRemote main = new ThinWebClientModelRemote()
                     {
                         ConnectOptions = connectOptions,
@@ -514,6 +547,7 @@ namespace IPA.Cores.Codes
                         WatermarkStr1 = connectOptions.WatermarkStr1,
                         WatermarkStr2 = connectOptions.WatermarkStr2,
                         Misc = connectOptions.MiscParams,
+                        Misc2 = misc2,
                     };
 
                     return View(main);
@@ -521,11 +555,11 @@ namespace IPA.Cores.Codes
             }
 
             await TaskCompleted;
-            return Redirect("/");
+            return Redirect("/" + (pcid._IsFilled() ? "?pcid=" + pcid._MakeVerySafeAsciiOnlyNonSpaceString() : ""));
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public async Task<IActionResult> SessionAsync(string? id, string? requestid, string? formtype, string? password, string? username, string ?otp)
+        public async Task<IActionResult> SessionAsync(string? id, string? requestid, string? formtype, string? password, string? username, string ?otp, string? pcid)
         {
             var cancel = Request._GetRequestCancellationToken();
             id = id._NonNullTrim();
@@ -536,7 +570,7 @@ namespace IPA.Cores.Codes
             if (session == null)
             {
                 // セッション ID が見つからない。トップページに戻る
-                return Redirect("/");
+                return Redirect("/" + (pcid._IsFilled() ? "?pcid=" + pcid._MakeVerySafeAsciiOnlyNonSpaceString() : ""));
             }
             else
             {
@@ -627,6 +661,7 @@ namespace IPA.Cores.Codes
                                 connectOptions.UpdateConnectedSvcType(ready.FirstConnection!.SvcType);
                                 connectOptions.UpdateWatermarkStr(ready.FirstConnection!.WatermarkStr1, ready.FirstConnection!.WatermarkStr2);
                                 connectOptions.UpdateMiscParams(ready.FirstConnection.Misc);
+                                connectOptions.UpdateCaps(ready.FirstConnection.Caps);
                             }
                             else
                             {
@@ -636,6 +671,7 @@ namespace IPA.Cores.Codes
                                 connectOptions.UpdateConnectPacketData(ready.ConnectPacketData);
                                 connectOptions.UpdateWatermarkStr(ready.WatermarkStr1, ready.WatermarkStr2);
                                 connectOptions.UpdateMiscParams(ready.Misc);
+                                connectOptions.UpdateCaps(ready.Caps);
                             }
 
                             if (ready.WebSocketFullUrl._IsFilled())
@@ -648,7 +684,7 @@ namespace IPA.Cores.Codes
                             }
                             req.SetResponseDataEmpty();
 
-                            return Redirect($"/ThinWebClient/Remote/{session.SessionId}/");
+                            return Redirect($"/ThinWebClient/Remote/{session.SessionId}/" + (pcid._IsFilled() ? "?pcid=" + pcid._MakeVerySafeAsciiOnlyNonSpaceString() : ""));
 
                         case ThinClientInspectRequest inspect:
                             ThinClientInspectResponse insRes = new ThinClientInspectResponse
@@ -672,7 +708,7 @@ namespace IPA.Cores.Codes
                 }
             }
 
-            return Redirect("/");
+            return Redirect("/" + (pcid._IsFilled() ? "?pcid=" + pcid._MakeVerySafeAsciiOnlyNonSpaceString() : ""));
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
