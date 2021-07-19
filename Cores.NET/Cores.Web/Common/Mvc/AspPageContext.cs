@@ -53,6 +53,11 @@ using IPA.Cores.Helper.Web;
 using static IPA.Cores.Globals.Web;
 
 using Microsoft.AspNetCore.Mvc.Razor;
+using Microsoft.AspNetCore.Razor.TagHelpers;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace IPA.Cores.Web
 {
@@ -136,6 +141,63 @@ namespace IPA.Cores.Web
             w.WriteLine();
 
             destFileName.WriteStringToFile(w.ToString()._NormalizeCrlf(CrlfStyle.Lf), FileFlags.AutoCreateDirectory | FileFlags.WriteOnlyIfChanged, writeBom: true);
+        }
+    }
+}
+
+namespace IPA.Cores.Web.TagHelpers
+{
+    public static class GlobalSettings
+    {
+        public static Type? PageContextType { get; private set; }
+
+        public static void SetPageContextType<T>() where T : AspPageContext
+        {
+            PageContextType = typeof(T);
+        }
+    }
+
+    // タグヘルパーの基本クラス。これを継承してタグヘルパーを作成すること。
+    public abstract class AspTagHelperBase : TagHelper
+    {
+        protected HttpRequest Request => ViewContext.HttpContext.Request;
+        protected HttpResponse Response => ViewContext.HttpContext.Response;
+
+        [ViewContext]
+        public ViewContext ViewContext { get; set; } = null!;
+
+        readonly Singleton<AspPageContext> PageSingleton;
+        protected AspPageContext Page => this.PageSingleton;
+
+        public AspTagHelperBase()
+        {
+            this.PageSingleton = new Singleton<AspPageContext>(() =>
+            {
+                if (GlobalSettings.PageContextType == null)
+                {
+                    throw new CoresLibException("IPA.Cores.Web.TagHelpers.GlobalSettings.PageContextType is not set. Please call IPA.Cores.Web.TagHelpers.GlobalSettings.SetPageContextType() in your ConfigureServices().");
+                }
+
+                AspPageContext? context = (AspPageContext?)this.ViewContext.HttpContext.RequestServices.GetService(GlobalSettings.PageContextType);
+                if (context == null)
+                {
+                    throw new CoresLibException("AspPageContext instance is not found.");
+                }
+
+                return context;
+            });
+        }
+    }
+
+    public class TestTagHelper : AspTagHelperBase
+    {
+        public override void Process(TagHelperContext context, TagHelperOutput output)
+        {
+            //ViewContext.HttpContext.Request.Headers._DebugAsJson();
+            output.TagName = "strong";
+            output.Content.SetContent(Page.StrTable["THINWEBC_RATELIMIT_EXCEEDED"]);
+
+            this.Page.StrTable["THINWEBC_RATELIMIT_EXCEEDED"]._Debug();
         }
     }
 }
