@@ -192,6 +192,34 @@ THINWEB_OTP4						しばらく経過してもメールが届かない場合は�
 
 
 
+THINWEB_JS_ERASE					接続履歴をすべて消去しますか?
+THINWEB_JS_ERASE2					接続履歴の消去
+THINWEB_JS_YES						はい
+THINWEB_JS_NO						いいえ
+THINWEB_JS_WOL_ERROR				Wake on LAN エラー
+THINWEB_JS_WOL_OK					Wake on LAN を実行しました
+THINWEB_JS_REMOTE_FINISH			リモート セッションが終了しました。再接続を試行するには、トップページから再接続を行なってください。
+THINWEB_JS_REMOTE_FINISH_TITLE		お疲れ様でした
+THINWEB_JS_ERROR1					エラーが発生しました
+THINWEB_JS_ERROR2					
+THINWEB_JS_IME1						<b>ローカル コンピュータ側の IME 日本語入力が ON になっています。</b><br>ローカル コンピュータ側の IME を OFF にしてください。<BR><BR>リモート コンピュータ側で IME を ON にするキー操作については、<a href=\"/ThinWebClient/help/\" target=\"_blank\"><b>「キーボード操作の解説」</b></a>を参照してください。
+THINWEB_JS_IME2						IME 日本語入力について
+THINWEB_JS_OK						OK
+THINWEB_JS_DETAIL					詳細
+THINWEB_JS_INTERNAL_ERROR			内部エラー文字列: 
+THINWEB_JS_ERR_DISCON				HTML5 のリモート画面転送の通信が切断されました。再接続してみてください。
+THINWEB_JS_ERR_TIMEO				通信回線の速度が著しく低下したか、またはパケットロスが発生した等の理由で、HTML5 のリモート画面転送の通信がタイムアウトしました。<BR><BR>モバイル回線を利用している場合で、回線速度に原因があると考えられる場合は、、WiFi やブロードバンド回線、LAN などの通常程度の回線を利用して再接続してみてください。<BR><BR>また、接続先のサーバーが「ユーザーモード」で動作している場合は、「システムモード」での動作を検討してください。
+THINWEB_JS_TUNNEL_ERROR_CODE		トンネル エラー コード
+THINWEB_JS_ERR_MSG					メッセージ
+THINWEB_JS_ORIGINAL_ERROR			内部エラー文字列: 
+THINWEB_JS_RDP_ERR					リモートデスクトップ接続が途中で終了しました。このエラーは、頻繁に画面サイズを変更した場合や、画面描画の処理が多い場合などに発生します。お手数ですが、再度接続してください。<BR><BR>この現象が頻繁に発生する場合は、接続設定 (トップページ) の「ブラウザのウインドウサイズを変更したとき、リモート画面の解像度をブラウザのウインドウサイズに応じてダイナミックに変更」機能を OFF にしてみてください。
+THINWEB_JS_519						接続先のサーバー端末の Windows のリモートデスクトップ機能は、「ネットワーク レベル認証を使用したユーザー認証を必要とする」設定またはポリシーが有効になっています。<BR><BR>接続設定 (トップページ) の「Windows ユーザー名 (RDP 自動ログオン)」、「Windows パスワード (RDP 自動ログオン)」でログインに必要なパスワードを指定してください。
+THINWEB_JS_769						接続設定 (トップページ) の「Windows ユーザー名 (RDP 自動ログオン)」または「Windows パスワード (RDP 自動ログオン)」が正しくありません。<BR><BR>リモート接続先の Windows 端末のユーザー名とパスワードを指定してください。
+THINWEB_JS_RDP_ERROR_CODE			リモート デスクトップ エラー コード
+THINWEB_JS_MSG_HIDE					このメッセージは、接続設定で非表示にすることができます。
+THINWEB_JS_FULL_SCREEN_HINT			フルスクリーン画面に戻るには、Web ブラウザのアドレスバー部分をクリックしてから、以下のキーを押します。<BR><BR>- Windows の場合: 「F11」 キー<BR>- Mac の場合: 「⌘Command + Control + F」キー<BR>- Chromebook の場合:&nbsp;&nbsp;<i class='fas fa-expand'></i> キー<BR>&nbsp;&nbsp;&nbsp;(または、「<i class='fas fa-search'></i> + <i class='fas fa-expand'></i>」キー)<BR><BR>または、Web ブラウザのメニューから「フルスクリーン」や「全画面表示」を選択します。<BR><BR>詳しくは、<a href='/ThinWebClient/help/' target='_blank'>リモート画面操作のヘルプ</a> をご参照ください。
+THINWEB_JS_USER_TIMEOUT				キーボードまたはマウスが __number__ 秒間未操作であったため、アイドルタイムアウトが発生しました。\r\n\r\nアイドルタイムアウトまでの間隔は、接続先サーバーのネットワーク管理者が設置しているポリシーサーバーの「IDLE_TIMEOUT」の値で規定されています。詳しくは、ネットワーク管理者にお問い合わせください。
+THINWEB_JS_TIMEOUT					タイムアウト
 
 
 

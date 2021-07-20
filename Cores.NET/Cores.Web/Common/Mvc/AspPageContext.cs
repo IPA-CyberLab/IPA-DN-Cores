@@ -61,6 +61,16 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace IPA.Cores.Web
 {
+    public class AspPageJavaScriptInitContext
+    {
+        public string LanguageKey { get; }
+
+        public AspPageJavaScriptInitContext(string languageKey)
+        {
+            this.LanguageKey = languageKey;
+        }
+    }
+
     public class AspPageContext
     {
         // タイトルのベース文字列 (共通的な Web サイト名など)
@@ -141,6 +151,12 @@ namespace IPA.Cores.Web
             w.WriteLine();
 
             destFileName.WriteStringToFile(w.ToString()._NormalizeCrlf(CrlfStyle.Lf), FileFlags.AutoCreateDirectory | FileFlags.WriteOnlyIfChanged, writeBom: true);
+        }
+
+        // JavaScript の初期化に使うコンテキストの取得
+        public virtual AspPageJavaScriptInitContext GetJavaScriptInitContext()
+        {
+            return new AspPageJavaScriptInitContext(this.Language.Key);
         }
     }
 }

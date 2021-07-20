@@ -5519,7 +5519,7 @@ namespace IPA.Cores.Basic
 
                 if (currentSessionsForThisKey >= options.MaxSessionsPerQuotaKey)
                 {
-                    throw new CoresException($"Session quota exceeded for the quota key '{quotaKey}'. Please wait for seconds and try again.");
+                    throw new CoresException($"Session quota exceeded for the quota key '{quotaKey}'. Too many attemps from the same client. Please wait for seconds and try again.");
                 }
             }
 

@@ -390,6 +390,9 @@ namespace IPA.Cores.Codes
                     history.Add(profile);
                     history.SaveToCookie(this, GetCookieOption(), this.Client.SettingsFastSnapshot.CookieEncryptPassword);
 
+                    // thin_last_pcid の保存
+                    this._EasySaveCookie("thin_last_pcid", profile.Pcid, GetCookieOption());
+
                     var clientIp = Request.HttpContext.Connection.RemoteIpAddress._UnmapIPv4()!;
                     var clientPort = Request.HttpContext.Connection.RemotePort;
                     string clientFqdn = await Client.DnsResolver.GetHostNameSingleOrIpAsync(clientIp);
@@ -442,12 +445,19 @@ namespace IPA.Cores.Codes
             }
             else
             {
+                if (pcid._IsEmpty())
+                {
+                    // Query String の pcid が空の場合、Cookie から読み出す
+                    pcid = this._EasyLoadCookie<string>("thin_last_pcid")._NonNullTrim();
+                }
+
                 if (deleteAll._ToBool())
                 {
                     // History をすべて消去するよう指示された
                     // Cookie の History をすべて消去する
                     history.Clear();
                     history.SaveToCookie(this, GetCookieOption(), this.Client.SettingsFastSnapshot.CookieEncryptPassword);
+                    this._EasySaveCookie("thin_last_pcid", "", GetCookieOption());
 
                     // トップページにリダイレクトする
                     return Redirect("/");
