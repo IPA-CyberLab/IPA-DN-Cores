@@ -95,7 +95,7 @@ namespace IPA.Cores.Web
         // 現在の言語と文字列テーブル
         public StrTableLanguageList LanguageList { get; private set; } = StrTableLanguageList.DefaultEmptyStrTableLanguageList;
         public StrTableLanguage Language { get; private set; } = StrTableLanguageList.DefaultEmptyStrTableLanguageList.FindDefaultLanguage();
-        public StrTable StrTable => this.Language.Table;
+        public StrTable Stb => this.Language.Table;
 
         public void SetLanguageList(StrTableLanguageList list)
         {
@@ -189,17 +189,41 @@ namespace IPA.Cores.Web.TagHelpers
         }
     }
 
-    public class TestTagHelper : AspTagHelperBase
+#pragma warning disable CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
+    // 指定された文字列に対応する HTML タグを HTML エンコードせずにそのまま出力するタグヘルパー
+    public class StbTagHelper : AspTagHelperBase
     {
-        public override void Process(TagHelperContext context, TagHelperOutput output)
+        public override async Task ProcessAsync(TagHelperContext context, TagHelperOutput output)
         {
-            //ViewContext.HttpContext.Request.Headers._DebugAsJson();
-            output.TagName = "strong";
-            output.Content.SetContent(Page.StrTable["THINWEBC_RATELIMIT_EXCEEDED"]);
+            var content = await output.GetChildContentAsync();
+            string innerText = content.GetContent()._NonNullTrim();
 
-            this.Page.StrTable["THINWEBC_RATELIMIT_EXCEEDED"]._Debug();
+            string str = Page.Stb[innerText];
+
+            content.SetHtmlContent(str);
+
+            output.Content = content;
+            output.TagName = "";
         }
     }
+
+    // 指定された文字列に対応する HTML タグを HTML エンコードして出力するタグヘルパー
+    public class StbeTagHelper : AspTagHelperBase
+    {
+        public override async Task ProcessAsync(TagHelperContext context, TagHelperOutput output)
+        {
+            var content = await output.GetChildContentAsync();
+            string innerText = content.GetContent()._NonNullTrim();
+
+            string str = Page.Stb[innerText];
+
+            content.SetContent(str);
+
+            output.Content = content;
+            output.TagName = "";
+        }
+    }
+#pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
 }
 
 

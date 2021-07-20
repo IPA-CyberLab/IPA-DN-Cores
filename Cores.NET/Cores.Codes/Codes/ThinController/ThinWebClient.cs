@@ -329,7 +329,7 @@ namespace IPA.Cores.Codes
     public static class ThinWebClientErrorUtil
     {
         public static string GetFriendlyErrorMessage(Exception? ex, PageContext page)
-            => GetFriendlyErrorMessage(ex, page.StrTable);
+            => GetFriendlyErrorMessage(ex, page.Stb);
 
         public static string GetFriendlyErrorMessage(Exception? ex, StrTable table)
         {
@@ -352,7 +352,7 @@ namespace IPA.Cores.Codes
         public PageContext Page { get; }
 
         public StrTableLanguage Language => Page.Language;
-        public StrTable StrTable => Page.StrTable;
+        public StrTable StrTable => Page.Stb;
 
         public ThinWebClientController(ThinWebClient client, PageContext page)
         {
@@ -397,7 +397,7 @@ namespace IPA.Cores.Codes
                     // Rate limit
                     if (this.Client.RateLimit.TryInput(clientIp.ToString(), out _) == false)
                     {
-                        throw new CoresException(this.Page.StrTable["THINWEBC_RATELIMIT_EXCEEDED"]);
+                        throw new CoresException(this.Page.Stb["THINWEBC_RATELIMIT_EXCEEDED"]);
                     }
 
                     var tc = this.Client.CreateThinClient();
@@ -426,7 +426,7 @@ namespace IPA.Cores.Codes
                                 profile.Pcid, this._GetRequestCancellationToken());
 
                             // WoL OK メッセージ
-                            form.WolOkMessage = this.Page.StrTable["DU_WOL_MSG"]._FormatC(profile.Pcid, profile.Preference.WoLTriggerPcid);
+                            form.WolOkMessage = this.Page.Stb["DU_WOL_MSG"]._FormatC(profile.Pcid, profile.Preference.WoLTriggerPcid);
                         }
                         catch (Exception ex)
                         {
@@ -519,17 +519,17 @@ namespace IPA.Cores.Codes
                     {
                         if (caps.Bit(ThinServerCaps.UrdpVeryLimited))
                         {
-                            misc2.OnceMsg = Page.StrTable["DU_ONCEMSG_1"];
+                            misc2.OnceMsg = Page.Stb["DU_ONCEMSG_1"];
                         }
                         else
                         {
                             if (caps.Bit(ThinServerCaps.WinRdpEnabled))
                             {
-                                misc2.OnceMsg = Page.StrTable["DU_ONCEMSG_3"];
+                                misc2.OnceMsg = Page.Stb["DU_ONCEMSG_3"];
                             }
                             else
                             {
-                                misc2.OnceMsg = Page.StrTable["DU_ONCEMSG_2"];
+                                misc2.OnceMsg = Page.Stb["DU_ONCEMSG_2"];
                             }
                         }
                         misc2.OnceMsg = misc2.OnceMsg._FormatC(profile.Pcid);

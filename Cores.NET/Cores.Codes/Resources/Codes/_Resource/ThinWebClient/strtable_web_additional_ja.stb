@@ -9,3 +9,8 @@ ERR_328					$APPSHORT_SERVER$ 側の設定で 「クライアント MAC アド�
 THINWEBC_RATELIMIT_EXCEEDED		同じ接続元 IP アドレスから一定時間内に試行された接続要求の数が多すぎます。しばらく待ってから再試行してください。
 
 
+WEBTEST1		Hello こんにちは<BR>さようなら
+
+THINWEBC_INDEX_PCID_BACKGROUND_TEXT		接続先のコンピュータ ID を指定してください
+
+
