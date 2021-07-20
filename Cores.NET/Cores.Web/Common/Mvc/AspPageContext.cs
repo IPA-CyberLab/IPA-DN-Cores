@@ -64,7 +64,7 @@ namespace IPA.Cores.Web
     public class AspPageContext
     {
         // タイトルのベース文字列 (共通的な Web サイト名など)
-        public string SiteName { get; set; } = "WebSite";
+        public virtual string SiteName { get; set; } = "WebSite";
 
         // タイトル文字列
         string? TitleInternal;
@@ -200,6 +200,8 @@ namespace IPA.Cores.Web.TagHelpers
 
             string str = Page.Stb[innerText];
 
+            if (str._IsNullOrZeroLen()) str = "@" + innerText._EncodeHtml() + "@";
+
             content.SetHtmlContent(str);
 
             output.Content = content;
@@ -216,6 +218,8 @@ namespace IPA.Cores.Web.TagHelpers
             string innerText = content.GetContent()._NonNullTrim();
 
             string str = Page.Stb[innerText];
+
+            if (str._IsNullOrZeroLen()) str = "@" + innerText._EncodeHtml() + "@";
 
             content.SetContent(str);
 

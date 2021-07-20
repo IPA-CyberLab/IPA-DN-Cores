@@ -5,6 +5,6 @@
 ERR_328 The "Client MAC Address Authentication" function is enabled in the $APPSHORT_SERVER$ setting. HTML5 clients cannot obtain MAC addresses due to web browser security restrictions. Instead, specify the virtual MAC address in the HTML5 top page connection screen. The virtual MAC address must be registered in the list of allowed MAC addresses on the server side.
 
 
-THINWEBC_RATELIMIT_EXCEEDED		Too many connection requests have been attempted within a certain period of time from a single client IP address. Please wait a while and try again.
+THINWEB_RATELIMIT_EXCEEDED		Too many connection requests have been attempted within a certain period of time from a single client IP address. Please wait a while and try again.
 
 

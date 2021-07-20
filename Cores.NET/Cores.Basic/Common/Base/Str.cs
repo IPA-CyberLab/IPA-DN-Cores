@@ -8640,7 +8640,12 @@ namespace IPA.Cores.Basic
                 if (c == '\\')
                 {
                     i++;
-                    char c2 = str[i];
+                    char c2 = ' ';
+                    try
+                    {
+                        c2 = str[i];
+                    }
+                    catch { }
                     switch (c2)
                     {
                         case '\\':

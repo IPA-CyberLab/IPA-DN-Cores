@@ -397,7 +397,7 @@ namespace IPA.Cores.Codes
                     // Rate limit
                     if (this.Client.RateLimit.TryInput(clientIp.ToString(), out _) == false)
                     {
-                        throw new CoresException(this.Page.Stb["THINWEBC_RATELIMIT_EXCEEDED"]);
+                        throw new CoresException(this.Page.Stb["THINWEB_RATELIMIT_EXCEEDED"]);
                     }
 
                     var tc = this.Client.CreateThinClient();
