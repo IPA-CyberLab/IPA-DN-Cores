@@ -57,7 +57,7 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<bool> DefaultUseAcme = true;
             public static readonly Copenhagen<bool> AcmeEnableFqdnIpCheck = true;
             public static readonly Copenhagen<bool> DefaultNonAcmeEnableAutoGenerateSubjectNameCert = true;
-            public static readonly Copenhagen<bool> DefaultUseCertServer = true;
+            public static readonly Copenhagen<bool> DefaultUseCertServer = false;
 
             public static readonly Copenhagen<int> DefaultReloadInterval = 60 * 1000;
 

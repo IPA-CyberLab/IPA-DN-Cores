@@ -108,6 +108,8 @@ namespace IPA.Cores.Codes
 
         public int MaxConcurrentSessionsPerClientIp;
 
+        public bool IsConfigured() => this.ThinControllerUrlList.Where(x => !x._InStr("specify_address_here.example.org", true)).Any();
+
         public ThinWebClientSettings()
         {
         }
@@ -403,7 +405,7 @@ namespace IPA.Cores.Codes
                         throw new CoresException(this.Page.Stb["THINWEB_RATELIMIT_EXCEEDED"]);
                     }
 
-                    var tc = this.Client.CreateThinClient();
+                    var tc = this.Client.CreateThinClient(this.StrTable);
 
                     if (button_wol._ToBool() == false)
                     {
@@ -918,7 +920,7 @@ namespace IPA.Cores.Codes
             this.LanguageList = list;
         }
 
-        public ThinClient CreateThinClient()
+        public ThinClient CreateThinClient(StrTable? stb)
         {
             AddressFamily listenFamily = AddressFamily.InterNetwork;
             IPAddress listenAddress = IPAddress.Loopback;
@@ -926,6 +928,11 @@ namespace IPA.Cores.Codes
             if (this.SettingsFastSnapshot.Debug_GuacdMode_ProxyPortListenAllowAny)
             {
                 listenAddress = IPAddress.Any;
+            }
+
+            if (this.SettingsFastSnapshot.IsConfigured() == false)
+            {
+                throw new CoresException(stb != null ? stb["THINWEB_NOT_CONFIGURED"] : "ThinWebClient.json is not configured.");
             }
 
             ThinClient tc = new ThinClient(new ThinClientOptions(new WideTunnelOptions("DESK", nameof(ThinWebClient), this.SettingsFastSnapshot.ThinControllerUrlList, this.Options.MasterCertificates,
