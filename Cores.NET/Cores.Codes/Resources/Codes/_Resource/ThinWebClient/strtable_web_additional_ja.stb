@@ -85,6 +85,7 @@ THINWEB_CAD_CTRLSHIFTBACKSPACE		「左 Ctrl + 左 Shift + Backspace」 キーを
 THINWEB_IME_LEFTCTRLSPACE			「左 Ctrl + Space」キーを押すことで、リモートの IME (日本語入力) を ON/OFF いたします。
 THINWEB_IME_LEFTSHIFTSPACE			「左 Shift + Space」キーを押すことで、リモートの IME (日本語入力) を ON/OFF いたします。
 THINWEB_IME_OPTIONSPACE				「Option + Space」キー (Mac のみ) を押すことで、リモートの IME (日本語入力) を ON/OFF いたします。
+THINWEB_IME_ZENHAN					「全角/半角」キーを押すことで、リモートの IME (日本語入力) を ON/OFF いたします。(一部のブラウザのみ対応)
 
 THINWEB_WINLOGON_USERNAME			Windows ユーザー名 (RDP 自動ログオン) (オプション):
 THINWEB_WINLOGON_USERNAME_BACK		NLA 認証を使用する場合は Windows のユーザー名を指定します。
@@ -127,6 +128,7 @@ THINWEB_HELP12						「左 Ctrl + 左 Alt + End」 (Mac: 「Ctrl + Option + End�
 THINWEB_HELP13						「左 Ctrl + 左 Alt + Home」 (Mac: 「Ctrl + Option + Home」) キーを押すことで、リモートの「Ctrl + Alt + Del」キーを押下いたします。
 THINWEB_HELP14						「左 Ctrl + 左 Alt + Backspace」 (Mac: 「Ctrl + Option + Backspace」) キーを押すことで、リモートの「Ctrl + Alt + Del」キーを押下いたします。
 THINWEB_HELP15						「左 Ctrl + 左 Shift + Backspace」 キーを押すことで、リモートの「Ctrl + Alt + Del」キーを押下いたします。
+THINWEB_HELP15_2					「全角/半角」キーを押すことで、リモートの IME (日本語入力) を ON/OFF いたします。(一部のブラウザのみ対応)
 THINWEB_HELP16						4. IME (日本語入力) を ON/OFF する方法
 THINWEB_HELP17						「左 Ctrl + Space」キーを押すことで、リモートの IME (日本語入力) を ON/OFF いたします。
 THINWEB_HELP18						「左 Shift + Space」キーを押すことで、リモートの IME (日本語入力) を ON/OFF いたします。

@@ -805,8 +805,8 @@ namespace IPA.Cores.Codes
                                     Client.SettingsFastSnapshot.Debug_GuacdMode_GuacdHostname,
                                     Client.SettingsFastSnapshot.Debug_GuacdPort,
                                     ready.FirstConnection!.SvcType.ToString().StrToGuaProtocol(),
-                                    //"", ready.ListenEndPoint!.Port,
-                                    "pc37.sec.softether.co.jp", 3333, // testtest
+                                    "", ready.ListenEndPoint!.Port,
+                                    //"pc37.sec.softether.co.jp", 3333, // testtest
                                     pref,
                                     connectOptions.IsWebpSupported));
 

@@ -396,6 +396,7 @@ namespace IPA.Cores.Basic
         public bool Ime_LeftCtrlSpace { get; set; } = true;
         public bool Ime_LeftShiftSpace { get; set; } = true;
         public bool Ime_OptionSpace { get; set; } = true;
+        public bool Ime_ZenHan { get; set; } = true;
 
         [JsonIgnore]
         public GuaResizeMethods ResizeMethod { get; set; } = GuaResizeMethods.DisplayUpdate;
