@@ -203,7 +203,7 @@ THINWEB_JS_WOL_OK					Wake on LAN を実行しました
 THINWEB_JS_REMOTE_FINISH			リモート セッションが終了しました。再接続を試行するには、トップページから再接続を行なってください。
 THINWEB_JS_REMOTE_FINISH_TITLE		お疲れ様でした
 THINWEB_JS_ERROR1					エラーが発生しました
-THINWEB_JS_ERROR2					
+THINWEB_JS_ERROR2					不明なエラーが発生しました。
 THINWEB_JS_IME1						<b>ローカル コンピュータ側の IME 日本語入力が ON になっています。</b><br>ローカル コンピュータ側の IME を OFF にしてください。<BR><BR>リモート コンピュータ側で IME を ON にするキー操作については、<a href=\"/ThinWebClient/help/\" target=\"_blank\"><b>「キーボード操作の解説」</b></a>を参照してください。
 THINWEB_JS_IME2						IME 日本語入力について
 THINWEB_JS_OK						OK
@@ -222,6 +222,9 @@ THINWEB_JS_MSG_HIDE					このメッセージは、接続設定で非表示に�
 THINWEB_JS_FULL_SCREEN_HINT			フルスクリーン画面に戻るには、Web ブラウザのアドレスバー部分をクリックしてから、以下のキーを押します。<BR><BR>- Windows の場合: 「F11」 キー<BR>- Mac の場合: 「⌘Command + Control + F」キー<BR>- Chromebook の場合:&nbsp;&nbsp;<i class='fas fa-expand'></i> キー<BR>&nbsp;&nbsp;&nbsp;(または、「<i class='fas fa-search'></i> + <i class='fas fa-expand'></i>」キー)<BR><BR>または、Web ブラウザのメニューから「フルスクリーン」や「全画面表示」を選択します。<BR><BR>詳しくは、<a href='/ThinWebClient/help/' target='_blank'>リモート画面操作のヘルプ</a> をご参照ください。
 THINWEB_JS_USER_TIMEOUT				キーボードまたはマウスが __number__ 秒間未操作であったため、アイドルタイムアウトが発生しました。\r\n\r\nアイドルタイムアウトまでの間隔は、接続先サーバーのネットワーク管理者が設置しているポリシーサーバーの「IDLE_TIMEOUT」の値で規定されています。詳しくは、ネットワーク管理者にお問い合わせください。
 THINWEB_JS_TIMEOUT					タイムアウト
+
+
+THINWEB_NOT_CONFIGURED              ThinWebClient (Web サーバーシステム) の 「ThinWebClient.json」ファイルの初期設定が完了していません。「ThinControllerUrlList」の値を適切に設定し、稼働中のシン・テレワークシステム コントローラ (ハイパースケールモードまたはスタンドアロンモード) の URL を指定する必要があります。
 
 
 
