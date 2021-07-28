@@ -41,6 +41,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\Console.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\WpcPacket.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Base\FromC.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Base\DeepCloner.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Container\FileContainer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Container\ZipFileFormat.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Container\ZipWriter.cs" />

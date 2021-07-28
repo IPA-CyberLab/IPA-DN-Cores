@@ -62,6 +62,15 @@ using Microsoft.EntityFrameworkCore.Internal;
 
 namespace IPA.Cores.Basic
 {
+    public static partial class CoresConfig
+    {
+        public static partial class DeepCloneSettings
+        {
+            public static readonly Copenhagen<DeepCloneMethod> DefaultDeepCloneMethod = DeepCloneMethod.BinaryFormatter;
+        }
+    }
+
+
     namespace Legacy
     {
         // 言語一覧
@@ -447,6 +456,14 @@ namespace IPA.Cores.Basic
         AnyOk,
         AnyOkContinueAll,
         AnyOkContinueAllRetLast,
+    }
+
+    [Flags]
+    public enum DeepCloneMethod
+    {
+        Default = 0,
+        BinaryFormatter,
+        DeepCloner,
     }
 
     // ユーティリティクラス
@@ -1781,10 +1798,22 @@ namespace IPA.Cores.Basic
 
         // オブジェクトをクローンする
         [return: NotNullIfNotNull("o")]
-        public static object? CloneObject_UsingBinary(object? o)
+        public static object? CloneObject_UsingBinary(object? o, DeepCloneMethod method = DeepCloneMethod.Default)
         {
             if (o == null) return null;
-            return BinaryToObject(ObjectToBinary(o));
+            if (method == DeepCloneMethod.Default)
+            {
+                method = CoresConfig.DeepCloneSettings.DefaultDeepCloneMethod;
+            }
+
+            if (method == DeepCloneMethod.DeepCloner)
+            {
+                return IPA.Cores.Basic.Internal.DeepCloner.Helpers.DeepClonerGenerator.CloneObject2(o);
+            }
+            else
+            {
+                return BinaryToObject(ObjectToBinary(o));
+            }
         }
 
         // オブジェクトをバイナリに変換する
