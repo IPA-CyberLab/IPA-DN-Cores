@@ -142,7 +142,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class WebSendRecvResponse : IDisposable
+    public class WebSendRecvResponse : IDisposable, IAsyncDisposable
     {
         public HttpContent DownloadContent { get; }
         public HttpResponseMessage HttpResponseMessage { get; }
@@ -152,27 +152,44 @@ namespace IPA.Cores.Basic
 
         public WebSendRecvResponse(HttpResponseMessage response, Stream downloadStream)
         {
-            this.HttpResponseMessage = response;
-            this.DownloadContent = response.Content;
+            try
+            {
+                this.HttpResponseMessage = response;
+                this.DownloadContent = response.Content;
 
-            this.DownloadContentType = (this.DownloadContent.Headers.ContentType?.MediaType)._NonNullTrim();
+                this.DownloadContentType = (this.DownloadContent.Headers.ContentType?.MediaType)._NonNullTrim();
 
-            if (this.DownloadContent.TryComputeLength(out long length))
-                this.DownloadContentLength = length;
-            else
-                this.DownloadContentLength = response.Content.Headers.ContentLength;
+                if (this.DownloadContent.TryComputeLength(out long length))
+                    this.DownloadContentLength = length;
+                else
+                    this.DownloadContentLength = response.Content.Headers.ContentLength;
 
-            DownloadStream = downloadStream;
+                DownloadStream = downloadStream;
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
         }
 
         public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
         Once DisposeFlag;
+        public virtual async ValueTask DisposeAsync()
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            DisposeInternalAsync()._GetResult();
+        }
+        async Task DisposeInternalAsync()
+        {
             this.HttpResponseMessage._DisposeSafe();
             this.DownloadContent._DisposeSafe();
-            this.DownloadStream._DisposeSafe();
+            await this.DownloadStream._DisposeSafeAsync();
         }
     }
 

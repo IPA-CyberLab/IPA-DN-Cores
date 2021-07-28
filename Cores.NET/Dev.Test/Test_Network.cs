@@ -555,12 +555,12 @@ namespace IPA.TestDev
 
             for (int j = 0; j < 1; j++)
             {
-                using (WebApi api = new WebApi())
+                await using (WebApi api = new WebApi())
                 {
                     //for (int i = 0; ; i++)
                     {
                         Dbg.Where();
-                        var res = await api.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, url));
+                        await using var res = await api.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, url));
                         using (MemoryHelper.FastAllocMemoryWithUsing<byte>(4 * 1024 * 1024, out Memory<byte> tmp))
                         {
                             long total = 0;
