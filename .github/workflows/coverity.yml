@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ${{ matrix.operating-system }}
+    if: ${{ github.repository_owner == 'IPA-CyberLab' }}
     
     env:
       COVERITY_SCAN_PROJECT_NAME: "IPA-DN-Cores-210728"
