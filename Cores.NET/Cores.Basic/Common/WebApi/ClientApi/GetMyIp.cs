@@ -74,7 +74,7 @@ namespace IPA.Cores.Basic
             else
                 url = Consts.Urls.GetMyIpUrl_IPv6;
 
-            Exception? error = null;
+            Exception error = new CoresLibException("Unknown Error");
 
             IPAddress? ret = null;
 
