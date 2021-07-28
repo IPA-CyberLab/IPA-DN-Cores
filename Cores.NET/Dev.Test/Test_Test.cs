@@ -2158,8 +2158,18 @@ namespace IPA.TestDev
             }
         }
 
+        public static void Test_210728()
+        {
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210728();
+                return;
+            }
+
             if (true)
             {
                 Test_210712();
