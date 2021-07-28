@@ -35,7 +35,7 @@ jobs:
         env:
           COVERITY_SCAN_TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
         run: |
-          wget -nv https://scan.coverity.com/download/linux64 --post-data "token=${COVERITY_SCAN_TOKEN}&project=${COVERITY_SCAN_PROJECT_NAME}" -O coverity_tool.tgz
+          wget -nv https://scan.coverity.com/download/linux64 --post-data "token=DuzNYBXHZhVblr8BUA_5Ew&project=${COVERITY_SCAN_PROJECT_NAME}" -O coverity_tool.tgz
           tar xzf coverity_tool.tgz
           rm coverity_tool.tgz
           mv cov-analysis* coverity-tools
@@ -51,7 +51,7 @@ jobs:
           cd build
           tar czf myproject.tgz cov-int
           curl \
-            --form token=${COVERITY_SCAN_TOKEN} \
+            --form token=DuzNYBXHZhVblr8BUA_5Ew \
             --form email=${COVERITY_SCAN_NOTIFICATION_EMAIL} \
             --form file=@myproject.tgz \
             --form "version=`git rev-parse HEAD`" \
