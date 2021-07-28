@@ -29,8 +29,6 @@ jobs:
         uses: actions/setup-dotnet@v1.7.2
         with:
           dotnet-version: ${{ matrix.dotnet-version }}
-      - name: Build Debug
-        run: dotnet build -c Debug Cores.NET/Cores.NET-VS2019.sln
       - name: Run Coverity Scan
         env:
           COVERITY_SCAN_TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
@@ -42,13 +40,12 @@ jobs:
       - name: Build with Coverity Scan
         run: |
           export PATH=`pwd`/coverity-tools/bin:$PATH
-          cov-build --dir cov-int dotnet build -c Debug Cores.NET/Cores.NET-VS2019.sln
+          cov-build --dir cov-int ${COVERITY_SCAN_BUILD_COMMAND}
           cat cov-int/build-log.txt
       - name: Submit Coverity Scan
         env:
           COVERITY_SCAN_TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
         run: |
-          cd build
           tar czf myproject.tgz cov-int
           curl \
             --form token=DuzNYBXHZhVblr8BUA_5Ew \
