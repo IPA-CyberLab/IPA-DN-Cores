@@ -1,6 +1,10 @@
 language: csharp
 mono: none
 dotnet: 5.0
+arch:
+  - amd64
+  - arm64
 script:
- - dotnet restore Cores.NET/Cores.NET-VS2019.sln
- - dotnet build Cores.NET/Cores.NET-VS2019.sln
+  - dotnet restore Cores.NET/Cores.NET-VS2019.sln
+  - dotnet build Cores.NET/Cores.NET-VS2019.sln
+
