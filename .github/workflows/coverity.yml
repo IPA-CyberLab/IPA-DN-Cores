@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.operating-system }}
     
     env:
-      COVERITY_SCAN_PROJECT_NAME: "IPA-DN-Cores-210728"
+      COVERITY_SCAN_PROJECT_NAME: "IPA-CyberLab/IPA-DN-Cores"
       COVERITY_SCAN_BRANCH_PATTERN: "*"
       COVERITY_SCAN_NOTIFICATION_EMAIL: "coe.lab-coverity-scan@admin.coe.ad.jp"
       COVERITY_SCAN_BUILD_COMMAND: "dotnet build -c Debug Cores.NET/Cores.NET-VS2019.sln"
