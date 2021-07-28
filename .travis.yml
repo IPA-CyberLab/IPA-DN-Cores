@@ -1,11 +1,6 @@
 language: csharp
-dist: trusty
-dotnet: 2.0.0
 mono: none
-env:
-  global:
-    - DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
-    - DOTNET_CLI_TELEMETRY_OPTOUT: 1
+dotnet: 5.0
 script:
-  - dotnet restore
-  - dotnet build
+ - dotnet restore Cores.NET/Cores.NET-VS2019.sln
+ - dotnet build Cores.NET/Cores.NET-VS2019.sln
