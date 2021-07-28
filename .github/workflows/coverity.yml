@@ -1,0 +1,42 @@
+name: Coverity
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ${{ matrix.operating-system }}
+    
+    env:
+      COVERITY_SCAN_PROJECT_NAME: "IPA-DN-Cores-210728"
+      COVERITY_SCAN_BRANCH_PATTERN: "*"
+      COVERITY_SCAN_NOTIFICATION_EMAIL: "coe.lab-coverity-scan@admin.coe.ad.jp"
+      COVERITY_SCAN_BUILD_COMMAND: "dotnet build -c Debug Cores.NET/Cores.NET-VS2019.sln"
+
+    strategy:
+      matrix:
+        operating-system: [ubuntu-latest]
+        dotnet-version: ["5.0"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Setup .NET SDK ${{ matrix.dotnet-version }}
+        uses: actions/setup-dotnet@v1.7.2
+        with:
+          dotnet-version: ${{ matrix.dotnet-version }}
+      - name: Build Debug
+        run: dotnet build -c Debug Cores.NET/Cores.NET-VS2019.sln
+      - name: Build Release
+        run: dotnet build -c Release Cores.NET/Cores.NET-VS2019.sln
+      - name: Run Coverity Scan
+        env:
+          COVERITY_SCAN_TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
+        run: |
+          curl -fsSL "https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh" | bash || true
+
+
