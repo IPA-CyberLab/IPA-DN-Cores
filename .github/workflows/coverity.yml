@@ -1,4 +1,4 @@
-name: Coverity
+name: Coverity Scan
 
 on:
   push:
@@ -31,8 +31,6 @@ jobs:
           dotnet-version: ${{ matrix.dotnet-version }}
       - name: Build Debug
         run: dotnet build -c Debug Cores.NET/Cores.NET-VS2019.sln
-      - name: Build Release
-        run: dotnet build -c Release Cores.NET/Cores.NET-VS2019.sln
       - name: Run Coverity Scan
         env:
           COVERITY_SCAN_TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
