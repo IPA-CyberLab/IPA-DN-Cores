@@ -42,7 +42,9 @@ jobs:
       - name: Build with Coverity Scan
         run: |
           export PATH=`pwd`/coverity-tools/bin:$PATH
-          ( cd build && cov-build --dir cov-int dotnet build -c Debug Cores.NET/Cores.NET-VS2019.sln )
+          cd build
+          cov-build --dir cov-int dotnet build -c Debug Cores.NET/Cores.NET-VS2019.sln
+          cd ../
           cat build/cov-int/build-log.txt
        - name: Submit Coverity Scan
          env:
