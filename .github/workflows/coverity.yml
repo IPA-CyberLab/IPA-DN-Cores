@@ -42,22 +42,20 @@ jobs:
       - name: Build with Coverity Scan
         run: |
           export PATH=`pwd`/coverity-tools/bin:$PATH
-          cd build
-          cov-build --dir cov-int dotnet build -c Debug Cores.NET/Cores.NET-VS2019.sln
-          cd ../
+          ( cd build && cov-build --dir cov-int dotnet build -c Debug Cores.NET/Cores.NET-VS2019.sln )
           cat build/cov-int/build-log.txt
-       - name: Submit Coverity Scan
-         env:
-           COVERITY_TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
-         run: |
-           cd build
-           tar czf myproject.tgz cov-int
-           curl \
-             --form token=${COVERITY_SCAN_TOKEN} \
-             --form email=${COVERITY_SCAN_NOTIFICATION_EMAIL} \
-             --form file=@myproject.tgz \
-             --form "version=`git rev-parse HEAD`" \
-             --form "description=`git rev-parse HEAD`" \
-             https://scan.coverity.com/builds?project=${COVERITY_SCAN_PROJECT_NAME}
+      - name: Submit Coverity Scan
+       env:
+         COVERITY_TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
+       run: |
+          cd build
+          tar czf myproject.tgz cov-int
+          curl \
+            --form token=${COVERITY_SCAN_TOKEN} \
+            --form email=${COVERITY_SCAN_NOTIFICATION_EMAIL} \
+            --form file=@myproject.tgz \
+            --form "version=`git rev-parse HEAD`" \
+            --form "description=`git rev-parse HEAD`" \
+            https://scan.coverity.com/builds?project=${COVERITY_SCAN_PROJECT_NAME}
 
 
