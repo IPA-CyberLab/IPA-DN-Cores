@@ -31,39 +31,31 @@ jobs:
           dotnet-version: ${{ matrix.dotnet-version }}
       - name: Build Debug
         run: dotnet build -c Debug Cores.NET/Cores.NET-VS2019.sln
-#      - name: Run Coverity Scan
-#        env:
-#          COVERITY_SCAN_TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
-#        run: |
-#          curl -fsSL "https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh" | bash || true
-
-     - name: Run Coverity Scan
-       env:
-         COVERITY_SCAN_TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
-       run: |
-         wget -nv https://scan.coverity.com/download/cxx/linux64 --post-data "token=${COVERITY_SCAN_TOKEN}&project=${COVERITY_SCAN_PROJECT_NAME}" -O coverity_tool.tgz
-         tar xzf coverity_tool.tgz
-         rm coverity_tool.tgz
-         mv cov-analysis* coverity-tools
-     
-     - name: Build with Coverity Scan
-       run: |
-         export PATH=`pwd`/coverity-tools/bin:$PATH
-         ( cd build && cov-build --dir cov-int dotnet build -c Debug Cores.NET/Cores.NET-VS2019.sln )
-         cat build/cov-int/build-log.txt
-
-      - name: Submit Coverity Scan
+      - name: Run Coverity Scan
         env:
-          COVERITY_TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
+          COVERITY_SCAN_TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
         run: |
-          cd build
-          tar czf myproject.tgz cov-int
-          curl \
-            --form token=${COVERITY_SCAN_TOKEN} \
-            --form email=${COVERITY_SCAN_NOTIFICATION_EMAIL} \
-            --form file=@myproject.tgz \
-            --form "version=`git rev-parse HEAD`" \
-            --form "description=`git rev-parse HEAD`" \
-            https://scan.coverity.com/builds?project=${COVERITY_SCAN_PROJECT_NAME}
+          wget -nv https://scan.coverity.com/download/cxx/linux64 --post-data "token=${COVERITY_SCAN_TOKEN}&project=${COVERITY_SCAN_PROJECT_NAME}" -O coverity_tool.tgz
+          tar xzf coverity_tool.tgz
+          rm coverity_tool.tgz
+          mv cov-analysis* coverity-tools
+      - name: Build with Coverity Scan
+        run: |
+          export PATH=`pwd`/coverity-tools/bin:$PATH
+          ( cd build && cov-build --dir cov-int dotnet build -c Debug Cores.NET/Cores.NET-VS2019.sln )
+          cat build/cov-int/build-log.txt
+       - name: Submit Coverity Scan
+         env:
+           COVERITY_TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
+         run: |
+           cd build
+           tar czf myproject.tgz cov-int
+           curl \
+             --form token=${COVERITY_SCAN_TOKEN} \
+             --form email=${COVERITY_SCAN_NOTIFICATION_EMAIL} \
+             --form file=@myproject.tgz \
+             --form "version=`git rev-parse HEAD`" \
+             --form "description=`git rev-parse HEAD`" \
+             https://scan.coverity.com/builds?project=${COVERITY_SCAN_PROJECT_NAME}
 
 
