@@ -2160,7 +2160,12 @@ namespace IPA.TestDev
 
         public static void Test_210728()
         {
-            // 4
+            // testtest
+            StackTrace stackTrace = new StackTrace(1, false);
+            var method = stackTrace?.GetFrame(0)?.GetMethod();
+            Type? type = method?.DeclaringType;
+
+            Limbo.ObjectVolatileSlow = type;
         }
 
         public static void Test_Generic()

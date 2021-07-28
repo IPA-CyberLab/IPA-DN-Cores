@@ -1417,7 +1417,7 @@ namespace IPA.Cores.Basic
             switch (algorithm)
             {
                 case PkiAlgorithm.RSA:
-                    switch (shaSize)
+                    switch (shaSize.Value)
                     {
                         case PkiShaSize.SHA1:
                             alg = PkcsObjectIdentifiers.Sha1WithRsaEncryption.Id;
@@ -1441,7 +1441,7 @@ namespace IPA.Cores.Basic
                     break;
 
                 case PkiAlgorithm.ECDSA:
-                    switch (shaSize)
+                    switch (shaSize.Value)
                     {
                         case PkiShaSize.SHA1:
                             alg = X9ObjectIdentifiers.ECDsaWithSha1.Id;
