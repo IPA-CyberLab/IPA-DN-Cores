@@ -348,7 +348,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
                                 await cancel._WaitUntilCanceledAsync(intervalMsecs);
 
-                                await Task.Yield;
+                                await Task.Yield();
 
                                 goto LABEL_RETRY;
                             }
