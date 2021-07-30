@@ -260,7 +260,7 @@ namespace IPA.Cores.Basic
 
         public async Task SendAsync(SmtpConfig smtp, CancellationToken cancel = default)
         {
-            SmtpClient c = new SmtpClient(smtp.SmtpServer, smtp.SmtpPort);
+            using SmtpClient c = new SmtpClient(smtp.SmtpServer, smtp.SmtpPort);
             c.DeliveryMethod = SmtpDeliveryMethod.Network;
             c.EnableSsl = smtp.UseSSL;
 

@@ -494,10 +494,13 @@ namespace IPA.Cores.Basic
             }
             catch { }
 
-            foreach (string name in this.RequestHeaders.Keys)
+            lock (this.RequestHeaders)
             {
-                string value = this.RequestHeaders[name];
-                requestMessage.Headers.Add(name, value);
+                foreach (string name in this.RequestHeaders.Keys)
+                {
+                    string value = this.RequestHeaders[name];
+                    requestMessage.Headers.Add(name, value);
+                }
             }
 
             if (this.Settings.DisableKeepAlive)
@@ -539,7 +542,7 @@ namespace IPA.Cores.Basic
         public virtual async Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string? postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string? value)[] queryList)
         {
             if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.FormUrlEncoded;
-            HttpRequestMessage r = CreateWebRequest(method, url, queryList);
+            using HttpRequestMessage r = CreateWebRequest(method, url, queryList);
 
             if (method == WebMethods.POST || method == WebMethods.PUT)
             {
@@ -562,7 +565,7 @@ namespace IPA.Cores.Basic
         public virtual async Task<WebRet> SimplePostDataAsync(string url, byte[] postData, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
         {
             if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.Json;
-            HttpRequestMessage r = CreateWebRequest(WebMethods.POST, url);
+            using HttpRequestMessage r = CreateWebRequest(WebMethods.POST, url);
 
             r.Content = new ByteArrayContent(postData);
             r.Content.Headers.ContentType = new MediaTypeHeaderValue(postContentType);
@@ -585,7 +588,7 @@ namespace IPA.Cores.Basic
 
             if (!(method == WebMethods.POST || method == WebMethods.PUT)) throw new ArgumentException($"Invalid method: {method.ToString()}");
 
-            HttpRequestMessage r = CreateWebRequest(method, url);
+            using HttpRequestMessage r = CreateWebRequest(method, url);
 
             byte[] upload_data = jsonString._GetBytes(this.RequestEncoding);
 

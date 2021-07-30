@@ -416,9 +416,16 @@ namespace IPA.Cores.Basic
 
         protected override async Task CleanupImplAsync(Exception? ex)
         {
-            await this.Eraser._CleanupSafeAsync(ex);
+            try
+            {
+                await this.Eraser._CleanupSafeAsync(ex);
 
-            await LogTask._TryWaitAsync();
+                await LogTask._TryWaitAsync();
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
         }
 
         protected override void DisposeImpl(Exception? ex)

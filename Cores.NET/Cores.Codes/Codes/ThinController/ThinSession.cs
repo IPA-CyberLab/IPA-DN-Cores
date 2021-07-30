@@ -282,7 +282,7 @@ namespace IPA.Cores.Codes
 
                     foreach (var gate in candidates)
                     {
-                        double load = force_random_mode == false ? gate.CalcLoad() : 1.0;
+                        double load = gate.CalcLoad();
 
                         sortList.Add(new Pair2<ThinGate, double>(gate, load));
                     }

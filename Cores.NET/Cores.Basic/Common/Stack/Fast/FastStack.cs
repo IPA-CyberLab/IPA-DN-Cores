@@ -2184,43 +2184,49 @@ namespace IPA.Cores.Basic
             => base.CancelImplAsync(ex);
 
         protected override async Task CleanupImplAsync(Exception? ex)
-        {
-            List<NetTcpListenerPort> o = new List<NetTcpListenerPort>();
-            lock (LockObj)
+        {try
             {
-                List.Values.ToList().ForEach(x => o.Add(x));
-                List.Clear();
-            }
-
-            foreach (NetTcpListenerPort s in o)
-                await s._InternalStopAsync()._TryWaitAsync();
-
-            List<Task> waitTasks = new List<Task>();
-            List<ConnSock> allConnectedSocks = new List<ConnSock>();
-
-            lock (LockObj)
-            {
-                foreach (var v in RunningAcceptedTasks)
+                List<NetTcpListenerPort> o = new List<NetTcpListenerPort>();
+                lock (LockObj)
                 {
-                    allConnectedSocks.Add(v.Value);
-                    waitTasks.Add(v.Key);
+                    List.Values.ToList().ForEach(x => o.Add(x));
+                    List.Clear();
                 }
-                RunningAcceptedTasks.Clear();
-            }
 
-            foreach (var sock in allConnectedSocks)
-            {
-                try
+                foreach (NetTcpListenerPort s in o)
+                    await s._InternalStopAsync()._TryWaitAsync();
+
+                List<Task> waitTasks = new List<Task>();
+                List<ConnSock> allConnectedSocks = new List<ConnSock>();
+
+                lock (LockObj)
                 {
-                    await sock._CleanupSafeAsync();
+                    foreach (var v in RunningAcceptedTasks)
+                    {
+                        allConnectedSocks.Add(v.Value);
+                        waitTasks.Add(v.Key);
+                    }
+                    RunningAcceptedTasks.Clear();
                 }
-                catch { }
+
+                foreach (var sock in allConnectedSocks)
+                {
+                    try
+                    {
+                        await sock._CleanupSafeAsync();
+                    }
+                    catch { }
+                }
+
+                foreach (var task in waitTasks)
+                    await task._TryWaitAsync();
+
+                Debug.Assert(CurrentConnections == 0);
             }
-
-            foreach (var task in waitTasks)
-                await task._TryWaitAsync();
-
-            Debug.Assert(CurrentConnections == 0);
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
         }
 
         protected override void DisposeImpl(Exception? ex) { }

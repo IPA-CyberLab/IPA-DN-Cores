@@ -205,17 +205,24 @@ namespace IPA.Cores.Basic
 
         protected override async Task CleanupImplAsync(Exception? ex)
         {
-            NetSock[] openedSockets;
-
-            lock (LockObj)
+            try
             {
-                openedSockets = OpenedSockList.ToArray();
-                OpenedSockList.Clear();
+                NetSock[] openedSockets;
+
+                lock (LockObj)
+                {
+                    openedSockets = OpenedSockList.ToArray();
+                    OpenedSockList.Clear();
+                }
+
+                foreach (var s in openedSockets)
+                {
+                    await s._DisposeWithCleanupSafeAsync();
+                }
             }
-
-            foreach (var s in openedSockets)
+            finally
             {
-                await s._DisposeWithCleanupSafeAsync();
+                await base.CleanupImplAsync(ex);
             }
         }
 

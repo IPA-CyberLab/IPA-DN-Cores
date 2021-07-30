@@ -232,19 +232,33 @@ namespace IPA.Cores.Basic
 
         protected override async Task CancelImplAsync(Exception? ex)
         {
-            var routeList = this.RouteList;
-            foreach (LogRouteBase route in routeList)
+            try
             {
-                await route._CancelSafeAsync();
+                var routeList = this.RouteList;
+                foreach (LogRouteBase route in routeList)
+                {
+                    await route._CancelSafeAsync();
+                }
+            }
+            finally
+            {
+                await base.CancelImplAsync(ex);
             }
         }
 
         protected override async Task CleanupImplAsync(Exception? ex)
         {
-            var routeList = this.RouteList;
-            foreach (LogRouteBase route in routeList)
+            try
             {
-                await UninstallLogRouteAsync(route);
+                var routeList = this.RouteList;
+                foreach (LogRouteBase route in routeList)
+                {
+                    await UninstallLogRouteAsync(route);
+                }
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
             }
         }
 

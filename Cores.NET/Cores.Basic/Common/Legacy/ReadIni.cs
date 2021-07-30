@@ -109,7 +109,10 @@ namespace IPA.Cores.Basic.Legacy
                 string? s;
                 try
                 {
-                    s = datas![key.ToUpper()];
+                    lock (typeof(ReadIni))
+                    {
+                        s = datas![key.ToUpper()];
+                    }
                 }
                 catch
                 {
@@ -124,9 +127,12 @@ namespace IPA.Cores.Basic.Legacy
         {
             List<string> ret = new List<string>();
 
-            foreach (string s in datas!.Keys)
+            lock (typeof(ReadIni))
             {
-                ret.Add(s);
+                foreach (string s in datas!.Keys)
+                {
+                    ret.Add(s);
+                }
             }
 
             return ret.ToArray();

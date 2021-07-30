@@ -172,7 +172,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            SmtpClient c = new SmtpClient(this.smtpServer);
+            using SmtpClient c = new SmtpClient(this.smtpServer);
             c.DeliveryMethod = SmtpDeliveryMethod.Network;
             c.EnableSsl = false;
             c.Port = this.SmtpPort;

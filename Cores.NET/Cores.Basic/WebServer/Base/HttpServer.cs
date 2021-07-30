@@ -805,13 +805,20 @@ namespace IPA.Cores.Basic
 
         protected override async Task CleanupImplAsync(Exception? ex)
         {
-            if (HostTask != null)
+            try
             {
-                await HostTask;
-            }
+                if (HostTask != null)
+                {
+                    await HostTask;
+                }
 
-            GlobalObjectExchange.TryWithdraw(ParamToken, out _);
-            GlobalObjectExchange.TryWithdraw(CancelToken, out _);
+                GlobalObjectExchange.TryWithdraw(ParamToken, out _);
+                GlobalObjectExchange.TryWithdraw(CancelToken, out _);
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
         }
     }
 }

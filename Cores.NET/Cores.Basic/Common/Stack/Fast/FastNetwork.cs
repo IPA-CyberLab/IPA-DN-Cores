@@ -300,35 +300,42 @@ namespace IPA.Cores.Basic
 
         protected override async Task CancelImplAsync(Exception? ex)
         {
-            if (ex != null)
+            try
             {
-                ExceptionQueue.Add(ex);
-            }
-
-            Func<Task>[] evList;
-            lock (OnDisconnected)
-                evList = OnDisconnected.ToArray();
-
-            foreach (var ev in evList)
-            {
-                try
+                if (ex != null)
                 {
-                    await ev();
+                    ExceptionQueue.Add(ex);
                 }
-                catch { }
+
+                Func<Task>[] evList;
+                lock (OnDisconnected)
+                    evList = OnDisconnected.ToArray();
+
+                foreach (var ev in evList)
+                {
+                    try
+                    {
+                        await ev();
+                    }
+                    catch { }
+                }
+
+                StreamAtoB.Disconnect();
+                StreamBtoA.Disconnect();
+
+                DatagramAtoB.Disconnect();
+                DatagramBtoA.Disconnect();
+
+                OnDisconnectedEvent.Set(true);
             }
-
-            StreamAtoB.Disconnect();
-            StreamBtoA.Disconnect();
-
-            DatagramAtoB.Disconnect();
-            DatagramBtoA.Disconnect();
-
-            OnDisconnectedEvent.Set(true);
+            finally
+            {
+                await base.CancelImplAsync(ex);
+            }
         }
 
         protected override Task CleanupImplAsync(Exception? ex)
-            => Task.CompletedTask;
+            => base.CleanupImplAsync(ex);
 
         public void CheckDisconnectedAndNoMoreData()
         {
@@ -628,22 +635,29 @@ namespace IPA.Cores.Basic
 
         protected override async Task CancelImplAsync(Exception? ex)
         {
-            if (Direction == AttachDirection.B_UpperSide)
+            try
             {
-                await SetStreamReceiveTimeoutAsync(Timeout.Infinite);
-                await SetStreamSendTimeoutAsync(Timeout.Infinite);
-            }
-
-            if (PipePoint != null)
-            {
-                lock (PipePoint._InternalAttachHandleLock)
+                if (Direction == AttachDirection.B_UpperSide)
                 {
-                    PipePoint._InternalCurrentAttachHandle = null;
+                    await SetStreamReceiveTimeoutAsync(Timeout.Infinite);
+                    await SetStreamSendTimeoutAsync(Timeout.Infinite);
                 }
+
+                if (PipePoint != null)
+                {
+                    lock (PipePoint._InternalAttachHandleLock)
+                    {
+                        PipePoint._InternalCurrentAttachHandle = null;
+                    }
+                }
+            }
+            finally
+            {
+                await base.CancelImplAsync(ex);
             }
         }
 
-        protected override Task CleanupImplAsync(Exception? ex) => Task.CompletedTask;
+        protected override Task CleanupImplAsync(Exception? ex) => base.CleanupImplAsync(ex);
 
         protected override void DisposeImpl(Exception? ex)
         {

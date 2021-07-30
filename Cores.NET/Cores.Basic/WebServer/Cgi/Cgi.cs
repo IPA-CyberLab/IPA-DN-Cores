@@ -180,7 +180,7 @@ namespace IPA.Cores.Basic
                                     errorStr = ex.ToString();
                                 }
 
-                                var errorResult = new HttpStringResult($"HTTP Status Code: 500\r\n" + errorStr, statusCode: 500);
+                                await using var errorResult = new HttpStringResult($"HTTP Status Code: 500\r\n" + errorStr, statusCode: 500);
 
                                 await response._SendHttpResultAsync(errorResult, ctx.Cancel);
                             }

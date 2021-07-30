@@ -210,6 +210,7 @@ namespace IPA.Cores.Basic
 
         readonly AsyncPulse CurrentRunningTasksChangedInternal = new AsyncPulse();
         volatile int CurrentRunningTasksInternal = 0;
+        public int CurrentRunningTasks => CurrentRunningTasksInternal;
 
         // すべての動作中のタスクが終了するまで待機する
         public async Task<bool> WaitAllTasksFinishAsync(int timeout = Timeout.Infinite, CancellationToken cancel = default)
@@ -238,7 +239,7 @@ namespace IPA.Cores.Basic
         // タスクを新たに追加し実行開始する。ただし、すでに実行中のタスク数が上限以上の場合は、上限以下になるまで非同期ブロックする
         public async Task<Task<TResult>> StartTaskAsync<TParam, TResult>(Func<TParam, CancellationToken, Task<TResult>> targetTask, TParam param, CancellationToken cancel = default)
         {
-            CurrentRunningTasksInternal++;
+            Interlocked.Increment(ref CurrentRunningTasksInternal);
 
             try
             {
@@ -248,7 +249,7 @@ namespace IPA.Cores.Basic
                 // ターゲットタスクが完了したら、セマフォを解放するようにする。
                 Task<TResult> ret = TaskUtil.StartAsyncTaskAsync<TResult>(async () =>
                 {
-                    CurrentRunningTasksInternal++;
+                    Interlocked.Increment(ref CurrentRunningTasksInternal);
 
                     try
                     {
@@ -257,7 +258,7 @@ namespace IPA.Cores.Basic
                     finally
                     {
                         this.Sem.Release();
-                        CurrentRunningTasksInternal--;
+                        Interlocked.Decrement(ref CurrentRunningTasksInternal);
                         CurrentRunningTasksChangedInternal.FirePulse();
                     }
                 });
@@ -266,7 +267,7 @@ namespace IPA.Cores.Basic
             }
             finally
             {
-                CurrentRunningTasksInternal--;
+                Interlocked.Decrement(ref CurrentRunningTasksInternal);
                 CurrentRunningTasksChangedInternal.FirePulse();
             }
         }
@@ -2475,6 +2476,8 @@ namespace IPA.Cores.Basic
             finally
             {
                 Leak._DisposeSafe();
+
+                await base.CleanupImplAsync(ex);
             }
         }
     }
@@ -3069,8 +3072,15 @@ namespace IPA.Cores.Basic
 
         protected override async Task CleanupImplAsync(Exception? ex)
         {
-            if (MainTask != null)
-                await MainTask;
+            try
+            {
+                if (MainTask != null)
+                    await MainTask;
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
         }
     }
 
@@ -3772,7 +3782,7 @@ namespace IPA.Cores.Basic
 
             public int CompareTo(HierarchyBodyItem? other) => this.Position.CompareTo(other!.Position);
             public bool Equals(HierarchyBodyItem? other) => this.Position.Equals(other!.Position);
-            public override bool Equals(object? obj) => (obj is HierarchyBodyItem) ? this.Position.Equals(obj as HierarchyBodyItem) : false;
+            public override bool Equals(object? obj) => (obj is HierarchyBodyItem) ? this.Position.Equals((obj as HierarchyBodyItem)!.Position) : false;
             public override int GetHashCode() => this.Position.GetHashCode();
         }
 
@@ -4460,7 +4470,14 @@ namespace IPA.Cores.Basic
 
         protected override async Task CleanupImplAsync(Exception? ex)
         {
-            await t;
+            try
+            {
+                await t;
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
         }
     }
 
