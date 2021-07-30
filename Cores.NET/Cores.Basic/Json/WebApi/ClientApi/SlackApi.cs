@@ -199,7 +199,7 @@ namespace IPA.Cores.ClientApi.SlackApi
             public string? creator;
             public long? last_set;
         }
-        
+
         public class ConversationInfo : SlackResponseBase
         {
             public Channel? channel;
@@ -316,46 +316,49 @@ namespace IPA.Cores.ClientApi.SlackApi
             int num_retry = 0;
 
             LABEL_RETRY:
-
-            if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.FormUrlEncoded;
-            using HttpRequestMessage r = CreateWebRequest(method, url, queryList);
-
-            if (method == WebMethods.POST || method == WebMethods.PUT)
             {
-                string qs = BuildQueryString(queryList);
+                if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.FormUrlEncoded;
+                using HttpRequestMessage r = CreateWebRequest(method, url, queryList);
 
-                r.Content = new StringContent(qs, this.RequestEncoding, postContentType);
-            }
-
-            using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
-            {
-                if (res.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                if (method == WebMethods.POST || method == WebMethods.PUT)
                 {
-                    string? retryAfter = res.Headers.GetValues("Retry-After").FirstOrDefault();
-                    if (retryAfter._IsFilled())
-                    {
-                        num_retry++;
+                    string qs = BuildQueryString(queryList);
 
-                        if (num_retry <= 5)
-                        {
-                            int interval = retryAfter._ToInt();
-
-                            interval = Math.Min(Math.Max(interval, 1), 300);
-
-                            int intervalMsecs = Util.GenRandInterval(interval * 1500);
-
-                            Con.WriteDebug($"Get TooManyRequests for '{url}'. Waiting for {intervalMsecs._ToString3()} msecs...");
-
-                            await cancel._WaitUntilCanceledAsync(intervalMsecs);
-
-                            goto LABEL_RETRY;
-                        }
-                    }
+                    r.Content = new StringContent(qs, this.RequestEncoding, postContentType);
                 }
 
-                await ThrowIfErrorAsync(res);
-                byte[] data = await res.Content.ReadAsByteArrayAsync();
-                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers, res.IsSuccessStatusCode, res.StatusCode, res.ReasonPhrase);
+                using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
+                {
+                    if (res.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                    {
+                        string? retryAfter = res.Headers.GetValues("Retry-After").FirstOrDefault();
+                        if (retryAfter._IsFilled())
+                        {
+                            num_retry++;
+
+                            if (num_retry <= 5)
+                            {
+                                int interval = retryAfter._ToInt();
+
+                                interval = Math.Min(Math.Max(interval, 1), 300);
+
+                                int intervalMsecs = Util.GenRandInterval(interval * 1500);
+
+                                Con.WriteDebug($"Get TooManyRequests for '{url}'. Waiting for {intervalMsecs._ToString3()} msecs...");
+
+                                await cancel._WaitUntilCanceledAsync(intervalMsecs);
+
+                                await Task.Yield;
+
+                                goto LABEL_RETRY;
+                            }
+                        }
+                    }
+
+                    await ThrowIfErrorAsync(res);
+                    byte[] data = await res.Content.ReadAsByteArrayAsync();
+                    return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers, res.IsSuccessStatusCode, res.StatusCode, res.ReasonPhrase);
+                }
             }
         }
 
