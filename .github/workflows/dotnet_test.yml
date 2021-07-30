@@ -20,11 +20,15 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: true
+
       - name: Setup .NET SDK ${{ matrix.dotnet-version }}
         uses: actions/setup-dotnet@v1.7.2
         with:
           dotnet-version: ${{ matrix.dotnet-version }}
+
       - name: Build Debug
         run: dotnet build -c Debug Cores.NET/Cores.NET-VS2019.sln
+
       - name: Build Release
         run: dotnet build -c Release Cores.NET/Cores.NET-VS2019.sln
+
