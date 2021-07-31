@@ -11,7 +11,7 @@ Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Cores.Codes", "Cores.Codes\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cores.Lib.Full", "Cores.Lib\Cores.Lib.Full.csproj", "{874FB737-A141-459F-B272-4AF59D8152E9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dev.UnitTest", "Dev.UnitTest\Dev.UnitTest.csproj", "{27DD2F71-B8E2-4723-AE02-C6F6E26E5E9E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dev.UnitTestCores", "Dev.UnitTestCores\Dev.UnitTestCores.csproj", "{27DD2F71-B8E2-4723-AE02-C6F6E26E5E9E}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
