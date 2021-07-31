@@ -63,22 +63,33 @@ namespace IPA.UnitTest
     public class Test02_Base : IDisposable
     {
         private readonly ITestOutputHelper Con;
+        void Where([CallerFilePath] string fn = "", [CallerLineNumber] int l = 0, [CallerMemberName] string? f = null) => Con.WriteLine($"|{UnitTestTicks.TickString}: {Path.GetFileName(fn)}:{l} {f}() T: {Thread.CurrentThread.ManagedThreadId}");
 
         public Test02_Base(ITestOutputHelper output)
         {
             Con = output;
 
+            Where();
+
             CoresLibUnitTestShared.Init();
+
+            Where();
         }
 
         public void Dispose()
         {
+            Where();
+
             CoresLibUnitTestShared.Free();
+
+            Where();
         }
 
         [Fact]
         public void MemoryHelperTest()
         {
+            Where();
+
             Assert.True(MemoryHelper._UseFast);
 
             string rand = Str.GenRandStr();
@@ -102,16 +113,22 @@ namespace IPA.UnitTest
             var seg2Slow = mem2._AsSegmentSlow();
             var data2Slow = seg2Slow.ToArray();
             Assert.Equal(0, mem2.Span.SequenceCompareTo(data2Slow));
+
+            Where();
         }
 
         [Fact]
         public void InternalTaskStructureAccessd()
         {
+            Where();
+
             int num_queued = TaskUtil.GetQueuedTasksCount(-1);
             Assert.True(num_queued >= 0);
 
             int num_timered = TaskUtil.GetScheduledTimersCount(-1);
             Assert.True(num_timered >= 0);
+
+            Where();
         }
     }
 }

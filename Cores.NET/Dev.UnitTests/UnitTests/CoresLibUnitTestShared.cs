@@ -60,6 +60,48 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.UnitTest
 {
+    public static class UnitTestTicks
+    {
+        static readonly Stopwatch StopWatchInstance;
+        static readonly CriticalSection Lock = new CriticalSection();
+
+        static UnitTestTicks()
+        {
+            StopWatchInstance = new Stopwatch();
+            StopWatchInstance.Start();
+        }
+
+        public static long Tick
+        {
+            get
+            {
+                lock (Lock)
+                {
+                    return StopWatchInstance.ElapsedMilliseconds;
+                }
+            }
+        }
+
+        public static string TickString
+        {
+            get
+            {
+                long v = Tick;
+
+                double f = (double)v / 1000.0;
+
+                string s = f.ToString("F3"); // 123.456
+                int len = s.Length;
+                if (len < 7)
+                {
+                    s = Str.MakeStrArray(" ", 7 - len) + s;
+                }
+
+                return s;
+            }
+        }
+    }
+
     public static class CoresLibUnitTestShared
     {
         static readonly CriticalSection Lock = new CriticalSection();

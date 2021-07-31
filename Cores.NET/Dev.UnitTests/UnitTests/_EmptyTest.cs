@@ -63,22 +63,32 @@ namespace IPA.UnitTest
     public class _EmptyTest : IDisposable
     {
         private readonly ITestOutputHelper Con;
+        void Where([CallerFilePath] string fn = "", [CallerLineNumber] int l = 0, [CallerMemberName] string? f = null) => Con.WriteLine($"|{UnitTestTicks.TickString}: {Path.GetFileName(fn)}:{l} {f}() T: {Thread.CurrentThread.ManagedThreadId}");
 
         public _EmptyTest(ITestOutputHelper output)
         {
             Con = output;
 
+            Where();
+
             CoresLibUnitTestShared.Init();
+
+            Where();
         }
 
         public void Dispose()
         {
+            Where();
+
             CoresLibUnitTestShared.Free();
+
+            Where();
         }
 
         [Fact]
         public void Test1()
         {
+            Where();
         }
     }
 }

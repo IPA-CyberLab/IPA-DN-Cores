@@ -63,17 +63,22 @@ namespace IPA.UnitTest
     public class Test01_DeepClone : IDisposable
     {
         private readonly ITestOutputHelper Con;
+        void Where([CallerFilePath] string fn = "", [CallerLineNumber] int l = 0, [CallerMemberName] string? f = null) => Con.WriteLine($"|{UnitTestTicks.TickString}: {Path.GetFileName(fn)}:{l} {f}() T: {Thread.CurrentThread.ManagedThreadId}");
 
         public Test01_DeepClone(ITestOutputHelper output)
         {
             Con = output;
 
+            Where();
             CoresLibUnitTestShared.Init();
+            Where();
         }
 
         public void Dispose()
         {
+            Where();
             CoresLibUnitTestShared.Free();
+            Where();
         }
 
         public static volatile int DeepClone_ConstructorCount;
@@ -128,8 +133,10 @@ namespace IPA.UnitTest
         [InlineData(DeepCloneMethod.BinaryFormatter)]
         [InlineData(DeepCloneMethod.DeepCloner)]
         [InlineData(DeepCloneMethod.Default)]
-        public static void DoTest(DeepCloneMethod method)
+        public void DeepCloneTest(DeepCloneMethod method)
         {
+            Where();
+
             DeepClone_ConstructorCount = 0;
 
             RootClass a = new RootClass();
@@ -188,6 +195,8 @@ namespace IPA.UnitTest
                 Assert.True(object.ReferenceEquals(e1.Root, a));
                 Assert.True(object.ReferenceEquals(e2.Root, b));
             }
+
+            Where();
         }
     }
 }
