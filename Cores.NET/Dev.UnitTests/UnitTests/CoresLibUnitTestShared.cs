@@ -104,73 +104,26 @@ namespace IPA.UnitTest
 
     public static class CoresLibUnitTestShared
     {
-        static readonly CriticalSection Lock = new CriticalSection();
-
-        static int Counter = 0;
-
-        static Exception? InitException = null;
-        static Exception? FreeException = null;
+        static CriticalSection Lock = new CriticalSection();
+        static Once Once;
 
         public static void Init()
         {
-            if (InitException != null)
+            lock (Lock)
             {
-                throw InitException;
-            }
-
-            try
-            {
-                lock (Lock)
+                if (Once.IsFirstCall())
                 {
-                    if (Counter == 0)
-                    {
-                        CoresLib.Init(new CoresLibOptions(CoresMode.Application, "UnitTest", DebugMode.Debug, defaultPrintStatToConsole: false, defaultRecordLeakFullStack: false));
-                    }
-
-                    Counter++;
+                    CoresLib.Init(new CoresLibOptions(CoresMode.Application, "UnitTest", DebugMode.Debug, defaultPrintStatToConsole: false, defaultRecordLeakFullStack: false));
                 }
-            }
-            catch (Exception ex)
-            {
-                InitException ??= ex;
-
-                throw;
             }
         }
+    }
 
-        public static void Free()
+    public class CoresLibUnitTestFixtureInstance
+    {
+        public CoresLibUnitTestFixtureInstance()
         {
-            if (FreeException != null)
-            {
-                throw FreeException;
-            }
-
-            try
-            {
-                lock (Lock)
-                {
-                    if (Counter >= 1)
-                    {
-                        Counter--;
-
-                        if (Counter == 0)
-                        {
-                            CoresLibraryResult res = CoresLib.Free();
-
-                            if (res.LeakCheckerResult.HasLeak)
-                            {
-                                throw new Exception("Resource Leak !!\r\n" + res.LeakCheckerResult.InformationString);
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                FreeException ??= ex;
-
-                throw;
-            }
+            CoresLibUnitTestShared.Init();
         }
     }
 }

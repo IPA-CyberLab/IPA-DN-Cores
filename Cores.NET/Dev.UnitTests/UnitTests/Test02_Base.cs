@@ -60,35 +60,24 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.UnitTest
 {
-    public class Test02_Base : IDisposable
+    public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
     {
         private readonly ITestOutputHelper Con;
-        void Where([CallerFilePath] string fn = "", [CallerLineNumber] int l = 0, [CallerMemberName] string? f = null) => Con.WriteLine($"|{UnitTestTicks.TickString}: {Path.GetFileName(fn)}:{l} {f}() T: {Thread.CurrentThread.ManagedThreadId}");
+        void Where([CallerFilePath] string fn = "", [CallerLineNumber] int l = 0, [CallerMemberName] string? f = null) => Con.WriteLine($"|{UnitTestTicks.TickString}: {Path.GetFileName(fn)}:{l} {f}() P: {Process.GetCurrentProcess().Id} T: {Thread.CurrentThread.ManagedThreadId}");
 
         public Test02_Base(ITestOutputHelper output)
         {
-            Con = output;
-
-            Where();
-
             CoresLibUnitTestShared.Init();
 
-            Where();
-        }
-
-        public void Dispose()
-        {
-            Where();
-
-            CoresLibUnitTestShared.Free();
-
-            Where();
+            Con = output;
         }
 
         [Fact]
         public void MemoryHelperTest()
         {
             Where();
+
+            LeakChecker.Enter();
 
             Assert.True(MemoryHelper._UseFast);
 

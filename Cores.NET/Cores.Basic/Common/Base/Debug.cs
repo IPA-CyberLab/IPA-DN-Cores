@@ -1640,7 +1640,7 @@ namespace IPA.Cores.Basic
         public static StaticModule<LeakCheckerResult> Module { get; } = new StaticModule<LeakCheckerResult>(ModuleInit, ModuleFree);
 
         static void ModuleInit()
-        {
+        { 
             FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
             _InternalList = new Dictionary<long, LeakCheckerHolder>();
             LeakCounters = new int[(int)Util.GetMaxEnumValue<LeakCounterKind>() + 1];

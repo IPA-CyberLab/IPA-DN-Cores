@@ -60,25 +60,16 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.UnitTest
 {
-    public class Test01_DeepClone : IDisposable
+    public class Test01_DeepClone : IClassFixture<CoresLibUnitTestFixtureInstance>
     {
         private readonly ITestOutputHelper Con;
-        void Where([CallerFilePath] string fn = "", [CallerLineNumber] int l = 0, [CallerMemberName] string? f = null) => Con.WriteLine($"|{UnitTestTicks.TickString}: {Path.GetFileName(fn)}:{l} {f}() T: {Thread.CurrentThread.ManagedThreadId}");
+        void Where([CallerFilePath] string fn = "", [CallerLineNumber] int l = 0, [CallerMemberName] string? f = null) => Con.WriteLine($"|{UnitTestTicks.TickString}: {Path.GetFileName(fn)}:{l} {f}() P: {Process.GetCurrentProcess().Id} T: {Thread.CurrentThread.ManagedThreadId}");
 
         public Test01_DeepClone(ITestOutputHelper output)
         {
-            Con = output;
-
-            Where();
             CoresLibUnitTestShared.Init();
-            Where();
-        }
 
-        public void Dispose()
-        {
-            Where();
-            CoresLibUnitTestShared.Free();
-            Where();
+            Con = output;
         }
 
         public static volatile int DeepClone_ConstructorCount;
