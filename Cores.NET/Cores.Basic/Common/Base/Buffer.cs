@@ -2920,8 +2920,8 @@ namespace IPA.Cores.Basic
                     int a = r.Next(96) + 32;
                     int b = r.Next(a / 2);
                     int c = r.Next(a / 2);
-                    if (ValidateMemoryStructureLayoutForSecurity(a, b, c) == false ||
-                        ValidateReadOnlyMemoryStructureLayoutForSecurity(a, b, c) == false)
+                    if (ValidateMemoryStructureLayoutForSecurityInternal(EnsureInternal.Yes, a, b, c) == false ||
+                        ValidateReadOnlyMemoryStructureLayoutForSecurityInternal(EnsureInternal.Yes, a, b, c) == false)
                     {
                         ok = false;
                         break;
@@ -3056,7 +3056,7 @@ namespace IPA.Cores.Basic
             public fixed char fixedBuffer[96];
         }
 
-        static unsafe bool ValidateMemoryStructureLayoutForSecurity(int a, int b, int c)
+        public static unsafe bool ValidateMemoryStructureLayoutForSecurityInternal(EnsureInternal yes, int a, int b, int c)
         {
             try
             {
@@ -3087,7 +3087,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        static unsafe bool ValidateReadOnlyMemoryStructureLayoutForSecurity(int a, int b, int c)
+        public static unsafe bool ValidateReadOnlyMemoryStructureLayoutForSecurityInternal(EnsureInternal yes, int a, int b, int c)
         {
             try
             {
@@ -4173,4 +4173,4 @@ namespace IPA.Cores.Basic
 
 }
 
-   
+
