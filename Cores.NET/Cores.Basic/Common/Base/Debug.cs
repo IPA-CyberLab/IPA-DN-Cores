@@ -432,6 +432,8 @@ namespace IPA.Cores.Basic
 
         static string? CurrentGitCommitIdCache = null;
         static string? CurrentGitRootDirCache = null;
+        static string? CurrentGitCoresLibCommitIdCache = null;
+        static string? CurrentGitCoresLibRootDirCache = null;
         static DbgGitCommitInfo? CurrentGitCommitInfoCache = null;
 
         public static DbgGitCommitInfo? GetCurrentGitCommitInfo()
@@ -454,6 +456,7 @@ namespace IPA.Cores.Basic
             return CurrentGitCommitInfoCache;
         }
 
+        // アプリケーションの Git コミット ID を取得する
         public static string GetCurrentGitCommitId()
         {
             if (CurrentGitCommitIdCache == null)
@@ -471,6 +474,7 @@ namespace IPA.Cores.Basic
             return CurrentGitCommitIdCache._NonNullTrim();
         }
 
+        // アプリケーションの Git コミット ID を取得する
         static string GetCurrentGitCommitIdInternal()
         {
             string tmpPath = Env.AppRootDir;
@@ -514,6 +518,72 @@ namespace IPA.Cores.Basic
                 tmpPath = parentPath;
             }
         }
+
+
+        // Cores ライブラリの Git コミット ID を取得する
+        public static string GetCurrentCoresLibGitCommitId()
+        {
+            if (CurrentGitCoresLibCommitIdCache == null)
+            {
+                try
+                {
+                    CurrentGitCoresLibCommitIdCache = GetCurrentCoresLibGitCommitIdInternal()._NonNullTrim();
+                }
+                catch
+                {
+                    CurrentGitCoresLibCommitIdCache = "";
+                }
+            }
+
+            return CurrentGitCoresLibCommitIdCache._NonNullTrim();
+        }
+
+        // Cores ライブラリの Git コミット ID を取得する
+        static string GetCurrentCoresLibGitCommitIdInternal()
+        {
+            string tmpPath = Env.AppRootDir;
+
+            // Get the HEAD contents
+            while (true)
+            {
+                string headFilename = Lfs.PathParser.Combine(tmpPath, ".git/modules/submodules/IPA-DN-Cores/HEAD");
+
+                try
+                {
+                    string headContents = Lfs.ReadStringFromFile(headFilename);
+                    foreach (string line in headContents._GetLines())
+                    {
+                        if (Str.TryNormalizeGitCommitId(line, out string commitId))
+                        {
+                            CurrentGitCoresLibRootDirCache = tmpPath;
+
+                            return commitId;
+                        }
+
+                        if (line._GetKeyAndValue(out string key, out string value, ":"))
+                        {
+                            if (key._IsSamei("ref"))
+                            {
+                                CurrentGitCoresLibRootDirCache = tmpPath;
+
+                                string refFilename = value.Trim();
+                                string refFullPath = Path.Combine(Lfs.PathParser.GetDirectoryName(headFilename), refFilename);
+
+                                return Lfs.ReadStringFromFile(refFullPath)._GetLines().Where(x => x._IsFilled()).Single();
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                string parentPath = Lfs.PathParser.GetDirectoryName(tmpPath);
+                if (tmpPath._IsSamei(parentPath)) return "";
+
+                tmpPath = parentPath;
+            }
+        }
+
+
 
         // 指定されたディレクトリとコミット ID (の一部でも可) を入力すると Git コミット情報を返す関数
         public static DbgGitCommitInfo GetGitCommitInfo(string gitRootDir, string commitId)
