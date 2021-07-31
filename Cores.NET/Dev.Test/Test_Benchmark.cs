@@ -320,6 +320,51 @@ namespace IPA.TestDev
         }
     }
 
+
+    public static class BmTest_DeepClone
+    {
+        [Serializable]
+        public class ElementClass
+        {
+            public int Int1;
+            public string? Str1;
+
+            public RootClass? Root;
+        }
+
+        [Serializable]
+        public class RootClass
+        {
+            public string? Str1;
+            public int Int1;
+
+            public Dictionary<int, ElementClass>? Dict;
+        }
+
+        public static RootClass CreateSampleObject()
+        {
+            RootClass a = new RootClass();
+
+            a.Int1 = Util.RandSInt31();
+            a.Str1 = a.Int1.ToString();
+
+            a.Dict = new Dictionary<int, ElementClass>();
+
+            for (int i = 0; i < 1000; i++)
+            {
+                ElementClass e = new ElementClass();
+                e.Int1 = Util.RandSInt31();
+                e.Str1 = e.Int1.ToString();
+
+                e.Root = a;
+
+                a.Dict.Add(i, e);
+            }
+
+            return a;
+        }
+    }
+
     partial class TestDevCommands
     {
         const int Benchmark_CountForVeryFast = 200000000;
@@ -482,8 +527,31 @@ namespace IPA.TestDev
 
             string aclStr = "192.168.3.0/24, 192.168.4.0/24, 2001:c90::/32, !192.168.5.0/24, 10.0.0.0/8, 172.16.0.0/12";
             var aclSampleIp = "192.168.5.0"._ToIPAddress()!;
+            var cloneDeepSampleObj = BmTest_DeepClone.CreateSampleObject();
 
             var queue = new MicroBenchmarkQueue()
+
+            .Add(new MicroBenchmark($"CloneDeep_BinaryFormatter", Benchmark_CountForSlow, count =>
+            {
+                Async(async () =>
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        cloneDeepSampleObj._CloneDeep(DeepCloneMethod.BinaryFormatter);
+                    }
+                });
+            }), enabled: true, priority: 210731)
+
+            .Add(new MicroBenchmark($"CloneDeep_DeepCloner", Benchmark_CountForSlow, count =>
+            {
+                Async(async () =>
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        cloneDeepSampleObj._CloneDeep(DeepCloneMethod.DeepCloner);
+                    }
+                });
+            }), enabled: true, priority: 210731)
 
             .Add(new MicroBenchmark($"DnsTools_Build", Benchmark_CountForNormal, count =>
             {

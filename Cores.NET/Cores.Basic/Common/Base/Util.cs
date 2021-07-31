@@ -66,7 +66,7 @@ namespace IPA.Cores.Basic
     {
         public static partial class DeepCloneSettings
         {
-            public static readonly Copenhagen<DeepCloneMethod> DefaultDeepCloneMethod = DeepCloneMethod.BinaryFormatter;
+            public static readonly Copenhagen<DeepCloneMethod> DefaultDeepCloneMethod = DeepCloneMethod.DeepCloner;
         }
     }
 
@@ -1798,7 +1798,7 @@ namespace IPA.Cores.Basic
 
         // オブジェクトをクローンする
         [return: NotNullIfNotNull("o")]
-        public static object? CloneObject_UsingBinary(object? o, DeepCloneMethod method = DeepCloneMethod.Default)
+        public static object? CloneObjectDeep(object? o, DeepCloneMethod method = DeepCloneMethod.Default)
         {
             if (o == null) return null;
             if (method == DeepCloneMethod.Default)
@@ -1806,13 +1806,13 @@ namespace IPA.Cores.Basic
                 method = CoresConfig.DeepCloneSettings.DefaultDeepCloneMethod;
             }
 
-            if (method == DeepCloneMethod.DeepCloner)
+            if (method == DeepCloneMethod.BinaryFormatter)
             {
-                return IPA.Cores.Basic.Internal.DeepCloner.Helpers.DeepClonerGenerator.CloneObject2(o);
+                return BinaryToObject(ObjectToBinary(o));
             }
             else
             {
-                return BinaryToObject(ObjectToBinary(o));
+                return IPA.Cores.Basic.Internal.DeepCloner.Helpers.DeepClonerGenerator.CloneObject2(o);
             }
         }
 

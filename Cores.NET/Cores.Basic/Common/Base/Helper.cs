@@ -654,12 +654,12 @@ namespace IPA.Cores.Helper.Basic
         public static string _Old_ObjectToXmlPublic(this object o, Type? t = null) => Str.ObjectToXMLSimple_PublicLegacy(o, t ?? o.GetType());
 
         [return: NotNullIfNotNull("o")]
-        public static T? _CloneDeep<T>(this T? o, DeepCloneMethod method = DeepCloneMethod.Default) where T : class => (T?)Util.CloneObject_UsingBinary(o, method);
+        public static T? _CloneDeep<T>(this T? o, DeepCloneMethod method = DeepCloneMethod.Default) where T : class => (T?)Util.CloneObjectDeep(o, method);
 
         [return: NotNullIfNotNull("o")]
         public static T? _CloneDeepWithNormalize<T>(this T? o, DeepCloneMethod method = DeepCloneMethod.Default) where T : class, INormalizable
         {
-            T? obj = (T?)Util.CloneObject_UsingBinary(o, method);
+            T? obj = (T?)Util.CloneObjectDeep(o, method);
             if (obj != null) obj.Normalize();
             return obj;
         }
