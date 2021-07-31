@@ -103,6 +103,16 @@ namespace IPA.UnitTest
             var data2Slow = seg2Slow.ToArray();
             Assert.Equal(0, mem2.Span.SequenceCompareTo(data2Slow));
         }
+
+        [Fact]
+        public void InternalTaskStructureAccessd()
+        {
+            int num_queued = TaskUtil.GetQueuedTasksCount(-1);
+            Assert.True(num_queued >= 0);
+
+            int num_timered = TaskUtil.GetScheduledTimersCount(-1);
+            Assert.True(num_timered >= 0);
+        }
     }
 }
 

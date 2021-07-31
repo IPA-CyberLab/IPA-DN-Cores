@@ -1081,16 +1081,16 @@ namespace IPA.Cores.Basic
         static readonly FieldInfo? TimerQueueTimer_Next_FieldInfo1 = TimerQueueTimerType != null ? TimerQueueTimerType.GetField("m_next", BindingFlags.Instance | BindingFlags.NonPublic) : null; // .NET Core 2.x
         static readonly FieldInfo? TimerQueueTimer_Next_FieldInfo2 = TimerQueueTimerType != null ? TimerQueueTimerType.GetField("_next", BindingFlags.Instance | BindingFlags.NonPublic) : null; // .NET Core 3.x
 
-        public static int GetScheduledTimersCount()
+        public static int GetScheduledTimersCount(int failDefaultValue = -1)
         {
 #pragma warning disable CS0162 // 到達できないコードが検出されました
-            if (FailedFlag_GetScheduledTimersCount) return -1;
+            if (FailedFlag_GetScheduledTimersCount) return failDefaultValue;
 #pragma warning restore CS0162 // 到達できないコードが検出されました
 
             if (TimerQueueType == null || TimerQueueTimersFieldList == null)
             {
                 FailedFlag_GetScheduledTimersCount = true;
-                return -1;
+                return failDefaultValue;
             }
 
             FieldInfo? Timer_Next_Field_info = TimerQueueTimer_Next_FieldInfo1;
@@ -1099,7 +1099,7 @@ namespace IPA.Cores.Basic
             if (Timer_Next_Field_info == null)
             {
                 FailedFlag_GetScheduledTimersCount = true;
-                return -1;
+                return failDefaultValue;
             }
 
             bool fatalError = true;
@@ -1113,7 +1113,7 @@ namespace IPA.Cores.Basic
                 if (timerQueueInstanceList == null)
                 {
                     FailedFlag_GetScheduledTimersCount = true;
-                    return -1;
+                    return failDefaultValue;
                 }
 
                 foreach (object? timerQueueInstance in timerQueueInstanceList)
@@ -1158,45 +1158,58 @@ namespace IPA.Cores.Basic
                 {
                     FailedFlag_GetScheduledTimersCount = true;
                 }
-                return -1;
+                return failDefaultValue;
             }
         }
 
-        public static int GetQueuedTasksCount()
+        public static int GetQueuedTasksCount(int failDefaultValue = 0)
         {
             try
             {
-                Type? t1 = Type.GetType("System.Threading.ThreadPoolGlobals");
-                if (t1 == null) return 0;
+                FieldInfo? workQueueInfo = null;
+                Type? threadPoolInfo = Type.GetType("System.Threading.ThreadPool");
+                Type? threadPoolGlobalsInfo = Type.GetType("System.Threading.ThreadPoolGlobals");
 
-                FieldInfo? f1 = t1.GetField("workQueue");
-                if (f1 == null) return 0;
+                if (threadPoolGlobalsInfo != null)
+                {
+                    workQueueInfo = threadPoolGlobalsInfo.GetField("workQueue");
+                }
 
-                object? o = f1.GetValue(null);
-                if (o == null) return 0;
+                if (workQueueInfo == null)
+                {
+                    if (threadPoolInfo != null)
+                    {
+                        workQueueInfo = threadPoolInfo.GetField("s_workQueue", BindingFlags.Static | BindingFlags.NonPublic);
+                    }
+                }
+
+                if (workQueueInfo == null) return failDefaultValue;
+
+                object? o = workQueueInfo.GetValue(null);
+                if (o == null) return failDefaultValue;
 
                 Type? t2 = o.GetType();
-                if (t2 == null) return 0;
+                if (t2 == null) return failDefaultValue;
 
                 FieldInfo? f2 = t2.GetField("workItems", BindingFlags.Instance | BindingFlags.NonPublic);
-                if (f2 == null) return 0;
+                if (f2 == null) return failDefaultValue;
 
                 object? o2 = f2.GetValue(o);
-                if (o2 == null) return 0;
+                if (o2 == null) return failDefaultValue;
 
                 Type? t3 = o2.GetType();
-                if (t3 == null) return 0;
+                if (t3 == null) return failDefaultValue;
 
                 PropertyInfo? f3 = t3.GetProperty("Count");
-                if (f3 == null) return 0;
+                if (f3 == null) return failDefaultValue;
 
-                int ret = (int)(f3.GetValue(o2) ?? 0);
+                int ret = (int)(f3.GetValue(o2) ?? failDefaultValue);
 
                 return ret;
             }
             catch
             {
-                return 0;
+                return failDefaultValue;
             }
         }
 
