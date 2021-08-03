@@ -36,7 +36,7 @@ THINWEB_BANNER_WEB					$APPVERYSHORT$ Web ページ
 THINWEB_FOOTER_TERMS				使用条件
 THINWEB_FOOTER_COPYRIGHT			IPA 産業サイバーセキュリティセンター サイバー技術研究室 ＆ NTT 東日本 特殊局. All rights reserved.
 
-THINWEB_INTRO						Windows だけでなく、Mac や ChromeBook の Web ブラウザからでも、職場の $APPSHORT_SERVER$ 端末に接続し、全画面で安全・快適にテレワークできるようになりました。
+THINWEB_INTRO						HTML5 版 Web クライアントを使用すると、Web ブラウザから職場の「$APPSHORT_SERVER$」端末に接続し、Windows デスクトップにリモートログインできます。<BR>自宅の Mac や ChromeBook などの端末から、職場の Windows を安全・快適・全画面で操作できます。
 THINWEB_BEGINNER_NOTE1				「$APPFULL$」 のご利用が初めての方へ
 THINWEB_BEGINNER_NOTE2				オフィスの自分の PC 用の <a href="https://telework.cyber.ipa.go.jp/">「$APPSHORT_SERVER$」アプリはこちらからダウンロード</a> できます。
 THINWEB_BEGINNER_NOTE3				クライアント PC (自宅側) が Windows PC の場合は、<a href="https://telework.cyber.ipa.go.jp/">従来の Windows 版 $APPSHORT_CLIENT$</a> も利用可能です。
