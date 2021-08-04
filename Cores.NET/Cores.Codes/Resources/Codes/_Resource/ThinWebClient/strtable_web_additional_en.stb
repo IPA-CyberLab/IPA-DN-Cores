@@ -115,6 +115,8 @@ THINWEB_WOL_BUTTON					Execute Wake on LAN
 
 THINWEB_REMOTE						\'s Remote Desktop
 
+THINWEB_NLA_NOTE					When using NLA authentication, the user name and password are transmitted via SSL encrypted communication to the web server hosting this web client. In this case, the web server administrator can, in principle, retrieve the plaintext of the password. Use NLA authentication only if the web server you are connecting to is a trusted server.
+
 
 
 THINWEB_HELP1						Remote Control Help

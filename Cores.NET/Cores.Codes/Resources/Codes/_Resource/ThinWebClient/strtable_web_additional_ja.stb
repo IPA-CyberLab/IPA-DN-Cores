@@ -113,6 +113,8 @@ THINWEB_WOL6						(2) Wake on LAN トリガー PC のコンピュータ ID:
 THINWEB_WOL7						トリガー PC のコンピュータ ID を指定してください
 THINWEB_WOL_BUTTON					Wake on LAN を実行する
 
+THINWEB_NLA_NOTE					NLA 認証 (RDP 自動ログオン機能) を使用する場合、ユーザー名とパスワードは HTML Web フォームから SSL 暗号化通信を経由してこの Web システムをホストしている Web サーバーに伝送されます。この場合、Web サーバーの管理者に悪意がある場合は、原理的に、パスワードの平文を取得可能です。接続先 Web サーバーが信頼できるサーバーである場合のみ、NLA 認証を使用してください。
+
 
 THINWEB_REMOTE						\ のリモートデスクトップ
 

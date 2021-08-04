@@ -160,6 +160,11 @@ namespace IPA.Cores.Codes
         public string Pcid { get; set; } = ""; // 接続先コンピュータ ID
         public GuaPreference Preference { get; set; } = new GuaPreference(); // 接続設定
 
+        public ThinWebClientProfile(GuaKeyboardLayout keyboardLayout = GuaKeyboardLayout.Japanese)
+        {
+            this.Preference.KeyboardLayout = keyboardLayout;
+        }
+
         public void Normalize()
         {
             this.Pcid = Str.NormalizeString(this.Pcid, false, true, false, true);
@@ -486,7 +491,15 @@ namespace IPA.Cores.Codes
                 if (historySelectedProfile == null)
                 {
                     // デフォルト値
-                    profile = this._EasyLoadCookie<ThinWebClientProfile>("thin_current_profile", true, this.Client.SettingsFastSnapshot.CookieEncryptPassword) ?? new ThinWebClientProfile();
+                    GuaKeyboardLayout defaultKeyboardLayout = GuaKeyboardLayout.Japanese;
+
+                    if (Page.CurrentLanguage.Key._IsSamei("ja") == false)
+                    {
+                        // 日本語以外の環境では英語キーボードをデフォルトで選択する
+                        defaultKeyboardLayout = GuaKeyboardLayout.EnglishUs;
+                    }
+
+                    profile = this._EasyLoadCookie<ThinWebClientProfile>("thin_current_profile", true, this.Client.SettingsFastSnapshot.CookieEncryptPassword) ?? new ThinWebClientProfile(defaultKeyboardLayout);
                 }
                 else
                 {
