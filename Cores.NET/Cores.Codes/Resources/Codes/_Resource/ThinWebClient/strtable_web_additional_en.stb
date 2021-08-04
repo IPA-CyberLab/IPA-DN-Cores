@@ -36,7 +36,7 @@ THINWEB_FOOTER_TERMS				Terms of Use
 THINWEB_FOOTER_COPYRIGHT			IPA CyberLab of Industrial Cyber Security Center and NTT East Special Affairs Bureau. All rights reserved.
 
 THINWEB_INTRO						Using the HTML5 version of the Web Client, you can connect to your $APPSHORT_SERVER$ PC at workplace from your Home PC's Web browser and remotely login to your Windows desktop. <BR>You can safely and comfortably control your workplace Windows desktop with full screen mode from your Mac, ChromeBook, or other device at home.
-THINWEB_BEGINNER_NOTE2				<strong><a href="https://download.telework.cyber.ipa.go.jp/thin-telework/Public/">The "$APPSHORT_SERVER$" App can be downloaded here</a></strong> for Windows PCs on the workplace side (server side). <BR>When you install the app at work, your Computer ID will be assigned. <BR>You can connect from home to the workplace PC by opening this web page on your home PC and entering your work Computer ID in the field above.
+THINWEB_BEGINNER_NOTE2				<strong><a href="$THINWEB_DOWNLOAD_LINK$" target="_blank">The "$APPSHORT_SERVER$" App can be downloaded here</a></strong> for Windows PCs on the workplace side (server side). <BR>When you install the app at work, your Computer ID will be assigned. <BR>You can connect from home to the workplace PC by opening this web page on your home PC and entering your work Computer ID in the field above.
 
 
 THINWEB_PCID						Target Computer ID:

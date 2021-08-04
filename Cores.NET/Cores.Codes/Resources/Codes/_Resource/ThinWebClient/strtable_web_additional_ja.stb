@@ -37,7 +37,7 @@ THINWEB_FOOTER_TERMS				使用条件
 THINWEB_FOOTER_COPYRIGHT			IPA 産業サイバーセキュリティセンター サイバー技術研究室 ＆ NTT 東日本 特殊局. All rights reserved.
 
 THINWEB_INTRO						HTML5 版 Web クライアントを使用すると、Web ブラウザから職場の「$APPSHORT_SERVER$」端末に接続し、Windows デスクトップにリモートログインできます。<BR>自宅の Mac や ChromeBook などの端末から、職場の Windows を安全・快適に、全画面で操作できます。
-THINWEB_BEGINNER_NOTE2				職場側 (サーバー側) Windows PC 用 <strong><a href="https://telework.cyber.ipa.go.jp/">「$APPSHORT_SERVER$」アプリはこちらからダウンロード</a></strong> できます。<BR>職場側でアプリをインストールすると、コンピュータ ID が払い出されます。<BR>自宅 PC でこのページを開き、上記の欄に職場の コンピュータ ID を入力すると、自宅から接続できます。
+THINWEB_BEGINNER_NOTE2				職場側 (サーバー側) Windows PC 用 <strong><a href="$THINWEB_DOWNLOAD_LINK$" target="_blank">「$APPSHORT_SERVER$」アプリはこちらからダウンロード</a></strong> できます。<BR>職場側でアプリをインストールすると、コンピュータ ID が払い出されます。<BR>自宅 PC でこのページを開き、上記の欄に職場の コンピュータ ID を入力すると、自宅から職場に接続できます。
 
 
 THINWEB_PCID						接続先コンピュータ ID:
