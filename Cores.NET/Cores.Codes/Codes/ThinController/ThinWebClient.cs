@@ -86,6 +86,7 @@ using IPA.Cores.Helper.GuaHelper;
 using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using IPA.App.ThinWebClientApp;
+using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace IPA.Cores.Codes
 {
@@ -353,7 +354,7 @@ namespace IPA.Cores.Codes
         public ThinWebClient Client { get; }
         public PageContext Page { get; }
 
-        public StrTableLanguage Language => Page.Language;
+        public StrTableLanguage Language => Page.CurrentLanguage;
         public StrTable StrTable => Page.Stb;
 
         public ThinWebClientController(ThinWebClient client, PageContext page)
@@ -366,7 +367,19 @@ namespace IPA.Cores.Codes
             // 文字列 JSON をダンプする
             this.Page.DumpStrTableJson(Env.AppRootDir._CombinePath("wwwroot", "js", "strtable.js"));
 
-            this.Page.SetLanguageByHttpString("ja"); // TODO: language selection
+            this.Page.SetLanguageByHttpString("ja");
+        }
+
+        public override void OnActionExecuting(ActionExecutingContext context)
+        {
+            try
+            {
+                this.Page.StartLanguageSelection(this.HttpContext);
+            }
+            finally
+            {
+                base.OnActionExecuting(context);
+            }
         }
 
         protected AspNetCookieOptions GetCookieOption() => new AspNetCookieOptions(domain: this.Client.SettingsFastSnapshot.CookieDomainName);

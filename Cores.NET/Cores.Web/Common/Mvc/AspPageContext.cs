@@ -55,6 +55,7 @@ using static IPA.Cores.Globals.Web;
 using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Extensions.DependencyInjection;
@@ -104,8 +105,9 @@ namespace IPA.Cores.Web
 
         // 現在の言語と文字列テーブル
         public StrTableLanguageList LanguageList { get; private set; } = StrTableLanguageList.DefaultEmptyStrTableLanguageList;
-        public StrTableLanguage Language { get; private set; } = StrTableLanguageList.DefaultEmptyStrTableLanguageList.FindDefaultLanguage();
-        public StrTable Stb => this.Language.Table;
+        readonly Copenhagen<StrTableLanguage> CurrentLanguageInternal = StrTableLanguageList.DefaultEmptyStrTableLanguageList.FindDefaultLanguage();
+        public StrTableLanguage CurrentLanguage => CurrentLanguageInternal;
+        public StrTable Stb => this.CurrentLanguage.Table;
 
         public void SetLanguageList(StrTableLanguageList list)
         {
@@ -114,7 +116,12 @@ namespace IPA.Cores.Web
 
         public void SetLanguageByHttpString(string str)
         {
-            this.Language = this.LanguageList.FindLanguageByHttpAcceptLanguage(str);
+            SetCurrentLanguage(this.LanguageList.FindLanguageByHttpAcceptLanguage(str));
+        }
+
+        public void SetCurrentLanguage(StrTableLanguage language)
+        {
+            this.CurrentLanguageInternal.Set(language);
         }
 
         // 現在の Language List を元に文字列テーブルファイルを吐き出す 
@@ -156,7 +163,69 @@ namespace IPA.Cores.Web
         // JavaScript の初期化に使うコンテキストの取得
         public virtual AspPageJavaScriptInitContext GetJavaScriptInitContext()
         {
-            return new AspPageJavaScriptInitContext(this.Language.Key);
+            return new AspPageJavaScriptInitContext(this.CurrentLanguage.Key);
+        }
+
+        // 言語切替え・選択処理
+        public void StartLanguageSelection(HttpContext context)
+        {
+            StrTableLanguage? selectedLanguage = null;
+
+            // setlang Query String が付いている場合はその言語を選択
+            var req = context.Request;
+            if (HttpMethods.IsGet(req.Method))
+            {
+                string setlang = req._GetQueryStringFirst("setlang");
+
+                if (setlang._IsFilled())
+                {
+                    selectedLanguage = this.LanguageList.FindLanguageByKey(setlang);
+
+                    // Cookie に言語名を書く
+                    context._EasySaveCookie("asp_page_language_setting", selectedLanguage.Key);
+
+                    // Query string から "setlang" を削除したものにそのままリダイレクトする
+                    var originalUrl = context.Request.GetDisplayUrl();
+                    var newUrl = originalUrl._RemoveQueryStringItem("setlang");
+
+                    context.Response.Redirect(newUrl.ToString());
+                }
+            }
+
+            if (selectedLanguage == null)
+            {
+                // 無ければ Cookie を読んでみる
+                string cookieLang = req._EasyLoadCookie<string>("asp_page_language_setting")._NonNullTrim();
+                if (cookieLang._IsFilled())
+                {
+                    selectedLanguage = this.LanguageList.FindLanguageByKey(cookieLang);
+                }
+            }
+
+            // それでも無ければブラウザの accept language を利用する
+
+            // 現在の言語を更新
+            if (selectedLanguage != null)
+            {
+                this.SetCurrentLanguage(selectedLanguage);
+
+                selectedLanguage.Name_English._Print();
+            }
+        }
+
+        // 言語 Select Box のデータの取得
+        public List<SelectListItem> GetLanguageSelectHtmlBox(Uri currentUri)
+        {
+            List<SelectListItem> ret = new List<SelectListItem>();
+
+            foreach (var lang in this.LanguageList.GetLaugnageList().OrderBy(x => x.Key, StrComparer.IgnoreCaseTrimComparer))
+            {
+                string newUrl = currentUri._UpdateQueryStringItem("setlang", lang.Key).PathAndQuery;
+
+                ret.Add(new SelectListItem(lang.Name_English, newUrl, lang.Key._IsSamei(this.CurrentLanguage.Key)));
+            }
+
+            return ret;
         }
     }
 }

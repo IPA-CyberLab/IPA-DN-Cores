@@ -6663,6 +6663,30 @@ namespace IPA.Cores.Basic
 
             return ret;
         }
+
+        public void RemoveWhen(Func<KeyValuePair<TKey, TValue>, bool> condition)
+        {
+            List<KeyValuePair<TKey, TValue>> toRemove = new List<KeyValuePair<TKey, TValue>>();
+
+            foreach (var kv in this)
+                if (condition(kv))
+                    toRemove.Add(kv);
+
+            foreach (var kv in toRemove)
+                this.Remove(kv);
+        }
+
+        public void RemoveWhenKey(TKey key, IEqualityComparer<TKey> comparer)
+        {
+            this.RemoveWhen(kv => comparer.Equals(kv.Key, key));
+        }
+
+        public void AddOrUpdateKeyValueSingle(TKey key, TValue value, IEqualityComparer<TKey> comparer)
+        {
+            this.RemoveWhenKey(key, comparer);
+
+            this.Add(key, value);
+        }
     }
 
     [Flags]

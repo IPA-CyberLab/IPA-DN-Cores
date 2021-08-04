@@ -954,6 +954,46 @@ namespace IPA.Cores.Helper.Basic
         public static Uri _CombineUrl(this Uri uri, string relativeUriOrAbsolutePath) => new Uri(uri, relativeUriOrAbsolutePath);
         public static Uri _CombineUrl(this Uri uri, Uri relativeUri) => new Uri(uri, relativeUri);
 
+        public static Uri _RemoveQueryStringItem(this Uri uri, string itemKey)
+        {
+            string path = uri.AbsolutePath;
+            string qs = uri.Query;
+            var qsList = qs._ParseQueryString();
+
+            qsList.RemoveItem(itemKey);
+
+            string tmp = Str.BuildHttpUrl(uri.Scheme, uri.Host, uri.Port, path);
+            string qsNew = qsList.ToString();
+            if (qsNew._IsFilled())
+            {
+                tmp += "?" + qsNew;
+            }
+
+            return tmp._ParseUrl();
+        }
+        public static Uri _RemoveQueryStringItem(this string uri, string itemKey)
+            => _RemoveQueryStringItem(uri._ParseUrl(), itemKey);
+
+        public static Uri _UpdateQueryStringItem(this Uri uri, string itemKey, string itemValue)
+        {
+            string path = uri.AbsolutePath;
+            string qs = uri.Query;
+            var qsList = qs._ParseQueryString();
+
+            qsList.AddOrUpdateKeyItemSingle(itemKey, itemValue);
+
+            string tmp = Str.BuildHttpUrl(uri.Scheme, uri.Host, uri.Port, path);
+            string qsNew = qsList.ToString();
+            if (qsNew._IsFilled())
+            {
+                tmp += "?" + qsNew;
+            }
+
+            return tmp._ParseUrl();
+        }
+        public static Uri _UpdateQueryStringItem(this string uri, string itemKey, string itemValue)
+            => _UpdateQueryStringItem(uri._ParseUrl(), itemKey, itemValue);
+
         public static string _TryGetContentType(this System.Net.Http.Headers.HttpContentHeaders h) => (h == null ? "" : h.ContentType == null ? "" : h.ContentType.ToString()._NonNull());
         public static string _TryGetContentType(this IPA.Cores.Basic.HttpClientCore.HttpContentHeaders h) => (h == null ? "" : h.ContentType == null ? "" : h.ContentType.ToString()._NonNull());
 

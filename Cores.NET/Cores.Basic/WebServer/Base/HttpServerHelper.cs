@@ -154,6 +154,23 @@ namespace IPA.Cores.Helper.Basic
             }
         }
 
+        public static void _GetRequestPathAndQueryString(this HttpRequest r, out string requestPath, out string queryString)
+        {
+            string path = r.Path.ToString()._NonNull();
+            string qs = r.QueryString.ToString()._NonNull();
+
+            if (qs._IsNullOrZeroLen() == false)
+            {
+                requestPath = path;
+                queryString = qs;
+            }
+            else
+            {
+                requestPath = path;
+                queryString = "";
+            }
+        }
+
         public static string _GetQueryStringFirst(this HttpRequest r, string key, string defaultStr = "", StringComparison comparison = StringComparison.OrdinalIgnoreCase, bool autoTrim = true)
             => _GetQueryStringFirst(r.Query, key, defaultStr, comparison, autoTrim);
 

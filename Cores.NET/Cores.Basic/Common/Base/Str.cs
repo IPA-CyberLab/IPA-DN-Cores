@@ -8335,6 +8335,16 @@ namespace IPA.Cores.Basic
 
             return sb.ToString();
         }
+
+        public void RemoveItem(string key)
+        {
+            this.RemoveWhenKey(key, StrComparer.IgnoreCaseTrimComparer);
+        }
+
+        public void AddOrUpdateKeyItemSingle(string key, string value)
+        {
+            this.AddOrUpdateKeyValueSingle(key, value, StrComparer.IgnoreCaseTrimComparer);
+        }
     }
 
 
