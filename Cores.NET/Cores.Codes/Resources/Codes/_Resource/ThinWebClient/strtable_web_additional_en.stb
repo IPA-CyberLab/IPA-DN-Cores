@@ -35,10 +35,10 @@ THINWEB_BANNER_WEB					$APPVERYSHORT$ Web
 THINWEB_FOOTER_TERMS				Terms of Use
 THINWEB_FOOTER_COPYRIGHT			IPA CyberLab of Industrial Cyber Security Center and NTT East Special Affairs Bureau. All rights reserved.
 
-THINWEB_INTRO						Using the HTML5 version of the Web Client, you can connect to your $APPSHORT_SERVER$ PC at workplace from your Home PC's Web browser and remotely login to your Windows desktop. <BR>You can safely and comfortably control your Windows desktop with full screen mode from your Mac, ChromeBook, or other device at home.
+THINWEB_INTRO						Using the HTML5 version of the Web Client, you can connect to your $APPSHORT_SERVER$ PC at workplace from your Home PC's Web browser and remotely login to your Windows desktop. <BR>You can safely and comfortably control your workplace Windows desktop with full screen mode from your Mac, ChromeBook, or other device at home.
 THINWEB_BEGINNER_NOTE1				For $APPFULL$ beginners:
 THINWEB_BEGINNER_NOTE2				You need to download and install the <a href="https://telework.cyber.ipa.go.jp/">"$APPSHORT_SERVER$" agent application</a> at your workplace PC.
-THINWEB_BEGINNER_NOTE3				You can also use the <a href="https://telework.cyber.ipa.go.jp/">traditional Windows Desktop App of "$APPSHORT_CLIENT$"</a> instead of this HTML5 web client.
+THINWEB_BEGINNER_NOTE3				You can also use the <a href="https://telework.cyber.ipa.go.jp/">Traditional Windows Desktop App of "$APPSHORT_CLIENT$"</a> instead of this HTML5 web client.
 
 
 THINWEB_PCID						Target Computer ID:
@@ -122,21 +122,21 @@ THINWEB_HELP2						The following operations are easy to learn once you get used 
 THINWEB_HELP3						Keyboard Guide
 THINWEB_HELP4						To perform special keystrokes on a remote PC via the HTML5 client, follow the instructions below.
 THINWEB_HELP5						1. How to Press Windows Key?
-THINWEB_HELP6						$THINWEB_WIN_SHIFTWIN$
-THINWEB_HELP7						$THINWEB_WIN_CTRL2ALT2$
+THINWEB_HELP6						Press Local "Left Shift + Windows" (Mac: "Left Shift + ⌘Command" ) Keys to Remote "Windows" Key.
+THINWEB_HELP7						Press Local "Right Ctrl + Right Alt" Keys to Remote "Windows" Key.
 THINWEB_HELP8						Note: You can also use Key Combination (e.g. Windows + R) by using the above key press technique.
 THINWEB_HELP9						2. How to Press Alt + Tab Keys?
-THINWEB_HELP10						$THINWEB_TAB_ALTSHIFT$
+THINWEB_HELP10						Press Local "Left Alt + Left Shift" Keys to Remote "Alt + Tab" Keys.
 THINWEB_HELP11						3. How to Press Ctrl + Alt + Del Keys?
-THINWEB_HELP12						$THINWEB_CAD_CTRLALTEND$
-THINWEB_HELP13						$THINWEB_CAD_CTRLALTHOME$
-THINWEB_HELP14						$THINWEB_CAD_CTRLALTBACKSPACE$
-THINWEB_HELP15						$THINWEB_CAD_CTRLSHIFTBACKSPACE$
-THINWEB_HELP15_2					$THINWEB_IME_ZENHAN$
+THINWEB_HELP12						Press Local "Left Ctrl + Left Alt + End" (Mac: "Ctrl + Option + End" ) Keys to Remote "Ctrl + Alt + Del" Keys.
+THINWEB_HELP13						Press Local "Left Ctrl + Left Alt + Home" (Mac: "Ctrl + Option + Home" ) Keys to Remote "Ctrl + Alt + Del" Keys.
+THINWEB_HELP14						Press Local "Left Ctrl + Left Alt + Backspace" (Mac: "Ctrl + Option + Backspace" ) Keys to Remote "Ctrl + Alt + Del" Keys.
+THINWEB_HELP15						Press Local "Left Ctrl + Left Shift + Backspace" Keys to Remote "Ctrl + Alt + Del" Keys.
+THINWEB_HELP15_2					Press Local "Zenkaku/Hankaku" Key to Toggle Remote IME (Japanese Input Method). (Supported by only few Web browsers.)
 THINWEB_HELP16						4. How to Toggle IME (Japanese Input Method) ?
-THINWEB_HELP17						$THINWEB_IME_LEFTCTRLSPACE$
-THINWEB_HELP18						$THINWEB_IME_LEFTSHIFTSPACE$
-THINWEB_HELP19						$THINWEB_IME_OPTIONSPACE$
+THINWEB_HELP17						Press Local "Left Ctrl + Space" Keys to Toggle Remote IME (Japanese Input Method).
+THINWEB_HELP18						Press Local "Left Shift + Space" Keys to Toggle Remote IME (Japanese Input Method).
+THINWEB_HELP19						Press Local "Option + Space" Keys (Mac only) to Toggle Remote IME (Japanese Input Method).
 THINWEB_HELP20						In this case, you will need to change the hot key settings for IME operation from the Windows control panel of the remote terminal or the IME product settings screen. <br> In this case, please change the hot key settings for IME operation from the Windows control panel of the remote terminal or the IME product setting screen.
 THINWEB_HELP21						Recommendations for using Chromebooks, MacBooks, small Windows PCs, etc.
 THINWEB_HELP22						If you are using Japanese Input Method (IME), you may often use the F1 to F10 function keys for conversion. The following settings are recommended for comfortable remote operation.
@@ -166,10 +166,10 @@ THINWEB_HELP45						Resolving issues with Firefox browser when full screen
 THINWEB_HELP46						In Firefox, if you move the mouse cursor to the top of the screen when operating in a full-screen mode, the menu bar may appear and be resized. This is a problem on Firefox's side.<br>You can disable the menu bar disturbance by enabling the <a href="https://www.google.com/search?q=firefox+fullscr-toggler+full+screen" target="_blank"> option in the Firefox settings.</a>
 THINWEB_HELP47						Common issues
 THINWEB_HELP48						When the mouse cursor is moved to the top of the screen when in full screen mode, the web browser's guidance icons (such as the full screen release button) may appear.<BR>This is a forced display by the web browser, and cannot be removed by this system.
-THINWEB_HELP49						If the "$THINWEB_SCREENAUTOFULLSCREEN$" option is set to ON in the connection settings, the screen will transition to full screen when you type the first character on the keyboard after connecting remotely.<BR>In this case, only the first full-screen release key may be the Esc key, depending on the specifications of your web browser.
+THINWEB_HELP49						If the "Automatic Full Screen on Remote Connection Established" option is set to ON in the connection settings, the screen will transition to full screen when you type the first character on the keyboard after connecting remotely.<BR>In this case, only the first full-screen release key may be the Esc key, depending on the specifications of your web browser.
 THINWEB_HELP50						Note: If the server terminal you are connecting to is in "System Mode", the latest Windows may automatically adjust the desktop size when it is full screen/unfull screen. However, the remote Windows logon screen will not be adjusted. Therefore, it is better to disable/full screen once after logon is completed.
 THINWEB_HELP51						How to resolve the issue of the mouse cursor appearing duplicated?
-THINWEB_HELP52						Disable either "$THINWEB_SHOWLOCALMOUSECURSOR$" option or "$THINWEB_SHOWREMOTEMOUSECURSOR$" option.
+THINWEB_HELP52						Disable either "Draw Local Mouse Cursors" option or "Draw Remote Mouse Cursors" option.
 THINWEB_HELP53						Cautions
 THINWEB_HELP54						Keyboard operation is affected in various ways by the local HTML5 web browser, local terminal, remote terminal, and IME type. We do not guarantee that the above will work properly with all software combination patterns.
 THINWEB_HELP55						The F11 and F12 keys are assigned as commands to activate full screen / disable or developer mode in some local HTML5 web browsers, and may not be available for remote operation. Please contact the developer of the web browser for any restrictions caused by the web browser.

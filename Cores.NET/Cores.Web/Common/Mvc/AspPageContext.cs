@@ -203,6 +203,11 @@ namespace IPA.Cores.Web
             }
 
             // それでも無ければブラウザの accept language を利用する
+            if (selectedLanguage == null)
+            {
+                string acceptLanguage = req.Headers._GetStrFirst("Accept-Language");
+                selectedLanguage = this.LanguageList.FindLanguageByHttpAcceptLanguage(acceptLanguage);
+            }
 
             // 現在の言語を更新
             if (selectedLanguage != null)

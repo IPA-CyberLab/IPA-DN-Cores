@@ -123,21 +123,21 @@ THINWEB_HELP2						以下の操作は、慣れれば容易に覚えることが�
 THINWEB_HELP3						キーボードの操作方法
 THINWEB_HELP4						HTML5 版クライアントを経由して、リモート PC 上で特殊なキー操作を行なう方法は、以下のとおりです。
 THINWEB_HELP5						1. Windows キーを押す方法
-THINWEB_HELP6						$THINWEB_WIN_SHIFTWIN$
-THINWEB_HELP7						$THINWEB_WIN_CTRL2ALT2$
+THINWEB_HELP6						「左 Shift + Windows」 (Mac: 「左 Shift + ⌘Command」) キーを押すことで、リモートの「Windows」キーを押下いたします。
+THINWEB_HELP7						「右 Ctrl + 右 Alt」 キーを押すことで、リモートの「Windows」キーを押下いたします。
 THINWEB_HELP8						上記の方法と組み合わせて、Windows + R などの他のキーとの組み合わせコマンドも可能です。
 THINWEB_HELP9						2. Alt + Tab キーを押す方法
-THINWEB_HELP10						$THINWEB_TAB_ALTSHIFT$
+THINWEB_HELP10						「左 Alt + 左 Shift」 キーを押すことで、リモートの「Alt + Tab」キーを押下いたします。
 THINWEB_HELP11						3. Ctrl + Alt + Del キーを押す方法
-THINWEB_HELP12						$THINWEB_CAD_CTRLALTEND$
-THINWEB_HELP13						$THINWEB_CAD_CTRLALTHOME$
-THINWEB_HELP14						$THINWEB_CAD_CTRLALTBACKSPACE$
-THINWEB_HELP15						$THINWEB_CAD_CTRLSHIFTBACKSPACE$
-THINWEB_HELP15_2					$THINWEB_IME_ZENHAN$
+THINWEB_HELP12						「左 Ctrl + 左 Alt + End」 (Mac: 「Ctrl + Option + End」) キーを押すことで、リモートの「Ctrl + Alt + Del」キーを押下いたします。
+THINWEB_HELP13						「左 Ctrl + 左 Alt + Home」 (Mac: 「Ctrl + Option + Home」) キーを押すことで、リモートの「Ctrl + Alt + Del」キーを押下いたします。
+THINWEB_HELP14						「左 Ctrl + 左 Alt + Backspace」 (Mac: 「Ctrl + Option + Backspace」) キーを押すことで、リモートの「Ctrl + Alt + Del」キーを押下いたします。
+THINWEB_HELP15						「左 Ctrl + 左 Shift + Backspace」 キーを押すことで、リモートの「Ctrl + Alt + Del」キーを押下いたします。
+THINWEB_HELP15_2					「全角/半角」キーを押すことで、リモートの IME (日本語入力) を ON/OFF いたします。(一部のブラウザのみ対応)
 THINWEB_HELP16						4. IME (日本語入力) を ON/OFF する方法
-THINWEB_HELP17						$THINWEB_IME_LEFTCTRLSPACE$
-THINWEB_HELP18						$THINWEB_IME_LEFTSHIFTSPACE$
-THINWEB_HELP19						$THINWEB_IME_OPTIONSPACE$
+THINWEB_HELP17						「左 Ctrl + Space」キーを押すことで、リモートの IME (日本語入力) を ON/OFF いたします。
+THINWEB_HELP18						「左 Shift + Space」キーを押すことで、リモートの IME (日本語入力) を ON/OFF いたします。
+THINWEB_HELP19						「Option + Space」キー (Mac のみ) を押すことで、リモートの IME (日本語入力) を ON/OFF いたします。
 THINWEB_HELP20						一部のクライアント側 Web ブラウザ、サーバー端末、IME の種類によっては、上記の方法のみでは日本語入力の ON/OFF が適切に設定できない場合があります。<br>この場合は、リモート端末の Windows のコントロールパネルまたは IME 製品の設定画面から、IME を操作する際のホット・キーの設定を変更して対応してください。
 THINWEB_HELP21						Chromebook や MacBook, 小型 Windows PC などを利用される際の推奨事項
 THINWEB_HELP22						日本語入力 (IME) を利用されている場合、F1 ～ F10 のファンクションキーを変換時に活用されることが多いかと思われます。快適にリモート操作を行なうには、以下の設定を推奨します。
@@ -167,10 +167,10 @@ THINWEB_HELP45						Firefox ブラウザのフルスクリーン時の問題の�
 THINWEB_HELP46						Firefox では、フルスクリーン画面の操作時にマウスカーソルを画面上部に移動すると、メニューバーが表示され、リサイズされてしまう場合があります。<br>この Firefox のフルスクリーン時のメニューバーの自動表示は、<a href="https://www.google.com/search?q=firefox+fullscr-toggler+%E3%83%95%E3%83%AB%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%BC%E3%83%B3" target="_blank">Firefox の設定を編集することで無効化することができます。</a>
 THINWEB_HELP47						共通の事項
 THINWEB_HELP48						フルスクリーン時にマウスカーソルを画面の上部に移動すると、Web ブラウザによる案内アイコン (フルスクリーン解除ボタン等) が表示される場合があります。<br>これは、Web ブラウザが強制的に表示しているものであり、本システムで表示を消すことはできません。
-THINWEB_HELP49						接続設定の「$THINWEB_SCREENAUTOFULLSCREEN$」を ON にしている場合は、リモート接続後にキーボードで最初の 1 文字を打つときにフルスクリーンに遷移します。<br>この場合、Web ブラウザの仕様により、1 回目のフルスクリーン解除キーのみ、Esc キーとなる場合があります。
+THINWEB_HELP49						接続設定の「リモート接続時に自動的にフルスクリーンにする」を ON にしている場合は、リモート接続後にキーボードで最初の 1 文字を打つときにフルスクリーンに遷移します。<br>この場合、Web ブラウザの仕様により、1 回目のフルスクリーン解除キーのみ、Esc キーとなる場合があります。
 THINWEB_HELP50						接続先サーバー端末が「システムモード」の場合、最新の Windows では、フルスクリーン / 解除時にデスクトップサイズが自動的に調整される場合があります。しかし、リモートの Windows ログオン画面では、調整がされません。したがって、ログオン完了後に 1 度フルスクリーン解除 / フルスクリーン化の操作を行なうと快適です。
 THINWEB_HELP51						マウスカーソルが二重に表示される場合
-THINWEB_HELP52						接続設定の「$THINWEB_SHOWLOCALMOUSECURSOR$」または「$THINWEB_SHOWREMOTEMOUSECURSOR$」を OFF にすると、二重に表示されなくなります。
+THINWEB_HELP52						接続設定の「ローカルのマウスカーソルを描画」または「リモートのマウスカーソルを描画」を OFF にすると、二重に表示されなくなります。
 THINWEB_HELP53						ご注意
 THINWEB_HELP54						キーボード操作は、ローカル HTML5 Web ブラウザ、ローカル端末、リモート端末、IME の種類などによってさまざまな影響を受けます。すべてのソフトウェアの組み合わせパターンで、上記が正常に動作することを保証するものではありません。
 THINWEB_HELP55						F11 キーおよび F12 キーは、ローカル HTML5 Web ブラウザによっては、フルスクリーン / 解除や開発者モードを起動するコマンドとして割り当てられており、リモート操作に使用できない場合があります。これは Web ブラウザによる強制的な制約であり、本アプリケーションでコントロールするこができません。Web ブラウザによって生じる制約については、その Web ブラウザの開発者にお問い合わせください。
