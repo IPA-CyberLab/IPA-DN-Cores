@@ -13,7 +13,7 @@ THINWEB_SITENAME		$APPFULL$ HTML5 Web Client
 
 THINWEB_ERROR						Error
 THINWEB_ERROR_MSG					Error occured
-THINWEB_ERROR1						The following error occured.
+THINWEB_ERROR1						The following error occured. \
 THINWEB_ERROR2						Top Page
 THINWEB_ERROR3						.
 THINWEB_ERROR4						Please retry from \
