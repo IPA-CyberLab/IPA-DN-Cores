@@ -16,7 +16,7 @@ THINWEB_ERROR_MSG					Error occured
 THINWEB_ERROR1						The following error occured.
 THINWEB_ERROR2						Top Page
 THINWEB_ERROR3						.
-THINWEB_ERROR4						Please retry from
+THINWEB_ERROR4						Please retry from \
 THINWEB_ERROR5						Error details:
 THINWEB_ERROR6						Error timestamp:
 THINWEB_ERROR7						Error related process:
