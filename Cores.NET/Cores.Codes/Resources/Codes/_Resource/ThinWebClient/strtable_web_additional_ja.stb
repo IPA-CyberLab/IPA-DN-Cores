@@ -34,6 +34,7 @@ THINWEB_BANNER_NEW					新しい接続
 THINWEB_BANNER_HELP					操作方法のヘルプ
 THINWEB_BANNER_WEB					$APPVERYSHORT$ Web
 THINWEB_FOOTER_TERMS				使用条件
+THINWEB_FOOTER_OSS					利用 OSS ライセンス
 THINWEB_FOOTER_COPYRIGHT			IPA 産業サイバーセキュリティセンター サイバー技術研究室 ＆ NTT 東日本 特殊局. All rights reserved.
 
 THINWEB_INTRO						HTML5 版 Web クライアントを使用すると、Web ブラウザから職場の「$APPSHORT_SERVER$」端末に接続し、Windows デスクトップにリモートログインできます。<BR>自宅の Mac や ChromeBook などの端末から、職場の Windows を安全・快適に、全画面で操作できます。

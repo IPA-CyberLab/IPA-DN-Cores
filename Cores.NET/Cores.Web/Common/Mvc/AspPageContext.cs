@@ -213,8 +213,6 @@ namespace IPA.Cores.Web
             if (selectedLanguage != null)
             {
                 this.SetCurrentLanguage(selectedLanguage);
-
-                selectedLanguage.Name_English._Print();
             }
         }
 
