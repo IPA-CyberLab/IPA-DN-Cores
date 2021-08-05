@@ -35,7 +35,7 @@ THINWEB_BANNER_WEB					$APPVERYSHORT$ Web
 THINWEB_FOOTER_TERMS				Terms of Use
 THINWEB_FOOTER_COPYRIGHT			IPA CyberLab of Industrial Cyber Security Center and NTT East Special Affairs Bureau. All rights reserved.
 
-THINWEB_INTRO						Welcome to '$APPFULL$ HTML5 Web Client'.<BR>HTML5 Web Client enables you to connect to your workplace PC's Windows desktop from your home PC's web browser through internet.
+THINWEB_INTRO						Welcome to '$APPFULL$ HTML5 Web Client'.<BR>HTML5 Web Client enables you to connect to your workplace PC's Windows desktop from your home PC's web browser through internet.<BR>Mac and Chromebook PCs are supported as your home PC. You can use pure web browser without any special application installed.
 THINWEB_BEGINNER_NOTE2				<strong><a href="$THINWEB_DOWNLOAD_LINK$" target="_blank">The "$APPSHORT_SERVER$" App can be downloaded here</a></strong> for Windows PCs on the workplace side (server side). <BR>When you install the app at work, your Computer ID will be assigned. <BR>You can connect from home to the workplace PC by opening this web page on your home PC and entering your work Computer ID in the field above.
 
 
