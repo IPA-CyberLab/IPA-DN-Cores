@@ -248,12 +248,27 @@ namespace IPA.Cores.ClientApi.SlackApi
         {
             public string? image_512;
             public string? real_name;
+            public string? status_text;
+            public string? status_emoji;
+            public string? display_name;
+            public string? real_name_normalized;
+            public string? display_name_normalized;
+            public string? email;
         }
 
         public class User
         {
             public string? id;
             public string? name;
+            public string? real_name;
+            public bool is_admin;
+            public bool is_owner;
+            public bool is_primary_owner;
+            public bool is_restricted;
+            public bool is_ultra_restricted;
+            public bool is_bot;
+            public bool is_app_user;
+            public long updated;
             public Profile? profile;
         }
 

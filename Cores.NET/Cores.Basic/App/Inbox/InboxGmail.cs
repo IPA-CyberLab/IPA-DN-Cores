@@ -184,6 +184,14 @@ namespace IPA.Cores.Basic
 
         int numReload = 0;
 
+        int LastUnread = 0;
+
+        public class GmailStatus
+        {
+            public string? EmailAddress;
+            public int NumUnreadMessages;
+        }
+
         async Task<InboxMessageBox> ReloadInternalAsync(CancellationToken cancel)
         {
             GoogleApi.MessageList[] list = await Api!.GmailListMessagesAsync("is:unread label:inbox", this.Inbox.Options.MaxMessagesPerAdapter, cancel);
@@ -246,6 +254,20 @@ namespace IPA.Cores.Basic
                 };
 
                 msgList2.Add(m);
+            }
+
+            int numUnread = msgList2.Count;
+            if (this.LastUnread != numUnread)
+            {
+                this.LastUnread = numUnread;
+
+                GmailStatus st = new GmailStatus
+                {
+                    EmailAddress = this.currentProfile?.emailAddress,
+                    NumUnreadMessages = numUnread,
+                };
+
+                st._PostData("gmail_status");
             }
 
             box.MessageList = msgList2.ToArray();

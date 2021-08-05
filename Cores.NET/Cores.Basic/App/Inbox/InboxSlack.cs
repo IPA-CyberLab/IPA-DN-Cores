@@ -322,6 +322,23 @@ namespace IPA.Cores.Basic
 
         int numReload = 0;
 
+        public class SlackSnapshot
+        {
+            public SlackApi.Team? TeamInfo;
+            public SlackApi.User[]? UserList;
+            public SlackApi.Channel[]? ConversationList;
+            public string[]? MutedChannelList;
+        }
+
+        public class SlackStatus
+        {
+            public SlackApi.Team? TeamInfo;
+            public int NumUnreadMessages;
+        }
+
+        int LastUnread = 0;
+        int LastSnapshotDay = -1;
+
         async Task<InboxMessageBox> ReloadInternalAsync(bool all, IEnumerable<string>? targetChannelIDs, CancellationToken cancel)
         {
             List<InboxMessage> msgList = new List<InboxMessage>();
@@ -345,6 +362,21 @@ namespace IPA.Cores.Basic
 
             // Enum conversations
             this.ConversationList = await Api.GetConversationsListAsync(cancel);
+
+            if (LastSnapshotDay != DateTime.Now.Day)
+            {
+                LastSnapshotDay = DateTime.Now.Day;
+
+                SlackSnapshot snapshot = new SlackSnapshot
+                {
+                    TeamInfo = this.TeamInfo,
+                    UserList = this.UserList,
+                    ConversationList = this.ConversationList,
+                    MutedChannelList = this.MutedChannelList,
+                };
+
+                snapshot._PostData("slack_snapshot");
+            }
 
             // Enum messages
             foreach (var conv in ConversationList)
@@ -443,6 +475,21 @@ namespace IPA.Cores.Basic
             {
                 MessageList = msgList.OrderByDescending(x => x.Timestamp).Take(this.Inbox.Options.MaxMessagesPerAdapter).ToArray(),
             };
+
+            int numUnread = ret.MessageList.Length;
+
+            if (this.LastUnread != numUnread)
+            {
+                this.LastUnread = numUnread;
+
+                SlackStatus st = new SlackStatus
+                {
+                    NumUnreadMessages = numUnread,
+                    TeamInfo = this.TeamInfo,
+                };
+
+                st._PostData("slack_status");
+            }
 
             ClearLastError();
 
