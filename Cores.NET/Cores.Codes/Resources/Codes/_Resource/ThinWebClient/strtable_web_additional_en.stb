@@ -176,13 +176,17 @@ THINWEB_HELP54						Keyboard operation is affected in various ways by the local 
 THINWEB_HELP55						The F11 and F12 keys are assigned as commands to activate full screen / disable or developer mode in some local HTML5 web browsers, and may not be available for remote operation. Please contact the developer of the web browser for any restrictions caused by the web browser.
 THINWEB_HELP56						On some operating systems, web browsers, and terminals, mouse operations (especially wheel operations) may not be properly transmitted to the remote terminal after special keys are pressed. In this case, try closing the browser and then reconnecting.
 
+THINWEB_HELP57						Using this system from a smartphone or tablet device
+THINWEB_HELP58						<B>If you are using a smartphone or tablet, you may be able to use this system by connecting a Bluetooth keyboard and mouse. </B>(This varies by OS and device type.)
+THINWEB_HELP59						This system is primarily intended to be used from a home PC terminal (Windows, Mac, Chromebook). We do not guarantee that the system can be used from all types and operating systems of smartphones and tablets.
+
 
 THINWEB_ADV_TITLE					User Authentication - Connecting to "%s" (Advanced Authentication)
 THINWEB_ADV1						To connect to the destination $APPSHORT_SERVER$ '%s', you will need the user name and password set in "Advanced User Authentication".
 THINWEB_ADV2						Enter your user name and password.
 THINWEB_ADV3						User name:
 THINWEB_ADV4						Password:
-THINWEB_ADV5						Please see the <a href="/ThinWebClient/help/" target="_blank"><b>Remote Control Help</b></a>. There are very useful instructions on how to make the screen full-screen, turn Japanese Input on and off, and operate the Windows key, Alt + Tab key, Ctrl + Alt + Del key, etc.
+THINWEB_ADV5						Please see the <a href="/ThinWebClient/help/" target="_blank"><b>Remote Control Help</b></a>. There are very useful instructions on how to make the screen full-screen, turn Japanese Input on and off, and operate the Windows key, Alt + Tab key, Ctrl + Alt + Del key, etc.<BR><i class="fas fa-mobile-alt"></i> <b>From a smartphone or tablet device,</b> you may be able to use this system with a Bluetooth keyboard and mouse. (May vary by OS or device type.)
 THINWEB_ADV6						Cancel
 THINWEB_ADV7						The HTML5 version of the client does not support certificate authentication (including smart card authentication using My Number Card, etc.). If you are using certificate authentication, please change the user setting on the server side to password authentication.
 
