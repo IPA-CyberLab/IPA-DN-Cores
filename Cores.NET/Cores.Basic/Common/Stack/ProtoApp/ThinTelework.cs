@@ -355,7 +355,7 @@ namespace IPA.Cores.Basic
             await using WideTunnel wt = new WideTunnel(this.Options.WideTunnelOptions);
 
             // Mac アドレスリストの取得
-            string macList = await wt.WideClientGetWoLMacList(connectOptions.Pcid, cancel);
+            string macList = await wt.WideClientGetWoLMacList(targetPcid, cancel);
 
             // ターゲット PC に叩き起こし依頼
             await using WtcSocket? sock = await wt.WideClientConnectAsync(connectOptions.Pcid, connectOptions.ClientOptions, true, cancel);
