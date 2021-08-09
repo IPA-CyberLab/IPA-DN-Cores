@@ -43,7 +43,16 @@
 - ASP&#46;NET MVC 関係
 
 ### CORES_CODES_THINCONTROLLER
-- ASP&#46;NET MVC 関係
+- シン・テレワークシステム関係
+
+### CORES_CODES_AWS
+- AWS 関係
+
+### CORES_CODES_IISUTIL
+- IIS 用ユーティリティ関係
+
+
+
 
 
 

@@ -2874,6 +2874,13 @@ namespace IPA.Cores.Helper.Basic
 
         public static PalX509Certificate AsPalX509Certificate(this X509Certificate cert) => new PalX509Certificate(cert);
         public static Certificate AsPkiCertificate(this X509Certificate cert) => new Certificate(new PalX509Certificate(cert));
+
+        public static bool _IsValidFqdn(this string fqdn) => Str.IsValidFqdn(fqdn);
+
+        public static void _AddTuple<T1>(this IList<Tuple<T1>> list, T1 t1) => list.Add(new Tuple<T1>(t1));
+        public static void _AddTuple<T1, T2>(this IList<Tuple<T1, T2>> list, T1 t1, T2 t2) => list.Add(new Tuple<T1, T2>(t1, t2));
+        public static void _AddTuple<T1, T2, T3>(this IList<Tuple<T1, T2, T3>> list, T1 t1, T2 t2, T3 t3) => list.Add(new Tuple<T1, T2, T3>(t1, t2, t3));
+        public static void _AddTuple<T1, T2, T3, T4>(this IList<Tuple<T1, T2, T3, T4>> list, T1 t1, T2 t2, T3 t3, T4 t4) => list.Add(new Tuple<T1, T2, T3, T4>(t1, t2, t3, t4));
     }
 }
 

@@ -1629,15 +1629,15 @@ namespace IPA.Cores.Basic
             ctx, LeakCounterKind.CreateCombinedCancellationToken);
         }
 
-        public static async Task<T> RetryAsync<T>(Func<Task<T>> proc, int retryInterval, int tryCount, CancellationToken cancel = default)
+        public static async Task<T> RetryAsync<T>(Func<Task<T>> proc, int retryInterval, int tryCount, CancellationToken cancel = default, bool randomInterval = false)
         {
-            RetryHelper<T> retry = new RetryHelper<T>(retryInterval, tryCount);
+            RetryHelper<T> retry = new RetryHelper<T>(retryInterval, tryCount, randomInterval);
             return await retry.RunAsync(proc, cancel: cancel);
         }
 
-        public static async Task<T> RetryAsync<T>(Func<CancellationToken, Task<T>> proc, int retryInterval, int tryCount, CancellationToken cancel = default)
+        public static async Task<T> RetryAsync<T>(Func<CancellationToken, Task<T>> proc, int retryInterval, int tryCount, CancellationToken cancel = default, bool randomInterval = false)
         {
-            RetryHelper<T> retry = new RetryHelper<T>(retryInterval, tryCount);
+            RetryHelper<T> retry = new RetryHelper<T>(retryInterval, tryCount, randomInterval);
             return await retry.RunAsync(proc, cancel: cancel);
         }
 

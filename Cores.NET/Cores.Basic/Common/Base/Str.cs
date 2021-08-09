@@ -1118,6 +1118,24 @@ namespace IPA.Cores.Basic
         static readonly CriticalSection LockNewId = new CriticalSection();
         static ulong LastNewIdMSecs = 0;
 
+        public static bool IsValidFqdn(string fqdn)
+        {
+            fqdn = fqdn._NonNull();
+
+            if (fqdn.EndsWith(".")) fqdn = fqdn.Substring(0, fqdn.Length - 1);
+
+            var tokens = fqdn._Split(StringSplitOptions.None, '.');
+
+            foreach (string token in tokens)
+            {
+                if (token._IsEmpty()) return false;
+
+                if (token.All(c => ('0' <= c && c <= '9') || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '-' || c == '_') == false) return false;
+            }
+
+            return true;
+        }
+
         [return: NotNullIfNotNull("fqdn")]
         public static string? ReverseFqdnStr(string? fqdn)
         {

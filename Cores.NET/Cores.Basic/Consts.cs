@@ -113,6 +113,11 @@ namespace IPA.Cores.Basic
 
             public const int GenericMaxEntities_Small = 512;
             public const int GenericMaxSize_Middle = 1_000_000;
+
+            public const int EasyHttpClient_DefaultTryCount = 5;
+            public const int EasyHttpClient_DefaultRetryIntervalMsecs = 1 * 1000;
+
+            public static readonly TimeSpan MaxCertExpireSpanTargetForUpdate = new TimeSpan(4 * 365, 0, 0, 0);
         }
 
         public static partial class MaxLens
