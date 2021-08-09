@@ -204,11 +204,14 @@ namespace IPA.Cores.Codes
                 var bestCert = newCandidateCerts.OrderByDescending(x => x.PrimaryCertificate.NotAfter).ThenBy(x => x.DigestSHA1Str).FirstOrDefault();
                 if (bestCert != null)
                 {
-                    // この最も有効期限が長い候補の証明書と、現在登録されている証明書との有効期限を比較し、候補証明書のほうが新しければ更新する
-                    //if (bestCert.NotAfter > cert.NotAfter)
+                    if (bestCert.DigestSHA1Str._IsSameHex(cert.DigestSHA1Str) == false)
                     {
-                        // 更新対象としてマーク
-                        item.NewCert = bestCert;
+                        // この最も有効期限が長い候補の証明書と、現在登録されている証明書との有効期限を比較し、候補証明書のほうが新しければ更新する
+                        //if (bestCert.NotAfter > cert.NotAfter)
+                        {
+                            // 更新対象としてマーク
+                            item.NewCert = bestCert;
+                        }
                     }
                 }
             }
