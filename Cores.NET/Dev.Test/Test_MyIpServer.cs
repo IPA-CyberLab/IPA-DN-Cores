@@ -78,7 +78,7 @@ namespace IPA.TestDev
             {
                 reqAuth.AddAction("/", WebMethodBits.GET | WebMethodBits.HEAD, async (ctx) =>
                 {
-                    return new HttpStringResult((await Host.GetResponseAsync(ctx, ctx.Cancel))._NormalizeCrlf(CrlfStyle.Lf, true), contentType: Consts.MimeTypes.Text);
+                    return new HttpStringResult((await Host.GetResponseAsync(ctx, ctx.Cancel))._NormalizeCrlf(CrlfStyle.Lf), contentType: Consts.MimeTypes.Text);
                 });
             }
             catch
@@ -166,6 +166,12 @@ namespace IPA.TestDev
             if (proxySrcIp != null)
             {
                 clientIp = proxySrcIp;
+            }
+
+            if (port == false && fqdn == false)
+            {
+                // 従来のサーバーとの互換性を維持するため改行を入れません !!
+                return $"IP={clientIp.ToString()}";
             }
 
             w.WriteLine($"IP={clientIp.ToString()}");
