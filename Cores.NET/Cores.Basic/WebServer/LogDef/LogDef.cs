@@ -86,6 +86,9 @@ namespace IPA.Cores.Basic
         public int ResponseCode;
         public int ProcessTimeMsecs;
 
+        public string? ContentsType;
+        public long? ContentsLength;
+
         public string? Exception;
     }
 }

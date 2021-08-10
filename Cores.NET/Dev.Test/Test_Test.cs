@@ -2162,6 +2162,31 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                Async(async () =>
+                {
+                    while (true)
+                    {
+                        string line = Con.ReadLine()!;
+
+                        if (line._IsEmpty()) break;
+
+                        try
+                        {
+                            IPAddress ip = await LocalNet.DnsResolver.GetIpAddressSingleAsync(line, DnsResolverQueryType.AAAA);
+
+                            ip.ToString()._Print();
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Error();
+                        }
+                    }
+                });
+                return;
+            }
+
+            if (true)
+            {
                 Con.WriteLine("Top level message", flags: LogFlags.Heading);
                 return;
             }

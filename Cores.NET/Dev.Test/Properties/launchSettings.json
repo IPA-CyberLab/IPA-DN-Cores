@@ -7,6 +7,10 @@
       "commandName": "Project",
       "commandLineArgs": "/cmd:Test"
     },
+    "TestDev /MyIpServer test": {
+      "commandName": "Project",
+      "commandLineArgs": "/cmd:MyIpServer test"
+    },
     "TestDev /StressMonServerDaemon test": {
       "commandName": "Project",
       "commandLineArgs": "/cmd:StressMonServerDaemon test"

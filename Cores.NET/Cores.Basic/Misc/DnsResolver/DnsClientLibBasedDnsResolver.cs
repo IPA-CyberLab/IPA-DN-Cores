@@ -52,6 +52,7 @@ using System.Runtime.CompilerServices;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 using System.Net;
+using System.Net.Sockets;
 
 using DnsClient;
 
@@ -138,6 +139,56 @@ namespace IPA.Cores.Basic
                 }
 
                 return res.Answers?.PtrRecords().Select(x => x.PtrDomainName.ToString()).ToArray() ?? null;
+            }
+            finally
+            {
+                additional?.Set(additionalData);
+            }
+        }
+
+        protected override async Task<IEnumerable<IPAddress>?> GetIpAddressImplAsync(string hostname, DnsResolverQueryType queryType, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
+        {
+            DnsAdditionalResults additionalData = new DnsAdditionalResults(true, false);
+
+            QueryType qt;
+
+            switch (queryType)
+            {
+                case DnsResolverQueryType.A:
+                    qt = QueryType.A;
+                    break;
+
+                case DnsResolverQueryType.AAAA:
+                    qt = QueryType.AAAA;
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(queryType));
+            }
+
+            try
+            {
+                var res = await Client.QueryAsync(hostname, qt, queryClass: QueryClass.IN, cancel);
+
+                if (res.Header.ResponseCode == DnsHeaderResponseCode.NotExistentDomain)
+                {
+                    additionalData = new DnsAdditionalResults(false, true);
+                }
+
+                if (res.HasError)
+                {
+                    additionalData = new DnsAdditionalResults(true, false);
+                    return null;
+                }
+
+                if (qt == QueryType.A)
+                {
+                    return res.Answers?.ARecords().Where(x => x.Address.AddressFamily == AddressFamily.InterNetwork).Select(x => x.Address).ToArray() ?? null;
+                }
+                else
+                {
+                    return res.Answers?.AaaaRecords().Where(x => x.Address.AddressFamily == AddressFamily.InterNetworkV6).Select(x => x.Address).ToArray() ?? null;
+                }
             }
             finally
             {

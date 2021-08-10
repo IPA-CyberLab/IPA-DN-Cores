@@ -159,6 +159,9 @@ namespace IPA.Cores.Basic
                 long tickStart = 0;
                 long tickEnd = 0;
 
+                string? contentsType = null;
+                long? contentsLength = 0;
+
                 try
                 {
                     tickStart = Time.Tick64;
@@ -168,6 +171,9 @@ namespace IPA.Cores.Basic
                     HttpResponse response = context.Response;
 
                     httpResponseCode = response.StatusCode;
+
+                    contentsType = response.ContentType;
+                    contentsLength = response.ContentLength ?? 0;
                 }
                 catch
                 {
@@ -212,6 +218,9 @@ namespace IPA.Cores.Basic
 
                     ProcessTimeMsecs = processTime,
                     ResponseCode = httpResponseCode,
+
+                    ContentsType = contentsType,
+                    ContentsLength = contentsLength,
                 };
 
                 log.AuthUserName = log.AuthUserName._NullIfEmpty();

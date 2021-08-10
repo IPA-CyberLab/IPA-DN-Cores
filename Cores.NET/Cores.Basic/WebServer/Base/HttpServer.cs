@@ -512,6 +512,8 @@ namespace IPA.Cores.Basic
         public bool ShowDetailError { get; set; } = true;
         public bool UseKestrelWithIPACoreStack { get; set; } = true;
 
+        public int? ReadTimeoutMsecs { get; set; } = null;
+
         public bool UseSimpleBasicAuthentication { get; set; } = false;
         public bool HoldSimpleBasicAuthenticationDatabase { get; set; } = false;
         public string SimpleBasicAuthenticationRealm { get; set; } = "Basic Authentication";
@@ -630,10 +632,21 @@ namespace IPA.Cores.Basic
             opt.Limits.MaxConcurrentConnections = this.KestrelMaxConcurrentConnections;
             opt.Limits.MaxConcurrentUpgradedConnections = this.KestrelMaxUpgradedConnections;
 
+            if (this.ReadTimeoutMsecs != null)
+            {
+                opt.Limits.RequestHeadersTimeout = TimeSpan.FromMilliseconds(this.ReadTimeoutMsecs.Value);
+                opt.Limits.KeepAliveTimeout = TimeSpan.FromMilliseconds(this.ReadTimeoutMsecs.Value);
+            }
+
             opt.ConfigureHttpsDefaults(s =>
             {
                 s.SslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersionsAsServer;
                 s.ClientCertificateMode = this.ClientCertficateMode;
+
+                if (this.ReadTimeoutMsecs != null)
+                {
+                    s.HandshakeTimeout = TimeSpan.FromMilliseconds(this.ReadTimeoutMsecs.Value);
+                }
             });
 
             void EnableHttps(ListenOptions listenOptions)
@@ -642,6 +655,11 @@ namespace IPA.Cores.Basic
                 {
                     httpsOptions.SslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersionsAsServer;
                     httpsOptions.ClientCertificateMode = this.ClientCertficateMode;
+
+                    if (this.ReadTimeoutMsecs != null)
+                    {
+                        httpsOptions.HandshakeTimeout = TimeSpan.FromMilliseconds(this.ReadTimeoutMsecs.Value);
+                    }
 
                     bool useGlobalCertVault = false;
 
