@@ -64,6 +64,7 @@ namespace IPA.Cores.Basic
     public class MyIpServerSettings : INormalizable
     {
         public List<string> DnsServerList { get; set; } = new List<string>();
+        public int HttpTimeoutMsecs { get; set; }
 
         public void Normalize()
         {
@@ -71,6 +72,11 @@ namespace IPA.Cores.Basic
             {
                 this.DnsServerList.Add("8.8.8.8");
                 this.DnsServerList.Add("1.1.1.1");
+            }
+
+            if (this.HttpTimeoutMsecs <= 0)
+            {
+                this.HttpTimeoutMsecs = 10 * 1000;
             }
         }
     }
@@ -151,7 +157,7 @@ namespace IPA.Cores.Basic
                     HttpsPortsList = new int[] { 443, 992 }.ToList(),
                     UseStaticFiles = false,
                     MaxRequestBodySize = 32 * 1024,
-                    ReadTimeoutMsecs = 10 * 1000,
+                    ReadTimeoutMsecs = this.Settings.HttpTimeoutMsecs,
                 },
                 true);
             }
