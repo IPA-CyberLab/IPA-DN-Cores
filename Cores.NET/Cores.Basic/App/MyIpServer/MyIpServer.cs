@@ -153,8 +153,8 @@ namespace IPA.Cores.Basic
                 {
                     AutomaticRedirectToHttpsIfPossible = false,
                     UseKestrelWithIPACoreStack = false,
-                    HttpPortsList = new int[] { 80 }.ToList(),
-                    HttpsPortsList = new int[] { 443, 992 }.ToList(),
+                    HttpPortsList = new int[] { 80, 992}.ToList(),
+                    HttpsPortsList = new int[] { 443 }.ToList(),
                     UseStaticFiles = false,
                     MaxRequestBodySize = 32 * 1024,
                     ReadTimeoutMsecs = this.Settings.HttpTimeoutMsecs,
