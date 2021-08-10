@@ -152,7 +152,7 @@ namespace IPA.Cores.Basic
                 this.Cgi = new CgiHttpServer(new MyIpServerCgiHandler(this), new HttpServerOptions()
                 {
                     AutomaticRedirectToHttpsIfPossible = false,
-                    UseKestrelWithIPACoreStack = true,
+                    UseKestrelWithIPACoreStack = false,
                     HttpPortsList = new int[] { 80 }.ToList(),
                     HttpsPortsList = new int[] { 443, 992 }.ToList(),
                     UseStaticFiles = false,
