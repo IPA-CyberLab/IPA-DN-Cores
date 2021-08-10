@@ -56,6 +56,14 @@ namespace IPA.Cores.Basic
         public bool ShowVersion { get; private set; }
         public CoresMode Mode { get; private set; }
         public string AppName { get; }
+        public string SmtpServer { get; private set; } = "";
+        public bool SmtpUseSsl { get; private set; } = false;
+        public string SmtpUsername { get; private set; } = "";
+        public string SmtpPassword { get; private set; } = "";
+        public string SmtpFrom { get; private set; } = "";
+        public string SmtpTo { get; private set; } = "";
+        public int SmtpMaxLines { get; private set; } = SmtpLogRouteSettings.DefaultMaxLines;
+        public LogPriority SmtpLogLevel { get; private set; } = LogPriority.Debug;
 
         public CoresLibOptions(CoresMode mode, string appName, DebugMode defaultDebugMode = DebugMode.Debug, bool defaultPrintStatToConsole = false, bool defaultRecordLeakFullStack = false)
         {
@@ -87,6 +95,14 @@ namespace IPA.Cores.Basic
             procs.Add(("nohup", false, (name, next) => { this.NohupMode = true; }));
             procs.Add(("notelnet", false, (name, next) => { this.NoTelnetMode = true; }));
             procs.Add(("version", false, (name, next) => { this.ShowVersion = true; }));
+            procs.Add(("smtpserver", true, (name, next) => { this.SmtpServer = next; }));
+            procs.Add(("smtpusessl", false, (name, next) => { this.SmtpUseSsl = true; }));
+            procs.Add(("smtpusername", true, (name, next) => { this.SmtpUsername = next; }));
+            procs.Add(("smtppassword", true, (name, next) => { this.SmtpPassword = next; }));
+            procs.Add(("smtpfrom", true, (name, next) => { this.SmtpFrom = next; }));
+            procs.Add(("smtpto", true, (name, next) => { this.SmtpTo = next; }));
+            procs.Add(("smtpmaxlines", true, (name, next) => { this.SmtpMaxLines = next._ToInt(); }));
+            procs.Add(("smtploglevel", true, (name, next) => { this.SmtpLogLevel = LogPriority.Debug.ParseAsDefault(next, true); }));
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -280,6 +296,7 @@ namespace IPA.Cores.Basic
 
             CoresLocalDirs.Module.Init();
 
+            LocalLogRouter.OptionsForSmtpLogRouterInit.TrySetValue(options);
             LocalLogRouter.Module.Init();
 
             CoresRuntimeStatReporter.Module.Init();

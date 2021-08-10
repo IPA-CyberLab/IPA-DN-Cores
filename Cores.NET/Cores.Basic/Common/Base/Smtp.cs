@@ -418,4 +418,151 @@ namespace IPA.Cores.Basic
         public static bool Send(SmtpConfig config, MailAddress from, MailAddress to, string subject, string body, bool noException = false, CancellationToken cancel = default)
             => SendAsync(config, from, to, subject, body, noException, cancel)._GetResult();
     }
+
+    public class SmtpLogRouteSettings
+    {
+        public string SmtpServer { get; }
+        public bool SmtpUseSsl { get; }
+        public string SmtpUsername { get; }
+        public string SmtpPassword { get; }
+        public string MailFrom { get; }
+        public string MailTo { get; }
+        public int MaxLines { get; }
+
+        public const int DefaultMaxLines = 100000;
+
+        public SmtpLogRouteSettings(string smtpServer, bool smtpUseSsl, string smtpUsername, string smtpPassword, string mailFrom, string mailTo, int maxLines = DefaultMaxLines)
+        {
+            SmtpServer = smtpServer;
+            SmtpUseSsl = smtpUseSsl;
+            SmtpUsername = smtpUsername;
+            SmtpPassword = smtpPassword;
+            MailFrom = mailFrom;
+            MailTo = mailTo;
+            MaxLines = Math.Max(maxLines, 1);
+        }
+    }
+
+    public class SmtpLogRoute : LogRouteBase
+    {
+        readonly CriticalSection<SmtpLogRoute> Lock = new CriticalSection<SmtpLogRoute>();
+
+        public SmtpLogRouteSettings Settings { get; }
+
+        List<string> Lines2 = new List<string>();
+        List<string> Lines = new List<string>();
+
+        public SmtpLogRoute(string kind, LogPriority minimalPriority, SmtpLogRouteSettings settings) : base(kind, minimalPriority)
+        {
+            this.Settings = settings;
+        }
+
+        public override async Task FlushAsync(bool halfFlush = false, CancellationToken cancel = default)
+        {
+            List<string> linesToSend;
+            List<string> lines2ToSend;
+
+            lock (this.Lock)
+            {
+                if (this.Lines.Count == 0 && this.Lines2.Count == 0) return;
+
+                linesToSend = this.Lines;
+                lines2ToSend = this.Lines2;
+
+                this.Lines = new List<string>();
+                this.Lines2 = new List<string>();
+            }
+
+            StringWriter w = new StringWriter();
+
+            w.WriteLine($"Reported: {DtOffsetNow._ToDtStr()}");
+            w.WriteLine($"Hostname: {Env.DnsFqdnHostName}");
+            w.WriteLine($"Program: {CoresLib.AppName}");
+
+
+            if (lines2ToSend.Count >= 1)
+            {
+                w.WriteLine("=====================");
+                w.WriteLine();
+
+                lines2ToSend.ForEach(x => w.WriteLine(x));
+
+                w.WriteLine();
+            }
+
+            if (linesToSend.Count >= 1)
+            {
+                w.WriteLine("--------------------");
+                w.WriteLine();
+
+                linesToSend.ForEach(x => w.WriteLine(x));
+
+                w.WriteLine();
+            }
+
+            w.WriteLine("--------------------");
+            EnvInfoSnapshot snapshot = new EnvInfoSnapshot();
+            w.WriteLine($"Program Details: {snapshot._GetObjectDump()}");
+
+            w.WriteLine();
+
+            string subject = $"LogReport {Env.DnsHostName} ({linesToSend.Count} Lines)";
+
+            var hostAndPort = this.Settings.SmtpServer._ParseHostnaneAndPort(Consts.Ports.Smtp);
+            SmtpConfig cfg = new SmtpConfig(hostAndPort.Item1, hostAndPort.Item2, this.Settings.SmtpUseSsl, this.Settings.SmtpUsername, this.Settings.SmtpPassword);
+
+            try
+            {
+                Console.WriteLine($"SMTP Log Sending to '{this.Settings.MailTo}' ...");
+
+                await TaskUtil.RetryAsync(async () =>
+                {
+                    await SmtpUtil.SendAsync(cfg, this.Settings.MailFrom, this.Settings.MailTo, subject, w.ToString(), false, cancel);
+
+                    return 0;
+                }, 1000, 3, cancel: cancel, randomInterval: true);
+                Console.WriteLine("SMTP Log Sent.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("SMTP Log Send Error: " + ex.ToString());
+            }
+        }
+
+        public override void ReceiveLog(LogRecord record, string kind)
+        {
+            if (record.Tag._IsSamei("boottime") == false)
+            {
+                string[] lines = record.ConsolePrintableString._GetLines(true);
+
+                lock (this.Lock)
+                {
+                    foreach (var line in lines)
+                    {
+                        string s = $"[{record.TimeStamp.LocalDateTime._ToDtStr()}] {line}";
+
+                        if (record.Flags.Bit(LogFlags.Heading) || record.Priority >= LogPriority.Error)
+                        {
+                            // 重要なメッセージはトップにも表示
+                            this.Lines2.Add(s);
+                        }
+
+                        this.Lines.Add(s);
+                    }
+                }
+            }
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                await this.FlushAsync(false);
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
+        }
+    }
 }

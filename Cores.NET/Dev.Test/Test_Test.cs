@@ -2160,6 +2160,25 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Con.WriteLine("Top level message", flags: LogFlags.Heading);
+                return;
+            }
+
+            if (true)
+            {
+                while (true)
+                {
+                    string line = Con.ReadLine()!;
+
+                    var a = Str.ParseHostnaneAndPort(line, 80);
+
+                    a._PrintAsJson();
+                }
+                return;
+            }
+
             if (false)
             {
                 string b = "http://1.2.3.4/abc/def/";

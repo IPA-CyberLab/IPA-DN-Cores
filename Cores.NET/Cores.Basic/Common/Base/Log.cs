@@ -122,6 +122,7 @@ namespace IPA.Cores.Basic
     {
         None = 0,
         NoOutputToConsole = 1,
+        Heading = 2,
     }
 
     public interface ILogRecordTimeStamp

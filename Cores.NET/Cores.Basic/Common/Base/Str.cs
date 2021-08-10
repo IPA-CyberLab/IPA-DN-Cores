@@ -1118,6 +1118,35 @@ namespace IPA.Cores.Basic
         static readonly CriticalSection LockNewId = new CriticalSection();
         static ulong LastNewIdMSecs = 0;
 
+        public static Tuple<string, int> ParseHostnaneAndPort(string str, int defaultPort)
+        {
+            str = str._NonNull();
+
+            string hoststr = "";
+            string portstr = "";
+
+            // hostname1:hostname2:port のようになっている可能性があるので、最後の ':' の出現場所を取得する
+            for (int i = 0; i < str.Length - 1; i++)
+            {
+                char c = str[i];
+
+                if (c == ':')
+                {
+                    hoststr = str.Substring(0, i);
+                    portstr = str.Substring(i + 1);
+                }
+            }
+
+            if (portstr._IsNumber())
+            {
+                return new Tuple<string, int>(hoststr.Trim(), portstr._ToInt());
+            }
+            else
+            {
+                return new Tuple<string, int>(str.Trim(), defaultPort);
+            }
+        }
+
         public static bool IsValidFqdn(string fqdn)
         {
             fqdn = fqdn._NonNull();
@@ -6862,6 +6891,8 @@ namespace IPA.Cores.Basic
             Str.RemoveSpaceChar(ref str);
             Str.NormalizeString(ref str, true, true, false, false);
             str = str.Replace(",", "");
+
+            if (str._IsEmpty()) return false;
 
             foreach (char c in str)
             {
