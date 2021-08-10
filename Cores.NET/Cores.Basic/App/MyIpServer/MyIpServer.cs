@@ -94,7 +94,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                reqAuth.AddAction("{*path}", WebMethodBits.GET | WebMethodBits.HEAD, async (ctx) =>
+                noAuth.AddAction("{*path}", WebMethodBits.GET | WebMethodBits.HEAD, async (ctx) =>
                 {
                     return new HttpStringResult((await Host.GetResponseAsync(ctx, ctx.Cancel))._NormalizeCrlf(CrlfStyle.Lf), contentType: Consts.MimeTypes.Text);
                 });
