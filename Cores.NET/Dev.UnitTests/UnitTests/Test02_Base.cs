@@ -147,7 +147,7 @@ namespace IPA.UnitTest
 
             hostAndPort = Str.ParseHostnaneAndPort("", 80);
             Assert.Equal("", hostAndPort.Item1);
-            Assert.Equal(0, hostAndPort.Item2);
+            Assert.Equal(80, hostAndPort.Item2);
         }
     }
 }

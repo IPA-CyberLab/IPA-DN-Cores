@@ -78,7 +78,7 @@ namespace IPA.TestDev
             {
                 reqAuth.AddAction("/", WebMethodBits.GET | WebMethodBits.HEAD, async (ctx) =>
                 {
-                    return new HttpStringResult((await Host.GetResponseAsync(ctx, ctx.Cancel))._NormalizeCrlf(CrlfStyle.Lf, true));
+                    return new HttpStringResult((await Host.GetResponseAsync(ctx, ctx.Cancel))._NormalizeCrlf(CrlfStyle.Lf, true), contentType: Consts.MimeTypes.Text);
                 });
             }
             catch
@@ -159,7 +159,16 @@ namespace IPA.TestDev
 
             StringWriter w = new StringWriter();
 
-            w.WriteLine($"IP={ctx.ClientIpAddress.ToString()}");
+            IPAddress clientIp = ctx.ClientIpAddress;
+
+            string proxySrcIpStr = ctx.Request.Headers._GetStrFirst("x-proxy-srcip");
+            var proxySrcIp = proxySrcIpStr._ToIPAddress(noExceptionAndReturnNull: true);
+            if (proxySrcIp != null)
+            {
+                clientIp = proxySrcIp;
+            }
+
+            w.WriteLine($"IP={clientIp.ToString()}");
 
             if (port)
             {
@@ -168,20 +177,37 @@ namespace IPA.TestDev
 
             if (fqdn)
             {
-                string hostname = ctx.ClientIpAddress.ToString();
+                string hostname = clientIp.ToString();
                 try
                 {
-                    var ipType = ctx.ClientIpAddress._GetIPAddressType();
+                    var ipType = clientIp._GetIPAddressType();
                     if (ipType.BitAny(IPAddressType.IPv4_IspShared | IPAddressType.Loopback | IPAddressType.Zero | IPAddressType.Multicast | IPAddressType.LocalUnicast))
                     {
                         // ナーシ
                     }
                     else
                     {
-                        hostname = await this.Dns.GetHostNameSingleOrIpAsync(ctx.ClientIpAddress, cancel);
+                        hostname = await this.Dns.GetHostNameSingleOrIpAsync(clientIp, cancel);
 
                         if (verifyfqdn)
                         {
+                            try
+                            {
+                                var ipList = await this.Dns.GetIpAddressAsync(hostname,
+                                    clientIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 ? DnsResolverQueryType.AAAA : DnsResolverQueryType.A,
+                                    cancel: cancel);
+
+                                if ((ipList?.Any(x => IpComparer.Comparer.Equals(x, clientIp)) ?? false) == false)
+                                {
+                                    // NG
+                                    hostname = ctx.ClientIpAddress.ToString();
+                                }
+                            }
+                            catch
+                            {
+                                // NG
+                                hostname = ctx.ClientIpAddress.ToString();
+                            }
                         }
                     }
                 }
