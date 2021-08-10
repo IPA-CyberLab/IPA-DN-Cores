@@ -1,4 +1,4 @@
-// IPA Cores.NET
+﻿// IPA Cores.NET
 // 
 // Copyright (c) 2019- IPA CyberLab.
 // Copyright (c) 2003-2018 Daiyuu Nobori.

@@ -1,4 +1,4 @@
-// IPA Cores.NET
+﻿// IPA Cores.NET
 // 
 // Copyright (c) 2019- IPA CyberLab.
 // Copyright (c) 2003-2018 Daiyuu Nobori.
@@ -127,7 +127,7 @@ namespace IPA.UnitTest
             Assert.False("A"._IsNumber());
             Assert.True("1"._IsNumber());
             Assert.True("-1"._IsNumber());
-            Assert.True("�P"._IsNumber());
+            Assert.True("１"._IsNumber());
 
             var hostAndPort = Str.ParseHostnaneAndPort("abc", 80);
             Assert.Equal("abc", hostAndPort.Item1);
