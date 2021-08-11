@@ -575,7 +575,7 @@ namespace IPA.Cores.Basic
 
             w.WriteLine();
 
-            string subject = $"LogReport {Env.DnsHostName} - {MyLocalIp} ({globalInfo}) - {linesToSend.Count} Lines";
+            string subject = $"LogReport - {linesToSend.Count} Lines - {Env.DnsHostName} - {MyLocalIp} ({globalInfo})";
 
             var hostAndPort = this.Settings.SmtpServer._ParseHostnaneAndPort(Consts.Ports.Smtp);
             SmtpConfig cfg = new SmtpConfig(hostAndPort.Item1, hostAndPort.Item2, this.Settings.SmtpUseSsl, this.Settings.SmtpUsername, this.Settings.SmtpPassword);

@@ -110,7 +110,7 @@ namespace IPA.Cores.Basic
 
                 bool consumed = false;
 
-                if (arg._TryTrimStartWith(out string arg2, StringComparison.OrdinalIgnoreCase, "-", "--", "/"))
+                if (arg._TryTrimStartWith(out string arg2, StringComparison.OrdinalIgnoreCase, "--", "-", "/"))
                 {
                     var proc = procs.Where(x => x.OptionName._IsSamei(arg2)).FirstOrDefault();
                     if (proc != default)
