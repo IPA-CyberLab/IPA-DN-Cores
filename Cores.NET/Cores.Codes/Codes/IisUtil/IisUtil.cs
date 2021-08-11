@@ -279,7 +279,11 @@ namespace IPA.Cores.Codes
                 {
                     var certToWrite = certsList.Where(x => x.DigestSHA1Str._IsSamei(hash)).First();
 
-                    this.CertStore.Add(certToWrite.X509Certificate);
+                    X509Certificate2 certObj = certToWrite.X509Certificate;
+
+                    certObj.FriendlyName = certToWrite.GenerateFriendlyName();
+
+                    this.CertStore.Add(certObj);
                 }
             }
 

@@ -6085,7 +6085,7 @@ namespace IPA.Cores.Basic
             return dt.ToString("yyyyMMdd_HHmmss") + "." + msecStr.Split('.')[1];
         }
 
-        public static int DateTimeToYymmddInt(DateTime dt, int zeroValue = 0)
+        public static int DateTimeToYymmddInt(DateTime dt, int zeroValue = 0, bool yearTwoDigits = false)
         {
             if (dt._IsZeroDateTime())
             {
@@ -6093,6 +6093,11 @@ namespace IPA.Cores.Basic
             }
 
             string ret = dt.ToString("yyyyMMdd");
+
+            if (yearTwoDigits)
+            {
+                ret = ret.Substring(2);
+            }
 
             return Str.StrToInt(ret);
         }

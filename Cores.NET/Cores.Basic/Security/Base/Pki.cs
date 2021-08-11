@@ -335,6 +335,8 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public string GenerateFriendlyName() => this.PrimaryCertificate.GenerateFriendlyName();
+
         public string ExportCertInfo()
         {
             StringWriter w = new StringWriter();
@@ -852,6 +854,9 @@ namespace IPA.Cores.Basic
         public string SignatureAlgorithmOid { get; set; } = null!;
         public string SignatureAlgorithmName { get; set; } = null!;
 
+        public string IssuerName { get; set; } = null!;
+        public string SubjectName { get; set; } = null!;
+
         public string CommonNameOrFirstDnsName { get; private set; } = "";
 
         public IList<CertificateHostName> HostNameList => HostNameListInternal;
@@ -971,7 +976,7 @@ namespace IPA.Cores.Basic
             this.PublicKey = new PubKey(publicKeyBytes);
 
             HashSet<string> dnsNames = new HashSet<string>();
-
+            
             ICollection altNamesList = this.CertData.GetSubjectAlternativeNames();
 
             string? commonName = null;
@@ -1066,6 +1071,9 @@ namespace IPA.Cores.Basic
 
             this.NotBefore = this.CertData.NotBefore._AsDateTimeOffset(false, true);
             this.NotAfter = this.CertData.NotAfter._AsDateTimeOffset(false, true);
+
+            this.IssuerName = this.CertData.IssuerDN.ToString()._NonNull();
+            this.SubjectName = this.CertData.SubjectDN.ToString()._NonNull();
         }
 
         PalX509Certificate GetX509CertificateInternal()
@@ -1184,11 +1192,37 @@ namespace IPA.Cores.Basic
 
         public override string ToString()
         {
-            string ret = $"{this.CommonNameOrFirstDnsName} (Start: {this.NotBefore.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, End: {this.NotAfter.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, SHA-1: {this.DigestSHA1Str})";
+            string ret = $"{this.CommonNameOrFirstDnsName} (Start: {this.NotBefore.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, End: {this.NotAfter.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, SHA-1: {this.DigestSHA1Str}, Issued by: '{this.IssuerName}')";
             if (this.HostNameList.Count >= 2)
             {
                 ret += $" Additional DNS names: [{this.HostNameList.Select(x=>x.HostName).OrderBy(x=>x, StrComparer.FqdnReverseStrComparer)._Combine(", ", true)}]";
             }
+            return ret;
+        }
+
+        public string GenerateFriendlyName()
+        {
+            string dnsName = this.CommonNameOrFirstDnsName;
+
+            var wildcard = this.HostNameList.Where(x => x.Type == CertificateHostnameType.Wildcard).FirstOrDefault();
+            if (wildcard != null)
+            {
+                dnsName = wildcard.WildcardEndWith!;
+            }
+
+            dnsName = dnsName._NormalizeFqdn();
+
+            if (dnsName._IsEmpty())
+            {
+                dnsName = "_unknown_";
+            }
+
+            string ret = dnsName + ". " + this.NotBefore.LocalDateTime._ToYymmddInt(yearTwoDigits: true).ToString() + "-" + this.NotAfter.LocalDateTime._ToYymmddInt(yearTwoDigits: true).ToString() + " ";
+
+            ret += this.HostNameList.Count + " hosts " + this.DigestSHA1Str;
+
+            ret = ret._TruncStr(128);
+
             return ret;
         }
 

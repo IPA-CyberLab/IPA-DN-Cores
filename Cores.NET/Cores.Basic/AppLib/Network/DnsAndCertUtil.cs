@@ -80,10 +80,10 @@ namespace IPA.Cores.Basic
                     if (href.EndsWith("/")) href = href.Substring(0, href.Length - 1);
                     if (href._IsValidFqdn())
                     {
-                        // test
-                        if (href.EndsWith("sehosts.com") ||
-                            href.EndsWith("coe.ad.jp") ||
-                            href.EndsWith("open.ad.jp"))
+                        //// test
+                        //if (href.EndsWith("sehosts.com") ||
+                        //    href.EndsWith("coe.ad.jp") ||
+                        //    href.EndsWith("open.ad.jp"))
 
                         domainNameList.Add(href.ToLower());
                     }

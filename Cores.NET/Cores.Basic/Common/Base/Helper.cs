@@ -2866,10 +2866,10 @@ namespace IPA.Cores.Helper.Basic
 
         public static string _NormalizeFqdn(this string src) => Str.NormalizeFqdn(src);
 
-        public static int _ToYymmddInt(this DateTime dt, int zeroValue = 0) => Str.DateTimeToYymmddInt(dt, zeroValue);
+        public static int _ToYymmddInt(this DateTime dt, int zeroValue = 0, bool yearTwoDigits = false) => Str.DateTimeToYymmddInt(dt, zeroValue, yearTwoDigits);
         public static int _ToHhmmssInt(this DateTime dt, int zeroValue = 0) => Str.DateTimeToHhmmssInt(dt, zeroValue);
 
-        public static int _ToYymmddInt(this DateTimeOffset dt, int zeroValue = 0) => Str.DateTimeToYymmddInt(dt.DateTime, zeroValue);
+        public static int _ToYymmddInt(this DateTimeOffset dt, int zeroValue = 0, bool yearTwoDigits = false) => Str.DateTimeToYymmddInt(dt.DateTime, zeroValue, yearTwoDigits);
         public static int _ToHhmmssInt(this DateTimeOffset dt, int zeroValue = 0) => Str.DateTimeToHhmmssInt(dt.DateTime, zeroValue);
 
         public static PalX509Certificate AsPalX509Certificate(this X509Certificate cert) => new PalX509Certificate(cert);

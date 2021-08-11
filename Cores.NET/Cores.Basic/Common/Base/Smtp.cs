@@ -591,6 +591,8 @@ namespace IPA.Cores.Basic
             var hostAndPort = this.Settings.SmtpServer._ParseHostnaneAndPort(Consts.Ports.Smtp);
             SmtpConfig cfg = new SmtpConfig(hostAndPort.Item1, hostAndPort.Item2, this.Settings.SmtpUseSsl, this.Settings.SmtpUsername, this.Settings.SmtpPassword);
 
+            Console.WriteLine("Report Subject: " + subject);
+
             try
             {
                 Console.WriteLine($"SMTP Log Sending to '{this.Settings.MailTo}' ...");
@@ -627,7 +629,10 @@ namespace IPA.Cores.Basic
                             this.Lines2.Add(s);
                         }
 
-                        this.Lines.Add(s);
+                        if (this.Lines.Count < this.Settings.MaxLines)
+                        {
+                            this.Lines.Add(s);
+                        }
                     }
                 }
             }
