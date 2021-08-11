@@ -174,7 +174,7 @@ namespace IPA.Cores.Codes
             }
 
             // サーバーに存在するすべての証明書バインディングについて検討し、更新すべき証明書をマーク
-            // ただし有効期限が 約 3 年間よりも長い証明書は、意図的に登録されているオレオレ証明書であるので、更新対象としてマークしない
+            // ただしもともと有効期限が 約 3 年間よりも長い証明書が登録されている場合は、意図的に登録されているオレオレ証明書であるので、更新対象としてマークしない
             foreach (var item in bindItems.Where(x => x.Cert.ExpireSpan < Consts.Numbers.MaxCertExpireSpanTargetForUpdate))
             {
                 var cert = item.Cert;
@@ -206,8 +206,8 @@ namespace IPA.Cores.Codes
                 {
                     if (bestCert.DigestSHA1Str._IsSameHex(cert.DigestSHA1Str) == false)
                     {
-                        // この最も有効期限が長い候補の証明書と、現在登録されている証明書との有効期限を比較し、候補証明書のほうが新しければ更新する
-                        //if (bestCert.NotAfter > cert.NotAfter)
+                        // この最も有効期限が長い候補の証明書と、現在登録されている証明書との有効期限を比較し、候補証明書のほうが発行日が新しければ更新する
+                        if (bestCert.NotBefore > cert.NotBefore)
                         {
                             // 更新対象としてマーク
                             item.NewCert = bestCert;
