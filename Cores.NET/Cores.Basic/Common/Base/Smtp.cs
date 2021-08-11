@@ -570,6 +570,7 @@ namespace IPA.Cores.Basic
 
             w.WriteLine("--------------------");
             EnvInfoSnapshot snapshot = new EnvInfoSnapshot();
+            snapshot.CommandLine = "";
             w.WriteLine($"Program Details: {snapshot._GetObjectDump()}");
 
             w.WriteLine();
