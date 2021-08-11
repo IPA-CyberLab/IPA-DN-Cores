@@ -2162,6 +2162,16 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                Con.WriteLine("A");
+                Con.WriteLine();
+                Con.WriteLine("B");
+                Con.WriteLine();
+                Con.WriteLine("C");
+                return;
+            }
+
+            if (true)
+            {
                 Async(async () =>
                 {
                     var a = await GetMyPrivateIpNativeUtil.GetMyPrivateIpAsync(IPVersion.IPv4);

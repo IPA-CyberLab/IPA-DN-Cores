@@ -586,7 +586,7 @@ namespace IPA.Cores.Basic
 
             w.WriteLine();
 
-            string subject = $"LOG {cmdName}{(CoresLib.Report_HasError ? " *Error*" : "")} - {linesToSend.Count} Lines - {Env.DnsHostName} - {MyLocalIp} ({globalInfo}): {resultStr._NormalizeSoftEther(true)._TruncStrEx(60)}";
+            string subject = $"Report - {cmdName}{(CoresLib.Report_HasError ? " *Error*" : "")} - {linesToSend.Count} lines - {Env.DnsHostName} - {MyLocalIp} ({globalInfo}): {resultStr._NormalizeSoftEther(true)._TruncStrEx(60)}";
 
             var hostAndPort = this.Settings.SmtpServer._ParseHostnaneAndPort(Consts.Ports.Smtp);
             SmtpConfig cfg = new SmtpConfig(hostAndPort.Item1, hostAndPort.Item2, this.Settings.SmtpUseSsl, this.Settings.SmtpUsername, this.Settings.SmtpPassword);
@@ -615,7 +615,7 @@ namespace IPA.Cores.Basic
         {
             if (record.Tag._IsSamei("boottime") == false)
             {
-                string[] lines = record.ConsolePrintableString._GetLines(false);
+                string[] lines = record.ConsolePrintableString._GetLines(false, singleLineAtLeast: true);
 
                 lock (this.Lock)
                 {

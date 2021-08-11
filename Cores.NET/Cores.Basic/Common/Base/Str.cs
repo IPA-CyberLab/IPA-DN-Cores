@@ -6643,7 +6643,7 @@ namespace IPA.Cores.Basic
         }
 
         // テキストから複数行を取り出す
-        public static string[] GetLines(string str, bool removeEmpty = false, bool stripCommentsFromLine = false, IEnumerable<string>? commentStartStrList = null)
+        public static string[] GetLines(string str, bool removeEmpty = false, bool stripCommentsFromLine = false, IEnumerable<string>? commentStartStrList = null, bool singleLineAtLeast = false)
         {
             List<string> a = new List<string>();
             StringReader sr = new StringReader(str);
@@ -6661,6 +6661,13 @@ namespace IPA.Cores.Basic
                 if (removeEmpty == false || s._IsFilled())
                 {
                     a.Add(s);
+                }
+            }
+            if (singleLineAtLeast)
+            {
+                if (a.Count == 0)
+                {
+                    a.Add("");
                 }
             }
             return a.ToArray();
