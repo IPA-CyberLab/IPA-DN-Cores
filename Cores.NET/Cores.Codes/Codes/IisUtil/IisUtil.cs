@@ -178,9 +178,25 @@ namespace IPA.Cores.Codes
         public void UpdateCerts(IEnumerable<CertificateStore> certsList, bool updateSameCert)
         {
             int numWarningTotal = 0;
+            int warningCerts = 0;
 
             // サーバーに存在するすべての証明書リストを取得
             var currentCertDict = GetCurrentMachineCertificateList();
+
+            // 取得した証明書が古くなっていれば警告を出す
+            DateTimeOffset threshold2 = DtOffsetNow.AddDays(50);
+            foreach (var cert in certsList.Select(x => x.PrimaryCertificate).OrderBy(x => x.CommonNameOrFirstDnsName, StrComparer.FqdnReverseStrComparer))
+            {
+                if (cert.ExpireSpan < Consts.Numbers.MaxCertExpireSpanTargetForUpdate)
+                {
+                    if (cert.NotAfter < threshold2)
+                    {
+                        Con.WriteLine($"Warning: A supplied certificate is expiring or expired. Please check! Cert: '{cert.ToString()}'", flags: LogFlags.Heading);
+                        warningCerts++;
+                        numWarningTotal++;
+                    }
+                }
+            }
 
             // IIS のバインディング情報を取得
             List<BindItem> bindItems = GetIisCertBindings(currentCertDict);
@@ -372,7 +388,6 @@ namespace IPA.Cores.Codes
             // 28 日以内に有効期限が切れる証明書を検出して警告を出す
             bindItems = GetIisCertBindings(currentCertDict);
             DateTimeOffset threshold = DtOffsetNow.AddDays(28);
-            int warningCerts = 0;
             foreach (var item in bindItems)
             {
                 if (item.Cert.ExpireSpan < Consts.Numbers.MaxCertExpireSpanTargetForUpdate)
