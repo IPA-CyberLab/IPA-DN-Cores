@@ -1378,6 +1378,8 @@ namespace IPA.Cores.Basic
                                     cmd_param!,
                                 };
 
+                                CoresLib.Report_CommandName = real_cmd_name._NonNullTrim();
+
                                 try
                                 {
                                     GC.Collect();
@@ -1429,6 +1431,13 @@ namespace IPA.Cores.Basic
 
                                     this.retCode = ConsoleErrorCode.ERR_INNER_EXCEPTION;
                                     this.retErrorMessage = ex2.Message;
+
+                                    CoresLib.Report_HasError = true;
+
+                                    if (CoresLib.Report_SimpleResult._IsEmpty())
+                                    {
+                                        CoresLib.Report_SimpleResult = ex2.Message._OneLine();
+                                    }
 
                                     GC.Collect();
                                     return true;

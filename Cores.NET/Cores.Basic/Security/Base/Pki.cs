@@ -1183,7 +1183,29 @@ namespace IPA.Cores.Basic
             => this.Equals((Certificate?)obj);
 
         public override string ToString()
-            => $"{this.CommonNameOrFirstDnsName} (Start: {this.NotBefore.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, End: {this.NotAfter.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, SHA-1: {this.DigestSHA1Str})";
+        {
+            string ret = $"{this.CommonNameOrFirstDnsName} (Start: {this.NotBefore.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, End: {this.NotAfter.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, SHA-1: {this.DigestSHA1Str})";
+            if (this.HostNameList.Count >= 2)
+            {
+                ret += $" Additional DNS names: [{this.HostNameList.Select(x=>x.HostName).OrderBy(x=>x, StrComparer.FqdnReverseStrComparer)._Combine(", ", true)}]";
+            }
+            return ret;
+        }
+
+        public bool IsMultipleSanCertificate()
+        {
+            if (this.HostNameList.Where(x => x.Type == CertificateHostnameType.SingleHost).Count() >= 2)
+            {
+                return true;
+            }
+
+            if (this.HostNameList.Where(x => x.Type == CertificateHostnameType.Wildcard).Count() >= 2)
+            {
+                return true;
+            }
+
+            return false;
+        }
 
         public int CompareTo(Certificate? other)
             => this.DerData._MemCompare(other!.DerData);

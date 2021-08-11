@@ -2257,7 +2257,7 @@ namespace IPA.TestDev
                     //x.Count._Print();
                     //x._DoForEach(x => x.Value.ToString()._Print());
 
-                    util.UpdateCerts(list);
+                    util.UpdateCerts(list, false);
                 });
                 return;
             }

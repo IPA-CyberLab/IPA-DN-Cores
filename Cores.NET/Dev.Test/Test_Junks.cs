@@ -474,7 +474,7 @@ __IMG__
     {
         [ConsoleCommand(
       "IIS 証明書更新",
-      "CertUpdateIis [cert_server_base_url] [/USERNAME:username] [/PASSWORD:password]",
+      "CertUpdateIis [cert_server_base_url] [/USERNAME:username] [/PASSWORD:password] [/UPDATESAME:updatesame]",
       "IIS 証明書更新"
       )]
         static int CertUpdateIis(ConsoleService c, string cmdName, string str)
@@ -484,6 +484,7 @@ __IMG__
                 new ConsoleParam("[cert_server_base_url]", ConsoleService.Prompt, "Base URL: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("USERNAME"),
                 new ConsoleParam("PASSWORD"),
+                new ConsoleParam("UPDATESAME"),
             };
 
             ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
@@ -508,7 +509,7 @@ __IMG__
                 // IIS 証明書更新
                 using IisAdmin util = new IisAdmin();
 
-                util.UpdateCerts(certs);
+                util.UpdateCerts(certs, vl["UPDATESAME"].BoolValue);
             });
 
             return 0;

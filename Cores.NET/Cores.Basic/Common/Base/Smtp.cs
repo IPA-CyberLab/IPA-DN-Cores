@@ -539,14 +539,25 @@ namespace IPA.Cores.Basic
                 this.Lines2 = new List<string>();
             }
 
+            string cmdName = CoresLib.Report_CommandName;
+            if (cmdName._IsEmpty())
+            {
+                cmdName = "Unknown";
+            }
+
+            string resultStr = CoresLib.Report_SimpleResult._OneLine();
+            if (resultStr._IsEmpty())
+            {
+                resultStr = "Ok";
+            }
+
             StringWriter w = new StringWriter();
 
             w.WriteLine($"Reported: {DtOffsetNow._ToDtStr()}");
             w.WriteLine($"Program: {CoresLib.AppName}");
             w.WriteLine($"Hostname: {Env.DnsFqdnHostName}");
-            w.WriteLine($"Global: {globalInfo}");
-            w.WriteLine($"Local: {MyLocalIp}");
-
+            w.WriteLine($"Global: {globalInfo}, Local: {MyLocalIp}");
+            w.WriteLine($"Command: {cmdName}, Result: {(CoresLib.Report_HasError ? "*Error* - " : "OK - ")}{resultStr}");
 
             if (lines2ToSend.Count >= 1)
             {
@@ -575,7 +586,7 @@ namespace IPA.Cores.Basic
 
             w.WriteLine();
 
-            string subject = $"LogReport - {linesToSend.Count} Lines - {Env.DnsHostName} - {MyLocalIp} ({globalInfo})";
+            string subject = $"LOG {cmdName}{(CoresLib.Report_HasError ? " *Error*" : "")} - {linesToSend.Count} Lines - {Env.DnsHostName} - {MyLocalIp} ({globalInfo}): {resultStr._NormalizeSoftEther(true)._TruncStrEx(60)}";
 
             var hostAndPort = this.Settings.SmtpServer._ParseHostnaneAndPort(Consts.Ports.Smtp);
             SmtpConfig cfg = new SmtpConfig(hostAndPort.Item1, hostAndPort.Item2, this.Settings.SmtpUseSsl, this.Settings.SmtpUsername, this.Settings.SmtpPassword);

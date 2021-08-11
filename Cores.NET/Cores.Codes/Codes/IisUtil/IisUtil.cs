@@ -103,16 +103,14 @@ namespace IPA.Cores.Codes
         {
             public string SiteName = "";
             public string BindingInfo = "";
+            public string HostName = "";
             public Certificate Cert = null!;
             public CertificateStore? NewCert;
         }
 
-        public void UpdateCerts(IEnumerable<CertificateStore> certsList)
+        List<BindItem> GetIisCertBindings(Dictionary<string, Certificate> certs)
         {
             List<BindItem> bindItems = new List<BindItem>();
-
-            // サーバーに存在するすべての証明書リストを取得
-            var currentCertDict = GetCurrentMachineCertificateList();
 
             // サーバーに存在するすべての証明書バインディングを取得
             foreach (var site in Svr.Sites.Where(x => x.Name._IsFilled()).OrderBy(x => x.Name))
@@ -125,13 +123,14 @@ namespace IPA.Cores.Codes
                         {
                             string hash = bind.CertificateHash._GetHexString();
 
-                            if (currentCertDict.TryGetValue(hash, out Certificate? cert))
+                            if (certs.TryGetValue(hash, out Certificate? cert))
                             {
                                 BindItem item = new BindItem
                                 {
                                     BindingInfo = bind.BindingInformation,
                                     Cert = cert,
                                     SiteName = site.Name,
+                                    HostName = bind.Host._NormalizeFqdn()._NonNullTrim(),
                                 };
 
                                 bindItems.Add(item);
@@ -154,7 +153,7 @@ namespace IPA.Cores.Codes
                                     {
                                         hash = hash._NormalizeHexString();
 
-                                        if (currentCertDict.TryGetValue(hash, out Certificate? cert))
+                                        if (certs.TryGetValue(hash, out Certificate? cert))
                                         {
                                             BindItem item = new BindItem
                                             {
@@ -173,6 +172,19 @@ namespace IPA.Cores.Codes
                 }
             }
 
+            return bindItems;
+        }
+
+        public void UpdateCerts(IEnumerable<CertificateStore> certsList, bool updateSameCert)
+        {
+            int numWarningTotal = 0;
+
+            // サーバーに存在するすべての証明書リストを取得
+            var currentCertDict = GetCurrentMachineCertificateList();
+
+            // IIS のバインディング情報を取得
+            List<BindItem> bindItems = GetIisCertBindings(currentCertDict);
+
             Con.WriteLine();
 
             Con.WriteLine($"The IIS server has {bindItems.Count} SSL bindings.");
@@ -187,43 +199,72 @@ namespace IPA.Cores.Codes
 
             // サーバーに存在するすべての証明書バインディングについて検討し、更新すべき証明書をマーク
             // ただしもともと有効期限が 約 3 年間よりも長い証明書が登録されている場合は、意図的に登録されているオレオレ証明書であるので、更新対象としてマークしない
-            foreach (var item in bindItems.Where(x => x.Cert.ExpireSpan < Consts.Numbers.MaxCertExpireSpanTargetForUpdate))
+            foreach (var bind in bindItems.Where(x => x.Cert.ExpireSpan < Consts.Numbers.MaxCertExpireSpanTargetForUpdate))
             {
-                var cert = item.Cert;
+                var cert = bind.Cert;
 
                 List<CertificateStore> newCandidateCerts = new List<CertificateStore>();
 
-                // 現存する証明書の DNS 名を全部調べる
-                foreach (var certDns in cert.HostNameList)
+                if (cert.IsMultipleSanCertificate() == false)
                 {
-                    if (certDns.Type == CertificateHostnameType.SingleHost)
+                    // すでに登録されている証明書がシングル証明書の場合、その証明書の DNS 名から、この binding が現在どのホスト名での使用を意図しているものであるのか判別する
+                    foreach (var certDns in cert.HostNameList)
                     {
-                        // aaa.example.org のような普通のホスト名
-                        var candidates = certsList.GetHostnameMatchedCertificatesList(certDns.HostName);
+                        if (certDns.Type == CertificateHostnameType.SingleHost)
+                        {
+                            // aaa.example.org のような普通のホスト名
+                            var candidates = certsList.GetHostnameMatchedCertificatesList(certDns.HostName);
 
-                        candidates._DoForEach(x => newCandidateCerts.Add(x.Item1));
+                            candidates._DoForEach(x => newCandidateCerts.Add(x.Item1));
+                        }
+                        else if (certDns.Type == CertificateHostnameType.Wildcard)
+                        {
+                            // *.example.org のようなワイルドカードホスト名
+                            var candidates = certsList.Where(x => x.PrimaryCertificate.HostNameList.Any(x => x.Type == CertificateHostnameType.Wildcard && x.HostName._IsSamei(certDns.HostName)));
+
+                            candidates._DoForEach(x => newCandidateCerts.Add(x));
+                        }
                     }
-                    else if (certDns.Type == CertificateHostnameType.Wildcard)
+                }
+                else
+                {
+                    if (bind.BindingInfo._IsSamei("ftp"))
                     {
-                        // *.example.org のようなワイルドカードホスト名
-                        var candidates = certsList.Where(x => x.PrimaryCertificate.HostNameList.Any(x => x.Type == CertificateHostnameType.Wildcard && x.HostName._IsSamei(certDns.HostName)));
-
-                        candidates._DoForEach(x => newCandidateCerts.Add(x));
+                        // FTP の場合で、すでに登録されている証明書が SAN 複数 DNS 名保持証明書の場合、判断ができないので更新はしない
                     }
+                    else
+                    {
+                        // すでに登録されている証明書が SAN 複数 DNS 名保持証明書の場合、証明書から意図している DNS ホスト名は分からない。
+                        // そこで、binding のホスト名を参考にして判断する。
+                        if (bind.HostName._IsFilled())
+                        {
+                            var candidates = certsList.GetHostnameMatchedCertificatesList(bind.HostName);
+
+                            candidates._DoForEach(x => newCandidateCerts.Add(x.Item1));
+                        }
+                        else
+                        {
+                            // ホスト名が空の場合はどうすれば良いかわからないので 警告を 出します！！
+                        }
+                    }
+                }
+
+                if (newCandidateCerts.Any() == false)
+                {
+                    // 警告さん
+                    numWarningTotal++;
+                    Con.WriteLine($"Warning: We could not determine the best certificate for the binding '{bind.SiteName}' - '{bind.BindingInfo}': '{bind.Cert}'", flags: LogFlags.Heading);
                 }
 
                 // 更新候補に挙げられた証明書リストの中で最も有効期限が長いものを選択
                 var bestCert = newCandidateCerts.OrderByDescending(x => x.PrimaryCertificate.NotAfter).ThenBy(x => x.DigestSHA1Str).FirstOrDefault();
                 if (bestCert != null)
                 {
-                    if (bestCert.DigestSHA1Str._IsSameHex(cert.DigestSHA1Str) == false)
+                    // この最も有効期限が長い候補の証明書と、現在登録されている証明書との有効期限を比較し、候補証明書のほうが発行日が新しければ更新する
+                    if (bestCert.NotBefore > cert.NotBefore || (updateSameCert && bestCert.DigestSHA1Str._IsSameHex(cert.DigestSHA1Str)))
                     {
-                        // この最も有効期限が長い候補の証明書と、現在登録されている証明書との有効期限を比較し、候補証明書のほうが発行日が新しければ更新する
-                        if (bestCert.NotBefore > cert.NotBefore)
-                        {
-                            // 更新対象としてマーク
-                            item.NewCert = bestCert;
-                        }
+                        // 更新対象としてマーク
+                        bind.NewCert = bestCert;
                     }
                 }
             }
@@ -312,11 +353,42 @@ namespace IPA.Cores.Codes
             {
                 Con.WriteLine($"Total {numUpdates} certs updated.", flags: LogFlags.Heading);
 
+                CoresLib.Report_SimpleResult = $"Updated {numUpdates} certs";
+
                 Svr.CommitChanges();
             }
             else
             {
                 Con.WriteLine($"No certs updated.", flags: LogFlags.Heading);
+
+                CoresLib.Report_SimpleResult = $"Updated No certs";
+            }
+
+            // 再度 IIS のバインディング情報を取得して証明書の有効期限が怪しいものがあれば表示する
+            // 28 日以内に有効期限が切れる証明書を検出して警告を出す
+            bindItems = GetIisCertBindings(currentCertDict);
+            DateTimeOffset threshold = DtOffsetNow.AddDays(28);
+            int warningCerts = 0;
+            foreach (var item in bindItems)
+            {
+                if (item.Cert.ExpireSpan < Consts.Numbers.MaxCertExpireSpanTargetForUpdate)
+                {
+                    if (item.Cert.NotAfter < threshold)
+                    {
+                        Con.WriteLine($"Warning: IIS bound certificate is expiring or expired. Site: '{item.SiteName}', Binding: '{item.BindingInfo}', Cert: '{item.Cert.ToString()}'", flags: LogFlags.Heading);
+                        warningCerts++;
+                        numWarningTotal++;
+                    }
+                }
+            }
+            if (warningCerts >= 1)
+            {
+                Con.WriteLine($"Warning! There are {warningCerts} certificates with warning! Please consider to check if it is Ok!!", flags: LogFlags.Heading);
+            }
+            
+            if (numWarningTotal >= 1)
+            {
+                CoresLib.Report_SimpleResult += $" (Warnings: {numWarningTotal})";
             }
         }
 

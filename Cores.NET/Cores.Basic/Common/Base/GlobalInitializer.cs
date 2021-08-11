@@ -154,6 +154,10 @@ namespace IPA.Cores.Basic
         public static string AppName { get; private set; } = null!;
         public static string AppNameFnSafe { get; private set; } = null!;
 
+        public static string Report_CommandName { get; set; } = "";
+        public static string Report_SimpleResult { get; set; } = "";
+        public static bool Report_HasError { get; set; } = false;
+
         static CoresMode mode;
         public static CoresMode Mode
         {
@@ -179,6 +183,10 @@ namespace IPA.Cores.Basic
                 }
 
                 options = (CoresLibOptions)options.Clone();
+
+                CoresLib.Report_CommandName = "";
+                CoresLib.Report_SimpleResult = "";
+                CoresLib.Report_HasError = false;
 
                 CoresLib.AppName = options.AppName;
                 CoresLib.AppNameFnSafe = PathParser.Windows.MakeSafeFileName(CoresLib.AppName);
