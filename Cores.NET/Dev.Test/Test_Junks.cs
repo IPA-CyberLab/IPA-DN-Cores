@@ -491,7 +491,19 @@ __IMG__
             Async(async () =>
             {
                 // 証明書のダウンロード
+                Con.WriteLine($"Downloading certificates from the server '{vl.DefaultParam.StrValue}'...");
                 var certs = await WildcardCertServerUtil.DownloadAllLatestCertsAsync(vl.DefaultParam.StrValue, vl["USERNAME"].StrValue, vl["PASSWORD"].StrValue);
+
+                Con.WriteLine($"Downloaded {certs.Count} certificates from the server.");
+
+                int index = 0;
+                foreach (var cert in certs.Select(x => x.PrimaryCertificate).OrderBy(x => x.CommonNameOrFirstDnsName, StrComparer.FqdnReverseStrComparer))
+                {
+                    index++;
+                    Con.WriteLine($"Cert #{index}/{certs.Count}: " + cert.ToString());
+                }
+
+                Con.WriteLine();
 
                 // IIS 証明書更新
                 using IisAdmin util = new IisAdmin();

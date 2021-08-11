@@ -173,6 +173,18 @@ namespace IPA.Cores.Codes
                 }
             }
 
+            Con.WriteLine();
+
+            Con.WriteLine($"The IIS server has {bindItems.Count} SSL bindings.");
+            int index = 0;
+            foreach (var bind in bindItems.OrderBy(x => x.SiteName, StrComparer.IgnoreCaseComparer).ThenBy(x => x.BindingInfo, StrComparer.IgnoreCaseComparer))
+            {
+                index++;
+                Con.WriteLine($"Binding #{index}/{bindItems.Count}: '{bind.SiteName}' - '{bind.BindingInfo}': '{bind.Cert}'");
+            }
+
+            Con.WriteLine();
+
             // サーバーに存在するすべての証明書バインディングについて検討し、更新すべき証明書をマーク
             // ただしもともと有効期限が 約 3 年間よりも長い証明書が登録されている場合は、意図的に登録されているオレオレ証明書であるので、更新対象としてマークしない
             foreach (var item in bindItems.Where(x => x.Cert.ExpireSpan < Consts.Numbers.MaxCertExpireSpanTargetForUpdate))
@@ -298,13 +310,13 @@ namespace IPA.Cores.Codes
 
             if (numUpdates >= 1)
             {
-                Con.WriteLine($"Total {numUpdates} certs updated.");
+                Con.WriteLine($"Total {numUpdates} certs updated.", flags: LogFlags.Heading);
 
                 Svr.CommitChanges();
             }
             else
             {
-                Con.WriteLine($"No certs updated.");
+                Con.WriteLine($"No certs updated.", flags: LogFlags.Heading);
             }
         }
 
