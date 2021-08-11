@@ -1183,7 +1183,7 @@ namespace IPA.Cores.Basic
             => this.Equals((Certificate?)obj);
 
         public override string ToString()
-            => $"{this.CommonNameOrFirstDnsName} (Expires: {this.NotAfter.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, SHA-1: {this.DigestSHA1Str})";
+            => $"{this.CommonNameOrFirstDnsName} (Start: {this.NotBefore.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, End: {this.NotAfter.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, SHA-1: {this.DigestSHA1Str})";
 
         public int CompareTo(Certificate? other)
             => this.DerData._MemCompare(other!.DerData);

@@ -571,7 +571,6 @@ namespace IPA.Cores.Basic
             w.WriteLine("--------------------");
             EnvInfoSnapshot snapshot = new EnvInfoSnapshot();
             w.WriteLine($"Program Details: {snapshot._GetObjectDump()}");
-            w.WriteLine($"Program Git Commit ID: Program = {Dbg.GetCurrentGitCommitId()}, CoresLib = {Dbg.GetCurrentCoresLibGitCommitId()}");
 
             w.WriteLine();
 
@@ -602,7 +601,7 @@ namespace IPA.Cores.Basic
         {
             if (record.Tag._IsSamei("boottime") == false)
             {
-                string[] lines = record.ConsolePrintableString._GetLines(true);
+                string[] lines = record.ConsolePrintableString._GetLines(false);
 
                 lock (this.Lock)
                 {

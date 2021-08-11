@@ -494,7 +494,7 @@ __IMG__
                 Con.WriteLine($"Downloading certificates from the server '{vl.DefaultParam.StrValue}'...");
                 var certs = await WildcardCertServerUtil.DownloadAllLatestCertsAsync(vl.DefaultParam.StrValue, vl["USERNAME"].StrValue, vl["PASSWORD"].StrValue);
 
-                Con.WriteLine($"Downloaded {certs.Count} certificates from the server.");
+                Con.WriteLine($"Downloaded {certs.Count} certificates from the server.", flags: LogFlags.Heading);
 
                 int index = 0;
                 foreach (var cert in certs.Select(x => x.PrimaryCertificate).OrderBy(x => x.CommonNameOrFirstDnsName, StrComparer.FqdnReverseStrComparer))
