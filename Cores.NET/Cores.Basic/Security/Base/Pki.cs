@@ -1210,8 +1210,6 @@ namespace IPA.Cores.Basic
                 dnsName = wildcard.WildcardEndWith!;
             }
 
-            dnsName = dnsName._NormalizeFqdn();
-
             if (dnsName._IsEmpty())
             {
                 dnsName = "_unknown_";
@@ -1220,6 +1218,8 @@ namespace IPA.Cores.Basic
             string ret = dnsName + ". " + this.NotBefore.LocalDateTime._ToYymmddInt(yearTwoDigits: true).ToString() + "-" + this.NotAfter.LocalDateTime._ToYymmddInt(yearTwoDigits: true).ToString() + " ";
 
             ret += this.HostNameList.Count + " hosts " + this.DigestSHA1Str;
+
+            ret = PPWin.MakeSafeFileName(ret);
 
             ret = ret._TruncStr(128);
 
