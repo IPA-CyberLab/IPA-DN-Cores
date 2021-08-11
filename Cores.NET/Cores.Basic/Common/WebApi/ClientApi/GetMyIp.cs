@@ -54,15 +54,159 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class GetMyIpClient : IDisposable
+    public class GetMyIpInfoResult
+    {
+        public IPAddress GlobalIpAddress { get; }
+        public int GlobalPort { get; }
+        public string GlobalFqdn { get; }
+        public IPAddress PrivateIpAddress { get; }
+
+        public GetMyIpInfoResult(IPAddress globalIp, int port, string fqdn, IPAddress privateIp)
+        {
+            this.GlobalIpAddress = globalIp;
+            this.GlobalPort = port;
+            this.GlobalFqdn = fqdn;
+            this.PrivateIpAddress = privateIp;
+        }
+    }
+
+    public static class GetMyPrivateIpNativeUtil
+    {
+        public static async Task<IPAddress> GetMyPrivateIpAsync(IPVersion ver = IPVersion.IPv4, CancellationToken cancel = default)
+        {
+            string host;
+
+            if (ver == IPVersion.IPv6)
+            {
+                host = "connect-v6.arpanet.jp.";
+            }
+            else
+            {
+                host = "connect-v4.arpanet.jp.";
+            }
+
+            try
+            {
+                return await RetryHelper.RunAsync(async () =>
+                {
+                    using TcpClient tcp = new TcpClient();
+                    tcp.ReceiveTimeout = 5000;
+                    tcp.SendTimeout = 5000;
+                    await tcp.ConnectAsync(host, 80);
+                    var stream = tcp.GetStream();
+                    var socket = stream.Socket;
+                    IPEndPoint ep = (IPEndPoint)socket.LocalEndPoint!;
+                    var addr = ep.Address._UnmapIPv4();
+                    if ((ver == IPVersion.IPv4 && addr.AddressFamily == AddressFamily.InterNetwork) ||
+                        (ver == IPVersion.IPv6 && addr.AddressFamily == AddressFamily.InterNetworkV6))
+                    {
+                        return addr;
+                    }
+                    else
+                    {
+                        throw new CoresLibException("IP address family invalid.");
+                    }
+                }, 200, 3, cancel, true);
+            }
+            catch
+            {
+                return IPAddress.Loopback;
+            }
+        }
+    }
+
+    public class GetMyIpClient : AsyncService
     {
         public TcpIpSystem TcpIp;
         WebApi Web;
 
-        public GetMyIpClient(TcpIpSystem? tcpIp = null)
+        public GetMyIpClient(TcpIpSystem? tcpIp = null, bool useNativeLibrary = false)
         {
-            this.TcpIp = tcpIp ?? LocalNet;
-            this.Web = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true, UseProxy = false, Timeout = CoresConfig.GetMyIpClientSettings.Timeout }, this.TcpIp));
+            try
+            {
+                this.TcpIp = tcpIp ?? LocalNet;
+                this.Web = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true, UseProxy = false, Timeout = CoresConfig.GetMyIpClientSettings.Timeout}, this.TcpIp, useNativeLibrary));
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+        public async Task<GetMyIpInfoResult> GetMyIpInfoAsync(IPVersion ver = IPVersion.IPv4, CancellationToken cancel = default)
+        {
+            string url;
+
+            if (ver == IPVersion.IPv4)
+                url = Consts.Urls.GetMyIpUrl_IPv4;
+            else
+                url = Consts.Urls.GetMyIpUrl_IPv6;
+
+            url += "?port=true&fqdn=true";
+
+            Exception error = new CoresLibException("Unknown Error");
+
+            GetMyIpInfoResult? ret = null;
+
+            for (int i = 0; i < CoresConfig.GetMyIpClientSettings.NumRetry; i++)
+            {
+                try
+                {
+                    WebRet webRet = await Web.SimpleQueryAsync(WebMethods.GET, url, cancel);
+
+                    string str = webRet.Data._GetString_UTF8();
+
+                    IPAddress? ip = null;
+                    string fqdn = "";
+                    int port = 0;
+
+                    foreach (string line in str._GetLines(true))
+                    {
+                        if (line._GetKeyAndValue(out string key, out string value, "="))
+                        {
+                            key = key.ToUpper();
+
+                            switch (key)
+                            {
+                                case "IP":
+                                    ip = value._NonNullTrim()._ToIPAddress(ver == IPVersion.IPv4 ? AllowedIPVersions.IPv4 : AllowedIPVersions.IPv6);
+                                    break;
+
+                                case "FQDN":
+                                    fqdn = value._NonNullTrim();
+                                    break;
+
+                                case "PORT":
+                                    port = value._NonNullTrim()._ToInt();
+                                    break;
+                            }
+                        }
+                    }
+
+                    if (ip != null && port != 0)
+                    {
+                        if (fqdn._IsEmpty()) fqdn = ip.ToString();
+                        ret = new GetMyIpInfoResult(ip, port, fqdn, null!);
+                        break;
+                    }
+                    else
+                    {
+                        throw new ApplicationException($"Invalid GetMyIp Server reply str: \"{str}\"");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    error = ex;
+                }
+            }
+
+            if (ret == null)
+            {
+                throw error!;
+            }
+
+            return ret;
         }
 
         public async Task<IPAddress> GetMyIpAsync(IPVersion ver = IPVersion.IPv4, CancellationToken cancel = default)
@@ -110,12 +254,16 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
-        Once DisposeFlag;
-        protected virtual void Dispose(bool disposing)
+        protected override async Task CleanupImplAsync(Exception? ex)
         {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            Web._DisposeSafe();
+            try
+            {
+                await this.Web._DisposeSafeAsync();
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
         }
     }
 }

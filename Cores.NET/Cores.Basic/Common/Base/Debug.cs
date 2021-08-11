@@ -482,11 +482,11 @@ namespace IPA.Cores.Basic
             // Get the HEAD contents
             while (true)
             {
-                string headFilename = Lfs.PathParser.Combine(tmpPath, ".git/HEAD");
+                string headFilename = Path.Combine(tmpPath, ".git/HEAD");
 
                 try
                 {
-                    string headContents = Lfs.ReadStringFromFile(headFilename);
+                    string headContents = File.ReadAllText(headFilename);
                     foreach (string line in headContents._GetLines())
                     {
                         if (Str.TryNormalizeGitCommitId(line, out string commitId))
@@ -503,17 +503,19 @@ namespace IPA.Cores.Basic
                                 CurrentGitRootDirCache = tmpPath;
 
                                 string refFilename = value.Trim();
-                                string refFullPath = Path.Combine(Lfs.PathParser.GetDirectoryName(headFilename), refFilename);
+                                string refFullPath = Path.Combine(Path.GetDirectoryName(headFilename)._NonNull(), refFilename);
 
-                                return Lfs.ReadStringFromFile(refFullPath)._GetLines().Where(x => x._IsFilled()).Single();
+                                return File.ReadAllText(refFullPath)._GetLines().Where(x => x._IsFilled()).Single();
                             }
                         }
                     }
                 }
                 catch { }
 
-                string parentPath = Lfs.PathParser.GetDirectoryName(tmpPath);
+                string? parentPath = Path.GetDirectoryName(tmpPath);
                 if (tmpPath._IsSamei(parentPath)) return "";
+
+                if (parentPath._IsEmpty()) return "";
 
                 tmpPath = parentPath;
             }
@@ -546,11 +548,11 @@ namespace IPA.Cores.Basic
             // Get the HEAD contents
             while (true)
             {
-                string headFilename = Lfs.PathParser.Combine(tmpPath, ".git/modules/submodules/IPA-DN-Cores/HEAD");
+                string headFilename = Path.Combine(tmpPath, ".git/modules/submodules/IPA-DN-Cores/HEAD");
 
                 try
                 {
-                    string headContents = Lfs.ReadStringFromFile(headFilename);
+                    string headContents = File.ReadAllText(headFilename);
                     foreach (string line in headContents._GetLines())
                     {
                         if (Str.TryNormalizeGitCommitId(line, out string commitId))
@@ -567,17 +569,18 @@ namespace IPA.Cores.Basic
                                 CurrentGitCoresLibRootDirCache = tmpPath;
 
                                 string refFilename = value.Trim();
-                                string refFullPath = Path.Combine(Lfs.PathParser.GetDirectoryName(headFilename), refFilename);
+                                string refFullPath = Path.Combine(Path.GetDirectoryName(headFilename)._NonNull(), refFilename);
 
-                                return Lfs.ReadStringFromFile(refFullPath)._GetLines().Where(x => x._IsFilled()).Single();
+                                return File.ReadAllText(refFullPath)._GetLines().Where(x => x._IsFilled()).Single();
                             }
                         }
                     }
                 }
                 catch { }
 
-                string parentPath = Lfs.PathParser.GetDirectoryName(tmpPath);
+                string? parentPath = Path.GetDirectoryName(tmpPath);
                 if (tmpPath._IsSamei(parentPath)) return "";
+                if (parentPath._IsEmpty()) return "";
 
                 tmpPath = parentPath;
             }

@@ -42,6 +42,8 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Threading.Tasks;
 using System.Threading;
+using System.Net.Security;
+using System.Net;
 
 namespace IPA.Cores.Basic
 {
@@ -350,7 +352,29 @@ namespace IPA.Cores.Basic
             mail.Headers.Add("X-Priority", MailPriority);
             mail.Headers.Add("X-MimeOLE", MimeOLE);
 
-            await c.SendMailAsync(mail);
+            // SSL 証明書をチェック いたしません！！
+            RemoteCertificateValidationCallback? sslCallbackBackup = ServicePointManager.ServerCertificateValidationCallback;
+
+            if (c.EnableSsl)
+            {
+                ServicePointManager.ServerCertificateValidationCallback = (a, b, c, d) => true;
+            }
+
+            try
+            {
+                await c.SendMailAsync(mail);
+            }
+            finally
+            {
+                if (c.EnableSsl)
+                {
+                    try
+                    {
+                        ServicePointManager.ServerCertificateValidationCallback = sslCallbackBackup;
+                    }
+                    catch { }
+                }
+            }
         }
 
         public void Send(SmtpConfig smtp, CancellationToken cancel = default) => SendAsync(smtp, cancel)._GetResult();
@@ -449,6 +473,10 @@ namespace IPA.Cores.Basic
 
         public SmtpLogRouteSettings Settings { get; }
 
+        public GetMyIpInfoResult? MyIpInfo = null;
+
+        public IPAddress? MyLocalIp = null;
+
         List<string> Lines2 = new List<string>();
         List<string> Lines = new List<string>();
 
@@ -461,6 +489,44 @@ namespace IPA.Cores.Basic
         {
             List<string> linesToSend;
             List<string> lines2ToSend;
+
+            try
+            {
+                if (MyLocalIp == null)
+                {
+                    MyLocalIp = await GetMyPrivateIpNativeUtil.GetMyPrivateIpAsync(IPVersion.IPv4);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
+
+            if (MyIpInfo == null)
+            {
+                try
+                {
+                    await using GetMyIpClient c = new GetMyIpClient();
+
+                    MyIpInfo = await c.GetMyIpInfoAsync(IPVersion.IPv4, cancel);
+                }
+                catch
+                {
+                }
+            }
+
+            string globalInfo = "(Unknown)";
+            if (MyIpInfo != null)
+            {
+                if (MyIpInfo.GlobalFqdn._IsSamei(MyIpInfo.GlobalIpAddress.ToString()))
+                {
+                    globalInfo = MyIpInfo.GlobalFqdn;
+                }
+                else
+                {
+                    globalInfo = $"{MyIpInfo.GlobalFqdn} - {MyIpInfo.GlobalIpAddress}";
+                }
+            }
 
             lock (this.Lock)
             {
@@ -476,8 +542,10 @@ namespace IPA.Cores.Basic
             StringWriter w = new StringWriter();
 
             w.WriteLine($"Reported: {DtOffsetNow._ToDtStr()}");
-            w.WriteLine($"Hostname: {Env.DnsFqdnHostName}");
             w.WriteLine($"Program: {CoresLib.AppName}");
+            w.WriteLine($"Hostname: {Env.DnsFqdnHostName}");
+            w.WriteLine($"Global: {globalInfo}");
+            w.WriteLine($"Local: {MyLocalIp}");
 
 
             if (lines2ToSend.Count >= 1)
@@ -503,10 +571,11 @@ namespace IPA.Cores.Basic
             w.WriteLine("--------------------");
             EnvInfoSnapshot snapshot = new EnvInfoSnapshot();
             w.WriteLine($"Program Details: {snapshot._GetObjectDump()}");
+            w.WriteLine($"Program Git Commit ID: Program = {Dbg.GetCurrentGitCommitId()}, CoresLib = {Dbg.GetCurrentCoresLibGitCommitId()}");
 
             w.WriteLine();
 
-            string subject = $"LogReport {Env.DnsHostName} ({linesToSend.Count} Lines)";
+            string subject = $"LogReport {Env.DnsHostName} - {MyLocalIp} ({globalInfo}) - {linesToSend.Count} Lines";
 
             var hostAndPort = this.Settings.SmtpServer._ParseHostnaneAndPort(Consts.Ports.Smtp);
             SmtpConfig cfg = new SmtpConfig(hostAndPort.Item1, hostAndPort.Item2, this.Settings.SmtpUseSsl, this.Settings.SmtpUsername, this.Settings.SmtpPassword);

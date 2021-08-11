@@ -2164,6 +2164,18 @@ namespace IPA.TestDev
             {
                 Async(async () =>
                 {
+                    var a = await GetMyPrivateIpNativeUtil.GetMyPrivateIpAsync(IPVersion.IPv4);
+                    a._Print();
+                    a = await GetMyPrivateIpNativeUtil.GetMyPrivateIpAsync(IPVersion.IPv6);
+                    a._Print();
+                });
+                return;
+            }
+
+            if (true)
+            {
+                Async(async () =>
+                {
                     while (true)
                     {
                         string line = Con.ReadLine()!;

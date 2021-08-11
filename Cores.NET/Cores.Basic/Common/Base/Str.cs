@@ -57,6 +57,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Runtime.CompilerServices;
+using System.Net.Security;
 
 namespace IPA.Cores.Basic
 {
