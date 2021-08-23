@@ -1013,7 +1013,7 @@ namespace IPA.Cores.Basic
         {
             if (DataReader != null)
             {
-                //await DataReader.CloseAsync();
+                await DataReader.CloseAsync();
                 await DataReader._DisposeSafeAsync();
                 DataReader = null;
             }
@@ -1022,7 +1022,7 @@ namespace IPA.Cores.Basic
         {
             if (DataReader != null)
             {
-                //DataReader.Close();
+                DataReader.Close();
                 DataReader._DisposeSafe();
                 DataReader = null;
             }
@@ -1194,7 +1194,7 @@ namespace IPA.Cores.Basic
                 if (Connection != null)
                 {
                     IsOpened = false;
-                    //await Connection.CloseAsync();
+                    await Connection.CloseAsync();
                     await Connection._DisposeSafeAsync();
                     Connection = null!;
                 }

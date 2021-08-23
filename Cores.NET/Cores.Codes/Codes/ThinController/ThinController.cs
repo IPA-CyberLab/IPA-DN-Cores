@@ -1212,8 +1212,10 @@ namespace IPA.Cores.Codes
             DateTime nextRebootDt = gate.NextRebootTime;
             if (nextRebootDt._IsZeroDateTime() == false)
             {
-                nextRebootDt64 = (ulong)Util.ConvertDateTime(nextRebootDt);
+                nextRebootDt64 = (ulong)Util.ConvertDateTime(nextRebootDt.ToUniversalTime());
             }
+
+            p.AddInt64("NextRebootTime64", nextRebootDt64);
 
             string? secretKey = Controller.Db.GetVarString("ControllerGateSecretKey");
             if (secretKey._IsFilled()) p.AddStr("ControllerGateSecretKey", secretKey);
@@ -1249,8 +1251,6 @@ namespace IPA.Cores.Codes
                     }
                 }
             }
-
-            p.AddInt64("NextRebootTime64", nextRebootDt64);
         }
 
         public async Task<WpcResult> ProcessWpcRequestCoreAsync(string wpcRequestString, CancellationToken cancel = default)
