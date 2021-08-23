@@ -160,6 +160,8 @@ namespace IPA.Cores.Codes
         public string UltraCommitId = "";
         [SimpleTableOrder(19)]
         public DateTime CurrentTime = Util.ZeroDateTimeValue;
+        [SimpleTableOrder(19.5)]
+        public DateTime NextRebootTime = Util.ZeroDateTimeValue;
         [SimpleTableOrder(18)]
         public TimeSpan BootTick;
         [SimpleTableOrder(18.5)]
@@ -309,6 +311,28 @@ namespace IPA.Cores.Codes
             return null;
         }
 
+        public int UpdateNextRebootTime(EasyIpAcl acl, DateTime now)
+        {
+            int count = 0;
+
+            var gateIdList = this.GateTable.Where(x => acl.Evaluate(x.Value.IpAddress) == EasyIpAclAction.Permit).Select(x => x.Key).ToArray();
+
+            ImmutableInterlocked.Update(ref this.GateTable, table =>
+            {
+                foreach (var id in gateIdList)
+                {
+                    if (table.TryGetValue(id, out ThinGate? gate))
+                    {
+                        gate.NextRebootTime = now;
+                        count++;
+                    }
+                }
+                return table;
+            });
+
+            return count;
+        }
+
         public bool TryUpdateGateAndDeleteSession(DateTime now, DateTime expires, ThinGate gate, string sessionId, out ThinSession? session)
         {
             session = null;
@@ -426,12 +450,14 @@ namespace IPA.Cores.Codes
                 {
                     gate.NumComm = 1;
                     gate.EstablishedDateTime = now;
+                    gate.NextRebootTime = ZeroDateTimeValue;
                     return gate;
                 },
                 updateValueFactory: (gateId, current) =>
                 {
                     gate.NumComm = current.NumComm + 1;
                     gate.EstablishedDateTime = current.EstablishedDateTime;
+                    gate.NextRebootTime = current.NextRebootTime;
                     return gate;
                 });
 

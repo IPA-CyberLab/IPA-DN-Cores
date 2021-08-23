@@ -434,7 +434,7 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("Msid", machine.MSID);
             ret.AdditionalInfo.Add("WoL_MacList", machine.WOL_MACLIST._NonNullTrim());
 
-            Controller.StatMan!.AddReport("ProcClientGetWolMacList_Total", 1);
+            Controller.StatMan?.AddReport("ProcClientGetWolMacList_Total", 1);
             Controller.Throughput_ClientGetWolMacList.Add(1);
 
             return ret;
@@ -536,7 +536,7 @@ namespace IPA.Cores.Codes
             // データベース更新
             Controller.Db.UpdateDbForClientConnect(machine.MSID, DtNow, ClientInfo.ClientIp);
 
-            Controller.StatMan!.AddReport("ProcClientConnectAsync_Total", 1);
+            Controller.StatMan?.AddReport("ProcClientConnectAsync_Total", 1);
             Controller.Throughput_ClientConnect.Add(1);
 
             return ret;
@@ -577,7 +577,7 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("OldPcid", this.ClientInfo.AuthedMachine!.PCID);
             ret.AdditionalInfo.Add("NewPcid", newPcid);
 
-            Controller.StatMan!.AddReport("ProcRenameMachine_Total", 1);
+            Controller.StatMan?.AddReport("ProcRenameMachine_Total", 1);
             Controller.Throughput_RenameMachine.Add(1);
 
             return ret;
@@ -692,7 +692,7 @@ namespace IPA.Cores.Codes
                 ret.AdditionalInfo.Add("RegistrationEmail", registrationEmail);
             }
 
-            Controller.StatMan!.AddReport("ProcRegistMachine_Total", 1);
+            Controller.StatMan?.AddReport("ProcRegistMachine_Total", 1);
             Controller.Throughput_RegistMachine.Add(1);
 
             return ret;
@@ -731,7 +731,7 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("userName", userName);
             ret.AdditionalInfo.Add("computerName", computerName);
 
-            Controller.StatMan!.AddReport("ProcGetPcidCandidate_Total", 1);
+            Controller.StatMan?.AddReport("ProcGetPcidCandidate_Total", 1);
 
             return ret;
         }
@@ -785,7 +785,7 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("pcid", pcid);
             ret.AdditionalInfo.Add("pcidMasked", pcidMasked);
 
-            Controller.StatMan!.AddReport("ProcSendOtpEmailAsync_Total", 1);
+            Controller.StatMan?.AddReport("ProcSendOtpEmailAsync_Total", 1);
             Controller.Throughput_SendOtpEmail.Add(1);
 
             return ret;
@@ -901,7 +901,7 @@ namespace IPA.Cores.Codes
                 wolMacList,
                 serverMask64);
 
-            Controller.StatMan!.AddReport("ProcServerConnectAsync_Total", 1);
+            Controller.StatMan?.AddReport("ProcServerConnectAsync_Total", 1);
             Controller.Throughput_ServerConnect.Add(1);
 
             return ret;
@@ -1079,9 +1079,9 @@ namespace IPA.Cores.Codes
 
             ret.AdditionalInfo.Add("Gate", gate._GetObjectDumpForJsonFriendly());
 
-            AddGateSettingsToPack(ret.Pack);
+            AddGateSettingsToPack(ret.Pack, gate);
 
-            Controller.StatMan!.AddReport("ProcReportSessionListAsync_Total", 1);
+            Controller.StatMan?.AddReport("ProcReportSessionListAsync_Total", 1);
             Controller.Throughput_ReportSessionList.Add(1);
 
             return ret;
@@ -1145,9 +1145,9 @@ namespace IPA.Cores.Codes
             ret.AdditionalInfo.Add("Gate", gate._GetObjectDumpForJsonFriendly());
             ret.AdditionalInfo.Add("AddSession", sess._GetObjectDumpForJsonFriendly());
 
-            AddGateSettingsToPack(ret.Pack);
+            AddGateSettingsToPack(ret.Pack, gate);
 
-            Controller.StatMan!.AddReport("ProcReportSessionAddAsync_Total", 1);
+            Controller.StatMan?.AddReport("ProcReportSessionAddAsync_Total", 1);
             Controller.Throughput_ReportSessionAdd.Add(1);
 
             return ret;
@@ -1197,17 +1197,24 @@ namespace IPA.Cores.Codes
                 ret.AdditionalInfo.Add("DeleteSession", session._GetObjectDumpForJsonFriendly());
             }
 
-            AddGateSettingsToPack(ret.Pack);
+            AddGateSettingsToPack(ret.Pack, gate);
 
-            Controller.StatMan!.AddReport("ProcReportSessionDelAsync_Total", 1);
+            Controller.StatMan?.AddReport("ProcReportSessionDelAsync_Total", 1);
             Controller.Throughput_ReportSessionDel.Add(1);
 
             return ret;
         }
 
         // Gate にとって有用な設定を Gate に返送する
-        void AddGateSettingsToPack(Pack p)
+        void AddGateSettingsToPack(Pack p, ThinGate gate)
         {
+            ulong nextRebootDt64 = 0;
+            DateTime nextRebootDt = gate.NextRebootTime;
+            if (nextRebootDt._IsZeroDateTime() == false)
+            {
+                nextRebootDt64 = (ulong)Util.ConvertDateTime(nextRebootDt);
+            }
+
             string? secretKey = Controller.Db.GetVarString("ControllerGateSecretKey");
             if (secretKey._IsFilled()) p.AddStr("ControllerGateSecretKey", secretKey);
 
@@ -1242,6 +1249,8 @@ namespace IPA.Cores.Codes
                     }
                 }
             }
+
+            p.AddInt64("NextRebootTime64", nextRebootDt64);
         }
 
         public async Task<WpcResult> ProcessWpcRequestCoreAsync(string wpcRequestString, CancellationToken cancel = default)
@@ -1639,7 +1648,7 @@ namespace IPA.Cores.Codes
 
         readonly Task RecordStatTask;
 
-        public StatMan StatMan { get; }
+        public StatMan? StatMan { get; }
 
         public readonly ThroughputMeasuse Throughput_ClientGetWolMacList = new ThroughputMeasuse();
         public readonly ThroughputMeasuse Throughput_ClientConnect = new ThroughputMeasuse();
@@ -1728,7 +1737,7 @@ namespace IPA.Cores.Codes
                     }
                 });
 
-                StatMan!.AddReport("BootCount_Total", 1);
+                StatMan?.AddReport("BootCount_Total", 1);
 
                 this.WebSocketCertMaintainer = new ThinControllerWebSocketCertMaintainer(this);
             }

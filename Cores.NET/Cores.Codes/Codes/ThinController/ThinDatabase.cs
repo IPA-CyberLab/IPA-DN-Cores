@@ -400,7 +400,7 @@ namespace IPA.Cores.Codes
 
             LazyUpdateJobQueue.Enqueue(new ThinDatabaseUpdateJob(proc));
 
-            Controller.StatMan!.AddReport("EnqueueUpdateJob_Total", 1);
+            Controller.StatMan?.AddReport("EnqueueUpdateJob_Total", 1);
         }
 
         public async Task<Database> OpenDatabaseForReadAsync(CancellationToken cancel = default)
@@ -411,7 +411,7 @@ namespace IPA.Cores.Codes
             {
                 await db.EnsureOpenAsync(cancel);
 
-                Controller.StatMan!.AddReport("OpenDatabaseForReadAsync_Total", 1);
+                Controller.StatMan?.AddReport("OpenDatabaseForReadAsync_Total", 1);
 
                 return db;
             }
@@ -430,7 +430,7 @@ namespace IPA.Cores.Codes
             {
                 await db.EnsureOpenAsync(cancel);
 
-                Controller.StatMan!.AddReport("OpenDatabaseForWriteAsync_Total", 1);
+                Controller.StatMan?.AddReport("OpenDatabaseForWriteAsync_Total", 1);
 
                 return db;
             }
@@ -509,7 +509,7 @@ namespace IPA.Cores.Codes
                     }
                 }
 
-                Controller.StatMan!.AddReport("ReadFromDb_OK_Total", 1);
+                Controller.StatMan?.AddReport("ReadFromDb_OK_Total", 1);
             }
             catch
             {
@@ -519,7 +519,7 @@ namespace IPA.Cores.Codes
                     this.MemDb = new ThinMemoryDb(this.BackupFileName);
                 }
 
-                Controller.StatMan!.AddReport("ReadFromDb_Error_Total", 1);
+                Controller.StatMan?.AddReport("ReadFromDb_Error_Total", 1);
 
                 // バックアップファイルの読み込みを行なった上で、DB 例外はちゃんと throw する
                 throw;
