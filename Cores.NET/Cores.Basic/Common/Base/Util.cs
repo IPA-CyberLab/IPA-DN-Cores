@@ -3797,11 +3797,13 @@ namespace IPA.Cores.Basic
     {
         public int DefaultRetryInterval { get; set; }
         public int DefaultTryCount { get; set; }
+        public bool RandomInterval { get; set; }
 
-        public RetryHelper(int defaultRetryInterval, int defaultTryCount)
+        public RetryHelper(int defaultRetryInterval, int defaultTryCount, bool randomInterval = false)
         {
             this.DefaultRetryInterval = defaultRetryInterval;
             this.DefaultTryCount = defaultTryCount;
+            this.RandomInterval = randomInterval;
         }
 
         public async Task<T> RunAsync(Func<CancellationToken, Task<T>> proc, int? retryInterval = null, int? tryCount = null, CancellationToken cancel = default)
@@ -3833,9 +3835,16 @@ namespace IPA.Cores.Basic
 
                     if (i < (tryCount - 1))
                     {
-                        Dbg.WriteLine($"RetryHelper: round {i} error. {ex._GetSingleException().Message} Retrying in {retryInterval} msecs...");
+                        int interval = (int)retryInterval;
 
-                        await Task.Delay((int)retryInterval);
+                        if (this.RandomInterval)
+                        {
+                            interval = Util.GenRandInterval(interval);
+                        }
+
+                        Dbg.WriteLine($"RetryHelper: round {i} error. {ex._GetSingleException().Message} Retrying in {interval} msecs...");
+
+                        await Task.Delay(interval);
                     }
                     else
                     {
@@ -3853,9 +3862,9 @@ namespace IPA.Cores.Basic
 
     public static class RetryHelper
     {
-        public static async Task RunAsync(Func<Task> proc, int retryInterval = 0, int tryCount = 1, CancellationToken cancel = default)
+        public static async Task RunAsync(Func<Task> proc, int retryInterval = 0, int tryCount = 1, CancellationToken cancel = default, bool randomInterval = false)
         {
-            RetryHelper<int> helper = new RetryHelper<int>(retryInterval, tryCount);
+            RetryHelper<int> helper = new RetryHelper<int>(retryInterval, tryCount, randomInterval);
 
             await helper.RunAsync(async () =>
             {
@@ -3864,9 +3873,9 @@ namespace IPA.Cores.Basic
             }, cancel: cancel);
         }
 
-        public static async Task<T> RunAsync<T>(Func<Task<T>> proc, int retryInterval = 0, int tryCount = 1, CancellationToken cancel = default)
+        public static async Task<T> RunAsync<T>(Func<Task<T>> proc, int retryInterval = 0, int tryCount = 1, CancellationToken cancel = default, bool randomInterval = false)
         {
-            RetryHelper<T> helper = new RetryHelper<T>(retryInterval, tryCount);
+            RetryHelper<T> helper = new RetryHelper<T>(retryInterval, tryCount, randomInterval);
 
             return await helper.RunAsync(proc, cancel: cancel);
         }

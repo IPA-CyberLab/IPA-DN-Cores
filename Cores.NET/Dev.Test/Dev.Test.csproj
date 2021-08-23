@@ -27,14 +27,14 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DefineConstants>CORES_CODES_AWS;CORES_CODES_DNSTOOLS</DefineConstants>
+    <DefineConstants>CORES_CODES_AWS;CORES_CODES_IISUTIL</DefineConstants>
     <WarningsAsErrors>NU1605;CA2245;</WarningsAsErrors>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DefineConstants>TRACE;DEBUG;CORES_CODES_AWS;CORES_CODES_DNSTOOLS</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;CORES_CODES_AWS;CORES_CODES_IISUTIL</DefineConstants>
     <WarningsAsErrors>NU1605;CA2245;</WarningsAsErrors>
   </PropertyGroup>
 
@@ -67,6 +67,7 @@
   <ItemGroup>
     <PackageReference Include="AWSSDK.Core" Version="3.5.1.59" />
     <PackageReference Include="AWSSDK.SimpleNotificationService" Version="3.5.1.31" />
+    <PackageReference Include="Microsoft.Web.Administration" Version="11.1.0" />
   </ItemGroup>
 
   <ItemGroup>

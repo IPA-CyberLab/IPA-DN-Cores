@@ -69,6 +69,7 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<int> MinCacheTimeoutMsecs = 3600 * 1000;
             public static readonly Copenhagen<int> MaxCacheTimeoutMsecs = 6 * 3600 * 1000;
             public static readonly Copenhagen<int> ReverseLookupInternalCacheTimeoutMsecs = 3600 * 1000;
+            public static readonly Copenhagen<int> ForwardLookupInternalCacheTimeoutMsecs = 3600 * 1000;
         }
     }
 
@@ -87,6 +88,13 @@ namespace IPA.Cores.Basic
         Default = UseSystemDnsClientSettings | RoundRobinServers,
     }
 
+    [Flags]
+    public enum DnsResolverQueryType
+    {
+        A = 0,
+        AAAA = 1,
+    }
+
     public class DnsResolverSettings
     {
         public TcpIpSystem TcpIp { get; }
@@ -97,10 +105,11 @@ namespace IPA.Cores.Basic
         public int MaxCacheTimeout { get; }
         public IReadOnlyList<IPEndPoint> DnsServersList { get; }
         public int ReverseLookupIntervalCacheTimeoutMsecs { get; }
+        public int ForwardLookupIntervalCacheTimeoutMsecs { get; }
 
         public DnsResolverSettings(TcpIpSystem? tcpIp = null, DnsResolverFlags flags = DnsResolverFlags.Default,
             int timeoutOneQuery = -1, int numTry = -1, int minCacheTimeout = -1, int maxCacheTimeout = -1, IEnumerable<IPEndPoint>? dnsServersList = null,
-            int reverseLookupInternalCacheTimeoutMsecs = -1)
+            int reverseLookupInternalCacheTimeoutMsecs = -1, int forwardLookupInternalCacheTimeoutMsecs = -1)
         {
             if (tcpIp == null) tcpIp = LocalNet;
             if (timeoutOneQuery <= 0) timeoutOneQuery = CoresConfig.DnsResolverDefaults.TimeoutOneQueryMsecs;
@@ -108,6 +117,7 @@ namespace IPA.Cores.Basic
             if (minCacheTimeout <= 0) minCacheTimeout = CoresConfig.DnsResolverDefaults.MinCacheTimeoutMsecs;
             if (maxCacheTimeout <= 0) maxCacheTimeout = CoresConfig.DnsResolverDefaults.MaxCacheTimeoutMsecs;
             if (reverseLookupInternalCacheTimeoutMsecs < 0) reverseLookupInternalCacheTimeoutMsecs = CoresConfig.DnsResolverDefaults.ReverseLookupInternalCacheTimeoutMsecs;
+            if (forwardLookupInternalCacheTimeoutMsecs < 0) forwardLookupInternalCacheTimeoutMsecs = CoresConfig.DnsResolverDefaults.ForwardLookupInternalCacheTimeoutMsecs;
 
             this.TcpIp = tcpIp;
             this.Flags = flags;
@@ -116,6 +126,8 @@ namespace IPA.Cores.Basic
             this.MinCacheTimeout = minCacheTimeout;
             this.MaxCacheTimeout = maxCacheTimeout;
             this.ReverseLookupIntervalCacheTimeoutMsecs = reverseLookupInternalCacheTimeoutMsecs;
+            this.ForwardLookupIntervalCacheTimeoutMsecs = forwardLookupInternalCacheTimeoutMsecs;
+
             if (dnsServersList != null)
             {
                 this.DnsServersList = dnsServersList.ToList();
@@ -154,18 +166,33 @@ namespace IPA.Cores.Basic
 
         protected abstract Task<IEnumerable<string>?> GetHostNameImplAsync(IPAddress ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default);
 
+        protected abstract Task<IEnumerable<IPAddress>?> GetIpAddressImplAsync(string hostname, DnsResolverQueryType queryType, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default);
+
+        class ForwardLookupCacheItem
+        {
+            public List<IPAddress>? Value { get; }
+            public DnsAdditionalResults AdditionalResults { get; }
+
+            public ForwardLookupCacheItem(List<IPAddress>? value, DnsAdditionalResults additionalResults)
+            {
+                Value = value;
+                AdditionalResults = additionalResults;
+            }
+        }
+
         class ReverseLookupCacheItem
         {
+            public List<string>? Value { get; }
+            public DnsAdditionalResults AdditionalResults { get; }
+
             public ReverseLookupCacheItem(List<string>? value, DnsAdditionalResults additionalResults)
             {
                 Value = value;
                 AdditionalResults = additionalResults;
             }
-
-            public List<string>? Value { get; }
-            public DnsAdditionalResults AdditionalResults { get; }
         }
 
+        readonly FastCache<string, ForwardLookupCacheItem> ForwardLookupCache;
         readonly FastCache<string, ReverseLookupCacheItem> ReverseLookupCache;
 
         public DnsResolver(DnsResolverSettings? setting = null)
@@ -177,6 +204,7 @@ namespace IPA.Cores.Basic
                 this.Settings = setting;
 
                 this.ReverseLookupCache = new FastCache<string, ReverseLookupCacheItem>(this.Settings.ReverseLookupIntervalCacheTimeoutMsecs, comparer: StrComparer.IpAddressStrComparer);
+                this.ForwardLookupCache = new FastCache<string, ForwardLookupCacheItem>(this.Settings.ForwardLookupIntervalCacheTimeoutMsecs, comparer: StrComparer.IgnoreCaseComparer);
             }
             catch
             {
@@ -185,6 +213,7 @@ namespace IPA.Cores.Basic
             }
         }
 
+        // 逆引き
         public async Task<List<string>?> GetHostNameAsync(string ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default, bool noCache = false)
         {
             try
@@ -305,6 +334,108 @@ namespace IPA.Cores.Basic
         public Task<string> GetHostNameSingleOrIpAsync(string? ip, CancellationToken cancel = default, bool noCache = false)
             => GetHostNameSingleOrIpAsync(ip._ToIPAddress(noExceptionAndReturnNull: true), cancel, noCache);
 
+
+        // 正引き
+        public async Task<List<IPAddress>?> GetIpAddressAsync(string hostname, DnsResolverQueryType queryType, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default, bool noCache = false)
+        {
+            hostname = Str.NormalizeFqdn(hostname);
+
+            if (hostname._IsSamei("localhost") || hostname._IsSamei("localhost.localdomain") || hostname._IsSamei("localhost6") || hostname._IsSamei("localhost6.localdomain6"))
+            {
+                if (queryType == DnsResolverQueryType.AAAA)
+                    return IPAddress.IPv6Loopback._SingleList();
+                else
+                    return IPAddress.Loopback._SingleList();
+            }
+
+            if (noCache) return await GetIpAddressCoreAsync(hostname, queryType, additional, cancel);
+
+            if (hostname._IsEmpty()) return null;
+
+            AllowedIPVersions ipver;
+            if (queryType == DnsResolverQueryType.A)
+                ipver = AllowedIPVersions.IPv4;
+            else
+                ipver = AllowedIPVersions.IPv6;
+            var ip = hostname._ToIPAddress(ipver, true);
+            if (ip != null)
+            {
+                return ip._SingleList();
+            }
+
+            RefBool found = new RefBool();
+
+            ForwardLookupCacheItem? item = await this.ForwardLookupCache.GetOrCreateAsync(hostname + "@" + queryType.ToString(), async ipStr =>
+            {
+                Ref<DnsAdditionalResults> additionals = new Ref<DnsAdditionalResults>();
+
+                List<IPAddress>? value = await GetIpAddressCoreAsync(hostname, queryType, additionals, cancel);
+
+                return new ForwardLookupCacheItem(value, additionals.Value ?? new DnsAdditionalResults(true, false));
+            }, found);
+
+            if (item == null)
+            {
+                additional?.Set(new DnsAdditionalResults(true, false, false));
+                return null;
+            }
+
+            additional?.Set(item.AdditionalResults.Clone(true));
+
+            return item.Value;
+        }
+
+        async Task<List<IPAddress>?> GetIpAddressCoreAsync(string hostname, DnsResolverQueryType queryType, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
+        {
+            try
+            {
+                List<IPAddress>? ret = new List<IPAddress>();
+
+                IEnumerable<IPAddress>? tmp = null;
+
+                HashSet<string> ipDuplicateChecker = new HashSet<string>(StrComparer.IpAddressStrComparer);
+
+                tmp = await GetIpAddressImplAsync(hostname, queryType, additional, cancel);
+
+                if (tmp != null)
+                {
+                    foreach (IPAddress ip in tmp)
+                    {
+                        if (ipDuplicateChecker.Add(ip.ToString()))
+                        {
+                            ret.Add(ip);
+                        }
+                    }
+                }
+
+                if (ret.Any() == false)
+                {
+                    ret = null;
+                }
+
+                return ret;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public async Task<IPAddress> GetIpAddressSingleAsync(string hostname, DnsResolverQueryType queryType, CancellationToken cancel = default, bool noCache = false)
+        {
+            var res = await GetIpAddressAsync(hostname, queryType, null, cancel, noCache);
+
+            if ((res?.Count ?? 0) >= 1)
+            {
+                return res![0];
+            }
+            else
+            {
+                throw new CoresException($"Hostname '{hostname}': DNS record for type '{queryType.ToString()}' not found.");
+            }
+        }
+
+        // ヘルパーさん
         public static DnsResolver CreateDnsResolverIfSupported(DnsResolverSettings? settings)
         {
 #if CORES_BASIC_MISC
@@ -320,6 +451,11 @@ namespace IPA.Cores.Basic
         public override bool IsAvailable => false;
 
         protected override Task<IEnumerable<string>?> GetHostNameImplAsync(IPAddress ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override Task<IEnumerable<IPAddress>?> GetIpAddressImplAsync(string hostname, DnsResolverQueryType queryType, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
         {
             throw new NotImplementedException();
         }

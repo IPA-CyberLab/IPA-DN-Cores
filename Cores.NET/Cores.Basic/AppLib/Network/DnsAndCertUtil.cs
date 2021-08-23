@@ -57,6 +57,66 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    public static class WildcardCertServerUtil
+    {
+        public static async Task<List<CertificateStore>> DownloadAllLatestCertsAsync(string baseUrl, string username, string password, CancellationToken cancel = default)
+        {
+            await using var http = new EasyHttpClient(new EasyHttpClientOptions(basicUsername: username, basicPassword: password,
+                options: new WebApiOptions(
+                    new WebApiSettings
+                    {
+                        SslAcceptAnyCerts = true,
+                    })));
+
+            var topPage = await http.GetHtmlAsync(baseUrl, cancel);
+
+            HashSet<string> domainNameList = new HashSet<string>();
+
+            foreach (var a in topPage.DocumentNode.GetAllChildren().Where(x => x.NodeType == HtmlAgilityPack.HtmlNodeType.Element && x.Name._IsSamei("a")))
+            {
+                string href = a.Attributes.GetFirstValue("href");
+                if (href._IsFilled())
+                {
+                    if (href.EndsWith("/")) href = href.Substring(0, href.Length - 1);
+                    if (href._IsValidFqdn())
+                    {
+                        //// test
+                        //if (href.EndsWith("sehosts.com") ||
+                        //    href.EndsWith("coe.ad.jp") ||
+                        //    href.EndsWith("open.ad.jp"))
+
+                        domainNameList.Add(href.ToLower());
+                    }
+                }
+            }
+
+            List<CertificateStore> ret = new List<CertificateStore>();
+
+            foreach (string domain in domainNameList.OrderBy(x => x))
+            {
+                try
+                {
+                    string pfxUrl = baseUrl._CombineUrl(domain + "/")._CombineUrl("latest/")._CombineUrl("cert.pfx").ToString();
+
+                    var pfxRet = await http.GetAsync(pfxUrl, cancel);
+
+                    CertificateStore cert = new CertificateStore(pfxRet.Data);
+
+                    if (cert.PrimaryCertificate.NotBefore <= DtOffsetNow && DtOffsetNow <= cert.PrimaryCertificate.NotAfter)
+                    {
+                        ret.Add(cert);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
+            }
+
+            return ret;
+        }
+    }
+
     // 大解説書
     // 
     // 1. DNS ゾーンファイルを入力してユニークな FQDN レコードの一覧を出力する

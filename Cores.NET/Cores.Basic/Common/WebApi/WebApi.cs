@@ -68,6 +68,91 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class EasyHttpClientOptions
+    {
+        public int TryCount { get; }
+        public int RetryIntervalMsecs { get; }
+        public bool RandomInterval { get; }
+        public string BasicUsername { get; }
+        public string BasicPassword { get; }
+
+        public WebApiOptions WebApiOptions { get; }
+
+        public RemoteCertificateValidationCallback? SslCallback { get; }
+
+        public EasyHttpClientOptions(
+            int retCount = Consts.Numbers.EasyHttpClient_DefaultTryCount, int retryIntervalMsecs = Consts.Numbers.EasyHttpClient_DefaultRetryIntervalMsecs,
+            bool randomInterval = true,
+            string basicUsername = "", string basicPassword = "",
+            WebApiOptions? options = null, RemoteCertificateValidationCallback? sslCallback = null)
+        {
+            options ??= new WebApiOptions();
+
+            this.TryCount = Math.Max(retCount, 1);
+
+            this.RetryIntervalMsecs = Math.Max(retryIntervalMsecs, 1);
+
+            this.RandomInterval = randomInterval;
+
+            this.WebApiOptions = options;
+            this.SslCallback = sslCallback;
+
+            this.BasicUsername = basicUsername._NonNull();
+            this.BasicPassword = basicPassword._NonNull();
+        }
+    }
+
+    public partial class EasyHttpClient : AsyncService
+    {
+        public EasyHttpClientOptions Options { get; }
+        public WebApi Api { get; }
+
+        public EasyHttpClient(EasyHttpClientOptions? options = null)
+        {
+            try
+            {
+                options ??= new EasyHttpClientOptions();
+                this.Options = options;
+
+                this.Api = new WebApi(this.Options.WebApiOptions, this.Options.SslCallback);
+
+                if (this.Options.BasicUsername._IsFilled() && this.Options.BasicPassword._IsFilled())
+                {
+                    this.Api.SetBasicAuthHeader(this.Options.BasicUsername, this.Options.BasicPassword);
+                }
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+        public async Task<WebRet> GetAsync(string url, CancellationToken cancel = default)
+        {
+            return await TaskUtil.RetryAsync(async () =>
+            {
+                return await Api.SimpleQueryAsync(WebMethods.GET, url, cancel);
+            },
+            this.Options.RetryIntervalMsecs,
+            this.Options.TryCount,
+            cancel,
+            this.Options.RandomInterval);
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                await this.Api._DisposeSafeAsync();
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
+        }
+    }
+
     public class WebResponseException : Exception
     {
         public WebResponseException(string message) : base(message) { }

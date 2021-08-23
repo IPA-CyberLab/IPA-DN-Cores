@@ -42,6 +42,8 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Threading.Tasks;
 using System.Threading;
+using System.Net.Security;
+using System.Net;
 
 namespace IPA.Cores.Basic
 {
@@ -350,7 +352,29 @@ namespace IPA.Cores.Basic
             mail.Headers.Add("X-Priority", MailPriority);
             mail.Headers.Add("X-MimeOLE", MimeOLE);
 
-            await c.SendMailAsync(mail);
+            // SSL 証明書をチェック いたしません！！
+            RemoteCertificateValidationCallback? sslCallbackBackup = ServicePointManager.ServerCertificateValidationCallback;
+
+            if (c.EnableSsl)
+            {
+                ServicePointManager.ServerCertificateValidationCallback = (a, b, c, d) => true;
+            }
+
+            try
+            {
+                await c.SendMailAsync(mail);
+            }
+            finally
+            {
+                if (c.EnableSsl)
+                {
+                    try
+                    {
+                        ServicePointManager.ServerCertificateValidationCallback = sslCallbackBackup;
+                    }
+                    catch { }
+                }
+            }
         }
 
         public void Send(SmtpConfig smtp, CancellationToken cancel = default) => SendAsync(smtp, cancel)._GetResult();
@@ -417,5 +441,213 @@ namespace IPA.Cores.Basic
         }
         public static bool Send(SmtpConfig config, MailAddress from, MailAddress to, string subject, string body, bool noException = false, CancellationToken cancel = default)
             => SendAsync(config, from, to, subject, body, noException, cancel)._GetResult();
+    }
+
+    public class SmtpLogRouteSettings
+    {
+        public string SmtpServer { get; }
+        public bool SmtpUseSsl { get; }
+        public string SmtpUsername { get; }
+        public string SmtpPassword { get; }
+        public string MailFrom { get; }
+        public string MailTo { get; }
+        public int MaxLines { get; }
+
+        public const int DefaultMaxLines = 100000;
+
+        public SmtpLogRouteSettings(string smtpServer, bool smtpUseSsl, string smtpUsername, string smtpPassword, string mailFrom, string mailTo, int maxLines = DefaultMaxLines)
+        {
+            SmtpServer = smtpServer;
+            SmtpUseSsl = smtpUseSsl;
+            SmtpUsername = smtpUsername;
+            SmtpPassword = smtpPassword;
+            MailFrom = mailFrom;
+            MailTo = mailTo;
+            MaxLines = Math.Max(maxLines, 1);
+        }
+    }
+
+    public class SmtpLogRoute : LogRouteBase
+    {
+        readonly CriticalSection<SmtpLogRoute> Lock = new CriticalSection<SmtpLogRoute>();
+
+        public SmtpLogRouteSettings Settings { get; }
+
+        public GetMyIpInfoResult? MyIpInfo = null;
+
+        public IPAddress? MyLocalIp = null;
+
+        List<string> Lines2 = new List<string>();
+        List<string> Lines = new List<string>();
+
+        public SmtpLogRoute(string kind, LogPriority minimalPriority, SmtpLogRouteSettings settings) : base(kind, minimalPriority)
+        {
+            this.Settings = settings;
+        }
+
+        public override async Task FlushAsync(bool halfFlush = false, CancellationToken cancel = default)
+        {
+            List<string> linesToSend;
+            List<string> lines2ToSend;
+
+            try
+            {
+                if (MyLocalIp == null)
+                {
+                    MyLocalIp = await GetMyPrivateIpNativeUtil.GetMyPrivateIpAsync(IPVersion.IPv4);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
+
+            if (MyIpInfo == null)
+            {
+                try
+                {
+                    await using GetMyIpClient c = new GetMyIpClient();
+
+                    MyIpInfo = await c.GetMyIpInfoAsync(IPVersion.IPv4, cancel);
+                }
+                catch
+                {
+                }
+            }
+
+            string globalInfo = "(Unknown)";
+            if (MyIpInfo != null)
+            {
+                if (MyIpInfo.GlobalFqdn._IsSamei(MyIpInfo.GlobalIpAddress.ToString()))
+                {
+                    globalInfo = MyIpInfo.GlobalFqdn;
+                }
+                else
+                {
+                    globalInfo = $"{MyIpInfo.GlobalFqdn} - {MyIpInfo.GlobalIpAddress}";
+                }
+            }
+
+            lock (this.Lock)
+            {
+                if (this.Lines.Count == 0 && this.Lines2.Count == 0) return;
+
+                linesToSend = this.Lines;
+                lines2ToSend = this.Lines2;
+
+                this.Lines = new List<string>();
+                this.Lines2 = new List<string>();
+            }
+
+            string cmdName = CoresLib.Report_CommandName;
+            if (cmdName._IsEmpty())
+            {
+                cmdName = "Unknown";
+            }
+
+            string resultStr = CoresLib.Report_SimpleResult._OneLine();
+            if (resultStr._IsEmpty())
+            {
+                resultStr = "Ok";
+            }
+
+            StringWriter w = new StringWriter();
+
+            w.WriteLine($"Reported: {DtOffsetNow._ToDtStr()}");
+            w.WriteLine($"Program: {CoresLib.AppName}");
+            w.WriteLine($"Hostname: {Env.DnsFqdnHostName}");
+            w.WriteLine($"Global: {globalInfo}, Local: {MyLocalIp}");
+            w.WriteLine($"Command: {cmdName}, Result: {(CoresLib.Report_HasError ? "*Error* - " : "OK - ")}{resultStr}");
+
+            if (lines2ToSend.Count >= 1)
+            {
+                w.WriteLine("=====================");
+                w.WriteLine();
+
+                lines2ToSend.ForEach(x => w.WriteLine(x));
+
+                w.WriteLine();
+            }
+
+            if (linesToSend.Count >= 1)
+            {
+                w.WriteLine("--------------------");
+                w.WriteLine();
+
+                linesToSend.ForEach(x => w.WriteLine(x));
+
+                w.WriteLine();
+            }
+
+            w.WriteLine("--------------------");
+            EnvInfoSnapshot snapshot = new EnvInfoSnapshot();
+            snapshot.CommandLine = "";
+            w.WriteLine($"Program Details: {snapshot._GetObjectDump()}");
+
+            w.WriteLine();
+
+            string subject = $"Report - {cmdName}{(CoresLib.Report_HasError ? " *Error*" : "")} - {linesToSend.Count} lines - {Env.DnsHostName} - {MyLocalIp} ({globalInfo}): {resultStr._NormalizeSoftEther(true)._TruncStrEx(60)}";
+
+            var hostAndPort = this.Settings.SmtpServer._ParseHostnaneAndPort(Consts.Ports.Smtp);
+            SmtpConfig cfg = new SmtpConfig(hostAndPort.Item1, hostAndPort.Item2, this.Settings.SmtpUseSsl, this.Settings.SmtpUsername, this.Settings.SmtpPassword);
+
+            Console.WriteLine("Report Subject: " + subject);
+
+            try
+            {
+                Console.WriteLine($"SMTP Log Sending to '{this.Settings.MailTo}' ...");
+
+                await TaskUtil.RetryAsync(async () =>
+                {
+                    await SmtpUtil.SendAsync(cfg, this.Settings.MailFrom, this.Settings.MailTo, subject, w.ToString(), false, cancel);
+
+                    return 0;
+                }, 1000, 3, cancel: cancel, randomInterval: true);
+                Console.WriteLine("SMTP Log Sent.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("SMTP Log Send Error: " + ex.ToString());
+            }
+        }
+
+        public override void ReceiveLog(LogRecord record, string kind)
+        {
+            if (record.Tag._IsSamei("boottime") == false)
+            {
+                string[] lines = record.ConsolePrintableString._GetLines(false, singleLineAtLeast: true);
+
+                lock (this.Lock)
+                {
+                    foreach (var line in lines)
+                    {
+                        string s = $"[{record.TimeStamp.LocalDateTime._ToDtStr()}] {line}";
+
+                        if (record.Flags.Bit(LogFlags.Heading) || record.Priority >= LogPriority.Error)
+                        {
+                            // 重要なメッセージはトップにも表示
+                            this.Lines2.Add(s);
+                        }
+
+                        if (this.Lines.Count < this.Settings.MaxLines)
+                        {
+                            this.Lines.Add(s);
+                        }
+                    }
+                }
+            }
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                await this.FlushAsync(false);
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
+        }
     }
 }

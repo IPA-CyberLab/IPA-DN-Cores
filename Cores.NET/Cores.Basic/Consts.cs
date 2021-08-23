@@ -113,6 +113,11 @@ namespace IPA.Cores.Basic
 
             public const int GenericMaxEntities_Small = 512;
             public const int GenericMaxSize_Middle = 1_000_000;
+
+            public const int EasyHttpClient_DefaultTryCount = 5;
+            public const int EasyHttpClient_DefaultRetryIntervalMsecs = 1 * 1000;
+
+            public static readonly TimeSpan MaxCertExpireSpanTargetForUpdate = new TimeSpan(4 * 365, 0, 0, 0);
         }
 
         public static partial class MaxLens
@@ -338,8 +343,8 @@ namespace IPA.Cores.Basic
 
         public static partial class Urls
         {
-            public const string GetMyIpUrl_IPv4 = "http://get-my-ip.ddns.softether-network.net/ddns/getmyip.ashx";
-            public const string GetMyIpUrl_IPv6 = "http://get-my-ip-v6.ddns.softether-network.net/ddns/getmyip.ashx";
+            public const string GetMyIpUrl_IPv4 = "http://getmyip-v4.arpanet.jp/";
+            public const string GetMyIpUrl_IPv6 = "http://getmyip-v6.arpanet.jp/";
         }
 
         public static partial class CdnUrls

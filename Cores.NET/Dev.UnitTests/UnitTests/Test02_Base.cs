@@ -1,4 +1,4 @@
-// IPA Cores.NET
+﻿// IPA Cores.NET
 // 
 // Copyright (c) 2019- IPA CyberLab.
 // Copyright (c) 2003-2018 Daiyuu Nobori.
@@ -118,6 +118,36 @@ namespace IPA.UnitTest
             Assert.True(num_timered >= 0);
 
             Where();
+        }
+
+        [Fact]
+        public void StrLibTest()
+        {
+            Assert.False(""._IsNumber());
+            Assert.False("A"._IsNumber());
+            Assert.True("1"._IsNumber());
+            Assert.True("-1"._IsNumber());
+            Assert.True("１"._IsNumber());
+
+            var hostAndPort = Str.ParseHostnaneAndPort("abc", 80);
+            Assert.Equal("abc", hostAndPort.Item1);
+            Assert.Equal(80, hostAndPort.Item2);
+
+            hostAndPort = Str.ParseHostnaneAndPort(" 1.2.3.4 :9821", 80);
+            Assert.Equal("1.2.3.4", hostAndPort.Item1);
+            Assert.Equal(9821, hostAndPort.Item2);
+
+            hostAndPort = Str.ParseHostnaneAndPort("2001:1:2:3::4:9821", 80);
+            Assert.Equal("2001:1:2:3::4", hostAndPort.Item1);
+            Assert.Equal(9821, hostAndPort.Item2);
+
+            hostAndPort = Str.ParseHostnaneAndPort("2001:1:2:3::4:fffe", 80);
+            Assert.Equal("2001:1:2:3::4:fffe", hostAndPort.Item1);
+            Assert.Equal(80, hostAndPort.Item2);
+
+            hostAndPort = Str.ParseHostnaneAndPort("", 80);
+            Assert.Equal("", hostAndPort.Item1);
+            Assert.Equal(80, hostAndPort.Item2);
         }
     }
 }

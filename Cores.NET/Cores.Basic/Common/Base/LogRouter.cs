@@ -346,6 +346,8 @@ namespace IPA.Cores.Basic
 
         public static BufferedLogRoute BufferedLogRoute { get; private set; } = null!;
 
+        public static readonly Copenhagen<CoresLibOptions?> OptionsForSmtpLogRouterInit = new Copenhagen<CoresLibOptions?>(null);
+
         public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
 
         static int PostDataCounter = 0;
@@ -419,6 +421,28 @@ namespace IPA.Cores.Basic
             // Console log
             Router.InstallLogRoute(new ConsoleLogRoute(LogKind.Default,
                 CoresConfig.DebugSettings.ConsoleMinimalLevel));
+
+            var smtpOptions = LocalLogRouter.OptionsForSmtpLogRouterInit.Value;
+
+            if (smtpOptions != null)
+            {
+                if (smtpOptions.SmtpFrom._IsFilled() &&
+                    smtpOptions.SmtpTo._IsFilled() &&
+                    smtpOptions.SmtpServer._IsFilled())
+                {
+                    // SMTP log
+                    Router.InstallLogRoute(new SmtpLogRoute(LogKind.Default,
+                        smtpOptions.SmtpLogLevel,
+                        new SmtpLogRouteSettings(
+                            smtpOptions.SmtpServer,
+                            smtpOptions.SmtpUseSsl,
+                            smtpOptions.SmtpUsername,
+                            smtpOptions.SmtpPassword,
+                            smtpOptions.SmtpFrom,
+                            smtpOptions.SmtpTo)
+                        ));
+                }
+            }
 
             // Buffered debug log
             BufferedLogRoute = Router.InstallLogRoute(new BufferedLogRoute(BufferedLogRoute.DefaultFilter,
@@ -505,8 +529,8 @@ namespace IPA.Cores.Basic
         public static void Post(object? obj, LogPriority priority = LogPriority.Debug, string kind = LogKind.Default, LogFlags flags = LogFlags.None, string? tag = null)
             => Router?.PostLog(new LogRecord(obj, priority, flags, tag), kind);
 
-        public static void PrintConsole(object? obj, bool noConsole = false, LogPriority priority = LogPriority.Info, string? tag = null)
-            => Post(obj, priority, flags: noConsole ? LogFlags.NoOutputToConsole : LogFlags.None, tag: tag);
+        public static void PrintConsole(object? obj, bool noConsole = false, LogPriority priority = LogPriority.Info, string? tag = null, LogFlags flags = LogFlags.None)
+            => Post(obj, priority, flags: flags | (noConsole ? LogFlags.NoOutputToConsole : LogFlags.None), tag: tag);
 
         public static Task PostDataAsync(object? obj, string? tag = null, bool copyToDebug = false, LogPriority priority = LogPriority.Info, CancellationToken cancel = default, bool noWait = false)
         {

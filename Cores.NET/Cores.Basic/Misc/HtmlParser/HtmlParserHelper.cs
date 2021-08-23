@@ -94,6 +94,11 @@ namespace IPA.Cores.Helper.Basic
 
             return ret;
         }
+
+        public static string GetFirstValue(this IEnumerable<HtmlAttribute> attributesList, string name, string defaultValue = "")
+        {
+            return (attributesList.Where(x => x.Name._IsSamei(name)).FirstOrDefault()?.Value ?? defaultValue)._NonNull();
+        }
     }
 }
 

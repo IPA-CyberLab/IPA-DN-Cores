@@ -22,6 +22,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)App\DataVault\DataVaultServer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\DataVault\DataVaultServerApp.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\Logging\LogServerApp\LogServerApp.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)App\MyIpServer\MyIpServer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\SnmpWork\SnmpWork.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\SnmpWork\SnmpWorkFetchers.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\StressMon\StressMon.cs" />

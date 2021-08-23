@@ -262,6 +262,10 @@ namespace IPA.Cores.Basic
         public ReadOnlyMemory<byte>? DigestSHA512Data { get; private set; }
         public string? DigestSHA512Str { get; private set; }
 
+        public DateTimeOffset NotBefore { get; private set; } = Util.ZeroDateTimeOffsetValue;
+        public DateTimeOffset NotAfter { get; private set; } = Util.ZeroDateTimeOffsetValue;
+        public TimeSpan ExpireSpan { get; private set; }
+
         void InitFields()
         {
             X509CertificateSingleton = new Singleton<PalX509Certificate>(GetX509CertificateInternal);
@@ -283,9 +287,16 @@ namespace IPA.Cores.Basic
 
                     this.DigestSHA512Data = cert.DigestSHA512Data;
                     this.DigestSHA512Str = cert.DigestSHA512Str;
+
+                    this.NotBefore = cert.NotBefore;
+                    this.NotAfter = cert.NotAfter;
+                    this.ExpireSpan = cert.ExpireSpan;
                 }
             }
         }
+
+        public bool IsMatchForHost(string hostname, out CertificateHostnameType matchType)
+            => this.PrimaryCertificate.IsMatchForHost(hostname, out matchType);
 
         PalX509Certificate GetX509CertificateInternal()
         {
@@ -323,6 +334,8 @@ namespace IPA.Cores.Basic
                 return ms.ToArray();
             }
         }
+
+        public string GenerateFriendlyName() => this.PrimaryCertificate.GenerateFriendlyName();
 
         public string ExportCertInfo()
         {
@@ -366,6 +379,9 @@ namespace IPA.Cores.Basic
 
             privateKeyFile = this.PrimaryContainer.PrivateKey.Export(password);
         }
+
+        public override string ToString()
+            => this.PrimaryCertificate?.ToString() ?? "CertificateStore Object with No Certificate";
     }
 
     public class PrivKey : IEquatable<PrivKey>
@@ -773,7 +789,7 @@ namespace IPA.Cores.Basic
 
         public CertificateHostName(string hostName)
         {
-            this.HostName = hostName._NonNullTrim();
+            this.HostName = hostName._NonNullTrim()._NormalizeFqdn();
 
             this.Type = CertificateHostnameType.SingleHost;
 
@@ -819,6 +835,8 @@ namespace IPA.Cores.Basic
         public DateTimeOffset NotBefore { get; private set; }
         public DateTimeOffset NotAfter { get; private set; }
 
+        public TimeSpan ExpireSpan => NotAfter - NotBefore;
+
         public PubKey PublicKey { get; private set; } = null!;
 
         public ReadOnlyMemory<byte> DigestSHA1Data { get; private set; } = null!;
@@ -835,6 +853,9 @@ namespace IPA.Cores.Basic
 
         public string SignatureAlgorithmOid { get; set; } = null!;
         public string SignatureAlgorithmName { get; set; } = null!;
+
+        public string IssuerName { get; set; } = null!;
+        public string SubjectName { get; set; } = null!;
 
         public string CommonNameOrFirstDnsName { get; private set; } = "";
 
@@ -955,7 +976,7 @@ namespace IPA.Cores.Basic
             this.PublicKey = new PubKey(publicKeyBytes);
 
             HashSet<string> dnsNames = new HashSet<string>();
-
+            
             ICollection altNamesList = this.CertData.GetSubjectAlternativeNames();
 
             string? commonName = null;
@@ -1050,6 +1071,9 @@ namespace IPA.Cores.Basic
 
             this.NotBefore = this.CertData.NotBefore._AsDateTimeOffset(false, true);
             this.NotAfter = this.CertData.NotAfter._AsDateTimeOffset(false, true);
+
+            this.IssuerName = this.CertData.IssuerDN.ToString()._NonNull();
+            this.SubjectName = this.CertData.SubjectDN.ToString()._NonNull();
         }
 
         PalX509Certificate GetX509CertificateInternal()
@@ -1167,7 +1191,55 @@ namespace IPA.Cores.Basic
             => this.Equals((Certificate?)obj);
 
         public override string ToString()
-            => $"{this.CommonNameOrFirstDnsName} (sha1: {this.DigestSHA1Str})";
+        {
+            string ret = $"{this.CommonNameOrFirstDnsName} (Start: {this.NotBefore.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, End: {this.NotAfter.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, SHA-1: {this.DigestSHA1Str}, Issued by: '{this.IssuerName}')";
+            if (this.HostNameList.Count >= 2)
+            {
+                ret += $" Additional DNS names: [{this.HostNameList.Select(x=>x.HostName).OrderBy(x=>x, StrComparer.FqdnReverseStrComparer)._Combine(", ", true)}]";
+            }
+            return ret;
+        }
+
+        public string GenerateFriendlyName()
+        {
+            string dnsName = this.CommonNameOrFirstDnsName;
+
+            var wildcard = this.HostNameList.Where(x => x.Type == CertificateHostnameType.Wildcard).FirstOrDefault();
+            if (wildcard != null)
+            {
+                dnsName = wildcard.WildcardEndWith!;
+            }
+
+            if (dnsName._IsEmpty())
+            {
+                dnsName = "_unknown_";
+            }
+
+            string ret = dnsName + ". " + this.NotBefore.LocalDateTime._ToYymmddInt(yearTwoDigits: true).ToString() + "-" + this.NotAfter.LocalDateTime._ToYymmddInt(yearTwoDigits: true).ToString() + " ";
+
+            ret += this.HostNameList.Count + " hosts " + this.DigestSHA1Str;
+
+            ret = PPWin.MakeSafeFileName(ret);
+
+            ret = ret._TruncStr(128);
+
+            return ret;
+        }
+
+        public bool IsMultipleSanCertificate()
+        {
+            if (this.HostNameList.Where(x => x.Type == CertificateHostnameType.SingleHost).Count() >= 2)
+            {
+                return true;
+            }
+
+            if (this.HostNameList.Where(x => x.Type == CertificateHostnameType.Wildcard).Count() >= 2)
+            {
+                return true;
+            }
+
+            return false;
+        }
 
         public int CompareTo(Certificate? other)
             => this.DerData._MemCompare(other!.DerData);
@@ -1517,6 +1589,21 @@ namespace IPA.Cores.Helper.Basic
             signer.BlockUpdate(data, offset, size);
 
             return signer.VerifySignature(signature);
+        }
+
+        public static List<Tuple<CertificateStore, CertificateHostnameType>> GetHostnameMatchedCertificatesList(this IEnumerable<CertificateStore> list, string hostname)
+        {
+            List<Tuple<CertificateStore, CertificateHostnameType>> ret = new List<Tuple<CertificateStore, CertificateHostnameType>>();
+
+            foreach (var item in list)
+            {
+                if (item.IsMatchForHost(hostname, out CertificateHostnameType type))
+                {
+                    ret._AddTuple(item, type);
+                }
+            }
+
+            return ret;
         }
     }
 }

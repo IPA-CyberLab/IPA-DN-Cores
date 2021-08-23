@@ -175,6 +175,16 @@ namespace IPA.Cores.Basic
             return doc;
         }
     }
+
+    public partial class EasyHttpClient
+    {
+        public async Task<HtmlDocument> GetHtmlAsync(string url, CancellationToken cancel = default)
+        {
+            var ret = await this.GetAsync(url, cancel);
+
+            return ret.ToString()._ParseHtml();
+        }
+    }
 }
 
 #endif

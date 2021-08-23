@@ -57,6 +57,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Runtime.CompilerServices;
+using System.Net.Security;
 
 namespace IPA.Cores.Basic
 {
@@ -1117,6 +1118,53 @@ namespace IPA.Cores.Basic
 
         static readonly CriticalSection LockNewId = new CriticalSection();
         static ulong LastNewIdMSecs = 0;
+
+        public static Tuple<string, int> ParseHostnaneAndPort(string str, int defaultPort)
+        {
+            str = str._NonNull();
+
+            string hoststr = "";
+            string portstr = "";
+
+            // hostname1:hostname2:port のようになっている可能性があるので、最後の ':' の出現場所を取得する
+            for (int i = 0; i < str.Length - 1; i++)
+            {
+                char c = str[i];
+
+                if (c == ':')
+                {
+                    hoststr = str.Substring(0, i);
+                    portstr = str.Substring(i + 1);
+                }
+            }
+
+            if (portstr._IsNumber())
+            {
+                return new Tuple<string, int>(hoststr.Trim(), portstr._ToInt());
+            }
+            else
+            {
+                return new Tuple<string, int>(str.Trim(), defaultPort);
+            }
+        }
+
+        public static bool IsValidFqdn(string fqdn)
+        {
+            fqdn = fqdn._NonNull();
+
+            if (fqdn.EndsWith(".")) fqdn = fqdn.Substring(0, fqdn.Length - 1);
+
+            var tokens = fqdn._Split(StringSplitOptions.None, '.');
+
+            foreach (string token in tokens)
+            {
+                if (token._IsEmpty()) return false;
+
+                if (token.All(c => ('0' <= c && c <= '9') || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '-' || c == '_') == false) return false;
+            }
+
+            return true;
+        }
 
         [return: NotNullIfNotNull("fqdn")]
         public static string? ReverseFqdnStr(string? fqdn)
@@ -6037,7 +6085,7 @@ namespace IPA.Cores.Basic
             return dt.ToString("yyyyMMdd_HHmmss") + "." + msecStr.Split('.')[1];
         }
 
-        public static int DateTimeToYymmddInt(DateTime dt, int zeroValue = 0)
+        public static int DateTimeToYymmddInt(DateTime dt, int zeroValue = 0, bool yearTwoDigits = false)
         {
             if (dt._IsZeroDateTime())
             {
@@ -6045,6 +6093,11 @@ namespace IPA.Cores.Basic
             }
 
             string ret = dt.ToString("yyyyMMdd");
+
+            if (yearTwoDigits)
+            {
+                ret = ret.Substring(2);
+            }
 
             return Str.StrToInt(ret);
         }
@@ -6590,7 +6643,7 @@ namespace IPA.Cores.Basic
         }
 
         // テキストから複数行を取り出す
-        public static string[] GetLines(string str, bool removeEmpty = false, bool stripCommentsFromLine = false, IEnumerable<string>? commentStartStrList = null)
+        public static string[] GetLines(string str, bool removeEmpty = false, bool stripCommentsFromLine = false, IEnumerable<string>? commentStartStrList = null, bool singleLineAtLeast = false)
         {
             List<string> a = new List<string>();
             StringReader sr = new StringReader(str);
@@ -6608,6 +6661,13 @@ namespace IPA.Cores.Basic
                 if (removeEmpty == false || s._IsFilled())
                 {
                     a.Add(s);
+                }
+            }
+            if (singleLineAtLeast)
+            {
+                if (a.Count == 0)
+                {
+                    a.Add("");
                 }
             }
             return a.ToArray();
@@ -6844,6 +6904,8 @@ namespace IPA.Cores.Basic
             Str.RemoveSpaceChar(ref str);
             Str.NormalizeString(ref str, true, true, false, false);
             str = str.Replace(",", "");
+
+            if (str._IsEmpty()) return false;
 
             foreach (char c in str)
             {

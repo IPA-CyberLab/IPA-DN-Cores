@@ -414,8 +414,8 @@ namespace IPA.Cores.Helper.Basic
         public static bool _IsAscii(this char c) => Str.IsAscii(c);
         public static bool _IsAscii(this string str) => Str.IsAscii(str);
 
-        public static string[] _GetLines(this string s, bool removeEmpty = false, bool stripCommentsFromLine = false, IEnumerable<string>? commentStartStrList = null)
-            => Str.GetLines(s, removeEmpty, stripCommentsFromLine, commentStartStrList);
+        public static string[] _GetLines(this string s, bool removeEmpty = false, bool stripCommentsFromLine = false, IEnumerable<string>? commentStartStrList = null, bool singleLineAtLeast = false)
+            => Str.GetLines(s, removeEmpty, stripCommentsFromLine, commentStartStrList, singleLineAtLeast);
         public static bool _GetKeyAndValue(this string s, out string key, out string value, string splitStr = Consts.Strings.DefaultKeyAndValueSplitStr) => Str.GetKeyAndValue(s, out key, out value, splitStr);
         public static void _SplitUrlAndQueryString(this string src, out string url, out string queryString) => Str.SplitUrlAndQueryString(src, out url, out queryString);
         public static bool _IsDouble(this string s) => Str.IsDouble(s);
@@ -2866,14 +2866,23 @@ namespace IPA.Cores.Helper.Basic
 
         public static string _NormalizeFqdn(this string src) => Str.NormalizeFqdn(src);
 
-        public static int _ToYymmddInt(this DateTime dt, int zeroValue = 0) => Str.DateTimeToYymmddInt(dt, zeroValue);
+        public static int _ToYymmddInt(this DateTime dt, int zeroValue = 0, bool yearTwoDigits = false) => Str.DateTimeToYymmddInt(dt, zeroValue, yearTwoDigits);
         public static int _ToHhmmssInt(this DateTime dt, int zeroValue = 0) => Str.DateTimeToHhmmssInt(dt, zeroValue);
 
-        public static int _ToYymmddInt(this DateTimeOffset dt, int zeroValue = 0) => Str.DateTimeToYymmddInt(dt.DateTime, zeroValue);
+        public static int _ToYymmddInt(this DateTimeOffset dt, int zeroValue = 0, bool yearTwoDigits = false) => Str.DateTimeToYymmddInt(dt.DateTime, zeroValue, yearTwoDigits);
         public static int _ToHhmmssInt(this DateTimeOffset dt, int zeroValue = 0) => Str.DateTimeToHhmmssInt(dt.DateTime, zeroValue);
 
         public static PalX509Certificate AsPalX509Certificate(this X509Certificate cert) => new PalX509Certificate(cert);
         public static Certificate AsPkiCertificate(this X509Certificate cert) => new Certificate(new PalX509Certificate(cert));
+
+        public static bool _IsValidFqdn(this string fqdn) => Str.IsValidFqdn(fqdn);
+
+        public static void _AddTuple<T1>(this IList<Tuple<T1>> list, T1 t1) => list.Add(new Tuple<T1>(t1));
+        public static void _AddTuple<T1, T2>(this IList<Tuple<T1, T2>> list, T1 t1, T2 t2) => list.Add(new Tuple<T1, T2>(t1, t2));
+        public static void _AddTuple<T1, T2, T3>(this IList<Tuple<T1, T2, T3>> list, T1 t1, T2 t2, T3 t3) => list.Add(new Tuple<T1, T2, T3>(t1, t2, t3));
+        public static void _AddTuple<T1, T2, T3, T4>(this IList<Tuple<T1, T2, T3, T4>> list, T1 t1, T2 t2, T3 t3, T4 t4) => list.Add(new Tuple<T1, T2, T3, T4>(t1, t2, t3, t4));
+
+        public static Tuple<string, int> _ParseHostnaneAndPort(this string str, int defaultPort) => Str.ParseHostnaneAndPort(str, defaultPort);
     }
 }
 

@@ -127,16 +127,16 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void WriteLine()
+        public static void WriteLine(LogFlags flags = LogFlags.None)
         {
-            WriteLine("");
+            WriteLine("", flags: flags);
         }
 
-        public static void WriteLine(object? arg, Type? type = null)
+        public static void WriteLine(object? arg, Type? type = null, LogFlags flags = LogFlags.None)
         {
             if (cs != null)
             {
-                cs.WriteLine(arg._GetObjectDump(type: type), LogPriority.Info);
+                cs.WriteLine(arg._GetObjectDump(type: type), LogPriority.Info, flags: flags);
             }
             else
             {
@@ -145,16 +145,16 @@ namespace IPA.Cores.Basic
                 {
                     Console.WriteLine(str);
                 }
-                LocalLogRouter.PrintConsole(arg, noConsole: true, priority: LogPriority.Info);
+                LocalLogRouter.PrintConsole(arg, noConsole: true, priority: LogPriority.Info, flags: flags);
             }
         }
 
-        public static void WriteLine(string? str)
+        public static void WriteLine(string? str, LogFlags flags = LogFlags.None)
         {
             str = Str.RemoveLastCrlf(str);
             if (cs != null)
             {
-                cs.WriteLine(str, LogPriority.Info);
+                cs.WriteLine(str, LogPriority.Info, flags: flags);
             }
             else
             {
@@ -162,7 +162,7 @@ namespace IPA.Cores.Basic
                 {
                     Console.WriteLine(str);
                 }
-                LocalLogRouter.PrintConsole(str, noConsole: true, priority: LogPriority.Info);
+                LocalLogRouter.PrintConsole(str, noConsole: true, priority: LogPriority.Info, flags: flags);
             }
         }
 
@@ -203,12 +203,12 @@ namespace IPA.Cores.Basic
 
 
 
-        public static void WriteError()
+        public static void WriteError(LogFlags flags = LogFlags.None)
         {
-            WriteError("");
+            WriteError("", flags: flags);
         }
 
-        public static void WriteError(object arg)
+        public static void WriteError(object arg, LogFlags flags = LogFlags.None)
         {
             if (cs != null)
             {
@@ -221,11 +221,11 @@ namespace IPA.Cores.Basic
                 {
                     Console.WriteLine(str);
                 }
-                LocalLogRouter.PrintConsole(arg, noConsole: true, priority: LogPriority.Error);
+                LocalLogRouter.PrintConsole(arg, noConsole: true, priority: LogPriority.Error, flags: flags);
             }
         }
 
-        public static void WriteError(string str)
+        public static void WriteError(string str, LogFlags flags = LogFlags.None)
         {
             str = Str.RemoveLastCrlf(str);
             if (cs != null)
@@ -235,7 +235,7 @@ namespace IPA.Cores.Basic
             else
             {
                 Console.WriteLine(str);
-                LocalLogRouter.PrintConsole(str, noConsole: true, priority: LogPriority.Error);
+                LocalLogRouter.PrintConsole(str, noConsole: true, priority: LogPriority.Error, flags: flags);
             }
         }
 
@@ -267,16 +267,16 @@ namespace IPA.Cores.Basic
 
 
 
-        public static void WriteInfo()
+        public static void WriteInfo(LogFlags flags = LogFlags.None)
         {
-            WriteInfo("");
+            WriteInfo("", flags: flags);
         }
 
-        public static void WriteInfo(object arg)
+        public static void WriteInfo(object arg, LogFlags flags = LogFlags.None)
         {
             if (cs != null)
             {
-                cs.WriteLine(arg._GetObjectDump(), LogPriority.Info);
+                cs.WriteLine(arg._GetObjectDump(), LogPriority.Info, flags: flags);
             }
             else
             {
@@ -285,11 +285,11 @@ namespace IPA.Cores.Basic
                 {
                     Console.WriteLine();
                 }
-                LocalLogRouter.PrintConsole(arg, noConsole: true, priority: LogPriority.Info);
+                LocalLogRouter.PrintConsole(arg, noConsole: true, priority: LogPriority.Info, flags: flags);
             }
         }
 
-        public static void WriteInfo(string str)
+        public static void WriteInfo(string str, LogFlags flags = LogFlags.None)
         {
             str = Str.RemoveLastCrlf(str);
             if (cs != null)
@@ -299,7 +299,7 @@ namespace IPA.Cores.Basic
             else
             {
                 Console.WriteLine(str);
-                LocalLogRouter.PrintConsole(str, noConsole: true, priority: LogPriority.Info);
+                LocalLogRouter.PrintConsole(str, noConsole: true, priority: LogPriority.Info, flags: flags);
             }
         }
 
@@ -404,7 +404,7 @@ namespace IPA.Cores.Basic
     public delegate void ConsoleFreeDelegate();
     public delegate string? ConsoleReadLineDelegate(string prompt, bool nofile);
     public delegate string? ConsoleReadPasswordDelegate(string prompt);
-    public delegate bool ConsoleWriteDelegate(string str, LogPriority priority);
+    public delegate bool ConsoleWriteDelegate(string str, LogPriority priority, LogFlags flags = LogFlags.None);
     public delegate int ConsoleGetWidthDelegate();
 
     // パラメータ値リスト
@@ -753,13 +753,13 @@ namespace IPA.Cores.Basic
         }
 
         // 文字列の表示
-        public bool WriteLine(object value, LogPriority priority = LogPriority.Info)
+        public bool WriteLine(object value, LogPriority priority = LogPriority.Info, LogFlags flags = LogFlags.None)
         {
-            return WriteLine(value.ToString() ?? "null", priority);
+            return WriteLine(value.ToString() ?? "null", priority, flags);
         }
-        public bool WriteLine(string str, LogPriority priority = LogPriority.Info)
+        public bool WriteLine(string str, LogPriority priority = LogPriority.Info, LogFlags flags = LogFlags.None)
         {
-            return localWrite(str, priority);
+            return localWrite(str, priority, flags);
         }
         public bool WriteLine(string format, object arg0, LogPriority priority = LogPriority.Info)
         {
@@ -1378,6 +1378,8 @@ namespace IPA.Cores.Basic
                                     cmd_param!,
                                 };
 
+                                CoresLib.Report_CommandName = real_cmd_name._NonNullTrim();
+
                                 try
                                 {
                                     GC.Collect();
@@ -1429,6 +1431,13 @@ namespace IPA.Cores.Basic
 
                                     this.retCode = ConsoleErrorCode.ERR_INNER_EXCEPTION;
                                     this.retErrorMessage = ex2.Message;
+
+                                    CoresLib.Report_HasError = true;
+
+                                    if (CoresLib.Report_SimpleResult._IsEmpty())
+                                    {
+                                        CoresLib.Report_SimpleResult = ex2.Message._OneLine();
+                                    }
 
                                     GC.Collect();
                                     return true;
@@ -2477,7 +2486,7 @@ namespace IPA.Cores.Basic
         }
 
         // コンソールに文字列を表示する
-        bool localWrite(string str, LogPriority priority = LogPriority.Info)
+        bool localWrite(string str, LogPriority priority = LogPriority.Info, LogFlags flags = LogFlags.None)
         {
             if (str == null) str = "null";
 
@@ -2486,7 +2495,7 @@ namespace IPA.Cores.Basic
                 str,
                 (str.EndsWith("\n") ? "" : "\n"));
 
-            LocalLogRouter.PrintConsole(str, noConsole: true, priority: priority);
+            LocalLogRouter.PrintConsole(str, noConsole: true, priority: priority, flags: flags);
 
             writeOutFile(str, true);
 

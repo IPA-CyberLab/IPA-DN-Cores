@@ -41,7 +41,7 @@ using Microsoft.Extensions.FileProviders;
 using System.Web;
 using IPA.Cores.Basic.App.DaemonCenterLib;
 using IPA.Cores.ClientApi.GoogleApi;
-
+using IPA.Cores.Codes;
 
 namespace IPA.TestDev
 {
@@ -472,6 +472,49 @@ __IMG__
 
     partial class TestDevCommands
     {
+        [ConsoleCommand(
+      "IIS 証明書更新",
+      "CertUpdateIis [cert_server_base_url] [/USERNAME:username] [/PASSWORD:password] [/UPDATESAME:updatesame]",
+      "IIS 証明書更新"
+      )]
+        static int CertUpdateIis(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
+            {
+                new ConsoleParam("[cert_server_base_url]", ConsoleService.Prompt, "Base URL: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("USERNAME"),
+                new ConsoleParam("PASSWORD"),
+                new ConsoleParam("UPDATESAME"),
+            };
+
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+            Async(async () =>
+            {
+                // 証明書のダウンロード
+                Con.WriteLine($"Downloading certificates from the server '{vl.DefaultParam.StrValue}'...");
+                var certs = await WildcardCertServerUtil.DownloadAllLatestCertsAsync(vl.DefaultParam.StrValue, vl["USERNAME"].StrValue, vl["PASSWORD"].StrValue);
+
+                Con.WriteLine($"Downloaded {certs.Count} certificates from the server.", flags: LogFlags.Heading);
+
+                int index = 0;
+                foreach (var cert in certs.Select(x => x.PrimaryCertificate).OrderBy(x => x.CommonNameOrFirstDnsName, StrComparer.FqdnReverseStrComparer))
+                {
+                    index++;
+                    Con.WriteLine($"Cert #{index}/{certs.Count}: " + cert.ToString());
+                }
+
+                Con.WriteLine();
+
+                // IIS 証明書更新
+                using IisAdmin util = new IisAdmin();
+
+                util.UpdateCerts(certs, vl["UPDATESAME"].BoolValue);
+            });
+
+            return 0;
+        }
+
         [ConsoleCommand(
       "C# ソースコード結合",
       "CSharpConcat [src_dir] /DEST:<dest_dir>",

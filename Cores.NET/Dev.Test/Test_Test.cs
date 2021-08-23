@@ -2160,6 +2160,125 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Con.WriteLine("A");
+                Con.WriteLine();
+                Con.WriteLine("B");
+                Con.WriteLine();
+                Con.WriteLine("C");
+                return;
+            }
+
+            if (true)
+            {
+                Async(async () =>
+                {
+                    var a = await GetMyPrivateIpNativeUtil.GetMyPrivateIpAsync(IPVersion.IPv4);
+                    a._Print();
+                    a = await GetMyPrivateIpNativeUtil.GetMyPrivateIpAsync(IPVersion.IPv6);
+                    a._Print();
+                });
+                return;
+            }
+
+            if (true)
+            {
+                Async(async () =>
+                {
+                    while (true)
+                    {
+                        string line = Con.ReadLine()!;
+
+                        if (line._IsEmpty()) break;
+
+                        try
+                        {
+                            IPAddress ip = await LocalNet.DnsResolver.GetIpAddressSingleAsync(line, DnsResolverQueryType.AAAA);
+
+                            ip.ToString()._Print();
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Error();
+                        }
+                    }
+                });
+                return;
+            }
+
+            if (true)
+            {
+                Con.WriteLine("Top level message", flags: LogFlags.Heading);
+                return;
+            }
+
+            if (true)
+            {
+                while (true)
+                {
+                    string line = Con.ReadLine()!;
+
+                    var a = Str.ParseHostnaneAndPort(line, 80);
+
+                    a._PrintAsJson();
+                }
+                return;
+            }
+
+            if (false)
+            {
+                string b = "http://1.2.3.4/abc/def/";
+                var x = b._CombineUrl("x");
+                x.ToString()._Print();
+
+                var y = b._ParseUrl()._CombineUrl("y");
+                y.ToString()._Print();
+
+                return;
+            }
+
+            if (false)
+            {
+                string b = "http://1.2.3.4/abc/def/";
+                var u = b._ParseUrl();
+
+                var x = b._CombineUrl("x/");
+                var y = x._CombineUrl("y/");
+                var z = y._CombineUrl("z/");
+                b.ToString()._Print();
+                x.ToString()._Print();
+                y.ToString()._Print();
+                z.ToString()._Print();
+                return;
+            }
+
+            if (true)
+            {
+                Async(async () =>
+                {
+                    var list = await WildcardCertServerUtil.DownloadAllLatestCertsAsync("https://secertsvr1.sehosts.com/wildcard_cert_files/", "user_cert", Lfs.ReadStringFromFile(@"\\10.21.2.65\home\yagi\TMP\test_pass.txt", oneLine: true));
+
+                    list.Count()._Print();
+
+                    using IisAdmin util = new IisAdmin();
+
+                    //var x = util.GetCurrentMachineCertificateList();
+                    //x.Count._Print();
+                    //x._DoForEach(x => x.Value.ToString()._Print());
+
+                    util.UpdateCerts(list, false);
+                });
+                return;
+            }
+
+            if (true)
+            {
+                using IisAdmin util = new IisAdmin();
+                util.Test();
+                return;
+            }
+
             if (false)
             {
                 // 2021/8/5 NTTVPN Sub Certs additional
