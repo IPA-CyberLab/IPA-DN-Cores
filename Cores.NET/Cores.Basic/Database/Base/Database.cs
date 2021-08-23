@@ -389,7 +389,7 @@ namespace IPA.Cores.Basic
 
             if (db != null)
             {
-                db.Rollback();
+                db.Cancel();
                 db = null!;
             }
         }
@@ -400,7 +400,7 @@ namespace IPA.Cores.Basic
 
             if (db != null)
             {
-                await db.RollbackAsync();
+                await db.CancelAsync();
                 db = null!;
             }
         }
@@ -1189,7 +1189,7 @@ namespace IPA.Cores.Basic
             {
                 await CloseQueryAsync();
 
-                await RollbackAsync();
+                await CancelAsync();
 
                 if (Connection != null)
                 {
@@ -1461,7 +1461,7 @@ namespace IPA.Cores.Basic
         }
 
         // トランザクションのロールバック
-        public void Rollback()
+        public void Cancel()
         {
             if (Transaction == null)
             {
@@ -1473,7 +1473,7 @@ namespace IPA.Cores.Basic
             Transaction.Dispose();
             Transaction = null;
         }
-        public async Task RollbackAsync(CancellationToken cancel = default)
+        public async Task CancelAsync(CancellationToken cancel = default)
         {
             if (Transaction == null)
             {
