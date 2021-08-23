@@ -311,7 +311,7 @@ namespace IPA.Cores.Codes
             return null;
         }
 
-        public int UpdateNextRebootTime(EasyIpAcl acl, DateTime now)
+        public int UpdateNextRebootTime(EasyIpAcl acl, DateTime nextRebootTime)
         {
             int count = 0;
 
@@ -323,7 +323,7 @@ namespace IPA.Cores.Codes
                 {
                     if (table.TryGetValue(id, out ThinGate? gate))
                     {
-                        gate.NextRebootTime = now;
+                        gate.NextRebootTime = nextRebootTime;
                         count++;
                     }
                 }
