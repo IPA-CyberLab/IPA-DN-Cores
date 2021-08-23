@@ -370,6 +370,8 @@ namespace IPA.Cores.Codes
 
         public int LazyUpdateJobQueueLength => LazyUpdateJobQueue.Count;
 
+        public bool IsStarted { get; private set; }
+
         public ThinDatabase(ThinController controller)
         {
             try
@@ -386,6 +388,11 @@ namespace IPA.Cores.Codes
                 this._DisposeSafe();
                 throw;
             }
+        }
+
+        public void StartLoop()
+        {
+            this.IsStarted = true;
         }
 
         public void EnqueueUpdateJob(Func<Database, CancellationToken, Task> proc)
@@ -534,6 +541,10 @@ namespace IPA.Cores.Codes
             int numCycle = 0;
             int numError = 0;
 
+            $"ThinDatabase.ReadMainLoopAsync: Waiting for start."._Debug();
+            await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 1000, () => this.IsStarted, cancel);
+            $"ThinDatabase.ReadMainLoopAsync: Started."._Debug();
+
             while (cancel.IsCancellationRequested == false)
             {
                 numCycle++;
@@ -611,6 +622,11 @@ namespace IPA.Cores.Codes
         {
             int numCycle = 0;
             int numError = 0;
+
+            $"ThinDatabase.WriteMainLoopAsync: Waiting for start."._Debug();
+            await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 1000, () => this.IsStarted, cancel);
+            $"ThinDatabase.WriteMainLoopAsync: Started."._Debug();
+
             while (cancel.IsCancellationRequested == false)
             {
                 if (this.LazyUpdateJobQueue.Count >= 1)
