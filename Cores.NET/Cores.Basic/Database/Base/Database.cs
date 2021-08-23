@@ -1286,7 +1286,7 @@ namespace IPA.Cores.Basic
                 {
                     if (await task())
                     {
-                        await u.CommitAsync();
+                        u.Commit();
 
                         return true;
                     }
