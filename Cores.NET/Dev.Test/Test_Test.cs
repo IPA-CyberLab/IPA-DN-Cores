@@ -598,7 +598,7 @@ namespace IPA.TestDev
         {
             string baseDir = @"c:\tmp\210828_dummy_certs\";
 
-            if (true)
+            if (false)
             {
                 PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
 
@@ -616,6 +616,55 @@ namespace IPA.TestDev
                 Lfs.WriteDataToFile(baseDir + @"01_ExpiredDummyCert.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
 
                 Lfs.WriteDataToFile(baseDir + @"01_ExpiredDummyCert.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            }
+
+            if (false)
+            {
+                PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+                DateTime start = new DateTime(2019, 1, 1, 18, 0, 0);
+                DateTime end = new DateTime(2020, 1, 1, 19, 59, 59);
+
+                var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "*.dummycert-expired.example.org", c: "JP", expires: end, shaSize: PkiShaSize.SHA512, issuedAt: start));
+
+                CertificateStore store = new CertificateStore(cert, priv);
+
+                Lfs.WriteStringToFile(baseDir + @"02_ExpiredWildCardDummyCert_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+
+                Lfs.WriteDataToFile(baseDir + @"02_ExpiredWildCardDummyCert.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"02_ExpiredWildCardDummyCert.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"02_ExpiredWildCardDummyCert.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            }
+
+            if (true)
+            {
+                PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+                DateTime start = new DateTime(2019, 1, 1, 18, 0, 0);
+                DateTime end = new DateTime(2020, 1, 1, 19, 59, 59);
+
+                List<string> fqdns = new List<string>();
+                fqdns.Add("*.multiple-dummycert-2.example.org");
+                fqdns.Add("a.multiple-dummycert.example.org");
+                fqdns.Add("b.multiple-dummycert.example.org");
+                fqdns.Add("c.multiple-dummycert.example.org");
+                fqdns.Add("d.multiple-dummycert-2.example.org");
+                fqdns.Add("e.multiple-dummycert-2.example.org");
+                fqdns.Add("f.multiple-dummycert-2.example.org");
+
+                var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "*.multiple-dummycert.example.org", subjectAltNames: fqdns.ToArray(), c: "JP", expires: end, shaSize: PkiShaSize.SHA512, issuedAt: start));
+
+                CertificateStore store = new CertificateStore(cert, priv);
+
+                Lfs.WriteStringToFile(baseDir + @"03_ExpiredMultipleFqdnWildcardDummyCert_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+
+                Lfs.WriteDataToFile(baseDir + @"03_ExpiredMultipleFqdnWildcardDummyCert.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"03_ExpiredMultipleFqdnWildcardDummyCert.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"03_ExpiredMultipleFqdnWildcardDummyCert.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
             }
         }
 
