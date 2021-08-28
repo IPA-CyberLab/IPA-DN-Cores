@@ -2162,6 +2162,13 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                using IisAdmin a = new IisAdmin();
+                a.Test();
+                return;
+            }
+
+            if (true)
+            {
                 Con.WriteLine("A");
                 Con.WriteLine();
                 Con.WriteLine("B");
