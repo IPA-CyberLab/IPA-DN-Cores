@@ -594,6 +594,31 @@ namespace IPA.TestDev
             }
         }
 
+        static void Test_MakeDummyCerts_210828()
+        {
+            string baseDir = @"c:\tmp\210828_dummy_certs\";
+
+            if (true)
+            {
+                PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+                DateTime start = new DateTime(2019, 1, 1, 18, 0, 0);
+                DateTime end = new DateTime(2020, 1, 1, 19, 59, 59);
+
+                var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "dummycert-expired.example.org", c: "JP", expires: end, shaSize: PkiShaSize.SHA512, issuedAt: start));
+
+                CertificateStore store = new CertificateStore(cert, priv);
+
+                Lfs.WriteStringToFile(baseDir + @"01_ExpiredDummyCert_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+
+                Lfs.WriteDataToFile(baseDir + @"01_ExpiredDummyCert.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"01_ExpiredDummyCert.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"01_ExpiredDummyCert.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            }
+        }
+
         static void Test_MakeDummyCerts_210604()
         {
             string baseDir = @"c:\tmp\210604_dummy_certs\";
@@ -2160,6 +2185,12 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_MakeDummyCerts_210828();
+                return;
+            }
+
             if (true)
             {
                 using IisAdmin a = new IisAdmin();

@@ -662,6 +662,7 @@ namespace IPA.Cores.Basic
         public string L;
         public string E;
         public Memory<byte> Serial;
+        public DateTimeOffset IssuedAt;
         public DateTimeOffset Expires;
         public SortedSet<string> SubjectAlternativeNames = new SortedSet<string>();
         public PkiShaSize ShaSize;
@@ -672,7 +673,7 @@ namespace IPA.Cores.Basic
         public CertificateOptions(PkiAlgorithm algorithm, string? cn = null, string? o = null, string? ou = null, string? c = null,
             string? st = null, string? l = null, string? e = null,
             Memory<byte> serial = default, DateTimeOffset? expires = null, string[]? subjectAltNames = null, PkiShaSize shaSize = PkiShaSize.SHA256,
-            int keyUsages = 0, KeyPurposeID[]? extendedKeyUsages = null)
+            int keyUsages = 0, KeyPurposeID[]? extendedKeyUsages = null, DateTimeOffset? issuedAt = null)
         {
             this.Algorithm = algorithm;
             this.CN = cn._NonNullTrim();
@@ -690,6 +691,7 @@ namespace IPA.Cores.Basic
                 this.Serial.Span[0] = (byte)(this.Serial.Span[0] & 0x7f);
             }
             this.Expires = expires ?? Util.MaxDateTimeOffsetValue;
+            this.IssuedAt = issuedAt ?? DateTime.Now.AddDays(-1);
             this.SubjectAlternativeNames.Add(this.CN);
 
 
@@ -916,7 +918,7 @@ namespace IPA.Cores.Basic
                 gen.SetIssuerDN(alternativeIssuerDN.GenerateName());
             }
             gen.SetSubjectDN(name);
-            gen.SetNotBefore(DateTime.Now.AddDays(-1));
+            gen.SetNotBefore(options.IssuedAt.UtcDateTime);
             gen.SetNotAfter(options.Expires.UtcDateTime);
             gen.SetPublicKey(thisCertPrivateKey.PublicKey.PublicKeyData);
 
@@ -946,7 +948,7 @@ namespace IPA.Cores.Basic
             gen.SetSerialNumber(new BigInteger(options.Serial.ToArray()));
             gen.SetIssuerDN(name);
             gen.SetSubjectDN(name);
-            gen.SetNotBefore(DateTime.Now.AddDays(-1));
+            gen.SetNotBefore(options.IssuedAt.UtcDateTime);
             gen.SetNotAfter(options.Expires.UtcDateTime);
             gen.SetPublicKey(selfSignKey.PublicKey.PublicKeyData);
 
