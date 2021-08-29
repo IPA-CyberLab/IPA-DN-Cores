@@ -2167,11 +2167,11 @@ namespace IPA.Cores.Helper.Basic
                 }
             }
 
-            Con.WriteLine($"Total: {recvPacketsList.Count}");
+            //Con.WriteLine($"Total: {recvPacketsList.Count}");
 
             await TaskUtil.ForEachAsync(numTasks, srcListList, async (list, c) =>
             {
-                Con.WriteLine($"  Task ${ThreadObj.CurrentThreadId}: {list.Count}");
+                //Con.WriteLine($"  Task ${ThreadObj.CurrentThreadId}: {list.Count}");
                 var resultPackets = await action(list);
 
                 lock (ret)
