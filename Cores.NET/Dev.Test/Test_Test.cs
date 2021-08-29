@@ -1845,7 +1845,6 @@ namespace IPA.TestDev
             {
                 while (true)
                 {
-                    Dbg.GcCollect();
                     var allRecvList = await sock.ReceiveDatagramsListAsync();
                     recvMeasure.Add(allRecvList.Count);
 
@@ -1877,6 +1876,7 @@ namespace IPA.TestDev
                             return perTaskSendList;
                         },
                         operation: MultitaskDivideOperation.Split,
+                        numCpus: 1,
                         cancel: c);
 
                         await sock.SendDatagramsListAsync(allSendList.ToArray());
