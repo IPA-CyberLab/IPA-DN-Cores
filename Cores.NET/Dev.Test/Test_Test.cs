@@ -1829,8 +1829,7 @@ namespace IPA.TestDev
             // --- 受信 ---
             // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
             // 受信とパース: 440 kpps くらい出た
-            // 打ち返し: 220 kqps くらい出た
-            // RasPi4 で 6 kpps くらい 遅いなあ
+            // 打ち返し: 250 kqps くらい出た
 
             bool reply = true;
             using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Server));
@@ -1848,40 +1847,37 @@ namespace IPA.TestDev
                     var allRecvList = await sock.ReceiveDatagramsListAsync();
                     recvMeasure.Add(allRecvList.Count);
 
-                    if (reply)
+                    var allSendList = await allRecvList._ProcessDatagramWithMultiTasksAsync(async (perTaskRecvList) =>
                     {
-                        var allSendList = await allRecvList._ProcessDatagramWithMultiTasksAsync(async (perTaskRecvList) =>
+                        await Task.Yield();
+
+                        List<Datagram> perTaskSendList = new List<Datagram>(perTaskRecvList.Count);
+
+                        foreach (var item in perTaskRecvList)
                         {
-                            await Task.Yield();
-
-                            List<Datagram> perTaskSendList = new List<Datagram>(perTaskRecvList.Count);
-
-                            foreach (var item in perTaskRecvList)
+                            try
                             {
-                                try
-                                {
-                                    var msg = DnsUtil.ParsePacket(item.Data.Span);
+                                var msg = DnsUtil.ParsePacket(item.Data.Span);
 
-                                    if (reply)
-                                    {
-                                        var newData = msg.BuildPacket().ToArray().AsMemory();
-                                        var newDg = new Datagram(newData, item.RemoteIPEndPoint!, item.LocalIPEndPoint);
-                                        perTaskSendList.Add(newDg);
-                                    }
-                                }
-                                catch (Exception ex)
+                                if (reply)
                                 {
-                                    ex._Debug();
+                                    var newData = msg.BuildPacket().ToArray().AsMemory();
+                                    var newDg = new Datagram(newData, item.RemoteIPEndPoint!, item.LocalIPEndPoint);
+                                    perTaskSendList.Add(newDg);
                                 }
                             }
+                            catch (Exception ex)
+                            {
+                                ex._Debug();
+                            }
+                        }
 
-                            return perTaskSendList;
-                        },
-                        operation: MultitaskDivideOperation.Split,
-                        cancel: c);
+                        return perTaskSendList;
+                    },
+                    operation: MultitaskDivideOperation.Split,
+                    cancel: c);
 
-                        await sock.SendDatagramsListAsync(allSendList.ToArray());
-                    }
+                    await sock.SendDatagramsListAsync(allSendList.ToArray());
                 }
             });
 
