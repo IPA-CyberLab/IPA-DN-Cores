@@ -897,6 +897,7 @@ namespace IPA.Cores.Basic
                  {
                      try
                      {
+                         await Task.Yield();
                          await func(item, c);
                      }
                      catch (Exception ex)
@@ -1664,6 +1665,7 @@ namespace IPA.Cores.Basic
 
                             try
                             {
+                                await Task.Yield();
                                 await eachProc((T)obj!, combinedCancel);
                             }
                             catch
