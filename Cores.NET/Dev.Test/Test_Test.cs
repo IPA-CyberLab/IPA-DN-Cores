@@ -1857,7 +1857,7 @@ namespace IPA.TestDev
                             {
                                 var msg = DnsUtil.ParsePacket(item.Data.Span);
 
-                                for (int i = 0;i < 100;i++) DnsUtil.ParsePacket(item.Data.Span);
+                                //for (int i = 0;i < 100;i++) DnsUtil.ParsePacket(item.Data.Span);
 
                                 if (reply)
                                 {
