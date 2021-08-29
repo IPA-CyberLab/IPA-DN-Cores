@@ -1852,6 +1852,8 @@ namespace IPA.TestDev
                     {
                         var allSendList = await allRecvList._ProcessDatagramWithMultiTasksAsync(async (perTaskRecvList) =>
                         {
+                            await Task.Yield();
+
                             List<Datagram> perTaskSendList = new List<Datagram>(perTaskRecvList.Count);
 
                             foreach (var item in perTaskRecvList)
@@ -1876,7 +1878,6 @@ namespace IPA.TestDev
                             return perTaskSendList;
                         },
                         operation: MultitaskDivideOperation.Split,
-                        numCpus: 1,
                         cancel: c);
 
                         await sock.SendDatagramsListAsync(allSendList.ToArray());
