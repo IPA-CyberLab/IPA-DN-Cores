@@ -1310,7 +1310,7 @@ namespace IPA.Cores.Basic
             return list[0];
         }
 
-        public async Task<IReadOnlyList<Datagram>> ReceiveDatagramsListAsync(int maxDatagrams = int.MaxValue, CancellationToken cancel = default, int timeout = Timeout.Infinite, bool noTimeoutException = false)
+        public async Task<List<Datagram>> ReceiveDatagramsListAsync(int maxDatagrams = int.MaxValue, CancellationToken cancel = default, int timeout = Timeout.Infinite, bool noTimeoutException = false)
         {
             maxDatagrams = Math.Max(maxDatagrams, 1);
 
@@ -1320,7 +1320,7 @@ namespace IPA.Cores.Basic
             {
                 cancel.ThrowIfCancellationRequested();
 
-                IReadOnlyList<Datagram> list;
+                List<Datagram> list;
 
                 if (maxDatagrams == int.MaxValue)
                 {

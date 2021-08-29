@@ -1822,6 +1822,73 @@ namespace IPA.TestDev
             }
         }
 
+#pragma warning disable CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
+        // UDP ソケット DatagramSock 経由間接叩き 送受信ベンチマーク (DNS Server 模擬) - DNS 部をマルチタスク処理
+        static void Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server_MultiTaskProcess()
+        {
+            // --- 受信 ---
+            // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
+            // 受信とパース: 440 kpps くらい出た
+            // 打ち返し: 220 kqps くらい出た
+            // RasPi4 で 6 kpps くらい 遅いなあ
+
+            bool reply = true;
+            using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Server));
+            uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
+
+            using var sock = uu.GetSocket();
+            ThroughputMeasuse recvMeasure = new ThroughputMeasuse(1000, 1000);
+
+            using var recvPrinter = recvMeasure.StartPrinter("UDP Recv: ", toStr3: true);
+
+            using AsyncOneShotTester test = new AsyncOneShotTester(async c =>
+            {
+                while (true)
+                {
+                    var allRecvList = await sock.ReceiveDatagramsListAsync();
+                    recvMeasure.Add(allRecvList.Count);
+
+                    if (reply)
+                    {
+                        var allSendList = await allRecvList._ProcessDatagramWithMultiTasksAsync(async (perTaskRecvList) =>
+                        {
+                            List<Datagram> perTaskSendList = new List<Datagram>(perTaskRecvList.Count);
+
+                            foreach (var item in perTaskRecvList)
+                            {
+                                try
+                                {
+                                    var msg = DnsUtil.ParsePacket(item.Data.Span);
+
+                                    if (reply)
+                                    {
+                                        var newData = msg.BuildPacket().ToArray().AsMemory();
+                                        var newDg = new Datagram(newData, item.RemoteIPEndPoint!, item.LocalIPEndPoint);
+                                        perTaskSendList.Add(newDg);
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    ex._Debug();
+                                }
+                            }
+
+                            return perTaskSendList;
+                        },
+                        operation: MultitaskDivideOperation.Split,
+                        cancel: c);
+
+                        await sock.SendDatagramsListAsync(allSendList.ToArray());
+                    }
+                }
+            });
+
+            Con.ReadLine(">");
+
+            sock.DisconnectAsync();
+        }
+#pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
+
         // UDP ソケット DatagramSock 経由間接叩き 送受信ベンチマーク (DNS Server 模擬)
         static void Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server()
         {
@@ -1880,6 +1947,7 @@ namespace IPA.TestDev
 
             sock.DisconnectAsync();
         }
+
         // UDP ソケット DatagramSock 経由間接叩き 送受信ベンチマーク
         static void Test_210615_Udp_Indirect_SendRecv_Bench()
         {
@@ -2234,6 +2302,12 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server_MultiTaskProcess();
+                return;
+            }
+
             if (true)
             {
                 Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server();
