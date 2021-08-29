@@ -1845,6 +1845,7 @@ namespace IPA.TestDev
             {
                 while (true)
                 {
+                    Dbg.GcCollect();
                     var allRecvList = await sock.ReceiveDatagramsListAsync();
                     recvMeasure.Add(allRecvList.Count);
 
