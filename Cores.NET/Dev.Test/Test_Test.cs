@@ -1831,7 +1831,7 @@ namespace IPA.TestDev
             // 受信とパース: 440 kpps くらい出た
             // 打ち返し: 250 kqps くらい出た
 
-            bool reply = true;
+            bool reply = false;
             using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Server));
             uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
 
