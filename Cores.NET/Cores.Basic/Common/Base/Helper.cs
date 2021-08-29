@@ -2138,6 +2138,11 @@ namespace IPA.Cores.Helper.Basic
 
             if (operation == MultitaskDivideOperation.RoundRobin)
             {
+                for (int i = 0; i < numTasks; i++)
+                {
+                    srcListList[i] = new List<Datagram>((recvPacketsList.Count / numTasks) + 1);
+                }
+
                 int index = 0;
                 foreach (var d in recvPacketsList)
                 {
