@@ -1829,7 +1829,7 @@ namespace IPA.TestDev
             // --- 受信 ---
             // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
             // 受信とパース: 351 kpps くらい出た
-            // 打ち返し: 250 kqps くらい出た
+            // 打ち返し: 250 kqps くらい出た --> 100 回パースループを入れると 14 kpps くらい
 
             bool reply = true;
             using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Server));
