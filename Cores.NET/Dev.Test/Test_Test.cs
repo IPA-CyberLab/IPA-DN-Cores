@@ -1857,6 +1857,8 @@ namespace IPA.TestDev
                             {
                                 var msg = DnsUtil.ParsePacket(item.Data.Span);
 
+                                for (int i = 0;i < 100;i++) DnsUtil.ParsePacket(item.Data.Span);
+
                                 if (reply)
                                 {
                                     var newData = msg.BuildPacket().ToArray().AsMemory();
@@ -1918,6 +1920,8 @@ namespace IPA.TestDev
                         try
                         {
                             var msg = DnsUtil.ParsePacket(item.Data.Span);
+
+                            for (int i = 0; i < 100; i++) DnsUtil.ParsePacket(item.Data.Span);
 
                             if (reply)
                             {
@@ -2298,7 +2302,7 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (true)
+            if (false)
             {
                 Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server_MultiTaskProcess();
                 return;
