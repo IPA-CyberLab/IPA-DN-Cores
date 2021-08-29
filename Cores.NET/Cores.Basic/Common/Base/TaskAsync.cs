@@ -3398,7 +3398,7 @@ namespace IPA.Cores.Basic
     {
         public delegate Task<ValueOrClosed<TUserReturnElement>> AsyncReceiveCallback([AllowNull] TUserState state, CancellationToken cancel);
 
-        public int DefaultMaxCount { get; } = 256;
+        public int DefaultMaxCount { get; } = 1024;
 
         AsyncReceiveCallback AsyncReceiveProc;
 
