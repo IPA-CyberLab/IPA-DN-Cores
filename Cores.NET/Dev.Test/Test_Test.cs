@@ -2236,6 +2236,12 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server();
+                return;
+            }
+
+            if (true)
+            {
                 Test_MakeDummyCerts_210828();
                 return;
             }
@@ -2429,12 +2435,6 @@ namespace IPA.TestDev
             if (false)
             {
                 Test_210616_Udp_Indirect_Socket_DNS_Client();
-                return;
-            }
-
-            if (true)
-            {
-                Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server();
                 return;
             }
 
