@@ -3402,7 +3402,7 @@ namespace IPA.Cores.Basic
 
         AsyncReceiveCallback AsyncReceiveProc;
 
-        public AsyncBulkReceiver(AsyncReceiveCallback asyncReceiveProc, int defaultMaxCount = 1024)
+        public AsyncBulkReceiver(AsyncReceiveCallback asyncReceiveProc, int defaultMaxCount = 256 /* 256 = TCP optimized */)
         {
             DefaultMaxCount = defaultMaxCount;
             AsyncReceiveProc = asyncReceiveProc;

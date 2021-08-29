@@ -819,6 +819,13 @@ namespace IPA.Cores.Basic
 
                 int numRetry = 0;
 
+                // UDP Server の場合と Client の場合とで、それぞれ、1 回のループサイクルで受信するパケット個数を規制する
+                int receiverMaxPacketsPerCycle = 1024 * Math.Min(Env.NumCpus, 16);
+                if (Mode == TcpDirectionType.Client)
+                {
+                    receiverMaxPacketsPerCycle = 512 * Math.Min(Env.NumCpus, 2);
+                }
+
                 var datagramBulkReceiver = new AsyncBulkReceiver<Datagram, PalSocket>(async (s, cancel) =>
                 {
                     Memory<byte> tmp = memAlloc.Reserve(65536);
@@ -829,7 +836,7 @@ namespace IPA.Cores.Basic
 
                     Datagram pkt = new Datagram(tmp, ret.RemoteEndPoint, ret.LocalEndPoint);
                     return new ValueOrClosed<Datagram>(pkt);
-                });
+                }, defaultMaxCount: receiverMaxPacketsPerCycle);
 
                 while (this.IsCanceled == false)
                 {
