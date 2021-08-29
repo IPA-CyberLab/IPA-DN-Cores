@@ -1828,10 +1828,10 @@ namespace IPA.TestDev
         {
             // --- 受信 ---
             // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
-            // 受信とパース: 440 kpps くらい出た
+            // 受信とパース: 351 kpps くらい出た
             // 打ち返し: 250 kqps くらい出た
 
-            bool reply = false;
+            bool reply = true;
             using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Server));
             uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
 
@@ -2300,7 +2300,7 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (true)
+            if (false)
             {
                 Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server_MultiTaskProcess();
                 return;
