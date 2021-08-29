@@ -1872,7 +1872,7 @@ namespace IPA.TestDev
 
                         return perTaskSendList;
                     },
-                    operation: MultitaskDivideOperation.Split,
+                    operation: MultitaskDivideOperation.RoundRobin,
                     cancel: c);
 
                     await sock.SendDatagramsListAsync(allSendList.ToArray());
