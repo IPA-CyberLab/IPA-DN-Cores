@@ -1893,7 +1893,7 @@ namespace IPA.TestDev
             // --- 受信 ---
             // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
             // 受信とパース: 440 kpps くらい出た
-            // 打ち返し: 220 kqps くらい出た
+            // 打ち返し: 220 kqps くらい出た --> 100 回パースループを入れると 7 kpps くらい
             // RasPi4 で 6 kpps くらい 遅いなあ
 
             bool reply = true;
@@ -2302,7 +2302,7 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
-            if (false)
+            if (true)
             {
                 Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server_MultiTaskProcess();
                 return;
