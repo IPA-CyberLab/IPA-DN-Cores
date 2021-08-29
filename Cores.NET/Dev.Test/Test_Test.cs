@@ -1849,7 +1849,7 @@ namespace IPA.TestDev
 
                     var allSendList = await allRecvList._ProcessDatagramWithMultiTasksAsync(async (perTaskRecvList) =>
                     {
-                        await Task.Yield();
+                        //await Task.Yield();
 
                         List<Datagram> perTaskSendList = new List<Datagram>(perTaskRecvList.Count);
 
