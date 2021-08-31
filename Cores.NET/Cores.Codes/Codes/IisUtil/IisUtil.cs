@@ -80,7 +80,7 @@ namespace IPA.Cores.Codes
             }
             catch
             {
-                this.Svr._DisposeSafe();
+                this._DisposeSafe();
                 throw;
             }
         }
@@ -418,8 +418,7 @@ namespace IPA.Cores.Codes
                 site.Name._Print();
                 foreach (var b in site.Bindings)
                 {
-                    b.CertificateHash._GetHexString()._Print();
-                    b.CertificateStoreName._Print();
+                    $"  - {b.Protocol}"._Print();
                 }
             }
         }

@@ -62,6 +62,12 @@ using System.Diagnostics;
 
 namespace IPA.Cores.Helper.Basic
 {
+    public enum MultitaskDivideOperation
+    {
+        Split = 0,
+        RoundRobin,
+    }
+
     public static class HashMarvinHelper
     {
         [MethodImpl(Inline)]
@@ -2117,6 +2123,64 @@ namespace IPA.Cores.Helper.Basic
                 T t = list2[i];
                 await action(t, i);
             }
+        }
+
+        public static async Task<List<Datagram>> _ProcessDatagramWithMultiTasksAsync(this List<Datagram> recvPacketsList, Func<List<Datagram>, Task<List<Datagram>>> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
+        {
+            recvPacketsList._NullCheck();
+
+            int numTasks = numCpus ?? Env.NumCpus;
+            if (numTasks <= 0) numTasks = 1;
+
+            List<Datagram>[] srcListList = new List<Datagram>[numTasks];
+
+            List<Datagram> ret = new List<Datagram>(recvPacketsList.Count);
+
+            if (operation == MultitaskDivideOperation.RoundRobin)
+            {
+                for (int i = 0; i < numTasks; i++)
+                {
+                    srcListList[i] = new List<Datagram>((recvPacketsList.Count / numTasks) + 1);
+                }
+
+                int index = 0;
+                foreach (var d in recvPacketsList)
+                {
+                    srcListList[index % numTasks].Add(d);
+                    index++;
+                }
+            }
+            else
+            {
+                int countPerTask = recvPacketsList.Count / numTasks;
+                int countForLastTask = recvPacketsList.Count - (countPerTask * (numTasks - 1));
+                for (int i = 0; i < numTasks; i++)
+                {
+                    int startIndex = countPerTask * i;
+                    int count = countPerTask;
+                    if (i == (numTasks - 1))
+                    {
+                        count = countForLastTask;
+                    }
+
+                    srcListList[i] = recvPacketsList.GetRange(startIndex, count);
+                }
+            }
+
+            //Con.WriteLine($"Total: {recvPacketsList.Count}");
+
+            await TaskUtil.ForEachAsync(numTasks, srcListList, async (list, c) =>
+            {
+                //Con.WriteLine($"  Task ${ThreadObj.CurrentThreadId}: {list.Count}");
+                var resultPackets = await action(list);
+
+                lock (ret)
+                {
+                    ret.AddRange(resultPackets);
+                }
+            }, cancel);
+
+            return ret;
         }
 
 

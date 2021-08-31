@@ -594,6 +594,80 @@ namespace IPA.TestDev
             }
         }
 
+        static void Test_MakeDummyCerts_210828()
+        {
+            string baseDir = @"c:\tmp\210828_dummy_certs\";
+
+            if (false)
+            {
+                PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+                DateTime start = new DateTime(2019, 1, 1, 18, 0, 0);
+                DateTime end = new DateTime(2020, 1, 1, 19, 59, 59);
+
+                var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "dummycert-expired.example.org", c: "JP", expires: end, shaSize: PkiShaSize.SHA512, issuedAt: start));
+
+                CertificateStore store = new CertificateStore(cert, priv);
+
+                Lfs.WriteStringToFile(baseDir + @"01_ExpiredDummyCert_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+
+                Lfs.WriteDataToFile(baseDir + @"01_ExpiredDummyCert.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"01_ExpiredDummyCert.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"01_ExpiredDummyCert.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            }
+
+            if (false)
+            {
+                PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+                DateTime start = new DateTime(2019, 1, 1, 18, 0, 0);
+                DateTime end = new DateTime(2020, 1, 1, 19, 59, 59);
+
+                var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "*.dummycert-expired.example.org", c: "JP", expires: end, shaSize: PkiShaSize.SHA512, issuedAt: start));
+
+                CertificateStore store = new CertificateStore(cert, priv);
+
+                Lfs.WriteStringToFile(baseDir + @"02_ExpiredWildCardDummyCert_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+
+                Lfs.WriteDataToFile(baseDir + @"02_ExpiredWildCardDummyCert.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"02_ExpiredWildCardDummyCert.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"02_ExpiredWildCardDummyCert.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            }
+
+            if (true)
+            {
+                PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+                DateTime start = new DateTime(2019, 1, 1, 18, 0, 0);
+                DateTime end = new DateTime(2020, 1, 1, 19, 59, 59);
+
+                List<string> fqdns = new List<string>();
+                fqdns.Add("*.multiple-dummycert-2.example.org");
+                fqdns.Add("a.multiple-dummycert.example.org");
+                fqdns.Add("b.multiple-dummycert.example.org");
+                fqdns.Add("c.multiple-dummycert.example.org");
+                fqdns.Add("d.multiple-dummycert-2.example.org");
+                fqdns.Add("e.multiple-dummycert-2.example.org");
+                fqdns.Add("f.multiple-dummycert-2.example.org");
+
+                var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "*.multiple-dummycert.example.org", subjectAltNames: fqdns.ToArray(), c: "JP", expires: end, shaSize: PkiShaSize.SHA512, issuedAt: start));
+
+                CertificateStore store = new CertificateStore(cert, priv);
+
+                Lfs.WriteStringToFile(baseDir + @"03_ExpiredMultipleFqdnWildcardDummyCert_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+
+                Lfs.WriteDataToFile(baseDir + @"03_ExpiredMultipleFqdnWildcardDummyCert.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"03_ExpiredMultipleFqdnWildcardDummyCert.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"03_ExpiredMultipleFqdnWildcardDummyCert.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            }
+        }
+
         static void Test_MakeDummyCerts_210604()
         {
             string baseDir = @"c:\tmp\210604_dummy_certs\";
@@ -1748,13 +1822,78 @@ namespace IPA.TestDev
             }
         }
 
+#pragma warning disable CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
+        // UDP ソケット DatagramSock 経由間接叩き 送受信ベンチマーク (DNS Server 模擬) - DNS 部をマルチタスク処理
+        static void Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server_MultiTaskProcess()
+        {
+            // --- 受信 ---
+            // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
+            // 受信とパース: 351 kpps くらい出た
+            // 打ち返し: 250 kqps くらい出た --> 100 回パースループを入れると 14 kpps くらい
+
+            bool reply = true;
+            using var uu = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Server));
+            uu.AddEndPoint(new IPEndPoint(IPAddress.Any, 5454));
+
+            using var sock = uu.GetSocket();
+            ThroughputMeasuse recvMeasure = new ThroughputMeasuse(1000, 1000);
+
+            using var recvPrinter = recvMeasure.StartPrinter("UDP Recv: ", toStr3: true);
+
+            using AsyncOneShotTester test = new AsyncOneShotTester(async c =>
+            {
+                while (true)
+                {
+                    var allRecvList = await sock.ReceiveDatagramsListAsync();
+                    recvMeasure.Add(allRecvList.Count);
+
+                    var allSendList = await allRecvList._ProcessDatagramWithMultiTasksAsync(async (perTaskRecvList) =>
+                    {
+                        List<Datagram> perTaskSendList = new List<Datagram>(perTaskRecvList.Count);
+
+                        foreach (var item in perTaskRecvList)
+                        {
+                            try
+                            {
+                                var msg = DnsUtil.ParsePacket(item.Data.Span);
+
+                                //for (int i = 0;i < 100;i++) DnsUtil.ParsePacket(item.Data.Span);
+
+                                if (reply)
+                                {
+                                    var newData = msg.BuildPacket().ToArray().AsMemory();
+                                    var newDg = new Datagram(newData, item.RemoteIPEndPoint!, item.LocalIPEndPoint);
+                                    perTaskSendList.Add(newDg);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                ex._Debug();
+                            }
+                        }
+
+                        return perTaskSendList;
+                    },
+                    operation: MultitaskDivideOperation.RoundRobin,
+                    cancel: c);
+
+                    await sock.SendDatagramsListAsync(allSendList.ToArray());
+                }
+            });
+
+            Con.ReadLine(">");
+
+            sock.DisconnectAsync();
+        }
+#pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
+
         // UDP ソケット DatagramSock 経由間接叩き 送受信ベンチマーク (DNS Server 模擬)
         static void Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server()
         {
             // --- 受信 ---
             // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
             // 受信とパース: 440 kpps くらい出た
-            // 打ち返し: 220 kqps くらい出た
+            // 打ち返し: 220 kqps くらい出た --> 100 回パースループを入れると 7 kpps くらい
             // RasPi4 で 6 kpps くらい 遅いなあ
 
             bool reply = true;
@@ -1782,6 +1921,8 @@ namespace IPA.TestDev
                         {
                             var msg = DnsUtil.ParsePacket(item.Data.Span);
 
+                            for (int i = 0; i < 100; i++) DnsUtil.ParsePacket(item.Data.Span);
+
                             if (reply)
                             {
                                 var newData = msg.BuildPacket().ToArray().AsMemory();
@@ -1806,6 +1947,7 @@ namespace IPA.TestDev
 
             sock.DisconnectAsync();
         }
+
         // UDP ソケット DatagramSock 経由間接叩き 送受信ベンチマーク
         static void Test_210615_Udp_Indirect_SendRecv_Bench()
         {
@@ -2162,6 +2304,31 @@ namespace IPA.TestDev
         {
             if (true)
             {
+                Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server_MultiTaskProcess();
+                return;
+            }
+
+            if (true)
+            {
+                Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server();
+                return;
+            }
+
+            if (true)
+            {
+                Test_MakeDummyCerts_210828();
+                return;
+            }
+
+            if (true)
+            {
+                using IisAdmin a = new IisAdmin();
+                a.Test();
+                return;
+            }
+
+            if (true)
+            {
                 Con.WriteLine("A");
                 Con.WriteLine();
                 Con.WriteLine("B");
@@ -2342,12 +2509,6 @@ namespace IPA.TestDev
             if (false)
             {
                 Test_210616_Udp_Indirect_Socket_DNS_Client();
-                return;
-            }
-
-            if (true)
-            {
-                Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server();
                 return;
             }
 

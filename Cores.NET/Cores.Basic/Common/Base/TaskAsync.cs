@@ -897,6 +897,7 @@ namespace IPA.Cores.Basic
                  {
                      try
                      {
+                         await Task.Yield();
                          await func(item, c);
                      }
                      catch (Exception ex)
@@ -1664,6 +1665,7 @@ namespace IPA.Cores.Basic
 
                             try
                             {
+                                await Task.Yield();
                                 await eachProc((T)obj!, combinedCancel);
                             }
                             catch
@@ -3396,11 +3398,11 @@ namespace IPA.Cores.Basic
     {
         public delegate Task<ValueOrClosed<TUserReturnElement>> AsyncReceiveCallback([AllowNull] TUserState state, CancellationToken cancel);
 
-        public int DefaultMaxCount { get; } = 256;
+        public int DefaultMaxCount { get; }
 
         AsyncReceiveCallback AsyncReceiveProc;
 
-        public AsyncBulkReceiver(AsyncReceiveCallback asyncReceiveProc, int defaultMaxCount = 256)
+        public AsyncBulkReceiver(AsyncReceiveCallback asyncReceiveProc, int defaultMaxCount = 256 /* 256 = TCP optimized */)
         {
             DefaultMaxCount = defaultMaxCount;
             AsyncReceiveProc = asyncReceiveProc;
