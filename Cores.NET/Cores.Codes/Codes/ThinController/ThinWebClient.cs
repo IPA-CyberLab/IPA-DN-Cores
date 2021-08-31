@@ -526,6 +526,8 @@ namespace IPA.Cores.Codes
 
         public async Task<IActionResult> HelpAsync()
         {
+            //string url = this.Request.GetDisplayUrl();
+            //$"url = {url}"._Debug();
             await Task.CompletedTask;
             return View();
         }

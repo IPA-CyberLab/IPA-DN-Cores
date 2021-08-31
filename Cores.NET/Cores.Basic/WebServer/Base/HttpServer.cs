@@ -74,6 +74,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.WebEncoders;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
+using Microsoft.AspNetCore.HttpOverrides;
 
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
@@ -205,6 +206,44 @@ namespace IPA.Cores.Basic
         {
             services.AddHttpExceptionLogger(opt => { });
 
+            if (ServerOptions.ReverseProxyOverride_Enable)
+            {
+                services.Configure<ForwardedHeadersOptions>(options =>
+                {
+                    options.ForwardLimit = ServerOptions.ReverseProxyOverride_ForwardLimit;
+                    options.ForwardedHeaders = ForwardedHeaders.All;
+
+                    if (ServerOptions.ReverseProxyOverride_HeaderName_X_Forwarded_For._IsFilled())
+                        options.ForwardedForHeaderName = ServerOptions.ReverseProxyOverride_HeaderName_X_Forwarded_For._NonNullTrim();
+
+                    if (ServerOptions.ReverseProxyOverride_HeaderName_X_Forwarded_Host._IsFilled())
+                        options.ForwardedHostHeaderName = ServerOptions.ReverseProxyOverride_HeaderName_X_Forwarded_Host._NonNullTrim();
+
+                    if (ServerOptions.ReverseProxyOverride_HeaderName_X_Forwarded_Proto._IsFilled())
+                        options.ForwardedProtoHeaderName = ServerOptions.ReverseProxyOverride_HeaderName_X_Forwarded_Proto._NonNullTrim();
+
+                    options.KnownNetworks.Clear();
+                    options.KnownProxies.Clear();
+
+                    if (ServerOptions.ReverseProxyOverride_TrustedSubnets._IsFilled())
+                    {
+                        var acl = EasyIpAcl.GetOrCreateCachedIpAcl(ServerOptions.ReverseProxyOverride_TrustedSubnets, defaultAction: EasyIpAclAction.Deny, defaultActionForEmpty: EasyIpAclAction.Deny);
+
+                        foreach (var subnet in acl.RuleList.Where(x => x.Action == EasyIpAclAction.Permit))
+                        {
+                            if (subnet.SubnetLength.HasValue)
+                            {
+                                IPNetwork net = new IPNetwork(subnet.Network, subnet.SubnetLength.Value);
+
+                                options.KnownNetworks.Add(net);
+                            }
+                        }
+                    }
+
+                    DoNothing();
+                });
+            }
+
             if (this.ServerOptions.AutomaticRedirectToHttpsIfPossible)
             {
                 services.AddEnforceHttps(_ => { });
@@ -296,6 +335,11 @@ namespace IPA.Cores.Basic
 
         public virtual void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            if (ServerOptions.ReverseProxyOverride_Enable)
+            {
+                app.UseForwardedHeaders();
+            }
+
             if (this.ServerOptions.DenyRobots)
             {
                 app.Use((context, next) =>
@@ -518,6 +562,13 @@ namespace IPA.Cores.Basic
         public bool HoldSimpleBasicAuthenticationDatabase { get; set; } = false;
         public string SimpleBasicAuthenticationRealm { get; set; } = "Basic Authentication";
         public bool AutomaticRedirectToHttpsIfPossible { get; set; } = true;
+
+        public bool ReverseProxyOverride_Enable { get; set; } = true;
+        public int ReverseProxyOverride_ForwardLimit { get; set; } = 4;
+        public string ReverseProxyOverride_TrustedSubnets { get; set; } = "127.0.0.0/8 192.168.0.0/16 172.16.0.0/12 10.0.0.0/8 ::1/128 fe80::/64";
+        public string ReverseProxyOverride_HeaderName_X_Forwarded_For { get; set; } = "X-Forwarded-For";
+        public string ReverseProxyOverride_HeaderName_X_Forwarded_Host { get; set; } = "X-Forwarded-Host";
+        public string ReverseProxyOverride_HeaderName_X_Forwarded_Proto { get; set; } = "X-Forwarded-Proto";
 
         public bool DisableExcessiveHtmlEncoding { get; set; } = true;
 
