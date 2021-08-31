@@ -123,7 +123,7 @@ namespace IPA.Cores.Codes
         public static readonly Copenhagen<int> ControllerMaxBodySizeForUsers = 1 * 1024 * 1024;
         public static readonly Copenhagen<int> ControllerMaxConcurrentKestrelConnectionsForUsers = 10000;
 
-        public static readonly Copenhagen<int> MaxHistory = 32;
+        public static readonly Copenhagen<int> MaxHistory = 12;
     }
 
     [Flags]
