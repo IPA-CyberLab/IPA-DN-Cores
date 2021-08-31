@@ -362,6 +362,9 @@ namespace IPA.Cores.Codes
         public StrTableLanguage Language => Page.CurrentLanguage;
         public StrTable StrTable => Page.Stb;
 
+        static Once DumpStrTableJsonOnceFlag;
+        static CriticalSection<ThinWebClientController> DumpStrTableJsonOnceFlagLock = new CriticalSection<ThinWebClientController>();
+
         public ThinWebClientController(ThinWebClient client, PageContext page)
         {
             this.Client = client;
@@ -370,7 +373,13 @@ namespace IPA.Cores.Codes
             this.Page.SetLanguageList(client.LanguageList);
 
             // 文字列 JSON をダンプする
-            this.Page.DumpStrTableJson(Env.AppRootDir._CombinePath("wwwroot", "js", "strtable.js"));
+            lock (DumpStrTableJsonOnceFlagLock)
+            {
+                if (DumpStrTableJsonOnceFlag.IsFirstCall())
+                {
+                    this.Page.DumpStrTableJson(Env.AppRootDir._CombinePath("wwwroot", "js", "strtable.js"));
+                }
+            }
 
             this.Page.SetLanguageByHttpString("ja");
         }
@@ -528,6 +537,7 @@ namespace IPA.Cores.Codes
         {
             //string url = this.Request.GetDisplayUrl();
             //$"url = {url}"._Debug();
+            var h = this.Request.Headers;
             await Task.CompletedTask;
             return View();
         }
@@ -696,6 +706,15 @@ namespace IPA.Cores.Codes
                             return View("SessionOtp", page3);
 
                         case ThinClientAcceptReadyNotification ready:
+                            if (ready.IsStandaloneMode)
+                            {
+                                if (Request.Headers._GetStrFirst("X-Original-For")._IsEmpty())
+                                {
+                                    var ss = Page.Stb["THINWEB_STANDALONE_MUST_VIA_PROXY"];
+                                    throw new CoresException(ss);
+                                }
+                            }
+
                             if (connectOptions.DebugGuacMode)
                             {
                                 connectOptions.UpdateConnectedSvcType(ready.FirstConnection!.SvcType);

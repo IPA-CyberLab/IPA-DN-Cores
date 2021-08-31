@@ -121,7 +121,7 @@ namespace IPA.Cores.Web
 
         public void SetCurrentLanguage(StrTableLanguage language)
         {
-            this.CurrentLanguageInternal.Set(language);
+            this.CurrentLanguageInternal.TrySet(language);
         }
 
         // 現在の Language List を元に文字列テーブルファイルを吐き出す 

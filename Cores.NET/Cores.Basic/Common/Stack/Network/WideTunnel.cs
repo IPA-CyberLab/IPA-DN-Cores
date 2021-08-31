@@ -563,6 +563,7 @@ namespace IPA.Cores.Basic
         public long SessionLifeTime;
         public string SessionLifeTimeMsg = "";
         public string WebSocketWildCardDomainName = "";
+        public bool IsStandaloneMode;
 
         public WideTunnelClientOptions ClientOptions = null!;
 
@@ -841,6 +842,7 @@ namespace IPA.Cores.Basic
                 ServerMask64 = p["ServerMask64"].Int64Value,
                 WebSocketWildCardDomainName = p["WebSocketWildCardDomainName"].StrValueNonNull,
                 ClientOptions = clientOptions._CloneDeep(),
+                IsStandaloneMode = p["IsStandaloneMode"].BoolValue,
             };
 
             if (c.WebSocketWildCardDomainName._IsEmpty())

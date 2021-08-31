@@ -236,7 +236,7 @@ THINWEB_JS_TIMEOUT					Timed out
 
 THINWEB_NOT_CONFIGURED              The initial configuration of the ThinWebClient (web server system) "ThinWebClient.json" file has not been completed. You need to set the "ThinControllerUrlList" value appropriately and specify the URL of the running Thin Telework System Controller (hyperscale mode or standalone mode).
 
-
+THINWEB_STANDALONE_MUST_VIA_PROXY	The $APPSHORT$ relay system is running in "Standalone Mode". In this case, access to ThinWebClient (the web server system) must be made through a connection to the TCP port of the ThinGate program, not to the local TCP port of ThinWebClient. Please connect to the TCP port of the ThinGate program using HTTPS.
 
 
 

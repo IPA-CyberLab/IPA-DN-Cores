@@ -237,6 +237,7 @@ THINWEB_JS_TIMEOUT					タイムアウト
 
 THINWEB_NOT_CONFIGURED              ThinWebClient (Web サーバーシステム) の 「ThinWebClient.json」ファイルの初期設定が完了していません。「ThinControllerUrlList」の値を適切に設定し、稼働中のシン・テレワークシステム コントローラ (ハイパースケールモードまたはスタンドアロンモード) の URL を指定する必要があります。
 
+THINWEB_STANDALONE_MUST_VIA_PROXY	$APPSHORT$ の中継システムは、「スタンドアロンモード」で動作しています。この場合、ThinWebClient (Web サーバーシステム) へのアクセスは、ThinWebClient のローカルの TCP ポートへの接続ではなく、ThinGate プログラムの TCP ポートに対する接続を行なう必要があります。\r\n\r\nWeb ブラウザから、ThinGate プログラムの TCP ポートに HTTPS で接続を行なってください。
 
 
 

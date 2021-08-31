@@ -153,6 +153,7 @@ namespace IPA.Cores.Basic
         public string WatermarkStr1 = "";
         public string WatermarkStr2 = "";
         public ThinClientMiscParams Misc = new ThinClientMiscParams();
+        public bool IsStandaloneMode;
     }
 
     public class ThinClientInspectRequest : IDialogRequestData
@@ -481,7 +482,13 @@ namespace IPA.Cores.Basic
                     WatermarkStr2 = firstConnection.WatermarkStr2,
                     Misc = firstConnection.Misc,
                     Caps = firstConnection.Caps,
+                    IsStandaloneMode = firstConnection.Socket.Options.ConnectParam.IsStandaloneMode,
                 };
+
+                if (firstConnection.Socket.Options.ConnectParam.WebSocketWildCardDomainName._IsSamei("<<!!samehost!!>>"))
+                {
+                    ready.WebSocketFullUrl = webSocketUrl;
+                }
 
                 Dbg.Where();
                 await session.RequestAndWaitResponseAsync(ready, Consts.ThinClient.RequestHardTimeoutMsecs, Consts.ThinClient.RequestSoftTimeoutMsecs, isFinalAnswer: true);
