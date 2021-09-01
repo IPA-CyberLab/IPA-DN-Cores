@@ -59,10 +59,11 @@ using Org.BouncyCastle.Crypto.Prng;
 using Org.BouncyCastle.Security;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.DnsLib;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic.DnsLib
+namespace IPA.Cores.Basic
 {
     public static class DnsUtil
     {
@@ -76,6 +77,25 @@ namespace IPA.Cores.Basic.DnsLib
         public static Span<byte> BuildPacket(this DnsMessageBase message)
         {
             return message.Encode(false);
+        }
+    }
+
+    public class DnsUdpPacket
+    {
+        public IPEndPoint RemoteEndPoint { get; }
+        public IPEndPoint LocalEndPoint { get; }
+        public DnsMessageBase Message { get; }
+
+        public DnsUdpPacket(IPEndPoint remoteEndPoint, IPEndPoint localEndPoint, DnsMessageBase message)
+        {
+            if (remoteEndPoint.AddressFamily != localEndPoint.AddressFamily)
+            {
+                throw new CoresException("remoteEndPoint.AddressFamily != localEndPoint.AddressFamily");
+            }
+
+            this.RemoteEndPoint = remoteEndPoint;
+            this.LocalEndPoint = localEndPoint;
+            this.Message = message;
         }
     }
 }

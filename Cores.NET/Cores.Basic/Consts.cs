@@ -157,6 +157,7 @@ namespace IPA.Cores.Basic
             public const int Pop3s = 995;
             public const int Imap4 = 143;
             public const int Imap4s = 993;
+            public const int Dns = 53;
 
             public const int DynamicPortMin = 10000;
             public const int DynamicPortMax = 19999;

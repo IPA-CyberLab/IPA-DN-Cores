@@ -2300,8 +2300,36 @@ namespace IPA.TestDev
             }
         }
 
+        static void Test_210901_EasyDnsServer()
+        {
+            using EasyDnsServer s = new EasyDnsServer(new EasyDnsServerSetting(
+                reqList =>
+                {
+                    List<DnsUdpPacket> resList = new List<DnsUdpPacket>(reqList.Count);
+
+                    foreach (var req in reqList)
+                    {
+                        DnsUdpPacket res = new DnsUdpPacket(req.RemoteEndPoint, req.LocalEndPoint, req.Message);
+
+                        resList.Add(res);
+                    }
+
+                    return resList;
+                }, 5353
+                ));
+
+            Console.Write("Quit>");
+            Console.ReadLine();
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210901_EasyDnsServer();
+                return;
+            }
+
             if (true)
             {
                 Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server_MultiTaskProcess();

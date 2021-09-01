@@ -53,6 +53,7 @@ using System.Net;
 using System.Runtime.CompilerServices;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.DnsLib;
 using IPA.Cores.Basic.Internal;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
@@ -62,6 +63,114 @@ using System.Net.Sockets;
 
 namespace IPA.Cores.Basic
 {
+    public delegate List<DnsUdpPacket> EasyDnsServerProcessPacketsCallback(List<DnsUdpPacket> requestList);
+
+    public class EasyDnsServerSetting
+    {
+        public int UdpPort { get; }
+        public EasyDnsServerProcessPacketsCallback Callback { get; }
+
+        public EasyDnsServerSetting(EasyDnsServerProcessPacketsCallback callback, int udpPort = Consts.Ports.Dns)
+        {
+            this.Callback = callback;
+            this.UdpPort = udpPort;
+        }
+    }
+
+    public class EasyDnsServer : AsyncServiceWithMainLoop
+    {
+        public EasyDnsServerSetting Setting { get; }
+
+        public EasyDnsServer(EasyDnsServerSetting setting)
+        {
+            try
+            {
+                this.Setting = setting;
+
+                this.StartMainLoop(this.MainLoopAsync);
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+#pragma warning disable CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
+        async Task MainLoopAsync(CancellationToken cancel)
+        {
+            await using var udpListener = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Server));
+
+            udpListener.AddEndPoint(new IPEndPoint(IPAddress.Any, this.Setting.UdpPort));
+
+            await using var udpSock = udpListener.GetSocket(true);
+
+            while (cancel.IsCancellationRequested == false)
+            {
+                try
+                {
+                    var allRecvList = await udpSock.ReceiveDatagramsListAsync(cancel: cancel);
+
+                    var allSendList = await allRecvList._ProcessDatagramWithMultiTasksAsync(async (perTaskRecvList) =>
+                    {
+                        List<DnsUdpPacket> perTaskRequestPacketsList = new List<DnsUdpPacket>(perTaskRecvList.Count);
+
+                        foreach (var item in perTaskRecvList)
+                        {
+                            try
+                            {
+                                var request = DnsUtil.ParsePacket(item.Data.Span);
+
+                                DnsUdpPacket pkt = new DnsUdpPacket(item.RemoteIPEndPoint, item.LocalIPEndPoint, request);
+
+                                perTaskRequestPacketsList.Add(pkt);
+                            }
+                            catch { }
+                        }
+
+                        var perTaskReaponsePacketsList = Setting.Callback(perTaskRequestPacketsList);
+
+                        List<Datagram> perTaskSendList = new List<Datagram>(perTaskReaponsePacketsList.Count);
+
+                        foreach (var responsePkt in perTaskReaponsePacketsList)
+                        {
+                            try
+                            {
+                                Memory<byte> packetData = DnsUtil.BuildPacket(responsePkt.Message).ToArray();
+
+                                var datagram = new Datagram(packetData, responsePkt.RemoteEndPoint, responsePkt.LocalEndPoint);
+
+                                perTaskSendList.Add(datagram);
+                            }
+                            catch { }
+                        }
+
+                        return perTaskSendList;
+                    },
+                    operation: MultitaskDivideOperation.RoundRobin,
+                    cancel: cancel);
+
+                    await udpSock.SendDatagramsListAsync(allSendList.ToArray());
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
+            }
+        }
+#pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
+        }
+    }
 }
 
 #endif
