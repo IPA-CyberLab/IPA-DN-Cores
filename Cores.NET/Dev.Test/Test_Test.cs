@@ -2305,13 +2305,15 @@ namespace IPA.TestDev
             using EasyDnsServer s = new EasyDnsServer(new EasyDnsServerSetting(
                 reqList =>
                 {
-                    List<DnsUdpPacket> resList = new List<DnsUdpPacket>(reqList.Count);
+                    Span<DnsUdpPacket> resList = new DnsUdpPacket[reqList.Length];
+
+                    int index = 0;
 
                     foreach (var req in reqList)
                     {
                         DnsUdpPacket res = new DnsUdpPacket(req.RemoteEndPoint, req.LocalEndPoint, req.Message);
 
-                        resList.Add(res);
+                        resList[index++] = res;
                     }
 
                     return resList;
