@@ -2205,7 +2205,7 @@ namespace IPA.TestDev
                                             }
                                             else
                                             {
-                                                await ss.ReceiveFromAsync(mem);
+                                                await ss.ReceiveFromAsync(mem, AddressFamily.InterNetwork);
                                             }
                                         }
 
@@ -2324,19 +2324,10 @@ namespace IPA.TestDev
             Console.ReadLine();
         }
 
-        static void Test_210904_SE_DDNS_Server()
-        {
-            using IPA.Cores.Basic.SENetDDnsServer.DDNSServer svr = new Cores.Basic.SENetDDnsServer.DDNSServer(@"C:\sec\SENet\DDNSServerTest\DDNSServerTest\bin\Debug\DDnsServer.config");
-
-            Console.Write("Quit>");
-            Console.ReadLine();
-        }
-
         public static void Test_Generic()
         {
             if (true)
             {
-                Test_210904_SE_DDNS_Server();
                 return;
             }
 

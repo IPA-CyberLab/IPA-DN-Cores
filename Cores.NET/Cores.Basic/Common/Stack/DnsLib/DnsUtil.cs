@@ -86,7 +86,7 @@ namespace IPA.Cores.Basic
             int days = (int)(dt.Date - DnsDtStartDay.Date).TotalDays;
 
             days = Math.Max(days, 1);
-            days = days % 42000;
+            days = (days % 32000) + 10000;
 
             string str = days.ToString("D5") + dt.ToString("HHmmss").Substring(0, 5);
 
@@ -155,6 +155,7 @@ namespace IPA.Cores.Basic
             await using var udpListener = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Server));
 
             udpListener.AddEndPoint(new IPEndPoint(IPAddress.Any, this.Setting.UdpPort));
+            udpListener.AddEndPoint(new IPEndPoint(IPAddress.IPv6Any, this.Setting.UdpPort));
 
             await using var udpSock = udpListener.GetSocket(true);
 

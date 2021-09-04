@@ -599,17 +599,32 @@ new
 
 		public DDNSServer(string configFileName) : base()
 		{
-			this.configFileName = configFileName;
+			try
+			{
+				this.configFileName = configFileName;
 
-            //IO.MakeDir(logDir);
+				//IO.MakeDir(logDir);
 
-            //lastFlashDateTime = DateTime.Now;
+				//lastFlashDateTime = DateTime.Now;
 
-            //log = new FileLogger(logDir);
+				//log = new FileLogger(logDir);
 
-            this.hc = new HostsCache(Lfs.ReadStringFromFile(@"h:\Secure\210904_DevTest_DDNS_DB\dbconn.txt")._GetFirstFilledLineFromLines());
+				string dbConnectStr = Ini["DbConnectString"].StrValue;
+				int portNumber = (int)Ini["Port"].IntValue;
+				if (portNumber == 0)
+				{
+					portNumber = Consts.Ports.Dns;
+				}
 
-            this.server = new EasyDnsServer(new EasyDnsServerSetting(ProcessQueryList, 5353));
+				this.hc = new HostsCache(dbConnectStr);
+
+				this.server = new EasyDnsServer(new EasyDnsServerSetting(ProcessQueryList, portNumber));
+			}
+			catch
+			{
+				this._DisposeSafe();
+				throw;
+			}
 		}
 
 		Span<DnsUdpPacket> ProcessQueryList(Span<DnsUdpPacket> requestList)
@@ -619,19 +634,32 @@ new
 
 			foreach (var request in requestList)
 			{
-				var reply = this.processDnsQuery(request.Message, request.RemoteEndPoint.Address);
-
-				if (reply == null)
+				try
 				{
-					// エラー発生
-                    DnsMessage? q = request.Message as DnsMessage;
-                    q.IsQuery = false;
-                    q.ReturnCode = ReturnCode.ServerFailure;
-                    q.IsRecursionAllowed = false;
-					reply = q;
-				}
+					var reply = this.processDnsQuery(request.Message, request.RemoteEndPoint.Address);
 
-                replyList[replyListCount++] = new DnsUdpPacket(request.RemoteEndPoint, request.LocalEndPoint, reply);
+					if (reply == null)
+					{
+						// エラー発生
+						DnsMessage? q = request.Message as DnsMessage;
+						if (q != null)
+						{
+							q.IsQuery = false;
+							q.ReturnCode = ReturnCode.ServerFailure;
+							q.IsRecursionAllowed = false;
+							reply = q;
+						}
+					}
+
+					if (reply != null)
+					{
+						replyList[replyListCount++] = new DnsUdpPacket(request.RemoteEndPoint, request.LocalEndPoint, reply);
+					}
+				}
+				catch (Exception ex)
+				{
+					ex._Debug();
+				}
 			}
 
 			return replyList.Slice(0, replyListCount);
@@ -1151,7 +1179,10 @@ new
 						logStr += "Result: " + Str.CombineStringArray(matchIPList.ToArray(), " ");
 					}
 
-					write(logStr);
+					if (Ini["SaveAccessLog"].BoolValue)
+					{
+						write(logStr);
+					}
 				}
 
 				// SOA
