@@ -2213,6 +2213,9 @@ namespace IPA.Cores.Basic
             return GenRandInterval(v, plusMinusPercentage);
         }
 
+        public static TimeSpan GenRandInterval(TimeSpan standard, double plusMinusPercentage = 30.0)
+            => TimeSpan.FromMilliseconds(GenRandInterval((int)standard.TotalMilliseconds, plusMinusPercentage));
+
         public static int GenRandInterval(int standard, double plusMinusPercentage = 30.0)
         {
             double rate = plusMinusPercentage / 100.0;

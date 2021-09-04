@@ -79,7 +79,7 @@ namespace IPA.Cores.Basic
             return message.Encode(false);
         }
 
-        static readonly DateTime DnsDtStartDay = new DateTime(2021, 1, 1);
+        public static readonly DateTime DnsDtStartDay = new DateTime(2021, 1, 1);
 
         public static uint GenerateSoaSerialNumberFromDateTime(DateTime dt)
         {

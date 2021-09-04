@@ -125,6 +125,11 @@ namespace IPA.Cores.Basic.SENetDDnsServer
 
         public string DbConnectionString { get; }
 
+        public readonly Ref<DateTime> LastDbReadTime = new Ref<DateTime>(DnsUtil.DnsDtStartDay);
+        public readonly Ref<DateTime> LastDbWriteTime = new Ref<DateTime>(DnsUtil.DnsDtStartDay);
+
+        public DateTime LastHealthyTime => new DateTime(Math.Min(LastDbReadTime.Value.Ticks, LastDbWriteTime.Value.Ticks));
+
         public HostsCache(string dbConnectionString)
         {
             try
@@ -287,7 +292,7 @@ namespace IPA.Cores.Basic.SENetDDnsServer
                 if (now >= next_full_update)
                 {
                     write_log(string.Format("DBTHREAD: full update started."));
-                    next_full_update = now + interval_full_update;
+                    next_full_update = now + Util.GenRandInterval(interval_full_update);
 
                     try
                     {
@@ -348,6 +353,8 @@ cancel: cancel);
 
                         full_ok = true;
 
+                        this.LastDbReadTime.Set(DateTime.Now);
+
                         this.IsEmpty = false;
                     }
                     catch (Exception ex)
@@ -361,7 +368,7 @@ cancel: cancel);
 
                 if (now >= next_diff_update && full_ok)
                 {
-                    next_diff_update = now + interval_diff_update;
+                    next_diff_update = now + Util.GenRandInterval(interval_diff_update);
 
                     try
                     {
@@ -451,6 +458,8 @@ FROM                       BAN");
                         {
                             last_update = max_update_dt;
                         }
+
+                        this.LastDbReadTime.Set(DateTime.Now);
                     }
                     catch (Exception ex)
                     {
@@ -520,6 +529,8 @@ new
                             write_log(string.Format("DBTHREAD: Last Access Updated, IPv4={0}, Azure={1}",
                                 num_v4, num_azure));
                         }
+
+                        this.LastDbWriteTime.Set(DateTime.Now);
                     }
                     catch (Exception ex)
                     {
@@ -1085,10 +1096,8 @@ new
 
                                 q.IsAuthoritiveAnswer = true;
 
-                                DateTime now = DateTime.Now;
-
                                 q.AuthorityRecords.Add(new SoaRecord(DomainName.Parse(dom), (int)Ini["Ttl"].IntValue, DomainName.Parse(Ini["PrimaryServer"].StrValue),
-                                    DomainName.Parse(Ini["EMail"].StrValue), DnsUtil.GenerateSoaSerialNumberFromDateTime(now), (int)Ini["Ttl"].IntValue, (int)Ini["Ttl"].IntValue,
+                                    DomainName.Parse(Ini["EMail"].StrValue), DnsUtil.GenerateSoaSerialNumberFromDateTime(this.hc.LastHealthyTime), (int)Ini["Ttl"].IntValue, (int)Ini["Ttl"].IntValue,
                                     88473600, (int)Ini["Ttl"].IntValue));
                                 num_match++;
 
@@ -1192,10 +1201,8 @@ new
                 {
                     q.IsAuthoritiveAnswer = true;
 
-                    DateTime now = DateTime.Now;
-
                     q.AuthorityRecords.Add(new SoaRecord(DomainName.Parse(domainname), (int)Ini["Ttl"].IntValue, DomainName.Parse(Ini["PrimaryServer"].StrValue),
-                        DomainName.Parse(Ini["EMail"].StrValue), DnsUtil.GenerateSoaSerialNumberFromDateTime(now), (int)Ini["Ttl"].IntValue, (int)Ini["Ttl"].IntValue,
+                        DomainName.Parse(Ini["EMail"].StrValue), DnsUtil.GenerateSoaSerialNumberFromDateTime(this.hc.LastHealthyTime), (int)Ini["Ttl"].IntValue, (int)Ini["Ttl"].IntValue,
                         88473600, (int)Ini["Ttl"].IntValue));
                 }
 
