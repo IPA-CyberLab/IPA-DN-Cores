@@ -172,6 +172,10 @@ namespace IPA.Cores.Basic
                             Span<DnsUdpPacket> perTaskRequestPacketsList = new DnsUdpPacket[perTaskRecvList.Count];
                             int perTaskRequestPacketsListCount = 0;
 
+                            double start = Time.NowHighResDouble;
+
+                            Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- Start loop 1: perTaskRecvList.Count = {perTaskRecvList.Count}");
+
                             foreach (var item in perTaskRecvList)
                             {
                                 try
@@ -185,10 +189,14 @@ namespace IPA.Cores.Basic
                                 catch { }
                             }
 
+                            Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- End loop 1: perTaskRequestPacketsListCount = {perTaskRequestPacketsListCount}");
+
                             Span<DnsUdpPacket> perTaskReaponsePacketsList = Setting.Callback(perTaskRequestPacketsList);
 
                             Span<Datagram> perTaskSendList = new Datagram[perTaskRequestPacketsListCount];
                             int perTaskSendListCount = 0;
+
+                            Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- Start loop 2: perTaskReaponsePacketsList.Count = {perTaskReaponsePacketsList.Length}");
 
                             foreach (var responsePkt in perTaskReaponsePacketsList)
                             {
@@ -202,6 +210,8 @@ namespace IPA.Cores.Basic
                                 }
                                 catch { }
                             }
+
+                            Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- End loop 2: perTaskSendListCount = {perTaskSendListCount}");
 
                             return perTaskSendList.Slice(0, perTaskSendListCount).ToArray().ToList();
                         });
