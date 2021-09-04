@@ -361,7 +361,7 @@ cancel: cancel);
                     {
                         Console.WriteLine(ex.ToString());
                         write_log(string.Format("DBTHREAD: DBERROR (Full Update): {0}", ex.Message));
-                        next_full_update = now + interval_full_update_on_error;
+                        next_full_update = now + Util.GenRandInterval(interval_full_update_on_error);
                     }
                     //write_log(string.Format("DBTHREAD: next_full_update = {0}", next_full_update));
                 }
