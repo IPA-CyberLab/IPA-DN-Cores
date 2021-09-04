@@ -181,6 +181,7 @@ namespace IPA.Cores.Basic
         {
             public const string StartLogFileBrowser = "StartLogFileBrowser";
             public const string LogFileBrowserPort = "LogFileBrowserPort";
+            public const string ForceGc = "ForceGc";
         }
 
         public static partial class DaemonMetaStatKeys

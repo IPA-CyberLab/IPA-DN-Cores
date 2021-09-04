@@ -2222,7 +2222,7 @@ namespace IPA.Cores.Codes
 
             bool forceGc = false;
 
-            var startupParams = new OneLineParams(GlobalDaemonStateManager.StartupArguments);
+            var startupParams = new OneLineParams(Consts.DaemonArgKeys.ForceGc);
 
             if (startupParams._HasKey("ForceGc"))
             {

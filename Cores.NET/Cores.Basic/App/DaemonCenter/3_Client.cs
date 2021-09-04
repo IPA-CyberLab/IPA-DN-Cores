@@ -117,6 +117,10 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
 
         readonly RestartCallback RestartCb;
 
+        readonly OneLineParams StartupParams;
+
+        readonly bool Report_ForceGc;
+
         public Client(ClientSettings settings, ClientVariables variables, RestartCallback restartCb, WebApiOptions? webOptions = null, CancellationToken cancel = default) : base(cancel)
         {
             settings.Validate();
@@ -124,6 +128,10 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
             // 設定とデータをコピーする
             this.Settings = settings._CloneDeep();
             this.Variables = variables._CloneDeep();
+
+            this.StartupParams = new OneLineParams(variables.CurrentInstanceArguments._NonNull());
+
+            this.Report_ForceGc = this.StartupParams._HasKey(Consts.DaemonArgKeys.ForceGc);
 
             // Web オプションを設定する
             if (webOptions == null) webOptions = new WebApiOptions();
@@ -242,7 +250,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
         {
             CoresRuntimeStat runtimeStat = new CoresRuntimeStat();
 
-            runtimeStat.Refresh(forceGc: true);
+            runtimeStat.Refresh(forceGc: this.Report_ForceGc);
 
             string[]? globalIpList = null;
 
