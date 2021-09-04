@@ -2326,13 +2326,10 @@ namespace IPA.TestDev
 
         static void Test_210904_SE_DDNS_Server()
         {
-            //using IPA.Cores.Basic.SENetDDnsServer.DDNSServer svr = new Cores.Basic.SENetDDnsServer.DDNSServer(@"C:\sec\SENet\DDNSServerTest\DDNSServerTest\bin\Debug\DDnsServer.config");
+            using IPA.Cores.Basic.SENetDDnsServer.DDNSServer svr = new Cores.Basic.SENetDDnsServer.DDNSServer(@"C:\sec\SENet\DDNSServerTest\DDNSServerTest\bin\Debug\DDnsServer.config");
 
-            //Console.Write("Quit>");
-            //Console.ReadLine();
-            using var db = new Database(@"Data Source=192.168.1.23;Initial Catalog=bac;Persist Security Info=True;User ID=aaa;Password=abc;");
-
-            db.EasyExecute("select * abc");
+            Console.Write("Quit>");
+            Console.ReadLine();
         }
 
         public static void Test_Generic()

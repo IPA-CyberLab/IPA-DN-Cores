@@ -78,6 +78,20 @@ namespace IPA.Cores.Basic
         {
             return message.Encode(false);
         }
+
+        static readonly DateTime DnsDtStartDay = new DateTime(2021, 1, 1);
+
+        public static uint GenerateSoaSerialNumberFromDateTime(DateTime dt)
+        {
+            int days = (int)(dt.Date - DnsDtStartDay.Date).TotalDays;
+
+            days = Math.Max(days, 1);
+            days = days % 42000;
+
+            string str = days.ToString("D5") + dt.ToString("HHmmss").Substring(0, 5);
+
+            return str._ToUInt();
+        }
     }
 
     public class DnsUdpPacket

@@ -284,7 +284,7 @@ namespace IPA.Cores.Basic.SENetDDnsServer
 
 				if (now >= next_full_update)
 				{
-					//write_log(string.Format("DBTHREAD: full update started."));
+					write_log(string.Format("DBTHREAD: full update started."));
 					next_full_update = now + interval_full_update;
 
 					try
@@ -373,7 +373,7 @@ cancel: cancel);
 SELECT HOST_AZURE_IP, HOST_ID, HOST_LAST_IPV4, HOST_LAST_IPV6, HOST_NAME, HOST_UPDATE_DATE FROM HOSTS WITH (NOLOCK) WHERE (HOST_UPDATE_DATE >= @DT)",
 new
 {
-	HOST_UPDATE_DATE = last_update - interval_clock_margin,
+	DT = last_update - interval_clock_margin,
 },
 cancel: cancel);
 
@@ -597,7 +597,7 @@ new
 			}
 		}
 
-		public DDNSServer(string configFileName)
+		public DDNSServer(string configFileName) : base()
 		{
 			this.configFileName = configFileName;
 
@@ -621,10 +621,17 @@ new
 			{
 				var reply = this.processDnsQuery(request.Message, request.RemoteEndPoint.Address);
 
-				if (reply != null)
+				if (reply == null)
 				{
-					replyList[replyListCount++] = new DnsUdpPacket(request.RemoteEndPoint, request.LocalEndPoint, reply);
+					// エラー発生
+                    DnsMessage? q = request.Message as DnsMessage;
+                    q.IsQuery = false;
+                    q.ReturnCode = ReturnCode.ServerFailure;
+                    q.IsRecursionAllowed = false;
+					reply = q;
 				}
+
+                replyList[replyListCount++] = new DnsUdpPacket(request.RemoteEndPoint, request.LocalEndPoint, reply);
 			}
 
 			return replyList.Slice(0, replyListCount);
@@ -1051,7 +1058,7 @@ new
 								DateTime now = DateTime.Now;
 
 								q.AuthorityRecords.Add(new SoaRecord(DomainName.Parse(dom), (int)Ini["Ttl"].IntValue, DomainName.Parse(Ini["PrimaryServer"].StrValue),
-									DomainName.Parse(Ini["EMail"].StrValue), (uint)Util.DateTimeToUnixTime(now), (int)Ini["Ttl"].IntValue, (int)Ini["Ttl"].IntValue,
+									DomainName.Parse(Ini["EMail"].StrValue), DnsUtil.GenerateSoaSerialNumberFromDateTime(now), (int)Ini["Ttl"].IntValue, (int)Ini["Ttl"].IntValue,
 									88473600, (int)Ini["Ttl"].IntValue));
 								num_match++;
 
@@ -1155,7 +1162,7 @@ new
 					DateTime now = DateTime.Now;
 
 					q.AuthorityRecords.Add(new SoaRecord(DomainName.Parse(domainname), (int)Ini["Ttl"].IntValue, DomainName.Parse(Ini["PrimaryServer"].StrValue),
-						DomainName.Parse(Ini["EMail"].StrValue), (uint)Util.DateTimeToUnixTime(now), (int)Ini["Ttl"].IntValue, (int)Ini["Ttl"].IntValue,
+						DomainName.Parse(Ini["EMail"].StrValue), DnsUtil.GenerateSoaSerialNumberFromDateTime(now), (int)Ini["Ttl"].IntValue, (int)Ini["Ttl"].IntValue,
 						88473600, (int)Ini["Ttl"].IntValue));
 				}
 

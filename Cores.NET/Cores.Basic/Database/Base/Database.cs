@@ -628,6 +628,7 @@ namespace IPA.Cores.Basic
             if (param != null)
                 EnsureDapperTypeMapping(param.GetType());
 
+            // 2021/09/04 注意: Dapper は Cancel に対応していない。少なくとも 2.0.90 の async メソッドで確認。
             CommandDefinition cmd = new CommandDefinition(commandStr, param, this.Transaction, commandTimeout: this.CommandTimeoutSecs);
 
             return cmd;

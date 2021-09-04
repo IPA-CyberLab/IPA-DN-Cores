@@ -776,7 +776,7 @@ namespace IPA.Cores.Basic
                 int minValue = int.MinValue;
                 foreach (var other in this.Protocol.GetUdpSendInstanceList())
                 {
-                    if (other != this)
+                    if (other != this && other != null)
                     {
                         minValue = Math.Max(minValue, other.NumOkSockets);
                     }
