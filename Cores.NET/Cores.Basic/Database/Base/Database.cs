@@ -628,6 +628,7 @@ namespace IPA.Cores.Basic
             if (param != null)
                 EnsureDapperTypeMapping(param.GetType());
 
+            // 2021/09/04 注意: Dapper は Cancel に対応していない。少なくとも 2.0.90 の async メソッドで確認。
             CommandDefinition cmd = new CommandDefinition(commandStr, param, this.Transaction, commandTimeout: this.CommandTimeoutSecs);
 
             return cmd;
@@ -637,7 +638,7 @@ namespace IPA.Cores.Basic
         {
             if (selectParam == null) selectParam = new { };
 
-            IEnumerable<T> ret = await QueryAsync<T>(selectStr, selectParam);
+            IEnumerable<T> ret = await EasyQueryAsync<T>(selectStr, selectParam);
             T? t = ret.SingleOrDefault();
             if (t._IsNullOrDefault())
             {
@@ -645,7 +646,7 @@ namespace IPA.Cores.Basic
 
                 long newId = await this.GetLastID64Async();
 
-                ret = await QueryAsync<T>(newCreatedRowSelectWithIdCmd, new { id = newId });
+                ret = await EasyQueryAsync<T>(newCreatedRowSelectWithIdCmd, new { id = newId });
 
                 t = ret.Single();
             }
@@ -653,20 +654,20 @@ namespace IPA.Cores.Basic
             return t;
         }
 
-        public async Task<IEnumerable<T>> QueryAsync<T>(string commandStr, object? param = null)
+        public async Task<IEnumerable<T>> EasyQueryAsync<T>(string commandStr, object? param = null)
             => await Connection.QueryAsync<T>(await SetupDapperAsync(commandStr, param, typeof(T)));
 
-        public async Task<int> ExecuteAsync(string commandStr, object? param = null)
+        public async Task<int> EasyExecuteAsync(string commandStr, object? param = null)
             => await Connection.ExecuteAsync(await SetupDapperAsync(commandStr, param, null));
 
         public async Task<T> ExecuteScalarAsync<T>(string commandStr, object? param = null)
             => (T)(await Connection.ExecuteScalarAsync(await SetupDapperAsync(commandStr, param, null)));
 
-        public IEnumerable<T> Query<T>(string commandStr, object? param = null)
-            => QueryAsync<T>(commandStr, param)._GetResult();
+        public IEnumerable<T> EasyQuery<T>(string commandStr, object? param = null)
+            => EasyQueryAsync<T>(commandStr, param)._GetResult();
 
-        public int Execute(string commandStr, object? param = null)
-            => ExecuteAsync(commandStr, param)._GetResult();
+        public int EasyExecute(string commandStr, object? param = null)
+            => EasyExecuteAsync(commandStr, param)._GetResult();
 
         public T ExecuteScalar<T>(string commandStr, object? param = null)
             => ExecuteScalarAsync<T>(commandStr, param)._GetResult();
@@ -695,7 +696,7 @@ namespace IPA.Cores.Basic
             await EnsureOpenAsync(cancel);
             EnsureDapperTypeMapping(typeof(T));
 
-            var ret = await QueryAsync<T>(selectStr, selectParam);
+            var ret = await EasyQueryAsync<T>(selectStr, selectParam);
 
             if (throwErrorIfNotFound && ret.Count() == 0)
             {
@@ -792,7 +793,7 @@ namespace IPA.Cores.Basic
         {
             if (selectParam == null) selectParam = new { };
 
-            var list = await QueryAsync<T>(selectStr, selectParam);
+            var list = await EasyQueryAsync<T>(selectStr, selectParam);
             var entity = list.SingleOrDefault();
 
             if (entity == null) return null;

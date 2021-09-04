@@ -346,7 +346,7 @@ namespace IPA.Cores.Basic
             {
                 //Task<SocketReceiveFromResult> t = _Socket.ReceiveFromAsync(bufferSegment, SocketFlags.None,
                 //    this.AddressFamily == AddressFamily.InterNetworkV6 ? StaticUdpEndPointIPv6 : StaticUdpEndPointIPv4);
-                ValueTask<SocketReceiveFromResult> t = _Socket.ReceiveFromAsync(buffer);
+                ValueTask<SocketReceiveFromResult> t = _Socket.ReceiveFromAsync(buffer, this.AddressFamily);
                 if (t.IsCompleted == false)
                 {
                     numRetry = 0;
@@ -1164,7 +1164,8 @@ namespace IPA.Cores.Helper.Basic
         // of the underlying SocketAsyncEventArgs implementation, each one holds an instance of PreAllocatedNativeOverlapped,
         // an IOCP-specific object which is VERY expensive to allocate each time.        
         private static readonly ObjectPool<UdpAwaitableSocketAsyncEventArgs> _socketEventPool = ObjectPool.Create<UdpAwaitableSocketAsyncEventArgs>();
-        private static readonly IPEndPoint _blankEndpoint = new IPEndPoint(IPAddress.Any, 0);
+        private static readonly IPEndPoint _blankEndpoint_IPv4 = new IPEndPoint(IPAddress.Any, 0);
+        private static readonly IPEndPoint _blankEndpoint_IPv6 = new IPEndPoint(IPAddress.IPv6Any, 0);
 
         /// <summary>
         /// Send a block of data to a specified destination, and complete asynchronously.
@@ -1198,12 +1199,24 @@ namespace IPA.Cores.Helper.Basic
         /// <param name="socket">The socket to send on.</param>
         /// <param name="buffer">The buffer to place data in.</param>
         /// <returns>The number of bytes transferred.</returns>
-        public static async ValueTask<SocketReceiveFromResult> ReceiveFromAsync(this Socket socket, Memory<byte> buffer)
+        public static async ValueTask<SocketReceiveFromResult> ReceiveFromAsync(this Socket socket, Memory<byte> buffer, AddressFamily addressFamily)
         {
             // Get an async argument from the socket event pool.
             var asyncArgs = _socketEventPool.Get();
 
-            asyncArgs.RemoteEndPoint = _blankEndpoint;
+            if (addressFamily == AddressFamily.InterNetwork)
+            {
+                asyncArgs.RemoteEndPoint = _blankEndpoint_IPv4;
+            }
+            else if (addressFamily == AddressFamily.InterNetworkV6)
+            {
+                asyncArgs.RemoteEndPoint = _blankEndpoint_IPv6;
+            }
+            else
+            {
+                throw new ArgumentOutOfRangeException(nameof(addressFamily));
+            }
+
             asyncArgs.SetBuffer(buffer);
 
             try

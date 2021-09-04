@@ -53,6 +53,7 @@ using System.Net;
 using System.Runtime.CompilerServices;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.DnsLib;
 using IPA.Cores.Basic.Internal;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;

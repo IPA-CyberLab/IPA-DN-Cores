@@ -59,10 +59,11 @@ using Org.BouncyCastle.Crypto.Prng;
 using Org.BouncyCastle.Security;
 
 using IPA.Cores.Basic;
+using IPA.Cores.Basic.DnsLib;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic.DnsLib
+namespace IPA.Cores.Basic
 {
     public static class DnsUtil
     {
@@ -76,6 +77,170 @@ namespace IPA.Cores.Basic.DnsLib
         public static Span<byte> BuildPacket(this DnsMessageBase message)
         {
             return message.Encode(false);
+        }
+
+        static readonly DateTime DnsDtStartDay = new DateTime(2021, 1, 1);
+
+        public static uint GenerateSoaSerialNumberFromDateTime(DateTime dt)
+        {
+            int days = (int)(dt.Date - DnsDtStartDay.Date).TotalDays;
+
+            days = Math.Max(days, 1);
+            days = (days % 32000) + 10000;
+
+            string str = days.ToString("D5") + dt.ToString("HHmmss").Substring(0, 5);
+
+            return str._ToUInt();
+        }
+    }
+
+    public class DnsUdpPacket
+    {
+        public IPEndPoint RemoteEndPoint { get; }
+        public IPEndPoint LocalEndPoint { get; }
+        public DnsMessageBase Message { get; }
+
+        public DnsUdpPacket(IPEndPoint remoteEndPoint, IPEndPoint localEndPoint, DnsMessageBase message)
+        {
+            if (remoteEndPoint.AddressFamily != localEndPoint.AddressFamily)
+            {
+                throw new CoresException("remoteEndPoint.AddressFamily != localEndPoint.AddressFamily");
+            }
+
+            this.RemoteEndPoint = remoteEndPoint;
+            this.LocalEndPoint = localEndPoint;
+            this.Message = message;
+        }
+    }
+
+
+
+
+    public delegate Span<DnsUdpPacket> EasyDnsServerProcessPacketsCallback(Span<DnsUdpPacket> requestList);
+
+    public class EasyDnsServerSetting
+    {
+        public int UdpPort { get; }
+        public EasyDnsServerProcessPacketsCallback Callback { get; }
+
+        public EasyDnsServerSetting(EasyDnsServerProcessPacketsCallback callback, int udpPort = Consts.Ports.Dns)
+        {
+            this.Callback = callback;
+            this.UdpPort = udpPort;
+        }
+    }
+
+    public class EasyDnsServer : AsyncServiceWithMainLoop
+    {
+        public EasyDnsServerSetting Setting { get; }
+
+        public EasyDnsServer(EasyDnsServerSetting setting)
+        {
+            try
+            {
+                this.Setting = setting;
+
+                this.StartMainLoop(this.MainLoopAsync);
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+#pragma warning disable CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
+        async Task MainLoopAsync(CancellationToken cancel)
+        {
+            await using var udpListener = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Server));
+
+            udpListener.AddEndPoint(new IPEndPoint(IPAddress.Any, this.Setting.UdpPort));
+            udpListener.AddEndPoint(new IPEndPoint(IPAddress.IPv6Any, this.Setting.UdpPort));
+
+            await using var udpSock = udpListener.GetSocket(true);
+
+            while (cancel.IsCancellationRequested == false)
+            {
+                try
+                {
+                    var allRecvList = await udpSock.ReceiveDatagramsListAsync(cancel: cancel);
+
+                    var allSendList = await allRecvList._ProcessDatagramWithMultiTasksAsync(async (perTaskRecvList) =>
+                    {
+                        var ret = Sync(() =>
+                        {
+                            Span<DnsUdpPacket> perTaskRequestPacketsList = new DnsUdpPacket[perTaskRecvList.Count];
+                            int perTaskRequestPacketsListCount = 0;
+
+                            double start = Time.NowHighResDouble;
+
+                            Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- Start loop 1: perTaskRecvList.Count = {perTaskRecvList.Count}");
+
+                            foreach (var item in perTaskRecvList)
+                            {
+                                try
+                                {
+                                    var request = DnsUtil.ParsePacket(item.Data.Span);
+
+                                    DnsUdpPacket pkt = new DnsUdpPacket(item.RemoteIPEndPoint, item.LocalIPEndPoint, request);
+
+                                    perTaskRequestPacketsList[perTaskRequestPacketsListCount++] = pkt;
+                                }
+                                catch { }
+                            }
+
+                            Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- End loop 1: perTaskRequestPacketsListCount = {perTaskRequestPacketsListCount}");
+
+                            Span<DnsUdpPacket> perTaskReaponsePacketsList = Setting.Callback(perTaskRequestPacketsList);
+
+                            Span<Datagram> perTaskSendList = new Datagram[perTaskRequestPacketsListCount];
+                            int perTaskSendListCount = 0;
+
+                            Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- Start loop 2: perTaskReaponsePacketsList.Count = {perTaskReaponsePacketsList.Length}");
+
+                            foreach (var responsePkt in perTaskReaponsePacketsList)
+                            {
+                                try
+                                {
+                                    Memory<byte> packetData = DnsUtil.BuildPacket(responsePkt.Message).ToArray();
+
+                                    var datagram = new Datagram(packetData, responsePkt.RemoteEndPoint, responsePkt.LocalEndPoint);
+
+                                    perTaskSendList[perTaskSendListCount++] = datagram;
+                                }
+                                catch { }
+                            }
+
+                            Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- End loop 2: perTaskSendListCount = {perTaskSendListCount}");
+
+                            return perTaskSendList.Slice(0, perTaskSendListCount).ToArray().ToList();
+                        });
+
+                        return ret;
+                    },
+                    operation: MultitaskDivideOperation.RoundRobin,
+                    cancel: cancel,
+                    numCpus: 1);
+
+                    await udpSock.SendDatagramsListAsync(allSendList.ToArray());
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
+            }
+        }
+#pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
+
+        protected override async Task CleanupImplAsync(Exception ex)
+        {
+            try
+            {
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
         }
     }
 }

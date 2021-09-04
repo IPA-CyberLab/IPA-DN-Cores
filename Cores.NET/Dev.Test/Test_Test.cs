@@ -2205,7 +2205,7 @@ namespace IPA.TestDev
                                             }
                                             else
                                             {
-                                                await ss.ReceiveFromAsync(mem);
+                                                await ss.ReceiveFromAsync(mem, AddressFamily.InterNetwork);
                                             }
                                         }
 
@@ -2300,8 +2300,43 @@ namespace IPA.TestDev
             }
         }
 
+        static void Test_210901_EasyDnsServer()
+        {
+            using EasyDnsServer s = new EasyDnsServer(new EasyDnsServerSetting(
+                reqList =>
+                {
+                    Span<DnsUdpPacket> resList = new DnsUdpPacket[reqList.Length];
+
+                    int index = 0;
+
+                    foreach (var req in reqList)
+                    {
+                        DnsUdpPacket res = new DnsUdpPacket(req.RemoteEndPoint, req.LocalEndPoint, req.Message);
+
+                        resList[index++] = res;
+                    }
+
+                    return resList;
+                }, 5353
+                ));
+
+            Console.Write("Quit>");
+            Console.ReadLine();
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                return;
+            }
+
+            if (true)
+            {
+                Test_210901_EasyDnsServer();
+                return;
+            }
+
             if (true)
             {
                 Test_210615_Udp_Indirect_SendRecv_Bench_DNS_Server_MultiTaskProcess();
@@ -4518,7 +4553,7 @@ namespace IPA.TestDev
                 using (var db = new Database($"Data Source='{filename}'", serverType: DatabaseServerType.SQLite))
                 {
                     Con.WriteLine("Creating table...");
-                    db.Execute("CREATE TABLE if not exists favorite_beers  (name VARCHAR(50))");
+                    db.EasyExecute("CREATE TABLE if not exists favorite_beers  (name VARCHAR(50))");
 
                     Con.WriteLine("Starting tran...");
 
@@ -4527,12 +4562,12 @@ namespace IPA.TestDev
                         int i = 0;
 
                         i++;
-                        db.Execute($"INSERT INTO favorite_beers VALUES('test {i}')");
+                        db.EasyExecute($"INSERT INTO favorite_beers VALUES('test {i}')");
 
                         Con.ReadLine("wait>");
 
                         i++;
-                        db.Execute($"INSERT INTO favorite_beers VALUES('test {i}')");
+                        db.EasyExecute($"INSERT INTO favorite_beers VALUES('test {i}')");
 
                         db.Commit();
                     }
