@@ -219,7 +219,8 @@ namespace IPA.Cores.Basic
                         return ret;
                     },
                     operation: MultitaskDivideOperation.RoundRobin,
-                    cancel: cancel);
+                    cancel: cancel,
+                    numCpus: 1);
 
                     await udpSock.SendDatagramsListAsync(allSendList.ToArray());
                 }
