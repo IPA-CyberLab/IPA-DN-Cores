@@ -2220,7 +2220,16 @@ namespace IPA.Cores.Codes
 
             CoresRuntimeStat sys = new CoresRuntimeStat();
 
-            sys.Refresh(true);
+            bool forceGc = false;
+
+            var startupParams = new OneLineParams(GlobalDaemonStateManager.StartupArguments);
+
+            if (startupParams._HasKey("ForceGc"))
+            {
+                forceGc = true;
+            }
+
+            sys.Refresh(forceGc: forceGc);
 
             long processMemory = 0;
             int numThreads = 0;
