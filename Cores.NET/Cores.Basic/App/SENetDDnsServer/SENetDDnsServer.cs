@@ -83,6 +83,26 @@ namespace IPA.Cores.Basic.SENetDDnsServer
 		public string RedirectTo = "";
 	}
 
+	[EasyTable("HOSTS")]
+	public class Hosts2Table
+	{
+		[EasyKey]
+		public long HOST_ID { get; set; }
+		public string HOST_NAME { get; set; } = "";
+		public string HOST_LAST_IPV4 { get; set; } = "";
+		public string HOST_LAST_IPV6 { get; set; } = "";
+		public DateTime HOST_UPDATE_DATE { get; set; }
+		public string HOST_AZURE_IP { get; set; } = "";
+	}
+
+	[EasyTable("BAN")]
+	public class BanTable
+	{
+		public int BAN_ID { get; set; }
+		public string BAN_KEY { get; set; } = "";
+		public string BAN_REDIRECT_TO { get; set; } = "";
+	}
+
 	public class HostsCache : AsyncServiceWithMainLoop
 	{
 		object LockObj = new object();
@@ -103,10 +123,14 @@ namespace IPA.Cores.Basic.SENetDDnsServer
 
 		public bool IsEmpty = true;
 
-		public HostsCache()
+		public string DbConnectionString { get; }
+
+		public HostsCache(string dbConnectionString)
 		{
 			try
 			{
+				this.DbConnectionString = dbConnectionString;
+
 				//log = new FileLogger(@"c:\tmp\DDNS\DBLog");
 				//halt_flag = false;
 				//halt_event = new Event();
@@ -229,6 +253,22 @@ namespace IPA.Cores.Basic.SENetDDnsServer
 			}
 		}
 
+		async Task<Database> OpenDbAsync(CancellationToken cancel)
+		{
+			var db = new Database(this.DbConnectionString);
+			try
+			{
+				await db.EnsureOpenAsync(cancel);
+
+				return db;
+			}
+			catch
+			{
+				await db._DisposeSafeAsync();
+				throw;
+			}
+		}
+
 		async Task main_thread(CancellationToken cancel)
 		{
 			DateTime next_full_update = new DateTime(0);
@@ -249,16 +289,31 @@ namespace IPA.Cores.Basic.SENetDDnsServer
 
 					try
 					{
-						HOSTS2TableAdapter ta = new HOSTS2TableAdapter();
-						SetSqlTimeout(ta, SqlTimeout);
-						DDNS.HOSTS2DataTable table = ta.GetData2(DateTime.Now.AddMonths(-1));
+						await using var db = await OpenDbAsync(cancel);
+
+						db.CommandTimeoutSecs = SqlTimeout;
+
+						var table = await db.EasySelectAsync<Hosts2Table>(@"
+SELECT                    HOST_ID, HOST_NAME, HOST_LAST_IPV4, HOST_LAST_IPV6, HOST_UPDATE_DATE, HOST_AZURE_IP
+FROM                       HOSTS 
+where HOST_LOGIN_DATE >= @BEGIN_DATE or HOST_NUM_ACCESS != 0
+",
+new
+{
+	BEGIN_DATE = DateTime.Now.AddMonths(-1),
+},
+cancel: cancel);
+
+						//HOSTS2TableAdapter ta = new HOSTS2TableAdapter();
+						//SetSqlTimeout(ta, SqlTimeout);
+						//DDNS.HOSTS2DataTable table = ta.GetData2(DateTime.Now.AddMonths(-1));
 						Dictionary<string, Host> hosts_tmp = new Dictionary<string, Host>();
 
-						write_log(string.Format("DBTHREAD: full db query: {0} records.", table.Count));
+						write_log(string.Format("DBTHREAD: full db query: {0} records.", table.Count()));
 
 						DateTime max_update_dt = new DateTime(0);
 
-						foreach (DDNS.HOSTS2Row r in table)
+						foreach (var r in table)
 						{
 							Host h = new Host();
 
@@ -308,23 +363,39 @@ namespace IPA.Cores.Basic.SENetDDnsServer
 
 					try
 					{
-						//write_log(string.Format("DBTHREAD: diff update started, diffs since {0}.", last_update - interval_clock_margin));
+                        //write_log(string.Format("DBTHREAD: diff update started, diffs since {0}.", last_update - interval_clock_margin));
 
-						HOSTS2TableAdapter ta = new HOSTS2TableAdapter();
-						SetSqlTimeout(ta, SqlTimeout);
-						DDNS.HOSTS2DataTable table = ta.GetDataByUpdateDate(last_update - interval_clock_margin);
+                        await using var db = await OpenDbAsync(cancel);
 
-						BANTableAdapter ban_ta = new BANTableAdapter();
-						SetSqlTimeout(ban_ta, SqlTimeout);
-						DDNS.BANDataTable ban_table = ban_ta.GetData();
+                        db.CommandTimeoutSecs = SqlTimeout;
 
-						write_log(string.Format("DBTHREAD: diff db query: {0} records. ban: {1} records.", table.Count, ban_table.Count));
+                        var table = await db.EasySelectAsync<Hosts2Table>(@"
+SELECT HOST_AZURE_IP, HOST_ID, HOST_LAST_IPV4, HOST_LAST_IPV6, HOST_NAME, HOST_UPDATE_DATE FROM HOSTS WITH (NOLOCK) WHERE (HOST_UPDATE_DATE >= @DT)",
+new
+{
+	HOST_UPDATE_DATE = last_update - interval_clock_margin,
+},
+cancel: cancel);
+
+						//                  HOSTS2TableAdapter ta = new HOSTS2TableAdapter();
+						//SetSqlTimeout(ta, SqlTimeout);
+						//DDNS.HOSTS2DataTable table = ta.GetDataByUpdateDate(last_update - interval_clock_margin);
+
+						var ban_table = await db.EasySelectAsync<BanTable>(@"
+SELECT                    BAN_ID, BAN_KEY, BAN_REDIRECT_TO
+FROM                       BAN");
+
+						//BANTableAdapter ban_ta = new BANTableAdapter();
+						//SetSqlTimeout(ban_ta, SqlTimeout);
+						//DDNS.BANDataTable ban_table = ban_ta.GetData();
+
+						write_log(string.Format("DBTHREAD: diff db query: {0} records. ban: {1} records.", table.Count(), ban_table.Count()));
 
 						DateTime max_update_dt = new DateTime(0);
 
 						lock (LockObj)
 						{
-							foreach (DDNS.HOSTS2Row r in table)
+							foreach (var r in table)
 							{
 								Host h = new Host();
 
@@ -349,7 +420,7 @@ namespace IPA.Cores.Basic.SENetDDnsServer
 							}
 
 							this.ban_list.Clear();
-							foreach (DDNS.BANRow r in ban_table)
+							foreach (var r in ban_table)
 							{
 								try
 								{
@@ -388,11 +459,13 @@ namespace IPA.Cores.Basic.SENetDDnsServer
 					// write last access
 					try
 					{
-						HOSTSTableAdapter ta = new HOSTSTableAdapter();
+						await using var db = await OpenDbAsync(cancel);
+						//HOSTSTableAdapter ta = new HOSTSTableAdapter();
 
-						SetSqlTimeout(ta, SqlTimeout);
+						//SetSqlTimeout(ta, SqlTimeout);
+						db.CommandTimeoutSecs = SqlTimeout;
 
-						Dictionary<string, LastAccess> a2 = null;
+						Dictionary<string, LastAccess> a2 = null!;
 
 						lock (LockObj)
 						{
@@ -408,13 +481,34 @@ namespace IPA.Cores.Basic.SENetDDnsServer
 
 							if (a.LastAccess_IPv4.Ticks != 0)
 							{
-								ta.WriteLastAccess(a.LastAccess_IPv4, a.Name);
+								//ta.WriteLastAccess(a.LastAccess_IPv4, a.Name);
+								await db.EasyExecuteAsync(@"
+UPDATE                  HOSTS
+SET                            HOST_ACCESS_DATE = @NOW, HOST_NUM_ACCESS = HOST_NUM_ACCESS + 1
+WHERE HOST_NAME = @NAME",
+new
+{
+	NOW = a.LastAccess_IPv4,
+	NAME = a.Name,
+}
+) ;
+
 								num_v4++;
 							}
 
 							if (a.LastAccess_Azure.Ticks != 0)
 							{
-								ta.WriteAzureLastAccess(a.LastAccess_Azure, a.Name);
+								//ta.WriteAzureLastAccess(a.LastAccess_Azure, a.Name);
+								await db.EasyExecuteAsync(@"
+UPDATE                  HOSTS
+SET                            HOST_AZURE_ACCESS_DATE = @NOW, HOST_AZURE_NUM_ACCESS = HOST_AZURE_NUM_ACCESS + 1
+WHERE HOST_NAME = @NAME",
+new
+{
+    NOW = a.LastAccess_IPv4,
+    NAME = a.Name,
+}
+);
 								num_azure++;
 							}
 						}
@@ -449,25 +543,25 @@ namespace IPA.Cores.Basic.SENetDDnsServer
 			}
         }
 
-		public static void SetSqlTimeout(object adapter, int timeout)
-		{
-			object commands = adapter.GetType().InvokeMember(
-					"CommandCollection",
-					BindingFlags.GetProperty | BindingFlags.Instance | BindingFlags.NonPublic,
-					null, adapter, new object[0]);
-			SqlCommand[] sqlCommand = (SqlCommand[])commands;
-			foreach (SqlCommand cmd in sqlCommand)
-			{
-				cmd.CommandTimeout = timeout;
-			}
-		}
+		//public static void SetSqlTimeout(object adapter, int timeout)
+		//{
+		//	object commands = adapter.GetType().InvokeMember(
+		//			"CommandCollection",
+		//			BindingFlags.GetProperty | BindingFlags.Instance | BindingFlags.NonPublic,
+		//			null, adapter, new object[0]);
+		//	SqlCommand[] sqlCommand = (SqlCommand[])commands;
+		//	foreach (SqlCommand cmd in sqlCommand)
+		//	{
+		//		cmd.CommandTimeout = timeout;
+		//	}
+		//}
 
 	}
 
 	public class DDNSServer : AsyncService
 	{
 		object lockObj = new object();
-		bool inited = false;
+		//bool inited = false;
 		//DnsServer server4 = null;
 		//DnsServer server6 = null;
 		EasyDnsServer server = null!;
@@ -513,7 +607,7 @@ namespace IPA.Cores.Basic.SENetDDnsServer
 
             //log = new FileLogger(logDir);
 
-            this.hc = new HostsCache();
+            this.hc = new HostsCache(Lfs.ReadStringFromFile(@"h:\Secure\210904_DevTest_DDNS_DB\dbconn.txt")._GetFirstFilledLineFromLines());
 
             this.server = new EasyDnsServer(new EasyDnsServerSetting(ProcessQueryList, 5353));
 		}
@@ -1071,7 +1165,7 @@ namespace IPA.Cores.Basic.SENetDDnsServer
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine(ex.ToString());
+				ex._Debug();
 
 				return null;
 			}

@@ -206,7 +206,7 @@ namespace IPA.Cores.Basic
         }
 #pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
 
-        protected override async Task CleanupImplAsync(Exception? ex)
+        protected override async Task CleanupImplAsync(Exception ex)
         {
             try
             {

@@ -2324,8 +2324,25 @@ namespace IPA.TestDev
             Console.ReadLine();
         }
 
+        static void Test_210904_SE_DDNS_Server()
+        {
+            //using IPA.Cores.Basic.SENetDDnsServer.DDNSServer svr = new Cores.Basic.SENetDDnsServer.DDNSServer(@"C:\sec\SENet\DDNSServerTest\DDNSServerTest\bin\Debug\DDnsServer.config");
+
+            //Console.Write("Quit>");
+            //Console.ReadLine();
+            using var db = new Database(@"Data Source=192.168.1.23;Initial Catalog=bac;Persist Security Info=True;User ID=aaa;Password=abc;");
+
+            db.EasyExecute("select * abc");
+        }
+
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_210904_SE_DDNS_Server();
+                return;
+            }
+
             if (true)
             {
                 Test_210901_EasyDnsServer();
@@ -4548,7 +4565,7 @@ namespace IPA.TestDev
                 using (var db = new Database($"Data Source='{filename}'", serverType: DatabaseServerType.SQLite))
                 {
                     Con.WriteLine("Creating table...");
-                    db.Execute("CREATE TABLE if not exists favorite_beers  (name VARCHAR(50))");
+                    db.EasyExecute("CREATE TABLE if not exists favorite_beers  (name VARCHAR(50))");
 
                     Con.WriteLine("Starting tran...");
 
@@ -4557,12 +4574,12 @@ namespace IPA.TestDev
                         int i = 0;
 
                         i++;
-                        db.Execute($"INSERT INTO favorite_beers VALUES('test {i}')");
+                        db.EasyExecute($"INSERT INTO favorite_beers VALUES('test {i}')");
 
                         Con.ReadLine("wait>");
 
                         i++;
-                        db.Execute($"INSERT INTO favorite_beers VALUES('test {i}')");
+                        db.EasyExecute($"INSERT INTO favorite_beers VALUES('test {i}')");
 
                         db.Commit();
                     }
