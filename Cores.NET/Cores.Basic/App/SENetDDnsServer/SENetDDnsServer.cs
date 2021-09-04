@@ -507,7 +507,7 @@ SET                            HOST_AZURE_ACCESS_DATE = @NOW, HOST_AZURE_NUM_ACC
 WHERE HOST_NAME = @NAME",
 new
 {
-    NOW = a.LastAccess_IPv4,
+    NOW = a.LastAccess_Azure,
     NAME = a.Name,
 }
 );
