@@ -170,6 +170,7 @@ namespace IPA.Cores.Basic
             this.CancelToken = (CancellationToken)GlobalObjectExchange.Withdraw(this.Configuration["coreutil_cancel_token"])!;
 
             this.ServerOptions = this.Configuration["coreutil_ServerBuilderConfig"]._JsonToObject<HttpServerOptions>()!;
+            this.ServerOptions.AfterJsonToObject();
             this.StartupConfig = new HttpServerStartupConfig();
 
             if (this.ServerOptions.DisableHiveBasedSetting == false)
@@ -359,7 +360,7 @@ namespace IPA.Cores.Basic
 
             if (this.ServerOptions.AutomaticRedirectToHttpsIfPossible)
             {
-                app.UseEnforceHttps();
+                //app.UseEnforceHttps();
             }
 
             app.UseStatusCodePages();
@@ -391,6 +392,95 @@ namespace IPA.Cores.Basic
                     {
                         context.Response.StatusCode = 404;
                         await context.Response._SendStringContentsAsync("Server not found");
+                    }
+                });
+            }
+
+            if (this.ServerOptions.ClientCertficateMode != ClientCertificateMode.NoCertificate && this.ServerOptions.ClientCertificateSoftFailMode)
+            {
+                // SoftFailMode が true の場合、ここで証明書の検証を行なう
+                app.Use(async (context, next) =>
+                {
+                    var cancel = context._GetRequestCancellationToken();
+                    var clientCertificate = await context.Connection.GetClientCertificateAsync(cancel);
+
+                    bool ok = false;
+
+                    string errStrJa = "";
+                    string errStrEn = "";
+
+                    try
+                    {
+                        if (clientCertificate == null)
+                        {
+                            if (this.ServerOptions.ClientCertficateMode == ClientCertificateMode.AllowCertificate)
+                            {
+                                // 証明書が提示されなかった。これは差し支え無い。
+                                ok = true;
+                            }
+                            else
+                            {
+                                // 証明書が提示されなかった。証明書が要求されているので、これではエラーになる。
+                                ok = false;
+                                if (context.Request.IsHttps)
+                                {
+                                    errStrJa = "クライアント証明書が Web ブラウザによって提示されませんでした。";
+                                    errStrEn = "The client certificate was not presented by the web browser.";
+                                }
+                                else
+                                {
+                                    errStrJa = "この Web サイトは SSL クライアント証明書を必要とするため、HTTPS プロトコルでアクセスする必要があります。";
+                                    errStrEn = "This web site requires an SSL client certificate and must be accessed with the HTTPS protocol.";
+                                }
+                            }
+                        }
+                        else if (this.ServerOptions.ClientCertificateValidatorAsync == null)
+                        {
+                            // 証明書が提示されたが、プログラムエラー (検証用コールバックが設定されていない) により検証できなかった。
+                            var ex = new CoresLibException("this.ClientCertificateValidatorAsync == null");
+                            ex._Error();
+                            ok = false;
+                            errStrJa = "プログラム内部エラー: コールバック関数 ClientCertificateValidatorAsync() が実装されていません。";
+                            errStrEn = "Program Internal Error: The callback function ClientCertificateValidatorAsync() is not implemented.";
+                        }
+                        else
+                        {
+                            // 提示された証明書の検証を実施
+                            ok = await this.ServerOptions.ClientCertificateValidatorAsync(clientCertificate, null, SslPolicyErrors.None);
+                            if (ok == false)
+                            {
+                                errStrJa = "指定されたクライアント証明書の認証に失敗しました。検証関数が false (検証失敗) を返しました。";
+                                errStrEn = "Failed to authenticate the specified client certificate. The verification function returned false (= verification failure).";
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // 何らかの検証エラーが発生 (大抵は証明書検証中のエラー)
+                        ex._Error();
+                        ok = false;
+                        errStrJa = "指定されたクライアント証明書の認証に失敗しました。\nエラー内容: " + ex.Message;
+                        errStrEn = "Failed to authenticate the specified client certificate.\nError: " + ex.Message;
+                    }
+
+                    if (ok == false)
+                    {
+                        // 証明書検証エラーを HTTP 文字列として表示する
+                        string template = CoresRes["Text/WebServer/CertSoftFailError.txt"].String;
+
+                        string errorBody = template._ReplaceStrWithReplaceClass(
+                            new
+                            {
+                                __ERR_TEXT_JA__ = errStrJa,
+                                __ERR_TEXT_EN__ = errStrEn,
+                            });
+
+                        await context.Response._SendStringContentsAsync(errorBody._NormalizeCrlf(CrlfStyle.CrLf, true), cancel: cancel);
+                    }
+                    else
+                    {
+                        // 検証に成功したので次を呼ぶ
+                        await next();
                     }
                 });
             }
@@ -588,8 +678,32 @@ namespace IPA.Cores.Basic
 
         public ClientCertificateMode ClientCertficateMode { get; set; } = ClientCertificateMode.NoCertificate;
 
+        // Linux 版の .NET の Kestrel では、証明書認証を利用した場合、Web ブラウザからの接続試行時の最初に証明書の選択を適切にしなかった
+        // 場合、その後、Web ブラウザが常にその不適切な証明書 (または証明書なし) を Kestrel サーバーにリクエスト送付してしまう問題
+        // がある。そして、SSL のレイヤーで認証失敗となるので、ユーザーには何も有益な通知が応答されない。
+        // これでは、ユーザーはどのようすれば良いかわからず困惑してしまう。そこで、 ClientCertificateSafeFail が true の場合、
+        // ClientCertficateMode == ClientCertificateMode.RequireCertificate の場合であっても
+        // SSL のレイヤーではひとまず認証に成功させ、その後、アプリケーションレイヤーでエラーメッセージを表示するような
+        // 挙動を実装した。
+        public bool ClientCertificateSoftFailMode { get; set; } = true;
+
         [JsonIgnore]
-        public Func<X509Certificate2, X509Chain, SslPolicyErrors, bool>? ClientCertificateValidator = null;
+        public Func<X509Certificate2, X509Chain?, SslPolicyErrors, Task<bool>>? ClientCertificateValidatorAsync = null;
+
+        public string ObjToken_ClientCertificateValidatorAsync = "";
+
+        public void BeforeObjectToJson()
+        {
+            this.ObjToken_ClientCertificateValidatorAsync = GlobalObjectExchange.Deposit(this.ClientCertificateValidatorAsync);
+        }
+
+        public void AfterJsonToObject()
+        {
+            if (GlobalObjectExchange.TryWithdraw(this.ObjToken_ClientCertificateValidatorAsync, out object? tmp))
+            {
+                this.ClientCertificateValidatorAsync = (Func<X509Certificate2, X509Chain?, SslPolicyErrors, Task<bool>>?)tmp;
+            }
+        }
 
 #if CORES_BASIC_JSON
 #if CORES_BASIC_SECURITY
@@ -692,7 +806,12 @@ namespace IPA.Cores.Basic
             opt.ConfigureHttpsDefaults(s =>
             {
                 s.SslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersionsAsServer;
+
                 s.ClientCertificateMode = this.ClientCertficateMode;
+                if (this.ClientCertificateSoftFailMode && this.ClientCertficateMode == ClientCertificateMode.RequireCertificate)
+                {
+                    s.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
+                }
 
                 if (this.ReadTimeoutMsecs != null)
                 {
@@ -705,7 +824,12 @@ namespace IPA.Cores.Basic
                 listenOptions.UseHttps(httpsOptions =>
                 {
                     httpsOptions.SslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersionsAsServer;
+
                     httpsOptions.ClientCertificateMode = this.ClientCertficateMode;
+                    if (this.ClientCertificateSoftFailMode && this.ClientCertficateMode == ClientCertificateMode.RequireCertificate)
+                    {
+                        httpsOptions.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
+                    }
 
                     if (this.ReadTimeoutMsecs != null)
                     {
@@ -765,21 +889,29 @@ namespace IPA.Cores.Basic
                     {
                         httpsOptions.ClientCertificateValidation = (cert, chain, err) =>
                         {
-                            try
+                            if (this.ClientCertificateSoftFailMode == false)
                             {
-                                if (this.ClientCertificateValidator == null)
+                                try
                                 {
-                                    var ex = new CoresLibException("this.ClientCertificateValidator == null");
+                                    if (this.ClientCertificateValidatorAsync == null)
+                                    {
+                                        var ex = new CoresLibException("this.ClientCertificateValidatorAsync == null");
+                                        ex._Error();
+                                        return false;
+                                    }
+
+                                    return this.ClientCertificateValidatorAsync(cert, chain, err)._GetResult();
+                                }
+                                catch (Exception ex)
+                                {
                                     ex._Error();
                                     return false;
                                 }
-
-                                return this.ClientCertificateValidator(cert, chain, err);
                             }
-                            catch (Exception ex)
+                            else
                             {
-                                ex._Error();
-                                return false;
+                                // SoftFailMode ではここでは証明書を検証せずに true を返す
+                                return true;
                             }
                         };
                     }
@@ -836,6 +968,7 @@ namespace IPA.Cores.Basic
 
                 try
                 {
+                    this.Options.BeforeObjectToJson();
                     var dict = new Dictionary<string, string>
                     {
                         {"coreutil_ServerBuilderConfig", this.Options._ObjectToJson() },
