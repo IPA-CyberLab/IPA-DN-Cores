@@ -14,6 +14,13 @@ SSL client certificate is required.
 によって署名された SSL クライアント証明書を Web ブラウザまたは
 システムにインストールした後に、再度アクセスしてください。
 
+Chrome をご利用の場合は、画面上部のアドレス入力バーに
+chrome://restart
+と入力すると、Chrome のプロセスを再起動して本 URL に再度アクセス試行
+するので、大変便利です。Chrome 版 Microsoft Edge も同様です。
+Chrome 以外の他の Web ブラウザの場合は、一度 Web ブラウザの画面をすべて
+終了し、Web ブラウザを再起動してください。
+
 詳しくは、この Web サイトのシステム管理者にお問い合わせください。
 
 
@@ -58,21 +65,6 @@ __ERR_TEXT_JA__
     Chrome 以外の他の Web ブラウザの場合は、一度 Web ブラウザ
     の画面をすべて終了し、Web ブラウザを再起動してください。
 
-(5) (参考) そもそも、Web ブラウザが (2) の挙動を示すことについて、
-    これは、Web ブラウザのプログラマー個人がユーザーの直感的な
-    操作性を十分に考慮せずに SSL クライアント証明書を選択する画面を
-    実装してしまっていることが原因です。このような、一度選択を
-    行なうと二度と選択を変更することができないユーザーインターフェイス
-    は、本来は慎重に避けるべきです。しかし、より深く考えますと、このことの
-    本質的要因は、そもそも HTTPS Web サイトにおいて SSL クライアント証明書が
-    利用されている頻度がそれほど多くないことに起因しています。Web ブラウザの
-    プログラマーに限らず、多くのプログラマーは、自分が毎日のように使う機能
-    については、快適に利用できるようにプログラミングに精力を尽くすものです
-    が、その一方で、自らあまり頻繁に利用しない機能については、急場の間に
-    合わせで実装をして、プログラミングの仕事を終わりにしてしまうのです。
-    世の中の多くのソフトウェアやシステムに起因する問題の原因は、
-    多くの場合、このようなことの積み重ねであるということができます。
-
 
 ====================================
 SSL client certificate is required.
@@ -87,6 +79,15 @@ Please understand that this is a necessary mechanism to enhance security.
 Please install an SSL client certificate signed by the system administrator
 or a CA (Certificate Authority) designated by the administrator of this
 website on your web browser or system, and then try to access the site again.
+
+If you are using Chrome, type just
+----------------
+chrome://restart
+----------------
+in the address bar at the top of the screen to restart the Chrome process
+and try to access this URL again, which is very convenient.
+If you are using another web browser than Chrome, please close all web
+browser screens and restart the web browser.
 
 For more information, please contact the system administrator of this website.
 
@@ -131,18 +132,4 @@ in the address bar at the top of the screen to restart the Chrome process
 and try to access this URL again, which is very convenient.
 If you are using another web browser than Chrome, please close all web
 browser screens and restart the web browser.
-
-(5) The reason why web browsers exhibit the behavior described in (2) is that
-web browser programmers have implemented the screen for selecting SSL client
-certificates without giving sufficient consideration to the intuitive
-usability of the user. This kind of user interface, where once a selection is
-made, it cannot be changed again, should be carefully avoided. On a deeper
-level, however, the essential reason for this is that SSL client certificates
-are not often used on HTTPS websites. Many programmers, not only web browser
-programmers, but also many other programmers, put a lot of effort into
-programming the functions that they use every day so that they can use them
-comfortably, but on the other hand, for the functions that they do not use
-frequently, they just implement them in a hurry and finish their programming
-work. Many of the problems caused by software and systems in the world can
-be attributed to the accumulation of these kinds of things.
 
