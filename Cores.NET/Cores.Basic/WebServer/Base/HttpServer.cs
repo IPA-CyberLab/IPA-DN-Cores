@@ -360,7 +360,7 @@ namespace IPA.Cores.Basic
 
             if (this.ServerOptions.AutomaticRedirectToHttpsIfPossible)
             {
-                //app.UseEnforceHttps();
+                app.UseEnforceHttps();
             }
 
             app.UseStatusCodePages();
