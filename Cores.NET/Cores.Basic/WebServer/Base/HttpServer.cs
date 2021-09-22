@@ -468,11 +468,15 @@ namespace IPA.Cores.Basic
                         // 証明書検証エラーを HTTP 文字列として表示する
                         string template = CoresRes["Text/WebServer/CertSoftFailError.txt"].String;
 
+                        DateTimeOffset now = DtOffsetNow;
+
                         string errorBody = template._ReplaceStrWithReplaceClass(
                             new
                             {
                                 __ERR_TEXT_JA__ = errStrJa,
                                 __ERR_TEXT_EN__ = errStrEn,
+
+                                __TIMESTAMP__ = now._ToDtStr(true),
                             });
 
                         await context.Response._SendStringContentsAsync(errorBody._NormalizeCrlf(CrlfStyle.CrLf, true), cancel: cancel);

@@ -28,6 +28,8 @@ Chrome 以外の他の Web ブラウザの場合は、一度 Web ブラウザの
 
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
+エラー発生日時: __TIMESTAMP__
+
 __ERR_TEXT_JA__
 
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -95,6 +97,8 @@ For more information, please contact the system administrator of this website.
 1. Error information
 
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+Error Timestamp: __TIMESTAMP__
 
 __ERR_TEXT_EN__
 
