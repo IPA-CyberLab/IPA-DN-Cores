@@ -1194,7 +1194,7 @@ namespace IPA.Cores.Basic
 
         public override string ToString()
         {
-            string ret = $"{this.CommonNameOrFirstDnsName} (Start: {this.NotBefore.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, End: {this.NotAfter.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, SHA-1: {this.DigestSHA1Str}, Issued by: '{this.IssuerName}')";
+            string ret = $"{this.CommonNameOrFirstDnsName} (Start: {this.NotBefore.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, End: {this.NotAfter.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, SHA-1: {this.DigestSHA1Str}, Subject: '{this.SubjectName}', Issuer: '{this.IssuerName}')";
             if (this.HostNameList.Count >= 2)
             {
                 ret += $" Additional DNS names: [{this.HostNameList.Select(x=>x.HostName).OrderBy(x=>x, StrComparer.FqdnReverseStrComparer)._Combine(", ", true)}]";

@@ -223,6 +223,12 @@ namespace IPA.Cores.Basic
                     ContentsLength = contentsLength,
                 };
 
+                var clientCert = await conn.GetClientCertificateAsync();
+                if (clientCert != null)
+                {
+                    log.ClientCert = clientCert.AsPkiCertificate().ToString();
+                }
+
                 log.AuthUserName = log.AuthUserName._NullIfEmpty();
                 log.QueryString = log.QueryString._NullIfEmpty();
 
