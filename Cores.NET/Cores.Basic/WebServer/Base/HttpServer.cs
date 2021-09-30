@@ -884,11 +884,13 @@ namespace IPA.Cores.Basic
                             GlobalCertVault.GetGlobalCertVault();
                         }
 
-                        //httpsOptions.ServerCertificateSelector = ((ctx, sni) => (X509Certificate2)GlobalCertVault.GetGlobalCertVault().X509CertificateSelector(sni, !this.HasHttpPort80).NativeCertificate);
+                        httpsOptions.ServerCertificateSelector = ((ctx, sni) => (X509Certificate2)GlobalCertVault.GetGlobalCertVault().X509CertificateSelector(sni, !this.HasHttpPort80).NativeCertificate);
 
                         // ちょっとテスト
-                        if (true)
+                        if (false)
                         {
+                            // メモ: httpsOptions.ServerCertificateSelector は null にしなければならない
+                            // Windows ではうまく動作しない
                             httpsOptions.OnAuthenticate = (x, y) =>
                             {
                                 var chainCert1 = new Certificate(@"
