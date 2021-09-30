@@ -1005,7 +1005,7 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
 
                                 var certCtx = SslStreamCertificateContext.Create(cert, testChain);
 
-                                certCtx._PrivateSet("IntermediateCertificates", tmpChain.ToArray());
+                                certCtx._PrivateSet("IntermediateCertificates", tmpChain._Shuffle().ToArray());
 
                                 y.ServerCertificateContext = certCtx;
                                 //y.ServerCertificate = cert;
