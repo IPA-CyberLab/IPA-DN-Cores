@@ -460,6 +460,7 @@ namespace IPA.Cores.Basic
         }
     }
 
+    // 注意: Dispose をしなくてもメモリリークは発生しないのである。
     public sealed class AsyncLock : IDisposable
     {
         public sealed class LockHolder : IDisposable
