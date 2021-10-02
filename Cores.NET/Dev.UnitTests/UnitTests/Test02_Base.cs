@@ -149,6 +149,16 @@ namespace IPA.UnitTest
             Assert.Equal("", hostAndPort.Item1);
             Assert.Equal(80, hostAndPort.Item2);
         }
+
+        [Fact]
+        public void SslLibTest()
+        {
+            Secure.CreateSslCreateCertificateContextWithFullChain(
+                DevTools.TestSampleCert,
+                new System.Security.Cryptography.X509Certificates.X509Certificate2Collection(DevTools.CoresDebugCACert.NativeCertificate2._SingleArray()),
+                offline: true,
+                errorWhenFailed: true);
+        }
     }
 }
 
