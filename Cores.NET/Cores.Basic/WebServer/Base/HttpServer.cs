@@ -396,9 +396,9 @@ namespace IPA.Cores.Basic
                 });
             }
 
-            if (this.ServerOptions.ClientCertficateMode != ClientCertificateMode.NoCertificate && this.ServerOptions.ClientCertificateSoftFailMode)
+            if (this.ServerOptions.ClientCertficateMode != ClientCertificateMode.NoCertificate)
             {
-                // SoftFailMode が true の場合、ここで証明書の検証を行なう
+                // ここで証明書の検証を行なう
                 app.Use(async (context, next) =>
                 {
                     var cancel = context._GetRequestCancellationToken();
@@ -682,15 +682,6 @@ namespace IPA.Cores.Basic
 
         public ClientCertificateMode ClientCertficateMode { get; set; } = ClientCertificateMode.NoCertificate;
 
-        // Linux 版の .NET の Kestrel では、証明書認証を利用した場合、Web ブラウザからの接続試行時の最初に証明書の選択を適切にしなかった
-        // 場合、その後、Web ブラウザが常にその不適切な証明書 (または証明書なし) を Kestrel サーバーにリクエスト送付してしまう問題
-        // がある。そして、SSL のレイヤーで認証失敗となるので、ユーザーには何も有益な通知が応答されない。
-        // これでは、ユーザーはどのようすれば良いかわからず困惑してしまう。そこで、 ClientCertificateSafeFail が true の場合、
-        // ClientCertficateMode == ClientCertificateMode.RequireCertificate の場合であっても
-        // SSL のレイヤーではひとまず認証に成功させ、その後、アプリケーションレイヤーでエラーメッセージを表示するような
-        // 挙動を実装した。
-        public bool ClientCertificateSoftFailMode { get; set; } = true;
-
         [JsonIgnore]
         public Func<X509Certificate2, X509Chain?, SslPolicyErrors, Task<bool>>? ClientCertificateValidatorAsync = null;
 
@@ -812,7 +803,7 @@ namespace IPA.Cores.Basic
                 s.SslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersionsAsServer;
 
                 s.ClientCertificateMode = this.ClientCertficateMode;
-                if (this.ClientCertificateSoftFailMode && this.ClientCertficateMode == ClientCertificateMode.RequireCertificate)
+                if (this.ClientCertficateMode == ClientCertificateMode.RequireCertificate)
                 {
                     s.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
                 }
@@ -825,236 +816,97 @@ namespace IPA.Cores.Basic
 
             void EnableHttps(ListenOptions listenOptions)
             {
-                listenOptions.UseHttps(httpsOptions =>
+                int sslTimeoutMsecs = int.MaxValue;
+
+                if (this.ReadTimeoutMsecs != null) sslTimeoutMsecs = Math.Min(sslTimeoutMsecs, this.ReadTimeoutMsecs.Value);
+                sslTimeoutMsecs = Math.Min(sslTimeoutMsecs, CoresConfig.SslSettings.DefaultNegotiationRecvTimeout.Value);
+
+#pragma warning disable CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
+                listenOptions.UseHttps(async (sslStream, sslHelloInfo, state, cancel) =>
+#pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
                 {
-                    httpsOptions.SslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersionsAsServer;
-
-                    httpsOptions.ClientCertificateMode = this.ClientCertficateMode;
-                    if (this.ClientCertificateSoftFailMode && this.ClientCertficateMode == ClientCertificateMode.RequireCertificate)
+                    try
                     {
-                        httpsOptions.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
-                    }
+                        SslServerAuthenticationOptions ret = new SslServerAuthenticationOptions();
 
-                    if (this.ReadTimeoutMsecs != null)
-                    {
-                        httpsOptions.HandshakeTimeout = TimeSpan.FromMilliseconds(this.ReadTimeoutMsecs.Value);
-                    }
+                        ret.AllowRenegotiation = false;
+                        ret.CertificateRevocationCheckMode = X509RevocationMode.NoCheck;
+                        ret.EncryptionPolicy = EncryptionPolicy.RequireEncryption;
+                        ret.ServerCertificate = null;
+                        ret.ServerCertificateSelectionCallback = null;
+                        ret.ServerCertificateContext = null;
 
-                    bool useGlobalCertVault = false;
+                        ret.EnabledSslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersionsAsServer;
+
+                        ret.ClientCertificateRequired = (this.ClientCertficateMode != ClientCertificateMode.NoCertificate);
+
+                        bool useGlobalCertVault = false;
 
 #if CORES_BASIC_JSON
 #if CORES_BASIC_SECURITY
-                    useGlobalCertVault = this.UseGlobalCertVault;
+                        useGlobalCertVault = this.UseGlobalCertVault;
 #endif  // CORES_BASIC_JSON
 #endif  // CORES_BASIC_SECURITY;
 
-                    if (useGlobalCertVault == false)
-                    {
-                        if (this.ServerCertSelector != null)
+                        if (useGlobalCertVault == false)
                         {
-                            httpsOptions.ServerCertificateSelector = ((ctx, sni) =>
+                            if (this.ServerCertSelector != null)
                             {
                                 try
                                 {
-                                    var cert = this.ServerCertSelector(sslCertSelectorParam, sni);
+                                    var cert = this.ServerCertSelector(sslCertSelectorParam, sslHelloInfo.ServerName._NonNull());
 
-                                    return cert;
+                                    cert._NullCheck();
+
+                                    ret.ServerCertificate = cert;
                                 }
                                 catch (Exception ex)
                                 {
                                     ex._Error();
                                     throw;
                                 }
-                            });
+                            }
                         }
-                    }
 
 #if CORES_BASIC_JSON
 #if CORES_BASIC_SECURITY
-                    if (useGlobalCertVault)
-                    {
-                        if (this.GlobalCertVaultDefauleCert != null)
+                        if (useGlobalCertVault)
                         {
-                            GlobalCertVault.SetDefaultCertificate(this.GlobalCertVaultDefauleCert);
-                        }
-
-                        if (this.StartGlobalCertVaultOnHttpServerStartup)
-                        {
-                            // GlobalCertVault をすぐに起動する
-                            GlobalCertVault.GetGlobalCertVault();
-                        }
-
-                        httpsOptions.ServerCertificateSelector = ((ctx, sni) => (X509Certificate2)GlobalCertVault.GetGlobalCertVault().X509CertificateSelector(sni, !this.HasHttpPort80).NativeCertificate);
-
-                        // ちょっとテスト
-                        if (false)
-                        {
-                            // メモ: httpsOptions.ServerCertificateSelector は null にしなければならない
-                            // Windows ではうまく動作しない
-                            httpsOptions.OnAuthenticate = (x, y) =>
+                            if (this.GlobalCertVaultDefauleCert != null)
                             {
-                                var chainCert1 = new Certificate(@"
------BEGIN CERTIFICATE-----
-MIIGEzCCA/ugAwIBAgIQfVtRJrR2uhHbdBYLvFMNpzANBgkqhkiG9w0BAQwFADCB
-iDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCk5ldyBKZXJzZXkxFDASBgNVBAcTC0pl
-cnNleSBDaXR5MR4wHAYDVQQKExVUaGUgVVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNV
-BAMTJVVTRVJUcnVzdCBSU0EgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwHhcNMTgx
-MTAyMDAwMDAwWhcNMzAxMjMxMjM1OTU5WjCBjzELMAkGA1UEBhMCR0IxGzAZBgNV
-BAgTEkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4GA1UEBxMHU2FsZm9yZDEYMBYGA1UE
-ChMPU2VjdGlnbyBMaW1pdGVkMTcwNQYDVQQDEy5TZWN0aWdvIFJTQSBEb21haW4g
-VmFsaWRhdGlvbiBTZWN1cmUgU2VydmVyIENBMIIBIjANBgkqhkiG9w0BAQEFAAOC
-AQ8AMIIBCgKCAQEA1nMz1tc8INAA0hdFuNY+B6I/x0HuMjDJsGz99J/LEpgPLT+N
-TQEMgg8Xf2Iu6bhIefsWg06t1zIlk7cHv7lQP6lMw0Aq6Tn/2YHKHxYyQdqAJrkj
-eocgHuP/IJo8lURvh3UGkEC0MpMWCRAIIz7S3YcPb11RFGoKacVPAXJpz9OTTG0E
-oKMbgn6xmrntxZ7FN3ifmgg0+1YuWMQJDgZkW7w33PGfKGioVrCSo1yfu4iYCBsk
-Haswha6vsC6eep3BwEIc4gLw6uBK0u+QDrTBQBbwb4VCSmT3pDCg/r8uoydajotY
-uK3DGReEY+1vVv2Dy2A0xHS+5p3b4eTlygxfFQIDAQABo4IBbjCCAWowHwYDVR0j
-BBgwFoAUU3m/WqorSs9UgOHYm8Cd8rIDZsswHQYDVR0OBBYEFI2MXsRUrYrhd+mb
-+ZsF4bgBjWHhMA4GA1UdDwEB/wQEAwIBhjASBgNVHRMBAf8ECDAGAQH/AgEAMB0G
-A1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAbBgNVHSAEFDASMAYGBFUdIAAw
-CAYGZ4EMAQIBMFAGA1UdHwRJMEcwRaBDoEGGP2h0dHA6Ly9jcmwudXNlcnRydXN0
-LmNvbS9VU0VSVHJ1c3RSU0FDZXJ0aWZpY2F0aW9uQXV0aG9yaXR5LmNybDB2Bggr
-BgEFBQcBAQRqMGgwPwYIKwYBBQUHMAKGM2h0dHA6Ly9jcnQudXNlcnRydXN0LmNv
-bS9VU0VSVHJ1c3RSU0FBZGRUcnVzdENBLmNydDAlBggrBgEFBQcwAYYZaHR0cDov
-L29jc3AudXNlcnRydXN0LmNvbTANBgkqhkiG9w0BAQwFAAOCAgEAMr9hvQ5Iw0/H
-ukdN+Jx4GQHcEx2Ab/zDcLRSmjEzmldS+zGea6TvVKqJjUAXaPgREHzSyrHxVYbH
-7rM2kYb2OVG/Rr8PoLq0935JxCo2F57kaDl6r5ROVm+yezu/Coa9zcV3HAO4OLGi
-H19+24rcRki2aArPsrW04jTkZ6k4Zgle0rj8nSg6F0AnwnJOKf0hPHzPE/uWLMUx
-RP0T7dWbqWlod3zu4f+k+TY4CFM5ooQ0nBnzvg6s1SQ36yOoeNDT5++SR2RiOSLv
-xvcRviKFxmZEJCaOEDKNyJOuB56DPi/Z+fVGjmO+wea03KbNIaiGCpXZLoUmGv38
-sbZXQm2V0TP2ORQGgkE49Y9Y3IBbpNV9lXj9p5v//cWoaasm56ekBYdbqbe4oyAL
-l6lFhd2zi+WJN44pDfwGF/Y4QA5C5BIG+3vzxhFoYt/jmPQT2BVPi7Fp2RBgvGQq
-6jG35LWjOhSbJuMLe/0CjraZwTiXWTb2qHSihrZe68Zk6s+go/lunrotEbaGmAhY
-LcmsJWTyXnW0OMGuf1pGg+pRyrbxmRE1a6Vqe8YAsOf4vmSyrcjC8azjUeqkk+B5
-yOGBQMkKW+ESPMFgKuOXwIlCypTPRpgSabuY0MLTDXJLR27lk8QyKGOHQ+SwMj4K
-00u/I5sUKUErmgQfky3xxzlIPK1aEn8=
------END CERTIFICATE-----
-"._GetBytes_Ascii());
+                                GlobalCertVault.SetDefaultCertificate(this.GlobalCertVaultDefauleCert);
+                            }
 
-                                var chainCert2 = new Certificate(@"
------BEGIN CERTIFICATE-----
-MIIFdzCCBF+gAwIBAgIQE+oocFv07O0MNmMJgGFDNjANBgkqhkiG9w0BAQwFADBv
-MQswCQYDVQQGEwJTRTEUMBIGA1UEChMLQWRkVHJ1c3QgQUIxJjAkBgNVBAsTHUFk
-ZFRydXN0IEV4dGVybmFsIFRUUCBOZXR3b3JrMSIwIAYDVQQDExlBZGRUcnVzdCBF
-eHRlcm5hbCBDQSBSb290MB4XDTAwMDUzMDEwNDgzOFoXDTIwMDUzMDEwNDgzOFow
-gYgxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpOZXcgSmVyc2V5MRQwEgYDVQQHEwtK
-ZXJzZXkgQ2l0eTEeMBwGA1UEChMVVGhlIFVTRVJUUlVTVCBOZXR3b3JrMS4wLAYD
-VQQDEyVVU0VSVHJ1c3QgUlNBIENlcnRpZmljYXRpb24gQXV0aG9yaXR5MIICIjAN
-BgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAgBJlFzYOw9sIs9CsVw127c0n00yt
-UINh4qogTQktZAnczomfzD2p7PbPwdzx07HWezcoEStH2jnGvDoZtF+mvX2do2NC
-tnbyqTsrkfjib9DsFiCQCT7i6HTJGLSR1GJk23+jBvGIGGqQIjy8/hPwhxR79uQf
-jtTkUcYRZ0YIUcuGFFQ/vDP+fmyc/xadGL1RjjWmp2bIcmfbIWax1Jt4A8BQOujM
-8Ny8nkz+rwWWNR9XWrf/zvk9tyy29lTdyOcSOk2uTIq3XJq0tyA9yn8iNK5+O2hm
-AUTnAU5GU5szYPeUvlM3kHND8zLDU+/bqv50TmnHa4xgk97Exwzf4TKuzJM7UXiV
-Z4vuPVb+DNBpDxsP8yUmazNt925H+nND5X4OpWaxKXwyhGNVicQNwZNUMBkTrNN9
-N6frXTpsNVzbQdcS2qlJC9/YgIoJk2KOtWbPJYjNhLixP6Q5D9kCnusSTJV882sF
-qV4Wg8y4Z+LoE53MW4LTTLPtW//e5XOsIzstAL81VXQJSdhJWBp/kjbmUZIO8yZ9
-HE0XvMnsQybQv0FfQKlERPSZ51eHnlAfV1SoPv10Yy+xUGUJ5lhCLkMaTLTwJUdZ
-+gQek9QmRkpQgbLevni3/GcV4clXhB4PY9bpYrrWX1Uu6lzGKAgEJTm4Diup8kyX
-HAc/DVL17e8vgg8CAwEAAaOB9DCB8TAfBgNVHSMEGDAWgBStvZh6NLQm9/rEJlTv
-A73gJMtUGjAdBgNVHQ4EFgQUU3m/WqorSs9UgOHYm8Cd8rIDZsswDgYDVR0PAQH/
-BAQDAgGGMA8GA1UdEwEB/wQFMAMBAf8wEQYDVR0gBAowCDAGBgRVHSAAMEQGA1Ud
-HwQ9MDswOaA3oDWGM2h0dHA6Ly9jcmwudXNlcnRydXN0LmNvbS9BZGRUcnVzdEV4
-dGVybmFsQ0FSb290LmNybDA1BggrBgEFBQcBAQQpMCcwJQYIKwYBBQUHMAGGGWh0
-dHA6Ly9vY3NwLnVzZXJ0cnVzdC5jb20wDQYJKoZIhvcNAQEMBQADggEBAJNl9jeD
-lQ9ew4IcH9Z35zyKwKoJ8OkLJvHgwmp1ocd5yblSYMgpEg7wrQPWCcR23+WmgZWn
-RtqCV6mVksW2jwMibDN3wXsyF24HzloUQToFJBv2FAY7qCUkDrvMKnXduXBBP3zQ
-YzYhBx9G/2CkkeFnvN4ffhkUyWNnkepnB2u0j4vAbkN9w6GAbLIevFOFfdyQoaS8
-Le9Gclc1Bb+7RrtubTeZtv8jkpHGbkD4jylW6l/VXxRTrPBPYer3IsynVgviuDQf
-Jtl7GQVoP7o81DgGotPmjw7jtHFtQELFhLRAlSv0ZaBIefYdgWOWnU914Ph85I6p
-0fKtirOMxyHNwu8=
------END CERTIFICATE-----
-"._GetBytes_Ascii());
+                            if (this.StartGlobalCertVaultOnHttpServerStartup)
+                            {
+                                // GlobalCertVault をすぐに起動する
+                                GlobalCertVault.GetGlobalCertVault();
+                            }
 
+                            var selectedCert = GlobalCertVault.GetGlobalCertVault().CertificateStoreSelector(sslHelloInfo.ServerName._NonNull(), !this.HasHttpPort80);
 
-                                var chainCert3 = new Certificate(@"
------BEGIN CERTIFICATE-----
-MIID1TCCAr2gAwIBAgIDAjbRMA0GCSqGSIb3DQEBBQUAMEIxCzAJBgNVBAYTAlVT
-MRYwFAYDVQQKEw1HZW9UcnVzdCBJbmMuMRswGQYDVQQDExJHZW9UcnVzdCBHbG9i
-YWwgQ0EwHhcNMTAwMjE5MjI0NTA1WhcNMjAwMjE4MjI0NTA1WjA8MQswCQYDVQQG
-EwJVUzEXMBUGA1UEChMOR2VvVHJ1c3QsIEluYy4xFDASBgNVBAMTC1JhcGlkU1NM
-IENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx3H4Vsce2cy1rfa0
-l6P7oeYLUF9QqjraD/w9KSRDxhApwfxVQHLuverfn7ZB9EhLyG7+T1cSi1v6kt1e
-6K3z8Buxe037z/3R5fjj3Of1c3/fAUnPjFbBvTfjW761T4uL8NpPx+PdVUdp3/Jb
-ewdPPeWsIcHIHXro5/YPoar1b96oZU8QiZwD84l6pV4BcjPtqelaHnnzh8jfyMX8
-N8iamte4dsywPuf95lTq319SQXhZV63xEtZ/vNWfcNMFbPqjfWdY3SZiHTGSDHl5
-HI7PynvBZq+odEj7joLCniyZXHstXZu8W1eefDp6E63yoxhbK1kPzVw662gzxigd
-gtFQiwIDAQABo4HZMIHWMA4GA1UdDwEB/wQEAwIBBjAdBgNVHQ4EFgQUa2k9ahhC
-St2PAmU5/TUkhniRFjAwHwYDVR0jBBgwFoAUwHqYaI2J+6sFZAwRfap9ZbjKzE4w
-EgYDVR0TAQH/BAgwBgEB/wIBADA6BgNVHR8EMzAxMC+gLaArhilodHRwOi8vY3Js
-Lmdlb3RydXN0LmNvbS9jcmxzL2d0Z2xvYmFsLmNybDA0BggrBgEFBQcBAQQoMCYw
-JAYIKwYBBQUHMAGGGGh0dHA6Ly9vY3NwLmdlb3RydXN0LmNvbTANBgkqhkiG9w0B
-AQUFAAOCAQEAq7y8Cl0YlOPBscOoTFXWvrSY8e48HM3P8yQkXJYDJ1j8Nq6iL4/x
-/torAsMzvcjdSCIrYA+lAxD9d/jQ7ZZnT/3qRyBwVNypDFV+4ZYlitm12ldKvo2O
-SUNjpWxOJ4cl61tt/qJ/OCjgNqutOaWlYsS3XFgsql0BYKZiZ6PAx2Ij9OdsRu61
-04BqIhPSLT90T+qvjF+0OJzbrs6vhB6m9jRRWXnT43XcvNfzc9+S7NIgWW+c+5X4
-knYYCnwPLKbK3opie9jzzl9ovY8+wXS7FXI6FoOpC+ZNmZzYV+yoAVHHb1c0XqtK
-LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
------END CERTIFICATE-----
-"._GetBytes_Ascii());
-
-                                var cert = (X509Certificate2)GlobalCertVault.GetGlobalCertVault().X509CertificateSelector("", !this.HasHttpPort80).NativeCertificate;
-                                X509Certificate2Collection testChain = new X509Certificate2Collection();
-                                //var testCerts = new CertificateStore(Lfs.ReadDataFromFile(@"S:\CommomDev\DigitalCert\all.open.ad.jp\2020\all.open.ad.jp_chained.pfx").Span);
-
-                                List<X509Certificate2> tmpChain = new List<X509Certificate2>();
-
-                                tmpChain.Add(chainCert1);
-                                tmpChain.Add(chainCert2);
-                                tmpChain.Add(chainCert3);
-
-                                //var certx = testCerts.GetX509Certificate();
-
-                                var certCtx = SslStreamCertificateContext.Create(cert, testChain);
-
-                                certCtx._PrivateSet("IntermediateCertificates", tmpChain._Shuffle().ToArray());
-
-                                y.ServerCertificateContext = certCtx;
-                                //y.ServerCertificate = cert;
-                                //y.ServerCertificateSelectionCallback = ((ctx, sni) => (X509Certificate2)GlobalCertVault.GetGlobalCertVault().X509CertificateSelector("pc38.sehosts.com", !this.HasHttpPort80).NativeCertificate);
-                                y.AllowRenegotiation = false;
-                                y.CertificateRevocationCheckMode = X509RevocationMode.NoCheck;
-                                y.ClientCertificateRequired = false;
-                                y.EnabledSslProtocols = CoresConfig.SslSettings.DefaultSslProtocolVersionsAsServer;
-                                y.EncryptionPolicy = EncryptionPolicy.RequireEncryption;
-                                Dbg.Where();
-                            };
+                            ret.ServerCertificateContext = selectedCert.SslStreamCertificateContext;
                         }
-                    }
 #endif  // CORES_BASIC_JSON
 #endif  // CORES_BASIC_SECURITY;
 
-                    if (this.ClientCertficateMode != ClientCertificateMode.NoCertificate)
-                    {
-                        httpsOptions.ClientCertificateValidation = (cert, chain, err) =>
+                        if (this.ClientCertficateMode != ClientCertificateMode.NoCertificate)
                         {
-                            if (this.ClientCertificateSoftFailMode == false)
+                            ret.RemoteCertificateValidationCallback = (sender, cert, chain, err) =>
                             {
-                                try
-                                {
-                                    if (this.ClientCertificateValidatorAsync == null)
-                                    {
-                                        var ex = new CoresLibException("this.ClientCertificateValidatorAsync == null");
-                                        ex._Error();
-                                        return false;
-                                    }
-
-                                    return this.ClientCertificateValidatorAsync(cert, chain, err)._GetResult();
-                                }
-                                catch (Exception ex)
-                                {
-                                    ex._Error();
-                                    return false;
-                                }
-                            }
-                            else
-                            {
-                                // SoftFailMode ではここでは証明書を検証せずに true を返す
+                                // ここでは証明書を検証せずに true を返す
                                 return true;
-                            }
-                        };
+                            };
+                        }
+
+                        return ret;
                     }
-                });
+                    catch (Exception ex)
+                    {
+                        ex._Error();
+                        throw;
+                    }
+                }, Limbo.EmptyObject, TimeSpan.FromMilliseconds(sslTimeoutMsecs));
             }
         }
     }

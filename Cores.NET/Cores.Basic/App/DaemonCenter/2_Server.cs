@@ -78,7 +78,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                         NonAcmeEnableAutoGenerateSubjectNameCert = false,
                     });
 
-                PalSslServerAuthenticationOptions sslOptions = new PalSslServerAuthenticationOptions(this.CertVault.X509CertificateSelector("dummy", true), true, null);
+                PalSslServerAuthenticationOptions sslOptions = new PalSslServerAuthenticationOptions(this.CertVault.X509CertificateSelector("dummy", true, EnsureOk.Ok), true, null);
 
                 this.DaemonCenterServer = daemonCenterServer;
 
@@ -93,7 +93,7 @@ namespace IPA.Cores.Basic.App.DaemonCenterLib
                     HiveName = "DaemonCenterRpcHttpServer",
                     DenyRobots = true,
                     UseGlobalCertVault = false,
-                    ServerCertSelector = (param, sni) => (X509Certificate2)(this.CertVault.X509CertificateSelector(sni, true).NativeCertificate),
+                    ServerCertSelector = (param, sni) => (X509Certificate2)(this.CertVault.X509CertificateSelector(sni, true, EnsureOk.Ok).NativeCertificate),
                 };
 
                 this.HttpServer = JsonRpcHttpServerBuilder.StartServer(httpConfig, rpcCfg, this.DaemonCenterServer);

@@ -1302,7 +1302,7 @@ namespace IPA.Cores.Basic
 
         readonly SyncCache<string, PalX509Certificate> X509CertificateCache = new SyncCache<string, PalX509Certificate>(CoresConfig.CertVaultSettings.CertificateSelectorCacheLifetime);
 
-        public PalX509Certificate X509CertificateSelector(string sniHostname, bool disableAcme)
+        public PalX509Certificate X509CertificateSelector(string sniHostname, bool disableAcme, EnsureOk thisReturnOnlySingleCertificate)
         {
             sniHostname = sniHostname._NonNullTrim();
 
@@ -1321,7 +1321,7 @@ namespace IPA.Cores.Basic
 
         public X509Certificate2 X509CertificateSelectorForHttpsServerNoAcme(object? param, string sniHostname)
         {
-            return (X509Certificate2)X509CertificateSelector(sniHostname, true).NativeCertificate;
+            return (X509Certificate2)X509CertificateSelector(sniHostname, true, EnsureOk.Ok).NativeCertificate;
         }
 
         protected override Task CancelImplAsync(Exception? ex)

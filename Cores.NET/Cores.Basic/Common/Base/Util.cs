@@ -477,6 +477,8 @@ namespace IPA.Cores.Basic
         public static readonly DateTime MaxDateTimeValue = new DateTime(9931, 12, 21, 0, 0, 0);
         public static readonly DateTimeOffset MaxDateTimeOffsetValue = new DateTimeOffset(9931, 12, 21, 0, 0, 0, new TimeSpan(9, 0, 0));
 
+        public static readonly object EmptyObject = Limbo.EmptyObject;
+
         static readonly Random RandomShared = new Random();
 
         static Util()
@@ -5007,6 +5009,8 @@ namespace IPA.Cores.Basic
         public volatile static int SInt32Volatile = 0;
         public volatile static uint UInt32Volatile = 0;
         public volatile static object? ObjectVolatileSlow = null;
+
+        public static readonly object EmptyObject = new object();
     }
 
     public static class GlobalMicroBenchmark

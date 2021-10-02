@@ -358,7 +358,7 @@ namespace IPA.Cores.Basic
 
                     Lfs.CreateDirectory(dataDestDir, FileFlags.OnCreateSetCompressionFlag);
 
-                    PalSslServerAuthenticationOptions sslOptions = new PalSslServerAuthenticationOptions(this.CertVault.X509CertificateSelector("dummy", true), true, null);
+                    PalSslServerAuthenticationOptions sslOptions = new PalSslServerAuthenticationOptions(this.CertVault.X509CertificateSelector("dummy", true, EnsureOk.Ok), true, null);
 
                     this.DataVaultServer = new DataVaultServer(new DataVaultServerOptions(null, dataDestDir,
                         FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag | FileFlags.LargeFs_ProhibitWriteWithCrossBorder,

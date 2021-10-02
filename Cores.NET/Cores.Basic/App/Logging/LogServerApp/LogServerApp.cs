@@ -112,7 +112,7 @@ namespace IPA.Cores.Basic
 
                     Lfs.CreateDirectory(logDestDir, FileFlags.OnCreateSetCompressionFlag);
 
-                    PalSslServerAuthenticationOptions sslOptions = new PalSslServerAuthenticationOptions(this.CertVault.X509CertificateSelector("dummy", true), true, null);
+                    PalSslServerAuthenticationOptions sslOptions = new PalSslServerAuthenticationOptions(this.CertVault.X509CertificateSelector("dummy", true, EnsureOk.Ok), true, null);
 
                     this.LogServer = new LogServer(new LogServerOptions(null, logDestDir,
                         FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag | FileFlags.LargeFs_ProhibitWriteWithCrossBorder,

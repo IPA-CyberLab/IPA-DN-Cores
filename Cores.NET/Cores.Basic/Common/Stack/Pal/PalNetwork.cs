@@ -71,6 +71,7 @@ namespace IPA.Cores.Basic
     public partial class PalX509Certificate
     {
         public X509Certificate NativeCertificate { get; }
+        public X509Certificate2 NativeCertificate2 => (X509Certificate2)NativeCertificate;
 
         public override string ToString() => this.ToString(false);
 
@@ -129,8 +130,8 @@ namespace IPA.Cores.Basic
             return this.PkiCertificate.VerifySignedByCertificate(issuerCertificate.PkiCertificate);
         }
 
-        public static implicit operator X509Certificate2(PalX509Certificate cert) => (X509Certificate2)cert.NativeCertificate;
-        public static implicit operator X509Certificate(PalX509Certificate cert) => (X509Certificate)cert.NativeCertificate;
+        public static implicit operator X509Certificate2(PalX509Certificate cert) => cert.NativeCertificate2;
+        public static implicit operator X509Certificate(PalX509Certificate cert) => cert.NativeCertificate;
     }
 
     public struct PalSocketReceiveFromResult

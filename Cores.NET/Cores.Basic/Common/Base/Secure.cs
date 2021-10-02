@@ -44,6 +44,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Buffers;
+using System.Net.Security;
+using System.Collections.Generic;
 
 namespace IPA.Cores.Basic
 {
@@ -503,6 +505,49 @@ namespace IPA.Cores.Basic
             b.Write(passwordSha1Hash);
             b.Write(random);
             return Secure.HashSHA0(b);
+        }
+
+        // .NET 標準の SslStreamCertificateContext.Create() では、不必要な証明書は削除されてしまう。
+        // この関数は、不必要な証明書もチェーンに入れた状態で SslStreamCertificateContext を作成するのである。
+        // ただし、Windows では正しく動作しない。
+        public static SslStreamCertificateContext CreateSslCreateCertificateContextWithFullChain(X509Certificate2 target, X509Certificate2Collection? additionalCertificates, bool offline = false, bool errorWhenFailed = false)
+        {
+            // まずオブジェクトを普通通りに作成する
+            SslStreamCertificateContext original = SslStreamCertificateContext.Create(target, additionalCertificates, offline);
+
+            if (additionalCertificates == null || additionalCertificates.Count == 0)
+            {
+                // 証明書チェーンが 0 個の場合はこれでよい
+                return original;
+            }
+
+            List<X509Certificate2> chainList = new List<X509Certificate2>();
+
+            foreach (var cert in additionalCertificates)
+            {
+                if (cert != null)
+                {
+                    chainList.Add(cert);
+                }
+            }
+
+            X509Certificate2[] chainArray = chainList.ToArray();
+
+            try
+            {
+                // このオブジェクトの internal の IntermediateCertificates フィールドを強制的に書き換える
+                original._PrivateSet("IntermediateCertificates", chainArray);
+
+                return original;
+            }
+            catch
+            {
+                if (errorWhenFailed) throw;
+
+                // エラーが発生した場合 (.NET のライブラリのバージョンアップでフィールド名が変わった場合等) はオリジナルのものを作成して返す (failsafe)
+
+                return SslStreamCertificateContext.Create(target, additionalCertificates, offline);
+            }
         }
     }
 
