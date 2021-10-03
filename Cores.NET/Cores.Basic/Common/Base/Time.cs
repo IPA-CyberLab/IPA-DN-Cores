@@ -236,37 +236,18 @@ namespace IPA.Cores.Basic
 
         static AdjustHistory History = new AdjustHistory();
 
-        public static long Now { get => GetTick64() - Base; }
+        public static long Now { [MethodImpl(Inline)] get => GetTick64() - Base; }
 
         static long Base;
         static void Init()
         {
             Base = GetTick64() - 1;
-            state = 0;
         }
 
-        static volatile uint state;
-
+        [MethodImpl(Inline)]
         static long GetTick64()
         {
-            uint value = (uint)Environment.TickCount;
-            uint value16bit = (value >> 16) & 0xFFFF;
-
-            uint stateCopy = state;
-
-            uint state16bit = (stateCopy >> 16) & 0xFFFF;
-            uint rotate16bit = stateCopy & 0xFFFF;
-
-            if (value16bit <= 0x1000 && state16bit >= 0xF000)
-            {
-                rotate16bit++;
-            }
-
-            uint stateNew = (value16bit << 16) & 0xFFFF0000 | rotate16bit & 0x0000FFFF;
-
-            state = stateNew;
-
-            return (long)value + 0x100000000L * (long)rotate16bit;
+            return Environment.TickCount64 + 1000;
         }
 
         public static int CurrentTimeZoneDiffMSec => History.CurrentTimeZoneDiffMSec;

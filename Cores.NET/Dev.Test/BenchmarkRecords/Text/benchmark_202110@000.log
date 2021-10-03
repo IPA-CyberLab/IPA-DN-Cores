@@ -1,0 +1,141 @@
+﻿2021/10/04 02:18:25.674 +09:00 ----- Start new benchmark -----
+2021/10/04 02:18:25.677 +09:00 Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827
+2021/10/04 02:18:25.677 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/04 02:18:25.677 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/04 02:18:25.677 +09:00 Framework: .NET 5.0.10
+2021/10/04 02:18:25.677 +09:00 Host: PC34
+2021/10/04 02:18:27.215 +09:00 FastTick64.Now: 3.01 ns, 332,301,399 / sec
+2021/10/04 02:18:27.944 +09:00 CloneDeep_BinaryFormatter: 4,648,136.94 ns, 215 / sec
+2021/10/04 02:18:28.472 +09:00 CloneDeep_DeepCloner: 147,669.72 ns, 6,771 / sec
+2021/10/04 02:18:28.994 +09:00 DnsTools_Build: 323.16 ns, 3,094,420 / sec
+2021/10/04 02:18:29.523 +09:00 DnsTools_Parse: 193.02 ns, 5,180,911 / sec
+2021/10/04 02:18:30.289 +09:00 EvaluateAclNormal: 50,430.41 ns, 19,829 / sec
+2021/10/04 02:18:30.822 +09:00 EvaluateAclCached1: 574.21 ns, 1,741,532 / sec
+2021/10/04 02:18:31.346 +09:00 EvaluateAclCached2: 109.21 ns, 9,157,042 / sec
+2021/10/04 02:18:31.866 +09:00 SimpleAsyncService2: 1,599.57 ns, 625,168 / sec
+2021/10/04 02:18:33.718 +09:00 ----- Start new benchmark -----
+2021/10/04 02:18:33.721 +09:00 Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827
+2021/10/04 02:18:33.721 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/04 02:18:33.721 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/04 02:18:33.721 +09:00 Framework: .NET 5.0.10
+2021/10/04 02:18:33.722 +09:00 Host: PC34
+2021/10/04 02:18:35.241 +09:00 FastTick64.Now: 3.01 ns, 332,064,790 / sec
+2021/10/04 02:18:35.951 +09:00 CloneDeep_BinaryFormatter: 4,506,796.96 ns, 221 / sec
+2021/10/04 02:18:36.475 +09:00 CloneDeep_DeepCloner: 139,533.21 ns, 7,166 / sec
+2021/10/04 02:19:48.693 +09:00 ----- Start new benchmark -----
+2021/10/04 02:19:48.697 +09:00 Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827
+2021/10/04 02:19:48.697 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/04 02:19:48.697 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/04 02:19:48.697 +09:00 Framework: .NET 5.0.10
+2021/10/04 02:19:48.697 +09:00 Host: PC34
+2021/10/04 02:19:49.820 +09:00 FastTick64.Now: 1.00 ns, 996,373,946 / sec
+2021/10/04 02:19:50.549 +09:00 CloneDeep_BinaryFormatter: 4,651,594.90 ns, 214 / sec
+2021/10/04 02:19:51.076 +09:00 CloneDeep_DeepCloner: 139,262.11 ns, 7,180 / sec
+2021/10/04 02:19:53.073 +09:00 ----- Start new benchmark -----
+2021/10/04 02:19:53.077 +09:00 Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827
+2021/10/04 02:19:53.077 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/04 02:19:53.077 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/04 02:19:53.077 +09:00 Framework: .NET 5.0.10
+2021/10/04 02:19:53.077 +09:00 Host: PC34
+2021/10/04 02:20:04.410 +09:00 ----- Start new benchmark -----
+2021/10/04 02:20:04.414 +09:00 Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827
+2021/10/04 02:20:04.414 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/04 02:20:04.414 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/04 02:20:04.414 +09:00 Framework: .NET 5.0.10
+2021/10/04 02:20:04.414 +09:00 Host: PC34
+2021/10/04 02:20:05.498 +09:00 FastTick64.Now: 0.81 ns, 1,238,565,716 / sec
+2021/10/04 02:20:09.245 +09:00 ----- Start new benchmark -----
+2021/10/04 02:20:09.249 +09:00 Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827
+2021/10/04 02:20:09.249 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/04 02:20:09.249 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/04 02:20:09.249 +09:00 Framework: .NET 5.0.10
+2021/10/04 02:20:09.249 +09:00 Host: PC34
+2021/10/04 02:20:10.404 +09:00 FastTick64.Now: 1.17 ns, 857,455,705 / sec
+2021/10/04 02:20:12.939 +09:00 ----- Start new benchmark -----
+2021/10/04 02:20:12.943 +09:00 Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827
+2021/10/04 02:20:12.943 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/04 02:20:12.943 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/04 02:20:12.943 +09:00 Framework: .NET 5.0.10
+2021/10/04 02:20:12.943 +09:00 Host: PC34
+2021/10/04 02:20:14.022 +09:00 FastTick64.Now: 0.78 ns, 1,277,292,956 / sec
+2021/10/04 02:20:18.430 +09:00 ----- Start new benchmark -----
+2021/10/04 02:20:18.434 +09:00 Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827
+2021/10/04 02:20:18.434 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/04 02:20:18.434 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/04 02:20:18.434 +09:00 Framework: .NET 5.0.10
+2021/10/04 02:20:18.434 +09:00 Host: PC34
+2021/10/04 02:20:19.573 +09:00 FastTick64.Now: 1.10 ns, 907,359,502 / sec
+2021/10/04 02:20:22.443 +09:00 ----- Start new benchmark -----
+2021/10/04 02:20:22.446 +09:00 Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827
+2021/10/04 02:20:22.446 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/04 02:20:22.446 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/04 02:20:22.446 +09:00 Framework: .NET 5.0.10
+2021/10/04 02:20:22.446 +09:00 Host: PC34
+2021/10/04 02:20:23.517 +09:00 FastTick64.Now: 0.76 ns, 1,320,172,097 / sec
+2021/10/04 02:21:06.468 +09:00 ----- Start new benchmark -----
+2021/10/04 02:21:06.472 +09:00 Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827
+2021/10/04 02:21:06.472 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/04 02:21:06.472 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/04 02:21:06.472 +09:00 Framework: .NET 5.0.10
+2021/10/04 02:21:06.472 +09:00 Host: PC34
+2021/10/04 02:21:07.650 +09:00 FastTick64.Now: 1.59 ns, 629,347,413 / sec
+2021/10/04 02:21:11.097 +09:00 ----- Start new benchmark -----
+2021/10/04 02:21:11.101 +09:00 Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827
+2021/10/04 02:21:11.101 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/04 02:21:11.101 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/04 02:21:11.101 +09:00 Framework: .NET 5.0.10
+2021/10/04 02:21:11.101 +09:00 Host: PC34
+2021/10/04 02:21:12.282 +09:00 FastTick64.Now: 1.50 ns, 668,834,358 / sec
+2021/10/04 02:21:28.958 +09:00 ----- Start new benchmark -----
+2021/10/04 02:21:28.963 +09:00 Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827
+2021/10/04 02:21:28.963 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/04 02:21:28.963 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/04 02:21:28.963 +09:00 Framework: .NET 5.0.10
+2021/10/04 02:21:28.963 +09:00 Host: PC34
+2021/10/04 02:21:30.111 +09:00 FastTick64.Now: 1.28 ns, 783,877,059 / sec
+2021/10/04 02:21:55.599 +09:00 ----- Start new benchmark -----
+2021/10/04 02:21:55.603 +09:00 Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827
+2021/10/04 02:21:55.603 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/04 02:21:55.603 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/04 02:21:55.603 +09:00 Framework: .NET 5.0.10
+2021/10/04 02:21:55.603 +09:00 Host: PC34
+2021/10/04 02:21:56.752 +09:00 FastTick64.Now: 1.30 ns, 769,659,558 / sec
+2021/10/04 02:22:19.436 +09:00 ----- Start new benchmark -----
+2021/10/04 02:22:19.440 +09:00 Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827
+2021/10/04 02:22:19.440 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/04 02:22:19.440 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/04 02:22:19.440 +09:00 Framework: .NET 5.0.10
+2021/10/04 02:22:19.440 +09:00 Host: PC34
+2021/10/04 02:22:20.586 +09:00 FastTick64.Now: 1.53 ns, 654,189,420 / sec
+2021/10/04 02:22:21.476 +09:00 CloneDeep_BinaryFormatter: 6,204,478.07 ns, 161 / sec
+2021/10/04 02:22:22.020 +09:00 CloneDeep_DeepCloner: 190,440.77 ns, 5,250 / sec
+2021/10/04 02:22:24.273 +09:00 ----- Start new benchmark -----
+2021/10/04 02:22:24.277 +09:00 Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827
+2021/10/04 02:22:24.277 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/04 02:22:24.277 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/04 02:22:24.277 +09:00 Framework: .NET 5.0.10
+2021/10/04 02:22:24.277 +09:00 Host: PC34
+2021/10/04 02:22:25.433 +09:00 FastTick64.Now: 1.43 ns, 698,913,120 / sec
+2021/10/04 02:22:41.827 +09:00 ----- Start new benchmark -----
+2021/10/04 02:22:41.831 +09:00 Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827
+2021/10/04 02:22:41.831 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/04 02:22:41.831 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/04 02:22:41.831 +09:00 Framework: .NET 5.0.10
+2021/10/04 02:22:41.831 +09:00 Host: PC34
+2021/10/04 02:22:42.965 +09:00 FastTick64.Now: 1.36 ns, 737,655,564 / sec
+2021/10/04 02:22:45.668 +09:00 ----- Start new benchmark -----
+2021/10/04 02:22:45.675 +09:00 Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827
+2021/10/04 02:22:45.675 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/04 02:22:45.675 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/04 02:22:45.675 +09:00 Framework: .NET 5.0.10
+2021/10/04 02:22:45.675 +09:00 Host: PC34
+2021/10/04 02:22:46.834 +09:00 FastTick64.Now: 1.32 ns, 755,681,687 / sec
+2021/10/04 02:23:02.889 +09:00 ----- Start new benchmark -----
+2021/10/04 02:23:02.893 +09:00 Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827
+2021/10/04 02:23:02.893 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/04 02:23:02.893 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/04 02:23:02.893 +09:00 Framework: .NET 5.0.10
+2021/10/04 02:23:02.893 +09:00 Host: PC34
+2021/10/04 02:23:04.051 +09:00 FastTick64.Now: 1.35 ns, 742,176,577 / sec
+2021/10/04 02:23:04.939 +09:00 CloneDeep_BinaryFormatter: 6,125,464.05 ns, 163 / sec
+2021/10/04 02:23:05.453 +09:00 CloneDeep_DeepCloner: 180,857.20 ns, 5,529 / sec
