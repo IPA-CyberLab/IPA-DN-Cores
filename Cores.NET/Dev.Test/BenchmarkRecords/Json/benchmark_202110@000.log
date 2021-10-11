@@ -1,0 +1,142 @@
+﻿{"TimeStamp":"2021-10-04T02:18:25.6740976+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:18:25.6778243+09:00","Data":"Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:18:25.6778399+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:18:25.6778416+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:18:25.6778431+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:18:25.6778445+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:18:27.2150229+09:00","Data":{"TestName":"FastTick64.Now","Ret":3.0093162500000004,"PerSecond":332301399},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:18:27.944312+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":4648136.942225853,"PerSecond":215},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:18:28.4727149+09:00","Data":{"TestName":"CloneDeep_DeepCloner","Ret":147669.7159364902,"PerSecond":6771},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:18:28.9948633+09:00","Data":{"TestName":"DnsTools_Build","Ret":323.1622922301174,"PerSecond":3094420},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:18:29.5234506+09:00","Data":{"TestName":"DnsTools_Parse","Ret":193.0162261884094,"PerSecond":5180911},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:18:30.2892442+09:00","Data":{"TestName":"EvaluateAclNormal","Ret":50430.41145891854,"PerSecond":19829},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:18:30.8228933+09:00","Data":{"TestName":"EvaluateAclCached1","Ret":574.2070016963926,"PerSecond":1741532},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:18:31.3468463+09:00","Data":{"TestName":"EvaluateAclCached2","Ret":109.20556696199282,"PerSecond":9157042},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:18:31.8665203+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":1599.5681491679015,"PerSecond":625168},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:18:33.7182709+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:18:33.7219808+09:00","Data":"Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:18:33.7219952+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:18:33.7219975+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:18:33.721999+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:18:33.7220006+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:18:35.2411754+09:00","Data":{"TestName":"FastTick64.Now","Ret":3.0114604999999997,"PerSecond":332064790},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:18:35.9516582+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":4506796.962235127,"PerSecond":221},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:18:36.4754238+09:00","Data":{"TestName":"CloneDeep_DeepCloner","Ret":139533.20745223598,"PerSecond":7166},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:19:48.6933809+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:19:48.6972404+09:00","Data":"Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:19:48.697278+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:19:48.6972812+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:19:48.6972834+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:19:48.6972869+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:19:49.8202361+09:00","Data":{"TestName":"FastTick64.Now","Ret":1.00363925,"PerSecond":996373946},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:19:50.5496192+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":4651594.902061357,"PerSecond":214},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:19:51.0760687+09:00","Data":{"TestName":"CloneDeep_DeepCloner","Ret":139262.1082746892,"PerSecond":7180},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:19:53.0735758+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:19:53.0773276+09:00","Data":"Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:19:53.0773441+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:19:53.0773459+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:19:53.0773474+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:19:53.0773489+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:19:54.2479383+09:00","Data":{"TestName":"FastTick64.Now","Ret":1.3829249999999997,"PerSecond":723105012},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:20:04.410822+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:04.4145847+09:00","Data":"Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:04.4146007+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:04.414603+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:04.4146045+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:04.414606+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:05.4983242+09:00","Data":{"TestName":"FastTick64.Now","Ret":0.8073855000000001,"PerSecond":1238565716},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:20:09.2457855+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:09.2495137+09:00","Data":"Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:09.2495291+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:09.2495315+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:09.2495331+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:09.2495345+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:10.4045971+09:00","Data":{"TestName":"FastTick64.Now","Ret":1.1662410000000003,"PerSecond":857455705},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:20:12.9398718+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:12.9435666+09:00","Data":"Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:12.9435815+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:12.9435839+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:12.9435854+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:12.9435868+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:14.0225133+09:00","Data":{"TestName":"FastTick64.Now","Ret":0.7829057500000001,"PerSecond":1277292956},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:20:18.4306044+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:18.4343657+09:00","Data":"Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:18.4343848+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:18.4343868+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:18.4343883+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:18.4343899+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:19.5734394+09:00","Data":{"TestName":"FastTick64.Now","Ret":1.102099,"PerSecond":907359502},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:20:22.4430409+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:22.4468665+09:00","Data":"Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:22.4468883+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:22.4468901+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:22.4468916+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:22.446893+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:20:23.5178165+09:00","Data":{"TestName":"FastTick64.Now","Ret":0.7574770000000002,"PerSecond":1320172097},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:21:06.4685825+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:06.4724436+09:00","Data":"Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:06.4724581+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:06.4724615+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:06.4724635+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:06.4724656+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:07.6509588+09:00","Data":{"TestName":"FastTick64.Now","Ret":1.5889475000000002,"PerSecond":629347413},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:21:11.0974243+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:11.1011815+09:00","Data":"Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:11.1011986+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:11.1012003+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:11.1012025+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:11.101204+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:12.2822153+09:00","Data":{"TestName":"FastTick64.Now","Ret":1.4951385,"PerSecond":668834358},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:21:28.958926+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:28.9631972+09:00","Data":"Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:28.9632221+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:28.9632249+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:28.9632271+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:28.9632299+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:30.1116467+09:00","Data":{"TestName":"FastTick64.Now","Ret":1.2757102500000004,"PerSecond":783877059},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:21:55.5997183+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:55.6036684+09:00","Data":"Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:55.603691+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:55.6036937+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:55.6036968+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:55.6036995+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:21:56.7522084+09:00","Data":{"TestName":"FastTick64.Now","Ret":1.29927575,"PerSecond":769659558},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:22:19.4367903+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:19.4407056+09:00","Data":"Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:19.4407301+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:19.4407329+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:19.4407344+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:19.4407359+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:20.5860395+09:00","Data":{"TestName":"FastTick64.Now","Ret":1.5286092500000001,"PerSecond":654189420},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:22:21.4768414+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":6204478.065633136,"PerSecond":161},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:22:22.020628+09:00","Data":{"TestName":"CloneDeep_DeepCloner","Ret":190440.7661634097,"PerSecond":5250},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:22:24.2734085+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:24.2774751+09:00","Data":"Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:24.2774963+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:24.2774991+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:24.2775008+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:24.2775023+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:25.4331239+09:00","Data":{"TestName":"FastTick64.Now","Ret":1.430793,"PerSecond":698913120},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:22:41.8270544+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:41.8310126+09:00","Data":"Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:41.8310284+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:41.8310302+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:41.8310323+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:41.8310338+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:42.9651302+09:00","Data":{"TestName":"FastTick64.Now","Ret":1.35564625,"PerSecond":737655564},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:22:45.6689633+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:45.6754083+09:00","Data":"Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:45.6754295+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:45.6754319+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:45.675434+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:45.6754376+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:22:46.8346769+09:00","Data":{"TestName":"FastTick64.Now","Ret":1.3233085,"PerSecond":755681687},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:23:02.8894749+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:23:02.8935904+09:00","Data":"Commit: 0b1cc8efe5faeaf36965e492e52b16ac961b2827","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:23:02.8936153+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:23:02.8936172+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:23:02.8936187+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:23:02.8936213+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-04T02:23:04.0518257+09:00","Data":{"TestName":"FastTick64.Now","Ret":1.3473882499999998,"PerSecond":742176577},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:23:04.9395292+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":6125464.045303706,"PerSecond":163},"Tag":"result"}
+{"TimeStamp":"2021-10-04T02:23:05.4530931+09:00","Data":{"TestName":"CloneDeep_DeepCloner","Ret":180857.19933830563,"PerSecond":5529},"Tag":"result"}

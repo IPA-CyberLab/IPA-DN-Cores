@@ -531,6 +531,17 @@ namespace IPA.TestDev
 
             var queue = new MicroBenchmarkQueue()
 
+            .Add(new MicroBenchmark($"FastTick64.Now", Benchmark_CountForVeryFast, count =>
+            {
+                Async(async () =>
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        Limbo.SInt64 = FastTick64.Now;
+                    }
+                });
+            }), enabled: true, priority: 211004)
+
             .Add(new MicroBenchmark($"CloneDeep_BinaryFormatter", Benchmark_CountForSlow, count =>
             {
                 Async(async () =>
