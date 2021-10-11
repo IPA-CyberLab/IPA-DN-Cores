@@ -111,6 +111,12 @@ namespace IPA.Cores.ClientApi.SlackApi
         }
     }
 
+    public static class SlackApiSettings
+    {
+        public static readonly Copenhagen<int> SlackApiLimitCounts = 33;
+        public static readonly Copenhagen<int> SlackApiLimitCounts_Users = 1000;
+    }
+
     public class SlackApi : WebApi
     {
         public class ResponseMetadata
@@ -403,8 +409,8 @@ namespace IPA.Cores.ClientApi.SlackApi
 
             do
             {
-                WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.history", cancel, null, ("limit", "100"), ("cursor", nextCursor), ("channel", channelId), ("oldest", oldest == 0 ? null : oldest.ToString()));
-                //WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.history", cancel, null, ("limit", "100"), ("cursor", nextCursor), ("channel", channelId));
+                WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.history", cancel, null, ("limit", SlackApiSettings.SlackApiLimitCounts.ToString()), ("cursor", nextCursor), ("channel", channelId), ("oldest", oldest == 0 ? null : oldest.ToString()));
+                //WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.history", cancel, null, ("limit", SlackApiSettings.SlackApiLimitCounts.ToString()), ("cursor", nextCursor), ("channel", channelId));
 
                 HistoryResponse data = ret.Deserialize<HistoryResponse>(true)!;
 
@@ -446,7 +452,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
             do
             {
-                WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.list", cancel, null, ("limit", "100"), ("cursor", nextCursor), ("types", "public_channel,private_channel,mpim,im"));
+                WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/conversations.list", cancel, null, ("limit", SlackApiSettings.SlackApiLimitCounts.ToString()), ("cursor", nextCursor), ("types", "public_channel,private_channel,mpim,im"));
                 //ret.Data._GetString_UTF8()._JsonNormalizeAndPrint();
                 ChannelsList data = ret.Deserialize<ChannelsList>(true)!;
 
@@ -501,7 +507,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
             do
             {
-                WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/users.list", cancel, null, ("limit", "1000"), ("cursor", nextCursor));
+                WebRet ret = await SimpleQueryAsync(WebMethods.POST, "https://slack.com/api/users.list", cancel, null, ("limit", SlackApiSettings.SlackApiLimitCounts_Users.ToString()), ("cursor", nextCursor));
 
                 UserListResponse data = ret.Deserialize<UserListResponse>(true)!;
 

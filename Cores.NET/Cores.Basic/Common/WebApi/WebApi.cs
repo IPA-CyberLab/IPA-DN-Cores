@@ -301,6 +301,7 @@ namespace IPA.Cores.Basic
         public bool IsSuccessStatusCode { get; }
         public string StatusReason { get; }
         public string StatusCodeAndReasonString { get; }
+        public string String => this.ToString();
 
         public WebRet(WebApi api, string url, string contentType, byte[] data, HttpResponseHeaders headers, bool isSuccessStatusCode, HttpStatusCode statusCode, string statusReason)
         {
