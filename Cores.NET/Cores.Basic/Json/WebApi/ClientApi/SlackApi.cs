@@ -113,7 +113,7 @@ namespace IPA.Cores.ClientApi.SlackApi
 
     public static class SlackApiSettings
     {
-        public static readonly Copenhagen<int> SlackApiLimitCounts = 50;
+        public static readonly Copenhagen<int> SlackApiLimitCounts = 200;
         public static readonly Copenhagen<int> SlackApiLimitCounts_Users = 1000;
     }
 
