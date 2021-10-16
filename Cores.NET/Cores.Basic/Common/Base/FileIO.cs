@@ -834,12 +834,15 @@ namespace IPA.Cores.Basic
                 // 指定された拡張子を整理
                 if (extensions != null)
                 {
-                    string[] tokens = extensions.Split(' ', '\t', ',', ';');
+                    string[] tokens = extensions._Split(StringSplitOptions.RemoveEmptyEntries, ' ', '\t', ',', ';');
                     foreach (string ext in tokens)
                     {
-                        if (IsExtensionMatchInternal(filename, ext))
+                        if (ext._IsFilled())
                         {
-                            return true;
+                            if (IsExtensionMatchInternal(filename, ext))
+                            {
+                                return true;
+                            }
                         }
                     }
                     return false;

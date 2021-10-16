@@ -2694,6 +2694,8 @@ namespace IPA.Cores.Helper.Basic
 
         public static bool _WildcardMatch(this string targetStr, string wildcard, bool ignoreCase = false) => Str.WildcardMatch(targetStr, wildcard, ignoreCase);
 
+        public static bool _MultipleWildcardMatch(this string targetStr, string multipleWildcard, string excludeMultipleWildcardList = "", bool ignoreCase = false) => Str.MultipleWildcardMatch(targetStr, multipleWildcard, excludeMultipleWildcardList, ignoreCase);
+
         static bool NoFixProcessObjectHandleLeak = false;
 
         public static void _FixProcessObjectHandleLeak(this Process proc)

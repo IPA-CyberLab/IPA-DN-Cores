@@ -335,7 +335,10 @@ namespace IPA.Cores.Basic
 
             public const string Win32Executable = ".exe";
 
-            public const string Filter_SourceCodes = "*.c;*.cpp;*.h;*.rc;*.stb;*.cs;*.fx;*.hlsl;*.cxx;*.cc;*.hh;*.hpp;*.hxx;*.hh;*.txt";
+            public const string Filter_SourceCodes = "*.c;*.cpp;*.h;*.rc;*.stb;*.cs;*.fx;*.hlsl;*.cxx;*.cc;*.hh;*.hpp;*.hxx;*.hh;*.txt;*.cshtml;*.scss;*.ts;*.js;*.resx;*.htm;*.html;*.aspx;*.ascx;*.asmx;*.asp;*.vbhtml;*.razor;*.css;*.xml;*.json;*.sln;*.vcxproj;*.csproj;*.md;*.yml;";
+
+            public const string Wildcard_SourceCode_NormalizeBomUtf8_Include = "*.c;*.cpp;*.h;*.stb;*.cs;*.fx;*.hlsl;*.cxx;*.cc;*.hh;*.hpp;*.hxx;*.hh;*.txt;*.cshtml;*.scss;*.ts;*.js;*.resx;*.htm;*.html;*.aspx;*.ascx;*.asmx;*.asp;*.vbhtml;*.razor;*.css;*.xml;*.json;*.sln;*.vcxproj;*.csproj;*.md;*.yml;";
+            public const string Wildcard_SourceCode_NormalizeBomUtf8_Exclude = "resource.h;CurrentBuild.txt;package-lock.json;package.json;tsconfig.json;bundle.js.LICENSE.txt;bundle.js;stats.json;";
 
             public const string EncryptedXtsAes256 = "._encrypted_xtsaes256";
             public const string CompressedXtsAes256 = "._compressed_xtsaes256";

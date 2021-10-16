@@ -823,8 +823,10 @@ namespace IPA.Cores.Basic
         public FileSystem FileSystem { get; }
         public EnumDirectoryFlags Flags { get; }
 
-        public DirectoryWalker(FileSystem fileSystem, EnumDirectoryFlags flags = EnumDirectoryFlags.None)
+        public DirectoryWalker(FileSystem? fileSystem = null, EnumDirectoryFlags flags = EnumDirectoryFlags.None)
         {
+            fileSystem ??= Lfs;
+
             this.FileSystem = fileSystem;
             this.Flags = (flags | EnumDirectoryFlags.IncludeCurrentDirectory).BitRemove(EnumDirectoryFlags.IncludeParentDirectory);
 

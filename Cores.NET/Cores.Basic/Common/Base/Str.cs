@@ -1292,13 +1292,27 @@ namespace IPA.Cores.Basic
         }
 
         // 複数のワイルドカードパターンにある文字列が一致するかどうか検査
-        public static bool MultipleWildcardMatch(string targetStr, string multipleWildcard, bool ignoreCase = false)
+        public static bool MultipleWildcardMatch(string targetStr, string multipleWildcardList, string excludeMultipleWildcardList, bool ignoreCase = false)
         {
-            var wildCardList = multipleWildcard._Split(StringSplitOptions.RemoveEmptyEntries, "|", ",", ";", " ").Where(x => x._IsFilled());
+            targetStr = targetStr._NonNull();
+            multipleWildcardList = multipleWildcardList._NonNull();
+            excludeMultipleWildcardList = excludeMultipleWildcardList._NonNull();
 
-            if (wildCardList.Any() == false) return false;
+            var wildcardList = multipleWildcardList._Split(StringSplitOptions.RemoveEmptyEntries, "|", ",", ";", " ").Where(x => x._IsFilled());
 
-            foreach (string wildcard in wildCardList)
+            if (wildcardList.Any() == false) return false;
+
+            var excludeList = excludeMultipleWildcardList._Split(StringSplitOptions.RemoveEmptyEntries, "|", ",", ";", " ").Where(x => x._IsFilled());
+
+            foreach (string exclude in excludeList)
+            {
+                if (WildcardMatch(targetStr, exclude, ignoreCase))
+                {
+                    return false;
+                }
+            }
+
+            foreach (string wildcard in wildcardList)
             {
                 if (WildcardMatch(targetStr, wildcard, ignoreCase))
                 {
@@ -1308,6 +1322,8 @@ namespace IPA.Cores.Basic
 
             return false;
         }
+        public static bool MultipleWildcardMatch(string targetStr, string multipleWildcard, bool ignoreCase = false)
+            => MultipleWildcardMatch(targetStr, multipleWildcard, "", ignoreCase);
 
         // ワイルドカード一致検査
         public static bool WildcardMatch(string targetStr, string wildcard, bool ignoreCase = false)
