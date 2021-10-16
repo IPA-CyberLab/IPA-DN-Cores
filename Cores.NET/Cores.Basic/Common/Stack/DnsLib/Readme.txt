@@ -1,4 +1,4 @@
-Original Source Code:
+﻿Original Source Code:
 ARSoft.Tools.Net by Alexander Reinert
 
 From: https://github.com/alexreinert/ARSoft.Tools.Net/tree/18b427f9f3cfacd4464152090db0515d2675d899
