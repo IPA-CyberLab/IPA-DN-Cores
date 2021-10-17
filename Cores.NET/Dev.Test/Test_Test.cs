@@ -2326,14 +2326,38 @@ namespace IPA.TestDev
 
         static void Test_211017()
         {
-            using MikakaDDnsHadb db = new MikakaDDnsHadb(new HadbSqlSettings("Mikaka",
-                new SqlDatabaseConnectionSetting("10.40.0.103", "TEST_DN_DBSVC1", "sql_test_dn_dbsvc1_reader", "testabc"),
-                new SqlDatabaseConnectionSetting("10.40.0.103", "TEST_DN_DBSVC1", "sql_test_dn_dbsvc1_writer", "testabc")),
-                new MikakaDDnsDynamicConfig() { /*TestDef = new string[] { "Hello", "World" }*/ });
+            Async(async () =>
+            {
+                await using MikakaDDnsHadb db = new MikakaDDnsHadb(new HadbSqlSettings("Mikaka",
+                    new SqlDatabaseConnectionSetting("10.40.0.103", "TEST_DN_DBSVC1", "sql_test_dn_dbsvc1_reader", "testabc"),
+                    new SqlDatabaseConnectionSetting("10.40.0.103", "TEST_DN_DBSVC1", "sql_test_dn_dbsvc1_writer", "testabc")),
+                    new MikakaDDnsDynamicConfig() { /*TestDef = new string[] { "Hello", "World" }*/ });
 
-            db.StartLoop();
+                db.StartLoop();
 
-            Con.ReadLine("exit>");
+                Con.WriteLine("Wait for ready...");
+                await db.WaitUntilReadyToCommitAsync();
+                Con.WriteLine("Ready.");
+
+                while (true)
+                {
+                    string? str = Con.ReadLine("?>");
+                    if (str._IsEmpty())
+                    {
+                        break;
+                    }
+
+                    MikakaDDnsHost host = new MikakaDDnsHost
+                    {
+                        HostName = str,
+                        IPv4Address = "127.0.0.1",
+                        IPv6Address = "2001::1234",
+                        TestInt = 1,
+                    };
+
+                    await db.CommitCreateDataAsync(host);
+                }
+            });
         }
 
         public static void Test_Generic()

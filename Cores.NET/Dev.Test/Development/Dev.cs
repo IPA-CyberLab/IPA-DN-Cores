@@ -73,6 +73,16 @@ namespace IPA.Cores.Basic
         public string IPv4Address = "";
         public string IPv6Address = "";
         public int TestInt = 0;
+
+        protected override string GetKey1() => this.HostName;
+
+        protected override void NormalizeImpl()
+        {
+            this.HostName = this.HostName._NonNullTrim().ToLower();
+            this.IPv4Address = this.IPv4Address._NormalizeIp();
+            this.IPv6Address = this.IPv6Address._NormalizeIp();
+        }
+
     }
 
     public class MikakaDDnsDynamicConfig : HadbDynamicConfig
@@ -148,7 +158,7 @@ namespace IPA.Cores.Basic
 
                 if (table.TryGetValue(row.DATA_UID, out TData? currentData))
                 {
-                    if (currentData.Ver < row.DATA_VER)
+                    if (currentData.Hadb_Ver < row.DATA_VER)
                     {
                         update = true;
                     }
@@ -163,14 +173,14 @@ namespace IPA.Cores.Basic
                     TData? a = row.DATA_VALUE._JsonToObject<TData>();
                     if (a != null)
                     {
-                        if (a.Deleted == false)
+                        if (a.Hadb_Deleted == false)
                         {
-                            a.Uid = row.DATA_UID;
-                            a.Ver = row.DATA_VER;
-                            a.Deleted = row.DATA_DELETED;
-                            a.CreateDt = row.DATA_CREATE_DT;
-                            a.DeleteDt = row.DATA_DELETE_DT;
-                            a.UpdateDt = row.DATA_UPDATE_DT;
+                            a.Hadb_Uid = row.DATA_UID;
+                            a.Hadb_Ver = row.DATA_VER;
+                            a.Hadb_Deleted = row.DATA_DELETED;
+                            a.Hadb_CreateDt = row.DATA_CREATE_DT;
+                            a.Hadb_DeleteDt = row.DATA_DELETE_DT;
+                            a.Hadb_UpdateDt = row.DATA_UPDATE_DT;
 
                             a.Normalize();
 
@@ -531,6 +541,77 @@ namespace IPA.Cores.Basic
 
             return current;
         }
+
+        protected async Task<HadbSqlDataRow?> GetRowByKeyAsync(Database db, string typeName, string key1, string key2, string key3, string key4, CancellationToken cancel = default)
+        {
+            List<string> conditions = new List<string>();
+
+            if (key1._IsFilled()) conditions.Add("DATA_KEY1 = @DATA_KEY1");
+            if (key2._IsFilled()) conditions.Add("DATA_KEY2 = @DATA_KEY2");
+            if (key3._IsFilled()) conditions.Add("DATA_KEY3 = @DATA_KEY3");
+            if (key4._IsFilled()) conditions.Add("DATA_KEY4 = @DATA_KEY4");
+
+            if (conditions.Count == 0)
+            {
+                return null;
+            }
+
+            return await db.EasySelectSingleAsync<HadbSqlDataRow>($"select * from HADB_DATA where ({conditions._Combine(" or ")}) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_TYPE = @DATA_TYPE",
+                new
+                {
+                    DATA_KEY1 = key1,
+                    DATA_KEY2 = key2,
+                    DATA_KEY3 = key3,
+                    DATA_KEY4 = key4,
+                    DATA_SYSTEMNAME = this.SystemName,
+                    DATA_TYPE = typeName,
+                },
+                cancel: cancel);
+        }
+
+        protected override async Task CommitAddDataListImplAsync<T>(IEnumerable<T> dataList, CancellationToken cancel = default)
+        {
+            await using var dbWriter = await this.OpenSqlDatabaseForWriteAsync(cancel);
+
+            await dbWriter.TranAsync(async () =>
+            {
+                foreach (T data in dataList)
+                {
+                    if (data.Hadb_Deleted) throw new CoresLibException("data.Deleted == true");
+
+                    HadbSqlDataRow row = new HadbSqlDataRow
+                    {
+                        DATA_UID = data.Hadb_Uid,
+                        DATA_SYSTEMNAME = this.SystemName,
+                        DATA_TYPE = data.GetTypeName(),
+                        DATA_VER = data.Hadb_Ver,
+                        DATA_DELETED = data.Hadb_Deleted,
+                        DATA_CREATE_DT = data.Hadb_CreateDt,
+                        DATA_UPDATE_DT = data.Hadb_UpdateDt,
+                        DATA_DELETE_DT = data.Hadb_DeleteDt,
+                        DATA_KEY1 = data.GetKey1Value(),
+                        DATA_KEY2 = data.GetKey2Value(),
+                        DATA_KEY3 = data.GetKey3Value(),
+                        DATA_KEY4 = data.GetKey4Value(),
+                        DATA_VALUE = data._ObjectToJson(compact: true),
+                        DATA_EXT = "",
+                    };
+
+                    // DB に書き込む前に KEY1 ～ KEY4 の重複を検査する
+                    var existingRow = await GetRowByKeyAsync(dbWriter, row.DATA_TYPE, row.DATA_KEY1, row.DATA_KEY2, row.DATA_KEY3, row.DATA_KEY4, cancel);
+
+                    if (existingRow != null)
+                    {
+                        throw new CoresLibException("Duplicated key in the database.");
+                    }
+
+                    // DB に書き込む
+                    await dbWriter.EasyInsertAsync(row, cancel);
+                }
+
+                return true;
+            });
+        }
     }
 
     public abstract class HadbSettingsBase
@@ -546,33 +627,61 @@ namespace IPA.Cores.Basic
     public abstract class HadbData : INormalizable
     {
         [JsonIgnore]
-        public string Uid = "";
+        public string Hadb_Uid = "";
 
         [JsonIgnore]
-        public long Ver = 0;
+        public long Hadb_Ver = 0;
 
         [JsonIgnore]
-        public bool Deleted = false;
+        public bool Hadb_Deleted = false;
 
         [JsonIgnore]
-        public DateTimeOffset CreateDt = Util.ZeroDateTimeOffsetValue;
+        public DateTimeOffset Hadb_CreateDt = Util.ZeroDateTimeOffsetValue;
 
         [JsonIgnore]
-        public DateTimeOffset UpdateDt = Util.ZeroDateTimeOffsetValue;
+        public DateTimeOffset Hadb_UpdateDt = Util.ZeroDateTimeOffsetValue;
 
         [JsonIgnore]
-        public DateTimeOffset DeleteDt = Util.ZeroDateTimeOffsetValue;
+        public DateTimeOffset Hadb_DeleteDt = Util.ZeroDateTimeOffsetValue;
 
         public string GetTypeName() => this.GetType().Name;
         public string GetUidPrefix() => this.GetTypeName().ToUpper();
 
+        protected virtual void NormalizeImpl() { }
+
+        protected virtual string GetKey1() => "";
+        protected virtual string GetKey2() => "";
+        protected virtual string GetKey3() => "";
+        protected virtual string GetKey4() => "";
+
+        public string GetKey1Value() => NormalizeKeyValue(GetKey1());
+        public string GetKey2Value() => NormalizeKeyValue(GetKey2());
+        public string GetKey3Value() => NormalizeKeyValue(GetKey3());
+        public string GetKey4Value() => NormalizeKeyValue(GetKey4());
+
+        static string NormalizeKeyValue(string src)
+        {
+            src = src._NonNullTrim().ToUpper();
+
+            //if (src._IsEmpty())
+            //{
+            //    src = Consts.Strings.HadbDummyKeyPrefix + Str.GenRandStr();
+            //    src = src.ToLower();
+            //}
+
+            return src;
+        }
+
         public void Normalize()
         {
-            if (this.Uid._IsEmpty()) this.Uid = Str.NewUid(this.GetUidPrefix(), '_');
-            this.Uid = this.Uid._NonNullTrim().ToUpper();
-            this.CreateDt = this.CreateDt._NormalizeDateTimeOffset();
-            this.UpdateDt = this.UpdateDt._NormalizeDateTimeOffset();
-            this.DeleteDt = this.DeleteDt._NormalizeDateTimeOffset();
+            if (this.Hadb_Uid._IsEmpty()) this.Hadb_Uid = Str.NewUid(this.GetUidPrefix(), '_');
+            this.Hadb_Uid = this.Hadb_Uid._NonNullTrim().ToUpper();
+            this.Hadb_CreateDt = this.Hadb_CreateDt._NormalizeDateTimeOffset();
+            this.Hadb_UpdateDt = this.Hadb_UpdateDt._NormalizeDateTimeOffset();
+            this.Hadb_DeleteDt = this.Hadb_DeleteDt._NormalizeDateTimeOffset();
+            this.Hadb_Ver = Math.Max(this.Hadb_Ver, 1);
+
+            this.NormalizeImpl();
         }
     }
 
@@ -614,6 +723,7 @@ namespace IPA.Cores.Basic
         public TMem? MemDb { get; private set; } = null;
 
         protected abstract Task<TMem> ReloadImplAsync(TMem? current, CancellationToken cancel);
+        protected abstract Task CommitAddDataListImplAsync<T>(IEnumerable<T> dataList, CancellationToken cancel = default) where T : HadbData;
 
         public HadbBase(HadbSettingsBase settings, TDynamicConfig dynamicConfig)
         {
@@ -671,7 +781,7 @@ namespace IPA.Cores.Basic
 
             await Task.Yield();
             Debug($"ReloadMainLoopAsync: Waiting for start.");
-            await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () => this.IsLoopStarted, cancel);
+            await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () => this.IsLoopStarted, cancel, true);
             Debug($"ReloadMainLoopAsync: Started.");
 
             while (cancel.IsCancellationRequested == false)
@@ -715,12 +825,81 @@ namespace IPA.Cores.Basic
         async Task LazyUpdateMainLoopAsync(CancellationToken cancel)
         {
             await Task.Yield();
-            await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () => this.IsLoopStarted, cancel);
+            await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () => this.IsLoopStarted, cancel, true);
         }
 
         public void Debug(string str)
         {
             $"{this.GetType().Name}: {str}"._Debug();
+        }
+
+        public void CheckIfReadyToCommit()
+        {
+            var ret = CheckIfReadyToCommit(doNotThrowError: EnsureSpecial.Yes);
+            ret.ThrowIfException();
+        }
+
+        public ResultOrExeption<bool> CheckIfReadyToCommit(EnsureSpecial doNotThrowError)
+        {
+            if (this.IsDatabaseConnectedForReload == false)
+            {
+                return new CoresLibException("IsDatabaseConnectedForReload == false");
+            }
+
+            if (this.MemDb == null)
+            {
+                return new CoresLibException("MemDb is not loaded yet.");
+            }
+
+            return true;
+        }
+
+        public async Task WaitUntilReadyToCommitAsync(CancellationToken cancel = default)
+        {
+            await Task.Yield();
+            await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () => CheckIfReadyToCommit(doNotThrowError: EnsureSpecial.Yes).IsOk, cancel, true);
+        }
+
+        public async Task<T> CommitCreateDataAsync<T>(T data, CancellationToken cancel = default) where T : HadbData
+            => (await CommitCreateDataAsync(data._SingleArray(), cancel)).Single();
+
+        public async Task<List<T>> CommitCreateDataAsync<T>(IEnumerable<T> dataList, CancellationToken cancel = default) where T: HadbData
+        {
+            CheckIfReadyToCommit();
+
+            List<T> dataList2 = new List<T>();
+
+            foreach (var _data in dataList)
+            {
+                var data = _data;
+
+                data._NullCheck(nameof(data));
+
+                data = data._CloneDeep();
+                data.Hadb_CreateDt = data.Hadb_UpdateDt = DtNow;
+                data.Hadb_DeleteDt = ZeroDateTimeOffsetValue;
+                data.Hadb_Uid = "";
+                data.Normalize();
+
+                dataList2.Add(data);
+            }
+
+            await this.CommitAddDataListImplAsync(dataList2, cancel);
+
+            return dataList2;
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                await ReloadMainLoopTask._TryAwait();
+                await LazyUpdateMainLoopTask._TryAwait();
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
         }
     }
 }

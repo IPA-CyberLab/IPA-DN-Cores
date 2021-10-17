@@ -841,7 +841,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static async Task<bool> AwaitWithPollAsync(int timeout, int pollInterval, Func<bool> pollProc, CancellationToken cancel = default)
+        public static async Task<bool> AwaitWithPollAsync(int timeout, int pollInterval, Func<bool> pollProc, CancellationToken cancel = default, bool randInterval = false)
         {
             long end_tick = Time.Tick64 + (long)timeout;
 
@@ -862,7 +862,8 @@ namespace IPA.Cores.Basic
                 }
 
                 long next_wait = (end_tick - now);
-                next_wait = Math.Min(next_wait, (long)pollInterval);
+                int val = randInterval ? Util.GenRandInterval(pollInterval) : pollInterval;
+                next_wait = Math.Min(next_wait, (long)val);
                 next_wait = Math.Max(next_wait, 1);
 
                 if (pollProc != null)
