@@ -378,6 +378,7 @@ namespace IPA.Cores.Basic
         public string DATA_TYPE { get; set; } = "";
         public long DATA_VER { get; set; } = 0;
         public bool DATA_DELETED { get; set; } = false;
+        public long DATA_ARCHIVE_AGE { get; set; } = 0;
         public DateTimeOffset DATA_CREATE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
         public DateTimeOffset DATA_UPDATE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
         public DateTimeOffset DATA_DELETE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
@@ -469,7 +470,7 @@ namespace IPA.Cores.Basic
                 await dbReader.TranReadSnapshotIfNecessaryAsync(async () =>
                 {
                     configList = await dbReader.EasySelectAsync<HadbSqlConfigRow>("select * from HADB_CONFIG where CONFIG_SYSTEMNAME = @CONFIG_SYSTEMNAME", new { CONFIG_SYSTEMNAME = this.SystemName });
-                    dataList = await dbReader.EasySelectAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME", new { DATA_SYSTEMNAME = this.SystemName }); // TODO: get only latest
+                    dataList = await dbReader.EasySelectAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE_AGE = 0", new { DATA_SYSTEMNAME = this.SystemName }); // TODO: get only latest
                 });
             }
             catch (Exception ex)
@@ -556,7 +557,7 @@ namespace IPA.Cores.Basic
                 return null;
             }
 
-            return await db.EasySelectSingleAsync<HadbSqlDataRow>($"select * from HADB_DATA where ({conditions._Combine(" or ")}) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_TYPE = @DATA_TYPE",
+            return await db.EasySelectSingleAsync<HadbSqlDataRow>($"select * from HADB_DATA where ({conditions._Combine(" or ")}) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE_AGE = 0 and DATA_TYPE = @DATA_TYPE",
                 new
                 {
                     DATA_KEY1 = key1,
@@ -569,13 +570,13 @@ namespace IPA.Cores.Basic
                 cancel: cancel);
         }
 
-        protected override async Task CommitAddDataListImplAsync<T>(IEnumerable<T> dataList, CancellationToken cancel = default)
+        protected override async Task CommitAddDataListImplAsync(IEnumerable<HadbData> dataList, CancellationToken cancel = default)
         {
             await using var dbWriter = await this.OpenSqlDatabaseForWriteAsync(cancel);
 
             await dbWriter.TranAsync(async () =>
             {
-                foreach (T data in dataList)
+                foreach (HadbData data in dataList)
                 {
                     if (data.Hadb_Deleted) throw new CoresLibException("data.Deleted == true");
 
@@ -586,6 +587,7 @@ namespace IPA.Cores.Basic
                         DATA_TYPE = data.GetTypeName(),
                         DATA_VER = data.Hadb_Ver,
                         DATA_DELETED = data.Hadb_Deleted,
+                        DATA_ARCHIVE_AGE = 0,
                         DATA_CREATE_DT = data.Hadb_CreateDt,
                         DATA_UPDATE_DT = data.Hadb_UpdateDt,
                         DATA_DELETE_DT = data.Hadb_DeleteDt,
@@ -723,7 +725,7 @@ namespace IPA.Cores.Basic
         public TMem? MemDb { get; private set; } = null;
 
         protected abstract Task<TMem> ReloadImplAsync(TMem? current, CancellationToken cancel);
-        protected abstract Task CommitAddDataListImplAsync<T>(IEnumerable<T> dataList, CancellationToken cancel = default) where T : HadbData;
+        protected abstract Task CommitAddDataListImplAsync(IEnumerable<HadbData> dataList, CancellationToken cancel = default);
 
         public HadbBase(HadbSettingsBase settings, TDynamicConfig dynamicConfig)
         {
@@ -860,14 +862,14 @@ namespace IPA.Cores.Basic
             await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () => CheckIfReadyToCommit(doNotThrowError: EnsureSpecial.Yes).IsOk, cancel, true);
         }
 
-        public async Task<T> CommitCreateDataAsync<T>(T data, CancellationToken cancel = default) where T : HadbData
+        public async Task<HadbData> CommitCreateDataAsync(HadbData data, CancellationToken cancel = default)
             => (await CommitCreateDataAsync(data._SingleArray(), cancel)).Single();
 
-        public async Task<List<T>> CommitCreateDataAsync<T>(IEnumerable<T> dataList, CancellationToken cancel = default) where T: HadbData
+        public async Task<List<HadbData>> CommitCreateDataAsync(IEnumerable<HadbData> dataList, CancellationToken cancel = default)
         {
             CheckIfReadyToCommit();
 
-            List<T> dataList2 = new List<T>();
+            List<HadbData> dataList2 = new List<HadbData>();
 
             foreach (var _data in dataList)
             {
