@@ -367,7 +367,10 @@ namespace IPA.Cores.Helper.Basic
         public static void _SetMax(this ref ulong i, ulong target) => i = Math.Max(i, target);
 
         [MethodImpl(Inline)]
-        public static string _ToBoolStr(this bool b) => b ? "True" : "False";
+        public static string _ToBoolStr(this bool b) => b._ToBoolStrFirstUpper();
+
+        [MethodImpl(Inline)]
+        public static string _ToBoolStrFirstUpper(this bool b) => b ? "True" : "False";
 
         [MethodImpl(Inline)]
         public static string _ToBoolStrLower(this bool b) => b ? "true" : "false";

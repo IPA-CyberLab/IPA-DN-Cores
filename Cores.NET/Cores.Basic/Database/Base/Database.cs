@@ -81,17 +81,19 @@ namespace IPA.Cores.Basic
         public string InitialDatalog { get; }
         public string UserId { get; }
         public string Password { get; }
+        public bool Pooling { get; }
 
-        public SqlDatabaseConnectionSetting(string dataSource, string initialCatalog, string userId, string password)
+        public SqlDatabaseConnectionSetting(string dataSource, string initialCatalog, string userId, string password, bool pooling = false /* Linux 版 SQL Client では true にすると動作不良を引き起こすため、false を推奨 */ )
         {
             this.DataSource = dataSource;
             this.InitialDatalog = initialCatalog;
             this.UserId = userId;
             this.Password = password;
+            this.Pooling = pooling;
         }
 
         public static implicit operator string(SqlDatabaseConnectionSetting config)
-            => $"Data Source={config.DataSource};Initial Catalog={config.InitialDatalog};Persist Security Info=True;User ID={config.UserId};Password={config.Password}";
+            => $"Data Source={config.DataSource};Initial Catalog={config.InitialDatalog};Persist Security Info=True;Pooling={config.Pooling._ToBoolStr()};User ID={config.UserId};Password={config.Password}";
 
     }
 
