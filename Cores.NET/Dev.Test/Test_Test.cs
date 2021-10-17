@@ -2324,10 +2324,23 @@ namespace IPA.TestDev
             Console.ReadLine();
         }
 
+        static void Test_211017()
+        {
+            using MikakaDDnsHadb db = new MikakaDDnsHadb(new HadbSqlSettings("Mikaka",
+                new SqlDatabaseConnectionSetting("10.40.0.103", "TEST_DN_DBSVC1", "sql_test_dn_dbsvc1_reader", "testabc"),
+                new SqlDatabaseConnectionSetting("10.40.0.103", "TEST_DN_DBSVC1", "sql_test_dn_dbsvc1_writer", "testabc")),
+                new MikakaDDnsDynamicConfig());
+
+            db.StartLoop();
+
+            Con.ReadLine("exit>");
+        }
+
         public static void Test_Generic()
         {
             if (true)
             {
+                Test_211017();
                 return;
             }
 

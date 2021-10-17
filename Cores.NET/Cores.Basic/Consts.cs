@@ -311,7 +311,8 @@ namespace IPA.Cores.Basic
 
         public static partial class HadbDynamicConfigDefaultValues
         {
-            public const int HadbReloadIntervalMsecs = 5 * 1000;
+            public const int HadbReloadIntervalMsecsLastOk = 5 * 1000;
+            public const int HadbReloadIntervalMsecsLastError = 1 * 1000;
             public const int HadbLazyUpdateIntervalMsecs = 1 * 1000;
             public const int HadbBackupFileWriteIntervalMsecs = 5 * 1000;
             public const int HadbRecordStatIntervalMsecs = 5 * 1000;
@@ -319,7 +320,8 @@ namespace IPA.Cores.Basic
 
         public static partial class HadbDynamicConfigMaxValues
         {
-            public const int HadbReloadIntervalMsecs = 30 * 60 * 1000;
+            public const int HadbReloadIntervalMsecsLastOk = 30 * 60 * 1000;
+            public const int HadbReloadIntervalMsecsLastError = 30 * 60 * 1000;
             public const int HadbLazyUpdateIntervalMsecs = 5 * 60 * 1000;
             public const int HadbBackupFileWriteIntervalMsecs = 24 * 60 * 60 * 1000;
             public const int HadbRecordStatIntervalMsecs = 60 * 60 * 1000;

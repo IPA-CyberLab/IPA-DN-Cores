@@ -63,6 +63,7 @@ using System.Net.Sockets;
 
 using Newtonsoft.Json;
 using System.Data;
+using System.Reflection;
 
 namespace IPA.Cores.Basic
 {
@@ -112,7 +113,8 @@ namespace IPA.Cores.Basic
     {
         protected virtual void NormalizeImpl() { }
 
-        public int HadbReloadIntervalMsecs;
+        public int HadbReloadIntervalMsecsLastOk;
+        public int HadbReloadIntervalMsecsLastError;
         public int HadbLazyUpdateIntervalMsecs;
         public int HadbBackupFileWriteIntervalMsecs;
         public int HadbRecordStatIntervalMsecs;
@@ -124,12 +126,82 @@ namespace IPA.Cores.Basic
 
         public void Normalize()
         {
-            this.HadbReloadIntervalMsecs = this.HadbReloadIntervalMsecs._ZeroOrDefault(Consts.HadbDynamicConfigDefaultValues.HadbReloadIntervalMsecs, max: Consts.HadbDynamicConfigMaxValues.HadbReloadIntervalMsecs);
+            this.HadbReloadIntervalMsecsLastOk = this.HadbReloadIntervalMsecsLastOk._ZeroOrDefault(Consts.HadbDynamicConfigDefaultValues.HadbReloadIntervalMsecsLastOk, max: Consts.HadbDynamicConfigMaxValues.HadbReloadIntervalMsecsLastOk);
+            this.HadbReloadIntervalMsecsLastError = this.HadbReloadIntervalMsecsLastError._ZeroOrDefault(Consts.HadbDynamicConfigDefaultValues.HadbReloadIntervalMsecsLastError, max: Consts.HadbDynamicConfigMaxValues.HadbReloadIntervalMsecsLastError);
             this.HadbLazyUpdateIntervalMsecs = this.HadbLazyUpdateIntervalMsecs._ZeroOrDefault(Consts.HadbDynamicConfigDefaultValues.HadbLazyUpdateIntervalMsecs, max: Consts.HadbDynamicConfigMaxValues.HadbLazyUpdateIntervalMsecs);
             this.HadbBackupFileWriteIntervalMsecs = this.HadbBackupFileWriteIntervalMsecs._ZeroOrDefault(Consts.HadbDynamicConfigDefaultValues.HadbBackupFileWriteIntervalMsecs, max: Consts.HadbDynamicConfigMaxValues.HadbBackupFileWriteIntervalMsecs);
             this.HadbRecordStatIntervalMsecs = this.HadbRecordStatIntervalMsecs._ZeroOrDefault(Consts.HadbDynamicConfigDefaultValues.HadbRecordStatIntervalMsecs, max: Consts.HadbDynamicConfigMaxValues.HadbRecordStatIntervalMsecs);
 
             this.NormalizeImpl();
+        }
+
+        public KeyValueList<string, string> UpdateFromDatabaseAndReturnMissingValues(KeyValueList<string, string> dataListFromDb)
+        {
+            var rw = this.GetType()._GetFieldReaderWriter();
+
+            var fields = rw.MetadataTable.Where(x => x.Value.MemberType.IsAnyOfThem(MemberTypes.Field, MemberTypes.Property));
+
+            HashSet<string> suppliedList = new HashSet<string>(StrComparer.IgnoreCaseTrimComparer);
+
+            foreach (var field in fields)
+            {
+                string name = field.Key;
+                var metaInfo = field.Value;
+                Type? type = metaInfo.GetFieldOrPropertyInfo();
+
+                bool updated = false;
+
+                if (type == typeof(int))
+                {
+                    if (dataListFromDb._TryGetFirstValue(name, out string valueStr, StrComparer.IgnoreCaseTrimComparer))
+                    {
+                        rw.SetValue(this, name, valueStr._ToInt());
+                        updated = true;
+                    }
+                }
+                else if (type == typeof(string))
+                {
+                    if (dataListFromDb._TryGetFirstValue(name, out string valueStr, StrComparer.IgnoreCaseTrimComparer))
+                    {
+                        rw.SetValue(this, name, valueStr._NonNullTrim());
+                        updated = true;
+                    }
+                }
+                else
+                {
+                    continue;
+                }
+
+                if (updated)
+                {
+                    suppliedList.Add(name);
+                }
+            }
+
+            this.Normalize();
+
+            KeyValueList<string, string> ret = new KeyValueList<string, string>();
+
+            foreach (var field in fields)
+            {
+                string name = field.Key;
+                var metaInfo = field.Value;
+                Type? type = metaInfo.GetFieldOrPropertyInfo();
+
+                if (suppliedList.Contains(name) == false)
+                {
+                    if (type == typeof(int))
+                    {
+                        ret.Add(name, ((int)rw.GetValue(this, name)!).ToString());
+                    }
+                    else if (type == typeof(string))
+                    {
+                        ret.Add(name, ((string?)rw.GetValue(this, name))._NonNullTrim());
+                    }
+                }
+            }
+
+            return ret;
         }
     }
 
@@ -138,13 +210,14 @@ namespace IPA.Cores.Basic
         public string SqlConnectStringForRead { get; }
         public string SqlConnectStringForWrite { get; }
 
-        public HadbSqlSettings(string sqlConnectStringForRead, string sqlConnectStringForWrite)
+        public HadbSqlSettings(string systemName, string sqlConnectStringForRead, string sqlConnectStringForWrite) : base(systemName)
         {
             this.SqlConnectStringForRead = sqlConnectStringForRead;
             this.SqlConnectStringForWrite = sqlConnectStringForWrite;
         }
     }
 
+    [EasyTable("HADB_CONFIG")]
     public sealed class HadbSqlConfigRow : INormalizable
     {
         [EasyKey]
@@ -163,6 +236,7 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [EasyTable("HADB_DATA")]
     public sealed class HadbSqlDataRow : INormalizable
     {
         [EasyManualKey]
@@ -200,7 +274,7 @@ namespace IPA.Cores.Basic
 
     public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynamicConfig>
         where TMem : HadbMemBase<TDynamicConfig>
-        where TDynamicConfig : HadbDynamicConfig, new()
+        where TDynamicConfig : HadbDynamicConfig
     {
         public new HadbSqlSettings Settings => (HadbSqlSettings)base.Settings;
 
@@ -252,29 +326,86 @@ namespace IPA.Cores.Basic
 
         protected override async Task<TMem> ReloadImplAsync(TMem? current, CancellationToken cancel)
         {
+            IEnumerable<HadbSqlConfigRow> configList = null!;
+            IEnumerable<HadbSqlDataRow> dataList = null!;
+
             try
             {
-                IEnumerable<HadbSqlConfigRow> configList = null!;
-                IEnumerable<HadbSqlDataRow> dataList = null!;
+                await using var dbReader = await this.OpenSqlDatabaseForReadAsync(cancel);
 
-                await using var db = await this.OpenSqlDatabaseForReadAsync(cancel);
-
-                await db.TranReadSnapshotIfNecessaryAsync(async () =>
+                await dbReader.TranReadSnapshotIfNecessaryAsync(async () =>
                 {
-                    configList = await db.EasySelectAsync<HadbSqlConfigRow>("select * from CONFIG where CONFIG_SYSTEMNAME = @CONFIG_SYSTEMNAME", new { CONFIG_SYSTEMNAME = "abc" });
-                    dataList = await db.EasySelectAsync<HadbSqlDataRow>("select * from DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME", new { CONFIG_SYSTEMNAME = "abc" }); // TODO
+                    configList = await dbReader.EasySelectAsync<HadbSqlConfigRow>("select * from HADB_CONFIG where CONFIG_SYSTEMNAME = @CONFIG_SYSTEMNAME", new { CONFIG_SYSTEMNAME = this.SystemName });
+                    dataList = await dbReader.EasySelectAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME", new { DATA_SYSTEMNAME = this.SystemName }); // TODO: get only latest
                 });
             }
             catch (Exception ex)
             {
-                Debug($"ReloadImplAsync: Database Connect Error: {ex.ToString()}");
+                Debug($"ReloadImplAsync: Database Connect Error for Read: {ex.ToString()}");
                 throw;
             }
+
+            configList._NormalizeAll();
+            dataList._NormalizeAll();
+
+            // 取得した configList の内容を元に TDynamicConfig のデータを更新する
+            KeyValueList<string, string> configListValuesFromDb = new KeyValueList<string, string>();
+            foreach (var configRow in configList)
+            {
+                configListValuesFromDb.Add(configRow.CONFIG_NAME, configRow.CONFIG_VALUE);
+            }
+            var missingValues = this.CurrentDynamicConfig.UpdateFromDatabaseAndReturnMissingValues(configListValuesFromDb);
+
+            if (missingValues.Any())
+            {
+                // DB にまだ存在しないが定義されるべき TDynamicConfig のフィールドがある場合は DB に初期値を書き込む
+                await using var dbWriter = await this.OpenSqlDatabaseForWriteAsync(cancel);
+
+                foreach (var missingValue in missingValues)
+                {
+                    await dbWriter.TranAsync(async () =>
+                    {
+                        // DB にまだ値がない場合のみ書き込む。
+                        // すでにある場合は書き込みしない。
+
+                        var tmp = await dbWriter.EasySelectAsync<HadbSqlConfigRow>("select * from HADB_CONFIG where CONFIG_SYSTEMNAME = @CONFIG_SYSTEMNAME and CONFIG_NAME = @CONFIG_NAME",
+                            new
+                            {
+                                CONFIG_SYSTEMNAME = this.SystemName,
+                                CONFIG_NAME = missingValue.Key,
+                            },
+                            cancel: cancel);
+
+                        if (tmp.Any())
+                        {
+                            return false;
+                        }
+
+                        await dbWriter.EasyInsertAsync(new HadbSqlConfigRow
+                        {
+                            CONFIG_SYSTEMNAME = this.SystemName,
+                            CONFIG_NAME = missingValue.Key,
+                            CONFIG_VALUE = missingValue.Value,
+                            CONFIG_EXT = "",
+                        }, cancel);
+
+                        return true;
+                    });
+                }
+            }
+
+            return null!;
         }
     }
 
     public abstract class HadbSettingsBase
     {
+        public string SystemName { get; }
+
+        public HadbSettingsBase(string systemName)
+        {
+            this.SystemName = systemName._NonNullTrim().ToUpper();
+        }
     }
 
     public abstract class HadbData : INormalizable
@@ -300,10 +431,9 @@ namespace IPA.Cores.Basic
     }
 
     public abstract class HadbMemBase<TDynamicConfig> // 注意! ファイル保存するため、むやみに [JsonIgnore] を書かないこと！！
-        where TDynamicConfig : HadbDynamicConfig, new()
+        where TDynamicConfig : HadbDynamicConfig
     {
         // --- Bulk 取得されるべきデータ群 (バックアップファイルとして保存されるデータ群) ---
-        public TDynamicConfig DynamicConfig = new TDynamicConfig();
 
         // --- 上記データをもとにハッシュ化したメモリ上の高速アクセス可能なハッシュ化された中間データ ---
         // 以下はすべてのフィールドに [JsonIgnore] を付けること！！
@@ -311,7 +441,7 @@ namespace IPA.Cores.Basic
 
     public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         where TMem : HadbMemBase<TDynamicConfig>
-        where TDynamicConfig : HadbDynamicConfig, new()
+        where TDynamicConfig : HadbDynamicConfig
     {
         Task ReloadMainLoopTask;
         Task LazyUpdateMainLoopTask;
@@ -322,6 +452,8 @@ namespace IPA.Cores.Basic
         public bool IsDatabaseConnectedForLazyWrite { get; private set; } = false;
 
         public HadbSettingsBase Settings { get; }
+        public string SystemName => Settings.SystemName;
+
         public TDynamicConfig CurrentDynamicConfig { get; private set; }
 
         public TMem? MemDb { get; private set; } = null;
@@ -414,7 +546,11 @@ namespace IPA.Cores.Basic
                     LastReloadTookMsecs = 0;
                 }
 
-                Debug($"ReloadMainLoopAsync: numCycle={numCycle}, numError={numError} End. Took time: {endTick - startTick} msecs.");
+                Debug($"ReloadMainLoopAsync: numCycle={numCycle}, numError={numError} End. Took time: {(endTick - startTick)._ToString3()} msecs.");
+
+                int nextWaitTime = Util.GenRandInterval(ok ? this.CurrentDynamicConfig.HadbReloadIntervalMsecsLastOk : this.CurrentDynamicConfig.HadbReloadIntervalMsecsLastError);
+                Debug($"ReloadMainLoopAsync: Waiting for {nextWaitTime._ToString3()} msecs for next DB read.");
+                await cancel._WaitUntilCanceledAsync(nextWaitTime);
             }
 
             Debug($"ReloadMainLoopAsync: Finished.");

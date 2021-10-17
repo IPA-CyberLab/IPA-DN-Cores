@@ -2954,6 +2954,22 @@ namespace IPA.Cores.Helper.Basic
         public static void _AddTuple<T1, T2, T3, T4>(this IList<Tuple<T1, T2, T3, T4>> list, T1 t1, T2 t2, T3 t3, T4 t4) => list.Add(new Tuple<T1, T2, T3, T4>(t1, t2, t3, t4));
 
         public static Tuple<string, int> _ParseHostnaneAndPort(this string str, int defaultPort) => Str.ParseHostnaneAndPort(str, defaultPort);
+
+        public static void _NormalizeAll(this IEnumerable<INormalizable> list) => list._DoForEach(x => x.Normalize());
+
+        public static Type? GetFieldOrPropertyInfo(this MemberInfo info)
+        {
+            switch (info)
+            {
+                case FieldInfo fi:
+                    return fi.FieldType;
+
+                case PropertyInfo pi:
+                    return pi.PropertyType;
+            }
+
+            return null;
+        }
     }
 }
 
