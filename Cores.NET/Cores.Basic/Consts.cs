@@ -309,6 +309,22 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public static partial class HadbDynamicConfigDefaultValues
+        {
+            public const int HadbReloadIntervalMsecs = 5 * 1000;
+            public const int HadbLazyUpdateIntervalMsecs = 1 * 1000;
+            public const int HadbBackupFileWriteIntervalMsecs = 5 * 1000;
+            public const int HadbRecordStatIntervalMsecs = 5 * 1000;
+        }
+
+        public static partial class HadbDynamicConfigMaxValues
+        {
+            public const int HadbReloadIntervalMsecs = 30 * 60 * 1000;
+            public const int HadbLazyUpdateIntervalMsecs = 5 * 60 * 1000;
+            public const int HadbBackupFileWriteIntervalMsecs = 24 * 60 * 60 * 1000;
+            public const int HadbRecordStatIntervalMsecs = 60 * 60 * 1000;
+        }
+
         public static partial class BlazorApp
         {
             public const string DummyImageFileName = "/tmp/dummy/webasm.exe";

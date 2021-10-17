@@ -6661,6 +6661,11 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class StrDictionary<TValue> : Dictionary<string, TValue>
+    {
+        public StrDictionary(IEqualityComparer<string>? comparer = null) : base(comparer ?? StrComparer.IgnoreCaseComparer) { }
+    }
+
     public class KeyValueList<TKey, TValue> : List<KeyValuePair<TKey, TValue>>
     {
         public void Add(TKey key, TValue value)
