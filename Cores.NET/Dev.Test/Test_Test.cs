@@ -2329,7 +2329,7 @@ namespace IPA.TestDev
             using MikakaDDnsHadb db = new MikakaDDnsHadb(new HadbSqlSettings("Mikaka",
                 new SqlDatabaseConnectionSetting("10.40.0.103", "TEST_DN_DBSVC1", "sql_test_dn_dbsvc1_reader", "testabc"),
                 new SqlDatabaseConnectionSetting("10.40.0.103", "TEST_DN_DBSVC1", "sql_test_dn_dbsvc1_writer", "testabc")),
-                new MikakaDDnsDynamicConfig());
+                new MikakaDDnsDynamicConfig() { /*TestDef = new string[] { "Hello", "World" }*/ });
 
             db.StartLoop();
 

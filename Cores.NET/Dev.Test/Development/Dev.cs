@@ -78,6 +78,9 @@ namespace IPA.Cores.Basic
     public class MikakaDDnsDynamicConfig : HadbDynamicConfig
     {
         public int TestAbc;
+        public string[] TestDef = new string[0];
+        public string TestStr1 = "";
+        public string TestStr2 = "";
 
         protected override void NormalizeImpl()
         {
@@ -85,12 +88,17 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class MikakaDDnsMem : HadbMemBase<MikakaDDnsDynamicConfig>
+    public class MikakaDDnsMem : HadbMemSqlBase<MikakaDDnsDynamicConfig>
     {
-        // --- Bulk 取得されるべきデータ群 (バックアップファイルとして保存されるデータ群) ---
-        public StrDictionary<MikakaDDnsHost> HostList = new StrDictionary<MikakaDDnsHost>();
+        protected override void ReloadAllTablesFromDatabaseCoreImpl(IEnumerable<HadbSqlDataRow> fetchedRows)
+        {
+            this.ReloadTableFromDatabase(this.HostTable, fetchedRows);
+        }
 
-        // --- 上記データをもとにハッシュ化したメモリ上の高速アクセス可能なハッシュ化された中間データ ---
+        // --- Bulk 取得されるべき生テーブルデータ群 (バックアップファイルとして保存される生テーブルデータ群。TableLock でロックした上で読み書きすること！) ---
+        public StrDictionary<MikakaDDnsHost> HostTable = new StrDictionary<MikakaDDnsHost>();
+
+        // --- 上記データをもとにハッシュ化したメモリ上の高速アクセス可能なハッシュ化された中間データ。ロックなしで読み取りをして安全である。書き込みは禁止である。 ---
         // 以下はすべてのフィールドに [JsonIgnore] を付けること！！
     }
 
@@ -105,6 +113,90 @@ namespace IPA.Cores.Basic
             {
                 this._DisposeSafe();
                 throw;
+            }
+        }
+    }
+
+    public abstract class HadbMemSqlBase<TDynamicConfig> : HadbMemBase<TDynamicConfig> // 注意! ファイル保存するため、むやみに [JsonIgnore] を書かないこと！！
+        where TDynamicConfig : HadbDynamicConfig
+    {
+        protected abstract void ReloadAllTablesFromDatabaseCoreImpl(IEnumerable<HadbSqlDataRow> fetchedRows);
+
+        public void ReloadAllTablesFromDatabase(IEnumerable<HadbSqlDataRow> fetchedRows)
+        {
+            lock (this.TableLock)
+            {
+                this.ReloadAllTablesFromDatabaseCoreImpl(fetchedRows);
+            }
+        }
+
+        protected void ReloadTableFromDatabase<TData>(StrDictionary<TData> table, IEnumerable<HadbSqlDataRow> fetchedRows)
+            where TData: HadbData
+        {
+            int countInserted = 0;
+            int countUpdated = 0;
+            int countRemoved = 0;
+
+            string typeName = typeof(TData).Name;
+
+            var rows = fetchedRows.Where(x => x.DATA_TYPE._IsSamei(typeName));
+
+            foreach (var row in rows)
+            {
+                bool insert = false;
+                bool update = false;
+
+                if (table.TryGetValue(row.DATA_UID, out TData? currentData))
+                {
+                    if (currentData.Ver < row.DATA_VER)
+                    {
+                        update = true;
+                    }
+                }
+                else
+                {
+                    insert = true;
+                }
+
+                if (insert || update)
+                {
+                    TData? a = row.DATA_VALUE._JsonToObject<TData>();
+                    if (a != null)
+                    {
+                        if (a.Deleted == false)
+                        {
+                            a.Uid = row.DATA_UID;
+                            a.Ver = row.DATA_VER;
+                            a.Deleted = row.DATA_DELETED;
+                            a.CreateDt = row.DATA_CREATE_DT;
+                            a.DeleteDt = row.DATA_DELETE_DT;
+                            a.UpdateDt = row.DATA_UPDATE_DT;
+
+                            a.Normalize();
+
+                            table[row.DATA_UID] = a;
+
+                            if (update)
+                            {
+                                countUpdated++;
+                            }
+                            else
+                            {
+                                countInserted++;
+                            }
+                        }
+                        else
+                        {
+                            table.Remove(row.DATA_UID);
+                            countRemoved++;
+                        }
+                    }
+                }
+            }
+
+            //if (countInserted > 0 || countRemoved > 0 || countUpdated > 0)
+            {
+                Debug($"Update Local Memory from Database: TypeName={typeName}, New={countInserted._ToString3()}, Update={countUpdated._ToString3()}, Remove={countRemoved._ToString3()}");
             }
         }
     }
@@ -167,6 +259,15 @@ namespace IPA.Cores.Basic
                         updated = true;
                     }
                 }
+                else if (type == typeof(string[]))
+                {
+                    string[] newArray = dataListFromDb.Where(x => x.Key._IsSameTrimi(name) && x.Value._IsFilled()).Select(x => x.Value._NonNullTrim()).ToArray();
+                    if (newArray.Any())
+                    {
+                        rw.SetValue(this, name, newArray);
+                        updated = true;
+                    }
+                }
                 else
                 {
                     continue;
@@ -197,6 +298,28 @@ namespace IPA.Cores.Basic
                     else if (type == typeof(string))
                     {
                         ret.Add(name, ((string?)rw.GetValue(this, name))._NonNullTrim());
+                    }
+                    else if (type == typeof(string[]))
+                    {
+                        string[]? currentArray = (string[]?)rw.GetValue(this, name);
+                        if (currentArray == null)
+                        {
+                            currentArray = new string[0];
+                        }
+
+                        var tmp = currentArray.Where(x => x._IsFilled()).Select(x => x._NonNullTrim());
+
+                        if (tmp.Any())
+                        {
+                            foreach (var a in currentArray)
+                            {
+                                ret.Add(name, a);
+                            }
+                        }
+                        else
+                        {
+                            ret.Add(name, "");
+                        }
                     }
                 }
             }
@@ -273,7 +396,7 @@ namespace IPA.Cores.Basic
     }
 
     public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynamicConfig>
-        where TMem : HadbMemBase<TDynamicConfig>
+        where TMem : HadbMemSqlBase<TDynamicConfig>, new()
         where TDynamicConfig : HadbDynamicConfig
     {
         public new HadbSqlSettings Settings => (HadbSqlSettings)base.Settings;
@@ -361,7 +484,7 @@ namespace IPA.Cores.Basic
                 // DB にまだ存在しないが定義されるべき TDynamicConfig のフィールドがある場合は DB に初期値を書き込む
                 await using var dbWriter = await this.OpenSqlDatabaseForWriteAsync(cancel);
 
-                foreach (var missingValue in missingValues)
+                foreach (var missingValueName in missingValues.Select(x => x.Key._NonNullTrim()).Distinct(StrComparer.IgnoreCaseComparer))
                 {
                     await dbWriter.TranAsync(async () =>
                     {
@@ -372,7 +495,7 @@ namespace IPA.Cores.Basic
                             new
                             {
                                 CONFIG_SYSTEMNAME = this.SystemName,
-                                CONFIG_NAME = missingValue.Key,
+                                CONFIG_NAME = missingValueName,
                             },
                             cancel: cancel);
 
@@ -381,20 +504,32 @@ namespace IPA.Cores.Basic
                             return false;
                         }
 
-                        await dbWriter.EasyInsertAsync(new HadbSqlConfigRow
+                        var valuesList = missingValues.Where(x => x.Key._IsSameiTrim(missingValueName)).Select(x => x.Value);
+
+                        foreach (var value in valuesList)
                         {
-                            CONFIG_SYSTEMNAME = this.SystemName,
-                            CONFIG_NAME = missingValue.Key,
-                            CONFIG_VALUE = missingValue.Value,
-                            CONFIG_EXT = "",
-                        }, cancel);
+                            await dbWriter.EasyInsertAsync(new HadbSqlConfigRow
+                            {
+                                CONFIG_SYSTEMNAME = this.SystemName,
+                                CONFIG_NAME = missingValueName,
+                                CONFIG_VALUE = value,
+                                CONFIG_EXT = "",
+                            }, cancel);
+                        }
 
                         return true;
                     });
                 }
             }
 
-            return null!;
+            if (current == null)
+            {
+                current = new TMem();
+            }
+
+            current.ReloadAllTablesFromDatabase(dataList);
+
+            return current;
         }
     }
 
@@ -410,11 +545,22 @@ namespace IPA.Cores.Basic
 
     public abstract class HadbData : INormalizable
     {
+        [JsonIgnore]
         public string Uid = "";
+
+        [JsonIgnore]
         public long Ver = 0;
+
+        [JsonIgnore]
         public bool Deleted = false;
+
+        [JsonIgnore]
         public DateTimeOffset CreateDt = Util.ZeroDateTimeOffsetValue;
+
+        [JsonIgnore]
         public DateTimeOffset UpdateDt = Util.ZeroDateTimeOffsetValue;
+
+        [JsonIgnore]
         public DateTimeOffset DeleteDt = Util.ZeroDateTimeOffsetValue;
 
         public string GetTypeName() => this.GetType().Name;
@@ -433,14 +579,23 @@ namespace IPA.Cores.Basic
     public abstract class HadbMemBase<TDynamicConfig> // 注意! ファイル保存するため、むやみに [JsonIgnore] を書かないこと！！
         where TDynamicConfig : HadbDynamicConfig
     {
-        // --- Bulk 取得されるべきデータ群 (バックアップファイルとして保存されるデータ群) ---
+        [JsonIgnore]
+        public readonly CriticalSection<HadbMemBase<TDynamicConfig>> TableLock = new CriticalSection<HadbMemBase<TDynamicConfig>>(); // メモリ上のデータの読み書き用ロック
 
-        // --- 上記データをもとにハッシュ化したメモリ上の高速アクセス可能なハッシュ化された中間データ ---
+        public void Debug(string str)
+        {
+            string pos = Dbg.GetCurrentExecutingPositionInfoString();
+            $"{pos}: {str}"._Debug();
+        }
+
+        // --- Bulk 取得されるべき生テーブルデータ群 (バックアップファイルとして保存される生テーブルデータ群。TableLock でロックした上で読み書きすること！) ---
+
+        // --- 上記データをもとにハッシュ化したメモリ上の高速アクセス可能なハッシュ化された中間データ。ロックなしで読み取りをして安全である。書き込みは禁止である。 ---
         // 以下はすべてのフィールドに [JsonIgnore] を付けること！！
     }
 
     public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
-        where TMem : HadbMemBase<TDynamicConfig>
+        where TMem : HadbMemBase<TDynamicConfig>, new()
         where TDynamicConfig : HadbDynamicConfig
     {
         Task ReloadMainLoopTask;
@@ -469,6 +624,7 @@ namespace IPA.Cores.Basic
 
                 dynamicConfig._NullCheck(nameof(dynamicConfig));
                 this.CurrentDynamicConfig = dynamicConfig;
+                this.CurrentDynamicConfig.Normalize();
 
                 this.ReloadMainLoopTask = ReloadMainLoopAsync(this.GrandCancel)._LeakCheck();
                 this.LazyUpdateMainLoopTask = LazyUpdateMainLoopAsync(this.GrandCancel)._LeakCheck();
