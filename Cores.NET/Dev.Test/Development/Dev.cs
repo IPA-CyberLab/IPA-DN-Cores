@@ -158,7 +158,7 @@ namespace IPA.Cores.Basic
 
                 if (table.TryGetValue(row.DATA_UID, out HadbObject<TData>? currentData))
                 {
-                    if (currentData.Hadb_Ver < row.DATA_VER)
+                    if (currentData.Ver < row.DATA_VER)
                     {
                         update = true;
                     }
@@ -183,7 +183,7 @@ namespace IPA.Cores.Basic
                         {
                             HadbObject<TData> newData = new HadbObject<TData>(userData, row.DATA_UID, row.DATA_VER, 0, false, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
 
-                            table[newData.Hadb_Uid] = newData;
+                            table[newData.Uid] = newData;
 
                             if (update)
                             {
@@ -572,19 +572,19 @@ namespace IPA.Cores.Basic
             {
                 foreach (HadbObject data in dataList)
                 {
-                    if (data.Hadb_Deleted) throw new CoresLibException("data.Deleted == true");
+                    if (data.Deleted) throw new CoresLibException("data.Deleted == true");
 
                     HadbSqlDataRow row = new HadbSqlDataRow
                     {
-                        DATA_UID = data.Hadb_Uid,
+                        DATA_UID = data.Uid,
                         DATA_SYSTEMNAME = this.SystemName,
                         DATA_TYPE = data.GetUserDataTypeName(),
-                        DATA_VER = data.Hadb_Ver,
-                        DATA_DELETED = data.Hadb_Deleted,
+                        DATA_VER = data.Ver,
+                        DATA_DELETED = data.Deleted,
                         DATA_ARCHIVE_AGE = 0,
-                        DATA_CREATE_DT = data.Hadb_CreateDt,
-                        DATA_UPDATE_DT = data.Hadb_UpdateDt,
-                        DATA_DELETE_DT = data.Hadb_DeleteDt,
+                        DATA_CREATE_DT = data.CreateDt,
+                        DATA_UPDATE_DT = data.UpdateDt,
+                        DATA_DELETE_DT = data.DeleteDt,
                         DATA_KEY1 = data.GetKey1Value(),
                         DATA_KEY2 = data.GetKey2Value(),
                         DATA_KEY3 = data.GetKey3Value(),
@@ -651,19 +651,19 @@ namespace IPA.Cores.Basic
 
     public abstract class HadbObject : INormalizable
     {
-        public string Hadb_Uid { get; }
+        public string Uid { get; }
 
-        public long Hadb_Ver { get; }
+        public long Ver { get; }
 
-        public bool Hadb_Deleted { get; }
+        public bool Deleted { get; }
 
-        public DateTimeOffset Hadb_CreateDt { get; }
+        public DateTimeOffset CreateDt { get; }
 
-        public DateTimeOffset Hadb_UpdateDt { get; }
+        public DateTimeOffset UpdateDt { get; }
 
-        public DateTimeOffset Hadb_DeleteDt { get; }
+        public DateTimeOffset DeleteDt { get; }
 
-        public long Hadb_ArchiveAge { get; }
+        public long ArchiveAge { get; }
 
         public HadbData UserData { get; }
 
@@ -679,19 +679,19 @@ namespace IPA.Cores.Basic
 
             if (uid._IsEmpty())
             {
-                this.Hadb_Uid = Str.NewUid(this.GetUidPrefix(), '_');
+                this.Uid = Str.NewUid(this.GetUidPrefix(), '_');
             }
             else
             {
-                this.Hadb_Uid = uid._NormalizeUid();
+                this.Uid = uid._NormalizeUid();
             }
 
-            this.Hadb_Ver = Math.Max(ver, 1);
-            this.Hadb_ArchiveAge = Math.Max(archiveAge, 0);
-            this.Hadb_Deleted = deleted;
-            this.Hadb_CreateDt = createDt._NormalizeDateTimeOffset();
-            this.Hadb_UpdateDt = updateDt._NormalizeDateTimeOffset();
-            this.Hadb_DeleteDt = deleteDt._NormalizeDateTimeOffset();
+            this.Ver = Math.Max(ver, 1);
+            this.ArchiveAge = Math.Max(archiveAge, 0);
+            this.Deleted = deleted;
+            this.CreateDt = createDt._NormalizeDateTimeOffset();
+            this.UpdateDt = updateDt._NormalizeDateTimeOffset();
+            this.DeleteDt = deleteDt._NormalizeDateTimeOffset();
 
             this.Normalize();
         }
