@@ -75,6 +75,17 @@ namespace IPA.UnitTest
         public static volatile int DeepClone_ConstructorCount;
 
         [Serializable]
+        public class ElementClass2
+        {
+            public string Str { get; }
+
+            public ElementClass2(string str)
+            {
+                this.Str = str;
+            }
+        }
+
+        [Serializable]
         public class ElementClass
         {
             public ElementClass()
@@ -89,6 +100,8 @@ namespace IPA.UnitTest
             private int Int2 = 0;
 
             public RootClass? Root;
+
+            public ElementClass2? Element2;
 
             public void Dummy()
             {
@@ -112,6 +125,8 @@ namespace IPA.UnitTest
             private int Int2 = 0;
 
             public Dictionary<int, ElementClass>? Dict;
+
+            public ElementClass? Element;
 
             public void Dummy()
             {
@@ -141,6 +156,10 @@ namespace IPA.UnitTest
 
             a.Dict = new Dictionary<int, ElementClass>();
 
+            a.Element = new ElementClass { Int1 = 1, Str1 = "Hello", Root = null };
+
+            a.Element.Element2 = new ElementClass2("Neko");
+
             for (int i = 0; i < 1000; i++)
             {
                 ElementClass e = new ElementClass();
@@ -162,6 +181,14 @@ namespace IPA.UnitTest
             Assert.Equal(0, DeepClone_ConstructorCount);
             Assert.False(object.ReferenceEquals(a, b));
             Assert.Equal(a.Dict.Count, b.Dict!.Count);
+            Assert.False(object.ReferenceEquals(a.Dict, b.Dict));
+            Assert.False(object.ReferenceEquals(a.Element, b.Element));
+            Assert.True(a.Element!.Int1 == b.Element!.Int1);
+            Assert.True(a.Element.Str1.Equals(b.Element.Str1));
+
+            Assert.True(a.Element.Element2.Str.Equals(b.Element.Element2!.Str));
+            Assert.False(object.ReferenceEquals(a.Element.Element2, b.Element.Element2));
+
 
             for (int i = 0; i < a.Dict.Count; i++)
             {
