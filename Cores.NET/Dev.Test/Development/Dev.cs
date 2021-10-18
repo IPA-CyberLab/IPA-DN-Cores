@@ -98,15 +98,21 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class MikakaDDnsMem : HadbMemSqlBase<MikakaDDnsDynamicConfig>
+    public class MikakaDDnsMem : HadbMemDataBase
     {
+        protected override List<Type> GetDefinedUserDataTypesImpl()
+        {
+            List<Type> ret = new List<Type>();
+            ret.Add(typeof(MikakaDDnsHost));
+            return ret;
+        }
+
         protected override void ReloadAllTablesFromDatabaseCoreImpl(IEnumerable<HadbSqlDataRow> fetchedRows)
         {
             this.ReloadTableFromDatabase(this.HostTable, fetchedRows);
         }
 
         // --- Bulk 取得されるべき生テーブルデータ群 (バックアップファイルとして保存される生テーブルデータ群。TableLock でロックした上で読み書きすること！) ---
-        public StrDictionary<HadbObject<MikakaDDnsHost>> HostTable = new StrDictionary<HadbObject<MikakaDDnsHost>>();
 
         // --- 上記データをもとにハッシュ化したメモリ上の高速アクセス可能なハッシュ化された中間データ。ロックなしで読み取りをして安全である。書き込みは禁止である。 ---
         // 以下はすべてのフィールドに [JsonIgnore] を付けること！！
@@ -127,7 +133,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public abstract class HadbMemSqlBase<TDynamicConfig> : HadbMemBase<TDynamicConfig> // 注意! ファイル保存するため、むやみに [JsonIgnore] を書かないこと！！
+    public abstract class HadbMemSqlBase__delete<TDynamicConfig> : HadbMemDataBase // 注意! ファイル保存するため、むやみに [JsonIgnore] を書かないこと！！
         where TDynamicConfig : HadbDynamicConfig
     {
         protected abstract void ReloadAllTablesFromDatabaseCoreImpl(IEnumerable<HadbSqlDataRow> fetchedRows);
@@ -401,7 +407,7 @@ namespace IPA.Cores.Basic
     }
 
     public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynamicConfig>
-        where TMem : HadbMemSqlBase<TDynamicConfig>, new()
+        where TMem : HadbMemDataBase, new()
         where TDynamicConfig : HadbDynamicConfig
     {
         public new HadbSqlSettings Settings => (HadbSqlSettings)base.Settings;
@@ -527,9 +533,9 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected override async Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(CancellationToken cancel = default)
+        protected override async Task<List<HadbObject>> LoadAllDataFromDatabaseImplAsync(CancellationToken cancel = default)
         {
-            IEnumerable<HadbSqlDataRow> dataList = null!;
+            IEnumerable<HadbSqlDataRow> rowList = null!;
 
             try
             {
@@ -537,7 +543,7 @@ namespace IPA.Cores.Basic
 
                 await dbReader.TranReadSnapshotIfNecessaryAsync(async () =>
                 {
-                    dataList = await dbReader.EasySelectAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE_AGE = 0", new { DATA_SYSTEMNAME = this.SystemName }); // TODO: get only latest
+                    rowList = await dbReader.EasySelectAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE_AGE = 0", new { DATA_SYSTEMNAME = this.SystemName }); // TODO: get only latest
                 });
             }
             catch (Exception ex)
@@ -546,12 +552,23 @@ namespace IPA.Cores.Basic
                 throw;
             }
 
-            dataList._NormalizeAll();
+            rowList._NormalizeAll();
 
             List<HadbObject> ret = new List<HadbObject>();
 
-            foreach (var data in dataList)
-            {//TODOTODO
+            foreach (var row in rowList)
+            {
+                Type? type = this.GetTypeByTypeName(row.DATA_TYPE);
+                if (type != null)
+                {
+                    HadbData? data = (HadbData?)row.DATA_VALUE._JsonToObject(type);
+                    if (data != null)
+                    {
+                        HadbObject obj = new HadbObject(data, row.DATA_UID, row.DATA_VER, 0, false, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+
+                        ret.Add(obj);
+                    }
+                }
             }
 
             return ret;
@@ -579,7 +596,6 @@ namespace IPA.Cores.Basic
             }
 
             configList._NormalizeAll();
-            dataList._NormalizeAll();
 
             // 取得した configList の内容を元に TDynamicConfig のデータを更新する
             KeyValueList<string, string> configListValuesFromDb = new KeyValueList<string, string>();
@@ -739,22 +755,7 @@ namespace IPA.Cores.Basic
 
         public abstract void Normalize();
     }
-
-    public class HadbObject<T> : HadbObject where T : HadbData
-    {
-        public new T UserData => (T)base.UserData;
-
-        public HadbObject(HadbData userData) : base(userData) { }
-
-        public HadbObject(HadbData userData, string? uid, long ver, long archiveAge, bool deleted, DateTimeOffset createDt, DateTimeOffset updateDt, DateTimeOffset deleteDt) : base(userData, uid, ver, archiveAge, deleted, createDt, updateDt, deleteDt) { }
-    }
-
-    public static class HadbObjectHelper
-    {
-        public static HadbObject<T> ToData<T>(this T userData) where T : HadbData => new HadbObject<T>(userData);
-    }
-
-    public abstract class HadbObject : INormalizable
+    public class HadbObject : INormalizable
     {
         public string Uid { get; }
 
@@ -813,16 +814,47 @@ namespace IPA.Cores.Basic
         public void Normalize() => this.UserData.Normalize();
     }
 
-    public abstract class HadbMemBase<TDynamicConfig> // 注意! ファイル保存するため、むやみに [JsonIgnore] を書かないこと！！
-        where TDynamicConfig : HadbDynamicConfig
+    public abstract class HadbMemDataBase // 注意! ファイル保存するため、むやみに [JsonIgnore] を書かないこと！！
     {
+        protected abstract List<Type> GetDefinedUserDataTypesImpl();
+
+        public StrDictionary<HadbObject> Table = new Basic.StrDictionary<HadbObject>(StrComparer.IgnoreCaseComparer);
+
         [JsonIgnore]
-        public readonly CriticalSection<HadbMemBase<TDynamicConfig>> TableLock = new CriticalSection<HadbMemBase<TDynamicConfig>>(); // メモリ上のデータの読み書き用ロック
+        public readonly CriticalSection<HadbMemDataBase> TableLock = new CriticalSection<HadbMemDataBase>(); // メモリ上のデータの読み書き用ロック
 
         public void Debug(string str)
         {
             string pos = Dbg.GetCurrentExecutingPositionInfoString();
             $"{pos}: {str}"._Debug();
+        }
+
+        public StrDictionary<Type> GetDefinedUserDataTypesByName()
+        {
+            StrDictionary<Type> ret = new StrDictionary<Type>(StrComparer.SensitiveCaseComparer);
+
+            List<Type> tmp = GetDefinedUserDataTypesImpl();
+
+            foreach (var type in tmp)
+            {
+                if (type.IsSubclassOf(typeof(HadbData)) == false)
+                {
+                    throw new CoresLibException($"type {type.ToString()} is not a subclass of {nameof(HadbData)}.");
+                }
+
+                ret.Add(type.Name, type);
+            }
+
+            return ret;
+        }
+
+        public void ReloadFromDatabase(IEnumerable<HadbObject> objectList)
+        {
+            objectList._NormalizeAll();
+
+            foreach (var obj in objectList)
+            {
+            }
         }
 
         // --- Bulk 取得されるべき生テーブルデータ群 (バックアップファイルとして保存される生テーブルデータ群。TableLock でロックした上で読み書きすること！) ---
@@ -832,7 +864,7 @@ namespace IPA.Cores.Basic
     }
 
     public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
-        where TMem : HadbMemBase<TDynamicConfig>, new()
+        where TMem : HadbMemDataBase, new()
         where TDynamicConfig : HadbDynamicConfig
     {
         Task ReloadMainLoopTask;
@@ -855,7 +887,9 @@ namespace IPA.Cores.Basic
 
         protected abstract Task<KeyValueList<string, string>> LoadDynamicConfigFromDatabaseImplAsync(CancellationToken cancel = default);
         protected abstract Task AppendMissingDynamicConfigToDatabaseImplAsync(KeyValueList<string, string> missingValues, CancellationToken cancel = default);
-        protected abstract Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(CancellationToken cancel = default);
+        protected abstract Task<List<HadbObject>> LoadAllDataFromDatabaseImplAsync(CancellationToken cancel = default);
+
+        public StrDictionary<Type> DefinedDataTypesByName { get; }
 
         public HadbBase(HadbSettingsBase settings, TDynamicConfig dynamicConfig)
         {
@@ -870,6 +904,9 @@ namespace IPA.Cores.Basic
 
                 this.ReloadMainLoopTask = ReloadMainLoopAsync(this.GrandCancel)._LeakCheck();
                 this.LazyUpdateMainLoopTask = LazyUpdateMainLoopAsync(this.GrandCancel)._LeakCheck();
+
+                TMem tmpMem = new TMem();
+                this.DefinedDataTypesByName = tmpMem.GetDefinedUserDataTypesByName();
             }
             catch
             {
@@ -877,6 +914,8 @@ namespace IPA.Cores.Basic
                 throw;
             }
         }
+
+        public Type? GetTypeByTypeName(string name) => this.DefinedDataTypesByName._GetOrDefault(name);
 
         public void StartLoop()
         {
@@ -899,7 +938,10 @@ namespace IPA.Cores.Basic
                     await this.AppendMissingDynamicConfigToDatabaseImplAsync(missingDynamicConfigValues, cancel);
                 }
 
-                TMem? currentMemDb = this.MemDb;
+                // DB からオブジェクト一覧を読み込む
+                var loadedObjectsList = await this.LoadAllDataFromDatabaseImplAsync(cancel);
+
+                TMem? currentMemDb = this.MemDb; //TODOTODO
 
                 TMem newMemDb = await this.ReloadImplAsync(currentMemDb, cancel);
 
@@ -1004,7 +1046,7 @@ namespace IPA.Cores.Basic
             await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () => CheckIfReadyToCommit(doNotThrowError: EnsureSpecial.Yes).IsOk, cancel, true);
         }
 
-        public async Task<HadbObject> CommitCreateDataAsync<TData>(HadbObject<TData> data, CancellationToken cancel = default) where TData : HadbData
+        public async Task<HadbObject> CommitCreateDataAsync<TData>(HadbObject data, CancellationToken cancel = default) where TData : HadbData
             => (await CommitCreateDataAsync(((HadbObject)data)._SingleArray(), cancel)).Single();
 
         public async Task<List<HadbObject>> CommitCreateDataAsync(IEnumerable<HadbObject> dataList, CancellationToken cancel = default)
