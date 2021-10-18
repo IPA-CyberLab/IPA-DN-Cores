@@ -141,7 +141,7 @@ namespace IPA.Cores.Basic
         }
 
         protected void ReloadTableFromDatabase<TData>(StrDictionary<HadbObject<TData>> table, IEnumerable<HadbSqlDataRow> fetchedRows)
-            where TData: HadbData
+            where TData : HadbData
         {
             int countInserted = 0;
             int countUpdated = 0;
@@ -356,7 +356,7 @@ namespace IPA.Cores.Basic
 
         public void Normalize()
         {
-            this.CONFIG_SYSTEMNAME = this.CONFIG_SYSTEMNAME._NonNullTrim();
+            this.CONFIG_SYSTEMNAME = this.CONFIG_SYSTEMNAME._NormalizeKey();
             this.CONFIG_NAME = this.CONFIG_NAME._NonNullTrim();
             this.CONFIG_VALUE = this.CONFIG_VALUE._NonNull();
             this.CONFIG_EXT = this.CONFIG_EXT._NonNull();
@@ -385,16 +385,16 @@ namespace IPA.Cores.Basic
 
         public void Normalize()
         {
-            this.DATA_UID = this.DATA_UID._NonNullTrim().ToUpper();
-            this.DATA_SYSTEMNAME = this.DATA_SYSTEMNAME._NonNullTrim();
+            this.DATA_UID = this.DATA_UID._NormalizeUid();
+            this.DATA_SYSTEMNAME = this.DATA_SYSTEMNAME._NormalizeKey();
             this.DATA_TYPE = this.DATA_TYPE._NonNullTrim();
             this.DATA_CREATE_DT = this.DATA_CREATE_DT._NormalizeDateTimeOffset();
             this.DATA_UPDATE_DT = this.DATA_UPDATE_DT._NormalizeDateTimeOffset();
             this.DATA_DELETE_DT = this.DATA_DELETE_DT._NormalizeDateTimeOffset();
-            this.DATA_KEY1 = this.DATA_KEY1._NonNullTrim().ToUpper();
-            this.DATA_KEY2 = this.DATA_KEY2._NonNullTrim().ToUpper();
-            this.DATA_KEY3 = this.DATA_KEY3._NonNullTrim().ToUpper();
-            this.DATA_KEY4 = this.DATA_KEY4._NonNullTrim().ToUpper();
+            this.DATA_KEY1 = this.DATA_KEY1._NormalizeKey();
+            this.DATA_KEY2 = this.DATA_KEY2._NormalizeKey();
+            this.DATA_KEY3 = this.DATA_KEY3._NormalizeKey();
+            this.DATA_KEY4 = this.DATA_KEY4._NormalizeKey();
             this.DATA_VALUE = this.DATA_VALUE._NonNull();
             this.DATA_EXT = this.DATA_EXT._NonNull();
         }
@@ -450,6 +450,111 @@ namespace IPA.Cores.Basic
                 await db._DisposeSafeAsync();
                 throw;
             }
+        }
+
+        protected override async Task<KeyValueList<string, string>> LoadDynamicConfigFromDatabaseImplAsync(CancellationToken cancel = default)
+        {
+            IEnumerable<HadbSqlConfigRow> configList = null!;
+
+            try
+            {
+                await using var dbReader = await this.OpenSqlDatabaseForReadAsync(cancel);
+
+                await dbReader.TranReadSnapshotIfNecessaryAsync(async () =>
+                {
+                    configList = await dbReader.EasySelectAsync<HadbSqlConfigRow>("select * from HADB_CONFIG where CONFIG_SYSTEMNAME = @CONFIG_SYSTEMNAME", new { CONFIG_SYSTEMNAME = this.SystemName });
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug($"ReloadImplAsync: Database Connect Error for Read: {ex.ToString()}");
+                throw;
+            }
+
+            configList._NormalizeAll();
+
+            KeyValueList<string, string> ret = new KeyValueList<string, string>();
+            foreach (var configRow in configList)
+            {
+                ret.Add(configRow.CONFIG_NAME, configRow.CONFIG_VALUE);
+            }
+
+            return ret;
+        }
+
+        protected override async Task AppendMissingDynamicConfigToDatabaseImplAsync(KeyValueList<string, string> missingValues, CancellationToken cancel = default)
+        {
+            if (missingValues.Any() == false) return;
+
+            // DB にまだ存在しないが定義されるべき TDynamicConfig のフィールドがある場合は DB に初期値を書き込む
+            await using var dbWriter = await this.OpenSqlDatabaseForWriteAsync(cancel);
+
+            foreach (var missingValueName in missingValues.Select(x => x.Key._NonNullTrim()).Distinct(StrComparer.IgnoreCaseComparer))
+            {
+                await dbWriter.TranAsync(async () =>
+                {
+                    // DB にまだ値がない場合のみ書き込む。
+                    // すでにある場合は書き込みしない。
+
+                    var tmp = await dbWriter.EasySelectAsync<HadbSqlConfigRow>("select * from HADB_CONFIG where CONFIG_SYSTEMNAME = @CONFIG_SYSTEMNAME and CONFIG_NAME = @CONFIG_NAME",
+                        new
+                        {
+                            CONFIG_SYSTEMNAME = this.SystemName,
+                            CONFIG_NAME = missingValueName,
+                        },
+                        cancel: cancel);
+
+                    if (tmp.Any())
+                    {
+                        return false;
+                    }
+
+                    var valuesList = missingValues.Where(x => x.Key._IsSameiTrim(missingValueName)).Select(x => x.Value);
+
+                    foreach (var value in valuesList)
+                    {
+                        await dbWriter.EasyInsertAsync(new HadbSqlConfigRow
+                        {
+                            CONFIG_SYSTEMNAME = this.SystemName,
+                            CONFIG_NAME = missingValueName,
+                            CONFIG_VALUE = value,
+                            CONFIG_EXT = "",
+                        }, cancel);
+                    }
+
+                    return true;
+                });
+            }
+        }
+
+        protected override async Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(CancellationToken cancel = default)
+        {
+            IEnumerable<HadbSqlDataRow> dataList = null!;
+
+            try
+            {
+                await using var dbReader = await this.OpenSqlDatabaseForReadAsync(cancel);
+
+                await dbReader.TranReadSnapshotIfNecessaryAsync(async () =>
+                {
+                    dataList = await dbReader.EasySelectAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE_AGE = 0", new { DATA_SYSTEMNAME = this.SystemName }); // TODO: get only latest
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug($"ReloadImplAsync: Database Connect Error for Read: {ex.ToString()}");
+                throw;
+            }
+
+            dataList._NormalizeAll();
+
+            List<HadbObject> ret = new List<HadbObject>();
+
+            foreach (var data in dataList)
+            {//TODOTODO
+            }
+
+            return ret;
         }
 
         protected override async Task<TMem> ReloadImplAsync(TMem? current, CancellationToken cancel)
@@ -748,6 +853,10 @@ namespace IPA.Cores.Basic
         protected abstract Task<TMem> ReloadImplAsync(TMem? current, CancellationToken cancel);
         protected abstract Task CommitAddDataListImplAsync(IEnumerable<HadbObject> dataList, CancellationToken cancel = default);
 
+        protected abstract Task<KeyValueList<string, string>> LoadDynamicConfigFromDatabaseImplAsync(CancellationToken cancel = default);
+        protected abstract Task AppendMissingDynamicConfigToDatabaseImplAsync(KeyValueList<string, string> missingValues, CancellationToken cancel = default);
+        protected abstract Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(CancellationToken cancel = default);
+
         public HadbBase(HadbSettingsBase settings, TDynamicConfig dynamicConfig)
         {
             try
@@ -778,6 +887,18 @@ namespace IPA.Cores.Basic
         {
             try
             {
+                // DynamicConfig の最新値を DB から読み込む
+                var loadedDynamicConfigValues = await this.LoadDynamicConfigFromDatabaseImplAsync(cancel);
+
+                // 読み込んだ DynamicConfig の最新値を適用する
+                var missingDynamicConfigValues = this.CurrentDynamicConfig.UpdateFromDatabaseAndReturnMissingValues(loadedDynamicConfigValues);
+
+                // 不足している DynamicConfig のデフォルト値を DB に書き込む
+                if (missingDynamicConfigValues.Any())
+                {
+                    await this.AppendMissingDynamicConfigToDatabaseImplAsync(missingDynamicConfigValues, cancel);
+                }
+
                 TMem? currentMemDb = this.MemDb;
 
                 TMem newMemDb = await this.ReloadImplAsync(currentMemDb, cancel);
@@ -883,7 +1004,7 @@ namespace IPA.Cores.Basic
             await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () => CheckIfReadyToCommit(doNotThrowError: EnsureSpecial.Yes).IsOk, cancel, true);
         }
 
-        public async Task<HadbObject> CommitCreateDataAsync<TData>(HadbObject<TData> data, CancellationToken cancel = default) where TData: HadbData
+        public async Task<HadbObject> CommitCreateDataAsync<TData>(HadbObject<TData> data, CancellationToken cancel = default) where TData : HadbData
             => (await CommitCreateDataAsync(((HadbObject)data)._SingleArray(), cancel)).Single();
 
         public async Task<List<HadbObject>> CommitCreateDataAsync(IEnumerable<HadbObject> dataList, CancellationToken cancel = default)
