@@ -96,10 +96,22 @@ namespace IPA.Cores.Globals
             get => DateTime.Now;
         }
 
+        public static DateTime DtZero
+        {
+            [MethodImpl(Inline)]
+            get => Util.ZeroDateTimeValue;
+        }
+
         public static DateTimeOffset DtOffsetNow
         {
             [MethodImpl(Inline)]
             get => DateTimeOffset.Now;
+        }
+
+        public static DateTimeOffset DtOffsetZero
+        {
+            [MethodImpl(Inline)]
+            get => Util.ZeroDateTimeOffsetValue;
         }
 
         public static long TickNow

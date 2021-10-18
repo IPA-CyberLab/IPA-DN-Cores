@@ -2355,7 +2355,7 @@ namespace IPA.TestDev
                         TestInt = 1,
                     };
 
-                    await db.CommitCreateDataAsync(host);
+                    await db.CommitCreateDataAsync(host.ToData());
                 }
             });
         }

@@ -1583,6 +1583,18 @@ namespace IPA.Cores.Basic
             return "ID-" + a + "-" + b + "-" + c + d + e + "-" + prefix.ToUpper() + "-" + f + "-" + g;
         }
 
+        // UID を正規化する
+        public static string NormalizeUid(string uid)
+        {
+            return uid._NonNullTrim().ToUpper();
+        }
+
+        // 任意のキーを正規化する
+        public static string NormalizeKey(string key)
+        {
+            return key._NonNullTrim().ToUpper();
+        }
+
         // 新しい UID を生成する
         public static string NewUid(string prefix = "UID", char concat = '-')
         {
