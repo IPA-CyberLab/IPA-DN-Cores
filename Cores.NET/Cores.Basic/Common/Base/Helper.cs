@@ -2971,8 +2971,8 @@ namespace IPA.Cores.Helper.Basic
             return null;
         }
 
-        public static string _NormalizeUid(this string uid) => Str.NormalizeUid(uid);
-        public static string _NormalizeKey(this string key) => Str.NormalizeKey(key);
+        public static string _NormalizeUid(this string? uid) => Str.NormalizeUid(uid);
+        public static string _NormalizeKey(this string? key) => Str.NormalizeKey(key);
     }
 }
 

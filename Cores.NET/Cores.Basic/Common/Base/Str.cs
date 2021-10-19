@@ -1584,13 +1584,13 @@ namespace IPA.Cores.Basic
         }
 
         // UID を正規化する
-        public static string NormalizeUid(string uid)
+        public static string NormalizeUid(string? uid)
         {
             return uid._NonNullTrim().ToUpper();
         }
 
         // 任意のキーを正規化する
-        public static string NormalizeKey(string key)
+        public static string NormalizeKey(string? key)
         {
             return key._NonNullTrim().ToUpper();
         }
