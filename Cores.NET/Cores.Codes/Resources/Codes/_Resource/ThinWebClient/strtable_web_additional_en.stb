@@ -49,7 +49,7 @@ THINWEB_WOL_SIMPLE					Wake on LAN Function
 THINWEB_IE_WARNING					<strong>Note: You are using Internet Explorer.</strong><br>Although this system does work with Internet Explorer, it has very slow speed and may cause problems such as unstable rendering or partial display of the screen.<br><strong>We strongly recommend you to use <a href="https://www.microsoft.com/edge/" target="_blank">Microsoft Edge</a></strong>, <strong><a href="https://www.google.com/chrome/" target="_blank">Google Chrome</a></strong> or <strong><a href="https://www.mozilla.org/" target="_blank">Mozilla Firefox</a></strong>.
 THINWEB_OPTIONS						Advanced Options:
 THINWEB_OPTIONS_TEXT				The following should be changed only if specifically necessary. Some options are only available if the server you are connecting to is running in "system mode".
-THINWEB_ENABLEAUDIO					Enable Audio
+THINWEB_ENABLEAUDIO					Enable Audio (Listen to the remote audio on the client)
 THINWEB_ENABLEWALLPAPER				Enable Windows Wallpapers
 THINWEB_ENABLETHEMING				Enable Windows Visual Themes
 THINWEB_ENABLEFONTSMOOTHING			Enable Font Smoothing
@@ -70,6 +70,11 @@ THINWEB_SCREENAUTORESIZE_WARNING	If this option is disabled, the screen will be 
 THINWEB_SCREENAUTORESIZEREMOTEFIT	When the browser window size is changed, the resolution of the remote screen is dynamically changed according to the browser window size (System Mode only)
 THINWEB_SCREENAUTORESIZEREMOTEFIT_WARNING	When this option is enabled, resizing multiple times may cause drawing errors and disconnections. If this is the case, please disable it. Also, the "Automatically Scales Screen Size to Fit Browser Window Size" option must be enabled.
 THINWEB_SCREENGETAUTOSIZE			Automatically Set Remote Screen Resolution to This Computer's Full Screen Resolution (System Mode only)
+THINWEB_ENABLECLIPBOARD_C2S			Clipboard Text Sync (Client to Server)
+THINWEB_ENABLECLIPBOARD_S2C			Clipboard Text Sync (Server to Client)
+THINWEB_ENABLECLIPBOARD_WARNING		You need to enable clipboard sharing in the security settings of your web browser. Some web browsers are not supported. Try using Chrome.
+THINWEB_ENABLEMIC					Enable client microphone sharing to the server
+THINWEB_ENABLEMIC_WARNING			Microphone sharing needs to be enabled in the security settings of your web browser. The server-side application must be upgraded to a version released on or after 10/26/2021.
 
 THINWEB_RESOLUTION_WIDTH			Custom screen resolution (Width: in pixels)
 THINWEB_RESOLUTION_WIDTH_BACK		Specifies the screen resolution (Width: number of pixels).

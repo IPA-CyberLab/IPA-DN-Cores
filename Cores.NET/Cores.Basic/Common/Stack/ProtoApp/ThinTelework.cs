@@ -106,6 +106,7 @@ namespace IPA.Cores.Basic
         UrdpVeryLimited = 4,
         WinRdpEnabled = 8,
         GuacdSupported = 16,
+        AudioInSupported = 32,
     }
 
     [Flags]
@@ -128,16 +129,20 @@ namespace IPA.Cores.Basic
         public long LifeTime { get; }
         public string LifeTimeMsg { get; } = "";
         public int IdleTimeout { get; }
+        public bool IsShareDisabled { get; }
+        public bool IsAudioInSupported { get; }
 
         public ThinClientMiscParams()
         {
         }
 
-        public ThinClientMiscParams(long lifeTime, string lifeTimeMsg, int idleTimeout)
+        public ThinClientMiscParams(long lifeTime, string lifeTimeMsg, int idleTimeout, bool isShareDisabled, bool isAudioInSupported)
         {
             LifeTime = lifeTime;
             LifeTimeMsg = lifeTimeMsg._NonNull();
             IdleTimeout = idleTimeout;
+            IsShareDisabled = isShareDisabled;
+            IsAudioInSupported = isAudioInSupported;
         }
     }
 
@@ -450,7 +455,8 @@ namespace IPA.Cores.Basic
                         "127.0.0.1",
                         firstConnection.SvcPort,
                         connectOptions.GuaPreference!,
-                        connectOptions.IsWebpSupported),
+                        connectOptions.IsWebpSupported,
+                        firstConnection.Caps.Bit(ThinServerCaps.AudioInSupported)),
                     firstConnection.Stream);
 
                 string webSocketUrl = "";
@@ -770,7 +776,7 @@ namespace IPA.Cores.Basic
                 var caps = (ThinServerCaps)p["DsCaps"].SIntValueSafeNum;
                 var rand = p["Rand"].DataValueNonNull;
                 var machineKey = p["MachineKey"].DataValueNonNull;
-                var isShareEnabled = p["IsShareDisabled"].BoolValue;
+                var isShareDisabled = p["IsShareDisabled"].BoolValue;
                 var useAdvancedSecurity = p["UseAdvancedSecurity"].BoolValue;
                 var isOtpEnabled = p["IsOtpEnabled"].BoolValue;
                 var runInspect = p["RunInspect"].BoolValue;
@@ -888,9 +894,9 @@ namespace IPA.Cores.Basic
 
                 st.ReadTimeout = st.WriteTimeout = Timeout.Infinite;
 
-                var misc = new ThinClientMiscParams(lifeTime, lifeTimeMsg, idleTimeout);
+                var misc = new ThinClientMiscParams(lifeTime, lifeTimeMsg, idleTimeout, isShareDisabled, caps.Bit(ThinServerCaps.AudioInSupported));
 
-                return new ThinClientConnection(sock, st, svcType, svcPort, !isShareEnabled, caps, runInspect, otpTicket, inspectTicket, waterMarkStr1, waterMarkStr2, misc);
+                return new ThinClientConnection(sock, st, svcType, svcPort, isShareDisabled, caps, runInspect, otpTicket, inspectTicket, waterMarkStr1, waterMarkStr2, misc);
             }
             catch
             {

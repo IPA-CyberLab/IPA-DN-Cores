@@ -378,6 +378,7 @@ namespace IPA.Cores.Basic
     public class GuaPreference : INormalizable
     {
         public bool EnableAudio { get; set; } = true;
+        public bool EnableMic { get; set; } = false;
         public bool EnableWallPaper { get; set; } = true;
         public bool EnableTheming { get; set; } = true;
         public bool EnableFontSmoothing { get; set; } = true;
@@ -385,6 +386,9 @@ namespace IPA.Cores.Basic
         public bool EnableDesktopComposition { get; set; } = true;
         public bool EnableMenuAnimations { get; set; } = false;
         public bool EnableAlwaysWebp { get; set; } = false;
+
+        public bool EnableClipboardC2S { get; set; } = false;
+        public bool EnableClipboardS2C { get; set; } = false;
 
         public bool Win_ShiftWin { get; set; } = true;
         public bool Win_Ctrl2Alt2 { get; set; } = true;
@@ -452,7 +456,7 @@ namespace IPA.Cores.Basic
             list.Add("resize-method", ResizeMethod.ResizeMethodToStr(true));
             list.Add("client-name", "Thin Telework");
             list.Add("server-layout", this.KeyboardLayout.KeyboardLayoutToStr(true));
-            list.Add("enable-audio-input", true._ToBoolStrLower());
+            list.Add("enable-audio-input", this.EnableMic._ToBoolStrLower());
         }
 
         public void Normalize()
@@ -523,7 +527,7 @@ namespace IPA.Cores.Basic
         public int GuacdPort { get; }
         public bool EnableWebp { get; }
 
-        public GuaClientSettings(string guacdHostname, int guacdPort, GuaProtocol protocol, string serverHostname, int serverPort, GuaPreference preference, bool enableWebp, TcpIpSystem? tcpIp = null)
+        public GuaClientSettings(string guacdHostname, int guacdPort, GuaProtocol protocol, string serverHostname, int serverPort, GuaPreference preference, bool enableWebp, bool audioInSupported, TcpIpSystem? tcpIp = null)
         {
             GuacdHostname = guacdHostname;
             GuacdPort = guacdPort;
@@ -532,6 +536,10 @@ namespace IPA.Cores.Basic
             ServerHostname = serverHostname;
             ServerPort = serverPort;
             Preference = preference._CloneWithJson();
+            if (audioInSupported == false)
+            {
+                Preference.EnableMic = false;
+            }
             EnableWebp = enableWebp;
             if (this.EnableWebp == false)
             {

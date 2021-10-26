@@ -857,7 +857,8 @@ namespace IPA.Cores.Codes
                                     "", ready.ListenEndPoint!.Port,
                                     //"pc37.sec.softether.co.jp", 3333, // testtest
                                     pref,
-                                    connectOptions.IsWebpSupported));
+                                    connectOptions.IsWebpSupported,
+                                    ready.FirstConnection.Caps.Bit(ThinServerCaps.AudioInSupported)));
 
                             var readyPacket = await guaClient.StartAsync(cancel);
 

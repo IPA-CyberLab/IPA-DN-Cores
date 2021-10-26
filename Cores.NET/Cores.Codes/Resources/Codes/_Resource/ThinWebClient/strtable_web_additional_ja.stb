@@ -50,7 +50,7 @@ THINWEB_WOL_SIMPLE					Wake on LAN 機能
 THINWEB_IE_WARNING					<strong>ご注意: この Web ブラウザは、Internet Explorer です。</strong><br>Internet Explorer では本システムは動作はするものの、動作速度が低速であり、描画が不安定になったり、画面の一部が表示されなかったりする不具合が発生する場合があります。<br><strong><a href="https://www.microsoft.com/edge/" target="_blank">Microsoft Edge</a></strong>、<strong><a href="https://www.google.com/chrome/" target="_blank">Google Chrome</a></strong> または <strong><a href="https://www.mozilla.org/" target="_blank">Mozilla Firefox</a></strong> の利用をお勧めします。
 THINWEB_OPTIONS						詳細オプション:
 THINWEB_OPTIONS_TEXT				以下は、特に必要がある場合のみ変更してください。一部のオプションは、接続先のサーバーが「システムモード」で動作している場合のみ有効です。
-THINWEB_ENABLEAUDIO					オーディオを有効化
+THINWEB_ENABLEAUDIO					オーディオを有効化 (リモート側の音声をクライアントで聴く)
 THINWEB_ENABLEWALLPAPER				Windows の壁紙を有効化
 THINWEB_ENABLETHEMING				Windows の視覚テーマを有効化
 THINWEB_ENABLEFONTSMOOTHING			フォントのスムージングを有効化
@@ -71,6 +71,11 @@ THINWEB_SCREENAUTORESIZE_WARNING	このオプションを無効にすると、�
 THINWEB_SCREENAUTORESIZEREMOTEFIT	ブラウザのウインドウサイズを変更したとき、リモート画面の解像度をブラウザのウインドウサイズに応じてダイナミックに変更 (システムモードのみ)
 THINWEB_SCREENAUTORESIZEREMOTEFIT_WARNING	このオプションを有効にした場合、リサイズを複数回行なうと、描画エラーが発生し、接続が切断される場合があります。その場合は、無効にしてください。また、「画面サイズをブラウザのウインドウサイズに合わせて自動的に拡大・縮小」オプションも有効になっている必要があります。
 THINWEB_SCREENGETAUTOSIZE			接続時にリモート画面の解像度をこのコンピュータのフルスクリーン画面解像度に自動設定 (システムモードのみ)
+THINWEB_ENABLECLIPBOARD_C2S			クリップボードを用いたテキスト文字列のコピー＆ペーストの有効化 (クライアント → サーバー方向)
+THINWEB_ENABLECLIPBOARD_S2C			クリップボードを用いたテキスト文字列のコピー＆ペーストの有効化 (サーバー → クライアント方向)
+THINWEB_ENABLECLIPBOARD_WARNING		Web ブラウザのセキュリティ設定で、クリップボード共有を有効にする必要があります。Web ブラウザによっては利用できない場合があります。Chrome を使用してみてください。
+THINWEB_ENABLEMIC					マイクの共有を有効化 (クライアントのマイクをリモートに飛ばし、テレビ会議等で利用できるようにする)
+THINWEB_ENABLEMIC_WARNING			Web ブラウザのセキュリティ設定で、マイク共有を有効にする必要があります。サーバー側アプリは、2021/10/26 以降にリリースされたバージョンが必要です。
 
 THINWEB_RESOLUTION_WIDTH			カスタム画面解像度 (横: ピクセル数)
 THINWEB_RESOLUTION_WIDTH_BACK		画面解像度 (横幅: ピクセル数) を指定します。
