@@ -74,7 +74,7 @@ THINWEB_SCREENGETAUTOSIZE			接続時にリモート画面の解像度をこの�
 THINWEB_ENABLECLIPBOARD_C2S			クリップボードを用いたテキスト文字列のコピー＆ペーストの有効化 (クライアント → サーバー方向)
 THINWEB_ENABLECLIPBOARD_S2C			クリップボードを用いたテキスト文字列のコピー＆ペーストの有効化 (サーバー → クライアント方向)
 THINWEB_ENABLECLIPBOARD_WARNING		Web ブラウザのセキュリティ設定で、クリップボード共有を有効にする必要があります。Web ブラウザによっては利用できない場合があります。Chrome を使用してみてください。
-THINWEB_ENABLEMIC					マイクの共有を有効化 (クライアントのマイクをリモートに飛ばし、テレビ会議等で利用できるようにする)
+THINWEB_ENABLEMIC					マイクの共有を有効化 (クライアントのマイクをリモートに飛ばし、テレビ会議アプリ等で利用できるようにする)
 THINWEB_ENABLEMIC_WARNING			Web ブラウザのセキュリティ設定で、マイク共有を有効にする必要があります。サーバー側アプリは、2021/10/26 以降にリリースされたバージョンが必要です。
 
 THINWEB_RESOLUTION_WIDTH			カスタム画面解像度 (横: ピクセル数)
