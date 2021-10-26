@@ -1603,7 +1603,7 @@ namespace IPA.TestDev
         public static async Task GuaTest_210320()
         {
             await using GuaClient gc = new GuaClient(new GuaClientSettings("dn-ttguacd1.sec.softether.co.jp", 4822, GuaProtocol.Rdp, "pc37.sec.softether.co.jp", 3333,
-                new GuaPreference(), false));
+                new GuaPreference(), false, false));
 
             await gc.StartAsync();
 
