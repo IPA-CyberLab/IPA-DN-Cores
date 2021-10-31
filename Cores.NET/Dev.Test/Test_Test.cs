@@ -2351,7 +2351,7 @@ namespace IPA.TestDev
                     {
                         await db.TranAsync(writeMode: false, async tran =>
                         {
-                            var obj = await db.AtomicGetAsync<MikakaDDnsHost>(tran, uid);
+                            var obj = await tran.AtomicGetAsync<MikakaDDnsHost>(uid);
                             obj._PrintAsJson();
                             return false;
                         });
@@ -2360,7 +2360,7 @@ namespace IPA.TestDev
                     {
                         await db.TranAsync(writeMode: false, async tran =>
                         {
-                            var obj = await db.AtomicSearchByKeysAsync<MikakaDDnsHost>(tran, new HadbKeys(key));
+                            var obj = await tran.AtomicSearchByKeysAsync<MikakaDDnsHost>(new HadbKeys(key));
                             obj._PrintAsJson();
                             return false;
                         });
@@ -2369,7 +2369,7 @@ namespace IPA.TestDev
                     {
                         await db.TranAsync(writeMode: false, async tran =>
                         {
-                            var obj = await db.AtomicSearchByLabelsAsync<MikakaDDnsHost>(tran, new HadbLabels(label));
+                            var obj = await tran.AtomicSearchByLabelsAsync<MikakaDDnsHost>(new HadbLabels(label));
                             obj._PrintAsJson();
                             return false;
                         });
@@ -2378,7 +2378,7 @@ namespace IPA.TestDev
                     {
                         await db.TranAsync(writeMode: true, async tran =>
                         {
-                            var obj = await db.AtomicDeleteAsync<MikakaDDnsHost>(tran, uid2);
+                            var obj = await tran.AtomicDeleteAsync<MikakaDDnsHost>(uid2);
                             Con.WriteLine($"Deleted = {obj._ObjectToJson()}");
                             return true;
                         });
@@ -2395,7 +2395,7 @@ namespace IPA.TestDev
                                 TestInt = 1,
                             };
 
-                            await db.AtomicAddAsync(tran, host);
+                            await tran.AtomicAddAsync(host);
                             return true;
                         });
                     }
