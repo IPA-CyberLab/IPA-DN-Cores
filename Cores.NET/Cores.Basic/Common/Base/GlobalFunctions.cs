@@ -418,7 +418,7 @@ namespace IPA.Cores.Globals
         }
 
         [MethodImpl(Inline)]
-        public static IEnumerable<T> EmptyOf<T>() => Array.Empty<T>();
+        public static T[] EmptyOf<T>() => Array.Empty<T>();
     }
 }
 

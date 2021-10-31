@@ -90,7 +90,7 @@ namespace IPA.Cores.Basic
     public class MikakaDDnsDynamicConfig : HadbDynamicConfig
     {
         public int TestAbc;
-        public string[] TestDef = new string[0];
+        public string[] TestDef = EmptyOf<string>();
         public string TestStr1 = "";
         public string TestStr2 = "";
 
@@ -228,7 +228,7 @@ namespace IPA.Cores.Basic
                         string[]? currentArray = (string[]?)rw.GetValue(this, name);
                         if (currentArray == null)
                         {
-                            currentArray = new string[0];
+                            currentArray = EmptyOf<string>();
                         }
 
                         var tmp = currentArray.Where(x => x._IsFilled()).Select(x => x._NonNullTrim());
@@ -325,6 +325,36 @@ namespace IPA.Cores.Basic
             this.DATA_LABEL4 = this.DATA_LABEL4._NormalizeKey(true);
             this.DATA_VALUE = this.DATA_VALUE._NonNull();
             this.DATA_EXT = this.DATA_EXT._NonNull();
+        }
+    }
+
+    public class HadbSqlDbSession : HadbDbSession
+    {
+        public Database Db { get; }
+
+        public HadbSqlDbSession(bool writeMode, Database db) : base(writeMode)
+        {
+            try
+            {
+                this.Db = db;
+            }
+            catch (Exception ex)
+            {
+                this._DisposeSafe(ex);
+                throw;
+            }
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+                await this.Db._DisposeSafeAsync();
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
         }
     }
 
@@ -496,6 +526,41 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        protected override async Task<HadbDbSession> BeginDatabaseImplAsync(bool writeMode, CancellationToken cancel = default)
+        {
+            Database db;
+
+            if (writeMode == false)
+            {
+                db = await this.OpenSqlDatabaseForReadAsync(cancel);
+            }
+            else
+            {
+                db = await this.OpenSqlDatabaseForWriteAsync(cancel);
+            }
+
+            try
+            {
+                if (writeMode == false)
+                {
+                    await db.BeginAsync(IsolationLevel.Snapshot, cancel);
+                }
+                else
+                {
+                    await db.BeginAsync(IsolationLevel.Serializable, cancel);
+                }
+
+                HadbSqlDbSession ret = new HadbSqlDbSession(writeMode, db);
+
+                return ret;
+            }
+            catch (Exception ex)
+            {
+                await db._DisposeSafeAsync(ex);
+                throw;
+            }
+        }
+
         protected async Task<HadbSqlDataRow?> GetRowByKeyAsync(Database db, string typeName, HadbKeys key, CancellationToken cancel = default)
         {
             List<string> conditions = new List<string>();
@@ -534,7 +599,7 @@ namespace IPA.Cores.Basic
 
             if (conditions.Count == 0)
             {
-                return new HadbSqlDataRow[0];
+                return EmptyOf<HadbSqlDataRow>();
             }
 
             return await db.EasySelectAsync<HadbSqlDataRow>($"select * from HADB_DATA where ({conditions._Combine(" and ")}) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE_AGE = 0 and DATA_TYPE = @DATA_TYPE",
@@ -674,7 +739,7 @@ namespace IPA.Cores.Basic
                 rows = await GetRowsByLabelsAsync(dbReader, typeName, labels, cancel);
             });
 
-            if (rows == null) return new HadbObject[0];
+            if (rows == null) return EmptyOf<HadbObject>();
 
             List<HadbObject> ret = new List<HadbObject>();
 
@@ -1289,12 +1354,15 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public abstract class HadbAtomic : AsyncService
+    public abstract class HadbDbSession : AsyncService
     {
-        public HadbAtomic()
+        public bool IsWriteMode;
+
+        public HadbDbSession(bool writeMode)
         {
             try
             {
+                this.IsWriteMode = writeMode;
             }
             catch (Exception ex)
             {
@@ -1333,6 +1401,8 @@ namespace IPA.Cores.Basic
         public TDynamicConfig CurrentDynamicConfig { get; private set; }
 
         public TMem? MemDb { get; private set; } = null;
+
+        protected abstract Task<HadbDbSession> BeginDatabaseImplAsync(bool writeMode, CancellationToken cancel = default);
 
         protected abstract Task AtomicAddDataListToDatabaseImplAsync(IEnumerable<HadbObject> dataList, CancellationToken cancel = default);
         protected abstract Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(string uid, string typeName, CancellationToken cancel = default);
