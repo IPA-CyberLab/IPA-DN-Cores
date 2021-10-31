@@ -328,11 +328,11 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class HadbSqlDbTran : HadbDbTran
+    public class HadbSqlTran : HadbTran
     {
         public Database Db { get; }
 
-        public HadbSqlDbTran(bool writeMode, Database db) : base(writeMode)
+        public HadbSqlTran(bool writeMode, HadbMemDataBase memDb, Database db) : base(writeMode, memDb)
         {
             try
             {
@@ -343,6 +343,11 @@ namespace IPA.Cores.Basic
                 this._DisposeSafe(ex);
                 throw;
             }
+        }
+
+        protected override async Task CommitImplAsync(CancellationToken cancel)
+        {
+            await this.Db.CommitAsync(cancel);
         }
 
         protected override async Task CleanupImplAsync(Exception? ex)
@@ -376,26 +381,26 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<Database> OpenSqlDatabaseForReadAsync(CancellationToken cancel = default)
+        protected override bool IsDeadlockExceptionImpl(Exception ex)
         {
-            Database db = new Database(this.Settings.SqlConnectStringForRead, defaultIsolationLevel: IsolationLevel.Snapshot);
+            Microsoft.Data.SqlClient.SqlException? sqlEx = ex as Microsoft.Data.SqlClient.SqlException;
 
-            try
+            if (sqlEx != null)
             {
-                await db.EnsureOpenAsync(cancel);
+                if (sqlEx.Number == 1205)
+                {
+                    return true;
+                }
+            }
 
-                return db;
-            }
-            catch
-            {
-                await db._DisposeSafeAsync();
-                throw;
-            }
+            return false;
         }
 
-        public async Task<Database> OpenSqlDatabaseForWriteAsync(CancellationToken cancel = default)
+        public async Task<Database> OpenSqlDatabaseAsync(bool writeMode, CancellationToken cancel = default)
         {
-            Database db = new Database(this.Settings.SqlConnectStringForWrite, defaultIsolationLevel: IsolationLevel.Serializable);
+            Database db = new Database(
+                writeMode ? this.Settings.SqlConnectStringForWrite : this.Settings.SqlConnectStringForRead,
+                defaultIsolationLevel: writeMode ? IsolationLevel.Serializable : IsolationLevel.Snapshot);
 
             try
             {
@@ -416,7 +421,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                await using var dbReader = await this.OpenSqlDatabaseForReadAsync(cancel);
+                await using var dbReader = await this.OpenSqlDatabaseAsync(false, cancel);
 
                 await dbReader.TranReadSnapshotIfNecessaryAsync(async () =>
                 {
@@ -445,7 +450,7 @@ namespace IPA.Cores.Basic
             if (missingValues.Any() == false) return;
 
             // DB にまだ存在しないが定義されるべき TDynamicConfig のフィールドがある場合は DB に初期値を書き込む
-            await using var dbWriter = await this.OpenSqlDatabaseForWriteAsync(cancel);
+            await using var dbWriter = await this.OpenSqlDatabaseAsync(true, cancel);
 
             foreach (var missingValueName in missingValues.Select(x => x.Key._NonNullTrim()).Distinct(StrComparer.IgnoreCaseComparer))
             {
@@ -491,7 +496,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                await using var dbReader = await this.OpenSqlDatabaseForReadAsync(cancel);
+                await using var dbReader = await this.OpenSqlDatabaseAsync(false, cancel);
 
                 await dbReader.TranReadSnapshotIfNecessaryAsync(async () =>
                 {
@@ -526,31 +531,22 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        protected override async Task<HadbDbTran> BeginDatabaseTransactionImplAsync(bool writeMode, CancellationToken cancel = default)
+        protected override async Task<HadbTran> BeginDatabaseTransactionImplAsync(bool writeMode, CancellationToken cancel = default)
         {
-            Database db;
-
-            if (writeMode == false)
-            {
-                db = await this.OpenSqlDatabaseForReadAsync(cancel);
-            }
-            else
-            {
-                db = await this.OpenSqlDatabaseForWriteAsync(cancel);
-            }
+            Database db = await this.OpenSqlDatabaseAsync(writeMode, cancel);
 
             try
             {
                 if (writeMode == false)
                 {
-                    await db.BeginAsync(IsolationLevel.Snapshot, cancel);
+                    await db.BeginAsync(cancel: cancel);
                 }
                 else
                 {
-                    await db.BeginAsync(IsolationLevel.Serializable, cancel);
+                    await db.BeginAsync(cancel: cancel);
                 }
 
-                HadbSqlDbTran ret = new HadbSqlDbTran(writeMode, db);
+                HadbSqlTran ret = new HadbSqlTran(writeMode, this.MemDb!, db);
 
                 return ret;
             }
@@ -633,71 +629,62 @@ namespace IPA.Cores.Basic
                 cancel: cancel);
         }
 
-        protected override async Task AtomicAddDataListToDatabaseImplAsync(IEnumerable<HadbObject> dataList, CancellationToken cancel = default)
+        protected internal override async Task AtomicAddDataListToDatabaseImplAsync(HadbTran tran, IEnumerable<HadbObject> dataList, CancellationToken cancel = default)
         {
-            await using var dbWriter = await this.OpenSqlDatabaseForWriteAsync(cancel);
+            tran.CheckIsWriteMode();
+            var dbWriter = ((HadbSqlTran)tran).Db;
 
-            await dbWriter.TranAsync(async () =>
+            foreach (HadbObject data in dataList)
             {
-                foreach (HadbObject data in dataList)
+                if (data.Deleted) throw new CoresLibException("data.Deleted == true");
+
+                var keys = data.GetKeys();
+
+                var labels = data.GetLabels();
+
+                HadbSqlDataRow row = new HadbSqlDataRow
                 {
-                    if (data.Deleted) throw new CoresLibException("data.Deleted == true");
+                    DATA_UID = data.Uid,
+                    DATA_SYSTEMNAME = this.SystemName,
+                    DATA_TYPE = data.GetUserDataTypeName(),
+                    DATA_VER = data.Ver,
+                    DATA_DELETED = false,
+                    DATA_ARCHIVE_AGE = 0,
+                    DATA_CREATE_DT = data.CreateDt,
+                    DATA_UPDATE_DT = data.UpdateDt,
+                    DATA_DELETE_DT = data.DeleteDt,
+                    DATA_KEY1 = keys.Key1._NormalizeKey(true),
+                    DATA_KEY2 = keys.Key2._NormalizeKey(true),
+                    DATA_KEY3 = keys.Key3._NormalizeKey(true),
+                    DATA_KEY4 = keys.Key4._NormalizeKey(true),
+                    DATA_LABEL1 = labels.Label1._NormalizeKey(true),
+                    DATA_LABEL2 = labels.Label2._NormalizeKey(true),
+                    DATA_LABEL3 = labels.Label3._NormalizeKey(true),
+                    DATA_LABEL4 = labels.Label4._NormalizeKey(true),
+                    DATA_VALUE = data.GetUserDataJsonString(),
+                    DATA_EXT = "",
+                };
 
-                    var keys = data.GetKeys();
+                // DB に書き込む前に DB 上で KEY1 ～ KEY4 の重複を検査する
+                var existingRow = await GetRowByKeyAsync(dbWriter, row.DATA_TYPE, keys, cancel);
 
-                    var labels = data.GetLabels();
-
-                    HadbSqlDataRow row = new HadbSqlDataRow
-                    {
-                        DATA_UID = data.Uid,
-                        DATA_SYSTEMNAME = this.SystemName,
-                        DATA_TYPE = data.GetUserDataTypeName(),
-                        DATA_VER = data.Ver,
-                        DATA_DELETED = false,
-                        DATA_ARCHIVE_AGE = 0,
-                        DATA_CREATE_DT = data.CreateDt,
-                        DATA_UPDATE_DT = data.UpdateDt,
-                        DATA_DELETE_DT = data.DeleteDt,
-                        DATA_KEY1 = keys.Key1._NormalizeKey(true),
-                        DATA_KEY2 = keys.Key2._NormalizeKey(true),
-                        DATA_KEY3 = keys.Key3._NormalizeKey(true),
-                        DATA_KEY4 = keys.Key4._NormalizeKey(true),
-                        DATA_LABEL1 = labels.Label1._NormalizeKey(true),
-                        DATA_LABEL2 = labels.Label2._NormalizeKey(true),
-                        DATA_LABEL3 = labels.Label3._NormalizeKey(true),
-                        DATA_LABEL4 = labels.Label4._NormalizeKey(true),
-                        DATA_VALUE = data.GetUserDataJsonString(),
-                        DATA_EXT = "",
-                    };
-
-                    // DB に書き込む前に DB 上で KEY1 ～ KEY4 の重複を検査する
-                    var existingRow = await GetRowByKeyAsync(dbWriter, row.DATA_TYPE, keys, cancel);
-
-                    if (existingRow != null)
-                    {
-                        throw new CoresLibException($"Duplicated key in the physical database. Keys = {keys._ObjectToJson(compact: true)}");
-                    }
-
-                    // DB に書き込む
-                    await dbWriter.EasyInsertAsync(row, cancel);
+                if (existingRow != null)
+                {
+                    throw new CoresLibException($"Duplicated key in the physical database. Keys = {keys._ObjectToJson(compact: true)}");
                 }
 
-                return true;
-            });
+                // DB に書き込む
+                await dbWriter.EasyInsertAsync(row, cancel);
+            }
         }
 
-        protected override async Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(string uid, string typeName, CancellationToken cancel = default)
+        protected internal override async Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, CancellationToken cancel = default)
         {
             typeName = typeName._NonNullTrim();
 
-            await using var dbReader = await this.OpenSqlDatabaseForReadAsync(cancel);
+            var dbReader = ((HadbSqlTran)tran).Db;
 
-            HadbSqlDataRow? row = null;
-
-            await dbReader.TranReadSnapshotIfNecessaryAsync(async () =>
-            {
-                row = await GetRowByUidAsync(dbReader, typeName, uid, cancel);
-            });
+            HadbSqlDataRow? row = await GetRowByUidAsync(dbReader, typeName, uid, cancel);
 
             if (row == null) return null;
 
@@ -706,18 +693,13 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        protected override async Task<HadbObject?> AtomicSearchDataByKeyFromDatabaseImplAsync(HadbKeys key, string typeName, CancellationToken cancel = default)
+        protected internal override async Task<HadbObject?> AtomicSearchDataByKeyFromDatabaseImplAsync(HadbTran tran, HadbKeys key, string typeName, CancellationToken cancel = default)
         {
             typeName = typeName._NonNullTrim();
 
-            await using var dbReader = await this.OpenSqlDatabaseForReadAsync(cancel);
+            var dbReader = ((HadbSqlTran)tran).Db;
 
-            HadbSqlDataRow? row = null;
-
-            await dbReader.TranReadSnapshotIfNecessaryAsync(async () =>
-            {
-                row = await GetRowByKeyAsync(dbReader, typeName, key, cancel);
-            });
+            var row = await GetRowByKeyAsync(dbReader, typeName, key, cancel);
 
             if (row == null) return null;
 
@@ -726,18 +708,13 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        protected override async Task<IEnumerable<HadbObject>> AtomicSearchDataListByLabelsFromDatabaseImplAsync(HadbLabels labels, string typeName, CancellationToken cancel = default)
+        protected internal override async Task<IEnumerable<HadbObject>> AtomicSearchDataListByLabelsFromDatabaseImplAsync(HadbTran tran, HadbLabels labels, string typeName, CancellationToken cancel = default)
         {
             typeName = typeName._NonNullTrim();
 
-            await using var dbReader = await this.OpenSqlDatabaseForReadAsync(cancel);
+            var dbReader = ((HadbSqlTran)tran).Db;
 
-            IEnumerable<HadbSqlDataRow> rows = null!;
-
-            await dbReader.TranReadSnapshotIfNecessaryAsync(async () =>
-            {
-                rows = await GetRowsByLabelsAsync(dbReader, typeName, labels, cancel);
-            });
+            IEnumerable<HadbSqlDataRow> rows = await GetRowsByLabelsAsync(dbReader, typeName, labels, cancel);
 
             if (rows == null) return EmptyOf<HadbObject>();
 
@@ -753,52 +730,44 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        protected override async Task<HadbObject?> AtomicDeleteDataFromDatabaseImplAsync(string uid, string typeName, CancellationToken cancel = default)
+        protected internal override async Task<HadbObject?> AtomicDeleteDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, CancellationToken cancel = default)
         {
             typeName = typeName._NonNullTrim();
             uid = uid._NormalizeUid(true);
 
-            await using var dbWriter = await this.OpenSqlDatabaseForWriteAsync(cancel);
+            tran.CheckIsWriteMode();
+            var dbWriter = ((HadbSqlTran)tran).Db;
 
-            HadbObject? ret = null;
+            HadbSqlDataRow? row = await GetRowByUidAsync(dbWriter, typeName, uid, cancel);
 
-            await dbWriter.TranAsync(async () =>
+            if (row == null)
             {
-                HadbSqlDataRow? row = await GetRowByUidAsync(dbWriter, typeName, uid, cancel);
+                return null;
+            }
 
-                if (row == null)
+            await dbWriter.EasyExecuteAsync("update HADB_DATA set DATA_ARCHIVE_AGE = DATA_ARCHIVE_AGE + 1 where DATA_UID like @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE_AGE >= 1",
+                new
                 {
-                    return false;
-                }
+                    DATA_UID = uid + ":%",
+                    DATA_SYSTEMNAME = this.SystemName,
+                    DATA_TYPE = typeName,
+                });
 
-                await dbWriter.EasyExecuteAsync("update HADB_DATA set DATA_ARCHIVE_AGE = DATA_ARCHIVE_AGE + 1 where DATA_UID like @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE_AGE >= 1",
-                    new
-                    {
-                        DATA_UID = uid + ":%",
-                        DATA_SYSTEMNAME = this.SystemName,
-                        DATA_TYPE = typeName,
-                    });
+            HadbSqlDataRow rowOld = row._CloneDeep();
 
-                HadbSqlDataRow rowOld = row._CloneDeep();
+            rowOld.DATA_UID += ":" + rowOld.DATA_VER.ToString("D20");
+            rowOld.DATA_ARCHIVE_AGE = 1;
+            rowOld.Normalize();
 
-                rowOld.DATA_UID += ":" + rowOld.DATA_VER.ToString("D20");
-                rowOld.DATA_ARCHIVE_AGE = 1;
-                rowOld.Normalize();
+            await dbWriter.EasyInsertAsync(rowOld, cancel);
 
-                await dbWriter.EasyInsertAsync(rowOld, cancel);
+            row.DATA_VER++;
+            row.DATA_UPDATE_DT = row.DATA_DELETE_DT = DtOffsetNow;
+            row.DATA_DELETED = true;
 
-                row.DATA_VER++;
-                row.DATA_UPDATE_DT = row.DATA_DELETE_DT = DtOffsetNow;
-                row.DATA_DELETED = true;
+            await dbWriter.EasyUpdateAsync(row, true, cancel);
 
-                await dbWriter.EasyUpdateAsync(row, true, cancel);
-
-                ret = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE_AGE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
-
-                return true;
-            });
-
-            return ret;
+            return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE_AGE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
         }
     }
 
@@ -863,6 +832,8 @@ namespace IPA.Cores.Basic
     {
         readonly CriticalSection<HadbObject> Lock = new CriticalSection<HadbObject>();
 
+        public bool IsMemoryDbObject { get; private set; }
+
         public string Uid { get; }
 
         public long Ver { get; private set; }
@@ -883,11 +854,11 @@ namespace IPA.Cores.Basic
 
         public HadbObject(HadbData userData) : this(userData, null, 1, 0, false, DtOffsetNow, DtOffsetNow, DtOffsetZero) { }
 
-        public HadbObject(HadbData userData, string? uid, long ver, long archiveAge, bool deleted, DateTimeOffset createDt, DateTimeOffset updateDt, DateTimeOffset deleteDt)
+        public HadbObject(HadbData userData, string? uid, long ver, long archiveAge, bool deleted, DateTimeOffset createDt, DateTimeOffset updateDt, DateTimeOffset deleteDt, bool isMemoryDbObject = false)
         {
             userData._NullCheck(nameof(userData));
 
-            this.UserData = userData;
+            this.UserData = userData._CloneDeep();
 
             if (uid._IsEmpty())
             {
@@ -905,26 +876,52 @@ namespace IPA.Cores.Basic
             this.UpdateDt = updateDt._NormalizeDateTimeOffset();
             this.DeleteDt = deleteDt._NormalizeDateTimeOffset();
 
+            this.IsMemoryDbObject = isMemoryDbObject;
+            if (isMemoryDbObject)
+            {
+                if (this.ArchiveAge != 0) throw new CoresLibException("this.ArchiveAge != 0");
+            }
+
             this.Normalize();
         }
 
-        public bool MarkAsDeleted()
+        public HadbObject ToMemoryDbObject()
         {
-            lock (this.Lock)
-            {
-                if (this.Deleted)
-                {
-                    return false;
-                }
+            CheckIsNotMemoryDbObject();
+            if (this.ArchiveAge != 0) throw new CoresLibException("this.ArchiveAge != 0");
 
-                this.Deleted = true;
-
-                return true;
-            }
+            return new HadbObject(this.UserData, this.Uid, this.Ver, this.ArchiveAge, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt, isMemoryDbObject: true);
         }
+
+        public void CheckIsMemoryDbObject()
+        {
+            if (this.IsMemoryDbObject == false) throw new CoresLibException("this.IsMemoryDbObject == false");
+        }
+
+        public void CheckIsNotMemoryDbObject()
+        {
+            if (this.IsMemoryDbObject) throw new CoresLibException("this.IsMemoryDbObject == true");
+        }
+
+        //public bool MarkAsDeleted()
+        //{
+        //    lock (this.Lock)
+        //    {
+        //        if (this.Deleted)
+        //        {
+        //            return false;
+        //        }
+
+        //        this.Deleted = true;
+
+        //        return true;
+        //    }
+        //}
 
         public bool UpdateIfNew(HadbObject obj, out HadbKeys oldKeys, out HadbLabels oldLabels)
         {
+            CheckIsMemoryDbObject();
+
             lock (this.Lock)
             {
                 if (this.Uid._IsSamei(obj.Uid) == false)
@@ -1013,7 +1010,8 @@ namespace IPA.Cores.Basic
         protected abstract List<Type> GetDefinedUserDataTypesImpl();
 
         readonly StrDictionary<HadbObject> AllObjectsDict = new StrDictionary<HadbObject>(StrComparer.IgnoreCaseComparer);
-        public readonly CriticalSection<HadbMemDataBase> CriticalLock = new CriticalSection<HadbMemDataBase>(); // メモリ上のデータの読み書き用ロック
+        //public readonly CriticalSection<HadbMemDataBase> CriticalLock = new CriticalSection<HadbMemDataBase>(); // メモリ上のデータの読み書き用ロック
+        public readonly AsyncLock CriticalAsyncLock = new AsyncLock();
 
         ImmutableDictionary<string, HadbObject> IndexedKeysTable = ImmutableDictionary<string, HadbObject>.Empty.WithComparers(StrComparer.IgnoreCaseComparer);
         ImmutableDictionary<string, ConcurrentHashSet<HadbObject>> IndexedLabelsTable = ImmutableDictionary<string, ConcurrentHashSet<HadbObject>>.Empty.WithComparers(StrComparer.IgnoreCaseComparer);
@@ -1043,21 +1041,19 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public void ReloadFromDatabase(IEnumerable<HadbObject> objectList)
+        public async Task ReloadFromDatabaseAsync(IEnumerable<HadbObject> objectList, CancellationToken cancel = default)
         {
             int countInserted = 0;
             int countUpdated = 0;
             int countRemoved = 0;
 
-            objectList._NormalizeAll();
-
-            lock (this.CriticalLock)
+            using (await this.CriticalAsyncLock.LockWithAwait(cancel))
             {
-                foreach (var obj in objectList)
+                foreach (var newObj in objectList)
                 {
-                    if (this.AllObjectsDict.TryGetValue(obj.Uid, out HadbObject? currentObj))
+                    if (this.AllObjectsDict.TryGetValue(newObj.Uid, out HadbObject? currentObj))
                     {
-                        if (currentObj.UpdateIfNew(obj, out HadbKeys oldKeys, out HadbLabels oldLabels))
+                        if (currentObj.UpdateIfNew(newObj, out HadbKeys oldKeys, out HadbLabels oldLabels))
                         {
                             if (currentObj.Deleted == false)
                             {
@@ -1068,13 +1064,15 @@ namespace IPA.Cores.Basic
                                 countRemoved++;
                             }
 
-                            IndexedTable_UpdateObject_Critical(currentObj, currentObj, oldKeys, oldLabels);
+                            IndexedTable_UpdateObject_Critical(currentObj, oldKeys, oldLabels);
                         }
                     }
                     else
                     {
-                        this.AllObjectsDict[obj.Uid] = obj;
-                        IndexedTable_AddObject_Critical(obj);
+                        var obj2 = newObj.ToMemoryDbObject();
+                        this.AllObjectsDict[newObj.Uid] = obj2;
+
+                        IndexedTable_AddObject_Critical(obj2);
                         countInserted++;
                     }
                 }
@@ -1086,88 +1084,84 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public bool AtomicDeleteObject(HadbObject obj)
+        public HadbObject ApplyObjectToMemDb_Critical(HadbObject newObj)
         {
-            lock (this.CriticalLock)
+            newObj.Normalize();
+            if (newObj.ArchiveAge != 0) throw new CoresLibException("obj.ArchiveAge != 0");
+
+            if (this.AllObjectsDict.TryGetValue(newObj.Uid, out HadbObject? currentObject))
             {
-                if (this.AllObjectsDict.TryGetValue(obj.Uid, out HadbObject? currentObject))
+                if (currentObject.UpdateIfNew(newObj, out HadbKeys oldKeys, out HadbLabels oldLabels))
                 {
                     if (currentObject.Deleted == false)
                     {
-                        if (currentObject.UpdateIfNew(obj, out HadbKeys oldKeys, out HadbLabels oldLabels))
-                        {
-                            IndexedTable_DeleteObject_Critical(obj, oldKeys, oldLabels);
-
-                            return true;
-                        }
+                        IndexedTable_UpdateObject_Critical(currentObject, oldKeys, oldLabels);
+                    }
+                    else
+                    {
+                        IndexedTable_DeleteObject_Critical(newObj, oldKeys, oldLabels);
                     }
                 }
+
+                return currentObject;
             }
-
-            return false;
-        }
-
-        public HadbObject AtomicAddObject(HadbObject obj)
-        {
-            obj.Normalize();
-            if (obj.Deleted) throw new CoresLibException("obj.Deleted == true");
-            if (obj.ArchiveAge != 0) throw new CoresLibException("obj.ArchiveAge != 0");
-
-            lock (this.CriticalLock)
+            else
             {
-                if (this.AllObjectsDict.TryGetValue(obj.Uid, out HadbObject? currentObject))
+                if (newObj.Deleted == false)
                 {
-                    if (currentObject.UpdateIfNew(obj, out HadbKeys oldKeys, out HadbLabels oldLables))
-                    {
-                        IndexedTable_UpdateObject_Critical(currentObject, currentObject, oldKeys, oldLables);
-                    }
-
-                    return currentObject;
+                    var newObj2 = newObj.ToMemoryDbObject();
+                    this.AllObjectsDict[newObj.Uid] = newObj2;
+                    IndexedTable_AddObject_Critical(newObj2);
+                    return newObj2;
                 }
                 else
                 {
-                    this.AllObjectsDict[obj.Uid] = obj;
-                    IndexedTable_AddObject_Critical(obj);
-                    return obj;
+                    return newObj.ToMemoryDbObject();
                 }
             }
         }
 
 
 
-        void IndexedTable_DeleteObject_Critical(HadbObject deleteObj, HadbKeys oldKeys, HadbLabels oldLabels)
+        void IndexedTable_DeleteObject_Critical(HadbObject obj, HadbKeys oldKeys, HadbLabels oldLabels)
         {
-            string typeName = deleteObj.GetUserDataTypeName();
+            obj.CheckIsMemoryDbObject();
+
+            string typeName = obj.GetUserDataTypeName();
 
             if (oldKeys.Key1._IsFilled()) IndexedKeysTable_DeleteInternal_Critical(HadbIndexColumn.Key1.ToString() + ":" + typeName + ":" + oldKeys.Key1);
             if (oldKeys.Key2._IsFilled()) IndexedKeysTable_DeleteInternal_Critical(HadbIndexColumn.Key2.ToString() + ":" + typeName + ":" + oldKeys.Key2);
             if (oldKeys.Key3._IsFilled()) IndexedKeysTable_DeleteInternal_Critical(HadbIndexColumn.Key3.ToString() + ":" + typeName + ":" + oldKeys.Key3);
             if (oldKeys.Key4._IsFilled()) IndexedKeysTable_DeleteInternal_Critical(HadbIndexColumn.Key4.ToString() + ":" + typeName + ":" + oldKeys.Key4);
 
-            if (oldLabels.Label1._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(HadbIndexColumn.Label1.ToString() + ":" + typeName + ":" + oldLabels.Label1, deleteObj);
-            if (oldLabels.Label2._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(HadbIndexColumn.Label2.ToString() + ":" + typeName + ":" + oldLabels.Label2, deleteObj);
-            if (oldLabels.Label3._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(HadbIndexColumn.Label3.ToString() + ":" + typeName + ":" + oldLabels.Label3, deleteObj);
-            if (oldLabels.Label4._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(HadbIndexColumn.Label4.ToString() + ":" + typeName + ":" + oldLabels.Label4, deleteObj);
+            if (oldLabels.Label1._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(HadbIndexColumn.Label1.ToString() + ":" + typeName + ":" + oldLabels.Label1, obj);
+            if (oldLabels.Label2._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(HadbIndexColumn.Label2.ToString() + ":" + typeName + ":" + oldLabels.Label2, obj);
+            if (oldLabels.Label3._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(HadbIndexColumn.Label3.ToString() + ":" + typeName + ":" + oldLabels.Label3, obj);
+            if (oldLabels.Label4._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(HadbIndexColumn.Label4.ToString() + ":" + typeName + ":" + oldLabels.Label4, obj);
         }
 
-        void IndexedTable_UpdateObject_Critical(HadbObject newObj, HadbObject oldObj, HadbKeys oldKeys, HadbLabels oldLabels)
+        void IndexedTable_UpdateObject_Critical(HadbObject obj, HadbKeys oldKeys, HadbLabels oldLabels)
         {
-            HadbKeys newKeys = newObj.GetKeys();
-            HadbLabels newLabels = newObj.GetLabels();
+            obj.CheckIsMemoryDbObject();
 
-            if (oldKeys.Key1._IsSamei(newKeys.Key1) == false) IndexedKeysTable_ReplaceObject_Critical(newObj, HadbIndexColumn.Key1, oldKeys.Key1, newKeys.Key1);
-            if (oldKeys.Key2._IsSamei(newKeys.Key2) == false) IndexedKeysTable_ReplaceObject_Critical(newObj, HadbIndexColumn.Key2, oldKeys.Key2, newKeys.Key2);
-            if (oldKeys.Key3._IsSamei(newKeys.Key3) == false) IndexedKeysTable_ReplaceObject_Critical(newObj, HadbIndexColumn.Key3, oldKeys.Key3, newKeys.Key3);
-            if (oldKeys.Key4._IsSamei(newKeys.Key4) == false) IndexedKeysTable_ReplaceObject_Critical(newObj, HadbIndexColumn.Key4, oldKeys.Key4, newKeys.Key4);
+            HadbKeys newKeys = obj.GetKeys();
+            HadbLabels newLabels = obj.GetLabels();
 
-            if (oldLabels.Label1._IsSamei(newLabels.Label1) == false) IndexedLabelsTable_ReplaceObject_Critical(newObj, oldObj, HadbIndexColumn.Label1, oldLabels.Label1, newLabels.Label1);
-            if (oldLabels.Label2._IsSamei(newLabels.Label2) == false) IndexedLabelsTable_ReplaceObject_Critical(newObj, oldObj, HadbIndexColumn.Label2, oldLabels.Label2, newLabels.Label2);
-            if (oldLabels.Label3._IsSamei(newLabels.Label3) == false) IndexedLabelsTable_ReplaceObject_Critical(newObj, oldObj, HadbIndexColumn.Label3, oldLabels.Label3, newLabels.Label3);
-            if (oldLabels.Label4._IsSamei(newLabels.Label4) == false) IndexedLabelsTable_ReplaceObject_Critical(newObj, oldObj, HadbIndexColumn.Label4, oldLabels.Label4, newLabels.Label4);
+            if (oldKeys.Key1._IsSamei(newKeys.Key1) == false) IndexedKeysTable_ReplaceObject_Critical(obj, HadbIndexColumn.Key1, oldKeys.Key1, newKeys.Key1);
+            if (oldKeys.Key2._IsSamei(newKeys.Key2) == false) IndexedKeysTable_ReplaceObject_Critical(obj, HadbIndexColumn.Key2, oldKeys.Key2, newKeys.Key2);
+            if (oldKeys.Key3._IsSamei(newKeys.Key3) == false) IndexedKeysTable_ReplaceObject_Critical(obj, HadbIndexColumn.Key3, oldKeys.Key3, newKeys.Key3);
+            if (oldKeys.Key4._IsSamei(newKeys.Key4) == false) IndexedKeysTable_ReplaceObject_Critical(obj, HadbIndexColumn.Key4, oldKeys.Key4, newKeys.Key4);
+
+            if (oldLabels.Label1._IsSamei(newLabels.Label1) == false) IndexedLabelsTable_ReplaceObject_Critical(obj, HadbIndexColumn.Label1, oldLabels.Label1, newLabels.Label1);
+            if (oldLabels.Label2._IsSamei(newLabels.Label2) == false) IndexedLabelsTable_ReplaceObject_Critical(obj, HadbIndexColumn.Label2, oldLabels.Label2, newLabels.Label2);
+            if (oldLabels.Label3._IsSamei(newLabels.Label3) == false) IndexedLabelsTable_ReplaceObject_Critical(obj, HadbIndexColumn.Label3, oldLabels.Label3, newLabels.Label3);
+            if (oldLabels.Label4._IsSamei(newLabels.Label4) == false) IndexedLabelsTable_ReplaceObject_Critical(obj, HadbIndexColumn.Label4, oldLabels.Label4, newLabels.Label4);
         }
 
         void IndexedTable_AddObject_Critical(HadbObject obj)
         {
+            obj.CheckIsMemoryDbObject();
+
             var newKeys = obj.GetKeys();
             var newLabels = obj.GetLabels();
 
@@ -1188,6 +1182,8 @@ namespace IPA.Cores.Basic
 
         void IndexedKeysTable_ReplaceObject_Critical(HadbObject obj, HadbIndexColumn column, string? oldKey, string? newKey)
         {
+            obj.CheckIsMemoryDbObject();
+
             oldKey = oldKey._NormalizeKey(true);
             newKey = newKey._NormalizeKey(true);
 
@@ -1263,21 +1259,25 @@ namespace IPA.Cores.Basic
         }
 
 
-        void IndexedLabelsTable_ReplaceObject_Critical(HadbObject newObj, HadbObject oldObj, HadbIndexColumn column, string? oldLabel, string? newLabel)
+        void IndexedLabelsTable_ReplaceObject_Critical(HadbObject obj, HadbIndexColumn column, string? oldLabel, string? newLabel)
         {
+            obj.CheckIsMemoryDbObject();
+
             oldLabel = oldLabel._NormalizeKey(true);
             newLabel = newLabel._NormalizeKey(true);
 
-            if (oldLabel._IsSamei(newLabel) == false || object.ReferenceEquals(newObj, oldObj) == false)
+            if (oldLabel._IsSamei(newLabel) == false)
             {
+                string typeName = obj.GetUserDataTypeName();
+
                 if (newLabel._IsFilled())
                 {
-                    IndexedLabelsTable_AddInternal_Critical(column.ToString() + ":" + newObj.GetUserDataTypeName() + ":" + newLabel, newObj);
+                    IndexedLabelsTable_AddInternal_Critical(column.ToString() + ":" + typeName + ":" + newLabel, obj);
                 }
 
                 if (oldLabel._IsFilled())
                 {
-                    IndexedLabelsTable_DeleteInternal_Critical(column.ToString() + ":" + oldObj.GetUserDataTypeName() + ":" + oldLabel, oldObj);
+                    IndexedLabelsTable_DeleteInternal_Critical(column.ToString() + ":" + typeName + ":" + oldLabel, obj);
                 }
             }
         }
@@ -1354,15 +1354,26 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public abstract class HadbDbTran : AsyncService
+    public abstract class HadbTranMemDbOp { }
+
+    public abstract class HadbTran : AsyncService
     {
         public bool IsWriteMode;
+        public HadbMemDataBase MemDb;
+        List<HadbObject> ApplyObjectsList = new List<HadbObject>();
 
-        public HadbDbTran(bool writeMode)
+        public IReadOnlyList<HadbObject> GetApplyObjectsList() => this.ApplyObjectsList;
+
+        protected abstract Task CommitImplAsync(CancellationToken cancel);
+
+        AsyncLock.LockHolder? LockHolder = null;
+
+        public HadbTran(bool writeMode, HadbMemDataBase memDb)
         {
             try
             {
                 this.IsWriteMode = writeMode;
+                this.MemDb = memDb;
             }
             catch (Exception ex)
             {
@@ -1371,10 +1382,75 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public async Task BeginAsync(CancellationToken cancel = default)
+        {
+            if (this.LockHolder == null)
+            {
+                this.LockHolder = await this.MemDb.CriticalAsyncLock.LockWithAwait(cancel);
+            }
+        }
+
+        public void CheckIsWriteMode()
+        {
+            if (this.IsWriteMode == false)
+            {
+                throw new CoresLibException("Database transaction is read only.");
+            }
+        }
+
+        public void AddApplyObject(HadbObject obj)
+            => AddApplyObjects(obj._SingleArray());
+
+        public void AddApplyObjects(IEnumerable<HadbObject> objs)
+        {
+            foreach (var obj in objs)
+            {
+                obj.CheckIsNotMemoryDbObject();
+            }
+
+            this.ApplyObjectsList.AddRange(objs);
+        }
+
+        public async Task CommitAsync(CancellationToken cancel = default)
+        {
+            if (this.IsWriteMode == false)
+            {
+                await this.CommitImplAsync(cancel);
+
+                await FinishInternalAsync(cancel);
+            }
+        }
+
+        readonly Once flushed = new Once();
+
+        Task FinishInternalAsync(CancellationToken cancel = default)
+        {
+            if (flushed.IsFirstCall())
+            {
+                try
+                {
+                    foreach (var obj in this.ApplyObjectsList)
+                    {
+                        this.MemDb.ApplyObjectToMemDb_Critical(obj);
+                    }
+                }
+                finally
+                {
+                    this.LockHolder._DisposeSafe();
+                }
+            }
+
+            return Task.CompletedTask;
+        }
+
         protected override async Task CleanupImplAsync(Exception? ex)
         {
             try
             {
+                if (this.IsWriteMode == false)
+                {
+                    await this.FinishInternalAsync();
+                }
             }
             finally
             {
@@ -1402,19 +1478,23 @@ namespace IPA.Cores.Basic
 
         public TMem? MemDb { get; private set; } = null;
 
-        protected abstract Task<HadbDbTran> BeginDatabaseTransactionImplAsync(bool writeMode, CancellationToken cancel = default);
+        protected abstract Task<HadbTran> BeginDatabaseTransactionImplAsync(bool writeMode, CancellationToken cancel = default);
 
-        protected abstract Task AtomicAddDataListToDatabaseImplAsync(IEnumerable<HadbObject> dataList, CancellationToken cancel = default);
-        protected abstract Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(string uid, string typeName, CancellationToken cancel = default);
-        protected abstract Task<HadbObject?> AtomicSearchDataByKeyFromDatabaseImplAsync(HadbKeys keys, string typeName, CancellationToken cancel = default);
-        protected abstract Task<IEnumerable<HadbObject>> AtomicSearchDataListByLabelsFromDatabaseImplAsync(HadbLabels labels, string typeName, CancellationToken cancel = default);
-        protected abstract Task<HadbObject?> AtomicDeleteDataFromDatabaseImplAsync(string uid, string typeName, CancellationToken cancel = default);
+        protected internal abstract Task AtomicAddDataListToDatabaseImplAsync(HadbTran tran, IEnumerable<HadbObject> dataList, CancellationToken cancel = default);
+        protected internal abstract Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, CancellationToken cancel = default);
+        protected internal abstract Task<HadbObject?> AtomicSearchDataByKeyFromDatabaseImplAsync(HadbTran tran, HadbKeys keys, string typeName, CancellationToken cancel = default);
+        protected internal abstract Task<IEnumerable<HadbObject>> AtomicSearchDataListByLabelsFromDatabaseImplAsync(HadbTran tran, HadbLabels labels, string typeName, CancellationToken cancel = default);
+        protected internal abstract Task<HadbObject?> AtomicDeleteDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, CancellationToken cancel = default);
 
         protected abstract Task<KeyValueList<string, string>> LoadDynamicConfigFromDatabaseImplAsync(CancellationToken cancel = default);
         protected abstract Task AppendMissingDynamicConfigToDatabaseImplAsync(KeyValueList<string, string> missingValues, CancellationToken cancel = default);
         protected abstract Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(CancellationToken cancel = default);
 
+        protected abstract bool IsDeadlockExceptionImpl(Exception ex);
+
         public StrDictionary<Type> DefinedDataTypesByName { get; }
+
+        public DeadlockRetryConfig DefaultDeadlockRetryConfig { get; set; }
 
         public HadbBase(HadbSettingsBase settings, TDynamicConfig dynamicConfig)
         {
@@ -1432,6 +1512,8 @@ namespace IPA.Cores.Basic
 
                 TMem tmpMem = new TMem();
                 this.DefinedDataTypesByName = tmpMem.GetDefinedUserDataTypesByName();
+
+                this.DefaultDeadlockRetryConfig = new DeadlockRetryConfig(CoresConfig.Database.DefaultDatabaseTransactionRetryAverageIntervalSecs, CoresConfig.Database.DefaultDatabaseTransactionRetryCount);
             }
             catch
             {
@@ -1494,7 +1576,7 @@ namespace IPA.Cores.Basic
                 TMem? currentMemDb = this.MemDb;
                 if (currentMemDb == null) currentMemDb = new TMem();
 
-                currentMemDb.ReloadFromDatabase(loadedObjectsList);
+                await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, cancel);
 
                 this.MemDb = currentMemDb;
                 this.IsDatabaseConnectedForReload = true;
@@ -1600,10 +1682,56 @@ namespace IPA.Cores.Basic
             await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () => CheckIfReadyForAtomic(doNotThrowError: EnsureSpecial.Yes).IsOk, cancel, true);
         }
 
-        public async Task<HadbObject> AtomicAddAsync(HadbData data, CancellationToken cancel = default)
-            => (await AtomicAddAsync(data._SingleArray(), cancel)).Single();
+        public async Task<bool> TranAsync(bool writeMode, Func<HadbTran, Task<bool>> task, CancellationToken cancel = default, DeadlockRetryConfig? retryConfig = null)
+        {
+            CheckIfReadyForAtomic();
+            retryConfig ??= this.DefaultDeadlockRetryConfig;
+            int numRetry = 0;
 
-        public async Task<List<HadbObject>> AtomicAddAsync(IEnumerable<HadbData> dataList, CancellationToken cancel = default)
+            LABEL_RETRY:
+            try
+            {
+                await using var tran = await this.BeginDatabaseTransactionImplAsync(writeMode, cancel);
+
+                await tran.BeginAsync(cancel);
+
+                if (await task(tran))
+                {
+                    await tran.CommitAsync(cancel);
+
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                if (this.IsDeadlockExceptionImpl(ex))
+                {
+                    // デッドロック発生
+                    numRetry++;
+                    if (numRetry <= retryConfig.RetryCount)
+                    {
+                        await Task.Delay(Util.GenRandInterval(retryConfig.RetryAverageInterval));
+
+                        goto LABEL_RETRY;
+                    }
+
+                    throw;
+                }
+                else
+                {
+                    throw;
+                }
+            }
+        }
+
+        public async Task<HadbObject> AtomicAddAsync(HadbTran tran, HadbData data, CancellationToken cancel = default)
+            => (await AtomicAddAsync(tran, data._SingleArray(), cancel)).Single();
+
+        public async Task<List<HadbObject>> AtomicAddAsync(HadbTran tran, IEnumerable<HadbData> dataList, CancellationToken cancel = default)
         {
             CheckIfReadyForAtomic();
 
@@ -1630,88 +1758,78 @@ namespace IPA.Cores.Basic
                 objList.Add(data.ToNewObject());
             }
 
-            await this.AtomicAddDataListToDatabaseImplAsync(objList, cancel);
+            await this.AtomicAddDataListToDatabaseImplAsync(tran, objList, cancel);
 
-            for (int i = 0; i < objList.Count; i++)
-            {
-                objList[i] = this.MemDb!.AtomicAddObject(objList[i]);
-            }
+            tran.AddApplyObjects(objList);
 
             return objList;
         }
 
-        public async Task<HadbObject?> AtomicGetAsync<T>(string uid, CancellationToken cancel = default) where T : HadbData
-            => await AtomicGetAsync(uid, typeof(T).Name, cancel);
+        public async Task<HadbObject?> AtomicGetAsync<T>(HadbTran tran, string uid, CancellationToken cancel = default) where T : HadbData
+            => await AtomicGetAsync(tran, uid, typeof(T).Name, cancel);
 
-        public async Task<HadbObject?> AtomicGetAsync(string uid, string typeName, CancellationToken cancel = default)
+        public async Task<HadbObject?> AtomicGetAsync(HadbTran tran, string uid, string typeName, CancellationToken cancel = default)
         {
             CheckIfReadyForAtomic();
 
-            HadbObject? ret = await this.AtomicGetDataFromDatabaseImplAsync(uid, typeName, cancel);
+            HadbObject? ret = await this.AtomicGetDataFromDatabaseImplAsync(tran, uid, typeName, cancel);
 
             if (ret == null) return null;
 
-            if (ret.Deleted) return null;
-
-            return this.MemDb!.AtomicAddObject(ret);
-        }
-
-        public async Task<HadbObject?> AtomicSearchByKeysAsync<T>(HadbKeys keys, CancellationToken cancel = default) where T : HadbData
-            => await AtomicSearchByKeysAsync(keys, typeof(T).Name, cancel);
-
-        public async Task<HadbObject?> AtomicSearchByKeysAsync(HadbKeys keys, string typeName, CancellationToken cancel = default)
-        {
-            CheckIfReadyForAtomic();
-
-            HadbObject? ret = await this.AtomicSearchDataByKeyFromDatabaseImplAsync(keys, typeName, cancel);
-
-            if (ret == null) return null;
+            tran.AddApplyObject(ret);
 
             if (ret.Deleted) return null;
-
-            return this.MemDb!.AtomicAddObject(ret);
-        }
-
-        public async Task<IEnumerable<HadbObject>> AtomicSearchByLabelsAsync<T>(HadbLabels labels, CancellationToken cancel = default) where T : HadbData
-            => await AtomicSearchByLabelsAsync(labels, typeof(T).Name, cancel);
-
-        public async Task<IEnumerable<HadbObject>> AtomicSearchByLabelsAsync(HadbLabels labels, string typeName, CancellationToken cancel = default)
-        {
-            CheckIfReadyForAtomic();
-
-            IEnumerable<HadbObject> items = await this.AtomicSearchDataListByLabelsFromDatabaseImplAsync(labels, typeName, cancel);
-
-            items = items.Where(x => x.Deleted == false);
-
-            List<HadbObject> ret = new List<HadbObject>();
-
-            items._DoForEach(x =>
-            {
-                var obj = this.MemDb!.AtomicAddObject(x);
-
-                ret.Add(obj);
-            });
 
             return ret;
         }
 
-        public async Task<HadbObject?> AtomicDeleteAsync<T>(string uid, CancellationToken cancel = default) where T : HadbData
-            => await AtomicDeleteAsync(uid, typeof(T).Name, cancel);
+        public async Task<HadbObject?> AtomicSearchByKeysAsync<T>(HadbTran tran, HadbKeys keys, CancellationToken cancel = default) where T : HadbData
+            => await AtomicSearchByKeysAsync(tran, keys, typeof(T).Name, cancel);
 
-        public async Task<HadbObject?> AtomicDeleteAsync(string uid, string typeName, CancellationToken cancel = default)
+        public async Task<HadbObject?> AtomicSearchByKeysAsync(HadbTran tran, HadbKeys keys, string typeName, CancellationToken cancel = default)
         {
             CheckIfReadyForAtomic();
 
-            HadbObject? ret = await this.AtomicDeleteDataFromDatabaseImplAsync(uid, typeName, cancel);
+            HadbObject? ret = await this.AtomicSearchDataByKeyFromDatabaseImplAsync(tran, keys, typeName, cancel);
+
+            if (ret == null) return null;
+
+            tran.AddApplyObject(ret);
+
+            if (ret.Deleted) return null;
+
+            return ret;
+        }
+
+        public async Task<IEnumerable<HadbObject>> AtomicSearchByLabelsAsync<T>(HadbTran tran, HadbLabels labels, CancellationToken cancel = default) where T : HadbData
+            => await AtomicSearchByLabelsAsync(tran, labels, typeof(T).Name, cancel);
+
+        public async Task<IEnumerable<HadbObject>> AtomicSearchByLabelsAsync(HadbTran tran, HadbLabels labels, string typeName, CancellationToken cancel = default)
+        {
+            CheckIfReadyForAtomic();
+
+            IEnumerable<HadbObject> items = await this.AtomicSearchDataListByLabelsFromDatabaseImplAsync(tran, labels, typeName, cancel);
+
+            tran.AddApplyObjects(items);
+
+            return items.Where(x => x.Deleted == false);
+        }
+
+        public async Task<HadbObject?> AtomicDeleteAsync<T>(HadbTran tran, string uid, CancellationToken cancel = default) where T : HadbData
+            => await AtomicDeleteAsync(tran, uid, typeof(T).Name, cancel);
+
+        public async Task<HadbObject?> AtomicDeleteAsync(HadbTran tran, string uid, string typeName, CancellationToken cancel = default)
+        {
+            CheckIfReadyForAtomic();
+
+            HadbObject? ret = await this.AtomicDeleteDataFromDatabaseImplAsync(tran, uid, typeName, cancel);
 
             if (ret == null)
             {
                 return null;
             }
 
-            bool ok = this.MemDb!.AtomicDeleteObject(ret);
-
-            //$"AtomicDeleteObject: {ok}"._Debug();
+            tran.AddApplyObject(ret);
 
             return ret;
         }

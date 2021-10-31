@@ -375,13 +375,15 @@ namespace IPA.Cores.Basic
             this.Once = new Once();
         }
 
-        public async Task CommitAsync()
+        public async Task CommitAsync(CancellationToken cancel = default)
         {
-            await this.db.CommitAsync();
+            cancel.ThrowIfCancellationRequested();
+            await this.db.CommitAsync(cancel);
         }
 
-        public void Commit()
+        public void Commit(CancellationToken cancel = default)
         {
+            cancel.ThrowIfCancellationRequested();
             this.db.Commit();
         }
 
@@ -1272,7 +1274,7 @@ namespace IPA.Cores.Basic
 
         public Task<bool> TranAsync(TransactionalTaskAsync task) => TranAsync(null, null, task);
         public Task<bool> TranAsync(IsolationLevel? isolationLevel, TransactionalTaskAsync task) => TranAsync(isolationLevel, null, task);
-        public async Task<bool> TranAsync(IsolationLevel? isolationLevel, DeadlockRetryConfig? retryConfig, TransactionalTaskAsync task)
+        public async Task<bool> TranAsync(IsolationLevel? isolationLevel, DeadlockRetryConfig? retryConfig, TransactionalTaskAsync task, CancellationToken cancel = default)
         {
             await EnsureOpenAsync();
             if (retryConfig == null)
@@ -1285,11 +1287,11 @@ namespace IPA.Cores.Basic
             LABEL_RETRY:
             try
             {
-                await using (UsingTran u = await this.UsingTranAsync(isolationLevel))
+                await using (UsingTran u = await this.UsingTranAsync(isolationLevel, cancel))
                 {
                     if (await task())
                     {
-                        await u.CommitAsync();
+                        await u.CommitAsync(cancel);
 
                         return true;
                     }

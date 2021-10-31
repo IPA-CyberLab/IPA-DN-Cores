@@ -2349,35 +2349,55 @@ namespace IPA.TestDev
 
                     if (str._TryTrimStartWith(out string uid, StringComparison.OrdinalIgnoreCase, "?"))
                     {
-                        var obj = await db.AtomicGetAsync<MikakaDDnsHost>(uid);
-                        obj._PrintAsJson();
+                        await db.TranAsync(writeMode: false, async tran =>
+                        {
+                            var obj = await db.AtomicGetAsync<MikakaDDnsHost>(tran, uid);
+                            obj._PrintAsJson();
+                            return false;
+                        });
                     }
                     else if (str._TryTrimStartWith(out string key, StringComparison.OrdinalIgnoreCase, "!"))
                     {
-                        var obj = await db.AtomicSearchByKeysAsync<MikakaDDnsHost>(new HadbKeys(key));
-                        obj._PrintAsJson();
+                        await db.TranAsync(writeMode: false, async tran =>
+                        {
+                            var obj = await db.AtomicSearchByKeysAsync<MikakaDDnsHost>(tran, new HadbKeys(key));
+                            obj._PrintAsJson();
+                            return false;
+                        });
                     }
                     else if (str._TryTrimStartWith(out string label, StringComparison.OrdinalIgnoreCase, ">"))
                     {
-                        var obj = await db.AtomicSearchByLabelsAsync<MikakaDDnsHost>(new HadbLabels(label));
-                        obj._PrintAsJson();
+                        await db.TranAsync(writeMode: false, async tran =>
+                        {
+                            var obj = await db.AtomicSearchByLabelsAsync<MikakaDDnsHost>(tran, new HadbLabels(label));
+                            obj._PrintAsJson();
+                            return false;
+                        });
                     }
                     else if (str._TryTrimStartWith(out string uid2, StringComparison.OrdinalIgnoreCase, "-"))
                     {
-                        var obj = await db.AtomicDeleteAsync<MikakaDDnsHost>(uid2);
-                        Con.WriteLine($"Deleted = {obj._ObjectToJson()}");
+                        await db.TranAsync(writeMode: true, async tran =>
+                        {
+                            var obj = await db.AtomicDeleteAsync<MikakaDDnsHost>(tran, uid2);
+                            Con.WriteLine($"Deleted = {obj._ObjectToJson()}");
+                            return true;
+                        });
                     }
                     else
                     {
-                        MikakaDDnsHost host = new MikakaDDnsHost
+                        await db.TranAsync(writeMode: true, async tran =>
                         {
-                            HostName = str,
-                            IPv4Address = "apple",
-                            IPv6Address = "microsoft",
-                            TestInt = 1,
-                        };
+                            MikakaDDnsHost host = new MikakaDDnsHost
+                            {
+                                HostName = str,
+                                IPv4Address = "apple",
+                                IPv6Address = "microsoft",
+                                TestInt = 1,
+                            };
 
-                        await db.AtomicAddAsync(host);
+                            await db.AtomicAddAsync(tran, host);
+                            return true;
+                        });
                     }
                 }
             });
@@ -2399,7 +2419,7 @@ namespace IPA.TestDev
 
                     for (int i = 0; i < 10000; i++)
                     {
-                        await db.EasyExecuteAsync("insert into TEST (TEST_STR) values (@A)",  new { A = Util.RandSInt63().ToString() });
+                        await db.EasyExecuteAsync("insert into TEST (TEST_STR) values (@A)", new { A = Util.RandSInt63().ToString() });
 
                         if ((i % 100) == 0) i._ToString3()._Print();
                     }
