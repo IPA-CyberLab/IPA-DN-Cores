@@ -2354,7 +2354,12 @@ namespace IPA.TestDev
                     }
                     else if (str._TryTrimStartWith(out string key, StringComparison.OrdinalIgnoreCase, "!"))
                     {
-                        var obj = await db.ReliableSearchAsync<MikakaDDnsHost>(new HadbKeys(key));
+                        var obj = await db.ReliableSearchByKeysAsync<MikakaDDnsHost>(new HadbKeys(key));
+                        obj._PrintAsJson();
+                    }
+                    else if (str._TryTrimStartWith(out string label, StringComparison.OrdinalIgnoreCase, ">"))
+                    {
+                        var obj = await db.ReliableSearchByLabelsAsync<MikakaDDnsHost>(new HadbLabels(label));
                         obj._PrintAsJson();
                     }
                     else if (str._TryTrimStartWith(out string uid2, StringComparison.OrdinalIgnoreCase, "-"))
@@ -2367,12 +2372,36 @@ namespace IPA.TestDev
                         MikakaDDnsHost host = new MikakaDDnsHost
                         {
                             HostName = str,
-                            IPv4Address = "127.0.0.1",
-                            IPv6Address = "2001::1234",
+                            IPv4Address = "apple",
+                            IPv6Address = "microsoft",
                             TestInt = 1,
                         };
 
                         await db.ReliableAddAsync(host);
+                    }
+                }
+            });
+        }
+
+        static void Test_211031()
+        {
+            Async(async () =>
+            {
+                List<string> conns = new List<string>();
+                conns.Add(new SqlDatabaseConnectionSetting("10.40.0.103", "TESTDB3", "sql_test_211031", "Micro12az"));
+                conns.Add(new SqlDatabaseConnectionSetting("10.40.0.103", "TESTDB4", "sql_test_211031", "Micro12az"));
+
+                foreach (var connstr in conns)
+                {
+                    await using var db = new Database(connstr);
+
+                    await db.EnsureOpenAsync();
+
+                    for (int i = 0; i < 10000; i++)
+                    {
+                        await db.EasyExecuteAsync("insert into TEST (TEST_STR) values (@A)",  new { A = Util.RandSInt63().ToString() });
+
+                        if ((i % 100) == 0) i._ToString3()._Print();
                     }
                 }
             });

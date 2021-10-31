@@ -6607,6 +6607,9 @@ namespace IPA.Cores.Basic
         public bool Add(TKey item) => TryAdd(item, 0);
         public bool Remove(TKey item) => TryRemove(item, out _);
         public bool Contains(TKey item) => ContainsKey(item);
+
+        public new TKey[] ToArray() => base.Keys.ToArray();
+        public List<TKey> ToList() => base.Keys.ToList();
     }
 
     public class SystemAndUser<TSystem, TUser>

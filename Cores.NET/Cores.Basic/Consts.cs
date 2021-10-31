@@ -118,6 +118,9 @@ namespace IPA.Cores.Basic
             public const int EasyHttpClient_DefaultRetryIntervalMsecs = 1 * 1000;
 
             public static readonly TimeSpan MaxCertExpireSpanTargetForUpdate = new TimeSpan(4 * 365, 0, 0, 0);
+
+            // SQL Server その他の一般的なデータベースでインデックス可能な最大安全文字列長
+            public const int SqlMaxSafeStrLength = 300;
         }
 
         public static partial class MaxLens

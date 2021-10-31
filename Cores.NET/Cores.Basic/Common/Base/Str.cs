@@ -1584,15 +1584,23 @@ namespace IPA.Cores.Basic
         }
 
         // UID を正規化する
-        public static string NormalizeUid(string? uid)
+        public static string NormalizeUid(string? uid, bool checkSqlSafe = false)
         {
-            return uid._NonNullTrim().ToUpper();
+            string ret = uid._NonNullTrim().ToUpper();
+
+            if (checkSqlSafe) ret._CheckSqlMaxSafeStrLength();
+
+            return ret;
         }
 
         // 任意のキーを正規化する
-        public static string NormalizeKey(string? key)
+        public static string NormalizeKey(string? key, bool checkSqlSafe = false)
         {
-            return key._NonNullTrim().ToUpper();
+            string ret = key._NonNullTrim().ToUpper();
+
+            if (checkSqlSafe) ret._CheckSqlMaxSafeStrLength();
+
+            return ret;
         }
 
         // 新しい UID を生成する
