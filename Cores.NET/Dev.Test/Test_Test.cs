@@ -2328,10 +2328,10 @@ namespace IPA.TestDev
         {
             Async(async () =>
             {
-                await using MikakaDDnsHadb db = new MikakaDDnsHadb(new HadbSqlSettings("Mikaka",
+                await using HadbTest db = new HadbTest(new HadbSqlSettings("TEST",
                     new SqlDatabaseConnectionSetting("10.40.0.103", "TEST_DN_DBSVC1", "sql_test_dn_dbsvc1_reader", "testabc"),
                     new SqlDatabaseConnectionSetting("10.40.0.103", "TEST_DN_DBSVC1", "sql_test_dn_dbsvc1_writer", "testabc")),
-                    new MikakaDDnsDynamicConfig() { /*TestDef = new string[] { "Hello", "World" }*/ });
+                    new HadbTestDynamicConfig() { /*TestDef = new string[] { "Hello", "World" }*/ });
 
                 db.StartLoop();
 
@@ -2351,7 +2351,7 @@ namespace IPA.TestDev
                     {
                         await db.TranAsync(writeMode: false, async tran =>
                         {
-                            var obj = await tran.AtomicGetAsync<MikakaDDnsHost>(uid);
+                            var obj = await tran.AtomicGetAsync<HadbTestData>(uid);
                             obj._PrintAsJson();
                             return false;
                         });
@@ -2360,7 +2360,7 @@ namespace IPA.TestDev
                     {
                         await db.TranAsync(writeMode: false, async tran =>
                         {
-                            var obj = await tran.AtomicSearchByKeysAsync<MikakaDDnsHost>(new HadbKeys(key));
+                            var obj = await tran.AtomicSearchByKeysAsync<HadbTestData>(new HadbKeys(key));
                             obj._PrintAsJson();
                             return false;
                         });
@@ -2369,7 +2369,7 @@ namespace IPA.TestDev
                     {
                         await db.TranAsync(writeMode: false, async tran =>
                         {
-                            var obj = await tran.AtomicSearchByLabelsAsync<MikakaDDnsHost>(new HadbLabels(label));
+                            var obj = await tran.AtomicSearchByLabelsAsync<HadbTestData>(new HadbLabels(label));
                             obj._PrintAsJson();
                             return false;
                         });
@@ -2378,7 +2378,7 @@ namespace IPA.TestDev
                     {
                         await db.TranAsync(writeMode: true, async tran =>
                         {
-                            var obj = await tran.AtomicDeleteAsync<MikakaDDnsHost>(uid2);
+                            var obj = await tran.AtomicDeleteAsync<HadbTestData>(uid2);
                             Con.WriteLine($"Deleted = {obj._ObjectToJson()}");
                             return true;
                         });
@@ -2387,7 +2387,7 @@ namespace IPA.TestDev
                     {
                         await db.TranAsync(writeMode: true, async tran =>
                         {
-                            MikakaDDnsHost host = new MikakaDDnsHost
+                            HadbTestData host = new HadbTestData
                             {
                                 HostName = str,
                                 IPv4Address = "apple",
