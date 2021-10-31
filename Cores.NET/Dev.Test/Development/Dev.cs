@@ -963,7 +963,7 @@ namespace IPA.Cores.Basic
                     this.CreateDt = newObj.CreateDt;
                     this.UpdateDt = newObj.UpdateDt;
                     this.DeleteDt = newObj.DeleteDt;
-                    this.UserData = newObj.UserData;
+                    this.UserData = newObj.UserData._CloneDeep();
                     this.Ver = newObj.Ver;
                 }
                 else

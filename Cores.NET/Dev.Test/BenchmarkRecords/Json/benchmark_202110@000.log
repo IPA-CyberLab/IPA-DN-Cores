@@ -140,3 +140,67 @@
 {"TimeStamp":"2021-10-04T02:23:04.0518257+09:00","Data":{"TestName":"FastTick64.Now","Ret":1.3473882499999998,"PerSecond":742176577},"Tag":"result"}
 {"TimeStamp":"2021-10-04T02:23:04.9395292+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":6125464.045303706,"PerSecond":163},"Tag":"result"}
 {"TimeStamp":"2021-10-04T02:23:05.4530931+09:00","Data":{"TestName":"CloneDeep_DeepCloner","Ret":180857.19933830563,"PerSecond":5529},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:11:15.7428887+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:11:15.7466301+09:00","Data":"Commit: 696373bc5b7f8af04c474b01b629a3dd7d6cc748","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:11:15.7466468+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:11:15.7466486+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:11:15.7466509+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:11:15.7466524+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:11:16.8583129+09:00","Data":{"TestName":"FastTick64.Now","Ret":0.9716400000000001,"PerSecond":1029187765},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:11:17.6368014+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":5078003.931811001,"PerSecond":196},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:11:18.1728483+09:00","Data":{"TestName":"CloneDeep_DeepCloner","Ret":140449.07576066506,"PerSecond":7120},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:11:18.6913129+09:00","Data":{"TestName":"CloneDeep_DeepCloner_cloneDeepSampleObj2","Ret":168.77250132453392,"PerSecond":5925135},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:11:19.2146683+09:00","Data":{"TestName":"DnsTools_Build","Ret":379.73043765684343,"PerSecond":2633447},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:11:19.7471127+09:00","Data":{"TestName":"DnsTools_Parse","Ret":222.59532461099522,"PerSecond":4492457},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:11:20.5861535+09:00","Data":{"TestName":"EvaluateAclNormal","Ret":57368.488948429724,"PerSecond":17431},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:11:21.1165448+09:00","Data":{"TestName":"EvaluateAclCached1","Ret":621.7601556535902,"PerSecond":1608337},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:11:21.6475018+09:00","Data":{"TestName":"EvaluateAclCached2","Ret":106.95212418924476,"PerSecond":9349977},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:11:22.1845991+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":1500.4628216260849,"PerSecond":666461},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:11:22.7154081+09:00","Data":{"TestName":"SimpleAsynService","Ret":3862.161860492322,"PerSecond":258922},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:11:39.7190053+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:11:39.7227827+09:00","Data":"Commit: 696373bc5b7f8af04c474b01b629a3dd7d6cc748","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:11:39.7228051+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:11:39.7228072+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:11:39.7228093+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:11:39.7228108+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:11:40.8029378+09:00","Data":{"TestName":"FastTick64.Now","Ret":1.0534315,"PerSecond":949278619},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:11:41.5262823+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":4543575.9257538,"PerSecond":220},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:11:42.0703392+09:00","Data":{"TestName":"CloneDeep_DeepCloner","Ret":137582.18425072203,"PerSecond":7268},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:04.0261553+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:12:04.0298843+09:00","Data":"Commit: 696373bc5b7f8af04c474b01b629a3dd7d6cc748","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:12:04.029904+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:12:04.0299061+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:12:04.0299076+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:12:04.0299091+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:12:05.1997287+09:00","Data":{"TestName":"FastTick64.Now","Ret":1.1703855,"PerSecond":854419334},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:05.9495437+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":4885063.920992682,"PerSecond":204},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:06.4883681+09:00","Data":{"TestName":"CloneDeep_DeepCloner","Ret":149764.42658426418,"PerSecond":6677},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:14.9403388+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:12:14.9440532+09:00","Data":"Commit: 696373bc5b7f8af04c474b01b629a3dd7d6cc748","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:12:14.9440721+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net5.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:12:14.9440756+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:12:14.9440773+09:00","Data":"Framework: .NET 5.0.10","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:12:14.9440788+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-10-31T21:12:16.0640836+09:00","Data":{"TestName":"FastTick64.Now","Ret":0.9694224999999999,"PerSecond":1031541974},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:16.8340317+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":5089700.917768858,"PerSecond":196},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:17.3663315+09:00","Data":{"TestName":"CloneDeep_DeepCloner","Ret":158269.10193477655,"PerSecond":6318},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:17.8994649+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter_cloneDeepSampleObj2","Ret":11465.156672318568,"PerSecond":87220},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:18.4165722+09:00","Data":{"TestName":"CloneDeep_DeepCloner_cloneDeepSampleObj2","Ret":172.74407198643655,"PerSecond":5788910},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:18.9383887+09:00","Data":{"TestName":"DnsTools_Build","Ret":327.77769999529454,"PerSecond":3050848},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:19.4682596+09:00","Data":{"TestName":"DnsTools_Parse","Ret":261.55780343375886,"PerSecond":3823246},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:20.3237294+09:00","Data":{"TestName":"EvaluateAclNormal","Ret":58497.592361578165,"PerSecond":17094},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:20.8522799+09:00","Data":{"TestName":"EvaluateAclCached1","Ret":671.9716333962773,"PerSecond":1488158},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:21.3854619+09:00","Data":{"TestName":"EvaluateAclCached2","Ret":112.8614107642125,"PerSecond":8860424},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:21.9212454+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":1487.5754312266606,"PerSecond":672234},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:22.4526623+09:00","Data":{"TestName":"SimpleAsynService","Ret":3752.790363063771,"PerSecond":266468},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:22.9943524+09:00","Data":{"TestName":"WpcPacket","Ret":3995.3065673657984,"PerSecond":250293},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:23.5722554+09:00","Data":{"TestName":"WpcPacket2","Ret":10319.61956370176,"PerSecond":96902},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:24.124282+09:00","Data":{"TestName":"AsyncEvent","Ret":3487.8878689450507,"PerSecond":286706},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:24.6741878+09:00","Data":{"TestName":"SyncEvent","Ret":9309.405117981103,"PerSecond":107418},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:25.2111044+09:00","Data":{"TestName":"IsSpanAllZero","Ret":156.03827850624089,"PerSecond":6408683},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:25.7290669+09:00","Data":{"TestName":"CalcCrc32ForZipEncryption","Ret":0.7484227840011191,"PerSecond":1336143181},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:26.2654124+09:00","Data":{"TestName":"Sync()","Ret":1.043045364394059,"PerSecond":958731071},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:26.7839943+09:00","Data":{"TestName":"RateLimiter","Ret":122.05868640865643,"PerSecond":8192780},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:27.3122964+09:00","Data":{"TestName":"ignore case compare string 1","Ret":17.317489243575444,"PerSecond":57745091},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:27.8330694+09:00","Data":{"TestName":"ignore case compare string 2","Ret":13.72730917419074,"PerSecond":72847488},"Tag":"result"}
+{"TimeStamp":"2021-10-31T21:12:28.3519105+09:00","Data":{"TestName":"isemptystr #2","Ret":3.273123678701233,"PerSecond":305518549},"Tag":"result"}

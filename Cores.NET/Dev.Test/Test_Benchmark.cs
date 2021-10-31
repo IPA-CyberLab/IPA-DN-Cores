@@ -528,6 +528,7 @@ namespace IPA.TestDev
             string aclStr = "192.168.3.0/24, 192.168.4.0/24, 2001:c90::/32, !192.168.5.0/24, 10.0.0.0/8, 172.16.0.0/12";
             var aclSampleIp = "192.168.5.0"._ToIPAddress()!;
             var cloneDeepSampleObj = BmTest_DeepClone.CreateSampleObject();
+            HadbTestData cloneDeepSampleObj2 = new HadbTestData() { HostName = "abc", IPv4Address = "123", IPv6Address = "456", TestInt = 789 };
 
             var queue = new MicroBenchmarkQueue()
 
@@ -560,6 +561,17 @@ namespace IPA.TestDev
                     for (int c = 0; c < count; c++)
                     {
                         cloneDeepSampleObj._CloneDeep(DeepCloneMethod.DeepCloner);
+                    }
+                });
+            }), enabled: true, priority: 210731)
+
+            .Add(new MicroBenchmark($"CloneDeep_DeepCloner_cloneDeepSampleObj2", Benchmark_CountForSlow, count =>
+            {
+                Async(async () =>
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        cloneDeepSampleObj2._CloneDeep(DeepCloneMethod.DeepCloner);
                     }
                 });
             }), enabled: true, priority: 210731)

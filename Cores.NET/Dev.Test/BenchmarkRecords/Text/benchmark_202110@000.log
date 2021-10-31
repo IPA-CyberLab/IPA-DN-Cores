@@ -139,3 +139,67 @@
 2021/10/04 02:23:04.051 +09:00 FastTick64.Now: 1.35 ns, 742,176,577 / sec
 2021/10/04 02:23:04.939 +09:00 CloneDeep_BinaryFormatter: 6,125,464.05 ns, 163 / sec
 2021/10/04 02:23:05.453 +09:00 CloneDeep_DeepCloner: 180,857.20 ns, 5,529 / sec
+2021/10/31 21:11:15.742 +09:00 ----- Start new benchmark -----
+2021/10/31 21:11:15.746 +09:00 Commit: 696373bc5b7f8af04c474b01b629a3dd7d6cc748
+2021/10/31 21:11:15.746 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/31 21:11:15.746 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/31 21:11:15.746 +09:00 Framework: .NET 5.0.10
+2021/10/31 21:11:15.746 +09:00 Host: PC34
+2021/10/31 21:11:16.858 +09:00 FastTick64.Now: 0.97 ns, 1,029,187,765 / sec
+2021/10/31 21:11:17.636 +09:00 CloneDeep_BinaryFormatter: 5,078,003.93 ns, 196 / sec
+2021/10/31 21:11:18.172 +09:00 CloneDeep_DeepCloner: 140,449.08 ns, 7,120 / sec
+2021/10/31 21:11:18.691 +09:00 CloneDeep_DeepCloner_cloneDeepSampleObj2: 168.77 ns, 5,925,135 / sec
+2021/10/31 21:11:19.214 +09:00 DnsTools_Build: 379.73 ns, 2,633,447 / sec
+2021/10/31 21:11:19.747 +09:00 DnsTools_Parse: 222.60 ns, 4,492,457 / sec
+2021/10/31 21:11:20.586 +09:00 EvaluateAclNormal: 57,368.49 ns, 17,431 / sec
+2021/10/31 21:11:21.116 +09:00 EvaluateAclCached1: 621.76 ns, 1,608,337 / sec
+2021/10/31 21:11:21.647 +09:00 EvaluateAclCached2: 106.95 ns, 9,349,977 / sec
+2021/10/31 21:11:22.184 +09:00 SimpleAsyncService2: 1,500.46 ns, 666,461 / sec
+2021/10/31 21:11:22.715 +09:00 SimpleAsynService: 3,862.16 ns, 258,922 / sec
+2021/10/31 21:11:39.719 +09:00 ----- Start new benchmark -----
+2021/10/31 21:11:39.722 +09:00 Commit: 696373bc5b7f8af04c474b01b629a3dd7d6cc748
+2021/10/31 21:11:39.722 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/31 21:11:39.722 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/31 21:11:39.722 +09:00 Framework: .NET 5.0.10
+2021/10/31 21:11:39.722 +09:00 Host: PC34
+2021/10/31 21:11:40.802 +09:00 FastTick64.Now: 1.05 ns, 949,278,619 / sec
+2021/10/31 21:11:41.526 +09:00 CloneDeep_BinaryFormatter: 4,543,575.93 ns, 220 / sec
+2021/10/31 21:11:42.070 +09:00 CloneDeep_DeepCloner: 137,582.18 ns, 7,268 / sec
+2021/10/31 21:12:04.026 +09:00 ----- Start new benchmark -----
+2021/10/31 21:12:04.029 +09:00 Commit: 696373bc5b7f8af04c474b01b629a3dd7d6cc748
+2021/10/31 21:12:04.029 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/31 21:12:04.029 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/31 21:12:04.029 +09:00 Framework: .NET 5.0.10
+2021/10/31 21:12:04.029 +09:00 Host: PC34
+2021/10/31 21:12:05.199 +09:00 FastTick64.Now: 1.17 ns, 854,419,334 / sec
+2021/10/31 21:12:05.949 +09:00 CloneDeep_BinaryFormatter: 4,885,063.92 ns, 204 / sec
+2021/10/31 21:12:06.488 +09:00 CloneDeep_DeepCloner: 149,764.43 ns, 6,677 / sec
+2021/10/31 21:12:14.940 +09:00 ----- Start new benchmark -----
+2021/10/31 21:12:14.944 +09:00 Commit: 696373bc5b7f8af04c474b01b629a3dd7d6cc748
+2021/10/31 21:12:14.944 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net5.0\Dev.Test.dll
+2021/10/31 21:12:14.944 +09:00 OS: Microsoft Windows 10.0.19043
+2021/10/31 21:12:14.944 +09:00 Framework: .NET 5.0.10
+2021/10/31 21:12:14.944 +09:00 Host: PC34
+2021/10/31 21:12:16.064 +09:00 FastTick64.Now: 0.97 ns, 1,031,541,974 / sec
+2021/10/31 21:12:16.834 +09:00 CloneDeep_BinaryFormatter: 5,089,700.92 ns, 196 / sec
+2021/10/31 21:12:17.366 +09:00 CloneDeep_DeepCloner: 158,269.10 ns, 6,318 / sec
+2021/10/31 21:12:17.899 +09:00 CloneDeep_BinaryFormatter_cloneDeepSampleObj2: 11,465.16 ns, 87,220 / sec
+2021/10/31 21:12:18.416 +09:00 CloneDeep_DeepCloner_cloneDeepSampleObj2: 172.74 ns, 5,788,910 / sec
+2021/10/31 21:12:18.938 +09:00 DnsTools_Build: 327.78 ns, 3,050,848 / sec
+2021/10/31 21:12:19.468 +09:00 DnsTools_Parse: 261.56 ns, 3,823,246 / sec
+2021/10/31 21:12:20.323 +09:00 EvaluateAclNormal: 58,497.59 ns, 17,094 / sec
+2021/10/31 21:12:20.852 +09:00 EvaluateAclCached1: 671.97 ns, 1,488,158 / sec
+2021/10/31 21:12:21.385 +09:00 EvaluateAclCached2: 112.86 ns, 8,860,424 / sec
+2021/10/31 21:12:21.921 +09:00 SimpleAsyncService2: 1,487.58 ns, 672,234 / sec
+2021/10/31 21:12:22.452 +09:00 SimpleAsynService: 3,752.79 ns, 266,468 / sec
+2021/10/31 21:12:22.994 +09:00 WpcPacket: 3,995.31 ns, 250,293 / sec
+2021/10/31 21:12:23.572 +09:00 WpcPacket2: 10,319.62 ns, 96,902 / sec
+2021/10/31 21:12:24.124 +09:00 AsyncEvent: 3,487.89 ns, 286,706 / sec
+2021/10/31 21:12:24.674 +09:00 SyncEvent: 9,309.41 ns, 107,418 / sec
+2021/10/31 21:12:25.211 +09:00 IsSpanAllZero: 156.04 ns, 6,408,683 / sec
+2021/10/31 21:12:25.729 +09:00 CalcCrc32ForZipEncryption: 0.75 ns, 1,336,143,181 / sec
+2021/10/31 21:12:26.265 +09:00 Sync(): 1.04 ns, 958,731,071 / sec
+2021/10/31 21:12:26.784 +09:00 RateLimiter: 122.06 ns, 8,192,780 / sec
+2021/10/31 21:12:27.312 +09:00 ignore case compare string 1: 17.32 ns, 57,745,091 / sec
+2021/10/31 21:12:27.833 +09:00 ignore case compare string 2: 13.73 ns, 72,847,488 / sec
+2021/10/31 21:12:28.351 +09:00 isemptystr #2: 3.27 ns, 305,518,549 / sec
