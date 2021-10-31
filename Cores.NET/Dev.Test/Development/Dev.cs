@@ -526,7 +526,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        protected override async Task<HadbDbTran> OpenDatabaseWithTransactionImplAsync(bool writeMode, CancellationToken cancel = default)
+        protected override async Task<HadbDbTran> BeginDatabaseTransactionImplAsync(bool writeMode, CancellationToken cancel = default)
         {
             Database db;
 
@@ -1402,7 +1402,7 @@ namespace IPA.Cores.Basic
 
         public TMem? MemDb { get; private set; } = null;
 
-        protected abstract Task<HadbDbTran> OpenDatabaseWithTransactionImplAsync(bool writeMode, CancellationToken cancel = default);
+        protected abstract Task<HadbDbTran> BeginDatabaseTransactionImplAsync(bool writeMode, CancellationToken cancel = default);
 
         protected abstract Task AtomicAddDataListToDatabaseImplAsync(IEnumerable<HadbObject> dataList, CancellationToken cancel = default);
         protected abstract Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(string uid, string typeName, CancellationToken cancel = default);
