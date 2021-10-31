@@ -568,7 +568,7 @@ namespace IPA.Cores.Basic
                 cancel: cancel);
         }
 
-        protected override async Task ReliableAddDataListToDatabaseImplAsync(IEnumerable<HadbObject> dataList, CancellationToken cancel = default)
+        protected override async Task AtomicAddDataListToDatabaseImplAsync(IEnumerable<HadbObject> dataList, CancellationToken cancel = default)
         {
             await using var dbWriter = await this.OpenSqlDatabaseForWriteAsync(cancel);
 
@@ -621,7 +621,7 @@ namespace IPA.Cores.Basic
             });
         }
 
-        protected override async Task<HadbObject?> ReliableGetDataFromDatabaseImplAsync(string uid, string typeName, CancellationToken cancel = default)
+        protected override async Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(string uid, string typeName, CancellationToken cancel = default)
         {
             typeName = typeName._NonNullTrim();
 
@@ -641,7 +641,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        protected override async Task<HadbObject?> ReliableSearchDataByKeyFromDatabaseImplAsync(HadbKeys key, string typeName, CancellationToken cancel = default)
+        protected override async Task<HadbObject?> AtomicSearchDataByKeyFromDatabaseImplAsync(HadbKeys key, string typeName, CancellationToken cancel = default)
         {
             typeName = typeName._NonNullTrim();
 
@@ -661,7 +661,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        protected override async Task<IEnumerable<HadbObject>> ReliableSearchDataListByLabelsFromDatabaseImplAsync(HadbLabels labels, string typeName, CancellationToken cancel = default)
+        protected override async Task<IEnumerable<HadbObject>> AtomicSearchDataListByLabelsFromDatabaseImplAsync(HadbLabels labels, string typeName, CancellationToken cancel = default)
         {
             typeName = typeName._NonNullTrim();
 
@@ -688,7 +688,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        protected override async Task<HadbObject?> ReliableDeleteDataFromDatabaseImplAsync(string uid, string typeName, CancellationToken cancel = default)
+        protected override async Task<HadbObject?> AtomicDeleteDataFromDatabaseImplAsync(string uid, string typeName, CancellationToken cancel = default)
         {
             typeName = typeName._NonNullTrim();
             uid = uid._NormalizeUid(true);
@@ -1021,7 +1021,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public bool ReliableDeleteObject(HadbObject obj)
+        public bool AtomicDeleteObject(HadbObject obj)
         {
             lock (this.CriticalLock)
             {
@@ -1042,7 +1042,7 @@ namespace IPA.Cores.Basic
             return false;
         }
 
-        public HadbObject ReliableAddObject(HadbObject obj)
+        public HadbObject AtomicAddObject(HadbObject obj)
         {
             obj.Normalize();
             if (obj.Deleted) throw new CoresLibException("obj.Deleted == true");
@@ -1289,6 +1289,32 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public abstract class HadbAtomic : AsyncService
+    {
+        public HadbAtomic()
+        {
+            try
+            {
+            }
+            catch (Exception ex)
+            {
+                this._DisposeSafe(ex);
+                throw;
+            }
+        }
+
+        protected override async Task CleanupImplAsync(Exception? ex)
+        {
+            try
+            {
+            }
+            finally
+            {
+                await base.CleanupImplAsync(ex);
+            }
+        }
+    }
+
     public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         where TMem : HadbMemDataBase, new()
         where TDynamicConfig : HadbDynamicConfig
@@ -1308,11 +1334,11 @@ namespace IPA.Cores.Basic
 
         public TMem? MemDb { get; private set; } = null;
 
-        protected abstract Task ReliableAddDataListToDatabaseImplAsync(IEnumerable<HadbObject> dataList, CancellationToken cancel = default);
-        protected abstract Task<HadbObject?> ReliableGetDataFromDatabaseImplAsync(string uid, string typeName, CancellationToken cancel = default);
-        protected abstract Task<HadbObject?> ReliableSearchDataByKeyFromDatabaseImplAsync(HadbKeys keys, string typeName, CancellationToken cancel = default);
-        protected abstract Task<IEnumerable<HadbObject>> ReliableSearchDataListByLabelsFromDatabaseImplAsync(HadbLabels labels, string typeName, CancellationToken cancel = default);
-        protected abstract Task<HadbObject?> ReliableDeleteDataFromDatabaseImplAsync(string uid, string typeName, CancellationToken cancel = default);
+        protected abstract Task AtomicAddDataListToDatabaseImplAsync(IEnumerable<HadbObject> dataList, CancellationToken cancel = default);
+        protected abstract Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(string uid, string typeName, CancellationToken cancel = default);
+        protected abstract Task<HadbObject?> AtomicSearchDataByKeyFromDatabaseImplAsync(HadbKeys keys, string typeName, CancellationToken cancel = default);
+        protected abstract Task<IEnumerable<HadbObject>> AtomicSearchDataListByLabelsFromDatabaseImplAsync(HadbLabels labels, string typeName, CancellationToken cancel = default);
+        protected abstract Task<HadbObject?> AtomicDeleteDataFromDatabaseImplAsync(string uid, string typeName, CancellationToken cancel = default);
 
         protected abstract Task<KeyValueList<string, string>> LoadDynamicConfigFromDatabaseImplAsync(CancellationToken cancel = default);
         protected abstract Task AppendMissingDynamicConfigToDatabaseImplAsync(KeyValueList<string, string> missingValues, CancellationToken cancel = default);
@@ -1477,13 +1503,13 @@ namespace IPA.Cores.Basic
             $"{this.GetType().Name}: {str}"._Debug();
         }
 
-        public void CheckIfReadyForReliable()
+        public void CheckIfReadyForAtomic()
         {
-            var ret = CheckIfReadyForReliable(doNotThrowError: EnsureSpecial.Yes);
+            var ret = CheckIfReadyForAtomic(doNotThrowError: EnsureSpecial.Yes);
             ret.ThrowIfException();
         }
 
-        public ResultOrExeption<bool> CheckIfReadyForReliable(EnsureSpecial doNotThrowError)
+        public ResultOrExeption<bool> CheckIfReadyForAtomic(EnsureSpecial doNotThrowError)
         {
             if (this.IsDatabaseConnectedForReload == false)
             {
@@ -1498,18 +1524,18 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public async Task WaitUntilReadyForReliableAsync(CancellationToken cancel = default)
+        public async Task WaitUntilReadyForAtomicAsync(CancellationToken cancel = default)
         {
             await Task.Yield();
-            await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () => CheckIfReadyForReliable(doNotThrowError: EnsureSpecial.Yes).IsOk, cancel, true);
+            await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () => CheckIfReadyForAtomic(doNotThrowError: EnsureSpecial.Yes).IsOk, cancel, true);
         }
 
-        public async Task<HadbObject> ReliableAddAsync(HadbData data, CancellationToken cancel = default)
-            => (await ReliableAddAsync(data._SingleArray(), cancel)).Single();
+        public async Task<HadbObject> AtomicAddAsync(HadbData data, CancellationToken cancel = default)
+            => (await AtomicAddAsync(data._SingleArray(), cancel)).Single();
 
-        public async Task<List<HadbObject>> ReliableAddAsync(IEnumerable<HadbData> dataList, CancellationToken cancel = default)
+        public async Task<List<HadbObject>> AtomicAddAsync(IEnumerable<HadbData> dataList, CancellationToken cancel = default)
         {
-            CheckIfReadyForReliable();
+            CheckIfReadyForAtomic();
 
             List<HadbObject> objList = new List<HadbObject>();
 
@@ -1534,56 +1560,56 @@ namespace IPA.Cores.Basic
                 objList.Add(data.ToNewObject());
             }
 
-            await this.ReliableAddDataListToDatabaseImplAsync(objList, cancel);
+            await this.AtomicAddDataListToDatabaseImplAsync(objList, cancel);
 
             for (int i = 0; i < objList.Count; i++)
             {
-                objList[i] = this.MemDb!.ReliableAddObject(objList[i]);
+                objList[i] = this.MemDb!.AtomicAddObject(objList[i]);
             }
 
             return objList;
         }
 
-        public async Task<HadbObject?> ReliableGetAsync<T>(string uid, CancellationToken cancel = default) where T : HadbData
-            => await ReliableGetAsync(uid, typeof(T).Name, cancel);
+        public async Task<HadbObject?> AtomicGetAsync<T>(string uid, CancellationToken cancel = default) where T : HadbData
+            => await AtomicGetAsync(uid, typeof(T).Name, cancel);
 
-        public async Task<HadbObject?> ReliableGetAsync(string uid, string typeName, CancellationToken cancel = default)
+        public async Task<HadbObject?> AtomicGetAsync(string uid, string typeName, CancellationToken cancel = default)
         {
-            CheckIfReadyForReliable();
+            CheckIfReadyForAtomic();
 
-            HadbObject? ret = await this.ReliableGetDataFromDatabaseImplAsync(uid, typeName, cancel);
+            HadbObject? ret = await this.AtomicGetDataFromDatabaseImplAsync(uid, typeName, cancel);
 
             if (ret == null) return null;
 
             if (ret.Deleted) return null;
 
-            return this.MemDb!.ReliableAddObject(ret);
+            return this.MemDb!.AtomicAddObject(ret);
         }
 
-        public async Task<HadbObject?> ReliableSearchByKeysAsync<T>(HadbKeys keys, CancellationToken cancel = default) where T : HadbData
-            => await ReliableSearchByKeysAsync(keys, typeof(T).Name, cancel);
+        public async Task<HadbObject?> AtomicSearchByKeysAsync<T>(HadbKeys keys, CancellationToken cancel = default) where T : HadbData
+            => await AtomicSearchByKeysAsync(keys, typeof(T).Name, cancel);
 
-        public async Task<HadbObject?> ReliableSearchByKeysAsync(HadbKeys keys, string typeName, CancellationToken cancel = default)
+        public async Task<HadbObject?> AtomicSearchByKeysAsync(HadbKeys keys, string typeName, CancellationToken cancel = default)
         {
-            CheckIfReadyForReliable();
+            CheckIfReadyForAtomic();
 
-            HadbObject? ret = await this.ReliableSearchDataByKeyFromDatabaseImplAsync(keys, typeName, cancel);
+            HadbObject? ret = await this.AtomicSearchDataByKeyFromDatabaseImplAsync(keys, typeName, cancel);
 
             if (ret == null) return null;
 
             if (ret.Deleted) return null;
 
-            return this.MemDb!.ReliableAddObject(ret);
+            return this.MemDb!.AtomicAddObject(ret);
         }
 
-        public async Task<IEnumerable<HadbObject>> ReliableSearchByLabelsAsync<T>(HadbLabels labels, CancellationToken cancel = default) where T : HadbData
-            => await ReliableSearchByLabelsAsync(labels, typeof(T).Name, cancel);
+        public async Task<IEnumerable<HadbObject>> AtomicSearchByLabelsAsync<T>(HadbLabels labels, CancellationToken cancel = default) where T : HadbData
+            => await AtomicSearchByLabelsAsync(labels, typeof(T).Name, cancel);
 
-        public async Task<IEnumerable<HadbObject>> ReliableSearchByLabelsAsync(HadbLabels labels, string typeName, CancellationToken cancel = default)
+        public async Task<IEnumerable<HadbObject>> AtomicSearchByLabelsAsync(HadbLabels labels, string typeName, CancellationToken cancel = default)
         {
-            CheckIfReadyForReliable();
+            CheckIfReadyForAtomic();
 
-            IEnumerable<HadbObject> items = await this.ReliableSearchDataListByLabelsFromDatabaseImplAsync(labels, typeName, cancel);
+            IEnumerable<HadbObject> items = await this.AtomicSearchDataListByLabelsFromDatabaseImplAsync(labels, typeName, cancel);
 
             items = items.Where(x => x.Deleted == false);
 
@@ -1591,7 +1617,7 @@ namespace IPA.Cores.Basic
 
             items._DoForEach(x =>
             {
-                var obj = this.MemDb!.ReliableAddObject(x);
+                var obj = this.MemDb!.AtomicAddObject(x);
 
                 ret.Add(obj);
             });
@@ -1599,23 +1625,23 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public async Task<HadbObject?> ReliableDeleteAsync<T>(string uid, CancellationToken cancel = default) where T : HadbData
-            => await ReliableDeleteAsync(uid, typeof(T).Name, cancel);
+        public async Task<HadbObject?> AtomicDeleteAsync<T>(string uid, CancellationToken cancel = default) where T : HadbData
+            => await AtomicDeleteAsync(uid, typeof(T).Name, cancel);
 
-        public async Task<HadbObject?> ReliableDeleteAsync(string uid, string typeName, CancellationToken cancel = default)
+        public async Task<HadbObject?> AtomicDeleteAsync(string uid, string typeName, CancellationToken cancel = default)
         {
-            CheckIfReadyForReliable();
+            CheckIfReadyForAtomic();
 
-            HadbObject? ret = await this.ReliableDeleteDataFromDatabaseImplAsync(uid, typeName, cancel);
+            HadbObject? ret = await this.AtomicDeleteDataFromDatabaseImplAsync(uid, typeName, cancel);
 
             if (ret == null)
             {
                 return null;
             }
 
-            bool ok = this.MemDb!.ReliableDeleteObject(ret);
+            bool ok = this.MemDb!.AtomicDeleteObject(ret);
 
-            //$"ReliableDeleteObject: {ok}"._Debug();
+            //$"AtomicDeleteObject: {ok}"._Debug();
 
             return ret;
         }

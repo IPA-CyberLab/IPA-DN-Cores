@@ -2336,7 +2336,7 @@ namespace IPA.TestDev
                 db.StartLoop();
 
                 Con.WriteLine("Wait for ready...");
-                await db.WaitUntilReadyForReliableAsync();
+                await db.WaitUntilReadyForAtomicAsync();
                 Con.WriteLine("Ready.");
 
                 while (true)
@@ -2349,22 +2349,22 @@ namespace IPA.TestDev
 
                     if (str._TryTrimStartWith(out string uid, StringComparison.OrdinalIgnoreCase, "?"))
                     {
-                        var obj = await db.ReliableGetAsync<MikakaDDnsHost>(uid);
+                        var obj = await db.AtomicGetAsync<MikakaDDnsHost>(uid);
                         obj._PrintAsJson();
                     }
                     else if (str._TryTrimStartWith(out string key, StringComparison.OrdinalIgnoreCase, "!"))
                     {
-                        var obj = await db.ReliableSearchByKeysAsync<MikakaDDnsHost>(new HadbKeys(key));
+                        var obj = await db.AtomicSearchByKeysAsync<MikakaDDnsHost>(new HadbKeys(key));
                         obj._PrintAsJson();
                     }
                     else if (str._TryTrimStartWith(out string label, StringComparison.OrdinalIgnoreCase, ">"))
                     {
-                        var obj = await db.ReliableSearchByLabelsAsync<MikakaDDnsHost>(new HadbLabels(label));
+                        var obj = await db.AtomicSearchByLabelsAsync<MikakaDDnsHost>(new HadbLabels(label));
                         obj._PrintAsJson();
                     }
                     else if (str._TryTrimStartWith(out string uid2, StringComparison.OrdinalIgnoreCase, "-"))
                     {
-                        var obj = await db.ReliableDeleteAsync<MikakaDDnsHost>(uid2);
+                        var obj = await db.AtomicDeleteAsync<MikakaDDnsHost>(uid2);
                         Con.WriteLine($"Deleted = {obj._ObjectToJson()}");
                     }
                     else
@@ -2377,7 +2377,7 @@ namespace IPA.TestDev
                             TestInt = 1,
                         };
 
-                        await db.ReliableAddAsync(host);
+                        await db.AtomicAddAsync(host);
                     }
                 }
             });
