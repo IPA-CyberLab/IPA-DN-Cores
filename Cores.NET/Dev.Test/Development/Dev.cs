@@ -328,11 +328,11 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class HadbSqlDbSession : HadbDbSession
+    public class HadbSqlDbTran : HadbDbTran
     {
         public Database Db { get; }
 
-        public HadbSqlDbSession(bool writeMode, Database db) : base(writeMode)
+        public HadbSqlDbTran(bool writeMode, Database db) : base(writeMode)
         {
             try
             {
@@ -526,7 +526,7 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        protected override async Task<HadbDbSession> BeginDatabaseImplAsync(bool writeMode, CancellationToken cancel = default)
+        protected override async Task<HadbDbTran> OpenDatabaseWithTransactionImplAsync(bool writeMode, CancellationToken cancel = default)
         {
             Database db;
 
@@ -550,7 +550,7 @@ namespace IPA.Cores.Basic
                     await db.BeginAsync(IsolationLevel.Serializable, cancel);
                 }
 
-                HadbSqlDbSession ret = new HadbSqlDbSession(writeMode, db);
+                HadbSqlDbTran ret = new HadbSqlDbTran(writeMode, db);
 
                 return ret;
             }
@@ -1354,11 +1354,11 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public abstract class HadbDbSession : AsyncService
+    public abstract class HadbDbTran : AsyncService
     {
         public bool IsWriteMode;
 
-        public HadbDbSession(bool writeMode)
+        public HadbDbTran(bool writeMode)
         {
             try
             {
@@ -1402,7 +1402,7 @@ namespace IPA.Cores.Basic
 
         public TMem? MemDb { get; private set; } = null;
 
-        protected abstract Task<HadbDbSession> BeginDatabaseImplAsync(bool writeMode, CancellationToken cancel = default);
+        protected abstract Task<HadbDbTran> OpenDatabaseWithTransactionImplAsync(bool writeMode, CancellationToken cancel = default);
 
         protected abstract Task AtomicAddDataListToDatabaseImplAsync(IEnumerable<HadbObject> dataList, CancellationToken cancel = default);
         protected abstract Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(string uid, string typeName, CancellationToken cancel = default);
