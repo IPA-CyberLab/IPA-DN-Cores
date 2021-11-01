@@ -522,8 +522,10 @@ namespace IPA.Cores.Basic
             }
         }
 
-        protected async Task<HadbSqlDataRow?> GetRowByKeyAsync(Database db, string typeName, HadbKeys key, CancellationToken cancel = default)
+        protected async Task<HadbSqlDataRow?> GetRowByKeyAsync(Database db, string typeName, HadbKeys key, CancellationToken cancel = default, string? excludeUid = null)
         {
+            excludeUid = excludeUid._NormalizeKey(true);
+
             List<string> conditions = new List<string>();
 
             if (key.Key1._IsFilled()) conditions.Add("DATA_KEY1 = @DATA_KEY1");
@@ -536,7 +538,14 @@ namespace IPA.Cores.Basic
                 return null;
             }
 
-            return await db.EasySelectSingleAsync<HadbSqlDataRow>($"select * from HADB_DATA where ({conditions._Combine(" or ")}) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE_AGE = 0 and DATA_TYPE = @DATA_TYPE",
+            string where = $"select * from HADB_DATA where (({conditions._Combine(" or ")}) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE_AGE = 0 and DATA_TYPE = @DATA_TYPE) ";
+
+            if (excludeUid._IsFilled())
+            {
+                where += "and (DATA_UID != @DATA_UID) ";
+            }
+
+            return await db.EasySelectSingleAsync<HadbSqlDataRow>(where,
                 new
                 {
                     DATA_KEY1 = key.Key1,
@@ -545,6 +554,7 @@ namespace IPA.Cores.Basic
                     DATA_KEY4 = key.Key4,
                     DATA_SYSTEMNAME = this.SystemName,
                     DATA_TYPE = typeName,
+                    DATA_UID = excludeUid,
                 },
                 cancel: cancel);
         }
@@ -643,6 +653,71 @@ namespace IPA.Cores.Basic
             }
         }
 
+        protected internal override async Task<HadbObject> AtomicUpdateDataOnDatabaseImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default)
+        {
+            tran.CheckIsWriteMode();
+            var dbWriter = ((HadbSqlTran)tran).Db;
+
+            string typeName = data.GetUserDataTypeName();
+
+            var keys = data.GetKeys();
+
+            var labels = data.GetLabels();
+
+            if (data.Deleted) throw new CoresLibException("data.Deleted == true");
+
+            // 現在のデータを取得
+            var row = await this.GetRowByUidAsync(dbWriter, typeName, data.Uid, cancel);
+            if (row == null)
+            {
+                // 現在のデータがない
+                throw new CoresLibException($"No data existing in the physical database. Uid = {data.Uid}, TypeName = {typeName}");
+            }
+
+            // 現在のアーカイブを一段繰り上げる
+            await dbWriter.EasyExecuteAsync("update HADB_DATA set DATA_ARCHIVE_AGE = DATA_ARCHIVE_AGE + 1 where DATA_UID like @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE_AGE >= 1",
+                new
+                {
+                    DATA_UID = data.Uid + ":%",
+                    DATA_SYSTEMNAME = this.SystemName,
+                    DATA_TYPE = typeName,
+                });
+
+            // 現在のデータをアーカイブ化する
+            HadbSqlDataRow rowOld = row._CloneDeep();
+
+            rowOld.DATA_UID += ":" + rowOld.DATA_VER.ToString("D20");
+            rowOld.DATA_ARCHIVE_AGE = 1;
+            rowOld.Normalize();
+
+            await dbWriter.EasyInsertAsync(rowOld, cancel);
+
+            // DB に書き込む前に DB 上で KEY1 ～ KEY4 の重複を検査する (当然、更新しようとしている自分自身への重複は例外的に許可する)
+            var existingRow = await GetRowByKeyAsync(dbWriter, typeName, keys, cancel, excludeUid: row.DATA_UID);
+
+            if (existingRow != null)
+            {
+                throw new CoresLibException($"Duplicated key in the physical database. Keys = {keys._ObjectToJson(compact: true)}");
+            }
+
+            // データの内容を更新する
+            row.DATA_VER++;
+            row.DATA_UPDATE_DT = DtOffsetNow;
+            row.DATA_KEY1 = keys.Key1._NormalizeKey(true);
+            row.DATA_KEY2 = keys.Key2._NormalizeKey(true);
+            row.DATA_KEY3 = keys.Key3._NormalizeKey(true);
+            row.DATA_KEY4 = keys.Key4._NormalizeKey(true);
+            row.DATA_LABEL1 = labels.Label1._NormalizeKey(true);
+            row.DATA_LABEL2 = labels.Label2._NormalizeKey(true);
+            row.DATA_LABEL3 = labels.Label3._NormalizeKey(true);
+            row.DATA_LABEL4 = labels.Label4._NormalizeKey(true);
+            row.DATA_VALUE = data.GetUserDataJsonString();
+
+            await dbWriter.EasyUpdateAsync(row, true, cancel);
+
+            return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE_AGE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+        }
+
         protected internal override async Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, CancellationToken cancel = default)
         {
             typeName = typeName._NonNullTrim();
@@ -710,6 +785,7 @@ namespace IPA.Cores.Basic
                 return null;
             }
 
+            // 現在のアーカイブを一段繰り上げる
             await dbWriter.EasyExecuteAsync("update HADB_DATA set DATA_ARCHIVE_AGE = DATA_ARCHIVE_AGE + 1 where DATA_UID like @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE_AGE >= 1",
                 new
                 {
@@ -718,6 +794,7 @@ namespace IPA.Cores.Basic
                     DATA_TYPE = typeName,
                 });
 
+            // 現在のデータをアーカイブ化する
             HadbSqlDataRow rowOld = row._CloneDeep();
 
             rowOld.DATA_UID += ":" + rowOld.DATA_VER.ToString("D20");
@@ -726,6 +803,7 @@ namespace IPA.Cores.Basic
 
             await dbWriter.EasyInsertAsync(rowOld, cancel);
 
+            // データを削除済みにする
             row.DATA_VER++;
             row.DATA_UPDATE_DT = row.DATA_DELETE_DT = DtOffsetNow;
             row.DATA_DELETED = true;
@@ -983,7 +1061,7 @@ namespace IPA.Cores.Basic
         public HadbKeys GetKeys() => this.Deleted == false ? this.UserData.GetKeys() : new HadbKeys();
         public HadbLabels GetLabels() => this.Deleted == false ? this.UserData.GetLabels() : new HadbLabels();
 
-        public T Cast<T>() where T: HadbData
+        public T Cast<T>() where T : HadbData
             => (T)this.UserData;
 
         public void Normalize()
@@ -1394,6 +1472,7 @@ namespace IPA.Cores.Basic
         protected internal abstract Task<HadbObject?> AtomicSearchDataByKeyFromDatabaseImplAsync(HadbTran tran, HadbKeys keys, string typeName, CancellationToken cancel = default);
         protected internal abstract Task<IEnumerable<HadbObject>> AtomicSearchDataListByLabelsFromDatabaseImplAsync(HadbTran tran, HadbLabels labels, string typeName, CancellationToken cancel = default);
         protected internal abstract Task<HadbObject?> AtomicDeleteDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, CancellationToken cancel = default);
+        protected internal abstract Task<HadbObject> AtomicUpdateDataOnDatabaseImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default);
 
         protected abstract Task<KeyValueList<string, string>> LoadDynamicConfigFromDatabaseImplAsync(CancellationToken cancel = default);
         protected abstract Task AppendMissingDynamicConfigToDatabaseImplAsync(KeyValueList<string, string> missingValues, CancellationToken cancel = default);
@@ -1862,6 +1941,31 @@ namespace IPA.Cores.Basic
                 if (ret.Deleted) return null;
 
                 return ret;
+            }
+
+            public async Task<HadbObject> AtomicUpdateAsync(HadbObject obj, CancellationToken cancel = default)
+            {
+                Hadb.CheckIfReady();
+
+                obj._NullCheck(nameof(obj));
+
+                obj.CheckIsNotMemoryDbObject();
+                obj.Normalize();
+
+                var keys = obj.GetKeys();
+
+                var existing = this.MemDb!.IndexedKeysTable_SearchByKey(keys, obj.GetUserDataTypeName());
+
+                if (existing != null && existing.Uid._IsSamei(obj.Uid) == false)
+                {
+                    throw new CoresLibException($"Duplicated key in the memory database. Keys = {keys._ObjectToJson(compact: true)}");
+                }
+
+                var obj2 = await Hadb.AtomicUpdateDataOnDatabaseImplAsync(this, obj, cancel);
+
+                this.AddApplyObject(obj2);
+
+                return obj2;
             }
 
             public async Task<HadbObject?> AtomicSearchByKeysAsync<T>(HadbKeys keys, CancellationToken cancel = default) where T : HadbData

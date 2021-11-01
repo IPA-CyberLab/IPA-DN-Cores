@@ -2383,6 +2383,28 @@ namespace IPA.TestDev
                             return true;
                         });
                     }
+                    else if (str._TryTrimStartWith(out string key2, StringComparison.OrdinalIgnoreCase, "+"))
+                    {
+                        await db.TranAsync(writeMode: true, async tran =>
+                        {
+                            var obj = await tran.AtomicSearchByKeysAsync<HadbTestData>(new HadbKeys(key2));
+                            if (obj == null)
+                            {
+                                Con.WriteLine("Not found.");
+                                return false;
+                            }
+                            else
+                            {
+                                var data = obj.Cast<HadbTestData>();
+                                data.IPv4Address += "_" + Secure.RandSInt31() % 10;
+                                data.IPv6Address += "_" + Secure.RandSInt31() % 10;
+                                data.HostName += "_" + Secure.RandSInt31() % 10;
+                                obj = await tran.AtomicUpdateAsync(obj);
+                                obj._PrintAsJson();
+                                return true;
+                            }
+                        });
+                    }
                     else
                     {
                         await db.TranAsync(writeMode: true, async tran =>
