@@ -2383,6 +2383,23 @@ namespace IPA.TestDev
                             return true;
                         });
                     }
+                    else if (str._TryTrimStartWith(out string key3, StringComparison.OrdinalIgnoreCase, "*"))
+                    {
+                        var obj = db.FastSearchByKeys<HadbTestData>(new HadbKeys(key3));
+                        if (obj == null)
+                        {
+                            Con.WriteLine("Not found.");
+                        }
+                        else
+                        {
+                            obj.FastUpdate<HadbTestData>(x =>
+                            {
+                                x.TestInt++;
+                                x.IPv4Address += "_" + Secure.RandSInt31() % 10;
+                                return true;
+                            });
+                        }
+                    }
                     else if (str._TryTrimStartWith(out string key2, StringComparison.OrdinalIgnoreCase, "+"))
                     {
                         await db.TranAsync(writeMode: true, async tran =>
