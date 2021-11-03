@@ -235,8 +235,6 @@ namespace IPA.Cores.Basic
             public const string DefaultSessionIdPrefix = "SESSION";
 
             public const string EasyEncryptDefaultPassword = "pLkw4jkN8YxcD54AJ2rVvaD3sdnJEzMN";
-
-            public const string HadbDummyKeyPrefix = "__dummy:";
         }
 
         public static partial class HiveNames

@@ -898,6 +898,7 @@ namespace IPA.Cores.Basic
     public abstract class HadbSettingsBase
     {
         public string SystemName { get; }
+        public bool Debug_NoAutoDbUpdate { get; set; }
 
         public HadbSettingsBase(string systemName)
         {
@@ -1627,7 +1628,7 @@ namespace IPA.Cores.Basic
         public bool IsDatabaseConnectedForReload { get; private set; } = false;
         public bool IsDatabaseConnectedForLazyWrite { get; private set; } = false;
 
-        public HadbSettingsBase Settings { get; }
+        protected HadbSettingsBase Settings { get; }
         public string SystemName => Settings.SystemName;
 
         public TDynamicConfig CurrentDynamicConfig { get; private set; }
@@ -1662,7 +1663,7 @@ namespace IPA.Cores.Basic
             try
             {
                 settings._NullCheck(nameof(settings));
-                this.Settings = settings;
+                this.Settings = settings._CloneDeep();
 
                 dynamicConfig._NullCheck(nameof(dynamicConfig));
                 this.CurrentDynamicConfig = dynamicConfig;
@@ -1715,85 +1716,99 @@ namespace IPA.Cores.Basic
             this.IsLoopStarted = true;
         }
 
+        readonly AsyncLock Lock_ReloadDynamicConfigValuesAsync = new AsyncLock();
+
         async Task ReloadDynamicConfigValuesAsync(CancellationToken cancel)
         {
-            using (await DynamicConfigValueDbLockAsync.LockWithAwait(cancel))
+            using (await Lock_ReloadDynamicConfigValuesAsync.LockWithAwait(cancel))
             {
-                // DynamicConfig の最新値を DB から読み込む
-                var loadedDynamicConfigValues = await this.LoadDynamicConfigFromDatabaseImplAsync(cancel);
-
-                // 読み込んだ DynamicConfig の最新値を適用する
-                var missingDynamicConfigValues = this.CurrentDynamicConfig.UpdateFromDatabaseAndReturnMissingValues(loadedDynamicConfigValues);
-
-                // 不足している DynamicConfig のデフォルト値を DB に書き込む
-                if (missingDynamicConfigValues.Any())
+                using (await DynamicConfigValueDbLockAsync.LockWithAwait(cancel))
                 {
-                    await this.AppendMissingDynamicConfigToDatabaseImplAsync(missingDynamicConfigValues, cancel);
+                    // DynamicConfig の最新値を DB から読み込む
+                    var loadedDynamicConfigValues = await this.LoadDynamicConfigFromDatabaseImplAsync(cancel);
+
+                    // 読み込んだ DynamicConfig の最新値を適用する
+                    var missingDynamicConfigValues = this.CurrentDynamicConfig.UpdateFromDatabaseAndReturnMissingValues(loadedDynamicConfigValues);
+
+                    // 不足している DynamicConfig のデフォルト値を DB に書き込む
+                    if (missingDynamicConfigValues.Any())
+                    {
+                        await this.AppendMissingDynamicConfigToDatabaseImplAsync(missingDynamicConfigValues, cancel);
+                    }
                 }
             }
         }
 
-        async Task LazyUpdateCoreAsync(CancellationToken cancel)
+        readonly AsyncLock Lock_UpdateCoreAsync = new AsyncLock();
+
+        public async Task LazyUpdateCoreAsync(EnsureSpecial yes, CancellationToken cancel)
         {
-            try
+            using (await Lock_UpdateCoreAsync.LockWithAwait(cancel))
             {
-                // 非トランザクションの SQL 接続を開始する
-                await using var tran = await this.BeginDatabaseTransactionImplAsync(true, false, cancel);
-
-                // 現在 キューに入っている項目に対する Lazy Update の実行
-                // キューは Immutable なので、現在の Queue を取得する
-                var queue = this.MemDb!.LazyUpdateQueue;
-
-                foreach (var kv in queue)
+                try
                 {
-                    var q = kv.Key;
-                    var copyOfQ = q.ToNonMemoryDbObject();
+                    // 非トランザクションの SQL 接続を開始する
+                    await using var tran = await this.BeginDatabaseTransactionImplAsync(true, false, cancel);
 
-                    bool ok = true;
+                    // 現在 キューに入っている項目に対する Lazy Update の実行
+                    // キューは Immutable なので、現在の Queue を取得する
+                    var queue = this.MemDb!.LazyUpdateQueue;
 
-                    if (copyOfQ.Deleted == false)
+                    foreach (var kv in queue)
                     {
-                        // 1 つの要素について DB 更新を行なう
-                        await this.LazyUpdateImplAsync(tran, copyOfQ, cancel);
-                    }
+                        var q = kv.Key;
+                        var copyOfQ = q.ToNonMemoryDbObject();
 
-                    // DB 更新に成功した場合は、DB 更新中にこのオブジェクトの内容の変更があったかどうか確認する
-                    if (ok)
-                    {
-                        if (copyOfQ.InternalFastUpdateVersion == q.InternalFastUpdateVersion)
+                        bool ok = true;
+
+                        if (copyOfQ.Deleted == false)
                         {
-                            // このオブジェクトの内容の変化がなければキューからこのオブジェクトを削除する
-                            this.MemDb!.DeleteFromLazyUpdateQueueInternal(q);
+                            // 1 つの要素について DB 更新を行なう
+                            await this.LazyUpdateImplAsync(tran, copyOfQ, cancel);
+                        }
+
+                        // DB 更新に成功した場合は、DB 更新中にこのオブジェクトの内容の変更があったかどうか確認する
+                        if (ok)
+                        {
+                            if (copyOfQ.InternalFastUpdateVersion == q.InternalFastUpdateVersion)
+                            {
+                                // このオブジェクトの内容の変化がなければキューからこのオブジェクトを削除する
+                                this.MemDb!.DeleteFromLazyUpdateQueueInternal(q);
+                            }
                         }
                     }
+
+                    this.IsDatabaseConnectedForLazyWrite = true;
                 }
+                catch
+                {
+                    this.IsDatabaseConnectedForLazyWrite = false;
 
-                this.IsDatabaseConnectedForLazyWrite = true;
-            }
-            catch
-            {
-                this.IsDatabaseConnectedForLazyWrite = false;
-
-                throw;
+                    throw;
+                }
             }
         }
 
-        async Task ReloadCoreAsync(CancellationToken cancel)
+        public async Task ReloadCoreAsync(EnsureSpecial yes, CancellationToken cancel)
         {
             try
             {
                 // Dynamic Config の値の読み込み
                 await ReloadDynamicConfigValuesAsync(cancel);
 
-                // DB からオブジェクト一覧を読み込む
-                var loadedObjectsList = await this.ReloadDataFromDatabaseImplAsync(cancel);
+                using (await Lock_UpdateCoreAsync.LockWithAwait(cancel))
+                {
+                    // DB からオブジェクト一覧を読み込む
+                    var loadedObjectsList = await this.ReloadDataFromDatabaseImplAsync(cancel);
 
-                TMem? currentMemDb = this.MemDb;
-                if (currentMemDb == null) currentMemDb = new TMem();
+                    TMem? currentMemDb = this.MemDb;
+                    if (currentMemDb == null) currentMemDb = new TMem();
 
-                await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, cancel);
+                    await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, cancel);
 
-                this.MemDb = currentMemDb;
+                    this.MemDb = currentMemDb;
+                }
+
                 this.IsDatabaseConnectedForReload = true;
             }
             catch
@@ -1831,7 +1846,7 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    await ReloadCoreAsync(cancel);
+                    await ReloadCoreAsync(EnsureSpecial.Yes, cancel);
                     ok = true;
                 }
                 catch (Exception ex)
@@ -1854,6 +1869,8 @@ namespace IPA.Cores.Basic
                 int nextWaitTime = Util.GenRandInterval(ok ? this.CurrentDynamicConfig.HadbReloadIntervalMsecsLastOk : this.CurrentDynamicConfig.HadbReloadIntervalMsecsLastError);
                 Debug($"ReloadMainLoopAsync: Waiting for {nextWaitTime._ToString3()} msecs for next DB read.");
                 await cancel._WaitUntilCanceledAsync(nextWaitTime);
+
+                if (this.Settings.Debug_NoAutoDbUpdate) break;
             }
 
             Debug($"ReloadMainLoopAsync: Finished.");
@@ -1861,6 +1878,8 @@ namespace IPA.Cores.Basic
 
         async Task LazyUpdateMainLoopAsync(CancellationToken cancel)
         {
+            if (this.Settings.Debug_NoAutoDbUpdate) return;
+
             int numCycle = 0;
             int numError = 0;
             await Task.Yield();
@@ -1878,7 +1897,7 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    await LazyUpdateCoreAsync(cancel);
+                    await LazyUpdateCoreAsync(EnsureSpecial.Yes, cancel);
                     ok = true;
                 }
                 catch (Exception ex)
