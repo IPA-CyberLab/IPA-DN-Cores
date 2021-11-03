@@ -1272,8 +1272,8 @@ namespace IPA.Cores.Basic
             });
         }
 
-        public Task<bool> TranAsync(TransactionalTaskAsync task) => TranAsync(null, null, task);
-        public Task<bool> TranAsync(IsolationLevel? isolationLevel, TransactionalTaskAsync task) => TranAsync(isolationLevel, null, task);
+        public Task<bool> TranAsync(TransactionalTaskAsync task) => TranAsync(null, null, task, default);
+        public Task<bool> TranAsync(IsolationLevel? isolationLevel, TransactionalTaskAsync task) => TranAsync(isolationLevel, null, task, default);
         public async Task<bool> TranAsync(IsolationLevel? isolationLevel, DeadlockRetryConfig? retryConfig, TransactionalTaskAsync task, CancellationToken cancel = default)
         {
             await EnsureOpenAsync();
