@@ -437,6 +437,7 @@ namespace IPA.Cores.Basic
             return ref ret;
         }
 
+        [SkipLocalsInit]
         public unsafe static PacketSpan<PCapEnhancedPacketBlock> _PCapEncapsulateEnhancedPacketBlock(this ref Packet pkt, int interfaceId, long timeStampUsecs, string? comment)
         {
             int packetDataSize = pkt.Length;

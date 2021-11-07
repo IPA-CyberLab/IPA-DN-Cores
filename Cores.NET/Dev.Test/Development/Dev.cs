@@ -898,7 +898,7 @@ namespace IPA.Cores.Basic
     public abstract class HadbSettingsBase
     {
         public string SystemName { get; }
-        public bool Debug_NoAutoDbUpdate { get; set; }
+        public bool Debug_NoAutoDbUpdate { get; init; }
 
         public HadbSettingsBase(string systemName)
         {

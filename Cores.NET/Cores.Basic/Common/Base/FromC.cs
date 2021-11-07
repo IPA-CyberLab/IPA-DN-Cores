@@ -100,6 +100,7 @@ namespace IPA.Cores.Basic
 
     public unsafe static class FromC
     {
+        [SkipLocalsInit]
         public static void MY_SHA0_Transform(MY_SHA0_CTX* ctx)
         {
             Span<UINT> W = stackalloc UINT[80];
