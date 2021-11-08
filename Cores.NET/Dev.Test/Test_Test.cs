@@ -2341,10 +2341,8 @@ namespace IPA.TestDev
             {
                 var settings = new HadbSqlSettings("TEST",
                     new SqlDatabaseConnectionSetting("10.40.0.103", "TEST_DN_DBSVC1", "sql_test_dn_dbsvc1_reader", "testabc"),
-                    new SqlDatabaseConnectionSetting("10.40.0.103", "TEST_DN_DBSVC1", "sql_test_dn_dbsvc1_writer", "testabc"))
-                {
-                    Debug_NoAutoDbUpdate = true,
-                };
+                    new SqlDatabaseConnectionSetting("10.40.0.103", "TEST_DN_DBSVC1", "sql_test_dn_dbsvc1_writer", "testabc"),
+                    HadbOptionFlags.NoAutoDbUpdate);
 
                 await using HadbTest db = new HadbTest(settings,
                     new HadbTestDynamicConfig() { /*TestDef = new string[] { "Hello", "World" }*/ });

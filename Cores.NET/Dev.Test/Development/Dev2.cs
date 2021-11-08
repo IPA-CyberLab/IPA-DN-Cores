@@ -139,10 +139,8 @@ namespace IPA.Cores.Basic
         {
             var settings = new HadbSqlSettings(SystemName,
                 new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbPassword),
-                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbPassword))
-            {
-                Debug_NoAutoDbUpdate = true,
-            };
+                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbPassword),
+                HadbOptionFlags.None);
 
             await using Sys sys1 = new Sys(settings, new Dyn() { Hello = "Hello World" });
             await using Sys sys2 = new Sys(settings, new Dyn() { Hello = "Hello World" });
@@ -189,7 +187,7 @@ namespace IPA.Cores.Basic
                 await sys1.TranAsync(true, async tran =>
                 {
                     User u = new User() { Id = "u1", Name = "User1", AuthKey = "a001", Company = "NTT", LastIp = "A123:b456:0001::c789", FullName = "Tanaka", Int1 = 100 };
-                    var obj = await tran.AtomicAddAsync(u);
+                    var obj = await tran.AtomicAddAsync(u, "a", "1");
                     u1_uid = obj.Uid;
                     return true;
                 });
@@ -203,12 +201,14 @@ namespace IPA.Cores.Basic
                     Dbg.TestTrue(u.AuthKey == "a001");
                     Dbg.TestTrue(u.Company == "NTT");
                     Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
+                    Dbg.TestTrue(obj.Ext1 == "a");
+                    Dbg.TestTrue(obj.Ext2 == "1");
                 }
 
                 await sys1.TranAsync(true, async tran =>
                 {
                     User u = new User() { Id = "u2", Name = "User2", AuthKey = "a002", Company = "NTT", LastIp = "af80:b456:0001::c789", FullName = "Yamada", Int1 = 200 };
-                    var obj = await tran.AtomicAddAsync(u);
+                    var obj = await tran.AtomicAddAsync(u, "b", "2");
                     u2_uid = obj.Uid;
                     return true;
                 });
@@ -216,7 +216,7 @@ namespace IPA.Cores.Basic
                 await sys1.TranAsync(true, async tran =>
                 {
                     User u = new User() { Id = "u3", Name = "User3", AuthKey = "a003", Company = "IPA", LastIp = "A123:b456:0001::c789", FullName = "Unagi", Int1 = 300 };
-                    var obj = await tran.AtomicAddAsync(u);
+                    var obj = await tran.AtomicAddAsync(u, "c", "3");
                     u3_uid = obj.Uid;
                     return true;
                 });
@@ -230,6 +230,8 @@ namespace IPA.Cores.Basic
                     Dbg.TestTrue(u.AuthKey == "a003");
                     Dbg.TestTrue(u.Company == "IPA");
                     Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
+                    Dbg.TestTrue(obj.Ext1 == "c");
+                    Dbg.TestTrue(obj.Ext2 == "3");
                 }
 
                 await sys1.TranAsync(false, async tran =>
@@ -241,6 +243,8 @@ namespace IPA.Cores.Basic
                     Dbg.TestTrue(u.AuthKey == "a001");
                     Dbg.TestTrue(u.Company == "NTT");
                     Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
+                    Dbg.TestTrue(obj.Ext1 == "a");
+                    Dbg.TestTrue(obj.Ext2 == "1");
                     return false;
                 });
 
@@ -253,6 +257,8 @@ namespace IPA.Cores.Basic
                     Dbg.TestTrue(u.AuthKey == "a002");
                     Dbg.TestTrue(u.Company == "NTT");
                     Dbg.TestTrue(u.LastIp == "af80:b456:1::c789");
+                    Dbg.TestTrue(obj.Ext1 == "b");
+                    Dbg.TestTrue(obj.Ext2 == "2");
                     return false;
                 });
 
@@ -278,6 +284,8 @@ namespace IPA.Cores.Basic
                     Dbg.TestTrue(u.AuthKey == "a003");
                     Dbg.TestTrue(u.Company == "IPA");
                     Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
+                    Dbg.TestTrue(obj.Ext1 == "c");
+                    Dbg.TestTrue(obj.Ext2 == "3");
                     obj.FastUpdate<User>(x =>
                     {
                         x.Int1++;
@@ -296,6 +304,8 @@ namespace IPA.Cores.Basic
                     Dbg.TestTrue(u.AuthKey == "a001");
                     Dbg.TestTrue(u.Company == "NTT");
                     Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
+                    Dbg.TestTrue(obj.Ext1 == "a");
+                    Dbg.TestTrue(obj.Ext2 == "1");
                     obj.FastUpdate<User>(x =>
                     {
                         x.Int1++;
@@ -316,6 +326,8 @@ namespace IPA.Cores.Basic
                     Dbg.TestTrue(u.Company == "IPA");
                     Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
                     Dbg.TestTrue(u.Int1 == 301);
+                    Dbg.TestTrue(obj.Ext1 == "c");
+                    Dbg.TestTrue(obj.Ext2 == "3");
                     obj.FastUpdate<User>(x =>
                     {
                         x.Int1++;
@@ -333,6 +345,8 @@ namespace IPA.Cores.Basic
                     Dbg.TestTrue(u.AuthKey == "a001");
                     Dbg.TestTrue(u.Company == "NTT");
                     Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
+                    Dbg.TestTrue(obj.Ext1 == "a");
+                    Dbg.TestTrue(obj.Ext2 == "1");
                     obj.FastUpdate<User>(x =>
                     {
                         x.Int1++;
@@ -350,6 +364,9 @@ namespace IPA.Cores.Basic
                         var u = obj!.GetData<User>();
                         Dbg.TestTrue(u.FullName == "Tanaka");
                         Dbg.TestTrue(u.Int1 == 102);
+
+                        obj.Ext1 = "k";
+                        obj.Ext2 = "1234";
 
                         u.Company = "SoftEther";
                         u.AuthKey = "x001";
@@ -377,6 +394,8 @@ namespace IPA.Cores.Basic
                     Dbg.TestTrue(u.AuthKey == "a001");
                     Dbg.TestTrue(u.Company == "NTT");
                     Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
+                    Dbg.TestTrue(obj.Ext1 == "a");
+                    Dbg.TestTrue(obj.Ext2 == "1");
                 }
 
                 // sys2 でデータ編集コミット --> sys1 でメモリ更新 --> sys1 で高速更新 --> sys2 で観測できるか?
@@ -395,6 +414,9 @@ namespace IPA.Cores.Basic
                     u.LastIp = "2001:af80:0000::0001";
                     u.Int1++;
 
+                    obj.Ext1 = "z";
+                    obj.Ext2 = "99";
+
                     await tran.AtomicUpdateAsync(obj);
 
                     return true;
@@ -406,12 +428,23 @@ namespace IPA.Cores.Basic
 
                 {
                     // AtomicSearchByKeyAsync を実行した結果 sys2 のメモリも自動で更新されたかどうか検査
-                    var u = sys2.FastSearchByLabels(new User { Company = "softether", LastIp = "2001:af80:0000:0000:0000:0000:0000:0001" }).Single().GetData<User>();
+                    var obj = sys2.FastSearchByLabels(new User { Company = "softether", LastIp = "2001:af80:0000:0000:0000:0000:0000:0001" }).Single();
+                    var u = obj.GetData<User>();
                     Dbg.TestTrue(u.FullName == "Neko");
                     Dbg.TestTrue(u.Int1 == 103);
+                    Dbg.TestTrue(obj.Ext1 == "z");
+                    Dbg.TestTrue(obj.Ext2 == "99");
                 }
 
+                Dbg.TestTrue(sys1.MemDb!._IndexedKeysTable.Count == (4 * 3));
+                Dbg.TestTrue(sys1.MemDb!._IndexedLabelsTable.Sum(x => x.Value.Count) == (2 * 3));
+                Dbg.TestTrue(sys1.MemDb!._IndexedLabelsTable.Count == 4);
+
                 await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
+
+                Dbg.TestTrue(sys1.MemDb!._IndexedKeysTable.Count == (4 * 3));
+                Dbg.TestTrue(sys1.MemDb!._IndexedLabelsTable.Sum(x => x.Value.Count) == (2 * 3));
+                Dbg.TestTrue(sys1.MemDb!._IndexedLabelsTable.Count == (2 * 3));
 
                 {
                     await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
@@ -423,6 +456,8 @@ namespace IPA.Cores.Basic
                     Dbg.TestTrue(u.Company == "SoftEther");
                     Dbg.TestTrue(u.LastIp == "2001:af80::1");
                     Dbg.TestTrue(u.Int1 == 103);
+                    Dbg.TestTrue(obj.Ext1 == "z");
+                    Dbg.TestTrue(obj.Ext2 == "99");
                     obj.FastUpdate<User>(x =>
                     {
                         x.Int1++;
@@ -443,6 +478,8 @@ namespace IPA.Cores.Basic
                     Dbg.TestTrue(u.Company == "SoftEther");
                     Dbg.TestTrue(u.LastIp == "2001:af80::1");
                     Dbg.TestTrue(u.Int1 == 104);
+                    Dbg.TestTrue(obj.Ext1 == "z");
+                    Dbg.TestTrue(obj.Ext2 == "99");
 
                     // 追加テスト: キー値またはラベル値の変更でエラーが発生することを確認
                     obj.FastUpdate<User>(x =>
@@ -473,6 +510,219 @@ namespace IPA.Cores.Basic
                     });
                 }
 
+                await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
+                await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
+
+                // sys2 でコミット編集 -> sys1 で高速編集 -> sys1 で遅延コミット -> sys1 を更新し sys1 の高速コミットが失われ sys2 のコミットが適用されていることを確認
+                await sys2.TranAsync(true, async tran =>
+                {
+                    var obj = await tran.AtomicSearchByKeyAsync(new User { AuthKey = "  X001  " });
+                    var u = obj!.GetData<User>();
+                    Dbg.TestTrue(u.FullName == "Neko");
+                    Dbg.TestTrue(u.Int1 == 104);
+                    obj.Ext1 = "p";
+                    obj.Ext2 = "1234";
+
+                    u.Int1++;
+
+                    await tran.AtomicUpdateAsync(obj);
+
+                    return true;
+                });
+
+                {
+                    var obj = sys1.FastSearchByLabels<User>(new User { Company = " softETHER " }).Single();
+                    var u = obj!.GetData<User>();
+                    Dbg.TestTrue(u.Id == "new_u1");
+                    Dbg.TestTrue(u.Name == "User1New");
+                    Dbg.TestTrue(u.AuthKey == "x001");
+                    Dbg.TestTrue(u.Company == "SoftEther");
+                    Dbg.TestTrue(u.LastIp == "2001:af80::1");
+                    Dbg.TestTrue(u.Int1 == 104);
+                    Dbg.TestTrue(obj.Ext1 == "z");
+                    Dbg.TestTrue(obj.Ext2 == "99");
+                    obj.FastUpdate<User>(x =>
+                    {
+                        x.Int1 = 555;
+                        return true;
+                    });
+                    await sys1.LazyUpdateCoreAsync(EnsureSpecial.Yes);
+                }
+
+                await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
+                await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
+
+                {
+                    var obj = sys1.FastSearchByLabels<User>(new User { Company = " softETHER " }).Single();
+                    var u = obj!.GetData<User>();
+                    Dbg.TestTrue(u.Int1 == 105);
+                    Dbg.TestTrue(obj.Ext1 == "p");
+                    Dbg.TestTrue(obj.Ext2 == "1234");
+                }
+
+                {
+                    var obj = sys2.FastSearchByLabels<User>(new User { Company = " softETHER " }).Single();
+                    var u = obj!.GetData<User>();
+                    Dbg.TestTrue(u.Int1 == 105);
+                    Dbg.TestTrue(obj.Ext1 == "p");
+                    Dbg.TestTrue(obj.Ext2 == "1234");
+                }
+
+                // キーが重複するような更新に失敗するかどうか (メモリデータベースの検査)
+                await sys1.TranAsync(true, async tran =>
+                {
+                    var obj = await tran.AtomicSearchByKeyAsync(new User { AuthKey = "  X001  " });
+                    var u = obj!.GetData<User>();
+                    Dbg.TestTrue(u.Id == "new_u1");
+                    Dbg.TestTrue(u.Name == "User1New");
+                    Dbg.TestTrue(u.AuthKey == "x001");
+                    Dbg.TestTrue(u.Company == "SoftEther");
+                    Dbg.TestTrue(u.LastIp == "2001:af80::1");
+                    Dbg.TestTrue(u.Int1 == 105);
+                    Dbg.TestTrue(obj.Ext1 == "p");
+                    Dbg.TestTrue(obj.Ext2 == "1234");
+
+                    u.AuthKey = " A002 ";
+
+                    await Dbg.TestExceptionAsync(async () =>
+                    {
+                        await tran.AtomicUpdateAsync(obj);
+                    });
+
+                    return false;
+                });
+
+                sys1.DebugFlags = sys1.DebugFlags.BitAdd(HadbDebugFlags.NoCheckMemKeyDuplicate);
+
+                // キーが重複するような更新に失敗するかどうか (物理データベースの検査)
+                await sys1.TranAsync(true, async tran =>
+                {
+                    var obj = await tran.AtomicSearchByKeyAsync(new User { AuthKey = "  X001  " });
+                    var u = obj!.GetData<User>();
+                    Dbg.TestTrue(u.Id == "new_u1");
+                    Dbg.TestTrue(u.Name == "User1New");
+                    Dbg.TestTrue(u.AuthKey == "x001");
+                    Dbg.TestTrue(u.Company == "SoftEther");
+                    Dbg.TestTrue(u.LastIp == "2001:af80::1");
+                    Dbg.TestTrue(u.Int1 == 105);
+                    Dbg.TestTrue(obj.Ext1 == "p");
+                    Dbg.TestTrue(obj.Ext2 == "1234");
+
+                    u.AuthKey = " A002 ";
+
+                    await Dbg.TestExceptionAsync(async () =>
+                    {
+                        await tran.AtomicUpdateAsync(obj);
+                    });
+
+                    return false;
+                });
+
+                sys1.DebugFlags = sys1.DebugFlags.BitRemove(HadbDebugFlags.NoCheckMemKeyDuplicate);
+
+
+
+                // キーが重複するような追加に失敗するかどうか (メモリデータベースの検査)
+                await sys1.TranAsync(true, async tran =>
+                {
+                    User u = new User() { Id = "u2", Name = "User2", AuthKey = "zcas", Company = "NTT", LastIp = "af80:b456:0001::c789", FullName = "Yamada", Int1 = 200 };
+                    await Dbg.TestExceptionAsync(async () =>
+                    {
+                        var obj = await tran.AtomicAddAsync(u, "e", "22");
+                    });
+                    return false;
+                });
+
+                sys1.DebugFlags = sys1.DebugFlags.BitAdd(HadbDebugFlags.NoCheckMemKeyDuplicate);
+
+                // キーが重複するような追加に失敗するかどうか (物理データベースの検査)
+                await sys1.TranAsync(true, async tran =>
+                {
+                    User u = new User() { Id = "u2", Name = "User2", AuthKey = "zcas", Company = "NTT", LastIp = "af80:b456:0001::c789", FullName = "Yamada", Int1 = 200 };
+                    await Dbg.TestExceptionAsync(async () =>
+                    {
+                        var obj = await tran.AtomicAddAsync(u, "e", "22");
+                    });
+                    return false;
+                });
+
+                sys1.DebugFlags = sys1.DebugFlags.BitRemove(HadbDebugFlags.NoCheckMemKeyDuplicate);
+
+
+                await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
+                await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
+
+
+                // sys1 のメモリ検索上まだいるか
+                {
+                    var obj = sys1.FastSearchByLabels<User>(new User { Company = " softETHER " }).SingleOrDefault();
+                    Dbg.TestNotNull(obj);
+                    Dbg.TestFalse(obj!.Deleted);
+                    obj = sys1.FastGet<User>(u1_uid);
+                    Dbg.TestNotNull(obj);
+                    Dbg.TestFalse(obj!.Deleted);
+                };
+
+                // sys1 の DB 検索上まだいるか
+                await sys1.TranAsync(false, async tran =>
+                {
+                    var obj = await tran.AtomicGetAsync<User>(u1_uid);
+                    Dbg.TestNotNull(obj);
+                    Dbg.TestFalse(obj!.Deleted);
+                    obj = (await tran.AtomicSearchByLabelsAsync<User>(new User { Company = " softETHER " })).SingleOrDefault();
+                    Dbg.TestNotNull(obj);
+                    Dbg.TestFalse(obj!.Deleted);
+                    return false;
+                });
+
+
+
+
+                // sys1 で削除コミットし、sys2 に反映されるかどうか
+                await sys1.TranAsync(true, async tran =>
+                {
+                    await tran.AtomicDeleteByKeyAsync(new User { AuthKey = "X001" });
+                    return true;
+                });
+
+                // sys1 のメモリ検索上なくなったか
+                {
+                    var obj = sys1.FastSearchByLabels<User>(new User { Company = " softETHER " }).SingleOrDefault();
+                    Dbg.TestNull(obj);
+                    obj = sys1.FastGet<User>(u1_uid);
+                    Dbg.TestNull(obj);
+                }
+
+                // sys1 の DB 検索上なくなったか
+                await sys1.TranAsync(false, async tran =>
+                {
+                    var obj = await tran.AtomicGetAsync<User>(u1_uid);
+                    Dbg.TestNull(obj);
+                    obj = (await tran.AtomicSearchByLabelsAsync<User>(new User { Company = " softETHER " })).SingleOrDefault();
+                    Dbg.TestNull(obj);
+                    return false;
+                });
+
+
+                // sys2 のメモリ検索上まだいるか
+                {
+                    var obj = sys2.FastSearchByLabels<User>(new User { Company = " softETHER " }).SingleOrDefault();
+                    Dbg.TestNotNull(obj);
+                    Dbg.TestFalse(obj!.Deleted);
+                    obj = sys2.FastGet<User>(u1_uid);
+                    Dbg.TestNotNull(obj);
+                    Dbg.TestFalse(obj!.Deleted);
+                };
+
+                await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
+
+                // sys2 のメモリ上からいなくなったか
+                {
+                    var obj = sys2.FastSearchByLabels<User>(new User { Company = " softETHER " }).SingleOrDefault();
+                    Dbg.TestNull(obj);
+                    obj = sys2.FastGet<User>(u1_uid);
+                    Dbg.TestNull(obj);
+                };
             }
         }
     }

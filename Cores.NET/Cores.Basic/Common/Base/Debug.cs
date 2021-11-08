@@ -989,6 +989,16 @@ namespace IPA.Cores.Basic
             if (b == false) throw new CoresLibException(message, filename, line, caller);
         }
 
+        public static void TestNull(object? obj, string? message = "", [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            if (obj != null) throw new CoresLibException(message, filename, line, caller);
+        }
+
+        public static void TestNotNull(object? obj, string? message = "", [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            if (obj == null) throw new CoresLibException(message, filename, line, caller);
+        }
+
         public static void TestFalse(bool b, string? message = "", [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
         {
             if (b == true) throw new CoresLibException(message, filename, line, caller);
