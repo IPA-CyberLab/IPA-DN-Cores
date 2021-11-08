@@ -6150,6 +6150,36 @@ namespace IPA.Cores.Basic
             return Str.StrToInt(ret);
         }
 
+        public static long DateTimeToYymmddHHmmssLong(DateTime dt, int zeroValue = 0, bool yearTwoDigits = false)
+        {
+            if (dt._IsZeroDateTime())
+            {
+                return zeroValue;
+            }
+
+            string ret = dt.ToString("yyyyMMddHHmmss");
+
+            if (yearTwoDigits)
+            {
+                ret = ret.Substring(2);
+            }
+
+            return Str.StrToLong(ret);
+        }
+
+        public static string GenerateRandomDigit(int numDigits)
+        {
+            StringBuilder sb = new StringBuilder();
+
+            for (int i = 0; i < numDigits; i++)
+            {
+                char c = (char)('0' + Secure.RandSInt31() % 10);
+                sb.Append(c);
+            }
+
+            return sb.ToString();
+        }
+
         public static string DateTimeToDtstr(DateTime dt, bool withMSecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false, string zeroDateTimeStr = "")
         {
             long ticks = dt.Ticks % 10000000;

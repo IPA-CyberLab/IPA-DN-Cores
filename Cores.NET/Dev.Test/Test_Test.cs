@@ -2324,6 +2324,17 @@ namespace IPA.TestDev
             Console.ReadLine();
         }
 
+        static void Test_211108()
+        {
+            Async(async () =>
+            {
+                HadbCodeTest t = new HadbCodeTest();
+                await t.Test1Async();
+                t.SystemName._Print();
+            }
+            );
+        }
+
         static void Test_211017()
         {
             Async(async () =>
@@ -2338,7 +2349,7 @@ namespace IPA.TestDev
                 await using HadbTest db = new HadbTest(settings,
                     new HadbTestDynamicConfig() { /*TestDef = new string[] { "Hello", "World" }*/ });
 
-                db.StartLoop();
+                db.Start();
 
                 Con.WriteLine("Wait for ready...");
                 await db.WaitUntilReadyForAtomicAsync();
@@ -2365,7 +2376,7 @@ namespace IPA.TestDev
                     {
                         await db.TranAsync(writeMode: false, async tran =>
                         {
-                            var obj = await tran.AtomicSearchByKeysAsync<HadbTestData>(new HadbKeys(key));
+                            var obj = await tran.AtomicSearchByKeyAsync<HadbTestData>(new HadbKeys(key));
                             obj._PrintAsJson();
                             return false;
                         });
@@ -2390,7 +2401,7 @@ namespace IPA.TestDev
                     }
                     else if (str._TryTrimStartWith(out string key3, StringComparison.OrdinalIgnoreCase, "*"))
                     {
-                        var obj = db.FastSearchByKeys<HadbTestData>(new HadbKeys(key3));
+                        var obj = db.FastSearchByKey<HadbTestData>(new HadbKeys(key3));
                         if (obj == null)
                         {
                             Con.WriteLine("Not found.");
@@ -2409,7 +2420,7 @@ namespace IPA.TestDev
                     {
                         await db.TranAsync(writeMode: true, async tran =>
                         {
-                            var obj = await tran.AtomicSearchByKeysAsync<HadbTestData>(new HadbKeys(key2));
+                            var obj = await tran.AtomicSearchByKeyAsync<HadbTestData>(new HadbKeys(key2));
                             if (obj == null)
                             {
                                 Con.WriteLine("Not found.");
@@ -2417,7 +2428,7 @@ namespace IPA.TestDev
                             }
                             else
                             {
-                                var data = obj.Cast<HadbTestData>();
+                                var data = obj.GetData<HadbTestData>();
                                 data.IPv4Address += "_" + Secure.RandSInt31() % 10;
                                 data.IPv6Address += "_" + Secure.RandSInt31() % 10;
                                 data.HostName += "_" + Secure.RandSInt31() % 10;
@@ -2473,6 +2484,12 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_211108();
+                return;
+            }
+
             if (true)
             {
                 Test_211017();

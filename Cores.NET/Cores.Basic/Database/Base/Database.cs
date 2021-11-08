@@ -1249,7 +1249,11 @@ namespace IPA.Cores.Basic
                     numRetry++;
                     if (numRetry <= retryConfig.RetryCount)
                     {
-                        Kernel.SleepThread(Util.GenRandInterval(retryConfig.RetryAverageInterval));
+                        int nextInterval = Util.GenRandInterval(retryConfig.RetryAverageInterval);
+
+                        $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {sqlex.ToString()}"._Debug();
+
+                        Kernel.SleepThread(Util.GenRandInterval(nextInterval));
 
                         goto LABEL_RETRY;
                     }
@@ -1310,7 +1314,11 @@ namespace IPA.Cores.Basic
                     numRetry++;
                     if (numRetry <= retryConfig.RetryCount)
                     {
-                        await Task.Delay(Util.GenRandInterval(retryConfig.RetryAverageInterval));
+                        int nextInterval = Util.GenRandInterval(retryConfig.RetryAverageInterval);
+
+                        $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {sqlex.ToString()}"._Debug();
+
+                        await Task.Delay(nextInterval);
 
                         goto LABEL_RETRY;
                     }

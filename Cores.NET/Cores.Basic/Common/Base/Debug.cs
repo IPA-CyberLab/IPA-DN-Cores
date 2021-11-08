@@ -983,6 +983,44 @@ namespace IPA.Cores.Basic
         public static void Suspend() => Kernel.SuspendForDebug();
 
         public static void Break() => Debugger.Break();
+
+        public static void TestTrue(bool b, string? message = "", [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            if (b == false) throw new CoresLibException(message, filename, line, caller);
+        }
+
+        public static void TestFalse(bool b, string? message = "", [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            if (b == true) throw new CoresLibException(message, filename, line, caller);
+        }
+
+        public static void TestException(Action func, string? message = "", [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            bool ok = false;
+            try
+            {
+                func();
+            }
+            catch
+            {
+                ok = true;
+            }
+            if (ok == false) throw new CoresLibException(message, filename, line, caller);
+        }
+
+        public static async Task TestExceptionAsync(Func<Task> func, string? message = "", [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        {
+            bool ok = false;
+            try
+            {
+                await func();
+            }
+            catch
+            {
+                ok = true;
+            }
+            if (ok == false) throw new CoresLibException(message, filename, line, caller);
+        }
     }
 
     public class ObjectContainerForDebugVars

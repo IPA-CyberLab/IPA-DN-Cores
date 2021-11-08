@@ -8357,7 +8357,9 @@ namespace IPA.Cores.Basic
             string functionName = caller._FilledOrDefault("UnknownFunction");
             if (srcMessage._IsEmpty()) srcMessage = nameof(CoresLibException);
 
-            return $"{className} - {functionName}(): {srcMessage}";
+            string fileInfo = $"{Path.GetFileName(filename)}:{line}";
+
+            return $"{className} - {functionName}() <{fileInfo}>: {srcMessage}";
         }
     }
 
