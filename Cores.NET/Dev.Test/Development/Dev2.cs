@@ -382,8 +382,8 @@ namespace IPA.Cores.Basic
                 }
                 catch { }
 
-                Dbg.TestTrue(sys2.MemDb!._IndexedKeysTable.Count == (4 * 3));
-                Dbg.TestTrue(sys2.MemDb!._IndexedLabelsTable.Sum(x => x.Value.Count) == (2 * 3));
+                Dbg.TestTrue(sys2.MemDb!.InternalData.IndexedKeysTable.Count == (4 * 3));
+                Dbg.TestTrue(sys2.MemDb!.InternalData.IndexedLabelsTable.Sum(x => x.Value.Count) == (2 * 3));
 
                 {
                     // AtomicSearchByKeyAsync を実行した結果 sys2 のメモリが更新されていないことを検査
@@ -422,9 +422,9 @@ namespace IPA.Cores.Basic
                     return true;
                 });
 
-                Dbg.TestTrue(sys2.MemDb!._IndexedKeysTable.Count == (4 * 3));
-                Dbg.TestTrue(sys2.MemDb!._IndexedLabelsTable.Sum(x => x.Value.Count) == (2 * 3));
-                Dbg.TestTrue(sys2.MemDb!._IndexedLabelsTable.Count == (2 * 3));
+                Dbg.TestTrue(sys2.MemDb!.InternalData.IndexedKeysTable.Count == (4 * 3));
+                Dbg.TestTrue(sys2.MemDb!.InternalData.IndexedLabelsTable.Sum(x => x.Value.Count) == (2 * 3));
+                Dbg.TestTrue(sys2.MemDb!.InternalData.IndexedLabelsTable.Count == (2 * 3));
 
                 {
                     // AtomicSearchByKeyAsync を実行した結果 sys2 のメモリも自動で更新されたかどうか検査
@@ -436,15 +436,15 @@ namespace IPA.Cores.Basic
                     Dbg.TestTrue(obj.Ext2 == "99");
                 }
 
-                Dbg.TestTrue(sys1.MemDb!._IndexedKeysTable.Count == (4 * 3));
-                Dbg.TestTrue(sys1.MemDb!._IndexedLabelsTable.Sum(x => x.Value.Count) == (2 * 3));
-                Dbg.TestTrue(sys1.MemDb!._IndexedLabelsTable.Count == 4);
+                Dbg.TestTrue(sys1.MemDb!.InternalData.IndexedKeysTable.Count == (4 * 3));
+                Dbg.TestTrue(sys1.MemDb!.InternalData.IndexedLabelsTable.Sum(x => x.Value.Count) == (2 * 3));
+                Dbg.TestTrue(sys1.MemDb!.InternalData.IndexedLabelsTable.Count == 4);
 
                 await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
 
-                Dbg.TestTrue(sys1.MemDb!._IndexedKeysTable.Count == (4 * 3));
-                Dbg.TestTrue(sys1.MemDb!._IndexedLabelsTable.Sum(x => x.Value.Count) == (2 * 3));
-                Dbg.TestTrue(sys1.MemDb!._IndexedLabelsTable.Count == (2 * 3));
+                Dbg.TestTrue(sys1.MemDb!.InternalData.IndexedKeysTable.Count == (4 * 3));
+                Dbg.TestTrue(sys1.MemDb!.InternalData.IndexedLabelsTable.Sum(x => x.Value.Count) == (2 * 3));
+                Dbg.TestTrue(sys1.MemDb!.InternalData.IndexedLabelsTable.Count == (2 * 3));
 
                 {
                     await sys1.ReloadCoreAsync(EnsureSpecial.Yes);

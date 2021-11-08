@@ -1263,13 +1263,184 @@ namespace IPA.Cores.Basic
 
     public abstract class HadbMemDataBase
     {
+        public class DataSet
+        {
+            public StrDictionary<HadbObject> AllObjectsDict = new StrDictionary<HadbObject>(StrComparer.IgnoreCaseComparer);
+            public ImmutableDictionary<string, HadbObject> IndexedKeysTable = ImmutableDictionary<string, HadbObject>.Empty.WithComparers(StrComparer.IgnoreCaseComparer);
+            public ImmutableDictionary<string, ConcurrentHashSet<HadbObject>> IndexedLabelsTable = ImmutableDictionary<string, ConcurrentHashSet<HadbObject>>.Empty.WithComparers(StrComparer.IgnoreCaseComparer);
+
+            public void IndexedTable_DeleteObject_Critical(HadbObject obj, HadbKeys oldKeys, HadbLabels oldLabels)
+            {
+                obj.CheckIsMemoryDbObject();
+
+                string typeName = obj.GetUserDataTypeName();
+
+                IndexedKeysTable_DeleteInternal_Critical(HadbIndexColumn.Uid.ToString() + ":" + typeName + ":" + obj.Uid);
+
+                if (oldKeys.Key1._IsFilled()) IndexedKeysTable_DeleteInternal_Critical(HadbIndexColumn.Key1.ToString() + ":" + typeName + ":" + oldKeys.Key1);
+                if (oldKeys.Key2._IsFilled()) IndexedKeysTable_DeleteInternal_Critical(HadbIndexColumn.Key2.ToString() + ":" + typeName + ":" + oldKeys.Key2);
+                if (oldKeys.Key3._IsFilled()) IndexedKeysTable_DeleteInternal_Critical(HadbIndexColumn.Key3.ToString() + ":" + typeName + ":" + oldKeys.Key3);
+                if (oldKeys.Key4._IsFilled()) IndexedKeysTable_DeleteInternal_Critical(HadbIndexColumn.Key4.ToString() + ":" + typeName + ":" + oldKeys.Key4);
+
+                if (oldLabels.Label1._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(HadbIndexColumn.Label1.ToString() + ":" + typeName + ":" + oldLabels.Label1, obj);
+                if (oldLabels.Label2._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(HadbIndexColumn.Label2.ToString() + ":" + typeName + ":" + oldLabels.Label2, obj);
+                if (oldLabels.Label3._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(HadbIndexColumn.Label3.ToString() + ":" + typeName + ":" + oldLabels.Label3, obj);
+                if (oldLabels.Label4._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(HadbIndexColumn.Label4.ToString() + ":" + typeName + ":" + oldLabels.Label4, obj);
+            }
+
+            public void IndexedTable_UpdateObject_Critical(HadbObject obj, HadbKeys oldKeys, HadbLabels oldLabels)
+            {
+                obj.CheckIsMemoryDbObject();
+
+                HadbKeys newKeys = obj.GetKeys();
+                HadbLabels newLabels = obj.GetLabels();
+
+                if (oldKeys.Key1._IsSamei(newKeys.Key1) == false) IndexedKeysTable_ReplaceObject_Critical(obj, HadbIndexColumn.Key1, oldKeys.Key1, newKeys.Key1);
+                if (oldKeys.Key2._IsSamei(newKeys.Key2) == false) IndexedKeysTable_ReplaceObject_Critical(obj, HadbIndexColumn.Key2, oldKeys.Key2, newKeys.Key2);
+                if (oldKeys.Key3._IsSamei(newKeys.Key3) == false) IndexedKeysTable_ReplaceObject_Critical(obj, HadbIndexColumn.Key3, oldKeys.Key3, newKeys.Key3);
+                if (oldKeys.Key4._IsSamei(newKeys.Key4) == false) IndexedKeysTable_ReplaceObject_Critical(obj, HadbIndexColumn.Key4, oldKeys.Key4, newKeys.Key4);
+
+                if (oldLabels.Label1._IsSamei(newLabels.Label1) == false) IndexedLabelsTable_ReplaceObject_Critical(obj, HadbIndexColumn.Label1, oldLabels.Label1, newLabels.Label1);
+                if (oldLabels.Label2._IsSamei(newLabels.Label2) == false) IndexedLabelsTable_ReplaceObject_Critical(obj, HadbIndexColumn.Label2, oldLabels.Label2, newLabels.Label2);
+                if (oldLabels.Label3._IsSamei(newLabels.Label3) == false) IndexedLabelsTable_ReplaceObject_Critical(obj, HadbIndexColumn.Label3, oldLabels.Label3, newLabels.Label3);
+                if (oldLabels.Label4._IsSamei(newLabels.Label4) == false) IndexedLabelsTable_ReplaceObject_Critical(obj, HadbIndexColumn.Label4, oldLabels.Label4, newLabels.Label4);
+            }
+
+            public void IndexedTable_AddObject_Critical(HadbObject obj)
+            {
+                obj.CheckIsMemoryDbObject();
+
+                var newKeys = obj.GetKeys();
+                var newLabels = obj.GetLabels();
+
+                string typeName = obj.GetUserDataTypeName();
+
+                IndexedKeysTable_AddOrUpdateInternal_Critical(HadbIndexColumn.Uid.ToString() + ":" + typeName + ":" + obj.Uid, obj);
+
+                if (newKeys.Key1._IsFilled()) IndexedKeysTable_AddOrUpdateInternal_Critical(HadbIndexColumn.Key1.ToString() + ":" + typeName + ":" + newKeys.Key1, obj);
+                if (newKeys.Key2._IsFilled()) IndexedKeysTable_AddOrUpdateInternal_Critical(HadbIndexColumn.Key2.ToString() + ":" + typeName + ":" + newKeys.Key2, obj);
+                if (newKeys.Key3._IsFilled()) IndexedKeysTable_AddOrUpdateInternal_Critical(HadbIndexColumn.Key3.ToString() + ":" + typeName + ":" + newKeys.Key3, obj);
+                if (newKeys.Key4._IsFilled()) IndexedKeysTable_AddOrUpdateInternal_Critical(HadbIndexColumn.Key4.ToString() + ":" + typeName + ":" + newKeys.Key4, obj);
+
+                if (newLabels.Label1._IsFilled()) IndexedLabelsTable_AddInternal_Critical(HadbIndexColumn.Label1.ToString() + ":" + typeName + ":" + newLabels.Label1, obj);
+                if (newLabels.Label2._IsFilled()) IndexedLabelsTable_AddInternal_Critical(HadbIndexColumn.Label2.ToString() + ":" + typeName + ":" + newLabels.Label2, obj);
+                if (newLabels.Label3._IsFilled()) IndexedLabelsTable_AddInternal_Critical(HadbIndexColumn.Label3.ToString() + ":" + typeName + ":" + newLabels.Label3, obj);
+                if (newLabels.Label4._IsFilled()) IndexedLabelsTable_AddInternal_Critical(HadbIndexColumn.Label4.ToString() + ":" + typeName + ":" + newLabels.Label4, obj);
+            }
+
+            public void IndexedKeysTable_ReplaceObject_Critical(HadbObject obj, HadbIndexColumn column, string? oldKey, string? newKey)
+            {
+                obj.CheckIsMemoryDbObject();
+
+                oldKey = oldKey._NormalizeKey(true);
+                newKey = newKey._NormalizeKey(true);
+
+                if (newKey._IsSamei(oldKey) == false)
+                {
+                    if (newKey._IsFilled())
+                    {
+                        IndexedKeysTable_AddOrUpdateInternal_Critical(column.ToString() + ":" + obj.GetUserDataTypeName() + ":" + newKey, obj);
+                    }
+
+                    if (oldKey._IsFilled())
+                    {
+                        IndexedKeysTable_DeleteInternal_Critical(column.ToString() + ":" + obj.GetUserDataTypeName() + ":" + oldKey);
+                    }
+                }
+            }
+
+            public HadbObject? IndexedKeysTable_SearchObject(HadbIndexColumn column, string typeName, string key)
+            {
+                key = key._NormalizeKey(true);
+                typeName = typeName._NonNullTrim();
+
+                if (key._IsEmpty()) return null;
+
+                return this.IndexedKeysTable._GetOrDefault(column.ToString() + ":" + typeName + ":" + key);
+            }
+
+            public void IndexedKeysTable_AddOrUpdateInternal_Critical(string keyStr, HadbObject obj)
+            {
+                keyStr = keyStr._NormalizeKey(true);
+
+                ImmutableInterlocked.AddOrUpdate(ref this.IndexedKeysTable, keyStr, obj, (k, old) => obj);
+            }
+
+            public bool IndexedKeysTable_DeleteInternal_Critical(string keyStr)
+            {
+                keyStr = keyStr._NormalizeKey(true);
+
+                return ImmutableInterlocked.TryRemove(ref this.IndexedKeysTable, keyStr, out _);
+            }
+
+            public void IndexedLabelsTable_ReplaceObject_Critical(HadbObject obj, HadbIndexColumn column, string? oldLabel, string? newLabel)
+            {
+                obj.CheckIsMemoryDbObject();
+
+                oldLabel = oldLabel._NormalizeKey(true);
+                newLabel = newLabel._NormalizeKey(true);
+
+                if (oldLabel._IsSamei(newLabel) == false)
+                {
+                    string typeName = obj.GetUserDataTypeName();
+
+                    if (newLabel._IsFilled())
+                    {
+                        IndexedLabelsTable_AddInternal_Critical(column.ToString() + ":" + typeName + ":" + newLabel, obj);
+                    }
+
+                    if (oldLabel._IsFilled())
+                    {
+                        IndexedLabelsTable_DeleteInternal_Critical(column.ToString() + ":" + typeName + ":" + oldLabel, obj);
+                    }
+                }
+            }
+
+            public IEnumerable<HadbObject> IndexedLabelsTable_SearchObjects(HadbIndexColumn column, string typeName, string label)
+            {
+                label = label._NormalizeKey(true);
+                typeName = typeName._NonNullTrim();
+
+                if (label._IsEmpty()) return EmptyOf<HadbObject>();
+
+                var list = this.IndexedLabelsTable._GetOrDefault(column.ToString() + ":" + typeName + ":" + label);
+                if (list == null) return EmptyOf<HadbObject>();
+
+                return list.Keys;
+            }
+
+            public void IndexedLabelsTable_AddInternal_Critical(string labelKeyStr, HadbObject obj)
+            {
+                labelKeyStr = labelKeyStr._NormalizeKey(true);
+
+                var list = ImmutableInterlocked.GetOrAdd(ref this.IndexedLabelsTable, labelKeyStr, k => new ConcurrentHashSet<HadbObject>());
+
+                list.Add(obj);
+            }
+
+            public bool IndexedLabelsTable_DeleteInternal_Critical(string labelKeyStr, HadbObject obj)
+            {
+                labelKeyStr = labelKeyStr._NormalizeKey(true);
+
+                var list = this.IndexedLabelsTable._GetOrDefault(labelKeyStr);
+                if (list == null) return false;
+
+                if (list.Remove(obj) == false) return false;
+
+                if (list.Count == 0)
+                {
+                    ImmutableInterlocked.TryRemove(ref this.IndexedLabelsTable, labelKeyStr, out _);
+                }
+
+                return true;
+            }
+        }
+
         protected abstract List<Type> GetDefinedUserDataTypesImpl();
 
-        internal readonly StrDictionary<HadbObject> _AllObjectsDict = new StrDictionary<HadbObject>(StrComparer.IgnoreCaseComparer);
-        public readonly AsyncLock CriticalAsyncLock = new AsyncLock();
+        public readonly AsyncLock CriticalLockAsync = new AsyncLock();
 
-        internal ImmutableDictionary<string, HadbObject> _IndexedKeysTable = ImmutableDictionary<string, HadbObject>.Empty.WithComparers(StrComparer.IgnoreCaseComparer);
-        internal ImmutableDictionary<string, ConcurrentHashSet<HadbObject>> _IndexedLabelsTable = ImmutableDictionary<string, ConcurrentHashSet<HadbObject>>.Empty.WithComparers(StrComparer.IgnoreCaseComparer);
+        public DataSet InternalData = new DataSet();
 
         readonly CriticalSection<HadbMemDataBase> LazyUpdateQueueLock = new CriticalSection<HadbMemDataBase>();
         internal ImmutableDictionary<HadbObject, int> _LazyUpdateQueue = ImmutableDictionary<HadbObject, int>.Empty;
@@ -1299,19 +1470,26 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
-        public async Task ReloadFromDatabaseAsync(IEnumerable<HadbObject> objectList, CancellationToken cancel = default)
+        public async Task ReloadFromDatabaseAsync(IEnumerable<HadbObject> objectList, bool fullReloadMode, CancellationToken cancel = default)
         {
             int countInserted = 0;
             int countUpdated = 0;
             int countRemoved = 0;
 
-            using (await this.CriticalAsyncLock.LockWithAwait(cancel))
+            using (await this.CriticalLockAsync.LockWithAwait(cancel))
             {
+                DataSet data = this.InternalData;
+
+                if (fullReloadMode)
+                {
+                    data = new DataSet();
+                }
+
                 foreach (var newObj in objectList)
                 {
                     try
                     {
-                        if (this._AllObjectsDict.TryGetValue(newObj.Uid, out HadbObject? currentObj))
+                        if (data.AllObjectsDict.TryGetValue(newObj.Uid, out HadbObject? currentObj))
                         {
                             if (currentObj.Internal_UpdateIfNew(EnsureSpecial.Yes, newObj, out HadbKeys oldKeys, out HadbLabels oldLabels))
                             {
@@ -1324,15 +1502,15 @@ namespace IPA.Cores.Basic
                                     countRemoved++;
                                 }
 
-                                IndexedTable_UpdateObject_Critical(currentObj, oldKeys, oldLabels);
+                                data.IndexedTable_UpdateObject_Critical(currentObj, oldKeys, oldLabels);
                             }
                         }
                         else
                         {
                             var obj2 = newObj.ToMemoryDbObject(this);
-                            this._AllObjectsDict[newObj.Uid] = obj2;
+                            data.AllObjectsDict[newObj.Uid] = obj2;
 
-                            IndexedTable_AddObject_Critical(obj2);
+                            data.IndexedTable_AddObject_Critical(obj2);
                             countInserted++;
                         }
                     }
@@ -1341,6 +1519,8 @@ namespace IPA.Cores.Basic
                         ex._Debug();
                     }
                 }
+
+                this.InternalData = data;
             }
 
             if (countInserted > 0 || countRemoved > 0 || countUpdated > 0)
@@ -1354,17 +1534,19 @@ namespace IPA.Cores.Basic
             newObj.Normalize();
             if (newObj.ArchiveAge != 0) throw new CoresLibException("obj.ArchiveAge != 0");
 
-            if (this._AllObjectsDict.TryGetValue(newObj.Uid, out HadbObject? currentObject))
+            var data = this.InternalData;
+
+            if (data.AllObjectsDict.TryGetValue(newObj.Uid, out HadbObject? currentObject))
             {
                 if (currentObject.Internal_UpdateIfNew(EnsureSpecial.Yes, newObj, out HadbKeys oldKeys, out HadbLabels oldLabels))
                 {
                     if (currentObject.Deleted == false)
                     {
-                        IndexedTable_UpdateObject_Critical(currentObject, oldKeys, oldLabels);
+                        data.IndexedTable_UpdateObject_Critical(currentObject, oldKeys, oldLabels);
                     }
                     else
                     {
-                        IndexedTable_DeleteObject_Critical(currentObject, oldKeys, oldLabels);
+                        data.IndexedTable_DeleteObject_Critical(currentObject, oldKeys, oldLabels);
                     }
                 }
 
@@ -1375,8 +1557,8 @@ namespace IPA.Cores.Basic
                 if (newObj.Deleted == false)
                 {
                     var newObj2 = newObj.ToMemoryDbObject(this);
-                    this._AllObjectsDict[newObj.Uid] = newObj2;
-                    IndexedTable_AddObject_Critical(newObj2);
+                    data.AllObjectsDict[newObj.Uid] = newObj2;
+                    data.IndexedTable_AddObject_Critical(newObj2);
                     return newObj2;
                 }
                 else
@@ -1398,86 +1580,6 @@ namespace IPA.Cores.Basic
             ImmutableInterlocked.TryRemove(ref this._LazyUpdateQueue, obj, out _);
         }
 
-        void IndexedTable_DeleteObject_Critical(HadbObject obj, HadbKeys oldKeys, HadbLabels oldLabels)
-        {
-            obj.CheckIsMemoryDbObject();
-
-            string typeName = obj.GetUserDataTypeName();
-
-            IndexedKeysTable_DeleteInternal_Critical(HadbIndexColumn.Uid.ToString() + ":" + typeName + ":" + obj.Uid);
-
-            if (oldKeys.Key1._IsFilled()) IndexedKeysTable_DeleteInternal_Critical(HadbIndexColumn.Key1.ToString() + ":" + typeName + ":" + oldKeys.Key1);
-            if (oldKeys.Key2._IsFilled()) IndexedKeysTable_DeleteInternal_Critical(HadbIndexColumn.Key2.ToString() + ":" + typeName + ":" + oldKeys.Key2);
-            if (oldKeys.Key3._IsFilled()) IndexedKeysTable_DeleteInternal_Critical(HadbIndexColumn.Key3.ToString() + ":" + typeName + ":" + oldKeys.Key3);
-            if (oldKeys.Key4._IsFilled()) IndexedKeysTable_DeleteInternal_Critical(HadbIndexColumn.Key4.ToString() + ":" + typeName + ":" + oldKeys.Key4);
-
-            if (oldLabels.Label1._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(HadbIndexColumn.Label1.ToString() + ":" + typeName + ":" + oldLabels.Label1, obj);
-            if (oldLabels.Label2._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(HadbIndexColumn.Label2.ToString() + ":" + typeName + ":" + oldLabels.Label2, obj);
-            if (oldLabels.Label3._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(HadbIndexColumn.Label3.ToString() + ":" + typeName + ":" + oldLabels.Label3, obj);
-            if (oldLabels.Label4._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(HadbIndexColumn.Label4.ToString() + ":" + typeName + ":" + oldLabels.Label4, obj);
-        }
-
-        void IndexedTable_UpdateObject_Critical(HadbObject obj, HadbKeys oldKeys, HadbLabels oldLabels)
-        {
-            obj.CheckIsMemoryDbObject();
-
-            HadbKeys newKeys = obj.GetKeys();
-            HadbLabels newLabels = obj.GetLabels();
-
-            if (oldKeys.Key1._IsSamei(newKeys.Key1) == false) IndexedKeysTable_ReplaceObject_Critical(obj, HadbIndexColumn.Key1, oldKeys.Key1, newKeys.Key1);
-            if (oldKeys.Key2._IsSamei(newKeys.Key2) == false) IndexedKeysTable_ReplaceObject_Critical(obj, HadbIndexColumn.Key2, oldKeys.Key2, newKeys.Key2);
-            if (oldKeys.Key3._IsSamei(newKeys.Key3) == false) IndexedKeysTable_ReplaceObject_Critical(obj, HadbIndexColumn.Key3, oldKeys.Key3, newKeys.Key3);
-            if (oldKeys.Key4._IsSamei(newKeys.Key4) == false) IndexedKeysTable_ReplaceObject_Critical(obj, HadbIndexColumn.Key4, oldKeys.Key4, newKeys.Key4);
-
-            if (oldLabels.Label1._IsSamei(newLabels.Label1) == false) IndexedLabelsTable_ReplaceObject_Critical(obj, HadbIndexColumn.Label1, oldLabels.Label1, newLabels.Label1);
-            if (oldLabels.Label2._IsSamei(newLabels.Label2) == false) IndexedLabelsTable_ReplaceObject_Critical(obj, HadbIndexColumn.Label2, oldLabels.Label2, newLabels.Label2);
-            if (oldLabels.Label3._IsSamei(newLabels.Label3) == false) IndexedLabelsTable_ReplaceObject_Critical(obj, HadbIndexColumn.Label3, oldLabels.Label3, newLabels.Label3);
-            if (oldLabels.Label4._IsSamei(newLabels.Label4) == false) IndexedLabelsTable_ReplaceObject_Critical(obj, HadbIndexColumn.Label4, oldLabels.Label4, newLabels.Label4);
-        }
-
-        void IndexedTable_AddObject_Critical(HadbObject obj)
-        {
-            obj.CheckIsMemoryDbObject();
-
-            var newKeys = obj.GetKeys();
-            var newLabels = obj.GetLabels();
-
-            string typeName = obj.GetUserDataTypeName();
-
-            IndexedKeysTable_AddOrUpdateInternal_Critical(HadbIndexColumn.Uid.ToString() + ":" + typeName + ":" + obj.Uid, obj);
-
-            if (newKeys.Key1._IsFilled()) IndexedKeysTable_AddOrUpdateInternal_Critical(HadbIndexColumn.Key1.ToString() + ":" + typeName + ":" + newKeys.Key1, obj);
-            if (newKeys.Key2._IsFilled()) IndexedKeysTable_AddOrUpdateInternal_Critical(HadbIndexColumn.Key2.ToString() + ":" + typeName + ":" + newKeys.Key2, obj);
-            if (newKeys.Key3._IsFilled()) IndexedKeysTable_AddOrUpdateInternal_Critical(HadbIndexColumn.Key3.ToString() + ":" + typeName + ":" + newKeys.Key3, obj);
-            if (newKeys.Key4._IsFilled()) IndexedKeysTable_AddOrUpdateInternal_Critical(HadbIndexColumn.Key4.ToString() + ":" + typeName + ":" + newKeys.Key4, obj);
-
-            if (newLabels.Label1._IsFilled()) IndexedLabelsTable_AddInternal_Critical(HadbIndexColumn.Label1.ToString() + ":" + typeName + ":" + newLabels.Label1, obj);
-            if (newLabels.Label2._IsFilled()) IndexedLabelsTable_AddInternal_Critical(HadbIndexColumn.Label2.ToString() + ":" + typeName + ":" + newLabels.Label2, obj);
-            if (newLabels.Label3._IsFilled()) IndexedLabelsTable_AddInternal_Critical(HadbIndexColumn.Label3.ToString() + ":" + typeName + ":" + newLabels.Label3, obj);
-            if (newLabels.Label4._IsFilled()) IndexedLabelsTable_AddInternal_Critical(HadbIndexColumn.Label4.ToString() + ":" + typeName + ":" + newLabels.Label4, obj);
-        }
-
-        void IndexedKeysTable_ReplaceObject_Critical(HadbObject obj, HadbIndexColumn column, string? oldKey, string? newKey)
-        {
-            obj.CheckIsMemoryDbObject();
-
-            oldKey = oldKey._NormalizeKey(true);
-            newKey = newKey._NormalizeKey(true);
-
-            if (newKey._IsSamei(oldKey) == false)
-            {
-                if (newKey._IsFilled())
-                {
-                    IndexedKeysTable_AddOrUpdateInternal_Critical(column.ToString() + ":" + obj.GetUserDataTypeName() + ":" + newKey, obj);
-                }
-
-                if (oldKey._IsFilled())
-                {
-                    IndexedKeysTable_DeleteInternal_Critical(column.ToString() + ":" + obj.GetUserDataTypeName() + ":" + oldKey);
-                }
-            }
-        }
-
         public HadbObject? IndexedKeysTable_SearchByUid(string uid, string typeName)
         {
             uid = uid._NormalizeKey(true);
@@ -1486,7 +1588,7 @@ namespace IPA.Cores.Basic
 
             if (uid._IsEmpty()) return null;
 
-            HadbObject? ret = IndexedKeysTable_SearchObject(HadbIndexColumn.Uid, typeName, uid);
+            HadbObject? ret = this.InternalData.IndexedKeysTable_SearchObject(HadbIndexColumn.Uid, typeName, uid);
 
             return ret;
         }
@@ -1503,79 +1605,33 @@ namespace IPA.Cores.Basic
 
             List<HadbObject> list = new List<HadbObject>();
 
+            var data = this.InternalData;
+
             if (key.Key1._IsFilled())
             {
-                var obj = IndexedKeysTable_SearchObject(HadbIndexColumn.Key1, typeName, key.Key1);
+                var obj = data.IndexedKeysTable_SearchObject(HadbIndexColumn.Key1, typeName, key.Key1);
                 if (obj != null) list.Add(obj);
             }
 
             if (key.Key2._IsFilled())
             {
-                var obj = IndexedKeysTable_SearchObject(HadbIndexColumn.Key2, typeName, key.Key2);
+                var obj = data.IndexedKeysTable_SearchObject(HadbIndexColumn.Key2, typeName, key.Key2);
                 if (obj != null) list.Add(obj);
             }
 
             if (key.Key3._IsFilled())
             {
-                var obj = IndexedKeysTable_SearchObject(HadbIndexColumn.Key3, typeName, key.Key3);
+                var obj = data.IndexedKeysTable_SearchObject(HadbIndexColumn.Key3, typeName, key.Key3);
                 if (obj != null) list.Add(obj);
             }
 
             if (key.Key4._IsFilled())
             {
-                var obj = IndexedKeysTable_SearchObject(HadbIndexColumn.Key4, typeName, key.Key4);
+                var obj = data.IndexedKeysTable_SearchObject(HadbIndexColumn.Key4, typeName, key.Key4);
                 if (obj != null) list.Add(obj);
             }
 
             return list;
-        }
-
-        HadbObject? IndexedKeysTable_SearchObject(HadbIndexColumn column, string typeName, string key)
-        {
-            key = key._NormalizeKey(true);
-            typeName = typeName._NonNullTrim();
-
-            if (key._IsEmpty()) return null;
-
-            return this._IndexedKeysTable._GetOrDefault(column.ToString() + ":" + typeName + ":" + key);
-        }
-
-        void IndexedKeysTable_AddOrUpdateInternal_Critical(string keyStr, HadbObject obj)
-        {
-            keyStr = keyStr._NormalizeKey(true);
-
-            ImmutableInterlocked.AddOrUpdate(ref this._IndexedKeysTable, keyStr, obj, (k, old) => obj);
-        }
-
-        bool IndexedKeysTable_DeleteInternal_Critical(string keyStr)
-        {
-            keyStr = keyStr._NormalizeKey(true);
-
-            return ImmutableInterlocked.TryRemove(ref this._IndexedKeysTable, keyStr, out _);
-        }
-
-
-        void IndexedLabelsTable_ReplaceObject_Critical(HadbObject obj, HadbIndexColumn column, string? oldLabel, string? newLabel)
-        {
-            obj.CheckIsMemoryDbObject();
-
-            oldLabel = oldLabel._NormalizeKey(true);
-            newLabel = newLabel._NormalizeKey(true);
-
-            if (oldLabel._IsSamei(newLabel) == false)
-            {
-                string typeName = obj.GetUserDataTypeName();
-
-                if (newLabel._IsFilled())
-                {
-                    IndexedLabelsTable_AddInternal_Critical(column.ToString() + ":" + typeName + ":" + newLabel, obj);
-                }
-
-                if (oldLabel._IsFilled())
-                {
-                    IndexedLabelsTable_DeleteInternal_Critical(column.ToString() + ":" + typeName + ":" + oldLabel, obj);
-                }
-            }
         }
 
         public IEnumerable<HadbObject> IndexedLabelsTable_SearchByLabels(HadbLabels labels, string typeName)
@@ -1589,27 +1645,29 @@ namespace IPA.Cores.Basic
             IEnumerable<HadbObject>? tmp3 = null;
             IEnumerable<HadbObject>? tmp4 = null;
 
+            var data = this.InternalData;
+
             if (labels.Label1._IsFilled())
             {
-                tmp1 = IndexedLabelsTable_SearchObjects(HadbIndexColumn.Label1, typeName, labels.Label1);
+                tmp1 = data.IndexedLabelsTable_SearchObjects(HadbIndexColumn.Label1, typeName, labels.Label1);
                 if (ret == null) ret = tmp1;
             }
 
             if (labels.Label2._IsFilled())
             {
-                tmp2 = IndexedLabelsTable_SearchObjects(HadbIndexColumn.Label2, typeName, labels.Label2);
+                tmp2 = data.IndexedLabelsTable_SearchObjects(HadbIndexColumn.Label2, typeName, labels.Label2);
                 if (ret == null) ret = tmp2;
             }
 
             if (labels.Label3._IsFilled())
             {
-                tmp3 = IndexedLabelsTable_SearchObjects(HadbIndexColumn.Label3, typeName, labels.Label3);
+                tmp3 = data.IndexedLabelsTable_SearchObjects(HadbIndexColumn.Label3, typeName, labels.Label3);
                 if (ret == null) ret = tmp3;
             }
 
             if (labels.Label4._IsFilled())
             {
-                tmp4 = IndexedLabelsTable_SearchObjects(HadbIndexColumn.Label4, typeName, labels.Label4);
+                tmp4 = data.IndexedLabelsTable_SearchObjects(HadbIndexColumn.Label4, typeName, labels.Label4);
                 if (ret == null) ret = tmp4;
             }
 
@@ -1621,45 +1679,6 @@ namespace IPA.Cores.Basic
             if (tmp4 != null && object.ReferenceEquals(ret, tmp4) == false) ret = ret.Intersect(tmp4);
 
             return ret;
-        }
-
-        IEnumerable<HadbObject> IndexedLabelsTable_SearchObjects(HadbIndexColumn column, string typeName, string label)
-        {
-            label = label._NormalizeKey(true);
-            typeName = typeName._NonNullTrim();
-
-            if (label._IsEmpty()) return EmptyOf<HadbObject>();
-
-            var list = this._IndexedLabelsTable._GetOrDefault(column.ToString() + ":" + typeName + ":" + label);
-            if (list == null) return EmptyOf<HadbObject>();
-
-            return list.Keys;
-        }
-
-        void IndexedLabelsTable_AddInternal_Critical(string labelKeyStr, HadbObject obj)
-        {
-            labelKeyStr = labelKeyStr._NormalizeKey(true);
-
-            var list = ImmutableInterlocked.GetOrAdd(ref this._IndexedLabelsTable, labelKeyStr, k => new ConcurrentHashSet<HadbObject>());
-
-            list.Add(obj);
-        }
-
-        bool IndexedLabelsTable_DeleteInternal_Critical(string labelKeyStr, HadbObject obj)
-        {
-            labelKeyStr = labelKeyStr._NormalizeKey(true);
-
-            var list = this._IndexedLabelsTable._GetOrDefault(labelKeyStr);
-            if (list == null) return false;
-
-            if (list.Remove(obj) == false) return false;
-
-            if (list.Count == 0)
-            {
-                ImmutableInterlocked.TryRemove(ref this._IndexedLabelsTable, labelKeyStr, out _);
-            }
-
-            return true;
         }
     }
 
@@ -1857,7 +1876,7 @@ namespace IPA.Cores.Basic
                     TMem? currentMemDb = this.MemDb;
                     if (currentMemDb == null) currentMemDb = new TMem();
 
-                    await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, cancel);
+                    await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, true, cancel);
 
                     this.MemDb = currentMemDb;
                 }
@@ -2173,7 +2192,7 @@ namespace IPA.Cores.Basic
             {
                 if (this.LockHolder == null)
                 {
-                    this.LockHolder = await this.MemDb.CriticalAsyncLock.LockWithAwait(cancel);
+                    this.LockHolder = await this.MemDb.CriticalLockAsync.LockWithAwait(cancel);
                 }
             }
 
