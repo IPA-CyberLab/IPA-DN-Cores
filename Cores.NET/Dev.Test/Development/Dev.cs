@@ -2168,8 +2168,6 @@ namespace IPA.Cores.Basic
 
             protected abstract Task CommitImplAsync(CancellationToken cancel);
 
-            AsyncLock.LockHolder? LockHolder = null;
-
             public HadbBase<TMem, TDynamicConfig> Hadb;
 
             public HadbTran(bool writeMode, bool isTransaction, HadbBase<TMem, TDynamicConfig> hadb)
@@ -2188,12 +2186,9 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            public async Task BeginAsync(CancellationToken cancel = default)
+            public Task BeginAsync(CancellationToken cancel = default)
             {
-                if (this.LockHolder == null)
-                {
-                    this.LockHolder = await this.MemDb.CriticalLockAsync.LockWithAwait(cancel);
-                }
+                return TaskCompleted;
             }
 
             public void CheckIsWriteMode()
@@ -2232,11 +2227,11 @@ namespace IPA.Cores.Basic
 
             readonly Once flushed = new Once();
 
-            Task FinishInternalAsync(CancellationToken cancel = default)
+            async Task FinishInternalAsync(CancellationToken cancel = default)
             {
                 if (flushed.IsFirstCall())
                 {
-                    try
+                    using (await this.MemDb.CriticalLockAsync.LockWithAwait(cancel))
                     {
                         foreach (var obj in this.ApplyObjectsList)
                         {
@@ -2250,13 +2245,7 @@ namespace IPA.Cores.Basic
                             }
                         }
                     }
-                    finally
-                    {
-                        this.LockHolder._DisposeSafe();
-                    }
                 }
-
-                return Task.CompletedTask;
             }
 
             protected override async Task CleanupImplAsync(Exception? ex)
@@ -2267,8 +2256,6 @@ namespace IPA.Cores.Basic
                     {
                         await this.FinishInternalAsync();
                     }
-
-                    this.LockHolder._DisposeSafe();
                 }
                 finally
                 {
