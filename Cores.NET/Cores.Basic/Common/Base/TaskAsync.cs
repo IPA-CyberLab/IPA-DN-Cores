@@ -483,6 +483,9 @@ namespace IPA.Cores.Basic
 
         SemaphoreSlim? Semaphone = new SemaphoreSlim(1, 1);
         Once DisposeFlag;
+        int _NumWaitingInternal = 0;
+
+        public int NumWaiting => this._NumWaitingInternal;
 
         public async Task<LockHolder> LockWithAwait(CancellationToken cancel = default)
         {
@@ -497,8 +500,30 @@ namespace IPA.Cores.Basic
             return new LockHolder(this);
         }
 
-        public Task _LockAsync(CancellationToken cancel = default) => Semaphone!.WaitAsync(cancel);
-        public void _Lock(CancellationToken cancel = default) => Semaphone!.Wait(cancel);
+        public async Task _LockAsync(CancellationToken cancel = default)
+        {
+            Interlocked.Increment(ref this._NumWaitingInternal);
+            try
+            {
+                await Semaphone!.WaitAsync(cancel);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref this._NumWaitingInternal);
+            }
+        }
+        public void _Lock(CancellationToken cancel = default)
+        {
+            Interlocked.Increment(ref this._NumWaitingInternal);
+            try
+            {
+                Semaphone!.Wait(cancel);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref this._NumWaitingInternal);
+            }
+        }
         public void Unlock() => Semaphone!.Release();
 
         public bool IsLocked => ((Semaphone?.CurrentCount ?? 1) == 0);
