@@ -1584,15 +1584,23 @@ namespace IPA.Cores.Basic
         }
 
         // UID を正規化する
-        public static string NormalizeUid(string? uid)
+        public static string NormalizeUid(string? uid, bool checkSqlSafe = false)
         {
-            return uid._NonNullTrim().ToUpper();
+            string ret = uid._NonNullTrim().ToUpper();
+
+            if (checkSqlSafe) ret._CheckSqlMaxSafeStrLength();
+
+            return ret;
         }
 
         // 任意のキーを正規化する
-        public static string NormalizeKey(string? key)
+        public static string NormalizeKey(string? key, bool checkSqlSafe = false)
         {
-            return key._NonNullTrim().ToUpper();
+            string ret = key._NonNullTrim().ToUpper();
+
+            if (checkSqlSafe) ret._CheckSqlMaxSafeStrLength();
+
+            return ret;
         }
 
         // 新しい UID を生成する
@@ -6140,6 +6148,36 @@ namespace IPA.Cores.Basic
             string ret = dt.ToString("HHmmss");
 
             return Str.StrToInt(ret);
+        }
+
+        public static long DateTimeToYymmddHHmmssLong(DateTime dt, int zeroValue = 0, bool yearTwoDigits = false)
+        {
+            if (dt._IsZeroDateTime())
+            {
+                return zeroValue;
+            }
+
+            string ret = dt.ToString("yyyyMMddHHmmss");
+
+            if (yearTwoDigits)
+            {
+                ret = ret.Substring(2);
+            }
+
+            return Str.StrToLong(ret);
+        }
+
+        public static string GenerateRandomDigit(int numDigits)
+        {
+            StringBuilder sb = new StringBuilder();
+
+            for (int i = 0; i < numDigits; i++)
+            {
+                char c = (char)('0' + Secure.RandSInt31() % 10);
+                sb.Append(c);
+            }
+
+            return sb.ToString();
         }
 
         public static string DateTimeToDtstr(DateTime dt, bool withMSecs = false, DtStrOption option = DtStrOption.All, bool withNanoSecs = false, string zeroDateTimeStr = "")

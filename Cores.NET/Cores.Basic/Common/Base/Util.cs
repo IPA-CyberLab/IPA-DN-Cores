@@ -2062,6 +2062,7 @@ namespace IPA.Cores.Basic
             return RandDouble0To1() * (maximum - minimum) + minimum;
         }
 
+        [SkipLocalsInit]
         public static byte RandUInt8()
         {
             Span<byte> mem = stackalloc byte[1];
@@ -2069,6 +2070,7 @@ namespace IPA.Cores.Basic
             return mem._GetUInt8();
         }
 
+        [SkipLocalsInit]
         public static ushort RandUInt16()
         {
             Span<byte> mem = stackalloc byte[2];
@@ -2076,6 +2078,7 @@ namespace IPA.Cores.Basic
             return mem._GetUInt16();
         }
 
+        [SkipLocalsInit]
         public static uint RandUInt32()
         {
             Span<byte> mem = stackalloc byte[4];
@@ -2083,6 +2086,7 @@ namespace IPA.Cores.Basic
             return mem._GetUInt32();
         }
 
+        [SkipLocalsInit]
         public static ulong RandUInt64()
         {
             Span<byte> mem = stackalloc byte[8];
@@ -2090,6 +2094,7 @@ namespace IPA.Cores.Basic
             return mem._GetUInt64();
         }
 
+        [SkipLocalsInit]
         public static byte RandUInt7()
         {
             Span<byte> mem = stackalloc byte[1];
@@ -2098,6 +2103,7 @@ namespace IPA.Cores.Basic
             return mem._GetUInt8();
         }
 
+        [SkipLocalsInit]
         public static ushort RandUInt15()
         {
             Span<byte> mem = stackalloc byte[2];
@@ -2106,6 +2112,7 @@ namespace IPA.Cores.Basic
             return mem._GetUInt16();
         }
 
+        [SkipLocalsInit]
         public static uint RandUInt31()
         {
             Span<byte> mem = stackalloc byte[4];
@@ -2114,6 +2121,7 @@ namespace IPA.Cores.Basic
             return mem._GetUInt32();
         }
 
+        [SkipLocalsInit]
         public static ulong RandUInt63()
         {
             Span<byte> mem = stackalloc byte[8];
@@ -2122,6 +2130,7 @@ namespace IPA.Cores.Basic
             return mem._GetUInt64();
         }
 
+        [SkipLocalsInit]
         public static sbyte RandSInt8_Caution()
         {
             Span<byte> mem = stackalloc byte[1];
@@ -2129,6 +2138,7 @@ namespace IPA.Cores.Basic
             return mem._GetSInt8();
         }
 
+        [SkipLocalsInit]
         public static short RandSInt16_Caution()
         {
             Span<byte> mem = stackalloc byte[2];
@@ -2136,6 +2146,7 @@ namespace IPA.Cores.Basic
             return mem._GetSInt16();
         }
 
+        [SkipLocalsInit]
         public static int RandSInt32_Caution()
         {
             Span<byte> mem = stackalloc byte[4];
@@ -2143,6 +2154,7 @@ namespace IPA.Cores.Basic
             return mem._GetSInt32();
         }
 
+        [SkipLocalsInit]
         public static long RandSInt64_Caution()
         {
             Span<byte> mem = stackalloc byte[8];
@@ -2150,6 +2162,7 @@ namespace IPA.Cores.Basic
             return mem._GetSInt64();
         }
 
+        [SkipLocalsInit]
         public static sbyte RandSInt7()
         {
             Span<byte> mem = stackalloc byte[1];
@@ -2158,6 +2171,7 @@ namespace IPA.Cores.Basic
             return mem._GetSInt8();
         }
 
+        [SkipLocalsInit]
         public static short RandSInt15()
         {
             Span<byte> mem = stackalloc byte[2];
@@ -2166,6 +2180,7 @@ namespace IPA.Cores.Basic
             return mem._GetSInt16();
         }
 
+        [SkipLocalsInit]
         public static int RandSInt31()
         {
             Span<byte> mem = stackalloc byte[4];
@@ -2174,6 +2189,7 @@ namespace IPA.Cores.Basic
             return mem._GetSInt32();
         }
 
+        [SkipLocalsInit]
         public static long RandSInt63()
         {
             Span<byte> mem = stackalloc byte[8];
@@ -6607,6 +6623,9 @@ namespace IPA.Cores.Basic
         public bool Add(TKey item) => TryAdd(item, 0);
         public bool Remove(TKey item) => TryRemove(item, out _);
         public bool Contains(TKey item) => ContainsKey(item);
+
+        public new TKey[] ToArray() => base.Keys.ToArray();
+        public List<TKey> ToList() => base.Keys.ToList();
     }
 
     public class SystemAndUser<TSystem, TUser>
@@ -8338,7 +8357,9 @@ namespace IPA.Cores.Basic
             string functionName = caller._FilledOrDefault("UnknownFunction");
             if (srcMessage._IsEmpty()) srcMessage = nameof(CoresLibException);
 
-            return $"{className} - {functionName}(): {srcMessage}";
+            string fileInfo = $"{Path.GetFileName(filename)}:{line}";
+
+            return $"{className} - {functionName}() <{fileInfo}>: {srcMessage}";
         }
     }
 

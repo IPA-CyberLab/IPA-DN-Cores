@@ -416,6 +416,9 @@ namespace IPA.Cores.Globals
             }
             return ret;
         }
+
+        [MethodImpl(Inline)]
+        public static T[] EmptyOf<T>() => Array.Empty<T>();
     }
 }
 

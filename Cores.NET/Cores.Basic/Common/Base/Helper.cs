@@ -2971,8 +2971,24 @@ namespace IPA.Cores.Helper.Basic
             return null;
         }
 
-        public static string _NormalizeUid(this string? uid) => Str.NormalizeUid(uid);
-        public static string _NormalizeKey(this string? key) => Str.NormalizeKey(key);
+        public static string _NormalizeUid(this string? uid, bool checkSqlSafe = false) => Str.NormalizeUid(uid, checkSqlSafe);
+        public static string _NormalizeKey(this string? key, bool checkSqlSafe = false) => Str.NormalizeKey(key, checkSqlSafe);
+
+        public static void _CheckSqlMaxSafeStrLength(this string? str, string? paramName = null)
+        {
+            str = str._NonNull();
+            if (str.Length > Consts.Numbers.SqlMaxSafeStrLength)
+            {
+                if (paramName._IsFilled())
+                {
+                    throw new ArgumentException($"str.Length too long: ({str.Length}) > {Consts.Numbers.SqlMaxSafeStrLength}", paramName);
+                }
+                else
+                {
+                    throw new ArgumentException($"str.Length too long: ({str.Length}) > {Consts.Numbers.SqlMaxSafeStrLength}");
+                }
+            }
+        }
     }
 }
 

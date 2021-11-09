@@ -528,6 +528,7 @@ namespace IPA.TestDev
             string aclStr = "192.168.3.0/24, 192.168.4.0/24, 2001:c90::/32, !192.168.5.0/24, 10.0.0.0/8, 172.16.0.0/12";
             var aclSampleIp = "192.168.5.0"._ToIPAddress()!;
             var cloneDeepSampleObj = BmTest_DeepClone.CreateSampleObject();
+            HadbTestData cloneDeepSampleObj2 = new HadbTestData() { HostName = "abc", IPv4Address = "123", IPv6Address = "456", TestInt = 789 };
 
             var queue = new MicroBenchmarkQueue()
 
@@ -564,9 +565,21 @@ namespace IPA.TestDev
                 });
             }), enabled: true, priority: 210731)
 
+            .Add(new MicroBenchmark($"CloneDeep_DeepCloner_cloneDeepSampleObj2", Benchmark_CountForSlow, count =>
+            {
+                Async(async () =>
+                {
+                    for (int c = 0; c < count; c++)
+                    {
+                        cloneDeepSampleObj2._CloneDeep(DeepCloneMethod.DeepCloner);
+                    }
+                });
+            }), enabled: true, priority: 210731)
+
             .Add(new MicroBenchmark($"DnsTools_Build", Benchmark_CountForNormal, count =>
             {
                 // 元: DnsTools_Build: 537.80 ns, 1,859,419 / sec
+                // 先: DnsTools_Build: 327.78 ns, 3,050,848 / sec
 
                 var packetMem = Res.AppRoot["210613_novlan_dns_query_simple.txt"].HexParsedBinary;
                 Packet packet = new Packet(default, packetMem._CloneSpan());
@@ -586,6 +599,7 @@ namespace IPA.TestDev
             .Add(new MicroBenchmark($"DnsTools_Parse", Benchmark_CountForNormal, count =>
             {
                 // 元: DnsTools_Parse: 208.81 ns, 4,789,072 / sec
+                // 先: DnsTools_Parse: 193.02 ns, 5,180,911 / sec
 
                 var packetMem = Res.AppRoot["210613_novlan_dns_query_simple.txt"].HexParsedBinary;
                 Packet packet = new Packet(default, packetMem._CloneSpan());

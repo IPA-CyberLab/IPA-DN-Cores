@@ -2324,19 +2324,33 @@ namespace IPA.TestDev
             Console.ReadLine();
         }
 
+        static void Test_211108()
+        {
+            Async(async () =>
+            {
+                HadbCodeTest t = new HadbCodeTest();
+                await t.Test1Async();
+                t.SystemName._Print();
+            }
+            );
+        }
+
         static void Test_211017()
         {
             Async(async () =>
             {
-                await using MikakaDDnsHadb db = new MikakaDDnsHadb(new HadbSqlSettings("Mikaka",
+                var settings = new HadbSqlSettings("TEST",
                     new SqlDatabaseConnectionSetting("10.40.0.103", "TEST_DN_DBSVC1", "sql_test_dn_dbsvc1_reader", "testabc"),
-                    new SqlDatabaseConnectionSetting("10.40.0.103", "TEST_DN_DBSVC1", "sql_test_dn_dbsvc1_writer", "testabc")),
-                    new MikakaDDnsDynamicConfig() { /*TestDef = new string[] { "Hello", "World" }*/ });
+                    new SqlDatabaseConnectionSetting("10.40.0.103", "TEST_DN_DBSVC1", "sql_test_dn_dbsvc1_writer", "testabc"),
+                    HadbOptionFlags.NoAutoDbUpdate);
 
-                db.StartLoop();
+                await using HadbTest db = new HadbTest(settings,
+                    new HadbTestDynamicConfig() { /*TestDef = new string[] { "Hello", "World" }*/ });
+
+                db.Start();
 
                 Con.WriteLine("Wait for ready...");
-                await db.WaitUntilReadyForReliableAsync();
+                await db.WaitUntilReadyForAtomicAsync();
                 Con.WriteLine("Ready.");
 
                 while (true)
@@ -2349,30 +2363,118 @@ namespace IPA.TestDev
 
                     if (str._TryTrimStartWith(out string uid, StringComparison.OrdinalIgnoreCase, "?"))
                     {
-                        var obj = await db.ReliableGetAsync<MikakaDDnsHost>(uid);
-                        obj._PrintAsJson();
+                        await db.TranAsync(writeMode: false, async tran =>
+                        {
+                            var obj = await tran.AtomicGetAsync<HadbTestData>(uid);
+                            obj._PrintAsJson();
+                            return false;
+                        });
                     }
                     else if (str._TryTrimStartWith(out string key, StringComparison.OrdinalIgnoreCase, "!"))
                     {
-                        var obj = await db.ReliableSearchAsync<MikakaDDnsHost>(new HadbKeys(key));
-                        obj._PrintAsJson();
+                        await db.TranAsync(writeMode: false, async tran =>
+                        {
+                            var obj = await tran.AtomicSearchByKeyAsync<HadbTestData>(new HadbKeys(key));
+                            obj._PrintAsJson();
+                            return false;
+                        });
+                    }
+                    else if (str._TryTrimStartWith(out string label, StringComparison.OrdinalIgnoreCase, ">"))
+                    {
+                        await db.TranAsync(writeMode: false, async tran =>
+                        {
+                            var obj = await tran.AtomicSearchByLabelsAsync<HadbTestData>(new HadbLabels(label));
+                            obj._PrintAsJson();
+                            return false;
+                        });
                     }
                     else if (str._TryTrimStartWith(out string uid2, StringComparison.OrdinalIgnoreCase, "-"))
                     {
-                        var obj = await db.ReliableDeleteAsync<MikakaDDnsHost>(uid2);
-                        Con.WriteLine($"Deleted = {obj._ObjectToJson()}");
+                        await db.TranAsync(writeMode: true, async tran =>
+                        {
+                            var obj = await tran.AtomicDeleteAsync<HadbTestData>(uid2);
+                            Con.WriteLine($"Deleted = {obj._ObjectToJson()}");
+                            return true;
+                        });
+                    }
+                    else if (str._TryTrimStartWith(out string key3, StringComparison.OrdinalIgnoreCase, "*"))
+                    {
+                        var obj = db.FastSearchByKey<HadbTestData>(new HadbKeys(key3));
+                        if (obj == null)
+                        {
+                            Con.WriteLine("Not found.");
+                        }
+                        else
+                        {
+                            obj.FastUpdate<HadbTestData>(x =>
+                            {
+                                x.TestInt++;
+                                x.IPv4Address += "_" + Secure.RandSInt31() % 10;
+                                return true;
+                            });
+                        }
+                    }
+                    else if (str._TryTrimStartWith(out string key2, StringComparison.OrdinalIgnoreCase, "+"))
+                    {
+                        await db.TranAsync(writeMode: true, async tran =>
+                        {
+                            var obj = await tran.AtomicSearchByKeyAsync<HadbTestData>(new HadbKeys(key2));
+                            if (obj == null)
+                            {
+                                Con.WriteLine("Not found.");
+                                return false;
+                            }
+                            else
+                            {
+                                var data = obj.GetData<HadbTestData>();
+                                data.IPv4Address += "_" + Secure.RandSInt31() % 10;
+                                data.IPv6Address += "_" + Secure.RandSInt31() % 10;
+                                data.HostName += "_" + Secure.RandSInt31() % 10;
+                                obj = await tran.AtomicUpdateAsync(obj);
+                                obj._PrintAsJson();
+                                return true;
+                            }
+                        });
                     }
                     else
                     {
-                        MikakaDDnsHost host = new MikakaDDnsHost
+                        await db.TranAsync(writeMode: true, async tran =>
                         {
-                            HostName = str,
-                            IPv4Address = "127.0.0.1",
-                            IPv6Address = "2001::1234",
-                            TestInt = 1,
-                        };
+                            HadbTestData host = new HadbTestData
+                            {
+                                HostName = str,
+                                IPv4Address = "apple",
+                                IPv6Address = "microsoft",
+                                TestInt = 1,
+                            };
 
-                        await db.ReliableAddAsync(host);
+                            await tran.AtomicAddAsync(host);
+                            return true;
+                        });
+                    }
+                }
+            });
+        }
+
+        static void Test_211031()
+        {
+            Async(async () =>
+            {
+                List<string> conns = new List<string>();
+                conns.Add(new SqlDatabaseConnectionSetting("10.40.0.103", "TESTDB3", "sql_test_211031", "Micro12az"));
+                conns.Add(new SqlDatabaseConnectionSetting("10.40.0.103", "TESTDB4", "sql_test_211031", "Micro12az"));
+
+                foreach (var connstr in conns)
+                {
+                    await using var db = new Database(connstr);
+
+                    await db.EnsureOpenAsync();
+
+                    for (int i = 0; i < 10000; i++)
+                    {
+                        await db.EasyExecuteAsync("insert into TEST (TEST_STR) values (@A)", new { A = Util.RandSInt63().ToString() });
+
+                        if ((i % 100) == 0) i._ToString3()._Print();
                     }
                 }
             });
@@ -2380,6 +2482,12 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_211108();
+                return;
+            }
+
             if (true)
             {
                 Test_211017();

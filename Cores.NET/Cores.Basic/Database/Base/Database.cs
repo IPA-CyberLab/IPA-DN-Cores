@@ -375,13 +375,15 @@ namespace IPA.Cores.Basic
             this.Once = new Once();
         }
 
-        public async Task CommitAsync()
+        public async Task CommitAsync(CancellationToken cancel = default)
         {
-            await this.db.CommitAsync();
+            cancel.ThrowIfCancellationRequested();
+            await this.db.CommitAsync(cancel);
         }
 
-        public void Commit()
+        public void Commit(CancellationToken cancel = default)
         {
+            cancel.ThrowIfCancellationRequested();
             this.db.Commit();
         }
 
@@ -1247,7 +1249,11 @@ namespace IPA.Cores.Basic
                     numRetry++;
                     if (numRetry <= retryConfig.RetryCount)
                     {
-                        Kernel.SleepThread(Util.GenRandInterval(retryConfig.RetryAverageInterval));
+                        int nextInterval = Util.GenRandInterval(retryConfig.RetryAverageInterval);
+
+                        $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {sqlex.ToString()}"._Debug();
+
+                        Kernel.SleepThread(Util.GenRandInterval(nextInterval));
 
                         goto LABEL_RETRY;
                     }
@@ -1270,9 +1276,9 @@ namespace IPA.Cores.Basic
             });
         }
 
-        public Task<bool> TranAsync(TransactionalTaskAsync task) => TranAsync(null, null, task);
-        public Task<bool> TranAsync(IsolationLevel? isolationLevel, TransactionalTaskAsync task) => TranAsync(isolationLevel, null, task);
-        public async Task<bool> TranAsync(IsolationLevel? isolationLevel, DeadlockRetryConfig? retryConfig, TransactionalTaskAsync task)
+        public Task<bool> TranAsync(TransactionalTaskAsync task) => TranAsync(null, null, task, default);
+        public Task<bool> TranAsync(IsolationLevel? isolationLevel, TransactionalTaskAsync task) => TranAsync(isolationLevel, null, task, default);
+        public async Task<bool> TranAsync(IsolationLevel? isolationLevel, DeadlockRetryConfig? retryConfig, TransactionalTaskAsync task, CancellationToken cancel = default)
         {
             await EnsureOpenAsync();
             if (retryConfig == null)
@@ -1285,11 +1291,11 @@ namespace IPA.Cores.Basic
             LABEL_RETRY:
             try
             {
-                await using (UsingTran u = await this.UsingTranAsync(isolationLevel))
+                await using (UsingTran u = await this.UsingTranAsync(isolationLevel, cancel))
                 {
                     if (await task())
                     {
-                        await u.CommitAsync();
+                        await u.CommitAsync(cancel);
 
                         return true;
                     }
@@ -1308,7 +1314,11 @@ namespace IPA.Cores.Basic
                     numRetry++;
                     if (numRetry <= retryConfig.RetryCount)
                     {
-                        await Task.Delay(Util.GenRandInterval(retryConfig.RetryAverageInterval));
+                        int nextInterval = Util.GenRandInterval(retryConfig.RetryAverageInterval);
+
+                        $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {sqlex.ToString()}"._Debug();
+
+                        await Task.Delay(nextInterval);
 
                         goto LABEL_RETRY;
                     }

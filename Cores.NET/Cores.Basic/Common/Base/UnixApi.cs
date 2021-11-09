@@ -32,6 +32,7 @@
 
 using System;
 using System.Buffers;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -157,6 +158,7 @@ namespace IPA.Cores.Basic
         [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_GetSid")]
         internal static extern int GetSid(int pid);
 
+        [SkipLocalsInit]
         public static unsafe void NewPipe(out IntPtr p0_read, out IntPtr p1_write)
         {
             int* fds = stackalloc int[2];
