@@ -79,6 +79,8 @@ namespace IPA.UnitTest
         {
             public string Str { get; }
 
+            public List<ElementClass2>? TestList;
+
             public ElementClass2(string str)
             {
                 this.Str = str;
@@ -128,6 +130,10 @@ namespace IPA.UnitTest
 
             public ElementClass? Element;
 
+            public ElementClass2? Test1;
+            public ElementClass2? Test2;
+            public ElementClass2? Test3;
+
             public void Dummy()
             {
                 Limbo.ObjectVolatileSlow = Str2;
@@ -149,6 +155,16 @@ namespace IPA.UnitTest
 
             a.Int1 = Util.RandSInt31();
             a.Str1 = a.Int1.ToString();
+
+            a.Test1 = new ElementClass2("Hello");
+            a.Test2 = new ElementClass2("Hello");
+            a.Test3 = a.Test2;
+
+            a.Test1.TestList = new List<ElementClass2>();
+            a.Test1.TestList.Add(a.Test2);
+
+            a.Test2.TestList = new List<ElementClass2>();
+            a.Test2.TestList.Add(a.Test1);
 
             int tmp = Util.RandSInt31();
             a._GetFieldReaderWriter(true).SetValue(a, "Int2", tmp);
@@ -177,6 +193,13 @@ namespace IPA.UnitTest
             DeepClone_ConstructorCount = 0;
 
             RootClass b = a._CloneDeep(method);
+
+            Assert.False(object.ReferenceEquals(b.Test1, b.Test2));
+            Assert.True(object.ReferenceEquals(b.Test2, b.Test3));
+            Assert.True(object.ReferenceEquals(b.Test1!.TestList![0], b.Test2));
+            Assert.True(object.ReferenceEquals(b.Test1!.TestList![0], b.Test3));
+            Assert.True(object.ReferenceEquals(b.Test2!.TestList![0], b.Test1));
+            Assert.True(object.ReferenceEquals(b.Test3!.TestList![0], b.Test1));
 
             Assert.Equal(0, DeepClone_ConstructorCount);
             Assert.False(object.ReferenceEquals(a, b));
