@@ -53,8 +53,7 @@ namespace IPA.Cores.Basic
     // Secure クラス
     public class Secure
     {
-        static readonly RNGCryptoServiceProvider RandomShared = new RNGCryptoServiceProvider();
-        static readonly MD5 MD5Shared = new MD5CryptoServiceProvider();
+        static readonly MD5 MD5Shared = MD5.Create();
         public const int SHA1Size = 20;
         public const int SHA256Size = 32;
         public const int SHA384Size = 48;
@@ -67,10 +66,7 @@ namespace IPA.Cores.Basic
 
         public static void Rand(Span<byte> dest)
         {
-            lock (RandomShared)
-            {
-                RandomShared.GetBytes(dest);
-            }
+            RandomNumberGenerator.Fill(dest);
         }
 
         [SkipLocalsInit]
@@ -245,7 +241,7 @@ namespace IPA.Cores.Basic
 
         public static int HashSHA1(ReadOnlySpan<byte> src, Span<byte> dest)
         {
-            using SHA1 sha = new SHA1Managed();
+            using SHA1 sha = SHA1.Create();
 
             if (sha.TryComputeHash(src, dest, out int ret) == false)
                 throw new ApplicationException("TryComputeHash error.");
@@ -280,7 +276,7 @@ namespace IPA.Cores.Basic
 
         public static int HashSHA256(ReadOnlySpan<byte> src, Span<byte> dest)
         {
-            using SHA256 sha = new SHA256Managed();
+            using SHA256 sha = SHA256.Create();
 
             if (sha.TryComputeHash(src, dest, out int ret) == false)
                 throw new ApplicationException("TryComputeHash error.");
@@ -299,7 +295,7 @@ namespace IPA.Cores.Basic
 
         public static int HashSHA384(ReadOnlySpan<byte> src, Span<byte> dest)
         {
-            using SHA384 sha = new SHA384Managed();
+            using SHA384 sha = SHA384.Create();
 
             if (sha.TryComputeHash(src, dest, out int ret) == false)
                 throw new ApplicationException("TryComputeHash error.");
@@ -318,7 +314,7 @@ namespace IPA.Cores.Basic
 
         public static int HashSHA512(ReadOnlySpan<byte> src, Span<byte> dest)
         {
-            using SHA512 sha = new SHA512Managed();
+            using SHA512 sha = SHA512.Create();
 
             if (sha.TryComputeHash(src, dest, out int ret) == false)
                 throw new ApplicationException("TryComputeHash error.");
@@ -339,7 +335,7 @@ namespace IPA.Cores.Basic
             srcString = srcString._NonNull();
             password = password._NonNull();
 
-            using var aes = new AesManaged();
+            using var aes = Aes.Create();
             aes.Mode = CipherMode.CBC;
             aes.KeySize = 256;
             aes.BlockSize = 128;
@@ -572,7 +568,7 @@ namespace IPA.Cores.Basic
 
     public class SeedBasedRandomGenerator
     {
-        SHA1 Sha1 = new SHA1Managed();
+        SHA1 Sha1 = SHA1.Create();
         MemoryBuffer<byte> seedPlusSeqNo;
 
         FastStreamBuffer<byte> fifo = new FastStreamBuffer<byte>();
