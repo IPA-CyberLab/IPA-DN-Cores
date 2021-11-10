@@ -96,3 +96,101 @@
 2021/11/10 21:59:53.512 +09:00 AsyncCallMethodFromSyncMethod: 12.77 ns, 78,310,697 / sec
 2021/11/10 21:59:54.046 +09:00 Lock for readonly object: 12.18 ns, 82,084,741 / sec
 2021/11/10 21:59:54.577 +09:00 Lock for get property object: 12.21 ns, 81,868,158 / sec
+2021/11/10 22:23:47.632 +09:00 ----- Start new benchmark -----
+2021/11/10 22:23:47.638 +09:00 Commit: ae986e0db0049c0740d24c0c7bfd8270b82b4e95
+2021/11/10 22:23:47.638 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/11/10 22:23:47.638 +09:00 OS: Microsoft Windows 10.0.19043
+2021/11/10 22:23:47.638 +09:00 Framework: .NET 6.0.0-rtm.21522.10
+2021/11/10 22:23:47.638 +09:00 Host: PC37
+2021/11/10 22:23:48.842 +09:00 FastTick64.Now: 1.17 ns, 852,586,876 / sec
+2021/11/10 22:23:49.544 +09:00 CloneDeep_BinaryFormatter: 4,326,263.88 ns, 231 / sec
+2021/11/10 22:23:50.071 +09:00 CloneDeep_DeepCloner: 137,537.88 ns, 7,270 / sec
+2021/11/10 22:23:50.601 +09:00 CloneDeep_DeepCloner_cloneDeepSampleObj2: 143.88 ns, 6,950,354 / sec
+2021/11/10 22:23:51.120 +09:00 DnsTools_Build: 276.08 ns, 3,622,182 / sec
+2021/11/10 22:23:51.641 +09:00 DnsTools_Parse: 191.34 ns, 5,226,365 / sec
+2021/11/10 22:23:52.319 +09:00 EvaluateAclNormal: 41,012.72 ns, 24,382 / sec
+2021/11/10 22:23:52.852 +09:00 EvaluateAclCached1: 554.94 ns, 1,802,010 / sec
+2021/11/10 22:23:53.380 +09:00 EvaluateAclCached2: 84.93 ns, 11,773,733 / sec
+2021/11/10 22:23:53.915 +09:00 SimpleAsyncService2: 1,128.19 ns, 886,371 / sec
+2021/11/10 22:23:54.464 +09:00 SimpleAsynService: 4,849.95 ns, 206,187 / sec
+2021/11/10 22:23:55.018 +09:00 WpcPacket: 2,841.35 ns, 351,945 / sec
+2021/11/10 22:23:55.603 +09:00 WpcPacket2: 7,953.41 ns, 125,732 / sec
+2021/11/10 22:23:56.153 +09:00 AsyncEvent: 2,881.31 ns, 347,064 / sec
+2021/11/10 22:23:56.723 +09:00 SyncEvent: 7,838.92 ns, 127,568 / sec
+2021/11/10 22:23:57.239 +09:00 IsSpanAllZero: 140.05 ns, 7,140,226 / sec
+2021/11/10 22:23:57.770 +09:00 CalcCrc32ForZipEncryption: 0.11 ns, 9,101,700,237 / sec
+2021/11/10 22:23:58.292 +09:00 Sync(): 1.04 ns, 963,100,840 / sec
+2021/11/10 22:23:58.823 +09:00 RateLimiter: 78.20 ns, 12,788,339 / sec
+2021/11/10 22:23:59.342 +09:00 ignore case compare string 1: 11.72 ns, 85,343,479 / sec
+2021/11/10 22:23:59.875 +09:00 ignore case compare string 2: 11.30 ns, 88,473,235 / sec
+2021/11/10 22:24:00.405 +09:00 isemptystr #2: 3.06 ns, 326,498,484 / sec
+2021/11/10 22:24:00.935 +09:00 isemptystr #1: 3.39 ns, 294,981,886 / sec
+2021/11/10 22:24:01.467 +09:00 string CmpTrim new: 31.75 ns, 31,494,426 / sec
+2021/11/10 22:24:01.997 +09:00 string SameTrim new: 32.58 ns, 30,691,716 / sec
+2021/11/10 22:24:02.526 +09:00 string SameTrim old: 31.52 ns, 31,727,110 / sec
+2021/11/10 22:24:03.056 +09:00 string test: 3.07 ns, 325,623,815 / sec
+2021/11/10 22:24:03.570 +09:00 StringWriter: 894.03 ns, 1,118,528 / sec
+2021/11/10 22:24:04.101 +09:00 StringBuilder: 875.44 ns, 1,142,279 / sec
+2021/11/10 22:24:04.624 +09:00 Generic Test: 0.00 ns, 9,999,999,999,999 / sec
+2021/11/10 22:24:05.144 +09:00 IpChecksum: 3.99 ns, 250,651,014 / sec
+2021/11/10 22:24:05.676 +09:00 CalcIPv4Checksum: 2.23 ns, 447,554,709 / sec
+2021/11/10 22:24:06.203 +09:00 BuildPacket #1 - Memory: 29.07 ns, 34,395,173 / sec
+2021/11/10 22:24:06.735 +09:00 ParsePacket #7 - 190531_vlan_pppoe_l2tp_udp: 186.23 ns, 5,369,667 / sec
+2021/11/10 22:24:07.263 +09:00 ParsePacket #6 - 190531_vlan_pppoe_l2tp_tcp: 181.27 ns, 5,516,556 / sec
+2021/11/10 22:24:07.794 +09:00 ParsePacket #5 - 190531_vlan_pppoe_tcp: 106.96 ns, 9,349,615 / sec
+2021/11/10 22:24:08.313 +09:00 ParsePacket #4 - 190527_vlan_simple_udp: 71.77 ns, 13,932,594 / sec
+2021/11/10 22:24:08.843 +09:00 ParsePacket #3 - 190527_vlan_simple_tcp: 73.23 ns, 13,655,079 / sec
+2021/11/10 22:24:09.376 +09:00 ParsePacket #2 - 190527_novlan_simple_udp: 63.98 ns, 15,630,733 / sec
+2021/11/10 22:24:09.906 +09:00 ParsePacket #1 - 190527_novlan_simple_tcp: 58.15 ns, 17,196,122 / sec
+2021/11/10 22:24:10.623 +09:00 Span memory copy 1600 bytes: 20.87 ns, 47,907,835 / sec
+2021/11/10 22:24:11.205 +09:00 Span memory copy 400 bytes: 5.01 ns, 199,790,739 / sec
+2021/11/10 22:24:11.737 +09:00 _IsZeroFastStruct: 1.77 ns, 565,020,698 / sec
+2021/11/10 22:24:12.640 +09:00 sizeof(T): 0.01 ns, 129,714,304,244 / sec
+2021/11/10 22:24:13.543 +09:00 Util.SizeOfStruct(T): 0.00 ns, 9,999,999,999,999 / sec
+2021/11/10 22:24:14.091 +09:00 File Write Small - Cores Object - Async: 7,019.20 ns, 142,466 / sec
+2021/11/10 22:24:14.649 +09:00 File Write Small - .NET Native - Sync: 4,826.22 ns, 207,201 / sec
+2021/11/10 22:24:15.179 +09:00 SingletonFastArraySlim Get: 0.91 ns, 1,097,998,495 / sec
+2021/11/10 22:24:15.721 +09:00 SingletonFastArray Get: 1.55 ns, 645,445,876 / sec
+2021/11/10 22:24:16.254 +09:00 SingletonSlim Get: 3.14 ns, 318,887,507 / sec
+2021/11/10 22:24:16.906 +09:00 Singleton2 Get: 17.83 ns, 56,097,443 / sec
+2021/11/10 22:24:17.430 +09:00 Singleton1 Get: 0.49 ns, 2,039,985,263 / sec
+2021/11/10 22:24:18.025 +09:00 New MemoryBuffer: 6.86 ns, 145,798,205 / sec
+2021/11/10 22:24:18.556 +09:00 MemoryBuffer Pin Lock / Unlock: 76.41 ns, 13,088,113 / sec
+2021/11/10 22:24:19.295 +09:00 BitAny: 0.00 ns, 9,999,999,999,999 / sec
+2021/11/10 22:24:20.217 +09:00 Convert Enum to Long: 0.04 ns, 26,374,611,798 / sec
+2021/11/10 22:24:20.741 +09:00 IsZero - NonSparse: 0.00 ns, 9,999,999,999,999 / sec
+2021/11/10 22:24:21.252 +09:00 IsZero - All Zero Sparse: 1.18 ns, 845,869,387 / sec
+2021/11/10 22:24:21.770 +09:00 GetSparseChunks - NonSparse: 54,621.56 ns, 18,307 / sec
+2021/11/10 22:24:22.291 +09:00 GetSparseChunks - Sparse: 843,603.53 ns, 1,185 / sec
+2021/11/10 22:24:22.802 +09:00 GetSparseChunks - All Zero Sparse: 56,945.08 ns, 17,560 / sec
+2021/11/10 22:24:23.320 +09:00 Util.Rand(): 182.21 ns, 5,488,231 / sec
+2021/11/10 22:24:23.850 +09:00 Secure.Rand(): 183.25 ns, 5,457,034 / sec
+2021/11/10 22:24:24.382 +09:00 ParseEnum: 40.98 ns, 24,400,462 / sec
+2021/11/10 22:24:25.367 +09:00 GetSparseChunks: 7,185,571.88 ns, 139 / sec
+2021/11/10 22:24:25.894 +09:00 Memory Copy by Array.CopyTo (Util.CopyByte) 10,000,000 bytes: 325,155.13 ns, 3,075 / sec
+2021/11/10 22:24:26.445 +09:00 Memory Copy by Buffer.BlockCopy 10,000,000 bytes: 322,207.11 ns, 3,103 / sec
+2021/11/10 22:24:27.004 +09:00 Memory Copy by Span.CopyTo 10,000,000 bytes: 373,772.89 ns, 2,675 / sec
+2021/11/10 22:24:27.550 +09:00 Memory Copy by Span.ToArray 10,000,000 bytes: 2,779,387.88 ns, 359 / sec
+2021/11/10 22:24:28.232 +09:00 Memory Copy by Span loop 10,000,000 bytes: 4,221,400.88 ns, 236 / sec
+2021/11/10 22:24:28.845 +09:00 Memory Fill by Array loop #1 10,000,000 bytes: 3,441,145.89 ns, 290 / sec
+2021/11/10 22:24:29.441 +09:00 Memory Fill by Array loop #2 10,000,000 bytes: 3,414,755.88 ns, 292 / sec
+2021/11/10 22:24:30.070 +09:00 Memory Fill by Span Loop 10,000,000 bytes: 3,598,631.88 ns, 277 / sec
+2021/11/10 22:24:30.678 +09:00 Memory Fill by unsafe pointer loop 10,000,000 bytes: 3,449,242.89 ns, 289 / sec
+2021/11/10 22:24:31.212 +09:00 Memory Fill by Span.Fill 10,000,000 bytes: 204,395.96 ns, 4,892 / sec
+2021/11/10 22:24:31.762 +09:00 Memory Fill by Array.Fill 10,000,000 bytes: 200,888.17 ns, 4,977 / sec
+2021/11/10 22:24:32.267 +09:00 CallAsyncWithAwait: 28.02 ns, 35,693,235 / sec
+2021/11/10 22:24:32.788 +09:00 CallAsyncWithNonAwait: 12.83 ns, 77,956,625 / sec
+2021/11/10 22:24:33.310 +09:00 Rand[16]: 96.15 ns, 10,399,979 / sec
+2021/11/10 22:24:33.841 +09:00 Guid.NewGuid().ToString(): 150.03 ns, 6,665,529 / sec
+2021/11/10 22:24:34.381 +09:00 Read the String_ReadOnly value: 0.89 ns, 1,123,328,953 / sec
+2021/11/10 22:24:34.918 +09:00 Read the String_GetOnly value: 0.89 ns, 1,122,336,070 / sec
+2021/11/10 22:24:35.456 +09:00 Read the String_Copenhagen_ReadOnly value: 0.68 ns, 1,464,911,049 / sec
+2021/11/10 22:24:35.999 +09:00 Read the String_Copenhagen_GetOnly value: 0.93 ns, 1,070,134,084 / sec
+2021/11/10 22:24:36.902 +09:00 Read the Int_ReadOnly value: 0.01 ns, 98,973,153,532 / sec
+2021/11/10 22:24:37.795 +09:00 Read the Int_GetOnly value: 0.00 ns, 9,999,999,999,999 / sec
+2021/11/10 22:24:38.334 +09:00 Read the Int_Copenhagen_ReadOnly value: 0.69 ns, 1,453,274,936 / sec
+2021/11/10 22:24:38.873 +09:00 Read the Int_Copenhagen_GetOnly value: 0.51 ns, 1,973,853,657 / sec
+2021/11/10 22:24:39.381 +09:00 AsyncCallMethodFromAsyncMethod: 12.89 ns, 77,574,832 / sec
+2021/11/10 22:24:39.902 +09:00 AsyncCallMethodFromSyncMethod: 11.93 ns, 83,802,499 / sec
+2021/11/10 22:24:40.434 +09:00 Lock for readonly object: 12.22 ns, 81,857,612 / sec
+2021/11/10 22:24:40.965 +09:00 Lock for get property object: 12.22 ns, 81,859,692 / sec
