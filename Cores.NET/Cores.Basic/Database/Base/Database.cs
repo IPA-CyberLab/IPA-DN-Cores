@@ -133,7 +133,7 @@ namespace IPA.Cores.Basic
             this.EnableConsoleLogger = enableConsoleLogger;
         }
 
-        public IDisposable? BeginScope<TState>(TState state) => null;
+        public IDisposable BeginScope<TState>(TState state) => new EmptyDisposable();
         public bool IsEnabled(LogLevel logLevel)
         {
             if (EnableConsoleLogger == false) return false;
@@ -148,7 +148,7 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception, string> formatter)
         {
             if (eventId.ToString().IndexOf("CommandExecuting", StringComparison.OrdinalIgnoreCase) == -1)
             {

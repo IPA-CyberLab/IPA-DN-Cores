@@ -329,7 +329,7 @@ namespace IPA.Cores.Basic
                 VerifyKey(KEY_LENGTH, key1);
                 VerifyKey(KEY_LENGTH, key2);
 
-                return new XtsAes128(AesManaged.Create, key1, key2);
+                return new XtsAes128(Aes.Create, key1, key2);
             }
 
             /// <summary>
@@ -348,7 +348,7 @@ namespace IPA.Cores.Basic
                 Buffer.BlockCopy(key, 0, key1, 0, KEY_BYTE_LENGTH);
                 Buffer.BlockCopy(key, KEY_BYTE_LENGTH, key2, 0, KEY_BYTE_LENGTH);
 
-                return new XtsAes128(AesManaged.Create, key1, key2);
+                return new XtsAes128(Aes.Create, key1, key2);
             }
         }
 
@@ -380,7 +380,7 @@ namespace IPA.Cores.Basic
                 VerifyKey(KEY_LENGTH, key1);
                 VerifyKey(KEY_LENGTH, key2);
 
-                return new XtsAes256(AesManaged.Create, key1, key2);
+                return new XtsAes256(Aes.Create, key1, key2);
             }
 
             /// <summary>
@@ -399,7 +399,7 @@ namespace IPA.Cores.Basic
                 Buffer.BlockCopy(key, 0, key1, 0, KEY_BYTE_LENGTH);
                 Buffer.BlockCopy(key, KEY_BYTE_LENGTH, key2, 0, KEY_BYTE_LENGTH);
 
-                return new XtsAes256(AesManaged.Create, key1, key2);
+                return new XtsAes256(Aes.Create, key1, key2);
             }
         }
 

@@ -136,7 +136,9 @@ namespace IPA.Cores.Basic.Legacy
 
         public Buf Get(Uri uri)
         {
+#pragma warning disable SYSLIB0014 // 型またはメンバーが旧型式です
             HttpWebRequest r = (HttpWebRequest)HttpWebRequest.Create(uri);
+#pragma warning restore SYSLIB0014 // 型またはメンバーが旧型式です
 
             if (this.NoCookie == false)
             {
@@ -189,7 +191,9 @@ namespace IPA.Cores.Basic.Legacy
         }
         public Buf Post(Uri uri, byte[] postData, string? referer, string content_type)
         {
+#pragma warning disable SYSLIB0014 // 型またはメンバーが旧型式です
             HttpWebRequest r = (HttpWebRequest)HttpWebRequest.Create(uri);
+#pragma warning restore SYSLIB0014 // 型またはメンバーが旧型式です
 
             if (this.NoCookie == false)
             {

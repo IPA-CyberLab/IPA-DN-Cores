@@ -3667,7 +3667,7 @@ namespace IPA.TestDev
 
                     using var stream = sector.GetStream(true);
 
-                    using SHA1Managed sha1 = new SHA1Managed();
+                    using SHA1 sha1 = SHA1.Create();
                     byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
                     if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
                     {
@@ -3768,7 +3768,7 @@ namespace IPA.TestDev
 
                             using var stream = sector.GetStream(true);
 
-                            using SHA1Managed sha1 = new SHA1Managed();
+                            using SHA1 sha1 = SHA1.Create();
                             byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
                             if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
                             {
@@ -3847,7 +3847,7 @@ namespace IPA.TestDev
                             //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
                             //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
 
-                            using SHA1Managed sha1 = new SHA1Managed();
+                            using SHA1 sha1 = SHA1.Create();
                             stream._SeekToBegin();
                             byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
                             if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
@@ -4210,7 +4210,7 @@ namespace IPA.TestDev
                             //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
                             //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
 
-                            using SHA1Managed sha1 = new SHA1Managed();
+                            using SHA1 sha1 = SHA1.Create();
                             stream._SeekToBegin();
                             byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
                             if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)

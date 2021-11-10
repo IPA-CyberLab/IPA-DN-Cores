@@ -108,7 +108,7 @@ namespace IPA.Cores.Basic
             this.Listener = this.Server.Options.TcpIp.CreateTcpListener(new TcpListenParam(compatibleWithKestrel: EnsureSpecial.Yes, null, (IPEndPoint)EndPoint, "Kestrel3"));
         }
 
-        public async ValueTask<ConnectionContext> AcceptAsync(CancellationToken cancellationToken = default)
+        public async ValueTask<ConnectionContext?> AcceptAsync(CancellationToken cancellationToken = default)
         {
             if (this.Listener == null)
                 throw new ApplicationException("Listener is not bound yet.");
@@ -344,7 +344,9 @@ namespace IPA.Cores.Basic
             return feature;
         }
 
+#pragma warning disable CS8769 // パラメーターの型における参照型の NULL 値の許容が、実装されるメンバーと一致しません。おそらく、NULL 値の許容の属性が原因です。
         void IFeatureCollection.Set<TFeature>(TFeature feature)
+#pragma warning restore CS8769 // パラメーターの型における参照型の NULL 値の許容が、実装されるメンバーと一致しません。おそらく、NULL 値の許容の属性が原因です。
         {
             _featureRevision++;
             if (typeof(TFeature) == typeof(IConnectionIdFeature))

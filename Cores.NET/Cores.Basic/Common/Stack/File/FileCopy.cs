@@ -281,7 +281,7 @@ namespace IPA.Cores.Basic
 
         public static async Task<ResultOrError<int>> CompareFileHashAsync(FilePath file1, FilePath file2, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? fileSize = null, CancellationToken cancel = default)
         {
-            using SHA1Managed sha1 = new SHA1Managed();
+            using SHA1 sha1 = SHA1.Create();
 
             byte[] hash1, hash2;
 
@@ -318,7 +318,7 @@ namespace IPA.Cores.Basic
 
         public static async Task<ResultOrError<int>> CompareEncryptedFileHashAsync(string encryptPassword, bool isCompressed, FilePath filePlain, FilePath fileEncrypted, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? fileSize = null, CancellationToken cancel = default)
         {
-            using SHA1Managed sha1 = new SHA1Managed();
+            using SHA1 sha1 = SHA1.Create();
 
             byte[] hash1, hash2;
 

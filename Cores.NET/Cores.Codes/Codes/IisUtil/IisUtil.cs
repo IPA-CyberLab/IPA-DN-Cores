@@ -297,7 +297,9 @@ namespace IPA.Cores.Codes
 
                     X509Certificate2 certObj = certToWrite.X509Certificate;
 
+#pragma warning disable CA1416 // プラットフォームの互換性を検証
                     certObj.FriendlyName = certToWrite.GenerateFriendlyName();
+#pragma warning restore CA1416 // プラットフォームの互換性を検証
 
                     this.CertStore.Add(certObj);
                 }

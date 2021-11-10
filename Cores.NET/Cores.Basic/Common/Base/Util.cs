@@ -483,7 +483,7 @@ namespace IPA.Cores.Basic
 
         static Util()
         {
-            using (SHA1 sha = new SHA1Managed())
+            using (SHA1 sha = SHA1.Create())
             {
                 Span<byte> rand = new byte[20];
                 sha.TryComputeHash(System.Text.Encoding.ASCII.GetBytes(Guid.NewGuid().ToString()), rand, out _);

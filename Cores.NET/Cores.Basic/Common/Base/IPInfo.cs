@@ -89,7 +89,9 @@ namespace IPA.Cores.Basic
             ret.TimeStamp = DateTime.Now;
 
             // Download CSV
+#pragma warning disable SYSLIB0014 // 型またはメンバーが旧型式です
             WebRequest req = HttpWebRequest.Create(url);
+#pragma warning restore SYSLIB0014 // 型またはメンバーが旧型式です
             WebResponse res = req.GetResponse();
             try
             {

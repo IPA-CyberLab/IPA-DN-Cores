@@ -179,7 +179,7 @@ namespace IPA.Cores.Basic
 
             string acceptKey = headers["Sec-WebSocket-Accept"];
             string keyCalcStr = requestKey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-            SHA1 sha1 = new SHA1Managed();
+            SHA1 sha1 = SHA1.Create();
             string acceptKey2 = Convert.ToBase64String(sha1.ComputeHash(keyCalcStr._GetBytes_Ascii()));
 
             if (acceptKey != acceptKey2)
