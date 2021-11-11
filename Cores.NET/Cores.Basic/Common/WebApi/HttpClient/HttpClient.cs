@@ -1792,7 +1792,9 @@ namespace IPA.Cores.Basic.HttpClientCore
         // Token: 0x06000733 RID: 1843 RVA: 0x00054784 File Offset: 0x00034784
         public override int GetHashCode()
         {
+#pragma warning disable RS1024 // シンボルを正しく比較する
             return StringComparer.OrdinalIgnoreCase.GetHashCode(this._dispositionType) ^ NameValueHeaderValue.GetHashCode(this._parameters);
+#pragma warning restore RS1024 // シンボルを正しく比較する
         }
 
         /// <summary>
@@ -8788,7 +8790,9 @@ namespace IPA.Cores.Basic.HttpClientCore
         // Token: 0x060008C7 RID: 2247 RVA: 0x000593A0 File Offset: 0x000393A0
         public override int GetHashCode()
         {
+#pragma warning disable RS1024 // シンボルを正しく比較する
             return StringComparer.OrdinalIgnoreCase.GetHashCode(this._mediaType) ^ NameValueHeaderValue.GetHashCode(this._parameters);
+#pragma warning restore RS1024 // シンボルを正しく比較する
         }
 
         /// <summary>
@@ -9583,7 +9587,9 @@ namespace IPA.Cores.Basic.HttpClientCore
         // Token: 0x060008F6 RID: 2294 RVA: 0x00059C8F File Offset: 0x00039C8F
         public override int GetHashCode()
         {
+#pragma warning disable RS1024 // シンボルを正しく比較する
             return base.GetHashCode() ^ NameValueHeaderValue.GetHashCode(this._parameters);
+#pragma warning restore RS1024 // シンボルを正しく比較する
         }
 
         /// <summary>
@@ -11900,7 +11906,9 @@ namespace IPA.Cores.Basic.HttpClientCore
         // Token: 0x06000976 RID: 2422 RVA: 0x0005B670 File Offset: 0x0003B670
         public override int GetHashCode()
         {
+#pragma warning disable RS1024 // シンボルを正しく比較する
             return StringComparer.OrdinalIgnoreCase.GetHashCode(this._value) ^ NameValueHeaderValue.GetHashCode(this._parameters);
+#pragma warning restore RS1024 // シンボルを正しく比較する
         }
 
         /// <summary>

@@ -176,7 +176,9 @@ namespace IPA.Cores.Basic.Internal
 
             public override int GetHashCode()
             {
+#pragma warning disable RS1024 // シンボルを正しく比較する
                 return Arrays.GetHashCode(id);
+#pragma warning restore RS1024 // シンボルを正しく比較する
             }
 
             public override bool Equals(

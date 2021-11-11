@@ -157,8 +157,7 @@ namespace IPA.Cores.Web
                     //以下を追加すると重くなるので追加しないようにした。その代わり Cores.Web の View をいじる場合は再コンパイルが必要
                     //if (AspNetLib.LibRootFullPath._IsFilled())
                     //    opt.FileProviders.Add(new PhysicalFileProvider(AspNetLib.LibRootFullPath));
-                })
-                .SetCompatibilityVersion(CompatibilityVersion.Version_3_0);
+                });
 
             // この AspNetLib アセンブリのすべてのコントローラをデフォルト読み込み対象から除外する
             mvc = mvc.ConfigureApplicationPartManager(apm =>

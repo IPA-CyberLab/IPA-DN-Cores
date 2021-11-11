@@ -2,6 +2,7 @@
 @model DualData<App, List<Instance>>;
 
 @{
+    Model._MarkNotNull();
     App app = Model.Data;
     List<Instance> instanceList = Model.Data2;
 

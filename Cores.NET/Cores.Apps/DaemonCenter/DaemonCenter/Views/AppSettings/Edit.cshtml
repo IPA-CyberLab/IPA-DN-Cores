@@ -2,6 +2,7 @@
 @model SingleData<AppSettings>;
 
 @{
+    Model._MarkNotNull();
     Page.Title = Model.GetOperationTitle();
 }
 

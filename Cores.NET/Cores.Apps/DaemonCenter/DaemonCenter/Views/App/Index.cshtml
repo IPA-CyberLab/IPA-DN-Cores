@@ -2,6 +2,7 @@
 @model IReadOnlyList<KeyValuePair<string, App>>
 
 @{
+    Model._MarkNotNull();
     IEnumerable<AppSettings?> appList = Model.Select(x => x.Value).Select(x => x.Settings);
 }
 

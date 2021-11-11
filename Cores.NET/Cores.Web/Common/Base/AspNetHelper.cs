@@ -121,7 +121,7 @@ namespace IPA.Cores.Helper.Web
     {
         public static string GenerateAbsoluteUrl(this ControllerBase c, string actionName)
         {
-            string url = Str.BuildHttpUrl(c.Request.Scheme, c.Request.Host.Host, c.Request.Host.Port ?? 0, c.Url.Action(actionName));
+            string url = Str.BuildHttpUrl(c.Request.Scheme, c.Request.Host.Host, c.Request.Host.Port ?? 0, c.Url.Action(actionName)._NonNull());
 
             return url;
         }
@@ -156,7 +156,7 @@ namespace IPA.Cores.Helper.Web
             {
                 var errorContext = controller.HttpContext.Features.Get<IExceptionHandlerPathFeature>();
 
-                return errorContext.Error;
+                return errorContext!.Error;
             }
             catch
             {
@@ -171,7 +171,7 @@ namespace IPA.Cores.Helper.Web
             {
                 var errorContext = controller.HttpContext.Features.Get<IExceptionHandlerPathFeature>();
 
-                return errorContext.Path;
+                return errorContext!.Path;
             }
             catch
             {

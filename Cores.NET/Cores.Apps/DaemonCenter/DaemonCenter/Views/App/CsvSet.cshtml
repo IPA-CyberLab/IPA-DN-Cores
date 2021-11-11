@@ -2,6 +2,7 @@
 @model DualData<App, StrClass>
 
 @{
+    Model._MarkNotNull();
     App app = Model.Data;
 
     string appId = Model.Id!;

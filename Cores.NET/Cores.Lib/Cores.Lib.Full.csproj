@@ -59,8 +59,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="6.0.0" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="6.0.0" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="3.0.1" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
-    <PackageReference Include="Dapper" Version="2.0.35" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
-    <PackageReference Include="Dapper.Contrib" Version="2.0.35" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
+    <PackageReference Include="Dapper" Version="2.0.78" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
+    <PackageReference Include="Dapper.Contrib" Version="2.0.78" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
 
     <!-- Cores.Basic.Git -->
     <!--<PackageReference Include="LibGit2Sharp" Version="0.26.0" Condition="$(DefineConstants.Contains('CORES_BASIC_GIT;'))" />-->
@@ -76,7 +76,7 @@
     <PackageReference Include="System.Drawing.Common" Version="6.0.0" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
     <PackageReference Include="HtmlAgilityPack " Version="1.11.23" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
     <PackageReference Include="SSH.NET" Version="2020.0.0-beta1" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
-    <PackageReference Include="System.IO.Ports" Version="5.0.0" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
+    <PackageReference Include="System.IO.Ports" Version="6.0.0" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
     <PackageReference Include="DnsClient" Version="1.3.2" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
     <PackageReference Include="EPPlus" Version="5.5.1" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
 

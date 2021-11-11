@@ -1261,7 +1261,9 @@ namespace IPA.Cores.Basic.Internal.DeepCloner.Helpers
 
             public int GetHashCode(object obj)
             {
+#pragma warning disable RS1024 // シンボルを正しく比較する
                 return RuntimeHelpers.GetHashCode(obj);
+#pragma warning restore RS1024 // シンボルを正しく比較する
             }
         }
 
@@ -1329,7 +1331,9 @@ namespace IPA.Cores.Basic.Internal.DeepCloner.Helpers
             {
                 if (_buckets != null)
                 {
+#pragma warning disable RS1024 // シンボルを正しく比較する
                     var hashCode = RuntimeHelpers.GetHashCode(key) & 0x7FFFFFFF;
+#pragma warning restore RS1024 // シンボルを正しく比較する
                     var entries1 = _entries;
                     for (var i = _buckets[hashCode % _buckets.Length]; i >= 0; i = entries1[i].Next)
                     {
@@ -1409,7 +1413,9 @@ namespace IPA.Cores.Basic.Internal.DeepCloner.Helpers
             public void Insert(object key, object value)
             {
                 if (_buckets == null) Initialize(0);
+#pragma warning disable RS1024 // シンボルを正しく比較する
                 var hashCode = RuntimeHelpers.GetHashCode(key) & 0x7FFFFFFF;
+#pragma warning restore RS1024 // シンボルを正しく比較する
                 var targetBucket = hashCode % _buckets.Length;
 
                 var entries1 = _entries;
