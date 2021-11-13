@@ -225,6 +225,13 @@ namespace IPA.Cores.Basic
             try
             {
                 AppExecutableExeOrDllFileName = IO.RemoveLastEnMark(GetAppExeOrDllImageFilePathInternal());
+
+                if (AppExecutableExeOrDllFileName._IsSamei("<Unknown>"))
+                {
+                    // .NET 6.0 で single file にしている場合は、何と "<Unknown>" という文字列が戻ってくる。
+                    // しかし、single file であることはこれで分かるので、AppExecutableExeOrDllFileName を AppRealProcessExeFileName のコピーとする。
+                    AppExecutableExeOrDllFileName = AppRealProcessExeFileName;
+                }
             }
             catch (FileNotFoundException)
             {
