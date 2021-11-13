@@ -78,6 +78,8 @@ namespace IPA.Cores.Tools.DebugHost
 
         readonly AutoResetEvent StartEvent = new AutoResetEvent(false);
 
+        bool Next_TestWeb = false;
+
         public Host(string cmdLine)
         {
             this.CmdLine = cmdLine;
@@ -96,10 +98,17 @@ namespace IPA.Cores.Tools.DebugHost
             StartEvent.Reset();
             try
             {
-                Console.WriteLine($"DebugHost: Starting the child process '{this.CmdLine}' ...");
+                string cmdLine = this.CmdLine;
+
+                if (this.Next_TestWeb)
+                {
+                    cmdLine = cmdLine.Replace(" Test", " TestWeb");
+                }
+
+                Console.WriteLine($"DebugHost: Starting the child process '{cmdLine}' ...");
                 Console.WriteLine("DebugHost: --------------------------------------------------------------");
 
-                using (Process p = Utils.ExecProcess(this.CmdLine))
+                using (Process p = Utils.ExecProcess(cmdLine))
                 {
                     CurrentRunningProcessId = p.Id;
 
@@ -170,6 +179,12 @@ namespace IPA.Cores.Tools.DebugHost
 
                     if (p.ExitCode == 0)
                     {
+                        this.Next_TestWeb = false;
+                        StartEvent.Set();
+                    }
+                    else if (p.ExitCode == 1)
+                    {
+                        this.Next_TestWeb = true;
                         StartEvent.Set();
                     }
                     else if (p.ExitCode == 4)
@@ -429,11 +444,15 @@ namespace IPA.Cores.Tools.DebugHost
             {
                 while (true)
                 {
-                    Console.Write("'r' to restart / 'q' to terminate>");
+                    Console.Write("'r' to restart / 'q' to terminate / 'w' for Auto Razor Recompile>");
                     string line = Console.ReadLine().Trim();
                     if (string.Equals(line, "r", StringComparison.OrdinalIgnoreCase))
                     {
                         return 0;
+                    }
+                    if (string.Equals(line, "w", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return 1;
                     }
                     if (string.Equals(line, "q", StringComparison.OrdinalIgnoreCase))
                     {

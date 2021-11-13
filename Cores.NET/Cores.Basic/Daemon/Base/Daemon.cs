@@ -94,6 +94,9 @@ namespace IPA.Cores.Basic
         // FileBrowser の HTTPS ポート番号
         public static int FileBrowserHttpsPortNumber { get; set; } = 0;
 
+        // RazorRuntimeCompilation を有効化するかどうか
+        public static bool EnableAspNetEnableRazorRuntimeCompilation { get; set; } = false;
+
         public static void SetDaemonClientLocalIpAddress(string ipAddress)
         {
             ipAddress = ipAddress._NonNullTrim();
@@ -464,7 +467,7 @@ namespace IPA.Cores.Basic
         Once StartedOnce;
 
         // テスト動作させる
-        public void TestRun(bool stopDebugHost = false, string? appId = null)
+        public void TestRun(bool stopDebugHost = false, string? appId = null, bool aspNetEnableRazorRuntimeCompilation = false)
         {
             if (StartedOnce.IsFirstCall() == false) throw new ApplicationException("DaemonHost is already started.");
 
@@ -479,6 +482,8 @@ namespace IPA.Cores.Basic
                     ex._Debug();
                 }
             }
+
+            GlobalDaemonStateManager.EnableAspNetEnableRazorRuntimeCompilation = aspNetEnableRazorRuntimeCompilation;
 
             TelnetLocalLogWatcher? telnetWatcher = null;
 
@@ -862,6 +867,7 @@ namespace IPA.Cores.Basic
         Stop,
         Test,
         TestDebug,
+        TestWeb,
         Show,
         ExecMain,
         Install,
@@ -1251,6 +1257,10 @@ namespace IPA.Cores.Basic
 
                 case DaemonCmdType.TestDebug: // テストモードとして自分自身が起動させられたので、目的とするサービス動作を開始する (同一 appId の他インスタンスを強制終了する)
                     host.TestRun(true, appId);
+                    break;
+
+                case DaemonCmdType.TestWeb: // テストモード ただし ASP.NET Core の AddRazorRuntimeCompilation を有効にする 
+                    host.TestRun(false, aspNetEnableRazorRuntimeCompilation: true);
                     break;
 
                 case DaemonCmdType.WinExecSvc: // Windows サービスプロセスとして自分自身が起動させられたので、目的とするサービス動作を開始する

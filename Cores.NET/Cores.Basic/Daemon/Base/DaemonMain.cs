@@ -129,6 +129,7 @@ stop         - Stop the running daemon in the background mode.
 show         - Show the real-time log by the background daemon.
 test         - Start the daemon in the foreground testing mode.
 testdebug    - Similar to test, but for Visual Studio IDE debug.
+testweb      - Similar to test, but Enable RazorRuntimeCompilation.
 install      - Install the daemon as a Linux systemd service.
 uninstall    - Uninstall the daemon as a Linux systemd service.
 

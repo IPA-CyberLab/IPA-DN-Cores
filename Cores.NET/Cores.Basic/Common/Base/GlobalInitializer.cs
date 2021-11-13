@@ -200,7 +200,7 @@ namespace IPA.Cores.Basic
                 foreach (string arg in args)
                 {
                     DaemonCmdType type = arg._ParseEnum(DaemonCmdType.Unknown);
-                    if (type.EqualsAny(DaemonCmdType.ExecMain, DaemonCmdType.Test, DaemonCmdType.TestDebug, DaemonCmdType.WinExecSvc))
+                    if (type.EqualsAny(DaemonCmdType.ExecMain, DaemonCmdType.Test, DaemonCmdType.TestDebug, DaemonCmdType.TestWeb, DaemonCmdType.WinExecSvc))
                     {
                         if (CoresLib.mode == CoresMode.Daemon || args.Where(x => x._InStr("daemon", true)).Any())
                         {

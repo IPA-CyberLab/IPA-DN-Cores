@@ -73,7 +73,7 @@ namespace IPA.Cores.Web
         EasyCookieAuth = 2,
         LogBrowser = 4,
     }
-    
+
     // [AspNetLibFeature] 属性の実装
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
     public class AspNetLibFeatureAttribute : Attribute
@@ -151,13 +151,18 @@ namespace IPA.Cores.Web
         public IMvcBuilder ConfigureAspNetLibMvc(IMvcBuilder mvc)
         {
             // MVC の設定
-            mvc = mvc.AddViewOptions(opt => opt.HtmlHelperOptions.ClientValidationEnabled = false)
-                .AddRazorRuntimeCompilation(opt =>
+            mvc = mvc.AddViewOptions(opt => opt.HtmlHelperOptions.ClientValidationEnabled = false);
+
+            if (GlobalDaemonStateManager.EnableAspNetEnableRazorRuntimeCompilation)
+            {
+                // Razor 再コンパイルを有効化
+                mvc = mvc.AddRazorRuntimeCompilation(opt =>
                 {
                     //以下を追加すると重くなるので追加しないようにした。その代わり Cores.Web の View をいじる場合は再コンパイルが必要
                     //if (AspNetLib.LibRootFullPath._IsFilled())
                     //    opt.FileProviders.Add(new PhysicalFileProvider(AspNetLib.LibRootFullPath));
                 });
+            }
 
             // この AspNetLib アセンブリのすべてのコントローラをデフォルト読み込み対象から除外する
             mvc = mvc.ConfigureApplicationPartManager(apm =>
