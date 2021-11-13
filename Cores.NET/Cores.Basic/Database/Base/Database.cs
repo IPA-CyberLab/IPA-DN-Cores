@@ -1230,7 +1230,7 @@ namespace IPA.Cores.Basic
 
             int numRetry = 0;
 
-            LABEL_RETRY:
+LABEL_RETRY:
             try
             {
                 using (UsingTran u = this.UsingTran(isolationLevel))
@@ -1288,7 +1288,7 @@ namespace IPA.Cores.Basic
 
             int numRetry = 0;
 
-            LABEL_RETRY:
+LABEL_RETRY:
             try
             {
                 await using (UsingTran u = await this.UsingTranAsync(isolationLevel, cancel))

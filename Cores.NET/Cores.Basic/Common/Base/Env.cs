@@ -548,6 +548,7 @@ namespace IPA.Cores.Basic
                 .ConstructorArguments[0].Value!;
         }
 
+#pragma warning disable IL3002 // Using member 'System.Reflection.Module.FullyQualifiedName' which has 'RequiresAssemblyFilesAttribute' can break functionality when embedded in a single-file app. Returns <Unknown> for modules with no file path.
         static string GetAppExeOrDllImageFilePathInternal()
         {
             if (CoresLib.Caps.Bit(CoresCaps.BlazorApp))
@@ -559,6 +560,7 @@ namespace IPA.Cores.Basic
             Module[] modules = mainAssembly.GetModules();
             return modules[0].FullyQualifiedName;
         }
+#pragma warning restore IL3002 // Using member 'System.Reflection.Module.FullyQualifiedName' which has 'RequiresAssemblyFilesAttribute' can break functionality when embedded in a single-file app. Returns <Unknown> for modules with no file path.
 
         static string GetAppRealProcessExeFileNameInternal()
         {
