@@ -85,6 +85,15 @@ namespace IPA.UnitTest
         }
 
         [Fact]
+        public void DotNetUnixConsoleModeChangePreventTest()
+        {
+            if (Env.IsUnix)
+            {
+                UnixConsoleSpecialUtil.Test_DisableDotNetConsoleModeChange();
+            }
+        }
+
+        [Fact]
         public void MemoryHelperTest()
         {
             Where();

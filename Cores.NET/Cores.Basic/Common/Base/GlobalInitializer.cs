@@ -175,6 +175,8 @@ namespace IPA.Cores.Basic
 
         public static string[] Init(CoresLibOptions options, params string[] args)
         {
+            UnixConsoleSpecialUtil.DisableDotNetConsoleModeChange();
+
             lock (InitLockObj)
             {
                 if (Inited)

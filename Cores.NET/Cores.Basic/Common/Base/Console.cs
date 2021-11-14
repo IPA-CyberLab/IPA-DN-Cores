@@ -797,26 +797,9 @@ namespace IPA.Cores.Basic
 
             string? tmp = c.readLine!(p, true);
 
-            if (tmp != null)
+            if (tmp != null && tmp == "")
             {
-                char[] array = tmp.ToCharArray();
-
-                if (tmp._InStr("^[") || tmp._IsEmpty())
-                {
-                    tmp = null;
-                }
-
-                foreach (var z in array)
-                {
-                    if ((z >= 0 && z <= 31) || z == 127)
-                    {
-                        if (z == 13 || z == 10 || z == 9 || z == 11) { }
-                        else
-                        {
-                            tmp = null;
-                        }
-                    }
-                }
+                tmp = null;
             }
 
             return tmp;
@@ -2471,6 +2454,28 @@ namespace IPA.Cores.Basic
                     }
                 }
 
+                if (ret != null)
+                {
+                    char[] array = ret.ToCharArray();
+
+                    if (ret._InStr("^["))
+                    {
+                        ret = null;
+                    }
+
+                    foreach (var z in array)
+                    {
+                        if ((z >= 0 && z <= 31) || z == 127)
+                        {
+                            if (z == 13 || z == 10 || z == 9 || z == 11) { }
+                            else
+                            {
+                                ret = null;
+                            }
+                        }
+                    }
+                }
+
                 LocalLogRouter.PrintConsole(ret, noConsole: true);
             }
 
@@ -2569,6 +2574,41 @@ namespace IPA.Cores.Basic
 
                 outFile.Flush();
             }
+        }
+    }
+
+    public static class UnixConsoleSpecialUtil
+    {
+        // UNIX 版 .NET でコンソールのモードが勝手に変更されないようにする
+        static readonly Once Once;
+        public static void DisableDotNetConsoleModeChange()
+        {
+            if (Once.IsFirstCall())
+            {
+                // https://github.com/dotnet/runtime/blob/edd64670617223c473051921268c4fc1962407a0/src/libraries/System.Console/src/System/ConsolePal.Unix.cs#L946
+                try
+                {
+                    Type consoleType = typeof(System.Console);
+                    var asm = consoleType.Assembly;
+                    var t = asm.GetType("System.ConsolePal");
+                    var fi = t!.GetField("s_initialized", BindingFlags.Static | BindingFlags.NonPublic);
+                    object? obj = fi!.GetValue(null);
+                    bool b = (bool)obj!;
+                    fi.SetValue(null, true);
+                }
+                catch { }
+            }
+        }
+
+        public static bool Test_DisableDotNetConsoleModeChange()
+        {
+            Type consoleType = typeof(System.Console);
+            var asm = consoleType.Assembly;
+            var t = asm.GetType("System.ConsolePal");
+            var fi = t!.GetField("s_initialized", BindingFlags.Static | BindingFlags.NonPublic);
+            object? obj = fi!.GetValue(null);
+            bool b = (bool)obj!;
+            return b;
         }
     }
 }
