@@ -71,8 +71,8 @@ namespace IPA.TestDev
                 var fi = t!.GetField("s_initialized", BindingFlags.Static | BindingFlags.NonPublic);
                 object? obj = fi!.GetValue(null);
                 bool b = (bool)obj!;
-                Console.WriteLine(b);
-
+                //Console.WriteLine(b);
+                fi.SetValue(null, true);
                 DoNothing();
             }
             {
