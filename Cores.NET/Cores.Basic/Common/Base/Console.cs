@@ -799,14 +799,23 @@ namespace IPA.Cores.Basic
 
             if (tmp != null)
             {
-                tmp.ToCharArray()._DoForEach(x => Console.WriteLine($"char: {(int)x}"));
-            }
+                char[] array = tmp.ToCharArray();
 
-            if (tmp != null)
-            {
                 if (tmp._InStr("^[") || tmp._IsEmpty())
                 {
                     tmp = null;
+                }
+
+                foreach (var z in array)
+                {
+                    if ((z >= 0 && z <= 31) || z == 127)
+                    {
+                        if (z == 13 || z == 10 || z == 9 || z == 11) { }
+                        else
+                        {
+                            tmp = null;
+                        }
+                    }
                 }
             }
 
