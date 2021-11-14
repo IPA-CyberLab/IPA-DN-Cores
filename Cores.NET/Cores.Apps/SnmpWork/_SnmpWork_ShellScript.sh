@@ -11,6 +11,10 @@ export MALLOC_TOP_PAD_=131072
 export MALLOC_MMAP_MAX_=65536
 export HOME=/root
 
+mkdir -p /etc/se_snmpwork/Local/App_TestDev/Config/
+ln -s /etc/se_snmpwork/Local/App_TestDev/ /etc/se_snmpwork/Local/App_SnmpWork
+
+
 echo test > /etc/se_snmpwork/approot
 
 /etc/se_snmpwork/tmp/snmpwork/se_snmpwork2 $@
