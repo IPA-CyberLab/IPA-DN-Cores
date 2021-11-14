@@ -15,3 +15,4 @@ echo test > /etc/se_snmpwork/approot
 
 /etc/se_snmpwork/tmp/snmpwork/se_snmpwork2 $@
 
+
