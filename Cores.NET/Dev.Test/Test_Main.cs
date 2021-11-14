@@ -43,6 +43,7 @@ using System.Diagnostics;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Reflection;
 
 [assembly: InternalsVisibleTo("Dev.xUnitTest")]
 
@@ -63,6 +64,18 @@ namespace IPA.TestDev
     {
         static int Main(string[] args)
         {
+            {
+                Type consoleType = typeof(System.Console);
+                var asm = consoleType.Assembly;
+                var t = asm.GetType("System.ConsolePal");
+                var fi = t!.GetField("s_initialized", BindingFlags.Static | BindingFlags.NonPublic);
+                object? obj = fi!.GetValue(null);
+                bool b = (bool)obj!;
+                Console.WriteLine(b);
+
+                DoNothing();
+            }
+
             int ret = -1;
 
             CoresConfig.ApplyHeavyLoadServerConfigAll();
