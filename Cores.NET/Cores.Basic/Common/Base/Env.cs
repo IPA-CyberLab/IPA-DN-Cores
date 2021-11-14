@@ -45,6 +45,7 @@ using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Threading;
+using System.Collections;
 
 namespace IPA.Cores.Basic
 {
@@ -260,22 +261,49 @@ namespace IPA.Cores.Basic
                 // で判定を行なう
                 // (TODO: Windows ではこの方法で判別ができない)
 
+                static string? GetDotNetExeNameUnix()
+                {
+                    List<Pair2<string, string>> list = new List<Pair2<string, string>>();
+                    var envs = Environment.GetEnvironmentVariables();
+                    foreach (DictionaryEntry env in envs)
+                    {
+                        string name = (string)env.Key;
+                        string value = (string)env.Value!;
+                        if (name._IsFilled() && value._IsFilled())
+                        {
+                            if (name.StartsWith("DOTNET_ROOT", StringComparison.OrdinalIgnoreCase))
+                            {
+                                list.Add(new Pair2<string, string>(name, value));
+                            }
+                        }
+                    }
+
+                    foreach (var item in list.OrderBy(x => x.A, StrComparer.IgnoreCaseTrimComparer))
+                    {
+                        if (Directory.Exists(item.B))
+                        {
+                            string exe = Path.Combine(item.B, "dotnet");
+                            if (File.Exists(exe))
+                            {
+                                return exe;
+                            }
+                        }
+                    }
+
+                    return null;
+                }
+
                 if (IsUnix)
                 {
-                    string? dotNetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
+                    string? dotnetExeName = GetDotNetExeNameUnix();
 
-                    if (dotNetRoot._IsFilled())
+                    if (dotnetExeName._IsFilled())
                     {
-                        if (Directory.Exists(dotNetRoot))
+                        if (File.Exists(dotnetExeName))
                         {
-                            string dotnetExeName = Path.Combine(dotNetRoot, "dotnet");
-
-                            if (File.Exists(dotnetExeName))
-                            {
-                                // 判定成功
-                                Env.IsHostedByDotNetProcess = true;
-                                Env.DotNetHostProcessExeName = dotnetExeName;
-                            }
+                            // 判定成功
+                            Env.IsHostedByDotNetProcess = true;
+                            Env.DotNetHostProcessExeName = dotnetExeName;
                         }
                     }
                 }
