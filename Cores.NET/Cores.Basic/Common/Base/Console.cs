@@ -795,7 +795,22 @@ namespace IPA.Cores.Basic
         {
             string p = (param == null) ? (CoreStr.CMD_PROMPT) : (string)param;
 
-            return c.readLine!(p, true);
+            string? tmp = c.readLine!(p, true);
+
+            if (tmp != null)
+            {
+                tmp.ToCharArray()._DoForEach(x => Console.WriteLine($"char: {(int)x}"));
+            }
+
+            if (tmp != null)
+            {
+                if (tmp._InStr("^[") || tmp._IsEmpty())
+                {
+                    tmp = null;
+                }
+            }
+
+            return tmp;
         }
 
         // 指定されたファイルが存在するかどうか評価
