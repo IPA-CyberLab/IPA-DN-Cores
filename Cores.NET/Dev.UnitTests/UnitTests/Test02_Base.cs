@@ -73,6 +73,18 @@ namespace IPA.UnitTest
         }
 
         [Fact]
+        public void DotNetHostedProcessEnvInfoTest()
+        {
+            if (Env.IsUnix)
+            {
+                Assert.True(Env.IsHostedByDotNetProcess);
+                Assert.True(Env.DotNetHostProcessExeName._IsFilled());
+            }
+
+            Assert.True(Env.IsDotNetCore);
+        }
+
+        [Fact]
         public void MemoryHelperTest()
         {
             Where();
