@@ -473,6 +473,258 @@ namespace IPA.Cores.Basic
         LargeFs_ProhibitWriteWithCrossBorder = 65536,
     }
 
+
+
+    // FileStream の派生クラスではないが、似た機能を提供するクラス。.NET 6 以降では、できるだけこちらを利用すること。
+    public class FileBaseStream2 : Stream
+    {
+        FileBase File = null!;
+        bool DisposeObject = false;
+
+        private FileBaseStream2() : base() { }
+
+        private void _InternalInit(FileBase obj, bool disposeObject)
+        {
+            File = obj;
+            DisposeObject = disposeObject;
+        }
+
+        public static FileBaseStream2 CreateFromFileObject(FileBase file, bool disposeObject = false, long? initialPosition = null)
+        {
+            FileBaseStream2 ret = new FileBaseStream2();
+
+            ret._InternalInit(file, disposeObject);
+
+            if (initialPosition.HasValue)
+            {
+                ret.Seek(initialPosition.Value, SeekOrigin.Begin);
+            }
+
+            return ret;
+        }
+
+
+        Once DisposeFlag;
+        protected override void Dispose(bool disposing)
+        {
+            try
+            {
+                if (DisposeFlag.IsFirstCall() && disposing)
+                {
+                    if (this.DisposeObject)
+                        File._DisposeSafe();
+                }
+            }
+            finally
+            {
+                base.Dispose(disposing);
+            }
+        }
+
+        public override bool CanRead => this.File.FileParams.Access.Bit(FileAccess.Read);
+        public override bool CanWrite => this.File.FileParams.Access.Bit(FileAccess.Write);
+        public override bool CanSeek => true;
+        public override long Length => File.GetFileSize();
+        public override long Position { get => File.Position; set => File.Position = value; }
+        public override long Seek(long offset, SeekOrigin origin) => File.Seek(offset, origin);
+        public override void SetLength(long value) => File.SetFileSize(value);
+
+        public override bool CanTimeout => false;
+        public override int ReadTimeout => throw new NotImplementedException();
+        public override int WriteTimeout => throw new NotImplementedException();
+
+        public override void Flush() => File.FlushAsync()._GetResult();
+        public override async Task FlushAsync(CancellationToken cancellationToken = default)
+        {
+            await using (cancellationToken.Register(() => File.Close()))
+            {
+                await File.FlushAsync();
+            }
+        }
+
+        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
+        {
+            await using (cancellationToken.Register(() => File.Close()))
+            {
+                return await File.ReadAsync(buffer.AsMemory(offset, count));
+            }
+        }
+
+        public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
+        {
+            await using (cancellationToken.Register(() => File.Close()))
+            {
+                try
+                {
+                    if (File.FileParams.Flags.Bit(FileFlags.RandomAccessOnly))
+                        await File.AppendAsync(buffer._AsReadOnlyMemory(offset, count));
+                    else
+                        await File.WriteAsync(buffer._AsReadOnlyMemory(offset, count));
+                }
+                catch (LargeFsWriteWithCrossBorderException padding)
+                {
+                    checked
+                    {
+                        var padData = new byte[(int)padding.RequiredPaddingSize];
+
+                        if (padData.Length >= 2)
+                        {
+                            padData[0] = 13;
+                            padData[1] = 10;
+                        }
+                        else if (padData.Length >= 1)
+                        {
+                            padData[0] = 10;
+                        }
+
+                        // パディング
+                        if (File.FileParams.Flags.Bit(FileFlags.RandomAccessOnly))
+                            await File.AppendAsync(padData);
+                        else
+                            await File.WriteAsync(padData);
+
+                        // データ本体
+                        if (File.FileParams.Flags.Bit(FileFlags.RandomAccessOnly))
+                            await File.AppendAsync(buffer._AsReadOnlyMemory(offset, count));
+                        else
+                            await File.WriteAsync(buffer._AsReadOnlyMemory(offset, count));
+                    }
+                }
+            }
+        }
+
+        public override void Write(byte[] buffer, int offset, int count) => WriteAsync(buffer, offset, count, CancellationToken.None)._GetResult();
+
+        public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count, CancellationToken.None)._GetResult();
+
+        public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback? callback, object? state)
+            => ReadAsync(buffer, offset, count, default)._AsApm(callback, state);
+
+        public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback? callback, object? state)
+            => WriteAsync(buffer, offset, count, default)._AsApm(callback, state);
+
+        public override int EndRead(IAsyncResult asyncResult) => ((Task<int>)asyncResult)._GetResult();
+        public override void EndWrite(IAsyncResult asyncResult) => ((Task)asyncResult)._GetResult();
+
+        public override bool Equals(object? obj) => object.Equals(this, obj);
+        public override int GetHashCode() => 0;
+        public override string ToString() => this.File.ToString();
+        [Obsolete]
+        public override object InitializeLifetimeService() => base.InitializeLifetimeService();
+        public override void Close() => Dispose(true);
+
+        public override void CopyTo(Stream destination, int bufferSize)
+        {
+            byte[] array = ArrayPool<byte>.Shared.Rent(bufferSize);
+            try
+            {
+                int count;
+                while ((count = this.Read(array, 0, array.Length)) != 0)
+                {
+                    destination.Write(array, 0, count);
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(array, false);
+            }
+        }
+
+        public override async Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
+        {
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+            try
+            {
+                for (; ; )
+                {
+                    int num = await this.ReadAsync(new Memory<byte>(buffer), cancellationToken).ConfigureAwait(false);
+                    int num2 = num;
+                    if (num2 == 0)
+                    {
+                        break;
+                    }
+                    await destination.WriteAsync(new ReadOnlyMemory<byte>(buffer, 0, num2), cancellationToken).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer, false);
+            }
+        }
+
+        [Obsolete]
+        protected override WaitHandle CreateWaitHandle() => new ManualResetEvent(false);
+
+        [Obsolete]
+        protected override void ObjectInvariant() { }
+
+        override public int Read(Span<byte> buffer)
+        {
+            byte[] array = ArrayPool<byte>.Shared.Rent(buffer.Length);
+            int result;
+            try
+            {
+                int num = this.Read(array, 0, buffer.Length);
+                if ((ulong)num > (ulong)((long)buffer.Length))
+                {
+                    throw new IOException("StreamTooLong");
+                }
+                new Span<byte>(array, 0, num).CopyTo(buffer);
+                result = num;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(array, false);
+            }
+            return result;
+        }
+
+        override public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            await using (cancellationToken.Register(() => File.Close()))
+            {
+                return await File.ReadAsync(buffer);
+            }
+        }
+
+        public override int ReadByte()
+        {
+            byte[] array = new byte[1];
+            if (this.Read(array, 0, 1) == 0)
+            {
+                return -1;
+            }
+            return (int)array[0];
+        }
+
+        override public void Write(ReadOnlySpan<byte> buffer)
+        {
+            byte[] array = ArrayPool<byte>.Shared.Rent(buffer.Length);
+            try
+            {
+                buffer.CopyTo(array);
+                this.Write(array, 0, buffer.Length);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(array, false);
+            }
+        }
+
+        override public async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            await using (cancellationToken.Register(() => File.Close()))
+            {
+                await File.WriteAsync(buffer);
+            }
+        }
+
+        public override void WriteByte(byte value)
+             => this.Write(new byte[] { value }, 0, 1);
+    }
+
+
+    // FileStream の派生クラスを騙るクラス。限定的利用 (ライブラリが FileBaseStream しか受付けない場合)。新しい利用の場合は FileBaseStream2 を利用すること。
     public class FileBaseStream : FileStream
     {
         FileBase File = null!;
@@ -500,6 +752,8 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        static bool SkipBaseDispose = false;
+
         Once DisposeFlag;
         protected override void Dispose(bool disposing)
         {
@@ -508,7 +762,20 @@ namespace IPA.Cores.Basic
                 if (this.DisposeObject)
                     File._DisposeSafe();
             }
-            base.Dispose(disposing);
+
+            if (SkipBaseDispose == false)
+            {
+                // .NET 6 で派生元の FileStream の挙動が変更され、Dispose で例外が発生するようになった。
+                // 一度例外が発生した場合は、もう Dispose を呼ばないようにする。
+                try
+                {
+                    base.Dispose(disposing);
+                }
+                catch
+                {
+                    SkipBaseDispose = true;
+                }
+            }
         }
 
         public override bool CanRead => this.File.FileParams.Access.Bit(FileAccess.Read);
@@ -2032,7 +2299,11 @@ namespace IPA.Cores.Basic
                 await this.File._DisposeSafeAsync();
         }
 
-        public FileStream GetStream() => this.File.GetStream();
+        // .NET 6 以降では、できるだけこちらを利用すること。
+        public Stream GetStream() => this.File.GetStream();
+
+        // 限定的利用 (ライブラリが FileBaseStream しか受付けない場合)。新しい利用の場合は FileBaseStream2 を利用すること。 (将来うまく動作しなくなる可能性もあるぞ)
+        public FileStream GetFileStream() => this.File.GetFileStream();
 
         public Task<int> ReadRandomAsync(long position, Memory<byte> data, CancellationToken cancel = default)
             => this.File.ReadRandomAsync(position, data, cancel);
@@ -2115,8 +2386,14 @@ namespace IPA.Cores.Basic
 
         public void Flush(CancellationToken cancel = default) => FlushAsync(cancel)._GetResult();
 
-        public FileStream GetStream(bool disposeObject, long? initialPosition = null) => FileBaseStream.CreateFromFileObject(this, disposeObject, initialPosition);
-        public FileStream GetStream() => GetStream(false);
+        // .NET 6 以降では、できるだけこちらを利用すること。
+        public Stream GetStream(bool disposeObject, long? initialPosition = null) => FileBaseStream2.CreateFromFileObject(this, disposeObject, initialPosition);
+        public Stream GetStream() => GetStream(false);
+
+        // 限定的利用 (ライブラリが FileBaseStream しか受付けない場合)。新しい利用の場合は FileBaseStream2 を利用すること。 (将来うまく動作しなくなる可能性もあるぞ)
+        public FileStream GetFileStream(bool disposeObject, long? initialPosition = null) => FileBaseStream.CreateFromFileObject(this, disposeObject, initialPosition);
+        public FileStream GetFileStream() => GetFileStream(false);
+
         public RandomAccessHandle GetRandomAccessHandle(bool disposeObject = false) => new RandomAccessHandle(this, disposeObject);
 
         public long Position

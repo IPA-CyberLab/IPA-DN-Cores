@@ -92,7 +92,7 @@ namespace IPA.Cores.Helper.Basic
         {
             CheckStreamRange(offset, count, file.Size);
 
-            await using (FileStream srcStream = file.GetStream(false))
+            await using (Stream srcStream = file.GetStream(false))
             {
                 if (offset > 0)
                 {
