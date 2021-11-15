@@ -152,11 +152,11 @@ namespace IPA.Cores.Basic
         readonly FileSystem LfsUtf8;
 
         readonly FileObject? InfoLogFileObj;
-        readonly FileStream? InfoLogFileStream;
+        readonly Stream? InfoLogFileStream;
         readonly StreamWriter? InfoLogWriter;
 
         readonly FileObject? ErrorLogFileObj;
-        readonly FileStream? ErrorLogFileStream;
+        readonly Stream? ErrorLogFileStream;
         readonly StreamWriter? ErrorLogWriter;
 
         public const string PrefixMetadata = ".super_metadata_";

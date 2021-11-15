@@ -1845,7 +1845,7 @@ namespace IPA.Cores.Basic
     public class CsvWriter<T> : AsyncService where T : notnull, new()
     {
         readonly FieldReaderWriter Rw;
-        readonly FileStream FileStream;
+        readonly Stream FileStream;
         readonly BufferedStream BufferedStream;
         readonly Encoding Encoding;
         readonly bool PrintToConsole;

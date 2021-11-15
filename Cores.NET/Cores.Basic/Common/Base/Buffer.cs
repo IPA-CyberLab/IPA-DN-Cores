@@ -4053,7 +4053,7 @@ namespace IPA.Cores.Basic
                     FileObject file = Lfs.CreateDynamicTempFile(prefix: "MemoryOrDiskBuffer");
                     try
                     {
-                        FileStream fileStream = file.GetStream(true);
+                        Stream fileStream = file.GetStream(true);
 
                         // 現在のメモリストリームの内容をファイルストリームに書き出す
                         // (現在の CurrentBuffer の内容は直ちに破棄するので中の MemoryStream から直接吸い出して問題無い)
