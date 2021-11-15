@@ -29,8 +29,8 @@ namespace TestWebServer1
                 args: args,
                 getDaemonProc: () => new HttpServerDaemon<Startup>(appName, appName, new HttpServerOptions
                 {
-                    HttpPortsList = 80._SingleList(),
-                    HttpsPortsList = 443._SingleList(),
+                    HttpPortsList = new int[] { 80, 88 }.ToList(),
+                    HttpsPortsList = new int[] { 443, 8433 }.ToList(),
                     UseKestrelWithIPACoreStack = false,
                     DebugKestrelToConsole = false,
                     UseSimpleBasicAuthentication = false,

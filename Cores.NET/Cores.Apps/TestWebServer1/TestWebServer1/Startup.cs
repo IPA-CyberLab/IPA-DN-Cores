@@ -24,6 +24,15 @@ using static IPA.Cores.Globals.Codes;
 
 namespace TestWebServer1
 {
+    public class PageContext : AspPageContext
+    {
+        public DateTimeOffset Now = DateTimeOffset.Now;
+
+        public PageContext()
+        {
+        }
+    }
+
     public class Startup
     {
         readonly HttpServerStartupHelper StartupHelper;
@@ -54,7 +63,7 @@ namespace TestWebServer1
 
             // リクエスト数制限機能を追加
             services.AddHttpRequestRateLimiter<HttpRequestRateLimiterHashKeys.SrcIPAddress>(_ => { });
-
+            
             ////// Cookie 認証機能を追加
             //EasyCookieAuth.LoginFormMessage.TrySet("ログインが必要です。");
             //EasyCookieAuth.AuthenticationPasswordValidator = StartupHelper.SimpleBasicAuthenticationPasswordValidator;
@@ -68,7 +77,8 @@ namespace TestWebServer1
             //services.AddSingleton(new Server());
 
             // 全ページ共通コンテキストの注入
-            //services.AddScoped<PageContext>();
+            services.AddScoped<PageContext>();
+            IPA.Cores.Web.TagHelpers.GlobalSettings.SetPageContextType<PageContext>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -85,7 +95,7 @@ namespace TestWebServer1
 
             // 基本的な設定を追加
             StartupHelper.Configure(app, env);
-
+            
             // エラーページを追加
             if (StartupHelper.IsDevelopmentMode)
             {
