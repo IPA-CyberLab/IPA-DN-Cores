@@ -690,6 +690,28 @@ namespace IPA.TestDev
             }
         }
 
+        static void Test_MakeDummyCerts_211115()
+        {
+            string baseDir = @"c:\tmp\211115_dummy_certs2\";
+
+            if (true)
+            {
+                PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+                var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "dummycert2.softether.com", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
+
+                CertificateStore store = new CertificateStore(cert, priv);
+
+                Lfs.WriteStringToFile(baseDir + @"00_DummyCert2_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+
+                Lfs.WriteDataToFile(baseDir + @"00_DummyCert2.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"00_DummyCert2.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+                Lfs.WriteDataToFile(baseDir + @"00_DummyCert2.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            }
+        }
+
         static void Test_MakeThinOssCerts_201120()
         {
             string baseDir = @"M:\\Projects\ThinTelework_OSS\Certs\201120_Certs\";
@@ -2482,6 +2504,12 @@ namespace IPA.TestDev
 
         public static void Test_Generic()
         {
+            if (true)
+            {
+                Test_MakeDummyCerts_211115();
+                return;
+            }
+
             if (true)
             {
                 Test_211108();
