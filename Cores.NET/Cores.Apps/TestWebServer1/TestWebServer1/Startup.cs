@@ -123,6 +123,11 @@ namespace TestWebServer1
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllerRoute(
+                    name: "test",
+                    pattern: "/{*path}",
+                    defaults: new { controller = "Home", action = "Index" });
+
+                endpoints.MapControllerRoute(
                     name: "default",
                     pattern: "{controller=Home}/{action=Index}/{id?}");
             });

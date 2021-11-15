@@ -211,7 +211,7 @@ namespace IPA.Cores.Basic
                     Host = req.Host.ToString()._TruncStrEx(maxLen),
                     Path = req.Path.ToString()._TruncStrEx(maxLen),
                     QueryString = req.QueryString.ToString()._TruncStrEx(maxLen),
-                    Url = req.GetDisplayUrl()._TruncStrEx(maxLen),
+                    Url = req.GetEncodedUrl()._TruncStrEx(maxLen),
 
                     AuthUserName = username._TruncStrEx(maxLen),
                     AuthType = authtype,

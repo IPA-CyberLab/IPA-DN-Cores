@@ -185,7 +185,7 @@ namespace IPA.Cores.Web
                     context._EasySaveCookie("asp_page_language_setting", selectedLanguage.Key);
 
                     // Query string から "setlang" を削除したものにそのままリダイレクトする
-                    var originalUrl = context.Request.GetDisplayUrl();
+                    var originalUrl = context.GetUrl();
                     var newUrl = originalUrl._RemoveQueryStringItem("setlang");
 
                     context.Response.Redirect(newUrl.ToString());

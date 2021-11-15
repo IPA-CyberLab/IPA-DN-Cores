@@ -57,6 +57,7 @@ using Castle.DynamicProxy.Generators;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Html;
+using Microsoft.AspNetCore.Http.Extensions;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 
@@ -148,6 +149,8 @@ namespace IPA.Cores.Helper.Web
         public static TextActionResult _AspNetTextActionResult(this string str, string contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, Encoding? encoding = null, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
             => new TextActionResult(str, contentType, statusCode, encoding, additionalHeaders);
 
+        public static string GetUrl(this HttpRequest req) => req.GetEncodedUrl();
+        public static string GetUrl(this HttpContext c) => c.Request.GetUrl();
 
         // エラーハンドラページで利用できる、最後のエラーの取得
         public static Exception _GetLastError(this Controller controller)

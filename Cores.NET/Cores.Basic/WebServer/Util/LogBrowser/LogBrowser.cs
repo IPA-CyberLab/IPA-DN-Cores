@@ -361,7 +361,7 @@ namespace IPA.Cores.Basic
 
             alog.IP = clientIpAddress.ToString();
             alog.Port = clientPort;
-            alog.Url = request.GetDisplayUrl();
+            alog.Url = request.GetEncodedUrl();
             alog.UserAgent = request.Headers[Consts.HttpHeaders.UserAgent];
             alog.Referer = request.Headers[Consts.HttpHeaders.Referer];
 
@@ -450,7 +450,6 @@ namespace IPA.Cores.Basic
                     {
                         // 認証が必要とされている場合、パスが  /任意の名前/<authsubdirname>/ である場合は Basic 認証を経由して実ファイルにアクセスさせる。
                         // それ以外の場合は、認証案内ページを出す。
-                        var x = request.GetDisplayUrl();
                         var thisDirFullUrl = new Uri(fullUri, this.AbsolutePathPrefix + firstDirName + "/");
                         var authFullUrl = new Uri(thisDirFullUrl, secureJson.AuthSubDirName + "/");
 
