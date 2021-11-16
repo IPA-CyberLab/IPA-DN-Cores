@@ -422,8 +422,7 @@ namespace IPA.Cores.Basic
                     // _secure.json ファイルの読み込みを試行する
                     string[] dirNames = PathParser.Linux.SplitAbsolutePathToElementsUnixStyle(physicalPath);
                     string firstDirName = "/" + dirNames[0];
-                    zipDownloadRoot = firstDirName;
-                    zipFileName = PPWin.MakeSafeFileName(dirNames[0] + "_" + Str.DateTimeToStrShort(DtNow).Substring(2) + Consts.Extensions.Zip);
+                    zipDownloadRoot = "/" + dirNames[0];
 
                     secureJsonPath = PathParser.Linux.Combine(firstDirName, Consts.FileNames.LogBrowserSecureJson);
 
@@ -518,11 +517,10 @@ namespace IPA.Cores.Basic
                         accessLogResults.PhysicalAccessLogDirPath = "";
 
                         isAccessToAccessLog = true;
-
                     }
 
                     // ZIP ファイルとしてダウンロードすることを要求しているアクセスかどうかを検査
-                    if (dirNames.ElementAtOrDefault(secureJson.AuthRequired ? 2 : 1)._IsSameTrimi(Consts.FileNames.LogBrowserZipFileName))
+                    if (dirNames.LastOrDefault()._IsSameTrimi(Consts.FileNames.LogBrowserZipFileName))
                     {
                         // ZIP ファイルとしてのアクセスである
                         if (secureJson.AllowZipDownload == false)
@@ -531,7 +529,24 @@ namespace IPA.Cores.Basic
                             return new HttpStringResult("403 Forbidden", statusCode: 403);
                         }
 
+                        zipDownloadRoot = "/" + dirNames[0] + "/" + dirNames.Skip(secureJson.AuthRequired ? 2 : 1).SkipLast(1)._Combine("/");
+                        
                         isZipDownloadRequest = true;
+
+                        string fn1 = dirNames.FirstOrDefault()._FilledOrDefault("unknown").Trim();
+                        string fn2 = dirNames.SkipLast(1).LastOrDefault()._FilledOrDefault("unknown").Trim();
+
+                        fn1 = PPWin.MakeSafeFileName(fn1);
+                        fn2 = PPWin.MakeSafeFileName(fn2);
+
+                        string fntmp = fn1 + "_" + fn2;
+
+                        if (fn1._IsSamei(fn2))
+                        {
+                            fntmp = fn1 + "_root";
+                        }
+
+                        zipFileName = PPWin.MakeSafeFileName(fntmp + "_" + Str.DateTimeToStrShort(DtNow).Substring(2) + Consts.Extensions.Zip);
                     }
 
                     if ((secureJson.AllowAccessToAccessLog && secureJson.DisableAccessLog == false) || (secureJson.AllowZipDownload))
@@ -541,12 +556,24 @@ namespace IPA.Cores.Basic
 
                         if (secureJson.AllowZipDownload)
                         {
-                            footer += $"<p><a href=\"{this.AbsolutePathPrefix}/{dirNames.Take(secureJson.AuthRequired ? 2 : 1)._Combine("/")}/{Consts.FileNames.LogBrowserZipFileName}/\"><strong><i class=\"fas fa-download\"></i> ZIP ファイルとして全ファイルをまとめてダウンロード</strong></a></p>";
+                            string s1 = dirNames.Take(secureJson.AuthRequired ? 2 : 1)._Combine("/");
+                            string s2 = dirNames._Combine("/");
+
+                            bool isRoot = s1._IsSamei(s2);
+
+                            if (isRoot)
+                            {
+                                footer += $"<p><a href=\"{this.AbsolutePathPrefix}/{dirNames.Take(secureJson.AuthRequired ? 2 : 1)._Combine("/")._EncodeHtml()}/{Consts.FileNames.LogBrowserZipFileName}/\"><strong><i class=\"fas fa-download\"></i> ZIP ファイルとしてルートディレクトリからの全ファイルをまとめてダウンロード</strong></a></p>";
+                            }
+                            else
+                            {
+                                footer += $"<p><a href=\"{this.AbsolutePathPrefix}/{dirNames._Combine("/")._EncodeHtml()}/{Consts.FileNames.LogBrowserZipFileName}/\"><strong><i class=\"fas fa-download\"></i> ZIP ファイルとしてこのサブディレクトリ \"/{dirNames._Combine("/")._EncodeHtml()}/\" からの全ファイルをまとめてダウンロード</strong></a></p>";
+                            }
                         }
 
                         if (secureJson.AllowAccessToAccessLog && secureJson.DisableAccessLog == false)
                         {
-                            footer += $"<p><a href=\"{this.AbsolutePathPrefix}/{dirNames.Take(secureJson.AuthRequired ? 2 : 1)._Combine("/")}/{Consts.FileNames.LogBrowserAccessLogDirName}/\"><strong><i class=\"far fa-eye\"></i> アクセスログの参照</strong></a></p>";
+                            footer += $"<p><a href=\"{this.AbsolutePathPrefix}/{dirNames.Take(secureJson.AuthRequired ? 2 : 1)._Combine("/")._EncodeHtml()}/{Consts.FileNames.LogBrowserAccessLogDirName}/\"><strong><i class=\"far fa-eye\"></i> アクセスログの参照</strong></a></p>";
                         }
                     }
 

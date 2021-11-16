@@ -871,6 +871,12 @@ namespace IPA.Cores.Basic
                     throw;
                 }
 
+                if (isRootDir)
+                {
+                    // ルートディレクトリがそもそも存在しないような場合は例外を出す
+                    throw;
+                }
+
                 if (await exceptionHandler(currentDirInfo, ex, opCancel) == false)
                 {
                     return false;
