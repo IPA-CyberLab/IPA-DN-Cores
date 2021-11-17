@@ -44,62 +44,61 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public static partial class DevTools
 {
-    public static partial class DevTools
+    public static void WriteToFile(string path, string bodyString, Encoding? encoding = null, bool writeBom = false, bool noDebug = false)
     {
-        public static void WriteToFile(string path, string bodyString, Encoding? encoding = null, bool writeBom = false, bool noDebug = false)
+        bodyString = bodyString._NonNull();
+        bodyString = Str.NormalizeCrlf(bodyString, CrlfStyle.LocalPlatform);
+
+        Lfs.WriteStringToFile(path, bodyString, FileFlags.AutoCreateDirectory | FileFlags.WriteOnlyIfChanged,
+            encoding: encoding, writeBom: writeBom);
+
+        if (noDebug == false)
         {
-            bodyString = bodyString._NonNull();
-            bodyString = Str.NormalizeCrlf(bodyString, CrlfStyle.LocalPlatform);
-
-            Lfs.WriteStringToFile(path, bodyString, FileFlags.AutoCreateDirectory | FileFlags.WriteOnlyIfChanged,
-                encoding: encoding, writeBom: writeBom);
-
-            if (noDebug == false)
-            {
-                Con.WriteDebug($"--- WriteToFile \"{path}\" ---");
-                Con.WriteDebug(bodyString);
-                Con.WriteDebug($"--- EOF ---");
-                Con.WriteDebug();
-            }
+            Con.WriteDebug($"--- WriteToFile \"{path}\" ---");
+            Con.WriteDebug(bodyString);
+            Con.WriteDebug($"--- EOF ---");
+            Con.WriteDebug();
         }
+    }
 
-        // テスト証明書
-        // SHA256: 8A18D75E4702CC5138F54DAC4C8C88B49C9D1A9E2B556C8B10A6C779658E0026
-        static readonly Singleton<PalX509Certificate> TestSampleCert_Singleton = new Singleton<PalX509Certificate>(() => new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert/SampleDefaultCert.p12")));
-        public static PalX509Certificate TestSampleCert => TestSampleCert_Singleton;
+    // テスト証明書
+    // SHA256: 8A18D75E4702CC5138F54DAC4C8C88B49C9D1A9E2B556C8B10A6C779658E0026
+    static readonly Singleton<PalX509Certificate> TestSampleCert_Singleton = new Singleton<PalX509Certificate>(() => new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert/SampleDefaultCert.p12")));
+    public static PalX509Certificate TestSampleCert => TestSampleCert_Singleton;
 
-        // デバッグ用 CA
-        // SHA256: D9413D2F2E278BCDB277CD9321E5B9F0CB5EC468AF645C3EFD4942F9238FCE8F
-        static readonly Singleton<PalX509Certificate> CoresDebugCACert_Singleton = new Singleton<PalX509Certificate>(() => new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert/190804CoresDebugCA.p12")));
-        public static PalX509Certificate CoresDebugCACert => CoresDebugCACert_Singleton;
+    // デバッグ用 CA
+    // SHA256: D9413D2F2E278BCDB277CD9321E5B9F0CB5EC468AF645C3EFD4942F9238FCE8F
+    static readonly Singleton<PalX509Certificate> CoresDebugCACert_Singleton = new Singleton<PalX509Certificate>(() => new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert/190804CoresDebugCA.p12")));
+    public static PalX509Certificate CoresDebugCACert => CoresDebugCACert_Singleton;
 
-        // .h ファイルの定数一覧を読み込む
-        public static Dictionary<string, int> ParseHeaderConstants(string body)
+    // .h ファイルの定数一覧を読み込む
+    public static Dictionary<string, int> ParseHeaderConstants(string body)
+    {
+        string[] lines = body._GetLines();
+
+        Dictionary<string, int> ret = new Dictionary<string, int>();
+
+        foreach (string line in lines)
         {
-            string[] lines = body._GetLines();
+            string[] tokens = line._Split(StringSplitOptions.RemoveEmptyEntries, ' ', '\t');
 
-            Dictionary<string, int> ret = new Dictionary<string, int>();
-
-            foreach (string line in lines)
+            if (tokens.Length >= 3)
             {
-                string[] tokens = line._Split(StringSplitOptions.RemoveEmptyEntries, ' ', '\t');
-
-                if (tokens.Length >= 3)
+                if (tokens[0] == "#define")
                 {
-                    if (tokens[0] == "#define")
+                    if (tokens[2]._IsNumber())
                     {
-                        if (tokens[2]._IsNumber())
-                        {
-                            ret.TryAdd(tokens[1], tokens[2]._ToInt());
-                        }
+                        ret.TryAdd(tokens[1], tokens[2]._ToInt());
                     }
                 }
             }
-
-            return ret;
         }
+
+        return ret;
     }
 }
 

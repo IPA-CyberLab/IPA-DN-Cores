@@ -47,16 +47,15 @@ using static IPA.Cores.Globals.Basic;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 
-namespace IPA.Cores.Basic
-{
-    public static class GitHelper
-    {
-        public static GitRef GetOriginRef(this IEnumerable<GitRef> branchList, string name)
-            => branchList.Where(x => x.Type == GitRefType.RemoteBranch && x.Name._IsSamei($"refs/remotes/origin/{name}")).Single();
+namespace IPA.Cores.Basic;
 
-        public static GitRef GetOriginMasterBranch(this IEnumerable<GitRef> branchList)
-            => GetOriginRef(branchList, "master");
-    }
+public static class GitHelper
+{
+    public static GitRef GetOriginRef(this IEnumerable<GitRef> branchList, string name)
+        => branchList.Where(x => x.Type == GitRefType.RemoteBranch && x.Name._IsSamei($"refs/remotes/origin/{name}")).Single();
+
+    public static GitRef GetOriginMasterBranch(this IEnumerable<GitRef> branchList)
+        => GetOriginRef(branchList, "master");
 }
 
 #endif // CORES_BASIC_GIT

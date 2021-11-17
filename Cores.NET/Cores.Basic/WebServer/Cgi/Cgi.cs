@@ -73,237 +73,236 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+// CGI コンテキスト
+public class CgiContext
 {
-    // CGI コンテキスト
-    public class CgiContext
+    public readonly HttpRequest Request;
+    public readonly RouteData RouteData;
+    public readonly CancellationToken Cancel;
+
+    public readonly string RequestPathAndQueryString;
+
+    public readonly Uri Uri;
+    public readonly QueryStringList QueryString;
+
+    public readonly IPAddress ClientIpAddress;
+    public readonly int ClientPort;
+
+    public readonly IPAddress ServerIpAddress;
+    public readonly int ServerPort;
+
+    public CgiContext(HttpRequest request, RouteData routeData, CancellationToken cancel = default)
     {
-        public readonly HttpRequest Request;
-        public readonly RouteData RouteData;
-        public readonly CancellationToken Cancel;
+        Request = request;
+        RouteData = routeData;
+        Cancel = cancel;
 
-        public readonly string RequestPathAndQueryString;
+        var connection = Request.HttpContext.Connection;
 
-        public readonly Uri Uri;
-        public readonly QueryStringList QueryString;
+        this.ClientIpAddress = connection.RemoteIpAddress!._UnmapIPv4();
+        this.ClientPort = connection.RemotePort;
 
-        public readonly IPAddress ClientIpAddress;
-        public readonly int ClientPort;
+        this.ServerIpAddress = connection.LocalIpAddress!._UnmapIPv4();
+        this.ServerPort = connection.LocalPort;
 
-        public readonly IPAddress ServerIpAddress;
-        public readonly int ServerPort;
+        this.RequestPathAndQueryString = request._GetRequestPathAndQueryString();
 
-        public CgiContext(HttpRequest request, RouteData routeData, CancellationToken cancel = default)
-        {
-            Request = request;
-            RouteData = routeData;
-            Cancel = cancel;
+        this.RequestPathAndQueryString._ParseUrl(out this.Uri, out this.QueryString);
+    }
+}
 
-            var connection = Request.HttpContext.Connection;
+public delegate Task<HttpResult> CgiActionAsync(CgiContext ctx);
 
-            this.ClientIpAddress = connection.RemoteIpAddress!._UnmapIPv4();
-            this.ClientPort = connection.RemotePort;
+// CGI アクション要素
+public class CgiAction
+{
+    public readonly string Template;
+    public readonly WebMethodBits Methods;
+    public readonly CgiActionAsync ActionAsync;
 
-            this.ServerIpAddress = connection.LocalIpAddress!._UnmapIPv4();
-            this.ServerPort = connection.LocalPort;
+    public CgiAction(string template, WebMethodBits methods, CgiActionAsync actionAsync)
+    {
+        Template = template;
+        Methods = methods;
+        ActionAsync = actionAsync;
+    }
+}
 
-            this.RequestPathAndQueryString = request._GetRequestPathAndQueryString();
+// CGI アクションリスト
+public class CgiActionList
+{
+    public bool IsSealed { get; private set; } = false;
 
-            this.RequestPathAndQueryString._ParseUrl(out this.Uri, out this.QueryString);
-        }
+    readonly List<CgiAction> List = new List<CgiAction>();
+
+    public void AddAction(string template, WebMethodBits method, CgiActionAsync actionAsync)
+    {
+        if (IsSealed) throw new CoresException("Sealed.");
+
+        List.Add(new CgiAction(template, method, actionAsync));
     }
 
-    public delegate Task<HttpResult> CgiActionAsync(CgiContext ctx);
-
-    // CGI アクション要素
-    public class CgiAction
+    public void AddToRouteBuilder(RouteBuilder rb, bool showDetailError)
     {
-        public readonly string Template;
-        public readonly WebMethodBits Methods;
-        public readonly CgiActionAsync ActionAsync;
+        this.IsSealed = true;
 
-        public CgiAction(string template, WebMethodBits methods, CgiActionAsync actionAsync)
+        foreach (var act in List)
         {
-            Template = template;
-            Methods = methods;
-            ActionAsync = actionAsync;
-        }
-    }
-
-    // CGI アクションリスト
-    public class CgiActionList
-    {
-        public bool IsSealed { get; private set; } = false;
-
-        readonly List<CgiAction> List = new List<CgiAction>();
-
-        public void AddAction(string template, WebMethodBits method, CgiActionAsync actionAsync)
-        {
-            if (IsSealed) throw new CoresException("Sealed.");
-
-            List.Add(new CgiAction(template, method, actionAsync));
-        }
-
-        public void AddToRouteBuilder(RouteBuilder rb, bool showDetailError)
-        {
-            this.IsSealed = true;
-
-            foreach (var act in List)
+            foreach (var method in act.Methods._GetWebMethodListFromBits())
             {
-                foreach (var method in act.Methods._GetWebMethodListFromBits())
-                {
-                    rb.MapVerb(method.ToString(), act.Template,
-                        async (request, response, routeData) =>
+                rb.MapVerb(method.ToString(), act.Template,
+                    async (request, response, routeData) =>
+                    {
+                        CgiContext ctx = new CgiContext(request, routeData, request._GetRequestCancellationToken());
+
+                        try
                         {
-                            CgiContext ctx = new CgiContext(request, routeData, request._GetRequestCancellationToken());
+                            await using HttpResult result = await act.ActionAsync(ctx);
 
-                            try
+                            await response._SendHttpResultAsync(result, ctx.Cancel);
+                        }
+                        catch (Exception ex)
+                        {
+                            ex = ex._GetSingleException();
+
+                            ex._Error();
+
+                            string errorStr;
+
+                            if (showDetailError == false)
                             {
-                                await using HttpResult result = await act.ActionAsync(ctx);
-
-                                await response._SendHttpResultAsync(result, ctx.Cancel);
+                                errorStr = ex.Message;
                             }
-                            catch (Exception ex)
+                            else
                             {
-                                ex = ex._GetSingleException();
-
-                                ex._Error();
-
-                                string errorStr;
-
-                                if (showDetailError == false)
-                                {
-                                    errorStr = ex.Message;
-                                }
-                                else
-                                {
-                                    errorStr = ex.ToString();
-                                }
-
-                                await using var errorResult = new HttpStringResult($"HTTP Status Code: 500\r\n" + errorStr, statusCode: 500);
-
-                                await response._SendHttpResultAsync(errorResult, ctx.Cancel);
+                                errorStr = ex.ToString();
                             }
-                        });
-                }
+
+                            await using var errorResult = new HttpStringResult($"HTTP Status Code: 500\r\n" + errorStr, statusCode: 500);
+
+                            await response._SendHttpResultAsync(errorResult, ctx.Cancel);
+                        }
+                    });
             }
         }
     }
+}
 
-    // CGI ハンドラベースクラス (このクラスを派生して自前のハンドラを実装します)
-    public abstract class CgiHandlerBase : AsyncService
+// CGI ハンドラベースクラス (このクラスを派生して自前のハンドラを実装します)
+public abstract class CgiHandlerBase : AsyncService
+{
+    readonly CgiActionList ActionListNoAuth = new CgiActionList();
+    readonly CgiActionList ActionListRequireAuth = new CgiActionList();
+
+    public readonly Copenhagen<bool> ShowDetailError = new Copenhagen<bool>(false);
+
+    public CgiHandlerBase()
     {
-        readonly CgiActionList ActionListNoAuth = new CgiActionList();
-        readonly CgiActionList ActionListRequireAuth = new CgiActionList();
-
-        public readonly Copenhagen<bool> ShowDetailError = new Copenhagen<bool>(false);
-
-        public CgiHandlerBase()
-        {
-        }
-
-        Once inited;
-
-        void InitActionListInternal()
-        {
-            if (inited.IsFirstCall())
-            {
-                InitActionListImpl(this.ActionListNoAuth, this.ActionListRequireAuth);
-            }
-        }
-
-        public void InsertActionListNoAuthToRouteBuilder(RouteBuilder rb)
-        {
-            InitActionListInternal();
-
-            this.ActionListNoAuth.AddToRouteBuilder(rb, ShowDetailError);
-        }
-
-        public void InsertActionListReqAuthToRouteBuilder(RouteBuilder rb)
-        {
-            InitActionListInternal();
-
-            this.ActionListRequireAuth.AddToRouteBuilder(rb, ShowDetailError);
-        }
-
-        protected abstract void InitActionListImpl(CgiActionList noAuth, CgiActionList reqAuth);
     }
 
-    // CGI 用簡易 HTTP サーバービルダー
-    public sealed class CgiHttpServerBuilder : HttpServerStartupBase
+    Once inited;
+
+    void InitActionListInternal()
     {
-        CgiHttpServer CgiHttpServer => (CgiHttpServer)this.Param!;
-        CgiHandlerBase Handler => CgiHttpServer.Handler;
-
-        public static HttpServer<CgiHttpServerBuilder> StartServer(HttpServerOptions httpCfg, CgiHttpServer cgiHttpServer, CancellationToken cancel = default)
-            => new HttpServer<CgiHttpServerBuilder>(httpCfg, cgiHttpServer, cancel);
-
-        public CgiHttpServerBuilder(IConfiguration configuration) : base(configuration)
+        if (inited.IsFirstCall())
         {
-        }
-
-        protected override void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
-        {
-            RouteBuilder rb = new RouteBuilder(app);
-
-            Handler.InsertActionListNoAuthToRouteBuilder(rb);
-
-            IRouter router = rb.Build();
-            app.UseRouter(router);
-        }
-
-        protected override void ConfigureImpl_AfterHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
-        {
-            RouteBuilder rb = new RouteBuilder(app);
-
-            Handler.InsertActionListReqAuthToRouteBuilder(rb);
-
-            IRouter router = rb.Build();
-            app.UseRouter(router);
+            InitActionListImpl(this.ActionListNoAuth, this.ActionListRequireAuth);
         }
     }
 
-    // CGI 用簡易 HTTP サーバー
-    public sealed class CgiHttpServer : AsyncService
+    public void InsertActionListNoAuthToRouteBuilder(RouteBuilder rb)
     {
-        readonly HttpServer<CgiHttpServerBuilder> HttpSvr;
-        public readonly CgiHandlerBase Handler;
+        InitActionListInternal();
 
-        readonly bool AutoDisposeHandler;
+        this.ActionListNoAuth.AddToRouteBuilder(rb, ShowDetailError);
+    }
 
-        public CgiHttpServer(CgiHandlerBase handler, HttpServerOptions options, bool autoDisposeHandler = false)
+    public void InsertActionListReqAuthToRouteBuilder(RouteBuilder rb)
+    {
+        InitActionListInternal();
+
+        this.ActionListRequireAuth.AddToRouteBuilder(rb, ShowDetailError);
+    }
+
+    protected abstract void InitActionListImpl(CgiActionList noAuth, CgiActionList reqAuth);
+}
+
+// CGI 用簡易 HTTP サーバービルダー
+public sealed class CgiHttpServerBuilder : HttpServerStartupBase
+{
+    CgiHttpServer CgiHttpServer => (CgiHttpServer)this.Param!;
+    CgiHandlerBase Handler => CgiHttpServer.Handler;
+
+    public static HttpServer<CgiHttpServerBuilder> StartServer(HttpServerOptions httpCfg, CgiHttpServer cgiHttpServer, CancellationToken cancel = default)
+        => new HttpServer<CgiHttpServerBuilder>(httpCfg, cgiHttpServer, cancel);
+
+    public CgiHttpServerBuilder(IConfiguration configuration) : base(configuration)
+    {
+    }
+
+    protected override void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
+    {
+        RouteBuilder rb = new RouteBuilder(app);
+
+        Handler.InsertActionListNoAuthToRouteBuilder(rb);
+
+        IRouter router = rb.Build();
+        app.UseRouter(router);
+    }
+
+    protected override void ConfigureImpl_AfterHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
+    {
+        RouteBuilder rb = new RouteBuilder(app);
+
+        Handler.InsertActionListReqAuthToRouteBuilder(rb);
+
+        IRouter router = rb.Build();
+        app.UseRouter(router);
+    }
+}
+
+// CGI 用簡易 HTTP サーバー
+public sealed class CgiHttpServer : AsyncService
+{
+    readonly HttpServer<CgiHttpServerBuilder> HttpSvr;
+    public readonly CgiHandlerBase Handler;
+
+    readonly bool AutoDisposeHandler;
+
+    public CgiHttpServer(CgiHandlerBase handler, HttpServerOptions options, bool autoDisposeHandler = false)
+    {
+        try
         {
-            try
-            {
-                this.Handler = handler;
-                this.AutoDisposeHandler = autoDisposeHandler;
+            this.Handler = handler;
+            this.AutoDisposeHandler = autoDisposeHandler;
 
-                this.Handler.ShowDetailError.TrySet(options.ShowDetailError);
+            this.Handler.ShowDetailError.TrySet(options.ShowDetailError);
 
-                HttpSvr = CgiHttpServerBuilder.StartServer(options, this);
-            }
-            catch (Exception ex)
+            HttpSvr = CgiHttpServerBuilder.StartServer(options, this);
+        }
+        catch (Exception ex)
+        {
+            this._DisposeSafe(ex);
+            throw;
+        }
+    }
+
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
+        {
+            await HttpSvr._DisposeSafeAsync(ex);
+
+            if (this.AutoDisposeHandler)
             {
-                this._DisposeSafe(ex);
-                throw;
+                await Handler._DisposeSafeAsync(ex);
             }
         }
-
-        protected override async Task CleanupImplAsync(Exception? ex)
+        finally
         {
-            try
-            {
-                await HttpSvr._DisposeSafeAsync(ex);
-
-                if (this.AutoDisposeHandler)
-                {
-                    await Handler._DisposeSafeAsync(ex);
-                }
-            }
-            finally
-            {
-                await base.CleanupImplAsync(ex);
-            }
+            await base.CleanupImplAsync(ex);
         }
     }
 }

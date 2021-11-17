@@ -47,84 +47,83 @@ using System.Reflection;
 
 [assembly: InternalsVisibleTo("Dev.xUnitTest")]
 
-namespace IPA.TestDev
+namespace IPA.TestDev;
+
+static class IsDebugBuildChecker
 {
-    static class IsDebugBuildChecker
+    public static readonly bool IsDebugBuild;
+    static IsDebugBuildChecker()
     {
-        public static readonly bool IsDebugBuild;
-        static IsDebugBuildChecker()
-        {
-            int debugChecker = 0;
-            Debug.Assert((++debugChecker) >= 1);
-            IsDebugBuild = (debugChecker >= 1);
-        }
+        int debugChecker = 0;
+        Debug.Assert((++debugChecker) >= 1);
+        IsDebugBuild = (debugChecker >= 1);
     }
-    
-    class TestDevAppMain
+}
+
+class TestDevAppMain
+{
+    static int Main(string[] args)
     {
-        static int Main(string[] args)
+        int ret = -1;
+
+        CoresConfig.ApplyHeavyLoadServerConfigAll();
+
+        //CoresConfig.LocalLargeFileSystemSettings.MaxSingleFileSize.SetValue(200);
+
+        //Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: false, leakFullStack: false);
+
+        CoresLib.Init(new CoresLibOptions(CoresMode.Application, "TestDev", DebugMode.Debug, defaultPrintStatToConsole: false, defaultRecordLeakFullStack: false), args);
+        //CoresLib.Init(new CoresLibOptions(CoresMode.Library, "TestDevLib", DebugMode.ReleaseNoDebugLogs, defaultPrintStatToConsole: false, defaultRecordLeakFullStack: false), args);
+
+        try
         {
-            int ret = -1;
-
-            CoresConfig.ApplyHeavyLoadServerConfigAll();
-
-            //CoresConfig.LocalLargeFileSystemSettings.MaxSingleFileSize.SetValue(200);
-
-            //Dbg.SetDebugMode(DebugMode.Debug, printStatToConsole: false, leakFullStack: false);
-
-            CoresLib.Init(new CoresLibOptions(CoresMode.Application, "TestDev", DebugMode.Debug, defaultPrintStatToConsole: false, defaultRecordLeakFullStack: false), args);
-            //CoresLib.Init(new CoresLibOptions(CoresMode.Library, "TestDevLib", DebugMode.ReleaseNoDebugLogs, defaultPrintStatToConsole: false, defaultRecordLeakFullStack: false), args);
-
-            try
-            {
-                ret = ConsoleService.EntryPoint(Env.CommandLine, "TestDev", typeof(TestDevAppMain));
-            }
-            finally
-            {
-                CoresLib.Free();
-            }
-
-            return ret;
+            ret = ConsoleService.EntryPoint(Env.CommandLine, "TestDev", typeof(TestDevAppMain));
+        }
+        finally
+        {
+            CoresLib.Free();
         }
 
-        [ConsoleCommand(
-            "IPA.Cores for .NET Core Development Test Program",
-            "[/IN:infile] [/OUT:outfile] [/CSV] [/CMD command_line...]",
-            "This is the TestDev Test Program.",
-            "IN:This will specify the text file 'infile' that contains the list of commands that are automatically executed after the connection is completed. If the /IN parameter is specified, this program will terminate automatically after the execution of all commands in the file are finished. If the file contains multiple-byte characters, the encoding must be Unicode (UTF-8). This cannot be specified together with /CMD (if /CMD is specified, /IN will be ignored).",
-            "OUT:If the optional command 'commands...' is included after /CMD, that command will be executed after the connection is complete and this program will terminate after that. This cannot be specified together with /IN (if specified together with /IN, /IN will be ignored). Specify the /CMD parameter after all other parameters.",
-            "CMD:If the optional command 'commands...' is included after /CMD, that command will be executed after the connection is complete and this program will terminate after that. This cannot be specified together with /IN (if specified together with /IN, /IN will be ignored). Specify the /CMD parameter after all other parameters.",
-            "CSV:You can specify this option to enable CSV outputs. Results of each command will be printed in the CSV format. It is useful for processing the results by other programs."
-            )]
-        static int TestDev(ConsoleService c, string cmdName, string str)
-        {
-            c.WriteLine($"Copyright (c) 2018-{DateTimeOffset.Now.Year} IPA CyberLab. All Rights Reserved.");
-            c.WriteLine("");
+        return ret;
+    }
 
-            ConsoleParam[] args =
-            {
+    [ConsoleCommand(
+        "IPA.Cores for .NET Core Development Test Program",
+        "[/IN:infile] [/OUT:outfile] [/CSV] [/CMD command_line...]",
+        "This is the TestDev Test Program.",
+        "IN:This will specify the text file 'infile' that contains the list of commands that are automatically executed after the connection is completed. If the /IN parameter is specified, this program will terminate automatically after the execution of all commands in the file are finished. If the file contains multiple-byte characters, the encoding must be Unicode (UTF-8). This cannot be specified together with /CMD (if /CMD is specified, /IN will be ignored).",
+        "OUT:If the optional command 'commands...' is included after /CMD, that command will be executed after the connection is complete and this program will terminate after that. This cannot be specified together with /IN (if specified together with /IN, /IN will be ignored). Specify the /CMD parameter after all other parameters.",
+        "CMD:If the optional command 'commands...' is included after /CMD, that command will be executed after the connection is complete and this program will terminate after that. This cannot be specified together with /IN (if specified together with /IN, /IN will be ignored). Specify the /CMD parameter after all other parameters.",
+        "CSV:You can specify this option to enable CSV outputs. Results of each command will be printed in the CSV format. It is useful for processing the results by other programs."
+        )]
+    static int TestDev(ConsoleService c, string cmdName, string str)
+    {
+        c.WriteLine($"Copyright (c) 2018-{DateTimeOffset.Now.Year} IPA CyberLab. All Rights Reserved.");
+        c.WriteLine("");
+
+        ConsoleParam[] args =
+        {
                 new ConsoleParam("IN", null, null, null, null),
                 new ConsoleParam("OUT", null, null, null, null),
                 new ConsoleParam("CMD", null, null, null, null),
                 new ConsoleParam("CSV", null, null, null, null),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args, noErrorOnUnknownArg: true);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args, noErrorOnUnknownArg: true);
 
-            string cmdline = vl["CMD"].StrValue;
+        string cmdline = vl["CMD"].StrValue;
 
-            ConsoleService cs = c;
+        ConsoleService cs = c;
 
-            while (cs.DispatchCommand(cmdline, "TestDev>", typeof(TestDevCommands), null))
+        while (cs.DispatchCommand(cmdline, "TestDev>", typeof(TestDevCommands), null))
+        {
+            if (Str.IsEmptyStr(cmdline) == false)
             {
-                if (Str.IsEmptyStr(cmdline) == false)
-                {
-                    break;
-                }
+                break;
             }
-
-            return cs.RetCode;
         }
+
+        return cs.RetCode;
     }
 }
    

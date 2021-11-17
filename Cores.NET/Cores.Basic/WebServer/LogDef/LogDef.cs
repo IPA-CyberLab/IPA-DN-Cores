@@ -44,55 +44,54 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using Microsoft.AspNetCore.Http;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public partial class LogTag
 {
-    public partial class LogTag
-    {
-        public const string Kestrel = "Kestrel";
-        public const string WebServer = "WebServer";
-    }
+    public const string Kestrel = "Kestrel";
+    public const string WebServer = "WebServer";
+}
 
-    public class MsLogData
-    {
-        public string? Category;
-        public string? TranscationId;
-        public int EventId;
-        public string? Message;
-        public object? Data;
-    }
+public class MsLogData
+{
+    public string? Category;
+    public string? TranscationId;
+    public int EventId;
+    public string? Message;
+    public object? Data;
+}
 
-    public class WebServerLogData
-    {
-        public string? ConnectionId;
-        public string? LocalIP;
-        public string? RemoteIP;
-        public int LocalPort;
-        public int RemotePort;
+public class WebServerLogData
+{
+    public string? ConnectionId;
+    public string? LocalIP;
+    public string? RemoteIP;
+    public int LocalPort;
+    public int RemotePort;
 
-        public string? Url;
-        public string? Protocol;
-        public string? Host;
-        public string? Method;
-        public string? Path;
-        public string? QueryString;
-        public string? UserAgent;
+    public string? Url;
+    public string? Protocol;
+    public string? Host;
+    public string? Method;
+    public string? Path;
+    public string? QueryString;
+    public string? UserAgent;
 
-        public string? AuthUserName;
-        public string? AuthType;
+    public string? AuthUserName;
+    public string? AuthType;
 
-        public bool? BasicAuthResult;
-        public string? BasicAuthUserName;
+    public bool? BasicAuthResult;
+    public string? BasicAuthUserName;
 
-        public string? ClientCert;
+    public string? ClientCert;
 
-        public int ResponseCode;
-        public int ProcessTimeMsecs;
+    public int ResponseCode;
+    public int ProcessTimeMsecs;
 
-        public string? ContentsType;
-        public long? ContentsLength;
+    public string? ContentsType;
+    public long? ContentsLength;
 
-        public string? Exception;
-    }
+    public string? Exception;
 }
 
 #endif // CORES_BASIC_WEBAPP

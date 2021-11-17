@@ -57,48 +57,47 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Helper.Basic
+namespace IPA.Cores.Helper.Basic;
+
+public static class HelperHtmlParser
 {
-    public static class HelperHtmlParser
+    public static string GetSimpleText(this HtmlNode node)
     {
-        public static string GetSimpleText(this HtmlNode node)
+        string str = node.InnerText._NonNullTrim();
+        str = Str.DecodeHtml(str, true);
+        return str;
+    }
+
+    public static HtmlParsedTableWithHeader ParseTable(this HtmlDocument html, string xpath, HtmlTableParseOption? option = null) => html.DocumentNode.SelectSingleNode(xpath).ParseTable(option);
+
+    public static HtmlParsedTableWithHeader ParseTable(this HtmlNode node, HtmlTableParseOption? option = null) => new HtmlParsedTableWithHeader(node, option);
+
+    public static HtmlDocument _ParseHtml(this string body) => HtmlParser.ParseHtml(body);
+
+    public static List<HtmlNode> GetAllChildren(this HtmlNode root)
+    {
+        List<HtmlNode> ret = new List<HtmlNode>();
+
+        ret.Add(root);
+
+        EnumerateChilds(ret, root);
+
+        void EnumerateChilds(List<HtmlNode> list, HtmlNode parent)
         {
-            string str = node.InnerText._NonNullTrim();
-            str = Str.DecodeHtml(str, true);
-            return str;
-        }
-
-        public static HtmlParsedTableWithHeader ParseTable(this HtmlDocument html, string xpath, HtmlTableParseOption? option = null) => html.DocumentNode.SelectSingleNode(xpath).ParseTable(option);
-
-        public static HtmlParsedTableWithHeader ParseTable(this HtmlNode node, HtmlTableParseOption? option = null) => new HtmlParsedTableWithHeader(node, option);
-
-        public static HtmlDocument _ParseHtml(this string body) => HtmlParser.ParseHtml(body);
-
-        public static List<HtmlNode> GetAllChildren(this HtmlNode root)
-        {
-            List<HtmlNode> ret = new List<HtmlNode>();
-
-            ret.Add(root);
-
-            EnumerateChilds(ret, root);
-
-            void EnumerateChilds(List<HtmlNode> list, HtmlNode parent)
+            foreach (var c in parent.ChildNodes)
             {
-                foreach (var c in parent.ChildNodes)
-                {
-                    list.Add(c);
+                list.Add(c);
 
-                    EnumerateChilds(list, c);
-                }
+                EnumerateChilds(list, c);
             }
-
-            return ret;
         }
 
-        public static string GetFirstValue(this IEnumerable<HtmlAttribute> attributesList, string name, string defaultValue = "")
-        {
-            return (attributesList.Where(x => x.Name._IsSamei(name)).FirstOrDefault()?.Value ?? defaultValue)._NonNull();
-        }
+        return ret;
+    }
+
+    public static string GetFirstValue(this IEnumerable<HtmlAttribute> attributesList, string name, string defaultValue = "")
+    {
+        return (attributesList.Where(x => x.Name._IsSamei(name)).FirstOrDefault()?.Value ?? defaultValue)._NonNull();
     }
 }
 

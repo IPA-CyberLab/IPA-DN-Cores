@@ -49,242 +49,241 @@ using static IPA.Cores.Globals.Basic;
 using System.Collections;
 using System.Collections.Concurrent;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public class FsBasedFileProviderFileInfoImpl : IFileInfo
 {
-    public class FsBasedFileProviderFileInfoImpl : IFileInfo
+    public FileSystemBasedProvider Provider { get; }
+    public string FullPath { get; }
+    public ChrootFileSystem FileSystem => Provider.FileSystem;
+
+    public bool Exists { get; }
+    public bool IsDirectory { get; }
+    public long Length { get; }
+    public string PhysicalPath { get; } = null!;
+    public string Name { get; } = null!;
+    public DateTimeOffset LastModified { get; }
+
+    internal FsBasedFileProviderFileInfoImpl(EnsureInternal yes, FileSystemBasedProvider provider, string fullPath, bool exists, bool isDirectroy, long length, string? physicalPath, string? name, DateTimeOffset lastModified)
     {
-        public FileSystemBasedProvider Provider { get; }
-        public string FullPath { get; }
-        public ChrootFileSystem FileSystem => Provider.FileSystem;
+        this.Provider = provider;
+        this.FullPath = fullPath;
 
-        public bool Exists { get; }
-        public bool IsDirectory { get; }
-        public long Length { get; }
-        public string PhysicalPath { get; } = null!;
-        public string Name { get; } = null!;
-        public DateTimeOffset LastModified { get; }
+        this.Exists = exists;
 
-        internal FsBasedFileProviderFileInfoImpl(EnsureInternal yes, FileSystemBasedProvider provider, string fullPath, bool exists, bool isDirectroy, long length, string? physicalPath, string? name, DateTimeOffset lastModified)
+        if (this.Exists)
         {
-            this.Provider = provider;
-            this.FullPath = fullPath;
+            this.IsDirectory = isDirectroy;
 
-            this.Exists = exists;
-
-            if (this.Exists)
+            if (this.IsDirectory == false)
             {
-                this.IsDirectory = isDirectroy;
-
-                if (this.IsDirectory == false)
-                {
-                    this.Length = length;
-                }
-
-                this.PhysicalPath = physicalPath._NullCheck();
-                this.Name = name._NullCheck();
-                this.LastModified = lastModified;
+                this.Length = length;
             }
-        }
 
-        public Stream CreateReadStream()
-        {
-            if (this.Exists && this.IsDirectory == false)
-            {
-                FileObject obj = FileSystem.Open(this.FullPath);
-
-                try
-                {
-                    return obj.GetStream(true);
-                }
-                catch
-                {
-                    obj._DisposeSafe();
-                    throw;
-                }
-            }
-            else
-            {
-                throw new FileNotFoundException(this.FullPath);
-            }
+            this.PhysicalPath = physicalPath._NullCheck();
+            this.Name = name._NullCheck();
+            this.LastModified = lastModified;
         }
     }
 
-    public class FsBasedFileProviderDirectoryContentsImpl : IDirectoryContents
+    public Stream CreateReadStream()
     {
-        public bool Exists { get; } = false;
-
-        IEnumerable<IFileInfo> List;
-
-        public FsBasedFileProviderDirectoryContentsImpl()
+        if (this.Exists && this.IsDirectory == false)
         {
-            this.Exists = false;
-            this.List = new List<IFileInfo>();
-        }
+            FileObject obj = FileSystem.Open(this.FullPath);
 
-        public FsBasedFileProviderDirectoryContentsImpl(IEnumerable<IFileInfo> list)
-        {
-            this.Exists = true;
-            this.List = list;
-        }
-
-        public IEnumerator<IFileInfo> GetEnumerator()
-        {
-            return this.List.GetEnumerator();
-        }
-
-        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-    }
-
-    public class FileSystemBasedProvider : AsyncService, IFileProvider
-    {
-        public ChrootFileSystem FileSystem { get; }
-        public PathParser Parser => FileSystem.PathParser;
-        public bool IgnoreCase { get; }
-
-        DisposableFileProvider ProviderForWatch;
-
-        internal FileSystemBasedProvider(EnsureInternal yes, FileSystem underlayFileSystem, string rootDirectory, bool ignoreCase = true)
-        {
             try
             {
-                this.IgnoreCase = ignoreCase;
-                this.FileSystem = new ChrootFileSystem(new ChrootFileSystemParam(underlayFileSystem, rootDirectory, FileSystemMode.ReadOnly));
-                ProviderForWatch = this.FileSystem._CreateFileProviderForWatchInternal(EnsureInternal.Yes, "/");
+                return obj.GetStream(true);
             }
             catch
             {
-                this._DisposeSafe();
+                obj._DisposeSafe();
                 throw;
             }
         }
-
-        string NormalizeSubPath(string subpath, NormalizePathOption options)
+        else
         {
-            Debug.Assert(Parser.Style.EqualsAny(FileSystemStyle.Linux, FileSystemStyle.Mac));
+            throw new FileNotFoundException(this.FullPath);
+        }
+    }
+}
 
-            subpath = Parser.NormalizeDirectorySeparatorIncludeWindowsBackslash(subpath);
+public class FsBasedFileProviderDirectoryContentsImpl : IDirectoryContents
+{
+    public bool Exists { get; } = false;
 
-            if (Parser.IsAbsolutePath(subpath) == false)
-            {
-                subpath = "/" + subpath;
-            }
+    IEnumerable<IFileInfo> List;
 
-            subpath = Parser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(subpath);
+    public FsBasedFileProviderDirectoryContentsImpl()
+    {
+        this.Exists = false;
+        this.List = new List<IFileInfo>();
+    }
 
-            subpath = FileSystem.NormalizePath(subpath, options);
+    public FsBasedFileProviderDirectoryContentsImpl(IEnumerable<IFileInfo> list)
+    {
+        this.Exists = true;
+        this.List = list;
+    }
 
-            return subpath;
+    public IEnumerator<IFileInfo> GetEnumerator()
+    {
+        return this.List.GetEnumerator();
+    }
+
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+}
+
+public class FileSystemBasedProvider : AsyncService, IFileProvider
+{
+    public ChrootFileSystem FileSystem { get; }
+    public PathParser Parser => FileSystem.PathParser;
+    public bool IgnoreCase { get; }
+
+    DisposableFileProvider ProviderForWatch;
+
+    internal FileSystemBasedProvider(EnsureInternal yes, FileSystem underlayFileSystem, string rootDirectory, bool ignoreCase = true)
+    {
+        try
+        {
+            this.IgnoreCase = ignoreCase;
+            this.FileSystem = new ChrootFileSystem(new ChrootFileSystemParam(underlayFileSystem, rootDirectory, FileSystemMode.ReadOnly));
+            ProviderForWatch = this.FileSystem._CreateFileProviderForWatchInternal(EnsureInternal.Yes, "/");
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
+    }
+
+    string NormalizeSubPath(string subpath, NormalizePathOption options)
+    {
+        Debug.Assert(Parser.Style.EqualsAny(FileSystemStyle.Linux, FileSystemStyle.Mac));
+
+        subpath = Parser.NormalizeDirectorySeparatorIncludeWindowsBackslash(subpath);
+
+        if (Parser.IsAbsolutePath(subpath) == false)
+        {
+            subpath = "/" + subpath;
         }
 
-        public IDirectoryContents GetDirectoryContents(string subpath)
+        subpath = Parser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(subpath);
+
+        subpath = FileSystem.NormalizePath(subpath, options);
+
+        return subpath;
+    }
+
+    public IDirectoryContents GetDirectoryContents(string subpath)
+    {
+        bool isRetry = false;
+
+        L_RETRY:
+        subpath = NormalizeSubPath(subpath, NormalizePathOption.NormalizeCaseDirectory);
+
+        if (FileSystem.IsDirectoryExists(subpath) == false)
         {
-            bool isRetry = false;
-
-            L_RETRY:
-            subpath = NormalizeSubPath(subpath, NormalizePathOption.NormalizeCaseDirectory);
-
-            if (FileSystem.IsDirectoryExists(subpath) == false)
+            if (isRetry == false)
             {
-                if (isRetry == false)
-                {
-                    isRetry = true;
-                    FileSystem.FlushNormalizedCaseCorrectionCache();
-                    goto L_RETRY;
-                }
-                else
-                {
-                    return new FsBasedFileProviderDirectoryContentsImpl();
-                }
+                isRetry = true;
+                FileSystem.FlushNormalizedCaseCorrectionCache();
+                goto L_RETRY;
             }
             else
             {
-                string physicalDirPath = FileSystem.MapPathVirtualToPhysical(subpath);
-
-                FileSystemEntity[] enums = FileSystem.EnumDirectory(subpath, flags: EnumDirectoryFlags.NoGetPhysicalSize);
-
-                List<FsBasedFileProviderFileInfoImpl> o = new List<FsBasedFileProviderFileInfoImpl>();
-
-                foreach (FileSystemEntity e in enums)
-                {
-                    if (e.IsCurrentOrParentDirectory == false)
-                    {
-                        FsBasedFileProviderFileInfoImpl d = new FsBasedFileProviderFileInfoImpl(EnsureInternal.Yes, this, e.FullPath, true, e.IsDirectory, e.Size,
-                            FileSystem.UnderlayFileSystem.PathParser.Combine(physicalDirPath, e.Name), e.Name, e.LastWriteTime);
-
-                        o.Add(d);
-                    }
-                }
-
-                return new FsBasedFileProviderDirectoryContentsImpl(o);
+                return new FsBasedFileProviderDirectoryContentsImpl();
             }
         }
-
-        public IFileInfo GetFileInfo(string subpath)
+        else
         {
-            bool isRetry = false;
+            string physicalDirPath = FileSystem.MapPathVirtualToPhysical(subpath);
 
-            L_RETRY:
+            FileSystemEntity[] enums = FileSystem.EnumDirectory(subpath, flags: EnumDirectoryFlags.NoGetPhysicalSize);
 
-            subpath = NormalizeSubPath(subpath, NormalizePathOption.NormalizeCaseFileName);
+            List<FsBasedFileProviderFileInfoImpl> o = new List<FsBasedFileProviderFileInfoImpl>();
 
-            bool exists = false;
-            bool isDirectroy = default;
-            long length = default;
-            string? physicalPath = null;
-            string? name = null;
-            DateTimeOffset lastModified = default;
-
-            if (FileSystem.IsFileExists(subpath))
+            foreach (FileSystemEntity e in enums)
             {
-                exists = true;
-
-                FileMetadata meta = FileSystem.GetFileMetadata(subpath, FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoAttributes | FileMetadataGetFlags.NoPhysicalFileSize | FileMetadataGetFlags.NoAuthor | FileMetadataGetFlags.NoSecurity);
-                length = meta.Size;
-                lastModified = meta.LastWriteTime ?? default;
-            }
-            else if (FileSystem.IsDirectoryExists(subpath))
-            {
-                exists = true;
-                isDirectroy = true;
-
-                FileMetadata meta = FileSystem.GetDirectoryMetadata(subpath, FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoAttributes | FileMetadataGetFlags.NoPhysicalFileSize | FileMetadataGetFlags.NoAuthor | FileMetadataGetFlags.NoSecurity);
-                lastModified = meta.LastWriteTime ?? default;
-            }
-            else
-            {
-                if (isRetry == false)
+                if (e.IsCurrentOrParentDirectory == false)
                 {
-                    isRetry = true;
-                    FileSystem.FlushNormalizedCaseCorrectionCache();
-                    goto L_RETRY;
+                    FsBasedFileProviderFileInfoImpl d = new FsBasedFileProviderFileInfoImpl(EnsureInternal.Yes, this, e.FullPath, true, e.IsDirectory, e.Size,
+                        FileSystem.UnderlayFileSystem.PathParser.Combine(physicalDirPath, e.Name), e.Name, e.LastWriteTime);
+
+                    o.Add(d);
                 }
             }
 
-            if (exists)
-            {
-                physicalPath = FileSystem.MapPathVirtualToPhysical(subpath);
-                name = Parser.GetFileName(subpath);
-            }
+            return new FsBasedFileProviderDirectoryContentsImpl(o);
+        }
+    }
 
-            return new FsBasedFileProviderFileInfoImpl(EnsureInternal.Yes, this, subpath, exists, isDirectroy, length, physicalPath, name, lastModified);
+    public IFileInfo GetFileInfo(string subpath)
+    {
+        bool isRetry = false;
+
+        L_RETRY:
+
+        subpath = NormalizeSubPath(subpath, NormalizePathOption.NormalizeCaseFileName);
+
+        bool exists = false;
+        bool isDirectroy = default;
+        long length = default;
+        string? physicalPath = null;
+        string? name = null;
+        DateTimeOffset lastModified = default;
+
+        if (FileSystem.IsFileExists(subpath))
+        {
+            exists = true;
+
+            FileMetadata meta = FileSystem.GetFileMetadata(subpath, FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoAttributes | FileMetadataGetFlags.NoPhysicalFileSize | FileMetadataGetFlags.NoAuthor | FileMetadataGetFlags.NoSecurity);
+            length = meta.Size;
+            lastModified = meta.LastWriteTime ?? default;
+        }
+        else if (FileSystem.IsDirectoryExists(subpath))
+        {
+            exists = true;
+            isDirectroy = true;
+
+            FileMetadata meta = FileSystem.GetDirectoryMetadata(subpath, FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoAttributes | FileMetadataGetFlags.NoPhysicalFileSize | FileMetadataGetFlags.NoAuthor | FileMetadataGetFlags.NoSecurity);
+            lastModified = meta.LastWriteTime ?? default;
+        }
+        else
+        {
+            if (isRetry == false)
+            {
+                isRetry = true;
+                FileSystem.FlushNormalizedCaseCorrectionCache();
+                goto L_RETRY;
+            }
         }
 
-        public IChangeToken Watch(string filter)
+        if (exists)
         {
-            return this.ProviderForWatch.Watch(filter);
+            physicalPath = FileSystem.MapPathVirtualToPhysical(subpath);
+            name = Parser.GetFileName(subpath);
         }
 
-        protected override async Task CleanupImplAsync(Exception? ex)
+        return new FsBasedFileProviderFileInfoImpl(EnsureInternal.Yes, this, subpath, exists, isDirectroy, length, physicalPath, name, lastModified);
+    }
+
+    public IChangeToken Watch(string filter)
+    {
+        return this.ProviderForWatch.Watch(filter);
+    }
+
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
         {
-            try
-            {
-                await this.ProviderForWatch._DisposeSafeAsync();
-                await this.FileSystem._DisposeSafeAsync();
-            }
-            finally
-            {
-                await base.CleanupImplAsync(ex);
-            }
+            await this.ProviderForWatch._DisposeSafeAsync();
+            await this.FileSystem._DisposeSafeAsync();
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
         }
     }
 }

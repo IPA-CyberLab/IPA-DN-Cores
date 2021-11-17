@@ -43,68 +43,67 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public class ChrootFileSystemParam : RewriteFileSystemParam
 {
-    public class ChrootFileSystemParam : RewriteFileSystemParam
+    public string PhysicalRootDirectory { get; }
+
+    public ChrootFileSystemParam(FileSystem underlayFileSystem, string physicalRootDirectory, FileSystemMode mode = FileSystemMode.Default, bool disposeUnderlay = false)
+        : base(underlayFileSystem, mode, disposeUnderlay)
     {
-        public string PhysicalRootDirectory { get; }
+        physicalRootDirectory = underlayFileSystem.NormalizePath(physicalRootDirectory);
+        physicalRootDirectory = underlayFileSystem.PathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(physicalRootDirectory);
 
-        public ChrootFileSystemParam(FileSystem underlayFileSystem, string physicalRootDirectory, FileSystemMode mode = FileSystemMode.Default, bool disposeUnderlay = false)
-            : base(underlayFileSystem, mode, disposeUnderlay)
-        {
-            physicalRootDirectory = underlayFileSystem.NormalizePath(physicalRootDirectory);
-            physicalRootDirectory = underlayFileSystem.PathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(physicalRootDirectory);
+        this.PhysicalRootDirectory = physicalRootDirectory;
+    }
+}
 
-            this.PhysicalRootDirectory = physicalRootDirectory;
-        }
+
+public class ChrootFileSystem : RewriteFileSystem
+{
+    protected new ChrootFileSystemParam Params => (ChrootFileSystemParam)base.Params;
+    protected string PhysicalRootDirectory => Params.PhysicalRootDirectory;
+
+    public ChrootFileSystem(ChrootFileSystemParam param) : base(param)
+    {
     }
 
-
-    public class ChrootFileSystem : RewriteFileSystem
+    protected override string MapPathPhysicalToVirtualImpl(string relativeSafeUnderlayFsStyleVirtualPath)
     {
-        protected new ChrootFileSystemParam Params => (ChrootFileSystemParam)base.Params;
-        protected string PhysicalRootDirectory => Params.PhysicalRootDirectory;
+        // From:
+        // the examples of physicalPath:
+        // c:\view_root
+        // c:\view_root\readme.txt
+        // c:\view_root\abc\def\
+        // c:\view_root\abc\def\readme.txt
+        // 
+        // To:
+        // the contents of virtualPath:
+        // '' (empty)  - representing the root directory
+        // readme.txt
+        // abc\def
+        // abc\def\readme.txt
+        return UnderlayPathParser.GetRelativeFileName(relativeSafeUnderlayFsStyleVirtualPath, this.PhysicalRootDirectory);
+    }
 
-        public ChrootFileSystem(ChrootFileSystemParam param) : base(param)
-        {
-        }
-
-        protected override string MapPathPhysicalToVirtualImpl(string relativeSafeUnderlayFsStyleVirtualPath)
-        {
-            // From:
-            // the examples of physicalPath:
-            // c:\view_root
-            // c:\view_root\readme.txt
-            // c:\view_root\abc\def\
-            // c:\view_root\abc\def\readme.txt
-            // 
-            // To:
-            // the contents of virtualPath:
-            // '' (empty)  - representing the root directory
-            // readme.txt
-            // abc\def
-            // abc\def\readme.txt
-            return UnderlayPathParser.GetRelativeFileName(relativeSafeUnderlayFsStyleVirtualPath, this.PhysicalRootDirectory);
-        }
-
-        protected override string MapPathVirtualToPhysicalImpl(string underlayFsStylePhysicalPath)
-        {
-            // From:
-            // the contents of underlayFsStylePhysicalPath:
-            // '' (empty)  - representing the root directory
-            // readme.txt
-            // abc\def
-            // abc\def\readme.txt
-            // Note: underlayFsStylePhysicalPath never be absolute path.
-            //
-            // To:
-            // the contents of physicalPath:
-            // c:\view_root
-            // c:\view_root\readme.txt
-            // c:\view_root\abc\def
-            // c:\view_root\abc\def\readme.txt
-            return UnderlayPathParser.Combine(this.PhysicalRootDirectory, underlayFsStylePhysicalPath, true);
-        }
+    protected override string MapPathVirtualToPhysicalImpl(string underlayFsStylePhysicalPath)
+    {
+        // From:
+        // the contents of underlayFsStylePhysicalPath:
+        // '' (empty)  - representing the root directory
+        // readme.txt
+        // abc\def
+        // abc\def\readme.txt
+        // Note: underlayFsStylePhysicalPath never be absolute path.
+        //
+        // To:
+        // the contents of physicalPath:
+        // c:\view_root
+        // c:\view_root\readme.txt
+        // c:\view_root\abc\def
+        // c:\view_root\abc\def\readme.txt
+        return UnderlayPathParser.Combine(this.PhysicalRootDirectory, underlayFsStylePhysicalPath, true);
     }
 }
 

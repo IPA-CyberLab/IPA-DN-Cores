@@ -58,441 +58,409 @@ using System.Threading;
 using Newtonsoft.Json.Linq;
 using System.ComponentModel;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public static partial class CoresConfig
 {
-
-    public static partial class CoresConfig
+    public static partial class Database
     {
-        public static partial class Database
-        {
-            public static readonly Copenhagen<IsolationLevel> DefaultIsolationLevel = IsolationLevel.ReadCommitted;
+        public static readonly Copenhagen<IsolationLevel> DefaultIsolationLevel = IsolationLevel.ReadCommitted;
 
-            public static readonly Copenhagen<int> DefaultDatabaseTransactionRetryAverageIntervalSecs = 100;
+        public static readonly Copenhagen<int> DefaultDatabaseTransactionRetryAverageIntervalSecs = 100;
 
-            public static readonly Copenhagen<int> DefaultDatabaseTransactionRetryCount = 10;
+        public static readonly Copenhagen<int> DefaultDatabaseTransactionRetryCount = 10;
 
-            public static readonly Copenhagen<int> DefaultOpenTryCount = 2;
-        }
+        public static readonly Copenhagen<int> DefaultOpenTryCount = 2;
+    }
+}
+
+public class SqlDatabaseConnectionSetting
+{
+    public string DataSource { get; }
+    public string InitialDatalog { get; }
+    public string UserId { get; }
+    public string Password { get; }
+    public bool Pooling { get; }
+
+    public SqlDatabaseConnectionSetting(string dataSource, string initialCatalog, string userId, string password, bool pooling = false /* Linux 版 SQL Client では true にすると動作不良を引き起こすため、false を推奨 */ )
+    {
+        this.DataSource = dataSource;
+        this.InitialDatalog = initialCatalog;
+        this.UserId = userId;
+        this.Password = password;
+        this.Pooling = pooling;
     }
 
-    public class SqlDatabaseConnectionSetting
+    public static implicit operator string(SqlDatabaseConnectionSetting config)
+        => $"Data Source={config.DataSource};Initial Catalog={config.InitialDatalog};Persist Security Info=True;Pooling={config.Pooling._ToBoolStr()};User ID={config.UserId};Password={config.Password}";
+
+}
+
+public class EasyTable : TableAttribute
+{
+    public EasyTable(string tableName) : base(tableName) { }
+}
+public class EasyKey : KeyAttribute { }
+public class EasyManualKey : ExplicitKeyAttribute { }
+public class EasyReadOnly : WriteAttribute { public EasyReadOnly() : base(false) { } }
+
+public class DapperColumn : Attribute
+{
+    public string Name;
+    public DapperColumn(string name) { this.Name = name; }
+}
+
+public sealed class DbConsoleDebugPrinterProvider : ILoggerProvider
+{
+    Ref<bool> EnableConsoleLogger;
+
+    public DbConsoleDebugPrinterProvider(Ref<bool> enableConsoleLogger)
     {
-        public string DataSource { get; }
-        public string InitialDatalog { get; }
-        public string UserId { get; }
-        public string Password { get; }
-        public bool Pooling { get; }
-
-        public SqlDatabaseConnectionSetting(string dataSource, string initialCatalog, string userId, string password, bool pooling = false /* Linux 版 SQL Client では true にすると動作不良を引き起こすため、false を推奨 */ )
-        {
-            this.DataSource = dataSource;
-            this.InitialDatalog = initialCatalog;
-            this.UserId = userId;
-            this.Password = password;
-            this.Pooling = pooling;
-        }
-
-        public static implicit operator string(SqlDatabaseConnectionSetting config)
-            => $"Data Source={config.DataSource};Initial Catalog={config.InitialDatalog};Persist Security Info=True;Pooling={config.Pooling._ToBoolStr()};User ID={config.UserId};Password={config.Password}";
-
+        this.EnableConsoleLogger = enableConsoleLogger;
     }
 
-    public class EasyTable : TableAttribute
+    public ILogger CreateLogger(string categoryName) => new DbConsoleDebugPrinter(this.EnableConsoleLogger);
+    public void Dispose() { }
+}
+
+public class DbConsoleDebugPrinter : ILogger
+{
+    Ref<bool> EnableConsoleLogger;
+
+    public DbConsoleDebugPrinter(Ref<bool> enableConsoleLogger)
     {
-        public EasyTable(string tableName) : base(tableName) { }
-    }
-    public class EasyKey : KeyAttribute { }
-    public class EasyManualKey : ExplicitKeyAttribute { }
-    public class EasyReadOnly : WriteAttribute { public EasyReadOnly() : base(false) { } }
-
-    public class DapperColumn : Attribute
-    {
-        public string Name;
-        public DapperColumn(string name) { this.Name = name; }
-    }
-
-    public sealed class DbConsoleDebugPrinterProvider : ILoggerProvider
-    {
-        Ref<bool> EnableConsoleLogger;
-
-        public DbConsoleDebugPrinterProvider(Ref<bool> enableConsoleLogger)
-        {
-            this.EnableConsoleLogger = enableConsoleLogger;
-        }
-
-        public ILogger CreateLogger(string categoryName) => new DbConsoleDebugPrinter(this.EnableConsoleLogger);
-        public void Dispose() { }
+        this.EnableConsoleLogger = enableConsoleLogger;
     }
 
-    public class DbConsoleDebugPrinter : ILogger
+    public IDisposable BeginScope<TState>(TState state) => new EmptyDisposable();
+    public bool IsEnabled(LogLevel logLevel)
     {
-        Ref<bool> EnableConsoleLogger;
+        if (EnableConsoleLogger == false) return false;
 
-        public DbConsoleDebugPrinter(Ref<bool> enableConsoleLogger)
+        switch (logLevel)
         {
-            this.EnableConsoleLogger = enableConsoleLogger;
-        }
-
-        public IDisposable BeginScope<TState>(TState state) => new EmptyDisposable();
-        public bool IsEnabled(LogLevel logLevel)
-        {
-            if (EnableConsoleLogger == false) return false;
-
-            switch (logLevel)
-            {
-                case LogLevel.Trace:
-                case LogLevel.Information:
-                case LogLevel.None:
-                    return false;
-            }
-            return true;
-        }
-
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception, string> formatter)
-        {
-            if (eventId.ToString().IndexOf("CommandExecuting", StringComparison.OrdinalIgnoreCase) == -1)
-            {
-                return;
-            }
-            StringWriter w = new StringWriter();
-            w.WriteLine("----------");
-            if (state != null) w.Write($"State: {state}");
-            if (exception != null) w.Write($", Exception: {exception.Message}");
-            w.WriteLine();
-            w.WriteLine("----------");
-            string str = w.ToString();
-            Dbg.WriteLine(w.ToString()._TrimCrlf());
-        }
-    }
-
-    // データベース値
-    public class DatabaseValue
-    {
-        public bool IsNull
-        {
-            get
-            {
-                if (Object == null) return true;
-                if (Object == (object)DBNull.Value) return true;
+            case LogLevel.Trace:
+            case LogLevel.Information:
+            case LogLevel.None:
                 return false;
-            }
         }
+        return true;
+    }
 
-        public DateTime DateTime => (this.IsNull ? Util.ZeroDateTimeValue : ((DateTime)Object!)._NormalizeDateTime());
-        public DateTimeOffset DateTimeOffset => (this.IsNull ? Util.ZeroDateTimeOffsetValue : ((DateTimeOffset)Object!)._NormalizeDateTimeOffset());
-        public string String => this.IsNull ? "" : ((string?)Object)._NonNull();
-        public double Double => this.IsNull ? 0.0 : (double)Object!;
-        public int Int => this.IsNull ? 0 : (int)Object!;
-        public uint UInt => this.IsNull ? 0 : (uint)Object!;
-        public long Int64 => this.IsNull ? 0 : (long)Object!;
-        public ulong UInt64 => this.IsNull ? 0 : (ulong)Object!;
-        public bool Bool => this.IsNull ? false : (bool)Object!;
-        public byte[]? Data => this.IsNull ? null : (byte[])Object!;
-        public short Short => this.IsNull ? (short)0 : (short)Object!;
-        public ushort UShort => this.IsNull ? (ushort)0 : (ushort)Object!;
-        public byte Byte => this.IsNull ? (byte)0 : (byte)Object!;
-        public sbyte SByte => this.IsNull ? (sbyte)0 : (sbyte)Object!;
-
-        public object? Object { get; }
-
-        [Obsolete]
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public int Int_NullAsZero => Int;
-
-        [Obsolete]
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public long Int64_NullAsZero => (this.IsNull ? 0 : Int64);
-
-        public DatabaseValue(object? value)
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception, string> formatter)
+    {
+        if (eventId.ToString().IndexOf("CommandExecuting", StringComparison.OrdinalIgnoreCase) == -1)
         {
-            this.Object = value;
+            return;
         }
+        StringWriter w = new StringWriter();
+        w.WriteLine("----------");
+        if (state != null) w.Write($"State: {state}");
+        if (exception != null) w.Write($", Exception: {exception.Message}");
+        w.WriteLine();
+        w.WriteLine("----------");
+        string str = w.ToString();
+        Dbg.WriteLine(w.ToString()._TrimCrlf());
+    }
+}
 
-        public override string? ToString()
+// データベース値
+public class DatabaseValue
+{
+    public bool IsNull
+    {
+        get
         {
-            return this.Object?.ToString() ?? "";
+            if (Object == null) return true;
+            if (Object == (object)DBNull.Value) return true;
+            return false;
         }
     }
 
-    // 行
-    public class Row
+    public DateTime DateTime => (this.IsNull ? Util.ZeroDateTimeValue : ((DateTime)Object!)._NormalizeDateTime());
+    public DateTimeOffset DateTimeOffset => (this.IsNull ? Util.ZeroDateTimeOffsetValue : ((DateTimeOffset)Object!)._NormalizeDateTimeOffset());
+    public string String => this.IsNull ? "" : ((string?)Object)._NonNull();
+    public double Double => this.IsNull ? 0.0 : (double)Object!;
+    public int Int => this.IsNull ? 0 : (int)Object!;
+    public uint UInt => this.IsNull ? 0 : (uint)Object!;
+    public long Int64 => this.IsNull ? 0 : (long)Object!;
+    public ulong UInt64 => this.IsNull ? 0 : (ulong)Object!;
+    public bool Bool => this.IsNull ? false : (bool)Object!;
+    public byte[]? Data => this.IsNull ? null : (byte[])Object!;
+    public short Short => this.IsNull ? (short)0 : (short)Object!;
+    public ushort UShort => this.IsNull ? (ushort)0 : (ushort)Object!;
+    public byte Byte => this.IsNull ? (byte)0 : (byte)Object!;
+    public sbyte SByte => this.IsNull ? (sbyte)0 : (sbyte)Object!;
+
+    public object? Object { get; }
+
+    [Obsolete]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public int Int_NullAsZero => Int;
+
+    [Obsolete]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public long Int64_NullAsZero => (this.IsNull ? 0 : Int64);
+
+    public DatabaseValue(object? value)
     {
-        public readonly DatabaseValue[] ValueList;
-        public readonly string[] FieldList;
+        this.Object = value;
+    }
 
-        public Row(DatabaseValue[] ValueList, string[] FieldList)
+    public override string? ToString()
+    {
+        return this.Object?.ToString() ?? "";
+    }
+}
+
+// 行
+public class Row
+{
+    public readonly DatabaseValue[] ValueList;
+    public readonly string[] FieldList;
+
+    public Row(DatabaseValue[] ValueList, string[] FieldList)
+    {
+        this.ValueList = ValueList;
+        this.FieldList = FieldList;
+    }
+
+    public DatabaseValue this[string name]
+    {
+        get
         {
-            this.ValueList = ValueList;
-            this.FieldList = FieldList;
-        }
-
-        public DatabaseValue this[string name]
-        {
-            get
-            {
-                int i;
-                for (i = 0; i < this.FieldList.Length; i++)
-                {
-                    if (this.FieldList[i].Equals(name, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return this.ValueList[i];
-                    }
-                }
-
-                throw new ApplicationException("Field \"" + name + "\" not found.");
-            }
-        }
-
-        public override string ToString()
-        {
-            string?[] strs = new string[this.ValueList.Length];
-            int i;
-            for (i = 0; i < this.ValueList.Length; i++)
-            {
-                strs[i] = this.ValueList[i].ToString();
-            }
-
-            return Str.CombineStringArray(strs, ", ");
-        }
-
-        public JObject ToJsonObject()
-        {
-            JObject ret = Json.NewJsonObject();
-
             int i;
             for (i = 0; i < this.FieldList.Length; i++)
             {
-                string fieldName = FieldList[i];
-                object? value = ValueList[i].Object;
-
-                ret.Add(fieldName, new JValue(value));
-            }
-
-            return ret;
-        }
-    }
-
-    // データ
-    public class Data : IEnumerable, IEmptyChecker
-    {
-        public Row[]? RowList { get; private set; } = null;
-        public string[]? FieldList { get; private set; } = null;
-
-        public bool IsEmpty => IsThisEmpty();
-
-        public Data() { }
-
-        public bool IsThisEmpty()
-        {
-            return (RowList?.Length ?? 0) == 0;
-        }
-
-        public Data(Database db)
-        {
-            DbDataReader r = db.DataReader._NullCheck();
-
-            int i;
-            int num = r.FieldCount;
-
-            List<string> fieldsList = new List<string>();
-
-            for (i = 0; i < num; i++)
-            {
-                fieldsList.Add(r.GetName(i));
-            }
-
-            this.FieldList = fieldsList.ToArray();
-
-            List<Row> row_list = new List<Row>();
-            while (db.ReadNext())
-            {
-                DatabaseValue[] values = new DatabaseValue[this.FieldList.Length];
-
-                for (i = 0; i < this.FieldList.Length; i++)
+                if (this.FieldList[i].Equals(name, StringComparison.OrdinalIgnoreCase))
                 {
-                    values[i] = db[this.FieldList[i]];
-                }
-
-                row_list.Add(new Row(values, this.FieldList));
-            }
-
-            this.RowList = row_list.ToArray();
-        }
-
-        public async Task ReadFromDbAsync(Database db, CancellationToken cancel = default)
-        {
-            DbDataReader r = db.DataReader._NullCheck();
-
-            int i;
-            int num = r.FieldCount;
-
-            List<string> fieldsList = new List<string>();
-
-            for (i = 0; i < num; i++)
-            {
-                fieldsList.Add(r.GetName(i));
-            }
-
-            this.FieldList = fieldsList.ToArray();
-
-            List<Row> row_list = new List<Row>();
-            while (await db.ReadNextAsync(cancel))
-            {
-                DatabaseValue[] values = new DatabaseValue[this.FieldList.Length];
-
-                for (i = 0; i < this.FieldList.Length; i++)
-                {
-                    values[i] = db[this.FieldList[i]];
-                }
-
-                row_list.Add(new Row(values, this.FieldList));
-            }
-
-            this.RowList = row_list.ToArray();
-        }
-
-        public IEnumerator GetEnumerator()
-        {
-            if (this.RowList != null)
-            {
-                for (int i = 0; i < this.RowList.Length; i++)
-                {
-                    yield return this.RowList[i];
+                    return this.ValueList[i];
                 }
             }
+
+            throw new ApplicationException("Field \"" + name + "\" not found.");
         }
     }
 
-    // Using トランザクション
-    public struct UsingTran : IDisposable, IAsyncDisposable
+    public override string ToString()
     {
-        Database db;
-        Once Once;
-
-        public UsingTran(Database db)
+        string?[] strs = new string[this.ValueList.Length];
+        int i;
+        for (i = 0; i < this.ValueList.Length; i++)
         {
-            this.db = db;
-            this.Once = new Once();
+            strs[i] = this.ValueList[i].ToString();
         }
 
-        public async Task CommitAsync(CancellationToken cancel = default)
+        return Str.CombineStringArray(strs, ", ");
+    }
+
+    public JObject ToJsonObject()
+    {
+        JObject ret = Json.NewJsonObject();
+
+        int i;
+        for (i = 0; i < this.FieldList.Length; i++)
         {
-            cancel.ThrowIfCancellationRequested();
-            await this.db.CommitAsync(cancel);
+            string fieldName = FieldList[i];
+            object? value = ValueList[i].Object;
+
+            ret.Add(fieldName, new JValue(value));
         }
 
-        public void Commit(CancellationToken cancel = default)
+        return ret;
+    }
+}
+
+// データ
+public class Data : IEnumerable, IEmptyChecker
+{
+    public Row[]? RowList { get; private set; } = null;
+    public string[]? FieldList { get; private set; } = null;
+
+    public bool IsEmpty => IsThisEmpty();
+
+    public Data() { }
+
+    public bool IsThisEmpty()
+    {
+        return (RowList?.Length ?? 0) == 0;
+    }
+
+    public Data(Database db)
+    {
+        DbDataReader r = db.DataReader._NullCheck();
+
+        int i;
+        int num = r.FieldCount;
+
+        List<string> fieldsList = new List<string>();
+
+        for (i = 0; i < num; i++)
         {
-            cancel.ThrowIfCancellationRequested();
-            this.db.Commit();
+            fieldsList.Add(r.GetName(i));
         }
 
-        public void Dispose()
-        {
-            if (Once.IsFirstCall() == false) return;
+        this.FieldList = fieldsList.ToArray();
 
-            if (db != null)
+        List<Row> row_list = new List<Row>();
+        while (db.ReadNext())
+        {
+            DatabaseValue[] values = new DatabaseValue[this.FieldList.Length];
+
+            for (i = 0; i < this.FieldList.Length; i++)
             {
-                db.Rollback();
-                db = null!;
+                values[i] = db[this.FieldList[i]];
             }
+
+            row_list.Add(new Row(values, this.FieldList));
         }
 
-        public async ValueTask DisposeAsync()
-        {
-            if (Once.IsFirstCall() == false) return;
+        this.RowList = row_list.ToArray();
+    }
 
-            if (db != null)
+    public async Task ReadFromDbAsync(Database db, CancellationToken cancel = default)
+    {
+        DbDataReader r = db.DataReader._NullCheck();
+
+        int i;
+        int num = r.FieldCount;
+
+        List<string> fieldsList = new List<string>();
+
+        for (i = 0; i < num; i++)
+        {
+            fieldsList.Add(r.GetName(i));
+        }
+
+        this.FieldList = fieldsList.ToArray();
+
+        List<Row> row_list = new List<Row>();
+        while (await db.ReadNextAsync(cancel))
+        {
+            DatabaseValue[] values = new DatabaseValue[this.FieldList.Length];
+
+            for (i = 0; i < this.FieldList.Length; i++)
             {
-                await db.RollbackAsync();
-                db = null!;
+                values[i] = db[this.FieldList[i]];
+            }
+
+            row_list.Add(new Row(values, this.FieldList));
+        }
+
+        this.RowList = row_list.ToArray();
+    }
+
+    public IEnumerator GetEnumerator()
+    {
+        if (this.RowList != null)
+        {
+            for (int i = 0; i < this.RowList.Length; i++)
+            {
+                yield return this.RowList[i];
             }
         }
     }
+}
 
-    // デッドロック再試行設定
-    public class DeadlockRetryConfig
+// Using トランザクション
+public struct UsingTran : IDisposable, IAsyncDisposable
+{
+    Database db;
+    Once Once;
+
+    public UsingTran(Database db)
     {
-        public readonly int RetryAverageInterval;
-        public readonly int RetryCount;
+        this.db = db;
+        this.Once = new Once();
+    }
 
-        public DeadlockRetryConfig(int RetryAverageInterval, int RetryCount)
+    public async Task CommitAsync(CancellationToken cancel = default)
+    {
+        cancel.ThrowIfCancellationRequested();
+        await this.db.CommitAsync(cancel);
+    }
+
+    public void Commit(CancellationToken cancel = default)
+    {
+        cancel.ThrowIfCancellationRequested();
+        this.db.Commit();
+    }
+
+    public void Dispose()
+    {
+        if (Once.IsFirstCall() == false) return;
+
+        if (db != null)
         {
-            this.RetryAverageInterval = RetryAverageInterval;
-            this.RetryCount = RetryCount;
+            db.Rollback();
+            db = null!;
         }
     }
 
-    // データベースの種類
-    [Flags]
-    public enum DatabaseServerType
+    public async ValueTask DisposeAsync()
     {
-        SQLServer = 0,
-        SQLite,
+        if (Once.IsFirstCall() == false) return;
+
+        if (db != null)
+        {
+            await db.RollbackAsync();
+            db = null!;
+        }
+    }
+}
+
+// デッドロック再試行設定
+public class DeadlockRetryConfig
+{
+    public readonly int RetryAverageInterval;
+    public readonly int RetryCount;
+
+    public DeadlockRetryConfig(int RetryAverageInterval, int RetryCount)
+    {
+        this.RetryAverageInterval = RetryAverageInterval;
+        this.RetryCount = RetryCount;
+    }
+}
+
+// データベースの種類
+[Flags]
+public enum DatabaseServerType
+{
+    SQLServer = 0,
+    SQLite,
+}
+
+// データベースアクセス
+public sealed class Database : AsyncService
+{
+    static Database()
+    {
+        Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
     }
 
-    // データベースアクセス
-    public sealed class Database : AsyncService
+    public DbConnection Connection { get; private set; }
+    public DbTransaction? Transaction { get; private set; } = null;
+    public DbDataReader? DataReader { get; private set; } = null;
+    public bool IsOpened { get; private set; } = false;
+
+    public const int DefaultCommandTimeoutSecs = 60;
+
+    public int CommandTimeoutSecs { get; set; } = DefaultCommandTimeoutSecs;
+
+    public static readonly DeadlockRetryConfig DefaultDeadlockRetryConfig
+        = new DeadlockRetryConfig(CoresConfig.Database.DefaultDatabaseTransactionRetryAverageIntervalSecs, CoresConfig.Database.DefaultDatabaseTransactionRetryCount);
+
+    public DeadlockRetryConfig DeadlockRetryConfig { get; } = DefaultDeadlockRetryConfig;
+
+    public IsolationLevel DefaultIsolationLevel { get; } = CoresConfig.Database.DefaultIsolationLevel;
+
+    public int OpenTryCount = CoresConfig.Database.DefaultOpenTryCount;
+
+    // コンストラクタ
+    public Database(string dbServerConnectionString, IsolationLevel? defaultIsolationLevel = null, DeadlockRetryConfig? deadlockRetryConfig = null, DatabaseServerType serverType = DatabaseServerType.SQLServer,
+        int openTryCount = 0)
     {
-        static Database()
-        {
-            Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
-        }
-
-        public DbConnection Connection { get; private set; }
-        public DbTransaction? Transaction { get; private set; } = null;
-        public DbDataReader? DataReader { get; private set; } = null;
-        public bool IsOpened { get; private set; } = false;
-
-        public const int DefaultCommandTimeoutSecs = 60;
-
-        public int CommandTimeoutSecs { get; set; } = DefaultCommandTimeoutSecs;
-
-        public static readonly DeadlockRetryConfig DefaultDeadlockRetryConfig
-            = new DeadlockRetryConfig(CoresConfig.Database.DefaultDatabaseTransactionRetryAverageIntervalSecs, CoresConfig.Database.DefaultDatabaseTransactionRetryCount);
-
-        public DeadlockRetryConfig DeadlockRetryConfig { get; } = DefaultDeadlockRetryConfig;
-
-        public IsolationLevel DefaultIsolationLevel { get; } = CoresConfig.Database.DefaultIsolationLevel;
-
-        public int OpenTryCount = CoresConfig.Database.DefaultOpenTryCount;
-
-        // コンストラクタ
-        public Database(string dbServerConnectionString, IsolationLevel? defaultIsolationLevel = null, DeadlockRetryConfig? deadlockRetryConfig = null, DatabaseServerType serverType = DatabaseServerType.SQLServer,
-            int openTryCount = 0)
-        {
-            try
-            {
-                if (deadlockRetryConfig != null) DeadlockRetryConfig = deadlockRetryConfig;
-                if (defaultIsolationLevel != null) this.DefaultIsolationLevel = defaultIsolationLevel.Value;
-                if (openTryCount <= 0) openTryCount = CoresConfig.Database.DefaultOpenTryCount;
-
-                this.OpenTryCount = openTryCount;
-
-                DbConnection? conn;
-
-                switch (serverType)
-                {
-                    case DatabaseServerType.SQLite:
-                        conn = new SqliteConnection(dbServerConnectionString);
-                        break;
-
-                    default:
-                        conn = new SqlConnection(dbServerConnectionString);
-                        break;
-                }
-
-                this.Connection = conn;
-            }
-            catch (Exception ex)
-            {
-                this._DisposeSafe(ex);
-                throw;
-            }
-        }
-
-        public Database(DbConnection dbConnection, IsolationLevel? defaultIsolationLevel = null, DeadlockRetryConfig? deadlockRetryConfig = null,
-            int openTryCount = 0)
+        try
         {
             if (deadlockRetryConfig != null) DeadlockRetryConfig = deadlockRetryConfig;
             if (defaultIsolationLevel != null) this.DefaultIsolationLevel = defaultIsolationLevel.Value;
@@ -500,1006 +468,1036 @@ namespace IPA.Cores.Basic
 
             this.OpenTryCount = openTryCount;
 
-            Connection = dbConnection;
-        }
+            DbConnection? conn;
 
-        public void EnsureOpen(CancellationToken cancel = default) => EnsureOpenAsync(cancel)._GetResult();
-
-        AsyncLock OpenCloseLock = new AsyncLock();
-
-        public async Task EnsureOpenAsync(CancellationToken cancel = default)
-        {
-            if (IsOpened) return;
-            using (await OpenCloseLock.LockWithAwait(cancel))
+            switch (serverType)
             {
-                if (IsOpened == false)
+                case DatabaseServerType.SQLite:
+                    conn = new SqliteConnection(dbServerConnectionString);
+                    break;
+
+                default:
+                    conn = new SqlConnection(dbServerConnectionString);
+                    break;
+            }
+
+            this.Connection = conn;
+        }
+        catch (Exception ex)
+        {
+            this._DisposeSafe(ex);
+            throw;
+        }
+    }
+
+    public Database(DbConnection dbConnection, IsolationLevel? defaultIsolationLevel = null, DeadlockRetryConfig? deadlockRetryConfig = null,
+        int openTryCount = 0)
+    {
+        if (deadlockRetryConfig != null) DeadlockRetryConfig = deadlockRetryConfig;
+        if (defaultIsolationLevel != null) this.DefaultIsolationLevel = defaultIsolationLevel.Value;
+        if (openTryCount <= 0) openTryCount = CoresConfig.Database.DefaultOpenTryCount;
+
+        this.OpenTryCount = openTryCount;
+
+        Connection = dbConnection;
+    }
+
+    public void EnsureOpen(CancellationToken cancel = default) => EnsureOpenAsync(cancel)._GetResult();
+
+    AsyncLock OpenCloseLock = new AsyncLock();
+
+    public async Task EnsureOpenAsync(CancellationToken cancel = default)
+    {
+        if (IsOpened) return;
+        using (await OpenCloseLock.LockWithAwait(cancel))
+        {
+            if (IsOpened == false)
+            {
+                await RetryHelper.RunAsync(async () =>
                 {
-                    await RetryHelper.RunAsync(async () =>
+                    await Connection.OpenAsync(cancel);
+                },
+                0,
+                this.OpenTryCount,
+                cancel);
+
+                IsOpened = true;
+
+            }
+        }
+    }
+
+    // バルク書き込み
+    public void SqlBulkWrite(string tableName, DataTable dt, CancellationToken cancel = default)
+    {
+        EnsureOpen(cancel);
+
+        using (SqlBulkCopy bc = new SqlBulkCopy((SqlConnection)this.Connection, SqlBulkCopyOptions.Default, (SqlTransaction)Transaction!))
+        {
+            bc.BulkCopyTimeout = CommandTimeoutSecs;
+            bc.DestinationTableName = tableName;
+            bc.WriteToServer(dt);
+        }
+    }
+
+    public async Task SqlBulkWriteAsync(string tableName, DataTable dt, CancellationToken cancel = default)
+    {
+        await EnsureOpenAsync(cancel);
+
+        using (SqlBulkCopy bc = new SqlBulkCopy((SqlConnection)this.Connection, SqlBulkCopyOptions.Default, (SqlTransaction)Transaction!))
+        {
+            bc.BulkCopyTimeout = CommandTimeoutSecs;
+            bc.DestinationTableName = tableName;
+            await bc.WriteToServerAsync(dt, cancel);
+        }
+    }
+
+    // クエリの実行
+    public void Query(string commandStr, params object[] args)
+    {
+        EnsureOpen();
+
+        CloseQuery();
+        DbCommand cmd = buildCommand(commandStr, args);
+
+        DataReader = cmd.ExecuteReader();
+    }
+
+    public async Task QueryAsync(string commandStr, params object[] args)
+    {
+        await EnsureOpenAsync();
+
+        await CloseQueryAsync();
+
+        DbCommand cmd = buildCommand(commandStr, args);
+
+        DataReader = await cmd.ExecuteReaderAsync();
+    }
+
+    public async Task QueryAsync(string commandStr, CancellationToken cancel, params object[] args)
+    {
+        await EnsureOpenAsync(cancel);
+
+        await CloseQueryAsync();
+
+        DbCommand cmd = buildCommand(commandStr, args);
+
+        DataReader = await cmd.ExecuteReaderAsync(cancel);
+    }
+
+    readonly static CriticalSection DapperTypeMapLock = new CriticalSection<Database>();
+    static HashSet<Type> DapperInstalledTypes = new HashSet<Type>();
+    static void EnsureDapperTypeMapping(Type? t)
+    {
+        if (t == null) return;
+        lock (DapperTypeMapLock)
+        {
+            if (DapperInstalledTypes.Contains(t) == false)
+            {
+                DapperInstalledTypes.Add(t);
+                Dapper.SqlMapper.SetTypeMap(t,
+                    new CustomPropertyTypeMap(t, (type, columnName) =>
                     {
-                        await Connection.OpenAsync(cancel);
-                    },
-                    0,
-                    this.OpenTryCount,
-                    cancel);
-
-                    IsOpened = true;
-
-                }
-            }
-        }
-
-        // バルク書き込み
-        public void SqlBulkWrite(string tableName, DataTable dt, CancellationToken cancel = default)
-        {
-            EnsureOpen(cancel);
-
-            using (SqlBulkCopy bc = new SqlBulkCopy((SqlConnection)this.Connection, SqlBulkCopyOptions.Default, (SqlTransaction)Transaction!))
-            {
-                bc.BulkCopyTimeout = CommandTimeoutSecs;
-                bc.DestinationTableName = tableName;
-                bc.WriteToServer(dt);
-            }
-        }
-
-        public async Task SqlBulkWriteAsync(string tableName, DataTable dt, CancellationToken cancel = default)
-        {
-            await EnsureOpenAsync(cancel);
-
-            using (SqlBulkCopy bc = new SqlBulkCopy((SqlConnection)this.Connection, SqlBulkCopyOptions.Default, (SqlTransaction)Transaction!))
-            {
-                bc.BulkCopyTimeout = CommandTimeoutSecs;
-                bc.DestinationTableName = tableName;
-                await bc.WriteToServerAsync(dt, cancel);
-            }
-        }
-
-        // クエリの実行
-        public void Query(string commandStr, params object[] args)
-        {
-            EnsureOpen();
-
-            CloseQuery();
-            DbCommand cmd = buildCommand(commandStr, args);
-
-            DataReader = cmd.ExecuteReader();
-        }
-
-        public async Task QueryAsync(string commandStr, params object[] args)
-        {
-            await EnsureOpenAsync();
-
-            await CloseQueryAsync();
-
-            DbCommand cmd = buildCommand(commandStr, args);
-
-            DataReader = await cmd.ExecuteReaderAsync();
-        }
-
-        public async Task QueryAsync(string commandStr, CancellationToken cancel, params object[] args)
-        {
-            await EnsureOpenAsync(cancel);
-
-            await CloseQueryAsync();
-
-            DbCommand cmd = buildCommand(commandStr, args);
-
-            DataReader = await cmd.ExecuteReaderAsync(cancel);
-        }
-
-        readonly static CriticalSection DapperTypeMapLock = new CriticalSection<Database>();
-        static HashSet<Type> DapperInstalledTypes = new HashSet<Type>();
-        static void EnsureDapperTypeMapping(Type? t)
-        {
-            if (t == null) return;
-            lock (DapperTypeMapLock)
-            {
-                if (DapperInstalledTypes.Contains(t) == false)
-                {
-                    DapperInstalledTypes.Add(t);
-                    Dapper.SqlMapper.SetTypeMap(t,
-                        new CustomPropertyTypeMap(t, (type, columnName) =>
-                        {
-                            var properties = type.GetProperties();
+                        var properties = type.GetProperties();
 
                             // UserName == USER_NAME
                             var c1 = properties.SingleOrDefault(p => p.Name._IsSameiIgnoreUnderscores(columnName)
-                                || p.GetCustomAttributes(true).OfType<DapperColumn>().Any(a => a.Name._IsSameiIgnoreUnderscores(columnName)));
-                            if (c1 != null) return c1;
+                            || p.GetCustomAttributes(true).OfType<DapperColumn>().Any(a => a.Name._IsSameiIgnoreUnderscores(columnName)));
+                        if (c1 != null) return c1;
 
-                            int i = columnName.IndexOf("_");
-                            if (i >= 2)
-                            {
+                        int i = columnName.IndexOf("_");
+                        if (i >= 2)
+                        {
                                 // UserName == USERS_USERNAME
                                 string columnName2 = columnName.Substring(i + 1);
 
-                                var c2 = properties.SingleOrDefault(p => p.Name._IsSameiIgnoreUnderscores(columnName2)
-                                    || p.GetCustomAttributes(true).OfType<DapperColumn>().Any(a => a.Name._IsSameiIgnoreUnderscores(columnName2)));
-                                if (c2 != null) return c2;
-                            }
+                            var c2 = properties.SingleOrDefault(p => p.Name._IsSameiIgnoreUnderscores(columnName2)
+                                || p.GetCustomAttributes(true).OfType<DapperColumn>().Any(a => a.Name._IsSameiIgnoreUnderscores(columnName2)));
+                            if (c2 != null) return c2;
+                        }
 
-                            return null;
-                        }));
-                }
+                        return null;
+                    }));
             }
         }
+    }
 
-        async Task<CommandDefinition> SetupDapperAsync(string commandStr, object? param, Type? type = null, CancellationToken cancel = default)
+    async Task<CommandDefinition> SetupDapperAsync(string commandStr, object? param, Type? type = null, CancellationToken cancel = default)
+    {
+        await EnsureOpenAsync(cancel);
+
+        EnsureDapperTypeMapping(type);
+
+        if (param != null)
+            EnsureDapperTypeMapping(param.GetType());
+
+        // 2021/09/04 注意: Dapper は Cancel に対応していない。少なくとも 2.0.90 の async メソッドで確認。
+        CommandDefinition cmd = new CommandDefinition(commandStr, param, this.Transaction, commandTimeout: this.CommandTimeoutSecs);
+
+        return cmd;
+    }
+
+    public async Task<T> GetOrInsertIfEmptyAsync<T>(string selectStr, object? selectParam, string insertStr, object insertParam, string newCreatedRowSelectWithIdCmd)
+    {
+        if (selectParam == null) selectParam = new { };
+
+        IEnumerable<T> ret = await EasyQueryAsync<T>(selectStr, selectParam);
+        T? t = ret.SingleOrDefault();
+        if (t._IsNullOrDefault())
         {
-            await EnsureOpenAsync(cancel);
+            await ExecuteScalarAsync<T>(insertStr, insertParam);
 
-            EnsureDapperTypeMapping(type);
+            long newId = await this.GetLastID64Async();
 
-            if (param != null)
-                EnsureDapperTypeMapping(param.GetType());
+            ret = await EasyQueryAsync<T>(newCreatedRowSelectWithIdCmd, new { id = newId });
 
-            // 2021/09/04 注意: Dapper は Cancel に対応していない。少なくとも 2.0.90 の async メソッドで確認。
-            CommandDefinition cmd = new CommandDefinition(commandStr, param, this.Transaction, commandTimeout: this.CommandTimeoutSecs);
-
-            return cmd;
+            t = ret.Single();
         }
 
-        public async Task<T> GetOrInsertIfEmptyAsync<T>(string selectStr, object? selectParam, string insertStr, object insertParam, string newCreatedRowSelectWithIdCmd)
+        return t;
+    }
+
+    public async Task<IEnumerable<T>> EasyQueryAsync<T>(string commandStr, object? param = null)
+        => await Connection.QueryAsync<T>(await SetupDapperAsync(commandStr, param, typeof(T)));
+
+    public async Task<int> EasyExecuteAsync(string commandStr, object? param = null)
+        => await Connection.ExecuteAsync(await SetupDapperAsync(commandStr, param, null));
+
+    public async Task<T> ExecuteScalarAsync<T>(string commandStr, object? param = null)
+        => (T)(await Connection.ExecuteScalarAsync(await SetupDapperAsync(commandStr, param, null)));
+
+    public IEnumerable<T> EasyQuery<T>(string commandStr, object? param = null)
+        => EasyQueryAsync<T>(commandStr, param)._GetResult();
+
+    public int EasyExecute(string commandStr, object? param = null)
+        => EasyExecuteAsync(commandStr, param)._GetResult();
+
+    public T ExecuteScalar<T>(string commandStr, object? param = null)
+        => ExecuteScalarAsync<T>(commandStr, param)._GetResult();
+
+    public async Task<T?> EasySelectSingleAsync<T>(string selectStr, object? selectParam = null, bool throwErrorIfNotFound = false, bool throwErrorIfMultipleFound = false, CancellationToken cancel = default) where T : class
+    {
+        IEnumerable<T> ret = await EasySelectAsync<T>(selectStr, selectParam, false, cancel);
+
+        if (throwErrorIfNotFound && ret.Count() == 0)
         {
-            if (selectParam == null) selectParam = new { };
-
-            IEnumerable<T> ret = await EasyQueryAsync<T>(selectStr, selectParam);
-            T? t = ret.SingleOrDefault();
-            if (t._IsNullOrDefault())
-            {
-                await ExecuteScalarAsync<T>(insertStr, insertParam);
-
-                long newId = await this.GetLastID64Async();
-
-                ret = await EasyQueryAsync<T>(newCreatedRowSelectWithIdCmd, new { id = newId });
-
-                t = ret.Single();
-            }
-
-            return t;
+            throw new CoresLibException($"throwErrorIfNotFound == true and no elements returned from the database.");
         }
 
-        public async Task<IEnumerable<T>> EasyQueryAsync<T>(string commandStr, object? param = null)
-            => await Connection.QueryAsync<T>(await SetupDapperAsync(commandStr, param, typeof(T)));
-
-        public async Task<int> EasyExecuteAsync(string commandStr, object? param = null)
-            => await Connection.ExecuteAsync(await SetupDapperAsync(commandStr, param, null));
-
-        public async Task<T> ExecuteScalarAsync<T>(string commandStr, object? param = null)
-            => (T)(await Connection.ExecuteScalarAsync(await SetupDapperAsync(commandStr, param, null)));
-
-        public IEnumerable<T> EasyQuery<T>(string commandStr, object? param = null)
-            => EasyQueryAsync<T>(commandStr, param)._GetResult();
-
-        public int EasyExecute(string commandStr, object? param = null)
-            => EasyExecuteAsync(commandStr, param)._GetResult();
-
-        public T ExecuteScalar<T>(string commandStr, object? param = null)
-            => ExecuteScalarAsync<T>(commandStr, param)._GetResult();
-
-        public async Task<T?> EasySelectSingleAsync<T>(string selectStr, object? selectParam = null, bool throwErrorIfNotFound = false, bool throwErrorIfMultipleFound = false, CancellationToken cancel = default) where T : class
+        if (throwErrorIfMultipleFound && ret.Count() >= 2)
         {
-            IEnumerable<T> ret = await EasySelectAsync<T>(selectStr, selectParam, false, cancel);
-
-            if (throwErrorIfNotFound && ret.Count() == 0)
-            {
-                throw new CoresLibException($"throwErrorIfNotFound == true and no elements returned from the database.");
-            }
-
-            if (throwErrorIfMultipleFound && ret.Count() >= 2)
-            {
-                throw new CoresLibException($"throwErrorIfMultipleFound == true and {ret.Count()} elements returned from the database.");
-            }
-
-            return ret.FirstOrDefault();
+            throw new CoresLibException($"throwErrorIfMultipleFound == true and {ret.Count()} elements returned from the database.");
         }
 
-        public async Task<IEnumerable<T>> EasySelectAsync<T>(string selectStr, object? selectParam = null, bool throwErrorIfNotFound = false, CancellationToken cancel = default) where T : class
+        return ret.FirstOrDefault();
+    }
+
+    public async Task<IEnumerable<T>> EasySelectAsync<T>(string selectStr, object? selectParam = null, bool throwErrorIfNotFound = false, CancellationToken cancel = default) where T : class
+    {
+        if (selectParam == null) selectParam = new { };
+
+        await EnsureOpenAsync(cancel);
+        EnsureDapperTypeMapping(typeof(T));
+
+        var ret = await EasyQueryAsync<T>(selectStr, selectParam);
+
+        if (throwErrorIfNotFound && ret.Count() == 0)
         {
-            if (selectParam == null) selectParam = new { };
-
-            await EnsureOpenAsync(cancel);
-            EnsureDapperTypeMapping(typeof(T));
-
-            var ret = await EasyQueryAsync<T>(selectStr, selectParam);
-
-            if (throwErrorIfNotFound && ret.Count() == 0)
-            {
-                throw new CoresLibException($"throwErrorIfNotFound == true and no elements returned from the database.");
-            }
-
-            return ret;
+            throw new CoresLibException($"throwErrorIfNotFound == true and no elements returned from the database.");
         }
 
-        public IEnumerable<T> EasySelect<T>(string selectStr, object? selectParam = null, bool throwErrorIfNotFound = false, CancellationToken cancel = default) where T : class
-            => EasySelectAsync<T>(selectStr, selectParam, throwErrorIfNotFound, cancel)._GetResult();
+        return ret;
+    }
 
-        public async Task<T?> EasyGetAsync<T>(dynamic id, bool throwErrorIfNotFound = true, CancellationToken cancel = default) where T : class
+    public IEnumerable<T> EasySelect<T>(string selectStr, object? selectParam = null, bool throwErrorIfNotFound = false, CancellationToken cancel = default) where T : class
+        => EasySelectAsync<T>(selectStr, selectParam, throwErrorIfNotFound, cancel)._GetResult();
+
+    public async Task<T?> EasyGetAsync<T>(dynamic id, bool throwErrorIfNotFound = true, CancellationToken cancel = default) where T : class
+    {
+        await EnsureOpenAsync(cancel);
+        EnsureDapperTypeMapping(typeof(T));
+
+        var ret = await SqlMapperExtensions.GetAsync<T>(Connection, id, Transaction);
+
+        if (throwErrorIfNotFound && ret == null)
         {
-            await EnsureOpenAsync(cancel);
-            EnsureDapperTypeMapping(typeof(T));
-
-            var ret = await SqlMapperExtensions.GetAsync<T>(Connection, id, Transaction);
-
-            if (throwErrorIfNotFound && ret == null)
-            {
-                throw new CoresLibException($"throwErrorIfNotFound == true and no elements returned from the database.");
-            }
-
-            return ret;
+            throw new CoresLibException($"throwErrorIfNotFound == true and no elements returned from the database.");
         }
 
-        public async Task<IEnumerable<T>> EasyGetAllAsync<T>(bool throwErrorIfNotFound = false, CancellationToken cancel = default) where T : class
+        return ret;
+    }
+
+    public async Task<IEnumerable<T>> EasyGetAllAsync<T>(bool throwErrorIfNotFound = false, CancellationToken cancel = default) where T : class
+    {
+        await EnsureOpenAsync(cancel);
+        EnsureDapperTypeMapping(typeof(T));
+
+        var ret = await SqlMapperExtensions.GetAllAsync<T>(Connection, Transaction);
+
+        if (throwErrorIfNotFound && ret.Count() == 0)
         {
-            await EnsureOpenAsync(cancel);
-            EnsureDapperTypeMapping(typeof(T));
+            throw new CoresLibException($"throwErrorIfNotFound == true and no elements returned from the database.");
+        }
 
-            var ret = await SqlMapperExtensions.GetAllAsync<T>(Connection, Transaction);
+        return ret;
+    }
 
-            if (throwErrorIfNotFound && ret.Count() == 0)
-            {
-                throw new CoresLibException($"throwErrorIfNotFound == true and no elements returned from the database.");
-            }
 
-            return ret;
+    public async Task<int> EasyInsertAsync<T>(T data, CancellationToken cancel = default) where T : class
+    {
+        await EnsureOpenAsync(cancel);
+        EnsureDapperTypeMapping(typeof(T));
+
+        return await SqlMapperExtensions.InsertAsync<T>(Connection, data, Transaction);
+    }
+
+    public async Task<bool> EasyUpdateAsync<T>(T data, bool throwErrorIfNotFound = true, CancellationToken cancel = default) where T : class
+    {
+        await EnsureOpenAsync(cancel);
+        EnsureDapperTypeMapping(typeof(T));
+
+        bool ret = await SqlMapperExtensions.UpdateAsync<T>(Connection, data, Transaction);
+
+        if (throwErrorIfNotFound && ret == false)
+            throw new KeyNotFoundException();
+
+        return ret;
+    }
+
+    public async Task<bool> EasyDeleteAsync<T>(T data, bool throwErrorIfNotFound = true, CancellationToken cancel = default) where T : class
+    {
+        await EnsureOpenAsync(cancel);
+        EnsureDapperTypeMapping(typeof(T));
+
+        bool ret = await SqlMapperExtensions.DeleteAsync<T>(Connection, data, Transaction);
+
+        if (throwErrorIfNotFound && ret == false)
+        {
+            throw new CoresLibException($"throwErrorIfNotFound == true and no elements returned from the database.");
         }
 
 
-        public async Task<int> EasyInsertAsync<T>(T data, CancellationToken cancel = default) where T : class
+        return ret;
+    }
+
+    public IEnumerable<T> EasyGetAll<T>(bool throwErrorIfNotFound = false) where T : class
+        => EasyGetAllAsync<T>(throwErrorIfNotFound)._GetResult();
+
+    public int EasyInsert<T>(T data) where T : class
+        => EasyInsertAsync(data)._GetResult();
+
+    public bool EasyUpdate<T>(T data, bool throwErrorIfNotFound = false) where T : class
+        => EasyUpdateAsync(data, throwErrorIfNotFound)._GetResult();
+
+    public bool EasyDelete<T>(T data, bool throwErrorIfNotFound = false) where T : class
+        => EasyDeleteAsync(data, throwErrorIfNotFound)._GetResult();
+
+    public async Task<dynamic?> EasyFindIdAsync<T>(string selectStr, object? selectParam = null) where T : class
+    {
+        if (selectParam == null) selectParam = new { };
+
+        var list = await EasyQueryAsync<T>(selectStr, selectParam);
+        var entity = list.SingleOrDefault();
+
+        if (entity == null) return null;
+
+        Type type = typeof(T);
+        var keyProperty = type.GetProperties().Where(p => p.GetCustomAttributes().OfType<KeyAttribute>().Any())
+            .Concat(type.GetProperties().Where(p => p.GetCustomAttributes().OfType<ExplicitKeyAttribute>().Any()))
+            .Single();
+        return keyProperty.GetValue(entity);
+    }
+
+    public async Task<T> EasyFindOrInsertAsync<T>(string selectStr, object? selectParam, T newEntity) where T : class
+    {
+        newEntity._NullCheck(nameof(newEntity));
+
+        if (selectParam == null) selectParam = new { };
+
+        dynamic? id = await EasyFindIdAsync<T>(selectStr, selectParam);
+
+        if (id == null)
         {
-            await EnsureOpenAsync(cancel);
-            EnsureDapperTypeMapping(typeof(T));
-
-            return await SqlMapperExtensions.InsertAsync<T>(Connection, data, Transaction);
-        }
-
-        public async Task<bool> EasyUpdateAsync<T>(T data, bool throwErrorIfNotFound = true, CancellationToken cancel = default) where T : class
-        {
-            await EnsureOpenAsync(cancel);
-            EnsureDapperTypeMapping(typeof(T));
-
-            bool ret = await SqlMapperExtensions.UpdateAsync<T>(Connection, data, Transaction);
-
-            if (throwErrorIfNotFound && ret == false)
-                throw new KeyNotFoundException();
-
-            return ret;
-        }
-
-        public async Task<bool> EasyDeleteAsync<T>(T data, bool throwErrorIfNotFound = true, CancellationToken cancel = default) where T : class
-        {
-            await EnsureOpenAsync(cancel);
-            EnsureDapperTypeMapping(typeof(T));
-
-            bool ret = await SqlMapperExtensions.DeleteAsync<T>(Connection, data, Transaction);
-
-            if (throwErrorIfNotFound && ret == false)
-            {
-                throw new CoresLibException($"throwErrorIfNotFound == true and no elements returned from the database.");
-            }
-
-
-            return ret;
-        }
-
-        public IEnumerable<T> EasyGetAll<T>(bool throwErrorIfNotFound = false) where T : class
-            => EasyGetAllAsync<T>(throwErrorIfNotFound)._GetResult();
-
-        public int EasyInsert<T>(T data) where T : class
-            => EasyInsertAsync(data)._GetResult();
-
-        public bool EasyUpdate<T>(T data, bool throwErrorIfNotFound = false) where T : class
-            => EasyUpdateAsync(data, throwErrorIfNotFound)._GetResult();
-
-        public bool EasyDelete<T>(T data, bool throwErrorIfNotFound = false) where T : class
-            => EasyDeleteAsync(data, throwErrorIfNotFound)._GetResult();
-
-        public async Task<dynamic?> EasyFindIdAsync<T>(string selectStr, object? selectParam = null) where T : class
-        {
-            if (selectParam == null) selectParam = new { };
-
-            var list = await EasyQueryAsync<T>(selectStr, selectParam);
-            var entity = list.SingleOrDefault();
-
-            if (entity == null) return null;
+            await EasyInsertAsync(newEntity);
 
             Type type = typeof(T);
-            var keyProperty = type.GetProperties().Where(p => p.GetCustomAttributes().OfType<KeyAttribute>().Any())
-                .Concat(type.GetProperties().Where(p => p.GetCustomAttributes().OfType<ExplicitKeyAttribute>().Any()))
-                .Single();
-            return keyProperty.GetValue(entity);
-        }
+            var explicitKeyProperty = type.GetProperties().Where(p => p.GetCustomAttributes().OfType<ExplicitKeyAttribute>().Any()).SingleOrDefault();
 
-        public async Task<T> EasyFindOrInsertAsync<T>(string selectStr, object? selectParam, T newEntity) where T : class
-        {
-            newEntity._NullCheck(nameof(newEntity));
-
-            if (selectParam == null) selectParam = new { };
-
-            dynamic? id = await EasyFindIdAsync<T>(selectStr, selectParam);
-
-            if (id == null)
+            if (explicitKeyProperty != null)
             {
-                await EasyInsertAsync(newEntity);
-
-                Type type = typeof(T);
-                var explicitKeyProperty = type.GetProperties().Where(p => p.GetCustomAttributes().OfType<ExplicitKeyAttribute>().Any()).SingleOrDefault();
-
-                if (explicitKeyProperty != null)
+                id = explicitKeyProperty.GetValue(newEntity);
+            }
+            else
+            {
+                var autoKeyProperty = type.GetProperties().Where(p => p.GetCustomAttributes().OfType<KeyAttribute>().Any()).SingleOrDefault();
+                autoKeyProperty._NullCheck();
+                if (autoKeyProperty.DeclaringType == typeof(long))
                 {
-                    id = explicitKeyProperty.GetValue(newEntity);
+                    id = await this.GetLastID64Async();
                 }
                 else
                 {
-                    var autoKeyProperty = type.GetProperties().Where(p => p.GetCustomAttributes().OfType<KeyAttribute>().Any()).SingleOrDefault();
-                    autoKeyProperty._NullCheck();
-                    if (autoKeyProperty.DeclaringType == typeof(long))
-                    {
-                        id = await this.GetLastID64Async();
-                    }
-                    else
-                    {
-                        id = await this.GetLastIDAsync();
-                    }
+                    id = await this.GetLastIDAsync();
                 }
             }
-
-            return await EasyGetAsync<T>(id, true);
         }
 
-        public async Task<T?> EasyFindAsync<T>(string selectStr, object? selectParam = null, bool throwErrorIfNotFound = true) where T : class
+        return await EasyGetAsync<T>(id, true);
+    }
+
+    public async Task<T?> EasyFindAsync<T>(string selectStr, object? selectParam = null, bool throwErrorIfNotFound = true) where T : class
+    {
+        if (selectParam == null) selectParam = new { };
+
+        dynamic? id = await EasyFindIdAsync<T>(selectStr, selectParam);
+
+        if (id == null)
         {
-            if (selectParam == null) selectParam = new { };
-
-            dynamic? id = await EasyFindIdAsync<T>(selectStr, selectParam);
-
-            if (id == null)
-            {
-                if (throwErrorIfNotFound)
-                    throw new KeyNotFoundException();
-                else
-                    return null;
-            }
-
-            return await EasyGetAsync<T>(id, true);
+            if (throwErrorIfNotFound)
+                throw new KeyNotFoundException();
+            else
+                return null;
         }
 
-        public int QueryWithNoReturn(string commandStr, params object[] args)
+        return await EasyGetAsync<T>(id, true);
+    }
+
+    public int QueryWithNoReturn(string commandStr, params object[] args)
+    {
+        EnsureOpen();
+
+        CloseQuery();
+        DbCommand cmd = buildCommand(commandStr, args);
+
+        return cmd.ExecuteNonQuery();
+    }
+
+    public async Task<int> QueryWithNoReturnAsync(string commandStr, params object[] args)
+    {
+        await EnsureOpenAsync();
+
+        await CloseQueryAsync();
+
+        DbCommand cmd = buildCommand(commandStr, args);
+
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
+    public async Task<int> QueryWithNoReturnAsync(string commandStr, CancellationToken cancel, params object[] args)
+    {
+        await EnsureOpenAsync(cancel);
+
+        await CloseQueryAsync();
+
+        DbCommand cmd = buildCommand(commandStr, args);
+
+        return await cmd.ExecuteNonQueryAsync(cancel);
+    }
+
+    public DatabaseValue QueryWithValue(string commandStr, params object[] args)
+    {
+        EnsureOpen();
+
+        CloseQuery();
+        DbCommand cmd = buildCommand(commandStr, args);
+
+        return new DatabaseValue(cmd.ExecuteScalar());
+    }
+
+    public async Task<DatabaseValue> QueryWithValueAsync(string commandStr, CancellationToken cancel, params object[] args)
+    {
+        await EnsureOpenAsync(cancel);
+
+        await CloseQueryAsync();
+
+        DbCommand cmd = buildCommand(commandStr, args);
+
+        return new DatabaseValue(await cmd.ExecuteScalarAsync(cancel));
+    }
+
+    public async Task<DatabaseValue> QueryWithValueAsync(string commandStr, params object[] args)
+    {
+        await EnsureOpenAsync();
+
+        await CloseQueryAsync();
+
+        DbCommand cmd = buildCommand(commandStr, args);
+
+        return new DatabaseValue(await cmd.ExecuteScalarAsync());
+    }
+
+    // 値の取得
+    public DatabaseValue this[string name]
+    {
+        get
+        {
+            DataReader._NullCheck();
+
+            object o = DataReader[name];
+
+            return new DatabaseValue(o);
+        }
+    }
+
+    // 最後に挿入した ID
+    public int LastID
+    {
+        get
         {
             EnsureOpen();
-
-            CloseQuery();
-            DbCommand cmd = buildCommand(commandStr, args);
-
-            return cmd.ExecuteNonQuery();
+            return (int)((decimal)this.QueryWithValue("SELECT @@@@IDENTITY").Object!);
         }
-
-        public async Task<int> QueryWithNoReturnAsync(string commandStr, params object[] args)
-        {
-            await EnsureOpenAsync();
-
-            await CloseQueryAsync();
-
-            DbCommand cmd = buildCommand(commandStr, args);
-
-            return await cmd.ExecuteNonQueryAsync();
-        }
-
-        public async Task<int> QueryWithNoReturnAsync(string commandStr, CancellationToken cancel, params object[] args)
-        {
-            await EnsureOpenAsync(cancel);
-
-            await CloseQueryAsync();
-
-            DbCommand cmd = buildCommand(commandStr, args);
-
-            return await cmd.ExecuteNonQueryAsync(cancel);
-        }
-
-        public DatabaseValue QueryWithValue(string commandStr, params object[] args)
+    }
+    public long LastID64
+    {
+        get
         {
             EnsureOpen();
+            return (long)((decimal)this.QueryWithValue("SELECT @@@@IDENTITY").Object!);
+        }
+    }
 
-            CloseQuery();
-            DbCommand cmd = buildCommand(commandStr, args);
+    public async Task<int> GetLastIDAsync()
+    {
+        await EnsureOpenAsync();
+        return (int)((decimal)((await this.QueryWithValueAsync("SELECT @@@@IDENTITY")).Object!));
+    }
 
-            return new DatabaseValue(cmd.ExecuteScalar());
+    public async Task<long> GetLastID64Async()
+    {
+        await EnsureOpenAsync();
+        return (long)((decimal)((await this.QueryWithValueAsync("SELECT @@@@IDENTITY")).Object!));
+    }
+
+
+    // すべて読み込み
+    public Data ReadAllData()
+    {
+        return new Data(this);
+    }
+
+    public async Task<Data> ReadAllDataAsync(CancellationToken cancel = default)
+    {
+        Data ret = new Data();
+        await ret.ReadFromDbAsync(this, cancel);
+        return ret;
+    }
+
+    // 次の行の取得
+    public bool ReadNext()
+    {
+        if (DataReader == null)
+        {
+            return false;
+        }
+        if (DataReader.Read() == false)
+        {
+            return false;
         }
 
-        public async Task<DatabaseValue> QueryWithValueAsync(string commandStr, CancellationToken cancel, params object[] args)
+        return true;
+    }
+
+    public async Task<bool> ReadNextAsync(CancellationToken cancel = default)
+    {
+        if (DataReader == null)
         {
-            await EnsureOpenAsync(cancel);
-
-            await CloseQueryAsync();
-
-            DbCommand cmd = buildCommand(commandStr, args);
-
-            return new DatabaseValue(await cmd.ExecuteScalarAsync(cancel));
+            return false;
+        }
+        if ((await DataReader.ReadAsync(cancel)) == false)
+        {
+            return false;
         }
 
-        public async Task<DatabaseValue> QueryWithValueAsync(string commandStr, params object[] args)
+        return true;
+    }
+
+    // クエリの終了
+    async Task CloseQueryAsync()
+    {
+        if (DataReader != null)
         {
-            await EnsureOpenAsync();
-
-            await CloseQueryAsync();
-
-            DbCommand cmd = buildCommand(commandStr, args);
-
-            return new DatabaseValue(await cmd.ExecuteScalarAsync());
+            //await DataReader.CloseAsync();
+            await DataReader._DisposeSafeAsync();
+            DataReader = null;
         }
-
-        // 値の取得
-        public DatabaseValue this[string name]
+    }
+    void CloseQuery()
+    {
+        if (DataReader != null)
         {
-            get
+            //DataReader.Close();
+            DataReader._DisposeSafe();
+            DataReader = null;
+        }
+    }
+
+    // コマンドの構築
+    DbCommand buildCommand(string commandStr, params object[] args)
+    {
+        StringBuilder b = new StringBuilder();
+        int i, len, n;
+        len = commandStr.Length;
+        List<DbParameter> dbParams = new List<DbParameter>();
+
+        DbCommand cmd = Connection.CreateCommand();
+
+        n = 0;
+        for (i = 0; i < len; i++)
+        {
+            char c = commandStr[i];
+
+            if (c == '@')
             {
-                DataReader._NullCheck();
-
-                object o = DataReader[name];
-
-                return new DatabaseValue(o);
-            }
-        }
-
-        // 最後に挿入した ID
-        public int LastID
-        {
-            get
-            {
-                EnsureOpen();
-                return (int)((decimal)this.QueryWithValue("SELECT @@@@IDENTITY").Object!);
-            }
-        }
-        public long LastID64
-        {
-            get
-            {
-                EnsureOpen();
-                return (long)((decimal)this.QueryWithValue("SELECT @@@@IDENTITY").Object!);
-            }
-        }
-
-        public async Task<int> GetLastIDAsync()
-        {
-            await EnsureOpenAsync();
-            return (int)((decimal)((await this.QueryWithValueAsync("SELECT @@@@IDENTITY")).Object!));
-        }
-
-        public async Task<long> GetLastID64Async()
-        {
-            await EnsureOpenAsync();
-            return (long)((decimal)((await this.QueryWithValueAsync("SELECT @@@@IDENTITY")).Object!));
-        }
-
-
-        // すべて読み込み
-        public Data ReadAllData()
-        {
-            return new Data(this);
-        }
-
-        public async Task<Data> ReadAllDataAsync(CancellationToken cancel = default)
-        {
-            Data ret = new Data();
-            await ret.ReadFromDbAsync(this, cancel);
-            return ret;
-        }
-
-        // 次の行の取得
-        public bool ReadNext()
-        {
-            if (DataReader == null)
-            {
-                return false;
-            }
-            if (DataReader.Read() == false)
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-        public async Task<bool> ReadNextAsync(CancellationToken cancel = default)
-        {
-            if (DataReader == null)
-            {
-                return false;
-            }
-            if ((await DataReader.ReadAsync(cancel)) == false)
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-        // クエリの終了
-        async Task CloseQueryAsync()
-        {
-            if (DataReader != null)
-            {
-                //await DataReader.CloseAsync();
-                await DataReader._DisposeSafeAsync();
-                DataReader = null;
-            }
-        }
-        void CloseQuery()
-        {
-            if (DataReader != null)
-            {
-                //DataReader.Close();
-                DataReader._DisposeSafe();
-                DataReader = null;
-            }
-        }
-
-        // コマンドの構築
-        DbCommand buildCommand(string commandStr, params object[] args)
-        {
-            StringBuilder b = new StringBuilder();
-            int i, len, n;
-            len = commandStr.Length;
-            List<DbParameter> dbParams = new List<DbParameter>();
-
-            DbCommand cmd = Connection.CreateCommand();
-
-            n = 0;
-            for (i = 0; i < len; i++)
-            {
-                char c = commandStr[i];
-
-                if (c == '@')
-                {
-                    if ((commandStr.Length > (i + 1)) && commandStr[i + 1] == '@')
-                    {
-                        b.Append(c);
-                        i++;
-                    }
-                    else
-                    {
-                        string argName = "@ARG_" + n;
-                        b.Append(argName);
-
-                        DbParameter p = buildParameter(cmd, argName, args[n++]);
-                        dbParams.Add(p);
-                    }
-                }
-                else
+                if ((commandStr.Length > (i + 1)) && commandStr[i + 1] == '@')
                 {
                     b.Append(c);
+                    i++;
+                }
+                else
+                {
+                    string argName = "@ARG_" + n;
+                    b.Append(argName);
+
+                    DbParameter p = buildParameter(cmd, argName, args[n++]);
+                    dbParams.Add(p);
                 }
             }
-
-            foreach (DbParameter p in dbParams)
+            else
             {
-                cmd.Parameters.Add(p);
+                b.Append(c);
             }
+        }
 
-            if (Transaction != null)
-                cmd.Transaction = Transaction;
+        foreach (DbParameter p in dbParams)
+        {
+            cmd.Parameters.Add(p);
+        }
+
+        if (Transaction != null)
+            cmd.Transaction = Transaction;
 
 #pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
-            cmd.CommandText = b.ToString();
+        cmd.CommandText = b.ToString();
 #pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
-            cmd.CommandTimeout = this.CommandTimeoutSecs;
+        cmd.CommandTimeout = this.CommandTimeoutSecs;
 
-            return cmd;
+        return cmd;
+    }
+
+    // オブジェクトを SQL パラメータに変換
+    DbParameter buildParameter(DbCommand cmd, string name, object o)
+    {
+        if (o == null)
+        {
+            DbParameter p = cmd.CreateParameter();
+            p.ParameterName = name;
+            p.Value = DBNull.Value;
+            return p;
         }
 
-        // オブジェクトを SQL パラメータに変換
-        DbParameter buildParameter(DbCommand cmd, string name, object o)
+        Type t = o.GetType();
+
+        if (t == typeof(System.String))
         {
-            if (o == null)
-            {
-                DbParameter p = cmd.CreateParameter();
-                p.ParameterName = name;
-                p.Value = DBNull.Value;
-                return p;
-            }
-
-            Type t = o.GetType();
-
-            if (t == typeof(System.String))
-            {
-                string s = (string)o;
-                DbParameter p = cmd.CreateParameter();
-                p.ParameterName = name;
-                p.DbType = DbType.String;
-                p.Size = s.Length;
-                p.Value = s;
-                return p;
-            }
-            else if (t == typeof(System.Int16) || t == typeof(System.UInt16))
-            {
-                short s = (short)o;
-                DbParameter p = cmd.CreateParameter();
-                p.ParameterName = name;
-                p.DbType = DbType.Int16;
-                p.Value = s;
-                return p;
-            }
-            else if (t == typeof(System.Byte))
-            {
-                byte b = (byte)o;
-                DbParameter p = cmd.CreateParameter();
-                p.ParameterName = name;
-                p.DbType = DbType.Byte;
-                p.Value = b;
-                return p;
-            }
-            else if (t == typeof(System.Int32) || t == typeof(System.UInt32))
-            {
-                int i = (int)o;
-                DbParameter p = cmd.CreateParameter();
-                p.ParameterName = name;
-                p.DbType = DbType.Int32;
-                p.Value = i;
-                return p;
-            }
-            else if (t == typeof(System.Int64) || t == typeof(System.UInt64))
-            {
-                long i = (long)o;
-                DbParameter p = cmd.CreateParameter();
-                p.ParameterName = name;
-                p.DbType = DbType.Int64;
-                p.Value = i;
-                return p;
-            }
-            else if (t == typeof(System.Boolean))
-            {
-                bool b = (bool)o;
-                DbParameter p = cmd.CreateParameter();
-                p.ParameterName = name;
-                p.DbType = DbType.Boolean;
-                p.Value = b;
-                return p;
-            }
-            else if (t == typeof(System.Byte[]))
-            {
-                byte[] b = (byte[])o;
-                DbParameter p = cmd.CreateParameter();
-                p.ParameterName = name;
-                p.DbType = DbType.Binary;
-                p.Value = b;
-                p.Size = b.Length;
-                return p;
-            }
-            else if (t == typeof(System.DateTime))
-            {
-                DateTime d = (DateTime)o;
-                DbParameter p = cmd.CreateParameter();
-                p.ParameterName = name;
-                p.DbType = DbType.DateTime;
-                p.Value = d;
-                return p;
-            }
-            else if (t == typeof(System.DateTimeOffset))
-            {
-                DateTimeOffset d = (DateTimeOffset)o;
-                d = d._NormalizeDateTimeOffset();
-                DbParameter p = cmd.CreateParameter();
-                p.ParameterName = name;
-                p.DbType = DbType.DateTimeOffset;
-                p.Value = d;
-                return p;
-            }
-
-            throw new ArgumentException($"Unsupported type: '{t.Name}'");
+            string s = (string)o;
+            DbParameter p = cmd.CreateParameter();
+            p.ParameterName = name;
+            p.DbType = DbType.String;
+            p.Size = s.Length;
+            p.Value = s;
+            return p;
+        }
+        else if (t == typeof(System.Int16) || t == typeof(System.UInt16))
+        {
+            short s = (short)o;
+            DbParameter p = cmd.CreateParameter();
+            p.ParameterName = name;
+            p.DbType = DbType.Int16;
+            p.Value = s;
+            return p;
+        }
+        else if (t == typeof(System.Byte))
+        {
+            byte b = (byte)o;
+            DbParameter p = cmd.CreateParameter();
+            p.ParameterName = name;
+            p.DbType = DbType.Byte;
+            p.Value = b;
+            return p;
+        }
+        else if (t == typeof(System.Int32) || t == typeof(System.UInt32))
+        {
+            int i = (int)o;
+            DbParameter p = cmd.CreateParameter();
+            p.ParameterName = name;
+            p.DbType = DbType.Int32;
+            p.Value = i;
+            return p;
+        }
+        else if (t == typeof(System.Int64) || t == typeof(System.UInt64))
+        {
+            long i = (long)o;
+            DbParameter p = cmd.CreateParameter();
+            p.ParameterName = name;
+            p.DbType = DbType.Int64;
+            p.Value = i;
+            return p;
+        }
+        else if (t == typeof(System.Boolean))
+        {
+            bool b = (bool)o;
+            DbParameter p = cmd.CreateParameter();
+            p.ParameterName = name;
+            p.DbType = DbType.Boolean;
+            p.Value = b;
+            return p;
+        }
+        else if (t == typeof(System.Byte[]))
+        {
+            byte[] b = (byte[])o;
+            DbParameter p = cmd.CreateParameter();
+            p.ParameterName = name;
+            p.DbType = DbType.Binary;
+            p.Value = b;
+            p.Size = b.Length;
+            return p;
+        }
+        else if (t == typeof(System.DateTime))
+        {
+            DateTime d = (DateTime)o;
+            DbParameter p = cmd.CreateParameter();
+            p.ParameterName = name;
+            p.DbType = DbType.DateTime;
+            p.Value = d;
+            return p;
+        }
+        else if (t == typeof(System.DateTimeOffset))
+        {
+            DateTimeOffset d = (DateTimeOffset)o;
+            d = d._NormalizeDateTimeOffset();
+            DbParameter p = cmd.CreateParameter();
+            p.ParameterName = name;
+            p.DbType = DbType.DateTimeOffset;
+            p.Value = d;
+            return p;
         }
 
-        // リソースの解放
-        protected override async Task CleanupImplAsync(Exception? ex)
+        throw new ArgumentException($"Unsupported type: '{t.Name}'");
+    }
+
+    // リソースの解放
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
         {
-            try
+            await CloseQueryAsync();
+
+            await RollbackAsync();
+
+            if (Connection != null)
             {
-                await CloseQueryAsync();
+                IsOpened = false;
+                //await Connection.CloseAsync();
+                await Connection._DisposeSafeAsync();
+                Connection = null!;
+            }
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
+        }
+    }
 
-                await RollbackAsync();
+    public delegate bool TransactionalTask();
+    public delegate void TransactionalReadonlyTask();
 
-                if (Connection != null)
+    public delegate Task<bool> TransactionalTaskAsync();
+    public delegate Task TransactionalReadOnlyTaskAsync();
+    public delegate Task<T> TransactionalReadOnlyTaskAsync<T>();
+
+    // トランザクションの実行 (匿名デリゲートを用いた再試行処理も実施)
+    public void Tran(TransactionalTask task) => Tran(null, null, task);
+    public void Tran(IsolationLevel? isolationLevel, TransactionalTask task) => Tran(isolationLevel, null, task);
+    public void Tran(IsolationLevel? isolationLevel, DeadlockRetryConfig? retryConfig, TransactionalTask task)
+    {
+        EnsureOpen();
+        if (retryConfig == null)
+        {
+            retryConfig = this.DeadlockRetryConfig;
+        }
+
+        int numRetry = 0;
+
+        LABEL_RETRY:
+        try
+        {
+            using (UsingTran u = this.UsingTran(isolationLevel))
+            {
+                if (task())
                 {
-                    IsOpened = false;
-                    //await Connection.CloseAsync();
-                    await Connection._DisposeSafeAsync();
-                    Connection = null!;
+                    u.Commit();
                 }
             }
-            finally
+        }
+        catch (SqlException sqlex)
+        {
+            if (sqlex.Number == 1205)
             {
-                await base.CleanupImplAsync(ex);
+                // デッドロック発生
+                numRetry++;
+                if (numRetry <= retryConfig.RetryCount)
+                {
+                    int nextInterval = Util.GenRandInterval(retryConfig.RetryAverageInterval);
+
+                    $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {sqlex.ToString()}"._Debug();
+
+                    Kernel.SleepThread(Util.GenRandInterval(nextInterval));
+
+                    goto LABEL_RETRY;
+                }
+
+                throw;
+            }
+            else
+            {
+                throw;
             }
         }
+    }
 
-        public delegate bool TransactionalTask();
-        public delegate void TransactionalReadonlyTask();
-
-        public delegate Task<bool> TransactionalTaskAsync();
-        public delegate Task TransactionalReadOnlyTaskAsync();
-        public delegate Task<T> TransactionalReadOnlyTaskAsync<T>();
-
-        // トランザクションの実行 (匿名デリゲートを用いた再試行処理も実施)
-        public void Tran(TransactionalTask task) => Tran(null, null, task);
-        public void Tran(IsolationLevel? isolationLevel, TransactionalTask task) => Tran(isolationLevel, null, task);
-        public void Tran(IsolationLevel? isolationLevel, DeadlockRetryConfig? retryConfig, TransactionalTask task)
+    public void TranReadSnapshot(TransactionalReadonlyTask task)
+    {
+        Tran(IsolationLevel.Snapshot, () =>
         {
-            EnsureOpen();
-            if (retryConfig == null)
-            {
-                retryConfig = this.DeadlockRetryConfig;
-            }
+            task();
+            return false;
+        });
+    }
 
-            int numRetry = 0;
+    public Task<bool> TranAsync(TransactionalTaskAsync task) => TranAsync(null, null, task, default);
+    public Task<bool> TranAsync(IsolationLevel? isolationLevel, TransactionalTaskAsync task) => TranAsync(isolationLevel, null, task, default);
+    public async Task<bool> TranAsync(IsolationLevel? isolationLevel, DeadlockRetryConfig? retryConfig, TransactionalTaskAsync task, CancellationToken cancel = default)
+    {
+        await EnsureOpenAsync();
+        if (retryConfig == null)
+        {
+            retryConfig = this.DeadlockRetryConfig;
+        }
 
-LABEL_RETRY:
-            try
+        int numRetry = 0;
+
+        LABEL_RETRY:
+        try
+        {
+            await using (UsingTran u = await this.UsingTranAsync(isolationLevel, cancel))
             {
-                using (UsingTran u = this.UsingTran(isolationLevel))
+                if (await task())
                 {
-                    if (task())
-                    {
-                        u.Commit();
-                    }
-                }
-            }
-            catch (SqlException sqlex)
-            {
-                if (sqlex.Number == 1205)
-                {
-                    // デッドロック発生
-                    numRetry++;
-                    if (numRetry <= retryConfig.RetryCount)
-                    {
-                        int nextInterval = Util.GenRandInterval(retryConfig.RetryAverageInterval);
+                    await u.CommitAsync(cancel);
 
-                        $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {sqlex.ToString()}"._Debug();
-
-                        Kernel.SleepThread(Util.GenRandInterval(nextInterval));
-
-                        goto LABEL_RETRY;
-                    }
-
-                    throw;
+                    return true;
                 }
                 else
                 {
-                    throw;
+                    return false;
                 }
             }
         }
-
-        public void TranReadSnapshot(TransactionalReadonlyTask task)
+        catch (SqlException sqlex)
         {
-            Tran(IsolationLevel.Snapshot, () =>
+            //sqlex._Debug();
+            if (sqlex.Number == 1205)
             {
-                task();
-                return false;
-            });
-        }
+                // デッドロック発生
+                numRetry++;
+                if (numRetry <= retryConfig.RetryCount)
+                {
+                    int nextInterval = Util.GenRandInterval(retryConfig.RetryAverageInterval);
 
-        public Task<bool> TranAsync(TransactionalTaskAsync task) => TranAsync(null, null, task, default);
-        public Task<bool> TranAsync(IsolationLevel? isolationLevel, TransactionalTaskAsync task) => TranAsync(isolationLevel, null, task, default);
-        public async Task<bool> TranAsync(IsolationLevel? isolationLevel, DeadlockRetryConfig? retryConfig, TransactionalTaskAsync task, CancellationToken cancel = default)
+                    $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {sqlex.ToString()}"._Debug();
+
+                    await Task.Delay(nextInterval);
+
+                    goto LABEL_RETRY;
+                }
+
+                throw;
+            }
+            else
+            {
+                throw;
+            }
+        }
+    }
+
+    public async Task TranReadSnapshotAsync(TransactionalReadOnlyTaskAsync task)
+    {
+        await TranAsync(IsolationLevel.Snapshot, async () =>
         {
-            await EnsureOpenAsync();
-            if (retryConfig == null)
-            {
-                retryConfig = this.DeadlockRetryConfig;
-            }
+            await task();
+            return false;
+        });
+    }
 
-            int numRetry = 0;
+    public async Task<T> TranReadSnapshotAsync<T>(TransactionalReadOnlyTaskAsync<T> task)
+    {
+        T? ret = default;
 
-LABEL_RETRY:
-            try
-            {
-                await using (UsingTran u = await this.UsingTranAsync(isolationLevel, cancel))
-                {
-                    if (await task())
-                    {
-                        await u.CommitAsync(cancel);
+        await TranAsync(IsolationLevel.Snapshot, async () =>
+        {
+            ret = await task();
+            return false;
+        });
 
-                        return true;
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                }
-            }
-            catch (SqlException sqlex)
-            {
-                //sqlex._Debug();
-                if (sqlex.Number == 1205)
-                {
-                    // デッドロック発生
-                    numRetry++;
-                    if (numRetry <= retryConfig.RetryCount)
-                    {
-                        int nextInterval = Util.GenRandInterval(retryConfig.RetryAverageInterval);
+        return ret!;
+    }
 
-                        $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {sqlex.ToString()}"._Debug();
-
-                        await Task.Delay(nextInterval);
-
-                        goto LABEL_RETRY;
-                    }
-
-                    throw;
-                }
-                else
-                {
-                    throw;
-                }
-            }
-        }
-
-        public async Task TranReadSnapshotAsync(TransactionalReadOnlyTaskAsync task)
+    public async Task TranReadSnapshotIfNecessaryAsync(TransactionalReadOnlyTaskAsync task)
+    {
+        if (this.Transaction == null)
         {
             await TranAsync(IsolationLevel.Snapshot, async () =>
             {
                 await task();
+
                 return false;
             });
         }
-
-        public async Task<T> TranReadSnapshotAsync<T>(TransactionalReadOnlyTaskAsync<T> task)
+        else
         {
-            T? ret = default;
+            await task();
+        }
+    }
 
+    public async Task<T> TranReadSnapshotIfNecessaryAsync<T>(TransactionalReadOnlyTaskAsync<T> task)
+    {
+        T? ret = default;
+
+        if (this.Transaction == null)
+        {
             await TranAsync(IsolationLevel.Snapshot, async () =>
             {
                 ret = await task();
                 return false;
             });
-
-            return ret!;
         }
-
-        public async Task TranReadSnapshotIfNecessaryAsync(TransactionalReadOnlyTaskAsync task)
+        else
         {
-            if (this.Transaction == null)
-            {
-                await TranAsync(IsolationLevel.Snapshot, async () =>
-                {
-                    await task();
-
-                    return false;
-                });
-            }
-            else
-            {
-                await task();
-            }
+            ret = await task();
         }
 
-        public async Task<T> TranReadSnapshotIfNecessaryAsync<T>(TransactionalReadOnlyTaskAsync<T> task)
+        return ret!;
+    }
+
+    // トランザクションの開始 (UsingTran オブジェクト作成)
+    public UsingTran UsingTran(IsolationLevel? isolationLevel = null)
+    {
+        UsingTran t = new UsingTran(this);
+
+        Begin(isolationLevel);
+
+        return t;
+    }
+
+    // トランザクションの開始
+    public void Begin(IsolationLevel? isolationLevel = null)
+    {
+        EnsureOpen();
+
+        CloseQuery();
+
+        if (isolationLevel == IsolationLevel.Unspecified)
         {
-            T? ret = default;
-
-            if (this.Transaction == null)
-            {
-                await TranAsync(IsolationLevel.Snapshot, async () =>
-                {
-                    ret = await task();
-                    return false;
-                });
-            }
-            else
-            {
-                ret = await task();
-            }
-
-            return ret!;
+            Transaction = Connection.BeginTransaction();
         }
-
-        // トランザクションの開始 (UsingTran オブジェクト作成)
-        public UsingTran UsingTran(IsolationLevel? isolationLevel = null)
+        else
         {
-            UsingTran t = new UsingTran(this);
-
-            Begin(isolationLevel);
-
-            return t;
+            Transaction = Connection.BeginTransaction(isolationLevel ?? this.DefaultIsolationLevel);
         }
+    }
 
-        // トランザクションの開始
-        public void Begin(IsolationLevel? isolationLevel = null)
+    // トランザクションの開始 (UsingTran オブジェクト作成)
+    public async Task<UsingTran> UsingTranAsync(IsolationLevel? isolationLevel = null, CancellationToken cancel = default)
+    {
+        UsingTran t = new UsingTran(this);
+
+        await BeginAsync(isolationLevel, cancel);
+
+        return t;
+    }
+
+    // トランザクションの開始
+    public async Task BeginAsync(IsolationLevel? isolationLevel = null, CancellationToken cancel = default)
+    {
+        await EnsureOpenAsync(cancel);
+
+        await CloseQueryAsync();
+
+        if (isolationLevel == IsolationLevel.Unspecified)
         {
-            EnsureOpen();
-
-            CloseQuery();
-
-            if (isolationLevel == IsolationLevel.Unspecified)
-            {
-                Transaction = Connection.BeginTransaction();
-            }
-            else
-            {
-                Transaction = Connection.BeginTransaction(isolationLevel ?? this.DefaultIsolationLevel);
-            }
+            Transaction = await Connection.BeginTransactionAsync(cancel);
         }
-
-        // トランザクションの開始 (UsingTran オブジェクト作成)
-        public async Task<UsingTran> UsingTranAsync(IsolationLevel? isolationLevel = null, CancellationToken cancel = default)
+        else
         {
-            UsingTran t = new UsingTran(this);
-
-            await BeginAsync(isolationLevel, cancel);
-
-            return t;
+            Transaction = await Connection.BeginTransactionAsync(isolationLevel ?? this.DefaultIsolationLevel, cancel);
         }
+    }
 
-        // トランザクションの開始
-        public async Task BeginAsync(IsolationLevel? isolationLevel = null, CancellationToken cancel = default)
+    // トランザクションのコミット
+    public void Commit()
+    {
+        if (Transaction == null)
         {
-            await EnsureOpenAsync(cancel);
-
-            await CloseQueryAsync();
-
-            if (isolationLevel == IsolationLevel.Unspecified)
-            {
-                Transaction = await Connection.BeginTransactionAsync(cancel);
-            }
-            else
-            {
-                Transaction = await Connection.BeginTransactionAsync(isolationLevel ?? this.DefaultIsolationLevel, cancel);
-            }
+            return;
         }
 
-        // トランザクションのコミット
-        public void Commit()
+        CloseQuery();
+        Transaction.Commit();
+        Transaction.Dispose();
+        Transaction = null;
+    }
+    public async Task CommitAsync(CancellationToken cancel = default)
+    {
+        if (Transaction == null)
         {
-            if (Transaction == null)
-            {
-                return;
-            }
-
-            CloseQuery();
-            Transaction.Commit();
-            Transaction.Dispose();
-            Transaction = null;
+            return;
         }
-        public async Task CommitAsync(CancellationToken cancel = default)
+
+        await CloseQueryAsync();
+
+        await Transaction.CommitAsync(cancel);
+
+        await Transaction._DisposeSafeAsync();
+        Transaction = null;
+    }
+
+    // トランザクションのロールバック
+    public void Rollback()
+    {
+        if (Transaction == null)
         {
-            if (Transaction == null)
-            {
-                return;
-            }
-
-            await CloseQueryAsync();
-
-            await Transaction.CommitAsync(cancel);
-
-            await Transaction._DisposeSafeAsync();
-            Transaction = null;
+            return;
         }
 
-        // トランザクションのロールバック
-        public void Rollback()
+        CloseQuery();
+        Transaction.Rollback();
+        Transaction.Dispose();
+        Transaction = null;
+    }
+    public async Task RollbackAsync(CancellationToken cancel = default)
+    {
+        if (Transaction == null)
         {
-            if (Transaction == null)
-            {
-                return;
-            }
-
-            CloseQuery();
-            Transaction.Rollback();
-            Transaction.Dispose();
-            Transaction = null;
+            return;
         }
-        public async Task RollbackAsync(CancellationToken cancel = default)
-        {
-            if (Transaction == null)
-            {
-                return;
-            }
 
-            await CloseQueryAsync();
+        await CloseQueryAsync();
 
-            await Transaction.RollbackAsync(cancel);
+        await Transaction.RollbackAsync(cancel);
 
-            await Transaction._DisposeSafeAsync();
-            Transaction = null;
-        }
+        await Transaction._DisposeSafeAsync();
+        Transaction = null;
     }
 }
 

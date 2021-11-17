@@ -42,53 +42,52 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public class SourceCodeCounter
 {
-    public class SourceCodeCounter
+    DirectoryPath RootDir;
+    FileSystem Fs => RootDir.FileSystem;
+
+    public int NumLines { get; private set; } = 0;
+    public int NumFiles { get; private set; } = 0;
+    public long TotalSize { get; private set; } = 0;
+
+    HashSet<string> ExcludeHashSet = new HashSet<string>(StrComparer.IgnoreCaseComparer);
+
+    public SourceCodeCounter(DirectoryPath rootDir, params string[] excludeFileNames)
     {
-        DirectoryPath RootDir;
-        FileSystem Fs => RootDir.FileSystem;
+        this.RootDir = rootDir;
 
-        public int NumLines { get; private set; } = 0;
-        public int NumFiles { get; private set; } = 0;
-        public long TotalSize { get; private set; } = 0;
+        excludeFileNames._DoForEach(x => ExcludeHashSet.Add(x));
 
-        HashSet<string> ExcludeHashSet = new HashSet<string>(StrComparer.IgnoreCaseComparer);
+        DirectoryWalker walk = new DirectoryWalker(RootDir.FileSystem);
 
-        public SourceCodeCounter(DirectoryPath rootDir, params string[] excludeFileNames)
-        {
-            this.RootDir = rootDir;
-
-            excludeFileNames._DoForEach(x => ExcludeHashSet.Add(x));
-
-            DirectoryWalker walk = new DirectoryWalker(RootDir.FileSystem);
-
-            walk.WalkDirectory(RootDir.PathString,
-                (pathInfo, entities, cancel) =>
+        walk.WalkDirectory(RootDir.PathString,
+            (pathInfo, entities, cancel) =>
+            {
+                foreach (FileSystemEntity entity in entities)
                 {
-                    foreach (FileSystemEntity entity in entities)
+                    if (entity.IsDirectory == false && entity.Name._IsExtensionMatch(Consts.Extensions.Filter_SourceCodes))
                     {
-                        if (entity.IsDirectory == false && entity.Name._IsExtensionMatch(Consts.Extensions.Filter_SourceCodes))
+                        if (ExcludeHashSet.Contains(entity.Name) == false)
                         {
-                            if (ExcludeHashSet.Contains(entity.Name) == false)
-                            {
-                                int numLines = Fs.ReadStringFromFile(entity.FullPath)._GetLines().Length;
+                            int numLines = Fs.ReadStringFromFile(entity.FullPath)._GetLines().Length;
 
-                                this.NumLines += numLines;
+                            this.NumLines += numLines;
 
-                                this.NumFiles++;
+                            this.NumFiles++;
 
-                                this.TotalSize += entity.Size;
-                            }
+                            this.TotalSize += entity.Size;
                         }
                     }
-                    return true;
-                },
-                exceptionHandler: (pathInfo, err, cancel) =>
-                {
-                    return true;
-                });
-        }
+                }
+                return true;
+            },
+            exceptionHandler: (pathInfo, err, cancel) =>
+            {
+                return true;
+            });
     }
 }
 

@@ -51,34 +51,33 @@ using static IPA.Cores.Globals.Basic;
 using System.Net;
 using System.Net.Sockets;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public static partial class HashKeys
 {
-    public static partial class HashKeys
+    // 1 つの IP アドレスに基づくハッシュキー
+    public class SingleIPAddress : IEquatable<SingleIPAddress>
     {
-        // 1 つの IP アドレスに基づくハッシュキー
-        public class SingleIPAddress : IEquatable<SingleIPAddress>
+        public readonly IPAddress IPAddress;
+        public readonly int HashCode;
+
+        public SingleIPAddress(IPAddress address)
         {
-            public readonly IPAddress IPAddress;
-            public readonly int HashCode;
-
-            public SingleIPAddress(IPAddress address)
-            {
-                this.IPAddress = address;
-                this.HashCode = address.GetHashCode();
-            }
-
-            public bool Equals(SingleIPAddress? other)
-                => this.IPAddress.Equals(other!.IPAddress);
-
-            public override bool Equals(object? obj)
-                => Equals((SingleIPAddress)obj._NullCheck());
-
-            public override int GetHashCode()
-                => this.HashCode;
-
-            public override string ToString()
-                => this.IPAddress.ToString();
+            this.IPAddress = address;
+            this.HashCode = address.GetHashCode();
         }
+
+        public bool Equals(SingleIPAddress? other)
+            => this.IPAddress.Equals(other!.IPAddress);
+
+        public override bool Equals(object? obj)
+            => Equals((SingleIPAddress)obj._NullCheck());
+
+        public override int GetHashCode()
+            => this.HashCode;
+
+        public override string ToString()
+            => this.IPAddress.ToString();
     }
 }
 

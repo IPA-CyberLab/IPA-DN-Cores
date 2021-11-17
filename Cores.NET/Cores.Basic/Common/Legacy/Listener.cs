@@ -34,189 +34,188 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic.Legacy
+namespace IPA.Cores.Basic.Legacy;
+
+public enum ListenerStatus
 {
-    public enum ListenerStatus
+    Trying = 0,
+    Listening = 1,
+}
+
+public delegate void AcceptProc(Listener listener, Sock sock, object param);
+
+public class Listener
+{
+    public const int ListenRetryTimeDefault = 2 * 1000;
+
+    public int ListenRetryTime { get; set; }
+    object lockObj;
+
+    public int Port { get; }
+    ThreadObj? thread;
+
+    public Sock? Sock { get; private set; }
+    Event eventObj;
+    bool halt;
+
+    public ListenerStatus Status { get; private set; }
+
+    public AcceptProc AcceptProc { get; }
+    public object AcceptParam { get; }
+    public bool LocalOnly { get; }
+    public bool GetHostName { get; set; }
+
+    public Listener(int port, AcceptProc acceptProc, object acceptParam, bool localOnly = false, bool getHostName = false)
     {
-        Trying = 0,
-        Listening = 1,
+        this.lockObj = new object();
+        this.Port = port;
+        this.AcceptProc = acceptProc;
+        this.AcceptParam = acceptParam;
+        this.Status = ListenerStatus.Trying;
+        this.eventObj = new Event();
+        this.halt = false;
+        this.LocalOnly = localOnly;
+        this.GetHostName = getHostName;
+        this.ListenRetryTime = ListenRetryTimeDefault;
+
+        // スレッドの作成
+        ThreadObj thread = new ThreadObj(new ThreadProc(ListenerThread));
+
+        thread.WaitForInit();
     }
 
-    public delegate void AcceptProc(Listener listener, Sock sock, object param);
-
-    public class Listener
+    // 停止
+    public void Stop()
     {
-        public const int ListenRetryTimeDefault = 2 * 1000;
+        Sock? s;
 
-        public int ListenRetryTime { get; set; }
-        object lockObj;
-
-        public int Port { get; }
-        ThreadObj? thread;
-
-        public Sock? Sock { get; private set; }
-        Event eventObj;
-        bool halt;
-
-        public ListenerStatus Status { get; private set; }
-
-        public AcceptProc AcceptProc { get; }
-        public object AcceptParam { get; }
-        public bool LocalOnly { get; }
-        public bool GetHostName { get; set; }
-
-        public Listener(int port, AcceptProc acceptProc, object acceptParam, bool localOnly = false, bool getHostName = false)
+        lock (this.lockObj)
         {
-            this.lockObj = new object();
-            this.Port = port;
-            this.AcceptProc = acceptProc;
-            this.AcceptParam = acceptParam;
-            this.Status = ListenerStatus.Trying;
-            this.eventObj = new Event();
-            this.halt = false;
-            this.LocalOnly = localOnly;
-            this.GetHostName = getHostName;
-            this.ListenRetryTime = ListenRetryTimeDefault;
+            if (this.halt)
+            {
+                return;
+            }
 
-            // スレッドの作成
-            ThreadObj thread = new ThreadObj(new ThreadProc(ListenerThread));
+            this.halt = true;
 
-            thread.WaitForInit();
+            s = this.Sock;
         }
 
-        // 停止
-        public void Stop()
+        if (s != null)
         {
-            Sock? s;
+            s.Disconnect();
+        }
 
-            lock (this.lockObj)
+        this.eventObj.Set();
+
+        this.thread?.WaitForEnd();
+    }
+
+    // TCP 受付完了
+    void tcpAccepted(Sock s)
+    {
+        ThreadObj t = new ThreadObj(new ThreadProc(tcpAcceptedThread), s);
+        t.WaitForInit();
+    }
+
+    void tcpAcceptedThread(object? param)
+    {
+        Sock s = (Sock)param!;
+
+        ThreadObj.NoticeInited();
+
+        this.AcceptProc(this, s, this.AcceptParam);
+    }
+
+    // スレッド
+    public void ListenerThread(object? param)
+    {
+        Sock? new_sock;
+        Sock s;
+        int num_failed;
+
+        this.thread = ThreadObj.GetCurrentThreadObj()!;
+
+        this.Status = ListenerStatus.Trying;
+
+        ThreadObj.NoticeInited();
+
+        while (true)
+        {
+            bool firstFailed = true;
+            this.Status = ListenerStatus.Trying;
+
+            // Listen を試みる
+            while (true)
             {
                 if (this.halt)
                 {
                     return;
                 }
 
-                this.halt = true;
-
-                s = this.Sock;
-            }
-
-            if (s != null)
-            {
-                s.Disconnect();
-            }
-
-            this.eventObj.Set();
-
-            this.thread?.WaitForEnd();
-        }
-
-        // TCP 受付完了
-        void tcpAccepted(Sock s)
-        {
-            ThreadObj t = new ThreadObj(new ThreadProc(tcpAcceptedThread), s);
-            t.WaitForInit();
-        }
-
-        void tcpAcceptedThread(object? param)
-        {
-            Sock s = (Sock)param!;
-
-            ThreadObj.NoticeInited();
-
-            this.AcceptProc(this, s, this.AcceptParam);
-        }
-
-        // スレッド
-        public void ListenerThread(object? param)
-        {
-            Sock ?new_sock;
-            Sock s;
-            int num_failed;
-
-            this.thread = ThreadObj.GetCurrentThreadObj()!;
-
-            this.Status = ListenerStatus.Trying;
-
-            ThreadObj.NoticeInited();
-
-            while (true)
-            {
-                bool firstFailed = true;
-                this.Status = ListenerStatus.Trying;
-
-                // Listen を試みる
-                while (true)
+                try
                 {
+                    s = Sock.Listen(this.Port, this.LocalOnly);
+
+                    this.Sock = s;
+
+                    break;
+                }
+                catch
+                {
+                    if (firstFailed)
+                    {
+                        firstFailed = false;
+                    }
+
+                    this.eventObj.Wait(this.ListenRetryTime);
+
                     if (this.halt)
                     {
                         return;
                     }
-
-                    try
-                    {
-                        s = Sock.Listen(this.Port, this.LocalOnly);
-
-                        this.Sock = s;
-
-                        break;
-                    }
-                    catch
-                    {
-                        if (firstFailed)
-                        {
-                            firstFailed = false;
-                        }
-
-                        this.eventObj.Wait(this.ListenRetryTime);
-
-                        if (this.halt)
-                        {
-                            return;
-                        }
-                    }
                 }
+            }
 
-                this.Status = ListenerStatus.Listening;
+            this.Status = ListenerStatus.Listening;
 
-                if (this.halt)
+            if (this.halt)
+            {
+                this.Sock.Disconnect();
+                break;
+            }
+
+            num_failed = 0;
+
+            // Accept ループ
+            while (true)
+            {
+                // Accept する
+                new_sock = this.Sock.Accept(this.GetHostName);
+                if (new_sock != null)
                 {
+                    // 成功
+                    tcpAccepted(new_sock);
+                }
+                else
+                {
+                    // 失敗
+                    if (this.halt == false)
+                    {
+                        if ((++num_failed) <= 5)
+                        {
+                            continue;
+                        }
+                    }
+
                     this.Sock.Disconnect();
                     break;
                 }
+            }
 
-                num_failed = 0;
-
-                // Accept ループ
-                while (true)
-                {
-                    // Accept する
-                    new_sock = this.Sock.Accept(this.GetHostName);
-                    if (new_sock != null)
-                    {
-                        // 成功
-                        tcpAccepted(new_sock);
-                    }
-                    else
-                    {
-                        // 失敗
-                        if (this.halt == false)
-                        {
-                            if ((++num_failed) <= 5)
-                            {
-                                continue;
-                            }
-                        }
-
-                        this.Sock.Disconnect();
-                        break;
-                    }
-                }
-
-                if (this.halt)
-                {
-                    return;
-                }
+            if (this.halt)
+            {
+                return;
             }
         }
     }

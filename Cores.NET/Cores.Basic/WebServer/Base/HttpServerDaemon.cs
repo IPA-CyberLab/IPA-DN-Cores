@@ -42,84 +42,83 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Helper.Basic
+namespace IPA.Cores.Basic;
+
+public class HttpServerDaemon<TStartup> : Daemon where TStartup : class
 {
-    public class HttpServerDaemon<TStartup> : Daemon where TStartup : class
+    public HttpServerOptions HttpOptions { get; }
+
+    AsyncService? HttpServerInstance = null;
+
+    public HttpServerDaemon(string name, string friendlyName, HttpServerOptions httpOptions)
+        : base(new DaemonOptions(name, friendlyName, true))
     {
-        public HttpServerOptions HttpOptions { get; }
-
-        AsyncService? HttpServerInstance = null;
-
-        public HttpServerDaemon(string name, string friendlyName, HttpServerOptions httpOptions)
-            : base(new DaemonOptions(name, friendlyName, true))
-        {
-            this.HttpOptions = httpOptions;
-        }
-
-        protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
-        {
-            Con.WriteLine($"{this.Options.FriendlyName}: Starting...");
-
-            this.HttpServerInstance = new HttpServer<TStartup>(this.HttpOptions);
-
-            await Task.CompletedTask;
-
-            Con.WriteLine($"{this.Options.FriendlyName}: Started.");
-        }
-
-        protected override async Task StopImplAsync(object? param)
-        {
-            Con.WriteLine($"{this.Options.FriendlyName}: Stopping...");
-
-            await HttpServerInstance!.DisposeWithCleanupAsync(new OperationCanceledException("The daemon is shutting down."));
-
-            Con.WriteLine($"{this.Options.FriendlyName}: Stopped.");
-
-            HttpServerInstance = null;
-        }
+        this.HttpOptions = httpOptions;
     }
 
-    public class HttpServerDualDaemon<TStartup> : Daemon where TStartup : class
+    protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
     {
-        public HttpServerOptions HttpOptions1 { get; }
-        public HttpServerOptions HttpOptions2 { get; }
+        Con.WriteLine($"{this.Options.FriendlyName}: Starting...");
 
-        AsyncService? HttpServerInstance1 = null;
-        AsyncService? HttpServerInstance2 = null;
+        this.HttpServerInstance = new HttpServer<TStartup>(this.HttpOptions);
 
-        public HttpServerDualDaemon(string name, string friendlyName, HttpServerOptions httpOptions1, HttpServerOptions httpOptions2)
-            : base(new DaemonOptions(name, friendlyName, true))
-        {
-            this.HttpOptions1 = httpOptions1;
-            this.HttpOptions2 = httpOptions2;
-        }
+        await Task.CompletedTask;
 
-        protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
-        {
-            Con.WriteLine($"{this.Options.FriendlyName}: Starting...");
+        Con.WriteLine($"{this.Options.FriendlyName}: Started.");
+    }
 
-            this.HttpServerInstance1 = new HttpServer<TStartup>(this.HttpOptions1);
+    protected override async Task StopImplAsync(object? param)
+    {
+        Con.WriteLine($"{this.Options.FriendlyName}: Stopping...");
 
-            this.HttpServerInstance2 = new HttpServer<TStartup>(this.HttpOptions2);
+        await HttpServerInstance!.DisposeWithCleanupAsync(new OperationCanceledException("The daemon is shutting down."));
 
-            await Task.CompletedTask;
+        Con.WriteLine($"{this.Options.FriendlyName}: Stopped.");
 
-            Con.WriteLine($"{this.Options.FriendlyName}: Started.");
-        }
+        HttpServerInstance = null;
+    }
+}
 
-        protected override async Task StopImplAsync(object? param)
-        {
-            Con.WriteLine($"{this.Options.FriendlyName}: Stopping...");
+public class HttpServerDualDaemon<TStartup> : Daemon where TStartup : class
+{
+    public HttpServerOptions HttpOptions1 { get; }
+    public HttpServerOptions HttpOptions2 { get; }
 
-            await HttpServerInstance1!.DisposeWithCleanupAsync(new OperationCanceledException("The daemon1 is shutting down."));
+    AsyncService? HttpServerInstance1 = null;
+    AsyncService? HttpServerInstance2 = null;
 
-            await HttpServerInstance2!.DisposeWithCleanupAsync(new OperationCanceledException("The daemon2 is shutting down."));
+    public HttpServerDualDaemon(string name, string friendlyName, HttpServerOptions httpOptions1, HttpServerOptions httpOptions2)
+        : base(new DaemonOptions(name, friendlyName, true))
+    {
+        this.HttpOptions1 = httpOptions1;
+        this.HttpOptions2 = httpOptions2;
+    }
 
-            Con.WriteLine($"{this.Options.FriendlyName}: Stopped.");
+    protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
+    {
+        Con.WriteLine($"{this.Options.FriendlyName}: Starting...");
 
-            HttpServerInstance1 = null;
-            HttpServerInstance2 = null;
-        }
+        this.HttpServerInstance1 = new HttpServer<TStartup>(this.HttpOptions1);
+
+        this.HttpServerInstance2 = new HttpServer<TStartup>(this.HttpOptions2);
+
+        await Task.CompletedTask;
+
+        Con.WriteLine($"{this.Options.FriendlyName}: Started.");
+    }
+
+    protected override async Task StopImplAsync(object? param)
+    {
+        Con.WriteLine($"{this.Options.FriendlyName}: Stopping...");
+
+        await HttpServerInstance1!.DisposeWithCleanupAsync(new OperationCanceledException("The daemon1 is shutting down."));
+
+        await HttpServerInstance2!.DisposeWithCleanupAsync(new OperationCanceledException("The daemon2 is shutting down."));
+
+        Con.WriteLine($"{this.Options.FriendlyName}: Stopped.");
+
+        HttpServerInstance1 = null;
+        HttpServerInstance2 = null;
     }
 }
 

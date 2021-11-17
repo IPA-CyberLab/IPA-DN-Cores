@@ -46,36 +46,36 @@ using static IPA.Cores.Globals.Basic;
 #pragma warning disable CS0162
 #pragma warning disable CS0219
 
-namespace IPA.TestDev
+namespace IPA.TestDev;
+
+class DaemonTest : Daemon
 {
-    class DaemonTest : Daemon
+    public DaemonTest() : base(new DaemonOptions("Test", "Test Service", true))
     {
-        public DaemonTest() : base(new DaemonOptions("Test", "Test Service", true))
-        {
-        }
-
-        protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
-        {
-            Con.WriteLine("TestDaemon: Starting...");
-            await Task.Delay(500);
-            Con.WriteLine("TestDaemon: Started.");
-        }
-
-        protected override async Task StopImplAsync(object? param)
-        {
-            Con.WriteLine("TestDaemon: Stopping...");
-            await Task.Delay(3000);
-            Con.WriteLine("TestDaemon: Stopped.");
-        }
     }
 
-    partial class TestDevCommands
+    protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
     {
-        [ConsoleCommand(
-            "Start or stop the DaemonTest daemon",
-            "DaemonTest [command]",
-            "Start or stop the DaemonTest daemon",
-            @"[command]:The control command.
+        Con.WriteLine("TestDaemon: Starting...");
+        await Task.Delay(500);
+        Con.WriteLine("TestDaemon: Started.");
+    }
+
+    protected override async Task StopImplAsync(object? param)
+    {
+        Con.WriteLine("TestDaemon: Stopping...");
+        await Task.Delay(3000);
+        Con.WriteLine("TestDaemon: Stopped.");
+    }
+}
+
+partial class TestDevCommands
+{
+    [ConsoleCommand(
+        "Start or stop the DaemonTest daemon",
+        "DaemonTest [command]",
+        "Start or stop the DaemonTest daemon",
+        @"[command]:The control command.
 
 [UNIX / Windows common commands]
 start        - Start the daemon in the background mode.
@@ -88,10 +88,9 @@ winstart     - Start the daemon as a Windows service.
 winstop      - Stop the running daemon as a Windows service.
 wininstall   - Install the daemon as a Windows service.
 winuninstall - Uninstall the daemon as a Windows service.")]
-        static int DaemonTest(ConsoleService c, string cmdName, string str)
-        {
-            return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new DaemonTest(), new DaemonSettings   ());
-        }
+    static int DaemonTest(ConsoleService c, string cmdName, string str)
+    {
+        return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new DaemonTest(), new DaemonSettings());
     }
 }
 

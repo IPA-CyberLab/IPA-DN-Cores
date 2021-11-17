@@ -43,166 +43,165 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.TestDev
+namespace IPA.TestDev;
+
+partial class TestDevCommands
 {
-    partial class TestDevCommands
+    [ConsoleCommand(
+        "Test command",
+        "Test [arg]",
+        "This is a test command.",
+        "[arg]:You can specify an argument.")]
+    static int Test(ConsoleService c, string cmdName, string str)
     {
-        [ConsoleCommand(
-            "Test command",
-            "Test [arg]",
-            "This is a test command.",
-            "[arg]:You can specify an argument.")]
-        static int Test(ConsoleService c, string cmdName, string str)
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[arg]", null, null, null, null),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            TestClass.Test();
+        TestClass.Test();
 
-            return 0;
-        }
+        return 0;
+    }
 
-        [ConsoleCommand(
-            "Normalize Src Code Text with BOM and UTF-8",
-            "NormalizeSrcCodeText [dir]",
-            "Normalize Src Code Text with BOM and UTF-8",
-            "[dir]: Dir name")]
-        static int NormalizeSrcCodeText(ConsoleService c, string cmdName, string str)
+    [ConsoleCommand(
+        "Normalize Src Code Text with BOM and UTF-8",
+        "NormalizeSrcCodeText [dir]",
+        "Normalize Src Code Text with BOM and UTF-8",
+        "[dir]: Dir name")]
+    static int NormalizeSrcCodeText(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[dir]", ConsoleService.Prompt, "Directory name: ", ConsoleService.EvalNotEmpty, null),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            string dir = vl.DefaultParam.StrValue;
+        string dir = vl.DefaultParam.StrValue;
 
-            DirectoryWalker walk = new DirectoryWalker();
+        DirectoryWalker walk = new DirectoryWalker();
 
-            walk.WalkDirectory(dir,
-                (pathInfo, entities, cancel) =>
-                {
-                    foreach (FileSystemEntity entity in entities)
-                    {
-                        if (entity.IsDirectory == false && entity.Name._MultipleWildcardMatch(Consts.Extensions.Wildcard_SourceCode_NormalizeBomUtf8_Include, Consts.Extensions.Wildcard_SourceCode_NormalizeBomUtf8_Exclude))
-                        {
-                            var body = pathInfo.FileSystem.ReadDataFromFile(entity.FullPath);
-
-                            string str = body._GetString();
-
-                            str = str._NormalizeCrlf(CrlfStyle.CrLf);
-
-                            pathInfo.FileSystem.WriteStringToFile(entity.FullPath, str, FileFlags.WriteOnlyIfChanged, encoding: Str.Utf8Encoding, writeBom: true);
-                        }
-                    }
-                    return true;
-                },
-                exceptionHandler: (pathInfo, err, cancel) =>
-                {
-                    return true;
-                });
-
-            return 0;
-        }
-
-        [ConsoleCommand(
-            "IPA NTT East Source Code Header Setter",
-            "IpaNttSrcHeaderSet [dir]",
-            "IPA NTT East Source Code Header Setter.",
-            "[dir]: Dir name")]
-        static int IpaNttSrcHeaderSet(ConsoleService c, string cmdName, string str)
-        {
-            ConsoleParam[] args =
+        walk.WalkDirectory(dir,
+            (pathInfo, entities, cancel) =>
             {
+                foreach (FileSystemEntity entity in entities)
+                {
+                    if (entity.IsDirectory == false && entity.Name._MultipleWildcardMatch(Consts.Extensions.Wildcard_SourceCode_NormalizeBomUtf8_Include, Consts.Extensions.Wildcard_SourceCode_NormalizeBomUtf8_Exclude))
+                    {
+                        var body = pathInfo.FileSystem.ReadDataFromFile(entity.FullPath);
+
+                        string str = body._GetString();
+
+                        str = str._NormalizeCrlf(CrlfStyle.CrLf);
+
+                        pathInfo.FileSystem.WriteStringToFile(entity.FullPath, str, FileFlags.WriteOnlyIfChanged, encoding: Str.Utf8Encoding, writeBom: true);
+                    }
+                }
+                return true;
+            },
+            exceptionHandler: (pathInfo, err, cancel) =>
+            {
+                return true;
+            });
+
+        return 0;
+    }
+
+    [ConsoleCommand(
+        "IPA NTT East Source Code Header Setter",
+        "IpaNttSrcHeaderSet [dir]",
+        "IPA NTT East Source Code Header Setter.",
+        "[dir]: Dir name")]
+    static int IpaNttSrcHeaderSet(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
                 new ConsoleParam("[dir]", ConsoleService.Prompt, "Directory name: ", ConsoleService.EvalNotEmpty, null),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            string dir = vl.DefaultParam.StrValue;
+        string dir = vl.DefaultParam.StrValue;
 
-            DirectoryWalker walk = new DirectoryWalker();
+        DirectoryWalker walk = new DirectoryWalker();
 
-            string existingCommentLine = "// Copyright (c) IPA CyberLab of Industrial Cyber Security Center.";
-            string existingCommentLineOld = "// Copyright (c) NTT East Special Affairs Bureau.";
-            string newCommentLine = "// Copyright (c) NTT-East Impossible Telecom Mission Group.";
+        string existingCommentLine = "// Copyright (c) IPA CyberLab of Industrial Cyber Security Center.";
+        string existingCommentLineOld = "// Copyright (c) NTT East Special Affairs Bureau.";
+        string newCommentLine = "// Copyright (c) NTT-East Impossible Telecom Mission Group.";
 
-            string old1 = "// AGAINST US (IPA CYBERLAB, SOFTETHER PROJECT, SOFTETHER CORPORATION, DAIYUU NOBORI";
-            string new1 = "// AGAINST US (IPA, NTT-EAST, SOFTETHER PROJECT, SOFTETHER CORPORATION, DAIYUU NOBORI";
+        string old1 = "// AGAINST US (IPA CYBERLAB, SOFTETHER PROJECT, SOFTETHER CORPORATION, DAIYUU NOBORI";
+        string new1 = "// AGAINST US (IPA, NTT-EAST, SOFTETHER PROJECT, SOFTETHER CORPORATION, DAIYUU NOBORI";
 
-            string old2 = "// COMPLETELY AT YOUR OWN RISK. THE IPA CYBERLAB HAS DEVELOPED AND";
-            string new2 = "// COMPLETELY AT YOUR OWN RISK. IPA AND NTT-EAST HAS DEVELOPED AND";
+        string old2 = "// COMPLETELY AT YOUR OWN RISK. THE IPA CYBERLAB HAS DEVELOPED AND";
+        string new2 = "// COMPLETELY AT YOUR OWN RISK. IPA AND NTT-EAST HAS DEVELOPED AND";
 
-            walk.WalkDirectory(dir,
-                (pathInfo, entities, cancel) =>
+        walk.WalkDirectory(dir,
+            (pathInfo, entities, cancel) =>
+            {
+                foreach (FileSystemEntity entity in entities)
                 {
-                    foreach (FileSystemEntity entity in entities)
+                    if (entity.IsDirectory == false && entity.Name._IsExtensionMatch(Consts.Extensions.Filter_SourceCodes))
                     {
-                        if (entity.IsDirectory == false && entity.Name._IsExtensionMatch(Consts.Extensions.Filter_SourceCodes))
+                        var body = pathInfo.FileSystem.ReadDataFromFile(entity.FullPath);
+
+                        string str = body._GetString();
+                        string[] lines = str._GetLines();
+
+                        bool updated = false;
+                        bool ok = true;
+
+                        List<string> tmp = new List<string>();
+
+                        foreach (var line2 in lines)
                         {
-                            var body = pathInfo.FileSystem.ReadDataFromFile(entity.FullPath);
+                            string line = line2;
 
-                            string str = body._GetString();
-                            string[] lines = str._GetLines();
-
-                            bool updated = false;
-                            bool ok = true;
-
-                            List<string> tmp = new List<string>();
-
-                            foreach (var line2 in lines)
+                            if (line._IsSameiTrim(old1))
                             {
-                                string line = line2;
-
-                                if (line._IsSameiTrim(old1))
-                                {
-                                    line = new1;
-                                    updated = true;
-                                }
-                                if (line._IsSameiTrim(old2))
-                                {
-                                    line = new2;
-                                    updated = true;
-                                }
-
-                                if (line._IsSameiTrim(existingCommentLineOld) == false)
-                                {
-                                    tmp.Add(line);
-
-                                    if (line._IsSameiTrim(existingCommentLine))
-                                    {
-                                        tmp.Add(newCommentLine);
-                                        updated = true;
-                                    }
-                                    else if (line._IsSameiTrim(newCommentLine))
-                                    {
-                                        ok = false;
-                                    }
-                                }
+                                line = new1;
+                                updated = true;
+                            }
+                            if (line._IsSameiTrim(old2))
+                            {
+                                line = new2;
+                                updated = true;
                             }
 
-                            if (ok && updated)
+                            if (line._IsSameiTrim(existingCommentLineOld) == false)
                             {
-                                string newStr = tmp._LinesToStr(Str.NewLine_Str_Windows);
-                                entity.FullPath._Print();
-                                pathInfo.FileSystem.WriteStringToFile(entity.FullPath, newStr, writeBom: true);
+                                tmp.Add(line);
+
+                                if (line._IsSameiTrim(existingCommentLine))
+                                {
+                                    tmp.Add(newCommentLine);
+                                    updated = true;
+                                }
+                                else if (line._IsSameiTrim(newCommentLine))
+                                {
+                                    ok = false;
+                                }
                             }
                         }
-                    }
-                    return true;
-                },
-                exceptionHandler: (pathInfo, err, cancel) =>
-                {
-                    return true;
-                });
 
-            return 0;
-        }
+                        if (ok && updated)
+                        {
+                            string newStr = tmp._LinesToStr(Str.NewLine_Str_Windows);
+                            entity.FullPath._Print();
+                            pathInfo.FileSystem.WriteStringToFile(entity.FullPath, newStr, writeBom: true);
+                        }
+                    }
+                }
+                return true;
+            },
+            exceptionHandler: (pathInfo, err, cancel) =>
+            {
+                return true;
+            });
+
+        return 0;
     }
 }
 

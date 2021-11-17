@@ -45,595 +45,594 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.IO;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public class DisconnectedException : Exception
 {
-    public class DisconnectedException : Exception
+    public DisconnectedException()
     {
-        public DisconnectedException()
-        {
-            DoNothing();
-        }
+        DoNothing();
     }
-    public class FastBufferDisconnectedException : DisconnectedException { }
-    public class SocketDisconnectedException : DisconnectedException { }
-    public class BaseStreamDisconnectedException : DisconnectedException { }
+}
+public class FastBufferDisconnectedException : DisconnectedException { }
+public class SocketDisconnectedException : DisconnectedException { }
+public class BaseStreamDisconnectedException : DisconnectedException { }
 
-    [Flags]
-    public enum DatagramFlag
+[Flags]
+public enum DatagramFlag
+{
+    None = 0,
+}
+
+public class Datagram
+{
+    Memory<byte> InternalBuffer;
+    int InternalStart;
+    int InternalSize;
+
+    public Memory<byte> Data
     {
-        None = 0,
-    }
-
-    public class Datagram
-    {
-        Memory<byte> InternalBuffer;
-        int InternalStart;
-        int InternalSize;
-
-        public Memory<byte> Data
-        {
-            [MethodImpl(Inline)]
-            get => this.InternalBuffer.Slice(this.InternalStart, this.InternalSize);
-        }
-
-        public EndPoint? RemoteEndPoint;
-        public EndPoint? LocalEndPoint;
-
-        public DatagramFlag Flag;
-        public long TimeStamp;
-
-        public IPEndPoint? RemoteIPEndPoint
-        {
-            [MethodImpl(Inline)]
-            get => (IPEndPoint?)RemoteEndPoint;
-
-            [MethodImpl(Inline)]
-            set => RemoteEndPoint = value;
-        }
-
-        public IPEndPoint? LocalIPEndPoint
-        {
-            [MethodImpl(Inline)]
-            get => (IPEndPoint?)LocalEndPoint;
-
-            [MethodImpl(Inline)]
-            set => LocalEndPoint = value;
-        }
-
-        // For UDP
-        public Datagram(Memory<byte> data, EndPoint remoteEndPoint, EndPoint? localEndPoint, DatagramFlag flag = 0)
-        {
-            this.InternalBuffer = data;
-            this.InternalStart = 0;
-            this.InternalSize = data.Length;
-
-            RemoteEndPoint = remoteEndPoint;
-            LocalEndPoint = localEndPoint;
-
-            Flag = flag;
-        }
-
-        // For Ethenet
-        public Datagram(in ElasticSpan<byte> elasticSpan, long ethernetTimeStamp = 0, DatagramFlag flag = 0)
-        {
-            if (ethernetTimeStamp <= 0) ethernetTimeStamp = Time.SystemTimeNow_Fast;
-
-            Flag = flag;
-            TimeStamp = ethernetTimeStamp;
-
-            this.InternalBuffer = elasticSpan.InternalBuffer._CloneMemory();
-            this.InternalStart = elasticSpan.PreAllocSize;
-            this.InternalSize = elasticSpan.Length;
-        }
-
-        public ElasticSpan<byte> ToElasticSpan()
-        {
-            return new ElasticSpan<byte>(EnsureSpecial.Yes, this.InternalBuffer.Span, this.InternalStart, this.InternalSize);
-        }
-
-        public Packet ToPacket() => new Packet(this);
+        [MethodImpl(Inline)]
+        get => this.InternalBuffer.Slice(this.InternalStart, this.InternalSize);
     }
 
-    public class FastLinkedListNode<T>
-    {
-        public T Value = default!;
-        public FastLinkedListNode<T>? Next, Previous;
-    }
+    public EndPoint? RemoteEndPoint;
+    public EndPoint? LocalEndPoint;
 
-    public class FastLinkedList<T>
+    public DatagramFlag Flag;
+    public long TimeStamp;
+
+    public IPEndPoint? RemoteIPEndPoint
     {
-        public int Count;
-        public FastLinkedListNode<T>? First, Last;
+        [MethodImpl(Inline)]
+        get => (IPEndPoint?)RemoteEndPoint;
 
         [MethodImpl(Inline)]
-        public void Clear()
+        set => RemoteEndPoint = value;
+    }
+
+    public IPEndPoint? LocalIPEndPoint
+    {
+        [MethodImpl(Inline)]
+        get => (IPEndPoint?)LocalEndPoint;
+
+        [MethodImpl(Inline)]
+        set => LocalEndPoint = value;
+    }
+
+    // For UDP
+    public Datagram(Memory<byte> data, EndPoint remoteEndPoint, EndPoint? localEndPoint, DatagramFlag flag = 0)
+    {
+        this.InternalBuffer = data;
+        this.InternalStart = 0;
+        this.InternalSize = data.Length;
+
+        RemoteEndPoint = remoteEndPoint;
+        LocalEndPoint = localEndPoint;
+
+        Flag = flag;
+    }
+
+    // For Ethenet
+    public Datagram(in ElasticSpan<byte> elasticSpan, long ethernetTimeStamp = 0, DatagramFlag flag = 0)
+    {
+        if (ethernetTimeStamp <= 0) ethernetTimeStamp = Time.SystemTimeNow_Fast;
+
+        Flag = flag;
+        TimeStamp = ethernetTimeStamp;
+
+        this.InternalBuffer = elasticSpan.InternalBuffer._CloneMemory();
+        this.InternalStart = elasticSpan.PreAllocSize;
+        this.InternalSize = elasticSpan.Length;
+    }
+
+    public ElasticSpan<byte> ToElasticSpan()
+    {
+        return new ElasticSpan<byte>(EnsureSpecial.Yes, this.InternalBuffer.Span, this.InternalStart, this.InternalSize);
+    }
+
+    public Packet ToPacket() => new Packet(this);
+}
+
+public class FastLinkedListNode<T>
+{
+    public T Value = default!;
+    public FastLinkedListNode<T>? Next, Previous;
+}
+
+public class FastLinkedList<T>
+{
+    public int Count;
+    public FastLinkedListNode<T>? First, Last;
+
+    [MethodImpl(Inline)]
+    public void Clear()
+    {
+        Count = 0;
+        First = Last = null;
+    }
+
+    [MethodImpl(Inline)]
+    public FastLinkedListNode<T> AddFirst(T value)
+    {
+        if (First == null)
         {
-            Count = 0;
+            Debug.Assert(Last == null);
+            Debug.Assert(Count == 0);
+            First = Last = new FastLinkedListNode<T>() { Value = value, Next = null, Previous = null };
+            Count++;
+            return First;
+        }
+        else
+        {
+            Debug.Assert(Last != null);
+            Debug.Assert(Count >= 1);
+            var oldFirst = First;
+            var nn = new FastLinkedListNode<T>() { Value = value, Next = oldFirst, Previous = null };
+            Debug.Assert(oldFirst.Previous == null);
+            oldFirst.Previous = nn;
+            First = nn;
+            Count++;
+            return nn;
+        }
+    }
+
+    [MethodImpl(Inline)]
+    public void AddFirst(FastLinkedListNode<T> chainFirst, FastLinkedListNode<T> chainLast, int chainedCount)
+    {
+        if (First == null)
+        {
+            Debug.Assert(Last == null);
+            Debug.Assert(Count == 0);
+            First = chainFirst;
+            Last = chainLast;
+            chainFirst.Previous = null;
+            chainLast.Next = null;
+            Count = chainedCount;
+        }
+        else
+        {
+            Debug.Assert(Last != null);
+            Debug.Assert(Count >= 1);
+            var oldFirst = First;
+            Debug.Assert(oldFirst.Previous == null);
+            oldFirst.Previous = chainLast;
+            First = chainFirst;
+            Count += chainedCount;
+        }
+    }
+
+    [MethodImpl(Inline)]
+    public FastLinkedListNode<T> AddLast(T value)
+    {
+        if (Last == null)
+        {
+            Debug.Assert(First == null);
+            Debug.Assert(Count == 0);
+            First = Last = new FastLinkedListNode<T>() { Value = value, Next = null, Previous = null };
+            Count++;
+            return Last;
+        }
+        else
+        {
+            Debug.Assert(First != null);
+            Debug.Assert(Count >= 1);
+            var oldLast = Last;
+            var nn = new FastLinkedListNode<T>() { Value = value, Next = null, Previous = oldLast };
+            Debug.Assert(oldLast.Next == null);
+            oldLast.Next = nn;
+            Last = nn;
+            Count++;
+            return nn;
+        }
+    }
+
+    [MethodImpl(Inline)]
+    public void AddLast(FastLinkedListNode<T> chainFirst, FastLinkedListNode<T> chainLast, int chainedCount)
+    {
+        if (Last == null)
+        {
+            Debug.Assert(First == null);
+            Debug.Assert(Count == 0);
+            First = chainFirst;
+            Last = chainLast;
+            chainFirst.Previous = null;
+            chainLast.Next = null;
+            Count = chainedCount;
+        }
+        else
+        {
+            Debug.Assert(First != null);
+            Debug.Assert(Count >= 1);
+            var oldLast = Last;
+            Debug.Assert(oldLast.Next == null);
+            oldLast.Next = chainFirst;
+            Last = chainLast;
+            Count += chainedCount;
+        }
+    }
+
+    [MethodImpl(Inline)]
+    public FastLinkedListNode<T> AddAfter(FastLinkedListNode<T> prevNode, T value)
+    {
+        var nextNode = prevNode.Next;
+        Debug.Assert(First != null && Last != null);
+        Debug.Assert(nextNode != null || Last == prevNode);
+        Debug.Assert(nextNode == null || nextNode.Previous == prevNode);
+        var nn = new FastLinkedListNode<T>() { Value = value, Next = nextNode, Previous = prevNode };
+        prevNode.Next = nn;
+        if (nextNode != null) nextNode.Previous = nn;
+        if (Last == prevNode) Last = nn;
+        Count++;
+        return nn;
+    }
+
+    [MethodImpl(Inline)]
+    public void AddAfter(FastLinkedListNode<T> prevNode, FastLinkedListNode<T> chainFirst, FastLinkedListNode<T> chainLast, int chainedCount)
+    {
+        var nextNode = prevNode.Next;
+        Debug.Assert(First != null && Last != null);
+        Debug.Assert(nextNode != null || Last == prevNode);
+        Debug.Assert(nextNode == null || nextNode.Previous == prevNode);
+        prevNode.Next = chainFirst;
+        chainFirst.Previous = prevNode;
+        if (nextNode != null) nextNode.Previous = chainLast;
+        chainLast.Previous = nextNode;
+        if (Last == prevNode) Last = chainLast;
+        Count += chainedCount;
+    }
+
+    [MethodImpl(Inline)]
+    public FastLinkedListNode<T> AddBefore(FastLinkedListNode<T> nextNode, T value)
+    {
+        var prevNode = nextNode.Previous;
+        Debug.Assert(First != null && Last != null);
+        Debug.Assert(prevNode != null || First == nextNode);
+        Debug.Assert(prevNode == null || prevNode.Next == nextNode);
+        var nn = new FastLinkedListNode<T>() { Value = value, Next = nextNode, Previous = prevNode };
+        nextNode.Previous = nn;
+        if (prevNode != null) prevNode.Next = nn;
+        if (First == nextNode) First = nn;
+        Count++;
+        return nn;
+    }
+
+    [MethodImpl(Inline)]
+    public void AddBefore(FastLinkedListNode<T> nextNode, FastLinkedListNode<T> chainFirst, FastLinkedListNode<T> chainLast, int chainedCount)
+    {
+        var prevNode = nextNode.Previous;
+        Debug.Assert(First != null && Last != null);
+        Debug.Assert(prevNode != null || First == nextNode);
+        Debug.Assert(prevNode == null || prevNode.Next == nextNode);
+        nextNode.Previous = chainLast;
+        chainLast.Next = nextNode;
+        if (prevNode != null) prevNode.Next = chainFirst;
+        chainFirst.Previous = prevNode;
+        if (First == nextNode) First = chainFirst;
+        Count += chainedCount;
+    }
+
+    [MethodImpl(Inline)]
+    public void Remove(FastLinkedListNode<T> node)
+    {
+        Debug.Assert(First != null && Last != null);
+
+        if (node.Previous != null && node.Next != null)
+        {
+            Debug.Assert(First != null);
+            Debug.Assert(Last != null);
+            Debug.Assert(First != node);
+            Debug.Assert(Last != node);
+
+            node.Previous.Next = node.Next;
+            node.Next.Previous = node.Previous;
+
+            Count--;
+        }
+        else if (node.Previous == null && node.Next == null)
+        {
+            Debug.Assert(First == node);
+            Debug.Assert(Last == node);
+
             First = Last = null;
-        }
 
-        [MethodImpl(Inline)]
-        public FastLinkedListNode<T> AddFirst(T value)
-        {
-            if (First == null)
-            {
-                Debug.Assert(Last == null);
-                Debug.Assert(Count == 0);
-                First = Last = new FastLinkedListNode<T>() { Value = value, Next = null, Previous = null };
-                Count++;
-                return First;
-            }
-            else
-            {
-                Debug.Assert(Last != null);
-                Debug.Assert(Count >= 1);
-                var oldFirst = First;
-                var nn = new FastLinkedListNode<T>() { Value = value, Next = oldFirst, Previous = null };
-                Debug.Assert(oldFirst.Previous == null);
-                oldFirst.Previous = nn;
-                First = nn;
-                Count++;
-                return nn;
-            }
+            Count--;
         }
-
-        [MethodImpl(Inline)]
-        public void AddFirst(FastLinkedListNode<T> chainFirst, FastLinkedListNode<T> chainLast, int chainedCount)
+        else if (node.Previous != null)
         {
-            if (First == null)
-            {
-                Debug.Assert(Last == null);
-                Debug.Assert(Count == 0);
-                First = chainFirst;
-                Last = chainLast;
-                chainFirst.Previous = null;
-                chainLast.Next = null;
-                Count = chainedCount;
-            }
-            else
-            {
-                Debug.Assert(Last != null);
-                Debug.Assert(Count >= 1);
-                var oldFirst = First;
-                Debug.Assert(oldFirst.Previous == null);
-                oldFirst.Previous = chainLast;
-                First = chainFirst;
-                Count += chainedCount;
-            }
+            Debug.Assert(First != null);
+            Debug.Assert(First != node);
+            Debug.Assert(Last == node);
+
+            node.Previous.Next = null;
+            Last = node.Previous;
+
+            Count--;
         }
-
-        [MethodImpl(Inline)]
-        public FastLinkedListNode<T> AddLast(T value)
+        else
         {
-            if (Last == null)
-            {
-                Debug.Assert(First == null);
-                Debug.Assert(Count == 0);
-                First = Last = new FastLinkedListNode<T>() { Value = value, Next = null, Previous = null };
-                Count++;
-                return Last;
-            }
-            else
-            {
-                Debug.Assert(First != null);
-                Debug.Assert(Count >= 1);
-                var oldLast = Last;
-                var nn = new FastLinkedListNode<T>() { Value = value, Next = null, Previous = oldLast };
-                Debug.Assert(oldLast.Next == null);
-                oldLast.Next = nn;
-                Last = nn;
-                Count++;
-                return nn;
-            }
+            Debug.Assert(Last != null);
+            Debug.Assert(Last != node);
+            Debug.Assert(First == node);
+
+            node.Next!.Previous = null;
+            First = node.Next;
+
+            Count--;
         }
+    }
 
-        [MethodImpl(Inline)]
-        public void AddLast(FastLinkedListNode<T> chainFirst, FastLinkedListNode<T> chainLast, int chainedCount)
+    public IReadOnlyList<T> Items
+    {
+        get
         {
-            if (Last == null)
+            List<T> ret = new List<T>();
+            var node = First;
+            while (node != null)
             {
-                Debug.Assert(First == null);
-                Debug.Assert(Count == 0);
-                First = chainFirst;
-                Last = chainLast;
-                chainFirst.Previous = null;
-                chainLast.Next = null;
-                Count = chainedCount;
+                ret.Add(node.Value);
+                node = node.Next;
             }
-            else
-            {
-                Debug.Assert(First != null);
-                Debug.Assert(Count >= 1);
-                var oldLast = Last;
-                Debug.Assert(oldLast.Next == null);
-                oldLast.Next = chainFirst;
-                Last = chainLast;
-                Count += chainedCount;
-            }
+            return ret.ToArray();
         }
+    }
+}
 
-        [MethodImpl(Inline)]
-        public FastLinkedListNode<T> AddAfter(FastLinkedListNode<T> prevNode, T value)
+
+public readonly struct PacketSegment
+{
+    public readonly Memory<byte> Item;
+    public readonly int Pin;
+    public readonly int RelativeOffset;
+
+    public PacketSegment(Memory<byte> item, int pin, int relativeOffset)
+    {
+        Item = item;
+        Pin = pin;
+        RelativeOffset = relativeOffset;
+    }
+}
+
+public class ByteLinkedListNode
+{
+    public Memory<byte> Value;
+    public ByteLinkedListNode? Next, Previous;
+}
+
+public class ByteLinkedList
+{
+    public int Count;
+    public ByteLinkedListNode? First, Last;
+
+    [MethodImpl(Inline)]
+    public void Clear()
+    {
+        Count = 0;
+        First = Last = null;
+    }
+
+    [MethodImpl(Inline)]
+    public ByteLinkedListNode AddFirst(Memory<byte> value)
+    {
+        if (First == null)
         {
-            var nextNode = prevNode.Next;
-            Debug.Assert(First != null && Last != null);
-            Debug.Assert(nextNode != null || Last == prevNode);
-            Debug.Assert(nextNode == null || nextNode.Previous == prevNode);
-            var nn = new FastLinkedListNode<T>() { Value = value, Next = nextNode, Previous = prevNode };
-            prevNode.Next = nn;
-            if (nextNode != null) nextNode.Previous = nn;
-            if (Last == prevNode) Last = nn;
+            Debug.Assert(Last == null);
+            Debug.Assert(Count == 0);
+            First = Last = new ByteLinkedListNode() { Value = value, Next = null, Previous = null };
+            Count++;
+            return First;
+        }
+        else
+        {
+            Debug.Assert(Last != null);
+            Debug.Assert(Count >= 1);
+            var oldFirst = First;
+            var nn = new ByteLinkedListNode() { Value = value, Next = oldFirst, Previous = null };
+            Debug.Assert(oldFirst.Previous == null);
+            oldFirst.Previous = nn;
+            First = nn;
             Count++;
             return nn;
         }
+    }
 
-        [MethodImpl(Inline)]
-        public void AddAfter(FastLinkedListNode<T> prevNode, FastLinkedListNode<T> chainFirst, FastLinkedListNode<T> chainLast, int chainedCount)
+    [MethodImpl(Inline)]
+    public void AddFirst(ByteLinkedListNode chainFirst, ByteLinkedListNode chainLast, int chainedCount)
+    {
+        if (First == null)
         {
-            var nextNode = prevNode.Next;
-            Debug.Assert(First != null && Last != null);
-            Debug.Assert(nextNode != null || Last == prevNode);
-            Debug.Assert(nextNode == null || nextNode.Previous == prevNode);
-            prevNode.Next = chainFirst;
-            chainFirst.Previous = prevNode;
-            if (nextNode != null) nextNode.Previous = chainLast;
-            chainLast.Previous = nextNode;
-            if (Last == prevNode) Last = chainLast;
+            Debug.Assert(Last == null);
+            Debug.Assert(Count == 0);
+            First = chainFirst;
+            Last = chainLast;
+            chainFirst.Previous = null;
+            chainLast.Next = null;
+            Count = chainedCount;
+        }
+        else
+        {
+            Debug.Assert(Last != null);
+            Debug.Assert(Count >= 1);
+            var oldFirst = First;
+            Debug.Assert(oldFirst.Previous == null);
+            oldFirst.Previous = chainLast;
+            First = chainFirst;
             Count += chainedCount;
         }
+    }
 
-        [MethodImpl(Inline)]
-        public FastLinkedListNode<T> AddBefore(FastLinkedListNode<T> nextNode, T value)
+    [MethodImpl(Inline)]
+    public ByteLinkedListNode AddLast(Memory<byte> value)
+    {
+        if (Last == null)
         {
-            var prevNode = nextNode.Previous;
-            Debug.Assert(First != null && Last != null);
-            Debug.Assert(prevNode != null || First == nextNode);
-            Debug.Assert(prevNode == null || prevNode.Next == nextNode);
-            var nn = new FastLinkedListNode<T>() { Value = value, Next = nextNode, Previous = prevNode };
-            nextNode.Previous = nn;
-            if (prevNode != null) prevNode.Next = nn;
-            if (First == nextNode) First = nn;
+            Debug.Assert(First == null);
+            Debug.Assert(Count == 0);
+            First = Last = new ByteLinkedListNode() { Value = value, Next = null, Previous = null };
+            Count++;
+            return Last;
+        }
+        else
+        {
+            Debug.Assert(First != null);
+            Debug.Assert(Count >= 1);
+            var oldLast = Last;
+            var nn = new ByteLinkedListNode() { Value = value, Next = null, Previous = oldLast };
+            Debug.Assert(oldLast.Next == null);
+            oldLast.Next = nn;
+            Last = nn;
             Count++;
             return nn;
         }
+    }
 
-        [MethodImpl(Inline)]
-        public void AddBefore(FastLinkedListNode<T> nextNode, FastLinkedListNode<T> chainFirst, FastLinkedListNode<T> chainLast, int chainedCount)
+    [MethodImpl(Inline)]
+    public void AddLast(ByteLinkedListNode chainFirst, ByteLinkedListNode chainLast, int chainedCount)
+    {
+        if (Last == null)
         {
-            var prevNode = nextNode.Previous;
-            Debug.Assert(First != null && Last != null);
-            Debug.Assert(prevNode != null || First == nextNode);
-            Debug.Assert(prevNode == null || prevNode.Next == nextNode);
-            nextNode.Previous = chainLast;
-            chainLast.Next = nextNode;
-            if (prevNode != null) prevNode.Next = chainFirst;
-            chainFirst.Previous = prevNode;
-            if (First == nextNode) First = chainFirst;
+            Debug.Assert(First == null);
+            Debug.Assert(Count == 0);
+            First = chainFirst;
+            Last = chainLast;
+            chainFirst.Previous = null;
+            chainLast.Next = null;
+            Count = chainedCount;
+        }
+        else
+        {
+            Debug.Assert(First != null);
+            Debug.Assert(Count >= 1);
+            var oldLast = Last;
+            Debug.Assert(oldLast.Next == null);
+            oldLast.Next = chainFirst;
+            Last = chainLast;
             Count += chainedCount;
         }
-
-        [MethodImpl(Inline)]
-        public void Remove(FastLinkedListNode<T> node)
-        {
-            Debug.Assert(First != null && Last != null);
-
-            if (node.Previous != null && node.Next != null)
-            {
-                Debug.Assert(First != null);
-                Debug.Assert(Last != null);
-                Debug.Assert(First != node);
-                Debug.Assert(Last != node);
-
-                node.Previous.Next = node.Next;
-                node.Next.Previous = node.Previous;
-
-                Count--;
-            }
-            else if (node.Previous == null && node.Next == null)
-            {
-                Debug.Assert(First == node);
-                Debug.Assert(Last == node);
-
-                First = Last = null;
-
-                Count--;
-            }
-            else if (node.Previous != null)
-            {
-                Debug.Assert(First != null);
-                Debug.Assert(First != node);
-                Debug.Assert(Last == node);
-
-                node.Previous.Next = null;
-                Last = node.Previous;
-
-                Count--;
-            }
-            else
-            {
-                Debug.Assert(Last != null);
-                Debug.Assert(Last != node);
-                Debug.Assert(First == node);
-
-                node.Next!.Previous = null;
-                First = node.Next;
-
-                Count--;
-            }
-        }
-
-        public IReadOnlyList<T> Items
-        {
-            get
-            {
-                List<T> ret = new List<T>();
-                var node = First;
-                while (node != null)
-                {
-                    ret.Add(node.Value);
-                    node = node.Next;
-                }
-                return ret.ToArray();
-            }
-        }
     }
 
-
-    public readonly struct PacketSegment
+    [MethodImpl(Inline)]
+    public ByteLinkedListNode AddAfter(ByteLinkedListNode prevNode, Memory<byte> value)
     {
-        public readonly Memory<byte> Item;
-        public readonly int Pin;
-        public readonly int RelativeOffset;
+        var nextNode = prevNode.Next;
+        Debug.Assert(First != null && Last != null);
+        Debug.Assert(nextNode != null || Last == prevNode);
+        Debug.Assert(nextNode == null || nextNode.Previous == prevNode);
+        var nn = new ByteLinkedListNode() { Value = value, Next = nextNode, Previous = prevNode };
+        prevNode.Next = nn;
+        if (nextNode != null) nextNode.Previous = nn;
+        if (Last == prevNode) Last = nn;
+        Count++;
+        return nn;
+    }
 
-        public PacketSegment(Memory<byte> item, int pin, int relativeOffset)
+    [MethodImpl(Inline)]
+    public void AddAfter(ByteLinkedListNode prevNode, ByteLinkedListNode chainFirst, ByteLinkedListNode chainLast, int chainedCount)
+    {
+        var nextNode = prevNode.Next;
+        Debug.Assert(First != null && Last != null);
+        Debug.Assert(nextNode != null || Last == prevNode);
+        Debug.Assert(nextNode == null || nextNode.Previous == prevNode);
+        prevNode.Next = chainFirst;
+        chainFirst.Previous = prevNode;
+        if (nextNode != null) nextNode.Previous = chainLast;
+        chainLast.Previous = nextNode;
+        if (Last == prevNode) Last = chainLast;
+        Count += chainedCount;
+    }
+
+    [MethodImpl(Inline)]
+    public ByteLinkedListNode AddBefore(ByteLinkedListNode nextNode, Memory<byte> value)
+    {
+        var prevNode = nextNode.Previous;
+        Debug.Assert(First != null && Last != null);
+        Debug.Assert(prevNode != null || First == nextNode);
+        Debug.Assert(prevNode == null || prevNode.Next == nextNode);
+        var nn = new ByteLinkedListNode() { Value = value, Next = nextNode, Previous = prevNode };
+        nextNode.Previous = nn;
+        if (prevNode != null) prevNode.Next = nn;
+        if (First == nextNode) First = nn;
+        Count++;
+        return nn;
+    }
+
+    [MethodImpl(Inline)]
+    public void AddBefore(ByteLinkedListNode nextNode, ByteLinkedListNode chainFirst, ByteLinkedListNode chainLast, int chainedCount)
+    {
+        var prevNode = nextNode.Previous;
+        Debug.Assert(First != null && Last != null);
+        Debug.Assert(prevNode != null || First == nextNode);
+        Debug.Assert(prevNode == null || prevNode.Next == nextNode);
+        nextNode.Previous = chainLast;
+        chainLast.Next = nextNode;
+        if (prevNode != null) prevNode.Next = chainFirst;
+        chainFirst.Previous = prevNode;
+        if (First == nextNode) First = chainFirst;
+        Count += chainedCount;
+    }
+
+    [MethodImpl(Inline)]
+    public void Remove(ByteLinkedListNode node)
+    {
+        Debug.Assert(First != null && Last != null);
+
+        if (node.Previous != null && node.Next != null)
         {
-            Item = item;
-            Pin = pin;
-            RelativeOffset = relativeOffset;
+            Debug.Assert(First != null);
+            Debug.Assert(Last != null);
+            Debug.Assert(First != node);
+            Debug.Assert(Last != node);
+
+            node.Previous.Next = node.Next;
+            node.Next.Previous = node.Previous;
+
+            Count--;
         }
-    }
-
-    public class ByteLinkedListNode
-    {
-        public Memory<byte> Value;
-        public ByteLinkedListNode? Next, Previous;
-    }
-
-    public class ByteLinkedList
-    {
-        public int Count;
-        public ByteLinkedListNode? First, Last;
-
-        [MethodImpl(Inline)]
-        public void Clear()
+        else if (node.Previous == null && node.Next == null)
         {
-            Count = 0;
+            Debug.Assert(First == node);
+            Debug.Assert(Last == node);
+
             First = Last = null;
+
+            Count--;
         }
-
-        [MethodImpl(Inline)]
-        public ByteLinkedListNode AddFirst(Memory<byte> value)
+        else if (node.Previous != null)
         {
-            if (First == null)
-            {
-                Debug.Assert(Last == null);
-                Debug.Assert(Count == 0);
-                First = Last = new ByteLinkedListNode() { Value = value, Next = null, Previous = null };
-                Count++;
-                return First;
-            }
-            else
-            {
-                Debug.Assert(Last != null);
-                Debug.Assert(Count >= 1);
-                var oldFirst = First;
-                var nn = new ByteLinkedListNode() { Value = value, Next = oldFirst, Previous = null };
-                Debug.Assert(oldFirst.Previous == null);
-                oldFirst.Previous = nn;
-                First = nn;
-                Count++;
-                return nn;
-            }
+            Debug.Assert(First != null);
+            Debug.Assert(First != node);
+            Debug.Assert(Last == node);
+
+            node.Previous.Next = null;
+            Last = node.Previous;
+
+            Count--;
         }
-
-        [MethodImpl(Inline)]
-        public void AddFirst(ByteLinkedListNode chainFirst, ByteLinkedListNode chainLast, int chainedCount)
+        else
         {
-            if (First == null)
-            {
-                Debug.Assert(Last == null);
-                Debug.Assert(Count == 0);
-                First = chainFirst;
-                Last = chainLast;
-                chainFirst.Previous = null;
-                chainLast.Next = null;
-                Count = chainedCount;
-            }
-            else
-            {
-                Debug.Assert(Last != null);
-                Debug.Assert(Count >= 1);
-                var oldFirst = First;
-                Debug.Assert(oldFirst.Previous == null);
-                oldFirst.Previous = chainLast;
-                First = chainFirst;
-                Count += chainedCount;
-            }
+            Debug.Assert(Last != null);
+            Debug.Assert(Last != node);
+            Debug.Assert(First == node);
+
+            node.Next!.Previous = null;
+            First = node.Next;
+
+            Count--;
         }
+    }
 
-        [MethodImpl(Inline)]
-        public ByteLinkedListNode AddLast(Memory<byte> value)
+    public IReadOnlyList<Memory<byte>> Items
+    {
+        get
         {
-            if (Last == null)
+            List<Memory<byte>> ret = new List<Memory<byte>>();
+            var node = First;
+            while (node != null)
             {
-                Debug.Assert(First == null);
-                Debug.Assert(Count == 0);
-                First = Last = new ByteLinkedListNode() { Value = value, Next = null, Previous = null };
-                Count++;
-                return Last;
+                ret.Add(node.Value);
+                node = node.Next;
             }
-            else
-            {
-                Debug.Assert(First != null);
-                Debug.Assert(Count >= 1);
-                var oldLast = Last;
-                var nn = new ByteLinkedListNode() { Value = value, Next = null, Previous = oldLast };
-                Debug.Assert(oldLast.Next == null);
-                oldLast.Next = nn;
-                Last = nn;
-                Count++;
-                return nn;
-            }
-        }
-
-        [MethodImpl(Inline)]
-        public void AddLast(ByteLinkedListNode chainFirst, ByteLinkedListNode chainLast, int chainedCount)
-        {
-            if (Last == null)
-            {
-                Debug.Assert(First == null);
-                Debug.Assert(Count == 0);
-                First = chainFirst;
-                Last = chainLast;
-                chainFirst.Previous = null;
-                chainLast.Next = null;
-                Count = chainedCount;
-            }
-            else
-            {
-                Debug.Assert(First != null);
-                Debug.Assert(Count >= 1);
-                var oldLast = Last;
-                Debug.Assert(oldLast.Next == null);
-                oldLast.Next = chainFirst;
-                Last = chainLast;
-                Count += chainedCount;
-            }
-        }
-
-        [MethodImpl(Inline)]
-        public ByteLinkedListNode AddAfter(ByteLinkedListNode prevNode, Memory<byte> value)
-        {
-            var nextNode = prevNode.Next;
-            Debug.Assert(First != null && Last != null);
-            Debug.Assert(nextNode != null || Last == prevNode);
-            Debug.Assert(nextNode == null || nextNode.Previous == prevNode);
-            var nn = new ByteLinkedListNode() { Value = value, Next = nextNode, Previous = prevNode };
-            prevNode.Next = nn;
-            if (nextNode != null) nextNode.Previous = nn;
-            if (Last == prevNode) Last = nn;
-            Count++;
-            return nn;
-        }
-
-        [MethodImpl(Inline)]
-        public void AddAfter(ByteLinkedListNode prevNode, ByteLinkedListNode chainFirst, ByteLinkedListNode chainLast, int chainedCount)
-        {
-            var nextNode = prevNode.Next;
-            Debug.Assert(First != null && Last != null);
-            Debug.Assert(nextNode != null || Last == prevNode);
-            Debug.Assert(nextNode == null || nextNode.Previous == prevNode);
-            prevNode.Next = chainFirst;
-            chainFirst.Previous = prevNode;
-            if (nextNode != null) nextNode.Previous = chainLast;
-            chainLast.Previous = nextNode;
-            if (Last == prevNode) Last = chainLast;
-            Count += chainedCount;
-        }
-
-        [MethodImpl(Inline)]
-        public ByteLinkedListNode AddBefore(ByteLinkedListNode nextNode, Memory<byte> value)
-        {
-            var prevNode = nextNode.Previous;
-            Debug.Assert(First != null && Last != null);
-            Debug.Assert(prevNode != null || First == nextNode);
-            Debug.Assert(prevNode == null || prevNode.Next == nextNode);
-            var nn = new ByteLinkedListNode() { Value = value, Next = nextNode, Previous = prevNode };
-            nextNode.Previous = nn;
-            if (prevNode != null) prevNode.Next = nn;
-            if (First == nextNode) First = nn;
-            Count++;
-            return nn;
-        }
-
-        [MethodImpl(Inline)]
-        public void AddBefore(ByteLinkedListNode nextNode, ByteLinkedListNode chainFirst, ByteLinkedListNode chainLast, int chainedCount)
-        {
-            var prevNode = nextNode.Previous;
-            Debug.Assert(First != null && Last != null);
-            Debug.Assert(prevNode != null || First == nextNode);
-            Debug.Assert(prevNode == null || prevNode.Next == nextNode);
-            nextNode.Previous = chainLast;
-            chainLast.Next = nextNode;
-            if (prevNode != null) prevNode.Next = chainFirst;
-            chainFirst.Previous = prevNode;
-            if (First == nextNode) First = chainFirst;
-            Count += chainedCount;
-        }
-
-        [MethodImpl(Inline)]
-        public void Remove(ByteLinkedListNode node)
-        {
-            Debug.Assert(First != null && Last != null);
-
-            if (node.Previous != null && node.Next != null)
-            {
-                Debug.Assert(First != null);
-                Debug.Assert(Last != null);
-                Debug.Assert(First != node);
-                Debug.Assert(Last != node);
-
-                node.Previous.Next = node.Next;
-                node.Next.Previous = node.Previous;
-
-                Count--;
-            }
-            else if (node.Previous == null && node.Next == null)
-            {
-                Debug.Assert(First == node);
-                Debug.Assert(Last == node);
-
-                First = Last = null;
-
-                Count--;
-            }
-            else if (node.Previous != null)
-            {
-                Debug.Assert(First != null);
-                Debug.Assert(First != node);
-                Debug.Assert(Last == node);
-
-                node.Previous.Next = null;
-                Last = node.Previous;
-
-                Count--;
-            }
-            else
-            {
-                Debug.Assert(Last != null);
-                Debug.Assert(Last != node);
-                Debug.Assert(First == node);
-
-                node.Next!.Previous = null;
-                First = node.Next;
-
-                Count--;
-            }
-        }
-
-        public IReadOnlyList<Memory<byte>> Items
-        {
-            get
-            {
-                List<Memory<byte>> ret = new List<Memory<byte>>();
-                var node = First;
-                while (node != null)
-                {
-                    ret.Add(node.Value);
-                    node = node.Next;
-                }
-                return ret.ToArray();
-            }
+            return ret.ToArray();
         }
     }
 }

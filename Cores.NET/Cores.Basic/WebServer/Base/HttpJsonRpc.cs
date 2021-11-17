@@ -57,147 +57,146 @@ using IWebHostEnvironment = Microsoft.AspNetCore.Hosting.IHostingEnvironment;
 using IHostApplicationLifetime = Microsoft.AspNetCore.Hosting.IApplicationLifetime;
 #endif
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public class JsonRpcHttpServer : JsonRpcServer
 {
-    public class JsonRpcHttpServer : JsonRpcServer
+    public JsonRpcHttpServer(JsonRpcServerApi api, JsonRpcServerConfig? cfg = null) : base(api, cfg) { }
+
+    public virtual async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
-        public JsonRpcHttpServer(JsonRpcServerApi api, JsonRpcServerConfig? cfg = null) : base(api, cfg) { }
+        CancellationToken cancel = request._GetRequestCancellationToken();
 
-        public virtual async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+        try
         {
-            CancellationToken cancel = request._GetRequestCancellationToken();
-
-            try
+            string rpcMethod = routeData.Values._GetStr("rpc_method");
+            if (rpcMethod._IsEmpty())
             {
-                string rpcMethod = routeData.Values._GetStr("rpc_method");
-                if (rpcMethod._IsEmpty())
-                {
-                    await response._SendStringContentsAsync($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTime.Now._ToDtStr(withNanoSecs: true)}", cancel: cancel);
-                }
-                else
-                {
-                    string args = routeData.Values._GetStr("rpc_param");
+                await response._SendStringContentsAsync($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTime.Now._ToDtStr(withNanoSecs: true)}", cancel: cancel);
+            }
+            else
+            {
+                string args = routeData.Values._GetStr("rpc_param");
 
-                    if (args._IsEmpty())
+                if (args._IsEmpty())
+                {
+                    JObject jObj = new JObject();
+
+                    foreach (string key in request.Query.Keys)
                     {
-                        JObject jObj = new JObject();
+                        string value = request.Query[key];
 
-                        foreach (string key in request.Query.Keys)
-                        {
-                            string value = request.Query[key];
-
-                            jObj.Add(key, JToken.FromObject(value));
-                        }
-
-                        args = jObj._ObjectToJson(compact: true);
+                        jObj.Add(key, JToken.FromObject(value));
                     }
 
-                    string id = "GET-" + Str.NewGuid();
-                    string in_str = "{'jsonrpc':'2.0','method':'" + rpcMethod + "','params':" + args + ",'id':'" + id + "'}";
-
-                    await ProcessHttpRequestMain(request, response, in_str, Consts.MimeTypes.TextUtf8);
-                }
-            }
-            catch (Exception ex)
-            {
-                await response._SendStringContentsAsync(ex.ToString(), cancel: cancel);
-            }
-        }
-
-        public virtual async Task PostRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
-        {
-            try
-            {
-                string in_str = await request._RecvStringContentsAsync(this.Config.MaxRequestBodyLen, cancel: request._GetRequestCancellationToken());
-
-                await ProcessHttpRequestMain(request, response, in_str);
-            }
-            catch (Exception ex)
-            {
-                await response._SendStringContentsAsync(ex.ToString(), cancel: request._GetRequestCancellationToken());
-            }
-        }
-
-        protected virtual async Task ProcessHttpRequestMain(HttpRequest request, HttpResponse response, string inStr, string responseContentsType = Consts.MimeTypes.Json)
-        {
-            string ret_str = "";
-            try
-            {
-                SortedDictionary<string, string> headers = new SortedDictionary<string, string>();
-                foreach (string headerName in request.Headers.Keys)
-                {
-                    if (request.Headers.TryGetValue(headerName, out var val))
-                    {
-                        headers.Add(headerName, val.ToString());
-                    }
+                    args = jObj._ObjectToJson(compact: true);
                 }
 
-                var conn = request.HttpContext.Connection;
-                JsonRpcClientInfo client_info = new JsonRpcClientInfo(this, conn.LocalIpAddress!._UnmapIPv4().ToString(), conn.LocalPort,
-                    conn.RemoteIpAddress!._UnmapIPv4().ToString(), conn.RemotePort,
-                    headers);
+                string id = "GET-" + Str.NewGuid();
+                string in_str = "{'jsonrpc':'2.0','method':'" + rpcMethod + "','params':" + args + ",'id':'" + id + "'}";
 
-                //string in_str = request.Body.ReadToEnd().GetString_UTF8();
-                //string in_str = (request.Body.ReadToEnd(this.Config.MaxRequestBodyLen)).GetString_UTF8();
-                //Dbg.WriteLine("in_str: " + in_str);
-
-                ret_str = await this.CallMethods(inStr, client_info);
+                await ProcessHttpRequestMain(request, response, in_str, Consts.MimeTypes.TextUtf8);
             }
-            catch (Exception ex)
-            {
-                JsonRpcException json_ex;
-                if (ex is JsonRpcException) json_ex = (JsonRpcException)ex;
-                else json_ex = new JsonRpcException(new JsonRpcError(1234, ex._GetSingleException().Message, ex.ToString()));
-
-                ret_str = new JsonRpcResponseError()
-                {
-                    Error = json_ex.RpcError,
-                    Id = null,
-                    Result = null,
-                }._ObjectToJson();
-            }
-
-            //Dbg.WriteLine("ret_str: " + ret_str);
-
-            await response._SendStringContentsAsync(ret_str, responseContentsType, cancel: request._GetRequestCancellationToken());
         }
-
-        public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string path = "/rpc")
+        catch (Exception ex)
         {
-            RouteBuilder rb = new RouteBuilder(appBuilder);
-
-            rb.MapGet(path, GetRequestHandler);
-            rb.MapGet(path + "/{rpc_method}", GetRequestHandler);
-            rb.MapGet(path + "/{rpc_method}/{rpc_param}", GetRequestHandler);
-            rb.MapPost(path, PostRequestHandler);
-
-            IRouter router = rb.Build();
-            appBuilder.UseRouter(router);
+            await response._SendStringContentsAsync(ex.ToString(), cancel: cancel);
         }
     }
 
-    public class JsonRpcHttpServerBuilder : HttpServerStartupBase
+    public virtual async Task PostRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
-        public JsonRpcHttpServer JsonServer { get; }
-
-        public JsonRpcHttpServerBuilder(IConfiguration configuration) : base(configuration)
+        try
         {
-            (JsonRpcServerConfig rpcCfg, JsonRpcServerApi api) p = ((JsonRpcServerConfig rpcCfg, JsonRpcServerApi api))this.Param!;
+            string in_str = await request._RecvStringContentsAsync(this.Config.MaxRequestBodyLen, cancel: request._GetRequestCancellationToken());
 
-            JsonServer = new JsonRpcHttpServer(p.api, p.rpcCfg);
+            await ProcessHttpRequestMain(request, response, in_str);
+        }
+        catch (Exception ex)
+        {
+            await response._SendStringContentsAsync(ex.ToString(), cancel: request._GetRequestCancellationToken());
+        }
+    }
+
+    protected virtual async Task ProcessHttpRequestMain(HttpRequest request, HttpResponse response, string inStr, string responseContentsType = Consts.MimeTypes.Json)
+    {
+        string ret_str = "";
+        try
+        {
+            SortedDictionary<string, string> headers = new SortedDictionary<string, string>();
+            foreach (string headerName in request.Headers.Keys)
+            {
+                if (request.Headers.TryGetValue(headerName, out var val))
+                {
+                    headers.Add(headerName, val.ToString());
+                }
+            }
+
+            var conn = request.HttpContext.Connection;
+            JsonRpcClientInfo client_info = new JsonRpcClientInfo(this, conn.LocalIpAddress!._UnmapIPv4().ToString(), conn.LocalPort,
+                conn.RemoteIpAddress!._UnmapIPv4().ToString(), conn.RemotePort,
+                headers);
+
+            //string in_str = request.Body.ReadToEnd().GetString_UTF8();
+            //string in_str = (request.Body.ReadToEnd(this.Config.MaxRequestBodyLen)).GetString_UTF8();
+            //Dbg.WriteLine("in_str: " + in_str);
+
+            ret_str = await this.CallMethods(inStr, client_info);
+        }
+        catch (Exception ex)
+        {
+            JsonRpcException json_ex;
+            if (ex is JsonRpcException) json_ex = (JsonRpcException)ex;
+            else json_ex = new JsonRpcException(new JsonRpcError(1234, ex._GetSingleException().Message, ex.ToString()));
+
+            ret_str = new JsonRpcResponseError()
+            {
+                Error = json_ex.RpcError,
+                Id = null,
+                Result = null,
+            }._ObjectToJson();
         }
 
-        public static HttpServer<JsonRpcHttpServerBuilder> StartServer(HttpServerOptions httpCfg, JsonRpcServerConfig rpcServerCfg, JsonRpcServerApi rpcApi, CancellationToken cancel = default)
-            => new HttpServer<JsonRpcHttpServerBuilder>(httpCfg, (rpcServerCfg, rpcApi), cancel);
+        //Dbg.WriteLine("ret_str: " + ret_str);
 
-        protected override void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
-        {
-        }
+        await response._SendStringContentsAsync(ret_str, responseContentsType, cancel: request._GetRequestCancellationToken());
+    }
 
-        protected override void ConfigureImpl_AfterHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
-        {
-            this.JsonServer.RegisterRoutesToHttpServer(app);
-        }
+    public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string path = "/rpc")
+    {
+        RouteBuilder rb = new RouteBuilder(appBuilder);
+
+        rb.MapGet(path, GetRequestHandler);
+        rb.MapGet(path + "/{rpc_method}", GetRequestHandler);
+        rb.MapGet(path + "/{rpc_method}/{rpc_param}", GetRequestHandler);
+        rb.MapPost(path, PostRequestHandler);
+
+        IRouter router = rb.Build();
+        appBuilder.UseRouter(router);
+    }
+}
+
+public class JsonRpcHttpServerBuilder : HttpServerStartupBase
+{
+    public JsonRpcHttpServer JsonServer { get; }
+
+    public JsonRpcHttpServerBuilder(IConfiguration configuration) : base(configuration)
+    {
+        (JsonRpcServerConfig rpcCfg, JsonRpcServerApi api) p = ((JsonRpcServerConfig rpcCfg, JsonRpcServerApi api))this.Param!;
+
+        JsonServer = new JsonRpcHttpServer(p.api, p.rpcCfg);
+    }
+
+    public static HttpServer<JsonRpcHttpServerBuilder> StartServer(HttpServerOptions httpCfg, JsonRpcServerConfig rpcServerCfg, JsonRpcServerApi rpcApi, CancellationToken cancel = default)
+        => new HttpServer<JsonRpcHttpServerBuilder>(httpCfg, (rpcServerCfg, rpcApi), cancel);
+
+    protected override void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
+    {
+    }
+
+    protected override void ConfigureImpl_AfterHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
+    {
+        this.JsonServer.RegisterRoutesToHttpServer(app);
     }
 }
 

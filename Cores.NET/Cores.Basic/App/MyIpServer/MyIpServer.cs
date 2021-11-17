@@ -59,203 +59,202 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public class MyIpServerSettings : INormalizable
 {
-    public class MyIpServerSettings : INormalizable
+    public List<string> DnsServerList { get; set; } = new List<string>();
+    public int HttpTimeoutMsecs { get; set; }
+
+    public void Normalize()
     {
-        public List<string> DnsServerList { get; set; } = new List<string>();
-        public int HttpTimeoutMsecs { get; set; }
-
-        public void Normalize()
+        if (this.DnsServerList.Count == 0)
         {
-            if (this.DnsServerList.Count == 0)
-            {
-                this.DnsServerList.Add("8.8.8.8");
-                this.DnsServerList.Add("1.1.1.1");
-            }
+            this.DnsServerList.Add("8.8.8.8");
+            this.DnsServerList.Add("1.1.1.1");
+        }
 
-            if (this.HttpTimeoutMsecs <= 0)
-            {
-                this.HttpTimeoutMsecs = 10 * 1000;
-            }
+        if (this.HttpTimeoutMsecs <= 0)
+        {
+            this.HttpTimeoutMsecs = 10 * 1000;
         }
     }
+}
 
-    public class MyIpServerCgiHandler : CgiHandlerBase
+public class MyIpServerCgiHandler : CgiHandlerBase
+{
+    public readonly MyIpServerHost Host;
+
+    public MyIpServerCgiHandler(MyIpServerHost host)
     {
-        public readonly MyIpServerHost Host;
-
-        public MyIpServerCgiHandler(MyIpServerHost host)
-        {
-            this.Host = host;
-        }
-
-        protected override void InitActionListImpl(CgiActionList noAuth, CgiActionList reqAuth)
-        {
-            try
-            {
-                noAuth.AddAction("{*path}", WebMethodBits.GET | WebMethodBits.HEAD, async (ctx) =>
-                {
-                    return new HttpStringResult((await Host.GetResponseAsync(ctx, ctx.Cancel))._NormalizeCrlf(CrlfStyle.Lf), contentType: Consts.MimeTypes.Text);
-                });
-            }
-            catch
-            {
-                this._DisposeSafe();
-                throw;
-            }
-        }
+        this.Host = host;
     }
 
-    public class MyIpServerHost : AsyncService
+    protected override void InitActionListImpl(CgiActionList noAuth, CgiActionList reqAuth)
     {
-        readonly HiveData<MyIpServerSettings> SettingsHive;
-
-        // 'Config\MyIpServer' のデータ
-        public MyIpServerSettings Settings => SettingsHive.GetManagedDataSnapshot();
-
-        readonly CriticalSection LockList = new CriticalSection<SnmpWorkHost>();
-
-        readonly CgiHttpServer Cgi;
-
-        readonly DnsResolver Dns;
-
-        public MyIpServerHost()
+        try
         {
-            try
+            noAuth.AddAction("{*path}", WebMethodBits.GET | WebMethodBits.HEAD, async (ctx) =>
             {
-                // SnmpWorkSettings を読み込む
-                this.SettingsHive = new HiveData<MyIpServerSettings>(Hive.SharedLocalConfigHive, $"MyIpServer", null, HiveSyncPolicy.AutoReadFromFile);
+                return new HttpStringResult((await Host.GetResponseAsync(ctx, ctx.Cancel))._NormalizeCrlf(CrlfStyle.Lf), contentType: Consts.MimeTypes.Text);
+            });
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
+    }
+}
 
-                List<IPEndPoint> dnsServers = new List<IPEndPoint>();
+public class MyIpServerHost : AsyncService
+{
+    readonly HiveData<MyIpServerSettings> SettingsHive;
 
-                foreach (var host in this.Settings.DnsServerList)
+    // 'Config\MyIpServer' のデータ
+    public MyIpServerSettings Settings => SettingsHive.GetManagedDataSnapshot();
+
+    readonly CriticalSection LockList = new CriticalSection<SnmpWorkHost>();
+
+    readonly CgiHttpServer Cgi;
+
+    readonly DnsResolver Dns;
+
+    public MyIpServerHost()
+    {
+        try
+        {
+            // SnmpWorkSettings を読み込む
+            this.SettingsHive = new HiveData<MyIpServerSettings>(Hive.SharedLocalConfigHive, $"MyIpServer", null, HiveSyncPolicy.AutoReadFromFile);
+
+            List<IPEndPoint> dnsServers = new List<IPEndPoint>();
+
+            foreach (var host in this.Settings.DnsServerList)
+            {
+                var ep = host._ToIPEndPoint(53, allowed: AllowedIPVersions.IPv4, true);
+                if (ep != null)
                 {
-                    var ep = host._ToIPEndPoint(53, allowed: AllowedIPVersions.IPv4, true);
-                    if (ep != null)
-                    {
-                        dnsServers.Add(ep);
-                    }
+                    dnsServers.Add(ep);
                 }
-
-                if (dnsServers.Count == 0)
-                    throw new CoresLibException("dnsServers.Count == 0");
-
-                this.Dns = new DnsClientLibBasedDnsResolver(
-                    new DnsResolverSettings(
-                        flags: DnsResolverFlags.RoundRobinServers | DnsResolverFlags.UdpOnly,
-                        dnsServersList: dnsServers
-                        )
-                    );
-
-                // HTTP サーバーを立ち上げる
-                this.Cgi = new CgiHttpServer(new MyIpServerCgiHandler(this), new HttpServerOptions()
-                {
-                    AutomaticRedirectToHttpsIfPossible = false,
-                    UseKestrelWithIPACoreStack = false,
-                    HttpPortsList = new int[] { 80, 992}.ToList(),
-                    HttpsPortsList = new int[] { 443 }.ToList(),
-                    UseStaticFiles = false,
-                    MaxRequestBodySize = 32 * 1024,
-                    ReadTimeoutMsecs = this.Settings.HttpTimeoutMsecs,
-                },
-                true);
             }
-            catch
+
+            if (dnsServers.Count == 0)
+                throw new CoresLibException("dnsServers.Count == 0");
+
+            this.Dns = new DnsClientLibBasedDnsResolver(
+                new DnsResolverSettings(
+                    flags: DnsResolverFlags.RoundRobinServers | DnsResolverFlags.UdpOnly,
+                    dnsServersList: dnsServers
+                    )
+                );
+
+            // HTTP サーバーを立ち上げる
+            this.Cgi = new CgiHttpServer(new MyIpServerCgiHandler(this), new HttpServerOptions()
             {
-                this._DisposeSafe();
-                throw;
-            }
+                AutomaticRedirectToHttpsIfPossible = false,
+                UseKestrelWithIPACoreStack = false,
+                HttpPortsList = new int[] { 80, 992 }.ToList(),
+                HttpsPortsList = new int[] { 443 }.ToList(),
+                UseStaticFiles = false,
+                MaxRequestBodySize = 32 * 1024,
+                ReadTimeoutMsecs = this.Settings.HttpTimeoutMsecs,
+            },
+            true);
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
+    }
+
+    public async Task<string> GetResponseAsync(CgiContext ctx, CancellationToken cancel = default)
+    {
+        // Query string の解析
+        bool port = ctx.QueryString._GetStrFirst("port")._ToBool();
+        bool fqdn = ctx.QueryString._GetStrFirst("fqdn")._ToBool();
+        bool verifyfqdn = ctx.QueryString._GetStrFirst("verifyfqdn")._ToBool();
+
+        StringWriter w = new StringWriter();
+
+        IPAddress clientIp = ctx.ClientIpAddress;
+
+        string proxySrcIpStr = ctx.Request.Headers._GetStrFirst("x-proxy-srcip");
+        var proxySrcIp = proxySrcIpStr._ToIPAddress(noExceptionAndReturnNull: true);
+        if (proxySrcIp != null)
+        {
+            clientIp = proxySrcIp;
         }
 
-        public async Task<string> GetResponseAsync(CgiContext ctx, CancellationToken cancel = default)
+        if (port == false && fqdn == false)
         {
-            // Query string の解析
-            bool port = ctx.QueryString._GetStrFirst("port")._ToBool();
-            bool fqdn = ctx.QueryString._GetStrFirst("fqdn")._ToBool();
-            bool verifyfqdn = ctx.QueryString._GetStrFirst("verifyfqdn")._ToBool();
+            // 従来のサーバーとの互換性を維持するため改行を入れません !!
+            return $"IP={clientIp.ToString()}";
+        }
 
-            StringWriter w = new StringWriter();
+        w.WriteLine($"IP={clientIp.ToString()}");
 
-            IPAddress clientIp = ctx.ClientIpAddress;
+        if (port)
+        {
+            w.WriteLine($"PORT={ctx.ClientPort}");
+        }
 
-            string proxySrcIpStr = ctx.Request.Headers._GetStrFirst("x-proxy-srcip");
-            var proxySrcIp = proxySrcIpStr._ToIPAddress(noExceptionAndReturnNull: true);
-            if (proxySrcIp != null)
+        if (fqdn)
+        {
+            string hostname = clientIp.ToString();
+            try
             {
-                clientIp = proxySrcIp;
-            }
-
-            if (port == false && fqdn == false)
-            {
-                // 従来のサーバーとの互換性を維持するため改行を入れません !!
-                return $"IP={clientIp.ToString()}";
-            }
-
-            w.WriteLine($"IP={clientIp.ToString()}");
-
-            if (port)
-            {
-                w.WriteLine($"PORT={ctx.ClientPort}");
-            }
-
-            if (fqdn)
-            {
-                string hostname = clientIp.ToString();
-                try
+                var ipType = clientIp._GetIPAddressType();
+                if (ipType.BitAny(IPAddressType.IPv4_IspShared | IPAddressType.Loopback | IPAddressType.Zero | IPAddressType.Multicast | IPAddressType.LocalUnicast))
                 {
-                    var ipType = clientIp._GetIPAddressType();
-                    if (ipType.BitAny(IPAddressType.IPv4_IspShared | IPAddressType.Loopback | IPAddressType.Zero | IPAddressType.Multicast | IPAddressType.LocalUnicast))
-                    {
-                        // ナーシ
-                    }
-                    else
-                    {
-                        hostname = await this.Dns.GetHostNameSingleOrIpAsync(clientIp, cancel);
+                    // ナーシ
+                }
+                else
+                {
+                    hostname = await this.Dns.GetHostNameSingleOrIpAsync(clientIp, cancel);
 
-                        if (verifyfqdn)
+                    if (verifyfqdn)
+                    {
+                        try
                         {
-                            try
-                            {
-                                var ipList = await this.Dns.GetIpAddressAsync(hostname,
-                                    clientIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 ? DnsResolverQueryType.AAAA : DnsResolverQueryType.A,
-                                    cancel: cancel);
+                            var ipList = await this.Dns.GetIpAddressAsync(hostname,
+                                clientIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 ? DnsResolverQueryType.AAAA : DnsResolverQueryType.A,
+                                cancel: cancel);
 
-                                if ((ipList?.Any(x => IpComparer.Comparer.Equals(x, clientIp)) ?? false) == false)
-                                {
-                                    // NG
-                                    hostname = ctx.ClientIpAddress.ToString();
-                                }
-                            }
-                            catch
+                            if ((ipList?.Any(x => IpComparer.Comparer.Equals(x, clientIp)) ?? false) == false)
                             {
                                 // NG
                                 hostname = ctx.ClientIpAddress.ToString();
                             }
                         }
+                        catch
+                        {
+                            // NG
+                            hostname = ctx.ClientIpAddress.ToString();
+                        }
                     }
                 }
-                catch { }
-                w.WriteLine($"FQDN={hostname}");
             }
-
-            return w.ToString();
+            catch { }
+            w.WriteLine($"FQDN={hostname}");
         }
 
-        protected override async Task CleanupImplAsync(Exception? ex)
+        return w.ToString();
+    }
+
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
         {
-            try
-            {
-                await this.Cgi._DisposeSafeAsync();
+            await this.Cgi._DisposeSafeAsync();
 
-                await this.Dns._DisposeSafeAsync();
+            await this.Dns._DisposeSafeAsync();
 
-                this.SettingsHive._DisposeSafe();
-            }
-            finally
-            {
-                await base.CleanupImplAsync(ex);
-            }
+            this.SettingsHive._DisposeSafe();
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
         }
     }
 }

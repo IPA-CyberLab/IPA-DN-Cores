@@ -42,31 +42,30 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public abstract class EasyJsonRpcClient<TInterface> : AsyncService
+    where TInterface : class
 {
-    public abstract class EasyJsonRpcClient<TInterface> : AsyncService
-        where TInterface : class
+    public JsonRpcHttpClient<TInterface> Client { get; }
+    public WebApi WebApi { get => this.Client.WebApi; }
+
+    public TInterface Call { get => this.Client.Call; }
+
+    public EasyJsonRpcClient(string baseUrl, WebApiOptions webApiOptions)
     {
-        public JsonRpcHttpClient<TInterface> Client { get; }
-        public WebApi WebApi { get => this.Client.WebApi; }
+        this.Client = new JsonRpcHttpClient<TInterface>(baseUrl, webApiOptions);
+    }
 
-        public TInterface Call { get => this.Client.Call; }
-
-        public EasyJsonRpcClient(string baseUrl, WebApiOptions webApiOptions)
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
         {
-            this.Client = new JsonRpcHttpClient<TInterface>(baseUrl, webApiOptions);
+            await this.Client._DisposeSafeAsync();
         }
-
-        protected override async Task CleanupImplAsync(Exception? ex)
+        finally
         {
-            try
-            {
-                await this.Client._DisposeSafeAsync();
-            }
-            finally
-            {
-                await base.CleanupImplAsync(ex);
-            }
+            await base.CleanupImplAsync(ex);
         }
     }
 }

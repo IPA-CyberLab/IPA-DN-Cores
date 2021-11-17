@@ -47,676 +47,675 @@ using static IPA.Cores.Globals.Basic;
 using System.Threading;
 using System.Collections;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+// 注: DaemonCenter で利用しているためいじらないこと
+[Serializable]
+public class EnvInfoSnapshot
 {
-    // 注: DaemonCenter で利用しているためいじらないこと
-    [Serializable]
-    public class EnvInfoSnapshot
+    public EnvInfoSnapshot() { } // 消さないこと
+
+    public EnvInfoSnapshot(string headerText)
     {
-        public EnvInfoSnapshot() { } // 消さないこと
-
-        public EnvInfoSnapshot(string headerText)
-        {
-            HeaderText = headerText;
-        }
-
-        // 注意: すべて通常の public 変数とすること (読み取り専用にしないこと)
-
-        public string HeaderText = "";
-        public DateTimeOffset TimeStamp = DateTime.Now;
-        public DateTimeOffset BootTime = Env.BootTime;
-        public string MachineName = Env.MachineName;
-        public string FrameworkVersion = Env.FrameworkVersion.ToString();
-        public string AppRealProcessExeFileName = Env.AppRealProcessExeFileName;
-        public string AppExecutableExeOrDllFileName = Env.AppExecutableExeOrDllFileName;
-        public string BuildConfigurationName = Env.BuildConfigurationName;
-        public string AppRootDir = Env.AppRootDir;
-        public string UserName = Env.UserName;
-        public string UserNameEx = Env.UserNameEx;
-        public string CommandLine = Env.CommandLine;
-        public bool IsAdmin = Env.IsAdmin;
-        public long ProcessId = Env.ProcessId;
-        public bool IsDotNetCore = Env.IsDotNetCore;
-        public string ExeAssemblySimpleName = Env.ExeAssemblySimpleName;
-        public string ExeAssemblyFullName = Env.ExeAssemblyFullName;
-        public bool IsWindows = Env.IsWindows;
-        public bool IsUnix = Env.IsUnix;
-        public bool IsMac = Env.IsMac;
-        public bool IsLittenEndian = Env.IsLittleEndian;
-        public bool IsBigEndian = Env.IsBigEndian;
-        public bool Is64BitProcess = Env.Is64BitProcess;
-        public bool Is64BitWindows = Env.Is64BitWindows;
-        public bool IsWow64 = Env.IsWow64;
-        public Architecture CpuInfo = Env.CpuInfo;
-        public string FrameworkInfoString = Env.FrameworkInfoString;
-        public string OsInfoString = Env.OsInfoString;
-        public bool IsCoresLibraryDebugBuild = Env.IsCoresLibraryDebugBuild;
-        public bool IsHostedByDotNetProcess = Env.IsHostedByDotNetProcess;
-        public string DotNetHostProcessExeName = Env.DotNetHostProcessExeName;
-        public bool IsDebuggerAttached = Env.IsDebuggerAttached;
-        public int NumCpus = Env.NumCpus;
-        public string DnsHostName = Env.DnsHostName;
-        public string DnsDomainName = Env.DnsDomainName;
-        public string DnsFqdnHostName = Env.DnsFqdnHostName;
-        public string GcMode = Env.GcMode;
-        public string GcCompactionMode = Env.GcCompactionMode;
-        public string GcLatencyMode = Env.GcLatencyMode;
+        HeaderText = headerText;
     }
 
-    public static class Env
+    // 注意: すべて通常の public 変数とすること (読み取り専用にしないこと)
+
+    public string HeaderText = "";
+    public DateTimeOffset TimeStamp = DateTime.Now;
+    public DateTimeOffset BootTime = Env.BootTime;
+    public string MachineName = Env.MachineName;
+    public string FrameworkVersion = Env.FrameworkVersion.ToString();
+    public string AppRealProcessExeFileName = Env.AppRealProcessExeFileName;
+    public string AppExecutableExeOrDllFileName = Env.AppExecutableExeOrDllFileName;
+    public string BuildConfigurationName = Env.BuildConfigurationName;
+    public string AppRootDir = Env.AppRootDir;
+    public string UserName = Env.UserName;
+    public string UserNameEx = Env.UserNameEx;
+    public string CommandLine = Env.CommandLine;
+    public bool IsAdmin = Env.IsAdmin;
+    public long ProcessId = Env.ProcessId;
+    public bool IsDotNetCore = Env.IsDotNetCore;
+    public string ExeAssemblySimpleName = Env.ExeAssemblySimpleName;
+    public string ExeAssemblyFullName = Env.ExeAssemblyFullName;
+    public bool IsWindows = Env.IsWindows;
+    public bool IsUnix = Env.IsUnix;
+    public bool IsMac = Env.IsMac;
+    public bool IsLittenEndian = Env.IsLittleEndian;
+    public bool IsBigEndian = Env.IsBigEndian;
+    public bool Is64BitProcess = Env.Is64BitProcess;
+    public bool Is64BitWindows = Env.Is64BitWindows;
+    public bool IsWow64 = Env.IsWow64;
+    public Architecture CpuInfo = Env.CpuInfo;
+    public string FrameworkInfoString = Env.FrameworkInfoString;
+    public string OsInfoString = Env.OsInfoString;
+    public bool IsCoresLibraryDebugBuild = Env.IsCoresLibraryDebugBuild;
+    public bool IsHostedByDotNetProcess = Env.IsHostedByDotNetProcess;
+    public string DotNetHostProcessExeName = Env.DotNetHostProcessExeName;
+    public bool IsDebuggerAttached = Env.IsDebuggerAttached;
+    public int NumCpus = Env.NumCpus;
+    public string DnsHostName = Env.DnsHostName;
+    public string DnsDomainName = Env.DnsDomainName;
+    public string DnsFqdnHostName = Env.DnsFqdnHostName;
+    public string GcMode = Env.GcMode;
+    public string GcCompactionMode = Env.GcCompactionMode;
+    public string GcLatencyMode = Env.GcLatencyMode;
+}
+
+public static class Env
+{
+    static object lockObj = new object();
+
+    // 初期化の必要のあるプロパティ値
+    static public Version FrameworkVersion { get; }
+    public static bool IsNET4OrGreater => (FrameworkVersion.Major >= 4);
+    static public string HomeDir { get; }
+    static public string UnixMutantDir { get; } = "";
+    static public string AppRealProcessExeFileName { get; }
+    static public string AppExecutableExeOrDllFileName { get; }
+    static public string BuildConfigurationName { get; }
+    static public string AppExecutableExeOrDllFileDir { get; }
+    static public string AppRootDir { get; }
+    static public string AppLocalDir => CoresLocalDirs.AppLocalDir;
+    static public string Win32_WindowsDir { get; } = "";
+    static public string Win32_SystemDir { get; }
+    static public string TempDir { get; }
+    static public string Win32_WinTempDir { get; }
+    static public string Win32_WindowsDrive { get; } = "";
+    static public string Win32_ProgramFilesDir { get; }
+    static public string Win32_PersonalStartMenuDir { get; }
+    static public string Win32_PersonalProgramsDir { get; }
+    static public string Win32_PersonalStartupDir { get; }
+    static public string Win32_PersonalAppDataDir { get; }
+    static public string Win32_PersonalDesktopDir { get; }
+    static public string Win32_MyDocumentsDir { get; }
+    static public string Win32_LocalAppDataDir { get; }
+    static public string UserName { get; }
+    static public string UserNameEx { get; }
+    static public string MachineName { get; }
+    public static string CommandLine { get; private set; }
+    public static OperatingSystem OsInfo { get; }
+    public static bool IsWindows { get; }
+    public static bool IsUnix => !IsWindows;
+    public static bool IsMac { get; }
+    public static bool IsLinux { get; }
+    public static bool IsLittleEndian { get; }
+    public static bool IsBigEndian => !IsLittleEndian;
+    public static bool IsAdmin { get; }
+    public static long ProcessId { get; }
+    public static string MyGlobalTempDir => CoresLocalDirs.MyGlobalTempDir;
+    public static string PathSeparator { get; }
+    public static char PathSeparatorChar { get; }
+    public static string StartupCurrentDir { get; }
+    public static bool IsDotNetCore { get; }
+    public static Assembly ExeAssembly { get; }
+    public static string ExeAssemblySimpleName { get; }
+    public static string ExeAssemblyFullName { get; }
+    public static bool IgnoreCaseInFileSystem => (IsWindows || IsMac);
+    public static StrComparer FilePathStringComparer { get; }
+    public static PathParser LocalPathParser => PathParser.Local;
+    public static bool IsCoresLibraryDebugBuild { get; }
+    public static bool IsHostedByDotNetProcess { get; }
+    public static string DotNetHostProcessExeName { get; } = "";
+    public static int NumCpus { get; }
+
+    public static string GcMode { get; } = System.Runtime.GCSettings.IsServerGC ? "ServerGC" : "WorkstationGC";
+    public static string GcCompactionMode { get; } = System.Runtime.GCSettings.LargeObjectHeapCompactionMode.ToString();
+    public static string GcLatencyMode { get; } = System.Runtime.GCSettings.LatencyMode.ToString();
+
+    public static bool IsDebuggerAttached => System.Diagnostics.Debugger.IsAttached;
+
+    public static bool Is64BitProcess => (IntPtr.Size == 8);
+    public static bool Is64BitWindows => (Is64BitProcess || Kernel.InternalCheckIsWow64());
+    public static bool IsWow64 => Kernel.InternalCheckIsWow64();
+
+    public static Architecture CpuInfo { get; } = RuntimeInformation.ProcessArchitecture;
+    public static string FrameworkInfoString = RuntimeInformation.FrameworkDescription.Trim();
+    public static string OsInfoString = RuntimeInformation.OSDescription.Trim();
+
+    public static string DnsHostName { get; }
+    public static string DnsDomainName { get; }
+    public static string DnsFqdnHostName { get; }
+
+    public static DateTimeOffset BootTime { get; }
+
+    // 初期化
+    static Env()
     {
-        static object lockObj = new object();
+        BootTime = DateTimeOffset.Now;
 
-        // 初期化の必要のあるプロパティ値
-        static public Version FrameworkVersion { get; }
-        public static bool IsNET4OrGreater => (FrameworkVersion.Major >= 4);
-        static public string HomeDir { get; }
-        static public string UnixMutantDir { get; } = "";
-        static public string AppRealProcessExeFileName { get; }
-        static public string AppExecutableExeOrDllFileName { get; }
-        static public string BuildConfigurationName { get; }
-        static public string AppExecutableExeOrDllFileDir { get; }
-        static public string AppRootDir { get; }
-        static public string AppLocalDir => CoresLocalDirs.AppLocalDir;
-        static public string Win32_WindowsDir { get; } = "";
-        static public string Win32_SystemDir { get; }
-        static public string TempDir { get; }
-        static public string Win32_WinTempDir { get; }
-        static public string Win32_WindowsDrive { get; } = "";
-        static public string Win32_ProgramFilesDir { get; }
-        static public string Win32_PersonalStartMenuDir { get; }
-        static public string Win32_PersonalProgramsDir { get; }
-        static public string Win32_PersonalStartupDir { get; }
-        static public string Win32_PersonalAppDataDir { get; }
-        static public string Win32_PersonalDesktopDir { get; }
-        static public string Win32_MyDocumentsDir { get; }
-        static public string Win32_LocalAppDataDir { get; }
-        static public string UserName { get; }
-        static public string UserNameEx { get; }
-        static public string MachineName { get; }
-        public static string CommandLine { get; private set; }
-        public static OperatingSystem OsInfo { get; }
-        public static bool IsWindows { get; }
-        public static bool IsUnix => !IsWindows;
-        public static bool IsMac { get; }
-        public static bool IsLinux { get; }
-        public static bool IsLittleEndian { get; }
-        public static bool IsBigEndian => !IsLittleEndian;
-        public static bool IsAdmin { get; }
-        public static long ProcessId { get; }
-        public static string MyGlobalTempDir => CoresLocalDirs.MyGlobalTempDir;
-        public static string PathSeparator { get; }
-        public static char PathSeparatorChar { get; }
-        public static string StartupCurrentDir { get; }
-        public static bool IsDotNetCore { get; }
-        public static Assembly ExeAssembly { get; }
-        public static string ExeAssemblySimpleName { get; }
-        public static string ExeAssemblyFullName { get; }
-        public static bool IgnoreCaseInFileSystem => (IsWindows || IsMac);
-        public static StrComparer FilePathStringComparer { get; }
-        public static PathParser LocalPathParser => PathParser.Local;
-        public static bool IsCoresLibraryDebugBuild { get; }
-        public static bool IsHostedByDotNetProcess { get; }
-        public static string DotNetHostProcessExeName { get; } = "";
-        public static int NumCpus { get; }
+        NumCpus = Math.Max(Environment.ProcessorCount, 1);
 
-        public static string GcMode { get; } = System.Runtime.GCSettings.IsServerGC ? "ServerGC" : "WorkstationGC";
-        public static string GcCompactionMode { get; } = System.Runtime.GCSettings.LargeObjectHeapCompactionMode.ToString();
-        public static string GcLatencyMode { get; } = System.Runtime.GCSettings.LatencyMode.ToString();
+        int debugChecker = 0;
+        Debug.Assert((++debugChecker) >= 1);
+        Env.IsCoresLibraryDebugBuild = (debugChecker >= 1);
 
-        public static bool IsDebuggerAttached => System.Diagnostics.Debugger.IsAttached;
+        ExeAssembly = Assembly.GetExecutingAssembly();
+        var asmName = ExeAssembly.GetName();
+        ExeAssemblySimpleName = asmName.Name ?? throw new ArgumentNullException();
+        ExeAssemblyFullName = asmName.FullName;
 
-        public static bool Is64BitProcess => (IntPtr.Size == 8);
-        public static bool Is64BitWindows => (Is64BitProcess || Kernel.InternalCheckIsWow64());
-        public static bool IsWow64 => Kernel.InternalCheckIsWow64();
-
-        public static Architecture CpuInfo { get; } = RuntimeInformation.ProcessArchitecture;
-        public static string FrameworkInfoString = RuntimeInformation.FrameworkDescription.Trim();
-        public static string OsInfoString = RuntimeInformation.OSDescription.Trim();
-
-        public static string DnsHostName { get; }
-        public static string DnsDomainName { get; }
-        public static string DnsFqdnHostName { get; }
-
-        public static DateTimeOffset BootTime { get; }
-
-        // 初期化
-        static Env()
+        FrameworkVersion = Environment.Version;
+        IsDotNetCore = true;
+        OsInfo = Environment.OSVersion;
+        IsWindows = (OsInfo.Platform == PlatformID.Win32NT);
+        if (IsUnix)
         {
-            BootTime = DateTimeOffset.Now;
-
-            NumCpus = Math.Max(Environment.ProcessorCount, 1);
-
-            int debugChecker = 0;
-            Debug.Assert((++debugChecker) >= 1);
-            Env.IsCoresLibraryDebugBuild = (debugChecker >= 1);
-
-            ExeAssembly = Assembly.GetExecutingAssembly();
-            var asmName = ExeAssembly.GetName();
-            ExeAssemblySimpleName = asmName.Name ?? throw new ArgumentNullException();
-            ExeAssemblyFullName = asmName.FullName;
-
-            FrameworkVersion = Environment.Version;
-            IsDotNetCore = true;
-            OsInfo = Environment.OSVersion;
-            IsWindows = (OsInfo.Platform == PlatformID.Win32NT);
-            if (IsUnix)
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                {
-                    IsLinux = true;
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                {
-                    IsMac = true;
-                }
-
-                UnixApi.InitUnixLimitsValue(IsMac, (IntPtr.Size == 8));
+                IsLinux = true;
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                IsMac = true;
             }
 
-            PathSeparator = "" + Path.DirectorySeparatorChar;
-            if (Str.IsEmptyStr(PathSeparator))
-            {
-                PathSeparator = "/";
-                if (Environment.OSVersion.Platform == PlatformID.Win32NT) PathSeparator = "\\";
-            }
-            PathSeparatorChar = PathSeparator[0];
-            AppRealProcessExeFileName = IO.RemoveLastEnMark(GetAppRealProcessExeFileNameInternal());
+            UnixApi.InitUnixLimitsValue(IsMac, (IntPtr.Size == 8));
+        }
 
-            try
-            {
-                AppExecutableExeOrDllFileName = IO.RemoveLastEnMark(GetAppExeOrDllImageFilePathInternal());
+        PathSeparator = "" + Path.DirectorySeparatorChar;
+        if (Str.IsEmptyStr(PathSeparator))
+        {
+            PathSeparator = "/";
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT) PathSeparator = "\\";
+        }
+        PathSeparatorChar = PathSeparator[0];
+        AppRealProcessExeFileName = IO.RemoveLastEnMark(GetAppRealProcessExeFileNameInternal());
 
-                if (AppExecutableExeOrDllFileName._IsSamei("<Unknown>"))
-                {
-                    // .NET 6.0 で single file にしている場合は、何と "<Unknown>" という文字列が戻ってくる。
-                    // しかし、single file であることはこれで分かるので、AppExecutableExeOrDllFileName を AppRealProcessExeFileName のコピーとする。
-                    AppExecutableExeOrDllFileName = AppRealProcessExeFileName;
-                }
-            }
-            catch (FileNotFoundException)
+        try
+        {
+            AppExecutableExeOrDllFileName = IO.RemoveLastEnMark(GetAppExeOrDllImageFilePathInternal());
+
+            if (AppExecutableExeOrDllFileName._IsSamei("<Unknown>"))
             {
-                // .NET 5.0 で、single file にしている場合は、何と FileNotFoundException が発生する。
+                // .NET 6.0 で single file にしている場合は、何と "<Unknown>" という文字列が戻ってくる。
                 // しかし、single file であることはこれで分かるので、AppExecutableExeOrDllFileName を AppRealProcessExeFileName のコピーとする。
                 AppExecutableExeOrDllFileName = AppRealProcessExeFileName;
             }
+        }
+        catch (FileNotFoundException)
+        {
+            // .NET 5.0 で、single file にしている場合は、何と FileNotFoundException が発生する。
+            // しかし、single file であることはこれで分かるので、AppExecutableExeOrDllFileName を AppRealProcessExeFileName のコピーとする。
+            AppExecutableExeOrDllFileName = AppRealProcessExeFileName;
+        }
 
-            BuildConfigurationName = GetBuildConfigurationNameInternal();
+        BuildConfigurationName = GetBuildConfigurationNameInternal();
 
-            // dotnet プロセスによって起動されたプロセスであるか否かを判別
+        // dotnet プロセスによって起動されたプロセスであるか否かを判別
 
-            // .NET Core 2.2 以前は以下の方法で判別できる
-            Env.IsHostedByDotNetProcess = Path.GetFileNameWithoutExtension(Env.AppRealProcessExeFileName).Equals("dotnet", StringComparison.OrdinalIgnoreCase);
+        // .NET Core 2.2 以前は以下の方法で判別できる
+        Env.IsHostedByDotNetProcess = Path.GetFileNameWithoutExtension(Env.AppRealProcessExeFileName).Equals("dotnet", StringComparison.OrdinalIgnoreCase);
 
-            if (Env.IsHostedByDotNetProcess)
+        if (Env.IsHostedByDotNetProcess)
+        {
+            Env.DotNetHostProcessExeName = Process.GetCurrentProcess().MainModule!.FileName!;
+        }
+        else
+        {
+            // .NET Core 3.0 以降はスタンドアロンプロセスモードでも起動できるようになった
+            // この場合は、
+            // 1. DOTNET_ROOT 環境変数にディレクトリ名が入っていること
+            // 2. DOTNET_ROOT 環境変数 + "\dotnet" というファイル (dotnet の実行可能ファイルである) が存在すること
+            // で判定を行なう
+            // (TODO: Windows ではこの方法で判別ができない)
+
+            static string? GetDotNetExeNameUnix()
             {
-                Env.DotNetHostProcessExeName = Process.GetCurrentProcess().MainModule!.FileName!;
+                List<Pair2<string, string>> list = new List<Pair2<string, string>>();
+                var envs = Environment.GetEnvironmentVariables();
+                foreach (DictionaryEntry env in envs)
+                {
+                    string name = (string)env.Key;
+                    string value = (string)env.Value!;
+                    if (name._IsFilled() && value._IsFilled())
+                    {
+                        if (name.StartsWith("DOTNET_ROOT", StringComparison.OrdinalIgnoreCase))
+                        {
+                            list.Add(new Pair2<string, string>(name, value));
+                        }
+                    }
+                }
+
+                foreach (var item in list.OrderBy(x => x.A, StrComparer.IgnoreCaseTrimComparer))
+                {
+                    if (Directory.Exists(item.B))
+                    {
+                        string exe = Path.Combine(item.B, "dotnet");
+                        if (File.Exists(exe))
+                        {
+                            return exe;
+                        }
+                    }
+                }
+
+                return null;
+            }
+
+            if (IsUnix)
+            {
+                string? dotnetExeName = GetDotNetExeNameUnix();
+
+                if (dotnetExeName._IsFilled())
+                {
+                    if (File.Exists(dotnetExeName))
+                    {
+                        // 判定成功
+                        Env.IsHostedByDotNetProcess = true;
+                        Env.DotNetHostProcessExeName = dotnetExeName;
+                    }
+                }
+            }
+        }
+
+        // DNS ホスト名とドメイン名の取得
+        PalHostNetInfo.GetHostNameAndDomainNameInfo(out string dnsHostName, out string dnsDomainName);
+
+        DnsHostName = dnsHostName;
+        DnsDomainName = dnsDomainName;
+        DnsFqdnHostName = DnsHostName + (string.IsNullOrEmpty(DnsDomainName) ? "" : "." + DnsDomainName);
+
+        if (Str.IsEmptyStr(AppExecutableExeOrDllFileName) == false)
+        {
+            AppRootDir = AppExecutableExeOrDllFileDir = IO.RemoveLastEnMark(System.AppContext.BaseDirectory);
+            // プログラムのあるディレクトリから 1 つずつ遡ってアプリケーションの root ディレクトリを取得する
+            string tmp = AppExecutableExeOrDllFileDir;
+
+            bool isSingleFileBinary = false;
+
+            string tmp2 = AppExecutableExeOrDllFileDir._ReplaceStr("\\", "/");
+            if (tmp2._InStr("/tmp/.net/", true) || tmp2._InStr("/temp/.net/", true))
+            {
+                // temp ディレクトリ上で動作しておる
+                isSingleFileBinary = true;
             }
             else
             {
-                // .NET Core 3.0 以降はスタンドアロンプロセスモードでも起動できるようになった
-                // この場合は、
-                // 1. DOTNET_ROOT 環境変数にディレクトリ名が入っていること
-                // 2. DOTNET_ROOT 環境変数 + "\dotnet" というファイル (dotnet の実行可能ファイルである) が存在すること
-                // で判定を行なう
-                // (TODO: Windows ではこの方法で判別ができない)
-
-                static string? GetDotNetExeNameUnix()
+                try
                 {
-                    List<Pair2<string, string>> list = new List<Pair2<string, string>>();
-                    var envs = Environment.GetEnvironmentVariables();
-                    foreach (DictionaryEntry env in envs)
+                    var fi = new FileInfo(AppRealProcessExeFileName);
+                    if (fi.Length >= 50_000_000)
                     {
-                        string name = (string)env.Key;
-                        string value = (string)env.Value!;
-                        if (name._IsFilled() && value._IsFilled())
-                        {
-                            if (name.StartsWith("DOTNET_ROOT", StringComparison.OrdinalIgnoreCase))
-                            {
-                                list.Add(new Pair2<string, string>(name, value));
-                            }
-                        }
-                    }
-
-                    foreach (var item in list.OrderBy(x => x.A, StrComparer.IgnoreCaseTrimComparer))
-                    {
-                        if (Directory.Exists(item.B))
-                        {
-                            string exe = Path.Combine(item.B, "dotnet");
-                            if (File.Exists(exe))
-                            {
-                                return exe;
-                            }
-                        }
-                    }
-
-                    return null;
-                }
-
-                if (IsUnix)
-                {
-                    string? dotnetExeName = GetDotNetExeNameUnix();
-
-                    if (dotnetExeName._IsFilled())
-                    {
-                        if (File.Exists(dotnetExeName))
-                        {
-                            // 判定成功
-                            Env.IsHostedByDotNetProcess = true;
-                            Env.DotNetHostProcessExeName = dotnetExeName;
-                        }
+                        // EXE ファイルのサイズが 50MB を超えている。これはきっと、 PublishSingleFile で生成されたファイルに違いない。
+                        // .NET Core 3.1 では、これくらいしか 見分ける方法がありません !!
+                        // https://github.com/dotnet/runtime/issues/13481
+                        isSingleFileBinary = true;
                     }
                 }
+                catch { }
             }
 
-            // DNS ホスト名とドメイン名の取得
-            PalHostNetInfo.GetHostNameAndDomainNameInfo(out string dnsHostName, out string dnsDomainName);
-
-            DnsHostName = dnsHostName;
-            DnsDomainName = dnsDomainName;
-            DnsFqdnHostName = DnsHostName + (string.IsNullOrEmpty(DnsDomainName) ? "" : "." + DnsDomainName);
-
-            if (Str.IsEmptyStr(AppExecutableExeOrDllFileName) == false)
+            if (isSingleFileBinary)
             {
-                AppRootDir = AppExecutableExeOrDllFileDir = IO.RemoveLastEnMark(System.AppContext.BaseDirectory);
-                // プログラムのあるディレクトリから 1 つずつ遡ってアプリケーションの root ディレクトリを取得する
-                string tmp = AppExecutableExeOrDllFileDir;
+                // dotnet publish で -p:PublishSingleFile=true で生成されたファイルである。
+                // この場合、AppExecutableExeOrDllFileDir は一時ディレクトリを指しているので、
+                // AppRootDir は代わりに EXE ファイルのある本物のディレクトリを指すようにする。
+                AppRootDir = tmp = Path.GetDirectoryName(AppRealProcessExeFileName) ?? AppRootDir;
+            }
 
-                bool isSingleFileBinary = false;
+            IEnumerable<string> markerFiles = Env.IsHostedByDotNetProcess ? Consts.FileNames.AppRootMarkerFileNames : Consts.FileNames.AppRootMarkerFileNamesForBinary;
 
-                string tmp2 = AppExecutableExeOrDllFileDir._ReplaceStr("\\", "/");
-                if (tmp2._InStr("/tmp/.net/", true) || tmp2._InStr("/temp/.net/", true))
+            while (true)
+            {
+                try
                 {
-                    // temp ディレクトリ上で動作しておる
-                    isSingleFileBinary = true;
-                }
-                else
-                {
-                    try
+                    bool found = false;
+
+                    var filenames = Directory.GetFiles(tmp).Select(x => Path.GetFileName(x));
+
+                    foreach (string fn in Consts.FileNames.AppRootMarkerFileNames)
                     {
-                        var fi = new FileInfo(AppRealProcessExeFileName);
-                        if (fi.Length >= 50_000_000)
+                        if (filenames.Where(x => (IgnoreCaseTrim)x == fn).Any())
                         {
-                            // EXE ファイルのサイズが 50MB を超えている。これはきっと、 PublishSingleFile で生成されたファイルに違いない。
-                            // .NET Core 3.1 では、これくらいしか 見分ける方法がありません !!
-                            // https://github.com/dotnet/runtime/issues/13481
-                            isSingleFileBinary = true;
+                            found = true;
+                            break;
                         }
-                    }
-                    catch { }
-                }
 
-                if (isSingleFileBinary)
-                {
-                    // dotnet publish で -p:PublishSingleFile=true で生成されたファイルである。
-                    // この場合、AppExecutableExeOrDllFileDir は一時ディレクトリを指しているので、
-                    // AppRootDir は代わりに EXE ファイルのある本物のディレクトリを指すようにする。
-                    AppRootDir = tmp = Path.GetDirectoryName(AppRealProcessExeFileName) ?? AppRootDir;
-                }
-
-                IEnumerable<string> markerFiles = Env.IsHostedByDotNetProcess ? Consts.FileNames.AppRootMarkerFileNames : Consts.FileNames.AppRootMarkerFileNamesForBinary;
-
-                while (true)
-                {
-                    try
-                    {
-                        bool found = false;
-
-                        var filenames = Directory.GetFiles(tmp).Select(x => Path.GetFileName(x));
-
-                        foreach (string fn in Consts.FileNames.AppRootMarkerFileNames)
+                        if (fn.StartsWith("."))
                         {
-                            if (filenames.Where(x => (IgnoreCaseTrim)x == fn).Any())
+                            if (filenames.Where(x => x.EndsWith(fn, StringComparison.OrdinalIgnoreCase)).Any())
                             {
                                 found = true;
                                 break;
                             }
-
-                            if (fn.StartsWith("."))
-                            {
-                                if (filenames.Where(x => x.EndsWith(fn, StringComparison.OrdinalIgnoreCase)).Any())
-                                {
-                                    found = true;
-                                    break;
-                                }
-                            }
                         }
-
-                        if (found)
-                        {
-                            AppRootDir = tmp;
-                            break;
-                        }
-                        tmp = Path.GetDirectoryName(tmp)!;
                     }
-                    catch
+
+                    if (found)
                     {
+                        AppRootDir = tmp;
                         break;
                     }
+                    tmp = Path.GetDirectoryName(tmp)!;
                 }
+                catch
+                {
+                    break;
+                }
+            }
+        }
+        else
+        {
+            AppExecutableExeOrDllFileName = "/tmp/dummyexe";
+            AppExecutableExeOrDllFileDir = "/tmp";
+            AppRootDir = IO.RemoveLastEnMark(Environment.CurrentDirectory);
+        }
+
+        if (CoresLib.Caps.Bit(CoresCaps.BlazorApp))
+        {
+            AppExecutableExeOrDllFileName = Consts.BlazorApp.DummyImageFileName;
+            AppExecutableExeOrDllFileDir = Consts.BlazorApp.DummyImageDirName;
+            AppRootDir = Consts.BlazorApp.DummyImageDirName;
+        }
+
+        HomeDir = IO.RemoveLastEnMark(Kernel.GetEnvStr("HOME"));
+        if (Str.IsEmptyStr(HomeDir))
+        {
+            HomeDir = IO.RemoveLastEnMark(Kernel.GetEnvStr("HOMEDRIVE") + Kernel.GetEnvStr("HOMEPATH"));
+        }
+        if (Str.IsEmptyStr(HomeDir) == false)
+        {
+            UnixMutantDir = Path.Combine(HomeDir, ".dotnet_temp/.Cores.NET.Mutex");
+        }
+        else
+        {
+            HomeDir = AppRootDir;
+            if (IsUnix)
+            {
+                UnixMutantDir = Path.Combine("/tmp", ".dotnet_temp/.Cores.NET.Mutex");
+            }
+        }
+        if (IsWindows) UnixMutantDir = "";
+        if (Str.IsEmptyStr(UnixMutantDir) == false)
+        {
+            IO.MakeDirIfNotExists(UnixMutantDir);
+        }
+        if (IsWindows)
+        {
+            // Windows
+            Win32_SystemDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.System));
+            Win32_WindowsDir = IO.RemoveLastEnMark(Path.GetDirectoryName(Win32_SystemDir)!);
+            TempDir = IO.RemoveLastEnMark(Path.GetTempPath());
+            Win32_WinTempDir = IO.RemoveLastEnMark(Path.Combine(Win32_WindowsDir, "Temp"));
+            IO.MakeDir(Win32_WinTempDir);
+            if (Win32_WindowsDir.Length >= 2 && Win32_WindowsDir[1] == ':')
+            {
+                Win32_WindowsDir = Win32_WindowsDir.Substring(0, 2).ToUpper();
             }
             else
             {
-                AppExecutableExeOrDllFileName = "/tmp/dummyexe";
-                AppExecutableExeOrDllFileDir = "/tmp";
-                AppRootDir = IO.RemoveLastEnMark(Environment.CurrentDirectory);
+                Win32_WindowsDrive = "C:";
             }
-
-            if (CoresLib.Caps.Bit(CoresCaps.BlazorApp))
-            {
-                AppExecutableExeOrDllFileName = Consts.BlazorApp.DummyImageFileName;
-                AppExecutableExeOrDllFileDir = Consts.BlazorApp.DummyImageDirName;
-                AppRootDir = Consts.BlazorApp.DummyImageDirName;
-            }
-
-            HomeDir = IO.RemoveLastEnMark(Kernel.GetEnvStr("HOME"));
-            if (Str.IsEmptyStr(HomeDir))
-            {
-                HomeDir = IO.RemoveLastEnMark(Kernel.GetEnvStr("HOMEDRIVE") + Kernel.GetEnvStr("HOMEPATH"));
-            }
+        }
+        else
+        {
+            // UNIX
+            Win32_SystemDir = "/bin";
+            Win32_WindowsDir = "/bin";
+            Win32_WindowsDrive = "/";
             if (Str.IsEmptyStr(HomeDir) == false)
             {
-                UnixMutantDir = Path.Combine(HomeDir, ".dotnet_temp/.Cores.NET.Mutex");
+                TempDir = Path.Combine(HomeDir, ".dotnet_temp/.Cores.NET.PerProcess.Temp");
             }
             else
             {
-                HomeDir = AppRootDir;
-                if (IsUnix)
-                {
-                    UnixMutantDir = Path.Combine("/tmp", ".dotnet_temp/.Cores.NET.Mutex");
-                }
+                TempDir = "/tmp";
             }
-            if (IsWindows) UnixMutantDir = "";
-            if (Str.IsEmptyStr(UnixMutantDir) == false)
-            {
-                IO.MakeDirIfNotExists(UnixMutantDir);
-            }
-            if (IsWindows)
-            {
-                // Windows
-                Win32_SystemDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.System));
-                Win32_WindowsDir = IO.RemoveLastEnMark(Path.GetDirectoryName(Win32_SystemDir)!);
-                TempDir = IO.RemoveLastEnMark(Path.GetTempPath());
-                Win32_WinTempDir = IO.RemoveLastEnMark(Path.Combine(Win32_WindowsDir, "Temp"));
-                IO.MakeDir(Win32_WinTempDir);
-                if (Win32_WindowsDir.Length >= 2 && Win32_WindowsDir[1] == ':')
-                {
-                    Win32_WindowsDir = Win32_WindowsDir.Substring(0, 2).ToUpper();
-                }
-                else
-                {
-                    Win32_WindowsDrive = "C:";
-                }
-            }
-            else
-            {
-                // UNIX
-                Win32_SystemDir = "/bin";
-                Win32_WindowsDir = "/bin";
-                Win32_WindowsDrive = "/";
-                if (Str.IsEmptyStr(HomeDir) == false)
-                {
-                    TempDir = Path.Combine(HomeDir, ".dotnet_temp/.Cores.NET.PerProcess.Temp");
-                }
-                else
-                {
-                    TempDir = "/tmp";
-                }
-                Win32_WinTempDir = TempDir;
-            }
-            FilePathStringComparer = StrComparer.Get(!Env.IgnoreCaseInFileSystem);
-            Win32_ProgramFilesDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
-            Win32_PersonalStartMenuDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu));
-            Win32_PersonalProgramsDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.Programs));
-            Win32_PersonalStartupDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.Startup));
-            Win32_PersonalAppDataDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
-            Win32_PersonalDesktopDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
-            Win32_MyDocumentsDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
-            Win32_LocalAppDataDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
-            if (IsUnix)
-            {
-                // ダミーディレクトリ
-                Win32_SystemDir = "/bin";
-                Win32_WindowsDir = "/bin";
-                Win32_WindowsDrive = "/";
-                Win32_ProgramFilesDir = "/bin";
-                Win32_PersonalStartMenuDir = Path.Combine(HomeDir, "dummy/starmenu");
-                Win32_PersonalProgramsDir = Path.Combine(HomeDir, "dummy/starmenu/programs");
-                Win32_PersonalStartupDir = Path.Combine(HomeDir, "dummy/starmenu/startup");
-                Win32_LocalAppDataDir = Win32_PersonalAppDataDir = Path.Combine(HomeDir, ".dnappdata");
-                Win32_PersonalDesktopDir = Path.Combine(HomeDir, "dummy/desktop");
-                Win32_MyDocumentsDir = HomeDir;
-            }
-            StartupCurrentDir = CurrentDir;
-            UserName = Environment.UserName;
-            try
-            {
-                UserNameEx = Environment.UserDomainName + "\\" + UserName;
-            }
-            catch
-            {
-                UserNameEx = UserName;
-            }
-            MachineName = Environment.MachineName;
-
-            CommandLine = initCommandLine(Environment.CommandLine);
-
-            IsLittleEndian = BitConverter.IsLittleEndian;
-            ProcessId = System.Diagnostics.Process.GetCurrentProcess().Id;
-            IsAdmin = CheckIsAdmin();
-
-            if (IsUnix)
-            {
-                MutantUnixImpl.DeleteUnusedMutantFiles();
-            }
+            Win32_WinTempDir = TempDir;
         }
-
-        public static string MyLocalTempDir => CoresLocalDirs.MyLocalTempDir;
-
-        // 現在のユーザーが管理者権限を有するかどうか確認をする
-        static bool CheckIsAdmin()
+        FilePathStringComparer = StrComparer.Get(!Env.IgnoreCaseInFileSystem);
+        Win32_ProgramFilesDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
+        Win32_PersonalStartMenuDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu));
+        Win32_PersonalProgramsDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.Programs));
+        Win32_PersonalStartupDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.Startup));
+        Win32_PersonalAppDataDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
+        Win32_PersonalDesktopDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
+        Win32_MyDocumentsDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
+        Win32_LocalAppDataDir = IO.RemoveLastEnMark(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
+        if (IsUnix)
         {
-            if (Env.IsUnix == false)
-            {
-                // Windows
-                return Win32ApiUtil.IsUserAnAdmin();
-            }
-            else
-            {
-                // Unix: 現在のユーザー名が「root」であるかどうかで判別をする
-                return Env.UserName._IsSamei(Consts.Strings.RootUsername);
-            }
+            // ダミーディレクトリ
+            Win32_SystemDir = "/bin";
+            Win32_WindowsDir = "/bin";
+            Win32_WindowsDrive = "/";
+            Win32_ProgramFilesDir = "/bin";
+            Win32_PersonalStartMenuDir = Path.Combine(HomeDir, "dummy/starmenu");
+            Win32_PersonalProgramsDir = Path.Combine(HomeDir, "dummy/starmenu/programs");
+            Win32_PersonalStartupDir = Path.Combine(HomeDir, "dummy/starmenu/startup");
+            Win32_LocalAppDataDir = Win32_PersonalAppDataDir = Path.Combine(HomeDir, ".dnappdata");
+            Win32_PersonalDesktopDir = Path.Combine(HomeDir, "dummy/desktop");
+            Win32_MyDocumentsDir = HomeDir;
         }
-
-        internal static void _SetCommandLineInternal(string cmdLine)
+        StartupCurrentDir = CurrentDir;
+        UserName = Environment.UserName;
+        try
         {
-            Env.CommandLine = cmdLine;
+            UserNameEx = Environment.UserDomainName + "\\" + UserName;
         }
-
-        static string initCommandLine(string src)
+        catch
         {
-            try
-            {
-                int i;
-                // 実行可能ファイル本体の部分を除去する
-                if (src.Length >= 1 && src[0] == '\"')
-                {
-                    i = src.IndexOf('\"', 1);
-                }
-                else
-                {
-                    i = src.IndexOf(' ');
-                }
-
-                if (i == -1)
-                {
-                    return "";
-                }
-                else
-                {
-                    return src.Substring(i + 1).TrimStart(' ');
-                }
-            }
-            catch
-            {
-                return "";
-            }
+            UserNameEx = UserName;
         }
+        MachineName = Environment.MachineName;
 
-        static string GetBuildConfigurationNameInternal()
+        CommandLine = initCommandLine(Environment.CommandLine);
+
+        IsLittleEndian = BitConverter.IsLittleEndian;
+        ProcessId = System.Diagnostics.Process.GetCurrentProcess().Id;
+        IsAdmin = CheckIsAdmin();
+
+        if (IsUnix)
         {
-            if (CoresLib.Caps.Bit(CoresCaps.BlazorApp))
-            {
-                return Consts.BlazorApp.DummyBuildConfigurationName;
-            }
-
-            Assembly mainAssembly = Assembly.GetEntryAssembly()!;
-            return (string)mainAssembly.CustomAttributes.Where(x => x.AttributeType == typeof(AssemblyConfigurationAttribute))
-                .First()
-                .ConstructorArguments[0].Value!;
-        }
-
-#pragma warning disable IL3002 // Using member 'System.Reflection.Module.FullyQualifiedName' which has 'RequiresAssemblyFilesAttribute' can break functionality when embedded in a single-file app. Returns <Unknown> for modules with no file path.
-        static string GetAppExeOrDllImageFilePathInternal()
-        {
-            if (CoresLib.Caps.Bit(CoresCaps.BlazorApp))
-            {
-                return Consts.BlazorApp.DummyImageFileName;
-            }
-
-            Assembly mainAssembly = Assembly.GetEntryAssembly()!;
-            Module[] modules = mainAssembly.GetModules();
-            return modules[0].FullyQualifiedName;
-        }
-#pragma warning restore IL3002 // Using member 'System.Reflection.Module.FullyQualifiedName' which has 'RequiresAssemblyFilesAttribute' can break functionality when embedded in a single-file app. Returns <Unknown> for modules with no file path.
-
-        static string GetAppRealProcessExeFileNameInternal()
-        {
-            try
-            {
-                Process myProcess = Process.GetCurrentProcess();
-
-                Process myProcess2 = Process.GetProcessById(myProcess.Id);
-
-                return myProcess2.MainModule!.FileName!;
-            }
-            catch
-            {
-                throw new SystemException("GetAppRealProcessExeFileNameInternal: Failed to obtain the path.");
-            }
-        }
-
-        // 初期化の必要のないプロパティ値
-        static public string CurrentDir => IO.RemoveLastEnMark(Environment.CurrentDirectory);
-        static public string NewLine => Environment.NewLine;
-
-        public static void PutGitIgnoreFileOnAppLocalDirectory()
-        {
-            Util.PutGitIgnoreFileOnDirectory(Lfs.PathParser.Combine(Env.AppLocalDir));
-        }
-
-        public static KeyValueList<string, string> GetCoresEnvValuesList()
-        {
-            KeyValueList<string, string> vals = new KeyValueList<string, string>();
-
-            vals.Add("BuildConfigurationName", Env.BuildConfigurationName);
-            vals.Add("FrameworkInfoString", Env.FrameworkInfoString);
-            vals.Add("OsInfoString", Env.OsInfoString);
-            vals.Add("CpuInfo", Env.CpuInfo.ToString());
-            vals.Add("NumCpus", Env.NumCpus.ToString());
-            vals.Add("UserNameEx", Env.UserNameEx);
-            vals.Add("MachineName", Env.MachineName);
-            vals.Add("IsWindows", Env.IsWindows.ToString());
-            vals.Add("IsUnix", Env.IsUnix.ToString());
-            vals.Add("IsMac", Env.IsMac.ToString());
-            vals.Add("Is64BitProcess", Env.Is64BitProcess.ToString());
-            vals.Add("IsWow64", Env.IsWow64.ToString());
-            vals.Add("IsUnix", Env.IsUnix.ToString());
-            vals.Add("IsHostedByDotNetProcess", Env.IsHostedByDotNetProcess.ToString());
-            vals.Add("GcMode", Env.GcMode.ToString());
-            vals.Add("GcCompactionMode", Env.GcCompactionMode.ToString());
-            vals.Add("GcLatencyMode", Env.GcLatencyMode.ToString());
-            vals.Add("AppRealProcessExeFileName", Env.AppRealProcessExeFileName);
-            vals.Add("AppExecutableExeOrDllFileName", Env.AppExecutableExeOrDllFileName);
-            vals.Add("AppExecutableExeOrDllFileDir", Env.AppExecutableExeOrDllFileDir);
-            vals.Add("AppRootDir", Env.AppRootDir);
-
-            ThreadPool.GetMinThreads(out int minWorkerThreads, out int minCompletionPortThreads);
-            ThreadPool.GetMaxThreads(out int maxWorkerThreads, out int maxCompletionPortThreads);
-
-            vals.Add("MinThreads", $"WorkerThreads = {minWorkerThreads}, CompletionPortThreads = {minCompletionPortThreads}");
-            vals.Add("MaxThreads", $"WorkerThreads = {maxWorkerThreads}, CompletionPortThreads = {maxCompletionPortThreads}");
-
-            return vals;
+            MutantUnixImpl.DeleteUnusedMutantFiles();
         }
     }
 
-    public static class CoresLocalDirs
+    public static string MyLocalTempDir => CoresLocalDirs.MyLocalTempDir;
+
+    // 現在のユーザーが管理者権限を有するかどうか確認をする
+    static bool CheckIsAdmin()
     {
-        static readonly CriticalSection MyLocalTempDirInitLock = new CriticalSection();
-        public static readonly StaticModule Module = new StaticModule(InitModule, FreeModule);
-
-        static string _MyLocalTempDir = "";
-
-        public static string AppLocalDir { get; private set; } = "";
-        public static string AppRootLocalTempDirRoot_Internal { get; private set; } = "";
-        public static string MyGlobalTempDir { get; private set; } = "";
-
-        static string LocalDir = "";
-
-        static void InitModule()
+        if (Env.IsUnix == false)
         {
-            string dirPrefix = "App";
+            // Windows
+            return Win32ApiUtil.IsUserAnAdmin();
+        }
+        else
+        {
+            // Unix: 現在のユーザー名が「root」であるかどうかで判別をする
+            return Env.UserName._IsSamei(Consts.Strings.RootUsername);
+        }
+    }
 
-            if (CoresLib.Mode == CoresMode.Library) dirPrefix = "Lib";
+    internal static void _SetCommandLineInternal(string cmdLine)
+    {
+        Env.CommandLine = cmdLine;
+    }
 
-            LocalDir = Path.Combine(Env.AppRootDir, "Local");
-
-            AppLocalDir = Path.Combine(LocalDir, $"{dirPrefix}_{CoresLib.AppNameFnSafe}");
-
-            AppRootLocalTempDirRoot_Internal = Path.Combine(AppLocalDir, "Temp");
-
-            _MyLocalTempDir = "";
-
-            if (CoresLib.Caps.Bit(CoresCaps.BlazorApp) == false)
+    static string initCommandLine(string src)
+    {
+        try
+        {
+            int i;
+            // 実行可能ファイル本体の部分を除去する
+            if (src.Length >= 1 && src[0] == '\"')
             {
-                // Global app temp dir
-                if (MyGlobalTempDir._IsEmpty())
-                {
-                    SystemUniqueDirectoryProvider myGlobalTempDirProvider = new SystemUniqueDirectoryProvider(Path.Combine(Env.TempDir, "Cores.NET.Temp"), $"{dirPrefix}_{CoresLib.AppNameFnSafe}");
-                    MyGlobalTempDir = myGlobalTempDirProvider.CurrentDirPath;
-                }
+                i = src.IndexOf('\"', 1);
+            }
+            else
+            {
+                i = src.IndexOf(' ');
+            }
+
+            if (i == -1)
+            {
+                return "";
+            }
+            else
+            {
+                return src.Substring(i + 1).TrimStart(' ');
             }
         }
-
-        public static void CreateLocalDirGitIgnore()
+        catch
         {
-            Util.PutGitIgnoreFileOnDirectory(LocalDir);
+            return "";
+        }
+    }
+
+    static string GetBuildConfigurationNameInternal()
+    {
+        if (CoresLib.Caps.Bit(CoresCaps.BlazorApp))
+        {
+            return Consts.BlazorApp.DummyBuildConfigurationName;
         }
 
-        static void FreeModule()
+        Assembly mainAssembly = Assembly.GetEntryAssembly()!;
+        return (string)mainAssembly.CustomAttributes.Where(x => x.AttributeType == typeof(AssemblyConfigurationAttribute))
+            .First()
+            .ConstructorArguments[0].Value!;
+    }
+
+#pragma warning disable IL3002 // Using member 'System.Reflection.Module.FullyQualifiedName' which has 'RequiresAssemblyFilesAttribute' can break functionality when embedded in a single-file app. Returns <Unknown> for modules with no file path.
+    static string GetAppExeOrDllImageFilePathInternal()
+    {
+        if (CoresLib.Caps.Bit(CoresCaps.BlazorApp))
         {
+            return Consts.BlazorApp.DummyImageFileName;
         }
 
-        public static string MyLocalTempDir
+        Assembly mainAssembly = Assembly.GetEntryAssembly()!;
+        Module[] modules = mainAssembly.GetModules();
+        return modules[0].FullyQualifiedName;
+    }
+#pragma warning restore IL3002 // Using member 'System.Reflection.Module.FullyQualifiedName' which has 'RequiresAssemblyFilesAttribute' can break functionality when embedded in a single-file app. Returns <Unknown> for modules with no file path.
+
+    static string GetAppRealProcessExeFileNameInternal()
+    {
+        try
         {
-            get
+            Process myProcess = Process.GetCurrentProcess();
+
+            Process myProcess2 = Process.GetProcessById(myProcess.Id);
+
+            return myProcess2.MainModule!.FileName!;
+        }
+        catch
+        {
+            throw new SystemException("GetAppRealProcessExeFileNameInternal: Failed to obtain the path.");
+        }
+    }
+
+    // 初期化の必要のないプロパティ値
+    static public string CurrentDir => IO.RemoveLastEnMark(Environment.CurrentDirectory);
+    static public string NewLine => Environment.NewLine;
+
+    public static void PutGitIgnoreFileOnAppLocalDirectory()
+    {
+        Util.PutGitIgnoreFileOnDirectory(Lfs.PathParser.Combine(Env.AppLocalDir));
+    }
+
+    public static KeyValueList<string, string> GetCoresEnvValuesList()
+    {
+        KeyValueList<string, string> vals = new KeyValueList<string, string>();
+
+        vals.Add("BuildConfigurationName", Env.BuildConfigurationName);
+        vals.Add("FrameworkInfoString", Env.FrameworkInfoString);
+        vals.Add("OsInfoString", Env.OsInfoString);
+        vals.Add("CpuInfo", Env.CpuInfo.ToString());
+        vals.Add("NumCpus", Env.NumCpus.ToString());
+        vals.Add("UserNameEx", Env.UserNameEx);
+        vals.Add("MachineName", Env.MachineName);
+        vals.Add("IsWindows", Env.IsWindows.ToString());
+        vals.Add("IsUnix", Env.IsUnix.ToString());
+        vals.Add("IsMac", Env.IsMac.ToString());
+        vals.Add("Is64BitProcess", Env.Is64BitProcess.ToString());
+        vals.Add("IsWow64", Env.IsWow64.ToString());
+        vals.Add("IsUnix", Env.IsUnix.ToString());
+        vals.Add("IsHostedByDotNetProcess", Env.IsHostedByDotNetProcess.ToString());
+        vals.Add("GcMode", Env.GcMode.ToString());
+        vals.Add("GcCompactionMode", Env.GcCompactionMode.ToString());
+        vals.Add("GcLatencyMode", Env.GcLatencyMode.ToString());
+        vals.Add("AppRealProcessExeFileName", Env.AppRealProcessExeFileName);
+        vals.Add("AppExecutableExeOrDllFileName", Env.AppExecutableExeOrDllFileName);
+        vals.Add("AppExecutableExeOrDllFileDir", Env.AppExecutableExeOrDllFileDir);
+        vals.Add("AppRootDir", Env.AppRootDir);
+
+        ThreadPool.GetMinThreads(out int minWorkerThreads, out int minCompletionPortThreads);
+        ThreadPool.GetMaxThreads(out int maxWorkerThreads, out int maxCompletionPortThreads);
+
+        vals.Add("MinThreads", $"WorkerThreads = {minWorkerThreads}, CompletionPortThreads = {minCompletionPortThreads}");
+        vals.Add("MaxThreads", $"WorkerThreads = {maxWorkerThreads}, CompletionPortThreads = {maxCompletionPortThreads}");
+
+        return vals;
+    }
+}
+
+public static class CoresLocalDirs
+{
+    static readonly CriticalSection MyLocalTempDirInitLock = new CriticalSection();
+    public static readonly StaticModule Module = new StaticModule(InitModule, FreeModule);
+
+    static string _MyLocalTempDir = "";
+
+    public static string AppLocalDir { get; private set; } = "";
+    public static string AppRootLocalTempDirRoot_Internal { get; private set; } = "";
+    public static string MyGlobalTempDir { get; private set; } = "";
+
+    static string LocalDir = "";
+
+    static void InitModule()
+    {
+        string dirPrefix = "App";
+
+        if (CoresLib.Mode == CoresMode.Library) dirPrefix = "Lib";
+
+        LocalDir = Path.Combine(Env.AppRootDir, "Local");
+
+        AppLocalDir = Path.Combine(LocalDir, $"{dirPrefix}_{CoresLib.AppNameFnSafe}");
+
+        AppRootLocalTempDirRoot_Internal = Path.Combine(AppLocalDir, "Temp");
+
+        _MyLocalTempDir = "";
+
+        if (CoresLib.Caps.Bit(CoresCaps.BlazorApp) == false)
+        {
+            // Global app temp dir
+            if (MyGlobalTempDir._IsEmpty())
             {
-                if (_MyLocalTempDir._IsFilled()) return _MyLocalTempDir;
+                SystemUniqueDirectoryProvider myGlobalTempDirProvider = new SystemUniqueDirectoryProvider(Path.Combine(Env.TempDir, "Cores.NET.Temp"), $"{dirPrefix}_{CoresLib.AppNameFnSafe}");
+                MyGlobalTempDir = myGlobalTempDirProvider.CurrentDirPath;
+            }
+        }
+    }
 
-                lock (MyLocalTempDirInitLock)
+    public static void CreateLocalDirGitIgnore()
+    {
+        Util.PutGitIgnoreFileOnDirectory(LocalDir);
+    }
+
+    static void FreeModule()
+    {
+    }
+
+    public static string MyLocalTempDir
+    {
+        get
+        {
+            if (_MyLocalTempDir._IsFilled()) return _MyLocalTempDir;
+
+            lock (MyLocalTempDirInitLock)
+            {
+                if (_MyLocalTempDir._IsEmpty())
                 {
-                    if (_MyLocalTempDir._IsEmpty())
-                    {
-                        // Local app temp dir
-                        SystemUniqueDirectoryProvider myLocalTempDirProvider = new SystemUniqueDirectoryProvider(AppRootLocalTempDirRoot_Internal, CoresLib.AppNameFnSafe);
-                        _MyLocalTempDir = myLocalTempDirProvider.CurrentDirPath;
+                    // Local app temp dir
+                    SystemUniqueDirectoryProvider myLocalTempDirProvider = new SystemUniqueDirectoryProvider(AppRootLocalTempDirRoot_Internal, CoresLib.AppNameFnSafe);
+                    _MyLocalTempDir = myLocalTempDirProvider.CurrentDirPath;
 
-                        Env.PutGitIgnoreFileOnAppLocalDirectory();
-                    }
-
-                    return _MyLocalTempDir;
+                    Env.PutGitIgnoreFileOnAppLocalDirectory();
                 }
+
+                return _MyLocalTempDir;
             }
         }
     }

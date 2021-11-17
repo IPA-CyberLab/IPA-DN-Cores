@@ -57,222 +57,221 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using Microsoft.Extensions.FileProviders;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public class Win32LocalRawDiskVfsFile : RawDiskFileSystemBasedVfsFile
 {
-    public class Win32LocalRawDiskVfsFile : RawDiskFileSystemBasedVfsFile
+    public Win32LocalRawDiskVfsFile(LocalRawDiskFileSystem fileSystem, RawDiskItemData itemData) : base(fileSystem, itemData)
     {
-        public Win32LocalRawDiskVfsFile(LocalRawDiskFileSystem fileSystem, RawDiskItemData itemData) : base(fileSystem, itemData)
-        {
-        }
+    }
 
-        public override long Size { get => this.ItemData.Length; protected set => throw new NotImplementedException(); }
-        public override long PhysicalSize { get => this.ItemData.Length; protected set => throw new NotImplementedException(); }
-        public override string Name { get => this.ItemData.Name; protected set => throw new NotImplementedException(); }
-        public override FileAttributes Attributes { get => FileAttributes.Normal; protected set => throw new NotImplementedException(); }
-        public override DateTimeOffset CreationTime { get => DateTimeOffset.Now; protected set => throw new NotImplementedException(); }
-        public override DateTimeOffset LastWriteTime { get => DateTimeOffset.Now; protected set => throw new NotImplementedException(); }
-        public override DateTimeOffset LastAccessTime { get => DateTimeOffset.Now; protected set => throw new NotImplementedException(); }
+    public override long Size { get => this.ItemData.Length; protected set => throw new NotImplementedException(); }
+    public override long PhysicalSize { get => this.ItemData.Length; protected set => throw new NotImplementedException(); }
+    public override string Name { get => this.ItemData.Name; protected set => throw new NotImplementedException(); }
+    public override FileAttributes Attributes { get => FileAttributes.Normal; protected set => throw new NotImplementedException(); }
+    public override DateTimeOffset CreationTime { get => DateTimeOffset.Now; protected set => throw new NotImplementedException(); }
+    public override DateTimeOffset LastWriteTime { get => DateTimeOffset.Now; protected set => throw new NotImplementedException(); }
+    public override DateTimeOffset LastAccessTime { get => DateTimeOffset.Now; protected set => throw new NotImplementedException(); }
 
-        public override async Task<FileObject> OpenAsync(FileParameters option, string fullPath, CancellationToken cancel = default)
+    public override async Task<FileObject> OpenAsync(FileParameters option, string fullPath, CancellationToken cancel = default)
+    {
+        FileStream fs = PalWin32FileStream.Create(this.ItemData.RawPath, option.Mode, option.Access, option.Share, 4096, FileOptions.None);
+
+        try
         {
-            FileStream fs = PalWin32FileStream.Create(this.ItemData.RawPath, option.Mode, option.Access, option.Share, 4096, FileOptions.None);
+            var geometry = await Win32ApiUtil.DiskGetDriveGeometryAsync(fs.SafeFileHandle, this.ItemData.RawPath, cancel);
+
+            var randomAccess = new SeekableStreamBasedRandomAccess(fs, autoDisposeBase: true, fixedFileSize: geometry.DiskSize);
 
             try
             {
-                var geometry = await Win32ApiUtil.DiskGetDriveGeometryAsync(fs.SafeFileHandle, this.ItemData.RawPath, cancel);
-
-                var randomAccess = new SeekableStreamBasedRandomAccess(fs, autoDisposeBase: true, fixedFileSize: geometry.DiskSize);
-
-                try
-                {
-                    return new RandomAccessFileObject(this.FileSystem, option, randomAccess);
-                }
-                catch
-                {
-                    randomAccess._DisposeSafe();
-                    throw;
-                }
+                return new RandomAccessFileObject(this.FileSystem, option, randomAccess);
             }
             catch
             {
-                fs._DisposeSafe();
+                randomAccess._DisposeSafe();
                 throw;
             }
         }
-
-        protected override Task ReleaseLinkImplAsync()
+        catch
         {
-            return Task.CompletedTask;
+            fs._DisposeSafe();
+            throw;
         }
     }
 
-    public class LocalRawDiskFileSystem : RawDiskFileSystem
+    protected override Task ReleaseLinkImplAsync()
     {
-        public LocalRawDiskFileSystem(RawDiskFileSystemParams? param = null) : base(param)
+        return Task.CompletedTask;
+    }
+}
+
+public class LocalRawDiskFileSystem : RawDiskFileSystem
+{
+    public LocalRawDiskFileSystem(RawDiskFileSystemParams? param = null) : base(param)
+    {
+    }
+
+    protected override Task<RawDiskFileSystemBasedVfsFile> CreateRawDiskFileImplAsync(RawDiskItemData item, CancellationToken cancel = default)
+    {
+        var f = new Win32LocalRawDiskVfsFile(this, item);
+
+        return TR<RawDiskFileSystemBasedVfsFile>(f);
+    }
+
+    protected override async Task<IEnumerable<RawDiskItemData>> RescanRawDisksImplAsync(CancellationToken cancel = default)
+    {
+        List<RawDiskItemData> ret = new List<RawDiskItemData>();
+
+        if (Env.IsWindows)
         {
-        }
-
-        protected override Task<RawDiskFileSystemBasedVfsFile> CreateRawDiskFileImplAsync(RawDiskItemData item, CancellationToken cancel = default)
-        {
-            var f = new Win32LocalRawDiskVfsFile(this, item);
-
-            return TR<RawDiskFileSystemBasedVfsFile>(f);
-        }
-
-        protected override async Task<IEnumerable<RawDiskItemData>> RescanRawDisksImplAsync(CancellationToken cancel = default)
-        {
-            List<RawDiskItemData> ret = new List<RawDiskItemData>();
-
-            if (Env.IsWindows)
+            if (Env.IsAdmin == false)
             {
-                if (Env.IsAdmin == false)
-                {
-                    throw new CoresException("Administrator privilege is required.");
-                }
+                throw new CoresException("Administrator privilege is required.");
+            }
 
-                for (int i = 0; i < 100; i++)
-                {
-                    string name = "PhysicalDrive" + i.ToString();
-                    string rawPath = @"\\.\" + name;
+            for (int i = 0; i < 100; i++)
+            {
+                string name = "PhysicalDrive" + i.ToString();
+                string rawPath = @"\\.\" + name;
 
-                    try
+                try
+                {
+                    using (var handle = PalWin32FileStream.CreateFileOpenHandle(FileMode.Open, FileShare.ReadWrite, FileOptions.None, FileAccess.Read, rawPath))
                     {
-                        using (var handle = PalWin32FileStream.CreateFileOpenHandle(FileMode.Open, FileShare.ReadWrite, FileOptions.None, FileAccess.Read, rawPath))
+                        try
                         {
-                            try
-                            {
-                                var geometry = await Win32ApiUtil.DiskGetDriveGeometryAsync(handle, rawPath, cancel);
+                            var geometry = await Win32ApiUtil.DiskGetDriveGeometryAsync(handle, rawPath, cancel);
 
-                                RawDiskItemType type = RawDiskItemType.Unknown;
-                                if (geometry.MediaType == Win32Api.Kernel32.NativeDiskType.FixedMedia)
-                                    type = RawDiskItemType.FixedMedia;
-                                else if (geometry.MediaType == Win32Api.Kernel32.NativeDiskType.RemovableMedia)
-                                    type = RawDiskItemType.RemovableMedia;
+                            RawDiskItemType type = RawDiskItemType.Unknown;
+                            if (geometry.MediaType == Win32Api.Kernel32.NativeDiskType.FixedMedia)
+                                type = RawDiskItemType.FixedMedia;
+                            else if (geometry.MediaType == Win32Api.Kernel32.NativeDiskType.RemovableMedia)
+                                type = RawDiskItemType.RemovableMedia;
 
-                                ret.Add(new RawDiskItemData(name, rawPath, type, geometry.DiskSize));
-                            }
-                            catch
-                            { }
+                            ret.Add(new RawDiskItemData(name, rawPath, type, geometry.DiskSize));
                         }
-                    }
-                    catch
-                    {
-                    }
-                }
-            }
-            else
-            {
-                throw new PlatformNotSupportedException();
-            }
-
-            return ret;
-        }
-    }
-
-    [Flags]
-    public enum RawDiskItemType
-    {
-        Unknown = 0,
-        FixedMedia,
-        RemovableMedia,
-    }
-
-    public class RawDiskItemData
-    {
-        public string Name { get; }
-        public string RawPath { get; }
-        public RawDiskItemType Type { get; }
-        public long Length { get; }
-
-        public RawDiskItemData(string name, string rawPath, RawDiskItemType type, long length)
-        {
-            Name = name;
-            RawPath = rawPath;
-            Type = type;
-            Length = length;
-        }
-    }
-
-    public abstract class RawDiskFileSystemBasedVfsFile : VfsFile
-    {
-        protected new RawDiskFileSystem FileSystem => (RawDiskFileSystem)base.FileSystem;
-        public RawDiskItemData ItemData { get; }
-
-        public RawDiskFileSystemBasedVfsFile(RawDiskFileSystem fileSystem, RawDiskItemData itemData) : base(fileSystem)
-        {
-            this.ItemData = itemData;
-        }
-    }
-
-    public class RawDiskFileSystemParams : VirtualFileSystemParams
-    {
-        public RawDiskFileSystemParams(FileSystemMode mode = FileSystemMode.Default) : base(mode)
-        {
-        }
-    }
-
-    public abstract class RawDiskFileSystem : VirtualFileSystem
-    {
-        public new RawDiskFileSystemParams Params => (RawDiskFileSystemParams)base.Params;
-
-        readonly AsyncLock Lock = new AsyncLock();
-
-        public RawDiskFileSystem(RawDiskFileSystemParams? param = null) : base(param ?? new RawDiskFileSystemParams())
-        {
-            try
-            {
-                RescanRawDisksInternalAsync()._GetResult();
-            }
-            catch (Exception ex)
-            {
-                this._DisposeSafe(ex);
-                throw;
-            }
-        }
-
-        protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
-        {
-            await RescanRawDisksInternalAsync(cancel);
-
-            return await base.EnumDirectoryImplAsync(directoryPath, flags, cancel);
-        }
-
-        protected abstract Task<IEnumerable<RawDiskItemData>> RescanRawDisksImplAsync(CancellationToken cancel = default);
-        protected abstract Task<RawDiskFileSystemBasedVfsFile> CreateRawDiskFileImplAsync(RawDiskItemData item, CancellationToken cancel = default);
-
-        async Task RescanRawDisksInternalAsync(CancellationToken cancel = default)
-        {
-            using (await Lock.LockWithAwait(cancel))
-            {
-                FileSystemEntity[] existingFiles = await base.EnumDirectoryImplAsync("/", EnumDirectoryFlags.None, cancel);
-
-                foreach (var existingFile in existingFiles)
-                {
-                    if (existingFile.IsFile)
-                    {
-                        await base.DeleteFileImplAsync(existingFile.FullPath, cancel: cancel);
+                        catch
+                        { }
                     }
                 }
-
-                var diskItems = await RescanRawDisksImplAsync(cancel);
-
-                foreach (var item in diskItems)
+                catch
                 {
-                    if (item.Name._InStr("/") == false && item.Name._InStr(@"\") == false)
-                    {
-                        await using (this.AddFileAsync(new FileParameters("/" + item.Name, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite),
-                            async (newFilename, newFileOption, c) =>
-                            {
-                                return await CreateRawDiskFileImplAsync(item, cancel);
-                            }, noOpen: true)._GetResult())
+                }
+            }
+        }
+        else
+        {
+            throw new PlatformNotSupportedException();
+        }
+
+        return ret;
+    }
+}
+
+[Flags]
+public enum RawDiskItemType
+{
+    Unknown = 0,
+    FixedMedia,
+    RemovableMedia,
+}
+
+public class RawDiskItemData
+{
+    public string Name { get; }
+    public string RawPath { get; }
+    public RawDiskItemType Type { get; }
+    public long Length { get; }
+
+    public RawDiskItemData(string name, string rawPath, RawDiskItemType type, long length)
+    {
+        Name = name;
+        RawPath = rawPath;
+        Type = type;
+        Length = length;
+    }
+}
+
+public abstract class RawDiskFileSystemBasedVfsFile : VfsFile
+{
+    protected new RawDiskFileSystem FileSystem => (RawDiskFileSystem)base.FileSystem;
+    public RawDiskItemData ItemData { get; }
+
+    public RawDiskFileSystemBasedVfsFile(RawDiskFileSystem fileSystem, RawDiskItemData itemData) : base(fileSystem)
+    {
+        this.ItemData = itemData;
+    }
+}
+
+public class RawDiskFileSystemParams : VirtualFileSystemParams
+{
+    public RawDiskFileSystemParams(FileSystemMode mode = FileSystemMode.Default) : base(mode)
+    {
+    }
+}
+
+public abstract class RawDiskFileSystem : VirtualFileSystem
+{
+    public new RawDiskFileSystemParams Params => (RawDiskFileSystemParams)base.Params;
+
+    readonly AsyncLock Lock = new AsyncLock();
+
+    public RawDiskFileSystem(RawDiskFileSystemParams? param = null) : base(param ?? new RawDiskFileSystemParams())
+    {
+        try
+        {
+            RescanRawDisksInternalAsync()._GetResult();
+        }
+        catch (Exception ex)
+        {
+            this._DisposeSafe(ex);
+            throw;
+        }
+    }
+
+    protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
+    {
+        await RescanRawDisksInternalAsync(cancel);
+
+        return await base.EnumDirectoryImplAsync(directoryPath, flags, cancel);
+    }
+
+    protected abstract Task<IEnumerable<RawDiskItemData>> RescanRawDisksImplAsync(CancellationToken cancel = default);
+    protected abstract Task<RawDiskFileSystemBasedVfsFile> CreateRawDiskFileImplAsync(RawDiskItemData item, CancellationToken cancel = default);
+
+    async Task RescanRawDisksInternalAsync(CancellationToken cancel = default)
+    {
+        using (await Lock.LockWithAwait(cancel))
+        {
+            FileSystemEntity[] existingFiles = await base.EnumDirectoryImplAsync("/", EnumDirectoryFlags.None, cancel);
+
+            foreach (var existingFile in existingFiles)
+            {
+                if (existingFile.IsFile)
+                {
+                    await base.DeleteFileImplAsync(existingFile.FullPath, cancel: cancel);
+                }
+            }
+
+            var diskItems = await RescanRawDisksImplAsync(cancel);
+
+            foreach (var item in diskItems)
+            {
+                if (item.Name._InStr("/") == false && item.Name._InStr(@"\") == false)
+                {
+                    await using (this.AddFileAsync(new FileParameters("/" + item.Name, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite),
+                        async (newFilename, newFileOption, c) =>
                         {
-                        }
+                            return await CreateRawDiskFileImplAsync(item, cancel);
+                        }, noOpen: true)._GetResult())
+                    {
                     }
                 }
             }
         }
-
     }
+
 }
 
 #endif

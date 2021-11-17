@@ -43,58 +43,58 @@ using IPA.Cores.Basic.App.DaemonCenterLib;
 using IPA.Cores.ClientApi.GoogleApi;
 using IPA.Cores.Codes;
 
-namespace IPA.TestDev
+namespace IPA.TestDev;
+
+class StressMonServerDaemon : Daemon
 {
-    class StressMonServerDaemon : Daemon
+    IPA.Cores.Basic.StressMon.StressMonServer? host = null;
+
+    public StressMonServerDaemon() : base(new DaemonOptions("StressMonServer", "StressMonServer Service", true))
     {
-        IPA.Cores.Basic.StressMon.StressMonServer? host = null;
+    }
 
-        public StressMonServerDaemon() : base(new DaemonOptions("StressMonServer", "StressMonServer Service", true))
+    protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
+    {
+        Con.WriteLine("StressMonServerDaemon: Starting...");
+
+        host = new IPA.Cores.Basic.StressMon.StressMonServer();
+
+        await Task.CompletedTask;
+
+        try
         {
+            Con.WriteLine("StressMonServerDaemon: Started.");
         }
-
-        protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
+        catch
         {
-            Con.WriteLine("StressMonServerDaemon: Starting...");
-
-            host = new IPA.Cores.Basic.StressMon.StressMonServer();
-
-            await Task.CompletedTask;
-
-            try
-            {
-                Con.WriteLine("StressMonServerDaemon: Started.");
-            }
-            catch
-            {
-                await host._DisposeSafeAsync();
-                host = null;
-                throw;
-            }
-        }
-
-        protected override async Task StopImplAsync(object? param)
-        {
-            Con.WriteLine("StressMonServerDaemon: Stopping...");
-
-            if (host != null)
-            {
-                await host._DisposeSafeAsync();
-
-                host = null;
-            }
-
-            Con.WriteLine("StressMonServerDaemon: Stopped.");
+            await host._DisposeSafeAsync();
+            host = null;
+            throw;
         }
     }
 
-    partial class TestDevCommands
+    protected override async Task StopImplAsync(object? param)
     {
-        [ConsoleCommand(
-            "Start or stop the StressMonServerDaemon daemon",
-            "StressMonServerDaemon [command]",
-            "Start or stop the StressMonServerDaemon daemon",
-            @"[command]:The control command.
+        Con.WriteLine("StressMonServerDaemon: Stopping...");
+
+        if (host != null)
+        {
+            await host._DisposeSafeAsync();
+
+            host = null;
+        }
+
+        Con.WriteLine("StressMonServerDaemon: Stopped.");
+    }
+}
+
+partial class TestDevCommands
+{
+    [ConsoleCommand(
+        "Start or stop the StressMonServerDaemon daemon",
+        "StressMonServerDaemon [command]",
+        "Start or stop the StressMonServerDaemon daemon",
+        @"[command]:The control command.
 
 [UNIX / Windows common commands]
 start        - Start the daemon in the background mode.
@@ -107,147 +107,147 @@ winstart     - Start the daemon as a Windows service.
 winstop      - Stop the running daemon as a Windows service.
 wininstall   - Install the daemon as a Windows service.
 winuninstall - Uninstall the daemon as a Windows service.")]
-        static int StressMonServerDaemon(ConsoleService c, string cmdName, string str)
-        {
-            return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new StressMonServerDaemon(), new DaemonSettings());
-        }
-
+    static int StressMonServerDaemon(ConsoleService c, string cmdName, string str)
+    {
+        return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new StressMonServerDaemon(), new DaemonSettings());
     }
 
+}
 
-    public class GmapPhoto
+
+public class GmapPhoto
+{
+    public DateTimeOffset TimeStamp { get; private set; }
+    public int Zoom { get; }
+    public int X { get; }
+    public int Y { get; }
+    public string AccessUrl { get; }
+    public byte[] PhotoData { get; private set; } = new byte[0];
+    public SimpleHttpDownloaderResult? HttpAccessLog { get; private set; } = null;
+
+    [JsonIgnore]
+    public GmapPhotoKey PhotoKey { get; }
+
+    public GmapPhoto(GmapPhotoKey key, int x, int y, int zoom)
     {
-        public DateTimeOffset TimeStamp { get; private set; }
-        public int Zoom { get; }
-        public int X { get; }
-        public int Y { get; }
-        public string AccessUrl { get; }
-        public byte[] PhotoData { get; private set; } = new byte[0];
-        public SimpleHttpDownloaderResult? HttpAccessLog { get; private set; } = null;
-
-        [JsonIgnore]
-        public GmapPhotoKey PhotoKey { get; }
-
-        public GmapPhoto(GmapPhotoKey key, int x, int y, int zoom)
-        {
-            this.PhotoKey = key;
-            this.X = x;
-            this.Y = y;
-            this.Zoom = zoom;
-            this.AccessUrl = $"https://streetviewpixels-pa.googleapis.com/v1/tile?cb_client=maps_sv.tactile&panoid={key}&x={x}&y={y}&zoom={zoom}";
-        }
-
-        public async Task<bool> GmapDownloadStreetViewPhotoCoreAsync(CancellationToken cancel = default)
-        {
-            this.PhotoData = new byte[0];
-            this.TimeStamp = DtOffsetNow;
-
-            try
-            {
-                return await RetryHelper.RunAsync(async () =>
-                {
-                    using var http = new WebApi();
-
-                    string url = $"https://streetviewpixels-pa.googleapis.com/v1/tile?cb_client=maps_sv.tactile&panoid={this.PhotoKey.Key}&x={this.X}&y={this.Y}&zoom={this.Zoom}";
-
-                    this.PhotoKey.Point.WriteLog($"Google Street View 写真キー '{this.PhotoKey.Key}' を、パラメータ zoom = {this.Zoom}, x = {this.X}, y = {this.Y} で取得するための URL を組み立てた。URL は、'{url}' である。この URL からの取得を開始する。");
-
-                    var downloadResult = await SimpleHttpDownloader.DownloadAsync(url, printStatus: true, cancel: cancel);
-
-                    if (downloadResult.Data.Length <= 2000)
-                    {
-                        this.PhotoKey.Point.WriteLog($"上記 URL からのデータは受信できたが、サイズは 2,000 バイト以下であった。おそらく、このパラメータ zoom = {this.Zoom}, x = {this.X}, y = {this.Y} の画像は、Google 社のサーバーには、存在しないのであろう。");
-                        return false;
-                    }
-
-                    this.PhotoData = downloadResult.Data.ToArray();
-                    this.HttpAccessLog = downloadResult;
-
-                    this.PhotoKey.Point.WriteLog($"上記 URL からの画像データの受信に成功した。サイズ: {this.PhotoData.Length._ToString3()} bytes");
-
-                    return true;
-                },
-                retryInterval: 300,
-                tryCount: 3,
-                cancel);
-            }
-            catch (Exception ex)
-            {
-                ex._Debug();
-
-                this.PhotoKey.Point.WriteLog($"予期しない HTTP エラーが発生した。詳細: {ex.ToString()}");
-
-                return false;
-            }
-        }
+        this.PhotoKey = key;
+        this.X = x;
+        this.Y = y;
+        this.Zoom = zoom;
+        this.AccessUrl = $"https://streetviewpixels-pa.googleapis.com/v1/tile?cb_client=maps_sv.tactile&panoid={key}&x={x}&y={y}&zoom={zoom}";
     }
 
-    public class GmapPhotoKey
+    public async Task<bool> GmapDownloadStreetViewPhotoCoreAsync(CancellationToken cancel = default)
     {
-        public string Key { get; }
-        public List<GmapPhoto> ObtainedPhotoList { get; private set; } = new List<GmapPhoto>();
-        public int MaxZoom { get; }
+        this.PhotoData = new byte[0];
+        this.TimeStamp = DtOffsetNow;
 
-        [JsonIgnore]
-        public GmapPoint Point { get; }
-
-        public GmapPhotoKey(GmapPoint point, string key, int maxZoom = 5)
+        try
         {
-            this.Key = key;
-            this.Point = point;
-            this.MaxZoom = Math.Max(Math.Min(maxZoom, 5), 0);
-        }
-
-        public async Task GmapDownloadStreetViewAllPhotosAsync(CancellationToken cancel = default)
-        {
-            using var http = new WebApi();
-
-            List<GmapPhoto> obtainedPhotoList = new List<GmapPhoto>();
-
-            for (int zoom = 0; zoom <= this.MaxZoom; zoom++)
+            return await RetryHelper.RunAsync(async () =>
             {
-                int numOkInThisZoom = 0;
+                using var http = new WebApi();
 
-                for (int x = 0; x < 32; x++)
+                string url = $"https://streetviewpixels-pa.googleapis.com/v1/tile?cb_client=maps_sv.tactile&panoid={this.PhotoKey.Key}&x={this.X}&y={this.Y}&zoom={this.Zoom}";
+
+                this.PhotoKey.Point.WriteLog($"Google Street View 写真キー '{this.PhotoKey.Key}' を、パラメータ zoom = {this.Zoom}, x = {this.X}, y = {this.Y} で取得するための URL を組み立てた。URL は、'{url}' である。この URL からの取得を開始する。");
+
+                var downloadResult = await SimpleHttpDownloader.DownloadAsync(url, printStatus: true, cancel: cancel);
+
+                if (downloadResult.Data.Length <= 2000)
                 {
-                    int numOkInThisX = 0;
+                    this.PhotoKey.Point.WriteLog($"上記 URL からのデータは受信できたが、サイズは 2,000 バイト以下であった。おそらく、このパラメータ zoom = {this.Zoom}, x = {this.X}, y = {this.Y} の画像は、Google 社のサーバーには、存在しないのであろう。");
+                    return false;
+                }
 
-                    for (int y = 0; y < 32; y++)
-                    {
-                        var photo = new GmapPhoto(this, x, y, zoom);
+                this.PhotoData = downloadResult.Data.ToArray();
+                this.HttpAccessLog = downloadResult;
 
-                        if (await photo.GmapDownloadStreetViewPhotoCoreAsync(cancel) == false)
-                        {
-                            break;
-                        }
+                this.PhotoKey.Point.WriteLog($"上記 URL からの画像データの受信に成功した。サイズ: {this.PhotoData.Length._ToString3()} bytes");
 
-                        obtainedPhotoList.Add(photo);
+                return true;
+            },
+            retryInterval: 300,
+            tryCount: 3,
+            cancel);
+        }
+        catch (Exception ex)
+        {
+            ex._Debug();
 
-                        numOkInThisX++;
-                        numOkInThisZoom++;
+            this.PhotoKey.Point.WriteLog($"予期しない HTTP エラーが発生した。詳細: {ex.ToString()}");
 
-                        await Task.Delay(Util.GenRandInterval(200));
-                    }
+            return false;
+        }
+    }
+}
 
-                    if (numOkInThisX == 0)
+public class GmapPhotoKey
+{
+    public string Key { get; }
+    public List<GmapPhoto> ObtainedPhotoList { get; private set; } = new List<GmapPhoto>();
+    public int MaxZoom { get; }
+
+    [JsonIgnore]
+    public GmapPoint Point { get; }
+
+    public GmapPhotoKey(GmapPoint point, string key, int maxZoom = 5)
+    {
+        this.Key = key;
+        this.Point = point;
+        this.MaxZoom = Math.Max(Math.Min(maxZoom, 5), 0);
+    }
+
+    public async Task GmapDownloadStreetViewAllPhotosAsync(CancellationToken cancel = default)
+    {
+        using var http = new WebApi();
+
+        List<GmapPhoto> obtainedPhotoList = new List<GmapPhoto>();
+
+        for (int zoom = 0; zoom <= this.MaxZoom; zoom++)
+        {
+            int numOkInThisZoom = 0;
+
+            for (int x = 0; x < 32; x++)
+            {
+                int numOkInThisX = 0;
+
+                for (int y = 0; y < 32; y++)
+                {
+                    var photo = new GmapPhoto(this, x, y, zoom);
+
+                    if (await photo.GmapDownloadStreetViewPhotoCoreAsync(cancel) == false)
                     {
                         break;
                     }
+
+                    obtainedPhotoList.Add(photo);
+
+                    numOkInThisX++;
+                    numOkInThisZoom++;
+
+                    await Task.Delay(Util.GenRandInterval(200));
                 }
 
-                if (numOkInThisZoom == 0)
+                if (numOkInThisX == 0)
                 {
                     break;
                 }
             }
 
-            this.ObtainedPhotoList = obtainedPhotoList;
+            if (numOkInThisZoom == 0)
+            {
+                break;
+            }
         }
-    }
 
-    public class GmapPoint
-    {
-        public const string TemplateHtml = @"
+        this.ObtainedPhotoList = obtainedPhotoList;
+    }
+}
+
+public class GmapPoint
+{
+    public const string TemplateHtml = @"
 <nobr>
 <p>
 <B>Google Street View のアクセス URL: __URL__</b><BR>
@@ -260,464 +260,464 @@ __IMG__
 
 ";
 
-        public DateTimeOffset TimeStamp { get; private set; }
-        public string Name { get; }
-        public string RootDir { get; }
-        public string AccessUrl { get; }
-        public SimpleHttpDownloaderResult? HttpAccessLog { get; private set; } = null;
-        public List<GmapPhotoKey> PhotoKeyList { get; private set; } = new List<GmapPhotoKey>();
-        public int MaxZoom { get; }
+    public DateTimeOffset TimeStamp { get; private set; }
+    public string Name { get; }
+    public string RootDir { get; }
+    public string AccessUrl { get; }
+    public SimpleHttpDownloaderResult? HttpAccessLog { get; private set; } = null;
+    public List<GmapPhotoKey> PhotoKeyList { get; private set; } = new List<GmapPhotoKey>();
+    public int MaxZoom { get; }
 
-        [JsonIgnore]
-        public StringWriter Log { get; } = new StringWriter();
+    [JsonIgnore]
+    public StringWriter Log { get; } = new StringWriter();
 
-        public GmapPoint(string name, string accessUrl, string rootDir, int maxZoom)
+    public GmapPoint(string name, string accessUrl, string rootDir, int maxZoom)
+    {
+        this.Name = name;
+        this.AccessUrl = accessUrl;
+        this.RootDir = rootDir;
+        this.Log.NewLine = Str.CrLf_Str;
+        this.MaxZoom = maxZoom;
+    }
+
+    public void WriteLog(string str)
+    {
+        StringWriter tmp = new StringWriter();
+        tmp.WriteLine($"■ {DtOffsetNow._ToDtStr(true)}");
+        tmp.WriteLine(str._NormalizeCrlf(CrlfStyle.CrLf).Trim());
+        tmp.WriteLine();
+
+        string str2 = tmp.ToString()._NormalizeCrlf(CrlfStyle.CrLf);
+
+        this.Log.WriteLine(str2);
+
+        Console.WriteLine(str2);
+    }
+
+    public static string GetPhotoKeyFromPhotoMetaUrl(string url)
+    {
+        var uri = url._ParseUrl(out QueryStringList qs);
+        if (qs._TryGetFirstValue("pb", out string pb))
         {
-            this.Name = name;
-            this.AccessUrl = accessUrl;
-            this.RootDir = rootDir;
-            this.Log.NewLine = Str.CrLf_Str;
-            this.MaxZoom = maxZoom;
+            var tokens = pb._Split(StringSplitOptions.RemoveEmptyEntries, "!");
+            var ret = tokens.Where(x => x.StartsWith("2s") && x.Length == 24).Select(x => x.Substring(2)).ToList();
+            return ret.FirstOrDefault()._NonNullTrim();
         }
 
-        public void WriteLog(string str)
+        return "";
+    }
+
+    public async Task GmapDownloadPointDataAsync(CancellationToken cancel = default)
+    {
+        this.TimeStamp = DtOffsetNow;
+
+        this.WriteLog($"Google Maps 情報分析ツール (サイバー調査用)\n作成: 2021/04 IPA サイバー技術研究室 登\n本ツールは、正当業務目的でのみ利用してください。");
+
+        this.WriteLog($"GmapDownloadPointDataAsync() 関数の処理を開始。\nGoogle Street View のアクセス先 URL: {this.AccessUrl}");
+
+        List<string> ret = new List<string>();
+
+        using var http = new WebApi();
+
+        if (this.AccessUrl._InStr("/maps/photometa/") == false)
         {
-            StringWriter tmp = new StringWriter();
-            tmp.WriteLine($"■ {DtOffsetNow._ToDtStr(true)}");
-            tmp.WriteLine(str._NormalizeCrlf(CrlfStyle.CrLf).Trim());
-            tmp.WriteLine();
+            // 普通の動作モード。URL に実際にアクセスしていって、取ってきた body に含まれている画像キーと思われる 22 文字のキーを取ってくる。
+            this.WriteLog($"URL '{this.AccessUrl}' にアクセス中...");
 
-            string str2 = tmp.ToString()._NormalizeCrlf(CrlfStyle.CrLf);
+            this.HttpAccessLog = await SimpleHttpDownloader.DownloadAsync(this.AccessUrl, printStatus: true, cancel: cancel);
 
-            this.Log.WriteLine(str2);
+            this.WriteLog($"URL '{this.AccessUrl}' から応答があった。応答コード: {this.HttpAccessLog.StatusCode}, データサイズ: {this.HttpAccessLog.DataSize._ToString3()} bytes");
 
-            Console.WriteLine(str2);
+            string body = this.HttpAccessLog.Data._GetString_UTF8();
+
+            this.WriteLog($"URL '{this.AccessUrl}' の取得結果は、以下のとおり。\n" +
+                "---------- ここから ----------\n" +
+                body + "\n" +
+                "---------- ここまで ----------");
+
+            for (int i = 0; i < body.Length; i++)
+            {
+                if (body[i] == '\"')
+                {
+                    if (body.ElementAtOrDefault(i + 23) == '\"')
+                    {
+                        string keyword = body.Substring(i + 1, 22);
+
+                        if (keyword.Any(c => c == '\"' || c == '\'') == false && keyword.All(c => c <= 127))
+                        {
+                            ret.Add(keyword);
+                        }
+                    }
+                }
+            }
         }
-
-        public static string GetPhotoKeyFromPhotoMetaUrl(string url)
+        else
         {
-            var uri = url._ParseUrl(out QueryStringList qs);
+            // Photometa URL が指定された場合は、すでに URL に画像キーが入っているので、その URL から画像キーを抽出する。
+            this.WriteLog($"URL '{this.AccessUrl}' を検討したところ、これには photometa という文字が含まれているので、この URL の pb パラメータから画像キーを抽出する。");
+
+            var uri = this.AccessUrl._ParseUrl(out QueryStringList qs);
             if (qs._TryGetFirstValue("pb", out string pb))
             {
                 var tokens = pb._Split(StringSplitOptions.RemoveEmptyEntries, "!");
-                var ret = tokens.Where(x => x.StartsWith("2s") && x.Length == 24).Select(x => x.Substring(2)).ToList();
-                return ret.FirstOrDefault()._NonNullTrim();
+                ret = tokens.Where(x => x.StartsWith("2s") && x.Length == 24).Select(x => x.Substring(2)).ToList();
             }
-
-            return "";
         }
 
-        public async Task GmapDownloadPointDataAsync(CancellationToken cancel = default)
+        ret = ret.Distinct().OrderBy(x => x).ToList();
+
+        if (ret.Any() == false)
         {
-            this.TimeStamp = DtOffsetNow;
-
-            this.WriteLog($"Google Maps 情報分析ツール (サイバー調査用)\n作成: 2021/04 IPA サイバー技術研究室 登\n本ツールは、正当業務目的でのみ利用してください。");
-
-            this.WriteLog($"GmapDownloadPointDataAsync() 関数の処理を開始。\nGoogle Street View のアクセス先 URL: {this.AccessUrl}");
-
-            List<string> ret = new List<string>();
-
-            using var http = new WebApi();
-
-            if (this.AccessUrl._InStr("/maps/photometa/") == false)
-            {
-                // 普通の動作モード。URL に実際にアクセスしていって、取ってきた body に含まれている画像キーと思われる 22 文字のキーを取ってくる。
-                this.WriteLog($"URL '{this.AccessUrl}' にアクセス中...");
-
-                this.HttpAccessLog = await SimpleHttpDownloader.DownloadAsync(this.AccessUrl, printStatus: true, cancel: cancel);
-
-                this.WriteLog($"URL '{this.AccessUrl}' から応答があった。応答コード: {this.HttpAccessLog.StatusCode}, データサイズ: {this.HttpAccessLog.DataSize._ToString3()} bytes");
-
-                string body = this.HttpAccessLog.Data._GetString_UTF8();
-
-                this.WriteLog($"URL '{this.AccessUrl}' の取得結果は、以下のとおり。\n" +
-                    "---------- ここから ----------\n" +
-                    body + "\n" +
-                    "---------- ここまで ----------");
-
-                for (int i = 0; i < body.Length; i++)
-                {
-                    if (body[i] == '\"')
-                    {
-                        if (body.ElementAtOrDefault(i + 23) == '\"')
-                        {
-                            string keyword = body.Substring(i + 1, 22);
-
-                            if (keyword.Any(c => c == '\"' || c == '\'') == false && keyword.All(c => c <= 127))
-                            {
-                                ret.Add(keyword);
-                            }
-                        }
-                    }
-                }
-            }
-            else
-            {
-                // Photometa URL が指定された場合は、すでに URL に画像キーが入っているので、その URL から画像キーを抽出する。
-                this.WriteLog($"URL '{this.AccessUrl}' を検討したところ、これには photometa という文字が含まれているので、この URL の pb パラメータから画像キーを抽出する。");
-
-                var uri = this.AccessUrl._ParseUrl(out QueryStringList qs);
-                if (qs._TryGetFirstValue("pb", out string pb))
-                {
-                    var tokens = pb._Split(StringSplitOptions.RemoveEmptyEntries, "!");
-                    ret = tokens.Where(x => x.StartsWith("2s") && x.Length == 24).Select(x => x.Substring(2)).ToList();
-                }
-            }
-
-            ret = ret.Distinct().OrderBy(x => x).ToList();
-
-            if (ret.Any() == false)
-            {
-                this.WriteLog($"URL '{this.AccessUrl}' の結果 (上記) には、Google Street View の写真キーであると思われるキー文字列は 1 件も存在しなかった。URL に誤りがある可能性がある。十分確認して、再実行すること。");
-            }
-            else
-            {
-                StringWriter tmp = new StringWriter();
-                for (int i = 0; i < ret.Count; i++)
-                {
-                    tmp.WriteLine($"{i + 1} 件目のキーは、'{ret[i]}' であった。");
-                }
-
-                this.WriteLog($"上記の取得結果のうち、Google Street View の写真キーであると思われるキー文字列は合計 {ret.Count} 件あった。\n" +
-                    tmp.ToString());
-
-                this.WriteLog($"そこで、今から、これらのキーに 1 つずつアクセスを試みて、Google Street View の画像をダウンロードするのである。");
-
-                this.PhotoKeyList = new List<GmapPhotoKey>();
-
-                for (int i = 0; i < ret.Count; i++)
-                {
-                    var key = ret[i];
-
-                    this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google Street View の写真キー '{key}' への取得処理を開始する。");
-
-                    GmapPhotoKey photoKey = new GmapPhotoKey(this, key, this.MaxZoom);
-
-                    await photoKey.GmapDownloadStreetViewAllPhotosAsync(cancel);
-
-                    if (photoKey.ObtainedPhotoList.Any())
-                    {
-                        this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google Street View の写真キー '{key}' への取得処理は完了した。このキーでは、合計 {photoKey.ObtainedPhotoList.Count} 枚の写真が取得できたのである。");
-
-                        this.PhotoKeyList.Add(photoKey);
-
-                        string imgRootPath = Lfs.PP.Combine(this.RootDir, $"{i:D4}_{key}");
-
-                        // 写真の保存
-                        foreach (var photo in photoKey.ObtainedPhotoList)
-                        {
-                            string photoPath = Lfs.PP.Combine(imgRootPath, $"zoom_level_{photo.Zoom}", $"{i:D4}_{key}__zoom_level_{photo.Zoom}__y_{photo.Y:D2}__x_{photo.X:D2}.jpg");
-
-                            photo.PhotoData._Save(photoPath, FileFlags.AutoCreateDirectory, cancel: cancel);
-
-                            this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google Street View の写真キー '{key}' のズームレベル = {photo.Zoom}, x = {photo.X}, y = {photo.Y} の写真データを、ファイル '{photoPath}' として保存した。ファイルサイズは、{photo.PhotoData.Length._ToString3()} bytes である。");
-                        }
-
-                        // HTML の生成
-                        foreach (var zoom in photoKey.ObtainedPhotoList.Select(x => x.Zoom).Distinct().OrderBy(x => x))
-                        {
-                            StringWriter imgHtml = new StringWriter();
-
-                            foreach (var y in photoKey.ObtainedPhotoList.Where(x => x.Zoom == zoom).Select(x => x.Y).Distinct().OrderBy(x => x))
-                            {
-                                foreach (var photo in photoKey.ObtainedPhotoList.Where(x => x.Zoom == zoom && x.Y == y).OrderBy(x => x.X))
-                                {
-                                    imgHtml.Write($"<img src=\"zoom_level_{photo.Zoom}/{i:D4}_{key}__zoom_level_{zoom}__y_{photo.Y:D2}__x_{photo.X:D2}.jpg\">");
-                                }
-
-                                imgHtml.Write($"<BR>");
-                            }
-
-                            var zoomLevelList = photoKey.ObtainedPhotoList.Select(x => x.Zoom).Distinct().OrderBy(x => x);
-
-                            List<string> zoomLinkList = new List<string>();
-
-                            zoomLevelList._DoForEach(x => zoomLinkList.Add($"<b><a href=\"./取得画像_簡易ビューア_{i:D4}_{key}_ズームレベル_{x}.html\">ズームレベル ＃{x}</a></b>"));
-
-                            string htmlBody = Str.ReplaceStrWithReplaceClass(TemplateHtml,
-                                new
-                                {
-                                    __URL__ = this.AccessUrl._EncodeHtml(true),
-                                    __KEY__ = photoKey.Key,
-                                    __ZOOM__ = zoom,
-                                    __X__ = photoKey.ObtainedPhotoList.Where(x => x.Zoom == zoom).Select(x => x.X).Distinct().Count(),
-                                    __Y__ = photoKey.ObtainedPhotoList.Where(x => x.Zoom == zoom).Select(x => x.Y).Distinct().Count(),
-                                    __IMG__ = imgHtml.ToString(),
-                                    __ZOOMLIST__ = zoomLinkList._Combine(" | "),
-                                });
-
-                            htmlBody = htmlBody._NormalizeCrlf(CrlfStyle.CrLf, true);
-
-                            string htmlPath = Lfs.PP.Combine(imgRootPath, $"取得画像_簡易ビューア_{i:D4}_{key}_ズームレベル_{zoom}.html");
-
-                            Lfs.WriteStringToFile(htmlPath, htmlBody, FileFlags.AutoCreateDirectory, writeBom: true, cancel: cancel);
-                        }
-                    }
-                    else
-                    {
-                        this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google Street View の写真キー '{key}' への取得処理は完了した。このキーでは、写真は 1 枚も取得することができなかった。");
-                    }
-                }
-
-                this.WriteLog($"{ret.Count} 件のキーすべてに対するアクセス試行が完了した。URL '{this.AccessUrl}' に関する処理は、これですべて終了した。");
-            }
-
-            string logPath = Lfs.PP.Combine(this.RootDir, "アクセスログ.txt");
-            Lfs.WriteStringToFile(logPath, this.Log.ToString()._NormalizeCrlf(CrlfStyle.CrLf, true), FileFlags.AutoCreateDirectory, writeBom: true, cancel: cancel);
-
-            string recordLogPath = Lfs.PP.Combine(this.RootDir, "すべての通信ログ.json");
-            Lfs.WriteJsonToFile(recordLogPath, this, FileFlags.AutoCreateDirectory);
+            this.WriteLog($"URL '{this.AccessUrl}' の結果 (上記) には、Google Street View の写真キーであると思われるキー文字列は 1 件も存在しなかった。URL に誤りがある可能性がある。十分確認して、再実行すること。");
         }
+        else
+        {
+            StringWriter tmp = new StringWriter();
+            for (int i = 0; i < ret.Count; i++)
+            {
+                tmp.WriteLine($"{i + 1} 件目のキーは、'{ret[i]}' であった。");
+            }
+
+            this.WriteLog($"上記の取得結果のうち、Google Street View の写真キーであると思われるキー文字列は合計 {ret.Count} 件あった。\n" +
+                tmp.ToString());
+
+            this.WriteLog($"そこで、今から、これらのキーに 1 つずつアクセスを試みて、Google Street View の画像をダウンロードするのである。");
+
+            this.PhotoKeyList = new List<GmapPhotoKey>();
+
+            for (int i = 0; i < ret.Count; i++)
+            {
+                var key = ret[i];
+
+                this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google Street View の写真キー '{key}' への取得処理を開始する。");
+
+                GmapPhotoKey photoKey = new GmapPhotoKey(this, key, this.MaxZoom);
+
+                await photoKey.GmapDownloadStreetViewAllPhotosAsync(cancel);
+
+                if (photoKey.ObtainedPhotoList.Any())
+                {
+                    this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google Street View の写真キー '{key}' への取得処理は完了した。このキーでは、合計 {photoKey.ObtainedPhotoList.Count} 枚の写真が取得できたのである。");
+
+                    this.PhotoKeyList.Add(photoKey);
+
+                    string imgRootPath = Lfs.PP.Combine(this.RootDir, $"{i:D4}_{key}");
+
+                    // 写真の保存
+                    foreach (var photo in photoKey.ObtainedPhotoList)
+                    {
+                        string photoPath = Lfs.PP.Combine(imgRootPath, $"zoom_level_{photo.Zoom}", $"{i:D4}_{key}__zoom_level_{photo.Zoom}__y_{photo.Y:D2}__x_{photo.X:D2}.jpg");
+
+                        photo.PhotoData._Save(photoPath, FileFlags.AutoCreateDirectory, cancel: cancel);
+
+                        this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google Street View の写真キー '{key}' のズームレベル = {photo.Zoom}, x = {photo.X}, y = {photo.Y} の写真データを、ファイル '{photoPath}' として保存した。ファイルサイズは、{photo.PhotoData.Length._ToString3()} bytes である。");
+                    }
+
+                    // HTML の生成
+                    foreach (var zoom in photoKey.ObtainedPhotoList.Select(x => x.Zoom).Distinct().OrderBy(x => x))
+                    {
+                        StringWriter imgHtml = new StringWriter();
+
+                        foreach (var y in photoKey.ObtainedPhotoList.Where(x => x.Zoom == zoom).Select(x => x.Y).Distinct().OrderBy(x => x))
+                        {
+                            foreach (var photo in photoKey.ObtainedPhotoList.Where(x => x.Zoom == zoom && x.Y == y).OrderBy(x => x.X))
+                            {
+                                imgHtml.Write($"<img src=\"zoom_level_{photo.Zoom}/{i:D4}_{key}__zoom_level_{zoom}__y_{photo.Y:D2}__x_{photo.X:D2}.jpg\">");
+                            }
+
+                            imgHtml.Write($"<BR>");
+                        }
+
+                        var zoomLevelList = photoKey.ObtainedPhotoList.Select(x => x.Zoom).Distinct().OrderBy(x => x);
+
+                        List<string> zoomLinkList = new List<string>();
+
+                        zoomLevelList._DoForEach(x => zoomLinkList.Add($"<b><a href=\"./取得画像_簡易ビューア_{i:D4}_{key}_ズームレベル_{x}.html\">ズームレベル ＃{x}</a></b>"));
+
+                        string htmlBody = Str.ReplaceStrWithReplaceClass(TemplateHtml,
+                            new
+                            {
+                                __URL__ = this.AccessUrl._EncodeHtml(true),
+                                __KEY__ = photoKey.Key,
+                                __ZOOM__ = zoom,
+                                __X__ = photoKey.ObtainedPhotoList.Where(x => x.Zoom == zoom).Select(x => x.X).Distinct().Count(),
+                                __Y__ = photoKey.ObtainedPhotoList.Where(x => x.Zoom == zoom).Select(x => x.Y).Distinct().Count(),
+                                __IMG__ = imgHtml.ToString(),
+                                __ZOOMLIST__ = zoomLinkList._Combine(" | "),
+                            });
+
+                        htmlBody = htmlBody._NormalizeCrlf(CrlfStyle.CrLf, true);
+
+                        string htmlPath = Lfs.PP.Combine(imgRootPath, $"取得画像_簡易ビューア_{i:D4}_{key}_ズームレベル_{zoom}.html");
+
+                        Lfs.WriteStringToFile(htmlPath, htmlBody, FileFlags.AutoCreateDirectory, writeBom: true, cancel: cancel);
+                    }
+                }
+                else
+                {
+                    this.WriteLog($"{i + 1} 件目 (合計 {ret.Count} 件中) の Google Street View の写真キー '{key}' への取得処理は完了した。このキーでは、写真は 1 枚も取得することができなかった。");
+                }
+            }
+
+            this.WriteLog($"{ret.Count} 件のキーすべてに対するアクセス試行が完了した。URL '{this.AccessUrl}' に関する処理は、これですべて終了した。");
+        }
+
+        string logPath = Lfs.PP.Combine(this.RootDir, "アクセスログ.txt");
+        Lfs.WriteStringToFile(logPath, this.Log.ToString()._NormalizeCrlf(CrlfStyle.CrLf, true), FileFlags.AutoCreateDirectory, writeBom: true, cancel: cancel);
+
+        string recordLogPath = Lfs.PP.Combine(this.RootDir, "すべての通信ログ.json");
+        Lfs.WriteJsonToFile(recordLogPath, this, FileFlags.AutoCreateDirectory);
     }
+}
 
-    partial class TestDevCommands
+partial class TestDevCommands
+{
+    [ConsoleCommand(
+  "IIS 証明書更新",
+  "CertUpdateIis [cert_server_base_url] [/USERNAME:username] [/PASSWORD:password] [/UPDATESAME:updatesame]",
+  "IIS 証明書更新"
+  )]
+    static int CertUpdateIis(ConsoleService c, string cmdName, string str)
     {
-        [ConsoleCommand(
-      "IIS 証明書更新",
-      "CertUpdateIis [cert_server_base_url] [/USERNAME:username] [/PASSWORD:password] [/UPDATESAME:updatesame]",
-      "IIS 証明書更新"
-      )]
-        static int CertUpdateIis(ConsoleService c, string cmdName, string str)
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[cert_server_base_url]", ConsoleService.Prompt, "Base URL: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("USERNAME"),
                 new ConsoleParam("PASSWORD"),
                 new ConsoleParam("UPDATESAME"),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            Async(async () =>
-            {
+        Async(async () =>
+        {
                 // 証明書のダウンロード
                 Con.WriteLine($"Downloading certificates from the server '{vl.DefaultParam.StrValue}'...");
-                var certs = await WildcardCertServerUtil.DownloadAllLatestCertsAsync(vl.DefaultParam.StrValue, vl["USERNAME"].StrValue, vl["PASSWORD"].StrValue);
+            var certs = await WildcardCertServerUtil.DownloadAllLatestCertsAsync(vl.DefaultParam.StrValue, vl["USERNAME"].StrValue, vl["PASSWORD"].StrValue);
 
-                Con.WriteLine($"Downloaded {certs.Count} certificates from the server.", flags: LogFlags.Heading);
+            Con.WriteLine($"Downloaded {certs.Count} certificates from the server.", flags: LogFlags.Heading);
 
-                int index = 0;
-                foreach (var cert in certs.Select(x => x.PrimaryCertificate).OrderBy(x => x.CommonNameOrFirstDnsName, StrComparer.FqdnReverseStrComparer))
-                {
-                    index++;
-                    Con.WriteLine($"Cert #{index}/{certs.Count}: " + cert.ToString());
-                }
+            int index = 0;
+            foreach (var cert in certs.Select(x => x.PrimaryCertificate).OrderBy(x => x.CommonNameOrFirstDnsName, StrComparer.FqdnReverseStrComparer))
+            {
+                index++;
+                Con.WriteLine($"Cert #{index}/{certs.Count}: " + cert.ToString());
+            }
 
-                Con.WriteLine();
+            Con.WriteLine();
 
                 // IIS 証明書更新
                 using IisAdmin util = new IisAdmin();
 
-                util.UpdateCerts(certs, vl["UPDATESAME"].BoolValue);
-            });
+            util.UpdateCerts(certs, vl["UPDATESAME"].BoolValue);
+        });
 
-            return 0;
-        }
+        return 0;
+    }
 
-        [ConsoleCommand(
-      "C# ソースコード結合",
-      "CSharpConcat [src_dir] /DEST:<dest_dir>",
-      "C# ソースコード結合"
-      )]
-        static int CSharpConcat(ConsoleService c, string cmdName, string str)
+    [ConsoleCommand(
+  "C# ソースコード結合",
+  "CSharpConcat [src_dir] /DEST:<dest_dir>",
+  "C# ソースコード結合"
+  )]
+    static int CSharpConcat(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[src_dir]", ConsoleService.Prompt, "Source dir: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("DEST", ConsoleService.Prompt, "Dest dir: ", ConsoleService.EvalNotEmpty, null),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            CSharpConcatUtil.DoConcat(vl.DefaultParam.StrValue, vl["DEST"].StrValue);
+        CSharpConcatUtil.DoConcat(vl.DefaultParam.StrValue, vl["DEST"].StrValue);
 
-            return 0;
-        }
+        return 0;
+    }
 
 
-        [ConsoleCommand(
-           "Google Street View アナライザ (情報分析用)",
-           "GoogleStreetViewAnalyzer /NAME:<name> /URL:<url> /DEST:<dir>",
-           "Google Street View アナライザ (情報分析用)"
-           )]
-        static int GoogleStreetViewAnalyzer(ConsoleService c, string cmdName, string str)
+    [ConsoleCommand(
+       "Google Street View アナライザ (情報分析用)",
+       "GoogleStreetViewAnalyzer /NAME:<name> /URL:<url> /DEST:<dir>",
+       "Google Street View アナライザ (情報分析用)"
+       )]
+    static int GoogleStreetViewAnalyzer(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("NAME", ConsoleService.Prompt, "識別名: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("URL", ConsoleService.Prompt, "URL: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("DEST", ConsoleService.Prompt, "保存先ディレクトリ: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("MAXZOOM", ConsoleService.Prompt, "最大ズームレベル (0 ～ 5 を指定): ", ConsoleService.EvalNotEmpty, null),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            Async(async () =>
-            {
-                await GmapStreetViewPhotoUrlAnalysisAsync(vl["URL"].StrValue, vl["DEST"].StrValue, vl["NAME"].StrValue, vl["MAXZOOM"].IntValue);
-            });
-
-            return 0;
-        }
-
-        public static async Task GmapStreetViewPhotoUrlAnalysisAsync(string photoUrl, string destDir, string name, int maxZoom, CancellationToken cancel = default)
+        Async(async () =>
         {
-            string rootDir = Lfs.PP.Combine(destDir, $"{Str.DateTimeToStrShortWithMilliSecs(DateTime.Now)}_{name}");
+            await GmapStreetViewPhotoUrlAnalysisAsync(vl["URL"].StrValue, vl["DEST"].StrValue, vl["NAME"].StrValue, vl["MAXZOOM"].IntValue);
+        });
 
-            Lfs.CreateDirectory(rootDir);
+        return 0;
+    }
 
-            GmapPoint p = new GmapPoint(name, photoUrl, rootDir, maxZoom);
+    public static async Task GmapStreetViewPhotoUrlAnalysisAsync(string photoUrl, string destDir, string name, int maxZoom, CancellationToken cancel = default)
+    {
+        string rootDir = Lfs.PP.Combine(destDir, $"{Str.DateTimeToStrShortWithMilliSecs(DateTime.Now)}_{name}");
 
-            await p.GmapDownloadPointDataAsync(cancel);
-        }
+        Lfs.CreateDirectory(rootDir);
 
-        public static void ConvertCErrorsToCsErrors(string dir, string outputFileName)
+        GmapPoint p = new GmapPoint(name, photoUrl, rootDir, maxZoom);
+
+        await p.GmapDownloadPointDataAsync(cancel);
+    }
+
+    public static void ConvertCErrorsToCsErrors(string dir, string outputFileName)
+    {
+        List<Pair2<int, string>> list = new List<Pair2<int, string>>();
+
+        Lfs.DirectoryWalker.WalkDirectory(dir, (info, entries, cancel) =>
         {
-            List<Pair2<int, string>> list = new List<Pair2<int, string>>();
+            var headerFiles = entries.Where(x => x.IsFile && x.Name._WildcardMatch("*.h", true)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer);
 
-            Lfs.DirectoryWalker.WalkDirectory(dir, (info, entries, cancel) =>
+            headerFiles._DoForEach(x =>
             {
-                var headerFiles = entries.Where(x => x.IsFile && x.Name._WildcardMatch("*.h", true)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer);
-
-                headerFiles._DoForEach(x =>
+                string body = Lfs.ReadStringFromFile(x.FullPath);
+                int count = 0;
+                foreach (string line in body._GetLines())
                 {
-                    string body = Lfs.ReadStringFromFile(x.FullPath);
-                    int count = 0;
-                    foreach (string line in body._GetLines())
+                    if (line._GetKeyAndValue(out string code, out string comment, "/"))
                     {
-                        if (line._GetKeyAndValue(out string code, out string comment, "/"))
+                        code = code.Trim();
+                        comment = comment.Trim();
+
+                        string[] tokens = code._Split(StringSplitOptions.RemoveEmptyEntries, ' ', '\t');
+
+                        if (tokens.Length == 3 && tokens[0]._IsSamei("#define") && tokens[1].StartsWith("ERR_") && tokens[2]._IsNumber())
                         {
-                            code = code.Trim();
-                            comment = comment.Trim();
+                            int num = tokens[2]._ToInt();
 
-                            string[] tokens = code._Split(StringSplitOptions.RemoveEmptyEntries, ' ', '\t');
+                            string result = $"{tokens[1]} = {num}, // {comment}";
 
-                            if (tokens.Length == 3 && tokens[0]._IsSamei("#define") && tokens[1].StartsWith("ERR_") && tokens[2]._IsNumber())
-                            {
-                                int num = tokens[2]._ToInt();
-
-                                string result = $"{tokens[1]} = {num}, // {comment}";
-
-                                list.Add(new Pair2<int, string>(num, result));
-                                count++;
-                            }
+                            list.Add(new Pair2<int, string>(num, result));
+                            count++;
                         }
                     }
-                    if (count >= 1)
-                    {
-                        x.FullPath._Print();
-                    }
-                });
-
-                return true;
-            },
-            exceptionHandler: (info, ex, c) =>
-            {
-                ex._Print();
-                return true;
+                }
+                if (count >= 1)
+                {
+                    x.FullPath._Print();
+                }
             });
 
-            StringWriter w = new StringWriter();
+            return true;
+        },
+        exceptionHandler: (info, ex, c) =>
+        {
+            ex._Print();
+            return true;
+        });
 
-            foreach (string b in list.OrderBy(x => x.A).Select(x => x.B))
-            {
-                w.WriteLine(b);
-            }
+        StringWriter w = new StringWriter();
 
-            Lfs.WriteStringToFile(outputFileName, w.ToString(), flags: FileFlags.AutoCreateDirectory);
+        foreach (string b in list.OrderBy(x => x.A).Select(x => x.B))
+        {
+            w.WriteLine(b);
         }
 
-        [ConsoleCommand(
-        "バイナリファイル内のデータを置換",
-        "ReplaceBinary [srcFileName] [/DST:destFileName] [/REPLACE:replaceTextFileName] [/FILL:fillByte=10]",
-        "バイナリファイル内のデータを置換します。",
-        "[srcFileName]:元ファイル名を指定します。",
-        "DST:保存先ファイル名を指定します。指定しない場合、元ファイルが上書きされます。",
-        "REPLACE:置換定義ファイルを指定します。テキストファイルで、奇数行に置換元、偶数行に置換先のバイナリ文字列を記載します。0x で始まる行は 16 進数とみなされます。",
-        "FILL:置換先のデータの長さが短い場合に埋めるバイト文字を 16 進数で指定います。省略すると UNIX 改行文字で埋められます。"
-        )]
-        static int ReplaceBinary(ConsoleService c, string cmdName, string str)
+        Lfs.WriteStringToFile(outputFileName, w.ToString(), flags: FileFlags.AutoCreateDirectory);
+    }
+
+    [ConsoleCommand(
+    "バイナリファイル内のデータを置換",
+    "ReplaceBinary [srcFileName] [/DST:destFileName] [/REPLACE:replaceTextFileName] [/FILL:fillByte=10]",
+    "バイナリファイル内のデータを置換します。",
+    "[srcFileName]:元ファイル名を指定します。",
+    "DST:保存先ファイル名を指定します。指定しない場合、元ファイルが上書きされます。",
+    "REPLACE:置換定義ファイルを指定します。テキストファイルで、奇数行に置換元、偶数行に置換先のバイナリ文字列を記載します。0x で始まる行は 16 進数とみなされます。",
+    "FILL:置換先のデータの長さが短い場合に埋めるバイト文字を 16 進数で指定います。省略すると UNIX 改行文字で埋められます。"
+    )]
+    static int ReplaceBinary(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[srcFileName]", ConsoleService.Prompt, "元ファイル名: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("DST"),
                 new ConsoleParam("REPLACE", ConsoleService.Prompt, "換定義ファイル: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("FILL"),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            string srcFileName = vl.DefaultParam.StrValue;
-            string dstFileName = vl["DST"].StrValue;
-            if (dstFileName._IsEmpty()) dstFileName = srcFileName;
+        string srcFileName = vl.DefaultParam.StrValue;
+        string dstFileName = vl["DST"].StrValue;
+        if (dstFileName._IsEmpty()) dstFileName = srcFileName;
 
-            string replaceFileName = vl["REPLACE"].StrValue;
+        string replaceFileName = vl["REPLACE"].StrValue;
 
-            byte fillByte = (byte)(vl["FILL"].StrValue._FilledOrDefault("10")._ToInt());
+        byte fillByte = (byte)(vl["FILL"].StrValue._FilledOrDefault("10")._ToInt());
 
-            Async(async () =>
-            {
-                KeyValueList<string, string> list = new KeyValueList<string, string>();
-
-                string body = await Lfs.ReadStringFromFileAsync(replaceFileName);
-
-                string[] lines = body._GetLines();
-
-                for (int i = 0; i < lines.Length; i += 2)
-                {
-                    string oldstr = lines[i];
-                    string newstr = lines[i + 1];
-
-                    list.Add(oldstr, newstr);
-                }
-
-                var ret = await MiscUtil.ReplaceBinaryFileAsync(srcFileName, dstFileName, list, FileFlags.AutoCreateDirectory, fillByte);
-
-                ret._PrintAsJson();
-            });
-
-            return 0;
-        }
-
-
-        [ConsoleCommand(
-        "テキスト原稿を HTML 化",
-        "GenkoToHtml [src] [/DEST:dest]",
-        "テキスト原稿を HTML 化"
-        )]
-        static int GenkoToHtml(ConsoleService c, string cmdName, string str)
+        Async(async () =>
         {
-            ConsoleParam[] args =
+            KeyValueList<string, string> list = new KeyValueList<string, string>();
+
+            string body = await Lfs.ReadStringFromFileAsync(replaceFileName);
+
+            string[] lines = body._GetLines();
+
+            for (int i = 0; i < lines.Length; i += 2)
             {
+                string oldstr = lines[i];
+                string newstr = lines[i + 1];
+
+                list.Add(oldstr, newstr);
+            }
+
+            var ret = await MiscUtil.ReplaceBinaryFileAsync(srcFileName, dstFileName, list, FileFlags.AutoCreateDirectory, fillByte);
+
+            ret._PrintAsJson();
+        });
+
+        return 0;
+    }
+
+
+    [ConsoleCommand(
+    "テキスト原稿を HTML 化",
+    "GenkoToHtml [src] [/DEST:dest]",
+    "テキスト原稿を HTML 化"
+    )]
+    static int GenkoToHtml(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
                 new ConsoleParam("[src]", ConsoleService.Prompt, "元ファイル: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("DEST", ConsoleService.Prompt, "出力先ファイル: ", ConsoleService.EvalNotEmpty, null),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            string dest = vl["DEST"].StrValue;
+        string dest = vl["DEST"].StrValue;
 
-            MiscUtil.GenkoToHtml(vl.DefaultParam.StrValue, dest);
+        MiscUtil.GenkoToHtml(vl.DefaultParam.StrValue, dest);
 
-            return 0;
-        }
+        return 0;
+    }
 
-        [ConsoleCommand(
-        "ファイル内の文字を置換",
-        "ReplaceString [dirName] [/PATTERN:pattern] [/OLDSTRING:oldstring] [/NEWSTRING:newstring] [/CASESENSITIVE:yes|no]",
-        "指定されたディレクトリ内のパターンに一致するファイルの文字コードを変更します。",
-        "[dirName]:ディレクトリ名を指定します。",
-        "PATTERN:ファイル名のパターンを指定します。たとえば、'*.txt' などと指定します。'*.txt,*.c,*.h' など複数指定も可能です。",
-        "OLDSTRING:古い文字列を指定します。",
-        "NEWSTRING:新しい文字列を指定します。",
-        "CASESENSITIVE:yes の場合は大文字・小文字を区別します。"
-        )]
-        static int ReplaceString(ConsoleService c, string cmdName, string str)
+    [ConsoleCommand(
+    "ファイル内の文字を置換",
+    "ReplaceString [dirName] [/PATTERN:pattern] [/OLDSTRING:oldstring] [/NEWSTRING:newstring] [/CASESENSITIVE:yes|no]",
+    "指定されたディレクトリ内のパターンに一致するファイルの文字コードを変更します。",
+    "[dirName]:ディレクトリ名を指定します。",
+    "PATTERN:ファイル名のパターンを指定します。たとえば、'*.txt' などと指定します。'*.txt,*.c,*.h' など複数指定も可能です。",
+    "OLDSTRING:古い文字列を指定します。",
+    "NEWSTRING:新しい文字列を指定します。",
+    "CASESENSITIVE:yes の場合は大文字・小文字を区別します。"
+    )]
+    static int ReplaceString(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[dirName]", ConsoleService.Prompt, "ディレクトリ名: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("PATTERN", ConsoleService.Prompt, "ファイル名のパターン: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("OLDSTRING", ConsoleService.Prompt, "古い文字列: ", ConsoleService.EvalNotEmpty, null),
@@ -725,308 +725,308 @@ __IMG__
                 new ConsoleParam("CASESENSITIVE", null, null, null, null),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            MiscUtil.ReplaceStringOfFiles(vl.DefaultParam.StrValue, vl["PATTERN"].StrValue, vl["OLDSTRING"].StrValue, vl["NEWSTRING"].StrValue, vl["CASESENSITIVE"].BoolValue);
+        MiscUtil.ReplaceStringOfFiles(vl.DefaultParam.StrValue, vl["PATTERN"].StrValue, vl["OLDSTRING"].StrValue, vl["NEWSTRING"].StrValue, vl["CASESENSITIVE"].BoolValue);
 
-            return 0;
-        }
+        return 0;
+    }
 
 
-        [ConsoleCommand(
-            "ファイルの文字コードを変換",
-            "ChangeEncoding [dirName] [/PATTERN:pattern] [/ENCODING:encoding] [/BOM:yes|no]",
-            "指定されたディレクトリ内のパターンに一致するファイルの文字コードを変更します。",
-            "[dirName]:ディレクトリ名を指定します。",
-            "PATTERN:ファイル名のパターンを指定します。たとえば、'*.txt' などと指定します。'*.txt,*.c,*.h' など複数指定も可能です。",
-            "ENCODING:保存先ファイルの文字コードを指定します。",
-            "BOM:yes を指定した場合、Unicode 関係のフォーマットの場合は BOM を付加します。"
-            )]
-        static int ChangeEncoding(ConsoleService c, string cmdName, string str)
+    [ConsoleCommand(
+        "ファイルの文字コードを変換",
+        "ChangeEncoding [dirName] [/PATTERN:pattern] [/ENCODING:encoding] [/BOM:yes|no]",
+        "指定されたディレクトリ内のパターンに一致するファイルの文字コードを変更します。",
+        "[dirName]:ディレクトリ名を指定します。",
+        "PATTERN:ファイル名のパターンを指定します。たとえば、'*.txt' などと指定します。'*.txt,*.c,*.h' など複数指定も可能です。",
+        "ENCODING:保存先ファイルの文字コードを指定します。",
+        "BOM:yes を指定した場合、Unicode 関係のフォーマットの場合は BOM を付加します。"
+        )]
+    static int ChangeEncoding(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[dirName]", ConsoleService.Prompt, "ディレクトリ名: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("PATTERN", ConsoleService.Prompt, "ファイル名のパターン: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("ENCODING", ConsoleService.Prompt, "文字コード名: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("BOM", null, null, null, null),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            MiscUtil.ChangeEncodingOfFiles(vl.DefaultParam.StrValue, vl["PATTERN"].StrValue, vl["BOM"].BoolValue, vl["ENCODING"].StrValue);
+        MiscUtil.ChangeEncodingOfFiles(vl.DefaultParam.StrValue, vl["PATTERN"].StrValue, vl["BOM"].BoolValue, vl["ENCODING"].StrValue);
 
-            return 0;
-        }
+        return 0;
+    }
 
 
-        [ConsoleCommand(
-            "改行コードを CRLF に統一",
-            "NormalizeCrLf [dirName] [/PATTERN:pattern]",
-            "指定されたディレクトリ内のパターンに一致するファイルの改行コードを変更します。",
-            "[dirName]:ディレクトリ名を指定します。",
-            "PATTERN:ファイル名のパターンを指定します。たとえば、'*.txt' などと指定します。'*.txt,*.c,*.h' など複数指定も可能です。"
-            )]
-        static int NormalizeCrLf(ConsoleService c, string cmdName, string str)
+    [ConsoleCommand(
+        "改行コードを CRLF に統一",
+        "NormalizeCrLf [dirName] [/PATTERN:pattern]",
+        "指定されたディレクトリ内のパターンに一致するファイルの改行コードを変更します。",
+        "[dirName]:ディレクトリ名を指定します。",
+        "PATTERN:ファイル名のパターンを指定します。たとえば、'*.txt' などと指定します。'*.txt,*.c,*.h' など複数指定も可能です。"
+        )]
+    static int NormalizeCrLf(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[dirName]", ConsoleService.Prompt, "ディレクトリ名: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("PATTERN", ConsoleService.Prompt, "ファイル名のパターン: ", ConsoleService.EvalNotEmpty, null),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            MiscUtil.NormalizeCrLfOfFiles(vl.DefaultParam.StrValue, vl["PATTERN"].StrValue);
+        MiscUtil.NormalizeCrLfOfFiles(vl.DefaultParam.StrValue, vl["PATTERN"].StrValue);
 
-            return 0;
-        }
+        return 0;
+    }
 
 
-        [ConsoleCommand(
-            "指定されたディレクトリ内の最新のいくつかのサブディレクトリのみコピー (同期) し、他は削除する",
-            "SyncLatestFewDirs [srcdir] [/destdir:DESTDIR] [/num:HowManyDirs=1]",
-            "指定されたディレクトリ内の最新のいくつかのサブディレクトリのみコピー (同期) し、他は削除する")]
-        static int SyncLatestFewDirs(ConsoleService c, string cmdName, string str)
+    [ConsoleCommand(
+        "指定されたディレクトリ内の最新のいくつかのサブディレクトリのみコピー (同期) し、他は削除する",
+        "SyncLatestFewDirs [srcdir] [/destdir:DESTDIR] [/num:HowManyDirs=1]",
+        "指定されたディレクトリ内の最新のいくつかのサブディレクトリのみコピー (同期) し、他は削除する")]
+    static int SyncLatestFewDirs(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[srcdir]", ConsoleService.Prompt, "Src Directory: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("destdir", ConsoleService.Prompt, "Dest Directory: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("num", ConsoleService.Prompt, "How Many Dirs: ", ConsoleService.EvalNotEmpty, null),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            string srcDir = vl.DefaultParam.StrValue;
-            string dstDir = vl["destdir"].StrValue;
-            int num = vl["num"].IntValue;
+        string srcDir = vl.DefaultParam.StrValue;
+        string dstDir = vl["destdir"].StrValue;
+        int num = vl["num"].IntValue;
 
-            // ソースディレクトリのサブディレクトリを列挙いたします
-            Async(async () =>
-            {
-                await FileUtil.SyncLatestFewDirsAsync(srcDir, dstDir, num);
-            });
-
-            return 0;
-        }
-
-        [ConsoleCommand(
-            "クラッシュさん",
-            "Crash",
-            "クラッシュさん")]
-        static int Crash(ConsoleService c, string cmdName, string str)
+        // ソースディレクトリのサブディレクトリを列挙いたします
+        Async(async () =>
         {
-            unsafe
+            await FileUtil.SyncLatestFewDirsAsync(srcDir, dstDir, num);
+        });
+
+        return 0;
+    }
+
+    [ConsoleCommand(
+        "クラッシュさん",
+        "Crash",
+        "クラッシュさん")]
+    static int Crash(ConsoleService c, string cmdName, string str)
+    {
+        unsafe
+        {
+            byte[] tmp = new byte[4096];
+
+            var fs = File.Create("/tmp/test.txt");
+
+            IntPtr fd = fs.SafeFileHandle.DangerousGetHandle();
+
+            $"fd = {fd.ToInt64()}"._Print();
+
+            fixed (byte* tmpptr = tmp)
             {
-                byte[] tmp = new byte[4096];
-
-                var fs = File.Create("/tmp/test.txt");
-
-                IntPtr fd = fs.SafeFileHandle.DangerousGetHandle();
-
-                $"fd = {fd.ToInt64()}"._Print();
-
-                fixed (byte* tmpptr = tmp)
+                long ptr = (long)tmpptr;
+                while (true)
                 {
-                    long ptr = (long)tmpptr;
-                    while (true)
-                    {
-                        ptr++;
-                        byte* p = (byte*)ptr;
+                    ptr++;
+                    byte* p = (byte*)ptr;
 
-                        int r = UnixApi.Write(fd, p, 1);
+                    int r = UnixApi.Write(fd, p, 1);
 
-                        $"{ptr} : {r}"._Print();
+                    $"{ptr} : {r}"._Print();
 
-                        if (r == -1) break;
-                    }
+                    if (r == -1) break;
                 }
             }
-
-            return 0;
         }
 
-        [ConsoleCommand(
-            "Git 並列アップデータ",
-            "GitParallelUpdate [dir] [/concurrent:NUM] [/setting:TXTFILENAME]",
-            "Git 並列アップデータ")]
-        static int GitParallelUpdate(ConsoleService c, string cmdName, string str)
+        return 0;
+    }
+
+    [ConsoleCommand(
+        "Git 並列アップデータ",
+        "GitParallelUpdate [dir] [/concurrent:NUM] [/setting:TXTFILENAME]",
+        "Git 並列アップデータ")]
+    static int GitParallelUpdate(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[rootDir]", ConsoleService.Prompt, "Directory: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("concurrent"),
                 new ConsoleParam("setting"),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            string dir = vl.DefaultParam.StrValue;
+        string dir = vl.DefaultParam.StrValue;
 
-            int numConcurrentTasks = vl["num"].IntValue;
+        int numConcurrentTasks = vl["num"].IntValue;
 
-            if (numConcurrentTasks <= 0) numConcurrentTasks = 16;
+        if (numConcurrentTasks <= 0) numConcurrentTasks = 16;
 
-            string setting = vl["setting"].StrValue;
+        string setting = vl["setting"].StrValue;
 
-            GitParallelUpdater.ExecGitParallelUpdaterAsync(dir, numConcurrentTasks, setting)._GetResult();
+        GitParallelUpdater.ExecGitParallelUpdaterAsync(dir, numConcurrentTasks, setting)._GetResult();
 
-            return 0;
-        }
+        return 0;
+    }
 
-        [ConsoleCommand(
-            "ファイルシステム ストレステスト",
-            "FileSystemStressTest [dir] [/num:NUM]",
-            "ファイルシステム ストレステスト")]
-        static int FileSystemStressTest(ConsoleService c, string cmdName, string str)
+    [ConsoleCommand(
+        "ファイルシステム ストレステスト",
+        "FileSystemStressTest [dir] [/num:NUM]",
+        "ファイルシステム ストレステスト")]
+    static int FileSystemStressTest(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[dir]", ConsoleService.Prompt, "Directory: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("num"),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            string dir = vl.DefaultParam.StrValue;
+        string dir = vl.DefaultParam.StrValue;
 
-            Lfs.CreateDirectory(dir);
+        Lfs.CreateDirectory(dir);
 
-            int numThreads = vl["num"].IntValue;
+        int numThreads = vl["num"].IntValue;
 
-            if (numThreads <= 0) numThreads = 1;
+        if (numThreads <= 0) numThreads = 1;
 
-            RefBool stopFlag = new RefBool();
+        RefBool stopFlag = new RefBool();
 
-            RefInt numWrittenFiles = new RefInt();
+        RefInt numWrittenFiles = new RefInt();
 
-            Event startEvent = new Event(true);
+        Event startEvent = new Event(true);
 
-            ThreadObj[] threadList = ThreadObj.StartMany(numThreads, (param) =>
+        ThreadObj[] threadList = ThreadObj.StartMany(numThreads, (param) =>
+        {
+            int index = ThreadObj.Current.Index;
+            startEvent.Wait();
+
+            try
             {
-                int index = ThreadObj.Current.Index;
-                startEvent.Wait();
+                string subdir = Lfs.PathParser.Combine(dir, index.ToString("D4"));
 
                 try
                 {
-                    string subdir = Lfs.PathParser.Combine(dir, index.ToString("D4"));
+                    Lfs.CreateDirectory(subdir);
 
-                    try
+                    while (stopFlag.Value == false)
                     {
-                        Lfs.CreateDirectory(subdir);
+                        string filename = Str.GenRandStr() + ".test";
+                        string fileFillPath = Lfs.PathParser.Combine(subdir, filename);
+                        int size = Util.RandSInt31() % 1_000_000 + 128;
+                        int numCount = Util.RandSInt31() % 64;
 
-                        while (stopFlag.Value == false)
-                        {
-                            string filename = Str.GenRandStr() + ".test";
-                            string fileFillPath = Lfs.PathParser.Combine(subdir, filename);
-                            int size = Util.RandSInt31() % 1_000_000 + 128;
-                            int numCount = Util.RandSInt31() % 64;
-
-                            try
-                            {
-                                numWrittenFiles.Increment();
-
-                                Con.WriteLine($"File #{numWrittenFiles}");
-
-                                using (var file = Lfs.Create(fileFillPath, flags: FileFlags.SparseFile))
-                                {
-                                    for (int i = 0; i < numCount; i++)
-                                    {
-                                        file.WriteRandom(Util.RandSInt31() % size, Util.Rand(64));
-                                    }
-                                }
-                            }
-                            finally
-                            {
-                                try
-                                {
-                                    Lfs.DeleteFile(fileFillPath);
-                                }
-                                catch { }
-                            }
-                        }
-                    }
-                    finally
-                    {
                         try
                         {
-                            if (Lfs.EnumDirectory(subdir).Where(x => x.IsCurrentOrParentDirectory == false).All(x => x.IsFile && x.Name.EndsWith(".test", StringComparison.OrdinalIgnoreCase)))
+                            numWrittenFiles.Increment();
+
+                            Con.WriteLine($"File #{numWrittenFiles}");
+
+                            using (var file = Lfs.Create(fileFillPath, flags: FileFlags.SparseFile))
                             {
-                                Lfs.DeleteDirectory(subdir, true);
+                                for (int i = 0; i < numCount; i++)
+                                {
+                                    file.WriteRandom(Util.RandSInt31() % size, Util.Rand(64));
+                                }
                             }
                         }
-                        catch { }
+                        finally
+                        {
+                            try
+                            {
+                                Lfs.DeleteFile(fileFillPath);
+                            }
+                            catch { }
+                        }
                     }
                 }
-                catch (Exception ex)
+                finally
                 {
-                    Con.WriteLine("*** ERROR !!! ***");
-
-                    ex._Print();
-
-                    stopFlag.Set(true);
+                    try
+                    {
+                        if (Lfs.EnumDirectory(subdir).Where(x => x.IsCurrentOrParentDirectory == false).All(x => x.IsFile && x.Name.EndsWith(".test", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            Lfs.DeleteDirectory(subdir, true);
+                        }
+                    }
+                    catch { }
                 }
-            });
-
-            startEvent.Set();
-
-            Con.ReadLine();
-
-            stopFlag.Set(true);
-
-            threadList._DoForEach(x => x.WaitForEnd());
-
-            return 0;
-        }
-
-        [ConsoleCommand(
-        "ログ stat データからメモリリーク分析",
-        "AnalyzeLogStatMemoryLeak [srcDir] [/dest:csvfilename]",
-        "ログ stat データからメモリリーク分析")]
-        static int AnalyzeLogStatMemoryLeak(ConsoleService c, string cmdName, string str)
-        {
-            ConsoleParam[] args =
+            }
+            catch (Exception ex)
             {
+                Con.WriteLine("*** ERROR !!! ***");
+
+                ex._Print();
+
+                stopFlag.Set(true);
+            }
+        });
+
+        startEvent.Set();
+
+        Con.ReadLine();
+
+        stopFlag.Set(true);
+
+        threadList._DoForEach(x => x.WaitForEnd());
+
+        return 0;
+    }
+
+    [ConsoleCommand(
+    "ログ stat データからメモリリーク分析",
+    "AnalyzeLogStatMemoryLeak [srcDir] [/dest:csvfilename]",
+    "ログ stat データからメモリリーク分析")]
+    static int AnalyzeLogStatMemoryLeak(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
                 new ConsoleParam("[srcDir]", ConsoleService.Prompt, "Input source log directory: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("dest", ConsoleService.Prompt, "Input dest CSV file name: ", ConsoleService.EvalNotEmpty, null),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            var csvData = LogStatMemoryLeakAnalyzer.AnalyzeLogFiles(vl.DefaultParam.StrValue);
+        var csvData = LogStatMemoryLeakAnalyzer.AnalyzeLogFiles(vl.DefaultParam.StrValue);
 
-            csvData._ObjectArrayToCsv(true)._WriteTextFile(vl["dest"].StrValue);
+        csvData._ObjectArrayToCsv(true)._WriteTextFile(vl["dest"].StrValue);
 
-            return 0;
-        }
+        return 0;
+    }
 
-        [ConsoleCommand(
-        "Cacti ホスト登録",
-        "CactiRegisterHosts [taskFileName]",
-        "Cacti ホスト登録")]
-        static int CactiRegisterHosts(ConsoleService c, string cmdName, string str)
+    [ConsoleCommand(
+    "Cacti ホスト登録",
+    "CactiRegisterHosts [taskFileName]",
+    "Cacti ホスト登録")]
+    static int CactiRegisterHosts(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[taskFileName]", ConsoleService.Prompt, "Input task file name: ", ConsoleService.EvalNotEmpty, null),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            CactiClientApp.ExecuteRegisterTasksAsync(vl.DefaultParam.StrValue)._GetResult();
+        CactiClientApp.ExecuteRegisterTasksAsync(vl.DefaultParam.StrValue)._GetResult();
 
-            return 0;
-        }
+        return 0;
+    }
 
-        [ConsoleCommand(
-        "Cacti グラフダウンロード",
-        "CactiDownloadGraphs [destdir] [/cacti:baseUrl] [/username:username] [/password:password] [/graphs:id1,id2,id3,...]",
-        "Cacti グラフダウンロード")]
-        static int CactiDownloadGraphs(ConsoleService c, string cmdName, string str)
+    [ConsoleCommand(
+    "Cacti グラフダウンロード",
+    "CactiDownloadGraphs [destdir] [/cacti:baseUrl] [/username:username] [/password:password] [/graphs:id1,id2,id3,...]",
+    "Cacti グラフダウンロード")]
+    static int CactiDownloadGraphs(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[destdir]", ConsoleService.Prompt, "Input destination directory: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("cacti", ConsoleService.Prompt, "Input Cacti Base Dir: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("username", ConsoleService.Prompt, "Input Cacti Username: ", ConsoleService.EvalNotEmpty, null),
@@ -1034,65 +1034,65 @@ __IMG__
                 new ConsoleParam("graphs", ConsoleService.Prompt, "Input Graph ID List (id1,id2,id3,...): ", ConsoleService.EvalNotEmpty, null),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            string[] ids = vl["graphs"].StrValue._Split(StringSplitOptions.RemoveEmptyEntries, ' ', '\t', ',', '/', ';');
+        string[] ids = vl["graphs"].StrValue._Split(StringSplitOptions.RemoveEmptyEntries, ' ', '\t', ',', '/', ';');
 
-            List<int> idList = new List<int>();
-            ids._DoForEach(s => idList.Add(s._ToInt()));
-            idList.Sort();
+        List<int> idList = new List<int>();
+        ids._DoForEach(s => idList.Add(s._ToInt()));
+        idList.Sort();
 
-            CactiClientApp.DownloadGraphsAsync(vl.DefaultParam.StrValue, vl["cacti"].StrValue, vl["username"].StrValue, vl["password"].StrValue, idList)._GetResult();
+        CactiClientApp.DownloadGraphsAsync(vl.DefaultParam.StrValue, vl["cacti"].StrValue, vl["username"].StrValue, vl["password"].StrValue, idList)._GetResult();
 
-            return 0;
+        return 0;
+    }
+
+    [ConsoleCommand]
+    static int MergeResourceHeader(ConsoleService c, string cmdName, string str)
+    {
+        string baseFile = @"C:\git\IPA-DNP-DeskVPN\src\PenCore\resource.h";
+        string targetFile = @"C:\sec\Desk\current\Desk\DeskVPN\PenCore\resource.h";
+        string destFile = @"c:\tmp\200404\resource.h";
+        int minId = 2500;
+
+        var baseDict = DevTools.ParseHeaderConstants(Lfs.ReadStringFromFile(baseFile));
+        var targetDict = DevTools.ParseHeaderConstants(Lfs.ReadStringFromFile(targetFile));
+
+        KeyValueList<string, int> adding = new KeyValueList<string, int>();
+
+        // 利用可能な ID の最小値
+        int newId = Math.Max(baseDict.Values.Where(x => x < 40000).Max(), minId);
+
+        foreach (var kv in targetDict.OrderBy(x => x.Value))
+        {
+            if (baseDict.ContainsKey(kv.Key) == false)
+            {
+                adding.Add(kv.Key, ++newId);
+            }
         }
 
-        [ConsoleCommand]
-        static int MergeResourceHeader(ConsoleService c, string cmdName, string str)
+        // 結果を出力
+        StringWriter w = new StringWriter();
+        foreach (var kv in adding)
         {
-            string baseFile = @"C:\git\IPA-DNP-DeskVPN\src\PenCore\resource.h";
-            string targetFile = @"C:\sec\Desk\current\Desk\DeskVPN\PenCore\resource.h";
-            string destFile = @"c:\tmp\200404\resource.h";
-            int minId = 2500;
+            int paddingCount = Math.Max(31 - kv.Key.Length, 0);
 
-            var baseDict = DevTools.ParseHeaderConstants(Lfs.ReadStringFromFile(baseFile));
-            var targetDict = DevTools.ParseHeaderConstants(Lfs.ReadStringFromFile(targetFile));
-
-            KeyValueList<string, int> adding = new KeyValueList<string, int>();
-
-            // 利用可能な ID の最小値
-            int newId = Math.Max(baseDict.Values.Where(x => x < 40000).Max(), minId);
-
-            foreach (var kv in targetDict.OrderBy(x => x.Value))
-            {
-                if (baseDict.ContainsKey(kv.Key) == false)
-                {
-                    adding.Add(kv.Key, ++newId);
-                }
-            }
-
-            // 結果を出力
-            StringWriter w = new StringWriter();
-            foreach (var kv in adding)
-            {
-                int paddingCount = Math.Max(31 - kv.Key.Length, 0);
-
-                w.WriteLine($"#define {kv.Key}{Str.MakeCharArray(' ', paddingCount)} {kv.Value}");
-            }
-
-            Lfs.WriteStringToFile(destFile, w.ToString(), FileFlags.AutoCreateDirectory);
-
-            return 0;
+            w.WriteLine($"#define {kv.Key}{Str.MakeCharArray(' ', paddingCount)} {kv.Value}");
         }
 
-        [ConsoleCommand(
-        "テキストファイルの変換",
-        "ConvertTextFiles [srcdir] [/dst:destdir] [/encode:sjis|euc|utf8] [/bom:yes|no] [/newline:crlf|lf|platform]",
-        "テキストファイルの変換")]
-        static int ConvertTextFiles(ConsoleService c, string cmdName, string str)
+        Lfs.WriteStringToFile(destFile, w.ToString(), FileFlags.AutoCreateDirectory);
+
+        return 0;
+    }
+
+    [ConsoleCommand(
+    "テキストファイルの変換",
+    "ConvertTextFiles [srcdir] [/dst:destdir] [/encode:sjis|euc|utf8] [/bom:yes|no] [/newline:crlf|lf|platform]",
+    "テキストファイルの変換")]
+    static int ConvertTextFiles(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[srcdir]", ConsoleService.Prompt, "Input source directory: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("dst", ConsoleService.Prompt, "Input destination directory: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("encode"),
@@ -1100,89 +1100,89 @@ __IMG__
                 new ConsoleParam("newline"),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            string srcdir = vl.DefaultParam.StrValue;
+        string srcdir = vl.DefaultParam.StrValue;
 
-            string dstdir = vl["dst"].StrValue;
+        string dstdir = vl["dst"].StrValue;
 
-            string encode = vl["encode"].StrValue._FilledOrDefault("utf8");
+        string encode = vl["encode"].StrValue._FilledOrDefault("utf8");
 
-            bool bom = vl["bom"].BoolValue;
+        bool bom = vl["bom"].BoolValue;
 
-            string newline = vl["newline"].StrValue._FilledOrDefault("crlf");
+        string newline = vl["newline"].StrValue._FilledOrDefault("crlf");
 
-            Encoding? encoding = null;
+        Encoding? encoding = null;
 
-            switch (encode.ToLower())
-            {
-                case "sjis":
-                    encoding = Str.ShiftJisEncoding;
-                    break;
+        switch (encode.ToLower())
+        {
+            case "sjis":
+                encoding = Str.ShiftJisEncoding;
+                break;
 
-                case "euc":
-                    encoding = Str.EucJpEncoding;
-                    break;
+            case "euc":
+                encoding = Str.EucJpEncoding;
+                break;
 
-                case "utf8":
-                    encoding = Str.Utf8Encoding;
-                    break;
+            case "utf8":
+                encoding = Str.Utf8Encoding;
+                break;
 
-                default:
-                    throw new CoresException("encode param is invalid.");
-            }
-
-            CrlfStyle crlfStyle = CrlfStyle.CrLf;
-
-            switch (newline.ToLower())
-            {
-                case "crlf":
-                    crlfStyle = CrlfStyle.CrLf;
-                    break;
-
-                case "lf":
-                    crlfStyle = CrlfStyle.Lf;
-                    break;
-
-                case "platform":
-                    crlfStyle = CrlfStyle.LocalPlatform;
-                    break;
-
-                default:
-                    throw new CoresException("newline param is invalid.");
-            }
-
-            var srcFileList = Lfs.EnumDirectory(srcdir, true);
-
-            foreach (var srcFile in srcFileList)
-            {
-                if (srcFile.IsFile)
-                {
-                    string relativeFileName = Lfs.PathParser.GetRelativeFileName(srcFile.FullPath, srcdir);
-
-                    string destFileName = Lfs.PathParser.Combine(dstdir, relativeFileName);
-
-                    string body = Lfs.ReadStringFromFile(srcFile.FullPath);
-
-                    body = Str.NormalizeCrlf(body, crlfStyle);
-
-                    Con.WriteLine(relativeFileName);
-
-                    Lfs.WriteStringToFile(destFileName, body, FileFlags.AutoCreateDirectory, encoding: encoding, writeBom: bom);
-                }
-            }
-
-            return 0;
+            default:
+                throw new CoresException("encode param is invalid.");
         }
 
-        [ConsoleCommand(
-            "Authenticode 署名の実施 (内部用)",
-            "SignAuthenticodeInternal [filename] [/out:output] [/comment:string] [/driver:yes] [/cert:type]",
-            "Authenticode 署名の実施 (内部用)")]
-        static int SignAuthenticodeInternal(ConsoleService c, string cmdName, string str)
+        CrlfStyle crlfStyle = CrlfStyle.CrLf;
+
+        switch (newline.ToLower())
         {
-            ConsoleParam[] args =
+            case "crlf":
+                crlfStyle = CrlfStyle.CrLf;
+                break;
+
+            case "lf":
+                crlfStyle = CrlfStyle.Lf;
+                break;
+
+            case "platform":
+                crlfStyle = CrlfStyle.LocalPlatform;
+                break;
+
+            default:
+                throw new CoresException("newline param is invalid.");
+        }
+
+        var srcFileList = Lfs.EnumDirectory(srcdir, true);
+
+        foreach (var srcFile in srcFileList)
+        {
+            if (srcFile.IsFile)
             {
+                string relativeFileName = Lfs.PathParser.GetRelativeFileName(srcFile.FullPath, srcdir);
+
+                string destFileName = Lfs.PathParser.Combine(dstdir, relativeFileName);
+
+                string body = Lfs.ReadStringFromFile(srcFile.FullPath);
+
+                body = Str.NormalizeCrlf(body, crlfStyle);
+
+                Con.WriteLine(relativeFileName);
+
+                Lfs.WriteStringToFile(destFileName, body, FileFlags.AutoCreateDirectory, encoding: encoding, writeBom: bom);
+            }
+        }
+
+        return 0;
+    }
+
+    [ConsoleCommand(
+        "Authenticode 署名の実施 (内部用)",
+        "SignAuthenticodeInternal [filename] [/out:output] [/comment:string] [/driver:yes] [/cert:type]",
+        "Authenticode 署名の実施 (内部用)")]
+    static int SignAuthenticodeInternal(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
                 new ConsoleParam("[filename]", ConsoleService.Prompt, "Input Filename: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("out"),
                 new ConsoleParam("comment"),
@@ -1190,40 +1190,40 @@ __IMG__
                 new ConsoleParam("cert"),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            string srcPath = vl.DefaultParam.StrValue;
+        string srcPath = vl.DefaultParam.StrValue;
 
-            string dstPath = vl["out"].StrValue;
-            if (dstPath._IsEmpty()) dstPath = srcPath;
+        string dstPath = vl["out"].StrValue;
+        if (dstPath._IsEmpty()) dstPath = srcPath;
 
-            string comment = vl["comment"].StrValue;
-            bool driver = vl["driver"].BoolValue;
-            string cert = vl["cert"].StrValue;
+        string comment = vl["comment"].StrValue;
+        bool driver = vl["driver"].BoolValue;
+        string cert = vl["cert"].StrValue;
 
-            using (AuthenticodeSignClient ac = new AuthenticodeSignClient("https://codesignserver:7006/sign", "7BDBCA40E9C4CE374C7889CD3A26EE8D485B94153C2943C09765EEA309FCA13D"))
-            {
-                var srcData = Load(srcPath);
+        using (AuthenticodeSignClient ac = new AuthenticodeSignClient("https://codesignserver:7006/sign", "7BDBCA40E9C4CE374C7889CD3A26EE8D485B94153C2943C09765EEA309FCA13D"))
+        {
+            var srcData = Load(srcPath);
 
-                var dstData = ac.SignSeInternalAsync(srcData, cert, driver ? "Driver" : "", comment._FilledOrDefault("Authenticode"))._GetResult();
+            var dstData = ac.SignSeInternalAsync(srcData, cert, driver ? "Driver" : "", comment._FilledOrDefault("Authenticode"))._GetResult();
 
-                dstData._Save(dstPath, flags: FileFlags.AutoCreateDirectory);
+            dstData._Save(dstPath, flags: FileFlags.AutoCreateDirectory);
 
-                Con.WriteInfo();
-                Con.WriteInfo($"Code sign OK. Written to: '{dstPath}'");
-            }
-
-            return 0;
+            Con.WriteInfo();
+            Con.WriteInfo($"Code sign OK. Written to: '{dstPath}'");
         }
 
-        [ConsoleCommand(
-            "Authenticode 署名の実施 (内部用)",
-            "SignAuthenticodeLabInternal [filename] [/out:output] [/comment:string] [/driver:yes] [/cert:type]",
-            "Authenticode 署名の実施 (内部用)")]
-        static int SignAuthenticodeLabInternal(ConsoleService c, string cmdName, string str)
+        return 0;
+    }
+
+    [ConsoleCommand(
+        "Authenticode 署名の実施 (内部用)",
+        "SignAuthenticodeLabInternal [filename] [/out:output] [/comment:string] [/driver:yes] [/cert:type]",
+        "Authenticode 署名の実施 (内部用)")]
+    static int SignAuthenticodeLabInternal(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[filename]", ConsoleService.Prompt, "Input Filename: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("out"),
                 new ConsoleParam("comment"),
@@ -1231,176 +1231,175 @@ __IMG__
                 new ConsoleParam("cert"),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            string srcPath = vl.DefaultParam.StrValue;
+        string srcPath = vl.DefaultParam.StrValue;
 
-            string dstPath = vl["out"].StrValue;
-            if (dstPath._IsEmpty()) dstPath = srcPath;
+        string dstPath = vl["out"].StrValue;
+        if (dstPath._IsEmpty()) dstPath = srcPath;
 
-            string comment = vl["comment"].StrValue;
-            bool driver = vl["driver"].BoolValue;
-            string cert = vl["cert"].StrValue;
+        string comment = vl["comment"].StrValue;
+        bool driver = vl["driver"].BoolValue;
+        string cert = vl["cert"].StrValue;
 
-            using (AuthenticodeSignClient ac = new AuthenticodeSignClient("https://10.40.0.243:7006/sign", "3CCE0F1B9F61AE5114E77C3A306DCBF7A96D22A22BBFC761FB762F2C295FAA5B"))
-            {
-                var srcData = Load(srcPath);
-
-                var dstData = ac.SignSeInternalAsync(srcData, cert, driver ? "Driver" : "", comment._FilledOrDefault("Authenticode"), passwordFilePath: @"\\10.40.0.13\share\TMP\signserver\password.txt")._GetResult();
-
-                dstData._Save(dstPath, flags: FileFlags.AutoCreateDirectory);
-
-                Con.WriteInfo();
-                Con.WriteInfo($"Code sign OK. Written to: '{dstPath}'");
-            }
-
-            return 0;
-        }
-        [ConsoleCommand(
-            "自己署名証明書の作成",
-            "CertSelfSignedGenerate [filename] /cn:hostName",
-            "自己署名証明書の作成")]
-        static int CertSelfSignedGenerate(ConsoleService c, string cmdName, string str)
+        using (AuthenticodeSignClient ac = new AuthenticodeSignClient("https://10.40.0.243:7006/sign", "3CCE0F1B9F61AE5114E77C3A306DCBF7A96D22A22BBFC761FB762F2C295FAA5B"))
         {
-            ConsoleParam[] args =
-            {
+            var srcData = Load(srcPath);
+
+            var dstData = ac.SignSeInternalAsync(srcData, cert, driver ? "Driver" : "", comment._FilledOrDefault("Authenticode"), passwordFilePath: @"\\10.40.0.13\share\TMP\signserver\password.txt")._GetResult();
+
+            dstData._Save(dstPath, flags: FileFlags.AutoCreateDirectory);
+
+            Con.WriteInfo();
+            Con.WriteInfo($"Code sign OK. Written to: '{dstPath}'");
+        }
+
+        return 0;
+    }
+    [ConsoleCommand(
+        "自己署名証明書の作成",
+        "CertSelfSignedGenerate [filename] /cn:hostName",
+        "自己署名証明書の作成")]
+    static int CertSelfSignedGenerate(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
                 new ConsoleParam("[filename]", ConsoleService.Prompt, "Output filename: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("cn", ConsoleService.Prompt, "Common name: ", ConsoleService.EvalNotEmpty, null),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            string path = vl.DefaultParam.StrValue;
-            string cn = vl["cn"].StrValue;
+        string path = vl.DefaultParam.StrValue;
+        string cn = vl["cn"].StrValue;
 
-            PkiUtil.GenerateRsaKeyPair(2048, out PrivKey newKey, out _);
+        PkiUtil.GenerateRsaKeyPair(2048, out PrivKey newKey, out _);
 
-            Certificate newCert = new Certificate(newKey, new CertificateOptions(PkiAlgorithm.RSA, cn: cn.Trim(), c: "JP"));
-            CertificateStore newCertStore = new CertificateStore(newCert, newKey);
+        Certificate newCert = new Certificate(newKey, new CertificateOptions(PkiAlgorithm.RSA, cn: cn.Trim(), c: "JP"));
+        CertificateStore newCertStore = new CertificateStore(newCert, newKey);
 
-            newCertStore.ExportPkcs12()._Save(path, FileFlags.AutoCreateDirectory);
+        newCertStore.ExportPkcs12()._Save(path, FileFlags.AutoCreateDirectory);
 
-            return 0;
-        }
+        return 0;
+    }
 
-        [ConsoleCommand(
-            "開発用証明書の作成",
-            "CertDevSignedGenerate [filename] /cn:hostName",
-            "開発用証明書の作成")]
-        static int CertDevSignedGenerate(ConsoleService c, string cmdName, string str)
+    [ConsoleCommand(
+        "開発用証明書の作成",
+        "CertDevSignedGenerate [filename] /cn:hostName",
+        "開発用証明書の作成")]
+    static int CertDevSignedGenerate(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[filename]", ConsoleService.Prompt, "Output filename: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("cn", ConsoleService.Prompt, "Common name: ", ConsoleService.EvalNotEmpty, null),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            string path = vl.DefaultParam.StrValue;
-            string cn = vl["cn"].StrValue;
+        string path = vl.DefaultParam.StrValue;
+        string cn = vl["cn"].StrValue;
 
-            PkiUtil.GenerateRsaKeyPair(2048, out PrivKey newKey, out _);
+        PkiUtil.GenerateRsaKeyPair(2048, out PrivKey newKey, out _);
 
-            Certificate newCert = new Certificate(newKey, DevTools.CoresDebugCACert.PkiCertificateStore, new CertificateOptions(PkiAlgorithm.RSA, cn: cn.Trim(), c: "JP"));
-            CertificateStore newCertStore = new CertificateStore(newCert, newKey);
+        Certificate newCert = new Certificate(newKey, DevTools.CoresDebugCACert.PkiCertificateStore, new CertificateOptions(PkiAlgorithm.RSA, cn: cn.Trim(), c: "JP"));
+        CertificateStore newCertStore = new CertificateStore(newCert, newKey);
 
-            newCertStore.ExportPkcs12()._Save(path, FileFlags.AutoCreateDirectory);
+        newCertStore.ExportPkcs12()._Save(path, FileFlags.AutoCreateDirectory);
 
-            return 0;
-        }
+        return 0;
+    }
 
-        public class DirectionCrossResults
+    public class DirectionCrossResults
+    {
+        public string? Start;
+        public string? End;
+        public string? Error;
+        public string? StartAddress;
+        public string? EndAddress;
+
+        public TimeSpan Duration;
+        public double DistanceKm;
+        public string? RouteSummary;
+    }
+
+    [ConsoleCommand(
+        "Google Maps 所要時間クロス表の作成",
+        "GoogleMapsDirectionCross [dir]",
+        "Google Maps 所要時間クロス表の作成",
+        "[dir]:You can specify the directory.")]
+    static int GoogleMapsDirectionCross(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            public string? Start;
-            public string? End;
-            public string? Error;
-            public string? StartAddress;
-            public string? EndAddress;
-
-            public TimeSpan Duration;
-            public double DistanceKm;
-            public string? RouteSummary;
-        }
-
-        [ConsoleCommand(
-            "Google Maps 所要時間クロス表の作成",
-            "GoogleMapsDirectionCross [dir]",
-            "Google Maps 所要時間クロス表の作成",
-            "[dir]:You can specify the directory.")]
-        static int GoogleMapsDirectionCross(ConsoleService c, string cmdName, string str)
-        {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[dir]", ConsoleService.Prompt, "Directory path: ", ConsoleService.EvalNotEmpty, null),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            string dir = vl.DefaultParam.StrValue;
+        string dir = vl.DefaultParam.StrValue;
 
-            string apiKey = Lfs.ReadStringFromFile(dir._CombinePath("ApiKey.txt"), oneLine: true);
+        string apiKey = Lfs.ReadStringFromFile(dir._CombinePath("ApiKey.txt"), oneLine: true);
 
-            string srcListText = Lfs.ReadStringFromFile(dir._CombinePath("Source.txt"));
-            string destListText = Lfs.ReadStringFromFile(dir._CombinePath("Destination.txt"));
+        string srcListText = Lfs.ReadStringFromFile(dir._CombinePath("Source.txt"));
+        string destListText = Lfs.ReadStringFromFile(dir._CombinePath("Destination.txt"));
 
-            string[] srcList = srcListText._GetLines(removeEmpty: true);
-            string[] destList = destListText._GetLines(removeEmpty: true);
+        string[] srcList = srcListText._GetLines(removeEmpty: true);
+        string[] destList = destListText._GetLines(removeEmpty: true);
 
-            using var googleMapsApi = new GoogleMapsApi(new GoogleMapsApiSettings(apiKey: apiKey));
+        using var googleMapsApi = new GoogleMapsApi(new GoogleMapsApiSettings(apiKey: apiKey));
 
-            DateTimeOffset departure = Util.GetStartOfDay(DateTime.Now.AddDays(2))._AsDateTimeOffset(isLocalTime: true);
+        DateTimeOffset departure = Util.GetStartOfDay(DateTime.Now.AddDays(2))._AsDateTimeOffset(isLocalTime: true);
 
-            List<DirectionCrossResults> csv = new List<DirectionCrossResults>();
+        List<DirectionCrossResults> csv = new List<DirectionCrossResults>();
 
-            foreach (string src in srcList)
+        foreach (string src in srcList)
+        {
+            foreach (string dest in destList)
             {
-                foreach (string dest in destList)
+                Console.WriteLine($"「{src}」 → 「{dest}」 ...");
+
+                DirectionCrossResults r = new DirectionCrossResults();
+
+                r.Start = src;
+                r.End = dest;
+
+                try
                 {
-                    Console.WriteLine($"「{src}」 → 「{dest}」 ...");
+                    var result = googleMapsApi.CalcDurationAsync(src, dest, departure)._GetResult();
 
-                    DirectionCrossResults r = new DirectionCrossResults();
-
-                    r.Start = src;
-                    r.End = dest;
-
-                    try
+                    if (result.IsError == false)
                     {
-                        var result = googleMapsApi.CalcDurationAsync(src, dest, departure)._GetResult();
+                        r.StartAddress = result.StartAddress;
+                        r.EndAddress = result.EndAddress;
+                        r.Error = "";
+                        r.Duration = result.Duration;
+                        r.DistanceKm = result.DistanceKm;
+                        r.RouteSummary = result.RouteSummary;
 
-                        if (result.IsError == false)
-                        {
-                            r.StartAddress = result.StartAddress;
-                            r.EndAddress = result.EndAddress;
-                            r.Error = "";
-                            r.Duration = result.Duration;
-                            r.DistanceKm = result.DistanceKm;
-                            r.RouteSummary = result.RouteSummary;
-
-                            $"  {r.Duration} - {r.DistanceKm} km ({r.RouteSummary})"._Print();
-                        }
-                        else
-                        {
-                            r.Error = result.ErrorString;
-                            r.Error._Print();
-                        }
+                        $"  {r.Duration} - {r.DistanceKm} km ({r.RouteSummary})"._Print();
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        ex._Debug();
-                        r.Error = ex.Message;
+                        r.Error = result.ErrorString;
+                        r.Error._Print();
                     }
-
-                    csv.Add(r);
                 }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                    r.Error = ex.Message;
+                }
+
+                csv.Add(r);
             }
-
-            string csvText = csv._ObjectArrayToCsv(withHeader: true);
-
-            Lfs.WriteStringToFile(dir._CombinePath("Result.csv"), csvText, writeBom: true);
-
-            return 0;
         }
+
+        string csvText = csv._ObjectArrayToCsv(withHeader: true);
+
+        Lfs.WriteStringToFile(dir._CombinePath("Result.csv"), csvText, writeBom: true);
+
+        return 0;
     }
 }
 

@@ -51,228 +51,227 @@ using System.Security.AccessControl;
 
 #pragma warning disable CS1998
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public partial class LocalFileSystem
 {
-    public partial class LocalFileSystem
+    public DirectoryPath? DetermineRootPathWithMarkerFile(FilePath sampleFilePath, string markerFileName, string stopSearchFileExtensions = Consts.FileNames.DefaultStopRootSearchFileExtsForSafety)
     {
-        public DirectoryPath? DetermineRootPathWithMarkerFile(FilePath sampleFilePath, string markerFileName, string stopSearchFileExtensions = Consts.FileNames.DefaultStopRootSearchFileExtsForSafety)
-        {
-            IEnumerable<string> markerFiles = Env.IsHostedByDotNetProcess ? Consts.FileNames.AppRootMarkerFileNames : Consts.FileNames.AppRootMarkerFileNamesForBinary;
+        IEnumerable<string> markerFiles = Env.IsHostedByDotNetProcess ? Consts.FileNames.AppRootMarkerFileNames : Consts.FileNames.AppRootMarkerFileNamesForBinary;
 
+        try
+        {
+            DirectoryPath currentDir = sampleFilePath.GetParentDirectory();
+
+            while (currentDir.IsRootDirectory == false)
+            {
+                FileSystemEntity[] elements = currentDir.EnumDirectory(flags: EnumDirectoryFlags.NoGetPhysicalSize);
+
+                if (elements.Where(x => x.IsFile && x.Name._IsSamei(markerFileName)).Any())
+                {
+                    // Found
+                    return currentDir;
+                }
+
+                if (elements.Where(x => x.IsFile && x.Name._IsExtensionMatch(stopSearchFileExtensions)).Any())
+                {
+                    return null;
+                }
+
+                if (elements.Where(x => x.IsFile && markerFiles.Where(marker => marker._IsSamei(x.Name)).Any()).Any())
+                {
+                    return null;
+                }
+
+                if (elements.Where(x => x.IsFile && markerFiles.Where(marker => marker.StartsWith(".") && x.Name.EndsWith(marker, StringComparison.OrdinalIgnoreCase)).Any()).Any())
+                {
+                    return null;
+                }
+
+                currentDir = currentDir.GetParentDirectory();
+            }
+        }
+        catch// (Exception ex)
+        {
+            //ex._Debug();
+        }
+
+        return null;
+    }
+
+    public DirectoryPath ConfigPathStringToPhysicalDirectoryPath(string pathString)
+    {
+        pathString = pathString._NonNullTrim();
+
+        if (pathString._IsEmpty())
+            throw new ArgumentNullException(nameof(pathString));
+
+        pathString = PathParser.NormalizeDirectorySeparator(pathString, true);
+
+        if (PathParser.IsAbsolutePath(pathString))
+        {
+            return pathString;
+        }
+        else
+        {
+            pathString = "/" + PathParser.Linux.NormalizeDirectorySeparator(pathString, true);
+
+            string[] elements = PathParser.Linux.SplitAbsolutePathToElementsUnixStyle(pathString);
+
+            string tmp = PathParser.Linux.BuildAbsolutePathStringFromElements(elements);
+
+            tmp = PathParser.Linux.NormalizeDirectorySeparator(tmp, true);
+
+            if (tmp[0] != '/')
+                throw new ApplicationException("tmp[0] != '/'");
+
+            tmp = tmp.Substring(1);
+
+            tmp = PathParser.Combine(Env.AppRootDir, tmp, true);
+
+            return tmp;
+        }
+    }
+
+    static int TempFileSeqNo = 0;
+
+    public string SaveToTempFile(string ext, ReadOnlyMemory<byte> data, long lifeTimeMsecs = Consts.Timeouts.GcTempDefaultFileLifeTime, CancellationToken cancel = default)
+    {
+        string tmpDirPath = Env.MyGlobalTempDir._CombinePath("_tmpfiles");
+        DateTime now = DateTime.Now;
+        DateTime expires;
+
+        if (lifeTimeMsecs <= 0)
+        {
+            expires = Util.MaxDateTimeValue;
+        }
+        else
+        {
+            expires = now.AddMilliseconds(lifeTimeMsecs);
+        }
+
+        if (ext._IsEmpty()) ext = "dat";
+
+        if (ext.StartsWith(".") == false) ext = "." + ext;
+
+        int seqNo = Interlocked.Increment(ref TempFileSeqNo);
+
+        if ((seqNo % 100) == 0)
+        {
             try
             {
-                DirectoryPath currentDir = sampleFilePath.GetParentDirectory();
-
-                while (currentDir.IsRootDirectory == false)
-                {
-                    FileSystemEntity[] elements = currentDir.EnumDirectory(flags: EnumDirectoryFlags.NoGetPhysicalSize);
-
-                    if (elements.Where(x => x.IsFile && x.Name._IsSamei(markerFileName)).Any())
-                    {
-                        // Found
-                        return currentDir;
-                    }
-
-                    if (elements.Where(x => x.IsFile && x.Name._IsExtensionMatch(stopSearchFileExtensions)).Any())
-                    {
-                        return null;
-                    }
-
-                    if (elements.Where(x => x.IsFile && markerFiles.Where(marker => marker._IsSamei(x.Name)).Any()).Any())
-                    {
-                        return null;
-                    }
-
-                    if (elements.Where(x => x.IsFile && markerFiles.Where(marker => marker.StartsWith(".") && x.Name.EndsWith(marker, StringComparison.OrdinalIgnoreCase)).Any()).Any())
-                    {
-                        return null;
-                    }
-
-                    currentDir = currentDir.GetParentDirectory();
-                }
+                GcTempFile();
             }
-            catch// (Exception ex)
-            {
-                //ex._Debug();
-            }
-
-            return null;
+            catch { }
         }
 
-        public DirectoryPath ConfigPathStringToPhysicalDirectoryPath(string pathString)
+        string fn = $"{seqNo:D8}-{Str.DateTimeToStrShortWithMilliSecs(expires)}{ext}";
+
+        string filePath = tmpDirPath._CombinePath(fn);
+
+        this.WriteDataToFile(filePath, data, flags: FileFlags.AutoCreateDirectory, cancel: cancel);
+
+        return filePath;
+    }
+
+    void GcTempFile()
+    {
+        string tmpDirPath = Env.MyGlobalTempDir._CombinePath("_tmpfiles");
+
+        if (this.IsDirectoryExists(tmpDirPath) == false) return;
+
+        DateTime now = DateTime.Now;
+
+        List<string> deleteList = new List<string>();
+
+        foreach (var e in this.EnumDirectory(tmpDirPath, flags: EnumDirectoryFlags.NoGetPhysicalSize).Where(x => x.IsFile))
         {
-            pathString = pathString._NonNullTrim();
-
-            if (pathString._IsEmpty())
-                throw new ArgumentNullException(nameof(pathString));
-
-            pathString = PathParser.NormalizeDirectorySeparator(pathString, true);
-
-            if (PathParser.IsAbsolutePath(pathString))
-            {
-                return pathString;
-            }
-            else
-            {
-                pathString = "/" + PathParser.Linux.NormalizeDirectorySeparator(pathString, true);
-
-                string[] elements = PathParser.Linux.SplitAbsolutePathToElementsUnixStyle(pathString);
-
-                string tmp = PathParser.Linux.BuildAbsolutePathStringFromElements(elements);
-
-                tmp = PathParser.Linux.NormalizeDirectorySeparator(tmp, true);
-
-                if (tmp[0] != '/')
-                    throw new ApplicationException("tmp[0] != '/'");
-
-                tmp = tmp.Substring(1);
-
-                tmp = PathParser.Combine(Env.AppRootDir, tmp, true);
-
-                return tmp;
-            }
-        }
-
-        static int TempFileSeqNo = 0;
-
-        public string SaveToTempFile(string ext, ReadOnlyMemory<byte> data, long lifeTimeMsecs = Consts.Timeouts.GcTempDefaultFileLifeTime, CancellationToken cancel = default)
-        {
-            string tmpDirPath = Env.MyGlobalTempDir._CombinePath("_tmpfiles");
-            DateTime now = DateTime.Now;
-            DateTime expires;
-
-            if (lifeTimeMsecs <= 0)
-            {
-                expires = Util.MaxDateTimeValue;
-            }
-            else
-            {
-                expires = now.AddMilliseconds(lifeTimeMsecs);
-            }
-
-            if (ext._IsEmpty()) ext = "dat";
-
-            if (ext.StartsWith(".") == false) ext = "." + ext;
-
-            int seqNo = Interlocked.Increment(ref TempFileSeqNo);
-
-            if ((seqNo % 100) == 0)
-            {
-                try
-                {
-                    GcTempFile();
-                }
-                catch { }
-            }
-
-            string fn = $"{seqNo:D8}-{Str.DateTimeToStrShortWithMilliSecs(expires)}{ext}";
-
-            string filePath = tmpDirPath._CombinePath(fn);
-
-            this.WriteDataToFile(filePath, data, flags: FileFlags.AutoCreateDirectory, cancel: cancel);
-
-            return filePath;
-        }
-
-        void GcTempFile()
-        {
-            string tmpDirPath = Env.MyGlobalTempDir._CombinePath("_tmpfiles");
-
-            if (this.IsDirectoryExists(tmpDirPath) == false) return;
-
-            DateTime now = DateTime.Now;
-
-            List<string> deleteList = new List<string>();
-
-            foreach (var e in this.EnumDirectory(tmpDirPath, flags: EnumDirectoryFlags.NoGetPhysicalSize).Where(x => x.IsFile))
-            {
-                try
-                {
-                    string fn = e.Name;
-                    if (Str.GetKeyAndValue(fn, out _, out string dateTimeAndExt, "-"))
-                    {
-                        string dateTimeStr = this.PathParser.GetFileNameWithoutExtension(dateTimeAndExt, false);
-
-                        DateTime expires = Str.StrToDateTime(dateTimeStr);
-
-                        if (now >= expires)
-                        {
-                            deleteList.Add(e.FullPath);
-                        }
-                    }
-                }
-                catch { }
-            }
-
-            foreach (var path in deleteList)
-            {
-                try
-                {
-                    this.DeleteFile(path);
-                }
-                catch { }
-            }
-        }
-
-        readonly Dictionary<string, string> CommandNamdToFullPathCache = new Dictionary<string, string>();
-
-        // UNIX におけるコマンド名からフルパスを取得する (指定されたファイル名がフルパスとして見つからない場合)
-        public string UnixGetFullPathFromCommandName(string commandName)
-        {
-            if (Env.IsUnix == false) throw new ArgumentException("Env.IsUnix == false");
-            if (commandName._IsEmpty()) throw new ArgumentException(nameof(commandName));
-
-            commandName = commandName.Trim();
-
-            if (this.PathParser.IsAbsolutePath(commandName))
-            {
-                if (Lfs.IsFileExists(commandName))
-                {
-                    // 最初から指定されたフルパスが存在する
-                    return commandName;
-                }
-
-                // 指定されたフルパスにファイルが存在しない。コマンド名だけを取り出して解決しようと試みる。
-                commandName = this.PathParser.GetFileName(commandName);
-            }
-
-            lock (CommandNamdToFullPathCache)
-            {
-                return CommandNamdToFullPathCache._GetOrNew(commandName, () =>
-                {
-                    string fullPath = UnixGetFullPathFromCommandNameInternal(commandName);
-
-                    if (fullPath._IsEmpty())
-                    {
-                        throw new CoresException($"The full path of UNIX command '{commandName}' not found.");
-                    }
-
-                    return fullPath;
-                });
-            }
-        }
-
-        string UnixGetFullPathFromCommandNameInternal(string commandName)
-        {
-            if (Env.IsUnix == false) throw new ArgumentException("Env.IsUnix == false");
-            if (commandName._IsEmpty()) throw new ArgumentException(nameof(commandName));
-
             try
             {
-                foreach (var dir in Consts.LinuxPaths.BasicBinDirList)
+                string fn = e.Name;
+                if (Str.GetKeyAndValue(fn, out _, out string dateTimeAndExt, "-"))
                 {
-                    string fpath = this.PathParser.Combine(dir, commandName);
+                    string dateTimeStr = this.PathParser.GetFileNameWithoutExtension(dateTimeAndExt, false);
 
-                    if (this.IsFileExists(fpath))
+                    DateTime expires = Str.StrToDateTime(dateTimeStr);
+
+                    if (now >= expires)
                     {
-                        return fpath;
+                        deleteList.Add(e.FullPath);
                     }
                 }
             }
             catch { }
-
-            return "";
         }
+
+        foreach (var path in deleteList)
+        {
+            try
+            {
+                this.DeleteFile(path);
+            }
+            catch { }
+        }
+    }
+
+    readonly Dictionary<string, string> CommandNamdToFullPathCache = new Dictionary<string, string>();
+
+    // UNIX におけるコマンド名からフルパスを取得する (指定されたファイル名がフルパスとして見つからない場合)
+    public string UnixGetFullPathFromCommandName(string commandName)
+    {
+        if (Env.IsUnix == false) throw new ArgumentException("Env.IsUnix == false");
+        if (commandName._IsEmpty()) throw new ArgumentException(nameof(commandName));
+
+        commandName = commandName.Trim();
+
+        if (this.PathParser.IsAbsolutePath(commandName))
+        {
+            if (Lfs.IsFileExists(commandName))
+            {
+                // 最初から指定されたフルパスが存在する
+                return commandName;
+            }
+
+            // 指定されたフルパスにファイルが存在しない。コマンド名だけを取り出して解決しようと試みる。
+            commandName = this.PathParser.GetFileName(commandName);
+        }
+
+        lock (CommandNamdToFullPathCache)
+        {
+            return CommandNamdToFullPathCache._GetOrNew(commandName, () =>
+            {
+                string fullPath = UnixGetFullPathFromCommandNameInternal(commandName);
+
+                if (fullPath._IsEmpty())
+                {
+                    throw new CoresException($"The full path of UNIX command '{commandName}' not found.");
+                }
+
+                return fullPath;
+            });
+        }
+    }
+
+    string UnixGetFullPathFromCommandNameInternal(string commandName)
+    {
+        if (Env.IsUnix == false) throw new ArgumentException("Env.IsUnix == false");
+        if (commandName._IsEmpty()) throw new ArgumentException(nameof(commandName));
+
+        try
+        {
+            foreach (var dir in Consts.LinuxPaths.BasicBinDirList)
+            {
+                string fpath = this.PathParser.Combine(dir, commandName);
+
+                if (this.IsFileExists(fpath))
+                {
+                    return fpath;
+                }
+            }
+        }
+        catch { }
+
+        return "";
     }
 }
 

@@ -76,280 +76,278 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic.DnsLib
+namespace IPA.Cores.Basic.DnsLib;
+
+internal class DnsCacheRecordList<T> : List<T>
 {
-	internal class DnsCacheRecordList<T> : List<T>
-	{
-		public DnsSecValidationResult ValidationResult { get; set; }
-	}
+    public DnsSecValidationResult ValidationResult { get; set; }
+}
 
-	internal class DnsCache
-	{
-		private class CacheKey
-		{
-			private readonly DomainName _name;
-			private readonly RecordClass _recordClass;
-			private readonly int _hashCode;
-			private readonly RecordType _recordType;
+internal class DnsCache
+{
+    private class CacheKey
+    {
+        private readonly DomainName _name;
+        private readonly RecordClass _recordClass;
+        private readonly int _hashCode;
+        private readonly RecordType _recordType;
 
-			public CacheKey(DomainName name, RecordType recordType, RecordClass recordClass)
-			{
-				_name = name;
-				_recordClass = recordClass;
-				_recordType = recordType;
+        public CacheKey(DomainName name, RecordType recordType, RecordClass recordClass)
+        {
+            _name = name;
+            _recordClass = recordClass;
+            _recordType = recordType;
 
-				_hashCode = name.GetHashCode() ^ (7 * (int) recordType) ^ (11 * (int) recordClass);
-			}
+            _hashCode = name.GetHashCode() ^ (7 * (int)recordType) ^ (11 * (int)recordClass);
+        }
 
 
-			public override int GetHashCode()
-			{
-				return _hashCode;
-			}
+        public override int GetHashCode()
+        {
+            return _hashCode;
+        }
 
-			public override bool Equals(object obj)
-			{
-				CacheKey other = obj as CacheKey;
+        public override bool Equals(object obj)
+        {
+            CacheKey other = obj as CacheKey;
 
-				if (other == null)
-					return false;
+            if (other == null)
+                return false;
 
-				return (_recordType == other._recordType) && (_recordClass == other._recordClass) && (_name.Equals(other._name));
-			}
+            return (_recordType == other._recordType) && (_recordClass == other._recordClass) && (_name.Equals(other._name));
+        }
 
-			public override string ToString()
-			{
-				return _name + " " + _recordClass.ToShortString() + " " + _recordType.ToShortString();
-			}
-		}
+        public override string ToString()
+        {
+            return _name + " " + _recordClass.ToShortString() + " " + _recordType.ToShortString();
+        }
+    }
 
-		private class CacheValue
-		{
-			public DateTime ExpireDateUtc { get; }
-			public DnsCacheRecordList<DnsRecordBase> Records { get; }
+    private class CacheValue
+    {
+        public DateTime ExpireDateUtc { get; }
+        public DnsCacheRecordList<DnsRecordBase> Records { get; }
 
-			public CacheValue(DnsCacheRecordList<DnsRecordBase> records, int timeToLive)
-			{
-				Records = records;
-				ExpireDateUtc = DateTime.UtcNow.AddSeconds(timeToLive);
-			}
-		}
+        public CacheValue(DnsCacheRecordList<DnsRecordBase> records, int timeToLive)
+        {
+            Records = records;
+            ExpireDateUtc = DateTime.UtcNow.AddSeconds(timeToLive);
+        }
+    }
 
-		private readonly ConcurrentDictionary<CacheKey, CacheValue> _cache = new ConcurrentDictionary<CacheKey, CacheValue>();
+    private readonly ConcurrentDictionary<CacheKey, CacheValue> _cache = new ConcurrentDictionary<CacheKey, CacheValue>();
 
-		public void Add<TRecord>(DomainName name, RecordType recordType, RecordClass recordClass, IEnumerable<TRecord> records, DnsSecValidationResult validationResult, int timeToLive)
-			where TRecord : DnsRecordBase
-		{
-			DnsCacheRecordList<DnsRecordBase> cacheValues = new DnsCacheRecordList<DnsRecordBase>();
-			cacheValues.AddRange(records);
-			cacheValues.ValidationResult = validationResult;
+    public void Add<TRecord>(DomainName name, RecordType recordType, RecordClass recordClass, IEnumerable<TRecord> records, DnsSecValidationResult validationResult, int timeToLive)
+        where TRecord : DnsRecordBase
+    {
+        DnsCacheRecordList<DnsRecordBase> cacheValues = new DnsCacheRecordList<DnsRecordBase>();
+        cacheValues.AddRange(records);
+        cacheValues.ValidationResult = validationResult;
 
-			Add(name, recordType, recordClass, cacheValues, timeToLive);
-		}
+        Add(name, recordType, recordClass, cacheValues, timeToLive);
+    }
 
-		public void Add(DomainName name, RecordType recordType, RecordClass recordClass, DnsCacheRecordList<DnsRecordBase> records, int timeToLive)
-		{
-			CacheKey key = new CacheKey(name, recordType, recordClass);
-			_cache.TryAdd(key, new CacheValue(records, timeToLive));
-		}
+    public void Add(DomainName name, RecordType recordType, RecordClass recordClass, DnsCacheRecordList<DnsRecordBase> records, int timeToLive)
+    {
+        CacheKey key = new CacheKey(name, recordType, recordClass);
+        _cache.TryAdd(key, new CacheValue(records, timeToLive));
+    }
 
-		public bool TryGetRecords<TRecord>(DomainName name, RecordType recordType, RecordClass recordClass, out List<TRecord> records)
-			where TRecord : DnsRecordBase
-		{
-			CacheKey key = new CacheKey(name, recordType, recordClass);
-			DateTime utcNow = DateTime.UtcNow;
+    public bool TryGetRecords<TRecord>(DomainName name, RecordType recordType, RecordClass recordClass, out List<TRecord> records)
+        where TRecord : DnsRecordBase
+    {
+        CacheKey key = new CacheKey(name, recordType, recordClass);
+        DateTime utcNow = DateTime.UtcNow;
 
-			CacheValue cacheValue;
-			if (_cache.TryGetValue(key, out cacheValue))
-			{
-				if (cacheValue.ExpireDateUtc < utcNow)
-				{
-					_cache.TryRemove(key, out cacheValue);
-					records = null;
-					return false;
-				}
+        CacheValue cacheValue;
+        if (_cache.TryGetValue(key, out cacheValue))
+        {
+            if (cacheValue.ExpireDateUtc < utcNow)
+            {
+                _cache.TryRemove(key, out cacheValue);
+                records = null;
+                return false;
+            }
 
-				int ttl = (int) (cacheValue.ExpireDateUtc - utcNow).TotalSeconds;
+            int ttl = (int)(cacheValue.ExpireDateUtc - utcNow).TotalSeconds;
 
-				records = new List<TRecord>();
+            records = new List<TRecord>();
 
-				records.AddRange(cacheValue
-					.Records
-					.OfType<TRecord>()
-					.Select(x =>
-					{
-						TRecord record = x.Clone<TRecord>();
-						record.TimeToLive = ttl;
-						return record;
-					}));
+            records.AddRange(cacheValue
+                .Records
+                .OfType<TRecord>()
+                .Select(x =>
+                {
+                    TRecord record = x.Clone<TRecord>();
+                    record.TimeToLive = ttl;
+                    return record;
+                }));
 
-				return true;
-			}
+            return true;
+        }
 
-			records = null;
-			return false;
-		}
+        records = null;
+        return false;
+    }
 
-		public bool TryGetRecords<TRecord>(DomainName name, RecordType recordType, RecordClass recordClass, out DnsCacheRecordList<TRecord> records)
-			where TRecord : DnsRecordBase
-		{
-			CacheKey key = new CacheKey(name, recordType, recordClass);
-			DateTime utcNow = DateTime.UtcNow;
+    public bool TryGetRecords<TRecord>(DomainName name, RecordType recordType, RecordClass recordClass, out DnsCacheRecordList<TRecord> records)
+        where TRecord : DnsRecordBase
+    {
+        CacheKey key = new CacheKey(name, recordType, recordClass);
+        DateTime utcNow = DateTime.UtcNow;
 
-			CacheValue cacheValue;
-			if (_cache.TryGetValue(key, out cacheValue))
-			{
-				if (cacheValue.ExpireDateUtc < utcNow)
-				{
-					_cache.TryRemove(key, out cacheValue);
-					records = null;
-					return false;
-				}
+        CacheValue cacheValue;
+        if (_cache.TryGetValue(key, out cacheValue))
+        {
+            if (cacheValue.ExpireDateUtc < utcNow)
+            {
+                _cache.TryRemove(key, out cacheValue);
+                records = null;
+                return false;
+            }
 
-				int ttl = (int) (cacheValue.ExpireDateUtc - utcNow).TotalSeconds;
+            int ttl = (int)(cacheValue.ExpireDateUtc - utcNow).TotalSeconds;
 
-				records = new DnsCacheRecordList<TRecord>();
+            records = new DnsCacheRecordList<TRecord>();
 
-				records.AddRange(cacheValue
-					.Records
-					.OfType<TRecord>()
-					.Select(x =>
-					{
-						TRecord record = x.Clone<TRecord>();
-						record.TimeToLive = ttl;
-						return record;
-					}));
+            records.AddRange(cacheValue
+                .Records
+                .OfType<TRecord>()
+                .Select(x =>
+                {
+                    TRecord record = x.Clone<TRecord>();
+                    record.TimeToLive = ttl;
+                    return record;
+                }));
 
-				records.ValidationResult = cacheValue.Records.ValidationResult;
+            records.ValidationResult = cacheValue.Records.ValidationResult;
 
-				return true;
-			}
+            return true;
+        }
 
-			records = null;
-			return false;
-		}
+        records = null;
+        return false;
+    }
 
-		public void RemoveExpiredItems()
-		{
-			DateTime utcNow = DateTime.UtcNow;
+    public void RemoveExpiredItems()
+    {
+        DateTime utcNow = DateTime.UtcNow;
 
-			foreach (var kvp in _cache)
-			{
-				CacheValue tmp;
-				if (kvp.Value.ExpireDateUtc < utcNow)
-					_cache.TryRemove(kvp.Key, out tmp);
-			}
-		}
-	}
+        foreach (var kvp in _cache)
+        {
+            CacheValue tmp;
+            if (kvp.Value.ExpireDateUtc < utcNow)
+                _cache.TryRemove(kvp.Key, out tmp);
+        }
+    }
+}
 
-	internal class NameserverCache
-	{
-		private class CacheValue
-		{
-			public DateTime ExpireDateUtc { get; }
-			public IPAddress Address { get; }
+internal class NameserverCache
+{
+    private class CacheValue
+    {
+        public DateTime ExpireDateUtc { get; }
+        public IPAddress Address { get; }
 
-			public CacheValue(int timeToLive, IPAddress address)
-			{
-				ExpireDateUtc = DateTime.UtcNow.AddSeconds(timeToLive);
-				Address = address;
-			}
+        public CacheValue(int timeToLive, IPAddress address)
+        {
+            ExpireDateUtc = DateTime.UtcNow.AddSeconds(timeToLive);
+            Address = address;
+        }
 
-			public override int GetHashCode()
-			{
-				return Address.GetHashCode();
-			}
+        public override int GetHashCode()
+        {
+            return Address.GetHashCode();
+        }
 
-			public override bool Equals(object obj)
-			{
-				CacheValue second = obj as CacheValue;
+        public override bool Equals(object obj)
+        {
+            CacheValue second = obj as CacheValue;
 
-				if (second == null)
-					return false;
+            if (second == null)
+                return false;
 
-				return Address.Equals(second.Address);
-			}
-		}
+            return Address.Equals(second.Address);
+        }
+    }
 
-		private readonly ConcurrentDictionary<DomainName, HashSet<CacheValue>> _cache = new ConcurrentDictionary<DomainName, HashSet<CacheValue>>();
+    private readonly ConcurrentDictionary<DomainName, HashSet<CacheValue>> _cache = new ConcurrentDictionary<DomainName, HashSet<CacheValue>>();
 
-		public void Add(DomainName zoneName, IPAddress address, int timeToLive)
-		{
-			HashSet<CacheValue> addresses;
+    public void Add(DomainName zoneName, IPAddress address, int timeToLive)
+    {
+        HashSet<CacheValue> addresses;
 
-			if (_cache.TryGetValue(zoneName, out addresses))
-			{
-				lock (addresses)
-				{
-					addresses.Add(new CacheValue(timeToLive, address));
-				}
-			}
-			else
-			{
-				_cache.TryAdd(zoneName, new HashSet<CacheValue>() { new CacheValue(timeToLive, address) });
-			}
-		}
+        if (_cache.TryGetValue(zoneName, out addresses))
+        {
+            lock (addresses)
+            {
+                addresses.Add(new CacheValue(timeToLive, address));
+            }
+        }
+        else
+        {
+            _cache.TryAdd(zoneName, new HashSet<CacheValue>() { new CacheValue(timeToLive, address) });
+        }
+    }
 
-		public bool TryGetAddresses(DomainName zoneName, out List<IPAddress> addresses)
-		{
-			DateTime utcNow = DateTime.UtcNow;
+    public bool TryGetAddresses(DomainName zoneName, out List<IPAddress> addresses)
+    {
+        DateTime utcNow = DateTime.UtcNow;
 
-			HashSet<CacheValue> cacheValues;
-			if (_cache.TryGetValue(zoneName, out cacheValues))
-			{
-				addresses = new List<IPAddress>();
-				bool needsCleanup = false;
+        HashSet<CacheValue> cacheValues;
+        if (_cache.TryGetValue(zoneName, out cacheValues))
+        {
+            addresses = new List<IPAddress>();
+            bool needsCleanup = false;
 
-				lock (cacheValues)
-				{
-					foreach (CacheValue cacheValue in cacheValues)
-					{
-						if (cacheValue.ExpireDateUtc < utcNow)
-						{
-							needsCleanup = true;
-						}
-						else
-						{
-							addresses.Add(cacheValue.Address);
-						}
-					}
+            lock (cacheValues)
+            {
+                foreach (CacheValue cacheValue in cacheValues)
+                {
+                    if (cacheValue.ExpireDateUtc < utcNow)
+                    {
+                        needsCleanup = true;
+                    }
+                    else
+                    {
+                        addresses.Add(cacheValue.Address);
+                    }
+                }
 
-					if (needsCleanup)
-					{
-						cacheValues.RemoveWhere(x => x.ExpireDateUtc < utcNow);
-						if (cacheValues.Count == 0)
+                if (needsCleanup)
+                {
+                    cacheValues.RemoveWhere(x => x.ExpireDateUtc < utcNow);
+                    if (cacheValues.Count == 0)
 #pragma warning disable 0728
-							_cache.TryRemove(zoneName, out cacheValues);
+                        _cache.TryRemove(zoneName, out cacheValues);
 #pragma warning restore 0728
-					}
-				}
+                }
+            }
 
-				if (addresses.Count > 0)
-					return true;
-			}
+            if (addresses.Count > 0)
+                return true;
+        }
 
-			addresses = null;
-			return false;
-		}
+        addresses = null;
+        return false;
+    }
 
-		public void RemoveExpiredItems()
-		{
-			DateTime utcNow = DateTime.UtcNow;
+    public void RemoveExpiredItems()
+    {
+        DateTime utcNow = DateTime.UtcNow;
 
-			foreach (var kvp in _cache)
-			{
-				lock (kvp.Value)
-				{
-					HashSet<CacheValue> tmp;
+        foreach (var kvp in _cache)
+        {
+            lock (kvp.Value)
+            {
+                HashSet<CacheValue> tmp;
 
-					kvp.Value.RemoveWhere(x => x.ExpireDateUtc < utcNow);
-					if (kvp.Value.Count == 0)
-						_cache.TryRemove(kvp.Key, out tmp);
-				}
-			}
-		}
-	}
-
+                kvp.Value.RemoveWhere(x => x.ExpireDateUtc < utcNow);
+                if (kvp.Value.Count == 0)
+                    _cache.TryRemove(kvp.Key, out tmp);
+            }
+        }
+    }
 }
 
 #endif

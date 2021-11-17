@@ -44,201 +44,200 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using Microsoft.Extensions.FileProviders;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public class ViewFileObjectInitUnderlayFileResultParam
 {
-    public class ViewFileObjectInitUnderlayFileResultParam
-    {
-        public readonly FileObject FileObject;
-        public readonly long InitialPositon;
-        public readonly long InitialSize;
+    public readonly FileObject FileObject;
+    public readonly long InitialPositon;
+    public readonly long InitialSize;
 
-        public ViewFileObjectInitUnderlayFileResultParam(FileObject fileObject, long initialPosition, long initialSize)
+    public ViewFileObjectInitUnderlayFileResultParam(FileObject fileObject, long initialPosition, long initialSize)
+    {
+        this.FileObject = fileObject;
+        this.InitialPositon = initialPosition;
+        this.InitialSize = initialSize;
+    }
+}
+
+public class ViewFileObject : FileObject
+{
+    protected ViewFileSystem ViewFileSystem { get; }
+    FileSystem UnderlayFileSystem => ViewFileSystem.UnderlayFileSystem;
+    public FileObject UnderlayFile { get; private set; } = null!;
+
+    public override string FinalPhysicalPath => UnderlayFile.FinalPhysicalPath;
+
+    public ViewFileObject(ViewFileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams)
+    {
+        this.ViewFileSystem = fileSystem;
+    }
+
+    internal async Task _InternalCreateFileAsync(CancellationToken cancel = default)
+    {
+        if (UnderlayFile != null)
+            throw new ApplicationException("Already inited.");
+
+        ViewFileObjectInitUnderlayFileResultParam createResult = await CreateUnderlayFileImplAsync(this.FileParams, cancel);
+
+        try
         {
-            this.FileObject = fileObject;
-            this.InitialPositon = initialPosition;
-            this.InitialSize = initialSize;
+            InitAndCheckFileSizeAndPosition(createResult.InitialPositon, createResult.InitialSize, cancel);
+        }
+        catch
+        {
+            createResult.FileObject._DisposeSafe();
+            throw;
+        }
+
+        this.UnderlayFile = createResult.FileObject;
+    }
+
+    protected virtual async Task<ViewFileObjectInitUnderlayFileResultParam> CreateUnderlayFileImplAsync(FileParameters option, CancellationToken cancel = default)
+    {
+        FileObject obj = await UnderlayFileSystem.CreateFileAsync(option, cancel);
+
+        try
+        {
+            ViewFileObjectInitUnderlayFileResultParam result = new ViewFileObjectInitUnderlayFileResultParam(
+                obj,
+                obj.FileParams.Flags.Bit(FileFlags.RandomAccessOnly) ? 0 : obj.Position,
+                obj.Size);
+
+            return result;
+        }
+        catch
+        {
+            obj._DisposeSafe();
+            throw;
         }
     }
 
-    public class ViewFileObject : FileObject
+    protected override Task CloseImplAsync()
+        => this.UnderlayFile.CloseAsync();
+
+    protected override Task FlushImplAsync(CancellationToken cancel = default)
+        => this.UnderlayFile.FlushAsync(cancel);
+
+    protected override Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
+        => this.UnderlayFile.GetFileSizeAsync(false, cancel);
+
+    protected override Task<int> ReadRandomImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
+        => this.UnderlayFile.ReadRandomAsync(position, data, cancel);
+
+    protected override Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
+        => this.UnderlayFile.SetFileSizeAsync(size, cancel);
+
+    protected override Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+        => this.UnderlayFile.WriteRandomAsync(position, data, cancel);
+
+    Once DisposeFlag;
+    protected override void Dispose(bool disposing)
     {
-        protected ViewFileSystem ViewFileSystem { get; }
-        FileSystem UnderlayFileSystem => ViewFileSystem.UnderlayFileSystem;
-        public FileObject UnderlayFile { get; private set; } = null!;
-
-        public override string FinalPhysicalPath => UnderlayFile.FinalPhysicalPath;
-
-        public ViewFileObject(ViewFileSystem fileSystem, FileParameters fileParams) : base(fileSystem, fileParams)
+        try
         {
-            this.ViewFileSystem = fileSystem;
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+            this.UnderlayFile._DisposeSafe();
         }
+        finally { base.Dispose(disposing); }
+    }
+}
 
-        internal async Task _InternalCreateFileAsync(CancellationToken cancel = default)
+public class ViewFileSystemParams : FileSystemParams
+{
+    public FileSystem UnderlayFileSystem { get; }
+    public bool DisposeUnderlay { get; }
+
+    public ViewFileSystemParams(FileSystem underlayFileSystem, PathParser pathParser, FileSystemMode mode = FileSystemMode.Default, bool disposeUnderlay = false) : base(pathParser, mode)
+    {
+        this.UnderlayFileSystem = underlayFileSystem;
+        this.DisposeUnderlay = disposeUnderlay;
+    }
+}
+
+public class ViewFileSystem : FileSystem
+{
+    public FileSystem UnderlayFileSystem => this.Params.UnderlayFileSystem;
+    protected PathParser UnderlayPathParser => this.UnderlayFileSystem.PathParser;
+
+    protected new ViewFileSystemParams Params => (ViewFileSystemParams)base.Params;
+
+    public ViewFileSystem(ViewFileSystemParams param) : base(param)
+    {
+    }
+
+    protected override Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default)
+        => UnderlayFileSystem.NormalizePathAsync(path, cancel: cancel);
+
+    protected override async Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
+    {
+        ViewFileObject fileObj = new ViewFileObject(this, option);
+        try
         {
-            if (UnderlayFile != null)
-                throw new ApplicationException("Already inited.");
+            await fileObj._InternalCreateFileAsync(cancel);
 
-            ViewFileObjectInitUnderlayFileResultParam createResult = await CreateUnderlayFileImplAsync(this.FileParams, cancel);
-
-            try
-            {
-                InitAndCheckFileSizeAndPosition(createResult.InitialPositon, createResult.InitialSize, cancel);
-            }
-            catch
-            {
-                createResult.FileObject._DisposeSafe();
-                throw;
-            }
-
-            this.UnderlayFile = createResult.FileObject;
+            return fileObj;
         }
-
-        protected virtual async Task<ViewFileObjectInitUnderlayFileResultParam> CreateUnderlayFileImplAsync(FileParameters option, CancellationToken cancel = default)
+        catch
         {
-            FileObject obj = await UnderlayFileSystem.CreateFileAsync(option, cancel);
-
-            try
-            {
-                ViewFileObjectInitUnderlayFileResultParam result = new ViewFileObjectInitUnderlayFileResultParam(
-                    obj,
-                    obj.FileParams.Flags.Bit(FileFlags.RandomAccessOnly) ? 0 : obj.Position,
-                    obj.Size);
-
-                return result;
-            }
-            catch
-            {
-                obj._DisposeSafe();
-                throw;
-            }
-        }
-
-        protected override Task CloseImplAsync()
-            => this.UnderlayFile.CloseAsync();
-
-        protected override Task FlushImplAsync(CancellationToken cancel = default)
-            => this.UnderlayFile.FlushAsync(cancel);
-
-        protected override Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
-            => this.UnderlayFile.GetFileSizeAsync(false, cancel);
-
-        protected override Task<int> ReadRandomImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
-            => this.UnderlayFile.ReadRandomAsync(position, data, cancel);
-
-        protected override Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
-            => this.UnderlayFile.SetFileSizeAsync(size, cancel);
-
-        protected override Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
-            => this.UnderlayFile.WriteRandomAsync(position, data, cancel);
-
-        Once DisposeFlag;
-        protected override void Dispose(bool disposing)
-        {
-            try
-            {
-                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-
-                this.UnderlayFile._DisposeSafe();
-            }
-            finally { base.Dispose(disposing); }
+            fileObj._DisposeSafe();
+            throw;
         }
     }
 
-    public class ViewFileSystemParams : FileSystemParams
+    protected override async Task CleanupImplAsync(Exception? ex)
     {
-        public FileSystem UnderlayFileSystem { get; }
-        public bool DisposeUnderlay { get; }
-
-        public ViewFileSystemParams(FileSystem underlayFileSystem, PathParser pathParser, FileSystemMode mode = FileSystemMode.Default, bool disposeUnderlay = false) : base(pathParser, mode)
+        try
         {
-            this.UnderlayFileSystem = underlayFileSystem;
-            this.DisposeUnderlay = disposeUnderlay;
+            if (Params.DisposeUnderlay)
+            {
+                await this.UnderlayFileSystem._DisposeSafeAsync();
+            }
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
         }
     }
 
-    public class ViewFileSystem : FileSystem
-    {
-        public FileSystem UnderlayFileSystem => this.Params.UnderlayFileSystem;
-        protected PathParser UnderlayPathParser => this.UnderlayFileSystem.PathParser;
+    protected override Task DeleteFileImplAsync(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+        => UnderlayFileSystem.DeleteFileAsync(path, flags, cancel);
 
-        protected new ViewFileSystemParams Params => (ViewFileSystemParams)base.Params;
+    protected override Task CreateDirectoryImplAsync(string directoryPath, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+        => UnderlayFileSystem.CreateDirectoryAsync(directoryPath, flags, cancel);
 
-        public ViewFileSystem(ViewFileSystemParams param) : base(param)
-        {
-        }
+    protected override Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default)
+        => UnderlayFileSystem.DeleteDirectoryAsync(directoryPath, recursive, cancel);
 
-        protected override Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default)
-            => UnderlayFileSystem.NormalizePathAsync(path, cancel: cancel);
+    protected override Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
+        => UnderlayFileSystem.EnumDirectoryAsync(directoryPath, false, (flags | EnumDirectoryFlags.IncludeCurrentDirectory).BitRemove(EnumDirectoryFlags.IncludeParentDirectory), cancel);
 
-        protected override async Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
-        {
-            ViewFileObject fileObj = new ViewFileObject(this, option);
-            try
-            {
-                await fileObj._InternalCreateFileAsync(cancel);
+    protected override Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
+        => UnderlayFileSystem.GetFileMetadataAsync(path, flags, cancel);
 
-                return fileObj;
-            }
-            catch
-            {
-                fileObj._DisposeSafe();
-                throw;
-            }
-        }
+    protected override Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
+        => UnderlayFileSystem.SetFileMetadataAsync(path, metadata, cancel);
 
-        protected override async Task CleanupImplAsync(Exception? ex)
-        {
-            try
-            {
-                if (Params.DisposeUnderlay)
-                {
-                    await this.UnderlayFileSystem._DisposeSafeAsync();
-                }
-            }
-            finally
-            {
-                await base.CleanupImplAsync(ex);
-            }
-        }
+    protected override Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
+        => UnderlayFileSystem.GetDirectoryMetadataAsync(path, flags, cancel);
 
-        protected override Task DeleteFileImplAsync(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
-            => UnderlayFileSystem.DeleteFileAsync(path, flags, cancel);
+    protected override Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
+        => UnderlayFileSystem.SetDirectoryMetadataAsync(path, metadata, cancel);
 
-        protected override Task CreateDirectoryImplAsync(string directoryPath, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
-            => UnderlayFileSystem.CreateDirectoryAsync(directoryPath, flags, cancel);
+    protected override Task MoveFileImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
+        => UnderlayFileSystem.MoveFileAsync(srcPath, destPath, cancel);
 
-        protected override Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default)
-            => UnderlayFileSystem.DeleteDirectoryAsync(directoryPath, recursive, cancel);
+    protected override Task MoveDirectoryImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
+        => UnderlayFileSystem.MoveDirectoryAsync(srcPath, destPath, cancel);
 
-        protected override Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
-            => UnderlayFileSystem.EnumDirectoryAsync(directoryPath, false, (flags | EnumDirectoryFlags.IncludeCurrentDirectory).BitRemove(EnumDirectoryFlags.IncludeParentDirectory), cancel);
+    protected override Task<bool> IsFileExistsImplAsync(string path, CancellationToken cancel = default)
+        => UnderlayFileSystem.IsFileExistsAsync(path, cancel);
 
-        protected override Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
-            => UnderlayFileSystem.GetFileMetadataAsync(path, flags, cancel);
+    protected override Task<bool> IsDirectoryExistsImplAsync(string path, CancellationToken cancel = default)
+        => UnderlayFileSystem.IsDirectoryExistsAsync(path, cancel);
 
-        protected override Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
-            => UnderlayFileSystem.SetFileMetadataAsync(path, metadata, cancel);
-
-        protected override Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
-            => UnderlayFileSystem.GetDirectoryMetadataAsync(path, flags, cancel);
-
-        protected override Task SetDirectoryMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
-            => UnderlayFileSystem.SetDirectoryMetadataAsync(path, metadata, cancel);
-
-        protected override Task MoveFileImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
-            => UnderlayFileSystem.MoveFileAsync(srcPath, destPath, cancel);
-
-        protected override Task MoveDirectoryImplAsync(string srcPath, string destPath, CancellationToken cancel = default)
-            => UnderlayFileSystem.MoveDirectoryAsync(srcPath, destPath, cancel);
-
-        protected override Task<bool> IsFileExistsImplAsync(string path, CancellationToken cancel = default)
-            => UnderlayFileSystem.IsFileExistsAsync(path, cancel);
-
-        protected override Task<bool> IsDirectoryExistsImplAsync(string path, CancellationToken cancel = default)
-            => UnderlayFileSystem.IsDirectoryExistsAsync(path, cancel);
-
-        protected override IFileProvider CreateFileProviderForWatchImpl(string root)
-            => UnderlayFileSystem._CreateFileProviderForWatchInternal(EnsureInternal.Yes, root);
-    }
+    protected override IFileProvider CreateFileProviderForWatchImpl(string root)
+        => UnderlayFileSystem._CreateFileProviderForWatchInternal(EnsureInternal.Yes, root);
 }
 

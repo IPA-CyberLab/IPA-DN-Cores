@@ -81,539 +81,538 @@ using System.Collections;
 // Licensed under the Apache License, Version 2.0.
 // License: https://github.com/aspnet/AspNetCore/blob/7795537181bf5fd4f4855a7846bee29c6a0fcc1c/LICENSE.txt
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public sealed class KestrelStackConnectionListener : IConnectionListener
 {
-    public sealed class KestrelStackConnectionListener : IConnectionListener
+    // From Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener, git\AspNetCore\src\Servers\Kestrel\Transport.Sockets\src\SocketConnectionListener.cs
+    public KestrelServerWithStack Server { get; }
+    public EndPoint EndPoint { get; private set; }
+
+    private readonly SocketTransportOptions _options;
+
+    public KestrelStackConnectionListener(KestrelServerWithStack server, EndPoint endpoint, SocketTransportOptions options)
     {
-        // From Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener, git\AspNetCore\src\Servers\Kestrel\Transport.Sockets\src\SocketConnectionListener.cs
-        public KestrelServerWithStack Server { get; }
-        public EndPoint EndPoint { get; private set; }
-
-        private readonly SocketTransportOptions _options;
-
-        public KestrelStackConnectionListener(KestrelServerWithStack server,  EndPoint endpoint, SocketTransportOptions options)
-        {
-            this.Server = server;
-            this.EndPoint = endpoint;
-            this._options = options;
-        }
-
-        NetTcpListener? Listener = null;
-
-        public void Bind()
-        {
-            if (Listener != null)
-                throw new ApplicationException("Listener is already bound.");
-
-            this.Listener = this.Server.Options.TcpIp.CreateTcpListener(new TcpListenParam(compatibleWithKestrel: EnsureSpecial.Yes, null, (IPEndPoint)EndPoint, "Kestrel3"));
-        }
-
-        public async ValueTask<ConnectionContext?> AcceptAsync(CancellationToken cancellationToken = default)
-        {
-            if (this.Listener == null)
-                throw new ApplicationException("Listener is not bound yet.");
-
-            ConnSock sock = await this.Listener.AcceptNextSocketFromQueueUtilAsync(cancellationToken);
-
-            var connection = new KestrelStackConnection(sock);
-
-            connection.Start();
-
-            return connection;
-        }
-
-        public ValueTask UnbindAsync(CancellationToken cancellationToken = default)
-        {
-            Listener._DisposeSafe();
-            return default;
-        }
-
-        public ValueTask DisposeAsync()
-        {
-            Listener._DisposeSafe();
-            return default;
-        }
+        this.Server = server;
+        this.EndPoint = endpoint;
+        this._options = options;
     }
 
-    // Pure copy from: git\AspNetCore\src\Servers\Kestrel\shared\TransportConnection.FeatureCollection.cs
-    public partial class TransportConnection : IConnectionIdFeature,
-                                                 IConnectionTransportFeature,
-                                                 IConnectionItemsFeature,
-                                                 IMemoryPoolFeature,
-                                                 IConnectionLifetimeFeature
+    NetTcpListener? Listener = null;
+
+    public void Bind()
     {
-        // NOTE: When feature interfaces are added to or removed from this TransportConnection class implementation,
-        // then the list of `features` in the generated code project MUST also be updated.
-        // See also: tools/CodeGenerator/TransportConnectionFeatureCollection.cs
+        if (Listener != null)
+            throw new ApplicationException("Listener is already bound.");
 
-        MemoryPool<byte> IMemoryPoolFeature.MemoryPool => MemoryPool;
-
-        IDuplexPipe IConnectionTransportFeature.Transport
-        {
-            get => Transport;
-            set => Transport = value;
-        }
-
-        IDictionary<object, object?> IConnectionItemsFeature.Items
-        {
-            get => Items;
-            set => Items = value;
-        }
-
-        CancellationToken IConnectionLifetimeFeature.ConnectionClosed
-        {
-            get => ConnectionClosed;
-            set => ConnectionClosed = value;
-        }
-
-        void IConnectionLifetimeFeature.Abort() => Abort(new ConnectionAbortedException("The connection was aborted by the application via IConnectionLifetimeFeature.Abort()."));
+        this.Listener = this.Server.Options.TcpIp.CreateTcpListener(new TcpListenParam(compatibleWithKestrel: EnsureSpecial.Yes, null, (IPEndPoint)EndPoint, "Kestrel3"));
     }
 
-    // Pure copy from: git\AspNetCore\src\Servers\Kestrel\shared\TransportConnection.Generated.cs
-    public partial class TransportConnection : IFeatureCollection
+    public async ValueTask<ConnectionContext?> AcceptAsync(CancellationToken cancellationToken = default)
     {
-        private static readonly Type IConnectionIdFeatureType = typeof(IConnectionIdFeature);
-        private static readonly Type IConnectionTransportFeatureType = typeof(IConnectionTransportFeature);
-        private static readonly Type IConnectionItemsFeatureType = typeof(IConnectionItemsFeature);
-        private static readonly Type IMemoryPoolFeatureType = typeof(IMemoryPoolFeature);
-        private static readonly Type IConnectionLifetimeFeatureType = typeof(IConnectionLifetimeFeature);
+        if (this.Listener == null)
+            throw new ApplicationException("Listener is not bound yet.");
 
-        private object _currentIConnectionIdFeature = null!;
-        private object _currentIConnectionTransportFeature = null!;
-        private object _currentIConnectionItemsFeature = null!;
-        private object _currentIMemoryPoolFeature = null!;
-        private object _currentIConnectionLifetimeFeature = null!;
+        ConnSock sock = await this.Listener.AcceptNextSocketFromQueueUtilAsync(cancellationToken);
 
-        private int _featureRevision;
+        var connection = new KestrelStackConnection(sock);
 
-        private List<KeyValuePair<Type, object>>? MaybeExtra;
+        connection.Start();
 
-        private void FastReset()
+        return connection;
+    }
+
+    public ValueTask UnbindAsync(CancellationToken cancellationToken = default)
+    {
+        Listener._DisposeSafe();
+        return default;
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        Listener._DisposeSafe();
+        return default;
+    }
+}
+
+// Pure copy from: git\AspNetCore\src\Servers\Kestrel\shared\TransportConnection.FeatureCollection.cs
+public partial class TransportConnection : IConnectionIdFeature,
+                                             IConnectionTransportFeature,
+                                             IConnectionItemsFeature,
+                                             IMemoryPoolFeature,
+                                             IConnectionLifetimeFeature
+{
+    // NOTE: When feature interfaces are added to or removed from this TransportConnection class implementation,
+    // then the list of `features` in the generated code project MUST also be updated.
+    // See also: tools/CodeGenerator/TransportConnectionFeatureCollection.cs
+
+    MemoryPool<byte> IMemoryPoolFeature.MemoryPool => MemoryPool;
+
+    IDuplexPipe IConnectionTransportFeature.Transport
+    {
+        get => Transport;
+        set => Transport = value;
+    }
+
+    IDictionary<object, object?> IConnectionItemsFeature.Items
+    {
+        get => Items;
+        set => Items = value;
+    }
+
+    CancellationToken IConnectionLifetimeFeature.ConnectionClosed
+    {
+        get => ConnectionClosed;
+        set => ConnectionClosed = value;
+    }
+
+    void IConnectionLifetimeFeature.Abort() => Abort(new ConnectionAbortedException("The connection was aborted by the application via IConnectionLifetimeFeature.Abort()."));
+}
+
+// Pure copy from: git\AspNetCore\src\Servers\Kestrel\shared\TransportConnection.Generated.cs
+public partial class TransportConnection : IFeatureCollection
+{
+    private static readonly Type IConnectionIdFeatureType = typeof(IConnectionIdFeature);
+    private static readonly Type IConnectionTransportFeatureType = typeof(IConnectionTransportFeature);
+    private static readonly Type IConnectionItemsFeatureType = typeof(IConnectionItemsFeature);
+    private static readonly Type IMemoryPoolFeatureType = typeof(IMemoryPoolFeature);
+    private static readonly Type IConnectionLifetimeFeatureType = typeof(IConnectionLifetimeFeature);
+
+    private object _currentIConnectionIdFeature = null!;
+    private object _currentIConnectionTransportFeature = null!;
+    private object _currentIConnectionItemsFeature = null!;
+    private object _currentIMemoryPoolFeature = null!;
+    private object _currentIConnectionLifetimeFeature = null!;
+
+    private int _featureRevision;
+
+    private List<KeyValuePair<Type, object>>? MaybeExtra;
+
+    private void FastReset()
+    {
+        _currentIConnectionIdFeature = this;
+        _currentIConnectionTransportFeature = this;
+        _currentIConnectionItemsFeature = this;
+        _currentIMemoryPoolFeature = this;
+        _currentIConnectionLifetimeFeature = this;
+
+    }
+
+    // Internal for testing
+    internal void ResetFeatureCollection()
+    {
+        FastReset();
+        MaybeExtra?.Clear();
+        _featureRevision++;
+    }
+
+    private object? ExtraFeatureGet(Type key)
+    {
+        if (MaybeExtra == null)
         {
-            _currentIConnectionIdFeature = this;
-            _currentIConnectionTransportFeature = this;
-            _currentIConnectionItemsFeature = this;
-            _currentIMemoryPoolFeature = this;
-            _currentIConnectionLifetimeFeature = this;
-
-        }
-
-        // Internal for testing
-        internal void ResetFeatureCollection()
-        {
-            FastReset();
-            MaybeExtra?.Clear();
-            _featureRevision++;
-        }
-
-        private object? ExtraFeatureGet(Type key)
-        {
-            if (MaybeExtra == null)
-            {
-                return null;
-            }
-            for (var i = 0; i < MaybeExtra.Count; i++)
-            {
-                var kv = MaybeExtra[i];
-                if (kv.Key == key)
-                {
-                    return kv.Value;
-                }
-            }
             return null;
         }
-
-        private void ExtraFeatureSet(Type key, object value)
+        for (var i = 0; i < MaybeExtra.Count; i++)
         {
-            if (MaybeExtra == null)
+            var kv = MaybeExtra[i];
+            if (kv.Key == key)
             {
-                MaybeExtra = new List<KeyValuePair<Type, object>>(2);
-            }
-
-            for (var i = 0; i < MaybeExtra.Count; i++)
-            {
-                if (MaybeExtra[i].Key == key)
-                {
-                    MaybeExtra[i] = new KeyValuePair<Type, object>(key, value);
-                    return;
-                }
-            }
-            MaybeExtra.Add(new KeyValuePair<Type, object>(key, value));
-        }
-
-        bool IFeatureCollection.IsReadOnly => false;
-
-        int IFeatureCollection.Revision => _featureRevision;
-
-        object? IFeatureCollection.this[Type key]
-        {
-            [return: MaybeNull]
-            get
-            {
-                object? feature = null;
-                if (key == IConnectionIdFeatureType)
-                {
-                    feature = _currentIConnectionIdFeature;
-                }
-                else if (key == IConnectionTransportFeatureType)
-                {
-                    feature = _currentIConnectionTransportFeature;
-                }
-                else if (key == IConnectionItemsFeatureType)
-                {
-                    feature = _currentIConnectionItemsFeature;
-                }
-                else if (key == IMemoryPoolFeatureType)
-                {
-                    feature = _currentIMemoryPoolFeature;
-                }
-                else if (key == IConnectionLifetimeFeatureType)
-                {
-                    feature = _currentIConnectionLifetimeFeature;
-                }
-                else if (MaybeExtra != null)
-                {
-                    feature = ExtraFeatureGet(key);
-                }
-
-                return feature!;
-            }
-
-            set
-            {
-                _featureRevision++;
-
-                if (key == IConnectionIdFeatureType)
-                {
-                    _currentIConnectionIdFeature = value!;
-                }
-                else if (key == IConnectionTransportFeatureType)
-                {
-                    _currentIConnectionTransportFeature = value!;
-                }
-                else if (key == IConnectionItemsFeatureType)
-                {
-                    _currentIConnectionItemsFeature = value!;
-                }
-                else if (key == IMemoryPoolFeatureType)
-                {
-                    _currentIMemoryPoolFeature = value!;
-                }
-                else if (key == IConnectionLifetimeFeatureType)
-                {
-                    _currentIConnectionLifetimeFeature = value!;
-                }
-                else
-                {
-                    ExtraFeatureSet(key, value!);
-                }
+                return kv.Value;
             }
         }
+        return null;
+    }
 
+    private void ExtraFeatureSet(Type key, object value)
+    {
+        if (MaybeExtra == null)
+        {
+            MaybeExtra = new List<KeyValuePair<Type, object>>(2);
+        }
+
+        for (var i = 0; i < MaybeExtra.Count; i++)
+        {
+            if (MaybeExtra[i].Key == key)
+            {
+                MaybeExtra[i] = new KeyValuePair<Type, object>(key, value);
+                return;
+            }
+        }
+        MaybeExtra.Add(new KeyValuePair<Type, object>(key, value));
+    }
+
+    bool IFeatureCollection.IsReadOnly => false;
+
+    int IFeatureCollection.Revision => _featureRevision;
+
+    object? IFeatureCollection.this[Type key]
+    {
         [return: MaybeNull]
-#pragma warning disable CS8768 // 戻り値の型における参照型の NULL 値の許容が、実装されるメンバーと一致しません。おそらく、NULL 値の許容の属性が原因です。
-        TFeature IFeatureCollection.Get<TFeature>()
-#pragma warning restore CS8768 // 戻り値の型における参照型の NULL 値の許容が、実装されるメンバーと一致しません。おそらく、NULL 値の許容の属性が原因です。
+        get
         {
-            TFeature feature = default!;
-            if (typeof(TFeature) == typeof(IConnectionIdFeature))
+            object? feature = null;
+            if (key == IConnectionIdFeatureType)
             {
-                feature = (TFeature)_currentIConnectionIdFeature;
+                feature = _currentIConnectionIdFeature;
             }
-            else if (typeof(TFeature) == typeof(IConnectionTransportFeature))
+            else if (key == IConnectionTransportFeatureType)
             {
-                feature = (TFeature)_currentIConnectionTransportFeature;
+                feature = _currentIConnectionTransportFeature;
             }
-            else if (typeof(TFeature) == typeof(IConnectionItemsFeature))
+            else if (key == IConnectionItemsFeatureType)
             {
-                feature = (TFeature)_currentIConnectionItemsFeature;
+                feature = _currentIConnectionItemsFeature;
             }
-            else if (typeof(TFeature) == typeof(IMemoryPoolFeature))
+            else if (key == IMemoryPoolFeatureType)
             {
-                feature = (TFeature)_currentIMemoryPoolFeature;
+                feature = _currentIMemoryPoolFeature;
             }
-            else if (typeof(TFeature) == typeof(IConnectionLifetimeFeature))
+            else if (key == IConnectionLifetimeFeatureType)
             {
-                feature = (TFeature)_currentIConnectionLifetimeFeature;
+                feature = _currentIConnectionLifetimeFeature;
             }
             else if (MaybeExtra != null)
             {
-                feature = (TFeature)(ExtraFeatureGet(typeof(TFeature)))!;
+                feature = ExtraFeatureGet(key);
             }
 
-            return feature;
+            return feature!;
         }
 
-#pragma warning disable CS8769 // パラメーターの型における参照型の NULL 値の許容が、実装されるメンバーと一致しません。おそらく、NULL 値の許容の属性が原因です。
-        void IFeatureCollection.Set<TFeature>(TFeature feature)
-#pragma warning restore CS8769 // パラメーターの型における参照型の NULL 値の許容が、実装されるメンバーと一致しません。おそらく、NULL 値の許容の属性が原因です。
+        set
         {
             _featureRevision++;
-            if (typeof(TFeature) == typeof(IConnectionIdFeature))
+
+            if (key == IConnectionIdFeatureType)
             {
-                _currentIConnectionIdFeature = feature!;
+                _currentIConnectionIdFeature = value!;
             }
-            else if (typeof(TFeature) == typeof(IConnectionTransportFeature))
+            else if (key == IConnectionTransportFeatureType)
             {
-                _currentIConnectionTransportFeature = feature!;
+                _currentIConnectionTransportFeature = value!;
             }
-            else if (typeof(TFeature) == typeof(IConnectionItemsFeature))
+            else if (key == IConnectionItemsFeatureType)
             {
-                _currentIConnectionItemsFeature = feature!;
+                _currentIConnectionItemsFeature = value!;
             }
-            else if (typeof(TFeature) == typeof(IMemoryPoolFeature))
+            else if (key == IMemoryPoolFeatureType)
             {
-                _currentIMemoryPoolFeature = feature!;
+                _currentIMemoryPoolFeature = value!;
             }
-            else if (typeof(TFeature) == typeof(IConnectionLifetimeFeature))
+            else if (key == IConnectionLifetimeFeatureType)
             {
-                _currentIConnectionLifetimeFeature = feature!;
+                _currentIConnectionLifetimeFeature = value!;
             }
             else
             {
-                ExtraFeatureSet(typeof(TFeature), feature!);
+                ExtraFeatureSet(key, value!);
             }
-        }
-
-        private IEnumerable<KeyValuePair<Type, object>> FastEnumerable()
-        {
-            if (_currentIConnectionIdFeature != null)
-            {
-                yield return new KeyValuePair<Type, object>(IConnectionIdFeatureType, _currentIConnectionIdFeature);
-            }
-            if (_currentIConnectionTransportFeature != null)
-            {
-                yield return new KeyValuePair<Type, object>(IConnectionTransportFeatureType, _currentIConnectionTransportFeature);
-            }
-            if (_currentIConnectionItemsFeature != null)
-            {
-                yield return new KeyValuePair<Type, object>(IConnectionItemsFeatureType, _currentIConnectionItemsFeature);
-            }
-            if (_currentIMemoryPoolFeature != null)
-            {
-                yield return new KeyValuePair<Type, object>(IMemoryPoolFeatureType, _currentIMemoryPoolFeature);
-            }
-            if (_currentIConnectionLifetimeFeature != null)
-            {
-                yield return new KeyValuePair<Type, object>(IConnectionLifetimeFeatureType, _currentIConnectionLifetimeFeature);
-            }
-
-            if (MaybeExtra != null)
-            {
-                foreach (var item in MaybeExtra)
-                {
-                    yield return item;
-                }
-            }
-        }
-
-        IEnumerator<KeyValuePair<Type, object>> IEnumerable<KeyValuePair<Type, object>>.GetEnumerator() => FastEnumerable().GetEnumerator();
-
-        IEnumerator IEnumerable.GetEnumerator() => FastEnumerable().GetEnumerator();
-    }
-
-    // Pure copy from: git\AspNetCore\src\Servers\Kestrel\shared\TransportConnection.cs
-    public abstract partial class TransportConnection : ConnectionContext
-    {
-        private IDictionary<object, object?>? _items;
-        private string? _connectionId;
-
-        public TransportConnection()
-        {
-            FastReset();
-        }
-
-        public override EndPoint? LocalEndPoint { get; set; }
-        public override EndPoint? RemoteEndPoint { get; set; }
-
-        public override string ConnectionId
-        {
-            get
-            {
-                if (_connectionId == null)
-                {
-                    _connectionId = Str.NewGuid();
-                }
-
-                return _connectionId;
-            }
-            set
-            {
-                _connectionId = value;
-            }
-        }
-
-        public override IFeatureCollection Features => this;
-
-        public virtual MemoryPool<byte> MemoryPool { get; } = null!;
-
-        public override IDuplexPipe Transport { get; set; } = null!;
-
-        public IDuplexPipe? Application { get; set; }
-
-        public override IDictionary<object, object?> Items
-        {
-            get
-            {
-                // Lazily allocate connection metadata
-                return _items ?? (_items = new ConnectionItems());
-            }
-            set
-            {
-                _items = value;
-            }
-        }
-
-        public override CancellationToken ConnectionClosed { get; set; }
-
-        // DO NOT remove this override to ConnectionContext.Abort. Doing so would cause
-        // any TransportConnection that does not override Abort or calls base.Abort
-        // to stack overflow when IConnectionLifetimeFeature.Abort() is called.
-        // That said, all derived types should override this method should override
-        // this implementation of Abort because canceling pending output reads is not
-        // sufficient to abort the connection if there is backpressure.
-        public override void Abort(ConnectionAbortedException abortReason)
-        {
-            Application!.Input.CancelPendingRead();
         }
     }
 
-    // From Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.Internal, git\AspNetCore\src\Servers\Kestrel\Transport.Sockets\src\Internal\SocketConnection.cs
-    public class KestrelStackConnection : TransportConnection
+    [return: MaybeNull]
+#pragma warning disable CS8768 // 戻り値の型における参照型の NULL 値の許容が、実装されるメンバーと一致しません。おそらく、NULL 値の許容の属性が原因です。
+    TFeature IFeatureCollection.Get<TFeature>()
+#pragma warning restore CS8768 // 戻り値の型における参照型の NULL 値の許容が、実装されるメンバーと一致しません。おそらく、NULL 値の許容の属性が原因です。
     {
-        readonly ConnSock Sock;
-        Task? _processingTask;
-
-        public override MemoryPool<byte> MemoryPool { get; }
-
-        public KestrelStackConnection(ConnSock sock)
+        TFeature feature = default!;
+        if (typeof(TFeature) == typeof(IConnectionIdFeature))
         {
-            this.Sock = sock;
-
-            this.LocalEndPoint = new IPEndPoint(sock.Info.Ip.LocalIPAddress!, sock.Info.Tcp.LocalPort);
-            this.RemoteEndPoint = new IPEndPoint(sock.Info.Ip.RemoteIPAddress!, sock.Info.Tcp.RemotePort);
-
-            this.ConnectionClosed = this.Sock.GrandCancel;
-
-            this.MemoryPool = MemoryPool<byte>.Shared;
-
-            var inputOptions = new PipeOptions();
-            var outputOptions = new PipeOptions();
-
-            var pair = PipelineDuplex.CreateConnectionPair(inputOptions, outputOptions);
-
-            // Set the transport and connection id
-            Transport = pair.Transport;
-            Application = pair.Application;
+            feature = (TFeature)_currentIConnectionIdFeature;
+        }
+        else if (typeof(TFeature) == typeof(IConnectionTransportFeature))
+        {
+            feature = (TFeature)_currentIConnectionTransportFeature;
+        }
+        else if (typeof(TFeature) == typeof(IConnectionItemsFeature))
+        {
+            feature = (TFeature)_currentIConnectionItemsFeature;
+        }
+        else if (typeof(TFeature) == typeof(IMemoryPoolFeature))
+        {
+            feature = (TFeature)_currentIMemoryPoolFeature;
+        }
+        else if (typeof(TFeature) == typeof(IConnectionLifetimeFeature))
+        {
+            feature = (TFeature)_currentIConnectionLifetimeFeature;
+        }
+        else if (MaybeExtra != null)
+        {
+            feature = (TFeature)(ExtraFeatureGet(typeof(TFeature)))!;
         }
 
-        public void Start()
+        return feature;
+    }
+
+#pragma warning disable CS8769 // パラメーターの型における参照型の NULL 値の許容が、実装されるメンバーと一致しません。おそらく、NULL 値の許容の属性が原因です。
+    void IFeatureCollection.Set<TFeature>(TFeature feature)
+#pragma warning restore CS8769 // パラメーターの型における参照型の NULL 値の許容が、実装されるメンバーと一致しません。おそらく、NULL 値の許容の属性が原因です。
+    {
+        _featureRevision++;
+        if (typeof(TFeature) == typeof(IConnectionIdFeature))
         {
-            _processingTask = StartAsync();
+            _currentIConnectionIdFeature = feature!;
         }
-
-        async Task StartAsync()
+        else if (typeof(TFeature) == typeof(IConnectionTransportFeature))
         {
-            try
-            {
-                await using (var wrapper = new PipePointDuplexPipeWrapper(this.Sock.UpperPoint, this.Application!))
-                {
-                    // Now wait for complete
-                    await wrapper.MainLoopToWaitComplete!;
-                }
-            }
-            catch (Exception ex)
-            {
-                // Stop the socket (for just in case)
-                await this.Sock._CancelSafeAsync(new DisconnectedException());
-                await this.Sock._DisposeSafeAsync(new DisconnectedException());
-
-                ex._Debug();
-            }
+            _currentIConnectionTransportFeature = feature!;
         }
-
-        // Only called after connection middleware is complete which means the ConnectionClosed token has fired.
-        public override async ValueTask DisposeAsync()
+        else if (typeof(TFeature) == typeof(IConnectionItemsFeature))
         {
-            Transport!.Input.Complete();
-            Transport.Output.Complete();
-
-            if (_processingTask != null)
-            {
-                await _processingTask;
-            }
-
-            // ソケットの切断 (これをしないとリークしたり、AcceptQueue でいつまでも待機したりしてしまう)
-            await this.Sock._DisposeSafeAsync();
+            _currentIConnectionItemsFeature = feature!;
         }
-
-        public override void Abort()
+        else if (typeof(TFeature) == typeof(IMemoryPoolFeature))
         {
-            this.Sock._CancelSafeAsync()._LaissezFaire(true);
-            this.Sock._DisposeSafe();
-            base.Abort();
+            _currentIMemoryPoolFeature = feature!;
         }
-
-        public override void Abort(ConnectionAbortedException abortReason)
+        else if (typeof(TFeature) == typeof(IConnectionLifetimeFeature))
         {
-            this.Sock._CancelSafeAsync(abortReason)._LaissezFaire(true);
-            this.Sock._DisposeSafe(abortReason);
-            base.Abort(abortReason);
+            _currentIConnectionLifetimeFeature = feature!;
+        }
+        else
+        {
+            ExtraFeatureSet(typeof(TFeature), feature!);
         }
     }
 
-
-    public class KestrelStackTransportFactory : IConnectionListenerFactory
+    private IEnumerable<KeyValuePair<Type, object>> FastEnumerable()
     {
-        // From Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory, git\AspNetCore\src\Servers\Kestrel\Transport.Sockets\src\SocketTransportFactory.cs
-        readonly SocketTransportOptions Options;
-        //readonly IApplicationLifetime AppLifeTime;
-        //readonly SocketsTrace Trace;
-
-        public KestrelServerWithStack? Server { get; private set; }
-
-        public KestrelStackTransportFactory(
-            IOptions<SocketTransportOptions> options,
-            //IApplicationLifetime applicationLifetime,
-            ILoggerFactory loggerFactory)
+        if (_currentIConnectionIdFeature != null)
         {
-            if (options == null)
-                throw new ArgumentNullException(nameof(options));
-
-            //if (applicationLifetime == null)
-            //    throw new ArgumentNullException(nameof(applicationLifetime));
-
-            if (loggerFactory == null)
-                throw new ArgumentNullException(nameof(loggerFactory));
-
-            Options = options.Value;
-            //AppLifeTime = applicationLifetime;
-            //var logger = loggerFactory.CreateLogger("Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets");
-            //Trace = new SocketsTrace(logger);
+            yield return new KeyValuePair<Type, object>(IConnectionIdFeatureType, _currentIConnectionIdFeature);
+        }
+        if (_currentIConnectionTransportFeature != null)
+        {
+            yield return new KeyValuePair<Type, object>(IConnectionTransportFeatureType, _currentIConnectionTransportFeature);
+        }
+        if (_currentIConnectionItemsFeature != null)
+        {
+            yield return new KeyValuePair<Type, object>(IConnectionItemsFeatureType, _currentIConnectionItemsFeature);
+        }
+        if (_currentIMemoryPoolFeature != null)
+        {
+            yield return new KeyValuePair<Type, object>(IMemoryPoolFeatureType, _currentIMemoryPoolFeature);
+        }
+        if (_currentIConnectionLifetimeFeature != null)
+        {
+            yield return new KeyValuePair<Type, object>(IConnectionLifetimeFeatureType, _currentIConnectionLifetimeFeature);
         }
 
-        public ValueTask<IConnectionListener> BindAsync(EndPoint endpoint, CancellationToken cancellationToken = default)
+        if (MaybeExtra != null)
         {
-            //if (endPointInformation == null)
-            //    throw new ArgumentNullException(nameof(endPointInformation));
+            foreach (var item in MaybeExtra)
+            {
+                yield return item;
+            }
+        }
+    }
 
-            //if (endPointInformation.Type != ListenType.IPEndPoint)
-            //    throw new ArgumentException("OnlyIPEndPointsSupported");
+    IEnumerator<KeyValuePair<Type, object>> IEnumerable<KeyValuePair<Type, object>>.GetEnumerator() => FastEnumerable().GetEnumerator();
 
-            //if (dispatcher == null)
-            //    throw new ArgumentNullException(nameof(dispatcher));
+    IEnumerator IEnumerable.GetEnumerator() => FastEnumerable().GetEnumerator();
+}
 
-            //return new KestrelStackTransport(this.Server, endPointInformation, dispatcher, AppLifeTime, Options.IOQueueCount, Trace);
+// Pure copy from: git\AspNetCore\src\Servers\Kestrel\shared\TransportConnection.cs
+public abstract partial class TransportConnection : ConnectionContext
+{
+    private IDictionary<object, object?>? _items;
+    private string? _connectionId;
 
-            var transport = new KestrelStackConnectionListener(this.Server!, endpoint, Options);
-            transport.Bind();
-            return new ValueTask<IConnectionListener>(transport);
+    public TransportConnection()
+    {
+        FastReset();
+    }
+
+    public override EndPoint? LocalEndPoint { get; set; }
+    public override EndPoint? RemoteEndPoint { get; set; }
+
+    public override string ConnectionId
+    {
+        get
+        {
+            if (_connectionId == null)
+            {
+                _connectionId = Str.NewGuid();
+            }
+
+            return _connectionId;
+        }
+        set
+        {
+            _connectionId = value;
+        }
+    }
+
+    public override IFeatureCollection Features => this;
+
+    public virtual MemoryPool<byte> MemoryPool { get; } = null!;
+
+    public override IDuplexPipe Transport { get; set; } = null!;
+
+    public IDuplexPipe? Application { get; set; }
+
+    public override IDictionary<object, object?> Items
+    {
+        get
+        {
+            // Lazily allocate connection metadata
+            return _items ?? (_items = new ConnectionItems());
+        }
+        set
+        {
+            _items = value;
+        }
+    }
+
+    public override CancellationToken ConnectionClosed { get; set; }
+
+    // DO NOT remove this override to ConnectionContext.Abort. Doing so would cause
+    // any TransportConnection that does not override Abort or calls base.Abort
+    // to stack overflow when IConnectionLifetimeFeature.Abort() is called.
+    // That said, all derived types should override this method should override
+    // this implementation of Abort because canceling pending output reads is not
+    // sufficient to abort the connection if there is backpressure.
+    public override void Abort(ConnectionAbortedException abortReason)
+    {
+        Application!.Input.CancelPendingRead();
+    }
+}
+
+// From Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.Internal, git\AspNetCore\src\Servers\Kestrel\Transport.Sockets\src\Internal\SocketConnection.cs
+public class KestrelStackConnection : TransportConnection
+{
+    readonly ConnSock Sock;
+    Task? _processingTask;
+
+    public override MemoryPool<byte> MemoryPool { get; }
+
+    public KestrelStackConnection(ConnSock sock)
+    {
+        this.Sock = sock;
+
+        this.LocalEndPoint = new IPEndPoint(sock.Info.Ip.LocalIPAddress!, sock.Info.Tcp.LocalPort);
+        this.RemoteEndPoint = new IPEndPoint(sock.Info.Ip.RemoteIPAddress!, sock.Info.Tcp.RemotePort);
+
+        this.ConnectionClosed = this.Sock.GrandCancel;
+
+        this.MemoryPool = MemoryPool<byte>.Shared;
+
+        var inputOptions = new PipeOptions();
+        var outputOptions = new PipeOptions();
+
+        var pair = PipelineDuplex.CreateConnectionPair(inputOptions, outputOptions);
+
+        // Set the transport and connection id
+        Transport = pair.Transport;
+        Application = pair.Application;
+    }
+
+    public void Start()
+    {
+        _processingTask = StartAsync();
+    }
+
+    async Task StartAsync()
+    {
+        try
+        {
+            await using (var wrapper = new PipePointDuplexPipeWrapper(this.Sock.UpperPoint, this.Application!))
+            {
+                // Now wait for complete
+                await wrapper.MainLoopToWaitComplete!;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Stop the socket (for just in case)
+            await this.Sock._CancelSafeAsync(new DisconnectedException());
+            await this.Sock._DisposeSafeAsync(new DisconnectedException());
+
+            ex._Debug();
+        }
+    }
+
+    // Only called after connection middleware is complete which means the ConnectionClosed token has fired.
+    public override async ValueTask DisposeAsync()
+    {
+        Transport!.Input.Complete();
+        Transport.Output.Complete();
+
+        if (_processingTask != null)
+        {
+            await _processingTask;
         }
 
-        public void SetServer(KestrelServerWithStack server)
-        {
-            this.Server = server;
-        }
+        // ソケットの切断 (これをしないとリークしたり、AcceptQueue でいつまでも待機したりしてしまう)
+        await this.Sock._DisposeSafeAsync();
+    }
+
+    public override void Abort()
+    {
+        this.Sock._CancelSafeAsync()._LaissezFaire(true);
+        this.Sock._DisposeSafe();
+        base.Abort();
+    }
+
+    public override void Abort(ConnectionAbortedException abortReason)
+    {
+        this.Sock._CancelSafeAsync(abortReason)._LaissezFaire(true);
+        this.Sock._DisposeSafe(abortReason);
+        base.Abort(abortReason);
+    }
+}
+
+
+public class KestrelStackTransportFactory : IConnectionListenerFactory
+{
+    // From Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory, git\AspNetCore\src\Servers\Kestrel\Transport.Sockets\src\SocketTransportFactory.cs
+    readonly SocketTransportOptions Options;
+    //readonly IApplicationLifetime AppLifeTime;
+    //readonly SocketsTrace Trace;
+
+    public KestrelServerWithStack? Server { get; private set; }
+
+    public KestrelStackTransportFactory(
+        IOptions<SocketTransportOptions> options,
+        //IApplicationLifetime applicationLifetime,
+        ILoggerFactory loggerFactory)
+    {
+        if (options == null)
+            throw new ArgumentNullException(nameof(options));
+
+        //if (applicationLifetime == null)
+        //    throw new ArgumentNullException(nameof(applicationLifetime));
+
+        if (loggerFactory == null)
+            throw new ArgumentNullException(nameof(loggerFactory));
+
+        Options = options.Value;
+        //AppLifeTime = applicationLifetime;
+        //var logger = loggerFactory.CreateLogger("Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets");
+        //Trace = new SocketsTrace(logger);
+    }
+
+    public ValueTask<IConnectionListener> BindAsync(EndPoint endpoint, CancellationToken cancellationToken = default)
+    {
+        //if (endPointInformation == null)
+        //    throw new ArgumentNullException(nameof(endPointInformation));
+
+        //if (endPointInformation.Type != ListenType.IPEndPoint)
+        //    throw new ArgumentException("OnlyIPEndPointsSupported");
+
+        //if (dispatcher == null)
+        //    throw new ArgumentNullException(nameof(dispatcher));
+
+        //return new KestrelStackTransport(this.Server, endPointInformation, dispatcher, AppLifeTime, Options.IOQueueCount, Trace);
+
+        var transport = new KestrelStackConnectionListener(this.Server!, endpoint, Options);
+        transport.Bind();
+        return new ValueTask<IConnectionListener>(transport);
+    }
+
+    public void SetServer(KestrelServerWithStack server)
+    {
+        this.Server = server;
     }
 }
 

@@ -59,47 +59,46 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public class ExcelFile : AsyncService
 {
-    public class ExcelFile : AsyncService
+    public ExcelPackage Excel { get; }
+
+    public ExcelWorkbook Workbook => this.Excel.Workbook;
+
+    public ExcelWorksheets Worksheets => this.Workbook.Worksheets;
+
+    readonly Stream TargetStream;
+
+    public ExcelFile(ReadOnlySpan<byte> data) : this(new MemoryStream(data.ToArray())) { }
+
+    public ExcelFile(Stream st)
     {
-        public ExcelPackage Excel { get; }
-
-        public ExcelWorkbook Workbook => this.Excel.Workbook;
-
-        public ExcelWorksheets Worksheets => this.Workbook.Worksheets;
-
-        readonly Stream TargetStream;
-
-        public ExcelFile(ReadOnlySpan<byte> data) : this(new MemoryStream(data.ToArray())) { }
-
-        public ExcelFile(Stream st)
+        try
         {
-            try
-            {
-                this.TargetStream = st;
+            this.TargetStream = st;
 
-                this.Excel = new ExcelPackage(this.TargetStream);
-            }
-            catch
-            {
-                this._DisposeSafe();
-                throw;
-            }
+            this.Excel = new ExcelPackage(this.TargetStream);
         }
-
-        protected override async Task CleanupImplAsync(Exception? ex)
+        catch
         {
-            try
-            {
-                await this.Excel._DisposeSafeAsync2();
+            this._DisposeSafe();
+            throw;
+        }
+    }
 
-                await this.TargetStream._DisposeSafeAsync();
-            }
-            finally
-            {
-                await base.CleanupImplAsync(ex);
-            }
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
+        {
+            await this.Excel._DisposeSafeAsync2();
+
+            await this.TargetStream._DisposeSafeAsync();
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
         }
     }
 }

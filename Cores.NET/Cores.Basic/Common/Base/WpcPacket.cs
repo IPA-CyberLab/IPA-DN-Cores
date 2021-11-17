@@ -59,288 +59,287 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public class WpcPack
 {
-    public class WpcPack
+    public Pack Pack { get; private set; }
+    public string HostKey { get; private set; } = "";
+    public string HostSecret2 { get; private set; } = "";
+
+    public WpcPack(Pack pack, string? hostKey = null, string? hostSecret2 = null)
     {
-        public Pack Pack { get; private set; }
-        public string HostKey { get; private set; } = "";
-        public string HostSecret2 { get; private set; } = "";
+        this.Pack = pack;
+        this.HostKey = hostKey._NonNull();
+        this.HostSecret2 = hostSecret2._NonNull();
+    }
 
-        public WpcPack(Pack pack, string? hostKey = null, string? hostSecret2 = null)
+    public string ToPacketString()
+        => ToPacketBinary().Span._GetString_Ascii();
+
+    public SpanBuffer<byte> ToPacketBinary()
+    {
+        WpcItemList list = new WpcItemList();
+
+        var packData = this.Pack.WriteToBuf().ByteData;
+        list.Add("PACK", packData);
+
+        var hashData = Secure.HashSHA1(packData);
+        list.Add("HASH", hashData);
+
+        if (this.HostKey._IsFilled() && this.HostSecret2._IsFilled())
         {
-            this.Pack = pack;
-            this.HostKey = hostKey._NonNull();
-            this.HostSecret2 = hostSecret2._NonNull();
+            var hostKeyData = this.HostKey._GetHexBytes();
+            var hostSecret2Data = this.HostSecret2._GetHexBytes();
+
+            if (hostKeyData.Length != 20)
+            {
+                throw new CoresLibException("hostKeyData.Length != 20");
+            }
+
+            if (hostSecret2Data.Length != 20)
+            {
+                throw new CoresLibException("hostSecret2Data.Length != 20");
+            }
+
+            list.Add("HOST", hostKeyData);
+            list.Add("HOST", hostSecret2Data);
         }
 
-        public string ToPacketString()
-            => ToPacketBinary().Span._GetString_Ascii();
+        return list.ToPacketBinary();
+    }
 
-        public SpanBuffer<byte> ToPacketBinary()
+    public static WpcPack Parse(string recvStr, bool requireKeyAndSecret)
+    {
+        WpcItemList items = WpcItemList.Parse(recvStr);
+        var packItem = items.Find("PACK");
+        var hashItem = items.Find("HASH");
+        var hostKeyItem = items.Find("HOST", 0);
+        var hostSecret2Item = items.Find("HOST", 1);
+
+        if (packItem == null || hashItem == null)
         {
-            WpcItemList list = new WpcItemList();
-
-            var packData = this.Pack.WriteToBuf().ByteData;
-            list.Add("PACK", packData);
-
-            var hashData = Secure.HashSHA1(packData);
-            list.Add("HASH", hashData);
-
-            if (this.HostKey._IsFilled() && this.HostSecret2._IsFilled())
-            {
-                var hostKeyData = this.HostKey._GetHexBytes();
-                var hostSecret2Data = this.HostSecret2._GetHexBytes();
-
-                if (hostKeyData.Length != 20)
-                {
-                    throw new CoresLibException("hostKeyData.Length != 20");
-                }
-
-                if (hostSecret2Data.Length != 20)
-                {
-                    throw new CoresLibException("hostSecret2Data.Length != 20");
-                }
-
-                list.Add("HOST", hostKeyData);
-                list.Add("HOST", hostSecret2Data);
-            }
-
-            return list.ToPacketBinary();
+            throw new CoresLibException("packItem == null || hashItem == null");
         }
 
-        public static WpcPack Parse(string recvStr, bool requireKeyAndSecret)
+        var hash = Secure.HashSHA1(packItem.Data.Span).AsSpan();
+
+        if (hash._MemEquals(hashItem.Data.Span) == false)
         {
-            WpcItemList items = WpcItemList.Parse(recvStr);
-            var packItem = items.Find("PACK");
-            var hashItem = items.Find("HASH");
-            var hostKeyItem = items.Find("HOST", 0);
-            var hostSecret2Item = items.Find("HOST", 1);
+            throw new CoresLibException("Different hash");
+        }
 
-            if (packItem == null || hashItem == null)
+        Buf buf = new Buf(packItem.Data.ToArray());
+
+        var pack = Pack.CreateFromBuf(buf);
+
+        string hostKey = "";
+        string hostSecret2 = "";
+
+        if (requireKeyAndSecret)
+        {
+            if (hostKeyItem == null || hostKeyItem.Data.Length != 20)
             {
-                throw new CoresLibException("packItem == null || hashItem == null");
+                throw new CoresLibException("hostKeyItem == null || hostKeyItem.Data.Length != 20");
             }
 
-            var hash = Secure.HashSHA1(packItem.Data.Span).AsSpan();
-
-            if (hash._MemEquals(hashItem.Data.Span) == false)
+            if (hostSecret2Item == null || hostSecret2Item.Data.Length != 20)
             {
-                throw new CoresLibException("Different hash");
+                throw new CoresLibException("hostSecret2Item == null || hostSecret2Item.Data.Length != 20");
+            }
+        }
+
+        hostKey = hostKeyItem?.Data._GetHexString() ?? "";
+        hostSecret2 = hostSecret2Item?.Data._GetHexString() ?? "";
+
+        return new WpcPack(pack, hostKey, hostSecret2);
+    }
+}
+
+public class WpcItemList : List<WpcItem>
+{
+    public static WpcItemList Parse(string str)
+    {
+        ReadOnlySpanBuffer<byte> buf = str._GetBytes_Ascii();
+
+        return Parse(ref buf);
+    }
+
+    public static WpcItemList Parse(ref ReadOnlySpanBuffer<byte> buf)
+    {
+        WpcItemList ret = new WpcItemList();
+
+        while (true)
+        {
+            if (WpcItem.Parse(ref buf, out string name, out ReadOnlyMemory<byte> data) == false)
+            {
+                break;
             }
 
-            Buf buf = new Buf(packItem.Data.ToArray());
+            ret.Add(name, data);
+        }
 
-            var pack = Pack.CreateFromBuf(buf);
+        return ret;
+    }
 
-            string hostKey = "";
-            string hostSecret2 = "";
+    public WpcItem? Find(string name, int index = 0)
+    {
+        return this.Where(x => x.Name._IsSamei(name) && x.Index == index).SingleOrDefault();
+    }
 
-            if (requireKeyAndSecret)
-            {
-                if (hostKeyItem == null || hostKeyItem.Data.Length != 20)
-                {
-                    throw new CoresLibException("hostKeyItem == null || hostKeyItem.Data.Length != 20");
-                }
+    public void Add(string name, ReadOnlyMemory<byte> data)
+    {
+        name = name.ToUpper();
 
-                if (hostSecret2Item == null || hostSecret2Item.Data.Length != 20)
-                {
-                    throw new CoresLibException("hostSecret2Item == null || hostSecret2Item.Data.Length != 20");
-                }
-            }
+        int index = this.Where(x => x.Name._IsSamei(name)).Count();
 
-            hostKey = hostKeyItem?.Data._GetHexString() ?? "";
-            hostSecret2 = hostSecret2Item?.Data._GetHexString() ?? "";
+        this.Add(new WpcItem(name, index, data));
+    }
 
-            return new WpcPack(pack, hostKey, hostSecret2);
+    public void Emit(ref SpanBuffer<byte> buf)
+    {
+        foreach (var item in this)
+        {
+            item.Emit(ref buf);
         }
     }
 
-    public class WpcItemList : List<WpcItem>
+    public SpanBuffer<byte> ToPacketBinary()
     {
-        public static WpcItemList Parse(string str)
-        {
-            ReadOnlySpanBuffer<byte> buf = str._GetBytes_Ascii();
+        SpanBuffer<byte> ret = new SpanBuffer<byte>();
 
-            return Parse(ref buf);
-        }
+        this.Emit(ref ret);
 
-        public static WpcItemList Parse(ref ReadOnlySpanBuffer<byte> buf)
-        {
-            WpcItemList ret = new WpcItemList();
-
-            while (true)
-            {
-                if (WpcItem.Parse(ref buf, out string name, out ReadOnlyMemory<byte> data) == false)
-                {
-                    break;
-                }
-
-                ret.Add(name, data);
-            }
-
-            return ret;
-        }
-
-        public WpcItem? Find(string name, int index = 0)
-        {
-            return this.Where(x => x.Name._IsSamei(name) && x.Index == index).SingleOrDefault();
-        }
-
-        public void Add(string name, ReadOnlyMemory<byte> data)
-        {
-            name = name.ToUpper();
-
-            int index = this.Where(x => x.Name._IsSamei(name)).Count();
-
-            this.Add(new WpcItem(name, index, data));
-        }
-
-        public void Emit(ref SpanBuffer<byte> buf)
-        {
-            foreach (var item in this)
-            {
-                item.Emit(ref buf);
-            }
-        }
-
-        public SpanBuffer<byte> ToPacketBinary()
-        {
-            SpanBuffer<byte> ret = new SpanBuffer<byte>();
-
-            this.Emit(ref ret);
-
-            return ret;
-        }
-
-        public string ToPacketString()
-            => this.ToPacketBinary().Span._GetString_Ascii();
+        return ret;
     }
 
-    public class WpcItem
+    public string ToPacketString()
+        => this.ToPacketBinary().Span._GetString_Ascii();
+}
+
+public class WpcItem
+{
+    public string Name { get; }
+    public int Index { get; }
+
+    public ReadOnlyMemory<byte> Data { get; }
+
+    public WpcItem(string name, int index, ReadOnlyMemory<byte> data)
     {
-        public string Name { get; }
-        public int Index { get; }
+        if (name.Length > 4) throw new ArgumentException("name.Length > 4");
+        this.Name = name.ToUpper();
+        this.Index = index;
+        this.Data = data;
+    }
 
-        public ReadOnlyMemory<byte> Data { get; }
+    public static bool Parse(ref ReadOnlySpanBuffer<byte> buf, out string name, out ReadOnlyMemory<byte> data)
+    {
+        name = "";
+        data = default;
 
-        public WpcItem(string name, int index, ReadOnlyMemory<byte> data)
+        var nameBuf = buf.Read(4, allowPartial: true);
+        if (nameBuf.Length != 4) return false;
+        name = nameBuf._GetString_Ascii().ToUpper();
+
+        int i = name.IndexOf(' ');
+        if (i != -1) name = name.Substring(0, i);
+
+        var sizeStrBuf = buf.Read(10, allowPartial: true);
+        if (sizeStrBuf.Length != 10) return false;
+
+        int size = sizeStrBuf._GetString_Ascii()._ToInt();
+        size = Math.Max(size, 0);
+        if (size > Pack.MaxPackSize) throw new CoresException($"size ({size}) > Pack.MaxPackSize ({Pack.MaxPackSize})");
+
+        var dataBuf = buf.Read(size, allowPartial: true);
+        if (dataBuf.Length != size) return false;
+        string dataStr = dataBuf._GetString_Ascii();
+        data = Str.Base64Decode(Str.Safe64ToBase64(dataStr));
+
+        return true;
+    }
+
+    public void Emit(ref SpanBuffer<byte> buf)
+    {
+        string name = this.Name.ToUpper();
+        if (name.Length < 4)
         {
-            if (name.Length > 4) throw new ArgumentException("name.Length > 4");
-            this.Name = name.ToUpper();
-            this.Index = index;
-            this.Data = data;
+            int pad = 4 - name.Length;
+            name = name + ' '._MakeCharArray(pad);
         }
 
-        public static bool Parse(ref ReadOnlySpanBuffer<byte> buf, out string name, out ReadOnlyMemory<byte> data)
+        var nameBuf = name.ToUpper()._GetBytes_Ascii();
+        if (nameBuf.Length != 4) throw new CoresLibException("nameBuf.Length != 4");
+
+        string dataStr = Str.Base64ToSafe64(Str.Base64Encode(this.Data));
+        var dataBuf = dataStr._GetBytes_Ascii();
+
+        int dataSize = dataBuf.Length;
+
+        string dataSizeStr = dataSize.ToString("0000000000");
+        var dataSizeStrData = dataSizeStr._GetBytes_Ascii();
+
+        buf.Write(nameBuf);
+        buf.Write(dataSizeStrData);
+        buf.Write(dataBuf);
+    }
+}
+
+public class WpcResult
+{
+    public bool IsOk => ErrorCode == VpnError.ERR_NO_ERROR;
+    public bool IsError => !IsOk;
+
+    [JsonIgnore]
+    [NoDebugDump]
+    public Pack Pack { get; }
+
+    public VpnError ErrorCode { get; }
+    public string ErrorCodeString => ErrorCode.ToString();
+
+    public KeyValueList<string, string> AdditionalInfo { get; } = new KeyValueList<string, string>();
+
+    public KeyValueList<string, string> ClientInfo { get; } = new KeyValueList<string, string>();
+
+    public string? ErrorLocation { get; }
+    public string? AdditionalErrorStr { get; }
+
+    public WpcResult(Pack? pack = null) : this(VpnError.ERR_NO_ERROR, pack) { }
+
+    public WpcResult(VpnError errorCode, Pack? pack = null, string? additionalErrorStr = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+    {
+        if (pack == null) pack = new Pack();
+
+        this.Pack = pack;
+
+        this.ErrorCode = errorCode;
+        this.Pack.AddInt("Error", (uint)this.ErrorCode);
+
+        if (this.IsError)
         {
-            name = "";
-            data = default;
+            this.AdditionalErrorStr = additionalErrorStr._NonNullTrim();
+            if (this.AdditionalErrorStr._IsEmpty()) this.AdditionalErrorStr = null;
 
-            var nameBuf = buf.Read(4, allowPartial: true);
-            if (nameBuf.Length != 4) return false;
-            name = nameBuf._GetString_Ascii().ToUpper();
-
-            int i = name.IndexOf(' ');
-            if (i != -1) name = name.Substring(0, i);
-
-            var sizeStrBuf = buf.Read(10, allowPartial: true);
-            if (sizeStrBuf.Length != 10) return false;
-
-            int size = sizeStrBuf._GetString_Ascii()._ToInt();
-            size = Math.Max(size, 0);
-            if (size > Pack.MaxPackSize) throw new CoresException($"size ({size}) > Pack.MaxPackSize ({Pack.MaxPackSize})");
-
-            var dataBuf = buf.Read(size, allowPartial: true);
-            if (dataBuf.Length != size) return false;
-            string dataStr = dataBuf._GetString_Ascii();
-            data = Str.Base64Decode(Str.Safe64ToBase64(dataStr));
-
-            return true;
-        }
-
-        public void Emit(ref SpanBuffer<byte> buf)
-        {
-            string name = this.Name.ToUpper();
-            if (name.Length < 4)
-            {
-                int pad = 4 - name.Length;
-                name = name + ' '._MakeCharArray(pad);
-            }
-
-            var nameBuf = name.ToUpper()._GetBytes_Ascii();
-            if (nameBuf.Length != 4) throw new CoresLibException("nameBuf.Length != 4");
-
-            string dataStr = Str.Base64ToSafe64(Str.Base64Encode(this.Data));
-            var dataBuf = dataStr._GetBytes_Ascii();
-
-            int dataSize = dataBuf.Length;
-
-            string dataSizeStr = dataSize.ToString("0000000000");
-            var dataSizeStrData = dataSizeStr._GetBytes_Ascii();
-
-            buf.Write(nameBuf);
-            buf.Write(dataSizeStrData);
-            buf.Write(dataBuf);
+            this.ErrorLocation = $"{filename}:{line} by {caller}";
         }
     }
 
-    public class WpcResult
+    public WpcResult(Exception ex, Pack? pack = null)
     {
-        public bool IsOk => ErrorCode == VpnError.ERR_NO_ERROR;
-        public bool IsError => !IsOk;
+        if (pack == null) pack = new Pack();
 
-        [JsonIgnore]
-        [NoDebugDump]
-        public Pack Pack { get; }
+        this.Pack = pack;
+        this.ErrorCode = VpnError.ERR_TEMP_ERROR;
+        this.Pack.AddInt("Error", (uint)this.ErrorCode);
+        this.ErrorLocation = ex.StackTrace?.ToString() ?? "Unknown";
+        this.AdditionalErrorStr = ex.Message;
+    }
 
-        public VpnError ErrorCode { get; }
-        public string ErrorCodeString => ErrorCode.ToString();
+    public WpcPack ToWpcPack()
+    {
+        WpcPack wp = new WpcPack(this.Pack);
 
-        public KeyValueList<string, string> AdditionalInfo { get; } = new KeyValueList<string, string>();
-
-        public KeyValueList<string, string> ClientInfo { get; } = new KeyValueList<string, string>();
-
-        public string? ErrorLocation { get; }
-        public string? AdditionalErrorStr { get; }
-
-        public WpcResult(Pack? pack = null) : this(VpnError.ERR_NO_ERROR, pack) { }
-
-        public WpcResult(VpnError errorCode, Pack? pack = null, string? additionalErrorStr = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
-        {
-            if (pack == null) pack = new Pack();
-
-            this.Pack = pack;
-
-            this.ErrorCode = errorCode;
-            this.Pack.AddInt("Error", (uint)this.ErrorCode);
-
-            if (this.IsError)
-            {
-                this.AdditionalErrorStr = additionalErrorStr._NonNullTrim();
-                if (this.AdditionalErrorStr._IsEmpty()) this.AdditionalErrorStr = null;
-
-                this.ErrorLocation = $"{filename}:{line} by {caller}";
-            }
-        }
-
-        public WpcResult(Exception ex, Pack? pack = null)
-        {
-            if (pack == null) pack = new Pack();
-
-            this.Pack = pack;
-            this.ErrorCode = VpnError.ERR_TEMP_ERROR;
-            this.Pack.AddInt("Error", (uint)this.ErrorCode);
-            this.ErrorLocation = ex.StackTrace?.ToString() ?? "Unknown";
-            this.AdditionalErrorStr = ex.Message;
-        }
-
-        public WpcPack ToWpcPack()
-        {
-            WpcPack wp = new WpcPack(this.Pack);
-
-            return wp;
-        }
+        return wp;
     }
 }
 

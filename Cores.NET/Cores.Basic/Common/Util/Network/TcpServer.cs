@@ -45,93 +45,92 @@ using static IPA.Cores.Globals.Basic;
 using System.IO;
 using System.Runtime.Serialization;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public class TcpServerOptions
 {
-    public class TcpServerOptions
-    {
-        public IReadOnlyList<IPEndPoint> EndPoints { get; }
-        public TcpIpSystem TcpIp { get; }
-        public string? RateLimiterConfigName { get; }
+    public IReadOnlyList<IPEndPoint> EndPoints { get; }
+    public TcpIpSystem TcpIp { get; }
+    public string? RateLimiterConfigName { get; }
 
-        public TcpServerOptions(TcpIpSystem? tcpIp, string? rateLimiterConfigName = null, params IPEndPoint[] endPoints)
+    public TcpServerOptions(TcpIpSystem? tcpIp, string? rateLimiterConfigName = null, params IPEndPoint[] endPoints)
+    {
+        this.TcpIp = tcpIp ?? LocalNet;
+        this.EndPoints = endPoints.ToList();
+        this.RateLimiterConfigName = rateLimiterConfigName;
+    }
+}
+
+public abstract class TcpServerBase : AsyncService
+{
+    protected TcpServerOptions Options { get; }
+
+    NetTcpListener Listener;
+
+    public TcpServerBase(TcpServerOptions options)
+    {
+        try
         {
-            this.TcpIp = tcpIp ?? LocalNet;
-            this.EndPoints = endPoints.ToList();
-            this.RateLimiterConfigName = rateLimiterConfigName;
+            this.Options = options;
+
+            Listener = this.Options.TcpIp.CreateTcpListener(new TcpListenParam(ListenerCallbackAsync, options.RateLimiterConfigName, this.Options.EndPoints.ToArray()));
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
         }
     }
 
-    public abstract class TcpServerBase : AsyncService
+    protected abstract Task TcpAcceptedImplAsync(NetTcpListenerPort listener, ConnSock sock);
+
+    async Task ListenerCallbackAsync(NetTcpListenerPort listener, ConnSock newSock)
     {
-        protected TcpServerOptions Options { get; }
-
-        NetTcpListener Listener;
-
-        public TcpServerBase(TcpServerOptions options)
-        {
-            try
-            {
-                this.Options = options;
-
-                Listener = this.Options.TcpIp.CreateTcpListener(new TcpListenParam(ListenerCallbackAsync, options.RateLimiterConfigName, this.Options.EndPoints.ToArray()));
-            }
-            catch
-            {
-                this._DisposeSafe();
-                throw;
-            }
-        }
-
-        protected abstract Task TcpAcceptedImplAsync(NetTcpListenerPort listener, ConnSock sock);
-
-        async Task ListenerCallbackAsync(NetTcpListenerPort listener, ConnSock newSock)
-        {
-            await TcpAcceptedImplAsync(listener, newSock);
-        }
-
-        protected override async Task CleanupImplAsync(Exception? ex)
-        {
-            try
-            {
-                await this.Listener._DisposeSafeAsync();
-            }
-            finally
-            {
-                await base.CleanupImplAsync(ex);
-            }
-        }
+        await TcpAcceptedImplAsync(listener, newSock);
     }
 
-    public class SslServerOptions : TcpServerOptions
+    protected override async Task CleanupImplAsync(Exception? ex)
     {
-        public PalSslServerAuthenticationOptions SslServerAuthenticationOptions { get; }
-
-        public SslServerOptions(TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, string? rateLimiterConfigName = null, params IPEndPoint[] endPoints) : base(tcpIp, rateLimiterConfigName, endPoints)
+        try
         {
-            this.SslServerAuthenticationOptions = sslAuthOptions;
+            await this.Listener._DisposeSafeAsync();
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
         }
     }
+}
 
-    public abstract class SslServerBase : TcpServerBase
+public class SslServerOptions : TcpServerOptions
+{
+    public PalSslServerAuthenticationOptions SslServerAuthenticationOptions { get; }
+
+    public SslServerOptions(TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, string? rateLimiterConfigName = null, params IPEndPoint[] endPoints) : base(tcpIp, rateLimiterConfigName, endPoints)
     {
-        protected new SslServerOptions Options => (SslServerOptions)base.Options;
+        this.SslServerAuthenticationOptions = sslAuthOptions;
+    }
+}
 
-        public SslServerBase(SslServerOptions options) : base(options)
+public abstract class SslServerBase : TcpServerBase
+{
+    protected new SslServerOptions Options => (SslServerOptions)base.Options;
+
+    public SslServerBase(SslServerOptions options) : base(options)
+    {
+    }
+
+    protected abstract Task SslAcceptedImplAsync(NetTcpListenerPort listener, SslSock sock);
+
+    protected sealed override async Task TcpAcceptedImplAsync(NetTcpListenerPort listener, ConnSock s)
+    {
+        await using (SslSock ssl = new SslSock(s))
         {
-        }
+            await ssl.StartSslServerAsync(this.Options.SslServerAuthenticationOptions, s.GrandCancel);
 
-        protected abstract Task SslAcceptedImplAsync(NetTcpListenerPort listener, SslSock sock);
+            ssl.UpdateSslSessionInfo();
 
-        protected sealed override async Task TcpAcceptedImplAsync(NetTcpListenerPort listener, ConnSock s)
-        {
-            await using (SslSock ssl = new SslSock(s))
-            {
-                await ssl.StartSslServerAsync(this.Options.SslServerAuthenticationOptions, s.GrandCancel);
-
-                ssl.UpdateSslSessionInfo();
-
-                await SslAcceptedImplAsync(listener, ssl);
-            }
+            await SslAcceptedImplAsync(listener, ssl);
         }
     }
 }

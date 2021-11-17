@@ -46,183 +46,182 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Collections.Immutable;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public class SourceCodePathAndMarkerFileName
 {
-    public class SourceCodePathAndMarkerFileName
-    {
-        public string SourceCodePath { get; }
-        public string MarkerFileName { get; }
+    public string SourceCodePath { get; }
+    public string MarkerFileName { get; }
 
-        public SourceCodePathAndMarkerFileName(string sourceCodePath, string markerFileName)
-        {
-            this.SourceCodePath = sourceCodePath;
-            this.MarkerFileName = markerFileName;
-        }
+    public SourceCodePathAndMarkerFileName(string sourceCodePath, string markerFileName)
+    {
+        this.SourceCodePath = sourceCodePath;
+        this.MarkerFileName = markerFileName;
     }
+}
 
-    public class AssemblyWithSourceInfo
+public class AssemblyWithSourceInfo
+{
+    public IReadOnlyList<DirectoryPath> SourceRootList { get; }
+    public Assembly Assembly { get; }
+
+    public AssemblyWithSourceInfo(Type sampleType, params SourceCodePathAndMarkerFileName[] sourceInfoList)
     {
-        public IReadOnlyList<DirectoryPath> SourceRootList { get; }
-        public Assembly Assembly { get; }
+        this.Assembly = sampleType.Assembly;
 
-        public AssemblyWithSourceInfo(Type sampleType, params SourceCodePathAndMarkerFileName[] sourceInfoList)
+        List<DirectoryPath> srcRootList = new List<DirectoryPath>();
+
+        foreach (SourceCodePathAndMarkerFileName srcInfo in sourceInfoList)
         {
-            this.Assembly = sampleType.Assembly;
-
-            List<DirectoryPath> srcRootList = new List<DirectoryPath>();
-
-            foreach (SourceCodePathAndMarkerFileName srcInfo in sourceInfoList)
+            try
             {
-                try
+                DirectoryPath? root = Lfs.DetermineRootPathWithMarkerFile(srcInfo.SourceCodePath, srcInfo.MarkerFileName);
+                if (root != null)
                 {
-                    DirectoryPath? root = Lfs.DetermineRootPathWithMarkerFile(srcInfo.SourceCodePath, srcInfo.MarkerFileName);
-                    if (root != null)
-                    {
-                        srcRootList.Add(root);
-                    }
+                    srcRootList.Add(root);
                 }
-                catch { }
             }
-
-            this.SourceRootList = srcRootList;
+            catch { }
         }
 
-        public override bool Equals(object? obj)
-        {
-            obj._NullCheck();
-
-            AssemblyWithSourceInfo other = (AssemblyWithSourceInfo)obj;
-
-            if (this.Assembly.Equals(other.Assembly) == false) return false;
-
-            string thisSourceListConcat = this.SourceRootList.Select(x => x.PathString).OrderBy(x => x)._Combine(",");
-            string otherSourceListConcat = other.SourceRootList.Select(x => x.PathString).OrderBy(x => x)._Combine(",");
-
-            if (thisSourceListConcat != otherSourceListConcat) return false;
-
-            return true;
-        }
-        public override int GetHashCode()
-        {
-            int code1 = this.Assembly.GetHashCode();
-            string thisSourceListConcat = this.SourceRootList.Select(x => x.PathString).OrderBy(x => x)._Combine(",");
-            int code2 = thisSourceListConcat.GetHashCode();
-
-            return HashCode.Combine(code1, code2);
-        }
+        this.SourceRootList = srcRootList;
     }
 
-    [Flags]
-    public enum ResFileReadFrom
+    public override bool Equals(object? obj)
     {
-        None = 0,
-        Physical = 1,
-        EmbeddedResource = 2,
-        Both = Physical | EmbeddedResource,
+        obj._NullCheck();
+
+        AssemblyWithSourceInfo other = (AssemblyWithSourceInfo)obj;
+
+        if (this.Assembly.Equals(other.Assembly) == false) return false;
+
+        string thisSourceListConcat = this.SourceRootList.Select(x => x.PathString).OrderBy(x => x)._Combine(",");
+        string otherSourceListConcat = other.SourceRootList.Select(x => x.PathString).OrderBy(x => x)._Combine(",");
+
+        if (thisSourceListConcat != otherSourceListConcat) return false;
+
+        return true;
+    }
+    public override int GetHashCode()
+    {
+        int code1 = this.Assembly.GetHashCode();
+        string thisSourceListConcat = this.SourceRootList.Select(x => x.PathString).OrderBy(x => x)._Combine(",");
+        int code2 = thisSourceListConcat.GetHashCode();
+
+        return HashCode.Combine(code1, code2);
+    }
+}
+
+[Flags]
+public enum ResFileReadFrom
+{
+    None = 0,
+    Physical = 1,
+    EmbeddedResource = 2,
+    Both = Physical | EmbeddedResource,
+}
+
+public class ResourceFileSystem : FileProviderBasedFileSystem
+{
+    static Singleton<AssemblyWithSourceInfo, ResourceFileSystem> Singleton = null!;
+
+    public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
+
+    public AssemblyWithSourceInfo AssemblyInfo { get; }
+
+    public IReadOnlyList<DirectoryPath> ResourceRootSourceDirectoryList { get; }
+
+    static void ModuleInit()
+    {
+        Singleton = new Singleton<AssemblyWithSourceInfo, ResourceFileSystem>((asm) => new ResourceFileSystem(asm));
     }
 
-    public class ResourceFileSystem : FileProviderBasedFileSystem
+    static void ModuleFree()
     {
-        static Singleton<AssemblyWithSourceInfo, ResourceFileSystem> Singleton = null!;
+        Singleton._DisposeSafe();
 
-        public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
+        Singleton = null!;
+    }
 
-        public AssemblyWithSourceInfo AssemblyInfo { get; }
+    public ResourceFileSystem(AssemblyWithSourceInfo assemblyInfo) : base(new FileProviderFileSystemParams(new ManifestEmbeddedFileProvider(assemblyInfo.Assembly)))
+    {
+        this.AssemblyInfo = assemblyInfo;
 
-        public IReadOnlyList<DirectoryPath> ResourceRootSourceDirectoryList { get; }
+        List<DirectoryPath> resourceRootList = new List<DirectoryPath>();
 
-        static void ModuleInit()
+        // List all ResourcRoot directories (which contains the 'resource_root' file)
+        foreach (DirectoryPath srcRootPath in this.AssemblyInfo.SourceRootList)
         {
-            Singleton = new Singleton<AssemblyWithSourceInfo, ResourceFileSystem>((asm) => new ResourceFileSystem(asm));
-        }
-
-        static void ModuleFree()
-        {
-            Singleton._DisposeSafe();
-
-            Singleton = null!;
-        }
-
-        public ResourceFileSystem(AssemblyWithSourceInfo assemblyInfo) : base(new FileProviderFileSystemParams(new ManifestEmbeddedFileProvider(assemblyInfo.Assembly)))
-        {
-            this.AssemblyInfo = assemblyInfo;
-
-            List<DirectoryPath> resourceRootList = new List<DirectoryPath>();
-
-            // List all ResourcRoot directories (which contains the 'resource_root' file)
-            foreach (DirectoryPath srcRootPath in this.AssemblyInfo.SourceRootList)
+            try
             {
-                try
+                foreach (FileSystemEntity entity in srcRootPath.EnumDirectory(true, EnumDirectoryFlags.NoGetPhysicalSize))
                 {
-                    foreach (FileSystemEntity entity in srcRootPath.EnumDirectory(true, EnumDirectoryFlags.NoGetPhysicalSize))
+                    if (entity.IsCurrentOrParentDirectory == false && entity.IsDirectory)
                     {
-                        if (entity.IsCurrentOrParentDirectory == false && entity.IsDirectory)
+                        DirectoryPath subDir = new DirectoryPath(entity.FullPath);
+                        try
                         {
-                            DirectoryPath subDir = new DirectoryPath(entity.FullPath);
-                            try
+                            if (subDir.GetFiles().Where(x => x.GetFileName()._IsSamei(Consts.FileNames.RootMarker_Resource)).Any())
                             {
-                                if (subDir.GetFiles().Where(x => x.GetFileName()._IsSamei(Consts.FileNames.RootMarker_Resource)).Any())
-                                {
-                                    resourceRootList.Add(subDir);
-                                }
+                                resourceRootList.Add(subDir);
                             }
-                            catch { }
                         }
+                        catch { }
                     }
                 }
-                catch { }
             }
-
-            this.ResourceRootSourceDirectoryList = resourceRootList;
-
-            this.Params.EasyAccessPathFindMode.Set(EasyAccessPathFindMode.MostMatch);
+            catch { }
         }
 
-        public static ResourceFileSystem CreateOrGet(AssemblyWithSourceInfo assembly) => Singleton.CreateOrGet(assembly);
+        this.ResourceRootSourceDirectoryList = resourceRootList;
 
-        public FileSystemBasedProvider[] CreateEmbeddedAndPhysicalFileProviders(string rootDirectoryOnResourceRootDir, ResFileReadFrom flags = ResFileReadFrom.Both)
+        this.Params.EasyAccessPathFindMode.Set(EasyAccessPathFindMode.MostMatch);
+    }
+
+    public static ResourceFileSystem CreateOrGet(AssemblyWithSourceInfo assembly) => Singleton.CreateOrGet(assembly);
+
+    public FileSystemBasedProvider[] CreateEmbeddedAndPhysicalFileProviders(string rootDirectoryOnResourceRootDir, ResFileReadFrom flags = ResFileReadFrom.Both)
+    {
+        List<FileSystemBasedProvider> ret = new List<FileSystemBasedProvider>();
+
+        string relativeRoot = rootDirectoryOnResourceRootDir;
+
+        if (this.PathParser.IsAbsolutePath(relativeRoot))
         {
-            List<FileSystemBasedProvider> ret = new List<FileSystemBasedProvider>();
+            relativeRoot = this.PathParser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(relativeRoot);
 
-            string relativeRoot = rootDirectoryOnResourceRootDir;
+            relativeRoot = this.PathParser.GetRelativeDirectoryName(relativeRoot, "/");
+        }
 
-            if (this.PathParser.IsAbsolutePath(relativeRoot))
+        if (this.PathParser.IsAbsolutePath(relativeRoot))
+        {
+            throw new ApplicationException($"relativeRoot '{relativeRoot}' is absolute.");
+        }
+
+        if (relativeRoot._IsFilled())
+        {
+            if (flags.Bit(ResFileReadFrom.Physical))
             {
-                relativeRoot = this.PathParser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(relativeRoot);
-
-                relativeRoot = this.PathParser.GetRelativeDirectoryName(relativeRoot, "/");
-            }
-
-            if (this.PathParser.IsAbsolutePath(relativeRoot))
-            {
-                throw new ApplicationException($"relativeRoot '{relativeRoot}' is absolute.");
-            }
-
-            if (relativeRoot._IsFilled())
-            {
-                if (flags.Bit(ResFileReadFrom.Physical))
+                foreach (DirectoryPath srcRoot in this.ResourceRootSourceDirectoryList)
                 {
-                    foreach (DirectoryPath srcRoot in this.ResourceRootSourceDirectoryList)
-                    {
-                        DirectoryPath resourceRoot = srcRoot.GetSubDirectory(relativeRoot, true);
+                    DirectoryPath resourceRoot = srcRoot.GetSubDirectory(relativeRoot, true);
 
-                        if (resourceRoot.IsDirectoryExists())
-                        {
-                            ret.Add(resourceRoot.FileSystem.CreateFileProvider(resourceRoot));
-                        }
+                    if (resourceRoot.IsDirectoryExists())
+                    {
+                        ret.Add(resourceRoot.FileSystem.CreateFileProvider(resourceRoot));
                     }
                 }
-
-                if (flags.Bit(ResFileReadFrom.EmbeddedResource))
-                {
-                    string rootDirectoryInResourceAbsolute = PathParser.Combine(Consts.FileNames.ResourceRootAbsoluteDirName, relativeRoot);
-
-                    ret.Add(this.CreateFileProvider(rootDirectoryInResourceAbsolute));
-                }
             }
 
-            return ret.ToArray();
+            if (flags.Bit(ResFileReadFrom.EmbeddedResource))
+            {
+                string rootDirectoryInResourceAbsolute = PathParser.Combine(Consts.FileNames.ResourceRootAbsoluteDirName, relativeRoot);
+
+                ret.Add(this.CreateFileProvider(rootDirectoryInResourceAbsolute));
+            }
         }
+
+        return ret.ToArray();
     }
 }
 

@@ -49,274 +49,273 @@ using Newtonsoft.Json.Converters;
 using System.ComponentModel;
 using System.Buffers;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public static partial class CoresConfig
 {
-    public static partial class CoresConfig
+    public static partial class DataVaultProtocolSettings
     {
-        public static partial class DataVaultProtocolSettings
-        {
-            public static readonly Copenhagen<int> DefaultDelay = 250;
+        public static readonly Copenhagen<int> DefaultDelay = 250;
 
-            public static readonly Copenhagen<int> DefaultRetryIntervalMin = 1 * 1000;
-            public static readonly Copenhagen<int> DefaultRetryIntervalMax = 15 * 1000;
-        }
-
-        public static partial class DataVaultClientSettings
-        {
-            public static readonly Copenhagen<int> TimeoutForFirstConnectEstablishedMsecs = 20 * 1000;
-            public static readonly Copenhagen<int> TimeoutForRetrySending = 60 * 1000;
-        }
+        public static readonly Copenhagen<int> DefaultRetryIntervalMin = 1 * 1000;
+        public static readonly Copenhagen<int> DefaultRetryIntervalMax = 15 * 1000;
     }
 
-    public class DataVaultClientOptions
+    public static partial class DataVaultClientSettings
     {
-        public string ServerHostname { get; }
-        public int ServerPort { get; }
-        public TcpIpSystem TcpIp { get; }
-        public PalSslClientAuthenticationOptions SslAuthOptions { get; }
-        public string AccessKey { get; }
+        public static readonly Copenhagen<int> TimeoutForFirstConnectEstablishedMsecs = 20 * 1000;
+        public static readonly Copenhagen<int> TimeoutForRetrySending = 60 * 1000;
+    }
+}
 
-        public readonly Copenhagen<int> SendKeepAliveInterval = CoresConfig.DataVaultProtocolSettings.DefaultSendKeepAliveInterval.Value;
-        public readonly Copenhagen<int> ClientMaxBufferSize = CoresConfig.DataVaultProtocolSettings.BufferingSizeThresholdPerServer.Value;
-        public readonly Copenhagen<int> Delay = CoresConfig.DataVaultProtocolSettings.DefaultDelay.Value;
-        public readonly Copenhagen<int> RecvTimeout = CoresConfig.DataVaultProtocolSettings.DefaultRecvTimeout.Value;
-        public readonly Copenhagen<int> RetryIntervalMin = CoresConfig.DataVaultProtocolSettings.DefaultRetryIntervalMin.Value;
-        public readonly Copenhagen<int> RetryIntervalMax = CoresConfig.DataVaultProtocolSettings.DefaultRetryIntervalMax.Value;
+public class DataVaultClientOptions
+{
+    public string ServerHostname { get; }
+    public int ServerPort { get; }
+    public TcpIpSystem TcpIp { get; }
+    public PalSslClientAuthenticationOptions SslAuthOptions { get; }
+    public string AccessKey { get; }
 
-        public DataVaultClientOptions(string serverHostname, string accessKey, PalSslClientAuthenticationOptions sslAuthOptions, int serverPort = Consts.Ports.DataVaultServerDefaultServicePort, TcpIpSystem? tcpIp = null)
+    public readonly Copenhagen<int> SendKeepAliveInterval = CoresConfig.DataVaultProtocolSettings.DefaultSendKeepAliveInterval.Value;
+    public readonly Copenhagen<int> ClientMaxBufferSize = CoresConfig.DataVaultProtocolSettings.BufferingSizeThresholdPerServer.Value;
+    public readonly Copenhagen<int> Delay = CoresConfig.DataVaultProtocolSettings.DefaultDelay.Value;
+    public readonly Copenhagen<int> RecvTimeout = CoresConfig.DataVaultProtocolSettings.DefaultRecvTimeout.Value;
+    public readonly Copenhagen<int> RetryIntervalMin = CoresConfig.DataVaultProtocolSettings.DefaultRetryIntervalMin.Value;
+    public readonly Copenhagen<int> RetryIntervalMax = CoresConfig.DataVaultProtocolSettings.DefaultRetryIntervalMax.Value;
+
+    public DataVaultClientOptions(string serverHostname, string accessKey, PalSslClientAuthenticationOptions sslAuthOptions, int serverPort = Consts.Ports.DataVaultServerDefaultServicePort, TcpIpSystem? tcpIp = null)
+    {
+        this.ServerHostname = serverHostname._NonNullTrim();
+        this.ServerPort = serverPort;
+        this.TcpIp = tcpIp ?? LocalNet;
+        this.SslAuthOptions = sslAuthOptions;
+        this.AccessKey = accessKey;
+
+        if (this.SslAuthOptions.TargetHost._IsEmpty())
         {
-            this.ServerHostname = serverHostname._NonNullTrim();
-            this.ServerPort = serverPort;
-            this.TcpIp = tcpIp ?? LocalNet;
-            this.SslAuthOptions = sslAuthOptions;
-            this.AccessKey = accessKey;
-
-            if (this.SslAuthOptions.TargetHost._IsEmpty())
-            {
-                this.SslAuthOptions.TargetHost = this.ServerHostname;
-            }
+            this.SslAuthOptions.TargetHost = this.ServerHostname;
         }
     }
+}
 
-    public class DataVaultClient : AsyncServiceWithMainLoop
+public class DataVaultClient : AsyncServiceWithMainLoop
+{
+    public DataVaultClientOptions Options { get; }
+
+    readonly PipePoint Reader;
+    readonly PipePoint Writer;
+
+    readonly Task MainProcTask;
+
+    readonly AsyncAutoResetEvent EmptyEvent = new AsyncAutoResetEvent(true); // すべてのデータが送付されて空になるたびに発生する非同期イベント
+
+    readonly AsyncManualResetEvent FirstConnectionEstablishedEvent = new AsyncManualResetEvent(); // 最初に接続が確立されたときに発生するイベント
+
+    readonly AsyncAutoResetEvent FlushNowEvent = new AsyncAutoResetEvent(); // 今すぐ Flush するべき指示のイベント
+
+    public const int ClientVersion = 1;
+
+    public bool UnderConnectionError { get; private set; } = false;
+
+    public DataVaultClient(DataVaultClientOptions options)
     {
-        public DataVaultClientOptions Options { get; }
+        this.Options = options;
 
-        readonly PipePoint Reader;
-        readonly PipePoint Writer;
+        this.Reader = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide, default, this.Options.ClientMaxBufferSize);
+        this.Writer = this.Reader.CounterPart!;
 
-        readonly Task MainProcTask;
+        this.MainProcTask = this.StartMainLoop(MainLoopAsync);
+    }
 
-        readonly AsyncAutoResetEvent EmptyEvent = new AsyncAutoResetEvent(true); // すべてのデータが送付されて空になるたびに発生する非同期イベント
+    public async Task WriteCompleteAsync(DataVaultData data, CancellationToken cancel = default)
+    {
+        data.WriteCompleteFlag = true;
+        data.Data = null;
 
-        readonly AsyncManualResetEvent FirstConnectionEstablishedEvent = new AsyncManualResetEvent(); // 最初に接続が確立されたときに発生するイベント
+        await WriteDataAsync(data, cancel);
+    }
 
-        readonly AsyncAutoResetEvent FlushNowEvent = new AsyncAutoResetEvent(); // 今すぐ Flush するべき指示のイベント
-
-        public const int ClientVersion = 1;
-
-        public bool UnderConnectionError { get; private set; } = false;
-
-        public DataVaultClient(DataVaultClientOptions options)
+    public async Task WriteDataAsync(DataVaultData data, CancellationToken cancel = default)
+    {
+        // 最初の接続確立まで待機する
+        if (await this.FirstConnectionEstablishedEvent.WaitAsync(timeout: CoresConfig.DataVaultClientSettings.TimeoutForFirstConnectEstablishedMsecs, cancel: cancel) == false)
         {
-            this.Options = options;
-
-            this.Reader = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide, default, this.Options.ClientMaxBufferSize);
-            this.Writer = this.Reader.CounterPart!;
-
-            this.MainProcTask = this.StartMainLoop(MainLoopAsync);
+            throw new CoresLibException("TimeoutForFirstConnectEstablishedMsecs occured.");
         }
 
-        public async Task WriteCompleteAsync(DataVaultData data, CancellationToken cancel = default)
-        {
-            data.WriteCompleteFlag = true;
-            data.Data = null;
+        string str = data._ObjectToJson(compact: true);
 
-            await WriteDataAsync(data, cancel);
+        byte[] jsonBuf = str._GetBytes_UTF8();
+        if (jsonBuf.Length > CoresConfig.DataVaultProtocolSettings.MaxDataSize)
+        {
+            return;
         }
 
-        public async Task WriteDataAsync(DataVaultData data, CancellationToken cancel = default)
+        MemoryBuffer<byte> buf = new MemoryBuffer<byte>(jsonBuf.Length + sizeof(int) * 2);
+        buf.WriteSInt32((int)DataVaultProtocolDataType.StandardData);
+        buf.WriteSInt32(jsonBuf.Length);
+        buf.Write(jsonBuf);
+
+        long firstErrorTick = 0;
+
+        while (this.Writer.StreamWriter.IsReadyToWrite() == false)
         {
-            // 最初の接続確立まで待機する
-            if (await this.FirstConnectionEstablishedEvent.WaitAsync(timeout: CoresConfig.DataVaultClientSettings.TimeoutForFirstConnectEstablishedMsecs, cancel: cancel) == false)
+            if (this.UnderConnectionError)
             {
-                throw new CoresLibException("TimeoutForFirstConnectEstablishedMsecs occured.");
-            }
-
-            string str = data._ObjectToJson(compact: true);
-
-            byte[] jsonBuf = str._GetBytes_UTF8();
-            if (jsonBuf.Length > CoresConfig.DataVaultProtocolSettings.MaxDataSize)
-            {
-                return;
-            }
-
-            MemoryBuffer<byte> buf = new MemoryBuffer<byte>(jsonBuf.Length + sizeof(int) * 2);
-            buf.WriteSInt32((int)DataVaultProtocolDataType.StandardData);
-            buf.WriteSInt32(jsonBuf.Length);
-            buf.Write(jsonBuf);
-
-            long firstErrorTick = 0;
-
-            while (this.Writer.StreamWriter.IsReadyToWrite() == false)
-            {
-                if (this.UnderConnectionError)
+                long now = Time.Tick64;
+                if (firstErrorTick == 0)
                 {
-                    long now = Time.Tick64;
-                    if (firstErrorTick == 0)
+                    firstErrorTick = now;
+                    "DataVaultClient: Connection to the server is temporary disconnected. Retrying."._Error();
+                }
+                else
+                {
+                    if (now > (firstErrorTick + CoresConfig.DataVaultClientSettings.TimeoutForRetrySending))
                     {
-                        firstErrorTick = now;
-                        "DataVaultClient: Connection to the server is temporary disconnected. Retrying."._Error();
-                    }
-                    else
-                    {
-                        if (now > (firstErrorTick + CoresConfig.DataVaultClientSettings.TimeoutForRetrySending))
-                        {
-                            throw new CoresLibException("Connection to the server is disconnected.");
-                        }
+                        throw new CoresLibException("Connection to the server is disconnected.");
                     }
                 }
-
-                await this.Writer.StreamWriter.WaitForReadyToWriteAsync(cancel, 100, noTimeoutException: true);
             }
 
-            this.Writer.StreamWriter.NonStopWriteWithLock(buf, true, FastStreamNonStopWriteMode.ForceWrite, true);
+            await this.Writer.StreamWriter.WaitForReadyToWriteAsync(cancel, 100, noTimeoutException: true);
         }
 
-        async Task MainLoopAsync(CancellationToken cancel)
+        this.Writer.StreamWriter.NonStopWriteWithLock(buf, true, FastStreamNonStopWriteMode.ForceWrite, true);
+    }
+
+    async Task MainLoopAsync(CancellationToken cancel)
+    {
+        try
         {
-            try
+            int numRetry = 0;
+            using (PipeStream reader = new PipeStream(this.Reader))
             {
-                int numRetry = 0;
-                using (PipeStream reader = new PipeStream(this.Reader))
+                while (true)
                 {
-                    while (true)
+                    if (cancel.IsCancellationRequested) return;
+
+                    try
+                    {
+                        UnderConnectionError = false;
+
+                        await ConnectAndSendAsync(reader, cancel);
+                    }
+                    catch (Exception ex)
                     {
                         if (cancel.IsCancellationRequested) return;
 
-                        try
-                        {
-                            UnderConnectionError = false;
+                        UnderConnectionError = true;
+                        EmptyEvent.Set(true);
 
-                            await ConnectAndSendAsync(reader, cancel);
-                        }
-                        catch (Exception ex)
-                        {
-                            if (cancel.IsCancellationRequested) return;
+                        numRetry++;
 
-                            UnderConnectionError = true;
+                        int nextRetryInterval = Util.GenRandIntervalWithRetry(Options.RetryIntervalMin, numRetry, Options.RetryIntervalMax);
+
+                        Con.WriteError($"DataVaultClient: Error (numRetry = {numRetry}, nextWait = {nextRetryInterval}): {ex.ToString()}");
+
+                        await cancel._WaitUntilCanceledAsync(nextRetryInterval);
+                    }
+                }
+            }
+        }
+        finally
+        {
+            EmptyEvent.Set(true);
+            UnderConnectionError = true;
+        }
+    }
+
+    async Task ConnectAndSendAsync(PipeStream reader, CancellationToken cancel)
+    {
+        using (ConnSock sock = await Options.TcpIp.ConnectIPv4v6DualAsync(new TcpConnectParam(Options.ServerHostname, Options.ServerPort), cancel))
+        {
+            using (SslSock ssl = new SslSock(sock))
+            {
+                await ssl.StartSslClientAsync(Options.SslAuthOptions);
+
+                using (PipeStream writer = ssl.GetStream())
+                {
+                    MemoryBuffer<byte> initSendBuf = new MemoryBuffer<byte>();
+                    initSendBuf.WriteSInt32(DataVaultServerBase.MagicNumber);
+                    initSendBuf.WriteSInt32(ClientVersion);
+
+                    Memory<byte> accessKeyData = new byte[256];
+                    var accessKeyBytes = this.Options.AccessKey._GetBytes_UTF8();
+                    accessKeyBytes.CopyTo(accessKeyData);
+
+                    initSendBuf.Write(accessKeyData);
+
+                    await writer.SendAsync(initSendBuf, cancel);
+
+                    writer.ReadTimeout = this.Options.RecvTimeout;
+                    MemoryBuffer<byte> initRecvBuf = await writer.ReceiveAllAsync(sizeof(int) * 2, cancel);
+                    writer.ReadTimeout = Timeout.Infinite;
+
+                    int magicNumber = initRecvBuf.ReadSInt32();
+                    int serverVersion = initRecvBuf.ReadSInt32();
+
+                    if (magicNumber != DataVaultServerBase.MagicNumber)
+                    {
+                        throw new ApplicationException($"Invalid magicNumber = 0x{magicNumber:X}");
+                    }
+
+                    Con.WriteInfo($"DataVaultClient: Connection established.");
+
+                    // 最初に接続が確立されたことを通知
+                    FirstConnectionEstablishedEvent.Set(true);
+
+                    LocalTimer keepAliveTimer = new LocalTimer();
+
+                    long nextKeepAlive = keepAliveTimer.AddTimeout(Options.SendKeepAliveInterval);
+
+                    while (true)
+                    {
+                        if (reader.IsReadyToReceive() == false)
+                        {
                             EmptyEvent.Set(true);
 
-                            numRetry++;
+                            await TaskUtil.WaitObjectsAsync(cancels: cancel._SingleArray(),
+                                events: this.FlushNowEvent._SingleArray(),
+                                timeout: this.Options.Delay);
 
-                            int nextRetryInterval = Util.GenRandIntervalWithRetry(Options.RetryIntervalMin, numRetry, Options.RetryIntervalMax);
+                            cancel.ThrowIfCancellationRequested();
 
-                            Con.WriteError($"DataVaultClient: Error (numRetry = {numRetry}, nextWait = {nextRetryInterval}): {ex.ToString()}");
-
-                            await cancel._WaitUntilCanceledAsync(nextRetryInterval);
-                        }
-                    }
-                }
-            }
-            finally
-            {
-                EmptyEvent.Set(true);
-                UnderConnectionError = true;
-            }
-        }
-
-        async Task ConnectAndSendAsync(PipeStream reader, CancellationToken cancel)
-        {
-            using (ConnSock sock = await Options.TcpIp.ConnectIPv4v6DualAsync(new TcpConnectParam(Options.ServerHostname, Options.ServerPort), cancel))
-            {
-                using (SslSock ssl = new SslSock(sock))
-                {
-                    await ssl.StartSslClientAsync(Options.SslAuthOptions);
-
-                    using (PipeStream writer = ssl.GetStream())
-                    {
-                        MemoryBuffer<byte> initSendBuf = new MemoryBuffer<byte>();
-                        initSendBuf.WriteSInt32(DataVaultServerBase.MagicNumber);
-                        initSendBuf.WriteSInt32(ClientVersion);
-
-                        Memory<byte> accessKeyData = new byte[256];
-                        var accessKeyBytes = this.Options.AccessKey._GetBytes_UTF8();
-                        accessKeyBytes.CopyTo(accessKeyData);
-
-                        initSendBuf.Write(accessKeyData);
-
-                        await writer.SendAsync(initSendBuf, cancel);
-
-                        writer.ReadTimeout = this.Options.RecvTimeout;
-                        MemoryBuffer<byte> initRecvBuf = await writer.ReceiveAllAsync(sizeof(int) * 2, cancel);
-                        writer.ReadTimeout = Timeout.Infinite;
-
-                        int magicNumber = initRecvBuf.ReadSInt32();
-                        int serverVersion = initRecvBuf.ReadSInt32();
-
-                        if (magicNumber != DataVaultServerBase.MagicNumber)
-                        {
-                            throw new ApplicationException($"Invalid magicNumber = 0x{magicNumber:X}");
-                        }
-
-                        Con.WriteInfo($"DataVaultClient: Connection established.");
-
-                        // 最初に接続が確立されたことを通知
-                        FirstConnectionEstablishedEvent.Set(true);
-
-                        LocalTimer keepAliveTimer = new LocalTimer();
-
-                        long nextKeepAlive = keepAliveTimer.AddTimeout(Options.SendKeepAliveInterval);
-
-                        while (true)
-                        {
-                            if (reader.IsReadyToReceive() == false)
+                            if (Time.Tick64 >= nextKeepAlive)
                             {
-                                EmptyEvent.Set(true);
-
-                                await TaskUtil.WaitObjectsAsync(cancels: cancel._SingleArray(),
-                                    events: this.FlushNowEvent._SingleArray(),
-                                    timeout: this.Options.Delay);
-
-                                cancel.ThrowIfCancellationRequested();
-
-                                if (Time.Tick64 >= nextKeepAlive)
-                                {
-                                    nextKeepAlive = keepAliveTimer.AddTimeout(Options.SendKeepAliveInterval);
-                                    MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
-                                    buf.WriteSInt32((int)DataVaultProtocolDataType.KeepAlive);
-                                    await writer.SendAsync(buf, cancel);
-                                }
+                                nextKeepAlive = keepAliveTimer.AddTimeout(Options.SendKeepAliveInterval);
+                                MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+                                buf.WriteSInt32((int)DataVaultProtocolDataType.KeepAlive);
+                                await writer.SendAsync(buf, cancel);
                             }
-                            else
-                            {
-                                RefInt totalRecvSize = new RefInt();
-                                IReadOnlyList<ReadOnlyMemory<byte>> data = await reader.FastPeekAsync(totalRecvSize: totalRecvSize);
+                        }
+                        else
+                        {
+                            RefInt totalRecvSize = new RefInt();
+                            IReadOnlyList<ReadOnlyMemory<byte>> data = await reader.FastPeekAsync(totalRecvSize: totalRecvSize);
 
-                                await writer.FastSendAsync(data.ToArray(), cancel, true);
+                            await writer.FastSendAsync(data.ToArray(), cancel, true);
 
-                                await reader.FastReceiveAsync(cancel, maxSize: totalRecvSize);
-                            }
+                            await reader.FastReceiveAsync(cancel, maxSize: totalRecvSize);
                         }
                     }
                 }
             }
         }
+    }
 
 
-        protected override async Task CleanupImplAsync(Exception? ex)
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
         {
-            try
-            {
-                await this.MainProcTask._TryAwait(true);
+            await this.MainProcTask._TryAwait(true);
 
-                await this.Reader._DisposeSafeAsync();
-                await this.Writer._DisposeSafeAsync();
-            }
-            finally
-            {
-                await base.CleanupImplAsync(ex);
-            }
+            await this.Reader._DisposeSafeAsync();
+            await this.Writer._DisposeSafeAsync();
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
         }
     }
 }

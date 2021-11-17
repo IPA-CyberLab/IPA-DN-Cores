@@ -61,221 +61,220 @@ using static IPA.Cores.Globals.Basic;
 using Microsoft.AspNetCore.Http.Internal;
 #endif
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+// From: https://github.com/aspnet/BasicMiddleware/tree/2.1.1/src/Microsoft.AspNetCore.HttpsPolicy
+// License: https://github.com/aspnet/BasicMiddleware/blob/2.1.1/LICENSE.txt
+// 
+// Copyright(c) .NET Foundation and Contributors
+// All rights reserved.
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+// this file except in compliance with the License. You may obtain a copy of the
+// License at
+//    http://www.apache.org/licenses/LICENSE-2.0
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+/// <summary>
+/// Extension methods for the HttpsRedirection middleware.
+/// </summary>
+public static class EnforceHttpsHelper
 {
-    // From: https://github.com/aspnet/BasicMiddleware/tree/2.1.1/src/Microsoft.AspNetCore.HttpsPolicy
-    // License: https://github.com/aspnet/BasicMiddleware/blob/2.1.1/LICENSE.txt
-    // 
-    // Copyright(c) .NET Foundation and Contributors
-    // All rights reserved.
-    // Licensed under the Apache License, Version 2.0 (the "License"); you may not use
-    // this file except in compliance with the License. You may obtain a copy of the
-    // License at
-    //    http://www.apache.org/licenses/LICENSE-2.0
-    // Unless required by applicable law or agreed to in writing, software distributed
-    // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-    // CONDITIONS OF ANY KIND, either express or implied. See the License for the
-    // specific language governing permissions and limitations under the License.
+    /// <summary>
+    /// Adds HTTPS redirection services.
+    /// </summary>
+    /// <param name="services">The <see cref="IServiceCollection"/> for adding services.</param>
+    /// <param name="configureOptions">A delegate to configure the <see cref="HttpsRedirectionOptions"/>.</param>
+    /// <returns></returns>
+    public static IServiceCollection AddEnforceHttps(this IServiceCollection services, Action<EnforceHttpsOptions> configureOptions)
+    {
+        if (services == null)
+        {
+            throw new ArgumentNullException(nameof(services));
+        }
+        if (configureOptions == null)
+        {
+            throw new ArgumentNullException(nameof(configureOptions));
+        }
+        services.Configure(configureOptions);
+        return services;
+    }
 
     /// <summary>
-    /// Extension methods for the HttpsRedirection middleware.
+    /// Adds middleware for redirecting HTTP Requests to HTTPS.
     /// </summary>
-    public static class EnforceHttpsHelper
+    /// <param name="app">The <see cref="IApplicationBuilder"/> instance this method extends.</param>
+    /// <returns>The <see cref="IApplicationBuilder"/> for HttpsRedirection.</returns>
+    public static IApplicationBuilder UseEnforceHttps(this IApplicationBuilder app)
     {
-        /// <summary>
-        /// Adds HTTPS redirection services.
-        /// </summary>
-        /// <param name="services">The <see cref="IServiceCollection"/> for adding services.</param>
-        /// <param name="configureOptions">A delegate to configure the <see cref="HttpsRedirectionOptions"/>.</param>
-        /// <returns></returns>
-        public static IServiceCollection AddEnforceHttps(this IServiceCollection services, Action<EnforceHttpsOptions> configureOptions)
+        if (app == null)
         {
-            if (services == null)
-            {
-                throw new ArgumentNullException(nameof(services));
-            }
-            if (configureOptions == null)
-            {
-                throw new ArgumentNullException(nameof(configureOptions));
-            }
-            services.Configure(configureOptions);
-            return services;
+            throw new ArgumentNullException(nameof(app));
         }
 
-        /// <summary>
-        /// Adds middleware for redirecting HTTP Requests to HTTPS.
-        /// </summary>
-        /// <param name="app">The <see cref="IApplicationBuilder"/> instance this method extends.</param>
-        /// <returns>The <see cref="IApplicationBuilder"/> for HttpsRedirection.</returns>
-        public static IApplicationBuilder UseEnforceHttps(this IApplicationBuilder app)
+        var serverAddressFeature = app.ServerFeatures.Get<IServerAddressesFeature>();
+        if (serverAddressFeature != null)
         {
-            if (app == null)
-            {
-                throw new ArgumentNullException(nameof(app));
-            }
-
-            var serverAddressFeature = app.ServerFeatures.Get<IServerAddressesFeature>();
-            if (serverAddressFeature != null)
-            {
-                app.UseMiddleware<EnforceHttpsMiddleware>(serverAddressFeature);
-            }
-            else
-            {
-                app.UseMiddleware<EnforceHttpsMiddleware>();
-            }
-            return app;
+            app.UseMiddleware<EnforceHttpsMiddleware>(serverAddressFeature);
         }
+        else
+        {
+            app.UseMiddleware<EnforceHttpsMiddleware>();
+        }
+        return app;
+    }
+}
+
+[Serializable]
+public class EnforceHttpsOptions
+{
+    public int RedirectStatusCode { get; set; } = 302;
+
+    public List<string> ExcludePathPrefixList { get; set; } = new List<string>();
+
+    public EnforceHttpsOptions()
+    {
+        this.ExcludePathPrefixList.Add("/.well-known/");
+        this.ExcludePathPrefixList.Add("/Account");
+    }
+}
+
+public class EnforceHttpsMiddleware
+{
+    readonly RequestDelegate Next;
+    readonly IConfiguration Config;
+    private bool PortEvaluated = false;
+    private int? HttpsPort;
+    private readonly int StatusCode;
+    private readonly IServerAddressesFeature? _serverAddressesFeature;
+    readonly EnforceHttpsOptions Options;
+
+    public EnforceHttpsMiddleware(RequestDelegate next, IOptions<EnforceHttpsOptions> options, IConfiguration config, ILoggerFactory loggerFactory)
+    {
+        Next = next ?? throw new ArgumentNullException(nameof(next));
+        Config = config ?? throw new ArgumentNullException(nameof(config));
+        if (options == null)
+        {
+            throw new ArgumentNullException(nameof(options));
+        }
+        this.StatusCode = options.Value.RedirectStatusCode;
+        this.Options = options.Value._CloneDeep();
     }
 
-    [Serializable]
-    public class EnforceHttpsOptions
+    public EnforceHttpsMiddleware(RequestDelegate next, IOptions<EnforceHttpsOptions> options, IConfiguration config, ILoggerFactory loggerFactory,
+      IServerAddressesFeature serverAddressesFeature)
+      : this(next, options, config, loggerFactory)
     {
-        public int RedirectStatusCode { get; set; } = 302;
-
-        public List<string> ExcludePathPrefixList { get; set; } = new List<string>();
-
-        public EnforceHttpsOptions()
-        {
-            this.ExcludePathPrefixList.Add("/.well-known/");
-            this.ExcludePathPrefixList.Add("/Account");
-        }
+        _serverAddressesFeature = serverAddressesFeature ?? throw new ArgumentNullException(nameof(serverAddressesFeature));
     }
 
-    public class EnforceHttpsMiddleware
+    public Task Invoke(HttpContext context)
     {
-        readonly RequestDelegate Next;
-        readonly IConfiguration Config;
-        private bool PortEvaluated = false;
-        private int? HttpsPort;
-        private readonly int StatusCode;
-        private readonly IServerAddressesFeature? _serverAddressesFeature;
-        readonly EnforceHttpsOptions Options;
-
-        public EnforceHttpsMiddleware(RequestDelegate next, IOptions<EnforceHttpsOptions> options, IConfiguration config, ILoggerFactory loggerFactory)
+        bool skip = false;
+        int port = 0;
+        if (context.Request.IsHttps || !TryGetHttpsPort(out port))
         {
-            Next = next ?? throw new ArgumentNullException(nameof(next));
-            Config = config ?? throw new ArgumentNullException(nameof(config));
-            if (options == null)
-            {
-                throw new ArgumentNullException(nameof(options));
-            }
-            this.StatusCode = options.Value.RedirectStatusCode;
-            this.Options = options.Value._CloneDeep();
+            skip = true;
         }
-
-        public EnforceHttpsMiddleware(RequestDelegate next, IOptions<EnforceHttpsOptions> options, IConfiguration config, ILoggerFactory loggerFactory,
-          IServerAddressesFeature serverAddressesFeature)
-          : this(next, options, config, loggerFactory)
+        else
         {
-            _serverAddressesFeature = serverAddressesFeature ?? throw new ArgumentNullException(nameof(serverAddressesFeature));
-        }
-
-        public Task Invoke(HttpContext context)
-        {
-            bool skip = false;
-            int port = 0;
-            if (context.Request.IsHttps || !TryGetHttpsPort(out port))
+            string path = context.Request.Path;
+            if (path._IsFilled())
             {
-                skip = true;
-            }
-            else
-            {
-                string path = context.Request.Path;
-                if (path._IsFilled())
+                if (this.Options.ExcludePathPrefixList.Where(x => x._IsFilled() && path.StartsWith(x, StringComparison.OrdinalIgnoreCase)).Any())
                 {
-                    if (this.Options.ExcludePathPrefixList.Where(x => x._IsFilled() && path.StartsWith(x, StringComparison.OrdinalIgnoreCase)).Any())
-                    {
-                        skip = true;
-                    }
+                    skip = true;
                 }
             }
-
-            if (skip)
-            {
-                return Next(context);
-            }
-            var host = context.Request.Host;
-            if (port != 443)
-            {
-                host = new HostString(host.Host, port);
-            }
-            else
-            {
-                host = new HostString(host.Host);
-            }
-
-            var request = context.Request;
-            var redirectUrl = UriHelper.BuildAbsolute(
-                "https",
-                host,
-                request.PathBase,
-                request.Path,
-                request.QueryString);
-
-            context.Response.StatusCode = StatusCode;
-            context.Response.Headers[HeaderNames.Location] = redirectUrl;
-
-            return Task.CompletedTask;
         }
 
-        private bool TryGetHttpsPort(out int port)
+        if (skip)
         {
-            // The IServerAddressesFeature will not be ready until the middleware is Invoked,
-            // Order for finding the HTTPS port:
-            // 1. Set in the HttpsRedirectionOptions
-            // 2. HTTPS_PORT environment variable
-            // 3. IServerAddressesFeature
-            // 4. Fail if not set
+            return Next(context);
+        }
+        var host = context.Request.Host;
+        if (port != 443)
+        {
+            host = new HostString(host.Host, port);
+        }
+        else
+        {
+            host = new HostString(host.Host);
+        }
 
-            port = -1;
+        var request = context.Request;
+        var redirectUrl = UriHelper.BuildAbsolute(
+            "https",
+            host,
+            request.PathBase,
+            request.Path,
+            request.QueryString);
 
-            if (PortEvaluated)
-            {
-                port = HttpsPort ?? port;
-                return HttpsPort.HasValue;
-            }
-            PortEvaluated = true;
+        context.Response.StatusCode = StatusCode;
+        context.Response.Headers[HeaderNames.Location] = redirectUrl;
 
-            HttpsPort = Config.GetValue<int?>("HTTPS_PORT");
-            //if (HttpsPort.HasValue)
-            //{
-            //    port = HttpsPort.Value;
-            //    return true;
-            //}
+        return Task.CompletedTask;
+    }
 
-            if (_serverAddressesFeature == null)
-            {
-                return false;
-            }
+    private bool TryGetHttpsPort(out int port)
+    {
+        // The IServerAddressesFeature will not be ready until the middleware is Invoked,
+        // Order for finding the HTTPS port:
+        // 1. Set in the HttpsRedirectionOptions
+        // 2. HTTPS_PORT environment variable
+        // 3. IServerAddressesFeature
+        // 4. Fail if not set
 
-            int? httpsPort = null;
-            foreach (var address in _serverAddressesFeature.Addresses)
-            {
-                var bindingAddress = BindingAddress.Parse(address);
-                if (bindingAddress.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
-                {
-                    // If we find multiple different https ports specified, throw
-                    if (httpsPort.HasValue && httpsPort != bindingAddress.Port)
-                    {
-                        return false;
-                    }
-                    else
-                    {
-                        httpsPort = bindingAddress.Port;
-                        break;
-                    }
-                }
-            }
+        port = -1;
 
-            if (httpsPort.HasValue)
-            {
-                HttpsPort = httpsPort;
-                port = HttpsPort.Value;
-                return true;
-            }
+        if (PortEvaluated)
+        {
+            port = HttpsPort ?? port;
+            return HttpsPort.HasValue;
+        }
+        PortEvaluated = true;
 
+        HttpsPort = Config.GetValue<int?>("HTTPS_PORT");
+        //if (HttpsPort.HasValue)
+        //{
+        //    port = HttpsPort.Value;
+        //    return true;
+        //}
+
+        if (_serverAddressesFeature == null)
+        {
             return false;
         }
+
+        int? httpsPort = null;
+        foreach (var address in _serverAddressesFeature.Addresses)
+        {
+            var bindingAddress = BindingAddress.Parse(address);
+            if (bindingAddress.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
+            {
+                // If we find multiple different https ports specified, throw
+                if (httpsPort.HasValue && httpsPort != bindingAddress.Port)
+                {
+                    return false;
+                }
+                else
+                {
+                    httpsPort = bindingAddress.Port;
+                    break;
+                }
+            }
+        }
+
+        if (httpsPort.HasValue)
+        {
+            HttpsPort = httpsPort;
+            port = HttpsPort.Value;
+            return true;
+        }
+
+        return false;
     }
 }
 

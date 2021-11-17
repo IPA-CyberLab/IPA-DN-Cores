@@ -78,302 +78,301 @@ using IConnectionListenerFactory = Microsoft.AspNetCore.Server.Kestrel.Transport
 
 #endif
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public static partial class CoresConfig
 {
-    public static partial class CoresConfig
+    public static partial class KestrelWithStackSettings
     {
-        public static partial class KestrelWithStackSettings
-        {
-            public static readonly Copenhagen<int> MaxLogStringLen = 1024;
-        }
+        public static readonly Copenhagen<int> MaxLogStringLen = 1024;
+    }
+}
+
+// Pure copy from git\AspNetCore\src\Servers\Kestrel\Core\src\Internal\KestrelServerOptionsSetup.cs
+public class KestrelServerOptionsSetup : IConfigureOptions<KestrelServerOptions>
+{
+    private IServiceProvider _services;
+
+    public KestrelServerOptionsSetup(IServiceProvider services)
+    {
+        _services = services;
     }
 
-    // Pure copy from git\AspNetCore\src\Servers\Kestrel\Core\src\Internal\KestrelServerOptionsSetup.cs
-    public class KestrelServerOptionsSetup : IConfigureOptions<KestrelServerOptions>
+    public void Configure(KestrelServerOptions options)
     {
-        private IServiceProvider _services;
+        options.ApplicationServices = _services;
+    }
+}
 
-        public KestrelServerOptionsSetup(IServiceProvider services)
-        {
-            _services = services;
-        }
+public class KestrelServerWithStackOptions : KestrelServerOptions
+{
+    public TcpIpSystem TcpIp = LocalNet;
+}
 
-        public void Configure(KestrelServerOptions options)
-        {
-            options.ApplicationServices = _services;
-        }
+public class KestrelServerWithStack : KestrelServer
+{
+    public new KestrelServerWithStackOptions Options => (KestrelServerWithStackOptions)base.Options;
+
+    public KestrelServerWithStack(IOptions<KestrelServerWithStackOptions> options, IConnectionListenerFactory transportFactory, ILoggerFactory loggerFactory)
+        : base(options, transportFactory, loggerFactory)
+    {
+        KestrelStackTransportFactory factory = (KestrelStackTransportFactory)transportFactory;
+
+        factory.SetServer(this);
+    }
+}
+
+public static class HttpServerWithStackHelper
+{
+    public static IWebHostBuilder UseKestrelWithStack(this IWebHostBuilder hostBuilder, Action<KestrelServerWithStackOptions> options)
+    {
+        return hostBuilder.UseKestrelWithStack().ConfigureKestrelWithStack(options);
     }
 
-    public class KestrelServerWithStackOptions : KestrelServerOptions
+    public static IWebHostBuilder UseKestrelWithStack(this IWebHostBuilder hostBuilder)
     {
-        public TcpIpSystem TcpIp = LocalNet;
-    }
-
-    public class KestrelServerWithStack : KestrelServer
-    {
-        public new KestrelServerWithStackOptions Options => (KestrelServerWithStackOptions)base.Options;
-
-        public KestrelServerWithStack(IOptions<KestrelServerWithStackOptions> options, IConnectionListenerFactory transportFactory, ILoggerFactory loggerFactory)
-            : base(options, transportFactory, loggerFactory)
+        // From Microsoft.AspNetCore.Hosting.WebHostBuilderKestrelExtensions
+        return hostBuilder.ConfigureServices(services =>
         {
-            KestrelStackTransportFactory factory = (KestrelStackTransportFactory)transportFactory;
-
-            factory.SetServer(this);
-        }
-    }
-
-    public static class HttpServerWithStackHelper
-    {
-        public static IWebHostBuilder UseKestrelWithStack(this IWebHostBuilder hostBuilder, Action<KestrelServerWithStackOptions> options)
-        {
-            return hostBuilder.UseKestrelWithStack().ConfigureKestrelWithStack(options);
-        }
-
-        public static IWebHostBuilder UseKestrelWithStack(this IWebHostBuilder hostBuilder)
-        {
-            // From Microsoft.AspNetCore.Hosting.WebHostBuilderKestrelExtensions
-            return hostBuilder.ConfigureServices(services =>
-            {
                 // Don't override an already-configured transport
                 services.TryAddSingleton<IConnectionListenerFactory, KestrelStackTransportFactory>();
 
-                services.AddTransient<IConfigureOptions<KestrelServerWithStackOptions>, KestrelServerOptionsSetup>();
-                services.AddSingleton<IServer, KestrelServerWithStack>();
-            });
-        }
+            services.AddTransient<IConfigureOptions<KestrelServerWithStackOptions>, KestrelServerOptionsSetup>();
+            services.AddSingleton<IServer, KestrelServerWithStack>();
+        });
+    }
 
-        public static IWebHostBuilder ConfigureKestrelWithStack(this IWebHostBuilder hostBuilder, Action<KestrelServerWithStackOptions> options)
+    public static IWebHostBuilder ConfigureKestrelWithStack(this IWebHostBuilder hostBuilder, Action<KestrelServerWithStackOptions> options)
+    {
+        return hostBuilder.ConfigureServices(services =>
         {
-            return hostBuilder.ConfigureServices(services =>
-            {
-                services.Configure(options);
-            });
-        }
+            services.Configure(options);
+        });
+    }
 
-        public static IApplicationBuilder UseWebServerLogger(this IApplicationBuilder app)
+    public static IApplicationBuilder UseWebServerLogger(this IApplicationBuilder app)
+    {
+        return app.Use(async (context, next) =>
         {
-            return app.Use(async (context, next) =>
+            int httpResponseCode = 0;
+
+            long tickStart = 0;
+            long tickEnd = 0;
+
+            string? contentsType = null;
+            long? contentsLength = 0;
+
+            try
             {
-                int httpResponseCode = 0;
+                tickStart = Time.Tick64;
+                await next.Invoke();
+                tickEnd = Time.Tick64;
 
-                long tickStart = 0;
-                long tickEnd = 0;
+                HttpResponse response = context.Response;
 
-                string? contentsType = null;
-                long? contentsLength = 0;
+                httpResponseCode = response.StatusCode;
 
+                contentsType = response.ContentType;
+                contentsLength = response.ContentLength ?? 0;
+            }
+            catch
+            {
+                httpResponseCode = -1;
+                tickEnd = Time.Tick64;
+            }
+
+            Exception? exception = HttpExceptionLoggerMiddleware.GetSavedExceptionFromContext(context);
+
+            int processTime = (int)(tickEnd - tickStart);
+
+            HttpRequest req = context.Request;
+            ConnectionInfo conn = context.Connection;
+            string? username = null;
+            string? authtype = null;
+
+            if (context.User?.Identity?.IsAuthenticated ?? false)
+            {
+                username = context.User?.Identity?.Name;
+                authtype = context.User?.Identity?.AuthenticationType;
+            }
+
+            int maxLen = CoresConfig.KestrelWithStackSettings.MaxLogStringLen;
+
+            WebServerLogData log = new WebServerLogData()
+            {
+                ConnectionId = conn.Id,
+                LocalIP = conn.LocalIpAddress!._UnmapIPv4().ToString(),
+                RemoteIP = conn.RemoteIpAddress!._UnmapIPv4().ToString(),
+                LocalPort = conn.LocalPort,
+                RemotePort = conn.RemotePort,
+
+                Protocol = req.Protocol,
+                Method = req.Method,
+                Host = req.Host.ToString()._TruncStrEx(maxLen),
+                Path = req.Path.ToString()._TruncStrEx(maxLen),
+                QueryString = req.QueryString.ToString()._TruncStrEx(maxLen),
+                Url = req.GetEncodedUrl()._TruncStrEx(maxLen),
+
+                AuthUserName = username._TruncStrEx(maxLen),
+                AuthType = authtype,
+
+                ProcessTimeMsecs = processTime,
+                ResponseCode = httpResponseCode,
+
+                ContentsType = contentsType,
+                ContentsLength = contentsLength,
+            };
+
+            var clientCert = await conn.GetClientCertificateAsync();
+            if (clientCert != null)
+            {
+                log.ClientCert = clientCert.AsPkiCertificate().ToString();
+            }
+
+            log.AuthUserName = log.AuthUserName._NullIfEmpty();
+            log.QueryString = log.QueryString._NullIfEmpty();
+
+            if (context.Items.TryGetValue(BasicAuthMiddleware.BasicAuthResultItemName, out object? basicAuthResultObj))
+            {
+                if (basicAuthResultObj is ResultAndError<string> basicAuthRet)
+                {
+                    log.BasicAuthResult = basicAuthRet.IsOk;
+                    log.BasicAuthUserName = basicAuthRet.Value;
+                }
+            }
+
+            if (req.Headers.TryGetValue("User-Agent", out StringValues userAgentValue))
+                log.UserAgent = userAgentValue.ToString()._TruncStrEx(maxLen);
+
+            if (exception != null)
+            {
                 try
                 {
-                    tickStart = Time.Tick64;
-                    await next.Invoke();
-                    tickEnd = Time.Tick64;
-
-                    HttpResponse response = context.Response;
-
-                    httpResponseCode = response.StatusCode;
-
-                    contentsType = response.ContentType;
-                    contentsLength = response.ContentLength ?? 0;
-                }
-                catch
-                {
-                    httpResponseCode = -1;
-                    tickEnd = Time.Tick64;
-                }
-
-                Exception? exception = HttpExceptionLoggerMiddleware.GetSavedExceptionFromContext(context);
-
-                int processTime = (int)(tickEnd - tickStart);
-
-                HttpRequest req = context.Request;
-                ConnectionInfo conn = context.Connection;
-                string? username = null;
-                string? authtype = null;
-
-                if (context.User?.Identity?.IsAuthenticated ?? false)
-                {
-                    username = context.User?.Identity?.Name;
-                    authtype = context.User?.Identity?.AuthenticationType;
-                }
-
-                int maxLen = CoresConfig.KestrelWithStackSettings.MaxLogStringLen;
-
-                WebServerLogData log = new WebServerLogData()
-                {
-                    ConnectionId = conn.Id,
-                    LocalIP = conn.LocalIpAddress!._UnmapIPv4().ToString(),
-                    RemoteIP = conn.RemoteIpAddress!._UnmapIPv4().ToString(),
-                    LocalPort = conn.LocalPort,
-                    RemotePort = conn.RemotePort,
-
-                    Protocol = req.Protocol,
-                    Method = req.Method,
-                    Host = req.Host.ToString()._TruncStrEx(maxLen),
-                    Path = req.Path.ToString()._TruncStrEx(maxLen),
-                    QueryString = req.QueryString.ToString()._TruncStrEx(maxLen),
-                    Url = req.GetEncodedUrl()._TruncStrEx(maxLen),
-
-                    AuthUserName = username._TruncStrEx(maxLen),
-                    AuthType = authtype,
-
-                    ProcessTimeMsecs = processTime,
-                    ResponseCode = httpResponseCode,
-
-                    ContentsType = contentsType,
-                    ContentsLength = contentsLength,
-                };
-
-                var clientCert = await conn.GetClientCertificateAsync();
-                if (clientCert != null)
-                {
-                    log.ClientCert = clientCert.AsPkiCertificate().ToString();
-                }
-
-                log.AuthUserName = log.AuthUserName._NullIfEmpty();
-                log.QueryString = log.QueryString._NullIfEmpty();
-
-                if (context.Items.TryGetValue(BasicAuthMiddleware.BasicAuthResultItemName, out object? basicAuthResultObj))
-                {
-                    if (basicAuthResultObj is ResultAndError<string> basicAuthRet)
-                    {
-                        log.BasicAuthResult = basicAuthRet.IsOk;
-                        log.BasicAuthUserName = basicAuthRet.Value;
-                    }
-                }
-
-                if (req.Headers.TryGetValue("User-Agent", out StringValues userAgentValue))
-                    log.UserAgent = userAgentValue.ToString()._TruncStrEx(maxLen);
-
-                if (exception != null)
-                {
-                    try
-                    {
-                        string msg = $"Web Server Exception on {log.Method} {log.Url}\r\n{exception.ToString()}\r\n{log._ObjectToJson(compact: true)}\r\n------------------\r\n";
+                    string msg = $"Web Server Exception on {log.Method} {log.Url}\r\n{exception.ToString()}\r\n{log._ObjectToJson(compact: true)}\r\n------------------\r\n";
 
                         //msg._Debug();
                         msg._Error();
-                    }
-                    catch { }
                 }
+                catch { }
+            }
 
-                log.Exception = exception?.ToString();
+            log.Exception = exception?.ToString();
 
-                log._PostAccessLog(LogTag.WebServer);
-            });
+            log._PostAccessLog(LogTag.WebServer);
+        });
+    }
+}
+
+public class HttpEasyContextBox
+{
+    public HttpContext Context { get; }
+    public RouteData RouteData { get; }
+    public HttpRequest Request { get; }
+    public HttpResponse Response { get; }
+    public ConnectionInfo ConnInfo { get; }
+    public WebMethods Method { get; }
+    public CancellationToken Cancel { get; }
+    public IPEndPoint RemoteEndpoint { get; }
+    public IPEndPoint LocalEndpoint { get; }
+
+    public string RemoteHostnameOrIpAddress { get; private set; }
+    public bool IsRemoteHostnameResolved { get; private set; }
+
+    public string PathAndQueryString { get; }
+    public QueryStringList QueryStringList { get; }
+    public Uri PathAndQueryStringUri { get; }
+
+    public HttpEasyContextBox(HttpContext context)
+    {
+        Context = context;
+        RouteData = context.GetRouteData();
+        Request = context.Request;
+        Response = context.Response;
+        ConnInfo = context.Connection;
+        Method = Request.Method._ParseEnum(WebMethods.GET);
+        Cancel = Request._GetRequestCancellationToken();
+        RemoteEndpoint = new IPEndPoint(ConnInfo.RemoteIpAddress!._UnmapIPv4(), ConnInfo.RemotePort);
+        LocalEndpoint = new IPEndPoint(ConnInfo.LocalIpAddress!._UnmapIPv4(), ConnInfo.LocalPort);
+
+        this.IsRemoteHostnameResolved = false;
+        this.RemoteHostnameOrIpAddress = RemoteEndpoint.Address.ToString();
+
+        PathAndQueryString = Request._GetRequestPathAndQueryString();
+
+        PathAndQueryString._ParseUrl(out Uri uri, out QueryStringList qs);
+        this.PathAndQueryStringUri = uri;
+        this.QueryStringList = qs;
+    }
+
+    public async Task TryResolveRemoteHostnameAsync(DnsResolver? resolver = null, CancellationToken cancel = default)
+    {
+        if (this.IsRemoteHostnameResolved)
+        {
+            return;
+        }
+
+        if (resolver == null) resolver = LocalNet.DnsResolver;
+
+        string hostname = await resolver.GetHostNameSingleOrIpAsync(this.RemoteEndpoint.Address, cancel);
+
+        if (hostname._IsEmpty() == false)
+        {
+            this.RemoteHostnameOrIpAddress = hostname;
+            this.IsRemoteHostnameResolved = true;
+        }
+    }
+}
+
+
+public delegate Task<HttpResult> HttpResultStandardRequestAsyncCallback(WebMethods method, string path, QueryStringList queryString, HttpContext context, RouteData routeData, IPEndPoint local, IPEndPoint remote, CancellationToken cancel = default);
+
+
+public partial class HttpResult
+{
+    public static async Task EasyRequestHandler(HttpContext context, object? param, Func<HttpEasyContextBox, object?, Task<HttpResult>> callback)
+    {
+        var box = context._GetHttpEasyContextBox();
+
+        try
+        {
+            await using (HttpResult result = await callback(box, param))
+            {
+                await box.Response._SendHttpResultAsync(result, box.Cancel);
+            }
+        }
+        catch (Exception ex)
+        {
+            ex._Error();
+
+            await using HttpResult errResult = new HttpStringResult("Error: " + ex.Message, statusCode: Consts.HttpStatusCodes.InternalServerError);
+
+            await box.Response._SendHttpResultAsync(errResult, box.Cancel);
         }
     }
 
-    public class HttpEasyContextBox
+    public static RequestDelegate GetStandardRequestHandler(HttpResultStandardRequestAsyncCallback handler)
     {
-        public HttpContext Context { get; }
-        public RouteData RouteData { get; }
-        public HttpRequest Request { get; }
-        public HttpResponse Response { get; }
-        public ConnectionInfo ConnInfo { get; }
-        public WebMethods Method { get; }
-        public CancellationToken Cancel { get; }
-        public IPEndPoint RemoteEndpoint { get; }
-        public IPEndPoint LocalEndpoint { get; }
-
-        public string RemoteHostnameOrIpAddress { get; private set; }
-        public bool IsRemoteHostnameResolved { get; private set; }
-
-        public string PathAndQueryString { get; }
-        public QueryStringList QueryStringList { get; }
-        public Uri PathAndQueryStringUri { get; }
-
-        public HttpEasyContextBox(HttpContext context)
-        {
-            Context = context;
-            RouteData = context.GetRouteData();
-            Request = context.Request;
-            Response = context.Response;
-            ConnInfo = context.Connection;
-            Method = Request.Method._ParseEnum(WebMethods.GET);
-            Cancel = Request._GetRequestCancellationToken();
-            RemoteEndpoint = new IPEndPoint(ConnInfo.RemoteIpAddress!._UnmapIPv4(), ConnInfo.RemotePort);
-            LocalEndpoint = new IPEndPoint(ConnInfo.LocalIpAddress!._UnmapIPv4(), ConnInfo.LocalPort);
-
-            this.IsRemoteHostnameResolved = false;
-            this.RemoteHostnameOrIpAddress = RemoteEndpoint.Address.ToString();
-
-            PathAndQueryString = Request._GetRequestPathAndQueryString();
-
-            PathAndQueryString._ParseUrl(out Uri uri, out QueryStringList qs);
-            this.PathAndQueryStringUri = uri;
-            this.QueryStringList = qs;
-        }
-
-        public async Task TryResolveRemoteHostnameAsync(DnsResolver? resolver = null, CancellationToken cancel = default)
-        {
-            if (this.IsRemoteHostnameResolved)
-            {
-                return;
-            }
-
-            if (resolver == null) resolver = LocalNet.DnsResolver;
-
-            string hostname = await resolver.GetHostNameSingleOrIpAsync(this.RemoteEndpoint.Address, cancel);
-
-            if (hostname._IsEmpty() == false)
-            {
-                this.RemoteHostnameOrIpAddress = hostname;
-                this.IsRemoteHostnameResolved = true;
-            }
-        }
+        return (context) => StandardRequestHandlerAsync(context, handler);
     }
 
-
-    public delegate Task<HttpResult> HttpResultStandardRequestAsyncCallback(WebMethods method, string path, QueryStringList queryString, HttpContext context, RouteData routeData, IPEndPoint local, IPEndPoint remote, CancellationToken cancel = default);
-
-
-    public partial class HttpResult
+    static async Task StandardRequestHandlerAsync(HttpContext context, HttpResultStandardRequestAsyncCallback callback)
     {
-        public static async Task EasyRequestHandler(HttpContext context, object? param, Func<HttpEasyContextBox, object?, Task<HttpResult>> callback)
+        var box = new HttpEasyContextBox(context);
+
+        try
         {
-            var box = context._GetHttpEasyContextBox();
-
-            try
+            await using (HttpResult result = await callback(box.Method, box.PathAndQueryStringUri.LocalPath, box.QueryStringList, context, box.RouteData, box.LocalEndpoint, box.RemoteEndpoint, box.Cancel))
             {
-                await using (HttpResult result = await callback(box, param))
-                {
-                    await box.Response._SendHttpResultAsync(result, box.Cancel);
-                }
-            }
-            catch (Exception ex)
-            {
-                ex._Error();
-
-                await using HttpResult errResult = new HttpStringResult("Error: " + ex.Message, statusCode: Consts.HttpStatusCodes.InternalServerError);
-
-                await box.Response._SendHttpResultAsync(errResult, box.Cancel);
+                await box.Response._SendHttpResultAsync(result, box.Cancel);
             }
         }
-
-        public static RequestDelegate GetStandardRequestHandler(HttpResultStandardRequestAsyncCallback handler)
+        catch (Exception ex)
         {
-            return (context) => StandardRequestHandlerAsync(context, handler);
-        }
+            ex._Error();
 
-        static async Task StandardRequestHandlerAsync(HttpContext context, HttpResultStandardRequestAsyncCallback callback)
-        {
-            var box = new HttpEasyContextBox(context);
+            await using HttpResult errResult = new HttpStringResult("Error: " + ex.Message, statusCode: Consts.HttpStatusCodes.InternalServerError);
 
-            try
-            {
-                await using (HttpResult result = await callback(box.Method, box.PathAndQueryStringUri.LocalPath, box.QueryStringList, context, box.RouteData, box.LocalEndpoint, box.RemoteEndpoint, box.Cancel))
-                {
-                    await box.Response._SendHttpResultAsync(result, box.Cancel);
-                }
-            }
-            catch (Exception ex)
-            {
-                ex._Error();
-
-                await using HttpResult errResult = new HttpStringResult("Error: " + ex.Message, statusCode: Consts.HttpStatusCodes.InternalServerError);
-
-                await box.Response._SendHttpResultAsync(errResult, box.Cancel);
-            }
+            await box.Response._SendHttpResultAsync(errResult, box.Cancel);
         }
     }
 }

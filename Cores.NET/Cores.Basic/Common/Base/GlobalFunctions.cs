@@ -48,377 +48,376 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Diagnostics.CodeAnalysis;
 
-namespace IPA.Cores.Globals
+namespace IPA.Cores.Globals;
+
+public static partial class Basic
 {
-    public static partial class Basic
+    static volatile int VolatileZero = 0;
+
+    public static readonly CriticalSection GlobalSuperLock = new CriticalSection();
+
+    public static int NoOp()
     {
-        static volatile int VolatileZero = 0;
+        VolatileZero = 0;
+        VolatileZero = VolatileZero & VolatileZero;
+        return 0;
+    }
 
-        public static readonly CriticalSection GlobalSuperLock = new CriticalSection();
+    public const MethodImplOptions NoOptimization = MethodImplOptions.NoOptimization;
 
-        public static int NoOp()
-        {
-            VolatileZero = 0;
-            VolatileZero = VolatileZero & VolatileZero;
-            return 0;
-        }
+    public const MethodImplOptions NoInline = MethodImplOptions.NoInlining;
 
-        public const MethodImplOptions NoOptimization = MethodImplOptions.NoOptimization;
+    public const MethodImplOptions Inline = MethodImplOptions.AggressiveInlining | (MethodImplOptions)512 /* AggressiveOptimization */;
 
-        public const MethodImplOptions NoInline = MethodImplOptions.NoInlining;
+    public static int DoNothing() => NoOp();
 
-        public const MethodImplOptions Inline = MethodImplOptions.AggressiveInlining | (MethodImplOptions)512 /* AggressiveOptimization */;
+    public static void Sleep(int msecs) => Kernel.SleepThread(msecs);
 
-        public static int DoNothing() => NoOp();
+    public static void SleepInfinite() => Kernel.SleepThreadInfinite();
 
-        public static void Sleep(int msecs) => Kernel.SleepThread(msecs);
+    public static Task SleepAsync(int msecs) => Task.Delay(msecs);
 
-        public static void SleepInfinite() => Kernel.SleepThreadInfinite();
+    public static async Task SleepRandIntervalAsync(int standard = 1000, double plusMinusPercentage = 30.0)
+    {
+        await SleepAsync(Util.GenRandInterval(standard, plusMinusPercentage));
+    }
 
-        public static Task SleepAsync(int msecs) => Task.Delay(msecs);
+    public static T UnixOrWindows<T>(T unix, T windows) => Env.IsUnix ? unix : windows;
 
-        public static async Task SleepRandIntervalAsync(int standard = 1000, double plusMinusPercentage = 30.0)
-        {
-            await SleepAsync(Util.GenRandInterval(standard, plusMinusPercentage));
-        }
-
-        public static T UnixOrWindows<T>(T unix, T windows) => Env.IsUnix ? unix : windows;
-
-        public static DateTime DtUtcNow
-        {
-            [MethodImpl(Inline)]
-            get => DateTime.UtcNow;
-        }
-
-        public static DateTime DtNow
-        {
-            [MethodImpl(Inline)]
-            get => DateTime.Now;
-        }
-
-        public static DateTime DtZero
-        {
-            [MethodImpl(Inline)]
-            get => Util.ZeroDateTimeValue;
-        }
-
-        public static DateTimeOffset DtOffsetNow
-        {
-            [MethodImpl(Inline)]
-            get => DateTimeOffset.Now;
-        }
-
-        public static DateTimeOffset DtOffsetZero
-        {
-            [MethodImpl(Inline)]
-            get => Util.ZeroDateTimeOffsetValue;
-        }
-
-        public static long TickNow
-        {
-            [MethodImpl(Inline)]
-            get => Time.Tick64;
-        }
-
-        public static long TickHighresNow
-        {
-            [MethodImpl(Inline)]
-            get => Time.HighResTick64;
-        }
-
+    public static DateTime DtUtcNow
+    {
         [MethodImpl(Inline)]
-        public static void Where(object? message = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
-            => Dbg.Where(message, filename, line, caller, printThreadId);
+        get => DateTime.UtcNow;
+    }
 
+    public static DateTime DtNow
+    {
         [MethodImpl(Inline)]
-        public static void Sync(Action action) => TaskUtil.Sync(action);
+        get => DateTime.Now;
+    }
 
+    public static DateTime DtZero
+    {
         [MethodImpl(Inline)]
-        public static T Sync<T>(Func<T> func) => TaskUtil.Sync(func);
+        get => Util.ZeroDateTimeValue;
+    }
 
+    public static DateTimeOffset DtOffsetNow
+    {
         [MethodImpl(Inline)]
-        public static void Async(Func<Task> asyncFunc) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: false)._GetResult();
+        get => DateTimeOffset.Now;
+    }
 
+    public static DateTimeOffset DtOffsetZero
+    {
         [MethodImpl(Inline)]
-        public static T Async<T>(Func<Task<T>> asyncFunc) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: false)._GetResult();
+        get => Util.ZeroDateTimeOffsetValue;
+    }
 
+    public static long TickNow
+    {
         [MethodImpl(Inline)]
-        public static Task AsyncAwait(Func<Task> asyncFunc) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: true);
+        get => Time.Tick64;
+    }
 
+    public static long TickHighresNow
+    {
         [MethodImpl(Inline)]
-        public static Task<T> AsyncAwait<T>(Func<Task<T>> asyncFunc) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: true);
+        get => Time.HighResTick64;
+    }
 
-        [MethodImpl(Inline)]
-        public static IAsyncDisposable AsyncAwaitScoped(Func<CancellationToken, Task> asyncFunc, bool noErrorMessage = false)
+    [MethodImpl(Inline)]
+    public static void Where(object? message = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
+        => Dbg.Where(message, filename, line, caller, printThreadId);
+
+    [MethodImpl(Inline)]
+    public static void Sync(Action action) => TaskUtil.Sync(action);
+
+    [MethodImpl(Inline)]
+    public static T Sync<T>(Func<T> func) => TaskUtil.Sync(func);
+
+    [MethodImpl(Inline)]
+    public static void Async(Func<Task> asyncFunc) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: false)._GetResult();
+
+    [MethodImpl(Inline)]
+    public static T Async<T>(Func<Task<T>> asyncFunc) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: false)._GetResult();
+
+    [MethodImpl(Inline)]
+    public static Task AsyncAwait(Func<Task> asyncFunc) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: true);
+
+    [MethodImpl(Inline)]
+    public static Task<T> AsyncAwait<T>(Func<Task<T>> asyncFunc) => TaskUtil.StartAsyncTaskAsync(asyncFunc, leakCheck: true);
+
+    [MethodImpl(Inline)]
+    public static IAsyncDisposable AsyncAwaitScoped(Func<CancellationToken, Task> asyncFunc, bool noErrorMessage = false)
+    {
+        CancellationTokenSource cts = new CancellationTokenSource();
+
+        Task task = asyncFunc(cts.Token);
+
+        AsyncHolder h = new AsyncHolder(async () =>
         {
-            CancellationTokenSource cts = new CancellationTokenSource();
+            cts._TryCancelNoBlock();
 
-            Task task = asyncFunc(cts.Token);
-
-            AsyncHolder h = new AsyncHolder(async () =>
-            {
-                cts._TryCancelNoBlock();
-
-                try
-                {
-                    await task;
-                }
-                catch (Exception ex)
-                {
-                    if (noErrorMessage == false)
-                    {
-                        ex._Debug();
-                    }
-                }
-            },
-            LeakCounterKind.AsyncAwaitScoped);
-
-            return h;
-        }
-
-        [MethodImpl(Inline)]
-        public static IAsyncDisposable AsyncAwaitScoped<T>(Func<CancellationToken, Task<T>> asyncFunc, bool noErrorMessage = false)
-        {
-            CancellationTokenSource cts = new CancellationTokenSource();
-
-            Task<T> task = asyncFunc(cts.Token);
-
-            AsyncHolder h = new AsyncHolder(async () =>
-            {
-                cts._TryCancelNoBlock();
-
-                try
-                {
-                    await task;
-                }
-                catch (Exception ex)
-                {
-                    if (noErrorMessage == false)
-                    {
-                        ex._Debug();
-                    }
-                }
-            },
-            LeakCounterKind.AsyncAwaitScoped);
-
-            return h;
-        }
-
-        [MethodImpl(Inline)]
-        public static IDisposable AsyncScoped(Func<CancellationToken, Task> asyncFunc, bool noErrorMessage = false)
-        {
-            CancellationTokenSource cts = new CancellationTokenSource();
-
-            Task task = asyncFunc(cts.Token);
-
-            AsyncHolder h = new AsyncHolder(async () =>
-            {
-                cts._TryCancelNoBlock();
-
-                try
-                {
-                    await task;
-                }
-                catch (Exception ex)
-                {
-                    if (noErrorMessage == false)
-                    {
-                        ex._Debug();
-                    }
-                }
-            },
-            LeakCounterKind.AsyncScoped);
-
-            return h;
-        }
-
-        [MethodImpl(Inline)]
-        public static IDisposable AsyncScoped<T>(Func<CancellationToken, Task<T>> asyncFunc, bool noErrorMessage = false)
-        {
-            CancellationTokenSource cts = new CancellationTokenSource();
-
-            Task<T> task = asyncFunc(cts.Token);
-
-            AsyncHolder h = new AsyncHolder(async () =>
-            {
-                cts._TryCancelNoBlock();
-
-                try
-                {
-                    await task;
-                }
-                catch (Exception ex)
-                {
-                    if (noErrorMessage == false)
-                    {
-                        ex._Debug();
-                    }
-                }
-            },
-            LeakCounterKind.AsyncScoped);
-
-            return h;
-        }
-
-        public static bool TryRetBool(Action action, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
-        {
             try
             {
-                action();
-                return true;
+                await task;
             }
             catch (Exception ex)
             {
-                if (noDebugMessage == false)
+                if (noErrorMessage == false)
                 {
-                    DebugWhereContainer c = new DebugWhereContainer(ex, filename, line, printThreadId ? Environment.CurrentManagedThreadId : 0, caller);
-                    Dbg.WriteLine(c);
+                    ex._Debug();
                 }
-                return false;
             }
-        }
+        },
+        LeakCounterKind.AsyncAwaitScoped);
 
-        [return: NotNullIfNotNull("defaultValue")]
-        public static T? TryIfErrorRetDefault<T>(Func<T> func, T? defaultValue = default, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
+        return h;
+    }
+
+    [MethodImpl(Inline)]
+    public static IAsyncDisposable AsyncAwaitScoped<T>(Func<CancellationToken, Task<T>> asyncFunc, bool noErrorMessage = false)
+    {
+        CancellationTokenSource cts = new CancellationTokenSource();
+
+        Task<T> task = asyncFunc(cts.Token);
+
+        AsyncHolder h = new AsyncHolder(async () =>
         {
+            cts._TryCancelNoBlock();
+
             try
             {
-                return func();
+                await task;
             }
             catch (Exception ex)
             {
-                if (noDebugMessage == false)
+                if (noErrorMessage == false)
                 {
-                    DebugWhereContainer c = new DebugWhereContainer(ex, filename, line, printThreadId ? Environment.CurrentManagedThreadId : 0, caller);
-                    Dbg.WriteLine(c);
+                    ex._Debug();
                 }
-                return defaultValue;
             }
-        }
+        },
+        LeakCounterKind.AsyncAwaitScoped);
 
-        public static async Task<T?> TryIfErrorRetDefaultAsync<T>(Func<Task<T>> func, T? defaultValue = default, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
+        return h;
+    }
+
+    [MethodImpl(Inline)]
+    public static IDisposable AsyncScoped(Func<CancellationToken, Task> asyncFunc, bool noErrorMessage = false)
+    {
+        CancellationTokenSource cts = new CancellationTokenSource();
+
+        Task task = asyncFunc(cts.Token);
+
+        AsyncHolder h = new AsyncHolder(async () =>
         {
+            cts._TryCancelNoBlock();
+
             try
             {
-                return await func();
+                await task;
             }
             catch (Exception ex)
             {
-                if (noDebugMessage == false)
+                if (noErrorMessage == false)
                 {
-                    DebugWhereContainer c = new DebugWhereContainer(ex, filename, line, printThreadId ? Environment.CurrentManagedThreadId : 0, caller);
-                    Dbg.WriteLine(c);
+                    ex._Debug();
                 }
-                return defaultValue;
             }
+        },
+        LeakCounterKind.AsyncScoped);
+
+        return h;
+    }
+
+    [MethodImpl(Inline)]
+    public static IDisposable AsyncScoped<T>(Func<CancellationToken, Task<T>> asyncFunc, bool noErrorMessage = false)
+    {
+        CancellationTokenSource cts = new CancellationTokenSource();
+
+        Task<T> task = asyncFunc(cts.Token);
+
+        AsyncHolder h = new AsyncHolder(async () =>
+        {
+            cts._TryCancelNoBlock();
+
+            try
+            {
+                await task;
+            }
+            catch (Exception ex)
+            {
+                if (noErrorMessage == false)
+                {
+                    ex._Debug();
+                }
+            }
+        },
+        LeakCounterKind.AsyncScoped);
+
+        return h;
+    }
+
+    public static bool TryRetBool(Action action, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
+    {
+        try
+        {
+            action();
+            return true;
         }
+        catch (Exception ex)
+        {
+            if (noDebugMessage == false)
+            {
+                DebugWhereContainer c = new DebugWhereContainer(ex, filename, line, printThreadId ? Environment.CurrentManagedThreadId : 0, caller);
+                Dbg.WriteLine(c);
+            }
+            return false;
+        }
+    }
 
-        public static LocalFileSystem Lfs => LocalFileSystem.Local;
-        public static LargeFileSystem LLfs => LargeFileSystem.Local;
-        public static Utf8BomFileSystem LfsUtf8 => LocalFileSystem.LocalUtf8;
-        public static LargeFileSystem LLfsUtf8 => LargeFileSystem.LocalUtf8;
-        public static ResourceFileSystem CoresRes => Res.Cores;
+    [return: NotNullIfNotNull("defaultValue")]
+    public static T? TryIfErrorRetDefault<T>(Func<T> func, T? defaultValue = default, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
+    {
+        try
+        {
+            return func();
+        }
+        catch (Exception ex)
+        {
+            if (noDebugMessage == false)
+            {
+                DebugWhereContainer c = new DebugWhereContainer(ex, filename, line, printThreadId ? Environment.CurrentManagedThreadId : 0, caller);
+                Dbg.WriteLine(c);
+            }
+            return defaultValue;
+        }
+    }
 
-        public static PathParser PP => PathParser.Local;
-        public static PathParser PPLinux => PathParser.Linux;
-        public static PathParser PPMac => PathParser.Mac;
-        public static PathParser PPWin => PathParser.Windows;
+    public static async Task<T?> TryIfErrorRetDefaultAsync<T>(Func<Task<T>> func, T? defaultValue = default, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
+    {
+        try
+        {
+            return await func();
+        }
+        catch (Exception ex)
+        {
+            if (noDebugMessage == false)
+            {
+                DebugWhereContainer c = new DebugWhereContainer(ex, filename, line, printThreadId ? Environment.CurrentManagedThreadId : 0, caller);
+                Dbg.WriteLine(c);
+            }
+            return defaultValue;
+        }
+    }
+
+    public static LocalFileSystem Lfs => LocalFileSystem.Local;
+    public static LargeFileSystem LLfs => LargeFileSystem.Local;
+    public static Utf8BomFileSystem LfsUtf8 => LocalFileSystem.LocalUtf8;
+    public static LargeFileSystem LLfsUtf8 => LargeFileSystem.LocalUtf8;
+    public static ResourceFileSystem CoresRes => Res.Cores;
+
+    public static PathParser PP => PathParser.Local;
+    public static PathParser PPLinux => PathParser.Linux;
+    public static PathParser PPMac => PathParser.Mac;
+    public static PathParser PPWin => PathParser.Windows;
 
 #if CORES_BASIC_GIT
         public static GitFileSystem GitFs(string url, string commitIdOrRefName = "") => GitGlobalFs.GetFileSystem(url, commitIdOrRefName);
 #endif // CORES_BASIC_GIT
 
-        public static partial class Res
-        {
-            public static readonly ResourceFileSystem Cores = ResourceFileSystem.CreateOrGet(
-                new AssemblyWithSourceInfo(typeof(Res), new SourceCodePathAndMarkerFileName(CoresLib.CoresLibSourceCodeFileName, Consts.FileNames.RootMarker_Library_CoresBasic)));
+    public static partial class Res
+    {
+        public static readonly ResourceFileSystem Cores = ResourceFileSystem.CreateOrGet(
+            new AssemblyWithSourceInfo(typeof(Res), new SourceCodePathAndMarkerFileName(CoresLib.CoresLibSourceCodeFileName, Consts.FileNames.RootMarker_Library_CoresBasic)));
 
-            public static readonly FileSystem AppRoot = LocalFileSystem.AppRoot;
-        }
-
-        public static LocalTcpIpSystem LocalNet => LocalTcpIpSystem.Local;
-
-        public const int DefaultSize = int.MinValue;
-
-        [MethodImpl(Inline)]
-        public static Task<TResult> TR<TResult>(TResult result) => Task.FromResult(result);
-
-        [MethodImpl(Inline)]
-        public static Task TR() => Task.CompletedTask;
-
-        public static DateTime ZeroDateTimeValue
-        {
-            [MethodImpl(Inline)]
-            get => Util.ZeroDateTimeValue;
-        }
-
-        public static DateTime MaxDateTimeValue
-        {
-            [MethodImpl(Inline)]
-            get => Util.MaxDateTimeValue;
-        }
-
-        public static DateTimeOffset ZeroDateTimeOffsetValue
-        {
-            [MethodImpl(Inline)]
-            get => Util.ZeroDateTimeOffsetValue;
-        }
-
-        public static DateTimeOffset MaxDateTimeOffsetValue
-        {
-            [MethodImpl(Inline)]
-            get => Util.MaxDateTimeOffsetValue;
-        }
-
-        public static Task TaskCompleted
-        {
-            [MethodImpl(Inline)]
-            get => Task.CompletedTask;
-        }
-
-        [MethodImpl(NoInline | NoOptimization)]
-        public static string StackInfo([CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
-        {
-            return Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller);
-        }
-
-        public static void For(int count, Action<int> action)
-        {
-            for (int i = 0; i < count; i++)
-                action(i);
-        }
-
-        public static void For(int count, Action action)
-        {
-            for (int i = 0; i < count; i++)
-                action();
-        }
-
-        public static Memory<byte> Load(string path, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, FileSystem? fs = null, CancellationToken cancel = default) =>
-            path._Load(maxSize, flags, fs, cancel);
-
-        public static Memory<byte> Load(string path, FileSystem? fs, FileFlags flags = FileFlags.None, int maxSize = int.MaxValue, CancellationToken cancel = default) =>
-            path._Load(maxSize, flags, fs, cancel);
-
-        public static Memory<byte> Load(string path, FileFlags flags, FileSystem? fs = null, int maxSize = int.MaxValue, CancellationToken cancel = default) =>
-            path._Load(maxSize, flags, fs, cancel);
-
-        public static List<string> StrList() => StrList(new string[0]);
-        public static List<string> StrList(params object?[] args)
-        {
-            List<string> ret = new List<string>();
-            foreach (object? obj in args)
-            {
-                if (obj is string str)
-                    ret.Add(str._NonNull());
-                else
-                    ret.Add(obj?.ToString()._NonNull() ?? "");
-            }
-            return ret;
-        }
-
-        [MethodImpl(Inline)]
-        public static T[] EmptyOf<T>() => Array.Empty<T>();
+        public static readonly FileSystem AppRoot = LocalFileSystem.AppRoot;
     }
+
+    public static LocalTcpIpSystem LocalNet => LocalTcpIpSystem.Local;
+
+    public const int DefaultSize = int.MinValue;
+
+    [MethodImpl(Inline)]
+    public static Task<TResult> TR<TResult>(TResult result) => Task.FromResult(result);
+
+    [MethodImpl(Inline)]
+    public static Task TR() => Task.CompletedTask;
+
+    public static DateTime ZeroDateTimeValue
+    {
+        [MethodImpl(Inline)]
+        get => Util.ZeroDateTimeValue;
+    }
+
+    public static DateTime MaxDateTimeValue
+    {
+        [MethodImpl(Inline)]
+        get => Util.MaxDateTimeValue;
+    }
+
+    public static DateTimeOffset ZeroDateTimeOffsetValue
+    {
+        [MethodImpl(Inline)]
+        get => Util.ZeroDateTimeOffsetValue;
+    }
+
+    public static DateTimeOffset MaxDateTimeOffsetValue
+    {
+        [MethodImpl(Inline)]
+        get => Util.MaxDateTimeOffsetValue;
+    }
+
+    public static Task TaskCompleted
+    {
+        [MethodImpl(Inline)]
+        get => Task.CompletedTask;
+    }
+
+    [MethodImpl(NoInline | NoOptimization)]
+    public static string StackInfo([CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+    {
+        return Dbg.GetCurrentExecutingPositionInfoString(1, filename, line, caller);
+    }
+
+    public static void For(int count, Action<int> action)
+    {
+        for (int i = 0; i < count; i++)
+            action(i);
+    }
+
+    public static void For(int count, Action action)
+    {
+        for (int i = 0; i < count; i++)
+            action();
+    }
+
+    public static Memory<byte> Load(string path, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, FileSystem? fs = null, CancellationToken cancel = default) =>
+        path._Load(maxSize, flags, fs, cancel);
+
+    public static Memory<byte> Load(string path, FileSystem? fs, FileFlags flags = FileFlags.None, int maxSize = int.MaxValue, CancellationToken cancel = default) =>
+        path._Load(maxSize, flags, fs, cancel);
+
+    public static Memory<byte> Load(string path, FileFlags flags, FileSystem? fs = null, int maxSize = int.MaxValue, CancellationToken cancel = default) =>
+        path._Load(maxSize, flags, fs, cancel);
+
+    public static List<string> StrList() => StrList(new string[0]);
+    public static List<string> StrList(params object?[] args)
+    {
+        List<string> ret = new List<string>();
+        foreach (object? obj in args)
+        {
+            if (obj is string str)
+                ret.Add(str._NonNull());
+            else
+                ret.Add(obj?.ToString()._NonNull() ?? "");
+        }
+        return ret;
+    }
+
+    [MethodImpl(Inline)]
+    public static T[] EmptyOf<T>() => Array.Empty<T>();
 }
 

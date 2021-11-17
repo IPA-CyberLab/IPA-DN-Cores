@@ -56,41 +56,40 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public abstract class UiAutomationBase : AsyncServiceWithMainLoop
 {
-    public abstract class UiAutomationBase : AsyncServiceWithMainLoop
+    protected abstract Task<bool> TryUiTaskAsync(CancellationToken cancel);
+
+    public int IntervalMsecs { get; }
+
+    public UiAutomationBase(int intervalMsecs = Consts.Intervals.UiAutomationDefaultInterval)
     {
-        protected abstract Task<bool> TryUiTaskAsync(CancellationToken cancel);
+        this.IntervalMsecs = Math.Max(intervalMsecs, 1);
 
-        public int IntervalMsecs { get; }
+        this.StartMainLoop(MainLoopAsync);
+    }
 
-        public UiAutomationBase(int intervalMsecs = Consts.Intervals.UiAutomationDefaultInterval)
+    async Task MainLoopAsync(CancellationToken cancel)
+    {
+        while (cancel.IsCancellationRequested == false)
         {
-            this.IntervalMsecs = Math.Max(intervalMsecs, 1);
-
-            this.StartMainLoop(MainLoopAsync);
-        }
-
-        async Task MainLoopAsync(CancellationToken cancel)
-        {
-            while (cancel.IsCancellationRequested == false)
+            try
             {
-                try
-                {
-                    bool r = await TryUiTaskAsync(cancel);
+                bool r = await TryUiTaskAsync(cancel);
 
-                    if (r)
-                    {
-                        break;
-                    }
-                }
-                catch (Exception ex)
+                if (r)
                 {
-                    ex._Debug();
+                    break;
                 }
-
-                await cancel._WaitUntilCanceledAsync(this.IntervalMsecs);
             }
+            catch (Exception ex)
+            {
+                ex._Debug();
+            }
+
+            await cancel._WaitUntilCanceledAsync(this.IntervalMsecs);
         }
     }
 }

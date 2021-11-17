@@ -43,163 +43,162 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public class LocalTcpIpSystemParam : TcpIpSystemParam
 {
-    public class LocalTcpIpSystemParam : TcpIpSystemParam
+    public LocalTcpIpSystemParam(string name) : base(name) { }
+}
+
+public class LocalTcpIpSystem : TcpIpSystem
+{
+    class HostInfo : TcpIpSystemHostInfo
     {
-        public LocalTcpIpSystemParam(string name) : base(name) { }
-    }
+        public override int InfoVersion { get; protected set; }
+        public override string HostName { get; protected set; }
+        public override string DomainName { get; protected set; }
+        public override bool IsIPv4Supported { get; protected set; }
+        public override bool IsIPv6Supported { get; protected set; }
+        public override IReadOnlyList<IPAddress> IPAddressList { get; protected set; }
 
-    public class LocalTcpIpSystem : TcpIpSystem
-    {
-        class HostInfo : TcpIpSystemHostInfo
+        public HostInfo(bool doNotStartBackground)
         {
-            public override int InfoVersion { get; protected set; }
-            public override string HostName { get; protected set; }
-            public override string DomainName { get; protected set; }
-            public override bool IsIPv4Supported { get; protected set; }
-            public override bool IsIPv6Supported { get; protected set; }
-            public override IReadOnlyList<IPAddress> IPAddressList { get; protected set; }
+            PalHostNetInfo data;
 
-            public HostInfo(bool doNotStartBackground)
+            if (doNotStartBackground == false)
             {
-                PalHostNetInfo data;
-
-                if (doNotStartBackground == false)
-                {
-                    // Background 定期的チェックを開始してそこから取得する
-                    // 本来軽量であるが、フルルート BGP ルータなどで動作すると大変重くなる
-                    var current = BackgroundState<PalHostNetInfo>.Current;
-                    this.InfoVersion = current.Version;
-                    data = current.Data._NullCheck();
-                }
-                else
-                {
-                    // 単発で取得する
-                    this.InfoVersion = -1;
-                    data = BackgroundState<PalHostNetInfo>.GetOnce();
-                }
-
-                this.HostName = data.HostName;
-                this.DomainName = data.DomainName;
-                this.IsIPv4Supported = data.IsIPv4Supported;
-                this.IsIPv6Supported = data.IsIPv6Supported;
-                this.IPAddressList = data.IPAddressList ?? new List<IPAddress>();
-            }
-        }
-
-        public static LocalTcpIpSystem Local { get; private set; } = null!;
-
-        public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
-
-        static void ModuleInit()
-        {
-            Local = new LocalTcpIpSystem(new LocalTcpIpSystemParam("LocalTcpIp"));
-        }
-
-        static void ModuleFree()
-        {
-            Local._DisposeSafe();
-            Local = null!;
-        }
-
-
-        protected new LocalTcpIpSystemParam Param => (LocalTcpIpSystemParam)base.Param;
-
-        private LocalTcpIpSystem(LocalTcpIpSystemParam param) : base(param)
-        {
-        }
-
-        static readonly CachedProperty<TcpIpSystemHostInfo> CachedSystemHostInfo = new CachedProperty<TcpIpSystemHostInfo>(getter: () => new HostInfo(true), expiresLifeTimeMsecs: CoresConfig.TcpIpSystemSettings.LocalHostHostInfoCacheLifetime);
-
-        protected override TcpIpSystemHostInfo GetHostInfoImpl(bool doNotStartBackground)
-        {
-            if (doNotStartBackground == false || Env.IsWindows)
-            {
-                // Windows の場合は、doNotStartBackground が true でもバックグラウンドを起動する。
-                // これは、UNIX (Linux) と異なり、パフォーマンス上の問題がないためである。
-                return new HostInfo(false);
+                // Background 定期的チェックを開始してそこから取得する
+                // 本来軽量であるが、フルルート BGP ルータなどで動作すると大変重くなる
+                var current = BackgroundState<PalHostNetInfo>.Current;
+                this.InfoVersion = current.Version;
+                data = current.Data._NullCheck();
             }
             else
             {
-                return CachedSystemHostInfo;
+                // 単発で取得する
+                this.InfoVersion = -1;
+                data = BackgroundState<PalHostNetInfo>.GetOnce();
             }
+
+            this.HostName = data.HostName;
+            this.DomainName = data.DomainName;
+            this.IsIPv4Supported = data.IsIPv4Supported;
+            this.IsIPv6Supported = data.IsIPv6Supported;
+            this.IPAddressList = data.IPAddressList ?? new List<IPAddress>();
         }
+    }
 
-        protected override int RegisterHostInfoChangedEventImpl(AsyncAutoResetEvent ev)
+    public static LocalTcpIpSystem Local { get; private set; } = null!;
+
+    public static StaticModule Module { get; } = new StaticModule(ModuleInit, ModuleFree);
+
+    static void ModuleInit()
+    {
+        Local = new LocalTcpIpSystem(new LocalTcpIpSystemParam("LocalTcpIp"));
+    }
+
+    static void ModuleFree()
+    {
+        Local._DisposeSafe();
+        Local = null!;
+    }
+
+
+    protected new LocalTcpIpSystemParam Param => (LocalTcpIpSystemParam)base.Param;
+
+    private LocalTcpIpSystem(LocalTcpIpSystemParam param) : base(param)
+    {
+    }
+
+    static readonly CachedProperty<TcpIpSystemHostInfo> CachedSystemHostInfo = new CachedProperty<TcpIpSystemHostInfo>(getter: () => new HostInfo(true), expiresLifeTimeMsecs: CoresConfig.TcpIpSystemSettings.LocalHostHostInfoCacheLifetime);
+
+    protected override TcpIpSystemHostInfo GetHostInfoImpl(bool doNotStartBackground)
+    {
+        if (doNotStartBackground == false || Env.IsWindows)
         {
-            return BackgroundState<PalHostNetInfo>.EventListener.RegisterAsyncEvent(ev);
+            // Windows の場合は、doNotStartBackground が true でもバックグラウンドを起動する。
+            // これは、UNIX (Linux) と異なり、パフォーマンス上の問題がないためである。
+            return new HostInfo(false);
         }
-
-        protected override void UnregisterHostInfoChangedEventImpl(int registerId)
+        else
         {
-            BackgroundState<PalHostNetInfo>.EventListener.UnregisterAsyncEvent(registerId);
+            return CachedSystemHostInfo;
         }
+    }
 
-        protected override NetTcpProtocolStubBase CreateTcpProtocolStubImpl(TcpConnectParam param, CancellationToken cancel)
-        {
-            NetPalTcpProtocolStub tcp = new NetPalTcpProtocolStub(cancel: cancel);
+    protected override int RegisterHostInfoChangedEventImpl(AsyncAutoResetEvent ev)
+    {
+        return BackgroundState<PalHostNetInfo>.EventListener.RegisterAsyncEvent(ev);
+    }
 
-            return tcp;
-        }
+    protected override void UnregisterHostInfoChangedEventImpl(int registerId)
+    {
+        BackgroundState<PalHostNetInfo>.EventListener.UnregisterAsyncEvent(registerId);
+    }
 
-        protected override NetUdpListener CreateUdpListenerImpl(NetUdpListenerOptions options)
-        {
-            return new NetPalUdpListener(options);
-        }
+    protected override NetTcpProtocolStubBase CreateTcpProtocolStubImpl(TcpConnectParam param, CancellationToken cancel)
+    {
+        NetPalTcpProtocolStub tcp = new NetPalTcpProtocolStub(cancel: cancel);
 
-        protected override NetTcpListener CreateTcpListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc, string? rateLimiterConfigName = null)
-        {
-            NetPalTcpListener ret = new NetPalTcpListener(acceptedProc, rateLimiterConfigName);
+        return tcp;
+    }
 
-            return ret;
-        }
+    protected override NetUdpListener CreateUdpListenerImpl(NetUdpListenerOptions options)
+    {
+        return new NetPalUdpListener(options);
+    }
 
-        protected override DnsResolver CreateDnsResolverImpl()
-        {
+    protected override NetTcpListener CreateTcpListenerImpl(NetTcpListenerAcceptedProcCallback acceptedProc, string? rateLimiterConfigName = null)
+    {
+        NetPalTcpListener ret = new NetPalTcpListener(acceptedProc, rateLimiterConfigName);
+
+        return ret;
+    }
+
+    protected override DnsResolver CreateDnsResolverImpl()
+    {
 #if CORES_BASIC_MISC
-            return new DnsClientLibBasedDnsResolver();
+        return new DnsClientLibBasedDnsResolver();
 #else // CORES_BASIC_MISC
             return new UnimplementedDnsResolver();
 #endif // CORES_BASIC_MISC
-        }
+    }
 
-        protected override async Task<DnsResponse> QueryDnsImplAsync(DnsQueryParamBase param, CancellationToken cancel)
+    protected override async Task<DnsResponse> QueryDnsImplAsync(DnsQueryParamBase param, CancellationToken cancel)
+    {
+        switch (param)
         {
-            switch (param)
-            {
-                case DnsGetIpQueryParam getIpQuery:
-                    if (IPAddress.TryParse(getIpQuery.Hostname, out IPAddress? ip))
-                        return new DnsResponse(param, ip._SingleArray());
-                    else
-                        return new DnsResponse(param, await PalDns.GetHostAddressesAsync(getIpQuery.Hostname, getIpQuery.Timeout, cancel));
+            case DnsGetIpQueryParam getIpQuery:
+                if (IPAddress.TryParse(getIpQuery.Hostname, out IPAddress? ip))
+                    return new DnsResponse(param, ip._SingleArray());
+                else
+                    return new DnsResponse(param, await PalDns.GetHostAddressesAsync(getIpQuery.Hostname, getIpQuery.Timeout, cancel));
 
-                case DnsGetFqdnQueryParam getFqdnQuery:
-                    var res = await PalDns.GetHostEntryAsync(getFqdnQuery.Ip._UnmapIPv4(), getFqdnQuery.Timeout, cancel);
+            case DnsGetFqdnQueryParam getFqdnQuery:
+                var res = await PalDns.GetHostEntryAsync(getFqdnQuery.Ip._UnmapIPv4(), getFqdnQuery.Timeout, cancel);
 
-                    List<string> hostNameList = new List<string>();
+                List<string> hostNameList = new List<string>();
 
-                    hostNameList.Add(res.HostName);
-                    res.Aliases._DoForEach(x => hostNameList.Add(x));
+                hostNameList.Add(res.HostName);
+                res.Aliases._DoForEach(x => hostNameList.Add(x));
 
-                    hostNameList.Distinct();
+                hostNameList.Distinct();
 
-                    return new DnsResponse(param, hostNameList);
-            }
-
-            throw new NotImplementedException();
+                return new DnsResponse(param, hostNameList);
         }
 
-        public TcpIpHostDataJsonSafe GetTcpIpHostDataJsonSafe(bool once) => new TcpIpHostDataJsonSafe(EnsureSpecial.Yes, once);
+        throw new NotImplementedException();
+    }
 
-        protected override Task<SendPingReply> SendPingImplAsync(IPAddress target, byte[] data, int timeout, CancellationToken cancel)
+    public TcpIpHostDataJsonSafe GetTcpIpHostDataJsonSafe(bool once) => new TcpIpHostDataJsonSafe(EnsureSpecial.Yes, once);
+
+    protected override Task<SendPingReply> SendPingImplAsync(IPAddress target, byte[] data, int timeout, CancellationToken cancel)
+    {
+        // 現時点で SendAsync メソッドはキャンセルや厳密なタイムアウトを実現していないので DoAsyncWithTimeout() を用いて無理矢理実現する
+        return TaskUtil.DoAsyncWithTimeout((c) =>
         {
-            // 現時点で SendAsync メソッドはキャンセルや厳密なタイムアウトを実現していないので DoAsyncWithTimeout() を用いて無理矢理実現する
-            return TaskUtil.DoAsyncWithTimeout((c) =>
-            {
-                return Legacy.SendPing.SendAsync(target, data, timeout);
-            }, timeout: timeout + 1000, cancel: cancel);
-        }
+            return Legacy.SendPing.SendAsync(target, data, timeout);
+        }, timeout: timeout + 1000, cancel: cancel);
     }
 }
 

@@ -49,441 +49,440 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public static class Json
 {
-    public static class Json
+    public const int DefaultMaxDepth = 8;
+
+    public static string SerializeLog(IEnumerable itemArray, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth)
     {
-        public const int DefaultMaxDepth = 8;
+        StringWriter w = new StringWriter();
+        SerializeLogToTextWriterAsync(w, itemArray, includeNull, escapeHtml, maxDepth)._GetResult();
+        return w.ToString();
+    }
 
-        public static string SerializeLog(IEnumerable itemArray, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth)
+    public static async Task SerializeLogToTextWriterAsync(TextWriter w, IEnumerable itemArray, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, Type? type = null)
+    {
+        foreach (var item in itemArray)
         {
-            StringWriter w = new StringWriter();
-            SerializeLogToTextWriterAsync(w, itemArray, includeNull, escapeHtml, maxDepth)._GetResult();
-            return w.ToString();
+            await w.WriteLineAsync(Serialize(item, includeNull, escapeHtml, maxDepth, true, type: type));
+        }
+    }
+
+    public class InterfaceContractResolver : DefaultContractResolver
+    {
+        private readonly Type[] _interfaceTypes;
+
+        private readonly ConcurrentDictionary<Type, Type> _typeToSerializeMap;
+
+        public InterfaceContractResolver(params Type[] interfaceTypes)
+        {
+            _interfaceTypes = interfaceTypes;
+
+            _typeToSerializeMap = new ConcurrentDictionary<Type, Type>();
         }
 
-        public static async Task SerializeLogToTextWriterAsync(TextWriter w, IEnumerable itemArray, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, Type? type = null)
+        protected override IList<JsonProperty> CreateProperties(
+            Type type,
+            MemberSerialization memberSerialization)
         {
-            foreach (var item in itemArray)
-            {
-                await w.WriteLineAsync(Serialize(item, includeNull, escapeHtml, maxDepth, true, type: type));
-            }
+            var typeToSerialize = _typeToSerializeMap.GetOrAdd(
+                type,
+                t => _interfaceTypes.FirstOrDefault(
+                    it => it.IsAssignableFrom(t)) ?? t);
+
+            return base.CreateProperties(typeToSerialize, memberSerialization);
+        }
+    }
+
+    public static string Serialize(object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null)
+    {
+        if (obj is IToJsonString specialInterface)
+        {
+            return specialInterface.ToJsonString(includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type);
         }
 
-        public class InterfaceContractResolver : DefaultContractResolver
+        JsonSerializerSettings setting = new JsonSerializerSettings()
         {
-            private readonly Type[] _interfaceTypes;
+            MaxDepth = maxDepth,
+            NullValueHandling = includeNull ? NullValueHandling.Include : NullValueHandling.Ignore,
+            ReferenceLoopHandling = ReferenceLoopHandling.Error,
+            PreserveReferencesHandling = referenceHandling ? PreserveReferencesHandling.All : PreserveReferencesHandling.None,
+            StringEscapeHandling = escapeHtml ? StringEscapeHandling.EscapeHtml : StringEscapeHandling.Default,
+            Formatting = compact ? Formatting.None : Formatting.Indented,
+        };
 
-            private readonly ConcurrentDictionary<Type, Type> _typeToSerializeMap;
-
-            public InterfaceContractResolver(params Type[] interfaceTypes)
-            {
-                _interfaceTypes = interfaceTypes;
-
-                _typeToSerializeMap = new ConcurrentDictionary<Type, Type>();
-            }
-
-            protected override IList<JsonProperty> CreateProperties(
-                Type type,
-                MemberSerialization memberSerialization)
-            {
-                var typeToSerialize = _typeToSerializeMap.GetOrAdd(
-                    type,
-                    t => _interfaceTypes.FirstOrDefault(
-                        it => it.IsAssignableFrom(t)) ?? t);
-
-                return base.CreateProperties(typeToSerialize, memberSerialization);
-            }
+        if (type != null)
+        {
+            setting.ContractResolver = new InterfaceContractResolver(type);
         }
 
-        public static string Serialize(object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null)
+        string ret = JsonConvert.SerializeObject(obj, compact ? Formatting.None : Formatting.Indented, setting);
+
+        if (compact == false)
         {
-            if (obj is IToJsonString specialInterface)
-            {
-                return specialInterface.ToJsonString(includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type);
-            }
-
-            JsonSerializerSettings setting = new JsonSerializerSettings()
-            {
-                MaxDepth = maxDepth,
-                NullValueHandling = includeNull ? NullValueHandling.Include : NullValueHandling.Ignore,
-                ReferenceLoopHandling = ReferenceLoopHandling.Error,
-                PreserveReferencesHandling = referenceHandling ? PreserveReferencesHandling.All : PreserveReferencesHandling.None,
-                StringEscapeHandling = escapeHtml ? StringEscapeHandling.EscapeHtml : StringEscapeHandling.Default,
-                Formatting = compact ? Formatting.None : Formatting.Indented,
-            };
-
-            if (type != null)
-            {
-                setting.ContractResolver = new InterfaceContractResolver(type);
-            }
-
-            string ret = JsonConvert.SerializeObject(obj, compact ? Formatting.None : Formatting.Indented, setting);
-
-            if (compact == false)
-            {
-                ret += Str.CrLf_Str;
-            }
-
-            if (base64url)
-            {
-                ret = ret._GetBytes_UTF8()._Base64UrlEncode();
-            }
-
-            return ret;
+            ret += Str.CrLf_Str;
         }
 
-        public static void Serialize(TextWriter destTextWriter, object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type? type = null)
+        if (base64url)
         {
-            if (obj is IToJsonString specialInterface)
+            ret = ret._GetBytes_UTF8()._Base64UrlEncode();
+        }
+
+        return ret;
+    }
+
+    public static void Serialize(TextWriter destTextWriter, object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type? type = null)
+    {
+        if (obj is IToJsonString specialInterface)
+        {
+            string tmp = specialInterface.ToJsonString(includeNull, escapeHtml, maxDepth, compact, referenceHandling, false, type);
+            destTextWriter.Write(tmp);
+            return;
+        }
+
+        JsonSerializerSettings setting = new JsonSerializerSettings()
+        {
+            MaxDepth = maxDepth,
+            NullValueHandling = includeNull ? NullValueHandling.Include : NullValueHandling.Ignore,
+            ReferenceLoopHandling = ReferenceLoopHandling.Error,
+            PreserveReferencesHandling = referenceHandling ? PreserveReferencesHandling.All : PreserveReferencesHandling.None,
+            StringEscapeHandling = escapeHtml ? StringEscapeHandling.EscapeHtml : StringEscapeHandling.Default,
+            Formatting = compact ? Formatting.None : Formatting.Indented,
+        };
+
+        if (type != null)
+        {
+            setting.ContractResolver = new InterfaceContractResolver(type);
+        }
+
+        JsonSerializer.Create(setting).Serialize(destTextWriter, obj);
+
+        if (compact == false)
+        {
+            destTextWriter.Write(Str.CrLf_Str);
+        }
+    }
+
+    [return: NotNullIfNotNull("obj")]
+    public static T CloneWithJson<T>([AllowNull] T obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null)
+    {
+        return (T)CloneObjectWithJson((object?)obj, escapeHtml, maxDepth, referenceHandling, type ?? typeof(T))!;
+    }
+
+    [return: NotNullIfNotNull("obj")]
+    public static object? CloneObjectWithJson(object? obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null)
+    {
+        if (obj == null) return null;
+
+        type = type ?? obj.GetType();
+
+        string data = Serialize(obj, true, escapeHtml, maxDepth, true, referenceHandling, false, type);
+
+        object? ret = Deserialize(data, type, true, maxDepth, false);
+
+        ret._NullCheck();
+
+        return ret;
+    }
+
+    [return: MaybeNull]
+    public static T Deserialize<T>(string str, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false)
+        => (T)Deserialize(str, typeof(T), includeNull, maxDepth, base64url)!;
+
+    public static object? Deserialize(string str, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false)
+    {
+        if (base64url)
+        {
+            str = str._Base64UrlDecode()._GetString_UTF8();
+        }
+
+        JsonSerializerSettings setting = new JsonSerializerSettings()
+        {
+            MaxDepth = maxDepth,
+            NullValueHandling = includeNull ? NullValueHandling.Include : NullValueHandling.Ignore,
+            ObjectCreationHandling = ObjectCreationHandling.Replace,
+            ReferenceLoopHandling = ReferenceLoopHandling.Error,
+        };
+        return JsonConvert.DeserializeObject(str, type, setting);
+    }
+
+    public static object? Deserialize(TextReader srcTextReader, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
+    {
+        JsonSerializerSettings setting = new JsonSerializerSettings()
+        {
+            MaxDepth = maxDepth,
+            NullValueHandling = includeNull ? NullValueHandling.Include : NullValueHandling.Ignore,
+            ObjectCreationHandling = ObjectCreationHandling.Replace,
+            ReferenceLoopHandling = ReferenceLoopHandling.Error,
+        };
+
+        return JsonSerializer.Create(setting).Deserialize(srcTextReader, type);
+    }
+
+    [return: MaybeNull]
+    public static T Deserialize<T>(TextReader srcTextReader, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
+        => (T)Deserialize(srcTextReader, typeof(T), includeNull, maxDepth)!;
+
+    [return: MaybeNull]
+    public static T ConvertObject<T>(object? src, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false)
+        => (T)ConvertObject(src, typeof(T), includeNull, maxDepth, referenceHandling)!;
+
+    public static object? ConvertObject(object? src, Type destType, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false)
+    {
+        string str = Serialize(src, includeNull, false, maxDepth, true, referenceHandling);
+        return Deserialize(str, destType, maxDepth: maxDepth);
+    }
+
+    public static async Task<bool> DeserializeLargeArrayAsync<T>(TextReader txt, Func<T?, bool> itemReadCallback,
+        Func<string, Exception, bool>? parseErrorCallback = null, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
+        where T : class
+    {
+        while (true)
+        {
+            string? line = await txt.ReadLineAsync();
+            if (line == null)
             {
-                string tmp = specialInterface.ToJsonString(includeNull, escapeHtml, maxDepth, compact, referenceHandling, false, type);
-                destTextWriter.Write(tmp);
-                return;
+                return true;
             }
-
-            JsonSerializerSettings setting = new JsonSerializerSettings()
+            if (line._IsFilled())
             {
-                MaxDepth = maxDepth,
-                NullValueHandling = includeNull ? NullValueHandling.Include : NullValueHandling.Ignore,
-                ReferenceLoopHandling = ReferenceLoopHandling.Error,
-                PreserveReferencesHandling = referenceHandling ? PreserveReferencesHandling.All : PreserveReferencesHandling.None,
-                StringEscapeHandling = escapeHtml ? StringEscapeHandling.EscapeHtml : StringEscapeHandling.Default,
-                Formatting = compact ? Formatting.None : Formatting.Indented,
-            };
-
-            if (type != null)
-            {
-                setting.ContractResolver = new InterfaceContractResolver(type);
-            }
-
-            JsonSerializer.Create(setting).Serialize(destTextWriter, obj);
-
-            if (compact == false)
-            {
-                destTextWriter.Write(Str.CrLf_Str);
-            }
-        }
-
-        [return: NotNullIfNotNull("obj")]
-        public static T CloneWithJson<T>([AllowNull] T obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null)
-        {
-            return (T)CloneObjectWithJson((object?)obj, escapeHtml, maxDepth, referenceHandling, type ?? typeof(T))!;
-        }
-
-        [return: NotNullIfNotNull("obj")]
-        public static object? CloneObjectWithJson(object? obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null)
-        {
-            if (obj == null) return null;
-
-            type = type ?? obj.GetType();
-
-            string data = Serialize(obj, true, escapeHtml, maxDepth, true, referenceHandling, false, type);
-
-            object? ret = Deserialize(data, type, true, maxDepth, false);
-
-            ret._NullCheck();
-
-            return ret;
-        }
-
-        [return: MaybeNull]
-        public static T Deserialize<T>(string str, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false)
-            => (T)Deserialize(str, typeof(T), includeNull, maxDepth, base64url)!;
-
-        public static object? Deserialize(string str, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false)
-        {
-            if (base64url)
-            {
-                str = str._Base64UrlDecode()._GetString_UTF8();
-            }
-
-            JsonSerializerSettings setting = new JsonSerializerSettings()
-            {
-                MaxDepth = maxDepth,
-                NullValueHandling = includeNull ? NullValueHandling.Include : NullValueHandling.Ignore,
-                ObjectCreationHandling = ObjectCreationHandling.Replace,
-                ReferenceLoopHandling = ReferenceLoopHandling.Error,
-            };
-            return JsonConvert.DeserializeObject(str, type, setting);
-        }
-
-        public static object? Deserialize(TextReader srcTextReader, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
-        {
-            JsonSerializerSettings setting = new JsonSerializerSettings()
-            {
-                MaxDepth = maxDepth,
-                NullValueHandling = includeNull ? NullValueHandling.Include : NullValueHandling.Ignore,
-                ObjectCreationHandling = ObjectCreationHandling.Replace,
-                ReferenceLoopHandling = ReferenceLoopHandling.Error,
-            };
-
-            return JsonSerializer.Create(setting).Deserialize(srcTextReader, type);
-        }
-
-        [return: MaybeNull]
-        public static T Deserialize<T>(TextReader srcTextReader, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
-            => (T)Deserialize(srcTextReader, typeof(T), includeNull, maxDepth)!;
-
-        [return: MaybeNull]
-        public static T ConvertObject<T>(object? src, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false)
-            => (T)ConvertObject(src, typeof(T), includeNull, maxDepth, referenceHandling)!;
-
-        public static object? ConvertObject(object? src, Type destType, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false)
-        {
-            string str = Serialize(src, includeNull, false, maxDepth, true, referenceHandling);
-            return Deserialize(str, destType, maxDepth: maxDepth);
-        }
-
-        public static async Task<bool> DeserializeLargeArrayAsync<T>(TextReader txt, Func<T?, bool> itemReadCallback,
-            Func<string, Exception, bool>? parseErrorCallback = null, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
-            where T : class
-        {
-            while (true)
-            {
-                string? line = await txt.ReadLineAsync();
-                if (line == null)
+                object? obj = null;
+                try
                 {
-                    return true;
+                    obj = (object?)Deserialize<T>(line, includeNull, maxDepth);
                 }
-                if (line._IsFilled())
+                catch (Exception ex)
                 {
-                    object? obj = null;
-                    try
-                    {
-                        obj = (object?)Deserialize<T>(line, includeNull, maxDepth);
-                    }
-                    catch (Exception ex)
-                    {
-                        if (parseErrorCallback != null && parseErrorCallback(line, ex) == false)
-                        {
-                            return false;
-                        }
-                    }
-
-                    if (itemReadCallback((T?)obj) == false)
+                    if (parseErrorCallback != null && parseErrorCallback(line, ex) == false)
                     {
                         return false;
                     }
                 }
+
+                if (itemReadCallback((T?)obj) == false)
+                {
+                    return false;
+                }
             }
-        }
-
-        public static string SerializeDynamic(dynamic d)
-        {
-            JObject o = (JObject)d;
-
-            return o.ToString();
-        }
-
-        public static dynamic? DeserializeDynamic(string str)
-        {
-            dynamic? ret = JObject.Parse(str);
-            return ret;
-        }
-
-        public static dynamic NewDynamicObject()
-        {
-            JObject o = new JObject();
-
-            return o;
-        }
-
-        public static JObject NewJsonObject()
-        {
-            return new JObject();
-        }
-
-        public static string Normalize(string str)
-        {
-            dynamic? d = DeserializeDynamic(str);
-
-            return SerializeDynamic(d);
         }
     }
 
-    public interface IToJsonString
+    public static string SerializeDynamic(dynamic d)
     {
-        string ToJsonString(bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null);
+        JObject o = (JObject)d;
+
+        return o.ToString();
     }
 
-    public class EasyJsonStrAttributes
-        : ICollection<KeyValuePair<string, string>>, IEnumerable<KeyValuePair<string, string>>, IEnumerable, IDictionary<string, string>, IReadOnlyCollection<KeyValuePair<string, string>>, IReadOnlyDictionary<string, string>, ICollection, IDictionary, IToJsonString
+    public static dynamic? DeserializeDynamic(string str)
     {
-        public readonly SortedDictionary<string, string> Dict;
-
-        public EasyJsonStrAttributes(string? text = null, IComparer<string>? comparer = null)
-        {
-            comparer = comparer ?? StrComparer.IgnoreCaseTrimComparer;
-
-            this.Dict = new SortedDictionary<string, string>(comparer);
-
-            if (text._IsFilled())
-            {
-                JObject? obj = text._JsonToObject<JObject>();
-
-                if (obj != null)
-                {
-                    foreach (var item in obj)
-                    {
-                        string name = item.Key._NonNullTrim();
-                        string value = item.Value.ToString()._NonNullTrim();
-
-                        Dict.TryAdd(name, value);
-                    }
-                }
-            }
-        }
-
-        public static implicit operator string(EasyJsonStrAttributes attributesObj) => attributesObj.ToJsonString();
-        public static implicit operator EasyJsonStrAttributes(string? str) => new EasyJsonStrAttributes(str);
-
-        public override string ToString() => ToJsonString();
-
-        public string ToJsonString(bool includeNull = false, bool escapeHtml = false, int? maxDepth = 8, bool compact = true, bool referenceHandling = false, bool base64url = false, Type? type = null)
-        {
-            if (this.Dict.Count == 0) return "";
-
-            var json = Json.NewJsonObject();
-
-            foreach (var item in this.Dict)
-            {
-                json.Add(item.Key, JToken.FromObject(item.Value));
-            }
-
-            return json._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type);
-        }
-
-        public string this[string key]
-        {
-            get => this.Dict._GetOrDefault(key._NonNullTrim(), "")._NonNullTrim();
-            set
-            {
-                if (value._IsEmpty())
-                {
-                    this.Dict.Remove(key._NonNullTrim());
-                }
-                else
-                {
-                    this.Dict[key._NonNullTrim()] = value._NonNullTrim();
-                }
-            }
-        }
-
-        public object? this[object key]
-        {
-            get => this.Dict._GetOrDefault(key?.ToString()._NonNullTrim() ?? "", "")._NonNullTrim();
-
-            set
-            {
-                if (value == null || value.ToString()._IsEmpty())
-                {
-                    this.Dict.Remove(key?.ToString()._NonNullTrim() ?? "");
-                }
-                else
-                {
-                    this.Dict[key?.ToString()._NonNullTrim() ?? ""] = value!.ToString()._NonNullTrim() ?? "";
-                }
-            }
-        }
-
-        public int Count => Dict.Count;
-
-        public bool IsReadOnly => false;
-
-        public ICollection<string> Keys => Dict.Keys;
-
-        public ICollection<string> Values => Dict.Values;
-
-        public bool IsSynchronized => true;
-
-        readonly CriticalSection LockObj = new CriticalSection<EasyJsonStrAttributes>();
-        public object SyncRoot => LockObj;
-
-        public bool IsFixedSize => false;
-
-        IEnumerable<string> IReadOnlyDictionary<string, string>.Keys => Dict.Keys;
-
-        ICollection IDictionary.Keys => Dict.Keys;
-
-        IEnumerable<string> IReadOnlyDictionary<string, string>.Values => Dict.Values;
-
-        ICollection IDictionary.Values => Dict.Values;
-
-        public void Add(KeyValuePair<string, string> item) => this[item.Key] = item.Value;
-
-        public void Add(string key, string value) => this[key] = value;
-
-        public void Add(object key, object? value) => this[key] = value;
-
-        public void Clear() => Dict.Clear();
-
-        public bool Contains(KeyValuePair<string, string> item)
-        {
-            string key = item.Key._NonNullTrim();
-            string value = item.Value._NonNullTrim();
-            if (value._IsEmpty()) return false;
-
-            return this.Dict.Where(x => this.Dict.Comparer.Compare(key, x.Key) == 0 && value == x.Value).Any();
-        }
-
-        public bool Contains(object key)
-        {
-            string keystr = key!.ToString()._NonNullTrim() ?? "";
-            return this.Dict.Keys.Where(x => this.Dict.Comparer.Compare(keystr, x) == 0).Any();
-        }
-
-        public bool ContainsKey(string key)
-        {
-            key = key._NonNullTrim();
-            return this.Dict.Keys.Where(x => this.Dict.Comparer.Compare(key, x) == 0).Any();
-        }
-
-        public void CopyTo(KeyValuePair<string, string>[] array, int arrayIndex)
-            => Dict.CopyTo(array, arrayIndex);
-
-        public void CopyTo(Array array, int index)
-            => throw new NotImplementedException();
-
-        public IEnumerator<KeyValuePair<string, string>> GetEnumerator()
-            => this.Dict.GetEnumerator();
-
-        public bool Remove(KeyValuePair<string, string> item)
-            => throw new NotImplementedException();
-
-        public bool Remove(string key)
-            => this.Dict.Remove(key._NonNullTrim());
-
-        public void Remove(object key)
-            => this.Dict.Remove(key?.ToString()._NonNullTrim() ?? "");
-
-        public bool TryGetValue(string key, [MaybeNullWhen(false)] out string value)
-        {
-            bool ret = this.Dict.TryGetValue(key._NonNullTrim(), out value);
-
-            value = value._NonNullTrim();
-
-            return ret;
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-            => this.Dict.GetEnumerator();
-
-        IDictionaryEnumerator IDictionary.GetEnumerator()
-            => this.Dict.GetEnumerator();
+        dynamic? ret = JObject.Parse(str);
+        return ret;
     }
 
-    public static partial class Dbg
+    public static dynamic NewDynamicObject()
     {
-        static partial void InternalConvertToJsonStringIfPossible(ref string? ret, object obj, bool includeNull, bool escapeHtml, int? maxDepth, bool compact, bool referenceHandling)
+        JObject o = new JObject();
+
+        return o;
+    }
+
+    public static JObject NewJsonObject()
+    {
+        return new JObject();
+    }
+
+    public static string Normalize(string str)
+    {
+        dynamic? d = DeserializeDynamic(str);
+
+        return SerializeDynamic(d);
+    }
+}
+
+public interface IToJsonString
+{
+    string ToJsonString(bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null);
+}
+
+public class EasyJsonStrAttributes
+    : ICollection<KeyValuePair<string, string>>, IEnumerable<KeyValuePair<string, string>>, IEnumerable, IDictionary<string, string>, IReadOnlyCollection<KeyValuePair<string, string>>, IReadOnlyDictionary<string, string>, ICollection, IDictionary, IToJsonString
+{
+    public readonly SortedDictionary<string, string> Dict;
+
+    public EasyJsonStrAttributes(string? text = null, IComparer<string>? comparer = null)
+    {
+        comparer = comparer ?? StrComparer.IgnoreCaseTrimComparer;
+
+        this.Dict = new SortedDictionary<string, string>(comparer);
+
+        if (text._IsFilled())
         {
-            ret = obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling);
+            JObject? obj = text._JsonToObject<JObject>();
+
+            if (obj != null)
+            {
+                foreach (var item in obj)
+                {
+                    string name = item.Key._NonNullTrim();
+                    string value = item.Value.ToString()._NonNullTrim();
+
+                    Dict.TryAdd(name, value);
+                }
+            }
+        }
+    }
+
+    public static implicit operator string(EasyJsonStrAttributes attributesObj) => attributesObj.ToJsonString();
+    public static implicit operator EasyJsonStrAttributes(string? str) => new EasyJsonStrAttributes(str);
+
+    public override string ToString() => ToJsonString();
+
+    public string ToJsonString(bool includeNull = false, bool escapeHtml = false, int? maxDepth = 8, bool compact = true, bool referenceHandling = false, bool base64url = false, Type? type = null)
+    {
+        if (this.Dict.Count == 0) return "";
+
+        var json = Json.NewJsonObject();
+
+        foreach (var item in this.Dict)
+        {
+            json.Add(item.Key, JToken.FromObject(item.Value));
         }
 
-        static partial void InternalIsJsonSupported(ref bool ret)
+        return json._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type);
+    }
+
+    public string this[string key]
+    {
+        get => this.Dict._GetOrDefault(key._NonNullTrim(), "")._NonNullTrim();
+        set
         {
-            ret = true;
+            if (value._IsEmpty())
+            {
+                this.Dict.Remove(key._NonNullTrim());
+            }
+            else
+            {
+                this.Dict[key._NonNullTrim()] = value._NonNullTrim();
+            }
         }
+    }
+
+    public object? this[object key]
+    {
+        get => this.Dict._GetOrDefault(key?.ToString()._NonNullTrim() ?? "", "")._NonNullTrim();
+
+        set
+        {
+            if (value == null || value.ToString()._IsEmpty())
+            {
+                this.Dict.Remove(key?.ToString()._NonNullTrim() ?? "");
+            }
+            else
+            {
+                this.Dict[key?.ToString()._NonNullTrim() ?? ""] = value!.ToString()._NonNullTrim() ?? "";
+            }
+        }
+    }
+
+    public int Count => Dict.Count;
+
+    public bool IsReadOnly => false;
+
+    public ICollection<string> Keys => Dict.Keys;
+
+    public ICollection<string> Values => Dict.Values;
+
+    public bool IsSynchronized => true;
+
+    readonly CriticalSection LockObj = new CriticalSection<EasyJsonStrAttributes>();
+    public object SyncRoot => LockObj;
+
+    public bool IsFixedSize => false;
+
+    IEnumerable<string> IReadOnlyDictionary<string, string>.Keys => Dict.Keys;
+
+    ICollection IDictionary.Keys => Dict.Keys;
+
+    IEnumerable<string> IReadOnlyDictionary<string, string>.Values => Dict.Values;
+
+    ICollection IDictionary.Values => Dict.Values;
+
+    public void Add(KeyValuePair<string, string> item) => this[item.Key] = item.Value;
+
+    public void Add(string key, string value) => this[key] = value;
+
+    public void Add(object key, object? value) => this[key] = value;
+
+    public void Clear() => Dict.Clear();
+
+    public bool Contains(KeyValuePair<string, string> item)
+    {
+        string key = item.Key._NonNullTrim();
+        string value = item.Value._NonNullTrim();
+        if (value._IsEmpty()) return false;
+
+        return this.Dict.Where(x => this.Dict.Comparer.Compare(key, x.Key) == 0 && value == x.Value).Any();
+    }
+
+    public bool Contains(object key)
+    {
+        string keystr = key!.ToString()._NonNullTrim() ?? "";
+        return this.Dict.Keys.Where(x => this.Dict.Comparer.Compare(keystr, x) == 0).Any();
+    }
+
+    public bool ContainsKey(string key)
+    {
+        key = key._NonNullTrim();
+        return this.Dict.Keys.Where(x => this.Dict.Comparer.Compare(key, x) == 0).Any();
+    }
+
+    public void CopyTo(KeyValuePair<string, string>[] array, int arrayIndex)
+        => Dict.CopyTo(array, arrayIndex);
+
+    public void CopyTo(Array array, int index)
+        => throw new NotImplementedException();
+
+    public IEnumerator<KeyValuePair<string, string>> GetEnumerator()
+        => this.Dict.GetEnumerator();
+
+    public bool Remove(KeyValuePair<string, string> item)
+        => throw new NotImplementedException();
+
+    public bool Remove(string key)
+        => this.Dict.Remove(key._NonNullTrim());
+
+    public void Remove(object key)
+        => this.Dict.Remove(key?.ToString()._NonNullTrim() ?? "");
+
+    public bool TryGetValue(string key, [MaybeNullWhen(false)] out string value)
+    {
+        bool ret = this.Dict.TryGetValue(key._NonNullTrim(), out value);
+
+        value = value._NonNullTrim();
+
+        return ret;
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+        => this.Dict.GetEnumerator();
+
+    IDictionaryEnumerator IDictionary.GetEnumerator()
+        => this.Dict.GetEnumerator();
+}
+
+public static partial class Dbg
+{
+    static partial void InternalConvertToJsonStringIfPossible(ref string? ret, object obj, bool includeNull, bool escapeHtml, int? maxDepth, bool compact, bool referenceHandling)
+    {
+        ret = obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling);
+    }
+
+    static partial void InternalIsJsonSupported(ref bool ret)
+    {
+        ret = true;
     }
 }
 

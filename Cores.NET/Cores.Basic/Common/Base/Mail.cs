@@ -42,185 +42,184 @@ using static IPA.Cores.Globals.Basic;
 
 #pragma warning disable 0618
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public enum SendMailVersion
 {
-    public enum SendMailVersion
+    Ver2_With_NetMail,
+}
+
+public class SendMail
+{
+    string smtpServer;
+    public string SmtpServer
     {
-        Ver2_With_NetMail,
+        get { return smtpServer; }
+        set { smtpServer = value; }
     }
 
-    public class SendMail
+    SendMailVersion version;
+    public SendMailVersion Version
     {
-        string smtpServer;
-        public string SmtpServer
-        {
-            get { return smtpServer; }
-            set { smtpServer = value; }
-        }
+        get { return version; }
+        set { version = value; }
+    }
 
-        SendMailVersion version;
-        public SendMailVersion Version
-        {
-            get { return version; }
-            set { version = value; }
-        }
+    public string Username = "";
+    public string Password = "";
 
-        public string Username = "";
-        public string Password = "";
+    public int SmtpPort = 25;
 
-        public int SmtpPort = 25;
+    public const SendMailVersion DefaultVersion = SendMailVersion.Ver2_With_NetMail;
 
-        public const SendMailVersion DefaultVersion = SendMailVersion.Ver2_With_NetMail;
+    public static readonly string DefaultMailer = Env.FrameworkInfoString;
+    public static readonly string DefaultMimeOLE = "Produced By " + Env.FrameworkInfoString;
+    public const string DefaultPriority = "3";
+    public const string DefaultMSMailPriority = "Normal";
+    public const string DefaultTransferEncoding = "7bit";
+    private static Encoding defaultEncoding = Str.Utf8Encoding;
+    public static Encoding DefaultEncoding
+    {
+        get { return SendMail.defaultEncoding; }
+    }
 
-        public static readonly string DefaultMailer = Env.FrameworkInfoString;
-        public static readonly string DefaultMimeOLE = "Produced By " + Env.FrameworkInfoString;
-        public const string DefaultPriority = "3";
-        public const string DefaultMSMailPriority = "Normal";
-        public const string DefaultTransferEncoding = "7bit";
-        private static Encoding defaultEncoding = Str.Utf8Encoding;
-        public static Encoding DefaultEncoding
-        {
-            get { return SendMail.defaultEncoding; }
-        }
+    string header_mailer = DefaultMailer;
+    public string Mailer
+    {
+        get { return header_mailer; }
+        set { header_mailer = value; }
+    }
+    string header_mimeole = DefaultMimeOLE;
+    public string MimeOLE
+    {
+        get { return header_mimeole; }
+        set { header_mimeole = value; }
+    }
+    string header_priority = DefaultPriority;
+    public string Priority
+    {
+        get { return header_priority; }
+        set { header_priority = value; }
+    }
+    string header_msmail_priority = DefaultMSMailPriority;
+    public string MsMailPriority
+    {
+        get { return header_msmail_priority; }
+        set { header_msmail_priority = value; }
+    }
+    string header_transfer_encoding = DefaultTransferEncoding;
+    public string TransferEncoding
+    {
+        get { return header_transfer_encoding; }
+        set { header_transfer_encoding = value; }
+    }
+    Encoding encoding = DefaultEncoding;
+    public Encoding Encoding
+    {
+        get { return encoding; }
+        set { encoding = value; }
+    }
 
-        string header_mailer = DefaultMailer;
-        public string Mailer
-        {
-            get { return header_mailer; }
-            set { header_mailer = value; }
-        }
-        string header_mimeole = DefaultMimeOLE;
-        public string MimeOLE
-        {
-            get { return header_mimeole; }
-            set { header_mimeole = value; }
-        }
-        string header_priority = DefaultPriority;
-        public string Priority
-        {
-            get { return header_priority; }
-            set { header_priority = value; }
-        }
-        string header_msmail_priority = DefaultMSMailPriority;
-        public string MsMailPriority
-        {
-            get { return header_msmail_priority; }
-            set { header_msmail_priority = value; }
-        }
-        string header_transfer_encoding = DefaultTransferEncoding;
-        public string TransferEncoding
-        {
-            get { return header_transfer_encoding; }
-            set { header_transfer_encoding = value; }
-        }
-        Encoding encoding = DefaultEncoding;
-        public Encoding Encoding
-        {
-            get { return encoding; }
-            set { encoding = value; }
-        }
+    public SendMail(string smtpServer, SendMailVersion version = DefaultVersion, string username = "", string password = "")
+    {
+        this.smtpServer = smtpServer;
+        this.version = version;
+        this.Username = username;
+        this.Password = password;
+    }
 
-        public SendMail(string smtpServer, SendMailVersion version = DefaultVersion, string username = "", string password = "")
-        {
-            this.smtpServer = smtpServer;
-            this.version = version;
-            this.Username = username;
-            this.Password = password;
-        }
+    public bool Send(string from, string to, string subject, string body)
+    {
+        return Send(new MailAddress(from), new MailAddress(to), subject, body);
+    }
 
-        public bool Send(string from, string to, string subject, string body)
+    public bool Send(MailAddress from, MailAddress to, string subject, string body)
+    {
+        try
         {
-            return Send(new MailAddress(from), new MailAddress(to), subject, body);
-        }
-
-        public bool Send(MailAddress from, MailAddress to, string subject, string body)
-        {
-            try
+            switch (this.version)
             {
-                switch (this.version)
-                {
-                    case SendMailVersion.Ver2_With_NetMail:
-                        send2(from, to, subject, body);
-                        break;
-                }
+                case SendMailVersion.Ver2_With_NetMail:
+                    send2(from, to, subject, body);
+                    break;
             }
-            catch
-            {
-                return false;
-            }
-
-            return true;
         }
-
-        void send2(MailAddress from, MailAddress to, string subject, string body)
+        catch
         {
-            Encoding encoding = this.encoding;
-            TransferEncoding tranEnc = System.Net.Mime.TransferEncoding.SevenBit;
-
-            if (Str.IsSuitableEncodingForString(subject, Str.AsciiEncoding) &&
-                Str.IsSuitableEncodingForString(body, Str.AsciiEncoding))
-            {
-                encoding = Str.AsciiEncoding;
-                tranEnc = System.Net.Mime.TransferEncoding.SevenBit;
-            }
-            else
-            {
-                if (!Str.IsSuitableEncodingForString(subject, encoding) || !Str.IsSuitableEncodingForString(body, encoding))
-                {
-                    encoding = Str.Utf8Encoding;
-                    tranEnc = System.Net.Mime.TransferEncoding.Base64;
-                }
-            }
-
-            using SmtpClient c = new SmtpClient(this.smtpServer);
-            c.DeliveryMethod = SmtpDeliveryMethod.Network;
-            c.EnableSsl = false;
-            c.Port = this.SmtpPort;
-
-            if (Str.IsEmptyStr(this.Username) == false && Str.IsEmptyStr(this.Password) == false)
-            {
-                c.UseDefaultCredentials = false;
-                c.Credentials = new System.Net.NetworkCredential(this.Username, this.Password);
-            }
-
-            System.Net.Mail.MailMessage mail = new System.Net.Mail.MailMessage(from, to);
-
-            byte[] buffer = encoding.GetBytes(body);
-
-            MemoryStream mem = new MemoryStream(buffer);
-
-            AlternateView alt = new AlternateView(mem, new System.Net.Mime.ContentType("text/plain; charset=" + encoding.WebName));
-
-            alt.TransferEncoding = tranEnc;
-
-            mail.AlternateViews.Add(alt);
-            mail.Body = "";
-
-            byte[] sub = encoding.GetBytes(subject);
-            string subjectText = string.Format("=?{0}?B?{1}?=", encoding.WebName.ToUpper(),
-                Convert.ToBase64String(sub, Base64FormattingOptions.None));
-
-            mail.Subject = subjectText;
-
-            mail.Headers.Add("X-Mailer", this.header_mailer);
-            mail.Headers.Add("X-MSMail-Priority", this.header_msmail_priority);
-            mail.Headers.Add("X-Priority", this.header_priority);
-            mail.Headers.Add("X-MimeOLE", this.header_mimeole);
-
-            c.Send(mail);
+            return false;
         }
 
-        public static MailAddress NewMailAddress(string address, string displayName)
+        return true;
+    }
+
+    void send2(MailAddress from, MailAddress to, string subject, string body)
+    {
+        Encoding encoding = this.encoding;
+        TransferEncoding tranEnc = System.Net.Mime.TransferEncoding.SevenBit;
+
+        if (Str.IsSuitableEncodingForString(subject, Str.AsciiEncoding) &&
+            Str.IsSuitableEncodingForString(body, Str.AsciiEncoding))
         {
-            return NewMailAddress(address, displayName, SendMail.DefaultEncoding);
+            encoding = Str.AsciiEncoding;
+            tranEnc = System.Net.Mime.TransferEncoding.SevenBit;
         }
-
-        public static MailAddress NewMailAddress(string address, string displayName, Encoding encoding)
+        else
         {
-            MailAddress a = new MailAddress(address, displayName, encoding);
-
-            return a;
+            if (!Str.IsSuitableEncodingForString(subject, encoding) || !Str.IsSuitableEncodingForString(body, encoding))
+            {
+                encoding = Str.Utf8Encoding;
+                tranEnc = System.Net.Mime.TransferEncoding.Base64;
+            }
         }
+
+        using SmtpClient c = new SmtpClient(this.smtpServer);
+        c.DeliveryMethod = SmtpDeliveryMethod.Network;
+        c.EnableSsl = false;
+        c.Port = this.SmtpPort;
+
+        if (Str.IsEmptyStr(this.Username) == false && Str.IsEmptyStr(this.Password) == false)
+        {
+            c.UseDefaultCredentials = false;
+            c.Credentials = new System.Net.NetworkCredential(this.Username, this.Password);
+        }
+
+        System.Net.Mail.MailMessage mail = new System.Net.Mail.MailMessage(from, to);
+
+        byte[] buffer = encoding.GetBytes(body);
+
+        MemoryStream mem = new MemoryStream(buffer);
+
+        AlternateView alt = new AlternateView(mem, new System.Net.Mime.ContentType("text/plain; charset=" + encoding.WebName));
+
+        alt.TransferEncoding = tranEnc;
+
+        mail.AlternateViews.Add(alt);
+        mail.Body = "";
+
+        byte[] sub = encoding.GetBytes(subject);
+        string subjectText = string.Format("=?{0}?B?{1}?=", encoding.WebName.ToUpper(),
+            Convert.ToBase64String(sub, Base64FormattingOptions.None));
+
+        mail.Subject = subjectText;
+
+        mail.Headers.Add("X-Mailer", this.header_mailer);
+        mail.Headers.Add("X-MSMail-Priority", this.header_msmail_priority);
+        mail.Headers.Add("X-Priority", this.header_priority);
+        mail.Headers.Add("X-MimeOLE", this.header_mimeole);
+
+        c.Send(mail);
+    }
+
+    public static MailAddress NewMailAddress(string address, string displayName)
+    {
+        return NewMailAddress(address, displayName, SendMail.DefaultEncoding);
+    }
+
+    public static MailAddress NewMailAddress(string address, string displayName, Encoding encoding)
+    {
+        MailAddress a = new MailAddress(address, displayName, encoding);
+
+        return a;
     }
 }
 

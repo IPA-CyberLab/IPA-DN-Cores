@@ -58,128 +58,127 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.UnitTest
+namespace IPA.UnitTest;
+
+public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
 {
-    public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
+    private readonly ITestOutputHelper Con;
+    void Where([CallerFilePath] string fn = "", [CallerLineNumber] int l = 0, [CallerMemberName] string? f = null) => Con.WriteLine($"|{UnitTestTicks.TickString}: {Path.GetFileName(fn)}:{l} {f}() P: {Process.GetCurrentProcess().Id} T: {Thread.CurrentThread.ManagedThreadId}");
+
+    public Test02_Base(ITestOutputHelper output)
     {
-        private readonly ITestOutputHelper Con;
-        void Where([CallerFilePath] string fn = "", [CallerLineNumber] int l = 0, [CallerMemberName] string? f = null) => Con.WriteLine($"|{UnitTestTicks.TickString}: {Path.GetFileName(fn)}:{l} {f}() P: {Process.GetCurrentProcess().Id} T: {Thread.CurrentThread.ManagedThreadId}");
+        CoresLibUnitTestShared.Init();
 
-        public Test02_Base(ITestOutputHelper output)
+        Con = output;
+    }
+
+    [Fact]
+    public void DotNetHostedProcessEnvInfoTest()
+    {
+        if (Env.IsUnix)
         {
-            CoresLibUnitTestShared.Init();
-
-            Con = output;
+            Assert.True(Env.IsHostedByDotNetProcess);
+            Assert.True(Env.DotNetHostProcessExeName._IsFilled());
         }
 
-        [Fact]
-        public void DotNetHostedProcessEnvInfoTest()
+        Assert.True(Env.IsDotNetCore);
+    }
+
+    [Fact]
+    public void DotNetUnixConsoleModeChangePreventTest()
+    {
+        if (Env.IsUnix)
         {
-            if (Env.IsUnix)
-            {
-                Assert.True(Env.IsHostedByDotNetProcess);
-                Assert.True(Env.DotNetHostProcessExeName._IsFilled());
-            }
-
-            Assert.True(Env.IsDotNetCore);
+            UnixConsoleSpecialUtil.Test_DisableDotNetConsoleModeChange();
         }
+    }
 
-        [Fact]
-        public void DotNetUnixConsoleModeChangePreventTest()
-        {
-            if (Env.IsUnix)
-            {
-                UnixConsoleSpecialUtil.Test_DisableDotNetConsoleModeChange();
-            }
-        }
+    [Fact]
+    public void MemoryHelperTest()
+    {
+        Where();
 
-        [Fact]
-        public void MemoryHelperTest()
-        {
-            Where();
+        LeakChecker.Enter();
 
-            LeakChecker.Enter();
+        Assert.True(MemoryHelper._UseFast);
 
-            Assert.True(MemoryHelper._UseFast);
+        string rand = Str.GenRandStr();
 
-            string rand = Str.GenRandStr();
+        Memory<byte> mem1 = rand._GetBytes_Ascii();
 
-            Memory<byte> mem1 = rand._GetBytes_Ascii();
+        var seg1 = mem1._AsSegment();
+        var data1 = seg1.ToArray();
+        Assert.Equal(0, mem1.Span.SequenceCompareTo(data1));
 
-            var seg1 = mem1._AsSegment();
-            var data1 = seg1.ToArray();
-            Assert.Equal(0, mem1.Span.SequenceCompareTo(data1));
+        var seg1Slow = mem1._AsSegmentSlow();
+        var data1Slow = seg1Slow.ToArray();
+        Assert.Equal(0, mem1.Span.SequenceCompareTo(data1Slow));
 
-            var seg1Slow = mem1._AsSegmentSlow();
-            var data1Slow = seg1Slow.ToArray();
-            Assert.Equal(0, mem1.Span.SequenceCompareTo(data1Slow));
+        ReadOnlyMemory<byte> mem2 = rand._GetBytes_Ascii();
 
-            ReadOnlyMemory<byte> mem2 = rand._GetBytes_Ascii();
+        var seg2 = mem2._AsSegment();
+        var data2 = seg2.ToArray();
+        Assert.Equal(0, mem2.Span.SequenceCompareTo(data2));
 
-            var seg2 = mem2._AsSegment();
-            var data2 = seg2.ToArray();
-            Assert.Equal(0, mem2.Span.SequenceCompareTo(data2));
+        var seg2Slow = mem2._AsSegmentSlow();
+        var data2Slow = seg2Slow.ToArray();
+        Assert.Equal(0, mem2.Span.SequenceCompareTo(data2Slow));
 
-            var seg2Slow = mem2._AsSegmentSlow();
-            var data2Slow = seg2Slow.ToArray();
-            Assert.Equal(0, mem2.Span.SequenceCompareTo(data2Slow));
+        Where();
+    }
 
-            Where();
-        }
+    [Fact]
+    public void InternalTaskStructureAccessd()
+    {
+        Where();
 
-        [Fact]
-        public void InternalTaskStructureAccessd()
-        {
-            Where();
+        int num_queued = TaskUtil.GetQueuedTasksCount(-1);
+        Assert.True(num_queued >= 0);
 
-            int num_queued = TaskUtil.GetQueuedTasksCount(-1);
-            Assert.True(num_queued >= 0);
+        int num_timered = TaskUtil.GetScheduledTimersCount(-1);
+        Assert.True(num_timered >= 0);
 
-            int num_timered = TaskUtil.GetScheduledTimersCount(-1);
-            Assert.True(num_timered >= 0);
+        Where();
+    }
 
-            Where();
-        }
+    [Fact]
+    public void StrLibTest()
+    {
+        Assert.False(""._IsNumber());
+        Assert.False("A"._IsNumber());
+        Assert.True("1"._IsNumber());
+        Assert.True("-1"._IsNumber());
+        Assert.True("１"._IsNumber());
 
-        [Fact]
-        public void StrLibTest()
-        {
-            Assert.False(""._IsNumber());
-            Assert.False("A"._IsNumber());
-            Assert.True("1"._IsNumber());
-            Assert.True("-1"._IsNumber());
-            Assert.True("１"._IsNumber());
+        var hostAndPort = Str.ParseHostnaneAndPort("abc", 80);
+        Assert.Equal("abc", hostAndPort.Item1);
+        Assert.Equal(80, hostAndPort.Item2);
 
-            var hostAndPort = Str.ParseHostnaneAndPort("abc", 80);
-            Assert.Equal("abc", hostAndPort.Item1);
-            Assert.Equal(80, hostAndPort.Item2);
+        hostAndPort = Str.ParseHostnaneAndPort(" 1.2.3.4 :9821", 80);
+        Assert.Equal("1.2.3.4", hostAndPort.Item1);
+        Assert.Equal(9821, hostAndPort.Item2);
 
-            hostAndPort = Str.ParseHostnaneAndPort(" 1.2.3.4 :9821", 80);
-            Assert.Equal("1.2.3.4", hostAndPort.Item1);
-            Assert.Equal(9821, hostAndPort.Item2);
+        hostAndPort = Str.ParseHostnaneAndPort("2001:1:2:3::4:9821", 80);
+        Assert.Equal("2001:1:2:3::4", hostAndPort.Item1);
+        Assert.Equal(9821, hostAndPort.Item2);
 
-            hostAndPort = Str.ParseHostnaneAndPort("2001:1:2:3::4:9821", 80);
-            Assert.Equal("2001:1:2:3::4", hostAndPort.Item1);
-            Assert.Equal(9821, hostAndPort.Item2);
+        hostAndPort = Str.ParseHostnaneAndPort("2001:1:2:3::4:fffe", 80);
+        Assert.Equal("2001:1:2:3::4:fffe", hostAndPort.Item1);
+        Assert.Equal(80, hostAndPort.Item2);
 
-            hostAndPort = Str.ParseHostnaneAndPort("2001:1:2:3::4:fffe", 80);
-            Assert.Equal("2001:1:2:3::4:fffe", hostAndPort.Item1);
-            Assert.Equal(80, hostAndPort.Item2);
+        hostAndPort = Str.ParseHostnaneAndPort("", 80);
+        Assert.Equal("", hostAndPort.Item1);
+        Assert.Equal(80, hostAndPort.Item2);
+    }
 
-            hostAndPort = Str.ParseHostnaneAndPort("", 80);
-            Assert.Equal("", hostAndPort.Item1);
-            Assert.Equal(80, hostAndPort.Item2);
-        }
-
-        [Fact]
-        public void SslLibTest()
-        {
-            Secure.CreateSslCreateCertificateContextWithFullChain(
-                DevTools.TestSampleCert,
-                new System.Security.Cryptography.X509Certificates.X509Certificate2Collection(DevTools.CoresDebugCACert.NativeCertificate2._SingleArray()),
-                offline: true,
-                errorWhenFailed: true);
-        }
+    [Fact]
+    public void SslLibTest()
+    {
+        Secure.CreateSslCreateCertificateContextWithFullChain(
+            DevTools.TestSampleCert,
+            new System.Security.Cryptography.X509Certificates.X509Certificate2Collection(DevTools.CoresDebugCACert.NativeCertificate2._SingleArray()),
+            offline: true,
+            errorWhenFailed: true);
     }
 }
 

@@ -73,9 +73,7 @@ using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
 
-namespace IPA.Cores.Codes
-{
-}
+namespace IPA.Cores.Codes;
 
 #endif
 

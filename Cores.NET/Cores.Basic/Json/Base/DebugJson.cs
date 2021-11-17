@@ -36,18 +36,17 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
-{
-    public static partial class Dbg
-    {
-        public static void Report(string name, object obj) => Report(name, obj._ObjectToJson(compact: true));
-    }
+namespace IPA.Cores.Basic;
 
-    public partial class GlobalIntervalReporter
-    {
-        public void Report(string name, object obj)
-            => Report(name, obj._ObjectToJson(compact: true));
-    }
+public static partial class Dbg
+{
+    public static void Report(string name, object obj) => Report(name, obj._ObjectToJson(compact: true));
+}
+
+public partial class GlobalIntervalReporter
+{
+    public void Report(string name, object obj)
+        => Report(name, obj._ObjectToJson(compact: true));
 }
 
 #endif // CORES_BASIC_JSON

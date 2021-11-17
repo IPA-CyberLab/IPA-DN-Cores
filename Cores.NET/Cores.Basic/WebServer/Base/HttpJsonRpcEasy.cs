@@ -42,18 +42,17 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public abstract class EasyJsonRpcServer<TInterface> : JsonRpcServerApi
 {
-    public abstract class EasyJsonRpcServer<TInterface> : JsonRpcServerApi
+    HttpServer<JsonRpcHttpServerBuilder> HttpServer;
+
+    public EasyJsonRpcServer(HttpServerOptions httpConfig, CancellationToken cancel = default) : base(cancel)
     {
-        HttpServer<JsonRpcHttpServerBuilder> HttpServer;
+        JsonRpcServerConfig rpcCfg = new JsonRpcServerConfig();
 
-        public EasyJsonRpcServer(HttpServerOptions httpConfig, CancellationToken cancel = default) : base(cancel)
-        {
-            JsonRpcServerConfig rpcCfg = new JsonRpcServerConfig();
-
-            this.HttpServer = JsonRpcHttpServerBuilder.StartServer(httpConfig, rpcCfg, this, cancel);
-        }
+        this.HttpServer = JsonRpcHttpServerBuilder.StartServer(httpConfig, rpcCfg, this, cancel);
     }
 }
 

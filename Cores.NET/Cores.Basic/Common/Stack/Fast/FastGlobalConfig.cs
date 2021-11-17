@@ -44,33 +44,32 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public static partial class CoresConfig
 {
-    public static partial class CoresConfig
+    public static partial class PipeConfig
     {
-        public static partial class PipeConfig
+        public static readonly Copenhagen<int> MaxStreamBufferLength = 4 * 65536;
+        public static readonly Copenhagen<int> MaxDatagramQueueLength = 1024;
+        public static readonly Copenhagen<int> MaxPollingTimeout = 256 * 1000;
+
+        // 重いサーバー (大量のインスタンスや大量のコンテナが稼働、または大量のコネクションを処理) における定数変更
+        public static void ApplyHeavyLoadServerConfig()
         {
-            public static readonly Copenhagen<int> MaxStreamBufferLength = 4 * 65536;
-            public static readonly Copenhagen<int> MaxDatagramQueueLength = 1024;
-            public static readonly Copenhagen<int> MaxPollingTimeout = 256 * 1000;
+            MaxStreamBufferLength.TrySet(65536);
+            MaxPollingTimeout.TrySet(4321);
+            MaxDatagramQueueLength.TrySet(256);
+        }
 
-            // 重いサーバー (大量のインスタンスや大量のコンテナが稼働、または大量のコネクションを処理) における定数変更
-            public static void ApplyHeavyLoadServerConfig()
+        public static int PollingTimeout
+        {
+            get
             {
-                MaxStreamBufferLength.TrySet(65536);
-                MaxPollingTimeout.TrySet(4321);
-                MaxDatagramQueueLength.TrySet(256);
-            }
-
-            public static int PollingTimeout
-            {
-                get
-                {
-                    int v = MaxPollingTimeout / 10;
-                    if (v != 0)
-                        v = Util.RandSInt31() % v;
-                    return MaxPollingTimeout - v;
-                }
+                int v = MaxPollingTimeout / 10;
+                if (v != 0)
+                    v = Util.RandSInt31() % v;
+                return MaxPollingTimeout - v;
             }
         }
     }

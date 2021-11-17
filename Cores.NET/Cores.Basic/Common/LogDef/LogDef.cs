@@ -42,84 +42,83 @@ using static IPA.Cores.Globals.Basic;
 
 #pragma warning disable CA2235 // Mark all non-serializable fields
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public partial class LogTag
 {
-    public partial class LogTag
+    public const string None = "None";
+    public const string SocketConnected = "SocketConnected";
+    public const string SocketAccepted = "SocketAccepted";
+    public const string SocketDisconnected = "SocketDisconnected";
+
+    public partial class Data
     {
-        public const string None = "None";
-        public const string SocketConnected = "SocketConnected";
-        public const string SocketAccepted = "SocketAccepted";
-        public const string SocketDisconnected = "SocketDisconnected";
-
-        public partial class Data
-        {
-            public const string FletsBRASInfo = "FletsBRASInfo";
-        }
+        public const string FletsBRASInfo = "FletsBRASInfo";
     }
+}
 
-    public partial class LogKind
-    {
-        public const string Default = "Default";
-        public const string Data = "Data";
-        public const string Access = "Access";
-        public const string Socket = "Socket";
-        public const string Stat = "Stat";
-    }
+public partial class LogKind
+{
+    public const string Default = "Default";
+    public const string Data = "Data";
+    public const string Access = "Access";
+    public const string Socket = "Socket";
+    public const string Stat = "Stat";
+}
 
-    public class LogDefIPEndPoints
-    {
-        public TcpDirectionType Direction = TcpDirectionType.Client;
-        public string? LocalIP = null;
-        public int LocalPort = 0;
-        public string? RemoteIP = null;
-        public int RemotePort = 0;
-    }
+public class LogDefIPEndPoints
+{
+    public TcpDirectionType Direction = TcpDirectionType.Client;
+    public string? LocalIP = null;
+    public int LocalPort = 0;
+    public string? RemoteIP = null;
+    public int RemotePort = 0;
+}
 
-    public class LogDefSslSession
-    {
-        public bool IsServerMode;
-        public string? SslProtocol;
-        public string? CipherAlgorithm;
-        public int CipherStrength;
-        public string? HashAlgorithm;
-        public int HashStrength;
-        public string? KeyExchangeAlgorithm;
-        public int KeyExchangeStrength;
-        public string? LocalCertificateInfo;
-        public string? LocalCertificateHashSHA1;
-        public string? RemoteCertificateInfo;
-        public string? RemoteCertificateHashSHA1;
-    }
+public class LogDefSslSession
+{
+    public bool IsServerMode;
+    public string? SslProtocol;
+    public string? CipherAlgorithm;
+    public int CipherStrength;
+    public string? HashAlgorithm;
+    public int HashStrength;
+    public string? KeyExchangeAlgorithm;
+    public int KeyExchangeStrength;
+    public string? LocalCertificateInfo;
+    public string? LocalCertificateHashSHA1;
+    public string? RemoteCertificateInfo;
+    public string? RemoteCertificateHashSHA1;
+}
 
-    [Flags]
-    public enum LogDefSocketAction
-    {
-        Connected = 0,
-        Disconnected,
-    }
+[Flags]
+public enum LogDefSocketAction
+{
+    Connected = 0,
+    Disconnected,
+}
 
-    [Serializable]
-    public class LogDefSocket
-    {
-        public LogDefSocketAction Action;
+[Serializable]
+public class LogDefSocket
+{
+    public LogDefSocketAction Action;
 
-        public string? NetworkSystem;
-        public string? SockGuid;
-        public string? SockType;
-        public string? Direction;
-        public long NativeHandle;
+    public string? NetworkSystem;
+    public string? SockGuid;
+    public string? SockType;
+    public string? Direction;
+    public long NativeHandle;
 
-        public string? LocalIP;
-        public string? RemoteIP;
-        public int? LocalPort;
-        public int? RemotePort;
+    public string? LocalIP;
+    public string? RemoteIP;
+    public int? LocalPort;
+    public int? RemotePort;
 
-        public DateTimeOffset ConnectedTime;
-        public DateTimeOffset? DisconnectedTime;
+    public DateTimeOffset ConnectedTime;
+    public DateTimeOffset? DisconnectedTime;
 
-        public long StreamSend;
-        public long StreamRecv;
-        public long DatagramSend;
-        public long DatagramRecv;
-    }
+    public long StreamSend;
+    public long StreamRecv;
+    public long DatagramSend;
+    public long DatagramRecv;
 }

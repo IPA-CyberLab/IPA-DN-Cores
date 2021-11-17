@@ -52,107 +52,106 @@ using System.Net;
 using System.Runtime.Serialization;
 using IPA.Cores.Basic.App.DaemonCenterLib;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+// Daemon と共に付随して動作する管理補助的ユーティリティ
+public class DaemonUtil : AsyncService
 {
-    // Daemon と共に付随して動作する管理補助的ユーティリティ
-    public class DaemonUtil : AsyncService
+    readonly OneLineParams Params;
+
+    List<IAsyncDisposable> DisposeList = new List<IAsyncDisposable>();
+
+    public DaemonUtil(string daemonName, CancellationToken cancel = default) : base(cancel)
     {
-        readonly OneLineParams Params;
+        if (daemonName._IsEmpty()) throw new ArgumentNullException(nameof(daemonName));
 
-        List<IAsyncDisposable> DisposeList = new List<IAsyncDisposable>();
+        daemonName = daemonName._NonNullTrim();
 
-        public DaemonUtil(string daemonName, CancellationToken cancel = default) : base(cancel)
+        try
         {
-            if (daemonName._IsEmpty()) throw new ArgumentNullException(nameof(daemonName));
+            // 起動パラメータ
+            this.Params = new OneLineParams(GlobalDaemonStateManager.StartupArguments);
 
-            daemonName = daemonName._NonNullTrim();
-
-            try
+            if (Params._HasKey(Consts.DaemonArgKeys.StartLogFileBrowser))
             {
-                // 起動パラメータ
-                this.Params = new OneLineParams(GlobalDaemonStateManager.StartupArguments);
+                // Log Browser で利用されるべきポート番号の決定
+                int httpPort = Params._GetFirstValueOrDefault(Consts.DaemonArgKeys.LogFileBrowserPort, StrComparer.IgnoreCaseComparer)._ToInt();
+                if (httpPort == 0) httpPort = Util.GenerateDynamicListenableTcpPortWithSeed(Env.DnsFqdnHostName + "_seed_daemonutil_logbrowser_http" + Env.AppRootDir + "@" + daemonName);
 
-                if (Params._HasKey(Consts.DaemonArgKeys.StartLogFileBrowser))
+                int httpsPort = Params._GetFirstValueOrDefault(Consts.DaemonArgKeys.LogFileBrowserPort, StrComparer.IgnoreCaseComparer)._ToInt();
+                if (httpsPort == 0) httpsPort = Util.GenerateDynamicListenableTcpPortWithSeed(Env.DnsFqdnHostName + "_seed_daemonutil_logbrowser_https" + Env.AppRootDir + "@" + daemonName, excludePorts: httpPort._SingleArray());
+
+                // Log Browser 用の CertVault の作成
+                CertVault certVault = new CertVault(PP.Combine(Env.AppLocalDir, "Config/DaemonUtil_LogBrowser/CertVault"),
+                    new CertVaultSettings(defaultSetting: EnsureSpecial.Yes) { UseAcme = false });
+
+                DisposeList.Add(certVault);
+
+                // Log Browser の起動
+                HttpServerOptions httpServerOptions = new HttpServerOptions
                 {
-                    // Log Browser で利用されるべきポート番号の決定
-                    int httpPort = Params._GetFirstValueOrDefault(Consts.DaemonArgKeys.LogFileBrowserPort, StrComparer.IgnoreCaseComparer)._ToInt();
-                    if (httpPort == 0) httpPort = Util.GenerateDynamicListenableTcpPortWithSeed(Env.DnsFqdnHostName + "_seed_daemonutil_logbrowser_http" + Env.AppRootDir + "@" + daemonName);
+                    UseStaticFiles = false,
+                    UseSimpleBasicAuthentication = false,
+                    HttpPortsList = httpPort._SingleList(),
+                    HttpsPortsList = httpsPort._SingleList(),
+                    DebugKestrelToConsole = false,
+                    UseKestrelWithIPACoreStack = true,
+                    AutomaticRedirectToHttpsIfPossible = false,
+                    LocalHostOnly = false,
+                    UseGlobalCertVault = false, // Disable Global CertVault
+                    DisableHiveBasedSetting = true, // Disable Hive based settings
+                    ServerCertSelector = certVault.X509CertificateSelectorForHttpsServerNoAcme,
+                    DenyRobots = true, // Deny robots
+                };
 
-                    int httpsPort = Params._GetFirstValueOrDefault(Consts.DaemonArgKeys.LogFileBrowserPort, StrComparer.IgnoreCaseComparer)._ToInt();
-                    if (httpsPort == 0) httpsPort = Util.GenerateDynamicListenableTcpPortWithSeed(Env.DnsFqdnHostName + "_seed_daemonutil_logbrowser_https" + Env.AppRootDir + "@" + daemonName, excludePorts: httpPort._SingleArray());
-
-                    // Log Browser 用の CertVault の作成
-                    CertVault certVault = new CertVault(PP.Combine(Env.AppLocalDir, "Config/DaemonUtil_LogBrowser/CertVault"),
-                        new CertVaultSettings(defaultSetting: EnsureSpecial.Yes) { UseAcme = false });
-
-                    DisposeList.Add(certVault);
-
-                    // Log Browser の起動
-                    HttpServerOptions httpServerOptions = new HttpServerOptions
+                LogBrowserOptions browserOptions = new LogBrowserOptions(
+                    Env.AppRootDir,
+                    systemTitle: $"{Env.DnsFqdnHostName}",
+                    zipEncryptPassword: GlobalDaemonStateManager.DaemonZipEncryptPassword,
+                    clientIpAcl: (ip) =>
                     {
-                        UseStaticFiles = false,
-                        UseSimpleBasicAuthentication = false,
-                        HttpPortsList = httpPort._SingleList(),
-                        HttpsPortsList = httpsPort._SingleList(),
-                        DebugKestrelToConsole = false,
-                        UseKestrelWithIPACoreStack = true,
-                        AutomaticRedirectToHttpsIfPossible = false,
-                        LocalHostOnly = false,
-                        UseGlobalCertVault = false, // Disable Global CertVault
-                        DisableHiveBasedSetting = true, // Disable Hive based settings
-                        ServerCertSelector = certVault.X509CertificateSelectorForHttpsServerNoAcme,
-                        DenyRobots = true, // Deny robots
-                    };
-
-                    LogBrowserOptions browserOptions = new LogBrowserOptions(
-                        Env.AppRootDir, 
-                        systemTitle: $"{Env.DnsFqdnHostName}",
-                        zipEncryptPassword: GlobalDaemonStateManager.DaemonZipEncryptPassword,
-                        clientIpAcl: (ip) =>
-                        {
                             // 接続元 IP アドレスの種類を取得
                             IPAddressType type = ip._GetIPAddressType();
 
-                            if (type.Bit(IPAddressType.GlobalIp))
-                            {
+                        if (type.Bit(IPAddressType.GlobalIp))
+                        {
                                 // 接続元がグローバル IP の場合
                                 if (GlobalDaemonStateManager.IsDaemonClientLocalIpAddressGlobal == false)
-                                {
+                            {
                                     // DaemonCenter との接続にプライベート IP を利用している場合: 接続拒否
                                     return false;
-                                }
                             }
+                        }
 
                             // それ以外の場合: 接続許可
                             return true;
-                        }
-                        );
+                    }
+                    );
 
-                    DisposeList.Add(LogBrowserHttpServerBuilder.StartServer(httpServerOptions, new LogBrowserHttpServerOptions(browserOptions, "/" + GlobalDaemonStateManager.DaemonSecret)));
+                DisposeList.Add(LogBrowserHttpServerBuilder.StartServer(httpServerOptions, new LogBrowserHttpServerOptions(browserOptions, "/" + GlobalDaemonStateManager.DaemonSecret)));
 
-                    GlobalDaemonStateManager.FileBrowserHttpsPortNumber = httpsPort;
-                }
-            }
-            catch (Exception ex)
-            {
-                ex._Debug();
-
-                this._DisposeSafe();
-
-                throw;
+                GlobalDaemonStateManager.FileBrowserHttpsPortNumber = httpsPort;
             }
         }
-
-        protected override async Task CleanupImplAsync(Exception? ex)
+        catch (Exception ex)
         {
-            try
-            {
-                await DisposeList._DoForEachAsync(async x => await x._DisposeSafeAsync());
-            }
-            finally
-            {
-                await base.CleanupImplAsync(ex);
-            }
+            ex._Debug();
+
+            this._DisposeSafe();
+
+            throw;
+        }
+    }
+
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
+        {
+            await DisposeList._DoForEachAsync(async x => await x._DisposeSafeAsync());
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
         }
     }
 }

@@ -47,58 +47,58 @@ using System.Net;
 #pragma warning disable CS0162
 #pragma warning disable CS0219
 
-namespace IPA.TestDev
+namespace IPA.TestDev;
+
+class MyIpServerDaemon : Daemon
 {
-    class MyIpServerDaemon : Daemon
+    MyIpServerHost? host = null;
+
+    public MyIpServerDaemon() : base(new DaemonOptions("MyIpServer", "MyIpServer Service", true))
     {
-        MyIpServerHost? host = null;
+    }
 
-        public MyIpServerDaemon() : base(new DaemonOptions("MyIpServer", "MyIpServer Service", true))
+    protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
+    {
+        Con.WriteLine("MyIpServerDaemon: Starting...");
+
+        host = new MyIpServerHost();
+
+        await Task.CompletedTask;
+
+        try
         {
+            Con.WriteLine("MyIpServerDaemon: Started.");
         }
-
-        protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
+        catch
         {
-            Con.WriteLine("MyIpServerDaemon: Starting...");
-
-            host = new MyIpServerHost();
-
-            await Task.CompletedTask;
-
-            try
-            {
-                Con.WriteLine("MyIpServerDaemon: Started.");
-            }
-            catch
-            {
-                await host._DisposeSafeAsync();
-                host = null;
-                throw;
-            }
-        }
-
-        protected override async Task StopImplAsync(object? param)
-        {
-            Con.WriteLine("MyIpServerDaemon: Stopping...");
-
-            if (host != null)
-            {
-                await host.DisposeWithCleanupAsync();
-
-                host = null;
-            }
-
-            Con.WriteLine("MyIpServerDaemon: Stopped.");
+            await host._DisposeSafeAsync();
+            host = null;
+            throw;
         }
     }
 
-    partial class TestDevCommands
+    protected override async Task StopImplAsync(object? param)
     {
-        [ConsoleCommand(
-            "Start or stop the MyIpServerDaemon daemon",
-            "MyIpServerDaemon [command]",
-            "Start or stop the MyIpServerDaemon daemon",
-            @"[command]:The control command.
+        Con.WriteLine("MyIpServerDaemon: Stopping...");
+
+        if (host != null)
+        {
+            await host.DisposeWithCleanupAsync();
+
+            host = null;
+        }
+
+        Con.WriteLine("MyIpServerDaemon: Stopped.");
+    }
+}
+
+partial class TestDevCommands
+{
+    [ConsoleCommand(
+        "Start or stop the MyIpServerDaemon daemon",
+        "MyIpServerDaemon [command]",
+        "Start or stop the MyIpServerDaemon daemon",
+        @"[command]:The control command.
 
 [UNIX / Windows common commands]
 start        - Start the daemon in the background mode.
@@ -111,11 +111,10 @@ winstart     - Start the daemon as a Windows service.
 winstop      - Stop the running daemon as a Windows service.
 wininstall   - Install the daemon as a Windows service.
 winuninstall - Uninstall the daemon as a Windows service.")]
-        static int MyIpServerDaemon(ConsoleService c, string cmdName, string str)
-        {
-            return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new MyIpServerDaemon(), new DaemonSettings());
-        }
-
+    static int MyIpServerDaemon(ConsoleService c, string cmdName, string str)
+    {
+        return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new MyIpServerDaemon(), new DaemonSettings());
     }
+
 }
 

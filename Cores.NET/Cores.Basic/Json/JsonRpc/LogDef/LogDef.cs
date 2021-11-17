@@ -43,24 +43,23 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public partial class LogTag
 {
-    public partial class LogTag
-    {
-        public const string JsonRpcRequestProcessor = "JsonRpcRequestProcessor";
-    }
+    public const string JsonRpcRequestProcessor = "JsonRpcRequestProcessor";
+}
 
-    public class LogDefJsonRpc : ILogRecordTimeStamp
-    {
-        [JsonIgnore]
-        public DateTimeOffset TimeStamp => ConnectedDateTime;
+public class LogDefJsonRpc : ILogRecordTimeStamp
+{
+    [JsonIgnore]
+    public DateTimeOffset TimeStamp => ConnectedDateTime;
 
-        public DateTimeOffset ConnectedDateTime;
-        public LogDefIPEndPoints? EndPoints;
-        public string? RpcMethodName;
-        public bool RpcResultOk;
-        public JsonRpcError? RpcError;
-    }
+    public DateTimeOffset ConnectedDateTime;
+    public LogDefIPEndPoints? EndPoints;
+    public string? RpcMethodName;
+    public bool RpcResultOk;
+    public JsonRpcError? RpcError;
 }
 
 #endif // CORES_BASIC_JSON

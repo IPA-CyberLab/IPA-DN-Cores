@@ -46,49 +46,49 @@ using static IPA.Cores.Globals.Basic;
 #pragma warning disable CS0162
 #pragma warning disable CS0219
 
-namespace IPA.TestDev
+namespace IPA.TestDev;
+
+class LogServerDaemon : Daemon
 {
-    class LogServerDaemon : Daemon
+    LogServerApp? app = null;
+
+    public LogServerDaemon() : base(new DaemonOptions("LogServer", "Log Server Service", true))
     {
-        LogServerApp? app = null;
-
-        public LogServerDaemon() : base(new DaemonOptions("LogServer", "Log Server Service", true))
-        {
-        }
-
-        protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
-        {
-            Con.WriteLine("LogServerDaemon: Starting...");
-
-            app = new LogServerApp();
-
-            await Task.CompletedTask;
-
-            Con.WriteLine("LogServerDaemon: Started.");
-        }
-
-        protected override async Task StopImplAsync(object? param)
-        {
-            Con.WriteLine("LogServerDaemon: Stopping...");
-
-            if (app != null)
-            {
-                await app.DisposeWithCleanupAsync();
-
-                app = null;
-            }
-
-            Con.WriteLine("LogServerDaemon: Stopped.");
-        }
     }
 
-    partial class TestDevCommands
+    protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
     {
-        [ConsoleCommand(
-            "Start or stop the LogServerDaemon daemon",
-            "LogServerDaemon [command]",
-            "Start or stop the LogServerDaemon daemon",
-            @"[command]:The control command.
+        Con.WriteLine("LogServerDaemon: Starting...");
+
+        app = new LogServerApp();
+
+        await Task.CompletedTask;
+
+        Con.WriteLine("LogServerDaemon: Started.");
+    }
+
+    protected override async Task StopImplAsync(object? param)
+    {
+        Con.WriteLine("LogServerDaemon: Stopping...");
+
+        if (app != null)
+        {
+            await app.DisposeWithCleanupAsync();
+
+            app = null;
+        }
+
+        Con.WriteLine("LogServerDaemon: Stopped.");
+    }
+}
+
+partial class TestDevCommands
+{
+    [ConsoleCommand(
+        "Start or stop the LogServerDaemon daemon",
+        "LogServerDaemon [command]",
+        "Start or stop the LogServerDaemon daemon",
+        @"[command]:The control command.
 
 [UNIX / Windows common commands]
 start        - Start the daemon in the background mode.
@@ -101,11 +101,10 @@ winstart     - Start the daemon as a Windows service.
 winstop      - Stop the running daemon as a Windows service.
 wininstall   - Install the daemon as a Windows service.
 winuninstall - Uninstall the daemon as a Windows service.")]
-        static int LogServerDaemon(ConsoleService c, string cmdName, string str)
-        {
-            return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new LogServerDaemon(), new DaemonSettings());
-        }
-
+    static int LogServerDaemon(ConsoleService c, string cmdName, string str)
+    {
+        return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new LogServerDaemon(), new DaemonSettings());
     }
+
 }
 

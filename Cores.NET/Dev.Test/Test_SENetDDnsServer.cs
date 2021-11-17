@@ -48,49 +48,49 @@ using IPA.Cores.Basic.SENetDDnsServer;
 #pragma warning disable CS0162
 #pragma warning disable CS0219
 
-namespace IPA.TestDev
+namespace IPA.TestDev;
+
+class SENetDDnsServerDaemon : Daemon
 {
-    class SENetDDnsServerDaemon : Daemon
+    DDNSServer? app = null;
+
+    public SENetDDnsServerDaemon() : base(new DaemonOptions("SENetDDnsServer", "SENet DDNS Server Service", true))
     {
-        DDNSServer? app = null;
-
-        public SENetDDnsServerDaemon() : base(new DaemonOptions("SENetDDnsServer", "SENet DDNS Server Service", true))
-        {
-        }
-
-        protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
-        {
-            Con.WriteLine("SENetDDnsServerDaemon: Starting...");
-
-            app = new DDNSServer(Path.Combine(Env.AppRootDir, "Local/SENetDDnsServer.config"));
-
-            await Task.CompletedTask;
-
-            Con.WriteLine("SENetDDnsServerDaemon: Started.");
-        }
-
-        protected override async Task StopImplAsync(object? param)
-        {
-            Con.WriteLine("SENetDDnsServerDaemon: Stopping...");
-
-            if (app != null)
-            {
-                await app.DisposeWithCleanupAsync();
-
-                app = null;
-            }
-
-            Con.WriteLine("SENetDDnsServerDaemon: Stopped.");
-        }
     }
 
-    partial class TestDevCommands
+    protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
     {
-        [ConsoleCommand(
-            "Start or stop the SENetDDnsServerDaemon daemon",
-            "SENetDDnsServerDaemon [command]",
-            "Start or stop the SENetDDnsServerDaemon daemon",
-            @"[command]:The control command.
+        Con.WriteLine("SENetDDnsServerDaemon: Starting...");
+
+        app = new DDNSServer(Path.Combine(Env.AppRootDir, "Local/SENetDDnsServer.config"));
+
+        await Task.CompletedTask;
+
+        Con.WriteLine("SENetDDnsServerDaemon: Started.");
+    }
+
+    protected override async Task StopImplAsync(object? param)
+    {
+        Con.WriteLine("SENetDDnsServerDaemon: Stopping...");
+
+        if (app != null)
+        {
+            await app.DisposeWithCleanupAsync();
+
+            app = null;
+        }
+
+        Con.WriteLine("SENetDDnsServerDaemon: Stopped.");
+    }
+}
+
+partial class TestDevCommands
+{
+    [ConsoleCommand(
+        "Start or stop the SENetDDnsServerDaemon daemon",
+        "SENetDDnsServerDaemon [command]",
+        "Start or stop the SENetDDnsServerDaemon daemon",
+        @"[command]:The control command.
 
 [UNIX / Windows common commands]
 start        - Start the daemon in the background mode.
@@ -103,11 +103,10 @@ winstart     - Start the daemon as a Windows service.
 winstop      - Stop the running daemon as a Windows service.
 wininstall   - Install the daemon as a Windows service.
 winuninstall - Uninstall the daemon as a Windows service.")]
-        static int SENetDDnsServerDaemon(ConsoleService c, string cmdName, string str)
-        {
-            return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new SENetDDnsServerDaemon(), new DaemonSettings());
-        }
-
+    static int SENetDDnsServerDaemon(ConsoleService c, string cmdName, string str)
+    {
+        return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new SENetDDnsServerDaemon(), new DaemonSettings());
     }
+
 }
 

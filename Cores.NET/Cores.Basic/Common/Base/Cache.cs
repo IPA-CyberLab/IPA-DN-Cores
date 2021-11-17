@@ -41,572 +41,551 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Threading.Tasks;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public enum CacheType
 {
-    public enum CacheType
+    UpdateExpiresWhenAccess = 0,
+    DoNotUpdateExpiresWhenAccess = 1,
+}
+
+public class FastCache<TValue> : FastCache<string, TValue>
+{
+    public FastCache(int expireMsecs = Consts.Numbers.DefaultCacheExpiresMsecs, int gcIntervalMsecs = 0,
+        CacheType cahceType = CacheType.DoNotUpdateExpiresWhenAccess, bool ignoreCase = true)
+        : base(expireMsecs, gcIntervalMsecs, cahceType, ignoreCase ? StrComparer.SensitiveCaseComparer : StrComparer.IgnoreCaseComparer)
     {
-        UpdateExpiresWhenAccess = 0,
-        DoNotUpdateExpiresWhenAccess = 1,
+    }
+}
+
+public class ValueWithExpires<TValue>
+{
+    public ValueWithExpires(long expires, TValue? value)
+    {
+        Expires = expires;
+        Value = value;
     }
 
-    public class FastCache<TValue> : FastCache<string, TValue>
+    public long Expires { get; set; }
+    public TValue? Value { get; }
+}
+
+public class FastCache<TKey, TValue>
+    where TKey : notnull
+{
+    ImmutableDictionary<TKey, ValueWithExpires<TValue>> Dict;
+
+    public CacheType CacheType { get; }
+    public long ExpireMsecs { get; }
+    public long GcIntervalMsecs { get; }
+
+    public IEnumerable<KeyValuePair<TKey, ValueWithExpires<TValue>>> GetItems() => Dict;
+
+    public IEnumerable<TValue?> GetValues()
     {
-        public FastCache(int expireMsecs = Consts.Numbers.DefaultCacheExpiresMsecs, int gcIntervalMsecs = 0,
-            CacheType cahceType = CacheType.DoNotUpdateExpiresWhenAccess, bool ignoreCase = true)
-            : base(expireMsecs, gcIntervalMsecs, cahceType, ignoreCase ? StrComparer.SensitiveCaseComparer : StrComparer.IgnoreCaseComparer)
-        {
-        }
+        if (IsCacheDisabled) return new TValue?[0];
+        return Dict.Values.Select(x => x.Value);
     }
 
-    public class ValueWithExpires<TValue>
+    public bool IsCacheDisabled { get; } = false;
+
+    public FastCache(int expireMsecs = Consts.Numbers.DefaultCacheExpiresMsecs, int gcIntervalMsecs = 0, CacheType cahceType = CacheType.DoNotUpdateExpiresWhenAccess,
+        IEqualityComparer<TKey>? comparer = null)
     {
-        public ValueWithExpires(long expires, TValue? value)
+        this.CacheType = cahceType;
+
+        this.ExpireMsecs = expireMsecs;
+        this.GcIntervalMsecs = gcIntervalMsecs;
+
+        if (this.ExpireMsecs < 0) this.ExpireMsecs = long.MaxValue;
+        if (this.ExpireMsecs >= int.MaxValue) this.ExpireMsecs = long.MaxValue;
+
+        if (this.ExpireMsecs == long.MaxValue)
         {
-            Expires = expires;
-            Value = value;
+            this.GcIntervalMsecs = long.MaxValue;
         }
-
-        public long Expires { get; set; }
-        public TValue? Value { get; }
-    }
-
-    public class FastCache<TKey, TValue>
-        where TKey : notnull
-    {
-        ImmutableDictionary<TKey, ValueWithExpires<TValue>> Dict;
-
-        public CacheType CacheType { get; }
-        public long ExpireMsecs { get; }
-        public long GcIntervalMsecs { get; }
-
-        public IEnumerable<KeyValuePair<TKey, ValueWithExpires<TValue>>> GetItems() => Dict;
-
-        public IEnumerable<TValue?> GetValues()
+        else
         {
-            if (IsCacheDisabled) return new TValue?[0];
-            return Dict.Values.Select(x => x.Value);
-        }
-
-        public bool IsCacheDisabled { get; } = false;
-
-        public FastCache(int expireMsecs = Consts.Numbers.DefaultCacheExpiresMsecs, int gcIntervalMsecs = 0, CacheType cahceType = CacheType.DoNotUpdateExpiresWhenAccess,
-            IEqualityComparer<TKey>? comparer = null)
-        {
-            this.CacheType = cahceType;
-
-            this.ExpireMsecs = expireMsecs;
-            this.GcIntervalMsecs = gcIntervalMsecs;
-
-            if (this.ExpireMsecs < 0) this.ExpireMsecs = long.MaxValue;
-            if (this.ExpireMsecs >= int.MaxValue) this.ExpireMsecs = long.MaxValue;
-
-            if (this.ExpireMsecs == long.MaxValue)
+            if (this.GcIntervalMsecs <= 0)
             {
-                this.GcIntervalMsecs = long.MaxValue;
+                this.GcIntervalMsecs = Math.Max(this.ExpireMsecs / 4, 1);
             }
             else
             {
-                if (this.GcIntervalMsecs <= 0)
-                {
-                    this.GcIntervalMsecs = Math.Max(this.ExpireMsecs / 4, 1);
-                }
-                else
-                {
-                    this.GcIntervalMsecs = Math.Max(Math.Min(this.GcIntervalMsecs, this.ExpireMsecs), Consts.Numbers.MinCacheGcIntervalsMsecs);
-                }
-            }
-
-            Dict = ImmutableDictionary<TKey, ValueWithExpires<TValue>>.Empty;
-
-            if (comparer != null)
-            {
-                Dict = Dict.WithComparers(comparer);
-            }
-
-            if (this.ExpireMsecs <= 0)
-            {
-                IsCacheDisabled = true;
+                this.GcIntervalMsecs = Math.Max(Math.Min(this.GcIntervalMsecs, this.ExpireMsecs), Consts.Numbers.MinCacheGcIntervalsMsecs);
             }
         }
 
-        long LastTimeGc = 0;
+        Dict = ImmutableDictionary<TKey, ValueWithExpires<TValue>>.Empty;
 
-        [MethodImpl(Inline)]
-        void GcIfNecessary(long now = 0)
+        if (comparer != null)
         {
-            if (IsCacheDisabled) return;
-            if (this.GcIntervalMsecs == long.MaxValue) return;
-
-            if (now == 0) now = TickNow;
-
-            if (LastTimeGc == 0 || now > LastTimeGc)
-            {
-                LastTimeGc = now;
-                GcCore(now);
-            }
+            Dict = Dict.WithComparers(comparer);
         }
 
-        void GcCore(long now)
+        if (this.ExpireMsecs <= 0)
         {
-            if (IsCacheDisabled) return;
-            var currentDict = this.Dict;
+            IsCacheDisabled = true;
+        }
+    }
 
-            foreach (var item in currentDict)
+    long LastTimeGc = 0;
+
+    [MethodImpl(Inline)]
+    void GcIfNecessary(long now = 0)
+    {
+        if (IsCacheDisabled) return;
+        if (this.GcIntervalMsecs == long.MaxValue) return;
+
+        if (now == 0) now = TickNow;
+
+        if (LastTimeGc == 0 || now > LastTimeGc)
+        {
+            LastTimeGc = now;
+            GcCore(now);
+        }
+    }
+
+    void GcCore(long now)
+    {
+        if (IsCacheDisabled) return;
+        var currentDict = this.Dict;
+
+        foreach (var item in currentDict)
+        {
+            if (now > item.Value.Expires)
             {
-                if (now > item.Value.Expires)
-                {
-                    ImmutableInterlocked.TryRemove(ref this.Dict, item.Key, out _);
-                }
+                ImmutableInterlocked.TryRemove(ref this.Dict, item.Key, out _);
             }
         }
+    }
 
-        public void Delete(TKey key)
+    public void Delete(TKey key)
+    {
+        if (IsCacheDisabled) return;
+        ImmutableInterlocked.TryRemove(ref this.Dict, key, out _);
+    }
+
+    public void Add(TKey key, TValue? value)
+    {
+        if (IsCacheDisabled) return;
+        GcIfNecessary();
+
+        ImmutableInterlocked.AddOrUpdate(ref this.Dict, key,
+            addValueFactory: (key) =>
+            {
+                return new ValueWithExpires<TValue>(this.ExpireMsecs == long.MaxValue ? long.MaxValue : Time.Tick64 + this.ExpireMsecs, value);
+            },
+            updateValueFactory: (key, current) =>
+            {
+                return new ValueWithExpires<TValue>(this.ExpireMsecs == long.MaxValue ? long.MaxValue : Time.Tick64 + this.ExpireMsecs, value);
+            });
+    }
+
+    public TValue? GetOrCreate(TKey key, Func<TKey, TValue?> createProc)
+        => GetOrCreate(key, createProc, out _);
+    public TValue? GetOrCreate(TKey key, Func<TKey, TValue?> createProc, out bool found)
+    {
+        found = false;
+
+        if (IsCacheDisabled)
         {
-            if (IsCacheDisabled) return;
+            return createProc(key);
+        }
+
+        TValue? value = Get(key, out found);
+
+        if (found == false)
+        {
+            value = createProc(key);
+
+            Add(key, value);
+        }
+
+        return value;
+    }
+
+    public async Task<TValue?> GetOrCreateAsync(TKey key, Func<TKey, Task<TValue?>> createProc, RefBool? found = null)
+    {
+        found?.Set(false);
+        if (IsCacheDisabled)
+        {
+            return await createProc(key);
+        }
+
+        TValue? value = Get(key, out bool found2);
+
+        if (found2 == false)
+        {
+            value = await createProc(key);
+
+            Add(key, value);
+        }
+
+        found?.Set(found2);
+
+        return value;
+    }
+
+    public void Clear()
+    {
+        if (IsCacheDisabled) return;
+        this.Dict = this.Dict.Clear();
+    }
+
+    public bool ContainsKey(TKey key)
+    {
+        Get(key, out bool ret);
+
+        return ret;
+    }
+
+    public TValue? Get(TKey key, TValue? defaultValue = default)
+        => Get(key, out _, defaultValue);
+
+    public TValue? Get(TKey key, out bool found, TValue? defaultValue = default)
+    {
+        found = false;
+
+        if (IsCacheDisabled)
+        {
+            return defaultValue;
+        }
+
+        long now = Time.Tick64;
+
+        GcIfNecessary(now);
+
+        var currentDict = Dict;
+
+        if (currentDict.TryGetValue(key, out ValueWithExpires<TValue>? entry) == false)
+        {
+            // 存在しない
+            return defaultValue;
+        }
+
+        if (now > entry.Expires)
+        {
+            // 有効期限切れ
             ImmutableInterlocked.TryRemove(ref this.Dict, key, out _);
+            return defaultValue;
         }
 
-        public void Add(TKey key, TValue? value)
+        if (this.CacheType == CacheType.UpdateExpiresWhenAccess)
         {
-            if (IsCacheDisabled) return;
-            GcIfNecessary();
-
-            ImmutableInterlocked.AddOrUpdate(ref this.Dict, key,
-                addValueFactory: (key) =>
-                {
-                    return new ValueWithExpires<TValue>(this.ExpireMsecs == long.MaxValue ? long.MaxValue : Time.Tick64 + this.ExpireMsecs, value);
-                },
-                updateValueFactory: (key, current) =>
-                {
-                    return new ValueWithExpires<TValue>(this.ExpireMsecs == long.MaxValue ? long.MaxValue : Time.Tick64 + this.ExpireMsecs, value);
-                });
+            // アクセスのあるたび有効期限を延長
+            if (this.ExpireMsecs != long.MaxValue)
+            {
+                entry.Expires = now + this.ExpireMsecs;
+            }
         }
 
-        public TValue? GetOrCreate(TKey key, Func<TKey, TValue?> createProc)
-            => GetOrCreate(key, createProc, out _);
-        public TValue? GetOrCreate(TKey key, Func<TKey, TValue?> createProc, out bool found)
-        {
-            found = false;
+        found = true;
 
-            if (IsCacheDisabled)
-            {
-                return createProc(key);
-            }
-
-            TValue? value = Get(key, out found);
-
-            if (found == false)
-            {
-                value = createProc(key);
-
-                Add(key, value);
-            }
-
-            return value;
-        }
-
-        public async Task<TValue?> GetOrCreateAsync(TKey key, Func<TKey, Task<TValue?>> createProc, RefBool? found = null)
-        {
-            found?.Set(false);
-            if (IsCacheDisabled)
-            {
-                return await createProc(key);
-            }
-
-            TValue? value = Get(key, out bool found2);
-
-            if (found2 == false)
-            {
-                value = await createProc(key);
-
-                Add(key, value);
-            }
-
-            found?.Set(found2);
-
-            return value;
-        }
-
-        public void Clear()
-        {
-            if (IsCacheDisabled) return;
-            this.Dict = this.Dict.Clear();
-        }
-
-        public bool ContainsKey(TKey key)
-        {
-            Get(key, out bool ret);
-
-            return ret;
-        }
-
-        public TValue? Get(TKey key, TValue? defaultValue = default)
-            => Get(key, out _, defaultValue);
-
-        public TValue? Get(TKey key, out bool found, TValue? defaultValue = default)
-        {
-            found = false;
-
-            if (IsCacheDisabled)
-            {
-                return defaultValue;
-            }
-
-            long now = Time.Tick64;
-
-            GcIfNecessary(now);
-
-            var currentDict = Dict;
-
-            if (currentDict.TryGetValue(key, out ValueWithExpires<TValue>? entry) == false)
-            {
-                // 存在しない
-                return defaultValue;
-            }
-
-            if (now > entry.Expires)
-            {
-                // 有効期限切れ
-                ImmutableInterlocked.TryRemove(ref this.Dict, key, out _);
-                return defaultValue;
-            }
-
-            if (this.CacheType == CacheType.UpdateExpiresWhenAccess)
-            {
-                // アクセスのあるたび有効期限を延長
-                if (this.ExpireMsecs != long.MaxValue)
-                {
-                    entry.Expires = now + this.ExpireMsecs;
-                }
-            }
-
-            found = true;
-
-            return entry.Value;
-        }
-
-        public TValue? this[TKey key]
-        {
-            get => Get(key);
-            set => Add(key, value);
-        }
+        return entry.Value;
     }
 
-
-    public class FastSingleCache<TValue>
+    public TValue? this[TKey key]
     {
-        ValueWithExpires<TValue>? CurrentValue;
+        get => Get(key);
+        set => Add(key, value);
+    }
+}
 
-        public CacheType CacheType { get; }
-        public long ExpireMsecs { get; }
-        public long GcIntervalMsecs { get; }
-        public bool IsCacheDisabled { get; } = false;
 
-        public FastSingleCache(int expireMsecs = Consts.Numbers.DefaultCacheExpiresMsecs, int gcIntervalMsecs = 0, CacheType cahceType = CacheType.DoNotUpdateExpiresWhenAccess)
+public class FastSingleCache<TValue>
+{
+    ValueWithExpires<TValue>? CurrentValue;
+
+    public CacheType CacheType { get; }
+    public long ExpireMsecs { get; }
+    public long GcIntervalMsecs { get; }
+    public bool IsCacheDisabled { get; } = false;
+
+    public FastSingleCache(int expireMsecs = Consts.Numbers.DefaultCacheExpiresMsecs, int gcIntervalMsecs = 0, CacheType cahceType = CacheType.DoNotUpdateExpiresWhenAccess)
+    {
+        this.CacheType = cahceType;
+
+        this.ExpireMsecs = expireMsecs;
+        this.GcIntervalMsecs = gcIntervalMsecs;
+
+        if (this.ExpireMsecs < 0) this.ExpireMsecs = long.MaxValue;
+        if (this.ExpireMsecs >= int.MaxValue) this.ExpireMsecs = long.MaxValue;
+
+        if (this.ExpireMsecs == long.MaxValue)
         {
-            this.CacheType = cahceType;
-
-            this.ExpireMsecs = expireMsecs;
-            this.GcIntervalMsecs = gcIntervalMsecs;
-
-            if (this.ExpireMsecs < 0) this.ExpireMsecs = long.MaxValue;
-            if (this.ExpireMsecs >= int.MaxValue) this.ExpireMsecs = long.MaxValue;
-
-            if (this.ExpireMsecs == long.MaxValue)
+            this.GcIntervalMsecs = long.MaxValue;
+        }
+        else
+        {
+            if (this.GcIntervalMsecs <= 0)
             {
-                this.GcIntervalMsecs = long.MaxValue;
+                this.GcIntervalMsecs = Math.Max(this.ExpireMsecs / 4, 1);
             }
             else
             {
-                if (this.GcIntervalMsecs <= 0)
-                {
-                    this.GcIntervalMsecs = Math.Max(this.ExpireMsecs / 4, 1);
-                }
-                else
-                {
-                    this.GcIntervalMsecs = Math.Max(Math.Min(this.GcIntervalMsecs, this.ExpireMsecs), Consts.Numbers.MinCacheGcIntervalsMsecs);
-                }
-            }
-
-            if (this.ExpireMsecs <= 0)
-            {
-                IsCacheDisabled = true;
+                this.GcIntervalMsecs = Math.Max(Math.Min(this.GcIntervalMsecs, this.ExpireMsecs), Consts.Numbers.MinCacheGcIntervalsMsecs);
             }
         }
 
-        long LastTimeGc = 0;
-
-        [MethodImpl(Inline)]
-        void GcIfNecessary(long now = 0)
+        if (this.ExpireMsecs <= 0)
         {
-            if (IsCacheDisabled) return;
-            if (this.GcIntervalMsecs == long.MaxValue) return;
+            IsCacheDisabled = true;
+        }
+    }
 
-            if (now == 0)
-            {
-                now = TickNow;
-            }
+    long LastTimeGc = 0;
 
-            if (LastTimeGc == 0 || now > LastTimeGc)
-            {
-                LastTimeGc = now;
-                GcCore(now);
-            }
+    [MethodImpl(Inline)]
+    void GcIfNecessary(long now = 0)
+    {
+        if (IsCacheDisabled) return;
+        if (this.GcIntervalMsecs == long.MaxValue) return;
+
+        if (now == 0)
+        {
+            now = TickNow;
         }
 
-        void GcCore(long now)
+        if (LastTimeGc == 0 || now > LastTimeGc)
         {
-            if (IsCacheDisabled) return;
-            var current = CurrentValue;
-            if (current != null && now > current.Expires)
-            {
-                CurrentValue = null;
-            }
+            LastTimeGc = now;
+            GcCore(now);
+        }
+    }
+
+    void GcCore(long now)
+    {
+        if (IsCacheDisabled) return;
+        var current = CurrentValue;
+        if (current != null && now > current.Expires)
+        {
+            CurrentValue = null;
+        }
+    }
+
+    public void Clear() => Delete();
+
+    public void Delete()
+    {
+        if (IsCacheDisabled) return;
+        this.CurrentValue = null;
+    }
+
+    public void Add(TValue? value)
+    {
+        if (IsCacheDisabled) return;
+        this.CurrentValue = new ValueWithExpires<TValue>(this.ExpireMsecs == long.MaxValue ? long.MaxValue : Time.Tick64 + this.ExpireMsecs, value);
+    }
+
+    public TValue? GetOrCreate(Func<TValue?> createProc)
+        => GetOrCreate(createProc, out _);
+    public TValue? GetOrCreate(Func<TValue?> createProc, out bool found)
+    {
+        found = false;
+
+        if (IsCacheDisabled)
+        {
+            return createProc();
         }
 
-        public void Clear() => Delete();
+        TValue? value = Get(out found);
 
-        public void Delete()
+        if (found)
         {
-            if (IsCacheDisabled) return;
+            return value;
+        }
+
+        value = createProc();
+
+        Add(value);
+
+        return value;
+    }
+
+    public async Task<TValue?> GetOrCreateAsync(Func<Task<TValue?>> createProc, RefBool? found = null)
+    {
+        found?.Set(false);
+
+        if (IsCacheDisabled)
+        {
+            return await createProc();
+        }
+
+        TValue? value = Get(out bool found2);
+
+        if (found2)
+        {
+            found?.Set(true);
+            return value;
+        }
+
+        value = await createProc();
+
+        Add(value);
+
+        return value;
+    }
+
+    public bool Contains()
+    {
+        Get(out bool ret);
+
+        return ret;
+    }
+
+    public TValue? Get(TValue? defaultValue = default)
+        => Get(out _, defaultValue);
+    public TValue? Get(out bool found, TValue? defaultValue = default)
+    {
+        found = false;
+
+        if (IsCacheDisabled)
+        {
+            return defaultValue;
+        }
+
+        var current = this.CurrentValue;
+
+        long now = Time.Tick64;
+
+        if (current == null)
+        {
+            // 存在しない
+            return defaultValue;
+        }
+
+        if (now > current.Expires)
+        {
+            // 有効期限切れ
             this.CurrentValue = null;
+            return defaultValue;
         }
 
-        public void Add(TValue? value)
+        if (this.CacheType == CacheType.UpdateExpiresWhenAccess)
         {
-            if (IsCacheDisabled) return;
-            this.CurrentValue = new ValueWithExpires<TValue>(this.ExpireMsecs == long.MaxValue ? long.MaxValue : Time.Tick64 + this.ExpireMsecs, value);
+            // アクセスのあるたび有効期限を延長
+            if (this.ExpireMsecs != long.MaxValue)
+            {
+                current.Expires = now + this.ExpireMsecs;
+            }
         }
 
-        public TValue? GetOrCreate(Func<TValue?> createProc)
-            => GetOrCreate(createProc, out _);
-        public TValue? GetOrCreate(Func<TValue?> createProc, out bool found)
-        {
-            found = false;
+        found = true;
 
-            if (IsCacheDisabled)
-            {
-                return createProc();
-            }
-
-            TValue? value = Get(out found);
-
-            if (found)
-            {
-                return value;
-            }
-
-            value = createProc();
-
-            Add(value);
-
-            return value;
-        }
-
-        public async Task<TValue?> GetOrCreateAsync(Func<Task<TValue?>> createProc, RefBool? found = null)
-        {
-            found?.Set(false);
-
-            if (IsCacheDisabled)
-            {
-                return await createProc();
-            }
-
-            TValue? value = Get(out bool found2);
-
-            if (found2)
-            {
-                found?.Set(true);
-                return value;
-            }
-
-            value = await createProc();
-
-            Add(value);
-
-            return value;
-        }
-
-        public bool Contains()
-        {
-            Get(out bool ret);
-
-            return ret;
-        }
-
-        public TValue? Get(TValue? defaultValue = default)
-            => Get(out _, defaultValue);
-        public TValue? Get(out bool found, TValue? defaultValue = default)
-        {
-            found = false;
-
-            if (IsCacheDisabled)
-            {
-                return defaultValue;
-            }
-
-            var current = this.CurrentValue;
-
-            long now = Time.Tick64;
-
-            if (current == null)
-            {
-                // 存在しない
-                return defaultValue;
-            }
-
-            if (now > current.Expires)
-            {
-                // 有効期限切れ
-                this.CurrentValue = null;
-                return defaultValue;
-            }
-
-            if (this.CacheType == CacheType.UpdateExpiresWhenAccess)
-            {
-                // アクセスのあるたび有効期限を延長
-                if (this.ExpireMsecs != long.MaxValue)
-                {
-                    current.Expires = now + this.ExpireMsecs;
-                }
-            }
-
-            found = true;
-
-            return current.Value;
-        }
-
-        public static implicit operator TValue?(FastSingleCache<TValue> cache) => cache.Get();
+        return current.Value;
     }
 
+    public static implicit operator TValue?(FastSingleCache<TValue> cache) => cache.Get();
+}
 
 
-    public class Cache<TKey, TValue>
-        where TKey : notnull
+
+public class Cache<TKey, TValue>
+    where TKey : notnull
+{
+    class Entry
     {
-        class Entry
-        {
-            public DateTime CreatedDateTime { get; }
-            public DateTime UpdatedDateTime { get; private set; }
-            public DateTime LastAccessedDateTime { get; private set; }
-            public TKey Key { get; }
+        public DateTime CreatedDateTime { get; }
+        public DateTime UpdatedDateTime { get; private set; }
+        public DateTime LastAccessedDateTime { get; private set; }
+        public TKey Key { get; }
 
-            TValue _value;
-            public TValue Value
-            {
-                get
-                {
-                    LastAccessedDateTime = Time.NowHighResDateTimeUtc;
-                    return this._value;
-                }
-                set
-                {
-                    this._value = value;
-                    UpdatedDateTime = Time.NowHighResDateTimeUtc;
-                    LastAccessedDateTime = Time.NowHighResDateTimeUtc;
-                }
-            }
-
-            public Entry(TKey key, TValue value)
-            {
-                this.Key = key;
-                this._value = value;
-                LastAccessedDateTime = UpdatedDateTime = CreatedDateTime = Time.NowHighResDateTimeUtc;
-            }
-
-            public override int GetHashCode() => Key.GetHashCode();
-
-            public override string ToString() => Key.ToString() + "," + _value?.ToString() ?? "";
-        }
-
-        public static readonly TimeSpan DefaultExpireSpan = new TimeSpan(0, 5, 0);
-        public const CacheType DefaultCacheType = CacheType.UpdateExpiresWhenAccess;
-        public TimeSpan ExpireSpan { get; private set; }
-        public CacheType Type { get; private set; }
-        Dictionary<TKey, Entry> list;
-        CriticalSection LockObj;
-
-        public Cache(TimeSpan expireSpan = default, CacheType type = DefaultCacheType, IEqualityComparer<TKey>? comparer = null)
-        {
-            if (expireSpan == default)
-                expireSpan = DefaultExpireSpan;
-
-            this.ExpireSpan = expireSpan;
-            this.Type = type;
-
-            if (comparer == null)
-            {
-                list = new Dictionary<TKey, Entry>();
-            }
-            else
-            {
-                list = new Dictionary<TKey, Entry>(comparer);
-            }
-
-            LockObj = new CriticalSection<Cache<TKey, TValue>>();
-        }
-
-        public void Add(TKey key, TValue value)
-        {
-            lock (LockObj)
-            {
-                Entry e;
-
-                DeleteExpired();
-
-                if (list.ContainsKey(key) == false)
-                {
-                    e = new Entry(key, value);
-
-                    list.Add(e.Key, e);
-
-                    DeleteExpired();
-                }
-                else
-                {
-                    e = list[key];
-                    e.Value = value;
-                }
-            }
-        }
-
-        public TValue Get(TKey key) => this[key];
-
-        public void Delete(TKey key)
-        {
-            lock (LockObj)
-            {
-                if (list.ContainsKey(key))
-                {
-                    list.Remove(key);
-                }
-            }
-        }
-
-        public TValue this[TKey key]
+        TValue _value;
+        public TValue Value
         {
             get
             {
-                lock (LockObj)
-                {
-                    DeleteExpired();
-
-                    if (list.ContainsKey(key) == false)
-                    {
-                        return default(TValue)!;
-                    }
-
-                    return list[key].Value;
-                }
+                LastAccessedDateTime = Time.NowHighResDateTimeUtc;
+                return this._value;
             }
-
             set
             {
-                Add(key, value);
+                this._value = value;
+                UpdatedDateTime = Time.NowHighResDateTimeUtc;
+                LastAccessedDateTime = Time.NowHighResDateTimeUtc;
             }
         }
 
-        public TValue GetOrCreate(TKey key, Func<TKey, TValue> createProc)
+        public Entry(TKey key, TValue value)
+        {
+            this.Key = key;
+            this._value = value;
+            LastAccessedDateTime = UpdatedDateTime = CreatedDateTime = Time.NowHighResDateTimeUtc;
+        }
+
+        public override int GetHashCode() => Key.GetHashCode();
+
+        public override string ToString() => Key.ToString() + "," + _value?.ToString() ?? "";
+    }
+
+    public static readonly TimeSpan DefaultExpireSpan = new TimeSpan(0, 5, 0);
+    public const CacheType DefaultCacheType = CacheType.UpdateExpiresWhenAccess;
+    public TimeSpan ExpireSpan { get; private set; }
+    public CacheType Type { get; private set; }
+    Dictionary<TKey, Entry> list;
+    CriticalSection LockObj;
+
+    public Cache(TimeSpan expireSpan = default, CacheType type = DefaultCacheType, IEqualityComparer<TKey>? comparer = null)
+    {
+        if (expireSpan == default)
+            expireSpan = DefaultExpireSpan;
+
+        this.ExpireSpan = expireSpan;
+        this.Type = type;
+
+        if (comparer == null)
+        {
+            list = new Dictionary<TKey, Entry>();
+        }
+        else
+        {
+            list = new Dictionary<TKey, Entry>(comparer);
+        }
+
+        LockObj = new CriticalSection<Cache<TKey, TValue>>();
+    }
+
+    public void Add(TKey key, TValue value)
+    {
+        lock (LockObj)
+        {
+            Entry e;
+
+            DeleteExpired();
+
+            if (list.ContainsKey(key) == false)
+            {
+                e = new Entry(key, value);
+
+                list.Add(e.Key, e);
+
+                DeleteExpired();
+            }
+            else
+            {
+                e = list[key];
+                e.Value = value;
+            }
+        }
+    }
+
+    public TValue Get(TKey key) => this[key];
+
+    public void Delete(TKey key)
+    {
+        lock (LockObj)
+        {
+            if (list.ContainsKey(key))
+            {
+                list.Remove(key);
+            }
+        }
+    }
+
+    public TValue this[TKey key]
+    {
+        get
         {
             lock (LockObj)
             {
@@ -614,66 +593,86 @@ namespace IPA.Cores.Basic
 
                 if (list.ContainsKey(key) == false)
                 {
-                    TValue newValue = createProc(key);
-
-                    Add(key, newValue);
-
-                    return newValue;
+                    return default(TValue)!;
                 }
 
                 return list[key].Value;
             }
         }
 
-        long LastDeleted = 0;
-
-        void DeleteExpired()
+        set
         {
-            bool doDelete = false;
-            long now = Tick64.Value;
-            long deleteInterval = ExpireSpan.Milliseconds / 10;
+            Add(key, value);
+        }
+    }
 
-            lock (LockObj)
+    public TValue GetOrCreate(TKey key, Func<TKey, TValue> createProc)
+    {
+        lock (LockObj)
+        {
+            DeleteExpired();
+
+            if (list.ContainsKey(key) == false)
             {
-                if (LastDeleted == 0 || now > (LastDeleted + deleteInterval))
+                TValue newValue = createProc(key);
+
+                Add(key, newValue);
+
+                return newValue;
+            }
+
+            return list[key].Value;
+        }
+    }
+
+    long LastDeleted = 0;
+
+    void DeleteExpired()
+    {
+        bool doDelete = false;
+        long now = Tick64.Value;
+        long deleteInterval = ExpireSpan.Milliseconds / 10;
+
+        lock (LockObj)
+        {
+            if (LastDeleted == 0 || now > (LastDeleted + deleteInterval))
+            {
+                LastDeleted = now;
+                doDelete = true;
+            }
+        }
+
+        if (doDelete == false)
+        {
+            return;
+        }
+
+        lock (LockObj)
+        {
+            List<Entry> o = new List<Entry>();
+            DateTime expire = Time.NowHighResDateTimeUtc - this.ExpireSpan;
+
+            foreach (Entry e in list.Values)
+            {
+                if (this.Type == CacheType.UpdateExpiresWhenAccess)
                 {
-                    LastDeleted = now;
-                    doDelete = true;
+                    if (e.LastAccessedDateTime < expire)
+                    {
+                        o.Add(e);
+                    }
+                }
+                else
+                {
+                    if (e.UpdatedDateTime < expire)
+                    {
+                        o.Add(e);
+                    }
                 }
             }
 
-            if (doDelete == false)
+            foreach (Entry e in o)
             {
-                return;
-            }
-
-            lock (LockObj)
-            {
-                List<Entry> o = new List<Entry>();
-                DateTime expire = Time.NowHighResDateTimeUtc - this.ExpireSpan;
-
-                foreach (Entry e in list.Values)
-                {
-                    if (this.Type == CacheType.UpdateExpiresWhenAccess)
-                    {
-                        if (e.LastAccessedDateTime < expire)
-                        {
-                            o.Add(e);
-                        }
-                    }
-                    else
-                    {
-                        if (e.UpdatedDateTime < expire)
-                        {
-                            o.Add(e);
-                        }
-                    }
-                }
-
-                foreach (Entry e in o)
-                {
-                    list.Remove(e.Key);
-                }
+                list.Remove(e.Key);
             }
         }
     }

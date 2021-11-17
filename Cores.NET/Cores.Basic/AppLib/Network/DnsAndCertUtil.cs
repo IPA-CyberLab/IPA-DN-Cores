@@ -55,456 +55,455 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public static class WildcardCertServerUtil
 {
-    public static class WildcardCertServerUtil
+    public static async Task<List<CertificateStore>> DownloadAllLatestCertsAsync(string baseUrl, string username, string password, CancellationToken cancel = default)
     {
-        public static async Task<List<CertificateStore>> DownloadAllLatestCertsAsync(string baseUrl, string username, string password, CancellationToken cancel = default)
+        await using var http = new EasyHttpClient(new EasyHttpClientOptions(basicUsername: username, basicPassword: password,
+            options: new WebApiOptions(
+                new WebApiSettings
+                {
+                    SslAcceptAnyCerts = true,
+                })));
+
+        var topPage = await http.GetHtmlAsync(baseUrl, cancel);
+
+        HashSet<string> domainNameList = new HashSet<string>();
+
+        foreach (var a in topPage.DocumentNode.GetAllChildren().Where(x => x.NodeType == HtmlAgilityPack.HtmlNodeType.Element && x.Name._IsSamei("a")))
         {
-            await using var http = new EasyHttpClient(new EasyHttpClientOptions(basicUsername: username, basicPassword: password,
-                options: new WebApiOptions(
-                    new WebApiSettings
-                    {
-                        SslAcceptAnyCerts = true,
-                    })));
-
-            var topPage = await http.GetHtmlAsync(baseUrl, cancel);
-
-            HashSet<string> domainNameList = new HashSet<string>();
-
-            foreach (var a in topPage.DocumentNode.GetAllChildren().Where(x => x.NodeType == HtmlAgilityPack.HtmlNodeType.Element && x.Name._IsSamei("a")))
+            string href = a.Attributes.GetFirstValue("href");
+            if (href._IsFilled())
             {
-                string href = a.Attributes.GetFirstValue("href");
-                if (href._IsFilled())
+                if (href.EndsWith("/")) href = href.Substring(0, href.Length - 1);
+                if (href._IsValidFqdn())
                 {
-                    if (href.EndsWith("/")) href = href.Substring(0, href.Length - 1);
-                    if (href._IsValidFqdn())
-                    {
-                        //// test
-                        //if (href.EndsWith("sehosts.com") ||
-                        //    href.EndsWith("coe.ad.jp") ||
-                        //    href.EndsWith("open.ad.jp"))
+                    //// test
+                    //if (href.EndsWith("sehosts.com") ||
+                    //    href.EndsWith("coe.ad.jp") ||
+                    //    href.EndsWith("open.ad.jp"))
 
-                        domainNameList.Add(href.ToLower());
-                    }
+                    domainNameList.Add(href.ToLower());
                 }
             }
+        }
 
-            List<CertificateStore> ret = new List<CertificateStore>();
+        List<CertificateStore> ret = new List<CertificateStore>();
 
-            foreach (string domain in domainNameList.OrderBy(x => x))
+        foreach (string domain in domainNameList.OrderBy(x => x))
+        {
+            try
             {
-                try
+                string pfxUrl = baseUrl._CombineUrl(domain + "/")._CombineUrl("latest/")._CombineUrl("cert.pfx").ToString();
+
+                var pfxRet = await http.GetAsync(pfxUrl, cancel);
+
+                CertificateStore cert = new CertificateStore(pfxRet.Data);
+
+                if (cert.PrimaryCertificate.NotBefore <= DtOffsetNow && DtOffsetNow <= cert.PrimaryCertificate.NotAfter)
                 {
-                    string pfxUrl = baseUrl._CombineUrl(domain + "/")._CombineUrl("latest/")._CombineUrl("cert.pfx").ToString();
-
-                    var pfxRet = await http.GetAsync(pfxUrl, cancel);
-
-                    CertificateStore cert = new CertificateStore(pfxRet.Data);
-
-                    if (cert.PrimaryCertificate.NotBefore <= DtOffsetNow && DtOffsetNow <= cert.PrimaryCertificate.NotAfter)
-                    {
-                        ret.Add(cert);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    ex._Debug();
+                    ret.Add(cert);
                 }
             }
+            catch (Exception ex)
+            {
+                ex._Debug();
+            }
+        }
 
-            return ret;
+        return ret;
+    }
+}
+
+// 大解説書
+// 
+// 1. DNS ゾーンファイルを入力してユニークな FQDN レコードの一覧を出力する
+//  by DnsFlatten
+// 
+// ↓ ↓ ↓
+// 
+// 2. FQDN の一覧を入力して FQDN と IP アドレスのペアの一覧を出力する
+//  by DnsIpPairGenerator
+// 
+// ↓ ↓ ↓
+// 
+// 3. FQDN と IP アドレスのペアの一覧を入力して SSL 証明書一覧を出力する
+//  by SslCertCollector
+
+// 3. FQDN と IP アドレスのペアの一覧を入力して SSL 証明書一覧を出力する
+public class SslCertCollectorUtil
+{
+    public int MaxConcurrentTasks { get; }
+    public TcpIpSystem TcpIp { get; }
+
+    ConcurrentQueue<SslCertCollectorItem> Queue;
+
+    ConcurrentBag<SslCertCollectorItem> ResultList = new ConcurrentBag<SslCertCollectorItem>();
+
+    public SslCertCollectorUtil(int maxConcurrentTasks, IEnumerable<SniHostnameIpAddressPair> pairs, TcpIpSystem? tcpIp = null)
+    {
+        this.TcpIp = tcpIp ?? LocalNet;
+
+        this.MaxConcurrentTasks = maxConcurrentTasks._Max(1);
+
+        // 入力リストを整理する
+        // (SNI + IP アドレス のほか、IP アドレス + IP アドレスも追加する)
+        HashSet<SniHostnameIpAddressPair> tmpList = new HashSet<SniHostnameIpAddressPair>(pairs.Distinct());
+
+        Queue = new ConcurrentQueue<SslCertCollectorItem>();
+
+        foreach (SniHostnameIpAddressPair pair in pairs)
+        {
+            SslCertCollectorItem e1 = new SslCertCollectorItem
+            {
+                FriendName = pair.SniHostName,
+                SniHostName = pair.SniHostName,
+                IpAddress = pair.IpAddress,
+            };
+
+            Queue.Enqueue(e1);
+
+            SslCertCollectorItem e2 = new SslCertCollectorItem
+            {
+                FriendName = pair.SniHostName,
+                SniHostName = pair.IpAddress,
+                IpAddress = pair.IpAddress,
+            };
+
+            Queue.Enqueue(e2);
         }
     }
 
-    // 大解説書
-    // 
-    // 1. DNS ゾーンファイルを入力してユニークな FQDN レコードの一覧を出力する
-    //  by DnsFlatten
-    // 
-    // ↓ ↓ ↓
-    // 
-    // 2. FQDN の一覧を入力して FQDN と IP アドレスのペアの一覧を出力する
-    //  by DnsIpPairGenerator
-    // 
-    // ↓ ↓ ↓
-    // 
-    // 3. FQDN と IP アドレスのペアの一覧を入力して SSL 証明書一覧を出力する
-    //  by SslCertCollector
-
-    // 3. FQDN と IP アドレスのペアの一覧を入力して SSL 証明書一覧を出力する
-    public class SslCertCollectorUtil
+    Once StartFlag;
+    public async Task<IReadOnlyList<SslCertCollectorItem>> ExecuteAsync(CancellationToken cancel = default)
     {
-        public int MaxConcurrentTasks { get; }
-        public TcpIpSystem TcpIp { get; }
+        int totalCount = Queue.Count;
 
-        ConcurrentQueue<SslCertCollectorItem> Queue;
+        StartFlag.FirstCallOrThrowException();
 
-        ConcurrentBag<SslCertCollectorItem> ResultList = new ConcurrentBag<SslCertCollectorItem>();
+        List<Task> taskList = new List<Task>();
 
-        public SslCertCollectorUtil(int maxConcurrentTasks, IEnumerable<SniHostnameIpAddressPair> pairs, TcpIpSystem? tcpIp = null)
+        for (int i = 0; i < this.MaxConcurrentTasks; i++)
         {
-            this.TcpIp = tcpIp ?? LocalNet;
+            Task t = WorkerTaskAsync(cancel);
 
-            this.MaxConcurrentTasks = maxConcurrentTasks._Max(1);
-
-            // 入力リストを整理する
-            // (SNI + IP アドレス のほか、IP アドレス + IP アドレスも追加する)
-            HashSet<SniHostnameIpAddressPair> tmpList = new HashSet<SniHostnameIpAddressPair>(pairs.Distinct());
-
-            Queue = new ConcurrentQueue<SslCertCollectorItem>();
-
-            foreach (SniHostnameIpAddressPair pair in pairs)
-            {
-                SslCertCollectorItem e1 = new SslCertCollectorItem
-                {
-                    FriendName = pair.SniHostName,
-                    SniHostName = pair.SniHostName,
-                    IpAddress = pair.IpAddress,
-                };
-
-                Queue.Enqueue(e1);
-
-                SslCertCollectorItem e2 = new SslCertCollectorItem
-                {
-                    FriendName = pair.SniHostName,
-                    SniHostName = pair.IpAddress,
-                    IpAddress = pair.IpAddress,
-                };
-
-                Queue.Enqueue(e2);
-            }
+            taskList.Add(t);
         }
 
-        Once StartFlag;
-        public async Task<IReadOnlyList<SslCertCollectorItem>> ExecuteAsync(CancellationToken cancel = default)
+        CancellationTokenSource done = new CancellationTokenSource();
+
+        TaskUtil.StartAsyncTaskAsync(async () =>
         {
-            int totalCount = Queue.Count;
+            CancellationToken doneCancel = done.Token;
 
-            StartFlag.FirstCallOrThrowException();
-
-            List<Task> taskList = new List<Task>();
-
-            for (int i = 0; i < this.MaxConcurrentTasks; i++)
+            while (doneCancel.IsCancellationRequested == false)
             {
-                Task t = WorkerTaskAsync(cancel);
+                await doneCancel._WaitUntilCanceledAsync(250);
 
-                taskList.Add(t);
+                int completed = totalCount - Queue.Count;
+
+                Con.WriteLine("{0} / {1}", completed._ToString3(), totalCount._ToString3());
             }
+        })._LaissezFaire(true);
 
-            CancellationTokenSource done = new CancellationTokenSource();
-
-            TaskUtil.StartAsyncTaskAsync(async () =>
-            {
-                CancellationToken doneCancel = done.Token;
-
-                while (doneCancel.IsCancellationRequested == false)
-                {
-                    await doneCancel._WaitUntilCanceledAsync(250);
-
-                    int completed = totalCount - Queue.Count;
-
-                    Con.WriteLine("{0} / {1}", completed._ToString3(), totalCount._ToString3());
-                }
-            })._LaissezFaire(true);
-
-            foreach (Task t in taskList)
-            {
-                await t._TryWaitAsync(true);
-            }
-
-            done._TryCancelNoBlock();
-
-            return ResultList.ToList();
+        foreach (Task t in taskList)
+        {
+            await t._TryWaitAsync(true);
         }
 
-        // ワーカー疑似スレッド
-        async Task WorkerTaskAsync(CancellationToken cancel = default)
-        {
-            while (true)
-            {
-                cancel.ThrowIfCancellationRequested();
+        done._TryCancelNoBlock();
 
-                // キューから 1 つ取ります
-                if (Queue.TryDequeue(out SslCertCollectorItem? e) == false)
-                {
-                    // もう ありません
-                    return;
-                }
-
-                e._MarkNotNull();
-
-                foreach (int port in Consts.Ports.PotentialHttpsPorts)
-                {
-                    for (int i = 0; i < 3; i++)
-                    {
-                        // 処理を いたします
-                        // 3 回トライする
-                        try
-                        {
-                            SslCertCollectorItem e2 = e._CloneDeep();
-                            e2.Port = port;
-
-                            await PerformOneAsync(e2, cancel);
-
-                            break;
-                        }
-                        catch (Exception ex)
-                        {
-                            $"Error: {e.SniHostName}:{port} => {ex.Message}"._Print();
-                        }
-                    }
-                }
-            }
-        }
-
-        // 1 つの SSL 接続試行を処理する非同期関数
-        async Task PerformOneAsync(SslCertCollectorItem e, CancellationToken cancel = default)
-        {
-            await using (ConnSock sock = await TcpIp.ConnectAsync(new TcpConnectParam(IPAddress.Parse(e.IpAddress!), e.Port, connectTimeout: 5000), cancel))
-            {
-                await using (SslSock ssl = await sock.SslStartClientAsync(new PalSslClientAuthenticationOptions(e.SniHostName, true)))
-                {
-                    ILayerInfoSsl sslInfo = ssl.Info.Ssl;
-                    PalX509Certificate cert = sslInfo.RemoteCertificate!;
-
-                    Certificate cert2 = cert.PkiCertificate;
-
-                    e.CertIssuer = cert2.CertData.IssuerDN.ToString()._MakeAsciiOneLinePrintableStr();
-                    e.CertSubject = cert2.CertData.SubjectDN.ToString()._MakeAsciiOneLinePrintableStr();
-
-                    e.CertFqdnList = cert2.HostNameList.Select(x => x.HostName)._Combine(",")._MakeAsciiOneLinePrintableStr();
-                    e.CertHashSha1 = cert2.DigestSHA1Str;
-                    e.CertNotAfter = cert2.CertData.NotAfter;
-                    e.CertNotBefore = cert2.CertData.NotBefore;
-
-                    // 無視リストに含まれないものだけを出力
-                    if (Consts.Strings.AutoEnrollCertificateSubjectInStrList.Where(x => e.CertIssuer._InStr(x, true)).Any() == false)
-                    {
-                        this.ResultList.Add(e);
-                    }
-
-                    $"OK: {e.SniHostName}:{e.Port} => {e._ObjectToJson(compact: true)}"._Print();
-                }
-            }
-        }
+        return ResultList.ToList();
     }
 
-    [Serializable]
-    public class SslCertCollectorItem
+    // ワーカー疑似スレッド
+    async Task WorkerTaskAsync(CancellationToken cancel = default)
     {
-        public string? FriendName;
-        public string? SniHostName;
-        public string? IpAddress;
-        public int Port;
-
-        public string? CertHashSha1;
-        public DateTime CertNotBefore;
-        public DateTime CertNotAfter;
-        public string? CertIssuer;
-        public string? CertSubject;
-        public string? CertFqdnList;
-    }
-
-    // 2. FQDN の一覧を入力して FQDN、IP アドレス、ポート番号のペアの一覧を出力する
-    public class DnsIpPairGeneratorUtil
-    {
-        public int MaxConcurrentTasks { get; }
-        public TcpIpSystem TcpIp { get; }
-
-        ConcurrentQueue<string> FqdnQueue;
-
-        ConcurrentBag<SniHostnameIpAddressPair> ResultList = new ConcurrentBag<SniHostnameIpAddressPair>();
-
-        public DnsIpPairGeneratorUtil(int maxConcurrentTasks, IEnumerable<string> fqdnSet, TcpIpSystem? tcpIp = null)
+        while (true)
         {
-            this.TcpIp = tcpIp ?? LocalNet;
+            cancel.ThrowIfCancellationRequested();
 
-            this.MaxConcurrentTasks = maxConcurrentTasks._Max(1);
-
-            // ひとまずソート
-            List<string> fqdnList = fqdnSet.Distinct(StrComparer.IgnoreCaseComparer).OrderBy(x => x, StrComparer.IgnoreCaseComparer).ToList();
-
-            // キューに入れる
-            FqdnQueue = new ConcurrentQueue<string>(fqdnList);
-        }
-
-        Once StartFlag;
-        public async Task<IReadOnlyList<SniHostnameIpAddressPair>> ExecuteAsync(CancellationToken cancel = default)
-        {
-            StartFlag.FirstCallOrThrowException();
-
-            List<Task> taskList = new List<Task>();
-
-            for (int i = 0; i < this.MaxConcurrentTasks; i++)
+            // キューから 1 つ取ります
+            if (Queue.TryDequeue(out SslCertCollectorItem? e) == false)
             {
-                Task t = WorkerTaskAsync(cancel);
-
-                taskList.Add(t);
+                // もう ありません
+                return;
             }
 
-            foreach (Task t in taskList)
+            e._MarkNotNull();
+
+            foreach (int port in Consts.Ports.PotentialHttpsPorts)
             {
-                await t._TryWaitAsync(true);
-            }
-
-            return ResultList.ToList();
-        }
-
-        // ワーカー疑似スレッド
-        async Task WorkerTaskAsync(CancellationToken cancel = default)
-        {
-            while (true)
-            {
-                cancel.ThrowIfCancellationRequested();
-
-                // キューから 1 つ取ります
-                if (FqdnQueue.TryDequeue(out string? fqdn) == false)
-                {
-                    // もう ありません
-                    return;
-                }
-
-                fqdn._MarkNotNull();
-
                 for (int i = 0; i < 3; i++)
                 {
                     // 処理を いたします
                     // 3 回トライする
                     try
                     {
-                        await PerformOneAsync(fqdn, cancel);
+                        SslCertCollectorItem e2 = e._CloneDeep();
+                        e2.Port = port;
+
+                        await PerformOneAsync(e2, cancel);
+
                         break;
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        $"Error: {e.SniHostName}:{port} => {ex.Message}"._Print();
+                    }
                 }
             }
         }
-
-        // 1 つの FQDN レコードを処理する非同期関数
-        async Task PerformOneAsync(string fqdn, CancellationToken cancel = default)
-        {
-            // 名前解決を いたします
-            DnsResponse response = await TcpIp.QueryDnsAsync(new DnsGetIpQueryParam(fqdn, DnsQueryOptions.Default, 5000), cancel);
-
-            IEnumerable<IPAddress> addressList = response.IPAddressList.Where(x => x.AddressFamily.EqualsAny(AddressFamily.InterNetwork, AddressFamily.InterNetworkV6));
-
-            addressList._DoForEach(addr =>
-            {
-                $"{fqdn} => {addr}"._Print();
-                ResultList.Add(new SniHostnameIpAddressPair(sniHostName: fqdn, ipAddress: addr.ToString()));
-            });
-        }
     }
 
-    public class SniHostnameIpAddressPair
+    // 1 つの SSL 接続試行を処理する非同期関数
+    async Task PerformOneAsync(SslCertCollectorItem e, CancellationToken cancel = default)
     {
-        const StringComparison Comparison = StringComparison.OrdinalIgnoreCase;
-
-        public string SniHostName { get; }
-        public string IpAddress { get; }
-
-        public SniHostnameIpAddressPair(string sniHostName, string ipAddress)
+        await using (ConnSock sock = await TcpIp.ConnectAsync(new TcpConnectParam(IPAddress.Parse(e.IpAddress!), e.Port, connectTimeout: 5000), cancel))
         {
-            SniHostName = sniHostName;
-            IpAddress = ipAddress;
-        }
-
-        public override int GetHashCode()
-            => System.HashCode.Combine(SniHostName.GetHashCode(Comparison), IpAddress.GetHashCode(Comparison));
-
-        public override bool Equals(object? obj)
-            => this.SniHostName.Equals(((SniHostnameIpAddressPair)obj!).SniHostName, Comparison) && this.IpAddress.Equals(((SniHostnameIpAddressPair)obj!).IpAddress, Comparison);
-    }
-
-    // 1. DNS ゾーンファイルを入力してユニークな FQDN レコードの一覧を出力する
-    public class DnsFlattenUtil
-    {
-        HashSet<string> FqdnSetInternal = new HashSet<string>(StrComparer.IgnoreCaseComparer);
-
-        public IReadOnlyCollection<string> FqdnSet => FqdnSetInternal;
-
-        public void InputZoneFile(string domainName, ReadOnlySpan<byte> fileData, Encoding? encoding = null)
-        {
-            encoding = encoding ?? Str.Utf8Encoding;
-
-            string[] lines = Str.GetLines(fileData._GetString(encoding));
-
-            foreach (string line in lines)
+            await using (SslSock ssl = await sock.SslStartClientAsync(new PalSslClientAuthenticationOptions(e.SniHostName, true)))
             {
-                string line2 = line._StripCommentFromLine();
+                ILayerInfoSsl sslInfo = ssl.Info.Ssl;
+                PalX509Certificate cert = sslInfo.RemoteCertificate!;
 
-                string[] tokens = line2._Split(StringSplitOptions.RemoveEmptyEntries, ' ', '\t');
+                Certificate cert2 = cert.PkiCertificate;
 
-                //if (tokens.Length >= 4 && (IgnoreCase)tokens[2] == "SOA")
-                //{
-                //    string tmp = tokens[3].Trim();
-                //    if (tmp.EndsWith("."))
-                //    {
-                //        currentDomainName = tmp;
-                //    }
-                //}
+                e.CertIssuer = cert2.CertData.IssuerDN.ToString()._MakeAsciiOneLinePrintableStr();
+                e.CertSubject = cert2.CertData.SubjectDN.ToString()._MakeAsciiOneLinePrintableStr();
 
-                //if (tokens.Length >= 5 && (IgnoreCase)tokens[3] == "SOA")
-                //{
-                //    string tmp = tokens[4].Trim();
-                //    if (tmp.EndsWith("."))
-                //    {
-                //        currentDomainName = tmp;
-                //    }
-                //}
+                e.CertFqdnList = cert2.HostNameList.Select(x => x.HostName)._Combine(",")._MakeAsciiOneLinePrintableStr();
+                e.CertHashSha1 = cert2.DigestSHA1Str;
+                e.CertNotAfter = cert2.CertData.NotAfter;
+                e.CertNotBefore = cert2.CertData.NotBefore;
 
-                if (tokens.Length >= 3)
+                // 無視リストに含まれないものだけを出力
+                if (Consts.Strings.AutoEnrollCertificateSubjectInStrList.Where(x => e.CertIssuer._InStr(x, true)).Any() == false)
                 {
-                    string hostName = tokens[0];
-                    string type = tokens[tokens.Length - 2].ToUpper();
+                    this.ResultList.Add(e);
+                }
 
-                    if (type == "A" || type == "AAAA" || type == "CNAME")
+                $"OK: {e.SniHostName}:{e.Port} => {e._ObjectToJson(compact: true)}"._Print();
+            }
+        }
+    }
+}
+
+[Serializable]
+public class SslCertCollectorItem
+{
+    public string? FriendName;
+    public string? SniHostName;
+    public string? IpAddress;
+    public int Port;
+
+    public string? CertHashSha1;
+    public DateTime CertNotBefore;
+    public DateTime CertNotAfter;
+    public string? CertIssuer;
+    public string? CertSubject;
+    public string? CertFqdnList;
+}
+
+// 2. FQDN の一覧を入力して FQDN、IP アドレス、ポート番号のペアの一覧を出力する
+public class DnsIpPairGeneratorUtil
+{
+    public int MaxConcurrentTasks { get; }
+    public TcpIpSystem TcpIp { get; }
+
+    ConcurrentQueue<string> FqdnQueue;
+
+    ConcurrentBag<SniHostnameIpAddressPair> ResultList = new ConcurrentBag<SniHostnameIpAddressPair>();
+
+    public DnsIpPairGeneratorUtil(int maxConcurrentTasks, IEnumerable<string> fqdnSet, TcpIpSystem? tcpIp = null)
+    {
+        this.TcpIp = tcpIp ?? LocalNet;
+
+        this.MaxConcurrentTasks = maxConcurrentTasks._Max(1);
+
+        // ひとまずソート
+        List<string> fqdnList = fqdnSet.Distinct(StrComparer.IgnoreCaseComparer).OrderBy(x => x, StrComparer.IgnoreCaseComparer).ToList();
+
+        // キューに入れる
+        FqdnQueue = new ConcurrentQueue<string>(fqdnList);
+    }
+
+    Once StartFlag;
+    public async Task<IReadOnlyList<SniHostnameIpAddressPair>> ExecuteAsync(CancellationToken cancel = default)
+    {
+        StartFlag.FirstCallOrThrowException();
+
+        List<Task> taskList = new List<Task>();
+
+        for (int i = 0; i < this.MaxConcurrentTasks; i++)
+        {
+            Task t = WorkerTaskAsync(cancel);
+
+            taskList.Add(t);
+        }
+
+        foreach (Task t in taskList)
+        {
+            await t._TryWaitAsync(true);
+        }
+
+        return ResultList.ToList();
+    }
+
+    // ワーカー疑似スレッド
+    async Task WorkerTaskAsync(CancellationToken cancel = default)
+    {
+        while (true)
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            // キューから 1 つ取ります
+            if (FqdnQueue.TryDequeue(out string? fqdn) == false)
+            {
+                // もう ありません
+                return;
+            }
+
+            fqdn._MarkNotNull();
+
+            for (int i = 0; i < 3; i++)
+            {
+                // 処理を いたします
+                // 3 回トライする
+                try
+                {
+                    await PerformOneAsync(fqdn, cancel);
+                    break;
+                }
+                catch { }
+            }
+        }
+    }
+
+    // 1 つの FQDN レコードを処理する非同期関数
+    async Task PerformOneAsync(string fqdn, CancellationToken cancel = default)
+    {
+        // 名前解決を いたします
+        DnsResponse response = await TcpIp.QueryDnsAsync(new DnsGetIpQueryParam(fqdn, DnsQueryOptions.Default, 5000), cancel);
+
+        IEnumerable<IPAddress> addressList = response.IPAddressList.Where(x => x.AddressFamily.EqualsAny(AddressFamily.InterNetwork, AddressFamily.InterNetworkV6));
+
+        addressList._DoForEach(addr =>
+        {
+            $"{fqdn} => {addr}"._Print();
+            ResultList.Add(new SniHostnameIpAddressPair(sniHostName: fqdn, ipAddress: addr.ToString()));
+        });
+    }
+}
+
+public class SniHostnameIpAddressPair
+{
+    const StringComparison Comparison = StringComparison.OrdinalIgnoreCase;
+
+    public string SniHostName { get; }
+    public string IpAddress { get; }
+
+    public SniHostnameIpAddressPair(string sniHostName, string ipAddress)
+    {
+        SniHostName = sniHostName;
+        IpAddress = ipAddress;
+    }
+
+    public override int GetHashCode()
+        => System.HashCode.Combine(SniHostName.GetHashCode(Comparison), IpAddress.GetHashCode(Comparison));
+
+    public override bool Equals(object? obj)
+        => this.SniHostName.Equals(((SniHostnameIpAddressPair)obj!).SniHostName, Comparison) && this.IpAddress.Equals(((SniHostnameIpAddressPair)obj!).IpAddress, Comparison);
+}
+
+// 1. DNS ゾーンファイルを入力してユニークな FQDN レコードの一覧を出力する
+public class DnsFlattenUtil
+{
+    HashSet<string> FqdnSetInternal = new HashSet<string>(StrComparer.IgnoreCaseComparer);
+
+    public IReadOnlyCollection<string> FqdnSet => FqdnSetInternal;
+
+    public void InputZoneFile(string domainName, ReadOnlySpan<byte> fileData, Encoding? encoding = null)
+    {
+        encoding = encoding ?? Str.Utf8Encoding;
+
+        string[] lines = Str.GetLines(fileData._GetString(encoding));
+
+        foreach (string line in lines)
+        {
+            string line2 = line._StripCommentFromLine();
+
+            string[] tokens = line2._Split(StringSplitOptions.RemoveEmptyEntries, ' ', '\t');
+
+            //if (tokens.Length >= 4 && (IgnoreCase)tokens[2] == "SOA")
+            //{
+            //    string tmp = tokens[3].Trim();
+            //    if (tmp.EndsWith("."))
+            //    {
+            //        currentDomainName = tmp;
+            //    }
+            //}
+
+            //if (tokens.Length >= 5 && (IgnoreCase)tokens[3] == "SOA")
+            //{
+            //    string tmp = tokens[4].Trim();
+            //    if (tmp.EndsWith("."))
+            //    {
+            //        currentDomainName = tmp;
+            //    }
+            //}
+
+            if (tokens.Length >= 3)
+            {
+                string hostName = tokens[0];
+                string type = tokens[tokens.Length - 2].ToUpper();
+
+                if (type == "A" || type == "AAAA" || type == "CNAME")
+                {
+                    bool isFull = hostName.EndsWith(".");
+
+                    string fqdn;
+
+                    if (isFull == false)
                     {
-                        bool isFull = hostName.EndsWith(".");
-
-                        string fqdn;
-
-                        if (isFull == false)
+                        if (domainName._IsEmpty())
                         {
-                            if (domainName._IsEmpty())
-                            {
-                                throw new ApplicationException("currentDomainName == null");
-                            }
+                            throw new ApplicationException("currentDomainName == null");
+                        }
 
-                            if (hostName == "@")
-                            {
-                                fqdn = domainName;
-                            }
-                            else
-                            {
-                                fqdn = hostName + "." + domainName;
-                            }
+                        if (hostName == "@")
+                        {
+                            fqdn = domainName;
                         }
                         else
                         {
-                            fqdn = hostName;
+                            fqdn = hostName + "." + domainName;
                         }
-
-                        if (fqdn.StartsWith("*."))
-                        {
-                            fqdn = "_asterisk." + fqdn.Substring(2);
-                        }
-
-                        InputFqdn(fqdn);
                     }
+                    else
+                    {
+                        fqdn = hostName;
+                    }
+
+                    if (fqdn.StartsWith("*."))
+                    {
+                        fqdn = "_asterisk." + fqdn.Substring(2);
+                    }
+
+                    InputFqdn(fqdn);
                 }
             }
         }
+    }
 
-        public void InputFqdn(string fqdn)
-        {
-            fqdn = fqdn._NonNullTrim();
-            if (fqdn.EndsWith(".")) fqdn = fqdn.Substring(0, fqdn.Length - 1);
-            if (fqdn._IsEmpty()) return;
+    public void InputFqdn(string fqdn)
+    {
+        fqdn = fqdn._NonNullTrim();
+        if (fqdn.EndsWith(".")) fqdn = fqdn.Substring(0, fqdn.Length - 1);
+        if (fqdn._IsEmpty()) return;
 
-            FqdnSetInternal.Add(fqdn);
-        }
+        FqdnSetInternal.Add(fqdn);
     }
 }
 

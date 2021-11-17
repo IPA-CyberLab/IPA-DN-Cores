@@ -43,442 +43,441 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public class TaskVmAbortException : Exception
 {
-    public class TaskVmAbortException : Exception
+    public TaskVmAbortException(string message) : base(message) { }
+}
+
+public static class AbortedTaskExecuteThreadPrivate
+{
+    static object LockObj = new object();
+    static Dictionary<object, Queue<(SendOrPostCallback callback, object? args)>> DispatchQueueList = new Dictionary<object, Queue<(SendOrPostCallback, object?)>>();
+    static object dummy_orphants = new object();
+    static AutoResetEvent ev = new AutoResetEvent(true);
+
+    static AbortedTaskExecuteThreadPrivate()
     {
-        public TaskVmAbortException(string message) : base(message) { }
+        Thread t = new Thread(ThreadProc);
+        t.IsBackground = true;
+        t.Start();
     }
 
-    public static class AbortedTaskExecuteThreadPrivate
+    static void ThreadProc(object? param)
     {
-        static object LockObj = new object();
-        static Dictionary<object, Queue<(SendOrPostCallback callback, object? args)>> DispatchQueueList = new Dictionary<object, Queue<(SendOrPostCallback, object?)>>();
-        static object dummy_orphants = new object();
-        static AutoResetEvent ev = new AutoResetEvent(true);
+        SynchronizationContext.SetSynchronizationContext(new AbortedTaskExecuteThreadSynchronizationContext());
 
-        static AbortedTaskExecuteThreadPrivate()
+        while (true)
         {
-            Thread t = new Thread(ThreadProc);
-            t.IsBackground = true;
-            t.Start();
-        }
+            var actions = new List<(SendOrPostCallback callback, object? args)>();
 
-        static void ThreadProc(object? param)
-        {
-            SynchronizationContext.SetSynchronizationContext(new AbortedTaskExecuteThreadSynchronizationContext());
-
-            while (true)
-            {
-                var actions = new List<(SendOrPostCallback callback, object? args)>();
-
-                lock (LockObj)
-                {
-                    foreach (object ctx in DispatchQueueList.Keys)
-                    {
-                        var queue = DispatchQueueList[ctx];
-
-                        while (queue.Count >= 1)
-                        {
-                            actions.Add(queue.Dequeue());
-                        }
-                    }
-                }
-
-                foreach (var action in actions)
-                {
-                    try
-                    {
-                        //Dbg.WriteCurrentThreadId("aborted_call");
-                        action.callback(action.args);
-                    }
-                    catch (Exception ex)
-                    {
-                        ex.ToString()._Debug();
-                    }
-                }
-
-                ev.WaitOne();
-            }
-        }
-
-        public static void PostAction(object ctx, SendOrPostCallback callback, object? arg)
-        {
             lock (LockObj)
             {
-                if (DispatchQueueList.ContainsKey(ctx) == false)
-                {
-                    DispatchQueueList.Add(ctx, new Queue<(SendOrPostCallback, object?)>());
-                }
-
-                DispatchQueueList[ctx].Enqueue((callback, arg));
-            }
-
-            ev.Set();
-        }
-
-        public static void RemoveContext(object ctx)
-        {
-            lock (LockObj)
-            {
-                if (DispatchQueueList.ContainsKey(ctx))
+                foreach (object ctx in DispatchQueueList.Keys)
                 {
                     var queue = DispatchQueueList[ctx];
 
                     while (queue.Count >= 1)
                     {
-                        var q = queue.Dequeue();
-                        PostAction(dummy_orphants, q.callback, q.args);
+                        actions.Add(queue.Dequeue());
                     }
-
-                    DispatchQueueList.Remove(ctx);
                 }
             }
 
-            ev.Set();
+            foreach (var action in actions)
+            {
+                try
+                {
+                    //Dbg.WriteCurrentThreadId("aborted_call");
+                    action.callback(action.args);
+                }
+                catch (Exception ex)
+                {
+                    ex.ToString()._Debug();
+                }
+            }
+
+            ev.WaitOne();
+        }
+    }
+
+    public static void PostAction(object ctx, SendOrPostCallback callback, object? arg)
+    {
+        lock (LockObj)
+        {
+            if (DispatchQueueList.ContainsKey(ctx) == false)
+            {
+                DispatchQueueList.Add(ctx, new Queue<(SendOrPostCallback, object?)>());
+            }
+
+            DispatchQueueList[ctx].Enqueue((callback, arg));
         }
 
-        class AbortedTaskExecuteThreadSynchronizationContext : SynchronizationContext
+        ev.Set();
+    }
+
+    public static void RemoveContext(object ctx)
+    {
+        lock (LockObj)
         {
-            volatile int num_operations = 0;
-            volatile int num_operations_total = 0;
-
-            public bool IsAllOperationsCompleted => (num_operations_total >= 1 && num_operations == 0);
-
-            public override void Post(SendOrPostCallback d, object? state)
+            if (DispatchQueueList.ContainsKey(ctx))
             {
-                //Dbg.WriteCurrentThreadId("aborted_call_post");
-                AbortedTaskExecuteThreadPrivate.PostAction(AbortedTaskExecuteThreadPrivate.dummy_orphants, d, state);
+                var queue = DispatchQueueList[ctx];
+
+                while (queue.Count >= 1)
+                {
+                    var q = queue.Dequeue();
+                    PostAction(dummy_orphants, q.callback, q.args);
+                }
+
+                DispatchQueueList.Remove(ctx);
+            }
+        }
+
+        ev.Set();
+    }
+
+    class AbortedTaskExecuteThreadSynchronizationContext : SynchronizationContext
+    {
+        volatile int num_operations = 0;
+        volatile int num_operations_total = 0;
+
+        public bool IsAllOperationsCompleted => (num_operations_total >= 1 && num_operations == 0);
+
+        public override void Post(SendOrPostCallback d, object? state)
+        {
+            //Dbg.WriteCurrentThreadId("aborted_call_post");
+            AbortedTaskExecuteThreadPrivate.PostAction(AbortedTaskExecuteThreadPrivate.dummy_orphants, d, state);
+        }
+    }
+}
+
+public class TaskVm<TResult, TIn>
+{
+    public ThreadObj ThreadObj { get; }
+
+    Func<TIn?, Task<TResult>> RootFunction;
+    Task? RootTask;
+
+    Queue<(SendOrPostCallback callback, object? args)> DispatchQueue = new Queue<(SendOrPostCallback callback, object? args)>();
+    AutoResetEvent DispatchQueueEvent = new AutoResetEvent(false);
+
+    public TIn? InputParameter { get; }
+
+    CancellationToken GracefulCancel { get; }
+    CancellationToken AbortCancel { get; }
+
+    object ResultLock = new object();
+    public Exception? Error { get; private set; } = null;
+
+    public TResult Result => this.GetResult(out _)!;
+
+    [AllowNull]
+    TResult result = default(TResult)!;
+    public bool IsCompleted { get; private set; } = false;
+    public bool IsAborted { get; private set; } = false;
+    public bool HasError => this.Error != null;
+    public bool Ok => !HasError;
+
+    public ManualResetEventSlim CompletedEvent { get; } = new ManualResetEventSlim();
+
+    bool abort_flag = false;
+    bool no_more_enqueue = false;
+
+    TaskVmSynchronizationContext? syncCtx;
+
+    public TaskVm(Func<TIn?, Task<TResult>> rootAction, TIn? input_parameter = default(TIn), CancellationToken gracefulCancel = default(CancellationToken), CancellationToken abortCancel = default(CancellationToken))
+    {
+        this.InputParameter = input_parameter;
+        this.RootFunction = rootAction;
+        this.GracefulCancel = gracefulCancel;
+        this.AbortCancel = abortCancel;
+
+        this.AbortCancel.Register(() =>
+        {
+            Abort(true);
+        });
+
+        this.ThreadObj = new ThreadObj(this.ThreadProc);
+        this.ThreadObj.WaitForInit();
+    }
+
+    public static Task<TResult> NewTaskVm(Func<TIn?, Task<TResult>> rootAction, TIn? inputParameter = default, CancellationToken gracefulCancel = default(CancellationToken), CancellationToken abortCancel = default(CancellationToken))
+    {
+        TaskVm<TResult, TIn> vm = new TaskVm<TResult, TIn>(rootAction, inputParameter, gracefulCancel, abortCancel);
+
+        return Task<TResult>.Run(new Func<TResult>(vm.GetResultSimple));
+    }
+
+    TResult GetResultSimple()
+    {
+        return this.GetResult()!;
+    }
+
+    public bool Abort(bool noWait = false)
+    {
+        this.abort_flag = true;
+
+        this.DispatchQueueEvent.Set();
+
+        if (noWait)
+        {
+            return this.IsAborted;
+        }
+
+        this.ThreadObj.WaitForEnd();
+
+        return this.IsAborted;
+    }
+
+    public bool Wait(bool ignoreError = false, int timeout = Timeout.Infinite, CancellationToken cancel = default(CancellationToken))
+    {
+        TResult? ret = GetResult(out bool timeouted, ignoreError, timeout, cancel);
+
+        return !timeouted;
+    }
+
+    [return: MaybeNull]
+    public TResult GetResult(bool ignoreError = false, int timeout = Timeout.Infinite, CancellationToken cancel = default(CancellationToken)) => GetResult(out _, ignoreError, timeout, cancel);
+
+    [return: MaybeNull]
+    public TResult GetResult(out bool timeouted, bool ignoreError = false, int timeout = Timeout.Infinite, CancellationToken cancel = default(CancellationToken))
+    {
+        CompletedEvent.Wait(timeout, cancel);
+
+        if (this.IsCompleted == false)
+        {
+            timeouted = true;
+            return default(TResult)!;
+        }
+
+        timeouted = false;
+
+        if (this.Error != null)
+        {
+            if (ignoreError == false)
+            {
+                throw this.Error;
+            }
+            else
+            {
+                return default(TResult)!;
+            }
+        }
+
+        return this.result;
+    }
+
+    void ThreadProc(object? param)
+    {
+        syncCtx = new TaskVmSynchronizationContext(this);
+        SynchronizationContext.SetSynchronizationContext(syncCtx);
+
+        ThreadLocalStorage.CurrentThreadData["taskvm_current_graceful_cancel"] = this.GracefulCancel;
+
+        //Dbg.WriteCurrentThreadId("before task_proc()");
+
+        this.RootTask = TaskProc();
+
+        DispatcherLoop();
+    }
+
+    void SetResult(Exception? ex = null, [AllowNull] TResult result = default(TResult))
+    {
+        lock (this.ResultLock)
+        {
+            if (this.IsCompleted == false)
+            {
+                this.IsCompleted = true;
+
+                if (ex == null)
+                {
+                    this.result = result;
+                }
+                else
+                {
+                    this.Error = ex;
+
+                    if (ex is TaskVmAbortException)
+                    {
+                        this.IsAborted = true;
+                    }
+                }
+
+                this.DispatchQueueEvent.Set();
+                this.CompletedEvent.Set();
             }
         }
     }
 
-    public class TaskVm<TResult, TIn>
+    async Task TaskProc()
     {
-        public ThreadObj ThreadObj { get; }
+        //Dbg.WriteCurrentThreadId("task_proc: before yield");
 
-        Func<TIn?, Task<TResult>> RootFunction;
-        Task? RootTask;
+        await Task.Yield();
 
-        Queue<(SendOrPostCallback callback, object? args)> DispatchQueue = new Queue<(SendOrPostCallback callback, object? args)>();
-        AutoResetEvent DispatchQueueEvent = new AutoResetEvent(false);
+        //Dbg.WriteCurrentThreadId("task_proc: before await");
 
-        public TIn? InputParameter { get; }
+        TResult ret = default(TResult)!;
 
-        CancellationToken GracefulCancel { get; }
-        CancellationToken AbortCancel { get; }
-
-        object ResultLock = new object();
-        public Exception? Error { get; private set; } = null;
-
-        public TResult Result => this.GetResult(out _)!;
-
-        [AllowNull]
-        TResult result = default(TResult)!;
-        public bool IsCompleted { get; private set; } = false;
-        public bool IsAborted { get; private set; } = false;
-        public bool HasError => this.Error != null;
-        public bool Ok => !HasError;
-
-        public ManualResetEventSlim CompletedEvent { get; } = new ManualResetEventSlim();
-
-        bool abort_flag = false;
-        bool no_more_enqueue = false;
-
-        TaskVmSynchronizationContext? syncCtx;
-
-        public TaskVm(Func<TIn?, Task<TResult>> rootAction, TIn? input_parameter = default(TIn), CancellationToken gracefulCancel = default(CancellationToken), CancellationToken abortCancel = default(CancellationToken))
+        try
         {
-            this.InputParameter = input_parameter;
-            this.RootFunction = rootAction;
-            this.GracefulCancel = gracefulCancel;
-            this.AbortCancel = abortCancel;
+            ret = await this.RootFunction(this.InputParameter);
 
-            this.AbortCancel.Register(() =>
+            //Dbg.WriteCurrentThreadId("task_proc: after await");
+            SetResult(null, ret);
+        }
+        catch (Exception ex)
+        {
+            SetResult(ex);
+        }
+    }
+
+    void DispatcherLoop()
+    {
+        int NumExecutedTasks = 0;
+
+        while (this.IsCompleted == false)
+        {
+            this.DispatchQueueEvent.WaitOne();
+
+            if (this.abort_flag)
             {
-                Abort(true);
-            });
-
-            this.ThreadObj = new ThreadObj(this.ThreadProc);
-            this.ThreadObj.WaitForInit();
-        }
-
-        public static Task<TResult> NewTaskVm(Func<TIn?, Task<TResult>> rootAction, TIn? inputParameter = default, CancellationToken gracefulCancel = default(CancellationToken), CancellationToken abortCancel = default(CancellationToken))
-        {
-            TaskVm<TResult, TIn> vm = new TaskVm<TResult, TIn>(rootAction, inputParameter, gracefulCancel, abortCancel);
-
-            return Task<TResult>.Run(new Func<TResult>(vm.GetResultSimple));
-        }
-
-        TResult GetResultSimple()
-        {
-            return this.GetResult()!;
-        }
-
-        public bool Abort(bool noWait = false)
-        {
-            this.abort_flag = true;
-
-            this.DispatchQueueEvent.Set();
-
-            if (noWait)
-            {
-                return this.IsAborted;
+                SetResult(new TaskVmAbortException("aborted."));
             }
 
-            this.ThreadObj.WaitForEnd();
-
-            return this.IsAborted;
-        }
-
-        public bool Wait(bool ignoreError = false, int timeout = Timeout.Infinite, CancellationToken cancel = default(CancellationToken))
-        {
-            TResult? ret = GetResult(out bool timeouted, ignoreError, timeout, cancel);
-
-            return !timeouted;
-        }
-
-        [return: MaybeNull]
-        public TResult GetResult(bool ignoreError = false, int timeout = Timeout.Infinite, CancellationToken cancel = default(CancellationToken)) => GetResult(out _, ignoreError, timeout, cancel);
-
-        [return: MaybeNull]
-        public TResult GetResult(out bool timeouted, bool ignoreError = false, int timeout = Timeout.Infinite, CancellationToken cancel = default(CancellationToken))
-        {
-            CompletedEvent.Wait(timeout, cancel);
-
-            if (this.IsCompleted == false)
+            while (true)
             {
-                timeouted = true;
-                return default(TResult)!;
-            }
+                (SendOrPostCallback callback, object? args) queuedItem;
 
-            timeouted = false;
-
-            if (this.Error != null)
-            {
-                if (ignoreError == false)
+                lock (this.DispatchQueue)
                 {
-                    throw this.Error;
-                }
-                else
-                {
-                    return default(TResult)!;
-                }
-            }
-
-            return this.result;
-        }
-
-        void ThreadProc(object? param)
-        {
-            syncCtx = new TaskVmSynchronizationContext(this);
-            SynchronizationContext.SetSynchronizationContext(syncCtx);
-
-            ThreadLocalStorage.CurrentThreadData["taskvm_current_graceful_cancel"] = this.GracefulCancel;
-
-            //Dbg.WriteCurrentThreadId("before task_proc()");
-
-            this.RootTask = TaskProc();
-
-            DispatcherLoop();
-        }
-
-        void SetResult(Exception? ex = null, [AllowNull] TResult result = default(TResult))
-        {
-            lock (this.ResultLock)
-            {
-                if (this.IsCompleted == false)
-                {
-                    this.IsCompleted = true;
-
-                    if (ex == null)
+                    if (this.DispatchQueue.Count == 0)
                     {
-                        this.result = result;
+                        break;
                     }
-                    else
-                    {
-                        this.Error = ex;
-
-                        if (ex is TaskVmAbortException)
-                        {
-                            this.IsAborted = true;
-                        }
-                    }
-
-                    this.DispatchQueueEvent.Set();
-                    this.CompletedEvent.Set();
+                    queuedItem = this.DispatchQueue.Dequeue();
                 }
-            }
-        }
 
-        async Task TaskProc()
-        {
-            //Dbg.WriteCurrentThreadId("task_proc: before yield");
-
-            await Task.Yield();
-
-            //Dbg.WriteCurrentThreadId("task_proc: before await");
-
-            TResult ret = default(TResult)!;
-
-            try
-            {
-                ret = await this.RootFunction(this.InputParameter);
-
-                //Dbg.WriteCurrentThreadId("task_proc: after await");
-                SetResult(null, ret);
-            }
-            catch (Exception ex)
-            {
-                SetResult(ex);
-            }
-        }
-
-        void DispatcherLoop()
-        {
-            int NumExecutedTasks = 0;
-
-            while (this.IsCompleted == false)
-            {
-                this.DispatchQueueEvent.WaitOne();
+                if (NumExecutedTasks == 0)
+                {
+                    ThreadObj.NoticeInited();
+                }
+                NumExecutedTasks++;
 
                 if (this.abort_flag)
                 {
                     SetResult(new TaskVmAbortException("aborted."));
                 }
 
-                while (true)
+                try
                 {
-                    (SendOrPostCallback callback, object? args) queuedItem;
-
-                    lock (this.DispatchQueue)
-                    {
-                        if (this.DispatchQueue.Count == 0)
-                        {
-                            break;
-                        }
-                        queuedItem = this.DispatchQueue.Dequeue();
-                    }
-
-                    if (NumExecutedTasks == 0)
-                    {
-                        ThreadObj.NoticeInited();
-                    }
-                    NumExecutedTasks++;
-
-                    if (this.abort_flag)
-                    {
-                        SetResult(new TaskVmAbortException("aborted."));
-                    }
-
-                    try
-                    {
-                        queuedItem.callback(queuedItem.args);
-                    }
-                    catch (Exception ex)
-                    {
-                        ex.ToString()._Debug();
-                    }
+                    queuedItem.callback(queuedItem.args);
                 }
-            }
-
-            no_more_enqueue = true;
-
-            List<(SendOrPostCallback callback, object? args)> remainingTasks = new List<(SendOrPostCallback callback, object? args)>();
-            lock (this.DispatchQueue)
-            {
-                while (true)
+                catch (Exception ex)
                 {
-                    if (this.DispatchQueue.Count == 0)
-                    {
-                        break;
-                    }
-                    remainingTasks.Add(this.DispatchQueue.Dequeue());
-                }
-                foreach (var x in remainingTasks)
-                {
-                    AbortedTaskExecuteThreadPrivate.PostAction(this.syncCtx!, x.callback, x.args);
+                    ex.ToString()._Debug();
                 }
             }
         }
 
-        public class TaskVmSynchronizationContext : SynchronizationContext
+        no_more_enqueue = true;
+
+        List<(SendOrPostCallback callback, object? args)> remainingTasks = new List<(SendOrPostCallback callback, object? args)>();
+        lock (this.DispatchQueue)
         {
-            public readonly TaskVm<TResult, TIn> Vm;
-            volatile int NumOperations = 0;
-            volatile int NumOperationsTotal = 0;
-
-
-            public bool IsAllOperationsCompleted => (NumOperationsTotal >= 1 && NumOperations == 0);
-
-            public TaskVmSynchronizationContext(TaskVm<TResult, TIn> vm)
+            while (true)
             {
-                this.Vm = vm;
+                if (this.DispatchQueue.Count == 0)
+                {
+                    break;
+                }
+                remainingTasks.Add(this.DispatchQueue.Dequeue());
+            }
+            foreach (var x in remainingTasks)
+            {
+                AbortedTaskExecuteThreadPrivate.PostAction(this.syncCtx!, x.callback, x.args);
+            }
+        }
+    }
+
+    public class TaskVmSynchronizationContext : SynchronizationContext
+    {
+        public readonly TaskVm<TResult, TIn> Vm;
+        volatile int NumOperations = 0;
+        volatile int NumOperationsTotal = 0;
+
+
+        public bool IsAllOperationsCompleted => (NumOperationsTotal >= 1 && NumOperations == 0);
+
+        public TaskVmSynchronizationContext(TaskVm<TResult, TIn> vm)
+        {
+            this.Vm = vm;
+        }
+
+        public override SynchronizationContext CreateCopy()
+        {
+            //Dbg.WriteCurrentThreadId("CreateCopy");
+            return base.CreateCopy();
+        }
+
+        public override void OperationCompleted()
+        {
+            base.OperationCompleted();
+
+            Interlocked.Decrement(ref NumOperations);
+            //Dbg.WriteCurrentThreadId("OperationCompleted. num_operations = " + num_operations);
+            Vm.DispatchQueueEvent.Set();
+        }
+
+        public override void OperationStarted()
+        {
+            base.OperationStarted();
+
+            Interlocked.Increment(ref NumOperations);
+            Interlocked.Increment(ref NumOperationsTotal);
+            //Dbg.WriteCurrentThreadId("OperationStarted. num_operations = " + num_operations);
+            Vm.DispatchQueueEvent.Set();
+        }
+
+        public override void Post(SendOrPostCallback d, object? state)
+        {
+            //Dbg.WriteCurrentThreadId("Post: " + this.Vm.halt);
+            //base.Post(d, state);
+            //d(state);
+
+            bool ok = false;
+
+            lock (Vm.DispatchQueue)
+            {
+                if (Vm.no_more_enqueue == false)
+                {
+                    Vm.DispatchQueue.Enqueue((d, state));
+                    ok = true;
+                }
             }
 
-            public override SynchronizationContext CreateCopy()
+            if (ok)
             {
-                //Dbg.WriteCurrentThreadId("CreateCopy");
-                return base.CreateCopy();
-            }
-
-            public override void OperationCompleted()
-            {
-                base.OperationCompleted();
-
-                Interlocked.Decrement(ref NumOperations);
-                //Dbg.WriteCurrentThreadId("OperationCompleted. num_operations = " + num_operations);
                 Vm.DispatchQueueEvent.Set();
             }
-
-            public override void OperationStarted()
+            else
             {
-                base.OperationStarted();
-
-                Interlocked.Increment(ref NumOperations);
-                Interlocked.Increment(ref NumOperationsTotal);
-                //Dbg.WriteCurrentThreadId("OperationStarted. num_operations = " + num_operations);
-                Vm.DispatchQueueEvent.Set();
+                AbortedTaskExecuteThreadPrivate.PostAction(this, d, state);
             }
+        }
 
-            public override void Post(SendOrPostCallback d, object? state)
-            {
-                //Dbg.WriteCurrentThreadId("Post: " + this.Vm.halt);
-                //base.Post(d, state);
-                //d(state);
+        public override void Send(SendOrPostCallback d, object? state)
+        {
+            //Dbg.WriteCurrentThreadId("Send");
+            base.Send(d, state);
+        }
 
-                bool ok = false;
-
-                lock (Vm.DispatchQueue)
-                {
-                    if (Vm.no_more_enqueue == false)
-                    {
-                        Vm.DispatchQueue.Enqueue((d, state));
-                        ok = true;
-                    }
-                }
-
-                if (ok)
-                {
-                    Vm.DispatchQueueEvent.Set();
-                }
-                else
-                {
-                    AbortedTaskExecuteThreadPrivate.PostAction(this, d, state);
-                }
-            }
-
-            public override void Send(SendOrPostCallback d, object? state)
-            {
-                //Dbg.WriteCurrentThreadId("Send");
-                base.Send(d, state);
-            }
-
-            public override int Wait(IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout)
-            {
-                //Dbg.WriteCurrentThreadId("Wait");
-                return base.Wait(waitHandles, waitAll, millisecondsTimeout);
-            }
+        public override int Wait(IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout)
+        {
+            //Dbg.WriteCurrentThreadId("Wait");
+            return base.Wait(waitHandles, waitAll, millisecondsTimeout);
         }
     }
 }

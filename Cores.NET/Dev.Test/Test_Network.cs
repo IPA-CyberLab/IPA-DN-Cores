@@ -52,41 +52,41 @@ using Microsoft.Extensions.Hosting;
 #pragma warning disable CS0162
 #pragma warning disable CS0219
 
-namespace IPA.TestDev
+namespace IPA.TestDev;
+
+class TestHttpServerBuilder : HttpServerStartupBase
 {
-    class TestHttpServerBuilder : HttpServerStartupBase
+    public TestHttpServerBuilder(IConfiguration configuration) : base(configuration)
     {
-        public TestHttpServerBuilder(IConfiguration configuration) : base(configuration)
-        {
-        }
-
-        protected override void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
-        {
-        }
-
-        protected override void ConfigureImpl_AfterHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
-        {
-        }
     }
 
-    partial class TestDevCommands
+    protected override void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
     {
-        public class FqdnScanResult
-        {
-            public string IpSortKey = "";
-            public string Ip = "";
-            public string FqdnSortKey = "";
-            public string FqdnList = "";
-        }
+    }
 
-        [ConsoleCommand(
-        "DNS FQDN Scanner",
-        "FqdnScan [subnets] [/servers:8.8.8.8,8.8.4.4] [/threads:64] [/interval:100] [/try:1] [/shuffle:yes] [/fqdnorder:yes] [/dest:csv]",
-        "DNS FQDN Scanner")]
-        static async Task FqdnScanAsync(ConsoleService c, string cmdName, string str)
+    protected override void ConfigureImpl_AfterHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
+    {
+    }
+}
+
+partial class TestDevCommands
+{
+    public class FqdnScanResult
+    {
+        public string IpSortKey = "";
+        public string Ip = "";
+        public string FqdnSortKey = "";
+        public string FqdnList = "";
+    }
+
+    [ConsoleCommand(
+    "DNS FQDN Scanner",
+    "FqdnScan [subnets] [/servers:8.8.8.8,8.8.4.4] [/threads:64] [/interval:100] [/try:1] [/shuffle:yes] [/fqdnorder:yes] [/dest:csv]",
+    "DNS FQDN Scanner")]
+    static async Task FqdnScanAsync(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[subnets]", ConsoleService.Prompt, "Subnets: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("servers"),
                 new ConsoleParam("threads"),
@@ -97,342 +97,378 @@ namespace IPA.TestDev
                 new ConsoleParam("dest"),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            string subnets = vl.DefaultParam.StrValue;
-            string servers = vl["servers"].StrValue;
-            int threads = vl["threads"].IntValue;
-            int interval = vl["interval"].IntValue;
-            int numtry = vl["try"].IntValue;
-            bool shuffle = vl["shuffle"].StrValue._ToBool(true);
-            bool fqdnorder = vl["fqdnorder"].StrValue._ToBool(true);
-            string csv = vl["dest"].StrValue;
+        string subnets = vl.DefaultParam.StrValue;
+        string servers = vl["servers"].StrValue;
+        int threads = vl["threads"].IntValue;
+        int interval = vl["interval"].IntValue;
+        int numtry = vl["try"].IntValue;
+        bool shuffle = vl["shuffle"].StrValue._ToBool(true);
+        bool fqdnorder = vl["fqdnorder"].StrValue._ToBool(true);
+        string csv = vl["dest"].StrValue;
 
-            var serversList = servers._Split(StringSplitOptions.RemoveEmptyEntries, " ", "　", ",", "|");
-            if (serversList._IsEmpty())
+        var serversList = servers._Split(StringSplitOptions.RemoveEmptyEntries, " ", "　", ",", "|");
+        if (serversList._IsEmpty())
+        {
+            serversList = new string[] { "8.8.8.8", "8.8.4.4", "1.1.1.1", "3.3.3.3" };
+        }
+
+        List<IPEndPoint> endPointsList = new List<IPEndPoint>();
+
+        serversList._DoForEach(x => endPointsList.Add(new IPEndPoint(x._ToIPAddress()!, 53)));
+
+        using DnsHostNameScanner scan = new DnsHostNameScanner(
+            settings: new DnsHostNameScannerSettings { Interval = interval, NumThreads = threads, NumTry = numtry, PrintStat = true, RandomInterval = true, Shuffle = shuffle, PrintOrderByFqdn = fqdnorder },
+            dnsSettings: new DnsResolverSettings(dnsServersList: endPointsList, flags: DnsResolverFlags.UdpOnly | DnsResolverFlags.RoundRobinServers));
+
+        var list = await scan.PerformAsync(subnets);
+
+        if (csv._IsFilled())
+        {
+            using var csvWriter = Lfs.WriteCsv<FqdnScanResult>(csv, false, true, writeBom: false, flags: FileFlags.AutoCreateDirectory);
+
+            foreach (var item in list)
             {
-                serversList = new string[] { "8.8.8.8", "8.8.4.4", "1.1.1.1", "3.3.3.3" };
-            }
-
-            List<IPEndPoint> endPointsList = new List<IPEndPoint>();
-
-            serversList._DoForEach(x => endPointsList.Add(new IPEndPoint(x._ToIPAddress()!, 53)));
-
-            using DnsHostNameScanner scan = new DnsHostNameScanner(
-                settings: new DnsHostNameScannerSettings { Interval = interval, NumThreads = threads, NumTry = numtry, PrintStat = true, RandomInterval = true, Shuffle = shuffle, PrintOrderByFqdn = fqdnorder },
-                dnsSettings: new DnsResolverSettings(dnsServersList: endPointsList, flags: DnsResolverFlags.UdpOnly | DnsResolverFlags.RoundRobinServers));
-
-            var list = await scan.PerformAsync(subnets);
-
-            if (csv._IsFilled())
-            {
-                using var csvWriter = Lfs.WriteCsv<FqdnScanResult>(csv, false, true, writeBom: false, flags: FileFlags.AutoCreateDirectory);
-
-                foreach (var item in list)
+                if (item.HostnameList._IsFilled())
                 {
-                    if (item.HostnameList._IsFilled())
-                    {
-                        FqdnScanResult r = new FqdnScanResult();
+                    FqdnScanResult r = new FqdnScanResult();
 
-                        r.IpSortKey = IPAddr.FromAddress(item.Ip).GetZeroPaddingFullString();
-                        r.Ip = item.Ip.ToString();
-                        r.FqdnSortKey = Str.ReverseFqdnStr(item.HostnameList.First()).ToLower();
-                        r.FqdnList = item.HostnameList._Combine(" / ");
+                    r.IpSortKey = IPAddr.FromAddress(item.Ip).GetZeroPaddingFullString();
+                    r.Ip = item.Ip.ToString();
+                    r.FqdnSortKey = Str.ReverseFqdnStr(item.HostnameList.First()).ToLower();
+                    r.FqdnList = item.HostnameList._Combine(" / ");
 
-                        csvWriter.WriteData(r);
-                    }
+                    csvWriter.WriteData(r);
                 }
             }
         }
+    }
 
 
-        [ConsoleCommand(
-        "指定された URL (のテキストファイル) をダウンロードし、その URL に記載されているすべてのファイルをダウンロードする",
-        "DownloadUrlListedAsync [url] [/dest:dir] [/ext:tar.gz,zip,exe,...]",
-        "指定された URL (のテキストファイル) をダウンロードし、その URL に記載されているすべてのファイルをダウンロードする")]
-        static int DownloadUrlListedAsync(ConsoleService c, string cmdName, string str)
+    [ConsoleCommand(
+    "指定された URL (のテキストファイル) をダウンロードし、その URL に記載されているすべてのファイルをダウンロードする",
+    "DownloadUrlListedAsync [url] [/dest:dir] [/ext:tar.gz,zip,exe,...]",
+    "指定された URL (のテキストファイル) をダウンロードし、その URL に記載されているすべてのファイルをダウンロードする")]
+    static int DownloadUrlListedAsync(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[url]", ConsoleService.Prompt, "Input URL: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("dest", ConsoleService.Prompt, "Input dest directory: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("ext", ConsoleService.Prompt),
             };
 
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            string extList = vl["ext"].StrValue;
-            if (extList._IsEmpty()) extList = "tar.gz,zip,exe";
+        string extList = vl["ext"].StrValue;
+        if (extList._IsEmpty()) extList = "tar.gz,zip,exe";
 
-            FileDownloader.DownloadUrlListedAsync(vl.DefaultParam.StrValue,
-                vl["dest"].StrValue,
-                extList,
-                reporterFactory: new ProgressFileDownloadingReporterFactory(ProgressReporterOutputs.Console)
-                )._GetResult();
+        FileDownloader.DownloadUrlListedAsync(vl.DefaultParam.StrValue,
+            vl["dest"].StrValue,
+            extList,
+            reporterFactory: new ProgressFileDownloadingReporterFactory(ProgressReporterOutputs.Console)
+            )._GetResult();
 
-            return 0;
-        }
+        return 0;
+    }
 
-        [ConsoleCommand(
-            "SslCertListCollector command",
-            "SslCertListCollector [dnsZonesDir] [/OUT:outDir]",
-            "SslCertListCollector command")]
-        static int SslCertListCollector(ConsoleService c, string cmdName, string str)
+    [ConsoleCommand(
+        "SslCertListCollector command",
+        "SslCertListCollector [dnsZonesDir] [/OUT:outDir]",
+        "SslCertListCollector command")]
+    static int SslCertListCollector(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
         {
-            ConsoleParam[] args =
-            {
                 new ConsoleParam("[dnsZonesDir]", ConsoleService.Prompt, "dnsZonesDir: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("OUT", ConsoleService.Prompt, "outDir: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("HASH"),
             };
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            string dirZonesDir = vl.DefaultParam.StrValue;
-            string outDir = vl["OUT"].StrValue;
-            string hashliststr = vl["HASH"].StrValue;
-            string[] hashlist = hashliststr._Split(StringSplitOptions.RemoveEmptyEntries, ";", "/", ",", ":", " ");
+        string dirZonesDir = vl.DefaultParam.StrValue;
+        string outDir = vl["OUT"].StrValue;
+        string hashliststr = vl["HASH"].StrValue;
+        string[] hashlist = hashliststr._Split(StringSplitOptions.RemoveEmptyEntries, ";", "/", ",", ":", " ");
 
-            var dirList = Lfs.EnumDirectory(dirZonesDir, false);
-            if (dirList.Where(x => x.IsFile && (IgnoreCaseTrim)Lfs.PathParser.GetExtension(x.Name) == ".dns").Any() == false)
-            {
-                // 指定されたディレクトリに *.dns ファイルが 1 つもない場合は子ディレクトリ名をソートして一番大きいものを選択する
-                dirZonesDir = dirList.OrderByDescending(x => x.Name).Where(x => x.IsDirectory).Select(x => x.FullPath).First();
-            }
-
-            Con.WriteLine($"Target directory: '{dirZonesDir}'");
-
-            // 1. DNS ゾーンファイルを入力してユニークな FQDN レコードの一覧を生成する
-            DnsFlattenUtil flat = new DnsFlattenUtil();
-
-            foreach (FileSystemEntity ent in Lfs.EnumDirectory(dirZonesDir, true))
-            {
-                if (ent.IsFile)
-                {
-                    string fn = ent.FullPath;
-                    fn._Print();
-
-                    flat.InputZoneFile(Lfs.PathParser.GetFileNameWithoutExtension(fn), Lfs.ReadDataFromFile(fn).Span);
-                }
-            }
-
-            // 2. FQDN の一覧を入力して FQDN と IP アドレスのペアの一覧を生成する
-            DnsIpPairGeneratorUtil pairGenerator = new DnsIpPairGeneratorUtil(100, flat.FqdnSet);
-
-            List<SniHostnameIpAddressPair> list = pairGenerator.ExecuteAsync()._GetResult().ToList();
-
-            // 3. FQDN と IP アドレスのペアの一覧を入力して SSL 証明書一覧を出力する
-            SslCertCollectorUtil col = new SslCertCollectorUtil(1000, list);
-
-            IReadOnlyList<SslCertCollectorItem> ret = col.ExecuteAsync()._GetResult();
-
-            if (hashlist.Length >= 1)
-            {
-                List<SslCertCollectorItem> filtered = new List<SslCertCollectorItem>();
-                ret.Where(x => hashlist.Where(y => y._IsSameHex(x.CertHashSha1)).Any())._DoForEach(x => filtered.Add(x));
-                ret = filtered;
-            }
-
-            ret = ret.OrderBy(x => x.FriendName._NonNullTrim()._Split(StringSplitOptions.RemoveEmptyEntries, ".").Reverse()._Combine("."), StrComparer.IgnoreCaseTrimComparer).ToList();
-
-            // 結果表示
-            Con.WriteLine($"Results: {ret.Count} endpoints");
-
-            // 結果保存
-            string csv = ret._ObjectArrayToCsv(withHeader: true);
-
-            XmlAndXsd xmlData = Util.GenerateXmlAndXsd(ret);
-
-            string dir = outDir;
-
-            Lfs.WriteDataToFile(Lfs.PathParser.Combine(dir, xmlData.XmlFileName), xmlData.XmlData, flags: FileFlags.AutoCreateDirectory);
-            Lfs.WriteDataToFile(Lfs.PathParser.Combine(dir, xmlData.XsdFileName), xmlData.XsdData, flags: FileFlags.AutoCreateDirectory);
-            Lfs.WriteStringToFile(Lfs.PathParser.Combine(dir, "csv.csv"), csv, flags: FileFlags.AutoCreateDirectory, writeBom: true);
-
-            return 0;
+        var dirList = Lfs.EnumDirectory(dirZonesDir, false);
+        if (dirList.Where(x => x.IsFile && (IgnoreCaseTrim)Lfs.PathParser.GetExtension(x.Name) == ".dns").Any() == false)
+        {
+            // 指定されたディレクトリに *.dns ファイルが 1 つもない場合は子ディレクトリ名をソートして一番大きいものを選択する
+            dirZonesDir = dirList.OrderByDescending(x => x.Name).Where(x => x.IsDirectory).Select(x => x.FullPath).First();
         }
 
-        [ConsoleCommand(
-            "TcpStressServer command",
-            "TcpStressServer [port]",
-            "TcpStressServer test")]
-        static int TcpStressServer(ConsoleService c, string cmdName, string str)
+        Con.WriteLine($"Target directory: '{dirZonesDir}'");
+
+        // 1. DNS ゾーンファイルを入力してユニークな FQDN レコードの一覧を生成する
+        DnsFlattenUtil flat = new DnsFlattenUtil();
+
+        foreach (FileSystemEntity ent in Lfs.EnumDirectory(dirZonesDir, true))
         {
-            // .NET 3.0 @ Linux, cpu 56 cores で csproj に以下を投入して TcpStressClient で大量に接続をして
-            // GC で短時間フリーズ現象が発生しなければ OK!!
-            // .NET 2.1, 2.2 は現象が発生する。
-            // 
-            // <ServerGarbageCollection>true</ServerGarbageCollection>
-            // <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
-
-            ConsoleParam[] args = { };
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
-
-            int port = 80;
-
-            if (vl.DefaultParam.StrValue._IsEmpty() == false)
+            if (ent.IsFile)
             {
-                port = vl.DefaultParam.IntValue;
+                string fn = ent.FullPath;
+                fn._Print();
+
+                flat.InputZoneFile(Lfs.PathParser.GetFileNameWithoutExtension(fn), Lfs.ReadDataFromFile(fn).Span);
             }
-
-            Net_Test12_AcceptLoop2(port);
-
-            return 0;
         }
 
-        [ConsoleCommand(
-            "TcpStressClient command",
-            "TcpStressClient [url]",
-            "TcpStressClient test")]
-        static int TcpStressClient(ConsoleService c, string cmdName, string str)
+        // 2. FQDN の一覧を入力して FQDN と IP アドレスのペアの一覧を生成する
+        DnsIpPairGeneratorUtil pairGenerator = new DnsIpPairGeneratorUtil(100, flat.FqdnSet);
+
+        List<SniHostnameIpAddressPair> list = pairGenerator.ExecuteAsync()._GetResult().ToList();
+
+        // 3. FQDN と IP アドレスのペアの一覧を入力して SSL 証明書一覧を出力する
+        SslCertCollectorUtil col = new SslCertCollectorUtil(1000, list);
+
+        IReadOnlyList<SslCertCollectorItem> ret = col.ExecuteAsync()._GetResult();
+
+        if (hashlist.Length >= 1)
         {
-            ConsoleParam[] args =
-            {
+            List<SslCertCollectorItem> filtered = new List<SslCertCollectorItem>();
+            ret.Where(x => hashlist.Where(y => y._IsSameHex(x.CertHashSha1)).Any())._DoForEach(x => filtered.Add(x));
+            ret = filtered;
+        }
+
+        ret = ret.OrderBy(x => x.FriendName._NonNullTrim()._Split(StringSplitOptions.RemoveEmptyEntries, ".").Reverse()._Combine("."), StrComparer.IgnoreCaseTrimComparer).ToList();
+
+        // 結果表示
+        Con.WriteLine($"Results: {ret.Count} endpoints");
+
+        // 結果保存
+        string csv = ret._ObjectArrayToCsv(withHeader: true);
+
+        XmlAndXsd xmlData = Util.GenerateXmlAndXsd(ret);
+
+        string dir = outDir;
+
+        Lfs.WriteDataToFile(Lfs.PathParser.Combine(dir, xmlData.XmlFileName), xmlData.XmlData, flags: FileFlags.AutoCreateDirectory);
+        Lfs.WriteDataToFile(Lfs.PathParser.Combine(dir, xmlData.XsdFileName), xmlData.XsdData, flags: FileFlags.AutoCreateDirectory);
+        Lfs.WriteStringToFile(Lfs.PathParser.Combine(dir, "csv.csv"), csv, flags: FileFlags.AutoCreateDirectory, writeBom: true);
+
+        return 0;
+    }
+
+    [ConsoleCommand(
+        "TcpStressServer command",
+        "TcpStressServer [port]",
+        "TcpStressServer test")]
+    static int TcpStressServer(ConsoleService c, string cmdName, string str)
+    {
+        // .NET 3.0 @ Linux, cpu 56 cores で csproj に以下を投入して TcpStressClient で大量に接続をして
+        // GC で短時間フリーズ現象が発生しなければ OK!!
+        // .NET 2.1, 2.2 は現象が発生する。
+        // 
+        // <ServerGarbageCollection>true</ServerGarbageCollection>
+        // <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+
+        ConsoleParam[] args = { };
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        int port = 80;
+
+        if (vl.DefaultParam.StrValue._IsEmpty() == false)
+        {
+            port = vl.DefaultParam.IntValue;
+        }
+
+        Net_Test12_AcceptLoop2(port);
+
+        return 0;
+    }
+
+    [ConsoleCommand(
+        "TcpStressClient command",
+        "TcpStressClient [url]",
+        "TcpStressClient test")]
+    static int TcpStressClient(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
                 new ConsoleParam("[url]"),
             };
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-            string url = vl.DefaultParam.StrValue;
+        string url = vl.DefaultParam.StrValue;
 
-            if (url._IsEmpty())
-            {
-                url = "http://dn-lxd-vm2-test1/favicon.ico";
-            }
-
-            int count = 0;
-            if (true)
-            {
-                while (true)
-                {
-                    try
-                    {
-                        while (true)
-                        {
-                            using (WebApi api = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true })))
-                            {
-                                count++;
-                                Con.WriteLine($"Count : {count}");
-                                long start = Time.HighResTick64;
-                                var ret = api.SimpleQueryAsync(WebMethods.GET, url)._GetResult();
-                                long end = Time.HighResTick64;
-
-                                Con.WriteLine(end - start);
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        ex._Debug();
-                        Thread.Sleep(10);
-                    }
-                }
-                return 0;
-            }
-
-
-            return 0;
+        if (url._IsEmpty())
+        {
+            url = "http://dn-lxd-vm2-test1/favicon.ico";
         }
 
-        [ConsoleCommand(
-            "Net command",
-            "Net [arg]",
-            "Net test")]
-        static int Net(ConsoleService c, string cmdName, string str)
+        int count = 0;
+        if (true)
         {
-            ConsoleParam[] args = { };
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
-
-            TcpIpSystemHostInfo hostInfo = LocalNet.GetHostInfo(true);
-
-            Net_Test1_PlainTcp_Client();
-            return 0;
-
-            //Net_Test2_Ssl_Client();
-            //return 0;
-
-            //Net_Test3_PlainTcp_Server();
-            //return 0;
-
-            //Net_Test3_2_PlainTcp_Server_AcceptQueue();
-            //return 0;
-
-
-            //while (true)
-            //{
-            //    try
-            //    {
-            //        Net_Test4_SpeedTest_Client();
-            //    }
-            //    catch (Exception ex)
-            //    {
-            //        ex.ToString()._Print();
-            //    }
-            //}
-
-            //Net_Test5_SpeedTest_Server();
-
-            //Net_Test6_DualStack_Client();
-
-            //Net_Test7_Http_Download_Async()._GetResult();
-
-            //Net_Test8_Http_Upload_Async()._GetResult();
-
-            //Net_Test9_WebServer();
-
-            //Net_Test10_SslServer();
-
-            //Net_Test11_AcceptLoop();
-
-            //Net_Test12_AcceptLoop2();
-
-            //Net_Test13_WebSocketClientAsync()._GetResult();
-
-            //Net_Test14_WebSocketClient2Async()._GetResult();
-
-            return 0;
-        }
-
-        class SslServerTest : SslServerBase
-        {
-            public SslServerTest(SslServerOptions options) : base(options)
+            while (true)
             {
-            }
-
-            protected override async Task SslAcceptedImplAsync(NetTcpListenerPort listener, SslSock sock)
-            {
-                using (var stream = sock.GetStream())
-                using (var r = new StreamReader(stream))
-                using (var w = new StreamWriter(stream))
+                try
                 {
                     while (true)
                     {
-                        string? recv = await r.ReadLineAsync();
-                        if (recv == null)
-                            return;
+                        using (WebApi api = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true })))
+                        {
+                            count++;
+                            Con.WriteLine($"Count : {count}");
+                            long start = Time.HighResTick64;
+                            var ret = api.SimpleQueryAsync(WebMethods.GET, url)._GetResult();
+                            long end = Time.HighResTick64;
 
-                        Con.WriteLine(recv);
-
-                        await w.WriteLineAsync("[" + recv + "]\r\n");
-                        await w.FlushAsync();
+                            Con.WriteLine(end - start);
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                    Thread.Sleep(10);
+                }
+            }
+            return 0;
+        }
+
+
+        return 0;
+    }
+
+    [ConsoleCommand(
+        "Net command",
+        "Net [arg]",
+        "Net test")]
+    static int Net(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args = { };
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        TcpIpSystemHostInfo hostInfo = LocalNet.GetHostInfo(true);
+
+        Net_Test1_PlainTcp_Client();
+        return 0;
+
+        //Net_Test2_Ssl_Client();
+        //return 0;
+
+        //Net_Test3_PlainTcp_Server();
+        //return 0;
+
+        //Net_Test3_2_PlainTcp_Server_AcceptQueue();
+        //return 0;
+
+
+        //while (true)
+        //{
+        //    try
+        //    {
+        //        Net_Test4_SpeedTest_Client();
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        ex.ToString()._Print();
+        //    }
+        //}
+
+        //Net_Test5_SpeedTest_Server();
+
+        //Net_Test6_DualStack_Client();
+
+        //Net_Test7_Http_Download_Async()._GetResult();
+
+        //Net_Test8_Http_Upload_Async()._GetResult();
+
+        //Net_Test9_WebServer();
+
+        //Net_Test10_SslServer();
+
+        //Net_Test11_AcceptLoop();
+
+        //Net_Test12_AcceptLoop2();
+
+        //Net_Test13_WebSocketClientAsync()._GetResult();
+
+        //Net_Test14_WebSocketClient2Async()._GetResult();
+
+        return 0;
+    }
+
+    class SslServerTest : SslServerBase
+    {
+        public SslServerTest(SslServerOptions options) : base(options)
+        {
+        }
+
+        protected override async Task SslAcceptedImplAsync(NetTcpListenerPort listener, SslSock sock)
+        {
+            using (var stream = sock.GetStream())
+            using (var r = new StreamReader(stream))
+            using (var w = new StreamWriter(stream))
+            {
+                while (true)
+                {
+                    string? recv = await r.ReadLineAsync();
+                    if (recv == null)
+                        return;
+
+                    Con.WriteLine(recv);
+
+                    await w.WriteLineAsync("[" + recv + "]\r\n");
+                    await w.FlushAsync();
                 }
             }
         }
+    }
 
-        static async Task Net_Test14_WebSocketClient2Async()
+    static async Task Net_Test14_WebSocketClient2Async()
+    {
+        string target = "wss://echo.websocket.org";
+
+        using (WebSocket ws = await WebSocket.ConnectAsync(target))
         {
-            string target = "wss://echo.websocket.org";
-
-            using (WebSocket ws = await WebSocket.ConnectAsync(target))
+            using (var stream = ws.GetStream())
+            using (var r = new StreamReader(stream))
+            using (var w = new StreamWriter(stream))
             {
+                w.AutoFlush = true;
+
+                for (int i = 1; i < 3; i++)
+                {
+                    string src = Str.MakeCharArray((char)('a' + (i % 25)), i * 1000);
+
+                    Con.WriteLine(src.Length);
+
+                    //await w.WriteLineAsync(src);
+
+                    await stream.WriteAsync((src + "\r\n")._GetBytes_Ascii());
+
+                    string? dst = await r.ReadLineAsync();
+
+                    //Con.WriteLine(dst);
+
+                    Con.WriteLine(i);
+
+                    Debug.Assert(src == dst);
+                }
+            }
+        }
+    }
+
+    static async Task Net_Test13_WebSocketClientAsync()
+    {
+        using (ConnSock sock = LocalNet.Connect(new TcpConnectParam("echo.websocket.org", 80)))
+        {
+            using (WebSocket ws = new WebSocket(sock))
+            {
+                await ws.StartWebSocketClientAsync("wss://echo.websocket.org");
+
                 using (var stream = ws.GetStream())
                 using (var r = new StreamReader(stream))
                 using (var w = new StreamWriter(stream))
                 {
                     w.AutoFlush = true;
 
-                    for (int i = 1; i < 3; i++)
+                    for (int i = 1; i < 20; i++)
                     {
-                        string src = Str.MakeCharArray((char)('a' + (i % 25)), i * 1000);
+                        string src = Str.MakeCharArray((char)('a' + (i % 25)), i * 100);
 
                         Con.WriteLine(src.Length);
 
@@ -451,303 +487,200 @@ namespace IPA.TestDev
                 }
             }
         }
+    }
 
-        static async Task Net_Test13_WebSocketClientAsync()
+    static void Net_Test10_SslServer()
+    {
+        SslServerOptions opt = new SslServerOptions(LocalNet, new PalSslServerAuthenticationOptions()
         {
-            using (ConnSock sock = LocalNet.Connect(new TcpConnectParam("echo.websocket.org", 80)))
-            {
-                using (WebSocket ws = new WebSocket(sock))
-                {
-                    await ws.StartWebSocketClientAsync("wss://echo.websocket.org");
+            AllowAnyClientCert = true,
+            ServerCertificate = DevTools.TestSampleCert,
+        },
+        null,
+        IPUtil.GenerateListeningEndPointsList(false, 444));
 
-                    using (var stream = ws.GetStream())
-                    using (var r = new StreamReader(stream))
-                    using (var w = new StreamWriter(stream))
-                    {
-                        w.AutoFlush = true;
-
-                        for (int i = 1; i < 20; i++)
-                        {
-                            string src = Str.MakeCharArray((char)('a' + (i % 25)), i * 100);
-
-                            Con.WriteLine(src.Length);
-
-                            //await w.WriteLineAsync(src);
-
-                            await stream.WriteAsync((src + "\r\n")._GetBytes_Ascii());
-
-                            string? dst = await r.ReadLineAsync();
-
-                            //Con.WriteLine(dst);
-
-                            Con.WriteLine(i);
-
-                            Debug.Assert(src == dst);
-                        }
-                    }
-                }
-            }
+        using (SslServerTest svr = new SslServerTest(opt))
+        {
+            Con.ReadLine("Enter to quit:");
         }
+    }
 
-        static void Net_Test10_SslServer()
+    static void Net_Test9_WebServer()
+    {
+        var cfg = new HttpServerOptions();
+        using (HttpServer<TestHttpServerBuilder> svr = new HttpServer<TestHttpServerBuilder>(cfg, "Hello"))
         {
-            SslServerOptions opt = new SslServerOptions(LocalNet, new PalSslServerAuthenticationOptions()
-            {
-                AllowAnyClientCert = true,
-                ServerCertificate = DevTools.TestSampleCert,
-            },
-            null,
-            IPUtil.GenerateListeningEndPointsList(false, 444));
-
-            using (SslServerTest svr = new SslServerTest(opt))
-            {
-                Con.ReadLine("Enter to quit:");
-            }
+            Con.ReadLine(">");
         }
+    }
 
-        static void Net_Test9_WebServer()
+    static async Task Net_Test8_Http_Upload_Async()
+    {
+        string url = "https://httpbin.org/anything";
+
+        MemoryBuffer<byte> uploadData = new MemoryBuffer<byte>("Hello World"._GetBytes_Ascii());
+        var stream = uploadData._AsDirectStream();
+        stream._SeekToBegin();
+
+        using (WebApi api = new WebApi())
         {
-            var cfg = new HttpServerOptions();
-            using (HttpServer<TestHttpServerBuilder> svr = new HttpServer<TestHttpServerBuilder>(cfg, "Hello"))
+            Dbg.Where();
+            var res = await api.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.POST, url, uploadStream: stream));
+            MemoryBuffer<byte> downloadData = new MemoryBuffer<byte>();
+            using (MemoryHelper.FastAllocMemoryWithUsing<byte>(4 * 1024 * 1024, out Memory<byte> tmp))
             {
-                Con.ReadLine(">");
-            }
-        }
-
-        static async Task Net_Test8_Http_Upload_Async()
-        {
-            string url = "https://httpbin.org/anything";
-
-            MemoryBuffer<byte> uploadData = new MemoryBuffer<byte>("Hello World"._GetBytes_Ascii());
-            var stream = uploadData._AsDirectStream();
-            stream._SeekToBegin();
-
-            using (WebApi api = new WebApi())
-            {
-                Dbg.Where();
-                var res = await api.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.POST, url, uploadStream: stream));
-                MemoryBuffer<byte> downloadData = new MemoryBuffer<byte>();
-                using (MemoryHelper.FastAllocMemoryWithUsing<byte>(4 * 1024 * 1024, out Memory<byte> tmp))
-                {
-                    long total = 0;
-                    while (true)
-                    {
-                        int r = await res.DownloadStream.ReadAsync(tmp);
-                        if (r <= 0) break;
-
-                        total += r;
-
-                        downloadData.Write(tmp.Slice(0, r));
-
-                        Con.WriteLine($"{total._ToString3()} / {res.DownloadContentLength.GetValueOrDefault()._ToString3()}");
-                    }
-                }
-                downloadData.Span._GetString_Ascii()._Print();
-                Dbg.Where();
-            }
-        }
-
-        static async Task Net_Test7_Http_Download_Async()
-        {
-            //string url = "https://codeload.github.com/xelerance/xl2tpd/zip/master";
-            //string url = "http://speed.softether.com/001.1Mbytes.dat";
-            string url = "http://speed.softether.com/008.10Tbytes.dat";
-
-            for (int j = 0; j < 1; j++)
-            {
-                await using (WebApi api = new WebApi())
-                {
-                    //for (int i = 0; ; i++)
-                    {
-                        Dbg.Where();
-                        await using var res = await api.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, url));
-                        using (MemoryHelper.FastAllocMemoryWithUsing<byte>(4 * 1024 * 1024, out Memory<byte> tmp))
-                        {
-                            long total = 0;
-                            while (true)
-                            {
-                                int r = await res.DownloadStream.ReadAsync(tmp);
-                                if (r <= 0) break;
-                                total += r;
-
-                                //Con.WriteLine($"{total._ToString3()} / {res.DownloadContentLength.GetValueOrDefault()._ToString3()}");
-                            }
-                        }
-                        Dbg.Where();
-                    }
-                }
-            }
-
-            await Task.Delay(100);
-        }
-
-        static void Net_Test6_DualStack_Client()
-        {
-            string hostname = "www.google.com";
-
-            using (var tcp = LocalNet.ConnectIPv4v6Dual(new TcpConnectParam(hostname, 443, connectTimeout: 5 * 1000)))
-            {
-                tcp.Info.GetValue<ILayerInfoIpEndPoint>().RemoteIPAddress!.AddressFamily.ToString()._Print();
-
-                using (SslSock ssl = new SslSock(tcp))
-                {
-                    var sslClientOptions = new PalSslClientAuthenticationOptions()
-                    {
-                        TargetHost = hostname,
-                        ValidateRemoteCertificateProc = (cert) => { return true; },
-                    };
-
-                    ssl.StartSslClient(sslClientOptions);
-
-                    var st = ssl.GetStream();
-
-                    var w = new StreamWriter(st);
-                    var r = new StreamReader(st);
-
-                    w.WriteLine("GET / HTTP/1.0");
-                    w.WriteLine($"HOST: {hostname}");
-                    w.WriteLine();
-                    w.WriteLine();
-                    w.Flush();
-
-                    while (true)
-                    {
-                        string? s = r.ReadLine();
-                        if (s == null)
-                        {
-                            break;
-                        }
-
-                        Con.WriteLine(s);
-                    }
-                }
-            }
-        }
-
-        static void Net_Test5_SpeedTest_Server()
-        {
-            using (var server = new SpeedTestServer(LocalNet, 9821))
-            {
-                Con.ReadLine("Enter to stop>");
-            }
-        }
-
-        static void Net_Test4_SpeedTest_Client()
-        {
-            string hostname = "speed.coe.ad.jp";
-
-            CancellationTokenSource cts = new CancellationTokenSource();
-
-            var client = new SpeedTestClient(LocalNet, LocalNet.GetIp(hostname), 9821, 32, 1 * 1000, SpeedTestModeFlag.Both, cts.Token);
-
-            var task = client.RunClientAsync();
-
-            //Con.ReadLine("Enter to stop>");
-
-            ////int wait = 2000 + Util.RandSInt32_Caution() % 1000;
-            ////Con.WriteLine("Waiting for " + wait);
-            ////ThreadObj.Sleep(wait);
-
-            //Con.WriteLine("Stopping...");
-            //cts._TryCancelNoBlock();
-
-            task._GetResult()._PrintAsJson();
-
-            Con.WriteLine("Stopped.");
-        }
-
-        static void Net_Test12_AcceptLoop2(int port = 80)
-        {
-
-            new ThreadObj(param =>
-            {
-                ThreadObj.Current.Thread.Priority = System.Threading.ThreadPriority.Highest;
-                int last = 0;
+                long total = 0;
                 while (true)
                 {
-                    int value = Environment.TickCount;
-                    int span = value - last;
-                    last = value;
-                    long mem = mem = GC.GetTotalMemory(false);
-                    try
-                    {
-                        Console.WriteLine("tick: " + span + "   mem = " + mem / 1024 / 1024 + "    sock = " + LocalNet.GetOpenedSockCount());
-                    }
-                    catch { }
-                    ThreadObj.Sleep(100);
+                    int r = await res.DownloadStream.ReadAsync(tmp);
+                    if (r <= 0) break;
+
+                    total += r;
+
+                    downloadData.Write(tmp.Slice(0, r));
+
+                    Con.WriteLine($"{total._ToString3()} / {res.DownloadContentLength.GetValueOrDefault()._ToString3()}");
                 }
-            });
+            }
+            downloadData.Span._GetString_Ascii()._Print();
+            Dbg.Where();
+        }
+    }
 
-            if (true)
+    static async Task Net_Test7_Http_Download_Async()
+    {
+        //string url = "https://codeload.github.com/xelerance/xl2tpd/zip/master";
+        //string url = "http://speed.softether.com/001.1Mbytes.dat";
+        string url = "http://speed.softether.com/008.10Tbytes.dat";
+
+        for (int j = 0; j < 1; j++)
+        {
+            await using (WebApi api = new WebApi())
             {
-                NetTcpListener listener = LocalNet.CreateTcpListener(new TcpListenParam(
-                        async (listener2, sock) =>
+                //for (int i = 0; ; i++)
+                {
+                    Dbg.Where();
+                    await using var res = await api.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, url));
+                    using (MemoryHelper.FastAllocMemoryWithUsing<byte>(4 * 1024 * 1024, out Memory<byte> tmp))
+                    {
+                        long total = 0;
+                        while (true)
                         {
-                            while (true)
-                            {
-                                var stream = sock.GetStream();
-                                StreamReader r = new StreamReader(stream);
+                            int r = await res.DownloadStream.ReadAsync(tmp);
+                            if (r <= 0) break;
+                            total += r;
 
-                                while (true)
-                                {
-                                    string? line = await r.ReadLineAsync();
-
-                                    if (line._IsEmpty())
-                                    {
-                                        break;
-                                    }
-                                }
-                                int segmentSize = 400;
-                                int numSegments = 1000;
-                                int totalSize = segmentSize * numSegments;
-
-                                string ret =
-                                $@"HTTP/1.1 200 OK
-Content-Length: {totalSize}
-
-";
-
-                                await stream.WriteAsync(ret._GetBytes_Ascii());
-
-                                byte[] buf = Util.Rand(numSegments);
-                                for (int i = 0; i < numSegments; i++)
-                                {
-                                    await stream.WriteAsync(buf);
-                                }
-                            }
-                        },
-                        null,
-                        port));
-
-                listener.HideAcceptProcError = true;
-
-                ThreadObj.Sleep(-1);
+                            //Con.WriteLine($"{total._ToString3()} / {res.DownloadContentLength.GetValueOrDefault()._ToString3()}");
+                        }
+                    }
+                    Dbg.Where();
+                }
             }
         }
 
-        static bool test11_flag = false;
-        static void Net_Test11_AcceptLoop()
+        await Task.Delay(100);
+    }
+
+    static void Net_Test6_DualStack_Client()
+    {
+        string hostname = "www.google.com";
+
+        using (var tcp = LocalNet.ConnectIPv4v6Dual(new TcpConnectParam(hostname, 443, connectTimeout: 5 * 1000)))
         {
-            if (test11_flag == false)
+            tcp.Info.GetValue<ILayerInfoIpEndPoint>().RemoteIPAddress!.AddressFamily.ToString()._Print();
+
+            using (SslSock ssl = new SslSock(tcp))
             {
-                test11_flag = true;
-
-                new ThreadObj(param =>
+                var sslClientOptions = new PalSslClientAuthenticationOptions()
                 {
-                    ThreadObj.Current.Thread.Priority = System.Threading.ThreadPriority.Highest;
-                    int last = 0;
-                    while (true)
-                    {
-                        int value = Environment.TickCount;
-                        int span = value - last;
-                        last = value;
-                        Console.WriteLine("tick: " + span);
-                        ThreadObj.Sleep(100);
-                    }
-                });
-            }
+                    TargetHost = hostname,
+                    ValidateRemoteCertificateProc = (cert) => { return true; },
+                };
 
-            using (var listener = LocalNet.CreateTcpListener(new TcpListenParam(
+                ssl.StartSslClient(sslClientOptions);
+
+                var st = ssl.GetStream();
+
+                var w = new StreamWriter(st);
+                var r = new StreamReader(st);
+
+                w.WriteLine("GET / HTTP/1.0");
+                w.WriteLine($"HOST: {hostname}");
+                w.WriteLine();
+                w.WriteLine();
+                w.Flush();
+
+                while (true)
+                {
+                    string? s = r.ReadLine();
+                    if (s == null)
+                    {
+                        break;
+                    }
+
+                    Con.WriteLine(s);
+                }
+            }
+        }
+    }
+
+    static void Net_Test5_SpeedTest_Server()
+    {
+        using (var server = new SpeedTestServer(LocalNet, 9821))
+        {
+            Con.ReadLine("Enter to stop>");
+        }
+    }
+
+    static void Net_Test4_SpeedTest_Client()
+    {
+        string hostname = "speed.coe.ad.jp";
+
+        CancellationTokenSource cts = new CancellationTokenSource();
+
+        var client = new SpeedTestClient(LocalNet, LocalNet.GetIp(hostname), 9821, 32, 1 * 1000, SpeedTestModeFlag.Both, cts.Token);
+
+        var task = client.RunClientAsync();
+
+        //Con.ReadLine("Enter to stop>");
+
+        ////int wait = 2000 + Util.RandSInt32_Caution() % 1000;
+        ////Con.WriteLine("Waiting for " + wait);
+        ////ThreadObj.Sleep(wait);
+
+        //Con.WriteLine("Stopping...");
+        //cts._TryCancelNoBlock();
+
+        task._GetResult()._PrintAsJson();
+
+        Con.WriteLine("Stopped.");
+    }
+
+    static void Net_Test12_AcceptLoop2(int port = 80)
+    {
+
+        new ThreadObj(param =>
+        {
+            ThreadObj.Current.Thread.Priority = System.Threading.ThreadPriority.Highest;
+            int last = 0;
+            while (true)
+            {
+                int value = Environment.TickCount;
+                int span = value - last;
+                last = value;
+                long mem = mem = GC.GetTotalMemory(false);
+                try
+                {
+                    Console.WriteLine("tick: " + span + "   mem = " + mem / 1024 / 1024 + "    sock = " + LocalNet.GetOpenedSockCount());
+                }
+                catch { }
+                ThreadObj.Sleep(100);
+            }
+        });
+
+        if (true)
+        {
+            NetTcpListener listener = LocalNet.CreateTcpListener(new TcpListenParam(
                     async (listener2, sock) =>
                     {
                         while (true)
@@ -784,139 +717,205 @@ Content-Length: {totalSize}
                         }
                     },
                     null,
-                    80)))
+                    port));
+
+            listener.HideAcceptProcError = true;
+
+            ThreadObj.Sleep(-1);
+        }
+    }
+
+    static bool test11_flag = false;
+    static void Net_Test11_AcceptLoop()
+    {
+        if (test11_flag == false)
+        {
+            test11_flag = true;
+
+            new ThreadObj(param =>
             {
-                Con.ReadLine(" > ");
-            }
+                ThreadObj.Current.Thread.Priority = System.Threading.ThreadPriority.Highest;
+                int last = 0;
+                while (true)
+                {
+                    int value = Environment.TickCount;
+                    int span = value - last;
+                    last = value;
+                    Console.WriteLine("tick: " + span);
+                    ThreadObj.Sleep(100);
+                }
+            });
         }
 
-        static void Net_Test3_PlainTcp_Server()
-        {
-            using (var listener = LocalNet.CreateTcpListener(new TcpListenParam(
-                    async (listener2, sock) =>
+        using (var listener = LocalNet.CreateTcpListener(new TcpListenParam(
+                async (listener2, sock) =>
+                {
+                    while (true)
                     {
-                        sock.StartPCapRecorder(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190611\" + Str.DateTimeToStrShortWithMilliSecs(DateTime.Now) + ".pcapng", flags: FileFlags.AutoCreateDirectory))));
                         var stream = sock.GetStream();
-                        StreamWriter w = new StreamWriter(stream);
+                        StreamReader r = new StreamReader(stream);
+
                         while (true)
                         {
-                            w.WriteLine(DateTimeOffset.Now._ToDtStr(true));
-                            await w.FlushAsync();
-                            await Task.Delay(100);
-                        }
-                    },
-                    null,
-                    9821)))
-            {
-                Con.ReadLine(">");
-            }
-        }
+                            string? line = await r.ReadLineAsync();
 
-        static void Net_Test3_2_PlainTcp_Server_AcceptQueue()
+                            if (line._IsEmpty())
+                            {
+                                break;
+                            }
+                        }
+                        int segmentSize = 400;
+                        int numSegments = 1000;
+                        int totalSize = segmentSize * numSegments;
+
+                        string ret =
+                        $@"HTTP/1.1 200 OK
+Content-Length: {totalSize}
+
+";
+
+                        await stream.WriteAsync(ret._GetBytes_Ascii());
+
+                        byte[] buf = Util.Rand(numSegments);
+                        for (int i = 0; i < numSegments; i++)
+                        {
+                            await stream.WriteAsync(buf);
+                        }
+                    }
+                },
+                null,
+                80)))
         {
-            using (var listener = LocalNet.CreateTcpListener(new TcpListenParam(null, null, 9821)))
-            {
-                Task acceptTask = TaskUtil.StartAsyncTaskAsync(async () =>
+            Con.ReadLine(" > ");
+        }
+    }
+
+    static void Net_Test3_PlainTcp_Server()
+    {
+        using (var listener = LocalNet.CreateTcpListener(new TcpListenParam(
+                async (listener2, sock) =>
                 {
+                    sock.StartPCapRecorder(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190611\" + Str.DateTimeToStrShortWithMilliSecs(DateTime.Now) + ".pcapng", flags: FileFlags.AutoCreateDirectory))));
+                    var stream = sock.GetStream();
+                    StreamWriter w = new StreamWriter(stream);
+                    while (true)
+                    {
+                        w.WriteLine(DateTimeOffset.Now._ToDtStr(true));
+                        await w.FlushAsync();
+                        await Task.Delay(100);
+                    }
+                },
+                null,
+                9821)))
+        {
+            Con.ReadLine(">");
+        }
+    }
+
+    static void Net_Test3_2_PlainTcp_Server_AcceptQueue()
+    {
+        using (var listener = LocalNet.CreateTcpListener(new TcpListenParam(null, null, 9821)))
+        {
+            Task acceptTask = TaskUtil.StartAsyncTaskAsync(async () =>
+            {
                     // Accept ループタスク
                     while (true)
-                    {
-                        ConnSock sock = await listener.AcceptNextSocketFromQueueUtilAsync();
+                {
+                    ConnSock sock = await listener.AcceptNextSocketFromQueueUtilAsync();
 
-                        TaskUtil.StartAsyncTaskAsync(async (obj) =>
+                    TaskUtil.StartAsyncTaskAsync(async (obj) =>
+                    {
+                        using (ConnSock s = (ConnSock)obj!)
                         {
-                            using (ConnSock s = (ConnSock)obj!)
+                            var stream = s.GetStream();
+                            StreamWriter w = new StreamWriter(stream);
+                            while (true)
                             {
-                                var stream = s.GetStream();
-                                StreamWriter w = new StreamWriter(stream);
-                                while (true)
-                                {
-                                    w.WriteLine(DateTimeOffset.Now._ToDtStr(true));
-                                    await w.FlushAsync();
-                                    await Task.Delay(100);
-                                }
+                                w.WriteLine(DateTimeOffset.Now._ToDtStr(true));
+                                await w.FlushAsync();
+                                await Task.Delay(100);
                             }
-                        }, sock)._LaissezFaire();
-                    }
-                });
-
-                Con.ReadLine(">");
-            }
-        }
-
-        static void Net_Test2_Ssl_Client()
-        {
-            string hostname = "www.google.co.jp";
-
-            using (ConnSock sock = LocalNet.Connect(new TcpConnectParam(hostname, 443)))
-            {
-                using (SslSock ssl = new SslSock(sock))
-                {
-                    //ssl.StartPCapRecorder(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190610\test1.pcapng", flags: FileFlags.AutoCreateDirectory), false)));
-                    var sslClientOptions = new PalSslClientAuthenticationOptions()
-                    {
-                        TargetHost = hostname,
-                        ValidateRemoteCertificateProc = (cert) => { return true; },
-                    };
-
-                    ssl.StartSslClient(sslClientOptions);
-
-                    var st = ssl.GetStream();
-
-                    var w = new StreamWriter(st);
-                    var r = new StreamReader(st);
-
-                    w.WriteLine("GET / HTTP/1.0");
-                    w.WriteLine($"HOST: {hostname}");
-                    w.WriteLine();
-                    w.WriteLine();
-                    w.Flush();
-
-                    while (true)
-                    {
-                        string? s = r.ReadLine();
-                        if (s == null)
-                        {
-                            break;
                         }
+                    }, sock)._LaissezFaire();
+                }
+            });
 
-                        Con.WriteLine(s);
+            Con.ReadLine(">");
+        }
+    }
+
+    static void Net_Test2_Ssl_Client()
+    {
+        string hostname = "www.google.co.jp";
+
+        using (ConnSock sock = LocalNet.Connect(new TcpConnectParam(hostname, 443)))
+        {
+            using (SslSock ssl = new SslSock(sock))
+            {
+                //ssl.StartPCapRecorder(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190610\test1.pcapng", flags: FileFlags.AutoCreateDirectory), false)));
+                var sslClientOptions = new PalSslClientAuthenticationOptions()
+                {
+                    TargetHost = hostname,
+                    ValidateRemoteCertificateProc = (cert) => { return true; },
+                };
+
+                ssl.StartSslClient(sslClientOptions);
+
+                var st = ssl.GetStream();
+
+                var w = new StreamWriter(st);
+                var r = new StreamReader(st);
+
+                w.WriteLine("GET / HTTP/1.0");
+                w.WriteLine($"HOST: {hostname}");
+                w.WriteLine();
+                w.WriteLine();
+                w.Flush();
+
+                while (true)
+                {
+                    string? s = r.ReadLine();
+                    if (s == null)
+                    {
+                        break;
                     }
+
+                    Con.WriteLine(s);
                 }
             }
         }
+    }
 
-        static void Net_Test1_PlainTcp_Client()
+    static void Net_Test1_PlainTcp_Client()
+    {
+        for (int i = 0; i < 1; i++)
         {
-            for (int i = 0; i < 1; i++)
+            ConnSock sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80));
+
+            sock.StartPCapRecorder(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190610\test1.pcapng", flags: FileFlags.AutoCreateDirectory), true)));
             {
-                ConnSock sock = LocalNet.Connect(new TcpConnectParam("dnobori.cs.tsukuba.ac.jp", 80));
+                var st = sock.GetStream();
+                //sock.DisposeSafe();
+                var w = new StreamWriter(st);
+                var r = new StreamReader(st);
 
-                sock.StartPCapRecorder(new PCapFileEmitter(new PCapFileEmitterOptions(new FilePath(@"c:\tmp\190610\test1.pcapng", flags: FileFlags.AutoCreateDirectory), true)));
+                w.WriteLine("GET /ja/ HTTP/1.0");
+                w.WriteLine("HOST: dnobori.cs.tsukuba.ac.jp");
+                w.WriteLine();
+                w.Flush();
+
+                while (true)
                 {
-                    var st = sock.GetStream();
-                    //sock.DisposeSafe();
-                    var w = new StreamWriter(st);
-                    var r = new StreamReader(st);
-
-                    w.WriteLine("GET /ja/ HTTP/1.0");
-                    w.WriteLine("HOST: dnobori.cs.tsukuba.ac.jp");
-                    w.WriteLine();
-                    w.Flush();
-
-                    while (true)
+                    string? s = r.ReadLine();
+                    if (s == null)
                     {
-                        string? s = r.ReadLine();
-                        if (s == null)
-                        {
-                            break;
-                        }
-
-                        Con.WriteLine(s);
+                        break;
                     }
 
-                    st.Dispose();
+                    Con.WriteLine(s);
                 }
+
+                st.Dispose();
             }
         }
     }

@@ -52,99 +52,98 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public sealed class MsLogger : ILogger, IDisposable
 {
-    public sealed class MsLogger : ILogger, IDisposable
+    public MsLoggerProvider Provider { get; }
+    public string CategoryName { get; }
+    public string CategoryNameShort { get; }
+
+    string? CurrentTransactionId = null;
+
+    public MsLogger(MsLoggerProvider provider, string categoryName)
     {
-        public MsLoggerProvider Provider { get; }
-        public string CategoryName { get; }
-        public string CategoryNameShort { get; }
-
-        string? CurrentTransactionId = null;
-
-        public MsLogger(MsLoggerProvider provider, string categoryName)
-        {
-            this.Provider = provider;
-            this.CategoryName = categoryName._NonNullTrim();
-            this.CategoryNameShort = this.CategoryName.Split('.', StringSplitOptions.RemoveEmptyEntries).LastOrDefault()._NonNullTrim();
-        }
-
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-        {
-            string? msg = null;
-            try
-            {
-                msg = formatter(state, exception);
-            }
-            catch { }
-
-            if (exception != null)
-            {
-                msg += " Exception: " + exception.ToString();
-            }
-
-            var obj = new MsLogData()
-            {
-                Category = this.CategoryNameShort,
-                TranscationId = this.CurrentTransactionId,
-                EventId = eventId.Id,
-                Message = msg,
-                Data = msg._IsEmpty() ? state : default,
-            };
-            LocalLogRouter.PostAccessLog(obj, this.Provider.Tag);
-
-            if (exception != null)
-            {
-                //Dbg.WriteLine($"{this.CategoryNameShort} Error: {msg}");
-            }
-        }
-
-        public bool IsEnabled(LogLevel logLevel) => true;
-
-        class TransactionScope : IDisposable
-        {
-            MsLogger Logger;
-
-            public TransactionScope(MsLogger logger, string id)
-            {
-                this.Logger = logger;
-                Logger.CurrentTransactionId = id;
-            }
-            public void Dispose()
-            {
-                Logger.CurrentTransactionId = null;
-            }
-        }
-
-        public IDisposable BeginScope<TState>(TState state)
-        {
-            string transactionId = state?.ToString() ?? "";
-            return new TransactionScope(this, transactionId);
-        }
-
-        public void Dispose() { }
+        this.Provider = provider;
+        this.CategoryName = categoryName._NonNullTrim();
+        this.CategoryNameShort = this.CategoryName.Split('.', StringSplitOptions.RemoveEmptyEntries).LastOrDefault()._NonNullTrim();
     }
 
-    public sealed class MsLoggerProvider : ILoggerProvider
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
     {
-        public LogPriority Priority { get; }
-        public LogFlags Flags { get; }
-        public string Tag { get; }
-
-        public MsLoggerProvider(LogPriority priority = LogPriority.Info, LogFlags flags = LogFlags.None, string tag = LogTag.Kestrel)
+        string? msg = null;
+        try
         {
-            this.Priority = priority;
-            this.Flags = flags;
-            this.Tag = tag;
+            msg = formatter(state, exception);
+        }
+        catch { }
+
+        if (exception != null)
+        {
+            msg += " Exception: " + exception.ToString();
         }
 
-        public ILogger CreateLogger(string categoryName)
+        var obj = new MsLogData()
         {
-            return new MsLogger(this, categoryName);
-        }
+            Category = this.CategoryNameShort,
+            TranscationId = this.CurrentTransactionId,
+            EventId = eventId.Id,
+            Message = msg,
+            Data = msg._IsEmpty() ? state : default,
+        };
+        LocalLogRouter.PostAccessLog(obj, this.Provider.Tag);
 
-        public void Dispose() { }
+        if (exception != null)
+        {
+            //Dbg.WriteLine($"{this.CategoryNameShort} Error: {msg}");
+        }
     }
+
+    public bool IsEnabled(LogLevel logLevel) => true;
+
+    class TransactionScope : IDisposable
+    {
+        MsLogger Logger;
+
+        public TransactionScope(MsLogger logger, string id)
+        {
+            this.Logger = logger;
+            Logger.CurrentTransactionId = id;
+        }
+        public void Dispose()
+        {
+            Logger.CurrentTransactionId = null;
+        }
+    }
+
+    public IDisposable BeginScope<TState>(TState state)
+    {
+        string transactionId = state?.ToString() ?? "";
+        return new TransactionScope(this, transactionId);
+    }
+
+    public void Dispose() { }
+}
+
+public sealed class MsLoggerProvider : ILoggerProvider
+{
+    public LogPriority Priority { get; }
+    public LogFlags Flags { get; }
+    public string Tag { get; }
+
+    public MsLoggerProvider(LogPriority priority = LogPriority.Info, LogFlags flags = LogFlags.None, string tag = LogTag.Kestrel)
+    {
+        this.Priority = priority;
+        this.Flags = flags;
+        this.Tag = tag;
+    }
+
+    public ILogger CreateLogger(string categoryName)
+    {
+        return new MsLogger(this, categoryName);
+    }
+
+    public void Dispose() { }
 }
 
 #endif // CORES_BASIC_WEBAPP

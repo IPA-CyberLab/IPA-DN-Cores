@@ -43,85 +43,85 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public enum DaemonStartupMode
 {
-    public enum DaemonStartupMode
-    {
-        ForegroundTestMode = 0,
-        BackgroundServiceMode,
-    }
+    ForegroundTestMode = 0,
+    BackgroundServiceMode,
+}
 
-    public static partial class StandardMainFunctions
+public static partial class StandardMainFunctions
+{
+    public static class DaemonMain
     {
-        public static class DaemonMain
+        static Func<Daemon> GetDaemonProc = null!;
+        static DaemonSettings DefaultDaemonSettings = null!;
+
+        public static int DoMain(CoresLibOptions coresOptions, string[] args, Func<Daemon> getDaemonProc, DaemonSettings? defaultDaemonSettings = null)
         {
-            static Func<Daemon> GetDaemonProc = null!;
-            static DaemonSettings DefaultDaemonSettings = null!;
+            DaemonMain.DefaultDaemonSettings = defaultDaemonSettings ?? new DaemonSettings();
 
-            public static int DoMain(CoresLibOptions coresOptions, string[] args, Func<Daemon> getDaemonProc, DaemonSettings? defaultDaemonSettings = null)
+            DaemonMain.GetDaemonProc = getDaemonProc ?? throw new ArgumentNullException("getDaemonProc");
+
+            CoresLib.Init(coresOptions, args);
+
+            try
             {
-                DaemonMain.DefaultDaemonSettings = defaultDaemonSettings ?? new DaemonSettings();
-
-                DaemonMain.GetDaemonProc = getDaemonProc ?? throw new ArgumentNullException("getDaemonProc");
-
-                CoresLib.Init(coresOptions, args);
-
-                try
+                return ConsoleService.EntryPoint(Env.CommandLine, "Daemon", typeof(DaemonMain));
+            }
+            finally
+            {
+                if (CoresLib.Free()?.LeakCheckerResult.HasLeak ?? false && Dbg.IsConsoleDebugMode)
                 {
-                    return ConsoleService.EntryPoint(Env.CommandLine, "Daemon", typeof(DaemonMain));
-                }
-                finally
-                {
-                    if (CoresLib.Free()?.LeakCheckerResult.HasLeak ?? false && Dbg.IsConsoleDebugMode)
-                    {
-                        Console.ReadKey();
-                    }
+                    Console.ReadKey();
                 }
             }
+        }
 
-            [ConsoleCommand(
-                "IPA.Cores for .NET Core: Daemon Host Process",
-                "[/IN:infile] [/OUT:outfile] [/CSV] [/CMD command_line...]",
-                "IPA.Cores for .NET Core: Daemon Host Process",
-                "IN:This will specify the text file 'infile' that contains the list of commands that are automatically executed after the connection is completed. If the /IN parameter is specified, this program will terminate automatically after the execution of all commands in the file are finished. If the file contains multiple-byte characters, the encoding must be Unicode (UTF-8). This cannot be specified together with /CMD (if /CMD is specified, /IN will be ignored).",
-                "OUT:If the optional command 'commands...' is included after /CMD, that command will be executed after the connection is complete and this program will terminate after that. This cannot be specified together with /IN (if specified together with /IN, /IN will be ignored). Specify the /CMD parameter after all other parameters.",
-                "CMD:If the optional command 'commands...' is included after /CMD, that command will be executed after the connection is complete and this program will terminate after that. This cannot be specified together with /IN (if specified together with /IN, /IN will be ignored). Specify the /CMD parameter after all other parameters.",
-                "CSV:You can specify this option to enable CSV outputs. Results of each command will be printed in the CSV format. It is useful for processing the results by other programs."
-                )]
-            static int Daemon(ConsoleService c, string cmdName, string str)
+        [ConsoleCommand(
+            "IPA.Cores for .NET Core: Daemon Host Process",
+            "[/IN:infile] [/OUT:outfile] [/CSV] [/CMD command_line...]",
+            "IPA.Cores for .NET Core: Daemon Host Process",
+            "IN:This will specify the text file 'infile' that contains the list of commands that are automatically executed after the connection is completed. If the /IN parameter is specified, this program will terminate automatically after the execution of all commands in the file are finished. If the file contains multiple-byte characters, the encoding must be Unicode (UTF-8). This cannot be specified together with /CMD (if /CMD is specified, /IN will be ignored).",
+            "OUT:If the optional command 'commands...' is included after /CMD, that command will be executed after the connection is complete and this program will terminate after that. This cannot be specified together with /IN (if specified together with /IN, /IN will be ignored). Specify the /CMD parameter after all other parameters.",
+            "CMD:If the optional command 'commands...' is included after /CMD, that command will be executed after the connection is complete and this program will terminate after that. This cannot be specified together with /IN (if specified together with /IN, /IN will be ignored). Specify the /CMD parameter after all other parameters.",
+            "CSV:You can specify this option to enable CSV outputs. Results of each command will be printed in the CSV format. It is useful for processing the results by other programs."
+            )]
+        static int Daemon(ConsoleService c, string cmdName, string str)
+        {
+            ConsoleParam[] args =
             {
-                ConsoleParam[] args =
-                {
                     new ConsoleParam("IN", null, null, null, null),
                     new ConsoleParam("OUT", null, null, null, null),
                     new ConsoleParam("CMD", null, null, null, null),
                     new ConsoleParam("CSV", null, null, null, null),
                 };
 
-                ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args, noErrorOnUnknownArg: true);
+            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args, noErrorOnUnknownArg: true);
 
-                string cmdline = vl["CMD"].StrValue;
+            string cmdline = vl["CMD"].StrValue;
 
-                ConsoleService cs = c;
+            ConsoleService cs = c;
 
-                while (cs.DispatchCommand(cmdline, CoresLib.AppName + ">", typeof(DaemonCommands), null))
+            while (cs.DispatchCommand(cmdline, CoresLib.AppName + ">", typeof(DaemonCommands), null))
+            {
+                if (Str.IsEmptyStr(cmdline) == false)
                 {
-                    if (Str.IsEmptyStr(cmdline) == false)
-                    {
-                        break;
-                    }
+                    break;
                 }
-
-                return cs.RetCode;
             }
 
-            public static class DaemonCommands
-            {
-                [ConsoleCommand(
-                    "Start or stop the daemon",
-                    "Daemon [command]",
-                    "Start or stop the daemon",
-                    @"[command]:The control command.
+            return cs.RetCode;
+        }
+
+        public static class DaemonCommands
+        {
+            [ConsoleCommand(
+                "Start or stop the daemon",
+                "Daemon [command]",
+                "Start or stop the daemon",
+                @"[command]:The control command.
 
 [UNIX / Windows common commands]
 start        - Start the daemon in the background mode.
@@ -138,10 +138,9 @@ winstart     - Start the daemon as a Windows service.
 winstop      - Stop the running daemon as a Windows service.
 wininstall   - Install the daemon as a Windows service.
 winuninstall - Uninstall the daemon as a Windows service.")]
-                static int Daemon(ConsoleService c, string cmdName, string str)
-                {
-                    return DaemonCmdLineTool.EntryPoint(c, cmdName, str, GetDaemonProc(), DaemonMain.DefaultDaemonSettings);
-                }
+            static int Daemon(ConsoleService c, string cmdName, string str)
+            {
+                return DaemonCmdLineTool.EntryPoint(c, cmdName, str, GetDaemonProc(), DaemonMain.DefaultDaemonSettings);
             }
         }
     }

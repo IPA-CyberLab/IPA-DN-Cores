@@ -58,25 +58,24 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.UnitTest
+namespace IPA.UnitTest;
+
+public class _EmptyTest : IClassFixture<CoresLibUnitTestFixtureInstance>
 {
-    public class _EmptyTest : IClassFixture<CoresLibUnitTestFixtureInstance>
+    private readonly ITestOutputHelper Con;
+    void Where([CallerFilePath] string fn = "", [CallerLineNumber] int l = 0, [CallerMemberName] string? f = null) => Con.WriteLine($"|{UnitTestTicks.TickString}: {Path.GetFileName(fn)}:{l} {f}() P: {Process.GetCurrentProcess().Id} T: {Thread.CurrentThread.ManagedThreadId}");
+
+    public _EmptyTest(ITestOutputHelper output)
     {
-        private readonly ITestOutputHelper Con;
-        void Where([CallerFilePath] string fn = "", [CallerLineNumber] int l = 0, [CallerMemberName] string? f = null) => Con.WriteLine($"|{UnitTestTicks.TickString}: {Path.GetFileName(fn)}:{l} {f}() P: {Process.GetCurrentProcess().Id} T: {Thread.CurrentThread.ManagedThreadId}");
+        CoresLibUnitTestShared.Init();
 
-        public _EmptyTest(ITestOutputHelper output)
-        {
-            CoresLibUnitTestShared.Init();
+        Con = output;
+    }
 
-            Con = output;
-        }
-
-        [Fact]
-        public void Test1()
-        {
-            Where();
-        }
+    [Fact]
+    public void Test1()
+    {
+        Where();
     }
 }
 

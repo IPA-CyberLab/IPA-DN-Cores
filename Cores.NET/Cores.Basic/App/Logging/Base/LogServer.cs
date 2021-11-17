@@ -47,292 +47,291 @@ using static IPA.Cores.Globals.Basic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public static partial class CoresConfig
 {
-    public static partial class CoresConfig
+    public static partial class LogProtocolSettings
     {
-        public static partial class LogProtocolSettings
-        {
-            public static readonly Copenhagen<int> DefaultRecvTimeout = 30 * 1000; // 30 secs
-            public static readonly Copenhagen<int> DefaultSendKeepAliveInterval = 1 * 1000; // 1 secs
+        public static readonly Copenhagen<int> DefaultRecvTimeout = 30 * 1000; // 30 secs
+        public static readonly Copenhagen<int> DefaultSendKeepAliveInterval = 1 * 1000; // 1 secs
 
-            public static readonly Copenhagen<int> BufferingSizeThresholdPerServer = (16 * 1024 * 1024); // 16MB
+        public static readonly Copenhagen<int> BufferingSizeThresholdPerServer = (16 * 1024 * 1024); // 16MB
 
-            public static readonly Copenhagen<int> MaxDataSize = (64 * 1024 * 1024); // 64MB
-        }
+        public static readonly Copenhagen<int> MaxDataSize = (64 * 1024 * 1024); // 64MB
+    }
+}
+
+[Flags]
+public enum LogProtocolDataType
+{
+    StandardLog = 0,
+    KeepAlive = 1,
+}
+
+public abstract class LogServerOptionsBase : SslServerOptions
+{
+    public readonly Copenhagen<int> RecvTimeout = CoresConfig.LogProtocolSettings.DefaultRecvTimeout.Value;
+
+    public LogServerOptionsBase(TcpIpSystem tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, string? rateLimiterConfigName = null, params IPEndPoint[] endPoints)
+        : base(tcpIp, sslAuthOptions, rateLimiterConfigName, endPoints.Any() ? endPoints : IPUtil.GenerateListeningEndPointsList(false, Consts.Ports.LogServerDefaultServicePort))
+    {
     }
 
-    [Flags]
-    public enum LogProtocolDataType
+    public LogServerOptionsBase(TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports, string? rateLimiterConfigName = null)
+        : base(tcpIp, sslAuthOptions, rateLimiterConfigName, IPUtil.GenerateListeningEndPointsList(false, ports))
     {
-        StandardLog = 0,
-        KeepAlive = 1,
+    }
+}
+
+public class LogServerReceivedData
+{
+    public ReadOnlyMemory<byte> BinaryData;
+    public LogJsonData? JsonData;
+
+    static readonly StrComparer LocalStrComparer = Lfs.PathParser.PathStringComparer;
+
+    HashSet<string> DestFileNamesHashInternal = new HashSet<string>(LocalStrComparer);
+
+    public IEnumerable<string> DestFileNames => DestFileNamesHashInternal;
+
+    public void AddDestinationFileName(string fileName)
+    {
+        DestFileNamesHashInternal.Add(fileName);
+    }
+}
+
+public abstract class LogServerBase : SslServerBase
+{
+    public const int MagicNumber = 0x415554a4;
+    public const int ServerVersion = 1;
+
+    protected new LogServerOptionsBase Options => (LogServerOptionsBase)base.Options;
+
+    protected abstract Task LogReceiveImplAsync(IReadOnlyList<LogServerReceivedData> dataList);
+
+    public LogServerBase(LogServerOptionsBase options) : base(options)
+    {
     }
 
-    public abstract class LogServerOptionsBase : SslServerOptions
+    protected override async Task SslAcceptedImplAsync(NetTcpListenerPort listener, SslSock sock)
     {
-        public readonly Copenhagen<int> RecvTimeout = CoresConfig.LogProtocolSettings.DefaultRecvTimeout.Value;
-
-        public LogServerOptionsBase(TcpIpSystem tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, string? rateLimiterConfigName = null, params IPEndPoint[] endPoints)
-            : base(tcpIp, sslAuthOptions, rateLimiterConfigName, endPoints.Any() ? endPoints : IPUtil.GenerateListeningEndPointsList(false, Consts.Ports.LogServerDefaultServicePort))
+        await using (PipeStream st = sock.GetStream())
         {
-        }
+            await sock.AttachHandle.SetStreamReceiveTimeoutAsync(this.Options.RecvTimeout);
 
-        public LogServerOptionsBase(TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports, string? rateLimiterConfigName = null)
-            : base(tcpIp, sslAuthOptions, rateLimiterConfigName, IPUtil.GenerateListeningEndPointsList(false, ports))
-        {
-        }
-    }
+            int magicNumber = await st.ReceiveSInt32Async();
+            if (magicNumber != MagicNumber) throw new ApplicationException($"Invalid magicNumber = 0x{magicNumber:X}");
 
-    public class LogServerReceivedData
-    {
-        public ReadOnlyMemory<byte> BinaryData;
-        public LogJsonData? JsonData;
+            int clientVersion = await st.ReceiveSInt32Async();
 
-        static readonly StrComparer LocalStrComparer = Lfs.PathParser.PathStringComparer;
+            MemoryBuffer<byte> sendBuffer = new MemoryBuffer<byte>();
+            sendBuffer.WriteSInt32(MagicNumber);
+            sendBuffer.WriteSInt32(ServerVersion);
+            await st.SendAsync(sendBuffer);
 
-        HashSet<string> DestFileNamesHashInternal = new HashSet<string>(LocalStrComparer);
-
-        public IEnumerable<string> DestFileNames => DestFileNamesHashInternal;
-
-        public void AddDestinationFileName(string fileName)
-        {
-            DestFileNamesHashInternal.Add(fileName);
-        }
-    }
-
-    public abstract class LogServerBase : SslServerBase
-    {
-        public const int MagicNumber = 0x415554a4;
-        public const int ServerVersion = 1;
-
-        protected new LogServerOptionsBase Options => (LogServerOptionsBase)base.Options;
-
-        protected abstract Task LogReceiveImplAsync(IReadOnlyList<LogServerReceivedData> dataList);
-
-        public LogServerBase(LogServerOptionsBase options) : base(options)
-        {
-        }
-
-        protected override async Task SslAcceptedImplAsync(NetTcpListenerPort listener, SslSock sock)
-        {
-            await using (PipeStream st = sock.GetStream())
+            SizedDataQueue<Memory<byte>> standardLogQueue = new SizedDataQueue<Memory<byte>>();
+            try
             {
-                await sock.AttachHandle.SetStreamReceiveTimeoutAsync(this.Options.RecvTimeout);
-
-                int magicNumber = await st.ReceiveSInt32Async();
-                if (magicNumber != MagicNumber) throw new ApplicationException($"Invalid magicNumber = 0x{magicNumber:X}");
-
-                int clientVersion = await st.ReceiveSInt32Async();
-
-                MemoryBuffer<byte> sendBuffer = new MemoryBuffer<byte>();
-                sendBuffer.WriteSInt32(MagicNumber);
-                sendBuffer.WriteSInt32(ServerVersion);
-                await st.SendAsync(sendBuffer);
-
-                SizedDataQueue<Memory<byte>> standardLogQueue = new SizedDataQueue<Memory<byte>>();
-                try
+                while (true)
                 {
-                    while (true)
+                    if (standardLogQueue.CurrentTotalSize >= CoresConfig.LogProtocolSettings.BufferingSizeThresholdPerServer || st.IsReadyToReceive(sizeof(int)) == false)
                     {
-                        if (standardLogQueue.CurrentTotalSize >= CoresConfig.LogProtocolSettings.BufferingSizeThresholdPerServer || st.IsReadyToReceive(sizeof(int)) == false)
-                        {
-                            var list = standardLogQueue.GetList();
-                            standardLogQueue.Clear();
-                            await LogDataReceivedInternalAsync(sock.EndPointInfo.RemoteIP._NonNullTrim(), list);
-                        }
+                        var list = standardLogQueue.GetList();
+                        standardLogQueue.Clear();
+                        await LogDataReceivedInternalAsync(sock.EndPointInfo.RemoteIP._NonNullTrim(), list);
+                    }
 
-                        LogProtocolDataType type = (LogProtocolDataType)await st.ReceiveSInt32Async();
+                    LogProtocolDataType type = (LogProtocolDataType)await st.ReceiveSInt32Async();
 
-                        switch (type)
-                        {
-                            case LogProtocolDataType.StandardLog:
-                                {
-                                    int size = await st.ReceiveSInt32Async();
+                    switch (type)
+                    {
+                        case LogProtocolDataType.StandardLog:
+                            {
+                                int size = await st.ReceiveSInt32Async();
 
-                                    if (size > CoresConfig.LogProtocolSettings.MaxDataSize)
-                                        throw new ApplicationException($"size > MaxDataSize. size = {size}");
+                                if (size > CoresConfig.LogProtocolSettings.MaxDataSize)
+                                    throw new ApplicationException($"size > MaxDataSize. size = {size}");
 
-                                    Memory<byte> data = new byte[size];
+                                Memory<byte> data = new byte[size];
 
-                                    await st.ReceiveAllAsync(data);
+                                await st.ReceiveAllAsync(data);
 
-                                    standardLogQueue.Add(data, data.Length);
+                                standardLogQueue.Add(data, data.Length);
 
-                                    break;
-                                }
-
-                            case LogProtocolDataType.KeepAlive:
                                 break;
+                            }
 
-                            default:
-                                throw new ApplicationException("Invalid LogProtocolDataType");
-                        }
+                        case LogProtocolDataType.KeepAlive:
+                            break;
+
+                        default:
+                            throw new ApplicationException("Invalid LogProtocolDataType");
                     }
                 }
-                finally
-                {
-                    await LogDataReceivedInternalAsync(sock.EndPointInfo.RemoteIP._NonNullTrim(), standardLogQueue.GetList());
-                }
             }
-        }
-
-        async Task LogDataReceivedInternalAsync(string srcHostName, IReadOnlyList<Memory<byte>> dataList)
-        {
-            if (dataList.Count == 0) return;
-
-            List<LogServerReceivedData> list = new List<LogServerReceivedData>();
-
-            foreach (Memory<byte> data in dataList)
+            finally
             {
-                try
-                {
-                    string str = data._GetString_UTF8();
-
-                    LogServerReceivedData d = new LogServerReceivedData()
-                    {
-                        BinaryData = data,
-                        JsonData = str._JsonToObject<LogJsonData>(),
-                    };
-
-                    d.JsonData!.NormalizeReceivedLog(srcHostName);
-
-                    list.Add(d);
-                }
-                catch (Exception ex)
-                {
-                    Con.WriteError($"LogDataReceivedInternalAsync: {ex.ToString()}");
-                }
-            }
-
-            if (list.Count >= 1)
-            {
-                await LogReceiveImplAsync(list);
+                await LogDataReceivedInternalAsync(sock.EndPointInfo.RemoteIP._NonNullTrim(), standardLogQueue.GetList());
             }
         }
     }
 
-    public class LogServerOptions : LogServerOptionsBase
+    async Task LogDataReceivedInternalAsync(string srcHostName, IReadOnlyList<Memory<byte>> dataList)
     {
-        public Action<LogServerReceivedData, LogServerOptions> SetDestinationsProc { get; }
+        if (dataList.Count == 0) return;
 
-        public FileFlags FileFlags { get; }
-        public FileSystem DestFileSystem { get; }
-        public string DestRootDirName { get; }
+        List<LogServerReceivedData> list = new List<LogServerReceivedData>();
 
-        public LogServerOptions(FileSystem? destFileSystem, string destRootDirName, FileFlags fileFlags, Action<LogServerReceivedData, LogServerOptions>? setDestinationProc, TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports, string? rateLimiterConfigName = null)
-            : base(tcpIp, sslAuthOptions, ports, rateLimiterConfigName)
+        foreach (Memory<byte> data in dataList)
         {
-            if (setDestinationProc == null) setDestinationProc = LogServer.DefaultSetDestinationsProc;
+            try
+            {
+                string str = data._GetString_UTF8();
 
-            this.DestRootDirName = destRootDirName;
+                LogServerReceivedData d = new LogServerReceivedData()
+                {
+                    BinaryData = data,
+                    JsonData = str._JsonToObject<LogJsonData>(),
+                };
 
-            this.FileFlags = fileFlags;
+                d.JsonData!.NormalizeReceivedLog(srcHostName);
 
-            this.DestFileSystem = destFileSystem ?? Lfs;
+                list.Add(d);
+            }
+            catch (Exception ex)
+            {
+                Con.WriteError($"LogDataReceivedInternalAsync: {ex.ToString()}");
+            }
+        }
 
-            this.DestRootDirName = this.DestFileSystem.PathParser.RemoveLastSeparatorChar(this.DestFileSystem.PathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(this.DestRootDirName));
+        if (list.Count >= 1)
+        {
+            await LogReceiveImplAsync(list);
+        }
+    }
+}
 
-            this.SetDestinationsProc = setDestinationProc;
+public class LogServerOptions : LogServerOptionsBase
+{
+    public Action<LogServerReceivedData, LogServerOptions> SetDestinationsProc { get; }
+
+    public FileFlags FileFlags { get; }
+    public FileSystem DestFileSystem { get; }
+    public string DestRootDirName { get; }
+
+    public LogServerOptions(FileSystem? destFileSystem, string destRootDirName, FileFlags fileFlags, Action<LogServerReceivedData, LogServerOptions>? setDestinationProc, TcpIpSystem? tcpIp, PalSslServerAuthenticationOptions sslAuthOptions, int[] ports, string? rateLimiterConfigName = null)
+        : base(tcpIp, sslAuthOptions, ports, rateLimiterConfigName)
+    {
+        if (setDestinationProc == null) setDestinationProc = LogServer.DefaultSetDestinationsProc;
+
+        this.DestRootDirName = destRootDirName;
+
+        this.FileFlags = fileFlags;
+
+        this.DestFileSystem = destFileSystem ?? Lfs;
+
+        this.DestRootDirName = this.DestFileSystem.PathParser.RemoveLastSeparatorChar(this.DestFileSystem.PathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(this.DestRootDirName));
+
+        this.SetDestinationsProc = setDestinationProc;
+    }
+}
+
+public class LogServer : LogServerBase
+{
+    protected new LogServerOptions Options => (LogServerOptions)base.Options;
+
+    public LogServer(LogServerOptions options) : base(options)
+    {
+    }
+
+    public static void DefaultSetDestinationsProc(LogServerReceivedData data, LogServerOptions options)
+    {
+        FileSystem fs = options.DestFileSystem;
+        PathParser parser = fs.PathParser;
+        string root = options.DestRootDirName;
+        LogPriority priority = data.JsonData!.Priority._ParseEnum(LogPriority.None);
+        LogJsonData d = data.JsonData;
+        DateTime date;
+        if (d.TimeStamp.HasValue == false)
+        {
+            date = Util.ZeroDateTimeValue;
+        }
+        else
+        {
+            date = d.TimeStamp.Value.LocalDateTime.Date;
+        }
+
+        if (d.Kind._IsSamei(LogKind.Default))
+        {
+            if (priority >= LogPriority.Debug)
+                Add($"{d.AppName}/{d.MachineName}/Debug", d.AppName!, "Debug", date);
+
+            if (priority >= LogPriority.Info)
+                Add($"{d.AppName}/{d.MachineName}/Info", d.AppName!, "Info", date);
+
+            if (priority >= LogPriority.Error)
+                Add($"{d.AppName}/{d.MachineName}/Error", d.AppName!, "Error", date);
+        }
+        else
+        {
+            Add($"{d.AppName}/{d.MachineName}/{d.Kind}", d.AppName!, d.Kind!, date);
+        }
+
+        void Add(string subDirName, string token0, string token1, DateTime date)
+        {
+            string yyyymmdd = Str.DateToStrShort(date);
+
+            string tmp = parser.Combine(root, subDirName, $"{yyyymmdd}-{token0}-{token1}.log");
+
+            data.AddDestinationFileName(parser.NormalizeDirectorySeparator(tmp));
         }
     }
 
-    public class LogServer : LogServerBase
+    protected override async Task LogReceiveImplAsync(IReadOnlyList<LogServerReceivedData> dataList)
     {
-        protected new LogServerOptions Options => (LogServerOptions)base.Options;
+        SingletonSlim<string, MemoryBuffer<byte>> writeBufferList =
+            new SingletonSlim<string, MemoryBuffer<byte>>((filename) => new MemoryBuffer<byte>(), this.Options.DestFileSystem.PathParser.PathStringComparer);
 
-        public LogServer(LogServerOptions options) : base(options)
+        foreach (var data in dataList)
         {
-        }
+            Options.SetDestinationsProc(data, this.Options);
 
-        public static void DefaultSetDestinationsProc(LogServerReceivedData data, LogServerOptions options)
-        {
-            FileSystem fs = options.DestFileSystem;
-            PathParser parser = fs.PathParser;
-            string root = options.DestRootDirName;
-            LogPriority priority = data.JsonData!.Priority._ParseEnum(LogPriority.None);
-            LogJsonData d = data.JsonData;
-            DateTime date;
-            if (d.TimeStamp.HasValue == false)
+            foreach (string fileName in data.DestFileNames)
             {
-                date = Util.ZeroDateTimeValue;
-            }
-            else
-            {
-                date = d.TimeStamp.Value.LocalDateTime.Date;
-            }
+                var buffer = writeBufferList[fileName];
 
-            if (d.Kind._IsSamei(LogKind.Default))
-            {
-                if (priority >= LogPriority.Debug)
-                    Add($"{d.AppName}/{d.MachineName}/Debug", d.AppName!, "Debug", date);
-
-                if (priority >= LogPriority.Info)
-                    Add($"{d.AppName}/{d.MachineName}/Info", d.AppName!, "Info", date);
-
-                if (priority >= LogPriority.Error)
-                    Add($"{d.AppName}/{d.MachineName}/Error", d.AppName!, "Error", date);
-            }
-            else
-            {
-                Add($"{d.AppName}/{d.MachineName}/{d.Kind}", d.AppName!, d.Kind!, date);
-            }
-
-            void Add(string subDirName, string token0, string token1, DateTime date)
-            {
-                string yyyymmdd = Str.DateToStrShort(date);
-
-                string tmp = parser.Combine(root, subDirName, $"{yyyymmdd}-{token0}-{token1}.log");
-
-                data.AddDestinationFileName(parser.NormalizeDirectorySeparator(tmp));
+                buffer.Write(data.BinaryData);
+                buffer.Write(Str.NewLine_Bytes_Windows);
             }
         }
 
-        protected override async Task LogReceiveImplAsync(IReadOnlyList<LogServerReceivedData> dataList)
+        bool firstFlag = false;
+
+        // 2020/8/17 パスで並び替えるようにしてみた (そのほうがファイルシステム上高速だという仮定)
+        foreach (string fileName in writeBufferList.Keys.OrderBy(x => x, this.Options.DestFileSystem.PathParser.PathStringComparer))
         {
-            SingletonSlim<string, MemoryBuffer<byte>> writeBufferList =
-                new SingletonSlim<string, MemoryBuffer<byte>>((filename) => new MemoryBuffer<byte>(), this.Options.DestFileSystem.PathParser.PathStringComparer);
-
-            foreach (var data in dataList)
+            try
             {
-                Options.SetDestinationsProc(data, this.Options);
+                MemoryBuffer<byte>? buffer = writeBufferList[fileName];
 
-                foreach (string fileName in data.DestFileNames)
+                if (buffer != null)
                 {
-                    var buffer = writeBufferList[fileName];
-
-                    buffer.Write(data.BinaryData);
-                    buffer.Write(Str.NewLine_Bytes_Windows);
-                }
-            }
-
-            bool firstFlag = false;
-
-            // 2020/8/17 パスで並び替えるようにしてみた (そのほうがファイルシステム上高速だという仮定)
-            foreach (string fileName in writeBufferList.Keys.OrderBy(x => x, this.Options.DestFileSystem.PathParser.PathStringComparer))
-            {
-                try
-                {
-                    MemoryBuffer<byte>? buffer = writeBufferList[fileName];
-
-                    if (buffer != null)
+                    if (firstFlag == false)
                     {
-                        if (firstFlag == false)
-                        {
-                            // ファイルシステム API が同期モードになっておりディスク I/O に長時間かかる場合を想定し、
-                            // 呼び出し元の非同期ソケットタイムアウト検出がおかしくなる問題がありえるため
-                            // 1 回は必ず Yield する
-                            firstFlag = true;
-                            await Task.Yield();
-                        }
-
-                        await Options.DestFileSystem.ConcurrentSafeAppendDataToFileAsync(fileName, buffer.Memory, this.Options.FileFlags | FileFlags.AutoCreateDirectory);
+                        // ファイルシステム API が同期モードになっておりディスク I/O に長時間かかる場合を想定し、
+                        // 呼び出し元の非同期ソケットタイムアウト検出がおかしくなる問題がありえるため
+                        // 1 回は必ず Yield する
+                        firstFlag = true;
+                        await Task.Yield();
                     }
+
+                    await Options.DestFileSystem.ConcurrentSafeAppendDataToFileAsync(fileName, buffer.Memory, this.Options.FileFlags | FileFlags.AutoCreateDirectory);
                 }
-                catch (Exception ex)
-                {
-                    Con.WriteError($"LogReceiveImplAsync: Filename '{fileName}' write error: {ex.ToString()}");
-                }
+            }
+            catch (Exception ex)
+            {
+                Con.WriteError($"LogReceiveImplAsync: Filename '{fileName}' write error: {ex.ToString()}");
             }
         }
     }

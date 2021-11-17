@@ -37,149 +37,148 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic.Legacy
+namespace IPA.Cores.Basic.Legacy;
+
+public class FileLogger
 {
-    public class FileLogger
+    readonly CriticalSection LockObj = new CriticalSection<FileLogger>();
+    string? logDir;
+    string lastFileName;
+    IO? fs;
+    public bool Flush = false;
+
+    public FileLogger(string logDir)
     {
-        readonly CriticalSection LockObj = new CriticalSection<FileLogger>();
-        string? logDir;
-        string lastFileName;
-        IO? fs;
-        public bool Flush = false;
+        SetLogDir(logDir);
 
-        public FileLogger(string logDir)
+        lastFileName = "";
+
+        fs = null;
+    }
+
+    public void SetLogDir(string logDir)
+    {
+        lock (LockObj)
         {
-            SetLogDir(logDir);
-
-            lastFileName = "";
-
-            fs = null;
+            this.logDir = IO.InnerFilePath(logDir);
         }
+    }
 
-        public void SetLogDir(string logDir)
+    string generateFileName(DateTime dt)
+    {
+        return string.Format("{0:0000}{1:00}{2:00}.log", dt.Year, dt.Month, dt.Day);
+    }
+
+    string generateFullFileName(DateTime dt)
+    {
+        lock (LockObj)
         {
-            lock (LockObj)
+            return IO.CombinePath(logDir!, generateFileName(dt));
+        }
+    }
+
+    void write(DateTime now, byte[] data, bool flush)
+    {
+        lock (LockObj)
+        {
+            string filename = generateFullFileName(now);
+
+            if (logDir == null || logDir == "")
             {
-                this.logDir = IO.InnerFilePath(logDir);
+                return;
             }
-        }
 
-        string generateFileName(DateTime dt)
-        {
-            return string.Format("{0:0000}{1:00}{2:00}.log", dt.Year, dt.Month, dt.Day);
-        }
-
-        string generateFullFileName(DateTime dt)
-        {
-            lock (LockObj)
+            if (IO.IsDirExists(logDir) == false)
             {
-                return IO.CombinePath(logDir!, generateFileName(dt));
-            }
-        }
-
-        void write(DateTime now, byte[] data, bool flush)
-        {
-            lock (LockObj)
-            {
-                string filename = generateFullFileName(now);
-
-                if (logDir == null || logDir == "")
+                if (IO.MakeDir(logDir) == false)
                 {
                     return;
                 }
-
-                if (IO.IsDirExists(logDir) == false)
-                {
-                    if (IO.MakeDir(logDir) == false)
-                    {
-                        return;
-                    }
-                }
-
-                if (lastFileName != filename || fs == null)
-                {
-                    if (fs != null)
-                    {
-                        try
-                        {
-                            fs.Close();
-                        }
-                        catch
-                        {
-                        }
-                    }
-
-                    fs = IO.FileCreateOrAppendOpen(filename);
-                }
-
-                lastFileName = filename;
-
-                fs.Write(data);
-
-                if (flush)
-                {
-                    fs.Flush();
-                }
             }
-        }
 
-        public void Write(params string[] strings)
-        {
-            StringBuilder b = new StringBuilder();
-            int i;
-            for (i = 0; i < strings.Length; i++)
+            if (lastFileName != filename || fs == null)
             {
-                string s2 = normalizeStr(strings[i]);
-
-                b.Append(s2);
-
-                if (i != (strings.Length - 1))
+                if (fs != null)
                 {
-                    b.Append(",");
+                    try
+                    {
+                        fs.Close();
+                    }
+                    catch
+                    {
+                    }
                 }
+
+                fs = IO.FileCreateOrAppendOpen(filename);
             }
 
-            Write(b.ToString());
+            lastFileName = filename;
+
+            fs.Write(data);
+
+            if (flush)
+            {
+                fs.Flush();
+            }
+        }
+    }
+
+    public void Write(params string[] strings)
+    {
+        StringBuilder b = new StringBuilder();
+        int i;
+        for (i = 0; i < strings.Length; i++)
+        {
+            string s2 = normalizeStr(strings[i]);
+
+            b.Append(s2);
+
+            if (i != (strings.Length - 1))
+            {
+                b.Append(",");
+            }
         }
 
-        public void Write(string str)
+        Write(b.ToString());
+    }
+
+    public void Write(string str)
+    {
+        try
+        {
+            lock (LockObj)
+            {
+                DateTime now = DateTime.Now;
+                string nowStr = Str.DateTimeToDtstr(now, true);
+
+                string tmp = nowStr + "," + str + "\r\n";
+
+                write(now, Str.Utf8Encoding.GetBytes(tmp), Flush);
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    string normalizeStr(string s)
+    {
+        return s.Replace("\\", "\\\\").Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", "\\n").Replace(",", ";");
+    }
+
+    public void Close()
+    {
+        if (fs != null)
         {
             try
             {
-                lock (LockObj)
-                {
-                    DateTime now = DateTime.Now;
-                    string nowStr = Str.DateTimeToDtstr(now, true);
-
-                    string tmp = nowStr + "," + str + "\r\n";
-
-                    write(now, Str.Utf8Encoding.GetBytes(tmp), Flush);
-                }
+                fs.Close();
             }
             catch
             {
             }
-        }
 
-        string normalizeStr(string s)
-        {
-            return s.Replace("\\", "\\\\").Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", "\\n").Replace(",", ";");
-        }
-
-        public void Close()
-        {
-            if (fs != null)
-            {
-                try
-                {
-                    fs.Close();
-                }
-                catch
-                {
-                }
-
-                fs = null;
-            }
+            fs = null;
         }
     }
 }

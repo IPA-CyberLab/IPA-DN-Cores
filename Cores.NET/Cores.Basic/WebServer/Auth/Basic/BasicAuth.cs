@@ -61,105 +61,104 @@ using System.Text.Encodings.Web;
 using System.Text;
 using Microsoft.Net.Http.Headers;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public static class BasicAuthHelper
 {
-    public static class BasicAuthHelper
+    public static IServiceCollection AddBasicAuth(this IServiceCollection services, Action<BasicAuthSettings> configureOptions)
     {
-        public static IServiceCollection AddBasicAuth(this IServiceCollection services, Action<BasicAuthSettings> configureOptions)
-        {
-            if (services == null) throw new ArgumentNullException(nameof(services));
-            if (configureOptions == null) throw new ArgumentNullException(nameof(configureOptions));
+        if (services == null) throw new ArgumentNullException(nameof(services));
+        if (configureOptions == null) throw new ArgumentNullException(nameof(configureOptions));
 
-            services.Configure(configureOptions);
+        services.Configure(configureOptions);
 
-            return services;
-        }
-
-        public static IApplicationBuilder UseBasicAuth(this IApplicationBuilder app)
-        {
-            if (app == null) throw new ArgumentNullException(nameof(app));
-
-            app.UseMiddleware<BasicAuthMiddleware>();
-
-            return app;
-        }
+        return services;
     }
 
-    public class BasicAuthSettings
+    public static IApplicationBuilder UseBasicAuth(this IApplicationBuilder app)
     {
-        public Func<string, string, Task<bool>>? PasswordValidatorAsync = (user, pass) => Task.FromResult(false);
-        public string Realm = "Basic Authentication";
+        if (app == null) throw new ArgumentNullException(nameof(app));
+
+        app.UseMiddleware<BasicAuthMiddleware>();
+
+        return app;
+    }
+}
+
+public class BasicAuthSettings
+{
+    public Func<string, string, Task<bool>>? PasswordValidatorAsync = (user, pass) => Task.FromResult(false);
+    public string Realm = "Basic Authentication";
+}
+
+public class BasicAuthMiddleware
+{
+    public static readonly string BasicAuthResultItemName = Str.NewGuid();
+
+    readonly RequestDelegate Next;
+    public BasicAuthSettings Settings { get; }
+
+    public BasicAuthMiddleware(RequestDelegate next, IOptions<BasicAuthSettings> options)
+    {
+        Next = next ?? throw new ArgumentNullException(nameof(next));
+
+        this.Settings = options.Value;
     }
 
-    public class BasicAuthMiddleware
+    public async Task Invoke(HttpContext context)
     {
-        public static readonly string BasicAuthResultItemName = Str.NewGuid();
+        ResultAndError<string> result = await BasicAuthImpl.TryAuthenticateAsync(context.Request, Settings.PasswordValidatorAsync);
 
-        readonly RequestDelegate Next;
-        public BasicAuthSettings Settings { get; }
+        context.Items[BasicAuthResultItemName] = result;
 
-        public BasicAuthMiddleware(RequestDelegate next, IOptions<BasicAuthSettings> options)
+        if (result == false)
         {
-            Next = next ?? throw new ArgumentNullException(nameof(next));
+            // 認証失敗
+            string header = $"Basic realm=\"{Settings.Realm._FilledOrDefault("Auth")}\'";
 
-            this.Settings = options.Value;
+            context.Response.StatusCode = 401;
+            context.Response.Headers.Append(HeaderNames.WWWAuthenticate, header);
         }
-
-        public async Task Invoke(HttpContext context)
+        else
         {
-            ResultAndError<string> result = await BasicAuthImpl.TryAuthenticateAsync(context.Request, Settings.PasswordValidatorAsync);
-
-            context.Items[BasicAuthResultItemName] = result;
-
-            if (result == false)
-            {
-                // 認証失敗
-                string header = $"Basic realm=\"{Settings.Realm._FilledOrDefault("Auth")}\'";
-
-                context.Response.StatusCode = 401;
-                context.Response.Headers.Append(HeaderNames.WWWAuthenticate, header);
-            }
-            else
-            {
-                // 認証成功
-                await Next(context);
-            }
+            // 認証成功
+            await Next(context);
         }
     }
+}
 
-    // BASIC 認証の細かい実装 (static クラス)
-    public static class BasicAuthImpl
+// BASIC 認証の細かい実装 (static クラス)
+public static class BasicAuthImpl
+{
+    public static async Task<ResultAndError<string>> TryAuthenticateAsync(HttpRequest request, Func<string, string, Task<bool>>? passwordAuthCallback)
     {
-        public static async Task<ResultAndError<string>> TryAuthenticateAsync(HttpRequest request, Func<string, string, Task<bool>>? passwordAuthCallback)
+        string header = request.Headers["Authorization"];
+
+        if (header._IsEmpty()) return false;
+
+        if (Str.GetKeyAndValue(header, out string scheme, out string base64, " \t") == false)
+            return false;
+
+        if (scheme._IsSamei("Basic") == false) return false;
+
+        if (base64._IsEmpty()) return false;
+
+        base64 = base64._NonNullTrim();
+
+        // Base64 デコード
+        string usernameAndPassword = base64._Base64Decode()._GetString_UTF8();
+
+        if (Str.GetKeyAndValue(usernameAndPassword, out string username, out string password, ":") == false) return false;
+
+        // ユーザー認証を実施
+        bool ok = false;
+
+        if (passwordAuthCallback != null)
         {
-            string header = request.Headers["Authorization"];
-
-            if (header._IsEmpty()) return false;
-
-            if (Str.GetKeyAndValue(header, out string scheme, out string base64, " \t") == false)
-                return false;
-
-            if (scheme._IsSamei("Basic") == false) return false;
-
-            if (base64._IsEmpty()) return false;
-
-            base64 = base64._NonNullTrim();
-
-            // Base64 デコード
-            string usernameAndPassword = base64._Base64Decode()._GetString_UTF8();
-
-            if (Str.GetKeyAndValue(usernameAndPassword, out string username, out string password, ":") == false) return false;
-
-            // ユーザー認証を実施
-            bool ok = false;
-
-            if (passwordAuthCallback != null)
-            {
-                ok = await passwordAuthCallback(username, password);
-            }
-
-            return new ResultAndError<string>(username, ok);
+            ok = await passwordAuthCallback(username, password);
         }
+
+        return new ResultAndError<string>(username, ok);
     }
 }
 

@@ -41,71 +41,70 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
-{
-    public static partial class TaskUtil
-    {
-        public static object ConvertTask(object srcTaskObject, Type oldTaskType, Type newTaskType)
-        {
-            Type srcTaskDef = typeof(Task<>).MakeGenericType(oldTaskType);
+namespace IPA.Cores.Basic;
 
-            var contWithMethods = srcTaskDef.GetMethods();
-            MethodInfo? contWith = null;
-            int num = 0;
-            foreach (var m in contWithMethods)
+public static partial class TaskUtil
+{
+    public static object ConvertTask(object srcTaskObject, Type oldTaskType, Type newTaskType)
+    {
+        Type srcTaskDef = typeof(Task<>).MakeGenericType(oldTaskType);
+
+        var contWithMethods = srcTaskDef.GetMethods();
+        MethodInfo? contWith = null;
+        int num = 0;
+        foreach (var m in contWithMethods)
+        {
+            if (m.Name == "ContinueWith" && m.ContainsGenericParameters)
             {
-                if (m.Name == "ContinueWith" && m.ContainsGenericParameters)
+                var pinfos = m.GetParameters();
+                if (pinfos.Length == 1)
                 {
-                    var pinfos = m.GetParameters();
-                    if (pinfos.Length == 1)
+                    var pinfo = pinfos[0];
+                    var ptype = pinfo.ParameterType;
+                    var generic_args = ptype.GenericTypeArguments;
+                    if (generic_args.Length == 2)
                     {
-                        var pinfo = pinfos[0];
-                        var ptype = pinfo.ParameterType;
-                        var generic_args = ptype.GenericTypeArguments;
-                        if (generic_args.Length == 2)
+                        if (generic_args[0].IsGenericType)
                         {
-                            if (generic_args[0].IsGenericType)
+                            if (generic_args[1].IsGenericParameter)
                             {
-                                if (generic_args[1].IsGenericParameter)
+                                if (generic_args[0].BaseType == typeof(Task))
                                 {
-                                    if (generic_args[0].BaseType == typeof(Task))
-                                    {
-                                        contWith = m;
-                                        num++;
-                                    }
+                                    contWith = m;
+                                    num++;
                                 }
                             }
                         }
                     }
                 }
             }
-
-            if (num != 1) throw new ApplicationException("ConvertTask: num != 1");
-
-            contWith._NullCheck();
-
-            object? ret = null;
-
-            var contWithGeneric = contWith.MakeGenericMethod(newTaskType);
-
-            var convertTaskProcMethod = typeof(TaskUtil).GetMethod(nameof(ConvertTaskProc), BindingFlags.NonPublic | BindingFlags.Static)!.MakeGenericMethod(newTaskType);
-
-            var funcType = typeof(Func<,>).MakeGenericType(typeof(Task<>).MakeGenericType(oldTaskType), newTaskType);
-
-            Delegate delegateInstance = convertTaskProcMethod.CreateDelegate(funcType);
-
-            ret = contWithGeneric.Invoke(srcTaskObject, new object[] { delegateInstance })!;
-
-            return ret;
         }
 
-        static TNewResult ConvertTaskProc<TNewResult>(object t)
-        {
-            Type oldTaskType = t.GetType();
-            object? resultOld = oldTaskType.GetProperty("Result")!.GetValue(t);
-            TNewResult? resultNew = Json.ConvertObject<TNewResult>(resultOld);
-            return resultNew!;
-        }
+        if (num != 1) throw new ApplicationException("ConvertTask: num != 1");
+
+        contWith._NullCheck();
+
+        object? ret = null;
+
+        var contWithGeneric = contWith.MakeGenericMethod(newTaskType);
+
+        var convertTaskProcMethod = typeof(TaskUtil).GetMethod(nameof(ConvertTaskProc), BindingFlags.NonPublic | BindingFlags.Static)!.MakeGenericMethod(newTaskType);
+
+        var funcType = typeof(Func<,>).MakeGenericType(typeof(Task<>).MakeGenericType(oldTaskType), newTaskType);
+
+        Delegate delegateInstance = convertTaskProcMethod.CreateDelegate(funcType);
+
+        ret = contWithGeneric.Invoke(srcTaskObject, new object[] { delegateInstance })!;
+
+        return ret;
+    }
+
+    static TNewResult ConvertTaskProc<TNewResult>(object t)
+    {
+        Type oldTaskType = t.GetType();
+        object? resultOld = oldTaskType.GetProperty("Result")!.GetValue(t);
+        TNewResult? resultNew = Json.ConvertObject<TNewResult>(resultOld);
+        return resultNew!;
     }
 }
 

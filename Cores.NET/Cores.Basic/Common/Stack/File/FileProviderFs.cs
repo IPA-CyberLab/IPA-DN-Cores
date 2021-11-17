@@ -46,88 +46,87 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public class VfsFileProviderBasedFile : VfsRandomAccessFile
 {
-    public class VfsFileProviderBasedFile : VfsRandomAccessFile
+    protected new FileProviderBasedFileSystem FileSystem => (FileProviderBasedFileSystem)base.FileSystem;
+    public IFileInfo FileInfo { get; }
+    public string FullName { get; }
+
+    public VfsFileProviderBasedFile(FileProviderBasedFileSystem fileSystem, IFileInfo fileInfo, string fileName) : base(fileSystem, fileName)
     {
-        protected new FileProviderBasedFileSystem FileSystem => (FileProviderBasedFileSystem)base.FileSystem;
-        public IFileInfo FileInfo { get; }
-        public string FullName { get; }
-
-        public VfsFileProviderBasedFile(FileProviderBasedFileSystem fileSystem, IFileInfo fileInfo, string fileName) : base(fileSystem, fileName)
-        {
-            this.FullName = fileName;
-            this.FileInfo = fileInfo;
-        }
-
-        protected override IRandomAccess<byte> GetSharedRandomAccessBaseImpl()
-        {
-            return new SeekableStreamBasedRandomAccess(this.FileInfo.CreateReadStream());
-        }
+        this.FullName = fileName;
+        this.FileInfo = fileInfo;
     }
 
-    public class FileProviderFileSystemParams : VirtualFileSystemParams
+    protected override IRandomAccess<byte> GetSharedRandomAccessBaseImpl()
     {
-        public IFileProvider UnderlayProvider { get; }
-
-        public FileProviderFileSystemParams(IFileProvider underlayProvider) : base(FileSystemMode.ReadOnly)
-        {
-            this.UnderlayProvider = underlayProvider;
-        }
+        return new SeekableStreamBasedRandomAccess(this.FileInfo.CreateReadStream());
     }
+}
 
-    public class FileProviderBasedFileSystem : VirtualFileSystem
+public class FileProviderFileSystemParams : VirtualFileSystemParams
+{
+    public IFileProvider UnderlayProvider { get; }
+
+    public FileProviderFileSystemParams(IFileProvider underlayProvider) : base(FileSystemMode.ReadOnly)
     {
-        public new FileProviderFileSystemParams Params => (FileProviderFileSystemParams)base.Params;
+        this.UnderlayProvider = underlayProvider;
+    }
+}
 
-        IFileProvider Provider => Params.UnderlayProvider;
+public class FileProviderBasedFileSystem : VirtualFileSystem
+{
+    public new FileProviderFileSystemParams Params => (FileProviderFileSystemParams)base.Params;
 
-        public FileProviderBasedFileSystem(FileProviderFileSystemParams param) : base(param)
-        {
-            ScanDirAndRegisterFiles("/");
-        }
+    IFileProvider Provider => Params.UnderlayProvider;
+
+    public FileProviderBasedFileSystem(FileProviderFileSystemParams param) : base(param)
+    {
+        ScanDirAndRegisterFiles("/");
+    }
 
 #pragma warning disable CS1998
-        void ScanDirAndRegisterFiles(string dir)
+    void ScanDirAndRegisterFiles(string dir)
+    {
+        if (this.IsDirectoryExistsImplAsync(dir)._GetResult() == false)
         {
-            if (this.IsDirectoryExistsImplAsync(dir)._GetResult() == false)
-            {
-                this.CreateDirectoryImplAsync(dir)._GetResult();
-            }
+            this.CreateDirectoryImplAsync(dir)._GetResult();
+        }
 
-            IDirectoryContents entityList = Provider.GetDirectoryContents(dir);
+        IDirectoryContents entityList = Provider.GetDirectoryContents(dir);
 
-            foreach (IFileInfo entity in entityList)
+        foreach (IFileInfo entity in entityList)
+        {
+            if (entity.Exists)
             {
-                if (entity.Exists)
+                if (entity.IsDirectory)
                 {
-                    if (entity.IsDirectory)
-                    {
-                        string subDirFullPath = PathParser.Mac.Combine(dir, entity.Name);
+                    string subDirFullPath = PathParser.Mac.Combine(dir, entity.Name);
 
-                        ScanDirAndRegisterFiles(subDirFullPath);
-                    }
-                    else
-                    {
-                        string fileFullPath = PathParser.Mac.Combine(dir, entity.Name);
+                    ScanDirAndRegisterFiles(subDirFullPath);
+                }
+                else
+                {
+                    string fileFullPath = PathParser.Mac.Combine(dir, entity.Name);
 
-                        using (this.AddFileAsync(new FileParameters(fileFullPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite),
-                            async (newFilename, newFileOption, c) =>
-                            {
-                                return new VfsFileProviderBasedFile(this, entity, newFilename);
-                            })._GetResult())
+                    using (this.AddFileAsync(new FileParameters(fileFullPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite),
+                        async (newFilename, newFileOption, c) =>
                         {
-                        }
+                            return new VfsFileProviderBasedFile(this, entity, newFilename);
+                        })._GetResult())
+                    {
                     }
                 }
             }
         }
+    }
 #pragma warning restore CS1998
 
-        protected override IFileProvider CreateFileProviderForWatchImpl(string root)
-        {
-            return base.CreateDefaultNullFileProvider();
-        }
+    protected override IFileProvider CreateFileProviderForWatchImpl(string root)
+    {
+        return base.CreateDefaultNullFileProvider();
     }
 }
 

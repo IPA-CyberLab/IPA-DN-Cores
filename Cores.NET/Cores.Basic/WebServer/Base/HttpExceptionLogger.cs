@@ -64,81 +64,80 @@ using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Net.Http.Headers;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public static class HttpExceptionLoggerHelper
 {
-    public static class HttpExceptionLoggerHelper
+    public static IServiceCollection AddHttpExceptionLogger(this IServiceCollection services, Action<HttpExceptionLoggerOptions> configureOptions)
     {
-        public static IServiceCollection AddHttpExceptionLogger(this IServiceCollection services, Action<HttpExceptionLoggerOptions> configureOptions)
+        if (services == null)
         {
-            if (services == null)
-            {
-                throw new ArgumentNullException(nameof(services));
-            }
-            if (configureOptions == null)
-            {
-                throw new ArgumentNullException(nameof(configureOptions));
-            }
-            services.Configure(configureOptions);
-            return services;
+            throw new ArgumentNullException(nameof(services));
+        }
+        if (configureOptions == null)
+        {
+            throw new ArgumentNullException(nameof(configureOptions));
+        }
+        services.Configure(configureOptions);
+        return services;
+    }
+
+    public static IApplicationBuilder UseHttpExceptionLogger(this IApplicationBuilder app)
+    {
+        if (app == null)
+        {
+            throw new ArgumentNullException(nameof(app));
         }
 
-        public static IApplicationBuilder UseHttpExceptionLogger(this IApplicationBuilder app)
+        app.UseMiddleware<HttpExceptionLoggerMiddleware>();
+
+        return app;
+    }
+}
+
+public class HttpExceptionLoggerOptions { }
+
+public class HttpExceptionLoggerMiddleware
+{
+    static readonly object SavedExceptionItemkey = new object();
+
+    readonly RequestDelegate Next;
+    readonly IConfiguration Config;
+
+    public HttpExceptionLoggerMiddleware(RequestDelegate next, IOptions<HttpExceptionLoggerOptions> options, IConfiguration config, ILoggerFactory loggerFactory)
+    {
+        Next = next ?? throw new ArgumentNullException(nameof(next));
+        Config = config ?? throw new ArgumentNullException(nameof(config));
+        if (options == null)
         {
-            if (app == null)
-            {
-                throw new ArgumentNullException(nameof(app));
-            }
-
-            app.UseMiddleware<HttpExceptionLoggerMiddleware>();
-
-            return app;
+            throw new ArgumentNullException(nameof(options));
         }
     }
 
-    public class HttpExceptionLoggerOptions { }
-
-    public class HttpExceptionLoggerMiddleware
+    public async Task Invoke(HttpContext context)
     {
-        static readonly object SavedExceptionItemkey = new object();
-
-        readonly RequestDelegate Next;
-        readonly IConfiguration Config;
-
-        public HttpExceptionLoggerMiddleware(RequestDelegate next, IOptions<HttpExceptionLoggerOptions> options, IConfiguration config, ILoggerFactory loggerFactory)
+        try
         {
-            Next = next ?? throw new ArgumentNullException(nameof(next));
-            Config = config ?? throw new ArgumentNullException(nameof(config));
-            if (options == null)
+            await Next(context);
+        }
+        catch (Exception ex)
+        {
+            if (ex != null)
             {
-                throw new ArgumentNullException(nameof(options));
+                context.Items[SavedExceptionItemkey] = ex;
             }
+            throw;
+        }
+    }
+
+    public static Exception? GetSavedExceptionFromContext(HttpContext context)
+    {
+        if (context.Items.TryGetValue(SavedExceptionItemkey, out object? ex))
+        {
+            return ex as Exception;
         }
 
-        public async Task Invoke(HttpContext context)
-        {
-            try
-            {
-                await Next(context);
-            }
-            catch (Exception ex)
-            {
-                if (ex != null)
-                {
-                    context.Items[SavedExceptionItemkey] = ex;
-                }
-                throw;
-            }
-        }
-
-        public static Exception? GetSavedExceptionFromContext(HttpContext context)
-        {
-            if (context.Items.TryGetValue(SavedExceptionItemkey, out object? ex))
-            {
-                return ex as Exception;
-            }
-
-            return null;
-        }
+        return null;
     }
 }
 

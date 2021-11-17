@@ -37,42 +37,41 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using IPA.Cores.Basic.Legacy;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public partial class Pack
 {
-    public partial class Pack
+    public void AddCert(string name, Cert cert)
     {
-        public void AddCert(string name, Cert cert)
-        {
-            AddCert(name, cert, 0);
-        }
-        public void AddCert(string name, Cert cert, uint index)
-        {
-            AddData(name, cert.ByteData, index);
-        }
-        public Cert? GetCert(string name)
-        {
-            return GetCert(name, 0);
-        }
-        public Cert? GetCert(string name, uint index)
-        {
-            byte[]? data = GetData(name, index);
-            if (data == null)
-            {
-                return null;
-            }
-            try
-            {
-                Cert c = new Cert(data);
-
-                return c;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
+        AddCert(name, cert, 0);
     }
+    public void AddCert(string name, Cert cert, uint index)
+    {
+        AddData(name, cert.ByteData, index);
+    }
+    public Cert? GetCert(string name)
+    {
+        return GetCert(name, 0);
+    }
+    public Cert? GetCert(string name, uint index)
+    {
+        byte[]? data = GetData(name, index);
+        if (data == null)
+        {
+            return null;
+        }
+        try
+        {
+            Cert c = new Cert(data);
+
+            return c;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
 }
 
 #endif // CORES_BASIC_SECURITY

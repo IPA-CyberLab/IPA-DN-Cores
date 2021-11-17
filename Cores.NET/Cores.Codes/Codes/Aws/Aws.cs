@@ -62,85 +62,84 @@ using Amazon.Runtime;
 using Amazon.SimpleNotificationService;
 using Amazon.SimpleNotificationService.Model;
 
-namespace IPA.Cores.Codes
+namespace IPA.Cores.Codes;
+
+public class AwsSnsSettings
 {
-    public class AwsSnsSettings
+    public string RegionEndPointName { get; }
+    public string AccessKeyId { get; }
+    public string SecretAccessKey { get; }
+    public string DefaultCountryCode { get; }
+
+    public AwsSnsSettings(string regionEndPointName, string accessKeyId, string secretAccessKey, string defaultCountryCode = Consts.Strings.SmsDefaultCountryCode)
     {
-        public string RegionEndPointName { get; }
-        public string AccessKeyId { get; }
-        public string SecretAccessKey { get; }
-        public string DefaultCountryCode { get; }
-        
-        public AwsSnsSettings(string regionEndPointName, string accessKeyId, string secretAccessKey, string defaultCountryCode = Consts.Strings.SmsDefaultCountryCode)
-        {
-            this.RegionEndPointName = regionEndPointName;
-            this.AccessKeyId = accessKeyId;
-            this.SecretAccessKey = secretAccessKey;
-            this.DefaultCountryCode = defaultCountryCode;
-        }
+        this.RegionEndPointName = regionEndPointName;
+        this.AccessKeyId = accessKeyId;
+        this.SecretAccessKey = secretAccessKey;
+        this.DefaultCountryCode = defaultCountryCode;
+    }
+}
+
+public class AwsSns : AsyncService
+{
+    public AwsSnsSettings Settings { get; }
+
+    public AwsSns(AwsSnsSettings settings)
+    {
+        this.Settings = settings;
     }
 
-    public class AwsSns : AsyncService
+    public static string NormalizePhoneNumber(string phoneNumber, string defaultCountryCode = Consts.Strings.SmsDefaultCountryCode)
     {
-        public AwsSnsSettings Settings { get; }
+        string original = phoneNumber;
 
-        public AwsSns(AwsSnsSettings settings)
+        if (original._IsEmpty())
         {
-            this.Settings = settings;
+            throw new CoresException("The phone number is empty.");
         }
 
-        public static string NormalizePhoneNumber(string phoneNumber, string defaultCountryCode = Consts.Strings.SmsDefaultCountryCode)
+        phoneNumber = phoneNumber.Trim();
+        Str.NormalizeString(ref phoneNumber, true, true, false, false);
+        phoneNumber = phoneNumber._ReplaceStr(" ", "");
+
+        if (phoneNumber.StartsWith("0"))
         {
-            string original = phoneNumber;
-
-            if (original._IsEmpty())
-            {
-                throw new CoresException("The phone number is empty.");
-            }
-
-            phoneNumber = phoneNumber.Trim();
-            Str.NormalizeString(ref phoneNumber, true, true, false, false);
-            phoneNumber = phoneNumber._ReplaceStr(" ", "");
-
-            if (phoneNumber.StartsWith("0"))
-            {
-                phoneNumber = defaultCountryCode + phoneNumber._Slice(1);
-            }
-
-            if (phoneNumber.StartsWith("+") == false)
-            {
-                phoneNumber = "+" + phoneNumber;
-            }
-
-            string pn1 = phoneNumber.Substring(0, 1);
-            string pn2 = phoneNumber.Substring(1);
-
-            pn2 = pn2._ReplaceStr("-", "");
-            pn2 = pn2._ReplaceStr("/", "");
-            pn2 = pn2._ReplaceStr("+", "");
-            pn2 = pn2._ReplaceStr("#", "");
-            pn2 = pn2._ReplaceStr("*", "");
-
-            if (pn2.Where(x => !(x >= '0' && x <= '9')).Any())
-            {
-                throw new CoresException($"The phone number '{original}' has invalid characters.");
-            }
-
-            return pn1 + pn2;
+            phoneNumber = defaultCountryCode + phoneNumber._Slice(1);
         }
 
-        public async Task SendAsync(string message, string phoneNumber, CancellationToken cancel = default)
+        if (phoneNumber.StartsWith("+") == false)
         {
-            using AmazonSimpleNotificationServiceClient c = new AmazonSimpleNotificationServiceClient(this.Settings.AccessKeyId, this.Settings.SecretAccessKey, RegionEndpoint.GetBySystemName(this.Settings.RegionEndPointName));
-
-            PublishRequest req = new PublishRequest();
-            req.Message = message;
-            req.PhoneNumber = NormalizePhoneNumber(phoneNumber, this.Settings.DefaultCountryCode);
-            //req.PhoneNumber._Print();
-
-            var response = await c.PublishAsync(req, cancel);
-            //response.MessageId._Print();
+            phoneNumber = "+" + phoneNumber;
         }
+
+        string pn1 = phoneNumber.Substring(0, 1);
+        string pn2 = phoneNumber.Substring(1);
+
+        pn2 = pn2._ReplaceStr("-", "");
+        pn2 = pn2._ReplaceStr("/", "");
+        pn2 = pn2._ReplaceStr("+", "");
+        pn2 = pn2._ReplaceStr("#", "");
+        pn2 = pn2._ReplaceStr("*", "");
+
+        if (pn2.Where(x => !(x >= '0' && x <= '9')).Any())
+        {
+            throw new CoresException($"The phone number '{original}' has invalid characters.");
+        }
+
+        return pn1 + pn2;
+    }
+
+    public async Task SendAsync(string message, string phoneNumber, CancellationToken cancel = default)
+    {
+        using AmazonSimpleNotificationServiceClient c = new AmazonSimpleNotificationServiceClient(this.Settings.AccessKeyId, this.Settings.SecretAccessKey, RegionEndpoint.GetBySystemName(this.Settings.RegionEndPointName));
+
+        PublishRequest req = new PublishRequest();
+        req.Message = message;
+        req.PhoneNumber = NormalizePhoneNumber(phoneNumber, this.Settings.DefaultCountryCode);
+        //req.PhoneNumber._Print();
+
+        var response = await c.PublishAsync(req, cancel);
+        //response.MessageId._Print();
     }
 }
 

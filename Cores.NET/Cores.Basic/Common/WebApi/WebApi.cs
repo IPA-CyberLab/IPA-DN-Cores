@@ -54,834 +54,833 @@ using System.Net.Security;
 
 #pragma warning disable CA2235 // Mark all non-serializable fields
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public static partial class CoresConfig
 {
-    public static partial class CoresConfig
+    public static partial class DefaultHttpClientSettings
     {
-        public static partial class DefaultHttpClientSettings
-        {
-            public static readonly Copenhagen<int> MaxConnectionPerServer = 512;
-            public static readonly Copenhagen<int> PooledConnectionLifeTime = 5 * 60 * 1000;
-            public static readonly Copenhagen<int> Timeout = 60 * 1000;
-            public static readonly Copenhagen<int> MaxRecvSize = 100 * 1024 * 1024;
-            public static readonly Copenhagen<bool> UseProxy = true;
-        }
+        public static readonly Copenhagen<int> MaxConnectionPerServer = 512;
+        public static readonly Copenhagen<int> PooledConnectionLifeTime = 5 * 60 * 1000;
+        public static readonly Copenhagen<int> Timeout = 60 * 1000;
+        public static readonly Copenhagen<int> MaxRecvSize = 100 * 1024 * 1024;
+        public static readonly Copenhagen<bool> UseProxy = true;
     }
+}
 
-    public class EasyHttpClientOptions
+public class EasyHttpClientOptions
+{
+    public int TryCount { get; }
+    public int RetryIntervalMsecs { get; }
+    public bool RandomInterval { get; }
+    public string BasicUsername { get; }
+    public string BasicPassword { get; }
+
+    public WebApiOptions WebApiOptions { get; }
+
+    public RemoteCertificateValidationCallback? SslCallback { get; }
+
+    public EasyHttpClientOptions(
+        int retCount = Consts.Numbers.EasyHttpClient_DefaultTryCount, int retryIntervalMsecs = Consts.Numbers.EasyHttpClient_DefaultRetryIntervalMsecs,
+        bool randomInterval = true,
+        string basicUsername = "", string basicPassword = "",
+        WebApiOptions? options = null, RemoteCertificateValidationCallback? sslCallback = null)
     {
-        public int TryCount { get; }
-        public int RetryIntervalMsecs { get; }
-        public bool RandomInterval { get; }
-        public string BasicUsername { get; }
-        public string BasicPassword { get; }
+        options ??= new WebApiOptions();
 
-        public WebApiOptions WebApiOptions { get; }
+        this.TryCount = Math.Max(retCount, 1);
 
-        public RemoteCertificateValidationCallback? SslCallback { get; }
+        this.RetryIntervalMsecs = Math.Max(retryIntervalMsecs, 1);
 
-        public EasyHttpClientOptions(
-            int retCount = Consts.Numbers.EasyHttpClient_DefaultTryCount, int retryIntervalMsecs = Consts.Numbers.EasyHttpClient_DefaultRetryIntervalMsecs,
-            bool randomInterval = true,
-            string basicUsername = "", string basicPassword = "",
-            WebApiOptions? options = null, RemoteCertificateValidationCallback? sslCallback = null)
-        {
-            options ??= new WebApiOptions();
+        this.RandomInterval = randomInterval;
 
-            this.TryCount = Math.Max(retCount, 1);
+        this.WebApiOptions = options;
+        this.SslCallback = sslCallback;
 
-            this.RetryIntervalMsecs = Math.Max(retryIntervalMsecs, 1);
-
-            this.RandomInterval = randomInterval;
-
-            this.WebApiOptions = options;
-            this.SslCallback = sslCallback;
-
-            this.BasicUsername = basicUsername._NonNull();
-            this.BasicPassword = basicPassword._NonNull();
-        }
+        this.BasicUsername = basicUsername._NonNull();
+        this.BasicPassword = basicPassword._NonNull();
     }
+}
 
-    public partial class EasyHttpClient : AsyncService
+public partial class EasyHttpClient : AsyncService
+{
+    public EasyHttpClientOptions Options { get; }
+    public WebApi Api { get; }
+
+    public EasyHttpClient(EasyHttpClientOptions? options = null)
     {
-        public EasyHttpClientOptions Options { get; }
-        public WebApi Api { get; }
-
-        public EasyHttpClient(EasyHttpClientOptions? options = null)
+        try
         {
-            try
+            options ??= new EasyHttpClientOptions();
+            this.Options = options;
+
+            this.Api = new WebApi(this.Options.WebApiOptions, this.Options.SslCallback);
+
+            if (this.Options.BasicUsername._IsFilled() && this.Options.BasicPassword._IsFilled())
             {
-                options ??= new EasyHttpClientOptions();
-                this.Options = options;
+                this.Api.SetBasicAuthHeader(this.Options.BasicUsername, this.Options.BasicPassword);
+            }
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
+    }
 
-                this.Api = new WebApi(this.Options.WebApiOptions, this.Options.SslCallback);
+    public async Task<WebRet> GetAsync(string url, CancellationToken cancel = default)
+    {
+        return await TaskUtil.RetryAsync(async () =>
+        {
+            return await Api.SimpleQueryAsync(WebMethods.GET, url, cancel);
+        },
+        this.Options.RetryIntervalMsecs,
+        this.Options.TryCount,
+        cancel,
+        this.Options.RandomInterval);
+    }
 
-                if (this.Options.BasicUsername._IsFilled() && this.Options.BasicPassword._IsFilled())
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
+        {
+            await this.Api._DisposeSafeAsync();
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
+        }
+    }
+}
+
+public class WebResponseException : Exception
+{
+    public WebResponseException(string message) : base(message) { }
+}
+
+public interface IValidatable
+{
+    void Validate();
+}
+
+public static partial class IErrorCheckableHelper
+{
+    // IErrorCheckable から IErrorCheckableHelper の実装に必要な Validate() 関数の応答を返す
+    public static IEnumerable<ValidationResult> _Validate(this IValidatable targetObject, ValidationContext validationContext)
+    {
+        try
+        {
+            if (targetObject is INormalizable norm) norm.Normalize();
+
+            targetObject.Validate();
+        }
+        catch (Exception ex)
+        {
+            ValidationResult err = new ValidationResult(ex.Message);
+
+            return err._SingleArray();
+        }
+
+        return EmptyEnumerable<ValidationResult>.Empty;
+    }
+}
+
+public class WebSendRecvRequest : IDisposable
+{
+    public WebMethods Method { get; }
+    public string Url { get; }
+    public CancellationToken Cancel { get; }
+    public string UploadContentType { get; }
+    public Stream? UploadStream { get; }
+    public long? RangeStart { get; }
+    public long? RangeLength { get; }
+
+    public WebSendRecvRequest(WebMethods method, string url, CancellationToken cancel = default,
+        string uploadContentType = Consts.MimeTypes.OctetStream, Stream? uploadStream = null,
+        long? rangeStart = null, long? rangeLength = null)
+    {
+        if (rangeStart == null && rangeLength != null) throw new ArgumentOutOfRangeException("rangeStart == null && rangeLength != null");
+        if ((rangeStart ?? 0) < 0) throw new ArgumentOutOfRangeException(nameof(rangeStart));
+        if ((rangeLength ?? 1) <= 0) throw new ArgumentOutOfRangeException(nameof(rangeLength));
+
+        this.RangeStart = rangeStart;
+        this.RangeLength = rangeLength;
+
+        checked
+        {
+            Limbo.SInt64 = this.RangeStart ?? 0 + this.RangeLength ?? 0;
+        }
+
+        this.Method = method;
+        this.Url = url;
+        this.Cancel = cancel;
+        this.UploadContentType = uploadContentType._FilledOrDefault(Consts.MimeTypes.OctetStream);
+        this.UploadStream = uploadStream;
+    }
+
+    public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+    Once DisposeFlag;
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+        this.UploadStream._DisposeSafe();
+    }
+}
+
+public class WebSendRecvResponse : IDisposable, IAsyncDisposable
+{
+    public HttpContent DownloadContent { get; }
+    public HttpResponseMessage HttpResponseMessage { get; }
+    public string DownloadContentType { get; }
+    public long? DownloadContentLength { get; }
+    public Stream DownloadStream { get; }
+
+    public WebSendRecvResponse(HttpResponseMessage response, Stream downloadStream)
+    {
+        try
+        {
+            this.HttpResponseMessage = response;
+            this.DownloadContent = response.Content;
+
+            this.DownloadContentType = (this.DownloadContent.Headers.ContentType?.MediaType)._NonNullTrim();
+
+            if (this.DownloadContent.TryComputeLength(out long length))
+                this.DownloadContentLength = length;
+            else
+                this.DownloadContentLength = response.Content.Headers.ContentLength;
+
+            DownloadStream = downloadStream;
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
+    }
+
+    public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+    Once DisposeFlag;
+    public virtual async ValueTask DisposeAsync()
+    {
+        if (DisposeFlag.IsFirstCall() == false) return;
+        await DisposeInternalAsync();
+    }
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+        DisposeInternalAsync()._GetResult();
+    }
+    async Task DisposeInternalAsync()
+    {
+        this.HttpResponseMessage._DisposeSafe();
+        this.DownloadContent._DisposeSafe();
+        await this.DownloadStream._DisposeSafeAsync();
+    }
+}
+
+public class WebUserRet<TUser> : SystemAndUser<WebRet, TUser>
+{
+    public WebUserRet(WebRet web, TUser user) : base(web, user)
+    {
+    }
+}
+
+public partial class WebRet
+{
+    public const string MediaTypeJson = Consts.MimeTypes.Json;
+
+    public string Url { get; }
+    public string ContentType { get; }
+    public byte[] Data { get; }
+    public string MediaType { get; }
+    public string CharSet { get; }
+    public Encoding DefaultEncoding { get; } = null!;
+    public WebApi Api { get; }
+    public HttpResponseHeaders Headers { get; }
+    public HttpStatusCode StatusCode { get; }
+    public bool IsSuccessStatusCode { get; }
+    public string StatusReason { get; }
+    public string StatusCodeAndReasonString { get; }
+    public string String => this.ToString();
+
+    public WebRet(WebApi api, string url, string contentType, byte[] data, HttpResponseHeaders headers, bool isSuccessStatusCode, HttpStatusCode statusCode, string statusReason)
+    {
+        this.Api = api;
+        this.Url = url._NonNull();
+        this.ContentType = contentType._NonNull();
+        this.Headers = headers;
+
+        this.StatusCode = statusCode;
+        this.IsSuccessStatusCode = isSuccessStatusCode;
+        this.StatusReason = statusReason._NonNull();
+
+        this.StatusCodeAndReasonString = string.Format("Response status code does not indicate success: {0} ({1}).", (int)statusCode, statusReason);
+
+        try
+        {
+            var ct = new System.Net.Mime.ContentType(this.ContentType);
+            this.MediaType = ct.MediaType._NonNull();
+            this.CharSet = ct.CharSet._NonNull();
+        }
+        catch
+        {
+            this.MediaType = this.ContentType;
+            this.CharSet = "";
+        }
+
+        try
+        {
+            if (this.CharSet._IsFilled())
+            {
+                this.DefaultEncoding = Encoding.GetEncoding(this.CharSet);
+            }
+        }
+        catch
+        {
+        }
+
+        if (this.DefaultEncoding == null)
+        {
+            this.DefaultEncoding = api.RequestEncoding;
+        }
+
+        this.Data = data._NonNull();
+
+        if (this.Api.DebugPrintResponse)
+        {
+            this._DebugObject();
+        }
+    }
+
+    public override string ToString() => this.Data._GetString(this.DefaultEncoding);
+    public string ToString(Encoding encoding) => this.Data._GetString(encoding);
+
+    public WebUserRet<TUser> CreateUserRet<TUser>(TUser userData) => new WebUserRet<TUser>(this, userData);
+}
+
+[Flags]
+public enum WebMethods
+{
+    GET,
+    DELETE,
+    POST,
+    PUT,
+    HEAD,
+}
+
+[Flags]
+public enum WebMethodBits
+{
+    GET = 1,
+    DELETE = 2,
+    POST = 4,
+    PUT = 8,
+    HEAD = 16,
+}
+
+[Serializable]
+public class WebApiSettings
+{
+    public int Timeout = CoresConfig.DefaultHttpClientSettings.Timeout;
+    public int MaxRecvSize = CoresConfig.DefaultHttpClientSettings.MaxRecvSize;
+    public int MaxConnectionPerServer = CoresConfig.DefaultHttpClientSettings.MaxConnectionPerServer;
+    public int PooledConnectionLifeTime = CoresConfig.DefaultHttpClientSettings.PooledConnectionLifeTime;
+    public bool UseProxy = CoresConfig.DefaultHttpClientSettings.UseProxy;
+    public bool DisableKeepAlive = false;
+    public bool DoNotThrowHttpResultError = false;
+
+    public bool AllowAutoRedirect = true;
+    public int MaxAutomaticRedirections = 10;
+
+    public bool SslAcceptAnyCerts = false;
+    public List<string> SslAcceptCertSHAHashList = new List<string>();
+
+    public bool DebugPrintResponse = false;
+}
+
+public class WebApiOptions
+{
+    public WebApiSettings Settings { get; }
+    public TcpIpSystem? TcpIp { get; }
+
+    public WebApiOptions(WebApiSettings? settings = null, TcpIpSystem? tcpIp = null, bool doNotUseTcpStack = false)
+    {
+        if (settings == null) settings = new WebApiSettings();
+        if (tcpIp == null) tcpIp = (doNotUseTcpStack ? null : LocalNet);
+
+        this.Settings = settings;
+        this.TcpIp = tcpIp;
+    }
+}
+
+public partial class WebApi : IDisposable, IAsyncDisposable
+{
+    WebApiSettings Settings;
+
+    public int TimeoutMsecs { get => (int)Client.Timeout.TotalMilliseconds; set => Client.Timeout = new TimeSpan(0, 0, 0, 0, value); }
+    public long MaxRecvSize { get => this.Client.MaxResponseContentBufferSize; set => this.Client.MaxResponseContentBufferSize = value; }
+
+    public Encoding RequestEncoding { get; set; } = Encoding.UTF8;
+
+    public SortedList<string, string> RequestHeaders = new SortedList<string, string>();
+
+    SocketsHttpHandler ClientHandler;
+
+    public X509CertificateCollection? ClientCerts { get => this.ClientHandler.SslOptions.ClientCertificates; }
+
+    public HttpClient Client { get; private set; }
+
+    public bool DebugPrintResponse => this.Settings.DebugPrintResponse;
+
+    public RemoteCertificateValidationCallback? SslServerCertValicationCallback { get; }
+
+    public WebApi(WebApiOptions? options = null, RemoteCertificateValidationCallback? sslServerCertValicationCallback = null)
+    {
+        if (options == null) options = new WebApiOptions();
+
+        this.Settings = options.Settings._CloneDeep();
+
+        this.ClientHandler = new SocketsHttpHandler(options.TcpIp);
+
+        this.ClientHandler.AllowAutoRedirect = this.Settings.AllowAutoRedirect;
+        this.ClientHandler.MaxAutomaticRedirections = this.Settings.MaxAutomaticRedirections;
+        this.ClientHandler.MaxConnectionsPerServer = this.Settings.MaxConnectionPerServer;
+        this.ClientHandler.PooledConnectionLifetime = Util.ConvertTimeSpan(this.Settings.PooledConnectionLifeTime);
+
+        this.Client = new HttpClient(this.ClientHandler, true);
+        this.MaxRecvSize = this.Settings.MaxRecvSize;
+        this.TimeoutMsecs = this.Settings.Timeout;
+        this.SslServerCertValicationCallback = sslServerCertValicationCallback;
+    }
+
+    public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+    Once DisposeFlag;
+    public virtual async ValueTask DisposeAsync()
+    {
+        if (DisposeFlag.IsFirstCall() == false) return;
+        await DisposeInternalAsync();
+    }
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+        DisposeInternalAsync()._GetResult();
+    }
+    async Task DisposeInternalAsync()
+    {
+        this.Client._DisposeSafe();
+        this.Client = null!;
+
+        await Task.CompletedTask;
+    }
+
+    public string BuildQueryString(params (string name, string? value)[]? queryList)
+    {
+        StringWriter w = new StringWriter();
+        int count = 0;
+        if (queryList != null)
+        {
+            foreach (var t in queryList)
+            {
+                if (t.value != null)
                 {
-                    this.Api.SetBasicAuthHeader(this.Options.BasicUsername, this.Options.BasicPassword);
-                }
-            }
-            catch
-            {
-                this._DisposeSafe();
-                throw;
-            }
-        }
-
-        public async Task<WebRet> GetAsync(string url, CancellationToken cancel = default)
-        {
-            return await TaskUtil.RetryAsync(async () =>
-            {
-                return await Api.SimpleQueryAsync(WebMethods.GET, url, cancel);
-            },
-            this.Options.RetryIntervalMsecs,
-            this.Options.TryCount,
-            cancel,
-            this.Options.RandomInterval);
-        }
-
-        protected override async Task CleanupImplAsync(Exception? ex)
-        {
-            try
-            {
-                await this.Api._DisposeSafeAsync();
-            }
-            finally
-            {
-                await base.CleanupImplAsync(ex);
-            }
-        }
-    }
-
-    public class WebResponseException : Exception
-    {
-        public WebResponseException(string message) : base(message) { }
-    }
-
-    public interface IValidatable
-    {
-        void Validate();
-    }
-
-    public static partial class IErrorCheckableHelper
-    {
-        // IErrorCheckable から IErrorCheckableHelper の実装に必要な Validate() 関数の応答を返す
-        public static IEnumerable<ValidationResult> _Validate(this IValidatable targetObject, ValidationContext validationContext)
-        {
-            try
-            {
-                if (targetObject is INormalizable norm) norm.Normalize();
-
-                targetObject.Validate();
-            }
-            catch (Exception ex)
-            {
-                ValidationResult err = new ValidationResult(ex.Message);
-
-                return err._SingleArray();
-            }
-
-            return EmptyEnumerable<ValidationResult>.Empty;
-        }
-    }
-
-    public class WebSendRecvRequest : IDisposable
-    {
-        public WebMethods Method { get; }
-        public string Url { get; }
-        public CancellationToken Cancel { get; }
-        public string UploadContentType { get; }
-        public Stream? UploadStream { get; }
-        public long? RangeStart { get; }
-        public long? RangeLength { get; }
-
-        public WebSendRecvRequest(WebMethods method, string url, CancellationToken cancel = default,
-            string uploadContentType = Consts.MimeTypes.OctetStream, Stream? uploadStream = null,
-            long? rangeStart = null, long? rangeLength = null)
-        {
-            if (rangeStart == null && rangeLength != null) throw new ArgumentOutOfRangeException("rangeStart == null && rangeLength != null");
-            if ((rangeStart ?? 0) < 0) throw new ArgumentOutOfRangeException(nameof(rangeStart));
-            if ((rangeLength ?? 1) <= 0) throw new ArgumentOutOfRangeException(nameof(rangeLength));
-
-            this.RangeStart = rangeStart;
-            this.RangeLength = rangeLength;
-
-            checked
-            {
-                Limbo.SInt64 = this.RangeStart ?? 0 + this.RangeLength ?? 0;
-            }
-
-            this.Method = method;
-            this.Url = url;
-            this.Cancel = cancel;
-            this.UploadContentType = uploadContentType._FilledOrDefault(Consts.MimeTypes.OctetStream);
-            this.UploadStream = uploadStream;
-        }
-
-        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
-        Once DisposeFlag;
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            this.UploadStream._DisposeSafe();
-        }
-    }
-
-    public class WebSendRecvResponse : IDisposable, IAsyncDisposable
-    {
-        public HttpContent DownloadContent { get; }
-        public HttpResponseMessage HttpResponseMessage { get; }
-        public string DownloadContentType { get; }
-        public long? DownloadContentLength { get; }
-        public Stream DownloadStream { get; }
-
-        public WebSendRecvResponse(HttpResponseMessage response, Stream downloadStream)
-        {
-            try
-            {
-                this.HttpResponseMessage = response;
-                this.DownloadContent = response.Content;
-
-                this.DownloadContentType = (this.DownloadContent.Headers.ContentType?.MediaType)._NonNullTrim();
-
-                if (this.DownloadContent.TryComputeLength(out long length))
-                    this.DownloadContentLength = length;
-                else
-                    this.DownloadContentLength = response.Content.Headers.ContentLength;
-
-                DownloadStream = downloadStream;
-            }
-            catch
-            {
-                this._DisposeSafe();
-                throw;
-            }
-        }
-
-        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
-        Once DisposeFlag;
-        public virtual async ValueTask DisposeAsync()
-        {
-            if (DisposeFlag.IsFirstCall() == false) return;
-            await DisposeInternalAsync();
-        }
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            DisposeInternalAsync()._GetResult();
-        }
-        async Task DisposeInternalAsync()
-        {
-            this.HttpResponseMessage._DisposeSafe();
-            this.DownloadContent._DisposeSafe();
-            await this.DownloadStream._DisposeSafeAsync();
-        }
-    }
-
-    public class WebUserRet<TUser> : SystemAndUser<WebRet, TUser>
-    {
-        public WebUserRet(WebRet web, TUser user) : base(web, user)
-        {
-        }
-    }
-
-    public partial class WebRet
-    {
-        public const string MediaTypeJson = Consts.MimeTypes.Json;
-
-        public string Url { get; }
-        public string ContentType { get; }
-        public byte[] Data { get; }
-        public string MediaType { get; }
-        public string CharSet { get; }
-        public Encoding DefaultEncoding { get; } = null!;
-        public WebApi Api { get; }
-        public HttpResponseHeaders Headers { get; }
-        public HttpStatusCode StatusCode { get; }
-        public bool IsSuccessStatusCode { get; }
-        public string StatusReason { get; }
-        public string StatusCodeAndReasonString { get; }
-        public string String => this.ToString();
-
-        public WebRet(WebApi api, string url, string contentType, byte[] data, HttpResponseHeaders headers, bool isSuccessStatusCode, HttpStatusCode statusCode, string statusReason)
-        {
-            this.Api = api;
-            this.Url = url._NonNull();
-            this.ContentType = contentType._NonNull();
-            this.Headers = headers;
-
-            this.StatusCode = statusCode;
-            this.IsSuccessStatusCode = isSuccessStatusCode;
-            this.StatusReason = statusReason._NonNull();
-
-            this.StatusCodeAndReasonString = string.Format("Response status code does not indicate success: {0} ({1}).", (int)statusCode, statusReason);
-
-            try
-            {
-                var ct = new System.Net.Mime.ContentType(this.ContentType);
-                this.MediaType = ct.MediaType._NonNull();
-                this.CharSet = ct.CharSet._NonNull();
-            }
-            catch
-            {
-                this.MediaType = this.ContentType;
-                this.CharSet = "";
-            }
-
-            try
-            {
-                if (this.CharSet._IsFilled())
-                {
-                    this.DefaultEncoding = Encoding.GetEncoding(this.CharSet);
-                }
-            }
-            catch
-            {
-            }
-
-            if (this.DefaultEncoding == null)
-            {
-                this.DefaultEncoding = api.RequestEncoding;
-            }
-
-            this.Data = data._NonNull();
-
-            if (this.Api.DebugPrintResponse)
-            {
-                this._DebugObject();
-            }
-        }
-
-        public override string ToString() => this.Data._GetString(this.DefaultEncoding);
-        public string ToString(Encoding encoding) => this.Data._GetString(encoding);
-
-        public WebUserRet<TUser> CreateUserRet<TUser>(TUser userData) => new WebUserRet<TUser>(this, userData);
-    }
-
-    [Flags]
-    public enum WebMethods
-    {
-        GET,
-        DELETE,
-        POST,
-        PUT,
-        HEAD,
-    }
-
-    [Flags]
-    public enum WebMethodBits
-    {
-        GET = 1,
-        DELETE = 2,
-        POST = 4,
-        PUT = 8,
-        HEAD = 16,
-    }
-
-    [Serializable]
-    public class WebApiSettings
-    {
-        public int Timeout = CoresConfig.DefaultHttpClientSettings.Timeout;
-        public int MaxRecvSize = CoresConfig.DefaultHttpClientSettings.MaxRecvSize;
-        public int MaxConnectionPerServer = CoresConfig.DefaultHttpClientSettings.MaxConnectionPerServer;
-        public int PooledConnectionLifeTime = CoresConfig.DefaultHttpClientSettings.PooledConnectionLifeTime;
-        public bool UseProxy = CoresConfig.DefaultHttpClientSettings.UseProxy;
-        public bool DisableKeepAlive = false;
-        public bool DoNotThrowHttpResultError = false;
-
-        public bool AllowAutoRedirect = true;
-        public int MaxAutomaticRedirections = 10;
-
-        public bool SslAcceptAnyCerts = false;
-        public List<string> SslAcceptCertSHAHashList = new List<string>();
-
-        public bool DebugPrintResponse = false;
-    }
-
-    public class WebApiOptions
-    {
-        public WebApiSettings Settings { get; }
-        public TcpIpSystem? TcpIp { get; }
-
-        public WebApiOptions(WebApiSettings? settings = null, TcpIpSystem? tcpIp = null, bool doNotUseTcpStack = false)
-        {
-            if (settings == null) settings = new WebApiSettings();
-            if (tcpIp == null) tcpIp = (doNotUseTcpStack ? null : LocalNet);
-
-            this.Settings = settings;
-            this.TcpIp = tcpIp;
-        }
-    }
-
-    public partial class WebApi : IDisposable, IAsyncDisposable
-    {
-        WebApiSettings Settings;
-
-        public int TimeoutMsecs { get => (int)Client.Timeout.TotalMilliseconds; set => Client.Timeout = new TimeSpan(0, 0, 0, 0, value); }
-        public long MaxRecvSize { get => this.Client.MaxResponseContentBufferSize; set => this.Client.MaxResponseContentBufferSize = value; }
-
-        public Encoding RequestEncoding { get; set; } = Encoding.UTF8;
-
-        public SortedList<string, string> RequestHeaders = new SortedList<string, string>();
-
-        SocketsHttpHandler ClientHandler;
-
-        public X509CertificateCollection? ClientCerts { get => this.ClientHandler.SslOptions.ClientCertificates; }
-
-        public HttpClient Client { get; private set; }
-
-        public bool DebugPrintResponse => this.Settings.DebugPrintResponse;
-
-        public RemoteCertificateValidationCallback? SslServerCertValicationCallback { get; }
-
-        public WebApi(WebApiOptions? options = null, RemoteCertificateValidationCallback? sslServerCertValicationCallback = null)
-        {
-            if (options == null) options = new WebApiOptions();
-
-            this.Settings = options.Settings._CloneDeep();
-
-            this.ClientHandler = new SocketsHttpHandler(options.TcpIp);
-
-            this.ClientHandler.AllowAutoRedirect = this.Settings.AllowAutoRedirect;
-            this.ClientHandler.MaxAutomaticRedirections = this.Settings.MaxAutomaticRedirections;
-            this.ClientHandler.MaxConnectionsPerServer = this.Settings.MaxConnectionPerServer;
-            this.ClientHandler.PooledConnectionLifetime = Util.ConvertTimeSpan(this.Settings.PooledConnectionLifeTime);
-
-            this.Client = new HttpClient(this.ClientHandler, true);
-            this.MaxRecvSize = this.Settings.MaxRecvSize;
-            this.TimeoutMsecs = this.Settings.Timeout;
-            this.SslServerCertValicationCallback = sslServerCertValicationCallback;
-        }
-
-        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
-        Once DisposeFlag;
-        public virtual async ValueTask DisposeAsync()
-        {
-            if (DisposeFlag.IsFirstCall() == false) return;
-            await DisposeInternalAsync();
-        }
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            DisposeInternalAsync()._GetResult();
-        }
-        async Task DisposeInternalAsync()
-        {
-            this.Client._DisposeSafe();
-            this.Client = null!;
-
-            await Task.CompletedTask;
-        }
-
-        public string BuildQueryString(params (string name, string? value)[]? queryList)
-        {
-            StringWriter w = new StringWriter();
-            int count = 0;
-            if (queryList != null)
-            {
-                foreach (var t in queryList)
-                {
-                    if (t.value != null)
+                    if (count != 0)
                     {
-                        if (count != 0)
-                        {
-                            w.Write("&");
-                        }
-                        w.Write($"{t.name._EncodeUrl(this.RequestEncoding)}={t.value._EncodeUrl(this.RequestEncoding)}");
-                        count++;
+                        w.Write("&");
                     }
+                    w.Write($"{t.name._EncodeUrl(this.RequestEncoding)}={t.value._EncodeUrl(this.RequestEncoding)}");
+                    count++;
                 }
             }
-            return w.ToString();
         }
+        return w.ToString();
+    }
 
-        public void SetBasicAuthHeader(string username, string password)
+    public void SetBasicAuthHeader(string username, string password)
+    {
+        username = username._NonNull();
+        password = password._NonNull();
+        string tmp = $"{username}:{password}";
+        string tmp2 = "Basic " + Str.Base64Encode(tmp._GetBytes_UTF8());
+
+        this.AddHeader("Authorization", tmp2);
+    }
+
+    public void AddHeader(string name, string value)
+    {
+        if (name._IsEmpty()) return;
+        lock (this.RequestHeaders)
         {
-            username = username._NonNull();
-            password = password._NonNull();
-            string tmp = $"{username}:{password}";
-            string tmp2 = "Basic " + Str.Base64Encode(tmp._GetBytes_UTF8());
-
-            this.AddHeader("Authorization", tmp2);
-        }
-
-        public void AddHeader(string name, string value)
-        {
-            if (name._IsEmpty()) return;
-            lock (this.RequestHeaders)
+            if (value._IsEmpty() == false)
             {
-                if (value._IsEmpty() == false)
-                {
-                    if (this.RequestHeaders.ContainsKey(name))
-                        this.RequestHeaders[name] = value;
-                    else
-                        this.RequestHeaders.Add(name, value);
-                }
+                if (this.RequestHeaders.ContainsKey(name))
+                    this.RequestHeaders[name] = value;
                 else
-                {
-                    if (this.RequestHeaders.ContainsKey(name))
-                        this.RequestHeaders.Remove(name);
-                }
-            }
-        }
-
-        virtual protected HttpRequestMessage CreateWebRequest(WebMethods method, string url, params (string name, string? value)[]? queryList)
-        {
-            string qs = "";
-
-            if (method == WebMethods.GET || method == WebMethods.DELETE || method == WebMethods.HEAD)
-            {
-                qs = BuildQueryString(queryList);
-                if (qs._IsEmpty() == false)
-                {
-                    url = url + "?" + qs;
-                }
-            }
-
-            HttpRequestMessage requestMessage = new HttpRequestMessage(new HttpMethod(method.ToString()), url);
-
-            CacheControlHeaderValue cacheControl = new CacheControlHeaderValue();
-            cacheControl.NoStore = true;
-            cacheControl.NoCache = true;
-            requestMessage.Headers.CacheControl = cacheControl;
-
-            try
-            {
-                if (this.SslServerCertValicationCallback != null)
-                {
-                    this.ClientHandler.SslOptions.RemoteCertificateValidationCallback = this.SslServerCertValicationCallback;
-                }
-                else if (this.Settings.SslAcceptAnyCerts)
-                {
-                    this.ClientHandler.SslOptions.RemoteCertificateValidationCallback = (message, cert, chain, errors) => true;
-                }
-                else if (this.Settings.SslAcceptCertSHAHashList != null && this.Settings.SslAcceptCertSHAHashList.Count >= 1)
-                {
-                    this.ClientHandler.SslOptions.RemoteCertificateValidationCallback = (message, cert, chain, errors) =>
-                    {
-                        foreach (var s in this.Settings.SslAcceptCertSHAHashList.Select(x => x._NormalizeHexString()))
-                        {
-                            if (cert!.GetCertHashString(HashAlgorithmName.SHA1)._IsSamei(s)) return true;
-                            if (cert!.GetCertHashString(HashAlgorithmName.SHA256)._IsSamei(s)) return true;
-                            if (cert!.GetCertHashString(HashAlgorithmName.SHA512)._IsSamei(s)) return true;
-                        }
-                        return false;
-                    };
-                }
-            }
-            catch { }
-
-            try
-            {
-                if (this.ClientHandler.UseProxy != this.Settings.UseProxy)
-                {
-                    this.ClientHandler.UseProxy = this.Settings.UseProxy;
-                }
-            }
-            catch { }
-
-            lock (this.RequestHeaders)
-            {
-                foreach (string name in this.RequestHeaders.Keys)
-                {
-                    string value = this.RequestHeaders[name];
-                    requestMessage.Headers.Add(name, value);
-                }
-            }
-
-            if (this.Settings.DisableKeepAlive)
-            {
-                try
-                {
-                    requestMessage.Headers.Add("Connection", "close");
-                }
-                catch { }
-            }
-
-            return requestMessage;
-        }
-
-        public virtual async Task ThrowIfErrorAsync(HttpResponseMessage res)
-        {
-            if (res.IsSuccessStatusCode) return;
-
-            string details = "";
-
-            try
-            {
-                byte[] data = await res.Content.ReadAsByteArrayAsync();
-
-                details = data._GetString_UTF8()._OneLine(" ");
-            }
-            catch { }
-
-            string errStr = string.Format("Response status code does not indicate success: {0} ({1}).", (int)res.StatusCode, res.ReasonPhrase);
-
-            if (details != null)
-            {
-                errStr += " Details: " + details._TruncStr(1024);
-            }
-
-            throw new HttpRequestException(errStr);
-        }
-
-        public virtual async Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string? postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string? value)[] queryList)
-        {
-            if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.FormUrlEncoded;
-            using HttpRequestMessage r = CreateWebRequest(method, url, queryList);
-
-            if (method == WebMethods.POST || method == WebMethods.PUT)
-            {
-                string qs = BuildQueryString(queryList);
-
-                r.Content = new StringContent(qs, this.RequestEncoding, postContentType);
-            }
-
-            using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
-            {
-                if (this.Settings.DoNotThrowHttpResultError == false)
-                    await ThrowIfErrorAsync(res);
-
-                byte[] data = await res.Content.ReadAsByteArrayAsync();
-                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers, res.IsSuccessStatusCode, res.StatusCode, res.ReasonPhrase);
-            }
-        }
-
-
-        public virtual async Task<WebRet> SimplePostDataAsync(string url, byte[] postData, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
-        {
-            if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.Json;
-            using HttpRequestMessage r = CreateWebRequest(WebMethods.POST, url);
-
-            r.Content = new ByteArrayContent(postData);
-            r.Content.Headers.ContentType = new MediaTypeHeaderValue(postContentType);
-
-            using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
-            {
-                if (this.Settings.DoNotThrowHttpResultError == false)
-                    await ThrowIfErrorAsync(res);
-
-                byte[] data = await res.Content.ReadAsByteArrayAsync();
-                string type = res.Content.Headers._TryGetContentType();
-                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers, res.IsSuccessStatusCode, res.StatusCode, res.ReasonPhrase);
-            }
-        }
-
-
-        public virtual async Task<WebRet> SimplePostJsonAsync(WebMethods method, string url, string jsonString, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
-        {
-            if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.Json;
-
-            if (!(method == WebMethods.POST || method == WebMethods.PUT)) throw new ArgumentException($"Invalid method: {method.ToString()}");
-
-            using HttpRequestMessage r = CreateWebRequest(method, url);
-
-            byte[] upload_data = jsonString._GetBytes(this.RequestEncoding);
-
-            r.Content = new ByteArrayContent(upload_data);
-            r.Content.Headers.ContentType = new MediaTypeHeaderValue(postContentType);
-
-            using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
-            {
-                if (this.Settings.DoNotThrowHttpResultError == false)
-                    await ThrowIfErrorAsync(res);
-
-                byte[] data = await res.Content.ReadAsByteArrayAsync();
-                return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers, res.IsSuccessStatusCode, res.StatusCode, res.ReasonPhrase);
-            }
-        }
-
-        public virtual async Task<WebSendRecvResponse> HttpSendRecvDataAsync(WebSendRecvRequest request)
-        {
-            HttpRequestMessage r = CreateWebRequest(request.Method, request.Url);
-
-            if (request.RangeStart != null)
-            {
-                // 一部分のみ指定してダウンロード
-                r.Headers.Range = new RangeHeaderValue(request.RangeStart, request.RangeLength.HasValue ? request.RangeStart + request.RangeLength - 1 : null);
-            }
-
-            if (request.Method.EqualsAny(WebMethods.POST, WebMethods.PUT))
-            {
-                if (request.UploadStream == null)
-                    throw new ArgumentException("request.UploadStream == null");
-
-                r.Content = new StreamContent(request.UploadStream);
-                r.Content.Headers.ContentType = new MediaTypeHeaderValue(request.UploadContentType);
+                    this.RequestHeaders.Add(name, value);
             }
             else
             {
-                if (request.UploadStream != null)
-                    throw new ArgumentException($"request.UploadStream != null, but the specified method is {request.Method}.");
-            }
-
-            HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseHeadersRead, request.Cancel);
-            try
-            {
-                if (this.Settings.DoNotThrowHttpResultError == false)
-                    await ThrowIfErrorAsync(res);
-
-                return new WebSendRecvResponse(res, await res.Content.ReadAsStreamAsync());
-            }
-            catch
-            {
-                res._DisposeSafe();
-                throw;
+                if (this.RequestHeaders.ContainsKey(name))
+                    this.RequestHeaders.Remove(name);
             }
         }
     }
 
-    // 大変シンプルな HTTP ダウンローダ
-    public static class SimpleHttpDownloader
+    virtual protected HttpRequestMessage CreateWebRequest(WebMethods method, string url, params (string name, string? value)[]? queryList)
     {
-        public static async Task<SimpleHttpDownloaderResult> DownloadAsync(string url, WebMethods method = WebMethods.GET, bool printStatus = false, WebApiOptions? options = null, RemoteCertificateValidationCallback? sslServerCertValicationCallback = null, CancellationToken cancel = default, string? postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string? value)[] queryList)
+        string qs = "";
+
+        if (method == WebMethods.GET || method == WebMethods.DELETE || method == WebMethods.HEAD)
         {
-            try
+            qs = BuildQueryString(queryList);
+            if (qs._IsEmpty() == false)
             {
-                using var http = new WebApi(options, sslServerCertValicationCallback);
+                url = url + "?" + qs;
+            }
+        }
 
-                if (printStatus) $"HTTP Accessing to '{url}' ..."._Print();
+        HttpRequestMessage requestMessage = new HttpRequestMessage(new HttpMethod(method.ToString()), url);
 
-                var webret = await http.SimpleQueryAsync(method, url, cancel, postContentType, queryList);
+        CacheControlHeaderValue cacheControl = new CacheControlHeaderValue();
+        cacheControl.NoStore = true;
+        cacheControl.NoCache = true;
+        requestMessage.Headers.CacheControl = cacheControl;
 
-                SimpleHttpDownloaderResult ret = new SimpleHttpDownloaderResult
+        try
+        {
+            if (this.SslServerCertValicationCallback != null)
+            {
+                this.ClientHandler.SslOptions.RemoteCertificateValidationCallback = this.SslServerCertValicationCallback;
+            }
+            else if (this.Settings.SslAcceptAnyCerts)
+            {
+                this.ClientHandler.SslOptions.RemoteCertificateValidationCallback = (message, cert, chain, errors) => true;
+            }
+            else if (this.Settings.SslAcceptCertSHAHashList != null && this.Settings.SslAcceptCertSHAHashList.Count >= 1)
+            {
+                this.ClientHandler.SslOptions.RemoteCertificateValidationCallback = (message, cert, chain, errors) =>
                 {
-                    Url = url,
-                    Method = method,
-                    ContentType = webret.ContentType,
-                    MediaType = webret.MediaType,
-                    Data = webret.Data,
-                    DataSize = webret.Data.Length,
-                    StatusCode = (int)webret.StatusCode,
+                    foreach (var s in this.Settings.SslAcceptCertSHAHashList.Select(x => x._NormalizeHexString()))
+                    {
+                        if (cert!.GetCertHashString(HashAlgorithmName.SHA1)._IsSamei(s)) return true;
+                        if (cert!.GetCertHashString(HashAlgorithmName.SHA256)._IsSamei(s)) return true;
+                        if (cert!.GetCertHashString(HashAlgorithmName.SHA512)._IsSamei(s)) return true;
+                    }
+                    return false;
                 };
-
-                if (printStatus) $"HTTP Result: code = {ret.StatusCode}, size = {ret.DataSize}"._Print();
-
-                return ret;
-            }
-            catch (Exception ex)
-            {
-                $"HTTP Result: error = {ex.Message}"._Print();
-
-                throw;
             }
         }
-    }
+        catch { }
 
-    public class SimpleHttpDownloaderResult
-    {
-        public string Url { get; set; } = "";
-        public WebMethods Method { get; set; } = WebMethods.GET;
-        public string ContentType { get; set; } = "";
-        public byte[] Data { get; set; } = new byte[0];
-        public string MediaType { get; set; } = "";
-        public int DataSize { get; set; }
-        public int StatusCode { get; set; }
-    }
+        try
+        {
+            if (this.ClientHandler.UseProxy != this.Settings.UseProxy)
+            {
+                this.ClientHandler.UseProxy = this.Settings.UseProxy;
+            }
+        }
+        catch { }
 
-    // 任意の Stream の一部を HTTP 応答するクラス
-    public partial class HttpResult : IDisposable, IAsyncDisposable
-    {
-        public int StatusCode { get; }
-        public string? ContentType { get; }
+        lock (this.RequestHeaders)
+        {
+            foreach (string name in this.RequestHeaders.Keys)
+            {
+                string value = this.RequestHeaders[name];
+                requestMessage.Headers.Add(name, value);
+            }
+        }
 
-        public ReadOnlyMemory<byte> PreData { get; }
-        public ReadOnlyMemory<byte> PostData { get; }
-
-        public Stream Stream { get; }
-        public long Offset { get; }
-        public long? Length { get; }
-
-        public bool DisposeStream { get; }
-
-        public IReadOnlyList<KeyValuePair<string, string>>? AdditionalHeaders { get; }
-
-        readonly Func<Task>? OnDisposeAsync;
-
-        public HttpResult(Stream stream, long offset, long? length, string? contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, bool disposeStream = true,
-            ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null, Func<Task>? onDisposeAsync = null)
+        if (this.Settings.DisableKeepAlive)
         {
             try
             {
-                if (stream == null) throw new ArgumentNullException(nameof(stream));
-                if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
-                if ((length ?? long.MaxValue) < 0) throw new ArgumentOutOfRangeException(nameof(length));
-                if (statusCode == 0) throw new ArgumentOutOfRangeException(nameof(statusCode));
-
-                contentType = contentType._NullIfEmpty();
-
-                this.Stream = stream;
-                this.Offset = offset;
-                this.Length = length;
-                this.ContentType = contentType;
-                this.StatusCode = statusCode;
-                this.PreData = preData;
-                this.PostData = postData;
-
-                this.DisposeStream = disposeStream;
-                this.AdditionalHeaders = additionalHeaders;
-                this.OnDisposeAsync = onDisposeAsync;
+                requestMessage.Headers.Add("Connection", "close");
             }
-            catch
-            {
-                this._DisposeSafe();
-                throw;
-            }
+            catch { }
         }
 
-        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
-        Once DisposeFlag;
-        public async ValueTask DisposeAsync()
+        return requestMessage;
+    }
+
+    public virtual async Task ThrowIfErrorAsync(HttpResponseMessage res)
+    {
+        if (res.IsSuccessStatusCode) return;
+
+        string details = "";
+
+        try
         {
-            if (DisposeFlag.IsFirstCall() == false) return;
-            await DisposeInternalAsync();
+            byte[] data = await res.Content.ReadAsByteArrayAsync();
+
+            details = data._GetString_UTF8()._OneLine(" ");
         }
-        protected virtual void Dispose(bool disposing)
+        catch { }
+
+        string errStr = string.Format("Response status code does not indicate success: {0} ({1}).", (int)res.StatusCode, res.ReasonPhrase);
+
+        if (details != null)
         {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-            DisposeInternalAsync()._GetResult();
+            errStr += " Details: " + details._TruncStr(1024);
         }
-        async Task DisposeInternalAsync()
+
+        throw new HttpRequestException(errStr);
+    }
+
+    public virtual async Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string? postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string? value)[] queryList)
+    {
+        if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.FormUrlEncoded;
+        using HttpRequestMessage r = CreateWebRequest(method, url, queryList);
+
+        if (method == WebMethods.POST || method == WebMethods.PUT)
         {
-            if (this.DisposeStream)
-            {
-                await this.Stream._DisposeSafeAsync();
-            }
+            string qs = BuildQueryString(queryList);
 
-            if (this.OnDisposeAsync != null)
-            {
-                await this.OnDisposeAsync()._TryAwait();
-            }
+            r.Content = new StringContent(qs, this.RequestEncoding, postContentType);
         }
 
+        using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
+        {
+            if (this.Settings.DoNotThrowHttpResultError == false)
+                await ThrowIfErrorAsync(res);
+
+            byte[] data = await res.Content.ReadAsByteArrayAsync();
+            return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers, res.IsSuccessStatusCode, res.StatusCode, res.ReasonPhrase);
+        }
     }
 
-    // すでに用意されたメモリ配列を HTTP 応答するクラス
-    public class HttpMemoryResult : HttpResult
+
+    public virtual async Task<WebRet> SimplePostDataAsync(string url, byte[] postData, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
     {
-        public HttpMemoryResult(ReadOnlySpan<byte> data, string contentType = Consts.MimeTypes.OctetStream, int statusCode = Consts.HttpStatusCodes.Ok, IReadOnlyList<KeyValuePair<string, string>>? additionalHeadersList = null)
-            : base(data._ToMemoryStream(), 0, data.Length, contentType, statusCode, additionalHeaders: additionalHeadersList) { }
+        if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.Json;
+        using HttpRequestMessage r = CreateWebRequest(WebMethods.POST, url);
+
+        r.Content = new ByteArrayContent(postData);
+        r.Content.Headers.ContentType = new MediaTypeHeaderValue(postContentType);
+
+        using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
+        {
+            if (this.Settings.DoNotThrowHttpResultError == false)
+                await ThrowIfErrorAsync(res);
+
+            byte[] data = await res.Content.ReadAsByteArrayAsync();
+            string type = res.Content.Headers._TryGetContentType();
+            return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers, res.IsSuccessStatusCode, res.StatusCode, res.ReasonPhrase);
+        }
     }
 
-    // すでに用意された文字列データを HTTP 応答するクラス
-    public class HttpStringResult : HttpMemoryResult
+
+    public virtual async Task<WebRet> SimplePostJsonAsync(WebMethods method, string url, string jsonString, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
     {
-        public HttpStringResult(string str, string contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, Encoding? encoding = null, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
-            : base(str._NonNull()._GetBytes(encoding ?? Str.Utf8Encoding), contentType, statusCode, additionalHeaders) { }
+        if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.Json;
+
+        if (!(method == WebMethods.POST || method == WebMethods.PUT)) throw new ArgumentException($"Invalid method: {method.ToString()}");
+
+        using HttpRequestMessage r = CreateWebRequest(method, url);
+
+        byte[] upload_data = jsonString._GetBytes(this.RequestEncoding);
+
+        r.Content = new ByteArrayContent(upload_data);
+        r.Content.Headers.ContentType = new MediaTypeHeaderValue(postContentType);
+
+        using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
+        {
+            if (this.Settings.DoNotThrowHttpResultError == false)
+                await ThrowIfErrorAsync(res);
+
+            byte[] data = await res.Content.ReadAsByteArrayAsync();
+            return new WebRet(this, url, res.Content.Headers._TryGetContentType(), data, res.Headers, res.IsSuccessStatusCode, res.StatusCode, res.ReasonPhrase);
+        }
     }
 
-    public class HttpErrorResult : HttpStringResult
+    public virtual async Task<WebSendRecvResponse> HttpSendRecvDataAsync(WebSendRecvRequest request)
     {
-        public HttpErrorResult(int statusCode, string friendlyString, string contentType = Consts.MimeTypes.TextUtf8, Encoding? encoding = null, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
-            : base($"{statusCode} {(friendlyString._IsEmpty() ? "HTTP Error" : friendlyString)}", contentType, statusCode, encoding, additionalHeaders) { }
+        HttpRequestMessage r = CreateWebRequest(request.Method, request.Url);
+
+        if (request.RangeStart != null)
+        {
+            // 一部分のみ指定してダウンロード
+            r.Headers.Range = new RangeHeaderValue(request.RangeStart, request.RangeLength.HasValue ? request.RangeStart + request.RangeLength - 1 : null);
+        }
+
+        if (request.Method.EqualsAny(WebMethods.POST, WebMethods.PUT))
+        {
+            if (request.UploadStream == null)
+                throw new ArgumentException("request.UploadStream == null");
+
+            r.Content = new StreamContent(request.UploadStream);
+            r.Content.Headers.ContentType = new MediaTypeHeaderValue(request.UploadContentType);
+        }
+        else
+        {
+            if (request.UploadStream != null)
+                throw new ArgumentException($"request.UploadStream != null, but the specified method is {request.Method}.");
+        }
+
+        HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseHeadersRead, request.Cancel);
+        try
+        {
+            if (this.Settings.DoNotThrowHttpResultError == false)
+                await ThrowIfErrorAsync(res);
+
+            return new WebSendRecvResponse(res, await res.Content.ReadAsStreamAsync());
+        }
+        catch
+        {
+            res._DisposeSafe();
+            throw;
+        }
+    }
+}
+
+// 大変シンプルな HTTP ダウンローダ
+public static class SimpleHttpDownloader
+{
+    public static async Task<SimpleHttpDownloaderResult> DownloadAsync(string url, WebMethods method = WebMethods.GET, bool printStatus = false, WebApiOptions? options = null, RemoteCertificateValidationCallback? sslServerCertValicationCallback = null, CancellationToken cancel = default, string? postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string? value)[] queryList)
+    {
+        try
+        {
+            using var http = new WebApi(options, sslServerCertValicationCallback);
+
+            if (printStatus) $"HTTP Accessing to '{url}' ..."._Print();
+
+            var webret = await http.SimpleQueryAsync(method, url, cancel, postContentType, queryList);
+
+            SimpleHttpDownloaderResult ret = new SimpleHttpDownloaderResult
+            {
+                Url = url,
+                Method = method,
+                ContentType = webret.ContentType,
+                MediaType = webret.MediaType,
+                Data = webret.Data,
+                DataSize = webret.Data.Length,
+                StatusCode = (int)webret.StatusCode,
+            };
+
+            if (printStatus) $"HTTP Result: code = {ret.StatusCode}, size = {ret.DataSize}"._Print();
+
+            return ret;
+        }
+        catch (Exception ex)
+        {
+            $"HTTP Result: error = {ex.Message}"._Print();
+
+            throw;
+        }
+    }
+}
+
+public class SimpleHttpDownloaderResult
+{
+    public string Url { get; set; } = "";
+    public WebMethods Method { get; set; } = WebMethods.GET;
+    public string ContentType { get; set; } = "";
+    public byte[] Data { get; set; } = new byte[0];
+    public string MediaType { get; set; } = "";
+    public int DataSize { get; set; }
+    public int StatusCode { get; set; }
+}
+
+// 任意の Stream の一部を HTTP 応答するクラス
+public partial class HttpResult : IDisposable, IAsyncDisposable
+{
+    public int StatusCode { get; }
+    public string? ContentType { get; }
+
+    public ReadOnlyMemory<byte> PreData { get; }
+    public ReadOnlyMemory<byte> PostData { get; }
+
+    public Stream Stream { get; }
+    public long Offset { get; }
+    public long? Length { get; }
+
+    public bool DisposeStream { get; }
+
+    public IReadOnlyList<KeyValuePair<string, string>>? AdditionalHeaders { get; }
+
+    readonly Func<Task>? OnDisposeAsync;
+
+    public HttpResult(Stream stream, long offset, long? length, string? contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, bool disposeStream = true,
+        ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null, Func<Task>? onDisposeAsync = null)
+    {
+        try
+        {
+            if (stream == null) throw new ArgumentNullException(nameof(stream));
+            if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
+            if ((length ?? long.MaxValue) < 0) throw new ArgumentOutOfRangeException(nameof(length));
+            if (statusCode == 0) throw new ArgumentOutOfRangeException(nameof(statusCode));
+
+            contentType = contentType._NullIfEmpty();
+
+            this.Stream = stream;
+            this.Offset = offset;
+            this.Length = length;
+            this.ContentType = contentType;
+            this.StatusCode = statusCode;
+            this.PreData = preData;
+            this.PostData = postData;
+
+            this.DisposeStream = disposeStream;
+            this.AdditionalHeaders = additionalHeaders;
+            this.OnDisposeAsync = onDisposeAsync;
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
     }
 
-    // 指定されたファイルを HTTP 応答するクラス
-    public class HttpFileResult : HttpResult
+    public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+    Once DisposeFlag;
+    public async ValueTask DisposeAsync()
     {
-        public HttpFileResult(FileBase file, long offset, long? length, string contentType = Consts.MimeTypes.OctetStream, int statusCode = Consts.HttpStatusCodes.Ok, bool disposeFile = true,
-            ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
-            : base(file.GetStream(disposeFile), offset, length, contentType, statusCode, true, preData, postData, additionalHeaders) { }
+        if (DisposeFlag.IsFirstCall() == false) return;
+        await DisposeInternalAsync();
     }
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+        DisposeInternalAsync()._GetResult();
+    }
+    async Task DisposeInternalAsync()
+    {
+        if (this.DisposeStream)
+        {
+            await this.Stream._DisposeSafeAsync();
+        }
+
+        if (this.OnDisposeAsync != null)
+        {
+            await this.OnDisposeAsync()._TryAwait();
+        }
+    }
+
+}
+
+// すでに用意されたメモリ配列を HTTP 応答するクラス
+public class HttpMemoryResult : HttpResult
+{
+    public HttpMemoryResult(ReadOnlySpan<byte> data, string contentType = Consts.MimeTypes.OctetStream, int statusCode = Consts.HttpStatusCodes.Ok, IReadOnlyList<KeyValuePair<string, string>>? additionalHeadersList = null)
+        : base(data._ToMemoryStream(), 0, data.Length, contentType, statusCode, additionalHeaders: additionalHeadersList) { }
+}
+
+// すでに用意された文字列データを HTTP 応答するクラス
+public class HttpStringResult : HttpMemoryResult
+{
+    public HttpStringResult(string str, string contentType = Consts.MimeTypes.TextUtf8, int statusCode = Consts.HttpStatusCodes.Ok, Encoding? encoding = null, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
+        : base(str._NonNull()._GetBytes(encoding ?? Str.Utf8Encoding), contentType, statusCode, additionalHeaders) { }
+}
+
+public class HttpErrorResult : HttpStringResult
+{
+    public HttpErrorResult(int statusCode, string friendlyString, string contentType = Consts.MimeTypes.TextUtf8, Encoding? encoding = null, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
+        : base($"{statusCode} {(friendlyString._IsEmpty() ? "HTTP Error" : friendlyString)}", contentType, statusCode, encoding, additionalHeaders) { }
+}
+
+// 指定されたファイルを HTTP 応答するクラス
+public class HttpFileResult : HttpResult
+{
+    public HttpFileResult(FileBase file, long offset, long? length, string contentType = Consts.MimeTypes.OctetStream, int statusCode = Consts.HttpStatusCodes.Ok, bool disposeFile = true,
+        ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
+        : base(file.GetStream(disposeFile), offset, length, contentType, statusCode, true, preData, postData, additionalHeaders) { }
 }
 

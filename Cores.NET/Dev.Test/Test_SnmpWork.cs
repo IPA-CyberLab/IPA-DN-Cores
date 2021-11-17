@@ -46,70 +46,70 @@ using static IPA.Cores.Globals.Basic;
 #pragma warning disable CS0162
 #pragma warning disable CS0219
 
-namespace IPA.TestDev
+namespace IPA.TestDev;
+
+class SnmpWorkDaemon : Daemon
 {
-    class SnmpWorkDaemon : Daemon
+    SnmpWorkHost? host = null;
+
+    public SnmpWorkDaemon() : base(new DaemonOptions("SnmpWork", "SnmpWork Service", true))
     {
-        SnmpWorkHost? host = null;
+    }
 
-        public SnmpWorkDaemon() : base(new DaemonOptions("SnmpWork", "SnmpWork Service", true))
+    protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
+    {
+        Con.WriteLine("SnmpWorkDaemon: Starting...");
+
+        host = new SnmpWorkHost();
+
+        await Task.CompletedTask;
+
+        try
         {
+            host.Register("Temperature", 101_00000, new SnmpWorkFetcherTemperature(host));
+            host.Register("Ram", 102_00000, new SnmpWorkFetcherMemory(host));
+            host.Register("Disk", 103_00000, new SnmpWorkFetcherDisk(host));
+            host.Register("Net", 104_00000, new SnmpWorkFetcherNetwork(host));
+
+            host.Register("Ping", 105_00000, new SnmpWorkFetcherPing(host));
+            host.Register("Speed", 106_00000, new SnmpWorkFetcherSpeed(host));
+            host.Register("Quality", 107_00000, new SnmpWorkFetcherPktQuality(host));
+            host.Register("Bird", 108_00000, new SnmpWorkFetcherBird(host));
+
+            host.RegisterSensors(109_00000);
+
+            Con.WriteLine("SnmpWorkDaemon: Started.");
         }
-
-        protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
+        catch
         {
-            Con.WriteLine("SnmpWorkDaemon: Starting...");
-
-            host = new SnmpWorkHost();
-
-            await Task.CompletedTask;
-
-            try
-            {
-                host.Register("Temperature", 101_00000, new SnmpWorkFetcherTemperature(host));
-                host.Register("Ram", 102_00000, new SnmpWorkFetcherMemory(host));
-                host.Register("Disk", 103_00000, new SnmpWorkFetcherDisk(host));
-                host.Register("Net", 104_00000, new SnmpWorkFetcherNetwork(host));
-
-                host.Register("Ping", 105_00000, new SnmpWorkFetcherPing(host));
-                host.Register("Speed", 106_00000, new SnmpWorkFetcherSpeed(host));
-                host.Register("Quality", 107_00000, new SnmpWorkFetcherPktQuality(host));
-                host.Register("Bird", 108_00000, new SnmpWorkFetcherBird(host));
-
-                host.RegisterSensors(109_00000);
-
-                Con.WriteLine("SnmpWorkDaemon: Started.");
-            }
-            catch
-            {
-                await host._DisposeSafeAsync();
-                host = null;
-                throw;
-            }
-        }
-
-        protected override async Task StopImplAsync(object? param)
-        {
-            Con.WriteLine("SnmpWorkDaemon: Stopping...");
-
-            if (host != null)
-            {
-                await host.DisposeWithCleanupAsync();
-
-                host = null;
-            }
-
-            Con.WriteLine("SnmpWorkDaemon: Stopped.");
+            await host._DisposeSafeAsync();
+            host = null;
+            throw;
         }
     }
 
-    partial class TestDevCommands
+    protected override async Task StopImplAsync(object? param)
     {
-        [ConsoleCommand(
-            "Start or stop the SnmpWorkDaemon daemon",
-            "SnmpWorkDaemon [command]",
-            "Start or stop the SnmpWorkDaemon daemon",
-            @"[command]:The control command.
+        Con.WriteLine("SnmpWorkDaemon: Stopping...");
+
+        if (host != null)
+        {
+            await host.DisposeWithCleanupAsync();
+
+            host = null;
+        }
+
+        Con.WriteLine("SnmpWorkDaemon: Stopped.");
+    }
+}
+
+partial class TestDevCommands
+{
+    [ConsoleCommand(
+        "Start or stop the SnmpWorkDaemon daemon",
+        "SnmpWorkDaemon [command]",
+        "Start or stop the SnmpWorkDaemon daemon",
+        @"[command]:The control command.
 
 [UNIX / Windows common commands]
 start        - Start the daemon in the background mode.
@@ -122,11 +122,10 @@ winstart     - Start the daemon as a Windows service.
 winstop      - Stop the running daemon as a Windows service.
 wininstall   - Install the daemon as a Windows service.
 winuninstall - Uninstall the daemon as a Windows service.")]
-        static int SnmpWorkDaemon(ConsoleService c, string cmdName, string str)
-        {
-            return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new SnmpWorkDaemon(), new DaemonSettings());
-        }
-
+    static int SnmpWorkDaemon(ConsoleService c, string cmdName, string str)
+    {
+        return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new SnmpWorkDaemon(), new DaemonSettings());
     }
+
 }
 

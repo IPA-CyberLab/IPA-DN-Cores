@@ -38,98 +38,97 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public static partial class Util
 {
-    public static partial class Util
+    // オブジェクトのハッシュ値を計算
+    public static ulong CalcObjectHashByJson(object o)
     {
-        // オブジェクトのハッシュ値を計算
-        public static ulong CalcObjectHashByJson(object o)
+        if (o == null) return 0;
+        try
         {
-            if (o == null) return 0;
-            try
-            {
-                return Str.HashStrToLong(Json.Serialize(o, true, false, null));
-            }
-            catch
-            {
-                return 0;
-            }
+            return Str.HashStrToLong(Json.Serialize(o, true, false, null));
+        }
+        catch
+        {
+            return 0;
         }
     }
+}
 
-    // EasyCookie ユーティリティ
-    public static class EasyCookieUtil
+// EasyCookie ユーティリティ
+public static class EasyCookieUtil
+{
+    public static string SerializeObject<T>(T obj, bool easyEncrypt = false, string? easyEncryptPassword = null)
     {
-        public static string SerializeObject<T>(T obj, bool easyEncrypt = false, string? easyEncryptPassword = null)
+        if (obj == null) return "";
+
+        if (obj is INormalizable n) n.Normalize();
+
+        MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+
+        string json = obj._ObjectToJson<T>(EnsurePresentInterface.Yes, compact: true);
+        byte[] jsonData = json._GetBytes_UTF8();
+
+        buf.Write(jsonData);
+        buf.WriteSInt64(Secure.HashSHA1AsLong(jsonData));
+
+        Memory<byte> data = buf.Span._EasyCompress();
+
+        if (easyEncrypt)
         {
-            if (obj == null) return "";
-
-            if (obj is INormalizable n) n.Normalize();
-
-            MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
-
-            string json = obj._ObjectToJson<T>(EnsurePresentInterface.Yes, compact: true);
-            byte[] jsonData = json._GetBytes_UTF8();
-
-            buf.Write(jsonData);
-            buf.WriteSInt64(Secure.HashSHA1AsLong(jsonData));
-
-            Memory<byte> data = buf.Span._EasyCompress();
-
-            if (easyEncrypt)
-            {
-                data = Secure.EasyEncrypt(data, easyEncryptPassword);
-            }
-
-            string cookieStr = data._Base64UrlEncode();
-
-            cookieStr = Consts.Strings.EasyCookieValuePrefix + cookieStr;
-
-            if (cookieStr.Length > Consts.MaxLens.MaxCookieSize)
-            {
-                throw new CoresLibException($"The serializing base64 length exceeds max cookie length ({cookieStr.Length} > {Consts.MaxLens.MaxCookieSize}");
-            }
-
-            return cookieStr;
+            data = Secure.EasyEncrypt(data, easyEncryptPassword);
         }
 
-        [return: MaybeNull]
-        public static T DeserializeObject<T>(string? cookieStr = null, bool easyDecrypt = false, string? easyDecryptPassword = null)
+        string cookieStr = data._Base64UrlEncode();
+
+        cookieStr = Consts.Strings.EasyCookieValuePrefix + cookieStr;
+
+        if (cookieStr.Length > Consts.MaxLens.MaxCookieSize)
         {
-            try
-            {
-                if (cookieStr._IsEmpty()) return default;
+            throw new CoresLibException($"The serializing base64 length exceeds max cookie length ({cookieStr.Length} > {Consts.MaxLens.MaxCookieSize}");
+        }
 
-                if (cookieStr.StartsWith(Consts.Strings.EasyCookieValuePrefix) == false) return default;
+        return cookieStr;
+    }
 
-                cookieStr = cookieStr._Slice(Consts.Strings.EasyCookieValuePrefix.Length);
+    [return: MaybeNull]
+    public static T DeserializeObject<T>(string? cookieStr = null, bool easyDecrypt = false, string? easyDecryptPassword = null)
+    {
+        try
+        {
+            if (cookieStr._IsEmpty()) return default;
 
-                Memory<byte> data = cookieStr._Base64UrlDecode();
+            if (cookieStr.StartsWith(Consts.Strings.EasyCookieValuePrefix) == false) return default;
 
-                if (easyDecrypt) data = Secure.EasyDecrypt(data, easyDecryptPassword);
+            cookieStr = cookieStr._Slice(Consts.Strings.EasyCookieValuePrefix.Length);
 
-                data = data._EasyDecompress();
+            Memory<byte> data = cookieStr._Base64UrlDecode();
 
-                var jsonData = data._SliceHead(data.Length - sizeof(long));
-                var hash = data._SliceTail(sizeof(long))._GetSInt64();
+            if (easyDecrypt) data = Secure.EasyDecrypt(data, easyDecryptPassword);
 
-                if (Secure.HashSHA1AsLong(jsonData.Span) != hash)
-                {
-                    return default;
-                }
+            data = data._EasyDecompress();
 
-                string json = jsonData._GetString_UTF8();
+            var jsonData = data._SliceHead(data.Length - sizeof(long));
+            var hash = data._SliceTail(sizeof(long))._GetSInt64();
 
-                T? ret = json._JsonToObject<T>();
-
-                if (ret is INormalizable n) n.Normalize();
-
-                return ret;
-            }
-            catch
+            if (Secure.HashSHA1AsLong(jsonData.Span) != hash)
             {
                 return default;
             }
+
+            string json = jsonData._GetString_UTF8();
+
+            T? ret = json._JsonToObject<T>();
+
+            if (ret is INormalizable n) n.Normalize();
+
+            return ret;
+        }
+        catch
+        {
+            return default;
         }
     }
 }

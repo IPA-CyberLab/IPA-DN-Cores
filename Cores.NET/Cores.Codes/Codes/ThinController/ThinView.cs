@@ -72,24 +72,23 @@ using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
 
-namespace IPA.Cores.Codes
+namespace IPA.Cores.Codes;
+
+public class ThinAdminView
 {
-    public class ThinAdminView
-    {
-        public DateTimeOffset BootDateTime;
-        public IEnumerable<ThinGate> GatesList = null!;
-        public IEnumerable<ThinSession> SessionsList = null!;
-        public IEnumerable<ThinDbVar>? VarsList = null;
-        public IEnumerable<ThinDbMachine>? MachinesList = null;
+    public DateTimeOffset BootDateTime;
+    public IEnumerable<ThinGate> GatesList = null!;
+    public IEnumerable<ThinSession> SessionsList = null!;
+    public IEnumerable<ThinDbVar>? VarsList = null;
+    public IEnumerable<ThinDbMachine>? MachinesList = null;
 
-        public int NumGates => GatesList.Count();
-        public int NumTotalSessions => GatesList.Sum(x => x.SessionTable.Count);
-        public int NumTotalClients => GatesList.SelectMany(x => x.SessionTable.Values).Sum(x => x.NumClients);
-        public int NumTotalClientsUnique => GatesList.SelectMany(x => x.SessionTable.Values).Sum(x => x.NumClientsUnique);
+    public int NumGates => GatesList.Count();
+    public int NumTotalSessions => GatesList.Sum(x => x.SessionTable.Count);
+    public int NumTotalClients => GatesList.SelectMany(x => x.SessionTable.Values).Sum(x => x.NumClients);
+    public int NumTotalClientsUnique => GatesList.SelectMany(x => x.SessionTable.Values).Sum(x => x.NumClientsUnique);
 
-        public int NumVars => VarsList?.Count() ?? 0;
-        public int NumMachines => MachinesList?.Count() ?? 0;
-    }
+    public int NumVars => VarsList?.Count() ?? 0;
+    public int NumMachines => MachinesList?.Count() ?? 0;
 }
 
 #endif

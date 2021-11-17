@@ -43,227 +43,226 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public static partial class CoresConfig
 {
-    public static partial class CoresConfig
+    public static partial class GetMyIpClientSettings
     {
-        public static partial class GetMyIpClientSettings
+        public static readonly Copenhagen<int> NumRetry = 3;
+        public static readonly Copenhagen<int> Timeout = 5 * 1000;
+    }
+}
+
+public class GetMyIpInfoResult
+{
+    public IPAddress GlobalIpAddress { get; }
+    public int GlobalPort { get; }
+    public string GlobalFqdn { get; }
+    public IPAddress PrivateIpAddress { get; }
+
+    public GetMyIpInfoResult(IPAddress globalIp, int port, string fqdn, IPAddress privateIp)
+    {
+        this.GlobalIpAddress = globalIp;
+        this.GlobalPort = port;
+        this.GlobalFqdn = fqdn;
+        this.PrivateIpAddress = privateIp;
+    }
+}
+
+public static class GetMyPrivateIpNativeUtil
+{
+    public static async Task<IPAddress> GetMyPrivateIpAsync(IPVersion ver = IPVersion.IPv4, CancellationToken cancel = default)
+    {
+        string host;
+
+        if (ver == IPVersion.IPv6)
         {
-            public static readonly Copenhagen<int> NumRetry = 3;
-            public static readonly Copenhagen<int> Timeout = 5 * 1000;
+            host = "connect-v6.arpanet.jp.";
+        }
+        else
+        {
+            host = "connect-v4.arpanet.jp.";
+        }
+
+        try
+        {
+            return await RetryHelper.RunAsync(async () =>
+            {
+                using TcpClient tcp = new TcpClient();
+                tcp.ReceiveTimeout = 5000;
+                tcp.SendTimeout = 5000;
+                await tcp.ConnectAsync(host, 80);
+                var stream = tcp.GetStream();
+                var socket = stream.Socket;
+                IPEndPoint ep = (IPEndPoint)socket.LocalEndPoint!;
+                var addr = ep.Address._UnmapIPv4();
+                if ((ver == IPVersion.IPv4 && addr.AddressFamily == AddressFamily.InterNetwork) ||
+                    (ver == IPVersion.IPv6 && addr.AddressFamily == AddressFamily.InterNetworkV6))
+                {
+                    return addr;
+                }
+                else
+                {
+                    throw new CoresLibException("IP address family invalid.");
+                }
+            }, 200, 3, cancel, true);
+        }
+        catch
+        {
+            return IPAddress.Loopback;
+        }
+    }
+}
+
+public class GetMyIpClient : AsyncService
+{
+    public TcpIpSystem TcpIp;
+    WebApi Web;
+
+    public GetMyIpClient(TcpIpSystem? tcpIp = null, bool useNativeLibrary = false)
+    {
+        try
+        {
+            this.TcpIp = tcpIp ?? LocalNet;
+            this.Web = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true, UseProxy = false, Timeout = CoresConfig.GetMyIpClientSettings.Timeout }, this.TcpIp, useNativeLibrary));
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
         }
     }
 
-    public class GetMyIpInfoResult
+    public async Task<GetMyIpInfoResult> GetMyIpInfoAsync(IPVersion ver = IPVersion.IPv4, CancellationToken cancel = default)
     {
-        public IPAddress GlobalIpAddress { get; }
-        public int GlobalPort { get; }
-        public string GlobalFqdn { get; }
-        public IPAddress PrivateIpAddress { get; }
+        string url;
 
-        public GetMyIpInfoResult(IPAddress globalIp, int port, string fqdn, IPAddress privateIp)
+        if (ver == IPVersion.IPv4)
+            url = Consts.Urls.GetMyIpUrl_IPv4;
+        else
+            url = Consts.Urls.GetMyIpUrl_IPv6;
+
+        url += "?port=true&fqdn=true";
+
+        Exception error = new CoresLibException("Unknown Error");
+
+        GetMyIpInfoResult? ret = null;
+
+        for (int i = 0; i < CoresConfig.GetMyIpClientSettings.NumRetry; i++)
         {
-            this.GlobalIpAddress = globalIp;
-            this.GlobalPort = port;
-            this.GlobalFqdn = fqdn;
-            this.PrivateIpAddress = privateIp;
-        }
-    }
-
-    public static class GetMyPrivateIpNativeUtil
-    {
-        public static async Task<IPAddress> GetMyPrivateIpAsync(IPVersion ver = IPVersion.IPv4, CancellationToken cancel = default)
-        {
-            string host;
-
-            if (ver == IPVersion.IPv6)
-            {
-                host = "connect-v6.arpanet.jp.";
-            }
-            else
-            {
-                host = "connect-v4.arpanet.jp.";
-            }
-
             try
             {
-                return await RetryHelper.RunAsync(async () =>
+                WebRet webRet = await Web.SimpleQueryAsync(WebMethods.GET, url, cancel);
+
+                string str = webRet.Data._GetString_UTF8();
+
+                IPAddress? ip = null;
+                string fqdn = "";
+                int port = 0;
+
+                foreach (string line in str._GetLines(true))
                 {
-                    using TcpClient tcp = new TcpClient();
-                    tcp.ReceiveTimeout = 5000;
-                    tcp.SendTimeout = 5000;
-                    await tcp.ConnectAsync(host, 80);
-                    var stream = tcp.GetStream();
-                    var socket = stream.Socket;
-                    IPEndPoint ep = (IPEndPoint)socket.LocalEndPoint!;
-                    var addr = ep.Address._UnmapIPv4();
-                    if ((ver == IPVersion.IPv4 && addr.AddressFamily == AddressFamily.InterNetwork) ||
-                        (ver == IPVersion.IPv6 && addr.AddressFamily == AddressFamily.InterNetworkV6))
+                    if (line._GetKeyAndValue(out string key, out string value, "="))
                     {
-                        return addr;
-                    }
-                    else
-                    {
-                        throw new CoresLibException("IP address family invalid.");
-                    }
-                }, 200, 3, cancel, true);
-            }
-            catch
-            {
-                return IPAddress.Loopback;
-            }
-        }
-    }
+                        key = key.ToUpper();
 
-    public class GetMyIpClient : AsyncService
-    {
-        public TcpIpSystem TcpIp;
-        WebApi Web;
-
-        public GetMyIpClient(TcpIpSystem? tcpIp = null, bool useNativeLibrary = false)
-        {
-            try
-            {
-                this.TcpIp = tcpIp ?? LocalNet;
-                this.Web = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true, UseProxy = false, Timeout = CoresConfig.GetMyIpClientSettings.Timeout}, this.TcpIp, useNativeLibrary));
-            }
-            catch
-            {
-                this._DisposeSafe();
-                throw;
-            }
-        }
-
-        public async Task<GetMyIpInfoResult> GetMyIpInfoAsync(IPVersion ver = IPVersion.IPv4, CancellationToken cancel = default)
-        {
-            string url;
-
-            if (ver == IPVersion.IPv4)
-                url = Consts.Urls.GetMyIpUrl_IPv4;
-            else
-                url = Consts.Urls.GetMyIpUrl_IPv6;
-
-            url += "?port=true&fqdn=true";
-
-            Exception error = new CoresLibException("Unknown Error");
-
-            GetMyIpInfoResult? ret = null;
-
-            for (int i = 0; i < CoresConfig.GetMyIpClientSettings.NumRetry; i++)
-            {
-                try
-                {
-                    WebRet webRet = await Web.SimpleQueryAsync(WebMethods.GET, url, cancel);
-
-                    string str = webRet.Data._GetString_UTF8();
-
-                    IPAddress? ip = null;
-                    string fqdn = "";
-                    int port = 0;
-
-                    foreach (string line in str._GetLines(true))
-                    {
-                        if (line._GetKeyAndValue(out string key, out string value, "="))
+                        switch (key)
                         {
-                            key = key.ToUpper();
+                            case "IP":
+                                ip = value._NonNullTrim()._ToIPAddress(ver == IPVersion.IPv4 ? AllowedIPVersions.IPv4 : AllowedIPVersions.IPv6);
+                                break;
 
-                            switch (key)
-                            {
-                                case "IP":
-                                    ip = value._NonNullTrim()._ToIPAddress(ver == IPVersion.IPv4 ? AllowedIPVersions.IPv4 : AllowedIPVersions.IPv6);
-                                    break;
+                            case "FQDN":
+                                fqdn = value._NonNullTrim();
+                                break;
 
-                                case "FQDN":
-                                    fqdn = value._NonNullTrim();
-                                    break;
-
-                                case "PORT":
-                                    port = value._NonNullTrim()._ToInt();
-                                    break;
-                            }
+                            case "PORT":
+                                port = value._NonNullTrim()._ToInt();
+                                break;
                         }
                     }
-
-                    if (ip != null && port != 0)
-                    {
-                        if (fqdn._IsEmpty()) fqdn = ip.ToString();
-                        ret = new GetMyIpInfoResult(ip, port, fqdn, null!);
-                        break;
-                    }
-                    else
-                    {
-                        throw new ApplicationException($"Invalid GetMyIp Server reply str: \"{str}\"");
-                    }
                 }
-                catch (Exception ex)
+
+                if (ip != null && port != 0)
                 {
-                    error = ex;
+                    if (fqdn._IsEmpty()) fqdn = ip.ToString();
+                    ret = new GetMyIpInfoResult(ip, port, fqdn, null!);
+                    break;
+                }
+                else
+                {
+                    throw new ApplicationException($"Invalid GetMyIp Server reply str: \"{str}\"");
                 }
             }
-
-            if (ret == null)
+            catch (Exception ex)
             {
-                throw error!;
+                error = ex;
             }
-
-            return ret;
         }
 
-        public async Task<IPAddress> GetMyIpAsync(IPVersion ver = IPVersion.IPv4, CancellationToken cancel = default)
+        if (ret == null)
         {
-            string url;
-
-            if (ver == IPVersion.IPv4)
-                url = Consts.Urls.GetMyIpUrl_IPv4;
-            else
-                url = Consts.Urls.GetMyIpUrl_IPv6;
-
-            Exception error = new CoresLibException("Unknown Error");
-
-            IPAddress? ret = null;
-
-            for (int i = 0; i < CoresConfig.GetMyIpClientSettings.NumRetry; i++)
-            {
-                try
-                {
-                    WebRet webRet = await Web.SimpleQueryAsync(WebMethods.GET, url, cancel);
-
-                    string str = webRet.Data._GetString_Ascii()._OneLine("");
-
-                    if (str.StartsWith("IP=", StringComparison.OrdinalIgnoreCase))
-                    {
-                        ret = IPAddress.Parse(str.Substring(3));
-                        break;
-                    }
-                    else
-                    {
-                        throw new ApplicationException($"Invalid IP str: \"{str}\"");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    error = ex;
-                }
-            }
-
-            if (ret == null)
-            {
-                throw error!;
-            }
-
-            return ret;
+            throw error!;
         }
 
-        protected override async Task CleanupImplAsync(Exception? ex)
+        return ret;
+    }
+
+    public async Task<IPAddress> GetMyIpAsync(IPVersion ver = IPVersion.IPv4, CancellationToken cancel = default)
+    {
+        string url;
+
+        if (ver == IPVersion.IPv4)
+            url = Consts.Urls.GetMyIpUrl_IPv4;
+        else
+            url = Consts.Urls.GetMyIpUrl_IPv6;
+
+        Exception error = new CoresLibException("Unknown Error");
+
+        IPAddress? ret = null;
+
+        for (int i = 0; i < CoresConfig.GetMyIpClientSettings.NumRetry; i++)
         {
             try
             {
-                await this.Web._DisposeSafeAsync();
+                WebRet webRet = await Web.SimpleQueryAsync(WebMethods.GET, url, cancel);
+
+                string str = webRet.Data._GetString_Ascii()._OneLine("");
+
+                if (str.StartsWith("IP=", StringComparison.OrdinalIgnoreCase))
+                {
+                    ret = IPAddress.Parse(str.Substring(3));
+                    break;
+                }
+                else
+                {
+                    throw new ApplicationException($"Invalid IP str: \"{str}\"");
+                }
             }
-            finally
+            catch (Exception ex)
             {
-                await base.CleanupImplAsync(ex);
+                error = ex;
             }
+        }
+
+        if (ret == null)
+        {
+            throw error!;
+        }
+
+        return ret;
+    }
+
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
+        {
+            await this.Web._DisposeSafeAsync();
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
         }
     }
 }

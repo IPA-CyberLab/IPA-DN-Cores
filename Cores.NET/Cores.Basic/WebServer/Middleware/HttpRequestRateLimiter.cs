@@ -63,162 +63,161 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Net.Http.Headers;
 using System.Net.Sockets;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+// サポートされているハッシュ型を示す Interface
+public interface IHttpRequestRateLimiterHashKey
+{ }
+
+// Factory メソッドを兼ねた、サポートされているハッシュ型のリスト
+public static partial class HttpRequestRateLimiterHashKeys
 {
-    // サポートされているハッシュ型を示す Interface
-    public interface IHttpRequestRateLimiterHashKey
-    { }
-
-    // Factory メソッドを兼ねた、サポートされているハッシュ型のリスト
-    public static partial class HttpRequestRateLimiterHashKeys
+    public class SrcIPAddress : HashKeys.SingleIPAddress, IHttpRequestRateLimiterHashKey
     {
-        public class SrcIPAddress : HashKeys.SingleIPAddress, IHttpRequestRateLimiterHashKey
+        public SrcIPAddress(IPAddress address) : base(address) { }
+    }
+
+    // Factory メソッド
+    public static IHttpRequestRateLimiterHashKey? CreateFromHttpContext<TKey>(HttpContext context, HttpRequestRateLimiterOptions<TKey> options) where TKey : IHttpRequestRateLimiterHashKey
+    {
+        // Src IP の処理
+        IPAddress srcIp = context.Connection.RemoteIpAddress!._UnmapIPv4();
+
+        if (options.SrcIPExcludeLocalNetwork)
         {
-            public SrcIPAddress(IPAddress address) : base(address) { }
+            // ローカルネットワークを除外する
+            if (srcIp._GetIPAddressType()._IsLocalNetwork())
+            {
+                return null;
+            }
         }
 
-        // Factory メソッド
-        public static IHttpRequestRateLimiterHashKey? CreateFromHttpContext<TKey>(HttpContext context, HttpRequestRateLimiterOptions<TKey> options) where TKey : IHttpRequestRateLimiterHashKey
+        // サブネットマスクの AND をする
+        if (srcIp.AddressFamily == AddressFamily.InterNetwork)
         {
-            // Src IP の処理
-            IPAddress srcIp = context.Connection.RemoteIpAddress!._UnmapIPv4();
+            // IPv4
+            srcIp = IPUtil.IPAnd(srcIp, IPUtil.IntToSubnetMask4(options.SrcIPv4SubnetLength));
+        }
+        else
+        {
+            // IPv6
+            srcIp = IPUtil.IPAnd(srcIp, IPUtil.IntToSubnetMask6(options.SrcIPv6SubnetLength));
+        }
 
-            if (options.SrcIPExcludeLocalNetwork)
+        if (typeof(TKey) == typeof(SrcIPAddress))
+        {
+            if (srcIp != null)
+                return new SrcIPAddress(srcIp);
+        }
+
+        return null;
+    }
+}
+
+// 拡張メソッド
+public static class HttpRequestRateLimiterHelper
+{
+    public static IServiceCollection AddHttpRequestRateLimiter<TKey>(this IServiceCollection services, Action<HttpRequestRateLimiterOptions<TKey>> configureOptions)
+         where TKey : IHttpRequestRateLimiterHashKey
+    {
+        if (services == null) throw new ArgumentNullException(nameof(services));
+        if (configureOptions == null) throw new ArgumentNullException(nameof(configureOptions));
+        services.Configure(configureOptions);
+        return services;
+    }
+
+    public static IApplicationBuilder UseHttpRequestRateLimiter<TKey>(this IApplicationBuilder app) where TKey : IHttpRequestRateLimiterHashKey
+    {
+        if (app == null) throw new ArgumentNullException(nameof(app));
+
+        app.UseMiddleware<HttpRequestRateLimiterMiddleware<TKey>>();
+
+        return app;
+    }
+}
+
+public class HttpRequestRateLimiterOptions<TKey> where TKey : IHttpRequestRateLimiterHashKey
+{
+    public int SrcIPv4SubnetLength { get; set; } = Consts.RateLimiter.DefaultSrcIPv4SubnetLength;
+    public int SrcIPv6SubnetLength { get; set; } = Consts.RateLimiter.DefaultSrcIPv6SubnetLength;
+    public bool SrcIPExcludeLocalNetwork { get; set; } = true;
+
+    public bool EnableRateLimiter { get; set; } = true;
+    public RateLimiterOptions RateLimiterOptions { get; set; }
+        = new RateLimiterOptions(
+            burst: Consts.RateLimiter.DefaultBurst,
+            limitPerSecond: Consts.RateLimiter.DefaultLimitPerSecond,
+            expiresMsec: Consts.RateLimiter.DefaultExpiresMsec,
+            mode: RateLimiterMode.Penalty,
+            maxEntries: Consts.RateLimiter.DefaultMaxEntries,
+            gcIntervalMsec: Consts.RateLimiter.DefaultGcIntervalMsec);
+
+    public int MaxConcurrentRequestsPerSrcSubnet { get; set; } = Consts.RateLimiter.DefaultMaxConcurrentRequestsPerSrcSubnet;
+}
+
+public class HttpRequestRateLimiterMiddleware<TKey> where TKey : IHttpRequestRateLimiterHashKey
+{
+    readonly RequestDelegate Next;
+    readonly IConfiguration Config;
+    readonly HttpRequestRateLimiterOptions<TKey> Options;
+
+    public RateLimiterOptions RateLimiterOptions => Options.RateLimiterOptions;
+
+    readonly RateLimiter<TKey> RateLimiter;
+    readonly ConcurrentLimiter<TKey> ConcurrentLimiter;
+
+    public HttpRequestRateLimiterMiddleware(RequestDelegate next, IOptions<HttpRequestRateLimiterOptions<TKey>> options, IConfiguration config, ILoggerFactory loggerFactory)
+    {
+        Next = next ?? throw new ArgumentNullException(nameof(next));
+        Config = config ?? throw new ArgumentNullException(nameof(config));
+        Options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+
+        RateLimiter = new RateLimiter<TKey>(RateLimiterOptions);
+        ConcurrentLimiter = new ConcurrentLimiter<TKey>(Options.MaxConcurrentRequestsPerSrcSubnet);
+    }
+
+    public async Task Invoke(HttpContext context)
+    {
+        // context をもとに hashkey を生成
+        IHttpRequestRateLimiterHashKey? hashKey = HttpRequestRateLimiterHashKeys.CreateFromHttpContext<TKey>(context, Options);
+
+        if (hashKey == null)
+        {
+            // Hash key の作成に失敗した場合は無条件で流入を許可する
+            await Next(context);
+            return;
+        }
+
+        // 流入量検査
+        bool ok = (Options.EnableRateLimiter == false) || this.RateLimiter.TryInput(hashKey, out _);
+
+        if (ok) // 流量 OK
+        {
+            // 同時接続数検査
+            if (ConcurrentLimiter.TryEnter(hashKey, out _))
             {
-                // ローカルネットワークを除外する
-                if (srcIp._GetIPAddressType()._IsLocalNetwork())
+                try
                 {
-                    return null;
+                    await Next(context);
                 }
-            }
-
-            // サブネットマスクの AND をする
-            if (srcIp.AddressFamily == AddressFamily.InterNetwork)
-            {
-                // IPv4
-                srcIp = IPUtil.IPAnd(srcIp, IPUtil.IntToSubnetMask4(options.SrcIPv4SubnetLength));
-            }
-            else
-            {
-                // IPv6
-                srcIp = IPUtil.IPAnd(srcIp, IPUtil.IntToSubnetMask6(options.SrcIPv6SubnetLength));
-            }
-
-            if (typeof(TKey) == typeof(SrcIPAddress))
-            {
-                if (srcIp != null)
-                    return new SrcIPAddress(srcIp);
-            }
-
-            return null;
-        }
-    }
-
-    // 拡張メソッド
-    public static class HttpRequestRateLimiterHelper
-    {
-        public static IServiceCollection AddHttpRequestRateLimiter<TKey>(this IServiceCollection services, Action<HttpRequestRateLimiterOptions<TKey>> configureOptions)
-             where TKey : IHttpRequestRateLimiterHashKey
-        {
-            if (services == null) throw new ArgumentNullException(nameof(services));
-            if (configureOptions == null) throw new ArgumentNullException(nameof(configureOptions));
-            services.Configure(configureOptions);
-            return services;
-        }
-
-        public static IApplicationBuilder UseHttpRequestRateLimiter<TKey>(this IApplicationBuilder app) where TKey : IHttpRequestRateLimiterHashKey
-        {
-            if (app == null) throw new ArgumentNullException(nameof(app));
-
-            app.UseMiddleware<HttpRequestRateLimiterMiddleware<TKey>>();
-
-            return app;
-        }
-    }
-
-    public class HttpRequestRateLimiterOptions<TKey> where TKey : IHttpRequestRateLimiterHashKey
-    {
-        public int SrcIPv4SubnetLength { get; set; } = Consts.RateLimiter.DefaultSrcIPv4SubnetLength;
-        public int SrcIPv6SubnetLength { get; set; } = Consts.RateLimiter.DefaultSrcIPv6SubnetLength;
-        public bool SrcIPExcludeLocalNetwork { get; set; } = true;
-
-        public bool EnableRateLimiter { get; set; } = true;
-        public RateLimiterOptions RateLimiterOptions { get; set; }
-            = new RateLimiterOptions(
-                burst: Consts.RateLimiter.DefaultBurst,
-                limitPerSecond: Consts.RateLimiter.DefaultLimitPerSecond,
-                expiresMsec: Consts.RateLimiter.DefaultExpiresMsec,
-                mode: RateLimiterMode.Penalty,
-                maxEntries: Consts.RateLimiter.DefaultMaxEntries,
-                gcIntervalMsec: Consts.RateLimiter.DefaultGcIntervalMsec);
-
-        public int MaxConcurrentRequestsPerSrcSubnet { get; set; } = Consts.RateLimiter.DefaultMaxConcurrentRequestsPerSrcSubnet;
-    }
-
-    public class HttpRequestRateLimiterMiddleware<TKey> where TKey : IHttpRequestRateLimiterHashKey
-    {
-        readonly RequestDelegate Next;
-        readonly IConfiguration Config;
-        readonly HttpRequestRateLimiterOptions<TKey> Options;
-
-        public RateLimiterOptions RateLimiterOptions => Options.RateLimiterOptions;
-
-        readonly RateLimiter<TKey> RateLimiter;
-        readonly ConcurrentLimiter<TKey> ConcurrentLimiter;
-
-        public HttpRequestRateLimiterMiddleware(RequestDelegate next, IOptions<HttpRequestRateLimiterOptions<TKey>> options, IConfiguration config, ILoggerFactory loggerFactory)
-        {
-            Next = next ?? throw new ArgumentNullException(nameof(next));
-            Config = config ?? throw new ArgumentNullException(nameof(config));
-            Options = options?.Value ?? throw new ArgumentNullException(nameof(options));
-
-            RateLimiter = new RateLimiter<TKey>(RateLimiterOptions);
-            ConcurrentLimiter = new ConcurrentLimiter<TKey>(Options.MaxConcurrentRequestsPerSrcSubnet);
-        }
-
-        public async Task Invoke(HttpContext context)
-        {
-            // context をもとに hashkey を生成
-            IHttpRequestRateLimiterHashKey? hashKey = HttpRequestRateLimiterHashKeys.CreateFromHttpContext<TKey>(context, Options);
-
-            if (hashKey == null)
-            {
-                // Hash key の作成に失敗した場合は無条件で流入を許可する
-                await Next(context);
-                return;
-            }
-
-            // 流入量検査
-            bool ok = (Options.EnableRateLimiter == false) || this.RateLimiter.TryInput(hashKey, out _);
-
-            if (ok) // 流量 OK
-            {
-                // 同時接続数検査
-                if (ConcurrentLimiter.TryEnter(hashKey, out _))
+                finally
                 {
-                    try
-                    {
-                        await Next(context);
-                    }
-                    finally
-                    {
-                        // 同時接続数減算
-                        ConcurrentLimiter.Exit(hashKey, out _);
-                    }
-                }
-                else
-                {
-                    // 同時接続数制限されたのでエラーを返す
-                    context.Response.StatusCode = Consts.HttpStatusCodes.TooManyRequests;
-                    await context.Response.WriteAsync($"{Consts.HttpStatusCodes.TooManyRequests} Too many concurrent requests", context.RequestAborted);
+                    // 同時接続数減算
+                    ConcurrentLimiter.Exit(hashKey, out _);
                 }
             }
             else
             {
-                // 流量制限されたのでエラーを返す
+                // 同時接続数制限されたのでエラーを返す
                 context.Response.StatusCode = Consts.HttpStatusCodes.TooManyRequests;
-                await context.Response.WriteAsync($"{Consts.HttpStatusCodes.TooManyRequests} Too many requests", context.RequestAborted);
+                await context.Response.WriteAsync($"{Consts.HttpStatusCodes.TooManyRequests} Too many concurrent requests", context.RequestAborted);
             }
+        }
+        else
+        {
+            // 流量制限されたのでエラーを返す
+            context.Response.StatusCode = Consts.HttpStatusCodes.TooManyRequests;
+            await context.Response.WriteAsync($"{Consts.HttpStatusCodes.TooManyRequests} Too many requests", context.RequestAborted);
         }
     }
 }

@@ -45,56 +45,55 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public partial class WebRet
 {
-    public partial class WebRet
+    dynamic? jsonDynamic = null;
+    public dynamic? JsonDynamic
     {
-        dynamic? jsonDynamic = null;
-        public dynamic? JsonDynamic
+        get
         {
-            get
+            if (jsonDynamic == null)
+                jsonDynamic = Json.DeserializeDynamic(this.ToString());
+            return jsonDynamic;
+        }
+    }
+
+    [return: MaybeNull]
+    public T Deserialize<T>(bool checkError = false)
+    {
+        T? ret = Json.Deserialize<T>(this.ToString(), this.Api.Json_IncludeNull, this.Api.Json_MaxDepth);
+
+        if (checkError)
+        {
+            if (ret is IValidatable b)
             {
-                if (jsonDynamic == null)
-                    jsonDynamic = Json.DeserializeDynamic(this.ToString());
-                return jsonDynamic;
+                b.Validate();
             }
         }
 
-        [return: MaybeNull]
-        public T Deserialize<T>(bool checkError = false)
-        {
-            T? ret = Json.Deserialize<T>(this.ToString(), this.Api.Json_IncludeNull, this.Api.Json_MaxDepth);
-
-            if (checkError)
-            {
-                if (ret is IValidatable b)
-                {
-                    b.Validate();
-                }
-            }
-
-            return ret;
-        }
-
-        public string NormalizedJsonStr => this.Data._GetString_UTF8()._JsonNormalize();
+        return ret;
     }
 
-    public partial class WebApi
-    {
-        public int? Json_MaxDepth { get; set; } = Json.DefaultMaxDepth;
+    public string NormalizedJsonStr => this.Data._GetString_UTF8()._JsonNormalize();
+}
 
-        public bool Json_IncludeNull { get; set; } = false;
-        public bool Json_EscapeHtml { get; set; } = false;
+public partial class WebApi
+{
+    public int? Json_MaxDepth { get; set; } = Json.DefaultMaxDepth;
 
-        public string JsonSerialize(object? obj, Type? type = null)
-            => Json.Serialize(obj, this.Json_IncludeNull, this.Json_EscapeHtml, this.Json_MaxDepth, type: type);
+    public bool Json_IncludeNull { get; set; } = false;
+    public bool Json_EscapeHtml { get; set; } = false;
 
-        public virtual async Task<WebRet> RequestWithJsonObjectAsync(WebMethods method, string url, object? jsonObject, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
-            => await SimplePostJsonAsync(method, url, this.JsonSerialize(jsonObject), cancel, postContentType);
+    public string JsonSerialize(object? obj, Type? type = null)
+        => Json.Serialize(obj, this.Json_IncludeNull, this.Json_EscapeHtml, this.Json_MaxDepth, type: type);
 
-        public virtual async Task<WebRet> RequestWithJsonDynamicAsync(WebMethods method, string url, dynamic? jsonDynamic, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
-            => await SimplePostJsonAsync(method, url, Json.SerializeDynamic(jsonDynamic), cancel, postContentType);
-    }
+    public virtual async Task<WebRet> RequestWithJsonObjectAsync(WebMethods method, string url, object? jsonObject, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
+        => await SimplePostJsonAsync(method, url, this.JsonSerialize(jsonObject), cancel, postContentType);
+
+    public virtual async Task<WebRet> RequestWithJsonDynamicAsync(WebMethods method, string url, dynamic? jsonDynamic, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
+        => await SimplePostJsonAsync(method, url, Json.SerializeDynamic(jsonDynamic), cancel, postContentType);
 }
 
 #endif  // CORES_BASIC_JSON

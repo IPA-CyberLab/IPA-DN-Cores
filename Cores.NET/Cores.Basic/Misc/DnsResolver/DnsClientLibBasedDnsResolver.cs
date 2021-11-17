@@ -60,140 +60,139 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public class DnsClientLibBasedDnsResolver : DnsResolver
 {
-    public class DnsClientLibBasedDnsResolver : DnsResolver
+    public override bool IsAvailable => true;
+
+    LookupClient Client { get; }
+
+    public DnsClientLibBasedDnsResolver(DnsResolverSettings? settings = null) : base(settings)
     {
-        public override bool IsAvailable => true;
-
-        LookupClient Client { get; }
-
-        public DnsClientLibBasedDnsResolver(DnsResolverSettings? settings = null) : base(settings)
+        try
         {
-            try
+            LookupClientOptions opt;
+
+            if (Settings.DnsServersList.Any())
             {
-                LookupClientOptions opt;
-
-                if (Settings.DnsServersList.Any())
-                {
-                    opt = new LookupClientOptions(Settings.DnsServersList.ToArray());
-                }
-                else
-                {
-                    opt = new LookupClientOptions();
-                }
-
-                var flags = Settings.Flags;
-
-                opt.AutoResolveNameServers = flags.Bit(DnsResolverFlags.UseSystemDnsClientSettings);
-                opt.UseTcpOnly = flags.Bit(DnsResolverFlags.TcpOnly);
-                opt.UseTcpFallback = !flags.Bit(DnsResolverFlags.UdpOnly);
-                opt.UseRandomNameServer = flags.Bit(DnsResolverFlags.RoundRobinServers);
-                opt.UseCache = !flags.Bit(DnsResolverFlags.DisableCache);
-                opt.ThrowDnsErrors = flags.Bit(DnsResolverFlags.ThrowDnsError);
-                opt.Recursion = !flags.Bit(DnsResolverFlags.DisableRecursion);
-
-                opt.Timeout = Settings.TimeoutOneQuery._ToTimeSpanMSecs();
-                opt.Retries = Math.Max(Settings.NumTry, 1) - 1;
-
-                opt.MinimumCacheTimeout = Settings.MinCacheTimeout._ToTimeSpanMSecs();
-                opt.MaximumCacheTimeout = Settings.MaxCacheTimeout._ToTimeSpanMSecs();
-
-                this.Client = new LookupClient(opt);
+                opt = new LookupClientOptions(Settings.DnsServersList.ToArray());
             }
-            catch
+            else
             {
-                this._DisposeSafe();
-                throw;
+                opt = new LookupClientOptions();
             }
+
+            var flags = Settings.Flags;
+
+            opt.AutoResolveNameServers = flags.Bit(DnsResolverFlags.UseSystemDnsClientSettings);
+            opt.UseTcpOnly = flags.Bit(DnsResolverFlags.TcpOnly);
+            opt.UseTcpFallback = !flags.Bit(DnsResolverFlags.UdpOnly);
+            opt.UseRandomNameServer = flags.Bit(DnsResolverFlags.RoundRobinServers);
+            opt.UseCache = !flags.Bit(DnsResolverFlags.DisableCache);
+            opt.ThrowDnsErrors = flags.Bit(DnsResolverFlags.ThrowDnsError);
+            opt.Recursion = !flags.Bit(DnsResolverFlags.DisableRecursion);
+
+            opt.Timeout = Settings.TimeoutOneQuery._ToTimeSpanMSecs();
+            opt.Retries = Math.Max(Settings.NumTry, 1) - 1;
+
+            opt.MinimumCacheTimeout = Settings.MinCacheTimeout._ToTimeSpanMSecs();
+            opt.MaximumCacheTimeout = Settings.MaxCacheTimeout._ToTimeSpanMSecs();
+
+            this.Client = new LookupClient(opt);
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
+    }
+
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
+        {
+        }
+        catch
+        {
+            await base.CleanupImplAsync(ex);
+        }
+    }
+
+    protected override async Task<IEnumerable<string>?> GetHostNameImplAsync(IPAddress ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
+    {
+        DnsAdditionalResults additionalData = new DnsAdditionalResults(true, false);
+
+        try
+        {
+            var res = await Client.QueryReverseAsync(ip, cancel);
+
+            if (res.Header.ResponseCode == DnsHeaderResponseCode.NotExistentDomain)
+            {
+                additionalData = new DnsAdditionalResults(false, true);
+            }
+
+            if (res.HasError)
+            {
+                additionalData = new DnsAdditionalResults(true, false);
+                return null;
+            }
+
+            return res.Answers?.PtrRecords().Select(x => x.PtrDomainName.ToString()).ToArray() ?? null;
+        }
+        finally
+        {
+            additional?.Set(additionalData);
+        }
+    }
+
+    protected override async Task<IEnumerable<IPAddress>?> GetIpAddressImplAsync(string hostname, DnsResolverQueryType queryType, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
+    {
+        DnsAdditionalResults additionalData = new DnsAdditionalResults(true, false);
+
+        QueryType qt;
+
+        switch (queryType)
+        {
+            case DnsResolverQueryType.A:
+                qt = QueryType.A;
+                break;
+
+            case DnsResolverQueryType.AAAA:
+                qt = QueryType.AAAA;
+                break;
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(queryType));
         }
 
-        protected override async Task CleanupImplAsync(Exception? ex)
+        try
         {
-            try
+            var res = await Client.QueryAsync(hostname, qt, queryClass: QueryClass.IN, cancel);
+
+            if (res.Header.ResponseCode == DnsHeaderResponseCode.NotExistentDomain)
             {
+                additionalData = new DnsAdditionalResults(false, true);
             }
-            catch
+
+            if (res.HasError)
             {
-                await base.CleanupImplAsync(ex);
+                additionalData = new DnsAdditionalResults(true, false);
+                return null;
+            }
+
+            if (qt == QueryType.A)
+            {
+                return res.Answers?.ARecords().Where(x => x.Address.AddressFamily == AddressFamily.InterNetwork).Select(x => x.Address).ToArray() ?? null;
+            }
+            else
+            {
+                return res.Answers?.AaaaRecords().Where(x => x.Address.AddressFamily == AddressFamily.InterNetworkV6).Select(x => x.Address).ToArray() ?? null;
             }
         }
-
-        protected override async Task<IEnumerable<string>?> GetHostNameImplAsync(IPAddress ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
+        finally
         {
-            DnsAdditionalResults additionalData = new DnsAdditionalResults(true, false);
-
-            try
-            {
-                var res = await Client.QueryReverseAsync(ip, cancel);
-
-                if (res.Header.ResponseCode == DnsHeaderResponseCode.NotExistentDomain)
-                {
-                    additionalData = new DnsAdditionalResults(false, true);
-                }
-
-                if (res.HasError)
-                {
-                    additionalData = new DnsAdditionalResults(true, false);
-                    return null;
-                }
-
-                return res.Answers?.PtrRecords().Select(x => x.PtrDomainName.ToString()).ToArray() ?? null;
-            }
-            finally
-            {
-                additional?.Set(additionalData);
-            }
-        }
-
-        protected override async Task<IEnumerable<IPAddress>?> GetIpAddressImplAsync(string hostname, DnsResolverQueryType queryType, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
-        {
-            DnsAdditionalResults additionalData = new DnsAdditionalResults(true, false);
-
-            QueryType qt;
-
-            switch (queryType)
-            {
-                case DnsResolverQueryType.A:
-                    qt = QueryType.A;
-                    break;
-
-                case DnsResolverQueryType.AAAA:
-                    qt = QueryType.AAAA;
-                    break;
-
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(queryType));
-            }
-
-            try
-            {
-                var res = await Client.QueryAsync(hostname, qt, queryClass: QueryClass.IN, cancel);
-
-                if (res.Header.ResponseCode == DnsHeaderResponseCode.NotExistentDomain)
-                {
-                    additionalData = new DnsAdditionalResults(false, true);
-                }
-
-                if (res.HasError)
-                {
-                    additionalData = new DnsAdditionalResults(true, false);
-                    return null;
-                }
-
-                if (qt == QueryType.A)
-                {
-                    return res.Answers?.ARecords().Where(x => x.Address.AddressFamily == AddressFamily.InterNetwork).Select(x => x.Address).ToArray() ?? null;
-                }
-                else
-                {
-                    return res.Answers?.AaaaRecords().Where(x => x.Address.AddressFamily == AddressFamily.InterNetworkV6).Select(x => x.Address).ToArray() ?? null;
-                }
-            }
-            finally
-            {
-                additional?.Set(additionalData);
-            }
+            additional?.Set(additionalData);
         }
     }
 }

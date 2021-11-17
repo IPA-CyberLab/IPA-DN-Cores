@@ -57,79 +57,78 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public class AuthenticodeSignClient : AsyncService
 {
-    public class AuthenticodeSignClient : AsyncService
+    const string SeInternalPasswordFilePathDefault = @"\\192.168.3.2\share\tmp\signserver\password.txt";
+
+    readonly string Url;
+
+    readonly WebApi Web;
+
+    string? SeInternalPasswordCache = null;
+
+    public AuthenticodeSignClient(string url, string sslSha, TcpIpSystem? tcpIp = null)
     {
-        const string SeInternalPasswordFilePathDefault = @"\\192.168.3.2\share\tmp\signserver\password.txt";
-
-        readonly string Url;
-
-        readonly WebApi Web;
-
-        string? SeInternalPasswordCache = null;
-
-        public AuthenticodeSignClient(string url, string sslSha, TcpIpSystem? tcpIp = null)
+        try
         {
-            try
-            {
-                this.Url = url;
+            this.Url = url;
 
-                this.Web = new WebApi(new WebApiOptions(new WebApiSettings { MaxRecvSize = Consts.Numbers.SignCodeServerMaxFileSize, SslAcceptCertSHAHashList = sslSha._SingleList() }, tcpIp));
-            }
-            catch (Exception ex)
-            {
-                this._DisposeSafe(ex);
-                throw;
-            }
+            this.Web = new WebApi(new WebApiOptions(new WebApiSettings { MaxRecvSize = Consts.Numbers.SignCodeServerMaxFileSize, SslAcceptCertSHAHashList = sslSha._SingleList() }, tcpIp));
+        }
+        catch (Exception ex)
+        {
+            this._DisposeSafe(ex);
+            throw;
+        }
+    }
+
+    public async Task<byte[]> SignSeInternalAsync(ReadOnlyMemory<byte> srcData, string certName, string flags, string comment, int numRetry = 5, CancellationToken cancel = default,
+        string passwordFilePath = SeInternalPasswordFilePathDefault)
+    {
+        if (SeInternalPasswordCache._IsEmpty())
+        {
+            SeInternalPasswordCache = await Lfs.ReadStringFromFileAsync(passwordFilePath, oneLine: true);
         }
 
-        public async Task<byte[]> SignSeInternalAsync(ReadOnlyMemory<byte> srcData, string certName, string flags, string comment, int numRetry = 5, CancellationToken cancel = default,
-            string passwordFilePath = SeInternalPasswordFilePathDefault)
-        {
-            if (SeInternalPasswordCache._IsEmpty())
-            {
-                SeInternalPasswordCache = await Lfs.ReadStringFromFileAsync(passwordFilePath, oneLine: true);
-            }
+        return await SignAsync(SeInternalPasswordCache, srcData, certName, flags, comment, numRetry, cancel);
+    }
 
-            return await SignAsync(SeInternalPasswordCache, srcData, certName, flags, comment, numRetry, cancel);
+    public async Task<byte[]> SignAsync(string password, ReadOnlyMemory<byte> srcData, string certName, string flags, string comment, int numRetry = 5, CancellationToken cancel = default)
+    {
+        QueryStringList qs = new QueryStringList();
+
+        qs.Add("password", password);
+        qs.Add("cert", certName);
+        qs.Add("flags", flags);
+        qs.Add("comment", comment);
+        qs.Add("numretry", numRetry.ToString());
+
+        WebRet ret = await this.Web.SimplePostDataAsync(this.Url + "?" + qs, srcData.ToArray(), cancel, Consts.MimeTypes.OctetStream);
+
+        if (ret.Data.Length <= (srcData.Length * 9L / 10L))
+        {
+            throw new CoresException("ret.Data.Length <= (srcData.Length * 9L / 10L)");
         }
 
-        public async Task<byte[]> SignAsync(string password, ReadOnlyMemory<byte> srcData, string certName, string flags, string comment, int numRetry = 5, CancellationToken cancel = default)
+        if (ExeSignChecker.CheckFileDigitalSignature(ret.Data, flags._InStr("driver", true)) == false)
         {
-            QueryStringList qs = new QueryStringList();
-
-            qs.Add("password", password);
-            qs.Add("cert", certName);
-            qs.Add("flags", flags);
-            qs.Add("comment", comment);
-            qs.Add("numretry", numRetry.ToString());
-
-            WebRet ret = await this.Web.SimplePostDataAsync(this.Url + "?" + qs, srcData.ToArray(), cancel, Consts.MimeTypes.OctetStream);
-
-            if (ret.Data.Length <= (srcData.Length * 9L / 10L))
-            {
-                throw new CoresException("ret.Data.Length <= (srcData.Length * 9L / 10L)");
-            }
-
-            if (ExeSignChecker.CheckFileDigitalSignature(ret.Data, flags._InStr("driver", true)) == false)
-            {
-                throw new CoresException("CheckFileDigitalSignature failed.");
-            }
-
-            return ret.Data;
+            throw new CoresException("CheckFileDigitalSignature failed.");
         }
 
-        protected override void DisposeImpl(Exception? ex)
+        return ret.Data;
+    }
+
+    protected override void DisposeImpl(Exception? ex)
+    {
+        try
         {
-            try
-            {
-                this.Web._DisposeSafe();
-            }
-            finally
-            {
-                base.DisposeImpl(ex);
-            }
+            this.Web._DisposeSafe();
+        }
+        finally
+        {
+            base.DisposeImpl(ex);
         }
     }
 }

@@ -58,132 +58,131 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+// ヘッダ付きテーブルのデータ
+public class HtmlParsedTableData
 {
-    // ヘッダ付きテーブルのデータ
-    public class HtmlParsedTableData
+    public HtmlNode TdNode { get; }
+    public string SimpleText { get; }
+
+    public HtmlParsedTableData(HtmlNode node)
     {
-        public HtmlNode TdNode { get; }
-        public string SimpleText { get; }
-
-        public HtmlParsedTableData(HtmlNode node)
-        {
-            this.TdNode = node;
-            this.SimpleText = node.GetSimpleText();
-        }
-
-        public string FirstHyperLinkTarget
-        {
-            get
-            {
-                var a_list = this.TdNode.Elements("a");
-                foreach (var a in a_list)
-                {
-                    return a.GetAttributeValue("href", "");
-                }
-                return "";
-            }
-        }
-
-        public override string ToString() => this.SimpleText;
+        this.TdNode = node;
+        this.SimpleText = node.GetSimpleText();
     }
 
-    // テーブルのパースオプション
-    public class HtmlTableParseOption
+    public string FirstHyperLinkTarget
     {
-        public readonly string[]? AlternativeHeaders;
-        public int SkipHeaderRowCount;
-
-        public HtmlTableParseOption(string[]? alternativeHeaders = null, int skipHeaderRowCount = 0)
+        get
         {
-            this.AlternativeHeaders = alternativeHeaders;
-            this.SkipHeaderRowCount = skipHeaderRowCount;
+            var a_list = this.TdNode.Elements("a");
+            foreach (var a in a_list)
+            {
+                return a.GetAttributeValue("href", "");
+            }
+            return "";
         }
     }
 
-    // HTML をパースして読み込まれたヘッダ付きテーブル
-    public class HtmlParsedTableWithHeader
+    public override string ToString() => this.SimpleText;
+}
+
+// テーブルのパースオプション
+public class HtmlTableParseOption
+{
+    public readonly string[]? AlternativeHeaders;
+    public int SkipHeaderRowCount;
+
+    public HtmlTableParseOption(string[]? alternativeHeaders = null, int skipHeaderRowCount = 0)
     {
-        public HtmlTableParseOption ParseOption { get; }
-        public HtmlNode TableNode { get; }
-        public List<string> HeaderList { get; }
-        public List<Dictionary<string, HtmlParsedTableData>> DataList { get; }
+        this.AlternativeHeaders = alternativeHeaders;
+        this.SkipHeaderRowCount = skipHeaderRowCount;
+    }
+}
 
-        public HtmlParsedTableWithHeader(HtmlNode table_node, HtmlTableParseOption? parseOption = null)
+// HTML をパースして読み込まれたヘッダ付きテーブル
+public class HtmlParsedTableWithHeader
+{
+    public HtmlTableParseOption ParseOption { get; }
+    public HtmlNode TableNode { get; }
+    public List<string> HeaderList { get; }
+    public List<Dictionary<string, HtmlParsedTableData>> DataList { get; }
+
+    public HtmlParsedTableWithHeader(HtmlNode table_node, HtmlTableParseOption? parseOption = null)
+    {
+        if (parseOption == null) parseOption = new HtmlTableParseOption();
+
+        this.ParseOption = parseOption;
+
+        this.TableNode = table_node;
+
+        var rows = TableNode.SelectNodes("tr");
+
+        if (rows.Count <= 0) throw new ApplicationException("Table: rows.Count <= 0");
+
+        // ヘッダリストの取得
+        HeaderList = new List<string>();
+
+        if (ParseOption.AlternativeHeaders == null)
         {
-            if (parseOption == null) parseOption = new HtmlTableParseOption();
+            var header_coulmns = rows[ParseOption.SkipHeaderRowCount].SelectNodes("td");
 
-            this.ParseOption = parseOption;
-
-            this.TableNode = table_node;
-
-            var rows = TableNode.SelectNodes("tr");
-
-            if (rows.Count <= 0) throw new ApplicationException("Table: rows.Count <= 0");
-
-            // ヘッダリストの取得
-            HeaderList = new List<string>();
-
-            if (ParseOption.AlternativeHeaders == null)
+            if (header_coulmns == null)
             {
-                var header_coulmns = rows[ParseOption.SkipHeaderRowCount].SelectNodes("td");
-
-                if (header_coulmns == null)
-                {
-                    header_coulmns = rows[ParseOption.SkipHeaderRowCount].SelectNodes("th");
-                }
-
-                foreach (var column in header_coulmns)
-                {
-                    HeaderList.Add(column.GetSimpleText());
-                }
-            }
-            else
-            {
-                HeaderList = ParseOption.AlternativeHeaders.ToList();
+                header_coulmns = rows[ParseOption.SkipHeaderRowCount].SelectNodes("th");
             }
 
-            // データリストの取得
-            this.DataList = new List<Dictionary<string, HtmlParsedTableData>>();
-
-            for (int i = (1 + ParseOption.SkipHeaderRowCount); i < rows.Count; i++)
+            foreach (var column in header_coulmns)
             {
-                var td_list = rows[i].SelectNodes("td");
+                HeaderList.Add(column.GetSimpleText());
+            }
+        }
+        else
+        {
+            HeaderList = ParseOption.AlternativeHeaders.ToList();
+        }
 
-                Dictionary<string, HtmlParsedTableData> data_list = new Dictionary<string, HtmlParsedTableData>();
+        // データリストの取得
+        this.DataList = new List<Dictionary<string, HtmlParsedTableData>>();
 
-                if (td_list.Count >= this.HeaderList.Count)
+        for (int i = (1 + ParseOption.SkipHeaderRowCount); i < rows.Count; i++)
+        {
+            var td_list = rows[i].SelectNodes("td");
+
+            Dictionary<string, HtmlParsedTableData> data_list = new Dictionary<string, HtmlParsedTableData>();
+
+            if (td_list.Count >= this.HeaderList.Count)
+            {
+                for (int j = 0; j < td_list.Count; j++)
                 {
-                    for (int j = 0; j < td_list.Count; j++)
-                    {
-                        data_list[HeaderList[j]] = new HtmlParsedTableData(td_list[j]);
-                    }
-
-                    DataList.Add(data_list);
+                    data_list[HeaderList[j]] = new HtmlParsedTableData(td_list[j]);
                 }
+
+                DataList.Add(data_list);
             }
         }
     }
+}
 
-    public static class HtmlParser
+public static class HtmlParser
+{
+    public static HtmlDocument ParseHtml(string body)
     {
-        public static HtmlDocument ParseHtml(string body)
-        {
-            HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
-            doc.LoadHtml(body);
+        HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
+        doc.LoadHtml(body);
 
-            return doc;
-        }
+        return doc;
     }
+}
 
-    public partial class EasyHttpClient
+public partial class EasyHttpClient
+{
+    public async Task<HtmlDocument> GetHtmlAsync(string url, CancellationToken cancel = default)
     {
-        public async Task<HtmlDocument> GetHtmlAsync(string url, CancellationToken cancel = default)
-        {
-            var ret = await this.GetAsync(url, cancel);
+        var ret = await this.GetAsync(url, cancel);
 
-            return ret.ToString()._ParseHtml();
-        }
+        return ret.ToString()._ParseHtml();
     }
 }
 

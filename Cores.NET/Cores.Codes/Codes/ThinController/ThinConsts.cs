@@ -72,66 +72,65 @@ using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
 
-namespace IPA.Cores.Codes
+namespace IPA.Cores.Codes;
+
+public static partial class ThinControllerConsts
 {
-    public static partial class ThinControllerConsts
-    {
-        public const int MaxPcidLen = 31;
+    public const int MaxPcidLen = 31;
 
-        public static readonly Copenhagen<string> AccessLogTag = "ThinControlerLog";
+    public static readonly Copenhagen<string> AccessLogTag = "ThinControlerLog";
 
-        public static readonly Copenhagen<int> ControllerMaxBodySizeForUsers = 64 * 1024;
-        public static readonly Copenhagen<int> ControllerMaxBodySizeForGateway = (int)Pack.MaxPackSize;
-        public static readonly Copenhagen<int> ControllerMaxConcurrentKestrelConnectionsForUsers = 1000 * Math.Max(Environment.ProcessorCount, 1);
-        public static readonly Copenhagen<int> ControllerStatCacheExpiresMsecs = 30 * 1000;
-        public static readonly Copenhagen<int> ControllerMaxDatabaseWriteQueueLength = 100000; // 1 レコードあたり 10KB として 1GB 分まで
+    public static readonly Copenhagen<int> ControllerMaxBodySizeForUsers = 64 * 1024;
+    public static readonly Copenhagen<int> ControllerMaxBodySizeForGateway = (int)Pack.MaxPackSize;
+    public static readonly Copenhagen<int> ControllerMaxConcurrentKestrelConnectionsForUsers = 1000 * Math.Max(Environment.ProcessorCount, 1);
+    public static readonly Copenhagen<int> ControllerStatCacheExpiresMsecs = 30 * 1000;
+    public static readonly Copenhagen<int> ControllerMaxDatabaseWriteQueueLength = 100000; // 1 レコードあたり 10KB として 1GB 分まで
 
-        public static readonly Copenhagen<string> Default_DbConnectionString_Read = "Data Source=127.0.0.1;Initial Catalog=THINDB;Persist Security Info=True;Pooling=False;User ID=sql_thin_reader;Password=sql_password;";
-        public static readonly Copenhagen<string> Default_DbConnectionString_Write = "Data Source=127.0.0.1;Initial Catalog=THINDB;Persist Security Info=True;Pooling=False;User ID=sql_thin_writer;Password=sql_password;";
+    public static readonly Copenhagen<string> Default_DbConnectionString_Read = "Data Source=127.0.0.1;Initial Catalog=THINDB;Persist Security Info=True;Pooling=False;User ID=sql_thin_reader;Password=sql_password;";
+    public static readonly Copenhagen<string> Default_DbConnectionString_Write = "Data Source=127.0.0.1;Initial Catalog=THINDB;Persist Security Info=True;Pooling=False;User ID=sql_thin_writer;Password=sql_password;";
 
-        public static readonly Copenhagen<string> Default_WildCardDnsDomainName = "websocket.jp";
-        public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardDomainName = "websocket.jp";
-        public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl = "http://ssl-cert-server.websocket.jp/wildcard_cert_files/websocket.jp/latest/";
-        public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl_Username = "user123";
-        public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl_Password = "pass123";
-        public static readonly Copenhagen<int> ThinWebClient_WebSocketCertMaintainer_Interval_Normal_Msecs = 1 * 60 * 60 * 1000;
-        public static readonly Copenhagen<int> ThinWebClient_WebSocketCertMaintainer_Interval_Retry_Initial_Msecs = 15 * 1000;
-        public static readonly Copenhagen<int> ThinWebClient_WebSocketCertMaintainer_Interval_Retry_Max_Msecs = 5 * 60 * 1000;
+    public static readonly Copenhagen<string> Default_WildCardDnsDomainName = "websocket.jp";
+    public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardDomainName = "websocket.jp";
+    public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl = "http://ssl-cert-server.websocket.jp/wildcard_cert_files/websocket.jp/latest/";
+    public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl_Username = "user123";
+    public static readonly Copenhagen<string> Default_ThinWebClient_WebSocketWildCardCertServerLatestUrl_Password = "pass123";
+    public static readonly Copenhagen<int> ThinWebClient_WebSocketCertMaintainer_Interval_Normal_Msecs = 1 * 60 * 60 * 1000;
+    public static readonly Copenhagen<int> ThinWebClient_WebSocketCertMaintainer_Interval_Retry_Initial_Msecs = 15 * 1000;
+    public static readonly Copenhagen<int> ThinWebClient_WebSocketCertMaintainer_Interval_Retry_Max_Msecs = 5 * 60 * 1000;
 
-        // DB の Var で設定可能な変数のデフォルト値
-        public static readonly Copenhagen<int> Default_ControllerMaxConcurrentWpcRequestProcessingForUsers = 500;
-        public static readonly Copenhagen<int> Default_ControllerDbFullReloadIntervalMsecs = 10 * 1000;
-        public static readonly Copenhagen<int> Default_ControllerDbWriteUpdateIntervalMsecs = 1 * 1000;
-        public static readonly Copenhagen<int> Default_ControllerDbBackupFileWriteIntervalMsecs = 5 * 60 * 1000;
-        public static readonly Copenhagen<int> Default_ControllerRecordStatIntervalMsecs = 5 * 60 * 1000;
+    // DB の Var で設定可能な変数のデフォルト値
+    public static readonly Copenhagen<int> Default_ControllerMaxConcurrentWpcRequestProcessingForUsers = 500;
+    public static readonly Copenhagen<int> Default_ControllerDbFullReloadIntervalMsecs = 10 * 1000;
+    public static readonly Copenhagen<int> Default_ControllerDbWriteUpdateIntervalMsecs = 1 * 1000;
+    public static readonly Copenhagen<int> Default_ControllerDbBackupFileWriteIntervalMsecs = 5 * 60 * 1000;
+    public static readonly Copenhagen<int> Default_ControllerRecordStatIntervalMsecs = 5 * 60 * 1000;
 
-        // DB の Var で設定可能な変数の最大値
-        public const int Max_ControllerDbReadFullReloadIntervalMsecs = 30 * 60 * 1000;
-        public const int Max_ControllerDbWriteUpdateIntervalMsecs = 5 * 60 * 1000;
-        public const int Max_ControllerDbBackupFileWriteIntervalMsecs = 24 * 60 * 60 * 1000;
-        public const int Max_ControllerRecordStatIntervalMsecs = 60 * 60 * 1000;
+    // DB の Var で設定可能な変数の最大値
+    public const int Max_ControllerDbReadFullReloadIntervalMsecs = 30 * 60 * 1000;
+    public const int Max_ControllerDbWriteUpdateIntervalMsecs = 5 * 60 * 1000;
+    public const int Max_ControllerDbBackupFileWriteIntervalMsecs = 24 * 60 * 60 * 1000;
+    public const int Max_ControllerRecordStatIntervalMsecs = 60 * 60 * 1000;
 
-        public static readonly Copenhagen<string> ControllerDefaultAdminUsername = "admin";
-        public static readonly Copenhagen<string> ControllerDefaultAdminPassword = "ipantt";
+    public static readonly Copenhagen<string> ControllerDefaultAdminUsername = "admin";
+    public static readonly Copenhagen<string> ControllerDefaultAdminPassword = "ipantt";
 
-        public static readonly Copenhagen<string> DefaultControllerGateSecretKey = "JuP4611KJd1dFTqenNpVPU6r";
+    public static readonly Copenhagen<string> DefaultControllerGateSecretKey = "JuP4611KJd1dFTqenNpVPU6r";
 
-    }
+}
 
-    public static partial class ThinWebClientConsts
-    {
-        public static readonly Copenhagen<int> ControllerMaxBodySizeForUsers = 1 * 1024 * 1024;
-        public static readonly Copenhagen<int> ControllerMaxConcurrentKestrelConnectionsForUsers = 10000;
+public static partial class ThinWebClientConsts
+{
+    public static readonly Copenhagen<int> ControllerMaxBodySizeForUsers = 1 * 1024 * 1024;
+    public static readonly Copenhagen<int> ControllerMaxConcurrentKestrelConnectionsForUsers = 10000;
 
-        public static readonly Copenhagen<int> MaxHistory = 12;
-    }
+    public static readonly Copenhagen<int> MaxHistory = 12;
+}
 
-    [Flags]
-    public enum ThinControllerServiceType
-    {
-        ApiServiceForUsers,
-        ApiServiceForGateway,
-    }
+[Flags]
+public enum ThinControllerServiceType
+{
+    ApiServiceForUsers,
+    ApiServiceForGateway,
 }
 
 #endif

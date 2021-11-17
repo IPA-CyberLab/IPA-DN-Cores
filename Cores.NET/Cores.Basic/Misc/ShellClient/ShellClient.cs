@@ -58,582 +58,581 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.IO.Ports;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public static partial class CoresConfig
 {
-    public static partial class CoresConfig
+    public static partial class ShellClientDefaultSettings
     {
-        public static partial class ShellClientDefaultSettings
+        public static readonly Copenhagen<int> ConnectTimeout = 15 * 1000;
+        public static readonly Copenhagen<int> CommmTimeout = 15 * 1000;
+    }
+}
+
+public abstract class ShellClientSettingsBase
+{
+    public string TargetName { get; }
+    public int TargetPort { get; }
+    public int ConnectTimeoutMsecs { get; }
+    public int CommTimeoutMsecs { get; }
+
+    protected ShellClientSettingsBase(string targetName, int targetPort, int connectTimeoutMsecs = 0, int commTimeoutMsecs = 0)
+    {
+        if (connectTimeoutMsecs == 0) connectTimeoutMsecs = CoresConfig.ShellClientDefaultSettings.ConnectTimeout;
+        if (commTimeoutMsecs == 0) commTimeoutMsecs = CoresConfig.ShellClientDefaultSettings.CommmTimeout;
+
+        TargetName = targetName;
+        TargetPort = targetPort;
+        ConnectTimeoutMsecs = connectTimeoutMsecs;
+        CommTimeoutMsecs = commTimeoutMsecs;
+    }
+}
+
+public class ShellClientSock : AsyncService
+{
+    public ShellClientBase Client { get; }
+    public PipePoint PipePoint { get; }
+    public NetAppStub Stub { get; }
+    public PipeStream Stream { get; }
+
+    public ShellClientSock(ShellClientBase client, PipePoint pipePoint, NetAppStub stub, PipeStream stream)
+    {
+        this.Client = client;
+        this.PipePoint = pipePoint;
+        this.Stub = stub;
+        this.Stream = stream;
+    }
+
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
         {
-            public static readonly Copenhagen<int> ConnectTimeout = 15 * 1000;
-            public static readonly Copenhagen<int> CommmTimeout = 15 * 1000;
+            await this.Stream._DisposeSafeAsync();
+            await this.Stub._DisposeSafeAsync();
+            await this.PipePoint._DisposeSafeAsync2();
+            await this.Client._DisposeSafeAsync();
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
         }
     }
 
-    public abstract class ShellClientSettingsBase
+    public UnixShellProcessor CreateUnixShellProcessor(UnixShellProcessorSettings? settings = null, bool disposeObject = true)
     {
-        public string TargetName { get; }
-        public int TargetPort { get; }
-        public int ConnectTimeoutMsecs { get; }
-        public int CommTimeoutMsecs { get; }
-
-        protected ShellClientSettingsBase(string targetName, int targetPort, int connectTimeoutMsecs = 0, int commTimeoutMsecs = 0)
+        if (settings == null)
         {
-            if (connectTimeoutMsecs == 0) connectTimeoutMsecs = CoresConfig.ShellClientDefaultSettings.ConnectTimeout;
-            if (commTimeoutMsecs == 0) commTimeoutMsecs = CoresConfig.ShellClientDefaultSettings.CommmTimeout;
+            settings = new UnixShellProcessorSettings();
+        }
 
-            TargetName = targetName;
-            TargetPort = targetPort;
-            ConnectTimeoutMsecs = connectTimeoutMsecs;
-            CommTimeoutMsecs = commTimeoutMsecs;
+        settings.TargetHostName = Client.Settings.TargetName;
+
+        var ret = new UnixShellProcessor(this, disposeObject, settings);
+
+        return ret;
+    }
+}
+
+public abstract class ShellClientBase : AsyncService
+{
+    public ShellClientSettingsBase Settings { get; }
+    public bool Connected { get; private set; }
+
+    public ShellClientBase(ShellClientSettingsBase settings)
+    {
+        try
+        {
+            this.Settings = settings;
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
         }
     }
 
-    public class ShellClientSock : AsyncService
+    protected abstract Task<PipePoint> ConnectImplAsync(CancellationToken cancel = default);
+    protected abstract Task DisconnectImplAsync();
+
+    readonly AsyncLock Lock = new AsyncLock();
+
+    public async Task<ShellClientSock> ConnectAndGetSockAsync(CancellationToken cancel = default)
     {
-        public ShellClientBase Client { get; }
-        public PipePoint PipePoint { get; }
-        public NetAppStub Stub { get; }
-        public PipeStream Stream { get; }
-
-        public ShellClientSock(ShellClientBase client, PipePoint pipePoint, NetAppStub stub, PipeStream stream)
+        PipePoint? pipePoint = null;
+        NetAppStub? stub = null;
+        PipeStream? stream = null;
+        try
         {
-            this.Client = client;
-            this.PipePoint = pipePoint;
-            this.Stub = stub;
-            this.Stream = stream;
+            pipePoint = await this.ConnectAsync(cancel);
+            stub = pipePoint.GetNetAppProtocolStub();
+            stream = stub.GetStream();
+
+            return new ShellClientSock(this, pipePoint, stub, stream);
         }
-
-        protected override async Task CleanupImplAsync(Exception? ex)
+        catch
         {
-            try
-            {
-                await this.Stream._DisposeSafeAsync();
-                await this.Stub._DisposeSafeAsync();
-                await this.PipePoint._DisposeSafeAsync2();
-                await this.Client._DisposeSafeAsync();
-            }
-            finally
-            {
-                await base.CleanupImplAsync(ex);
-            }
+            await stream._DisposeSafeAsync();
+            await stub._DisposeSafeAsync();
+            await pipePoint._DisposeSafeAsync2();
+            throw;
         }
+    }
 
-        public UnixShellProcessor CreateUnixShellProcessor(UnixShellProcessorSettings? settings = null, bool disposeObject = true)
+    public async Task<PipePoint> ConnectAsync(CancellationToken cancel = default)
+    {
+        await Task.Yield();
+
+        using (await Lock.LockWithAwait(cancel))
         {
-            if (settings == null)
-            {
-                settings = new UnixShellProcessorSettings();
-            }
+            if (this.Connected)
+                throw new CoresException("Already connected.");
 
-            settings.TargetHostName = Client.Settings.TargetName;
+            PipePoint ret = await ConnectImplAsync(cancel);
 
-            var ret = new UnixShellProcessor(this, disposeObject, settings);
+            this.Connected = true;
 
             return ret;
         }
     }
 
-    public abstract class ShellClientBase : AsyncService
+    protected override async Task CleanupImplAsync(Exception? ex)
     {
-        public ShellClientSettingsBase Settings { get; }
-        public bool Connected { get; private set; }
-
-        public ShellClientBase(ShellClientSettingsBase settings)
+        try
         {
-            try
-            {
-                this.Settings = settings;
-            }
-            catch
-            {
-                this._DisposeSafe();
-                throw;
-            }
-        }
-
-        protected abstract Task<PipePoint> ConnectImplAsync(CancellationToken cancel = default);
-        protected abstract Task DisconnectImplAsync();
-
-        readonly AsyncLock Lock = new AsyncLock();
-
-        public async Task<ShellClientSock> ConnectAndGetSockAsync(CancellationToken cancel = default)
-        {
-            PipePoint? pipePoint = null;
-            NetAppStub? stub = null;
-            PipeStream? stream = null;
-            try
-            {
-                pipePoint = await this.ConnectAsync(cancel);
-                stub = pipePoint.GetNetAppProtocolStub();
-                stream = stub.GetStream();
-
-                return new ShellClientSock(this, pipePoint, stub, stream);
-            }
-            catch
-            {
-                await stream._DisposeSafeAsync();
-                await stub._DisposeSafeAsync();
-                await pipePoint._DisposeSafeAsync2();
-                throw;
-            }
-        }
-
-        public async Task<PipePoint> ConnectAsync(CancellationToken cancel = default)
-        {
-            await Task.Yield();
-
-            using (await Lock.LockWithAwait(cancel))
+            using (await Lock.LockWithAwait())
             {
                 if (this.Connected)
-                    throw new CoresException("Already connected.");
-
-                PipePoint ret = await ConnectImplAsync(cancel);
-
-                this.Connected = true;
-
-                return ret;
-            }
-        }
-
-        protected override async Task CleanupImplAsync(Exception? ex)
-        {
-            try
-            {
-                using (await Lock.LockWithAwait())
                 {
-                    if (this.Connected)
-                    {
-                        this.Connected = false;
+                    this.Connected = false;
 
-                        await DisconnectImplAsync();
-                    }
+                    await DisconnectImplAsync();
                 }
             }
-            finally
-            {
-                await base.CleanupImplAsync(ex);
-            }
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
         }
     }
+}
 
-    // SSH 認証方法
-    [Flags]
-    public enum SecureShellClientAuthType
+// SSH 認証方法
+[Flags]
+public enum SecureShellClientAuthType
+{
+    Password = 0,
+}
+
+// SSH クライアント設定
+public class SecureShellClientSettings : ShellClientSettingsBase
+{
+    public SecureShellClientAuthType AuthType { get; }
+    public string Username { get; }
+    public string Password { get; }
+
+    public SecureShellClientSettings(string hostAddress, int hostPort, string username, string password, int connectTimeoutMsecs = 0, int commTimeoutMsecs = 0)
+        : base(hostAddress, hostPort, connectTimeoutMsecs, commTimeoutMsecs)
     {
-        Password = 0,
+        this.AuthType = SecureShellClientAuthType.Password;
+        this.Username = username;
+        this.Password = password;
     }
+}
 
-    // SSH クライアント設定
-    public class SecureShellClientSettings : ShellClientSettingsBase
+public class PipePointSshShellStreamWrapper : PipePointAsyncObjectWrapperBase
+{
+    public ShellStream Stream { get; }
+    public override PipeSupportedDataTypes SupportedDataTypes => PipeSupportedDataTypes.Stream;
+    public static readonly int SendTmpBufferSize = CoresConfig.BufferSizes.MaxNetworkStreamSendRecvBufferSize;
+
+    public PipePointSshShellStreamWrapper(PipePoint pipePoint, ShellStream stream, CancellationToken cancel = default) : base(pipePoint, cancel)
     {
-        public SecureShellClientAuthType AuthType { get; }
-        public string Username { get; }
-        public string Password { get; }
-
-        public SecureShellClientSettings(string hostAddress, int hostPort, string username, string password, int connectTimeoutMsecs = 0, int commTimeoutMsecs = 0)
-            : base(hostAddress, hostPort, connectTimeoutMsecs, commTimeoutMsecs)
+        try
         {
-            this.AuthType = SecureShellClientAuthType.Password;
-            this.Username = username;
-            this.Password = password;
-        }
-    }
+            this.Stream = stream;
 
-    public class PipePointSshShellStreamWrapper : PipePointAsyncObjectWrapperBase
-    {
-        public ShellStream Stream { get; }
-        public override PipeSupportedDataTypes SupportedDataTypes => PipeSupportedDataTypes.Stream;
-        public static readonly int SendTmpBufferSize = CoresConfig.BufferSizes.MaxNetworkStreamSendRecvBufferSize;
+            this.Stream.DataReceived += Stream_DataReceived;
 
-        public PipePointSshShellStreamWrapper(PipePoint pipePoint, ShellStream stream, CancellationToken cancel = default) : base(pipePoint, cancel)
-        {
-            try
+            // この時点で届いているデータを吸い上げる
+            int size = 4096;
+            while (true)
             {
-                this.Stream = stream;
+                Memory<byte> tmp = new byte[size];
+                int r = this.Stream.Read(tmp.Span);
 
-                this.Stream.DataReceived += Stream_DataReceived;
+                if (r == 0) break;
 
-                // この時点で届いているデータを吸い上げる
-                int size = 4096;
-                while (true)
-                {
-                    Memory<byte> tmp = new byte[size];
-                    int r = this.Stream.Read(tmp.Span);
-
-                    if (r == 0) break;
-
-                    var fifo = this.PipePoint.StreamWriter;
-
-                    ReadOnlyMemory<byte>[]? recvList = new ReadOnlyMemory<byte>[] { tmp.Slice(0, r) };
-
-                    fifo.EnqueueAllWithLock(recvList);
-
-                    fifo.CompleteWrite();
-                }
-
-                this.StartBaseAsyncLoops();
-            }
-            catch
-            {
-                this._DisposeSafe();
-                throw;
-            }
-        }
-
-        private void Stream_DataReceived(object? sender, ShellDataEventArgs e)
-        {
-            if (e.Data.Length >= 1)
-            {
                 var fifo = this.PipePoint.StreamWriter;
 
-                ReadOnlyMemory<byte>[]? recvList = new ReadOnlyMemory<byte>[] { e.Data._CloneByte() };
+                ReadOnlyMemory<byte>[]? recvList = new ReadOnlyMemory<byte>[] { tmp.Slice(0, r) };
 
                 fifo.EnqueueAllWithLock(recvList);
 
                 fifo.CompleteWrite();
             }
+
+            this.StartBaseAsyncLoops();
         }
-
-        protected override async Task StreamWriteToObjectImplAsync(FastStreamBuffer fifo, CancellationToken cancel)
+        catch
         {
-            await TaskUtil.DoAsyncWithTimeout(
-                async c =>
-                {
-                    bool flush = false;
+            this._DisposeSafe();
+            throw;
+        }
+    }
 
-                    using (MemoryHelper.FastAllocMemoryWithUsing(SendTmpBufferSize, out Memory<byte> buffer))
+    private void Stream_DataReceived(object? sender, ShellDataEventArgs e)
+    {
+        if (e.Data.Length >= 1)
+        {
+            var fifo = this.PipePoint.StreamWriter;
+
+            ReadOnlyMemory<byte>[]? recvList = new ReadOnlyMemory<byte>[] { e.Data._CloneByte() };
+
+            fifo.EnqueueAllWithLock(recvList);
+
+            fifo.CompleteWrite();
+        }
+    }
+
+    protected override async Task StreamWriteToObjectImplAsync(FastStreamBuffer fifo, CancellationToken cancel)
+    {
+        await TaskUtil.DoAsyncWithTimeout(
+            async c =>
+            {
+                bool flush = false;
+
+                using (MemoryHelper.FastAllocMemoryWithUsing(SendTmpBufferSize, out Memory<byte> buffer))
+                {
+                    while (true)
                     {
-                        while (true)
-                        {
-                            int size = fifo.DequeueContiguousSlowWithLock(buffer);
-                            if (size == 0)
-                                break;
+                        int size = fifo.DequeueContiguousSlowWithLock(buffer);
+                        if (size == 0)
+                            break;
 
-                            var dataToSend = buffer.Slice(0, size);
+                        var dataToSend = buffer.Slice(0, size);
 
-                            await Stream.WriteAsync(dataToSend, cancel);
-                            flush = true;
-                        }
+                        await Stream.WriteAsync(dataToSend, cancel);
+                        flush = true;
                     }
-
-                    if (flush)
-                        await Stream.FlushAsync(cancel);
-
-                    return 0;
-                },
-                cancel: cancel);
-        }
-
-        protected override async Task<bool> StreamReadFromObjectImplAsync(FastStreamBuffer fifo, CancellationToken cancel)
-        {
-            await cancel._WaitUntilCanceledAsync();
-
-            return true;
-        }
-
-        protected override Task DatagramWriteToObjectImplAsync(FastDatagramBuffer fifo, CancellationToken cancel)
-            => throw new NotImplementedException();
-        protected override Task DatagramReadFromObjectImplAsync(FastDatagramBuffer fifo, CancellationToken cancel)
-            => throw new NotImplementedException();
-    }
-
-    // SSH クライアント
-    public class SecureShellClient : ShellClientBase
-    {
-        public new SecureShellClientSettings Settings => (SecureShellClientSettings)base.Settings;
-
-        SshClient? Ssh = null;
-        PipePoint? PipePointMySide = null;
-        PipePoint? PipePointUserSide = null;
-        PipePointSshShellStreamWrapper? PipePointWrapper = null;
-        ShellStream? Stream = null;
-
-        public SecureShellClient(SecureShellClientSettings settings) : base(settings)
-        {
-        }
-
-        protected override async Task<PipePoint> ConnectImplAsync(CancellationToken cancel = default)
-        {
-            await Task.CompletedTask;
-
-            cancel.ThrowIfCancellationRequested();
-
-            SshClient ssh;
-
-            switch (Settings.AuthType)
-            {
-                case SecureShellClientAuthType.Password:
-                    ssh = new SshClient(Settings.TargetName, Settings.TargetPort, Settings.Username, Settings.Password);
-                    break;
-
-                default:
-                    throw new ArgumentException(nameof(Settings.AuthType));
-            }
-
-            ShellStream? stream = null;
-            PipePoint? pipePointMySide = null;
-            PipePoint? pipePointUserSide = null;
-            PipePointSshShellStreamWrapper? pipePointWrapper = null;
-
-            try
-            {
-                ssh.ConnectionInfo.Timeout = new TimeSpan(0, 0, 0, 0, Settings.ConnectTimeoutMsecs);
-
-                ssh.Connect();
-
-                stream = ssh.CreateShellStream("test", uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue, 65536);
-
-                //while (true)
-                //{
-                //    byte[] data = new byte[256];
-
-                //    int x = stream.Read(data, 0, data.Length);
-                //    x._Print();
-                //}
-
-                // Stream に標準入出力を接続する
-                pipePointMySide = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide);
-                pipePointUserSide = pipePointMySide.CounterPart._NullCheck();
-                pipePointWrapper = new PipePointSshShellStreamWrapper(pipePointMySide, stream);
-
-                this.PipePointMySide = pipePointMySide;
-                this.PipePointUserSide = pipePointUserSide;
-                this.PipePointWrapper = pipePointWrapper;
-
-                this.Ssh = ssh;
-                this.Stream = stream;
-
-                return this.PipePointUserSide;
-            }
-            catch
-            {
-                pipePointMySide._DisposeSafe();
-                pipePointUserSide._DisposeSafe();
-                pipePointWrapper._DisposeSafe();
-                stream._DisposeSafe();
-                ssh._DisposeSafe();
-
-                throw;
-            }
-        }
-
-        protected override async Task DisconnectImplAsync()
-        {
-            await this.PipePointMySide._DisposeSafeAsync2();
-            await this.PipePointWrapper._DisposeSafeAsync2();
-
-            TaskUtil.StartAsyncTaskAsync(async () =>
-            {
-                // To prevent deadlock: SSH.net bug
-                await this.Stream._DisposeSafeAsync2();
-                await this.Ssh._DisposeSafeAsync2();
-            })._LaissezFaire();
-
-            this.PipePointMySide = null;
-            this.PipePointWrapper = null;
-
-            // To prevent deadlock: SSH.net bug
-            //this.Stream = null;
-            //this.Ssh = null;
-        }
-    }
-
-
-    // COM ポート設定
-    public class ComPortSettings : ShellClientSettingsBase
-    {
-        public int BaudRate { get; }
-        public Parity Parity { get; }
-        public int DataBits { get; }
-        public StopBits StopBits { get; }
-        public Handshake Handshake { get; }
-
-        public ComPortSettings(string targetName, int connectTimeoutMsecs = 0, int commTimeoutMsecs = 0, int baudRate = 9600, Parity parity = Parity.None, int dataBits = 8, StopBits stopBits = StopBits.One, Handshake handshake = Handshake.None)
-            : base(targetName, 0, connectTimeoutMsecs, commTimeoutMsecs)
-        {
-            BaudRate = baudRate;
-            Parity = parity;
-            DataBits = dataBits;
-            StopBits = stopBits;
-            Handshake = handshake;
-        }
-    }
-
-    // COM ポート用 Stream ラッパー
-    public class ComPortStreamWrapper : PipePointAsyncObjectWrapperBase
-    {
-        public SerialPort SerialPort { get; }
-        public Stream Stream { get; }
-        public override PipeSupportedDataTypes SupportedDataTypes => PipeSupportedDataTypes.Stream;
-        public static readonly int RecvTmpBufferSize = CoresConfig.BufferSizes.MaxNetworkStreamSendRecvBufferSize;
-        public static readonly int SendTmpBufferSize = CoresConfig.BufferSizes.MaxNetworkStreamSendRecvBufferSize;
-
-        public ComPortStreamWrapper(PipePoint pipePoint, SerialPort serialPort, CancellationToken cancel = default)
-            : base(pipePoint, cancel)
-        {
-            try
-            {
-                this.SerialPort = serialPort;
-                this.Stream = this.SerialPort.BaseStream;
-
-                this.StartBaseAsyncLoops();
-            }
-            catch
-            {
-                this._DisposeSafe();
-                throw;
-            }
-        }
-
-        // 抽象 Stream --> シリアルポート
-        protected override async Task StreamWriteToObjectImplAsync(FastStreamBuffer fifo, CancellationToken cancel)
-        {
-            if (this.SerialPort.IsOpen == false) throw new FastBufferDisconnectedException();
-
-            await TaskUtil.DoAsyncWithTimeout(
-                async c =>
-                {
-                    bool flush = false;
-
-                    using (MemoryHelper.FastAllocMemoryWithUsing(SendTmpBufferSize, out Memory<byte> buffer))
-                    {
-                        while (true)
-                        {
-                            int size = fifo.DequeueContiguousSlowWithLock(buffer);
-                            if (size == 0)
-                                break;
-
-                            await Stream.WriteAsync(buffer.Slice(0, size), cancel);
-                            flush = true;
-                        }
-                    }
-
-                    if (flush)
-                        await Stream.FlushAsync(cancel);
-
-                    return 0;
-                },
-                cancelProc: () =>
-                {
-                    this.SerialPort.Close();
-                },
-                cancel: cancel);
-        }
-
-        // シリアルポート --> 抽象 Stream
-        protected override async Task<bool> StreamReadFromObjectImplAsync(FastStreamBuffer fifo, CancellationToken cancel)
-        {
-            if (this.SerialPort.IsOpen == false) throw new FastBufferDisconnectedException();
-
-            await TaskUtil.DoAsyncWithTimeout(
-                async c =>
-                {
-                    using (MemoryHelper.FastAllocMemoryWithUsing(RecvTmpBufferSize, out Memory<byte> buffer))
-                    {
-                        int recvSize = await this.Stream.ReadAsync(buffer, cancel);
-
-                        if (recvSize <= 0)
-                        {
-                            fifo.Disconnect();
-                            return 0;
-                        }
-
-                        fifo.EnqueueWithLock(buffer._SliceHead(recvSize)._CloneMemory(), true);
-                    }
-
-                    return 0;
-                },
-                cancelProc: () =>
-                {
-                    this.SerialPort.Close();
-                },
-                cancel: cancel);
-
-            return true;
-        }
-
-        protected override Task DatagramWriteToObjectImplAsync(FastDatagramBuffer fifo, CancellationToken cancel)
-            => throw new NotImplementedException();
-
-        protected override Task DatagramReadFromObjectImplAsync(FastDatagramBuffer fifo, CancellationToken cancel)
-            => throw new NotImplementedException();
-    }
-
-    // COM ポートクライアント
-    public class ComPortClient : ShellClientBase
-    {
-        public new ComPortSettings Settings => (ComPortSettings)base.Settings;
-
-        PipePoint? PipePointMySide = null;
-        PipePoint? PipePointUserSide = null;
-        ComPortStreamWrapper? PipePointWrapper = null;
-
-        SerialPort? SerialPort = null;
-
-        public ComPortClient(ComPortSettings settings) : base(settings)
-        {
-        }
-
-        public static string[] GetPortTargetNames()
-        {
-            return SerialPort.GetPortNames().Distinct().OrderBy(x => x, StrComparer.IgnoreCaseComparer).ToArray();
-        }
-
-        protected override async Task<PipePoint> ConnectImplAsync(CancellationToken cancel = default)
-        {
-            await Task.CompletedTask;
-
-            cancel.ThrowIfCancellationRequested();
-
-            PipePoint? pipePointMySide = null;
-            PipePoint? pipePointUserSide = null;
-            ComPortStreamWrapper? pipePointWrapper = null;
-
-            SerialPort port = new SerialPort(this.Settings.TargetName, this.Settings.BaudRate, this.Settings.Parity, this.Settings.DataBits, this.Settings.StopBits);
-            try
-            {
-                port.Handshake = this.Settings.Handshake;
-
-                if (Settings.CommTimeoutMsecs >= 1)
-                {
-                    port.ReadTimeout = Settings.CommTimeoutMsecs;
                 }
 
-                port.Open();
+                if (flush)
+                    await Stream.FlushAsync(cancel);
 
-                this.SerialPort = port;
+                return 0;
+            },
+            cancel: cancel);
+    }
 
-                pipePointMySide = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide);
-                pipePointUserSide = pipePointMySide.CounterPart._NullCheck();
-                pipePointWrapper = new ComPortStreamWrapper(pipePointMySide, this.SerialPort);
+    protected override async Task<bool> StreamReadFromObjectImplAsync(FastStreamBuffer fifo, CancellationToken cancel)
+    {
+        await cancel._WaitUntilCanceledAsync();
 
-                this.PipePointMySide = pipePointMySide;
-                this.PipePointUserSide = pipePointUserSide;
-                this.PipePointWrapper = pipePointWrapper;
+        return true;
+    }
 
-                return this.PipePointUserSide;
-            }
-            catch
-            {
-                pipePointMySide._DisposeSafe();
-                pipePointUserSide._DisposeSafe();
-                pipePointWrapper._DisposeSafe();
+    protected override Task DatagramWriteToObjectImplAsync(FastDatagramBuffer fifo, CancellationToken cancel)
+        => throw new NotImplementedException();
+    protected override Task DatagramReadFromObjectImplAsync(FastDatagramBuffer fifo, CancellationToken cancel)
+        => throw new NotImplementedException();
+}
 
-                port._DisposeSafe();
-                throw;
-            }
-        }
+// SSH クライアント
+public class SecureShellClient : ShellClientBase
+{
+    public new SecureShellClientSettings Settings => (SecureShellClientSettings)base.Settings;
 
-        protected override async Task DisconnectImplAsync()
+    SshClient? Ssh = null;
+    PipePoint? PipePointMySide = null;
+    PipePoint? PipePointUserSide = null;
+    PipePointSshShellStreamWrapper? PipePointWrapper = null;
+    ShellStream? Stream = null;
+
+    public SecureShellClient(SecureShellClientSettings settings) : base(settings)
+    {
+    }
+
+    protected override async Task<PipePoint> ConnectImplAsync(CancellationToken cancel = default)
+    {
+        await Task.CompletedTask;
+
+        cancel.ThrowIfCancellationRequested();
+
+        SshClient ssh;
+
+        switch (Settings.AuthType)
         {
-            await this.PipePointMySide._DisposeSafeAsync2();
-            await this.PipePointWrapper._DisposeSafeAsync2();
-            await this.SerialPort._DisposeSafeAsync2();
+            case SecureShellClientAuthType.Password:
+                ssh = new SshClient(Settings.TargetName, Settings.TargetPort, Settings.Username, Settings.Password);
+                break;
 
-            this.PipePointMySide = null;
-            this.PipePointWrapper = null;
-            this.SerialPort = null;
+            default:
+                throw new ArgumentException(nameof(Settings.AuthType));
         }
+
+        ShellStream? stream = null;
+        PipePoint? pipePointMySide = null;
+        PipePoint? pipePointUserSide = null;
+        PipePointSshShellStreamWrapper? pipePointWrapper = null;
+
+        try
+        {
+            ssh.ConnectionInfo.Timeout = new TimeSpan(0, 0, 0, 0, Settings.ConnectTimeoutMsecs);
+
+            ssh.Connect();
+
+            stream = ssh.CreateShellStream("test", uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue, 65536);
+
+            //while (true)
+            //{
+            //    byte[] data = new byte[256];
+
+            //    int x = stream.Read(data, 0, data.Length);
+            //    x._Print();
+            //}
+
+            // Stream に標準入出力を接続する
+            pipePointMySide = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide);
+            pipePointUserSide = pipePointMySide.CounterPart._NullCheck();
+            pipePointWrapper = new PipePointSshShellStreamWrapper(pipePointMySide, stream);
+
+            this.PipePointMySide = pipePointMySide;
+            this.PipePointUserSide = pipePointUserSide;
+            this.PipePointWrapper = pipePointWrapper;
+
+            this.Ssh = ssh;
+            this.Stream = stream;
+
+            return this.PipePointUserSide;
+        }
+        catch
+        {
+            pipePointMySide._DisposeSafe();
+            pipePointUserSide._DisposeSafe();
+            pipePointWrapper._DisposeSafe();
+            stream._DisposeSafe();
+            ssh._DisposeSafe();
+
+            throw;
+        }
+    }
+
+    protected override async Task DisconnectImplAsync()
+    {
+        await this.PipePointMySide._DisposeSafeAsync2();
+        await this.PipePointWrapper._DisposeSafeAsync2();
+
+        TaskUtil.StartAsyncTaskAsync(async () =>
+        {
+                // To prevent deadlock: SSH.net bug
+                await this.Stream._DisposeSafeAsync2();
+            await this.Ssh._DisposeSafeAsync2();
+        })._LaissezFaire();
+
+        this.PipePointMySide = null;
+        this.PipePointWrapper = null;
+
+        // To prevent deadlock: SSH.net bug
+        //this.Stream = null;
+        //this.Ssh = null;
+    }
+}
+
+
+// COM ポート設定
+public class ComPortSettings : ShellClientSettingsBase
+{
+    public int BaudRate { get; }
+    public Parity Parity { get; }
+    public int DataBits { get; }
+    public StopBits StopBits { get; }
+    public Handshake Handshake { get; }
+
+    public ComPortSettings(string targetName, int connectTimeoutMsecs = 0, int commTimeoutMsecs = 0, int baudRate = 9600, Parity parity = Parity.None, int dataBits = 8, StopBits stopBits = StopBits.One, Handshake handshake = Handshake.None)
+        : base(targetName, 0, connectTimeoutMsecs, commTimeoutMsecs)
+    {
+        BaudRate = baudRate;
+        Parity = parity;
+        DataBits = dataBits;
+        StopBits = stopBits;
+        Handshake = handshake;
+    }
+}
+
+// COM ポート用 Stream ラッパー
+public class ComPortStreamWrapper : PipePointAsyncObjectWrapperBase
+{
+    public SerialPort SerialPort { get; }
+    public Stream Stream { get; }
+    public override PipeSupportedDataTypes SupportedDataTypes => PipeSupportedDataTypes.Stream;
+    public static readonly int RecvTmpBufferSize = CoresConfig.BufferSizes.MaxNetworkStreamSendRecvBufferSize;
+    public static readonly int SendTmpBufferSize = CoresConfig.BufferSizes.MaxNetworkStreamSendRecvBufferSize;
+
+    public ComPortStreamWrapper(PipePoint pipePoint, SerialPort serialPort, CancellationToken cancel = default)
+        : base(pipePoint, cancel)
+    {
+        try
+        {
+            this.SerialPort = serialPort;
+            this.Stream = this.SerialPort.BaseStream;
+
+            this.StartBaseAsyncLoops();
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
+    }
+
+    // 抽象 Stream --> シリアルポート
+    protected override async Task StreamWriteToObjectImplAsync(FastStreamBuffer fifo, CancellationToken cancel)
+    {
+        if (this.SerialPort.IsOpen == false) throw new FastBufferDisconnectedException();
+
+        await TaskUtil.DoAsyncWithTimeout(
+            async c =>
+            {
+                bool flush = false;
+
+                using (MemoryHelper.FastAllocMemoryWithUsing(SendTmpBufferSize, out Memory<byte> buffer))
+                {
+                    while (true)
+                    {
+                        int size = fifo.DequeueContiguousSlowWithLock(buffer);
+                        if (size == 0)
+                            break;
+
+                        await Stream.WriteAsync(buffer.Slice(0, size), cancel);
+                        flush = true;
+                    }
+                }
+
+                if (flush)
+                    await Stream.FlushAsync(cancel);
+
+                return 0;
+            },
+            cancelProc: () =>
+            {
+                this.SerialPort.Close();
+            },
+            cancel: cancel);
+    }
+
+    // シリアルポート --> 抽象 Stream
+    protected override async Task<bool> StreamReadFromObjectImplAsync(FastStreamBuffer fifo, CancellationToken cancel)
+    {
+        if (this.SerialPort.IsOpen == false) throw new FastBufferDisconnectedException();
+
+        await TaskUtil.DoAsyncWithTimeout(
+            async c =>
+            {
+                using (MemoryHelper.FastAllocMemoryWithUsing(RecvTmpBufferSize, out Memory<byte> buffer))
+                {
+                    int recvSize = await this.Stream.ReadAsync(buffer, cancel);
+
+                    if (recvSize <= 0)
+                    {
+                        fifo.Disconnect();
+                        return 0;
+                    }
+
+                    fifo.EnqueueWithLock(buffer._SliceHead(recvSize)._CloneMemory(), true);
+                }
+
+                return 0;
+            },
+            cancelProc: () =>
+            {
+                this.SerialPort.Close();
+            },
+            cancel: cancel);
+
+        return true;
+    }
+
+    protected override Task DatagramWriteToObjectImplAsync(FastDatagramBuffer fifo, CancellationToken cancel)
+        => throw new NotImplementedException();
+
+    protected override Task DatagramReadFromObjectImplAsync(FastDatagramBuffer fifo, CancellationToken cancel)
+        => throw new NotImplementedException();
+}
+
+// COM ポートクライアント
+public class ComPortClient : ShellClientBase
+{
+    public new ComPortSettings Settings => (ComPortSettings)base.Settings;
+
+    PipePoint? PipePointMySide = null;
+    PipePoint? PipePointUserSide = null;
+    ComPortStreamWrapper? PipePointWrapper = null;
+
+    SerialPort? SerialPort = null;
+
+    public ComPortClient(ComPortSettings settings) : base(settings)
+    {
+    }
+
+    public static string[] GetPortTargetNames()
+    {
+        return SerialPort.GetPortNames().Distinct().OrderBy(x => x, StrComparer.IgnoreCaseComparer).ToArray();
+    }
+
+    protected override async Task<PipePoint> ConnectImplAsync(CancellationToken cancel = default)
+    {
+        await Task.CompletedTask;
+
+        cancel.ThrowIfCancellationRequested();
+
+        PipePoint? pipePointMySide = null;
+        PipePoint? pipePointUserSide = null;
+        ComPortStreamWrapper? pipePointWrapper = null;
+
+        SerialPort port = new SerialPort(this.Settings.TargetName, this.Settings.BaudRate, this.Settings.Parity, this.Settings.DataBits, this.Settings.StopBits);
+        try
+        {
+            port.Handshake = this.Settings.Handshake;
+
+            if (Settings.CommTimeoutMsecs >= 1)
+            {
+                port.ReadTimeout = Settings.CommTimeoutMsecs;
+            }
+
+            port.Open();
+
+            this.SerialPort = port;
+
+            pipePointMySide = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide);
+            pipePointUserSide = pipePointMySide.CounterPart._NullCheck();
+            pipePointWrapper = new ComPortStreamWrapper(pipePointMySide, this.SerialPort);
+
+            this.PipePointMySide = pipePointMySide;
+            this.PipePointUserSide = pipePointUserSide;
+            this.PipePointWrapper = pipePointWrapper;
+
+            return this.PipePointUserSide;
+        }
+        catch
+        {
+            pipePointMySide._DisposeSafe();
+            pipePointUserSide._DisposeSafe();
+            pipePointWrapper._DisposeSafe();
+
+            port._DisposeSafe();
+            throw;
+        }
+    }
+
+    protected override async Task DisconnectImplAsync()
+    {
+        await this.PipePointMySide._DisposeSafeAsync2();
+        await this.PipePointWrapper._DisposeSafeAsync2();
+        await this.SerialPort._DisposeSafeAsync2();
+
+        this.PipePointMySide = null;
+        this.PipePointWrapper = null;
+        this.SerialPort = null;
     }
 }
 

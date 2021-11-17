@@ -52,369 +52,368 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public static partial class CoresConfig
 {
-    public static partial class CoresConfig
+    public static partial class DataVaultServerApp
     {
-        public static partial class DataVaultServerApp
-        {
-            public static readonly Copenhagen<string> DefaultDestDirString = @"Local/DataVault/";
-            public static readonly Copenhagen<string> DefaultDataVaultServerCertVaultDirString = @"Local/DataVaultServer_CertVault/";
+        public static readonly Copenhagen<string> DefaultDestDirString = @"Local/DataVault/";
+        public static readonly Copenhagen<string> DefaultDataVaultServerCertVaultDirString = @"Local/DataVaultServer_CertVault/";
 
-            public static readonly Copenhagen<string> DefaultDataVaultServerPortsString = Consts.Ports.DataVaultServerDefaultServicePort.ToString();
-            public static readonly Copenhagen<string> DefaultHttpServerPortsString = Consts.Ports.DataVaultServerDefaultHttpPort.ToString();
-            public static readonly Copenhagen<string> DefaultHttpsServerPortsString = Consts.Ports.DataVaultServerDefaultHttpsPort.ToString();
+        public static readonly Copenhagen<string> DefaultDataVaultServerPortsString = Consts.Ports.DataVaultServerDefaultServicePort.ToString();
+        public static readonly Copenhagen<string> DefaultHttpServerPortsString = Consts.Ports.DataVaultServerDefaultHttpPort.ToString();
+        public static readonly Copenhagen<string> DefaultHttpsServerPortsString = Consts.Ports.DataVaultServerDefaultHttpsPort.ToString();
 
-            public static readonly Copenhagen<int> MaxHttpPostRecvData = 10 * 1024 * 1024;
-        }
+        public static readonly Copenhagen<int> MaxHttpPostRecvData = 10 * 1024 * 1024;
+    }
+}
+
+public class DataVaultLogBrowserHttpServerOptions : LogBrowserHttpServerOptions
+{
+    public DataVaultServerApp App { get; }
+    public DataVaultServer Vault { get; }
+
+    public DataVaultLogBrowserHttpServerOptions(LogBrowserOptions options, string absolutePrefixPath, DataVaultServerApp app, DataVaultServer vault) : base(options, absolutePrefixPath)
+    {
+        this.App = app;
+        this.Vault = vault;
+    }
+}
+
+public class DataVaultLogBrowserHttpServerBuilder : LogBrowserHttpServerBuilder
+{
+    public new DataVaultLogBrowserHttpServerOptions Options => (DataVaultLogBrowserHttpServerOptions)this.Param!;
+
+    public static new HttpServer<DataVaultLogBrowserHttpServerBuilder> StartServer(HttpServerOptions httpCfg, LogBrowserHttpServerOptions options, CancellationToken cancel = default)
+        => new HttpServer<DataVaultLogBrowserHttpServerBuilder>(httpCfg, options, cancel);
+
+    public DataVaultLogBrowserHttpServerBuilder(IConfiguration configuration) : base(configuration)
+    {
     }
 
-    public class DataVaultLogBrowserHttpServerOptions : LogBrowserHttpServerOptions
+    protected override void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
     {
-        public DataVaultServerApp App { get; }
-        public DataVaultServer Vault { get; }
+        RouteBuilder rb = new RouteBuilder(app);
 
-        public DataVaultLogBrowserHttpServerOptions(LogBrowserOptions options, string absolutePrefixPath, DataVaultServerApp app, DataVaultServer vault) : base(options, absolutePrefixPath)
-        {
-            this.App = app;
-            this.Vault = vault;
-        }
+        rb._MapPostStandardHandler("/stat/", PostHandlerAsync);
+
+        IRouter router = rb.Build();
+        app.UseRouter(router);
+
+        base.ConfigureImpl_BeforeHelper(cfg, app, env, lifetime);
     }
 
-    public class DataVaultLogBrowserHttpServerBuilder : LogBrowserHttpServerBuilder
+    public async Task<HttpResult> PostHandlerAsync(WebMethods method, string path, QueryStringList queryString, HttpContext context, RouteData routeData, IPEndPoint local, IPEndPoint remote, CancellationToken cancel = default)
     {
-        public new DataVaultLogBrowserHttpServerOptions Options => (DataVaultLogBrowserHttpServerOptions)this.Param!;
+        var request = context.Request;
 
-        public static new HttpServer<DataVaultLogBrowserHttpServerBuilder> StartServer(HttpServerOptions httpCfg, LogBrowserHttpServerOptions options, CancellationToken cancel = default)
-            => new HttpServer<DataVaultLogBrowserHttpServerBuilder>(httpCfg, options, cancel);
+        string str = await request._RecvStringContentsAsync(CoresConfig.DataVaultServerApp.MaxHttpPostRecvData, cancel: cancel);
 
-        public DataVaultLogBrowserHttpServerBuilder(IConfiguration configuration) : base(configuration)
+
+        DataVaultData? recv = str._JsonToObject<DataVaultData>();
+
+        List<DataVaultData> list = new List<DataVaultData>();
+
+        if (recv != null)
         {
-        }
+            recv.NormalizeReceivedData();
 
-        protected override void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
-        {
-            RouteBuilder rb = new RouteBuilder(app);
+            recv.StatGitCommitId = recv.StatGitCommitId._NonNullTrim();
 
-            rb._MapPostStandardHandler("/stat/", PostHandlerAsync);
+            recv.StatAppVer = recv.StatAppVer._NonNullTrim();
 
-            IRouter router = rb.Build();
-            app.UseRouter(router);
+            recv.TimeStamp = DtOffsetNow;
 
-            base.ConfigureImpl_BeforeHelper(cfg, app, env, lifetime);
-        }
+            recv.StatGlobalIp = remote.Address.ToString();
+            recv.StatGlobalPort = remote.Port;
 
-        public async Task<HttpResult> PostHandlerAsync(WebMethods method, string path, QueryStringList queryString, HttpContext context, RouteData routeData, IPEndPoint local, IPEndPoint remote, CancellationToken cancel = default)
-        {
-            var request = context.Request;
+            recv.StatGlobalFqdn = await LocalNet.GetHostNameSingleOrIpAsync(recv.StatGlobalIp, cancel);
 
-            string str = await request._RecvStringContentsAsync(CoresConfig.DataVaultServerApp.MaxHttpPostRecvData, cancel: cancel);
+            recv.StatLocalIp = recv.StatLocalIp._NonNullTrim();
+            if (recv.StatLocalIp._IsEmpty()) recv.StatLocalIp = "127.0.0.1";
 
+            recv.StatLocalFqdn = recv.StatLocalFqdn._NonNullTrim();
+            if (recv.StatLocalFqdn._IsEmpty()) recv.StatLocalFqdn = "localhost";
 
-            DataVaultData? recv = str._JsonToObject<DataVaultData>();
+            recv.StatUid = recv.StatUid._NonNullTrim();
 
-            List<DataVaultData> list = new List<DataVaultData>();
-
-            if (recv != null)
+            if (recv.SystemName._IsFilled() && recv.LogName._IsFilled())
             {
-                recv.NormalizeReceivedData();
-
-                recv.StatGitCommitId = recv.StatGitCommitId._NonNullTrim();
-
-                recv.StatAppVer = recv.StatAppVer._NonNullTrim();
-
-                recv.TimeStamp = DtOffsetNow;
-
-                recv.StatGlobalIp = remote.Address.ToString();
-                recv.StatGlobalPort = remote.Port;
-
-                recv.StatGlobalFqdn = await LocalNet.GetHostNameSingleOrIpAsync(recv.StatGlobalIp, cancel);
-
-                recv.StatLocalIp = recv.StatLocalIp._NonNullTrim();
-                if (recv.StatLocalIp._IsEmpty()) recv.StatLocalIp = "127.0.0.1";
-
-                recv.StatLocalFqdn = recv.StatLocalFqdn._NonNullTrim();
-                if (recv.StatLocalFqdn._IsEmpty()) recv.StatLocalFqdn = "localhost";
-
-                recv.StatUid = recv.StatUid._NonNullTrim();
-
-                if (recv.SystemName._IsFilled() && recv.LogName._IsFilled())
+                // キー無し 1 つのディレクトリに全部書き込み
+                try
                 {
-                    // キー無し 1 つのディレクトリに全部書き込み
-                    try
-                    {
-                        DataVaultData d = recv._CloneIfClonable();
-                        d.KeyType = "all";
-                        d.KeyShortValue = "all";
-                        d.KeyFullValue = "all";
+                    DataVaultData d = recv._CloneIfClonable();
+                    d.KeyType = "all";
+                    d.KeyShortValue = "all";
+                    d.KeyFullValue = "all";
 
-                        list.Add(d);
-                    }
-                    catch (Exception ex)
-                    {
-                        ex._Debug();
-                    }
+                    list.Add(d);
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
 
-                    // UID からキーを生成
-                    try
-                    {
-                        DataVaultData d = recv._CloneIfClonable();
-                        d.KeyType = "by_uid";
-                        d.KeyShortValue = recv.StatUid._TruncStr(2);
-                        d.KeyFullValue = recv.StatUid._TruncStr(4);
+                // UID からキーを生成
+                try
+                {
+                    DataVaultData d = recv._CloneIfClonable();
+                    d.KeyType = "by_uid";
+                    d.KeyShortValue = recv.StatUid._TruncStr(2);
+                    d.KeyFullValue = recv.StatUid._TruncStr(4);
 
-                        list.Add(d);
-                    }
-                    catch (Exception ex)
-                    {
-                        ex._Debug();
-                    }
+                    list.Add(d);
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
 
-                    // グローバル IP からキーを生成
-                    try
-                    {
-                        DataVaultData d = recv._CloneIfClonable();
-                        d.KeyType = "by_global_ip";
-                        d.KeyShortValue = IPUtil.GetHead1BytesIPString(recv.StatGlobalIp);
-                        d.KeyFullValue = IPUtil.GetHead2BytesIPString(recv.StatGlobalIp);
+                // グローバル IP からキーを生成
+                try
+                {
+                    DataVaultData d = recv._CloneIfClonable();
+                    d.KeyType = "by_global_ip";
+                    d.KeyShortValue = IPUtil.GetHead1BytesIPString(recv.StatGlobalIp);
+                    d.KeyFullValue = IPUtil.GetHead2BytesIPString(recv.StatGlobalIp);
 
-                        list.Add(d);
-                    }
-                    catch (Exception ex)
-                    {
-                        ex._Debug();
-                    }
+                    list.Add(d);
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
 
-                    // グローバル FQDN からキーを生成
-                    try
-                    {
-                        string shortKey, longKey;
+                // グローバル FQDN からキーを生成
+                try
+                {
+                    string shortKey, longKey;
 
-                        if (IPUtil.IsStrIP(recv.StatGlobalFqdn) == false)
+                    if (IPUtil.IsStrIP(recv.StatGlobalFqdn) == false)
+                    {
+                        // FQDN
+                        if (MasterData.DomainSuffixList.ParseDomainBySuffixList(recv.StatGlobalFqdn, out string tld, out string domain, out string hostname))
                         {
-                            // FQDN
-                            if (MasterData.DomainSuffixList.ParseDomainBySuffixList(recv.StatGlobalFqdn, out string tld, out string domain, out string hostname))
-                            {
-                                // 正しい TLD 配下のドメイン
-                                // 例: 12345.abc.example.org の場合
-                                //     Short key は org.example.ab
-                                //     Long key は  org.example.abc.1
-                                string domainReverse = domain._Split(StringSplitOptions.RemoveEmptyEntries, '.').Reverse()._Combine(".");
-                                string hostnameReverse = hostname._Split(StringSplitOptions.RemoveEmptyEntries, '.').Reverse()._Combine(".");
+                            // 正しい TLD 配下のドメイン
+                            // 例: 12345.abc.example.org の場合
+                            //     Short key は org.example.ab
+                            //     Long key は  org.example.abc.1
+                            string domainReverse = domain._Split(StringSplitOptions.RemoveEmptyEntries, '.').Reverse()._Combine(".");
+                            string hostnameReverse = hostname._Split(StringSplitOptions.RemoveEmptyEntries, '.').Reverse()._Combine(".");
 
-                                shortKey = new string[] { domainReverse, hostnameReverse._TruncStr(2) }._Combine(".");
-                                longKey = new string[] { domainReverse, hostnameReverse._TruncStr(5) }._Combine(".");
-                            }
-                            else
-                            {
-                                // おかしなドメイン
-                                shortKey = recv.StatGlobalFqdn._TruncStr(2);
-                                longKey = recv.StatGlobalFqdn._TruncStr(4);
-                            }
+                            shortKey = new string[] { domainReverse, hostnameReverse._TruncStr(2) }._Combine(".");
+                            longKey = new string[] { domainReverse, hostnameReverse._TruncStr(5) }._Combine(".");
                         }
                         else
                         {
-                            // IP アドレス
-                            shortKey = IPUtil.GetHead1BytesIPString(recv.StatGlobalIp);
-                            longKey = IPUtil.GetHead1BytesIPString(recv.StatGlobalIp);
+                            // おかしなドメイン
+                            shortKey = recv.StatGlobalFqdn._TruncStr(2);
+                            longKey = recv.StatGlobalFqdn._TruncStr(4);
                         }
-
-                        DataVaultData d = recv._CloneIfClonable();
-                        d.KeyType = "by_global_fqdn";
-                        d.KeyShortValue = shortKey;
-                        d.KeyFullValue = longKey;
-
-                        list.Add(d);
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        ex._Debug();
+                        // IP アドレス
+                        shortKey = IPUtil.GetHead1BytesIPString(recv.StatGlobalIp);
+                        longKey = IPUtil.GetHead1BytesIPString(recv.StatGlobalIp);
                     }
 
-                    // ローカル IP からキーを生成
-                    try
-                    {
-                        DataVaultData d = recv._CloneIfClonable();
-                        d.KeyType = "by_local_ip";
-                        d.KeyShortValue = IPUtil.GetHead1BytesIPString(recv.StatLocalIp);
-                        d.KeyFullValue = IPUtil.GetHead2BytesIPString(recv.StatLocalIp);
+                    DataVaultData d = recv._CloneIfClonable();
+                    d.KeyType = "by_global_fqdn";
+                    d.KeyShortValue = shortKey;
+                    d.KeyFullValue = longKey;
 
-                        list.Add(d);
-                    }
-                    catch (Exception ex)
-                    {
-                        ex._Debug();
-                    }
+                    list.Add(d);
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
 
-                    // グローバル FQDN からキーを生成
-                    try
-                    {
-                        string shortKey, longKey;
+                // ローカル IP からキーを生成
+                try
+                {
+                    DataVaultData d = recv._CloneIfClonable();
+                    d.KeyType = "by_local_ip";
+                    d.KeyShortValue = IPUtil.GetHead1BytesIPString(recv.StatLocalIp);
+                    d.KeyFullValue = IPUtil.GetHead2BytesIPString(recv.StatLocalIp);
 
-                        if (IPUtil.IsStrIP(recv.StatLocalFqdn) == false)
+                    list.Add(d);
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
+
+                // グローバル FQDN からキーを生成
+                try
+                {
+                    string shortKey, longKey;
+
+                    if (IPUtil.IsStrIP(recv.StatLocalFqdn) == false)
+                    {
+                        // FQDN
+                        if (MasterData.DomainSuffixList.ParseDomainBySuffixList(recv.StatLocalFqdn, out string tld, out string domain, out string hostname))
                         {
-                            // FQDN
-                            if (MasterData.DomainSuffixList.ParseDomainBySuffixList(recv.StatLocalFqdn, out string tld, out string domain, out string hostname))
-                            {
-                                // 正しい TLD 配下のドメイン
-                                // 例: 12345.abc.example.org の場合
-                                //     Short key は org.example.ab
-                                //     Long key は  org.example.abc.1
-                                string domainReverse = domain._Split(StringSplitOptions.RemoveEmptyEntries, '.').Reverse()._Combine(".");
-                                string hostnameReverse = hostname._Split(StringSplitOptions.RemoveEmptyEntries, '.').Reverse()._Combine(".");
+                            // 正しい TLD 配下のドメイン
+                            // 例: 12345.abc.example.org の場合
+                            //     Short key は org.example.ab
+                            //     Long key は  org.example.abc.1
+                            string domainReverse = domain._Split(StringSplitOptions.RemoveEmptyEntries, '.').Reverse()._Combine(".");
+                            string hostnameReverse = hostname._Split(StringSplitOptions.RemoveEmptyEntries, '.').Reverse()._Combine(".");
 
-                                shortKey = new string[] { domainReverse, hostnameReverse._TruncStr(2) }._Combine(".");
-                                longKey = new string[] { domainReverse, hostnameReverse._TruncStr(5) }._Combine(".");
-                            }
-                            else
-                            {
-                                // おかしなドメイン
-                                shortKey = recv.StatLocalFqdn._TruncStr(2);
-                                longKey = recv.StatLocalFqdn._TruncStr(4);
-                            }
+                            shortKey = new string[] { domainReverse, hostnameReverse._TruncStr(2) }._Combine(".");
+                            longKey = new string[] { domainReverse, hostnameReverse._TruncStr(5) }._Combine(".");
                         }
                         else
                         {
-                            // IP アドレス
-                            shortKey = IPUtil.GetHead1BytesIPString(recv.StatLocalIp);
-                            longKey = IPUtil.GetHead1BytesIPString(recv.StatLocalIp);
+                            // おかしなドメイン
+                            shortKey = recv.StatLocalFqdn._TruncStr(2);
+                            longKey = recv.StatLocalFqdn._TruncStr(4);
                         }
-
-                        DataVaultData d = recv._CloneIfClonable();
-                        d.KeyType = "by_local_fqdn";
-                        d.KeyShortValue = shortKey;
-                        d.KeyFullValue = longKey;
-
-                        list.Add(d);
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        ex._Debug();
+                        // IP アドレス
+                        shortKey = IPUtil.GetHead1BytesIPString(recv.StatLocalIp);
+                        longKey = IPUtil.GetHead1BytesIPString(recv.StatLocalIp);
                     }
+
+                    DataVaultData d = recv._CloneIfClonable();
+                    d.KeyType = "by_local_fqdn";
+                    d.KeyShortValue = shortKey;
+                    d.KeyFullValue = longKey;
+
+                    list.Add(d);
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
                 }
             }
-
-            List<DataVaultServerReceivedData> list2 = new List<DataVaultServerReceivedData>();
-
-            foreach (var d in list)
-            {
-                DataVaultServerReceivedData d2 = new DataVaultServerReceivedData()
-                {
-                    BinaryData = d._ObjectToJson(compact: true)._GetBytes_UTF8(),
-                    JsonData = d,
-                };
-
-                list2.Add(d2);
-            }
-
-            await this.Options.Vault.DataVaultReceiveAsync(list2);
-
-            return new HttpStringResult("ok");
         }
-    }
 
-    public class DataVaultServerApp : AsyncService
-    {
-        readonly HiveData<HiveKeyValue> Settings = Hive.LocalAppSettingsEx["DataVaultServerApp"];
+        List<DataVaultServerReceivedData> list2 = new List<DataVaultServerReceivedData>();
 
-        DataVaultServer? DataVaultServer = null;
-
-        CertVault? CertVault = null;
-
-        HttpServer<DataVaultLogBrowserHttpServerBuilder>? LogBrowserHttpServer = null;
-
-        public DataVaultServerApp()
+        foreach (var d in list)
         {
-            try
+            DataVaultServerReceivedData d2 = new DataVaultServerReceivedData()
             {
-                this.Settings.AccessData(true, k =>
-                {
-                    string dataDestDir = k.GetStr("DestDir", CoresConfig.DataVaultServerApp.DefaultDestDirString);
-                    string certVaultDir = k.GetStr("DataVaultServerCertVaultDirString", CoresConfig.DataVaultServerApp.DefaultDataVaultServerCertVaultDirString);
+                BinaryData = d._ObjectToJson(compact: true)._GetBytes_UTF8(),
+                JsonData = d,
+            };
 
-                    string servicePortsStr = k.GetStr("DataVaultServerPorts", CoresConfig.DataVaultServerApp.DefaultDataVaultServerPortsString);
+            list2.Add(d2);
+        }
 
-                    string httpPortsStr = k.GetStr("WebServerHttpPorts", CoresConfig.DataVaultServerApp.DefaultHttpServerPortsString);
-                    string httpsPortsStr = k.GetStr("WebServerHttpsPorts", CoresConfig.DataVaultServerApp.DefaultHttpsServerPortsString);
+        await this.Options.Vault.DataVaultReceiveAsync(list2);
 
-                    string mustIncludeHostnameStr = k.GetStr("MustIncludeHostname", "*");
+        return new HttpStringResult("ok");
+    }
+}
 
-                    string accessKey = k.GetStr("AccessKey", Str.GenRandPassword(mustHaveOneUnderBar: false, count: 32));
+public class DataVaultServerApp : AsyncService
+{
+    readonly HiveData<HiveKeyValue> Settings = Hive.LocalAppSettingsEx["DataVaultServerApp"];
 
-                    string zipEncryptPassword = k.GetStr("ZipEncryptPassword", Str.GenRandPassword(mustHaveOneUnderBar: false, count: 32));
+    DataVaultServer? DataVaultServer = null;
 
-                    dataDestDir = Lfs.ConfigPathStringToPhysicalDirectoryPath(dataDestDir);
-                    certVaultDir = Lfs.ConfigPathStringToPhysicalDirectoryPath(certVaultDir);
+    CertVault? CertVault = null;
+
+    HttpServer<DataVaultLogBrowserHttpServerBuilder>? LogBrowserHttpServer = null;
+
+    public DataVaultServerApp()
+    {
+        try
+        {
+            this.Settings.AccessData(true, k =>
+            {
+                string dataDestDir = k.GetStr("DestDir", CoresConfig.DataVaultServerApp.DefaultDestDirString);
+                string certVaultDir = k.GetStr("DataVaultServerCertVaultDirString", CoresConfig.DataVaultServerApp.DefaultDataVaultServerCertVaultDirString);
+
+                string servicePortsStr = k.GetStr("DataVaultServerPorts", CoresConfig.DataVaultServerApp.DefaultDataVaultServerPortsString);
+
+                string httpPortsStr = k.GetStr("WebServerHttpPorts", CoresConfig.DataVaultServerApp.DefaultHttpServerPortsString);
+                string httpsPortsStr = k.GetStr("WebServerHttpsPorts", CoresConfig.DataVaultServerApp.DefaultHttpsServerPortsString);
+
+                string mustIncludeHostnameStr = k.GetStr("MustIncludeHostname", "*");
+
+                string accessKey = k.GetStr("AccessKey", Str.GenRandPassword(mustHaveOneUnderBar: false, count: 32));
+
+                string zipEncryptPassword = k.GetStr("ZipEncryptPassword", Str.GenRandPassword(mustHaveOneUnderBar: false, count: 32));
+
+                dataDestDir = Lfs.ConfigPathStringToPhysicalDirectoryPath(dataDestDir);
+                certVaultDir = Lfs.ConfigPathStringToPhysicalDirectoryPath(certVaultDir);
 
 
                     // Start DataVault Server
                     this.CertVault = new CertVault(certVaultDir,
-                        new CertVaultSettings(EnsureSpecial.Yes)
-                        {
-                            ReloadIntervalMsecs = 3600 * 1000,
-                            UseAcme = false,
-                            NonAcmeEnableAutoGenerateSubjectNameCert = false,
-                        });
+                    new CertVaultSettings(EnsureSpecial.Yes)
+                    {
+                        ReloadIntervalMsecs = 3600 * 1000,
+                        UseAcme = false,
+                        NonAcmeEnableAutoGenerateSubjectNameCert = false,
+                    });
 
-                    Lfs.CreateDirectory(dataDestDir, FileFlags.OnCreateSetCompressionFlag);
+                Lfs.CreateDirectory(dataDestDir, FileFlags.OnCreateSetCompressionFlag);
 
-                    PalSslServerAuthenticationOptions sslOptions = new PalSslServerAuthenticationOptions(this.CertVault.X509CertificateSelector("dummy", true, EnsureOk.Ok), true, null);
+                PalSslServerAuthenticationOptions sslOptions = new PalSslServerAuthenticationOptions(this.CertVault.X509CertificateSelector("dummy", true, EnsureOk.Ok), true, null);
 
-                    this.DataVaultServer = new DataVaultServer(new DataVaultServerOptions(null, dataDestDir,
-                        FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag | FileFlags.LargeFs_ProhibitWriteWithCrossBorder,
-                        setDestinationProc: null,
-                        sslAuthOptions: sslOptions,
-                        tcpIp: LocalNet,
-                        ports: Str.ParsePortsList(servicePortsStr),
-                        rateLimiterConfigName: "DataVaultServer",
-                        accessKey: accessKey
-                        ));
+                this.DataVaultServer = new DataVaultServer(new DataVaultServerOptions(null, dataDestDir,
+                    FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag | FileFlags.LargeFs_ProhibitWriteWithCrossBorder,
+                    setDestinationProc: null,
+                    sslAuthOptions: sslOptions,
+                    tcpIp: LocalNet,
+                    ports: Str.ParsePortsList(servicePortsStr),
+                    rateLimiterConfigName: "DataVaultServer",
+                    accessKey: accessKey
+                    ));
 
                     // Start HTTP Server-based Web log browser
                     HttpServerOptions httpServerOptions = new HttpServerOptions
-                    {
-                        UseStaticFiles = false,
-                        UseSimpleBasicAuthentication = true,
-                        HttpPortsList = Str.ParsePortsList(httpPortsStr).ToList(),
-                        HttpsPortsList = Str.ParsePortsList(httpsPortsStr).ToList(),
-                        DebugKestrelToConsole = true,
-                        UseKestrelWithIPACoreStack = true,
-                        AutomaticRedirectToHttpsIfPossible = true,
-                        LocalHostOnly = false,
-                    };
+                {
+                    UseStaticFiles = false,
+                    UseSimpleBasicAuthentication = true,
+                    HttpPortsList = Str.ParsePortsList(httpPortsStr).ToList(),
+                    HttpsPortsList = Str.ParsePortsList(httpsPortsStr).ToList(),
+                    DebugKestrelToConsole = true,
+                    UseKestrelWithIPACoreStack = true,
+                    AutomaticRedirectToHttpsIfPossible = true,
+                    LocalHostOnly = false,
+                };
 
-                    if (mustIncludeHostnameStr._IsFilled() && mustIncludeHostnameStr._IsSamei("*") == false)
-                    {
-                        string[] tokens = mustIncludeHostnameStr.Split(new char[] { ' ', '　', ';', '/', ',' }, StringSplitOptions.RemoveEmptyEntries);
-                        tokens._DoForEach(x => httpServerOptions.MustIncludeHostnameStrList.Add(x));
-                    }
+                if (mustIncludeHostnameStr._IsFilled() && mustIncludeHostnameStr._IsSamei("*") == false)
+                {
+                    string[] tokens = mustIncludeHostnameStr.Split(new char[] { ' ', '　', ';', '/', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    tokens._DoForEach(x => httpServerOptions.MustIncludeHostnameStrList.Add(x));
+                }
 
-                    LogBrowserOptions browserOptions = new LogBrowserOptions(dataDestDir, zipEncryptPassword: zipEncryptPassword);
+                LogBrowserOptions browserOptions = new LogBrowserOptions(dataDestDir, zipEncryptPassword: zipEncryptPassword);
 
-                    this.LogBrowserHttpServer = DataVaultLogBrowserHttpServerBuilder.StartServer(httpServerOptions, new DataVaultLogBrowserHttpServerOptions(browserOptions, "", this, this.DataVaultServer));
-                });
-            }
-            catch
-            {
-                this._DisposeSafe();
-                throw;
-            }
+                this.LogBrowserHttpServer = DataVaultLogBrowserHttpServerBuilder.StartServer(httpServerOptions, new DataVaultLogBrowserHttpServerOptions(browserOptions, "", this, this.DataVaultServer));
+            });
         }
-
-        protected override async Task CleanupImplAsync(Exception? ex)
+        catch
         {
-            try
-            {
-                await this.LogBrowserHttpServer._DisposeSafeAsync();
+            this._DisposeSafe();
+            throw;
+        }
+    }
 
-                await this.DataVaultServer._DisposeSafeAsync();
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
+        {
+            await this.LogBrowserHttpServer._DisposeSafeAsync();
 
-                await this.CertVault._DisposeSafeAsync();
-            }
-            finally
-            {
-                await base.CleanupImplAsync(ex);
-            }
+            await this.DataVaultServer._DisposeSafeAsync();
+
+            await this.CertVault._DisposeSafeAsync();
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
         }
     }
 }

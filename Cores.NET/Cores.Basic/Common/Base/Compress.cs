@@ -40,113 +40,112 @@ using static IPA.Cores.Globals.Basic;
 using IPA.Cores.Basic.Internal;
 using System.IO.Compression;
 
-namespace IPA.Cores.Basic
+namespace IPA.Cores.Basic;
+
+public static class DeflateUtil
 {
-    public static class DeflateUtil
+    public static byte[] EasyCompress(ReadOnlySpan<byte> src)
     {
-        public static byte[] EasyCompress(ReadOnlySpan<byte> src)
-        {
-            using MemoryStream ms = new MemoryStream();
-            using var d = new DeflateStream(ms, CompressionLevel.Optimal);
-            d.Write(src);
-            d.Flush();
-            return ms.ToArray();
-        }
-
-        public static byte[] EasyDecompress(ReadOnlySpan<byte> src, int maxSize = 0)
-            => EasyDecompress(src._CloneMemory(), maxSize);
-
-        public static byte[] EasyDecompress(ReadOnlyMemory<byte> src, int maxSize = 0)
-        {
-            var srcSegment = src._AsSegment();
-
-            using MemoryStream ms = new MemoryStream(srcSegment.Array!, srcSegment.Offset, srcSegment.Count);
-            using var d = new DeflateStream(ms, CompressionMode.Decompress);
-            return d._ReadToEnd(maxSize);
-        }
+        using MemoryStream ms = new MemoryStream();
+        using var d = new DeflateStream(ms, CompressionLevel.Optimal);
+        d.Write(src);
+        d.Flush();
+        return ms.ToArray();
     }
 
-    public static class ZLib
+    public static byte[] EasyDecompress(ReadOnlySpan<byte> src, int maxSize = 0)
+        => EasyDecompress(src._CloneMemory(), maxSize);
+
+    public static byte[] EasyDecompress(ReadOnlyMemory<byte> src, int maxSize = 0)
     {
-        // データを圧縮する
-        public static byte[] Compress(byte[] src)
+        var srcSegment = src._AsSegment();
+
+        using MemoryStream ms = new MemoryStream(srcSegment.Array!, srcSegment.Offset, srcSegment.Count);
+        using var d = new DeflateStream(ms, CompressionMode.Decompress);
+        return d._ReadToEnd(maxSize);
+    }
+}
+
+public static class ZLib
+{
+    // データを圧縮する
+    public static byte[] Compress(byte[] src)
+    {
+        return Compress(src, zlibConst.Z_DEFAULT_COMPRESSION);
+    }
+    public static byte[] Compress(byte[] src, int level)
+    {
+        return Compress(src, level, false);
+    }
+    public static byte[] Compress(byte[] src, int level, bool noHeader)
+    {
+        int dstSize = src.Length * 2 + 100;
+        byte[] dst = new byte[dstSize];
+
+        compress2(ref dst, src, level, noHeader);
+
+        return dst;
+    }
+
+    // データを展開する
+    public static byte[] Uncompress(byte[] src, int originalSize)
+    {
+        byte[] dst = new byte[originalSize];
+
+        uncompress(ref dst, src);
+
+        return dst;
+    }
+
+    static void compress2(ref byte[] dest, byte[] src, int level, bool noHeader)
+    {
+        ZStream stream = new ZStream();
+
+        stream.next_in = src;
+        stream.avail_in = src.Length;
+
+        stream.next_out = dest;
+        stream.avail_out = dest.Length;
+
+        if (noHeader == false)
         {
-            return Compress(src, zlibConst.Z_DEFAULT_COMPRESSION);
+            stream.deflateInit(level);
         }
-        public static byte[] Compress(byte[] src, int level)
+        else
         {
-            return Compress(src, level, false);
-        }
-        public static byte[] Compress(byte[] src, int level, bool noHeader)
-        {
-            int dstSize = src.Length * 2 + 100;
-            byte[] dst = new byte[dstSize];
-
-            compress2(ref dst, src, level, noHeader);
-
-            return dst;
+            stream.deflateInit(level, -15);
         }
 
-        // データを展開する
-        public static byte[] Uncompress(byte[] src, int originalSize)
+        stream.deflate(zlibConst.Z_FINISH);
+
+        Array.Resize<byte>(ref dest, (int)stream.total_out);
+    }
+
+    static void uncompress(ref byte[] dest, byte[] src)
+    {
+        ZStream stream = new ZStream();
+
+        stream.next_in = src;
+        stream.avail_in = src.Length;
+
+        stream.next_out = dest;
+        stream.avail_out = dest.Length;
+
+        stream.inflateInit();
+
+        int err = stream.inflate(zlibConst.Z_FINISH);
+        if (err != zlibConst.Z_STREAM_END)
         {
-            byte[] dst = new byte[originalSize];
-
-            uncompress(ref dst, src);
-
-            return dst;
+            stream.inflateEnd();
+            throw new ApplicationException();
         }
 
-        static void compress2(ref byte[] dest, byte[] src, int level, bool noHeader)
+        Array.Resize<byte>(ref dest, (int)stream.total_out);
+
+        err = stream.inflateEnd();
+        if (err != zlibConst.Z_OK)
         {
-            ZStream stream = new ZStream();
-
-            stream.next_in = src;
-            stream.avail_in = src.Length;
-
-            stream.next_out = dest;
-            stream.avail_out = dest.Length;
-
-            if (noHeader == false)
-            {
-                stream.deflateInit(level);
-            }
-            else
-            {
-                stream.deflateInit(level, -15);
-            }
-
-            stream.deflate(zlibConst.Z_FINISH);
-
-            Array.Resize<byte>(ref dest, (int)stream.total_out);
-        }
-
-        static void uncompress(ref byte[] dest, byte[] src)
-        {
-            ZStream stream = new ZStream();
-
-            stream.next_in = src;
-            stream.avail_in = src.Length;
-
-            stream.next_out = dest;
-            stream.avail_out = dest.Length;
-
-            stream.inflateInit();
-
-            int err = stream.inflate(zlibConst.Z_FINISH);
-            if (err != zlibConst.Z_STREAM_END)
-            {
-                stream.inflateEnd();
-                throw new ApplicationException();
-            }
-
-            Array.Resize<byte>(ref dest, (int)stream.total_out);
-
-            err = stream.inflateEnd();
-            if (err != zlibConst.Z_OK)
-            {
-                throw new ApplicationException();
-            }
+            throw new ApplicationException();
         }
     }
 }

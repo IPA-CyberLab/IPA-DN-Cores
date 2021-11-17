@@ -58,73 +58,72 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.UnitTest
+namespace IPA.UnitTest;
+
+public static class UnitTestTicks
 {
-    public static class UnitTestTicks
+    static readonly Stopwatch StopWatchInstance;
+    static readonly CriticalSection Lock = new CriticalSection();
+
+    static UnitTestTicks()
     {
-        static readonly Stopwatch StopWatchInstance;
-        static readonly CriticalSection Lock = new CriticalSection();
-
-        static UnitTestTicks()
-        {
-            StopWatchInstance = new Stopwatch();
-            StopWatchInstance.Start();
-        }
-
-        public static long Tick
-        {
-            get
-            {
-                lock (Lock)
-                {
-                    return StopWatchInstance.ElapsedMilliseconds;
-                }
-            }
-        }
-
-        public static string TickString
-        {
-            get
-            {
-                long v = Tick;
-
-                double f = (double)v / 1000.0;
-
-                string s = f.ToString("F3"); // 123.456
-                int len = s.Length;
-                if (len < 7)
-                {
-                    s = Str.MakeStrArray(" ", 7 - len) + s;
-                }
-
-                return s;
-            }
-        }
+        StopWatchInstance = new Stopwatch();
+        StopWatchInstance.Start();
     }
 
-    public static class CoresLibUnitTestShared
+    public static long Tick
     {
-        static CriticalSection Lock = new CriticalSection();
-        static Once Once;
-
-        public static void Init()
+        get
         {
             lock (Lock)
             {
-                if (Once.IsFirstCall())
-                {
-                    CoresLib.Init(new CoresLibOptions(CoresMode.Application, "UnitTest", DebugMode.Debug, defaultPrintStatToConsole: false, defaultRecordLeakFullStack: false));
-                }
+                return StopWatchInstance.ElapsedMilliseconds;
             }
         }
     }
 
-    public class CoresLibUnitTestFixtureInstance
+    public static string TickString
     {
-        public CoresLibUnitTestFixtureInstance()
+        get
         {
-            CoresLibUnitTestShared.Init();
+            long v = Tick;
+
+            double f = (double)v / 1000.0;
+
+            string s = f.ToString("F3"); // 123.456
+            int len = s.Length;
+            if (len < 7)
+            {
+                s = Str.MakeStrArray(" ", 7 - len) + s;
+            }
+
+            return s;
         }
+    }
+}
+
+public static class CoresLibUnitTestShared
+{
+    static CriticalSection Lock = new CriticalSection();
+    static Once Once;
+
+    public static void Init()
+    {
+        lock (Lock)
+        {
+            if (Once.IsFirstCall())
+            {
+                CoresLib.Init(new CoresLibOptions(CoresMode.Application, "UnitTest", DebugMode.Debug, defaultPrintStatToConsole: false, defaultRecordLeakFullStack: false));
+            }
+        }
+    }
+}
+
+public class CoresLibUnitTestFixtureInstance
+{
+    public CoresLibUnitTestFixtureInstance()
+    {
+        CoresLibUnitTestShared.Init();
     }
 }
 

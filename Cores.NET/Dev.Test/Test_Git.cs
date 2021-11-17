@@ -45,55 +45,54 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.TestDev
+namespace IPA.TestDev;
+
+partial class TestDevCommands
 {
-    partial class TestDevCommands
+    const string GitUrl = "https://github.com/IPA-CyberLab/IPA-DN-Cores.git";
+    //const string GitUrl = "https://github.com/IPA-CyberLab/IPA-DN-TestIDS.git";
+    const string GitTestBaseDir = @"c:\tmp\git_test_root\4";
+
+    [ConsoleCommand(
+        "Git command",
+        "Git [arg]",
+        "Git test")]
+    static int Git(ConsoleService c, string cmdName, string str)
     {
-        const string GitUrl = "https://github.com/IPA-CyberLab/IPA-DN-Cores.git";
-        //const string GitUrl = "https://github.com/IPA-CyberLab/IPA-DN-TestIDS.git";
-        const string GitTestBaseDir = @"c:\tmp\git_test_root\4";
+        ConsoleParam[] args = { };
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-        [ConsoleCommand(
-            "Git command",
-            "Git [arg]",
-            "Git test")]
-        static int Git(ConsoleService c, string cmdName, string str)
+        if (Lfs.IsDirectoryExists(GitTestBaseDir) == false)
         {
-            ConsoleParam[] args = { };
-            ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
-
-            if (Lfs.IsDirectoryExists(GitTestBaseDir) == false)
-            {
-                Git_Test_Clone();
-            }
-
-            Git_Test_1();
-
-            return 0;
+            Git_Test_Clone();
         }
 
-        static void Git_Test_1()
+        Git_Test_1();
+
+        return 0;
+    }
+
+    static void Git_Test_1()
+    {
+        while (true)
         {
-            while (true)
+            using (var rep = new GitRepository(GitTestBaseDir))
             {
-                using (var rep = new GitRepository(GitTestBaseDir))
+                using (var fs = new GitFileSystem(new GitFileSystemParams(rep)))
                 {
-                    using (var fs = new GitFileSystem(new GitFileSystemParams(rep)))
+                    while (true)
                     {
-                        while (true)
-                        {
-                            fs.ReadDataFromFile("/test.txt");
-                            Sleep(500);
-                        }
+                        fs.ReadDataFromFile("/test.txt");
+                        Sleep(500);
                     }
                 }
             }
         }
+    }
 
-        static void Git_Test_Clone()
-        {
-            GitUtil.Clone(GitTestBaseDir, GitUrl);
-        }
+    static void Git_Test_Clone()
+    {
+        GitUtil.Clone(GitTestBaseDir, GitUrl);
     }
 }
 #endif
