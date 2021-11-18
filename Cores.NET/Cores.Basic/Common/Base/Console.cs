@@ -2591,10 +2591,16 @@ public static class UnixConsoleSpecialUtil
                 Type consoleType = typeof(System.Console);
                 var asm = consoleType.Assembly;
                 var t = asm.GetType("System.ConsolePal");
-                var fi = t!.GetField("s_initialized", BindingFlags.Static | BindingFlags.NonPublic);
-                object? obj = fi!.GetValue(null);
-                bool b = (bool)obj!;
-                fi.SetValue(null, true);
+                if (t != null)
+                {
+                    var fi = t!.GetField("s_initialized", BindingFlags.Static | BindingFlags.NonPublic);
+                    if (fi != null)
+                    {
+                        object? obj = fi!.GetValue(null);
+                        bool b = (bool)obj!;
+                        fi.SetValue(null, true);
+                    }
+                }
             }
             catch { }
         }

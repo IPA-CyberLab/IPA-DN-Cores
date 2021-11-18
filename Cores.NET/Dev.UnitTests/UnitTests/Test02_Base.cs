@@ -180,6 +180,151 @@ public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
             offline: true,
             errorWhenFailed: true);
     }
+
+    [Fact]
+    public void SingleInstanceTest()
+    {
+        Event startEvent = new Event(true);
+        RefBool fail = new RefBool();
+        Event event2 = new Event(true);
+        Event event3 = new Event(true);
+        Event event4 = new Event(true);
+        Event event5 = new Event(true);
+        Event event6 = new Event(true);
+
+        var thread1 = ThreadObj.Start(x =>
+        {
+            try
+            {
+                startEvent.Wait();
+
+                using (var si2 = new SingleInstance("si_test"))
+                {
+                    event2.Set();
+
+                    event3.Wait();
+                }
+
+                event4.Set();
+
+                event5.Wait();
+
+                var si = SingleInstance.TryGet("si_test");
+                if (si != null)
+                {
+                    fail.Set(true);
+                }
+
+                event6.Set();
+            }
+            catch
+            {
+                fail.Set(true);
+            }
+        });
+
+        var thread2 = ThreadObj.Start(x =>
+        {
+            try
+            {
+                startEvent.Wait();
+
+                event2.Wait();
+
+                var si = SingleInstance.TryGet("si_test");
+                if (si != null)
+                {
+                    fail.Set(true);
+                }
+
+                event3.Set();
+
+                event4.Wait();
+
+                si = SingleInstance.TryGet("si_test");
+                if (si == null)
+                {
+                    fail.Set(true);
+                }
+
+                event5.Set();
+
+                event6.Wait();
+
+                si._DisposeSafe();
+            }
+            catch
+            {
+                fail.Set(true);
+            }
+        });
+
+        startEvent.Set();
+
+        Assert.True(thread1.WaitForEnd(5000));
+        Assert.True(thread2.WaitForEnd(5000));
+
+        Assert.False(fail.Value);
+    }
+
+    [Fact]
+    public void GlobalLockTest()
+    {
+        GlobalLock k = new GlobalLock("test_lock1");
+
+        Event startEvent = new Event(true);
+        Event event2 = new Event(true);
+        Event event3 = new Event(true);
+        RefBool fail = new RefBool();
+
+        var thread1 = ThreadObj.Start(x =>
+        {
+            try
+            {
+                startEvent.Wait();
+
+                using (k.Lock())
+                {
+                    event2.Set();
+
+                    if (event3.Wait(100))
+                    {
+                        fail.Set(true);
+                    }
+                }
+            }
+            catch
+            {
+                fail.Set(true);
+            }
+        });
+
+        var thread2 = ThreadObj.Start(x =>
+        {
+            try
+            {
+                startEvent.Wait();
+
+                event2.Wait();
+
+                using (k.Lock())
+                {
+                    event3.Set();
+                }
+            }
+            catch
+            {
+                fail.Set(true);
+            }
+        });
+
+        startEvent.Set();
+
+        Assert.True(thread1.WaitForEnd(5000));
+        Assert.True(thread2.WaitForEnd(5000));
+
+        Assert.False(fail.Value);
+    }
 }
 
 

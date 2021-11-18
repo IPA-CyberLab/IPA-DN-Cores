@@ -2502,8 +2502,18 @@ static class TestClass
         });
     }
 
+    static void Test_211118()
+    {
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_211118();
+            return;
+        }
+
         //while (true)
         //{
         //    string line = Con.ReadLine(">")._NonNull();
