@@ -3425,11 +3425,7 @@ namespace IPA.Cores.Basic
         }
 
         // 指定した文字が表示可能で安全かどうか
-        public static bool IsSafeAndPrintable(char c)
-        {
-            return IsSafeAndPrintable(c, false, false);
-        }
-        public static bool IsSafeAndPrintable(char c, bool crlfIsOk, bool htmlTagAreNotGood)
+        public static bool IsSafeAndPrintable(char c, bool crlfIsOk = false, bool htmlTagAreNotGood = false)
         {
             try
             {
@@ -3460,17 +3456,14 @@ namespace IPA.Cores.Basic
             }
             return false;
         }
-        public static bool IsPrintableAndSafe(string s)
-        {
-            return IsSafeAndPrintable(s, false, false);
-        }
-        public static bool IsSafeAndPrintable(string s, bool crlfIsOk, bool htmlTagAreNotGood)
+
+        public static bool IsSafeAndPrintable(string s, bool crlfIsOk = false, bool htmlTagAreNotGood = false)
         {
             try
             {
                 foreach (char c in s)
                 {
-                    if (IsSafeAndPrintable(c) == false)
+                    if (IsSafeAndPrintable(c, crlfIsOk, htmlTagAreNotGood) == false)
                     {
                         return false;
                     }

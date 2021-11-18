@@ -1643,6 +1643,133 @@ public class PathParser
 
         return ret;
     }
+
+    // 指定された文字列がディレクトリトラバーサルを引き起こす危険なパスかどうか安全寄りに判定
+    public static bool IsDangerousStrForDirectoryTraversal(string str)
+    {
+        try
+        {
+            str = str._NonNullTrim();
+
+            // デコード前の文字列の最初が %2F (/) または %5C (\) の場合は危険
+            if (str.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || str.StartsWith("%5C", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (str._IsSafeAndPrintable(crlfIsOk: false, htmlTagAreNotGood: true) == false)
+            {
+                // 危険な可能性のある制御文字は禁止
+                return true;
+            }
+
+            // 1 回デコード
+            string tmp2 = str._DecodeUrlPath()._NonNullTrim();
+
+            if (tmp2._IsSafeAndPrintable(crlfIsOk: false, htmlTagAreNotGood: true) == false)
+            {
+                // 危険な可能性のある制御文字は禁止
+                return true;
+            }
+
+            // 1 回デコード後の文字列の最初が %2F (/) または %5C (\) の場合は危険
+            if (tmp2.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || tmp2.StartsWith("%5C", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (tmp2._IsSafeAndPrintable(crlfIsOk: false, htmlTagAreNotGood: true) == false)
+            {
+                // 危険な可能性のある制御文字は禁止
+                return true;
+            }
+
+            // 1 回デコードした結果にさらなるエンコードされた危なそうな文字が入っていないかどうかの検査
+            if (tmp2._FindStringsMulti(0, StringComparison.OrdinalIgnoreCase, out _, "%2F", "%5C", "%2E", "%25") != -1)
+            {
+                // 入っていた。危険。
+                return true;
+            }
+
+            // 2 回デコード
+            string tmp3 = tmp2._DecodeUrlPath()._NonNullTrim();
+
+            if (tmp3._IsSafeAndPrintable(crlfIsOk: false, htmlTagAreNotGood: true) == false)
+            {
+                // 危険な可能性のある制御文字は禁止
+                return true;
+            }
+
+            // 2 回デコードした結果にさらなるエンコードされた危なそうな文字が入っていないかどうかの検査
+            if (tmp3._FindStringsMulti(0, StringComparison.OrdinalIgnoreCase, out _, "%2F", "%5C", "%2E", "%25") != -1)
+            {
+                // 入っていた。危険。
+                return true;
+            }
+
+            if (tmp3._IsSafeAndPrintable(crlfIsOk: false, htmlTagAreNotGood: true) == false)
+            {
+                // 危険な可能性のある制御文字は禁止
+                return true;
+            }
+
+            // 元の文字のトークン分割
+            var tokens = str._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, '/', '\\');
+            if (tokens.Select(x => x.Trim()).Where(x => x._IsSamei("..") || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase)).Any())
+            {
+                // トークンの間に .. が入っていた。危険。
+                return true;
+            }
+            if (tokens.Select(x => x.Trim()._DecodeUrlPath()).Where(x => x._IsSamei("..") || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase) || x.StartsWith("/", StringComparison.OrdinalIgnoreCase) || x.StartsWith("\\", StringComparison.OrdinalIgnoreCase)).Any())
+            {
+                // トークンの間にデコードされたら .. となる文字 または / \ で始まる文字が入っていた。危険。
+                return true;
+            }
+
+            // 1 回デコード後の文字のトークン分割
+            tokens = tmp2._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, '/', '\\');
+            if (tokens.Select(x => x.Trim()).Where(x => x._IsSamei("..") || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase)).Any())
+            {
+                // トークンの間に .. が入っていた。危険。
+                return true;
+            }
+            if (tokens.Select(x => x.Trim()._DecodeUrlPath()).Where(x => x._IsSamei("..") || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase) || x.StartsWith("/", StringComparison.OrdinalIgnoreCase) || x.StartsWith("\\", StringComparison.OrdinalIgnoreCase)).Any())
+            {
+                // トークンの間に 1 回デコードされたら .. となる文字 または / \ で始まる文字が入っていた。危険。
+                return true;
+            }
+            if (tokens.Select(x => x.Trim()._DecodeUrlPath()).Where(x => x._IsSamei("..") || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase) || x.StartsWith("/", StringComparison.OrdinalIgnoreCase) || x.StartsWith("\\", StringComparison.OrdinalIgnoreCase)).Any())
+            {
+                // トークンの間に 2 回デコードされたら .. となる文字 または / \ で始まる文字が入っていた。危険。
+                return true;
+            }
+
+            // 2 回デコード後の文字のトークン分割
+            tokens = tmp3._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, '/', '\\');
+            if (tokens.Select(x => x.Trim()).Where(x => x._IsSamei("..") || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase)).Any())
+            {
+                // トークンの間に .. が入っていた。危険。
+                return true;
+            }
+            if (tokens.Select(x => x.Trim()._DecodeUrlPath()).Where(x => x._IsSamei("..") || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase) || x.StartsWith("/", StringComparison.OrdinalIgnoreCase) || x.StartsWith("\\", StringComparison.OrdinalIgnoreCase)).Any())
+            {
+                // トークンの間に 1 回デコードされたら .. となる文字が入っていた。危険。
+                return true;
+            }
+            if (tokens.Select(x => x.Trim()._DecodeUrlPath()).Where(x => x._IsSamei("..") || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase) || x.StartsWith("/", StringComparison.OrdinalIgnoreCase) || x.StartsWith("\\", StringComparison.OrdinalIgnoreCase)).Any())
+            {
+                // トークンの間に 2 回デコードされたら .. となる文字が入っていた。危険。
+                return true;
+            }
+
+            return false;
+        }
+        catch
+        {
+            // 例外が発生したら危険とみなす
+            return true;
+        }
+    }
 }
 
 [Flags]

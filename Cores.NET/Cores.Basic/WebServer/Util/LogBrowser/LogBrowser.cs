@@ -400,9 +400,21 @@ public class LogBrowser : AsyncService
 
             if (physicalPath.StartsWith("/") == false) physicalPath = "/" + physicalPath;
 
+            if (physicalPath._IsDangerousDirectoryTraversal())
+            {
+                // ディレクトリトラバーサルの恐れあり
+                return new HttpStringResult("403 Forbidden", statusCode: 403);
+            }
+
             physicalPath = PathParser.Linux.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(physicalPath);
 
             physicalPath = physicalPath._DecodeUrlPath();
+
+            if (physicalPath._IsDangerousDirectoryTraversal())
+            {
+                // ディレクトリトラバーサルの恐れあり
+                return new HttpStringResult("403 Forbidden", statusCode: 403);
+            }
 
             if (this.Options.Flags.Bit(LogBrowserFlags.NoRootDirectory) && PathParser.Linux.IsRootDirectory(physicalPath))
             {

@@ -2504,6 +2504,15 @@ static class TestClass
 
     public static void Test_Generic()
     {
+        //while (true)
+        //{
+        //    string line = Con.ReadLine(">")._NonNull();
+
+        //    bool b = line._IsDangerousStrForDirectoryTraversal();
+        //    Con.WriteLine(b.ToString());
+        //    Con.WriteLine();
+        //}
+
         if (true)
         {
             Test_211108();
