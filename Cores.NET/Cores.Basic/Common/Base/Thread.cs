@@ -209,6 +209,7 @@ namespace IPA.Cores.Basic
             if (mutant != null)
             {
                 mutant.Unlock();
+                mutant._DisposeSafe();
                 mutant = null;
             }
         }

@@ -869,7 +869,7 @@ public class PathParser
         return false;
     }
 
-    public string AppendDirectorySeparatorTail(string path)
+    public string AppendDirectorySeparatorTail(string path, bool normalize = false)
     {
         path = path._NonNull();
 
@@ -877,6 +877,21 @@ public class PathParser
         if (this.PossibleDirectorySeparators.Where(x => x == c).Any() == false)
         {
             path += this.DirectorySeparator;
+        }
+
+        if (normalize)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (char a in path)
+            {
+                char tmp = a;
+                if (this.PossibleDirectorySeparators.Where(x => x == c).Any())
+                {
+                    tmp = this.DirectorySeparator;
+                }
+                sb.Append(tmp);
+            }
+            path = sb.ToString();
         }
 
         return path;

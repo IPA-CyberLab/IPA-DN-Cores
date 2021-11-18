@@ -963,6 +963,11 @@ public static class BasicHelper
     public static Uri _CombineUrl(this Uri uri, string relativeUriOrAbsolutePath) => new Uri(uri, relativeUriOrAbsolutePath);
     public static Uri _CombineUrl(this Uri uri, Uri relativeUri) => new Uri(uri, relativeUri);
 
+    public static Uri _CombineUrlDir(this string uri, string relativeUriOrAbsolutePath) => new Uri(uri._ParseUrl(), relativeUriOrAbsolutePath._AppendUrlDirSeparatorTail());
+    public static Uri _CombineUrlDir(this Uri uri, string relativeUriOrAbsolutePath) => new Uri(uri, relativeUriOrAbsolutePath._AppendUrlDirSeparatorTail());
+
+    public static string _AppendUrlDirSeparatorTail(this string str) => PPLinux.AppendDirectorySeparatorTail(str, true);
+
     public static Uri _RemoveQueryStringItem(this Uri uri, string itemKey)
     {
         string path = uri.AbsolutePath;

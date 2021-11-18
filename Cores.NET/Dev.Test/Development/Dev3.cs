@@ -72,6 +72,8 @@ public class LtsOpenSslTool
     // -- 定数部分  https://lts.dn.ipantt.net/d/211117_002_lts_openssl_exesuite_09221/ を参照のこと --
     public const string BaseUrl = "https://lts.dn.ipantt.net/d/211117_002_lts_openssl_exesuite_09221/";
 
+    public const string VersionYymmdd = "211117";
+
     public const string ExeNames = @"
 lts_openssl_exesuite_0.9.8zh
 lts_openssl_exesuite_1.0.2u
@@ -86,7 +88,7 @@ lts_openssl_exesuite_3.0.0
         windows_x64,
     }
 
-    public record Version (string ExeName, Arch Arch);
+    public record Version(string ExeName, Arch Arch);
 
     public static readonly IReadOnlyList<Version> VersionList = new List<Version>();
 
@@ -128,8 +130,62 @@ lts_openssl_exesuite_3.0.0
     }
 
     // OpenSSL コマンドの実行
-    public static async Task ExecOpenSslCommandAsync(string cmd, CancellationToken cancel = default)
+    public static async Task ExecOpenSslCommandAsync(Version ver, string cmd, CancellationToken cancel = default)
     {
+        // URL を生成する
+        string exeName = ver.ExeName;
+        if (ver.Arch == Arch.windows_x64) exeName += ".exe";
+        string url = BaseUrl._CombineUrlDir(VersionYymmdd)._CombineUrlDir("lts_openssl_exesuite")._CombineUrlDir(ver.Arch.ToString())._CombineUrl(exeName).ToString();
+
+        // 一時ディレクトリ名を生成する
+        string tmpDirPath = PP.Combine(Env.AppLocalDir, "tmp", "lts_openssl_cache", VersionYymmdd);
+        string tmpExePath = PP.Combine(tmpDirPath, exeName);
+
+        string lockName = tmpDirPath.ToLower() + "_lock_" + ver._ObjectToJson()._HashSHA1()._GetHexString();
+
+        GlobalLock lockObject = new GlobalLock(lockName);
+
+        // 以下の操作はロック下で実施する
+        using (lockObject.Lock())
+        {
+            bool exists = false;
+
+            // ファイルが存在しているか?
+            if (Lfs.IsFileExists(tmpExePath, cancel))
+            {
+                var info = Lfs.GetFileMetadata(tmpExePath, cancel: cancel);
+                if (info.Size >= 1_000_000)
+                {
+                    exists = true;
+                }
+            }
+
+            if (exists == false)
+            {
+                // ファイルをダウンロードする
+                var res = await SimpleHttpDownloader.DownloadAsync(url);
+                if (res.DataSize < 1_000_000)
+                {
+                    throw new CoresLibException($"URL {url} file size too small: {res.DataSize} bytes");
+                }
+
+                // ダウンロードしたファイルを一時ファイルに保存する
+                string tmpExePath2 = tmpExePath + ".tmp";
+
+                Lfs.WriteDataToFile(tmpExePath2, res.Data, FileFlags.AutoCreateDirectory, cancel: cancel);
+
+                // 保存が完了したらリネームする
+                try
+                {
+                    Lfs.DeleteFile(tmpExePath, cancel: cancel);
+                }
+                catch { }
+
+                Lfs.MoveFile(tmpExePath2, tmpExePath, cancel);
+
+                tmpExePath._Print();
+            }
+        }
     }
 }
 

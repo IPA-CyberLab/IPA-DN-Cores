@@ -283,7 +283,7 @@ public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
             {
                 startEvent.Wait();
 
-                using (k.Lock())
+                //using (k.Lock())
                 {
                     event2.Set();
 
@@ -307,7 +307,7 @@ public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
 
                 event2.Wait();
 
-                using (k.Lock())
+                //using (k.Lock())
                 {
                     event3.Set();
                 }

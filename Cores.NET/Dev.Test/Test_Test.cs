@@ -2504,6 +2504,11 @@ static class TestClass
 
     static void Test_211118()
     {
+        Async(async () =>
+        {
+            var ver = LtsOpenSslTool.GetCurrentSuitableVersions().First();
+            await LtsOpenSslTool.ExecOpenSslCommandAsync(ver, "abc");
+        });
     }
 
     public static void Test_Generic()
