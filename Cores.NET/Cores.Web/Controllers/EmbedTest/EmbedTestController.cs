@@ -15,22 +15,21 @@ using IPA.Cores.Web;
 using IPA.Cores.Helper.Web;
 using static IPA.Cores.Globals.Web;
 
-namespace IPA.Cores.Web
-{
-    [AspNetLibFeature(AspNetLibFeatures.Any)]
-    public class EmbedTestController : Controller
-    {
-        public IActionResult Index()
-        {
-            Dbg.Where();
-            return View();
-        }
+namespace IPA.Cores.Web;
 
-        public IActionResult Test()
-        {
-            Dbg.Where();
-            ViewBag.Test = DateTime.Now._ToDtStr(withMSecs: true);
-            return View();
-        }
+[AspNetLibFeature(AspNetLibFeatures.Any)]
+public class EmbedTestController : Controller
+{
+    public IActionResult Index()
+    {
+        Dbg.Where();
+        return View();
+    }
+
+    public IActionResult Test()
+    {
+        Dbg.Where();
+        ViewBag.Test = DateTime.Now._ToDtStr(withMSecs: true);
+        return View();
     }
 }

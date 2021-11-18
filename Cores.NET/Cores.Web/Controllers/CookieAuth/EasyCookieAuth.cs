@@ -56,114 +56,113 @@ using IPA.Cores.Web;
 using IPA.Cores.Helper.Web;
 using static IPA.Cores.Globals.Web;
 
-namespace IPA.Cores.Web
+namespace IPA.Cores.Web;
+
+public static class EasyCookieAuth
 {
-    public static class EasyCookieAuth
+    public static readonly Copenhagen<string> LoginPath = "/EasyCookieAuth/";
+    public static readonly Copenhagen<string> CookieNameBase = "authcookie1";
+    public static readonly Copenhagen<CookieSecurePolicy> CookiePolicy = CookieSecurePolicy.SameAsRequest;
+    public static readonly Copenhagen<TimeSpan> CookieLifetime = TimeSpan.FromDays(365 * 2);
+
+    public static readonly Copenhagen<string> LoginFormMessage = "Please log in.";
+
+    public static Func<string, string, Task<bool>>? AuthenticationPasswordValidator = null;
+
+    public static void ConfigureServices(IServiceCollection services, bool allowHttp)
     {
-        public static readonly Copenhagen<string> LoginPath = "/EasyCookieAuth/";
-        public static readonly Copenhagen<string> CookieNameBase = "authcookie1";
-        public static readonly Copenhagen<CookieSecurePolicy> CookiePolicy = CookieSecurePolicy.SameAsRequest;
-        public static readonly Copenhagen<TimeSpan> CookieLifetime = TimeSpan.FromDays(365 * 2);
+        services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+            .AddCookie(opt =>
+            {
+                opt.Cookie.Name = CookieNameBase + (allowHttp ? "_http_ok" : "");
+                opt.ExpireTimeSpan = CookieLifetime.Value;
+                opt.Cookie.SecurePolicy = allowHttp ? CookieSecurePolicy.None : CookiePolicy.Value;
+                opt.LoginPath = LoginPath.Value;
+                opt.SlidingExpiration = true;
+            });
+    }
+}
 
-        public static readonly Copenhagen<string> LoginFormMessage = "Please log in.";
+public class EasyCookieAuthModel
+{
+    public string? Username { get; set; }
+    public string? Password { get; set; }
+    public string? ReturnUrl { get; set; }
 
-        public static Func<string, string, Task<bool>>? AuthenticationPasswordValidator = null;
+    public string? ErrorStr { get; set; }
+}
 
-        public static void ConfigureServices(IServiceCollection services, bool allowHttp)
-        {
-            services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-                .AddCookie(opt =>
-                {
-                    opt.Cookie.Name = CookieNameBase + (allowHttp ? "_http_ok" : "");
-                    opt.ExpireTimeSpan = CookieLifetime.Value;
-                    opt.Cookie.SecurePolicy = allowHttp ? CookieSecurePolicy.None : CookiePolicy.Value;
-                    opt.LoginPath = LoginPath.Value;
-                    opt.SlidingExpiration = true;
-                });
-        }
+[AspNetLibFeature(AspNetLibFeatures.EasyCookieAuth)]
+public class EasyCookieAuthController : Controller
+{
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult Index(string ReturnUrl)
+    {
+        return View(new EasyCookieAuthModel { ReturnUrl = ReturnUrl });
     }
 
-    public class EasyCookieAuthModel
+    [HttpPost]
+    [AllowAnonymous]
+    public async Task<IActionResult> Index(EasyCookieAuthModel model)
     {
-        public string? Username { get; set; }
-        public string? Password { get; set; }
-        public string? ReturnUrl { get; set; }
+        model.Username = model.Username._NonNullTrim();
+        model.Password = model.Password._NonNullTrim();
 
-        public string? ErrorStr { get; set; }
-    }
-
-    [AspNetLibFeature(AspNetLibFeatures.EasyCookieAuth)]
-    public class EasyCookieAuthController : Controller
-    {
-        [HttpGet]
-        [AllowAnonymous]
-        public IActionResult Index(string ReturnUrl)
+        if (model.Username._IsEmpty() || model.Password._IsEmpty())
         {
-            return View(new EasyCookieAuthModel { ReturnUrl = ReturnUrl });
+            model.ErrorStr = "ユーザー名とパスワードを入力してください。";
+            return View(model);
         }
 
-        [HttpPost]
-        [AllowAnonymous]
-        public async Task<IActionResult> Index(EasyCookieAuthModel model)
+        if (EasyCookieAuth.AuthenticationPasswordValidator == null || (await EasyCookieAuth.AuthenticationPasswordValidator(model.Username, model.Password)) == false)
         {
-            model.Username = model.Username._NonNullTrim();
-            model.Password = model.Password._NonNullTrim();
+            model.ErrorStr = "ユーザー名またはパスワードが間違っています。確認をして再度入力をしてください。";
+            Con.WriteError($"EasyCookieAuthController: Login failed. Username = {model.Username}");
+            return View(model);
+        }
 
-            if (model.Username._IsEmpty() || model.Password._IsEmpty())
-            {
-                model.ErrorStr = "ユーザー名とパスワードを入力してください。";
-                return View(model);
-            }
-
-            if (EasyCookieAuth.AuthenticationPasswordValidator == null || (await EasyCookieAuth.AuthenticationPasswordValidator(model.Username, model.Password)) == false)
-            {
-                model.ErrorStr = "ユーザー名またはパスワードが間違っています。確認をして再度入力をしてください。";
-                Con.WriteError($"EasyCookieAuthController: Login failed. Username = {model.Username}");
-                return View(model);
-            }
-
-            Claim[] claims = new[]
-            {
+        Claim[] claims = new[]
+        {
                 new Claim(ClaimTypes.Name, model.Username),
             };
 
-            ClaimsIdentity identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            ClaimsPrincipal principal = new ClaimsPrincipal(identity);
+        ClaimsIdentity identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        ClaimsPrincipal principal = new ClaimsPrincipal(identity);
 
-            AuthenticationProperties authProperties = new AuthenticationProperties
-            {
-                AllowRefresh = true,
-                ExpiresUtc = DateTimeOffset.UtcNow.Add(EasyCookieAuth.CookieLifetime),
-                IsPersistent = true,
-            };
-
-            await HttpContext.SignInAsync(principal, authProperties);
-
-            Con.WriteError($"EasyCookieAuthController: Logged in. Username = {model.Username}");
-
-            if (model.ReturnUrl._IsEmpty())
-            {
-                return Redirect("/");
-            }
-            else
-            {
-                return Redirect(model.ReturnUrl);
-            }
-        }
-
-        [AllowAnonymous]
-        public async Task<IActionResult> Logout(string ReturnUrl)
+        AuthenticationProperties authProperties = new AuthenticationProperties
         {
-            await HttpContext.SignOutAsync();
+            AllowRefresh = true,
+            ExpiresUtc = DateTimeOffset.UtcNow.Add(EasyCookieAuth.CookieLifetime),
+            IsPersistent = true,
+        };
 
-            if (ReturnUrl._IsFilled())
-            {
-                return Redirect(ReturnUrl);
-            }
-            else
-            {
-                return Redirect("/");
-            }
+        await HttpContext.SignInAsync(principal, authProperties);
+
+        Con.WriteError($"EasyCookieAuthController: Logged in. Username = {model.Username}");
+
+        if (model.ReturnUrl._IsEmpty())
+        {
+            return Redirect("/");
+        }
+        else
+        {
+            return Redirect(model.ReturnUrl);
+        }
+    }
+
+    [AllowAnonymous]
+    public async Task<IActionResult> Logout(string ReturnUrl)
+    {
+        await HttpContext.SignOutAsync();
+
+        if (ReturnUrl._IsFilled())
+        {
+            return Redirect(ReturnUrl);
+        }
+        else
+        {
+            return Redirect("/");
         }
     }
 }

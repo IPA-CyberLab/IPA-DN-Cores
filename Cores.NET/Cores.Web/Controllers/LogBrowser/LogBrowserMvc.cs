@@ -57,32 +57,31 @@ using IPA.Cores.Web;
 using IPA.Cores.Helper.Web;
 using static IPA.Cores.Globals.Web;
 
-namespace IPA.Cores.Web
+namespace IPA.Cores.Web;
+
+[Authorize]
+[AspNetLibFeature(AspNetLibFeatures.LogBrowser)]
+[Route(Consts.UrlPaths.LogBrowserMvcPath + "/{*path}")]
+public class LogBrowserController : Controller
 {
-    [Authorize]
-    [AspNetLibFeature(AspNetLibFeatures.LogBrowser)]
-    [Route(Consts.UrlPaths.LogBrowserMvcPath + "/{*path}")]
-    public class LogBrowserController : Controller
+    public async Task<IActionResult> Index([FromServices] LogBrowser logBrowser)
     {
-        public async Task<IActionResult> Index([FromServices] LogBrowser logBrowser)
+        string fullpath = Request._GetRequestPathAndQueryString();
+
+        if (fullpath._TryTrimStartWith(out string path, StringComparison.OrdinalIgnoreCase, Consts.UrlPaths.LogBrowserMvcPath) == false)
         {
-            string fullpath = Request._GetRequestPathAndQueryString();
+            return new ContentResult { Content = "Invalid URL", ContentType = "text/plain", StatusCode = 404 };
+        }
+        else
+        {
+            HttpResult result = await logBrowser.ProcessRequestAsync(HttpContext.Connection.RemoteIpAddress!._UnmapIPv4(),
+                HttpContext.Connection.RemotePort,
+                Request._GetRequestPathAndQueryString(),
+                Request,
+                Response,
+                this._GetRequestCancellationToken());
 
-            if (fullpath._TryTrimStartWith(out string path, StringComparison.OrdinalIgnoreCase, Consts.UrlPaths.LogBrowserMvcPath) == false)
-            {
-                return new ContentResult { Content = "Invalid URL", ContentType = "text/plain", StatusCode = 404 };
-            }
-            else
-            {
-                HttpResult result = await logBrowser.ProcessRequestAsync(HttpContext.Connection.RemoteIpAddress!._UnmapIPv4(),
-                    HttpContext.Connection.RemotePort,
-                    Request._GetRequestPathAndQueryString(),
-                    Request,
-                    Response,
-                    this._GetRequestCancellationToken());
-
-                return result.GetHttpActionResult();
-            }
+            return result.GetHttpActionResult();
         }
     }
 }

@@ -62,130 +62,129 @@ using IPA.Cores.Helper.Web;
 using static IPA.Cores.Globals.Web;
 using System.Reflection;
 
-namespace IPA.Cores.Web
+namespace IPA.Cores.Web;
+
+// AspNetLib の機能を識別する bit スイッチ。各 Controller クラスの [AspNetLibFeature] 属性としてメンバを記述すること
+[Flags]
+public enum AspNetLibFeatures : long
 {
-    // AspNetLib の機能を識別する bit スイッチ。各 Controller クラスの [AspNetLibFeature] 属性としてメンバを記述すること
-    [Flags]
-    public enum AspNetLibFeatures : long
+    None = 0,
+    Any = 1,
+    EasyCookieAuth = 2,
+    LogBrowser = 4,
+}
+
+// [AspNetLibFeature] 属性の実装
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
+public class AspNetLibFeatureAttribute : Attribute
+{
+    public AspNetLibFeatures FeatureSwitch { get; }
+
+    public AspNetLibFeatureAttribute(AspNetLibFeatures featureSwitch = AspNetLibFeatures.None)
     {
-        None = 0,
-        Any = 1,
-        EasyCookieAuth = 2,
-        LogBrowser = 4,
+        this.FeatureSwitch = featureSwitch;
+    }
+}
+
+// AspNetLib から必要なクラスだけを ASP.NET MVC に登録する処理の実装
+public class AspNetLibControllersProvider : IApplicationFeatureProvider<ControllerFeature>
+{
+    public AspNetLib Lib { get; }
+
+    public AspNetLibControllersProvider(AspNetLib lib)
+    {
+        this.Lib = lib;
     }
 
-    // [AspNetLibFeature] 属性の実装
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
-    public class AspNetLibFeatureAttribute : Attribute
+    public void PopulateFeature(IEnumerable<ApplicationPart> parts, ControllerFeature feature)
     {
-        public AspNetLibFeatures FeatureSwitch { get; }
+        Assembly asm = Lib.ThisAssembly;
 
-        public AspNetLibFeatureAttribute(AspNetLibFeatures featureSwitch = AspNetLibFeatures.None)
-        {
-            this.FeatureSwitch = featureSwitch;
-        }
+        // AspNetLib に含まれているすべてのクラスに関して、AspNetLibFeatureAttribute が付いているものでかつビットが一致するもののみを追加する
+        asm.GetTypes()
+            .Where(x => Lib.EnabledFeatures.Bit(x.GetCustomAttribute<AspNetLibFeatureAttribute>()?.FeatureSwitch ?? (AspNetLibFeatures)long.MaxValue))
+            ._DoForEach(x => feature.Controllers.Add(x.GetTypeInfo()));
+    }
+}
+
+public class AspNetLib : IDisposable
+{
+    public readonly Assembly ThisAssembly = typeof(AspNetLib).Assembly;
+
+    static readonly string LibSourceCodeSampleFileName = Dbg.GetCallerSourceCodeFilePath();
+    public static readonly string LibRootFullPath = Lfs.DetermineRootPathWithMarkerFile(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_CoresWeb)._NullCheck();
+
+    public AspNetLibFeatures EnabledFeatures { get; }
+
+    LogBrowser? LogBrowser = null;
+
+    public AspNetLib(IConfiguration configuration, AspNetLibFeatures features)
+    {
+        this.EnabledFeatures = features | AspNetLibFeatures.Any;
     }
 
-    // AspNetLib から必要なクラスだけを ASP.NET MVC に登録する処理の実装
-    public class AspNetLibControllersProvider : IApplicationFeatureProvider<ControllerFeature>
+    public readonly ResourceFileSystem AspNetResFs = ResourceFileSystem.CreateOrGet(
+        new AssemblyWithSourceInfo(typeof(AspNetLib), new SourceCodePathAndMarkerFileName(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_CoresWeb)));
+
+    public void ConfigureServices(HttpServerStartupHelper helper, IServiceCollection services)
     {
-        public AspNetLib Lib { get; }
-
-        public AspNetLibControllersProvider(AspNetLib lib)
-        {
-            this.Lib = lib;
-        }
-
-        public void PopulateFeature(IEnumerable<ApplicationPart> parts, ControllerFeature feature)
-        {
-            Assembly asm = Lib.ThisAssembly;
-
-            // AspNetLib に含まれているすべてのクラスに関して、AspNetLibFeatureAttribute が付いているものでかつビットが一致するもののみを追加する
-            asm.GetTypes()
-                .Where(x => Lib.EnabledFeatures.Bit(x.GetCustomAttribute<AspNetLibFeatureAttribute>()?.FeatureSwitch ?? (AspNetLibFeatures)long.MaxValue))
-                ._DoForEach(x => feature.Controllers.Add(x.GetTypeInfo()));
-        }
     }
 
-    public class AspNetLib : IDisposable
+    public void SetupLogBrowser(IServiceCollection services, LogBrowserOptions options)
     {
-        public readonly Assembly ThisAssembly = typeof(AspNetLib).Assembly;
+        if (this.EnabledFeatures.Bit(AspNetLibFeatures.LogBrowser) == false)
+            throw new ApplicationException(nameof(AspNetLibFeatures.LogBrowser) + " is not enabled.");
 
-        static readonly string LibSourceCodeSampleFileName = Dbg.GetCallerSourceCodeFilePath();
-        public static readonly string LibRootFullPath = Lfs.DetermineRootPathWithMarkerFile(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_CoresWeb)._NullCheck();
+        if (LogBrowser != null) throw new ApplicationException("SetupLogBrowser is already called.");
 
-        public AspNetLibFeatures EnabledFeatures { get; }
+        LogBrowser = new LogBrowser(options, Consts.UrlPaths.LogBrowserMvcPath);
 
-        LogBrowser? LogBrowser = null;
+        services.AddSingleton(this.LogBrowser);
+    }
 
-        public AspNetLib(IConfiguration configuration, AspNetLibFeatures features)
+    public void Configure(HttpServerStartupHelper helper, IApplicationBuilder app, IWebHostEnvironment env)
+    {
+        // Embedded resource of the assembly
+        helper.AddStaticFileProvider(AspNetResFs.CreateEmbeddedAndPhysicalFileProviders("/"));
+    }
+
+    public IMvcBuilder ConfigureAspNetLibMvc(IMvcBuilder mvc)
+    {
+        // MVC の設定
+        mvc = mvc.AddViewOptions(opt => opt.HtmlHelperOptions.ClientValidationEnabled = false);
+
+        if (GlobalDaemonStateManager.EnableAspNetEnableRazorRuntimeCompilation)
         {
-            this.EnabledFeatures = features | AspNetLibFeatures.Any;
-        }
-
-        public readonly ResourceFileSystem AspNetResFs = ResourceFileSystem.CreateOrGet(
-            new AssemblyWithSourceInfo(typeof(AspNetLib), new SourceCodePathAndMarkerFileName(LibSourceCodeSampleFileName, Consts.FileNames.RootMarker_Library_CoresWeb)));
-
-        public void ConfigureServices(HttpServerStartupHelper helper, IServiceCollection services)
-        {
-        }
-
-        public void SetupLogBrowser(IServiceCollection services, LogBrowserOptions options)
-        {
-            if (this.EnabledFeatures.Bit(AspNetLibFeatures.LogBrowser) == false)
-                throw new ApplicationException(nameof(AspNetLibFeatures.LogBrowser) + " is not enabled.");
-
-            if (LogBrowser != null) throw new ApplicationException("SetupLogBrowser is already called.");
-
-            LogBrowser = new LogBrowser(options, Consts.UrlPaths.LogBrowserMvcPath);
-
-            services.AddSingleton(this.LogBrowser);
-        }
-
-        public void Configure(HttpServerStartupHelper helper, IApplicationBuilder app, IWebHostEnvironment env)
-        {
-            // Embedded resource of the assembly
-            helper.AddStaticFileProvider(AspNetResFs.CreateEmbeddedAndPhysicalFileProviders("/"));
-        }
-
-        public IMvcBuilder ConfigureAspNetLibMvc(IMvcBuilder mvc)
-        {
-            // MVC の設定
-            mvc = mvc.AddViewOptions(opt => opt.HtmlHelperOptions.ClientValidationEnabled = false);
-
-            if (GlobalDaemonStateManager.EnableAspNetEnableRazorRuntimeCompilation)
+            // Razor 再コンパイルを有効化
+            mvc = mvc.AddRazorRuntimeCompilation(opt =>
             {
-                // Razor 再コンパイルを有効化
-                mvc = mvc.AddRazorRuntimeCompilation(opt =>
-                {
                     //以下を追加すると重くなるので追加しないようにした。その代わり Cores.Web の View をいじる場合は再コンパイルが必要
                     //if (AspNetLib.LibRootFullPath._IsFilled())
                     //    opt.FileProviders.Add(new PhysicalFileProvider(AspNetLib.LibRootFullPath));
                 });
-            }
-
-            // この AspNetLib アセンブリのすべてのコントローラをデフォルト読み込み対象から除外する
-            mvc = mvc.ConfigureApplicationPartManager(apm =>
-            {
-                List<ApplicationPart> removesList = new List<ApplicationPart>();
-
-                apm.ApplicationParts.OfType<AssemblyPart>().Where(x => x.Assembly.Equals(ThisAssembly))._DoForEach(x => removesList.Add(x));
-
-                removesList.ForEach(x => apm.ApplicationParts.Remove(x));
-
-                apm.FeatureProviders.Add(new AspNetLibControllersProvider(this));
-            });
-
-            return mvc;
         }
 
-        public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
-        Once DisposeFlag;
-        protected virtual void Dispose(bool disposing)
+        // この AspNetLib アセンブリのすべてのコントローラをデフォルト読み込み対象から除外する
+        mvc = mvc.ConfigureApplicationPartManager(apm =>
         {
-            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            List<ApplicationPart> removesList = new List<ApplicationPart>();
 
-            LogBrowser._DisposeSafe();
-        }
+            apm.ApplicationParts.OfType<AssemblyPart>().Where(x => x.Assembly.Equals(ThisAssembly))._DoForEach(x => removesList.Add(x));
+
+            removesList.ForEach(x => apm.ApplicationParts.Remove(x));
+
+            apm.FeatureProviders.Add(new AspNetLibControllersProvider(this));
+        });
+
+        return mvc;
+    }
+
+    public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+    Once DisposeFlag;
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+        LogBrowser._DisposeSafe();
     }
 }

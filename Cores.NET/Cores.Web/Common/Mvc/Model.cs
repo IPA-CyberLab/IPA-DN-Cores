@@ -52,179 +52,178 @@ using static IPA.Cores.Globals.Web;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Razor;
 
-namespace IPA.Cores.Web
+namespace IPA.Cores.Web;
+
+// ASP.NET Core のテンプレートの「ErrorViewModel.cs」からもらってきた。
+// 共通クラスにするのである。
+public class AspNetErrorModel
 {
-    // ASP.NET Core のテンプレートの「ErrorViewModel.cs」からもらってきた。
-    // 共通クラスにするのである。
-    public class AspNetErrorModel
+    public string RequestId { get; set; } = "";
+
+    public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+
+    public Exception ErrorInfo { get; set; } = null!;
+
+    public string ErrorPath { get; set; } = "Unknown";
+
+    public string WebServerName { get; set; } = "Unknown";
+
+    public string WebClientName { get; set; } = "Unknown";
+
+    public AspNetErrorModel() { }
+
+    public AspNetErrorModel(Controller controller)
     {
-        public string RequestId { get; set; } = "";
+        RequestId = controller.HttpContext.TraceIdentifier;
+        ErrorInfo = controller._GetLastError();
+        ErrorPath = controller._GetLastErrorPath();
+        WebServerName = controller.Request.Host.ToString();
+        WebClientName = controller.HttpContext.Connection.RemoteIpAddress!.MapToIPv4().ToString();
+    }
+}
 
-        public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+[Flags]
+public enum ModelMode
+{
+    Unknown = 0,
+    Add,
+    Edit,
+    Delete,
+}
 
-        public Exception ErrorInfo { get; set; } = null!;
+public class DualData<TData1, TData2> : SingleData<TData1>
+    where TData1 : new()
+    where TData2 : new()
+{
+    public TData2 Data2 { get; set; }
+    public string? Id2 { get; set; }
 
-        public string ErrorPath { get; set; } = "Unknown";
+    public DualData() : base()
+    {
+        this.Data2 = new TData2();
+    }
 
-        public string WebServerName { get; set; } = "Unknown";
-
-        public string WebClientName { get; set; } = "Unknown";
-
-        public AspNetErrorModel() { }
-
-        public AspNetErrorModel(Controller controller)
+    public DualData(string id1, TData1 data1, string? id2, TData2 data2, ModelMode mode) : base(id1, data1, mode)
+    {
+        if (mode != ModelMode.Add)
         {
-            RequestId = controller.HttpContext.TraceIdentifier;
-            ErrorInfo = controller._GetLastError();
-            ErrorPath = controller._GetLastErrorPath();
-            WebServerName = controller.Request.Host.ToString();
-            WebClientName = controller.HttpContext.Connection.RemoteIpAddress!.MapToIPv4().ToString();
+            if (id2._IsEmpty())
+            {
+                throw new ArgumentNullException(nameof(id2));
+            }
+
+            id2 = id2._NonNullTrim();
+        }
+        else
+        {
+            if (id2._IsFilled())
+            {
+                throw new ArgumentOutOfRangeException($"{nameof(id2)} is specified.");
+            }
+            id2 = null;
+        }
+
+        this.Id2 = id2;
+        this.Data2 = data2;
+
+        NormalizeImpl();
+    }
+
+    protected override void NormalizeImpl()
+    {
+        base.NormalizeImpl();
+        if (this.Data2 is INormalizable normalize) normalize.Normalize();
+    }
+}
+
+public class SingleData<TData> where TData : new()
+{
+    public TData Data { get; set; }
+    public string? Id { get; set; }
+    public ModelMode Mode { get; set; }
+
+    public SingleData()
+    {
+        this.Data = new TData();
+        this.Id = null;
+        this.Mode = ModelMode.Unknown;
+
+        NormalizeImpl();
+    }
+
+    public SingleData(string? id, TData data, ModelMode mode)
+    {
+        if (mode != ModelMode.Add)
+        {
+            if (id._IsEmpty())
+            {
+                throw new ArgumentNullException(nameof(id));
+            }
+
+            id = id._NonNullTrim();
+        }
+        else
+        {
+            if ((IsFilled)id)
+            {
+                throw new ArgumentOutOfRangeException($"{nameof(id)} is specified.");
+            }
+            id = null;
+        }
+
+        this.Id = id;
+        this.Data = data;
+        this.Mode = mode;
+
+        NormalizeImpl();
+
+        //            if (this.Data is IErrorCheckable check) check.CheckError();
+    }
+
+    // データの正規化
+    protected virtual void NormalizeImpl()
+    {
+        if (this.Data is INormalizable normalize) normalize.Normalize();
+    }
+
+    // 操作を分かりやすく示すタイトル文字列の生成
+    public virtual string GetOperationTitle()
+    {
+        switch (Mode)
+        {
+            case ModelMode.Add:
+                return "追加";
+
+            case ModelMode.Edit:
+                if ((this.Data?.ToString())._IsFilled())
+                    return $"「{this.Data.ToString()}」の編集";
+                else
+                    return $"編集";
+
+            case ModelMode.Delete:
+                return $"「{this.Data?.ToString()}」の削除";
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(Mode));
         }
     }
 
-    [Flags]
-    public enum ModelMode
+    // ボタン名の生成
+    public virtual string GetButtonTitle()
     {
-        Unknown = 0,
-        Add,
-        Edit,
-        Delete,
-    }
-
-    public class DualData<TData1, TData2> : SingleData<TData1>
-        where TData1 : new()
-        where TData2 : new()
-    {
-        public TData2 Data2 { get; set; }
-        public string? Id2 { get; set; }
-
-        public DualData() : base()
+        switch (Mode)
         {
-            this.Data2 = new TData2();
-        }
+            case ModelMode.Add:
+                return "追加";
 
-        public DualData(string id1, TData1 data1, string? id2, TData2 data2, ModelMode mode) : base(id1, data1, mode)
-        {
-            if (mode != ModelMode.Add)
-            {
-                if (id2._IsEmpty())
-                {
-                    throw new ArgumentNullException(nameof(id2));
-                }
+            case ModelMode.Edit:
+                return "保存";
 
-                id2 = id2._NonNullTrim();
-            }
-            else
-            {
-                if (id2._IsFilled())
-                {
-                    throw new ArgumentOutOfRangeException($"{nameof(id2)} is specified.");
-                }
-                id2 = null;
-            }
+            case ModelMode.Delete:
+                return "削除";
 
-            this.Id2 = id2;
-            this.Data2 = data2;
-
-            NormalizeImpl();
-        }
-
-        protected override void NormalizeImpl()
-        {
-            base.NormalizeImpl();
-            if (this.Data2 is INormalizable normalize) normalize.Normalize();
-        }
-    }
-
-    public class SingleData<TData> where TData : new()
-    {
-        public TData Data { get; set; }
-        public string? Id { get; set; }
-        public ModelMode Mode { get; set; }
-
-        public SingleData()
-        {
-            this.Data = new TData();
-            this.Id = null;
-            this.Mode = ModelMode.Unknown;
-
-            NormalizeImpl();
-        }
-
-        public SingleData(string? id, TData data, ModelMode mode)
-        {
-            if (mode != ModelMode.Add)
-            {
-                if (id._IsEmpty())
-                {
-                    throw new ArgumentNullException(nameof(id));
-                }
-
-                id = id._NonNullTrim();
-            }
-            else
-            {
-                if ((IsFilled)id)
-                {
-                    throw new ArgumentOutOfRangeException($"{nameof(id)} is specified.");
-                }
-                id = null;
-            }
-
-            this.Id = id;
-            this.Data = data;
-            this.Mode = mode;
-
-            NormalizeImpl();
-
-            //            if (this.Data is IErrorCheckable check) check.CheckError();
-        }
-
-        // データの正規化
-        protected virtual void NormalizeImpl()
-        {
-            if (this.Data is INormalizable normalize) normalize.Normalize();
-        }
-
-        // 操作を分かりやすく示すタイトル文字列の生成
-        public virtual string GetOperationTitle()
-        {
-            switch (Mode)
-            {
-                case ModelMode.Add:
-                    return "追加";
-
-                case ModelMode.Edit:
-                    if ((this.Data?.ToString())._IsFilled())
-                        return $"「{this.Data.ToString()}」の編集";
-                    else
-                        return $"編集";
-
-                case ModelMode.Delete:
-                    return $"「{this.Data?.ToString()}」の削除";
-
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(Mode));
-            }
-        }
-
-        // ボタン名の生成
-        public virtual string GetButtonTitle()
-        {
-            switch (Mode)
-            {
-                case ModelMode.Add:
-                    return "追加";
-
-                case ModelMode.Edit:
-                    return "保存";
-
-                case ModelMode.Delete:
-                    return "削除";
-
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(Mode));
-            }
+            default:
+                throw new ArgumentOutOfRangeException(nameof(Mode));
         }
     }
 }
