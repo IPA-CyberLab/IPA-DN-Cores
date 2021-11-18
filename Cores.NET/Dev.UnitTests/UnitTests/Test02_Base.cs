@@ -209,7 +209,7 @@ public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
 
                 event5.Wait();
 
-                var si = SingleInstance.TryGet("si_test");
+                var si = SingleInstance.TryGet("si_test2");
                 if (si != null)
                 {
                     fail.Set(true);
@@ -231,7 +231,7 @@ public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
 
                 event2.Wait();
 
-                var si = SingleInstance.TryGet("si_test");
+                var si = SingleInstance.TryGet("si_test3");
                 if (si != null)
                 {
                     fail.Set(true);
@@ -241,7 +241,7 @@ public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
 
                 event4.Wait();
 
-                si = SingleInstance.TryGet("si_test");
+                si = SingleInstance.TryGet("si_test4");
                 if (si == null)
                 {
                     fail.Set(true);
@@ -283,7 +283,7 @@ public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
             {
                 startEvent.Wait();
 
-                //using (k.Lock())
+                using (k.Lock())
                 {
                     event2.Set();
 
@@ -307,7 +307,7 @@ public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
 
                 event2.Wait();
 
-                //using (k.Lock())
+                using (k.Lock())
                 {
                     event3.Set();
                 }
