@@ -64,6 +64,7 @@ using System.Net.Sockets;
 using Newtonsoft.Json;
 using System.Data;
 using System.Reflection;
+using System.Security.Authentication;
 
 namespace IPA.Cores.Basic;
 
@@ -74,11 +75,38 @@ public class LtsOpenSslTool
 
     public const string VersionYymmdd = "211117";
 
-    public const string ExeNames = @"
-lts_openssl_exesuite_0.9.8zh
-lts_openssl_exesuite_1.0.2u
-lts_openssl_exesuite_1.1.1l
-lts_openssl_exesuite_3.0.0
+    public const int CommandTimeoutMsecs = 5 * 1000;
+
+    public const string Def_OpenSslExeNamesAndSslVers = @"
+lts_openssl_exesuite_0.9.8zh                ssl3 tls1 tls1_1
+lts_openssl_exesuite_1.0.2u                 ssl3 tls1 tls1_1 tls1_2
+lts_openssl_exesuite_1.1.1l                 ssl3 tls1 tls1_1 tls1_2
+lts_openssl_exesuite_3.0.0                  ssl3 tls1 tls1_1 tls1_2 tls1_3
+";
+
+    public const string Def_Ciphers = @"
+RC4-SHA                                     ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+DES-CBC3-SHA                                ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+AES128-SHA                                  ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+AES256-SHA                                  ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+DHE-RSA-AES128-SHA                          ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+DHE-RSA-AES256-SHA                          ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+AES128-GCM-SHA256                           tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+AES256-GCM-SHA384                           tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+AES256-SHA256                               tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+DHE-RSA-AES128-GCM-SHA256                   tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+DHE-RSA-AES128-SHA256                       tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+DHE-RSA-AES256-GCM-SHA384                   tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+DHE-RSA-AES256-SHA256                       tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+ECDHE-RSA-AES128-GCM-SHA256                 tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+ECDHE-RSA-AES128-SHA256                     tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+ECDHE-RSA-AES256-GCM-SHA384                 tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+ECDHE-RSA-AES256-SHA384                     tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+DHE-RSA-CHACHA20-POLY1305                   tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+ECDHE-RSA-CHACHA20-POLY1305                 tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+TLS_CHACHA20_POLY1305_SHA256                tls1_3                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+TLS_AES_256_GCM_SHA384                      tls1_3                      lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+TLS_AES_128_GCM_SHA256                      tls1_3                      lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
 ";
 
     public enum Arch
@@ -88,26 +116,69 @@ lts_openssl_exesuite_3.0.0
         windows_x64,
     }
 
-    public record Version(string ExeName, Arch Arch);
+    public record Version(string ExeName, Arch Arch, IReadOnlySet<string> sslVersions);
+    public record Cipher(string name, IReadOnlySet<string> sslVersions, IReadOnlySet<string> exeNames);
 
     public static readonly IReadOnlyList<Version> VersionList = new List<Version>();
 
     static LtsOpenSslTool()
     {
-        List<Version> tmp = new();
+        List<Version> verList = new();
+        List<Cipher> cipherList = new();
 
-        var tokens = ExeNames._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, '\r', '\n', ' ', '\t', '　');
+        string[] lines = Def_OpenSslExeNamesAndSslVers._GetLines(true, true);
         var archList = Arch.linux_arm64.GetEnumValuesList();
 
         foreach (var arch in archList)
         {
-            foreach (var exe in tokens)
+            foreach (var line in lines)
             {
-                tmp.Add(new Version(exe, arch));
+                string[] tokens = line._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, " ", "\t", "　");
+                if (tokens.Length >= 2)
+                {
+                    HashSet<string> sslVerList = new HashSet<string>(StrComparer.IgnoreCaseComparer);
+                    for (int i = 1; i < tokens.Length; i++)
+                    {
+                        sslVerList.Add(tokens[i]);
+                    }
+
+                    verList.Add(new Version(tokens[0], arch, sslVerList));
+                }
             }
         }
 
-        VersionList = tmp;
+        lines = Def_Ciphers._GetLines(true, true);
+
+        foreach (var line in lines)
+        {
+            string[] tokens = line._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, " ", "\t", "　");
+            if (tokens.Length >= 3)
+            {
+                HashSet<string> sslVerList = new HashSet<string>(StrComparer.IgnoreCaseComparer);
+                HashSet<string> exeNamesList = new HashSet<string>(StrComparer.IgnoreCaseComparer);
+
+                for (int i = 1; i < tokens.Length; i++)
+                {
+                    string a = tokens[i];
+                    if (a._StartsWithMulti(StringComparison.OrdinalIgnoreCase, "ssl", "tls"))
+                    {
+                        sslVerList.Add(a);
+                    }
+                    else if (a.StartsWith("lts_", StringComparison.OrdinalIgnoreCase))
+                    {
+                        exeNamesList.Add(a);
+                    }
+                    else
+                    {
+                        throw new CoresLibException();
+                    }
+
+                    cipherList.Add(new Cipher(tokens[0], sslVerList, exeNamesList));
+                }
+            }
+        }
+
+        VersionList = verList;
     }
 
     public static Arch GetCurrentArchiecture()
@@ -129,8 +200,107 @@ lts_openssl_exesuite_3.0.0
         return VersionList.Where(x => x.Arch == arch).OrderBy(x => x.ExeName, StrComparer.IgnoreCaseTrimComparer);
     }
 
+    // OpenSSL での SSL 接続テストの実行
+    public static async Task ExecOpenSslClientConnectTest(Version ver, string host, int port, string protoVerStr, string? cipher = null, CancellationToken cancel = default)
+    {
+        string args = $"s_client -connect {host}:{port} -{protoVerStr}";
+        if (cipher._IsFilled())
+        {
+            if (protoVerStr._IsSamei("tls1_3"))
+            {
+                args += $" -ciphersuites {cipher}";
+            }
+            else
+            {
+                args += $" -cipher {cipher}";
+            }
+        }
+
+        bool ok = false;
+        string error = "";
+
+        try
+        {
+            var res = await ExecOpenSslCommandAsync(ver, args,
+                async line =>
+                {
+                    // OpenSSL コマンドが出力する標準出力またはエラー文字列をもとに状態を判断する
+                    string tmp = line._NonNullTrim();
+
+                    if (tmp._TryTrimStartWith(out string tmp2, StringComparison.OrdinalIgnoreCase, "Session-ID:"))
+                    {
+                        tmp2 = tmp2._NonNullTrim();
+                        byte[] sessionKey = tmp2._GetHexBytes();
+                        if (sessionKey._IsZero() == false && sessionKey.Length >= 16)
+                        {
+                            // OK
+                            ok = true;
+
+                            // もうプロセスは終了してよい
+                            return false;
+                        }
+                    }
+
+                    var tokens = tmp._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ":");
+                    if (tokens.ElementAtOrDefault(1)._NonNull().StartsWith("error", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // RC4-MD5 で発生するような SSL エラーが発生している。
+                        // その後 Session-ID: が一見正常に届くように見えるが、このエラーが発生している時点で
+                        // 通信はうまくできないのである。
+                        ok = false;
+
+                        error = tmp;
+                        return false;
+                    }
+
+                    await Task.CompletedTask;
+
+                    return true;
+                },
+                cancel);
+        }
+        catch (Exception ex)
+        {
+            if (ok == false)
+            {
+                if (error._IsEmpty())
+                {
+                    error = ex.Message;
+                }
+            }
+        }
+
+        if (ok == false)
+        {
+            if (error._IsEmpty())
+            {
+                error = "Unknown error";
+            }
+        }
+
+        if (error._IsFilled())
+        {
+            throw new CoresException(error);
+        }
+    }
+
     // OpenSSL コマンドの実行
-    public static async Task ExecOpenSslCommandAsync(Version ver, string cmd, CancellationToken cancel = default)
+    public static async Task<EasyExecResult> ExecOpenSslCommandAsync(Version ver, string args,
+            Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null, CancellationToken cancel = default)
+    {
+        var exePath = await PrepareOpenSslExeAsync(ver, cancel);
+
+        return await EasyExec.ExecAsync(exePath, args, PP.GetDirectoryName(exePath),
+            ExecFlags.EasyInputOutputMode /*| ExecFlags.EasyPrintRealtimeStdErr | ExecFlags.EasyPrintRealtimeStdOut*/ | ExecFlags.KillProcessGroup,
+            10_000_000,
+            cancel: cancel,
+            printTag: ver.ExeName,
+            timeout: CommandTimeoutMsecs,
+            easyOneLineRecvCallbackAsync: easyOneLineRecvCallbackAsync);
+    }
+
+    // OpenSSL コマンドの実行
+    public static async Task<string> PrepareOpenSslExeAsync(Version ver, CancellationToken cancel = default)
     {
         // URL を生成する
         string exeName = ver.ExeName;
@@ -138,7 +308,7 @@ lts_openssl_exesuite_3.0.0
         string url = BaseUrl._CombineUrlDir(VersionYymmdd)._CombineUrlDir("lts_openssl_exesuite")._CombineUrlDir(ver.Arch.ToString())._CombineUrl(exeName).ToString();
 
         // 一時ディレクトリ名を生成する
-        string tmpDirPath = PP.Combine(Env.AppLocalDir, "tmp", "lts_openssl_cache", VersionYymmdd);
+        string tmpDirPath = PP.Combine(Env.AppLocalDir, "Temp", "lts_openssl_cache", VersionYymmdd);
         string tmpExePath = PP.Combine(tmpDirPath, exeName);
 
         string lockName = tmpDirPath.ToLower() + "_lock_" + ver._ObjectToJson()._HashSHA1()._GetHexString();
@@ -186,6 +356,8 @@ lts_openssl_exesuite_3.0.0
                 tmpExePath._Print();
             }
         }
+
+        return tmpExePath;
     }
 }
 

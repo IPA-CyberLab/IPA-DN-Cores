@@ -234,7 +234,8 @@ namespace IPA.Cores.Basic
             ExecFlags flags = ExecFlags.Default | ExecFlags.EasyInputOutputMode,
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, int? timeout = null,
             CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true,
-            string printTag = "")
+            string printTag = "",
+            Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null)
         {
             if (timeout <= 0) timeout = Timeout.Infinite;
 
@@ -242,7 +243,7 @@ namespace IPA.Cores.Basic
             args.Add("-c");
             args.Add(command);
 
-            ExecOptions opt = new ExecOptions(Lfs.UnixGetFullPathFromCommandName(Consts.LinuxCommands.Bash), args, currentDirectory, flags, easyOutputMaxSize, easyInputStr, printTag);
+            ExecOptions opt = new ExecOptions(Lfs.UnixGetFullPathFromCommandName(Consts.LinuxCommands.Bash), args, currentDirectory, flags, easyOutputMaxSize, easyInputStr, printTag, easyOneLineRecvCallbackAsync);
 
             if (debug)
             {
@@ -288,11 +289,12 @@ namespace IPA.Cores.Basic
         public static async Task<EasyExecResult> ExecAsync(string cmdName, string? arguments = null, string? currentDirectory = null,
             ExecFlags flags = ExecFlags.Default | ExecFlags.EasyInputOutputMode,
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, int? timeout = null,
-            CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true, string printTag = "")
+            CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true, string printTag = "",
+            Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null)
         {
             if (timeout <= 0) timeout = Timeout.Infinite;
 
-            ExecOptions opt = new ExecOptions(cmdName, arguments, currentDirectory, flags, easyOutputMaxSize, easyInputStr, printTag);
+            ExecOptions opt = new ExecOptions(cmdName, arguments, currentDirectory, flags, easyOutputMaxSize, easyInputStr, printTag, easyOneLineRecvCallbackAsync);
 
             if (debug)
             {
@@ -451,9 +453,11 @@ namespace IPA.Cores.Basic
         public int EasyOutputMaxSize { get; }
         public string? EasyInputStr { get; }
         public string PrintTag { get; }
+        public Func<string, Task<bool>>? EasyOneLineRecvCallbackAsync { get; }
 
         public ExecOptions(string commandName, string? arguments = null, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default,
-            int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, string printTag = "")
+            int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, string printTag = "",
+            Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null)
         {
             this.CommandName = commandName._NullCheck();
             if (Env.IsUnix == false || flags.Bit(ExecFlags.UnixAutoFullPath) == false)
@@ -479,10 +483,12 @@ namespace IPA.Cores.Basic
             this.EasyOutputMaxSize = easyOutputMaxSize._Max(1);
             this.EasyInputStr = easyInputStr._NullIfZeroLen();
             this.PrintTag = printTag;
+            this.EasyOneLineRecvCallbackAsync = easyOneLineRecvCallbackAsync;
         }
 
         public ExecOptions(string commandName, IEnumerable<string> argumentsList, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default,
-            int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, string printTag = "")
+            int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, string printTag = "",
+            Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null)
         {
             this.CommandName = commandName._NullCheck();
             if (Env.IsUnix == false || flags.Bit(ExecFlags.UnixAutoFullPath) == false)
@@ -508,6 +514,7 @@ namespace IPA.Cores.Basic
             this.EasyOutputMaxSize = easyOutputMaxSize._Max(1);
             this.EasyInputStr = easyInputStr._NullIfZeroLen();
             this.PrintTag = printTag;
+            this.EasyOneLineRecvCallbackAsync = easyOneLineRecvCallbackAsync;
         }
     }
 
@@ -700,7 +707,7 @@ namespace IPA.Cores.Basic
                     this.EasyErrorStub = this._ErrorPipePoint.GetNetAppProtocolStub(noCheckDisconnected: true);
                     this.EasyErrorStream = this.EasyErrorStub.GetStream();
 
-                    if (options.EasyInputStr != null)
+                    if (options.EasyInputStr != null && options.EasyInputStr.Length >= 1)
                     {
                         // 標準入力の注入タスク
                         this.EasyInputTask = this.EasyInputOutputStream.SendAsync(this.Options.EasyInputStr!._GetBytes(this.InputEncoding), this.GrandCancel)._LeakCheck();
@@ -726,32 +733,47 @@ namespace IPA.Cores.Basic
 
         PipeStreamPairWithSubTask? EasyRealTimeStdOut = null;
         PipeStreamPairWithSubTask? EasyRealTimeStdErr = null;
+        PipeStreamPairWithSubTask? EasyOneLineRecv = null;
 
         // リアルタイムでデータが届いたときに呼ばれるコールバック関数
         Task EasyPrintRealTimeRecvDataCallbackAsync(ReadOnlyMemory<byte> data, bool stderr, CancellationToken cancel)
         {
-            PipeStreamPairWithSubTask? pair = null;
+            PipeStreamPairWithSubTask? pairForPrint = null;
+            PipeStreamPairWithSubTask? pairForOneLineRecv = null;
 
             if (stderr == false)
             {
                 if (this.Options.Flags.Bit(ExecFlags.EasyPrintRealtimeStdOut))
                 {
-                    pair = (this.EasyRealTimeStdErr ??= new PipeStreamPairWithSubTask(EasyPrintRealTimeRecvDataPrintCallbackAsync));
+                    pairForPrint = (this.EasyRealTimeStdErr ??= new PipeStreamPairWithSubTask(EasyPrintRealTimeRecvDataPrintCallbackAsync));
                 }
             }
             else
             {
                 if (this.Options.Flags.Bit(ExecFlags.EasyPrintRealtimeStdErr))
                 {
-                    pair = (this.EasyRealTimeStdOut ??= new PipeStreamPairWithSubTask(EasyPrintRealTimeRecvDataPrintCallbackAsync));
+                    pairForPrint = (this.EasyRealTimeStdOut ??= new PipeStreamPairWithSubTask(EasyPrintRealTimeRecvDataPrintCallbackAsync));
                 }
             }
 
-            if (pair != null)
+            if (this.Options.EasyOneLineRecvCallbackAsync != null)
             {
-                if (pair.StreamA.IsReadyToSend())
+                pairForOneLineRecv = (this.EasyOneLineRecv ??= new PipeStreamPairWithSubTask(EasyPrintRealTimeRecvDataOneLineRecvCallbackAsync));
+            }
+
+            if (pairForPrint != null)
+            {
+                if (pairForPrint.StreamA.IsReadyToSend())
                 {
-                    pair.StreamA.FastSendNonBlock(data._CloneMemory(), true);
+                    pairForPrint.StreamA.FastSendNonBlock(data._CloneMemory(), true);
+                }
+            }
+
+            if (pairForOneLineRecv != null)
+            {
+                if (pairForOneLineRecv.StreamA.IsReadyToSend())
+                {
+                    pairForOneLineRecv.StreamA.FastSendNonBlock(data._CloneMemory(), true);
                 }
             }
 
@@ -777,7 +799,9 @@ namespace IPA.Cores.Basic
                     string tagStr = "";
                     if (this.Options.PrintTag._IsFilled()) tagStr = $"{this.Options.PrintTag}: ";
 
-                    string str = tagStr + line.Item1._GetString(this.OutputEncoding);
+                    string lineDecoded = line.Item1._GetString(this.OutputEncoding);
+
+                    string str = tagStr + lineDecoded;
 
                     if (line.Item2 == false)
                     {
@@ -787,6 +811,57 @@ namespace IPA.Cores.Basic
                     using (await WriteLineLocker.LockWithAwait())
                     {
                         Con.WriteLine(str);
+                    }
+                }
+            }
+        }
+
+        async Task EasyPrintRealTimeRecvDataOneLineRecvCallbackAsync(PipeStream st)
+        {
+            bool processKilledOnce = false;
+
+            var r = new BinaryLineReader(st);
+            while (true)
+            {
+                List<Tuple<Memory<byte>, bool>>? lines = await r.ReadLinesWithTimeoutAsync(1000);
+
+                if (lines == null)
+                {
+                    break;
+                }
+
+                foreach (var line in lines)
+                {
+                    string lineDecoded = line.Item1._GetString(this.OutputEncoding);
+
+                    if (this.Options.EasyOneLineRecvCallbackAsync != null)
+                    {
+                        bool killProcessNow = false;
+                        try
+                        {
+                            bool ret = await this.Options.EasyOneLineRecvCallbackAsync(lineDecoded);
+                            if (ret == false) killProcessNow = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Debug();
+                            killProcessNow = true;
+                        }
+
+                        if (killProcessNow)
+                        {
+                            if (processKilledOnce == false)
+                            {
+                                processKilledOnce = true;
+
+                                TaskUtil.StartAsyncTaskAsync(async () =>
+                                {
+                                    await Task.Yield();
+                                    KillProcessInternal();
+                                    await Task.CompletedTask;
+                                })._LaissezFaire(true);
+                            }
+                        }
                     }
                 }
             }
@@ -864,28 +939,33 @@ namespace IPA.Cores.Basic
         public int WaitForExit(int timeout = Timeout.Infinite, CancellationToken cancel = default)
             => WaitForExitAsync(timeout, cancel)._GetResult();
 
+        void KillProcessInternal()
+        {
+            if (Proc != null)
+            {
+                if (Proc.HasExited == false)
+                {
+                    try
+                    {
+#if !NETSTANDARD
+                        Proc.Kill(Options.Flags.Bit(ExecFlags.KillProcessGroup));
+#else
+                            Proc.Kill();
+#endif
+                        _TimeoutedFlag = true;
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+        }
+
         protected override async Task CancelImplAsync(Exception? ex)
         {
             try
             {
-                if (Proc != null)
-                {
-                    if (Proc.HasExited == false)
-                    {
-                        try
-                        {
-#if !NETSTANDARD
-                            Proc.Kill(Options.Flags.Bit(ExecFlags.KillProcessGroup));
-#else
-                            Proc.Kill();
-#endif
-                            _TimeoutedFlag = true;
-                        }
-                        catch
-                        {
-                        }
-                    }
-                }
+                KillProcessInternal();
             }
             finally
             {
@@ -912,6 +992,8 @@ namespace IPA.Cores.Basic
 
                 await this.EasyRealTimeStdOut._DisposeSafeAsync();
                 await this.EasyRealTimeStdErr._DisposeSafeAsync();
+
+                await this.EasyOneLineRecv._DisposeSafeAsync();
             }
             finally
             {

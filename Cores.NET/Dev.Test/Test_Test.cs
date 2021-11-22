@@ -51,6 +51,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Diagnostics;
 using System.Reflection;
+using System.Security.Authentication;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Basic.DnsLib;
@@ -2507,7 +2508,8 @@ static class TestClass
         Async(async () =>
         {
             var ver = LtsOpenSslTool.GetCurrentSuitableVersions().First();
-            await LtsOpenSslTool.ExecOpenSslCommandAsync(ver, "abc");
+            //await LtsOpenSslTool.ExecOpenSslCommandAsync(ver, "s_client -connect dnt-rainmoon1.v4.coe.ad.jp:443 -ssl3 -cipher RC4-SHA");
+            await LtsOpenSslTool.ExecOpenSslClientConnectTest(ver, "www.google.com", 443, "tls1", "RC4-SHA");
         });
     }
 
