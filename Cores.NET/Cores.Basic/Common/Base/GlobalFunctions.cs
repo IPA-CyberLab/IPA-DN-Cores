@@ -376,6 +376,48 @@ public static partial class Basic
         get => Task.CompletedTask;
     }
 
+    public static IComparer<string> StrCmp
+    {
+        [MethodImpl(Inline)]
+        get => StrComparer.SensitiveCaseComparer;
+    }
+
+    public static IComparer<string> StrTrimCmp
+    {
+        [MethodImpl(Inline)]
+        get => StrComparer.SensitiveCaseTrimComparer;
+    }
+
+    public static IComparer<string> StrCmpi
+    {
+        [MethodImpl(Inline)]
+        get => StrComparer.IgnoreCaseComparer;
+    }
+
+    public static IComparer<string> StrTrimCmpi
+    {
+        [MethodImpl(Inline)]
+        get => StrComparer.IgnoreCaseTrimComparer;
+    }
+
+    public static StringComparison CmpStr
+    {
+        [MethodImpl(Inline)]
+        get => StringComparison.Ordinal;
+    }
+
+    public static StringComparison CmpStri
+    {
+        [MethodImpl(Inline)]
+        get => StringComparison.OrdinalIgnoreCase;
+    }
+
+    public static StringComparison CmpiStr
+    {
+        [MethodImpl(Inline)]
+        get => StringComparison.OrdinalIgnoreCase;
+    }
+
     [MethodImpl(NoInline | NoOptimization)]
     public static string StackInfo([CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
     {

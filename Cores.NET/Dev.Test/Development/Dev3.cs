@@ -77,8 +77,10 @@ public class LtsOpenSslTool
 
     public const int CommandTimeoutMsecs = 5 * 1000;
 
+    public const int RetryCount = 5;
+
     public const string Def_OpenSslExeNamesAndSslVers = @"
-lts_openssl_exesuite_0.9.8zh                ssl3 tls1 tls1_1
+lts_openssl_exesuite_0.9.8zh                ssl3 tls1
 lts_openssl_exesuite_1.0.2u                 ssl3 tls1 tls1_1 tls1_2
 lts_openssl_exesuite_1.1.1l                 ssl3 tls1 tls1_1 tls1_2
 lts_openssl_exesuite_3.0.0                  ssl3 tls1 tls1_1 tls1_2 tls1_3
@@ -102,8 +104,8 @@ ECDHE-RSA-AES128-GCM-SHA256                 tls1_2                      lts_open
 ECDHE-RSA-AES128-SHA256                     tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
 ECDHE-RSA-AES256-GCM-SHA384                 tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
 ECDHE-RSA-AES256-SHA384                     tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-DHE-RSA-CHACHA20-POLY1305                   tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-ECDHE-RSA-CHACHA20-POLY1305                 tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+DHE-RSA-CHACHA20-POLY1305                   tls1_2                      lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+ECDHE-RSA-CHACHA20-POLY1305                 tls1_2                      lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
 TLS_CHACHA20_POLY1305_SHA256                tls1_3                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
 TLS_AES_256_GCM_SHA384                      tls1_3                      lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
 TLS_AES_128_GCM_SHA256                      tls1_3                      lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
@@ -116,10 +118,11 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
         windows_x64,
     }
 
-    public record Version(string ExeName, Arch Arch, IReadOnlySet<string> sslVersions);
-    public record Cipher(string name, IReadOnlySet<string> sslVersions, IReadOnlySet<string> exeNames);
+    public record Version(string ExeName, Arch Arch, IReadOnlySet<string> SslVersions);
+    public record Cipher(string Name, IReadOnlySet<string> SslVersions, IReadOnlySet<string> ExeNames);
 
-    public static readonly IReadOnlyList<Version> VersionList = new List<Version>();
+    public static readonly IReadOnlyList<Version> VersionList;
+    public static readonly IReadOnlyList<Cipher> CipherList;
 
     static LtsOpenSslTool()
     {
@@ -141,11 +144,13 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
                     {
                         sslVerList.Add(tokens[i]);
                     }
-
                     verList.Add(new Version(tokens[0], arch, sslVerList));
                 }
             }
         }
+
+        VersionList = verList;
+
 
         lines = Def_Ciphers._GetLines(true, true);
 
@@ -172,13 +177,13 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
                     {
                         throw new CoresLibException();
                     }
-
-                    cipherList.Add(new Cipher(tokens[0], sslVerList, exeNamesList));
                 }
+
+                cipherList.Add(new Cipher(tokens[0], sslVerList, exeNamesList));
             }
         }
 
-        VersionList = verList;
+        CipherList = cipherList;
     }
 
     public static Arch GetCurrentArchiecture()
@@ -197,7 +202,123 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
     {
         var arch = GetCurrentArchiecture();
 
-        return VersionList.Where(x => x.Arch == arch).OrderBy(x => x.ExeName, StrComparer.IgnoreCaseTrimComparer);
+        return VersionList.Where(x => x.Arch == arch).OrderBy(x => x.ExeName, StrCmpi);
+    }
+
+    public record TestSuiteTarget(string HostPort, Version Ver, string SslVer, string CipherName, Ref<string> Error);
+
+    public static async Task<bool> TestSuiteAsync(string hostPort, int maxConcurrentTasks, int intervalMsecs, CancellationToken cancel = default)
+    {
+        if (maxConcurrentTasks <= 0) maxConcurrentTasks = 32;
+
+        List<TestSuiteTarget> targets = new List<TestSuiteTarget>();
+
+        var currentArch = GetCurrentArchiecture();
+
+        // ターゲット一覧を生成
+        foreach (var ver in VersionList.Where(x => x.Arch == currentArch).OrderBy(x => x.ExeName, StrCmpi))
+        {
+            foreach (var sslVer in ver.SslVersions.OrderBy(x => x, StrCmpi))
+            {
+                foreach (var cipher in CipherList.Where(x => x.ExeNames.Contains(ver.ExeName) && x.SslVersions.Contains(sslVer)))
+                {
+                    targets.Add(new TestSuiteTarget(hostPort, ver, sslVer, cipher.Name, ""));
+                }
+
+                targets.Add(new TestSuiteTarget(hostPort, ver, sslVer, "", ""));
+            }
+        }
+
+        // テストの実行
+        targets = targets._Shuffle().ToList();
+        //targets = targets.ToList();
+
+        RefInt x = new RefInt();
+
+        CriticalSection printLock = new CriticalSection();
+
+        await TaskUtil.ForEachAsync(maxConcurrentTasks, targets, async (t, c) =>
+        {
+            int currentNum = x.Increment();
+            Con.WriteLine($"Processing {currentNum} / {targets.Count} ... {t.Ver.ExeName} {t.SslVer} {t.CipherName}");
+            try
+            {
+                await TaskUtil.RetryAsync<int>(async c2 =>
+                {
+                    await TestSuiteRunCoreAsync(t, c2);
+
+                    return 0;
+                }, intervalMsecs, RetryCount, c, true);
+            }
+            catch (Exception ex)
+            {
+                t.Error.Set(ex.Message);
+            }
+        },
+        cancel,
+        intervalMsecs);
+
+        // 結果を表示
+        var list = targets.OrderBy(x => x.HostPort, StrCmpi).ThenBy(x => x.Ver.ExeName).ThenBy(x => x.CipherName, StrCmpi).ThenBy(x => x.SslVer, StrCmpi);
+
+        int numTotal = list.Count();
+        int numOk = list.Where(x => x.Error._IsEmpty()).Count();
+        int numError = list.Where(x => x.Error._IsFilled()).Count();
+
+        Con.WriteLine($"");
+        Con.WriteLine($"");
+        Con.WriteLine($"--- All finished !!! ---");
+        Con.WriteLine($"");
+        Con.WriteLine($"OK: {numOk} / {numTotal} tests");
+        Con.WriteLine($"Error: {numError} / {numTotal} tests");
+
+        Con.WriteLine();
+        Con.WriteLine();
+        Con.WriteLine($"===== OK lists =====");
+        var okList = list.Where(x => x.Error._IsFilled()).ToArray();
+        for (int i = 0; i < okList.Length; i++)
+        {
+            var item = okList[i];
+            Con.WriteLine($"*** OK #{i + 1} / {numOk}:");
+            Con.WriteLine($"   Version:  {item.Ver.ExeName}");
+            Con.WriteLine($"   Cipher:   {item.CipherName}");
+            Con.WriteLine($"   SslVer:   {item.SslVer}");
+            Con.WriteLine($"   Host:     {item.HostPort}");
+            Con.WriteLine();
+        }
+
+
+        Con.WriteLine();
+        Con.WriteLine();
+        Con.WriteLine($"===== Error lists =====");
+        var errorList = list.Where(x => x.Error._IsFilled()).ToArray();
+        for (int i = 0; i < errorList.Length; i++)
+        {
+            var item = errorList[i];
+            Con.WriteLine($"*** Error #{i + 1} / {numError}:");
+            Con.WriteLine($"   Version:  {item.Ver.ExeName}");
+            Con.WriteLine($"   Cipher:   {item.CipherName}");
+            Con.WriteLine($"   SslVer:   {item.SslVer}");
+            Con.WriteLine($"   Host:     {item.HostPort}");
+            Con.WriteLine($"   Error:    {item.Error}");
+            Con.WriteLine();
+        }
+
+
+        Con.WriteLine($"");
+        Con.WriteLine($"--- Total ---");
+        Con.WriteLine($"OK: {numOk} / {numTotal} tests");
+        Con.WriteLine($"Error: {numError} / {numTotal} tests");
+        Con.WriteLine($"");
+
+        return numError == 0;
+    }
+
+    public static async Task TestSuiteRunCoreAsync(TestSuiteTarget target, CancellationToken cancel = default)
+    {
+        var hostPort = target.HostPort._ParseHostnaneAndPort(443);
+
+        await ExecOpenSslClientConnectTest(target.Ver, hostPort.Item1, hostPort.Item2, target.SslVer, target.CipherName, cancel);
     }
 
     // OpenSSL での SSL 接続テストの実行
@@ -218,6 +339,8 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
 
         bool ok = false;
         string error = "";
+
+        bool flag1 = false;
 
         try
         {
@@ -250,6 +373,31 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
                         ok = false;
 
                         error = tmp;
+                        return false;
+                    }
+
+                    if (tmp._InStr("Cipher is (NONE)", ignoreCase: true))
+                    {
+                        // 暗号化アルゴリズムが選定されなかった
+                        ok = false;
+
+                        error = tmp;
+                        return false;
+                    }
+
+                    if (tmp.StartsWith("New, TLSv1.3, Cipher is", CmpiStr))
+                    {
+                        flag1 = true;
+                    }
+
+                    if (flag1 && tmp._InStr("Secure Renegotiation IS", true) && tmp._InStr("supported"))
+                    {
+                        // TLS 1.3 でセッションキー等は届いていない (サーバー側で送出してこない) が、ネゴシエーションには成功したものと思われる。
+                        // www.google.com 等でこの挙動がある。
+                        // OK
+                        ok = true;
+
+                        // もうプロセスは終了してよい
                         return false;
                     }
 
@@ -291,7 +439,7 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
         var exePath = await PrepareOpenSslExeAsync(ver, cancel);
 
         return await EasyExec.ExecAsync(exePath, args, PP.GetDirectoryName(exePath),
-            ExecFlags.EasyInputOutputMode /*| ExecFlags.EasyPrintRealtimeStdErr | ExecFlags.EasyPrintRealtimeStdOut*/ | ExecFlags.KillProcessGroup,
+            ExecFlags.EasyInputOutputMode /*| ExecFlags.EasyPrintRealtimeStdErr | ExecFlags.EasyPrintRealtimeStdOut*/,
             10_000_000,
             cancel: cancel,
             printTag: ver.ExeName,
@@ -352,8 +500,6 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
                 catch { }
 
                 Lfs.MoveFile(tmpExePath2, tmpExePath, cancel);
-
-                tmpExePath._Print();
             }
         }
 

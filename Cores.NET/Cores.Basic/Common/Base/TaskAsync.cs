@@ -243,6 +243,8 @@ public class AsyncConcurrentTask
 
         try
         {
+            cancel.ThrowIfCancellationRequested();
+
             await this.Sem.WaitAsync(cancel);
 
             // ターゲットタスクを開始する。
@@ -908,7 +910,7 @@ public static partial class TaskUtil
     }
 
     // ForEach 非同期実行。1 つでも失敗したら例外を発生させ、すべてキャンセルする
-    public static async Task ForEachAsync<T>(int maxConcurrentTasks, IEnumerable<T> items, Func<T, CancellationToken, Task> func, CancellationToken cancel = default)
+    public static async Task ForEachAsync<T>(int maxConcurrentTasks, IEnumerable<T> items, Func<T, CancellationToken, Task> func, CancellationToken cancel = default, int intervalBetweenTasks = 0)
     {
         AsyncConcurrentTask at = new AsyncConcurrentTask(maxConcurrentTasks);
 
@@ -926,6 +928,10 @@ public static partial class TaskUtil
                  {
                      await Task.Yield();
                      await func(item, c);
+                     if (intervalBetweenTasks >= 1)
+                     {
+                         await cancel2.CancelToken._WaitUntilCanceledAsync(intervalBetweenTasks);
+                     }
                  }
                  catch (Exception ex)
                  {
@@ -955,8 +961,8 @@ public static partial class TaskUtil
         }
     }
 
-    public static void ForEach<T>(int maxConcurrentTasks, IEnumerable<T> items, Func<T, CancellationToken, Task> func, CancellationToken cancel = default)
-        => ForEachAsync(maxConcurrentTasks, items, func, cancel)._GetResult();
+    public static void ForEach<T>(int maxConcurrentTasks, IEnumerable<T> items, Func<T, CancellationToken, Task> func, CancellationToken cancel = default, int intervalBetweenTasks = 0)
+        => ForEachAsync(maxConcurrentTasks, items, func, cancel, intervalBetweenTasks)._GetResult();
 
     public static int GetMinTimeout(params int[] values)
     {

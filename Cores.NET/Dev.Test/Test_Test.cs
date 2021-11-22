@@ -1042,15 +1042,15 @@ static class TestClass
                     }
                 }
 
-                    //hiveData2.AccessData(true, (x) =>
-                    //{
-                    //    x.Value._Print();
+                //hiveData2.AccessData(true, (x) =>
+                //{
+                //    x.Value._Print();
 
-                    //    x.Value++;
-                    //});
+                //    x.Value++;
+                //});
 
 
-                    await cancel._WaitUntilCanceledAsync(100);
+                await cancel._WaitUntilCanceledAsync(100);
             }
         });
 
@@ -1157,8 +1157,8 @@ static class TestClass
                 res2._PrintAsJson();
                 Dbg.Where();
 
-                    //await Task.Delay(Util.RandSInt31() % 100);
-                }
+                //await Task.Delay(Util.RandSInt31() % 100);
+            }
 
         }, 0, null), "");
 
@@ -1187,16 +1187,16 @@ static class TestClass
 
                 if ((Util.RandSInt31() % 4) == 0)
                 {
-                        //sm.SetResponseCancel(sessId, next.RequestId);
-                        //sm.SetResponseException(sessId, next.RequestId, new CoresLibException("Neko"));
-                    }
+                    //sm.SetResponseCancel(sessId, next.RequestId);
+                    //sm.SetResponseException(sessId, next.RequestId, new CoresLibException("Neko"));
+                }
                 string s = Con.ReadLine(">")!;
                 if (s._IsSamei("q"))
                 {
                     sm.SetResponseCancel(sessId, next.RequestId);
                 }
-                    //sm.SetResponseData(sessId, next.RequestId, response);
-                    sm.SendHeartBeat(sessId, next.RequestId);
+                //sm.SetResponseData(sessId, next.RequestId, response);
+                sm.SendHeartBeat(sessId, next.RequestId);
             }
 
             "All finished."._Print();
@@ -1559,22 +1559,22 @@ static class TestClass
 
                             string destFilePath = Fs.PathParser.Combine(destDir, srcFile.Name);
 
-                                //if (Options.EncryptPassword._IsNullOrZeroLen() == false)
-                                //{
-                                //    destFilePath += Consts.Extensions.CompressedXtsAes256;
-                                //}
+                            //if (Options.EncryptPassword._IsNullOrZeroLen() == false)
+                            //{
+                            //    destFilePath += Consts.Extensions.CompressedXtsAes256;
+                            //}
 
 
-                                concurrentNum.Increment();
+                            concurrentNum.Increment();
 
                             try
                             {
 
-                                    // ファイルをコピーする
-                                    // 属性は、ファイルの日付情報のみコピーする
-                                    //await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileCopy", srcFile.FullPath, destFilePath));
+                                // ファイルをコピーする
+                                // 属性は、ファイルの日付情報のみコピーする
+                                //await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileCopy", srcFile.FullPath, destFilePath));
 
-                                    destFilePath._Debug();
+                                destFilePath._Debug();
 
                                 await Fs.CopyFileAsync(srcFile.FullPath, destFilePath,
                                     new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify /*| FileFlags.Async*/, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
@@ -1589,10 +1589,10 @@ static class TestClass
                                 Stat.Error_NumFiles++;
                                 Stat.Error_TotalSize += srcFile.Size;
 
-                                    // ファイル単位のエラー発生
-                                    //await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("FileError", srcFile.FullPath, destFilePath, ex.ToString()));
+                                // ファイル単位のエラー発生
+                                //await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("FileError", srcFile.FullPath, destFilePath, ex.ToString()));
 
-                                    ex._Debug();
+                                ex._Debug();
                             }
                             finally
                             {
@@ -1833,11 +1833,11 @@ static class TestClass
                     var recv = await sock.ReceiveDatagramAsync(timeout: 100, noTimeoutException: true);
 
 
-                        //var dns = DnsUtil.ParsePacket(recv.Data.Span);
+                    //var dns = DnsUtil.ParsePacket(recv.Data.Span);
 
-                        //dns._PrintAsJson();
+                    //dns._PrintAsJson();
 
-                        await sock.DisconnectAsync();
+                    await sock.DisconnectAsync();
                     await sock._DisposeSafeAsync();
                 }
             });
@@ -1880,9 +1880,9 @@ static class TestClass
                         {
                             var msg = DnsUtil.ParsePacket(item.Data.Span);
 
-                                //for (int i = 0;i < 100;i++) DnsUtil.ParsePacket(item.Data.Span);
+                            //for (int i = 0;i < 100;i++) DnsUtil.ParsePacket(item.Data.Span);
 
-                                if (reply)
+                            if (reply)
                             {
                                 var newData = msg.BuildPacket().ToArray().AsMemory();
                                 var newDg = new Datagram(newData, item.RemoteIPEndPoint!, item.LocalIPEndPoint);
@@ -2045,8 +2045,8 @@ static class TestClass
                         w.CompleteWrite(softly: true);
                         break;
                     }
-                        //$"User Loop: Dequeue OK: Fetch Length = {list.Count}, Remain Length = {r.Length}"._Debug();
-                        recvMeasure.Add(list.Count);
+                    //$"User Loop: Dequeue OK: Fetch Length = {list.Count}, Remain Length = {r.Length}"._Debug();
+                    recvMeasure.Add(list.Count);
 
                     if (reply)
                     {
@@ -2149,9 +2149,9 @@ static class TestClass
                         var datagramBulkReceiver = new AsyncBulkReceiver<Datagram, PalSocket>(async (s, cancel) =>
                         {
                             Memory<byte> tmp = memAlloc.Reserve(65536);
-                                //Memory<byte> tmp = new byte[64];
+                            //Memory<byte> tmp = new byte[64];
 
-                                var ret = await s.ReceiveFromAsync(tmp);
+                            var ret = await s.ReceiveFromAsync(tmp);
 
                             memAlloc.Commit(ref tmp, ret.ReceivedBytes);
 
@@ -2171,8 +2171,8 @@ static class TestClass
                                     {
                                         foreach (var dg in sendList)
                                         {
-                                                //await ss.SendToAsync(dg.EndPoint!, dg.Data);
-                                                await s.SendToAsync(dg.Data, dg.RemoteEndPoint!);
+                                            //await ss.SendToAsync(dg.EndPoint!, dg.Data);
+                                            await s.SendToAsync(dg.Data, dg.RemoteEndPoint!);
                                         }
                                     }
 
@@ -2204,8 +2204,8 @@ static class TestClass
                                         {
                                             var res = await datagramBulkReceiver.RecvAsync(c, s);
                                             recvMeasure.Add(res!.Length);
-                                                //$"count = {res!.Length}"._Debug();
-                                                count = 0;
+                                            //$"count = {res!.Length}"._Debug();
+                                            count = 0;
 
                                             if (reply && sendQueue.Count <= 128)
                                             {
@@ -2217,11 +2217,11 @@ static class TestClass
                                         else if (true)
                                         {
                                             var result = await s.ReceiveFromAsync(mem);
-                                                //mem.AsMemory().Slice(0, result.ReceivedBytes)._CloneMemory();
+                                            //mem.AsMemory().Slice(0, result.ReceivedBytes)._CloneMemory();
 
-                                                //// 打ち返し
-                                                //await s.SendToAsync(mem, result.RemoteEndPoint);
-                                            }
+                                            //// 打ち返し
+                                            //await s.SendToAsync(mem, result.RemoteEndPoint);
+                                        }
                                         else if (false)
                                         {
                                             await ss.ReceiveFromAsync(array, SocketFlags.None, ep);
@@ -2505,12 +2505,21 @@ static class TestClass
 
     static void Test_211118()
     {
-        Async(async () =>
+        for (int i = 0; i < 1; i++)
         {
-            var ver = LtsOpenSslTool.GetCurrentSuitableVersions().First();
-            //await LtsOpenSslTool.ExecOpenSslCommandAsync(ver, "s_client -connect dnt-rainmoon1.v4.coe.ad.jp:443 -ssl3 -cipher RC4-SHA");
-            await LtsOpenSslTool.ExecOpenSslClientConnectTest(ver, "www.google.com", 443, "tls1", "RC4-SHA");
-        });
+            Async(async () =>
+            {
+                //var ver = LtsOpenSslTool.GetCurrentSuitableVersions().First();
+                //await LtsOpenSslTool.ExecOpenSslCommandAsync(ver, "s_client -connect dnt-rainmoon1.v4.coe.ad.jp:443 -ssl3 -cipher RC4-SHA");
+                //await LtsOpenSslTool.ExecOpenSslClientConnectTest(ver, "www.google.com", 443, "tls1", "RC4-SHA");
+
+                //await LtsOpenSslTool.TestSuiteAsync("dnt-rainmoon1.v4.coe.ad.jp:443", 0, 0);
+                //await LtsOpenSslTool.TestSuiteAsync("www.google.com", 0, 0);
+                await LtsOpenSslTool.TestSuiteAsync("127.0.0.1", 0, 0);
+            });
+
+            Con.WriteLine($"************** {i}");
+        }
     }
 
     public static void Test_Generic()
@@ -2676,11 +2685,11 @@ static class TestClass
 
                 using IisAdmin util = new IisAdmin();
 
-                    //var x = util.GetCurrentMachineCertificateList();
-                    //x.Count._Print();
-                    //x._DoForEach(x => x.Value.ToString()._Print());
+                //var x = util.GetCurrentMachineCertificateList();
+                //x.Count._Print();
+                //x._DoForEach(x => x.Value.ToString()._Print());
 
-                    util.UpdateCerts(list, false);
+                util.UpdateCerts(list, false);
             });
             return;
         }
@@ -3087,11 +3096,11 @@ static class TestClass
                 list.Add("- growpart", "0x0A0A0A0A0A0A0A0A0A0A");
                 list.Add("- resizefs", "0x0A0A0A0A0A0A0A0A0A0A");
 
-                    //list.Add("# configuration files on the boot partition.", "\nhdmi_safe=1\n#");
-                    //list.Add("- growpart", "");
-                    //list.Add("- resizefs", "");
+                //list.Add("# configuration files on the boot partition.", "\nhdmi_safe=1\n#");
+                //list.Add("- growpart", "");
+                //list.Add("- resizefs", "");
 
-                    list.Add("APT::Periodic::Update-Package-Lists \"1\";", "APT::Periodic::Update-Package-Lists \"0\";");
+                list.Add("APT::Periodic::Update-Package-Lists \"1\";", "APT::Periodic::Update-Package-Lists \"0\";");
                 list.Add("APT::Periodic::Unattended-Upgrade \"1\";", "APT::Periodic::Unattended-Upgrade \"0\";");
 
                 var ret = await MiscUtil.ReplaceBinaryFileAsync(@"D:\Downloads\ubuntu-19.10.1-preinstalled-server-arm64+raspi3.img", @"C:\tmp2\bintest\ubuntutest.img", list);
@@ -3275,9 +3284,9 @@ static class TestClass
             {
                 for (int i = 0; ; i++)
                 {
-                        //i._Print();
+                    //i._Print();
 
-                        var poderosa = Lfs.ReadPoderosaFile(@"H:\SSH\dnlinux.gts");
+                    var poderosa = Lfs.ReadPoderosaFile(@"H:\SSH\dnlinux.gts");
 
                     Async(async () =>
                     {
@@ -3289,10 +3298,10 @@ static class TestClass
 
                         var res = await proc.ExecBashCommandAsync("cat /proc/cpuinfo");
 
-                            //var res2 = await proc.ExecBashCommandAsync("cat /etc/passwd");
+                        //var res2 = await proc.ExecBashCommandAsync("cat /etc/passwd");
 
-                            //res._Print();
-                        });
+                        //res._Print();
+                    });
 
                     Dbg.GcCollect();
                 }
@@ -3763,11 +3772,11 @@ static class TestClass
                         for (int i = 0; ; i++)
                         {
 
-                                //await Task.Yield();
+                            //await Task.Yield();
 
-                                //await Task.Delay(taskId * 100);
+                            //await Task.Delay(taskId * 100);
 
-                                c.ThrowIfCancellationRequested();
+                            c.ThrowIfCancellationRequested();
 
                             $"----------- {i}"._Debug();
 
@@ -3775,66 +3784,66 @@ static class TestClass
 
                             HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
 
-                                //using var stream = new BufferBasedStream(mem);
+                            //using var stream = new BufferBasedStream(mem);
 
-                                using var file = Lfs.Create(@$"f:\tmp\200810\{taskId}.dat", flags: FileFlags.AutoCreateDirectory | FileFlags.SparseFile);
+                            using var file = Lfs.Create(@$"f:\tmp\200810\{taskId}.dat", flags: FileFlags.AutoCreateDirectory | FileFlags.SparseFile);
 
                             using var sector = new XtsAesRandomAccess(file, "neko");
                             using var stream = sector.GetStream(true);
 
-                                //using var stream = file.GetStream();
+                            //using var stream = file.GetStream();
 
-                                await FileDownloader.DownloadFileParallelAsync(
-                        "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
-                        stream,
-                        new FileDownloadOption(20, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
-                        progressReporter: reporter,
-                        cancel: c);
-                                //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
-                                //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
+                            await FileDownloader.DownloadFileParallelAsync(
+                    "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
+                    stream,
+                    new FileDownloadOption(20, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
+                    progressReporter: reporter,
+                    cancel: c);
+                            //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
+                            //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
 
-                                //using SHA1Managed sha1 = new SHA1Managed();
-                                //stream._SeekToBegin();
-                                //byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
-                                //if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
-                                //{
-                                //    stream._SeekToBegin();
+                            //using SHA1Managed sha1 = new SHA1Managed();
+                            //stream._SeekToBegin();
+                            //byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
+                            //if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
+                            //{
+                            //    stream._SeekToBegin();
 
-                                //    using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
-                                //    using var filest = file2.GetStream();
+                            //    using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
+                            //    using var filest = file2.GetStream();
 
-                                //    await stream.CopyBetweenStreamAsync(filest);
+                            //    await stream.CopyBetweenStreamAsync(filest);
 
-                                //    throw new CoresException($"Hash different: {hash._GetHexString()}");
-                                //}
+                            //    throw new CoresException($"Hash different: {hash._GetHexString()}");
+                            //}
 
-                                await AsyncAwait(async () =>
+                            await AsyncAwait(async () =>
+                {
+                    using var file = Lfs.Open(@$"f:\tmp\200810\{taskId}.dat");
+
+                    using var sector = new XtsAesRandomAccess(file, "neko");
+
+                    using var stream = sector.GetStream(true);
+
+                    using SHA1 sha1 = SHA1.Create();
+                    byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
+                    if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
                     {
-                        using var file = Lfs.Open(@$"f:\tmp\200810\{taskId}.dat");
+                        stream._SeekToBegin();
 
-                        using var sector = new XtsAesRandomAccess(file, "neko");
+                        using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
+                        using var filest = file2.GetStream();
 
-                        using var stream = sector.GetStream(true);
+                        await stream.CopyBetweenStreamAsync(filest);
 
-                        using SHA1 sha1 = SHA1.Create();
-                        byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
-                        if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
-                        {
-                            stream._SeekToBegin();
+                        throw new CoresException($"Hash different 2: {hash._GetHexString()}");
+                    }
+                    else
+                    {
+                        "Hash OK!"._Print();
+                    }
 
-                            using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
-                            using var filest = file2.GetStream();
-
-                            await stream.CopyBetweenStreamAsync(filest);
-
-                            throw new CoresException($"Hash different 2: {hash._GetHexString()}");
-                        }
-                        else
-                        {
-                            "Hash OK!"._Print();
-                        }
-
-                    });
+                });
                         }
                     }
                     catch (Exception ex)
@@ -3877,25 +3886,25 @@ static class TestClass
 
                         HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
 
-                            //using var stream = new BufferBasedStream(mem);
+                        //using var stream = new BufferBasedStream(mem);
 
-                            using var file = Lfs.Create(@"c:\tmp\test1.dat");
+                        using var file = Lfs.Create(@"c:\tmp\test1.dat");
 
                         using var sector = new XtsAesRandomAccess(file, "neko");
                         using var stream = sector.GetStream(true);
 
-                            //using var stream = file.GetStream();
+                        //using var stream = file.GetStream();
 
-                            await FileDownloader.DownloadFileParallelAsync(
-                    "http://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
-                    stream,
-                    new FileDownloadOption(20, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
-                    progressReporter: reporter,
-                    cancel: c);
-                            //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
-                            //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
+                        await FileDownloader.DownloadFileParallelAsync(
+                "http://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
+                stream,
+                new FileDownloadOption(20, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
+                progressReporter: reporter,
+                cancel: c);
+                        //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
+                        //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
 
-                            using SHA1 sha1 = SHA1.Create();
+                        using SHA1 sha1 = SHA1.Create();
                         stream._SeekToBegin();
                         byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
                         if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
@@ -3910,34 +3919,34 @@ static class TestClass
                             throw new CoresException($"Hash different: {hash._GetHexString()}");
                         }
 
-                            //await AsyncAwait(async () =>
-                            //{
-                            //    using var file = Lfs.Open(@"c:\tmp\test1.dat");
+                        //await AsyncAwait(async () =>
+                        //{
+                        //    using var file = Lfs.Open(@"c:\tmp\test1.dat");
 
-                            //    using var sector = new XtsAesRandomAccess(file, "neko");
+                        //    using var sector = new XtsAesRandomAccess(file, "neko");
 
-                            //    using var stream = sector.GetStream(true);
+                        //    using var stream = sector.GetStream(true);
 
-                            //    using SHA1Managed sha1 = new SHA1Managed();
-                            //    byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
-                            //    if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
-                            //    {
-                            //        stream._SeekToBegin();
+                        //    using SHA1Managed sha1 = new SHA1Managed();
+                        //    byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
+                        //    if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
+                        //    {
+                        //        stream._SeekToBegin();
 
-                            //        using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
-                            //        using var filest = file2.GetStream();
+                        //        using var file2 = await Lfs.CreateAsync(@"D:\Downloads\tmp.iso");
+                        //        using var filest = file2.GetStream();
 
-                            //        await stream.CopyBetweenStreamAsync(filest);
+                        //        await stream.CopyBetweenStreamAsync(filest);
 
-                            //        throw new CoresException($"Hash different 2: {hash._GetHexString()}");
-                            //    }
-                            //    else
-                            //    {
-                            //        "Hash OK!"._Print();
-                            //    }
+                        //        throw new CoresException($"Hash different 2: {hash._GetHexString()}");
+                        //    }
+                        //    else
+                        //    {
+                        //        "Hash OK!"._Print();
+                        //    }
 
-                            //});
-                        }
+                        //});
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -4094,8 +4103,8 @@ static class TestClass
                                  concurrent.Increment();
                                  try
                                  {
-                                         //Con.WriteLine(taskId + " : " + i + "   (" + concurrent + ")");
-                                         await Task.Yield();
+                                     //Con.WriteLine(taskId + " : " + i + "   (" + concurrent + ")");
+                                     await Task.Yield();
                                  }
                                  finally
                                  {
@@ -4194,8 +4203,8 @@ static class TestClass
                         await t1;
                         await t2;
 
-                            //counter.Increment()._Debug();
-                        }
+                        //counter.Increment()._Debug();
+                    }
                 });
             }
 
@@ -4246,19 +4255,19 @@ static class TestClass
 
                         using var stream = new BufferBasedStream(mem);
 
-                            //using var file = Lfs.Create(@"c:\tmp\test1.dat", flags: FileFlags.SparseFile);
-                            //using var stream = file.GetStream();
+                        //using var file = Lfs.Create(@"c:\tmp\test1.dat", flags: FileFlags.SparseFile);
+                        //using var stream = file.GetStream();
 
-                            await FileDownloader.DownloadFileParallelAsync(
-                    "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
-                    stream,
-                    new FileDownloadOption(maxConcurrentThreads: Util.GetRandWithPercentageInt(90), bufferSize: Util.GetRandWithPercentageInt(123457), webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
-                    progressReporter: reporter,
-                    cancel: c);
-                            //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
-                            //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
+                        await FileDownloader.DownloadFileParallelAsync(
+                "https://ossvault.sec.softether.co.jp/vault/oss/20072701_ubuntu_cdimage/20.04/release/ubuntu-20.04-live-server-s390x.iso",
+                stream,
+                new FileDownloadOption(maxConcurrentThreads: Util.GetRandWithPercentageInt(90), bufferSize: Util.GetRandWithPercentageInt(123457), webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000, SslAcceptAnyCerts = true })),
+                progressReporter: reporter,
+                cancel: c);
+                        //await FileDownloader.DownloadFileParallelAsync("http://speed.sec.softether.co.jp/003.100Mbytes.dat", stream,
+                        //    new FileDownloadOption(maxConcurrentThreads: 30, bufferSize: 123457, webApiOptions: new WebApiOptions(new WebApiSettings { Timeout = 1 * 1000 })), cancel: c);
 
-                            using SHA1 sha1 = SHA1.Create();
+                        using SHA1 sha1 = SHA1.Create();
                         stream._SeekToBegin();
                         byte[] hash = await Secure.CalcStreamHashAsync(stream, sha1);
                         if (hash._GetHexString()._CompareHex("FF7040CEC7824248E9DCEB818E111772DD779B97") != 0)
@@ -6083,8 +6092,8 @@ ZIP ファイルのパスワード:
                         client.WriteLog(new LogJsonData()
                         {
                             AppName = "App",
-                                //Data = "Hello World " + i.ToString(),
-                                Data = new { X = 123, Y = 456, Z = "Hello" },
+                            //Data = "Hello World " + i.ToString(),
+                            Data = new { X = 123, Y = 456, Z = "Hello" },
                             Guid = Str.NewGuid(),
                             Kind = LogKind.Default,
                             MachineName = "Neko",
@@ -6290,8 +6299,8 @@ partial class TestDevCommands
                     }
                     );
 
-                        //Dbg.Where();
-                    }
+                    //Dbg.Where();
+                }
 
                 await client.WriteCompleteAsync(new DataVaultData
                 {
@@ -6309,7 +6318,7 @@ partial class TestDevCommands
             Con.ReadLine("Exit>");
 
             cts.Cancel();
-            client._CancelSafeAsync();
+            client._CancelSafeAsync()._LaissezFaire();
 
             testTask._TryWait();
         }
@@ -6357,8 +6366,8 @@ partial class TestDevCommands
                     client.WriteLog(new LogJsonData()
                     {
                         AppName = "App",
-                            //Data = "Hello World " + i.ToString(),
-                            Data = new { X = 123, Y = 456, Z = bigData },
+                        //Data = "Hello World " + i.ToString(),
+                        Data = new { X = 123, Y = 456, Z = bigData },
                         Guid = Str.NewGuid(),
                         Kind = LogKind.Default,
                         MachineName = "Neko",
@@ -6369,8 +6378,8 @@ partial class TestDevCommands
                     }
                     );
 
-                        //await Task.Delay(100);
-                    }
+                    //await Task.Delay(100);
+                }
             });
 
             Con.ReadLine("Exit>");

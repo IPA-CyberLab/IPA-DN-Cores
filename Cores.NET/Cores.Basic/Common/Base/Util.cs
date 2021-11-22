@@ -307,7 +307,7 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public class Ref<T>
+    public class Ref<T> : IEmptyChecker
     {
         public Ref(T? value = default)
         {
@@ -343,6 +343,8 @@ namespace IPA.Cores.Basic
         {
             return -1937169414 + EqualityComparer<T>.Default.GetHashCode(Value!);
         }
+
+        public bool IsThisEmpty() => this.Value._IsEmpty();
 
         public static bool operator true(Ref<T> r) { return r.IsTrue(); }
         public static bool operator false(Ref<T> r) { return !r.IsTrue(); }

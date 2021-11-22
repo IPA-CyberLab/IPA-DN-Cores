@@ -733,7 +733,9 @@ namespace IPA.Cores.Basic
 
         PipeStreamPairWithSubTask? EasyRealTimeStdOut = null;
         PipeStreamPairWithSubTask? EasyRealTimeStdErr = null;
-        PipeStreamPairWithSubTask? EasyOneLineRecv = null;
+
+        PipeStreamPairWithSubTask? EasyOneLineRecvStdOut = null;
+        PipeStreamPairWithSubTask? EasyOneLineRecvStdErr = null;
 
         // リアルタイムでデータが届いたときに呼ばれるコールバック関数
         Task EasyPrintRealTimeRecvDataCallbackAsync(ReadOnlyMemory<byte> data, bool stderr, CancellationToken cancel)
@@ -741,7 +743,7 @@ namespace IPA.Cores.Basic
             PipeStreamPairWithSubTask? pairForPrint = null;
             PipeStreamPairWithSubTask? pairForOneLineRecv = null;
 
-            if (stderr == false)
+            if (stderr)
             {
                 if (this.Options.Flags.Bit(ExecFlags.EasyPrintRealtimeStdOut))
                 {
@@ -758,7 +760,14 @@ namespace IPA.Cores.Basic
 
             if (this.Options.EasyOneLineRecvCallbackAsync != null)
             {
-                pairForOneLineRecv = (this.EasyOneLineRecv ??= new PipeStreamPairWithSubTask(EasyPrintRealTimeRecvDataOneLineRecvCallbackAsync));
+                if (stderr)
+                {
+                    pairForOneLineRecv = (this.EasyOneLineRecvStdErr ??= new PipeStreamPairWithSubTask(EasyPrintRealTimeRecvDataOneLineRecvCallbackAsync));
+                }
+                else
+                {
+                    pairForOneLineRecv = (this.EasyOneLineRecvStdOut ??= new PipeStreamPairWithSubTask(EasyPrintRealTimeRecvDataOneLineRecvCallbackAsync));
+                }
             }
 
             if (pairForPrint != null)
@@ -818,7 +827,7 @@ namespace IPA.Cores.Basic
 
         async Task EasyPrintRealTimeRecvDataOneLineRecvCallbackAsync(PipeStream st)
         {
-            bool processKilledOnce = false;
+            bool returnedFalseOnce = false;
 
             var r = new BinaryLineReader(st);
             while (true)
@@ -834,26 +843,23 @@ namespace IPA.Cores.Basic
                 {
                     string lineDecoded = line.Item1._GetString(this.OutputEncoding);
 
-                    if (this.Options.EasyOneLineRecvCallbackAsync != null)
+                    if (returnedFalseOnce == false)
                     {
-                        bool killProcessNow = false;
-                        try
+                        if (this.Options.EasyOneLineRecvCallbackAsync != null)
                         {
-                            bool ret = await this.Options.EasyOneLineRecvCallbackAsync(lineDecoded);
-                            if (ret == false) killProcessNow = true;
-                        }
-                        catch (Exception ex)
-                        {
-                            ex._Debug();
-                            killProcessNow = true;
-                        }
-
-                        if (killProcessNow)
-                        {
-                            if (processKilledOnce == false)
+                            try
                             {
-                                processKilledOnce = true;
+                                bool ret = await this.Options.EasyOneLineRecvCallbackAsync(lineDecoded);
+                                if (ret == false) returnedFalseOnce = true;
+                            }
+                            catch (Exception ex)
+                            {
+                                ex._Debug();
+                                returnedFalseOnce = true;
+                            }
 
+                            if (returnedFalseOnce)
+                            {
                                 TaskUtil.StartAsyncTaskAsync(async () =>
                                 {
                                     await Task.Yield();
@@ -939,23 +945,28 @@ namespace IPA.Cores.Basic
         public int WaitForExit(int timeout = Timeout.Infinite, CancellationToken cancel = default)
             => WaitForExitAsync(timeout, cancel)._GetResult();
 
+        readonly Once ProcessKilledOnceFlag = new Once();
+
         void KillProcessInternal()
         {
             if (Proc != null)
             {
-                if (Proc.HasExited == false)
+                if (ProcessKilledOnceFlag.IsFirstCall())
                 {
-                    try
+                    if (Proc.HasExited == false)
                     {
+                        try
+                        {
 #if !NETSTANDARD
-                        Proc.Kill(Options.Flags.Bit(ExecFlags.KillProcessGroup));
+                            Proc.Kill(Options.Flags.Bit(ExecFlags.KillProcessGroup));
 #else
                             Proc.Kill();
 #endif
-                        _TimeoutedFlag = true;
-                    }
-                    catch
-                    {
+                            _TimeoutedFlag = true;
+                        }
+                        catch
+                        {
+                        }
                     }
                 }
             }
@@ -993,7 +1004,8 @@ namespace IPA.Cores.Basic
                 await this.EasyRealTimeStdOut._DisposeSafeAsync();
                 await this.EasyRealTimeStdErr._DisposeSafeAsync();
 
-                await this.EasyOneLineRecv._DisposeSafeAsync();
+                await this.EasyOneLineRecvStdOut._DisposeSafeAsync();
+                await this.EasyOneLineRecvStdErr._DisposeSafeAsync();
             }
             finally
             {
