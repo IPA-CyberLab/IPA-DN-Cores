@@ -376,46 +376,28 @@ public static partial class Basic
         get => Task.CompletedTask;
     }
 
-    public static IComparer<string> StrCmp
+    public static StrComparer StrCmp
     {
         [MethodImpl(Inline)]
         get => StrComparer.SensitiveCaseComparer;
     }
 
-    public static IComparer<string> StrTrimCmp
+    public static ExtendedStrComparer StrTrimCmp
     {
         [MethodImpl(Inline)]
         get => StrComparer.SensitiveCaseTrimComparer;
     }
 
-    public static IComparer<string> StrCmpi
+    public static StrComparer StrCmpi
     {
         [MethodImpl(Inline)]
         get => StrComparer.IgnoreCaseComparer;
     }
 
-    public static IComparer<string> StrTrimCmpi
+    public static ExtendedStrComparer StrTrimCmpi
     {
         [MethodImpl(Inline)]
         get => StrComparer.IgnoreCaseTrimComparer;
-    }
-
-    public static StringComparison CmpStr
-    {
-        [MethodImpl(Inline)]
-        get => StringComparison.Ordinal;
-    }
-
-    public static StringComparison CmpStri
-    {
-        [MethodImpl(Inline)]
-        get => StringComparison.OrdinalIgnoreCase;
-    }
-
-    public static StringComparison CmpiStr
-    {
-        [MethodImpl(Inline)]
-        get => StringComparison.OrdinalIgnoreCase;
     }
 
     [MethodImpl(NoInline | NoOptimization)]

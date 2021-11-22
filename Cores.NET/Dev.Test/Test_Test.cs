@@ -2515,7 +2515,11 @@ static class TestClass
 
                 //await LtsOpenSslTool.TestSuiteAsync("dnt-rainmoon1.v4.coe.ad.jp:443", 0, 0);
                 //await LtsOpenSslTool.TestSuiteAsync("www.google.com", 0, 0);
-                await LtsOpenSslTool.TestSuiteAsync("127.0.0.1", 0, 0);
+
+                string ign1 = "RC4-MD5@tls1@lts_openssl_exesuite_0.9.8zh,RC4-MD5@tls1@lts_openssl_exesuite_1.0.2u,RC4-MD5@tls1@lts_openssl_exesuite_1.1.1l,RC4-MD5@tls1_1@lts_openssl_exesuite_1.0.2u,RC4-MD5@tls1_1@lts_openssl_exesuite_1.1.1l,RC4-MD5@tls1_2@lts_openssl_exesuite_1.0.2u,RC4-MD5@tls1_2@lts_openssl_exesuite_1.1.1l";
+                //await LtsOpenSslTool.TestSuiteAsync("127.0.0.1", 0, 0, ign1);
+
+                await LtsOpenSslTool.TestSuiteAsync("www.google.com", 0, 0, "");
             });
 
             Con.WriteLine($"************** {i}");

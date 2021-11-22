@@ -970,6 +970,8 @@ namespace IPA.Cores.Basic
 
         public int GetHashCode(string? obj)
             => obj?.GetHashCode(this.Comparison) ?? 0;
+
+        public static implicit operator StringComparison(StrComparer cmp) => cmp.Comparison;
     }
 
     public delegate bool RemoveStringFunction(string str);
