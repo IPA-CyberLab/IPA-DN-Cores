@@ -80,35 +80,36 @@ public class LtsOpenSslTool
     public const int RetryCount = 5;
 
     public const string Def_OpenSslExeNamesAndSslVers = @"
-lts_openssl_exesuite_0.9.8zh                ssl3 tls1
+#lts_openssl_exesuite_0.9.8zh                ssl3 tls1
 lts_openssl_exesuite_1.0.2u                 ssl3 tls1 tls1_1 tls1_2
-lts_openssl_exesuite_1.1.1l                 ssl3 tls1 tls1_1 tls1_2
-lts_openssl_exesuite_3.0.0                  ssl3 tls1 tls1_1 tls1_2 tls1_3
+#lts_openssl_exesuite_1.1.1l                 ssl3 tls1 tls1_1 tls1_2
+#lts_openssl_exesuite_3.0.0                  ssl3 tls1 tls1_1 tls1_2 tls1_3
 ";
 
     public const string Def_Ciphers = @"
-RC4-SHA                                     ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-DES-CBC3-SHA                                ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-AES128-SHA                                  ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-AES256-SHA                                  ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-DHE-RSA-AES128-SHA                          ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-DHE-RSA-AES256-SHA                          ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-AES128-GCM-SHA256                           tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-AES256-GCM-SHA384                           tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-AES256-SHA256                               tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-DHE-RSA-AES128-GCM-SHA256                   tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-DHE-RSA-AES128-SHA256                       tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-DHE-RSA-AES256-GCM-SHA384                   tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-DHE-RSA-AES256-SHA256                       tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-ECDHE-RSA-AES128-GCM-SHA256                 tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-ECDHE-RSA-AES128-SHA256                     tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-ECDHE-RSA-AES256-GCM-SHA384                 tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-ECDHE-RSA-AES256-SHA384                     tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-DHE-RSA-CHACHA20-POLY1305                   tls1_2                      lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-ECDHE-RSA-CHACHA20-POLY1305                 tls1_2                      lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-TLS_CHACHA20_POLY1305_SHA256                tls1_3                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-TLS_AES_256_GCM_SHA384                      tls1_3                      lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
-TLS_AES_128_GCM_SHA256                      tls1_3                      lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+RC4-MD5                                      tls1 lts_openssl_exesuite_1.0.2u
+#RC4-SHA                                     ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#DES-CBC3-SHA                                ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#AES128-SHA                                  ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#AES256-SHA                                  ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#DHE-RSA-AES128-SHA                          ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#DHE-RSA-AES256-SHA                          ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#AES128-GCM-SHA256                           tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#AES256-GCM-SHA384                           tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#AES256-SHA256                               tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#DHE-RSA-AES128-GCM-SHA256                   tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#DHE-RSA-AES128-SHA256                       tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#DHE-RSA-AES256-GCM-SHA384                   tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#DHE-RSA-AES256-SHA256                       tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#ECDHE-RSA-AES128-GCM-SHA256                 tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#ECDHE-RSA-AES128-SHA256                     tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#ECDHE-RSA-AES256-GCM-SHA384                 tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#ECDHE-RSA-AES256-SHA384                     tls1_2                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#DHE-RSA-CHACHA20-POLY1305                   tls1_2                      lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#ECDHE-RSA-CHACHA20-POLY1305                 tls1_2                      lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#TLS_CHACHA20_POLY1305_SHA256                tls1_3                      lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#TLS_AES_256_GCM_SHA384                      tls1_3                      lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
+#TLS_AES_128_GCM_SHA256                      tls1_3                      lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
 ";
 
     public enum Arch
@@ -218,14 +219,12 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
         // ターゲット一覧を生成
         foreach (var ver in VersionList.Where(x => x.Arch == currentArch).OrderBy(x => x.ExeName, StrCmpi))
         {
-            foreach (var sslVer in ver.SslVersions.OrderBy(x => x, StrCmpi))
+            foreach (var cipher in CipherList.Where(x => x.ExeNames.Contains(ver.ExeName)))
             {
-                foreach (var cipher in CipherList.Where(x => x.ExeNames.Contains(ver.ExeName) && x.SslVersions.Contains(sslVer)))
+                foreach (var sslVer in cipher.SslVersions.Where(x => cipher.SslVersions.Contains(x)).OrderBy(x => x, StrCmpi))
                 {
                     targets.Add(new TestSuiteTarget(hostPort, ver, sslVer, cipher.Name, ""));
                 }
-
-                targets.Add(new TestSuiteTarget(hostPort, ver, sslVer, "", ""));
             }
         }
 
@@ -340,70 +339,76 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
         bool ok = false;
         string error = "";
 
-        bool flag1 = false;
-
         try
         {
             var res = await ExecOpenSslCommandAsync(ver, args,
-                async line =>
+                async (stdout, stderr) =>
                 {
-                    // OpenSSL コマンドが出力する標準出力またはエラー文字列をもとに状態を判断する
-                    string tmp = line._NonNullTrim();
+                    // 現在までに届いている stdout と stderr の内容を文字列に変換する
+                    var lines = (stdout._GetString_UTF8() + "\r\n" + stderr._GetString_UTF8())._GetLines(trim: true);
 
-                    if (tmp._TryTrimStartWith(out string tmp2, StringComparison.OrdinalIgnoreCase, "Session-ID:"))
+                    // エラーが来ていないかどうか確認
+                    foreach (var tmp in lines)
                     {
-                        tmp2 = tmp2._NonNullTrim();
-                        byte[] sessionKey = tmp2._GetHexBytes();
-                        if (sessionKey._IsZero() == false && sessionKey.Length >= 16)
+                        var tokens = tmp._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ":");
+                        if (tokens.ElementAtOrDefault(1)._NonNull().StartsWith("error", StringComparison.OrdinalIgnoreCase))
                         {
-                            // OK
-                            ok = true;
+                            // RC4-MD5 で発生するような SSL エラーが発生している。
+                            // その後 Session-ID: が一見正常に届くように見えるが、このエラーが発生している時点で
+                            // 通信はうまくできないのである。
+                            ok = false;
+                            error = tmp;
 
                             // もうプロセスは終了してよい
-                            return false;
+                            return true;
+                        }
+
+                        if (tmp._InStr("Cipher is (NONE)", ignoreCase: true))
+                        {
+                            // 暗号化アルゴリズムが選定されなかった
+                            ok = false;
+
+                            error = tmp;
+                            // もうプロセスは終了してよい
+                            return true;
                         }
                     }
 
-                    var tokens = tmp._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ":");
-                    if (tokens.ElementAtOrDefault(1)._NonNull().StartsWith("error", StringComparison.OrdinalIgnoreCase))
+                    // 成功状態になっていないか確認 (これらの条件が満たされた場合でも、エラーが来ていれば NG である。エラーは上のコードで検出されるのである。)
+                    foreach (var tmp in lines)
                     {
-                        // RC4-MD5 で発生するような SSL エラーが発生している。
-                        // その後 Session-ID: が一見正常に届くように見えるが、このエラーが発生している時点で
-                        // 通信はうまくできないのである。
-                        ok = false;
+                        if (tmp._TryTrimStartWith(out string tmp2, StringComparison.OrdinalIgnoreCase, "Session-ID:"))
+                        {
+                            tmp2 = tmp2._NonNullTrim();
+                            byte[] sessionKey = tmp2._GetHexBytes();
+                            if (sessionKey._IsZero() == false && sessionKey.Length >= 16)
+                            {
+                                // OK
+                                ok = true;
 
-                        error = tmp;
-                        return false;
-                    }
+                                // もうプロセスは終了してよい
+                                return true;
+                            }
+                        }
 
-                    if (tmp._InStr("Cipher is (NONE)", ignoreCase: true))
-                    {
-                        // 暗号化アルゴリズムが選定されなかった
-                        ok = false;
+                        if (tmp.StartsWith("New, TLSv1.3, Cipher is", CmpiStr))
+                        {
+                            if (tmp._InStr("Secure Renegotiation IS", true) && tmp._InStr("supported"))
+                            {
+                                // TLS 1.3 でセッションキー等は届いていない (サーバー側で送出してこない) が、ネゴシエーションには成功したものと思われる。
+                                // www.google.com 等でこの挙動がある。
+                                // OK
+                                ok = true;
 
-                        error = tmp;
-                        return false;
-                    }
-
-                    if (tmp.StartsWith("New, TLSv1.3, Cipher is", CmpiStr))
-                    {
-                        flag1 = true;
-                    }
-
-                    if (flag1 && tmp._InStr("Secure Renegotiation IS", true) && tmp._InStr("supported"))
-                    {
-                        // TLS 1.3 でセッションキー等は届いていない (サーバー側で送出してこない) が、ネゴシエーションには成功したものと思われる。
-                        // www.google.com 等でこの挙動がある。
-                        // OK
-                        ok = true;
-
-                        // もうプロセスは終了してよい
-                        return false;
+                                // もうプロセスは終了してよい
+                                return true;
+                            }
+                        }
                     }
 
                     await Task.CompletedTask;
 
-                    return true;
+                    return false;
                 },
                 cancel);
         }
@@ -434,7 +439,7 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
 
     // OpenSSL コマンドの実行
     public static async Task<EasyExecResult> ExecOpenSslCommandAsync(Version ver, string args,
-            Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null, CancellationToken cancel = default)
+            Func<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, Task<bool>>? easyRealtimeRecvBufCallbackAsync = null, CancellationToken cancel = default)
     {
         var exePath = await PrepareOpenSslExeAsync(ver, cancel);
 
@@ -444,7 +449,8 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
             cancel: cancel,
             printTag: ver.ExeName,
             timeout: CommandTimeoutMsecs,
-            easyOneLineRecvCallbackAsync: easyOneLineRecvCallbackAsync);
+            easyRealtimeRecvBufCallbackAsync: easyRealtimeRecvBufCallbackAsync,
+            easyRealtimeRecvBufCallbackDelayTickMsecs: 1000);
     }
 
     // OpenSSL コマンドの実行

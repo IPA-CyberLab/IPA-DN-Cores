@@ -215,7 +215,7 @@ namespace IPA.Cores.Basic
     }
     // 子プロセスの実行パラメータのフラグ
     [Flags]
-    public enum ExecFlags
+    public enum ExecFlags : long
     {
         None = 0,
         KillProcessGroup = 1,                   // Kill する場合はプロセスグループを Kill する
@@ -235,7 +235,9 @@ namespace IPA.Cores.Basic
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, int? timeout = null,
             CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true,
             string printTag = "",
-            Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null)
+            Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null,
+            Func<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, Task<bool>>? easyRealtimeRecvBufCallbackAsync = null,
+            int easyRealtimeRecvBufCallbackDelayTickMsecs = 0)
         {
             if (timeout <= 0) timeout = Timeout.Infinite;
 
@@ -243,7 +245,9 @@ namespace IPA.Cores.Basic
             args.Add("-c");
             args.Add(command);
 
-            ExecOptions opt = new ExecOptions(Lfs.UnixGetFullPathFromCommandName(Consts.LinuxCommands.Bash), args, currentDirectory, flags, easyOutputMaxSize, easyInputStr, printTag, easyOneLineRecvCallbackAsync);
+            ExecOptions opt = new ExecOptions(Lfs.UnixGetFullPathFromCommandName(Consts.LinuxCommands.Bash),
+                args, currentDirectory, flags, easyOutputMaxSize, easyInputStr, printTag,
+                easyOneLineRecvCallbackAsync, easyRealtimeRecvBufCallbackAsync, easyRealtimeRecvBufCallbackDelayTickMsecs);
 
             if (debug)
             {
@@ -290,11 +294,14 @@ namespace IPA.Cores.Basic
             ExecFlags flags = ExecFlags.Default | ExecFlags.EasyInputOutputMode,
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, int? timeout = null,
             CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true, string printTag = "",
-            Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null)
+            Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null,
+            Func<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, Task<bool>>? easyRealtimeRecvBufCallbackAsync = null,
+            int easyRealtimeRecvBufCallbackDelayTickMsecs = 0)
         {
             if (timeout <= 0) timeout = Timeout.Infinite;
 
-            ExecOptions opt = new ExecOptions(cmdName, arguments, currentDirectory, flags, easyOutputMaxSize, easyInputStr, printTag, easyOneLineRecvCallbackAsync);
+            ExecOptions opt = new ExecOptions(cmdName, arguments, currentDirectory, flags, easyOutputMaxSize, easyInputStr, printTag,
+                easyOneLineRecvCallbackAsync, easyRealtimeRecvBufCallbackAsync, easyRealtimeRecvBufCallbackDelayTickMsecs);
 
             if (debug)
             {
@@ -454,10 +461,14 @@ namespace IPA.Cores.Basic
         public string? EasyInputStr { get; }
         public string PrintTag { get; }
         public Func<string, Task<bool>>? EasyOneLineRecvCallbackAsync { get; }
+        public Func<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, Task<bool>>? EasyRealtimeRecvBufCallbackAsync { get; }
+        public int EasyRealtimeRecvBufCallbackDelayTickMsecs { get; }
 
         public ExecOptions(string commandName, string? arguments = null, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default,
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, string printTag = "",
-            Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null)
+            Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null,
+            Func<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, Task<bool>>? easyRealtimeRecvBufCallbackAsync = null,
+            int easyRealtimeRecvBufCallbackDelayTickMsecs = 0)
         {
             this.CommandName = commandName._NullCheck();
             if (Env.IsUnix == false || flags.Bit(ExecFlags.UnixAutoFullPath) == false)
@@ -484,11 +495,15 @@ namespace IPA.Cores.Basic
             this.EasyInputStr = easyInputStr._NullIfZeroLen();
             this.PrintTag = printTag;
             this.EasyOneLineRecvCallbackAsync = easyOneLineRecvCallbackAsync;
+            this.EasyRealtimeRecvBufCallbackAsync = easyRealtimeRecvBufCallbackAsync;
+            this.EasyRealtimeRecvBufCallbackDelayTickMsecs = easyRealtimeRecvBufCallbackDelayTickMsecs;
         }
 
         public ExecOptions(string commandName, IEnumerable<string> argumentsList, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default,
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, string printTag = "",
-            Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null)
+            Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null,
+            Func<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, Task<bool>>? easyRealtimeRecvBufCallbackAsync = null,
+            int easyRealtimeRecvBufCallbackDelayTickMsecs = 0)
         {
             this.CommandName = commandName._NullCheck();
             if (Env.IsUnix == false || flags.Bit(ExecFlags.UnixAutoFullPath) == false)
@@ -515,6 +530,8 @@ namespace IPA.Cores.Basic
             this.EasyInputStr = easyInputStr._NullIfZeroLen();
             this.PrintTag = printTag;
             this.EasyOneLineRecvCallbackAsync = easyOneLineRecvCallbackAsync;
+            this.EasyRealtimeRecvBufCallbackAsync = easyRealtimeRecvBufCallbackAsync;
+            this.EasyRealtimeRecvBufCallbackDelayTickMsecs = easyRealtimeRecvBufCallbackDelayTickMsecs;
         }
     }
 
@@ -621,11 +638,18 @@ namespace IPA.Cores.Basic
         readonly Task? EasyInputTask = null;
         readonly Task<Memory<byte>>? EasyOutputTask = null;
         readonly Task<Memory<byte>>? EasyErrorTask = null;
+        readonly Task? EasyRealtimeBufferMainteTask = null;
 
         readonly NetAppStub? EasyInputOutputStub = null;
         readonly PipeStream? EasyInputOutputStream = null;
         readonly NetAppStub? EasyErrorStub = null;
         readonly PipeStream? EasyErrorStream = null;
+
+        readonly CriticalSection<ExecInstance> EasyRealtimeBufLock = new CriticalSection<ExecInstance>();
+        readonly MemoryBuffer<byte> EasyOutputRealtimeBuf = new MemoryBuffer<byte>();
+        readonly MemoryBuffer<byte> EasyErrRealtimeBuf = new MemoryBuffer<byte>();
+        readonly AsyncPulse EasyRealtimeBufLastWritePulse = new AsyncPulse();
+        long EasyRealtimeBufLastWriteTick = 0;
 
         public long StartTick { get; }
         public long EndTick { get; private set; }
@@ -720,6 +744,12 @@ namespace IPA.Cores.Basic
                     // 標準エラー出力の読み出しタスク
                     this.EasyErrorTask = this.EasyErrorStream._ReadWithMaxBufferSizeAsync(this.Options.EasyOutputMaxSize, this.GrandCancel,
                         async (data, cancel) => await EasyPrintRealTimeRecvDataCallbackAsync(data, true, cancel))._LeakCheck();
+
+                    // リアルタイムバッファ監視タスク
+                    if (Options.EasyRealtimeRecvBufCallbackAsync != null)
+                    {
+                        this.EasyRealtimeBufferMainteTask = EasyRealtimeBufferMainteTaskAsync(this.GrandCancel)._LeakCheck();
+                    }
                 }
 
                 this.StartMainLoop(MainLoopAsync);
@@ -737,9 +767,105 @@ namespace IPA.Cores.Basic
         PipeStreamPairWithSubTask? EasyOneLineRecvStdOut = null;
         PipeStreamPairWithSubTask? EasyOneLineRecvStdErr = null;
 
+        // リアルタイムバッファ監視タスク
+        async Task EasyRealtimeBufferMainteTaskAsync(CancellationToken cancel)
+        {
+            // delay time
+            int delay = this.Options.EasyRealtimeRecvBufCallbackDelayTickMsecs;
+            delay = Math.Max(delay, 10);
+
+            int interval = Math.Max(delay / 10, 1);
+
+            long lastHash = Secure.RandSInt64_Caution();
+            long lastStableTick = 0;
+
+            while (cancel.IsCancellationRequested == false)
+            {
+                long currentHash;
+                long currentTick;
+
+                ReadOnlyMemory<byte> currentMemOutput;
+                ReadOnlyMemory<byte> currentMemErr;
+
+                lock (this.EasyRealtimeBufLock)
+                {
+                    MemoryBuffer<byte> tmp = new MemoryBuffer<byte>();
+                    tmp.Write(this.EasyErrRealtimeBuf.Span);
+                    tmp.WriteStr("----test----");
+                    tmp.Write(this.EasyOutputRealtimeBuf.Span);
+                    currentHash = Secure.HashSHA1AsLong(tmp.Span);
+                    currentTick = this.EasyRealtimeBufLastWriteTick;
+
+                    currentMemOutput = this.EasyOutputRealtimeBuf.Clone();
+                    currentMemErr = this.EasyErrRealtimeBuf.Clone();
+                }
+
+                bool exit = false;
+
+                if (lastHash != currentHash)
+                {
+                    //Dbg.Where();
+                    lastHash = currentHash;
+                    lastStableTick = currentTick;
+                }
+                else
+                {
+                    //Dbg.Where($"lastStableTick = {lastStableTick}, currentTick = {Time.Tick64}, lastHash = {lastHash}");
+                    if ((lastStableTick + delay) <= Time.Tick64)
+                    {
+                        //Dbg.Where("**********");
+                        try
+                        {
+                            bool ret = await this.Options.EasyRealtimeRecvBufCallbackAsync!(currentMemOutput, currentMemErr);
+                            exit = ret;
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Debug();
+                            exit = true;
+                        }
+                    }
+                }
+
+                if (exit)
+                {
+                    //Dbg.Where();
+                    TaskUtil.StartAsyncTaskAsync(async () =>
+                    {
+                        await Task.Yield();
+                        KillProcessInternal();
+                        await Task.CompletedTask;
+                    })._LaissezFaire(true);
+
+                    return;
+                }
+
+                await cancel._WaitUntilCanceledAsync(interval);
+            }
+        }
+
         // リアルタイムでデータが届いたときに呼ばれるコールバック関数
         Task EasyPrintRealTimeRecvDataCallbackAsync(ReadOnlyMemory<byte> data, bool stderr, CancellationToken cancel)
         {
+            if (Options.EasyRealtimeRecvBufCallbackAsync != null)
+            {
+                lock (this.EasyRealtimeBufLock)
+                {
+                    if (stderr)
+                    {
+                        this.EasyErrRealtimeBuf.Write(data);
+                    }
+                    else
+                    {
+                        this.EasyOutputRealtimeBuf.Write(data);
+                    }
+
+                    this.EasyRealtimeBufLastWriteTick = Time.Tick64;
+                }
+
+                this.EasyRealtimeBufLastWritePulse.FirePulse(true);
+            }
+
             PipeStreamPairWithSubTask? pairForPrint = null;
             PipeStreamPairWithSubTask? pairForOneLineRecv = null;
 
@@ -762,11 +888,11 @@ namespace IPA.Cores.Basic
             {
                 if (stderr)
                 {
-                    pairForOneLineRecv = (this.EasyOneLineRecvStdErr ??= new PipeStreamPairWithSubTask(EasyPrintRealTimeRecvDataOneLineRecvCallbackAsync));
+                    pairForOneLineRecv = (this.EasyOneLineRecvStdErr ??= new PipeStreamPairWithSubTask(EasyRecvDataOneLineRecvCallbackAsync));
                 }
                 else
                 {
-                    pairForOneLineRecv = (this.EasyOneLineRecvStdOut ??= new PipeStreamPairWithSubTask(EasyPrintRealTimeRecvDataOneLineRecvCallbackAsync));
+                    pairForOneLineRecv = (this.EasyOneLineRecvStdOut ??= new PipeStreamPairWithSubTask(EasyRecvDataOneLineRecvCallbackAsync));
                 }
             }
 
@@ -825,7 +951,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        async Task EasyPrintRealTimeRecvDataOneLineRecvCallbackAsync(PipeStream st)
+        async Task EasyRecvDataOneLineRecvCallbackAsync(PipeStream st)
         {
             bool returnedFalseOnce = false;
 
@@ -924,6 +1050,11 @@ namespace IPA.Cores.Basic
                 catch (Exception ex)
                 {
                     ex._Debug();
+                }
+
+                if (this.EasyRealtimeBufferMainteTask != null)
+                {
+                    await this.EasyRealtimeBufferMainteTask._TryWaitAsync();
                 }
 
                 EasyOutputAndErrorDataCompleted = true;
