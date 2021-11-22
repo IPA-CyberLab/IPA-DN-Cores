@@ -216,7 +216,7 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
 
         var currentArch = GetCurrentArchiecture();
 
-        var ignores = ignoresList._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",", " ", "|", "/", ";").ToHashSet(StrCmpi);
+        var ignores = ignoresList._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",", " ", "|", "/", ";", "\r", "\n").ToHashSet(StrCmpi);
 
         // ターゲット一覧を生成
         foreach (var ver in VersionList.Where(x => x.Arch == currentArch).OrderBy(x => x.ExeName, StrCmpi))
@@ -396,6 +396,8 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
                         }
                     }
 
+                    bool flag1 = false;
+
                     // 成功状態になっていないか確認 (これらの条件が満たされた場合でも、エラーが来ていれば NG である。エラーは上のコードで検出されるのである。)
                     foreach (var tmp in lines)
                     {
@@ -414,6 +416,11 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
                         }
 
                         if (tmp.StartsWith("New, TLSv1.3, Cipher is", StrCmpi))
+                        {
+                            flag1 = true;
+                        }
+
+                        if (flag1)
                         {
                             if (tmp._InStr("Secure Renegotiation IS", true) && tmp._InStr("supported"))
                             {
