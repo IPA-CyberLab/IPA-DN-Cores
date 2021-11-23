@@ -439,7 +439,7 @@ namespace IPA.Cores.Basic
             {
                 IO.MakeDirIfNotExists(Env.UnixMutantDir);
 
-                UnixApi.Permissions perm = UnixApi.Permissions.S_IRUSR | UnixApi.Permissions.S_IWUSR | UnixApi.Permissions.S_IRGRP | UnixApi.Permissions.S_IWGRP | UnixApi.Permissions.S_IROTH | UnixApi.Permissions.S_IWOTH;
+                UnixPermissions perm = UnixPermissions.S_IRUSR | UnixPermissions.S_IWUSR | UnixPermissions.S_IRGRP | UnixPermissions.S_IWGRP | UnixPermissions.S_IROTH | UnixPermissions.S_IWOTH;
 
                 IntPtr fd = UnixApi.Open(Filename, UnixApi.OpenFlags.O_CREAT | UnixApi.OpenFlags.O_CLOEXEC, (int)perm);
                 if (fd.ToInt64() < 0)
@@ -499,7 +499,7 @@ namespace IPA.Cores.Basic
                     {
                         if (fileFullPath.EndsWith(Extension, StringComparison.OrdinalIgnoreCase))
                         {
-                            UnixApi.Permissions perm = UnixApi.Permissions.S_IRUSR | UnixApi.Permissions.S_IWUSR | UnixApi.Permissions.S_IRGRP | UnixApi.Permissions.S_IWGRP | UnixApi.Permissions.S_IROTH | UnixApi.Permissions.S_IWOTH;
+                            UnixPermissions perm = UnixPermissions.S_IRUSR | UnixPermissions.S_IWUSR | UnixPermissions.S_IRGRP | UnixPermissions.S_IWGRP | UnixPermissions.S_IROTH | UnixPermissions.S_IWOTH;
 
                             bool okToDelete = false;
 

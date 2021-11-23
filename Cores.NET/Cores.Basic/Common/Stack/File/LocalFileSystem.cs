@@ -714,6 +714,16 @@ public partial class LocalFileSystem : FileSystem
             );
     }
 
+    public void UnixSetPermissions(string path, UnixPermissions permissions)
+    {
+        if (Env.IsUnix == false) return;
+
+        if (UnixApi.ChMod(path, (int)permissions) < 0)
+        {
+            throw new CoresException($"UnixApi.ChMod failed. Path = '{path}'");
+        }
+    }
+
     protected override async Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
     {
         if (Env.IsWindows && Win32ApiUtil.IsUncServerRootPath(path, out string? normalizedUncPath))

@@ -536,6 +536,16 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
 
                 Lfs.MoveFile(tmpExePath2, tmpExePath, cancel);
             }
+
+            // パーミッションの設定
+            try
+            {
+                Lfs.UnixSetPermissions(tmpExePath, UnixPermissions.S_IROTH | UnixPermissions.S_IWOTH | UnixPermissions.S_IXOTH | UnixPermissions.S_IRGRP | UnixPermissions.S_IXGRP | UnixPermissions.S_IRUSR | UnixPermissions.S_IXUSR);
+            }
+            catch (Exception ex)
+            {
+                ex._Debug();
+            }
         }
 
         return tmpExePath;
