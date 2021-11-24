@@ -61,7 +61,7 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<SslProtocols> DefaultSslProtocolVersionsAsServer = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12 | SslProtocols.Tls13;
             public static readonly Copenhagen<SslProtocols> DefaultSslProtocolVersionsAsClient = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12 | SslProtocols.Tls13;
 
-            public static readonly Copenhagen<EncryptionPolicy> DefaultSslEncryptionPolicyServer = EncryptionPolicy.AllowNoEncryption;
+            public static readonly Copenhagen<EncryptionPolicy> DefaultSslEncryptionPolicyServer = EncryptionPolicy.RequireEncryption;
             public static readonly Copenhagen<EncryptionPolicy> DefaultSslEncryptionPolicyClient = EncryptionPolicy.AllowNoEncryption;
 
             [Obsolete]
