@@ -108,6 +108,18 @@ namespace IPA.Cores.Basic
 
         static readonly Once OnceFlag = new Once();
 
+        public static void TryInit()
+        {
+            try
+            {
+                Init();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
+        }
+
         public static void Init()
         {
             if (Env.IsWindows) return;
@@ -116,11 +128,11 @@ namespace IPA.Cores.Basic
             {
                 var pol = CreateUnixOpenSslCipherSuitesPolicyInternal();
 
-                CoresConfig.SslSettings.DefaultSslEncryptionPolicyServer.Set(EncryptionPolicy.AllowNoEncryption);
-                CoresConfig.SslSettings.DefaultSslEncryptionPolicyClient.Set(EncryptionPolicy.AllowNoEncryption);
-
                 CoresConfig.SslSettings.DefaultCipherSuitesPolicyServer.Set(pol);
                 CoresConfig.SslSettings.DefaultCipherSuitesPolicyClient.Set(pol);
+
+                CoresConfig.SslSettings.DefaultSslEncryptionPolicyServer.Set(EncryptionPolicy.AllowNoEncryption);
+                CoresConfig.SslSettings.DefaultSslEncryptionPolicyClient.Set(EncryptionPolicy.AllowNoEncryption);
             }
         }
 
