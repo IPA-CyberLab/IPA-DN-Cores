@@ -835,7 +835,7 @@ public class HttpServerOptions
                     ret.AllowRenegotiation = false;
                     ret.CertificateRevocationCheckMode = X509RevocationMode.NoCheck;
                     ret.EncryptionPolicy = CoresConfig.SslSettings.DefaultSslEncryptionPolicyServer;
-                    ret.CipherSuitesPolicy = CoresConfig.SslSettings.GetCipherSuitesPolicy();
+                    ret.CipherSuitesPolicy = CoresConfig.SslSettings.DefaultCipherSuitesPolicyServer;
                     ret.ServerCertificate = null;
                     ret.ServerCertificateSelectionCallback = null;
                     ret.ServerCertificateContext = null;

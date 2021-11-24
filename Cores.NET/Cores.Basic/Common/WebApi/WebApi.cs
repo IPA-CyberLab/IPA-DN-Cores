@@ -579,7 +579,7 @@ public partial class WebApi : IDisposable, IAsyncDisposable
 
         try
         {
-            this.ClientHandler.SslOptions.CipherSuitesPolicy = CoresConfig.SslSettings.GetCipherSuitesPolicy();
+            this.ClientHandler.SslOptions.CipherSuitesPolicy = CoresConfig.SslSettings.DefaultCipherSuitesPolicyClient;
         }
         catch { }
 

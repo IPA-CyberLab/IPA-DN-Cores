@@ -63,64 +63,41 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<SslProtocols> DefaultSslProtocolVersionsAsServer = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12 | SslProtocols.Tls13;
             public static readonly Copenhagen<SslProtocols> DefaultSslProtocolVersionsAsClient = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12 | SslProtocols.Tls13;
 
-            public static readonly Copenhagen<EncryptionPolicy> DefaultSslEncryptionPolicyServer = EncryptionPolicy.AllowNoEncryption;
-            public static readonly Copenhagen<EncryptionPolicy> DefaultSslEncryptionPolicyClient = EncryptionPolicy.AllowNoEncryption;
+            public static readonly Copenhagen<EncryptionPolicy> DefaultSslEncryptionPolicyServer = EncryptionPolicy.RequireEncryption;
+            public static readonly Copenhagen<EncryptionPolicy> DefaultSslEncryptionPolicyClient = EncryptionPolicy.RequireEncryption;
 
             [Obsolete]
             public static SslProtocols DefaultSslProtocolVersions => DefaultSslProtocolVersionsAsServer;
 
             public static readonly Copenhagen<int> DefaultNegotiationRecvTimeout = 15 * 1000;
 
-            public static CipherSuitesPolicy? GetCipherSuitesPolicy()
-            {
-                if (EnvFastOsInfo.IsWindows) return null;
-
-                return PalUnixOpenSslSpecialUtil.GetUnixOpenSslCipherSuitesPolicy();
-            }
+            public static readonly Copenhagen<CipherSuitesPolicy?> DefaultCipherSuitesPolicyServer = new Copenhagen<CipherSuitesPolicy?>(null);
+            public static readonly Copenhagen<CipherSuitesPolicy?> DefaultCipherSuitesPolicyClient = new Copenhagen<CipherSuitesPolicy?>(null);
         }
     }
 
     public static class PalUnixOpenSslSpecialUtil
     {
-        public const string UnixOpenSslDefaultCipherList_InitialLibraryConst = "ALL:eNULL";
-        public const string UnixOpenSslDefaultCipherList = "ALL:!EXPORT:!LOW:!aNULL:!eNULL:!SSLv2:!RC4-MD5";
-
-        // RC4-MD5 を除外する意義について:
-        // OpenSSL 3.x has a bug. https://github.com/openssl/openssl/issues/13363 https://github.com/openssl/openssl/pull/13378
-        // At 2021-09-08 this bug is reported as fixed on Github, but actually still exists on RC4-MD5.
-        // So, with OpenSSL 3.0 we manually disable RC4-MD5 by default on both SSL server and SSL client.
+        static readonly Once OnceFlag = new Once();
 
         public static void Init()
         {
-            if (EnvFastOsInfo.IsWindows) return;
+            if (Env.IsWindows) return;
 
-            Type encPolType = typeof(System.Net.Security.EncryptionPolicy);
-            var asm = encPolType.Assembly;
-            var t = asm.GetType("System.Net.Security.CipherSuitesPolicyPal");
-            var fi = t!.GetField("AllowNoEncryptionDefault", BindingFlags.Static | BindingFlags.NonPublic);
-            object? obj = fi!.GetValue(null);
-            byte[] oldValue = (byte[])obj!;
-
-            string oldValueStr = oldValue._GetString_UTF8(true);
-
-            if (oldValueStr._IsSamei(UnixOpenSslDefaultCipherList_InitialLibraryConst) == false)
+            if (OnceFlag.IsFirstCall())
             {
-                throw new CoresException($"System.Net.Security.CipherSuitesPolicyPal.AllowNoEncryptionDefault = '{oldValueStr}'");
+                var pol = CreateUnixOpenSslCipherSuitesPolicyInternal();
+
+                CoresConfig.SslSettings.DefaultSslEncryptionPolicyServer.Set(EncryptionPolicy.AllowNoEncryption);
+                CoresConfig.SslSettings.DefaultSslEncryptionPolicyClient.Set(EncryptionPolicy.AllowNoEncryption);
+
+                CoresConfig.SslSettings.DefaultCipherSuitesPolicyServer.Set(pol);
+                CoresConfig.SslSettings.DefaultCipherSuitesPolicyClient.Set(pol);
             }
-
-            byte[] newValue = Encoding.ASCII.GetBytes(UnixOpenSslDefaultCipherList + "\0");
-
-            fi.SetValue(null, newValue);
-
-            CoresConfig.SslSettings.DefaultSslEncryptionPolicyServer.Set(EncryptionPolicy.AllowNoEncryption);
-            CoresConfig.SslSettings.DefaultSslEncryptionPolicyClient.Set(EncryptionPolicy.AllowNoEncryption);
         }
 
-        public static void TryInit()
-        {
-        }
-
-        public static CipherSuitesPolicy GetUnixOpenSslCipherSuitesPolicy()
+        // NULL 以外のまともな SSL 暗号化アルゴリズムを追加する
+        static CipherSuitesPolicy CreateUnixOpenSslCipherSuitesPolicyInternal()
         {
             List<TlsCipherSuite> list = new List<TlsCipherSuite>();
             var definedValues = TlsCipherSuite.TLS_NULL_WITH_NULL_NULL.GetEnumValuesList();
@@ -648,7 +625,7 @@ namespace IPA.Cores.Basic
                     return b1 || b2 || b3;
                 }),
                 EncryptionPolicy = CoresConfig.SslSettings.DefaultSslEncryptionPolicyClient,
-                CipherSuitesPolicy = CoresConfig.SslSettings.GetCipherSuitesPolicy(),
+                CipherSuitesPolicy = CoresConfig.SslSettings.DefaultCipherSuitesPolicyClient,
                 CertificateRevocationCheckMode = X509RevocationMode.NoCheck,
                 EnabledSslProtocols = (SslProtocols == default ? CoresConfig.SslSettings.DefaultSslProtocolVersionsAsClient : SslProtocols),
             };
@@ -705,7 +682,7 @@ namespace IPA.Cores.Basic
                 ClientCertificateRequired = !AllowAnyClientCert,
                 EncryptionPolicy = CoresConfig.SslSettings.DefaultSslEncryptionPolicyServer,
                 CertificateRevocationCheckMode = X509RevocationMode.NoCheck,
-                CipherSuitesPolicy = CoresConfig.SslSettings.GetCipherSuitesPolicy(),
+                CipherSuitesPolicy = CoresConfig.SslSettings.DefaultCipherSuitesPolicyServer,
             };
 
             bool certExists = false;
