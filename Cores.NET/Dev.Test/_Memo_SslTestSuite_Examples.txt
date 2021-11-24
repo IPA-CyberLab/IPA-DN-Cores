@@ -2,9 +2,21 @@
 
 SslTestSuite self /parallel:64 /interval:1000 /ignore:@ssl3@,@tls1_3@,RC4-SHA@,DHE-RSA-AES128-SHA@,DHE-RSA-AES256-SHA@,DHE-RSA-AES128-SHA256@,DHE-RSA-CHACHA20-POLY1305@,ECDHE-RSA-CHACHA20-POLY1305@,DHE-RSA-AES256-SHA256@ /expectedcertstr:old=01_TestHost_RSA1024_SHA1_2036;new=02_TestHost_RSA4096_SHA256_2099
 
+上記は
+
+SslTestSuite self /parallel:64 /interval:1000 /ignore:default /expectedcertstr:default
+
+と等価 (default 指定時: ソースコード中に定数があるぞ)
+
 ■ Linux Self Test 2021/11/24 (Ubuntu 20.04 with OpenSSL 1.1.1f maybe)
 
 SslTestSuite self /parallel:64 /interval:1000 /ignore:RC4-SHA@,@ssl3@,DES-CBC3-SHA@,DHE-RSA-AES128-GCM-SHA256@,DHE-RSA-AES128-SHA@,DHE-RSA-AES128-SHA256@,DHE-RSA-AES256-GCM-SHA384@,DHE-RSA-AES256-SHA@,DHE-RSA-AES256-SHA256@,DHE-RSA-CHACHA20-POLY1305@ /expectedcertstr:old=01_TestHost_RSA1024_SHA1_2036,test.sample.certificate;new=02_TestHost_RSA4096_SHA256_2099,test.sample.certificate
+
+上記は
+
+SslTestSuite self /parallel:64 /interval:1000 /ignore:default /expectedcertstr:default
+
+と等価 (default 指定時: ソースコード中に定数があるぞ)
 
 
 ■ Thin (NTT) 2021/11/24
