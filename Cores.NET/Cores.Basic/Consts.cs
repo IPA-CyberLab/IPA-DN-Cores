@@ -51,6 +51,7 @@ public static partial class Consts
     {
         // UNIX の制限のため、0 - 255 に限る。
         public const byte NoError = 0;
+        public const byte GenericError = 1;
         public const byte DaemonCenterRebootRequestd_Normal = 81;
         public const byte DaemonCenterRebootRequestd_GitUpdated = 82;
     }
