@@ -84,6 +84,7 @@ using IPA.Cores.ClientApi;
 using IPA.Cores.ClientApi.SlackApi;
 
 using IPA.Cores.Codes;
+using System.Net.Security;
 
 
 #pragma warning disable CS0219
@@ -2629,8 +2630,33 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         }
     }
 
+    public static void Test_211125()
+    {
+        List<TlsCipherSuite> list = new List<TlsCipherSuite>();
+        var definedValues = TlsCipherSuite.TLS_NULL_WITH_NULL_NULL.GetEnumValuesList();
+        foreach (var value in definedValues)
+        {
+            list.Add(value);
+        }
+
+        CipherSuitesPolicy pol = new CipherSuitesPolicy(list);
+        object? pal = pol._PrivateGet("Pal");
+
+        byte[] b1 = (byte[])pal!._PrivateGet("_cipherSuites")!;
+        byte[] b2 = (byte[])pal!._PrivateGet("_tls13CipherSuites;")!;
+
+        b1._GetString_UTF8(true)._Print();
+        b2._GetString_UTF8(true)._Print();
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_211125();
+            return;
+        }
+
         if (true)
         {
             Test_211118();
