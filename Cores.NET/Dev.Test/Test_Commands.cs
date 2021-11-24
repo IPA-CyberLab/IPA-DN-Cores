@@ -56,8 +56,8 @@ partial class TestDevCommands
     {
         ConsoleParam[] args =
         {
-                new ConsoleParam("[arg]", null, null, null, null),
-            };
+            new ConsoleParam("[arg]", null, null, null, null),
+        };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
@@ -66,17 +66,56 @@ partial class TestDevCommands
         return 0;
     }
 
+
     [ConsoleCommand(
-        "Normalize Src Code Text with BOM and UTF-8",
-        "NormalizeSrcCodeText [dir]",
-        "Normalize Src Code Text with BOM and UTF-8",
-        "[dir]: Dir name")]
+        "Execute SSL Test Suite",
+        "SslTestSuite [host:port] [/parallel:num=1] [/interval:msecs=0] [/ignore:ignore_list]",
+        "Execute SSL Test Suite")]
+    static int SslTestSuite(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+            new ConsoleParam("[host:port]", ConsoleService.Prompt, "<Host:port>: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("parallel"),
+            new ConsoleParam("interval"),
+            new ConsoleParam("ignore"),
+        };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string hostAndPort = vl.DefaultParam.StrValue;
+        int parallel = vl["parallel"].IntValue;
+        int interval = vl["interval"].IntValue;
+        string ignList = vl["ignore"].StrValue;
+
+        bool ret = false;
+
+        Async(async () =>
+        {
+            ret = await LtsOpenSslTool.TestSuiteAsync(hostAndPort, parallel, interval, ignList);
+        });
+
+        if (ret == false)
+        {
+            Con.WriteLine();
+            Con.WriteLine("Error occured.");
+            return -1;
+        }
+
+        return 0;
+    }
+
+    [ConsoleCommand(
+    "Normalize Src Code Text with BOM and UTF-8",
+    "NormalizeSrcCodeText [dir]",
+    "Normalize Src Code Text with BOM and UTF-8",
+    "[dir]: Dir name")]
     static int NormalizeSrcCodeText(ConsoleService c, string cmdName, string str)
     {
         ConsoleParam[] args =
         {
-                new ConsoleParam("[dir]", ConsoleService.Prompt, "Directory name: ", ConsoleService.EvalNotEmpty, null),
-            };
+            new ConsoleParam("[dir]", ConsoleService.Prompt, "Directory name: ", ConsoleService.EvalNotEmpty, null),
+        };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 

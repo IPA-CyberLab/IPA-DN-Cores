@@ -87,7 +87,6 @@ lts_openssl_exesuite_3.0.0                  ssl3 tls1 tls1_1 tls1_2 tls1_3
 ";
 
     public const string Def_Ciphers = @"
-RC4-MD5                                     ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
 RC4-SHA                                     ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
 DES-CBC3-SHA                                ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
 AES128-SHA                                  ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
@@ -210,24 +209,24 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
 
     public static async Task<bool> TestSuiteAsync(string hostPort, int maxConcurrentTasks, int intervalMsecs, string ignoresList = "", CancellationToken cancel = default)
     {
-        if (maxConcurrentTasks <= 0) maxConcurrentTasks = 32;
+        if (maxConcurrentTasks <= 0) maxConcurrentTasks = 1;
 
         List<TestSuiteTarget> targets = new List<TestSuiteTarget>();
 
         var currentArch = GetCurrentArchiecture();
 
-        var ignores = ignoresList._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",", " ", "|", "/", ";", "\r", "\n").ToHashSet(StrCmpi);
+        var ignores = ignoresList._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",", " ", "|", "/", ";", "\r", "\n");
 
         // ターゲット一覧を生成
         foreach (var ver in VersionList.Where(x => x.Arch == currentArch).OrderBy(x => x.ExeName, StrCmpi))
         {
             foreach (var cipher in CipherList.Where(x => x.ExeNames.Contains(ver.ExeName)))
             {
-                foreach (var sslVer in cipher.SslVersions.Where(x => cipher.SslVersions.Contains(x)).Where(x=>ver.SslVersions.Contains(x)).OrderBy(x => x, StrCmpi))
+                foreach (var sslVer in cipher.SslVersions.Where(x => cipher.SslVersions.Contains(x)).Where(x => ver.SslVersions.Contains(x)).OrderBy(x => x, StrCmpi))
                 {
                     string tmp = cipher.Name + "@" + sslVer + "@" + ver.ExeName;
 
-                    if (ignores.Contains(tmp) == false)
+                    if (ignores.Where(x => x._IsSamei(tmp) || (x.StartsWith("@") && x.EndsWith("@") && tmp._InStr(x, true)) || (x.EndsWith("@") && tmp.StartsWith(x, StrCmpi))).Any() == false)
                     {
                         targets.Add(new TestSuiteTarget(hostPort, ver, sslVer, cipher.Name, ""));
                     }
@@ -320,7 +319,7 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
             Con.WriteLine();
             Con.WriteLine("===== Ignores List Hint =====");
             List<string> ignoreList = new List<string>();
-            errorList.OrderBy(x=>x.CipherName, StrCmpi).ThenBy(x=>x.SslVer, StrCmpi).ThenBy(x=>x.Ver.ExeName, StrCmpi)
+            errorList.OrderBy(x => x.CipherName, StrCmpi).ThenBy(x => x.SslVer, StrCmpi).ThenBy(x => x.Ver.ExeName, StrCmpi)
                 ._DoForEach(x => ignoreList.Add(x.CipherName + "@" + x.SslVer + "@" + x.Ver.ExeName));
             Con.WriteLine(ignoreList._Combine(","));
         }
@@ -384,7 +383,10 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
                             // もうプロセスは終了してよい
                             return true;
                         }
+                    }
 
+                    foreach (var tmp in lines)
+                    {
                         if (tmp._InStr("Cipher is (NONE)", ignoreCase: true))
                         {
                             // 暗号化アルゴリズムが選定されなかった
