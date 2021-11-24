@@ -73,7 +73,6 @@ partial class TestDevCommands
         "Execute SSL Test Suite")]
     static int SslTestSuite(ConsoleService c, string cmdName, string str)
     {
-        throw new CoresException("Error");
         ConsoleParam[] args =
         {
             new ConsoleParam("[host:port]", ConsoleService.Prompt, "<Host:port>: ", ConsoleService.EvalNotEmpty, null),
@@ -102,7 +101,7 @@ partial class TestDevCommands
         {
             Con.WriteLine();
             Con.WriteLine("Error occured.");
-            return Consts.ExitCodes.GenericError;
+            return 1;
         }
 
         return 0;
