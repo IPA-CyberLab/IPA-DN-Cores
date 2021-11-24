@@ -90,6 +90,13 @@ partial class TestDevCommands
         string ignList = vl["ignore"].StrValue;
         string expectedcertstr = vl["expectedcertstr"].StrValue;
 
+        if (Env.IsMac)
+        {
+            Con.WriteLine();
+            Con.WriteLine("Mac OS is not suppoerted. Skip.");
+            return 0;
+        }
+
         bool ret = false;
 
         Async(async () =>
