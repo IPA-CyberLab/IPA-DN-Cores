@@ -84,6 +84,8 @@ class TestDevAppMain
             CoresLib.Free();
         }
 
+        Console.WriteLine($"Exit code = {ret}");
+
         return ret;
     }
 

@@ -116,8 +116,8 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
     public const string Def_SelfTest_Ignore_For_Windows = "@ssl3@,@tls1_3@,RC4-SHA@,DHE-RSA-AES128-SHA@,DHE-RSA-AES256-SHA@,DHE-RSA-AES128-SHA256@,DHE-RSA-CHACHA20-POLY1305@,ECDHE-RSA-CHACHA20-POLY1305@,DHE-RSA-AES256-SHA256@";
     public const string Def_SelfTest_Ignore_For_Unix = "RC4-SHA@,@ssl3@,DES-CBC3-SHA@,DHE-RSA-AES128-GCM-SHA256@,DHE-RSA-AES128-SHA@,DHE-RSA-AES128-SHA256@,DHE-RSA-AES256-GCM-SHA384@,DHE-RSA-AES256-SHA@,DHE-RSA-AES256-SHA256@,DHE-RSA-CHACHA20-POLY1305@";
 
-    public const string Def_SelfTest_Expected_Certs_For_Windows = "old=01_TestHost_RSA1024_SHA1_2036;new=02_TestHost_RSA4096_SHA256_2099";
-    public const string Def_SelfTest_Expected_Certs_For_Unix = "old=01_TestHost_RSA1024_SHA1_2036,test.sample.certificate;new=02_TestHost_RSA4096_SHA256_2099,test.sample.certificate";
+    public const string Def_SelfTest_Expected_Certs_For_Windows = "old=01_TestHost_RSA1024_SHA1_2036;nexxw=02_TestHost_RSA4096_SHA256_2099";
+    public const string Def_SelfTest_Expected_Certs_For_Unix = "old=01_TestHost_RSA1024_SHA1_2036,test.sample.certificate;nexxw=02_TestHost_RSA4096_SHA256_2099,test.sample.certificate";
 
     public enum Arch
     {
