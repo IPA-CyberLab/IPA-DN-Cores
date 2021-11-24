@@ -11,6 +11,7 @@ jobs:
     timeout-minutes: 15
 
     strategy:
+      fail-fast: false
       matrix:
         operating-system: [ubuntu-latest, windows-latest, macOS-latest]
         dotnet-version: ["6.0"]
