@@ -579,6 +579,12 @@ public partial class WebApi : IDisposable, IAsyncDisposable
 
         try
         {
+            this.ClientHandler.SslOptions.CipherSuitesPolicy = CoresConfig.SslSettings.GetCipherSuitesPolicy();
+        }
+        catch { }
+
+        try
+        {
             if (this.ClientHandler.UseProxy != this.Settings.UseProxy)
             {
                 this.ClientHandler.UseProxy = this.Settings.UseProxy;

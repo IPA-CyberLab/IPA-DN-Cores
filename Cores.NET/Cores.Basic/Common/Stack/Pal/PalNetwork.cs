@@ -70,6 +70,13 @@ namespace IPA.Cores.Basic
             public static SslProtocols DefaultSslProtocolVersions => DefaultSslProtocolVersionsAsServer;
 
             public static readonly Copenhagen<int> DefaultNegotiationRecvTimeout = 15 * 1000;
+
+            public static CipherSuitesPolicy? GetCipherSuitesPolicy()
+            {
+                if (EnvFastOsInfo.IsWindows) return null;
+
+                return PalUnixOpenSslSpecialUtil.GetUnixOpenSslCipherSuitesPolicy();
+            }
         }
     }
 
@@ -111,6 +118,25 @@ namespace IPA.Cores.Basic
 
         public static void TryInit()
         {
+        }
+
+        public static CipherSuitesPolicy GetUnixOpenSslCipherSuitesPolicy()
+        {
+            List<TlsCipherSuite> list = new List<TlsCipherSuite>();
+            var definedValues = TlsCipherSuite.TLS_NULL_WITH_NULL_NULL.GetEnumValuesList();
+            foreach (var value in definedValues)
+            {
+                var name = value.EnumToStrExact();
+                if (name._IsFilled())
+                {
+                    string[] tokens = name._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, "_");
+                    if (tokens.Contains("NULL", StrCmpi) == false)
+                    {
+                        list.Add(value);
+                    }
+                }
+            }
+            return new CipherSuitesPolicy(list);
         }
     }
 
@@ -622,6 +648,7 @@ namespace IPA.Cores.Basic
                     return b1 || b2 || b3;
                 }),
                 EncryptionPolicy = CoresConfig.SslSettings.DefaultSslEncryptionPolicyClient,
+                CipherSuitesPolicy = CoresConfig.SslSettings.GetCipherSuitesPolicy(),
                 CertificateRevocationCheckMode = X509RevocationMode.NoCheck,
                 EnabledSslProtocols = (SslProtocols == default ? CoresConfig.SslSettings.DefaultSslProtocolVersionsAsClient : SslProtocols),
             };
@@ -678,6 +705,7 @@ namespace IPA.Cores.Basic
                 ClientCertificateRequired = !AllowAnyClientCert,
                 EncryptionPolicy = CoresConfig.SslSettings.DefaultSslEncryptionPolicyServer,
                 CertificateRevocationCheckMode = X509RevocationMode.NoCheck,
+                CipherSuitesPolicy = CoresConfig.SslSettings.GetCipherSuitesPolicy(),
             };
 
             bool certExists = false;
