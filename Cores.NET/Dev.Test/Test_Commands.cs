@@ -69,7 +69,7 @@ partial class TestDevCommands
 
     [ConsoleCommand(
         "Execute SSL Test Suite",
-        "SslTestSuite [host:port] [/parallel:num=1] [/interval:msecs=0] [/ignore:ignore_list]",
+        "SslTestSuite [host:port|self] [/parallel:num=1] [/interval:msecs=0] [/ignore:ignore_list]",
         "Execute SSL Test Suite")]
     static int SslTestSuite(ConsoleService c, string cmdName, string str)
     {

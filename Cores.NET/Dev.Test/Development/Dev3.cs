@@ -124,6 +124,16 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
     public static readonly IReadOnlyList<Version> VersionList;
     public static readonly IReadOnlyList<Cipher> CipherList;
 
+
+    // テスト用の何もしない Web サーバー
+    public class SslTestSuiteWebServer : CgiHandlerBase
+    {
+        protected override void InitActionListImpl(CgiActionList noAuth, CgiActionList reqAuth)
+        {
+        }
+    };
+
+
     static LtsOpenSslTool()
     {
         List<Version> verList = new();
@@ -208,6 +218,64 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
     public record TestSuiteTarget(string HostPort, Version Ver, string SslVer, string CipherName, Ref<string> Error);
 
     public static async Task<bool> TestSuiteAsync(string hostPort, int maxConcurrentTasks, int intervalMsecs, string ignoresList = "", CancellationToken cancel = default)
+    {
+        bool ret = false;
+
+
+        bool isSelf = hostPort._IsSamei("self");
+
+        CgiHttpServer? webServer = null;
+
+        if (isSelf)
+        {
+            hostPort = $"127.0.0.1:{Consts.Ports.SslTestSuitePort}";
+
+            webServer = new CgiHttpServer(new SslTestSuiteWebServer(), new HttpServerOptions()
+            {
+                AutomaticRedirectToHttpsIfPossible = false,
+                UseKestrelWithIPACoreStack = true,
+                HttpPortsList = new int[] { }.ToList(),
+                HttpsPortsList = new int[] { Consts.Ports.SslTestSuitePort }.ToList(),
+                UseStaticFiles = false,
+                MaxRequestBodySize = 32 * 1024,
+                ReadTimeoutMsecs = 5 * 1000,
+                DisableHiveBasedSetting = true,
+            },
+            true);
+        }
+
+        try
+        {
+            if (isSelf)
+            {
+                Con.WriteLine("Waiting for self test port ready...");
+                // セルフテストの場合は 127.0.0.1 のポートに接続できるようになるまで一定時間トライする
+                await TaskUtil.RetryAsync(async c =>
+                {
+                    await using var sock = await LocalNet.ConnectIPv4v6DualAsync(new TcpConnectParam("127.0.0.1", Consts.Ports.SslTestSuitePort));
+                    await using var sslSock = await sock.SslStartClientAsync(new PalSslClientAuthenticationOptions(true), cancel);
+
+                    return true;
+                },
+                1000,
+                60,
+                cancel,
+                true);
+
+                Con.WriteLine("Port ready OK.");
+            }
+
+            ret = await TestSuiteCoreAsync(hostPort, maxConcurrentTasks, intervalMsecs, ignoresList, cancel);
+        }
+        finally
+        {
+            await webServer._DisposeSafeAsync();
+        }
+
+        return ret;
+    }
+
+    static async Task<bool> TestSuiteCoreAsync(string hostPort, int maxConcurrentTasks, int intervalMsecs, string ignoresList = "", CancellationToken cancel = default)
     {
         if (maxConcurrentTasks <= 0) maxConcurrentTasks = 1;
 

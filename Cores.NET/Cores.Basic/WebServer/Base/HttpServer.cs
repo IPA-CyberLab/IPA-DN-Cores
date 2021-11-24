@@ -415,13 +415,13 @@ public class HttpServerStartupHelper : IDisposable
                     {
                         if (this.ServerOptions.ClientCertficateMode == ClientCertificateMode.AllowCertificate)
                         {
-                                // 証明書が提示されなかった。これは差し支え無い。
-                                ok = true;
+                            // 証明書が提示されなかった。これは差し支え無い。
+                            ok = true;
                         }
                         else
                         {
-                                // 証明書が提示されなかった。証明書が要求されているので、これではエラーになる。
-                                ok = false;
+                            // 証明書が提示されなかった。証明書が要求されているので、これではエラーになる。
+                            ok = false;
                             if (context.Request.IsHttps)
                             {
                                 errStrJa = "クライアント証明書が Web ブラウザによって提示されませんでした。";
@@ -436,8 +436,8 @@ public class HttpServerStartupHelper : IDisposable
                     }
                     else if (this.ServerOptions.ClientCertificateValidatorAsync == null)
                     {
-                            // 証明書が提示されたが、プログラムエラー (検証用コールバックが設定されていない) により検証できなかった。
-                            var ex = new CoresLibException("this.ClientCertificateValidatorAsync == null");
+                        // 証明書が提示されたが、プログラムエラー (検証用コールバックが設定されていない) により検証できなかった。
+                        var ex = new CoresLibException("this.ClientCertificateValidatorAsync == null");
                         ex._Error();
                         ok = false;
                         errStrJa = "プログラム内部エラー: コールバック関数 ClientCertificateValidatorAsync() が実装されていません。";
@@ -445,8 +445,8 @@ public class HttpServerStartupHelper : IDisposable
                     }
                     else
                     {
-                            // 提示された証明書の検証を実施
-                            ok = await this.ServerOptions.ClientCertificateValidatorAsync(clientCertificate, null, SslPolicyErrors.None);
+                        // 提示された証明書の検証を実施
+                        ok = await this.ServerOptions.ClientCertificateValidatorAsync(clientCertificate, null, SslPolicyErrors.None);
                         if (ok == false)
                         {
                             errStrJa = "指定されたクライアント証明書の認証に失敗しました。検証関数が false (検証失敗) を返しました。";
@@ -456,8 +456,8 @@ public class HttpServerStartupHelper : IDisposable
                 }
                 catch (Exception ex)
                 {
-                        // 何らかの検証エラーが発生 (大抵は証明書検証中のエラー)
-                        ex._Error();
+                    // 何らかの検証エラーが発生 (大抵は証明書検証中のエラー)
+                    ex._Error();
                     ok = false;
                     errStrJa = "指定されたクライアント証明書の認証に失敗しました。\nエラー内容: " + ex.Message;
                     errStrEn = "Failed to authenticate the specified client certificate.\nError: " + ex.Message;
@@ -465,8 +465,8 @@ public class HttpServerStartupHelper : IDisposable
 
                 if (ok == false)
                 {
-                        // 証明書検証エラーを HTTP 文字列として表示する
-                        string template = CoresRes["Text/WebServer/CertSoftFailError.txt"].String;
+                    // 証明書検証エラーを HTTP 文字列として表示する
+                    string template = CoresRes["Text/WebServer/CertSoftFailError.txt"].String;
 
                     DateTimeOffset now = DtOffsetNow;
 
@@ -483,8 +483,8 @@ public class HttpServerStartupHelper : IDisposable
                 }
                 else
                 {
-                        // 検証に成功したので次を呼ぶ
-                        await next();
+                    // 検証に成功したので次を呼ぶ
+                    await next();
                 }
             });
         }
@@ -745,10 +745,10 @@ public class HttpServerOptions
                 if (this.DebugKestrelToConsole)
                 {
 #pragma warning disable CS0618 // 型またはメンバーが旧型式です
-                        ConsoleLoggerOptions opt = new ConsoleLoggerOptions { DisableColors = false, IncludeScopes = true };
+                    ConsoleLoggerOptions opt = new ConsoleLoggerOptions { DisableColors = false, IncludeScopes = true };
 #pragma warning restore CS0618 // 型またはメンバーが旧型式です
 
-                        logging.AddProvider(new ConsoleLoggerProvider(new StaticOptionsMonitor<ConsoleLoggerOptions>(opt)));
+                    logging.AddProvider(new ConsoleLoggerProvider(new StaticOptionsMonitor<ConsoleLoggerOptions>(opt)));
                 }
 
                 if (this.DebugKestrelToLog)
@@ -844,11 +844,11 @@ public class HttpServerOptions
 
 #if CORES_BASIC_JSON
 #if CORES_BASIC_SECURITY
-                        useGlobalCertVault = this.UseGlobalCertVault;
+                    useGlobalCertVault = this.UseGlobalCertVault;
 #endif  // CORES_BASIC_JSON
 #endif  // CORES_BASIC_SECURITY;
 
-                        if (useGlobalCertVault == false)
+                    if (useGlobalCertVault == false)
                     {
                         if (this.ServerCertSelector != null)
                         {
@@ -870,7 +870,7 @@ public class HttpServerOptions
 
 #if CORES_BASIC_JSON
 #if CORES_BASIC_SECURITY
-                        if (useGlobalCertVault)
+                    if (useGlobalCertVault)
                     {
                         if (this.GlobalCertVaultDefauleCert != null)
                         {
@@ -879,8 +879,8 @@ public class HttpServerOptions
 
                         if (this.StartGlobalCertVaultOnHttpServerStartup)
                         {
-                                // GlobalCertVault をすぐに起動する
-                                GlobalCertVault.GetGlobalCertVault();
+                            // GlobalCertVault をすぐに起動する
+                            GlobalCertVault.GetGlobalCertVault();
                         }
 
                         var selectedCert = GlobalCertVault.GetGlobalCertVault().CertificateStoreSelector(sslHelloInfo.ServerName._NonNull(), !this.HasHttpPort80);
@@ -890,12 +890,12 @@ public class HttpServerOptions
 #endif  // CORES_BASIC_JSON
 #endif  // CORES_BASIC_SECURITY;
 
-                        if (this.ClientCertficateMode != ClientCertificateMode.NoCertificate)
+                    if (this.ClientCertficateMode != ClientCertificateMode.NoCertificate)
                     {
                         ret.RemoteCertificateValidationCallback = (sender, cert, chain, err) =>
                         {
-                                // ここでは証明書を検証せずに true を返す
-                                return true;
+                            // ここでは証明書を検証せずに true を返す
+                            return true;
                         };
                     }
 
@@ -935,8 +935,8 @@ public sealed class HttpServer<THttpServerBuilder> : AsyncService
                     {
                         isDevelopmentMode = k.GetBool("IsDevelopmentMode", false);
 
-                            // Update options with the config file
-                            string httpPortsList = k.GetStr("HttpPorts", Str.PortsListToStr(Options.HttpPortsList));
+                        // Update options with the config file
+                        string httpPortsList = k.GetStr("HttpPorts", Str.PortsListToStr(Options.HttpPortsList));
                         Options.HttpPortsList = Str.ParsePortsList(httpPortsList).ToList();
 
                         string httpsPortsList = k.GetStr("HttpsPorts", Str.PortsListToStr(Options.HttpsPortsList));
