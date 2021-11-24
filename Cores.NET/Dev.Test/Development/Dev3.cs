@@ -372,7 +372,7 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
 
             webServer = CreateTestCgiHttpServer();
 
-            sniAndExpectedStrList = "old=01_TestHost_RSA1024_SHA1_2036,test.sample.certificate;new=02_TestHost_RSA4096_SHA256_2099,test.sample.certificate";
+            //sniAndExpectedStrList = "old=01_TestHost_RSA1024_SHA1_2036,test.sample.certificate;new=02_TestHost_RSA4096_SHA256_2099,test.sample.certificate";
         }
 
         var hostAndPortTuple = hostPort._ParseHostnaneAndPort(443);
@@ -427,11 +427,11 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
                 sni = sni._NonNullTrim();
                 var expStrLists = expStrs._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",");
 
-                if (Env.IsWindows && selfTest)
-                {
-                    // IIS では複数証明書の明示的応答をサポートしていない
-                    expStrLists = expStrLists.FirstOrDefault()._NonNullTrim()._SingleArray();
-                }
+                //if (Env.IsWindows && selfTest)
+                //{
+                //    // IIS では複数証明書の明示的応答をサポートしていない
+                //    expStrLists = expStrLists.FirstOrDefault()._NonNullTrim()._SingleArray();
+                //}
 
                 if (sni._IsFilled())
                 {
@@ -538,7 +538,7 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
             if (item.Sni._IsFilled())
             {
                 Con.WriteLine($"   Sni:      {item.Sni}");
-                Con.WriteLine($"   ExpectedCertsList: {item.ExpectedCertsList._Shuffle()._OnlyFilled()._Combine(" && ")}");
+                Con.WriteLine($"   ExpectedCertsList: {item.ExpectedCertsList._OnlyFilled()._Combine(" && ")}");
             }
             Con.WriteLine();
         }
@@ -558,7 +558,7 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
             if (item.Sni._IsFilled())
             {
                 Con.WriteLine($"   Sni:      {item.Sni}");
-                Con.WriteLine($"   ExpectedCertsList:      {item.ExpectedCertsList._OnlyFilled()._Combine(",")}");
+                Con.WriteLine($"   ExpectedCertsList:      {item.ExpectedCertsList._OnlyFilled()._Combine(" && ")}");
             }
             Con.WriteLine($"   Error:    {item.Error}");
             Con.WriteLine();

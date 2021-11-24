@@ -69,7 +69,7 @@ partial class TestDevCommands
 
     [ConsoleCommand(
         "Execute SSL Test Suite",
-        "SslTestSuite [host:port|self] [/parallel:num=1] [/interval:msecs=0] [/ignore:ignore_list]",
+        "SslTestSuite [host:port|self] [/parallel:num=1] [/interval:msecs=0] [/ignore:ignore_list] [/expectedcertstr:sni1=str1,str2;sni1=str3,str4,...]",
         "Execute SSL Test Suite")]
     static int SslTestSuite(ConsoleService c, string cmdName, string str)
     {
@@ -79,6 +79,7 @@ partial class TestDevCommands
             new ConsoleParam("parallel"),
             new ConsoleParam("interval"),
             new ConsoleParam("ignore"),
+            new ConsoleParam("expectedcertstr"),
         };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
@@ -87,12 +88,13 @@ partial class TestDevCommands
         int parallel = vl["parallel"].IntValue;
         int interval = vl["interval"].IntValue;
         string ignList = vl["ignore"].StrValue;
+        string expectedcertstr = vl["expectedcertstr"].StrValue;
 
         bool ret = false;
 
         Async(async () =>
         {
-            ret = await LtsOpenSslTool.TestSuiteAsync(hostAndPort, parallel, interval, ignList);
+            ret = await LtsOpenSslTool.TestSuiteAsync(hostAndPort, parallel, interval, ignList, default, expectedcertstr);
         });
 
         if (ret == false)
