@@ -101,7 +101,7 @@ partial class TestDevCommands
         {
             Con.WriteLine();
             Con.WriteLine("Error occured.");
-            return -1;
+            return 1;
         }
 
         return 0;
