@@ -749,6 +749,15 @@ public class ConsoleService
 
         lastErrorMessage = c.RetErrorMessage;
 
+        if (Env.IsUnix)
+        {
+            if (ret != 0)
+            {
+                // UNIX 系では戻り値は 0 (正常) か 1 (一般的なエラー) のいずれかとする
+                ret = Consts.ExitCodes.GenericError;
+            }
+        }
+
         return ret;
     }
 
