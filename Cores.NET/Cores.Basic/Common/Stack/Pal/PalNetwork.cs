@@ -51,6 +51,7 @@ using static IPA.Cores.Globals.Basic;
 using System.Collections.Immutable;
 using System.Security.Authentication;
 using System.Runtime.InteropServices;
+using System.Reflection;
 
 namespace IPA.Cores.Basic
 {
@@ -61,13 +62,42 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<SslProtocols> DefaultSslProtocolVersionsAsServer = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12 | SslProtocols.Tls13;
             public static readonly Copenhagen<SslProtocols> DefaultSslProtocolVersionsAsClient = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12 | SslProtocols.Tls13;
 
-            public static readonly Copenhagen<EncryptionPolicy> DefaultSslEncryptionPolicyServer = EncryptionPolicy.RequireEncryption;
-            public static readonly Copenhagen<EncryptionPolicy> DefaultSslEncryptionPolicyClient = EncryptionPolicy.AllowNoEncryption;
+            public static readonly Copenhagen<EncryptionPolicy> DefaultSslEncryptionPolicyServer = EnvFastOsInfo.IsUnix ? EncryptionPolicy.AllowNoEncryption : EncryptionPolicy.RequireEncryption;
+            public static readonly Copenhagen<EncryptionPolicy> DefaultSslEncryptionPolicyClient = EnvFastOsInfo.IsUnix ? EncryptionPolicy.AllowNoEncryption : EncryptionPolicy.RequireEncryption;
 
             [Obsolete]
             public static SslProtocols DefaultSslProtocolVersions => DefaultSslProtocolVersionsAsServer;
 
             public static readonly Copenhagen<int> DefaultNegotiationRecvTimeout = 15 * 1000;
+        }
+    }
+
+    public static class PalUnixOpenSslSpecialUtil
+    {
+        public const string UnixOpenSslDefaultCipherList = "ALL:!EXPORT:!LOW:!aNULL:!eNULL:!SSLv2:!RC4-MD5";
+
+        // RC4-MD5 を除外する意義について:
+        // OpenSSL 3.x has a bug. https://github.com/openssl/openssl/issues/13363 https://github.com/openssl/openssl/pull/13378
+        // At 2021-09-08 this bug is reported as fixed on Github, but actually still exists on RC4-MD5.
+        // So, with OpenSSL 3.0 we manually disable RC4-MD5 by default on both SSL server and SSL client.
+
+        public static void Init()
+        {
+            if (EnvFastOsInfo.IsWindows) return;
+
+            Type encPolType = typeof(System.Net.Security.EncryptionPolicy);
+            var asm = encPolType.Assembly;
+            var t = asm.GetType("System.Net.Security.CipherSuitesPolicyPal");
+            var fi = t!.GetField("AllowNoEncryptionDefault", BindingFlags.Static | BindingFlags.NonPublic);
+            object? obj = fi!.GetValue(null);
+            byte[] a = (byte[])obj!;
+
+            string s = a._GetString_UTF8(true);
+            Console.WriteLine($"value = '{s}'");
+        }
+
+        public static void TryInit()
+        {
         }
     }
 

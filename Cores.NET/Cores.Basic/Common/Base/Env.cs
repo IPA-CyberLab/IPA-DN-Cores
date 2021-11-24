@@ -103,6 +103,19 @@ public class EnvInfoSnapshot
     public string GcLatencyMode = Env.GcLatencyMode;
 }
 
+public static class EnvFastOsInfo
+{
+    public static bool IsWindows { get; }
+    public static bool IsUnix => !IsWindows;
+    public static OperatingSystem OsInfo { get; }
+
+    static EnvFastOsInfo()
+    {
+        OsInfo = Environment.OSVersion;
+        IsWindows = (OsInfo.Platform == PlatformID.Win32NT);
+    }
+}
+
 public static class Env
 {
     static object lockObj = new object();
@@ -198,8 +211,8 @@ public static class Env
 
         FrameworkVersion = Environment.Version;
         IsDotNetCore = true;
-        OsInfo = Environment.OSVersion;
-        IsWindows = (OsInfo.Platform == PlatformID.Win32NT);
+        OsInfo = EnvFastOsInfo.OsInfo;
+        IsWindows = EnvFastOsInfo.IsWindows;
         if (IsUnix)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
