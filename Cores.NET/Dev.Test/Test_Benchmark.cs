@@ -390,6 +390,56 @@ partial class TestDevCommands
     static volatile string TestString3 = "    aaaa    ";
     static volatile string TestString4 = "            ";
 
+    [MethodImpl(NoInline)]
+    static async Task TestFunc1Async(int r)
+    {
+        for (int i = 0; i < r; i++)
+        {
+            Limbo.SInt32Volatile += i;
+        }
+    }
+
+    [MethodImpl(NoInline)]
+    static async Task TestFunc2Async(int r)
+    {
+        for (int i = 0; i < r; i++)
+        {
+            Limbo.SInt32Volatile += i;
+        }
+        await Task.CompletedTask;
+    }
+
+    [MethodImpl(NoInline)]
+    static async Task TestFunc3Async(int r)
+    {
+        await Task.CompletedTask;
+        for (int i = 0; i < r; i++)
+        {
+            Limbo.SInt32Volatile += i;
+        }
+    }
+
+    [MethodImpl(NoInline)]
+    static async Task TestFunc4Async(int r)
+    {
+        for (int i = 0; i < r; i++)
+        {
+            Limbo.SInt32Volatile += i;
+            await Task.CompletedTask;
+        }
+    }
+
+    [MethodImpl(NoInline)]
+    static async Task TestFunc5Async(int r)
+    {
+        for (int i = 0; i < r; i++)
+        {
+            Limbo.SInt32Volatile += i;
+            await ValueTask.CompletedTask;
+        }
+    }
+
+
     static void BenchMark_Test1()
     {
         using (var proc = Process.GetCurrentProcess())
@@ -531,6 +581,62 @@ partial class TestDevCommands
         HadbTestData cloneDeepSampleObj2 = new HadbTestData() { HostName = "abc", IPv4Address = "123", IPv6Address = "456", TestInt = 789 };
 
         var queue = new MicroBenchmarkQueue()
+
+        .Add(new MicroBenchmark($"Async call with no async func #1: Nothing", Benchmark_CountForFast, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    await TestFunc1Async(10);
+                }
+            });
+        }), enabled: true, priority: 211124)
+
+        .Add(new MicroBenchmark($"Async call with no async func #2: Task.CompletedTask after", Benchmark_CountForFast, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    await TestFunc2Async(10);
+                }
+            });
+        }), enabled: true, priority: 211124)
+
+        .Add(new MicroBenchmark($"Async call with no async func #3: Task.CompletedTask before", Benchmark_CountForFast, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    await TestFunc3Async(10);
+                }
+            });
+        }), enabled: true, priority: 211124)
+
+        .Add(new MicroBenchmark($"Async call with no async func #4: Task.CompletedTask many times", Benchmark_CountForFast, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    await TestFunc4Async(10);
+                }
+            });
+        }), enabled: true, priority: 211124)
+
+
+        .Add(new MicroBenchmark($"Async call with no async func #5: Task.CompletedTask many times ValueTask", Benchmark_CountForFast, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    await TestFunc5Async(10);
+                }
+            });
+        }), enabled: true, priority: 211124)
 
         .Add(new MicroBenchmark($"FastTick64.Now", Benchmark_CountForVeryFast, count =>
         {

@@ -292,3 +292,94 @@
 {"TimeStamp":"2021-11-10T23:54:34.6030991+09:00","Data":{"TestName":"AsyncCallMethodFromSyncMethod","Ret":12.024928681729754,"PerSecond":83160576},"Tag":"result"}
 {"TimeStamp":"2021-11-10T23:54:35.1509782+09:00","Data":{"TestName":"Lock for readonly object","Ret":12.37277125,"PerSecond":80822637},"Tag":"result"}
 {"TimeStamp":"2021-11-10T23:54:35.6863591+09:00","Data":{"TestName":"Lock for get property object","Ret":12.39425847826087,"PerSecond":80682519},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:29.5788628+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:12:29.5830992+09:00","Data":"Commit: 87106b0f74c4dab9e603ab98bc35d941dcbb59e4","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:12:29.5831172+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:12:29.5831193+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:12:29.5831206+09:00","Data":"Framework: .NET 6.0.0-rtm.21522.10","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:12:29.5831217+09:00","Data":"Host: PC37","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:12:31.2441119+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":112.68786625,"PerSecond":8874069},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:32.631319+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":110.83411749999999,"PerSecond":9022492},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:34.0204723+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":110.96952083333333,"PerSecond":9011483},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:36.2836515+09:00","Data":{"TestName":"Async call with no async func #4: Task.CompletedTask many times","Ret":197.6316341666667,"PerSecond":5059918},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:37.1051875+09:00","Data":{"TestName":"FastTick64.Now","Ret":0.7584389999999999,"PerSecond":1318497598},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:37.7938707+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":4288622.889364498,"PerSecond":233},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:38.3343398+09:00","Data":{"TestName":"CloneDeep_DeepCloner","Ret":150058.67471023297,"PerSecond":6664},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:38.8631637+09:00","Data":{"TestName":"CloneDeep_DeepCloner_cloneDeepSampleObj2","Ret":143.84050684054748,"PerSecond":6952144},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:39.3720362+09:00","Data":{"TestName":"DnsTools_Build","Ret":281.14847564994875,"PerSecond":3556839},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:39.8936075+09:00","Data":{"TestName":"DnsTools_Parse","Ret":193.78142481278016,"PerSecond":5160453},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:40.6245934+09:00","Data":{"TestName":"EvaluateAclNormal","Ret":46205.17851730029,"PerSecond":21642},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:41.1502836+09:00","Data":{"TestName":"EvaluateAclCached1","Ret":664.7279903433476,"PerSecond":1504374},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:41.6743815+09:00","Data":{"TestName":"EvaluateAclCached2","Ret":117.63690179036838,"PerSecond":8500733},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:42.2017228+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":1283.3919642151047,"PerSecond":779185},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:42.7726879+09:00","Data":{"TestName":"SimpleAsynService","Ret":5066.557652593888,"PerSecond":197372},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:43.2983827+09:00","Data":{"TestName":"WpcPacket","Ret":3286.410606122868,"PerSecond":304283},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:43.8481599+09:00","Data":{"TestName":"WpcPacket2","Ret":9705.444325338554,"PerSecond":103034},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:44.3611901+09:00","Data":{"TestName":"AsyncEvent","Ret":3174.2301352270792,"PerSecond":315037},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:44.9234421+09:00","Data":{"TestName":"SyncEvent","Ret":7341.552551857901,"PerSecond":136210},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:45.4450136+09:00","Data":{"TestName":"IsSpanAllZero","Ret":155.22186776195508,"PerSecond":6442391},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:45.965083+09:00","Data":{"TestName":"CalcCrc32ForZipEncryption","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:46.4841008+09:00","Data":{"TestName":"Sync()","Ret":0.6731865763631022,"PerSecond":1485472282},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:46.994117+09:00","Data":{"TestName":"RateLimiter","Ret":92.42284573048,"PerSecond":10819835},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:47.5109361+09:00","Data":{"TestName":"ignore case compare string 1","Ret":13.891784718239274,"PerSecond":71984991},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:48.0460677+09:00","Data":{"TestName":"ignore case compare string 2","Ret":11.80134415908238,"PerSecond":84736110},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:48.5669991+09:00","Data":{"TestName":"isemptystr #2","Ret":4.162842171706781,"PerSecond":240220493},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:51.4254686+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:12:51.429627+09:00","Data":"Commit: 87106b0f74c4dab9e603ab98bc35d941dcbb59e4","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:12:51.4296385+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:12:51.4296398+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:12:51.4296416+09:00","Data":"Framework: .NET 6.0.0-rtm.21522.10","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:12:51.4296427+09:00","Data":"Host: PC37","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:12:53.0968031+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":111.46791208333333,"PerSecond":8971191},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:54.5133767+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":113.78424041666666,"PerSecond":8788563},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:55.9049813+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":110.91613083333333,"PerSecond":9015821},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:58.2898069+09:00","Data":{"TestName":"Async call with no async func #4: Task.CompletedTask many times","Ret":209.95384166666668,"PerSecond":4762951},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:59.1331013+09:00","Data":{"TestName":"FastTick64.Now","Ret":0.9763677499999999,"PerSecond":1024204250},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:12:59.9031422+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":5055900.942637488,"PerSecond":197},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:13:00.4226994+09:00","Data":{"TestName":"CloneDeep_DeepCloner","Ret":150792.13315301802,"PerSecond":6631},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:13:00.9396607+09:00","Data":{"TestName":"CloneDeep_DeepCloner_cloneDeepSampleObj2","Ret":176.42868145928205,"PerSecond":5668012},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:14:45.1841684+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:14:45.188322+09:00","Data":"Commit: 87106b0f74c4dab9e603ab98bc35d941dcbb59e4","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:14:45.188334+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:14:45.1883355+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:14:45.1883372+09:00","Data":"Framework: .NET 6.0.0-rtm.21522.10","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:14:45.1883383+09:00","Data":"Host: PC37","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:14:46.8586519+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":112.93435695652174,"PerSecond":8854701},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:14:48.2550668+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":111.11355666666667,"PerSecond":8999801},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:14:49.6777592+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":113.75570791666667,"PerSecond":8790767},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:14:52.1739696+09:00","Data":{"TestName":"Async call with no async func #4: Task.CompletedTask many times","Ret":221.5803425,"PerSecond":4513035},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:14:58.1290239+09:00","Data":{"TestName":"Async call with no async func #5: Task.CompletedTask many times ValueTask","Ret":566.8934846153846,"PerSecond":1763999},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:14:59.0081854+09:00","Data":{"TestName":"FastTick64.Now","Ret":1.1856062499999998,"PerSecond":843450344},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:14:59.7081661+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":4347906.929576196,"PerSecond":229},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:00.2351784+09:00","Data":{"TestName":"CloneDeep_DeepCloner","Ret":142423.690073963,"PerSecond":7021},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:00.7531143+09:00","Data":{"TestName":"CloneDeep_DeepCloner_cloneDeepSampleObj2","Ret":144.89088731055028,"PerSecond":6901745},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:20.5287389+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:15:20.5329552+09:00","Data":"Commit: 87106b0f74c4dab9e603ab98bc35d941dcbb59e4","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:15:20.5329691+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:15:20.5329705+09:00","Data":"OS: Microsoft Windows 10.0.19043","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:15:20.5329723+09:00","Data":"Framework: .NET 6.0.0-rtm.21522.10","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:15:20.5329735+09:00","Data":"Host: PC37","Tag":"text"}
+{"TimeStamp":"2021-11-24T21:15:21.3808024+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":14.060783333333333,"PerSecond":71119792},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:22.0012656+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":16.53290347826087,"PerSecond":60485443},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:22.6151607+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":15.9207626,"PerSecond":62811061},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:23.1626366+09:00","Data":{"TestName":"Async call with no async func #4: Task.CompletedTask many times","Ret":26.63871875,"PerSecond":37539342},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:24.1073249+09:00","Data":{"TestName":"Async call with no async func #5: Task.CompletedTask many times ValueTask","Ret":67.0115695652174,"PerSecond":14922796},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:24.9220487+09:00","Data":{"TestName":"FastTick64.Now","Ret":0.96507925,"PerSecond":1036184334},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:25.6497712+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":4573265.86825932,"PerSecond":218},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:26.1845081+09:00","Data":{"TestName":"CloneDeep_DeepCloner","Ret":163837.61276637288,"PerSecond":6103},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:26.7016566+09:00","Data":{"TestName":"CloneDeep_DeepCloner_cloneDeepSampleObj2","Ret":221.15557476981368,"PerSecond":4521703},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:27.2236685+09:00","Data":{"TestName":"DnsTools_Build","Ret":381.03927029825195,"PerSecond":2624401},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:27.7445676+09:00","Data":{"TestName":"DnsTools_Parse","Ret":232.3940524800116,"PerSecond":4303036},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:28.5400218+09:00","Data":{"TestName":"EvaluateAclNormal","Ret":52808.87288969202,"PerSecond":18936},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:29.078887+09:00","Data":{"TestName":"EvaluateAclCached1","Ret":652.0599653263645,"PerSecond":1533601},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:29.6044059+09:00","Data":{"TestName":"EvaluateAclCached2","Ret":113.20864879888823,"PerSecond":8833247},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:30.1442758+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":1355.019119575927,"PerSecond":737996},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:30.6901399+09:00","Data":{"TestName":"SimpleAsynService","Ret":5668.577756083871,"PerSecond":176411},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:31.2423734+09:00","Data":{"TestName":"WpcPacket","Ret":3137.7229313152984,"PerSecond":318702},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:31.7885799+09:00","Data":{"TestName":"WpcPacket2","Ret":9617.464648033127,"PerSecond":103977},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:32.3352298+09:00","Data":{"TestName":"AsyncEvent","Ret":3113.164570785955,"PerSecond":321216},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:32.8581274+09:00","Data":{"TestName":"SyncEvent","Ret":6577.944420386814,"PerSecond":152023},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:33.3792325+09:00","Data":{"TestName":"IsSpanAllZero","Ret":150.7537998536679,"PerSecond":6633331},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:33.9154774+09:00","Data":{"TestName":"CalcCrc32ForZipEncryption","Ret":0.34100196843778496,"PerSecond":2932534391},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:34.4532969+09:00","Data":{"TestName":"Sync()","Ret":0.6986739678396789,"PerSecond":1431282752},"Tag":"result"}
+{"TimeStamp":"2021-11-24T21:15:34.961518+09:00","Data":{"TestName":"RateLimiter","Ret":88.09992681676341,"PerSecond":11350747},"Tag":"result"}

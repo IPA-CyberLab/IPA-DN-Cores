@@ -546,11 +546,22 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
 
                 object obj = pem.ReadObject();
 
-                AsymmetricCipherKeyPair data = (AsymmetricCipherKeyPair)obj;
+                AsymmetricCipherKeyPair? keyPair = null;
 
-                if (data == null) throw new ArgumentException("Importing data parse failed.");
+                if (obj is AsymmetricCipherKeyPair)
+                {
+                    keyPair = (AsymmetricCipherKeyPair)obj;
+                }
+                else if (obj is RsaPrivateCrtKeyParameters)
+                {
+                    var privateKey = (RsaPrivateCrtKeyParameters)obj;
+                    var publicKey = new RsaKeyParameters(false, privateKey.Modulus, privateKey.PublicExponent);
+                    keyPair = new AsymmetricCipherKeyPair(publicKey, privateKey);
+                }
 
-                this.PrivateKeyData = data;
+                if (keyPair == null) throw new ArgumentException("Importing data parse failed.");
+
+                this.PrivateKeyData = keyPair;
             }
 
             InitFields();

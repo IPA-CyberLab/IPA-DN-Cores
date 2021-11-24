@@ -292,3 +292,94 @@
 2021/11/10 23:54:34.603 +09:00 AsyncCallMethodFromSyncMethod: 12.02 ns, 83,160,576 / sec
 2021/11/10 23:54:35.150 +09:00 Lock for readonly object: 12.37 ns, 80,822,637 / sec
 2021/11/10 23:54:35.686 +09:00 Lock for get property object: 12.39 ns, 80,682,519 / sec
+2021/11/24 21:12:29.578 +09:00 ----- Start new benchmark -----
+2021/11/24 21:12:29.583 +09:00 Commit: 87106b0f74c4dab9e603ab98bc35d941dcbb59e4
+2021/11/24 21:12:29.583 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/11/24 21:12:29.583 +09:00 OS: Microsoft Windows 10.0.19043
+2021/11/24 21:12:29.583 +09:00 Framework: .NET 6.0.0-rtm.21522.10
+2021/11/24 21:12:29.583 +09:00 Host: PC37
+2021/11/24 21:12:31.244 +09:00 Async call with no async func #1: Nothing: 112.69 ns, 8,874,069 / sec
+2021/11/24 21:12:32.631 +09:00 Async call with no async func #2: Task.CompletedTask after: 110.83 ns, 9,022,492 / sec
+2021/11/24 21:12:34.020 +09:00 Async call with no async func #3: Task.CompletedTask before: 110.97 ns, 9,011,483 / sec
+2021/11/24 21:12:36.283 +09:00 Async call with no async func #4: Task.CompletedTask many times: 197.63 ns, 5,059,918 / sec
+2021/11/24 21:12:37.105 +09:00 FastTick64.Now: 0.76 ns, 1,318,497,598 / sec
+2021/11/24 21:12:37.793 +09:00 CloneDeep_BinaryFormatter: 4,288,622.89 ns, 233 / sec
+2021/11/24 21:12:38.334 +09:00 CloneDeep_DeepCloner: 150,058.67 ns, 6,664 / sec
+2021/11/24 21:12:38.863 +09:00 CloneDeep_DeepCloner_cloneDeepSampleObj2: 143.84 ns, 6,952,144 / sec
+2021/11/24 21:12:39.372 +09:00 DnsTools_Build: 281.15 ns, 3,556,839 / sec
+2021/11/24 21:12:39.893 +09:00 DnsTools_Parse: 193.78 ns, 5,160,453 / sec
+2021/11/24 21:12:40.624 +09:00 EvaluateAclNormal: 46,205.18 ns, 21,642 / sec
+2021/11/24 21:12:41.150 +09:00 EvaluateAclCached1: 664.73 ns, 1,504,374 / sec
+2021/11/24 21:12:41.674 +09:00 EvaluateAclCached2: 117.64 ns, 8,500,733 / sec
+2021/11/24 21:12:42.201 +09:00 SimpleAsyncService2: 1,283.39 ns, 779,185 / sec
+2021/11/24 21:12:42.772 +09:00 SimpleAsynService: 5,066.56 ns, 197,372 / sec
+2021/11/24 21:12:43.298 +09:00 WpcPacket: 3,286.41 ns, 304,283 / sec
+2021/11/24 21:12:43.848 +09:00 WpcPacket2: 9,705.44 ns, 103,034 / sec
+2021/11/24 21:12:44.361 +09:00 AsyncEvent: 3,174.23 ns, 315,037 / sec
+2021/11/24 21:12:44.923 +09:00 SyncEvent: 7,341.55 ns, 136,210 / sec
+2021/11/24 21:12:45.445 +09:00 IsSpanAllZero: 155.22 ns, 6,442,391 / sec
+2021/11/24 21:12:45.965 +09:00 CalcCrc32ForZipEncryption: 0.00 ns, 9,999,999,999,999 / sec
+2021/11/24 21:12:46.484 +09:00 Sync(): 0.67 ns, 1,485,472,282 / sec
+2021/11/24 21:12:46.994 +09:00 RateLimiter: 92.42 ns, 10,819,835 / sec
+2021/11/24 21:12:47.510 +09:00 ignore case compare string 1: 13.89 ns, 71,984,991 / sec
+2021/11/24 21:12:48.046 +09:00 ignore case compare string 2: 11.80 ns, 84,736,110 / sec
+2021/11/24 21:12:48.567 +09:00 isemptystr #2: 4.16 ns, 240,220,493 / sec
+2021/11/24 21:12:51.425 +09:00 ----- Start new benchmark -----
+2021/11/24 21:12:51.429 +09:00 Commit: 87106b0f74c4dab9e603ab98bc35d941dcbb59e4
+2021/11/24 21:12:51.429 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/11/24 21:12:51.429 +09:00 OS: Microsoft Windows 10.0.19043
+2021/11/24 21:12:51.429 +09:00 Framework: .NET 6.0.0-rtm.21522.10
+2021/11/24 21:12:51.429 +09:00 Host: PC37
+2021/11/24 21:12:53.096 +09:00 Async call with no async func #1: Nothing: 111.47 ns, 8,971,191 / sec
+2021/11/24 21:12:54.513 +09:00 Async call with no async func #2: Task.CompletedTask after: 113.78 ns, 8,788,563 / sec
+2021/11/24 21:12:55.904 +09:00 Async call with no async func #3: Task.CompletedTask before: 110.92 ns, 9,015,821 / sec
+2021/11/24 21:12:58.289 +09:00 Async call with no async func #4: Task.CompletedTask many times: 209.95 ns, 4,762,951 / sec
+2021/11/24 21:12:59.133 +09:00 FastTick64.Now: 0.98 ns, 1,024,204,250 / sec
+2021/11/24 21:12:59.903 +09:00 CloneDeep_BinaryFormatter: 5,055,900.94 ns, 197 / sec
+2021/11/24 21:13:00.422 +09:00 CloneDeep_DeepCloner: 150,792.13 ns, 6,631 / sec
+2021/11/24 21:13:00.939 +09:00 CloneDeep_DeepCloner_cloneDeepSampleObj2: 176.43 ns, 5,668,012 / sec
+2021/11/24 21:14:45.184 +09:00 ----- Start new benchmark -----
+2021/11/24 21:14:45.188 +09:00 Commit: 87106b0f74c4dab9e603ab98bc35d941dcbb59e4
+2021/11/24 21:14:45.188 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/11/24 21:14:45.188 +09:00 OS: Microsoft Windows 10.0.19043
+2021/11/24 21:14:45.188 +09:00 Framework: .NET 6.0.0-rtm.21522.10
+2021/11/24 21:14:45.188 +09:00 Host: PC37
+2021/11/24 21:14:46.858 +09:00 Async call with no async func #1: Nothing: 112.93 ns, 8,854,701 / sec
+2021/11/24 21:14:48.255 +09:00 Async call with no async func #2: Task.CompletedTask after: 111.11 ns, 8,999,801 / sec
+2021/11/24 21:14:49.677 +09:00 Async call with no async func #3: Task.CompletedTask before: 113.76 ns, 8,790,767 / sec
+2021/11/24 21:14:52.173 +09:00 Async call with no async func #4: Task.CompletedTask many times: 221.58 ns, 4,513,035 / sec
+2021/11/24 21:14:58.129 +09:00 Async call with no async func #5: Task.CompletedTask many times ValueTask: 566.89 ns, 1,763,999 / sec
+2021/11/24 21:14:59.008 +09:00 FastTick64.Now: 1.19 ns, 843,450,344 / sec
+2021/11/24 21:14:59.708 +09:00 CloneDeep_BinaryFormatter: 4,347,906.93 ns, 229 / sec
+2021/11/24 21:15:00.235 +09:00 CloneDeep_DeepCloner: 142,423.69 ns, 7,021 / sec
+2021/11/24 21:15:00.753 +09:00 CloneDeep_DeepCloner_cloneDeepSampleObj2: 144.89 ns, 6,901,745 / sec
+2021/11/24 21:15:20.528 +09:00 ----- Start new benchmark -----
+2021/11/24 21:15:20.532 +09:00 Commit: 87106b0f74c4dab9e603ab98bc35d941dcbb59e4
+2021/11/24 21:15:20.532 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/11/24 21:15:20.532 +09:00 OS: Microsoft Windows 10.0.19043
+2021/11/24 21:15:20.532 +09:00 Framework: .NET 6.0.0-rtm.21522.10
+2021/11/24 21:15:20.532 +09:00 Host: PC37
+2021/11/24 21:15:21.380 +09:00 Async call with no async func #1: Nothing: 14.06 ns, 71,119,792 / sec
+2021/11/24 21:15:22.001 +09:00 Async call with no async func #2: Task.CompletedTask after: 16.53 ns, 60,485,443 / sec
+2021/11/24 21:15:22.615 +09:00 Async call with no async func #3: Task.CompletedTask before: 15.92 ns, 62,811,061 / sec
+2021/11/24 21:15:23.162 +09:00 Async call with no async func #4: Task.CompletedTask many times: 26.64 ns, 37,539,342 / sec
+2021/11/24 21:15:24.107 +09:00 Async call with no async func #5: Task.CompletedTask many times ValueTask: 67.01 ns, 14,922,796 / sec
+2021/11/24 21:15:24.922 +09:00 FastTick64.Now: 0.97 ns, 1,036,184,334 / sec
+2021/11/24 21:15:25.649 +09:00 CloneDeep_BinaryFormatter: 4,573,265.87 ns, 218 / sec
+2021/11/24 21:15:26.184 +09:00 CloneDeep_DeepCloner: 163,837.61 ns, 6,103 / sec
+2021/11/24 21:15:26.701 +09:00 CloneDeep_DeepCloner_cloneDeepSampleObj2: 221.16 ns, 4,521,703 / sec
+2021/11/24 21:15:27.223 +09:00 DnsTools_Build: 381.04 ns, 2,624,401 / sec
+2021/11/24 21:15:27.744 +09:00 DnsTools_Parse: 232.39 ns, 4,303,036 / sec
+2021/11/24 21:15:28.540 +09:00 EvaluateAclNormal: 52,808.87 ns, 18,936 / sec
+2021/11/24 21:15:29.078 +09:00 EvaluateAclCached1: 652.06 ns, 1,533,601 / sec
+2021/11/24 21:15:29.604 +09:00 EvaluateAclCached2: 113.21 ns, 8,833,247 / sec
+2021/11/24 21:15:30.144 +09:00 SimpleAsyncService2: 1,355.02 ns, 737,996 / sec
+2021/11/24 21:15:30.690 +09:00 SimpleAsynService: 5,668.58 ns, 176,411 / sec
+2021/11/24 21:15:31.242 +09:00 WpcPacket: 3,137.72 ns, 318,702 / sec
+2021/11/24 21:15:31.788 +09:00 WpcPacket2: 9,617.46 ns, 103,977 / sec
+2021/11/24 21:15:32.335 +09:00 AsyncEvent: 3,113.16 ns, 321,216 / sec
+2021/11/24 21:15:32.858 +09:00 SyncEvent: 6,577.94 ns, 152,023 / sec
+2021/11/24 21:15:33.379 +09:00 IsSpanAllZero: 150.75 ns, 6,633,331 / sec
+2021/11/24 21:15:33.915 +09:00 CalcCrc32ForZipEncryption: 0.34 ns, 2,932,534,391 / sec
+2021/11/24 21:15:34.453 +09:00 Sync(): 0.70 ns, 1,431,282,752 / sec
+2021/11/24 21:15:34.961 +09:00 RateLimiter: 88.10 ns, 11,350,747 / sec

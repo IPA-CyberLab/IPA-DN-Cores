@@ -718,6 +718,9 @@ public class HttpServerOptions
     public CertSelectorCallback? ServerCertSelector { get; set; } = null;
 
     [JsonIgnore]
+    public CertSelectorAsyncCallback2? ServerCertSelector2Async { get; set; } = null;
+
+    [JsonIgnore]
     public TcpIpSystem? TcpIp { get; set; } = null;
 
     public IWebHostBuilder GetWebHostBuilder<TStartup>(object? sslCertSelectorParam = null) where TStartup : class
@@ -850,13 +853,27 @@ public class HttpServerOptions
 
                     if (useGlobalCertVault == false)
                     {
-                        if (this.ServerCertSelector != null)
+                        if (this.ServerCertSelector2Async != null)
+                        {
+                            try
+                            {
+                                ret.ServerCertificateContext = await this.ServerCertSelector2Async(sslCertSelectorParam, sslHelloInfo.ServerName._NonNull());
+                            }
+                            catch (Exception ex)
+                            {
+                                ex._Error();
+                                throw;
+                            }
+                        }
+                        else if (this.ServerCertSelector != null)
                         {
                             try
                             {
                                 var cert = this.ServerCertSelector(sslCertSelectorParam, sslHelloInfo.ServerName._NonNull());
 
                                 cert._NullCheck();
+
+                                if (cert.HasPrivateKey == false) throw new CoresLibException("cert.HasPrivateKey == false");
 
                                 ret.ServerCertificate = cert;
                             }

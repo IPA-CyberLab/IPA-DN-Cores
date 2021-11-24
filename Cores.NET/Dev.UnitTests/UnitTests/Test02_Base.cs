@@ -325,6 +325,12 @@ public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
 
         Assert.False(fail.Value);
     }
+
+    [Fact]
+    public void MimeLookup()
+    {
+        Assert.True(MasterData.ExtensionToMime.Get(".xlsx")._IsSamei("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+    }
 }
 
 

@@ -779,7 +779,7 @@ namespace IPA.Cores.Basic
             long lastHash = Secure.RandSInt64_Caution();
             long lastStableTick = 0;
 
-            while (cancel.IsCancellationRequested == false)
+            while (cancel.IsCancellationRequested == false && Proc.HasExited == false)
             {
                 long currentHash;
                 long currentTick;

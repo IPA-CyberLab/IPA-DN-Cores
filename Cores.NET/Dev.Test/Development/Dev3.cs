@@ -65,6 +65,8 @@ using Newtonsoft.Json;
 using System.Data;
 using System.Reflection;
 using System.Security.Authentication;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 
 namespace IPA.Cores.Basic;
 
@@ -80,10 +82,10 @@ public class LtsOpenSslTool
     public const int RetryCount = 5;
 
     public const string Def_OpenSslExeNamesAndSslVers = @"
-lts_openssl_exesuite_0.9.8zh                ssl3 tls1
-lts_openssl_exesuite_1.0.2u                 ssl3 tls1 tls1_1 tls1_2
-lts_openssl_exesuite_1.1.1l                 ssl3 tls1 tls1_1 tls1_2
-lts_openssl_exesuite_3.0.0                  ssl3 tls1 tls1_1 tls1_2 tls1_3
+lts_openssl_exesuite_0.9.8zh                ssl3 tls1                           -nonoservername -nosni
+lts_openssl_exesuite_1.0.2u                 ssl3 tls1 tls1_1 tls1_2             -nonoservername
+lts_openssl_exesuite_1.1.1l                 ssl3 tls1 tls1_1 tls1_2             
+lts_openssl_exesuite_3.0.0                  ssl3 tls1 tls1_1 tls1_2 tls1_3      
 ";
 
     public const string Def_Ciphers = @"
@@ -118,11 +120,15 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
         windows_x64,
     }
 
-    public record Version(string ExeName, Arch Arch, IReadOnlySet<string> SslVersions);
+    public record Version(string ExeName, Arch Arch, IReadOnlySet<string> SslVersions, IReadOnlySet<string> Options);
     public record Cipher(string Name, IReadOnlySet<string> SslVersions, IReadOnlySet<string> ExeNames);
 
     public static readonly IReadOnlyList<Version> VersionList;
     public static readonly IReadOnlyList<Cipher> CipherList;
+
+    public static readonly CertificateStore TestCert_00_TestRoot_RSA1024_SHA1_Expired;
+    public static readonly CertificateStore TestCert_01_TestHost_RSA1024_SHA1_2036;
+    public static readonly CertificateStore TestCert_02_TestHost_RSA4096_SHA256_2099;
 
 
     // テスト用の何もしない Web サーバー
@@ -136,6 +142,23 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
 
     static LtsOpenSslTool()
     {
+        // テスト用証明書の読み込み
+        TestCert_00_TestRoot_RSA1024_SHA1_Expired = new CertificateStore(
+            Res.AppRoot["SslSuiteTests/00_TestRoot_RSA1024_SHA1_Expired.cer"].Binary.Span,
+            Res.AppRoot["SslSuiteTests/00_TestRoot_RSA1024_SHA1_Expired.key"].Binary.Span
+            );
+
+        TestCert_01_TestHost_RSA1024_SHA1_2036 = new CertificateStore(
+            Res.AppRoot["SslSuiteTests/01_TestHost_RSA1024_SHA1_2036.cer"].Binary.Span,
+            Res.AppRoot["SslSuiteTests/01_TestHost_RSA1024_SHA1_2036.key"].Binary.Span
+            );
+
+        TestCert_02_TestHost_RSA4096_SHA256_2099 = new CertificateStore(
+            Res.AppRoot["SslSuiteTests/02_TestHost_RSA4096_SHA256_2099.cer"].Binary.Span,
+            Res.AppRoot["SslSuiteTests/02_TestHost_RSA4096_SHA256_2099.key"].Binary.Span
+            );
+
+
         List<Version> verList = new();
         List<Cipher> cipherList = new();
 
@@ -150,11 +173,20 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
                 if (tokens.Length >= 2)
                 {
                     HashSet<string> sslVerList = new HashSet<string>(StrComparer.IgnoreCaseComparer);
+                    HashSet<string> options = new HashSet<string>(StrCmpi);
                     for (int i = 1; i < tokens.Length; i++)
                     {
-                        sslVerList.Add(tokens[i]);
+                        string s = tokens[i];
+                        if (s._TryTrimStartWith(out string tmp, StrCmpi, "-"))
+                        {
+                            options.Add(tmp);
+                        }
+                        else
+                        {
+                            sslVerList.Add(s);
+                        }
                     }
-                    verList.Add(new Version(tokens[0], arch, sslVerList));
+                    verList.Add(new Version(tokens[0], arch, sslVerList, options));
                 }
             }
         }
@@ -215,12 +247,120 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
         return VersionList.Where(x => x.Arch == arch).OrderBy(x => x.ExeName, StrCmpi);
     }
 
-    public record TestSuiteTarget(string HostPort, Version Ver, string SslVer, string CipherName, Ref<string> Error);
+    public record TestSuiteTarget(string HostPort, Version Ver, string SslVer, string CipherName, Ref<string> Error, string Sni, List<string> ExpectedCertsList);
 
-    public static async Task<bool> TestSuiteAsync(string hostPort, int maxConcurrentTasks, int intervalMsecs, string ignoresList = "", CancellationToken cancel = default)
+    public static async Task TestSslSniCertSelectionAsync(string hostPort, CancellationToken cancel = default)
+    {
+        bool isSelf = hostPort._IsSamei("self");
+
+        CgiHttpServer? webServer = null;
+
+        if (isSelf)
+        {
+            hostPort = $"127.0.0.1:{Consts.Ports.SslTestSuitePort}";
+
+            webServer = CreateTestCgiHttpServer();
+        }
+
+        var hostAndPortTuple = hostPort._ParseHostnaneAndPort(443);
+
+        try
+        {
+            // ポートに接続できるようになるまで一定時間トライする
+            await TaskUtil.RetryAsync(async c =>
+            {
+                await using var sock = await LocalNet.ConnectIPv4v6DualAsync(new TcpConnectParam(hostAndPortTuple.Item1, hostAndPortTuple.Item2));
+                await using var sslSock = await sock.SslStartClientAsync(new PalSslClientAuthenticationOptions(true), cancel);
+
+                return true;
+            },
+            1000,
+            60,
+            cancel,
+            true);
+
+            await TestOneAsync(hostAndPortTuple, "old", 0, cancel);
+            await TestOneAsync(hostAndPortTuple, "new", 1, cancel);
+
+            static async Task TestOneAsync(Tuple<string, int> hostAndPortTuple, string sni, int certType, CancellationToken cancel = default)
+            {
+                await using var sock = await LocalNet.ConnectIPv4v6DualAsync(new TcpConnectParam(hostAndPortTuple.Item1, hostAndPortTuple.Item2));
+                await using var sslSock = await sock.SslStartClientAsync(new PalSslClientAuthenticationOptions(sni, true), cancel);
+
+                var serverCert = sslSock.Info.Ssl.RemoteCertificate!;
+
+                if (serverCert.PkiCertificate.VerifySignedByCertificate(TestCert_00_TestRoot_RSA1024_SHA1_Expired.PrimaryCertificate) == false)
+                {
+                    throw new CoresLibException("VerifySignedByCertificate error.");
+                }
+
+                if (certType == 0)
+                {
+                    if (serverCert.HashSHA1._IsSameHex(TestCert_01_TestHost_RSA1024_SHA1_2036.DigestSHA1Str) == false)
+                    {
+                        throw new CoresLibException("TestCert_01_TestHost_RSA1024_SHA1_2036 hash different.");
+                    }
+                }
+                else
+                {
+                    if (serverCert.HashSHA1._IsSameHex(TestCert_02_TestHost_RSA4096_SHA256_2099.DigestSHA1Str) == false)
+                    {
+                        throw new CoresLibException("TestCert_02_TestHost_RSA4096_SHA256_2099 hash different.");
+                    }
+                }
+            }
+        }
+        finally
+        {
+            await webServer._DisposeSafeAsync();
+        }
+
+        Con.WriteLine();
+        Con.WriteLine("Test OK.");
+        Con.WriteLine();
+    }
+
+    public static CgiHttpServer CreateTestCgiHttpServer()
+    {
+        return new CgiHttpServer(new SslTestSuiteWebServer(), new HttpServerOptions()
+        {
+            AutomaticRedirectToHttpsIfPossible = false,
+            UseKestrelWithIPACoreStack = true,
+            HttpPortsList = new int[] { }.ToList(),
+            HttpsPortsList = new int[] { Consts.Ports.SslTestSuitePort }.ToList(),
+            UseStaticFiles = false,
+            MaxRequestBodySize = 32 * 1024,
+            ReadTimeoutMsecs = 5 * 1000,
+            DisableHiveBasedSetting = true,
+            UseGlobalCertVault = false,
+            ServerCertSelector2Async = async (p, sni) =>
+            {
+                await Task.CompletedTask;
+
+                CertificateStore? cert;
+
+                if (sni._InStr("new"))
+                {
+                    cert = TestCert_02_TestHost_RSA4096_SHA256_2099;
+                }
+                else
+                {
+                    cert = TestCert_01_TestHost_RSA1024_SHA1_2036;
+                }
+
+                X509Certificate2Collection col = new X509Certificate2Collection(DevTools.TestSampleCert.NativeCertificate2._SingleArray());
+
+                SslStreamCertificateContext context = Secure.CreateSslCreateCertificateContextWithFullChain(cert.X509Certificate, col, true, true);
+
+                return context;
+            },
+        },
+        true);
+    }
+
+    public static async Task<bool> TestSuiteAsync(string hostPort, int maxConcurrentTasks, int intervalMsecs, string ignoresList = "", CancellationToken cancel = default, string sniAndExpectedStrList = "")
     {
         bool ret = false;
-
 
         bool isSelf = hostPort._IsSamei("self");
 
@@ -230,42 +370,31 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
         {
             hostPort = $"127.0.0.1:{Consts.Ports.SslTestSuitePort}";
 
-            webServer = new CgiHttpServer(new SslTestSuiteWebServer(), new HttpServerOptions()
-            {
-                AutomaticRedirectToHttpsIfPossible = false,
-                UseKestrelWithIPACoreStack = true,
-                HttpPortsList = new int[] { }.ToList(),
-                HttpsPortsList = new int[] { Consts.Ports.SslTestSuitePort }.ToList(),
-                UseStaticFiles = false,
-                MaxRequestBodySize = 32 * 1024,
-                ReadTimeoutMsecs = 5 * 1000,
-                DisableHiveBasedSetting = true,
-            },
-            true);
+            webServer = CreateTestCgiHttpServer();
+
+            sniAndExpectedStrList = "old=01_TestHost_RSA1024_SHA1_2036,test.sample.certificate;new=02_TestHost_RSA4096_SHA256_2099,test.sample.certificate";
         }
+
+        var hostAndPortTuple = hostPort._ParseHostnaneAndPort(443);
 
         try
         {
-            if (isSelf)
+            // ポートに接続できるようになるまで一定時間トライする
+            await TaskUtil.RetryAsync(async c =>
             {
-                Con.WriteLine("Waiting for self test port ready...");
-                // セルフテストの場合は 127.0.0.1 のポートに接続できるようになるまで一定時間トライする
-                await TaskUtil.RetryAsync(async c =>
-                {
-                    await using var sock = await LocalNet.ConnectIPv4v6DualAsync(new TcpConnectParam("127.0.0.1", Consts.Ports.SslTestSuitePort));
-                    await using var sslSock = await sock.SslStartClientAsync(new PalSslClientAuthenticationOptions(true), cancel);
+                await using var sock = await LocalNet.ConnectIPv4v6DualAsync(new TcpConnectParam(hostAndPortTuple.Item1, hostAndPortTuple.Item2));
+                await using var sslSock = await sock.SslStartClientAsync(new PalSslClientAuthenticationOptions(true), cancel);
 
-                    return true;
-                },
-                1000,
-                60,
-                cancel,
-                true);
+                return true;
+            },
+            1000,
+            60,
+            cancel,
+            true);
 
-                Con.WriteLine("Port ready OK.");
-            }
+            Con.WriteLine("Port ready OK.");
 
-            ret = await TestSuiteCoreAsync(hostPort, maxConcurrentTasks, intervalMsecs, ignoresList, cancel);
+            ret = await TestSuiteCoreAsync(hostPort, maxConcurrentTasks, intervalMsecs, isSelf, ignoresList, cancel, sniAndExpectedStrList);
         }
         finally
         {
@@ -275,7 +404,9 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
         return ret;
     }
 
-    static async Task<bool> TestSuiteCoreAsync(string hostPort, int maxConcurrentTasks, int intervalMsecs, string ignoresList = "", CancellationToken cancel = default)
+    record SniAndExpected(string Sni, string[] ExpectedList);
+
+    static async Task<bool> TestSuiteCoreAsync(string hostPort, int maxConcurrentTasks, int intervalMsecs, bool selfTest, string ignoresList, CancellationToken cancel, string sniAndExpectedStrList)
     {
         if (maxConcurrentTasks <= 0) maxConcurrentTasks = 1;
 
@@ -284,6 +415,32 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
         var currentArch = GetCurrentArchiecture();
 
         var ignores = ignoresList._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",", " ", "|", "/", ";", "\r", "\n");
+
+        var exps = sniAndExpectedStrList._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ";", "\r", "\n");
+
+        List<SniAndExpected> sniAndExpectedList = new List<SniAndExpected>();
+
+        foreach (var exp in exps)
+        {
+            if (exp._GetKeyAndValue(out string sni, out string expStrs, "="))
+            {
+                sni = sni._NonNullTrim();
+                var expStrLists = expStrs._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",");
+
+                if (Env.IsWindows && selfTest)
+                {
+                    // IIS では複数証明書の明示的応答をサポートしていない
+                    expStrLists = expStrLists.FirstOrDefault()._NonNullTrim()._SingleArray();
+                }
+
+                if (sni._IsFilled())
+                {
+                    SniAndExpected r = new SniAndExpected(sni, expStrLists);
+
+                    sniAndExpectedList.Add(r);
+                }
+            }
+        }
 
         // ターゲット一覧を生成
         foreach (var ver in VersionList.Where(x => x.Arch == currentArch).OrderBy(x => x.ExeName, StrCmpi))
@@ -296,7 +453,24 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
 
                     if (ignores.Where(x => x._IsSamei(tmp) || (x.StartsWith("@") && x.EndsWith("@") && tmp._InStr(x, true)) || (x.EndsWith("@") && tmp.StartsWith(x, StrCmpi))).Any() == false)
                     {
-                        targets.Add(new TestSuiteTarget(hostPort, ver, sslVer, cipher.Name, ""));
+                        if (sniAndExpectedList.Any() == false)
+                        {
+                            targets.Add(new TestSuiteTarget(hostPort, ver, sslVer, cipher.Name, "", "", new List<string>()));
+                        }
+                        else
+                        {
+                            foreach (var exp in sniAndExpectedList)
+                            {
+                                targets.Add(new TestSuiteTarget(hostPort, ver, sslVer, cipher.Name, "", exp.Sni,
+                                    exp.ExpectedList.ToList()));
+
+                                if (ver.Options.Contains("nosni"))
+                                {
+                                    // old OpenSSL versions don't support sni. force use first test.
+                                    break;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -361,6 +535,11 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
             Con.WriteLine($"   Cipher:   {item.CipherName}");
             Con.WriteLine($"   SslVer:   {item.SslVer}");
             Con.WriteLine($"   Host:     {item.HostPort}");
+            if (item.Sni._IsFilled())
+            {
+                Con.WriteLine($"   Sni:      {item.Sni}");
+                Con.WriteLine($"   ExpectedCertsList: {item.ExpectedCertsList._Shuffle()._OnlyFilled()._Combine(" && ")}");
+            }
             Con.WriteLine();
         }
 
@@ -376,6 +555,11 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
             Con.WriteLine($"   Cipher:   {item.CipherName}");
             Con.WriteLine($"   SslVer:   {item.SslVer}");
             Con.WriteLine($"   Host:     {item.HostPort}");
+            if (item.Sni._IsFilled())
+            {
+                Con.WriteLine($"   Sni:      {item.Sni}");
+                Con.WriteLine($"   ExpectedCertsList:      {item.ExpectedCertsList._OnlyFilled()._Combine(",")}");
+            }
             Con.WriteLine($"   Error:    {item.Error}");
             Con.WriteLine();
         }
@@ -406,13 +590,13 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
     {
         var hostPort = target.HostPort._ParseHostnaneAndPort(443);
 
-        await ExecOpenSslClientConnectTest(target.Ver, hostPort.Item1, hostPort.Item2, target.SslVer, target.CipherName, cancel);
+        await ExecOpenSslClientConnectTest(target.Ver, hostPort.Item1, hostPort.Item2, target.SslVer, target.Sni, target.ExpectedCertsList, target.CipherName, cancel);
     }
 
     // OpenSSL での SSL 接続テストの実行
-    public static async Task ExecOpenSslClientConnectTest(Version ver, string host, int port, string protoVerStr, string? cipher = null, CancellationToken cancel = default)
+    public static async Task ExecOpenSslClientConnectTest(Version ver, string host, int port, string protoVerStr, string sni, List<string> expectCertStrList, string? cipher = null, CancellationToken cancel = default)
     {
-        string args = $"s_client -connect {host}:{port} -{protoVerStr}";
+        string args = $"s_client -connect {host}:{port} -{protoVerStr} -showcerts";
         if (cipher._IsFilled())
         {
             if (protoVerStr._IsSamei("tls1_3"))
@@ -422,6 +606,21 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
             else
             {
                 args += $" -cipher {cipher}";
+            }
+        }
+
+        if (ver.Options.Contains("nosni") == false)
+        {
+            if (sni._IsFilled())
+            {
+                args += $" -servername {sni}";
+            }
+            else
+            {
+                if (ver.Options.Contains("nonoservername") == false)
+                {
+                    args += $" -noservername";
+                }
             }
         }
 
@@ -468,6 +667,31 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
 
                     bool flag1 = false;
 
+                    bool allCertsOk = true;
+
+                    // showcerts 結果文字列検索
+                    if (expectCertStrList._OnlyFilled().Any())
+                    {
+                        foreach (var test in expectCertStrList._OnlyFilled())
+                        {
+                            bool singleOk = false;
+                            foreach (var tmp in lines)
+                            {
+                                if (tmp._InStri(test))
+                                {
+                                    singleOk = true;
+                                    break;
+                                }
+                            }
+                            if (singleOk == false)
+                            {
+                                allCertsOk = false;
+                            }
+                        }
+                    }
+
+                    var sni2 = sni;
+
                     // 成功状態になっていないか確認 (これらの条件が満たされた場合でも、エラーが来ていれば NG である。エラーは上のコードで検出されるのである。)
                     foreach (var tmp in lines)
                     {
@@ -477,8 +701,17 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
                             byte[] sessionKey = tmp2._GetHexBytes();
                             if (sessionKey._IsZero() == false && sessionKey.Length >= 16)
                             {
-                                // OK
-                                ok = true;
+                                if (allCertsOk)
+                                {
+                                    // OK
+                                    ok = true;
+                                }
+                                else
+                                {
+                                    // 期待している証明書がきていない
+                                    ok = false;
+                                    error = "Some expected certificates didn't come.";
+                                }
 
                                 // もうプロセスは終了してよい
                                 return true;
@@ -496,8 +729,17 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
                             {
                                 // TLS 1.3 でセッションキー等は届いていない (サーバー側で送出してこない) が、ネゴシエーションには成功したものと思われる。
                                 // www.google.com 等でこの挙動がある。
-                                // OK
-                                ok = true;
+                                if (allCertsOk)
+                                {
+                                    // OK
+                                    ok = true;
+                                }
+                                else
+                                {
+                                    // 期待している証明書がきていない
+                                    ok = false;
+                                    error = "Some expected certificates didn't come.";
+                                }
 
                                 // もうプロセスは終了してよい
                                 return true;

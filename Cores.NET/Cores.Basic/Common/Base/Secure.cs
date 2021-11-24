@@ -523,7 +523,7 @@ namespace IPA.Cores.Basic
         // .NET 標準の SslStreamCertificateContext.Create() では、不必要な証明書は削除されてしまう。
         // この関数は、不必要な証明書もチェーンに入れた状態で SslStreamCertificateContext を作成するのである。
         // ただし、Windows では正しく動作しない。
-        public static SslStreamCertificateContext CreateSslCreateCertificateContextWithFullChain(X509Certificate2 target, X509Certificate2Collection? additionalCertificates, bool offline = false, bool errorWhenFailed = false)
+        public static SslStreamCertificateContext CreateSslCreateCertificateContextWithFullChain(X509Certificate2 target, X509Certificate2Collection? additionalCertificates = null, bool offline = false, bool errorWhenFailed = false)
         {
             // まずオブジェクトを普通通りに作成する
             SslStreamCertificateContext original = SslStreamCertificateContext.Create(target, additionalCertificates, offline);
@@ -1088,4 +1088,5 @@ namespace IPA.Cores.Basic
 
     // 証明書関係
     public delegate X509Certificate2 CertSelectorCallback(object? param, string sniHostname);
+    public delegate Task<SslStreamCertificateContext> CertSelectorAsyncCallback2(object? param, string sniHostname);
 }

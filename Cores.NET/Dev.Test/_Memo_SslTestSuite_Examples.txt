@@ -1,7 +1,4 @@
-﻿SslTestSuite 127.0.0.1:443 /parallel:16 /interval:1000
-
-
-■ Windows 10 Self Test 2021/11/24
+﻿■ Windows 10 Self Test 2021/11/24
 
 SslTestSuite self /parallel:64 /interval:1000 /ignore:@ssl3@,@tls1_3@,RC4-SHA@,DHE-RSA-AES128-SHA@,DHE-RSA-AES256-SHA@,DHE-RSA-AES128-SHA256@,DHE-RSA-CHACHA20-POLY1305@,ECDHE-RSA-CHACHA20-POLY1305@,DHE-RSA-AES256-SHA256@
 

@@ -432,6 +432,7 @@ public static class BasicHelper
     public static bool _IsInt(this string s) => Str.IsInt(s);
     public static bool _IsNumber(this string s) => Str.IsNumber(s);
     public static bool _InStr(this string s, string keyword, bool ignoreCase = false) => Str.InStr(s, keyword, !ignoreCase);
+    public static bool _InStri(this string s, string keyword) => Str.InStr(s, keyword, true);
     public static string[] _ParseCmdLine(this string s) => Str.ParseCmdLine(s);
     public static object? _Old_XmlToObjectPublic(this string s, Type t) => Str.XMLToObjectSimple_PublicLegacy(s, t);
     public static StrToken _ToToken(this string s, string splitStr = " ,\t\r\n") => new StrToken(s, splitStr);
@@ -2611,6 +2612,11 @@ public static class BasicHelper
     public static IOrderedEnumerable<TSource> _Shuffle<TSource>(this IEnumerable<TSource> source)
     {
         return source.OrderBy(x => Util.RandSInt63());
+    }
+
+    public static IEnumerable<string> _OnlyFilled(this IEnumerable<string> source)
+    {
+        return source.Where(x => x._IsFilled());
     }
 
     // 重み付きシャッフル (getWeigth の戻り値で重みを指定する。2 以上を指定するべきである。)
