@@ -563,7 +563,7 @@ namespace IPA.Cores.Basic
         {
             SslClientAuthenticationOptions ret = new SslClientAuthenticationOptions()
             {
-                TargetHost = TargetHost,
+                TargetHost = TargetHost._NonNull(),
                 AllowRenegotiation = true,
                 RemoteCertificateValidationCallback = new RemoteCertificateValidationCallback((sender, cert, chain, err) =>
                 {
