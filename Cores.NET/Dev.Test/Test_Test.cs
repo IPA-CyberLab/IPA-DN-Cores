@@ -2643,10 +2643,10 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         object? pal = pol._PrivateGet("Pal");
 
         byte[] b1 = (byte[])pal!._PrivateGet("_cipherSuites")!;
-        byte[] b2 = (byte[])pal!._PrivateGet("_tls13CipherSuites;")!;
+        //byte[] b2 = (byte[])pal!._PrivateGet("_tls13CipherSuites;")!;
 
         b1._GetString_UTF8(true)._Print();
-        b2._GetString_UTF8(true)._Print();
+        //b2._GetString_UTF8(true)._Print();
     }
 
     public static void Test_Generic()
