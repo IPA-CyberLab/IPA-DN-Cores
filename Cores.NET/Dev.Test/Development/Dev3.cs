@@ -73,7 +73,8 @@ namespace IPA.Cores.Basic;
 public class LtsOpenSslTool
 {
     // -- 定数部分  https://lts.dn.ipantt.net/d/211117_002_lts_openssl_exesuite_09221/ を参照のこと --
-    public const string BaseUrl = "https://lts.dn.ipantt.net/d/211117_002_lts_openssl_exesuite_09221/";
+    public const string BaseUrl = "https://static.lts.dn.ipantt.net/d/211117_002_lts_openssl_exesuite_09221/";
+    public const string BaseUrlCertHash = "DD6668C8F3DB6B53C593B83E9511ECFB5A9FDEFD";
 
     public const string VersionYymmdd = "211117";
 
@@ -89,6 +90,7 @@ lts_openssl_exesuite_3.0.0                  ssl3 tls1 tls1_1 tls1_2 tls1_3
 ";
 
     public const string Def_Ciphers = @"
+default                                     ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
 RC4-SHA                                     ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
 DES-CBC3-SHA                                ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
 AES128-SHA                                  ssl3 tls1 tls1_1 tls1_2     lts_openssl_exesuite_0.9.8zh lts_openssl_exesuite_1.0.2u lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
@@ -610,6 +612,11 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
     // OpenSSL での SSL 接続テストの実行
     public static async Task ExecOpenSslClientConnectTest(Version ver, string host, int port, string protoVerStr, string sni, List<string> expectCertStrList, string? cipher = null, CancellationToken cancel = default)
     {
+        if (cipher._IsSamei("default"))
+        {
+            cipher = "";
+        }
+
         string args = $"s_client -connect {host}:{port} -{protoVerStr} -showcerts";
         if (cipher._IsFilled())
         {
@@ -842,7 +849,10 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
             if (exists == false)
             {
                 // ファイルをダウンロードする
-                var res = await SimpleHttpDownloader.DownloadAsync(url);
+                var res = await SimpleHttpDownloader.DownloadAsync(url, sslServerCertValicationCallback: (sender, cert, chain, err) =>
+                {
+                    return cert!.GetCertHashString()._IsSameHex(BaseUrlCertHash);
+                });
                 if (res.DataSize < 1_000_000)
                 {
                     throw new CoresLibException($"URL {url} file size too small: {res.DataSize} bytes");
