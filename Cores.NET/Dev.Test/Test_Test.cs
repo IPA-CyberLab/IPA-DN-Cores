@@ -2617,7 +2617,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
                 if (Env.IsUnix)
                 {
-                    ign_self = "";
+                    ign_self = "RC4-SHA@,@ssl3@,DES-CBC3-SHA@,DHE-RSA-AES128-GCM-SHA256@,DHE-RSA-AES128-SHA@,DHE-RSA-AES128-SHA256@,DHE-RSA-AES256-GCM-SHA384@,DHE-RSA-AES256-SHA@,DHE-RSA-AES256-SHA256@,DHE-RSA-CHACHA20-POLY1305@";
                 }
 
                 await LtsOpenSslTool.TestSuiteAsync("self", 64, 1000, ign_self, default);
