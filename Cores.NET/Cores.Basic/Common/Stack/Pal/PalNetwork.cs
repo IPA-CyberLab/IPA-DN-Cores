@@ -52,6 +52,7 @@ using System.Collections.Immutable;
 using System.Security.Authentication;
 using System.Runtime.InteropServices;
 using System.Reflection;
+using System.Text;
 
 namespace IPA.Cores.Basic
 {
@@ -62,8 +63,8 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<SslProtocols> DefaultSslProtocolVersionsAsServer = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12 | SslProtocols.Tls13;
             public static readonly Copenhagen<SslProtocols> DefaultSslProtocolVersionsAsClient = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12 | SslProtocols.Tls13;
 
-            public static readonly Copenhagen<EncryptionPolicy> DefaultSslEncryptionPolicyServer = EnvFastOsInfo.IsUnix ? EncryptionPolicy.AllowNoEncryption : EncryptionPolicy.RequireEncryption;
-            public static readonly Copenhagen<EncryptionPolicy> DefaultSslEncryptionPolicyClient = EnvFastOsInfo.IsUnix ? EncryptionPolicy.AllowNoEncryption : EncryptionPolicy.RequireEncryption;
+            public static readonly Copenhagen<EncryptionPolicy> DefaultSslEncryptionPolicyServer = EncryptionPolicy.RequireEncryption;
+            public static readonly Copenhagen<EncryptionPolicy> DefaultSslEncryptionPolicyClient = EncryptionPolicy.RequireEncryption;
 
             [Obsolete]
             public static SslProtocols DefaultSslProtocolVersions => DefaultSslProtocolVersionsAsServer;
@@ -74,6 +75,7 @@ namespace IPA.Cores.Basic
 
     public static class PalUnixOpenSslSpecialUtil
     {
+        public const string UnixOpenSslDefaultCipherList_InitialLibraryConst = "ALL:eNULL";
         public const string UnixOpenSslDefaultCipherList = "ALL:!EXPORT:!LOW:!aNULL:!eNULL:!SSLv2:!RC4-MD5";
 
         // RC4-MD5 を除外する意義について:
@@ -90,10 +92,21 @@ namespace IPA.Cores.Basic
             var t = asm.GetType("System.Net.Security.CipherSuitesPolicyPal");
             var fi = t!.GetField("AllowNoEncryptionDefault", BindingFlags.Static | BindingFlags.NonPublic);
             object? obj = fi!.GetValue(null);
-            byte[] a = (byte[])obj!;
+            byte[] oldValue = (byte[])obj!;
 
-            string s = a._GetString_UTF8(true);
-            Console.WriteLine($"value = '{s}'");
+            string oldValueStr = oldValue._GetString_UTF8(true);
+
+            if (oldValueStr._IsSamei(UnixOpenSslDefaultCipherList_InitialLibraryConst) == false)
+            {
+                throw new CoresException($"System.Net.Security.CipherSuitesPolicyPal.AllowNoEncryptionDefault = '{oldValueStr}'");
+            }
+
+            byte[] newValue = Encoding.ASCII.GetBytes(UnixOpenSslDefaultCipherList + "\0");
+
+            fi.SetValue(null, newValue);
+
+            CoresConfig.SslSettings.DefaultSslEncryptionPolicyServer.Set(EncryptionPolicy.AllowNoEncryption);
+            CoresConfig.SslSettings.DefaultSslEncryptionPolicyClient.Set(EncryptionPolicy.AllowNoEncryption);
         }
 
         public static void TryInit()
