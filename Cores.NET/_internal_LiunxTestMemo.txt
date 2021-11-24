@@ -8,7 +8,7 @@ git clone --recursive git@github.com:IPA-CyberLab/IPA-DN-Cores.git
 
 
 ■ 2 回目以降
-cd ~/IPA-DN-Cores/Cores.NET/Dev.Test/ && (cd ../../ && git pull origin master && git submodule update --init --recursive) && dotnet run
+cd ~/IPA-DN-Cores/Cores.NET/Dev.Test/ && (cd ../../ && git pull origin master && git submodule update --init --recursive) && dotnet run test
 
 
 ■ Web サーバーテスト
