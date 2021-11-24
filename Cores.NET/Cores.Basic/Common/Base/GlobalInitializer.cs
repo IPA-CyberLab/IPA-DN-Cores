@@ -176,7 +176,7 @@ public static class CoresLib
     public static string[] Init(CoresLibOptions options, params string[] args)
     {
         UnixConsoleSpecialUtil.DisableDotNetConsoleModeChange();
-        PalUnixOpenSslSpecialUtil.Init();
+        //PalUnixOpenSslSpecialUtil.Init();
 
         lock (InitLockObj)
         {
