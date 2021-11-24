@@ -78,6 +78,34 @@ namespace IPA.Cores.Basic
 
     public static class PalUnixOpenSslSpecialUtil
     {
+        // このクラスは、UNIX における OpenSSL ライブラリを使用する場合の設定を初期化するためのものである。
+        // 
+        // UNIX 版 .NET 5 / 6 で使用されている OpenSSL コードでは
+        // 標準で /etc/ssl/openssl.cnf ファイルが読み込まれる。
+        // そこでは、大抵の環境において SECLEVEL の値が設定されていないので、
+        // OpenSSL のバージョンによって厳しいセキュリティレベル (デフォルト値) が設定されてしまっており、
+        // 互換性の高い暗号アルゴリズムや 1024bit RSA 証明書等に関する SSL ネゴシエーションに失敗してしまう
+        // 問題がある。
+        // 
+        // [ default_conf ]
+        // ssl_conf = ssl_sect
+        // [ssl_sect]
+        // system_default = system_default_sect
+        // [system_default_sect]
+        // MinProtocol = TLSv1
+        // CipherString = DEFAULT:@SECLEVEL=1
+        // 
+        // そこで、SECLEVEL=0 を設定する必要があるが、
+        // https://github.com/dotnet/runtime/blob/292632fd04671aed0b302195f05834a01db474fa/src/libraries/Native/Unix/System.Security.Cryptography.Native/pal_ssl.c#L485
+        // にあるように、SECLEVEL=0 が SSL_CTX に設定されるのは
+        // EncryptionPolicy が AllowNoEncryption の場合のみである。
+        // 
+        // EncryptionPolicy を AllowNoEncryption に設定した場合、デフォルトで危険なアルゴリズム (eNULL など) が有効になってしまう。
+        // そこで、EncryptionPolicy を AllowNoEncryption に設定した場合、危険なアルゴリズム (eNULL など) を手動で除外し
+        // それ以外の暗号アルゴリズムを手動で追加する処理が必要である。
+        // 
+        // このような初期化処理を行なうコードが PalUnixOpenSslSpecialUtil クラスである。
+
         static readonly Once OnceFlag = new Once();
 
         public static void Init()
@@ -109,6 +137,7 @@ namespace IPA.Cores.Basic
                     string[] tokens = name._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, "_");
                     if (tokens.Contains("NULL", StrCmpi) == false)
                     {
+                        // NULL 暗号であると思われるアルゴリズムを禁止する
                         list.Add(value);
                     }
                 }
