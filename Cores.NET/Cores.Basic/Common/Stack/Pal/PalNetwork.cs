@@ -110,13 +110,14 @@ namespace IPA.Cores.Basic
 
         public static void TryInit()
         {
+            if (EnvFastOsInfo.IsWindows) return;
+
             try
             {
                 Init();
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine(ex.ToString());
             }
         }
 
