@@ -2182,8 +2182,8 @@ public static class BasicHelper
 
         await TaskUtil.ForEachAsync(srcListList.Length, srcListList, async (list, c) =>
         {
-                //Con.WriteLine($"  Task ${ThreadObj.CurrentThreadId}: {list.Count}");
-                var resultPackets = await action(list);
+            //Con.WriteLine($"  Task ${ThreadObj.CurrentThreadId}: {list.Count}");
+            var resultPackets = await action(list);
 
             lock (ret)
             {
@@ -2276,24 +2276,31 @@ public static class BasicHelper
         }
     }
 
-    readonly static PropertyInfo PInfo_SafeFileHandle_IsAsyncGet = typeof(SafeFileHandle).GetProperty("IsAsync", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetProperty)!;
-    readonly static PropertyInfo PInfo_SafeFileHandle_IsAsyncSet = typeof(SafeFileHandle).GetProperty("IsAsync", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.SetProperty)!;
+    //readonly static PropertyInfo PInfo_SafeFileHandle_IsAsyncGet = typeof(SafeFileHandle).GetProperty("IsAsync", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetProperty)!;
+    //readonly static PropertyInfo PInfo_SafeFileHandle_IsAsyncSet = typeof(SafeFileHandle).GetProperty("IsAsync", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.SetProperty)!;
 
-    public static bool _IsAsync(this SafeFileHandle handle)
-    {
-        try
-        {
-            return ((bool?)PInfo_SafeFileHandle_IsAsyncGet.GetValue(handle)) ?? false;
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    //public static bool _IsAsync(this SafeFileHandle handle)
+    //{
+    //    try
+    //    {
+    //        return ((bool?)PInfo_SafeFileHandle_IsAsyncGet.GetValue(handle)) ?? false;
+    //    }
+    //    catch
+    //    {
+    //        return false;
+    //    }
+    //}
 
-    public static void _SetAsync(this SafeFileHandle handle, bool isAsync)
+    //public static void _SetAsync(this SafeFileHandle handle, bool isAsync)
+    //{
+    //    PInfo_SafeFileHandle_IsAsyncSet.SetValue(handle, isAsync);
+    //}
+
+    readonly static MethodInfo MInfo_SafeFileHandle_EnsureThreadPoolBindingInitialized = typeof(SafeFileHandle).GetMethod("EnsureThreadPoolBindingInitialized", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+    public static void _EnsureThreadPoolBindingInitialized(this SafeFileHandle handle)
     {
-        PInfo_SafeFileHandle_IsAsyncSet.SetValue(handle, isAsync);
+        MInfo_SafeFileHandle_EnsureThreadPoolBindingInitialized.Invoke(handle, EmptyOf<object?>());
     }
 
     public static string _ToPointerHexString(this IntPtr ptr) => $"0x{ptr.ToInt64():X}";

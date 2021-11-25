@@ -2007,7 +2007,7 @@ public static class PalWin32FileStream
 
         FileStream ret = new FileStream(_fileHandle, _access, 4096, _useAsyncIO);
 
-        _fileHandle._SetAsync(_useAsyncIO);
+        //_fileHandle._SetAsync(_useAsyncIO);
 
         if (mode == FileMode.Append)
         {

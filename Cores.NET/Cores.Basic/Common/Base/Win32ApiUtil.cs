@@ -301,6 +301,7 @@ namespace IPA.Cores.Basic
 
         public static SafeFileHandle OpenHandle(string fullPath, bool asDirectory, bool writeMode = false, bool backupMode = false, bool asyncMode = true, int additionalFlags = 0)
         {
+            asyncMode = true;
             string root = fullPath.Substring(0, Win32PathInternal.GetRootLength(fullPath.AsSpan()));
             if (root == fullPath && root[1] == Path.VolumeSeparatorChar)
             {
@@ -335,12 +336,7 @@ namespace IPA.Cores.Basic
 
                 if (((FileOptions)additionalFlags).Bit(FileOptions.Asynchronous))
                 {
-                    handle._SetAsync(true);
-                    ThreadPool.BindHandle(handle);
-                }
-                else
-                {
-                    handle._SetAsync(false);
+                    handle._EnsureThreadPoolBindingInitialized();
                 }
 
                 return handle;
@@ -643,7 +639,7 @@ namespace IPA.Cores.Basic
         {
             cancel.ThrowIfCancellationRequested();
 
-            bool isAsync = handle._IsAsync();
+            bool isAsync = handle.IsAsync;
 
             if (inBuffer == null) inBuffer = new ReadOnlyMemoryBuffer<byte>();
             if (outBuffer == null) outBuffer = new MemoryBuffer<byte>();
