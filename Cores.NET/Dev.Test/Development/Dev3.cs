@@ -589,7 +589,7 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
             List<string> ignoreList = new List<string>();
             errorList.OrderBy(x => x.CipherName, StrCmpi).ThenBy(x => x.SslVer, StrCmpi).ThenBy(x => x.Ver.ExeName, StrCmpi)
                 ._DoForEach(x => ignoreList.Add(x.CipherName + "@" + x.SslVer + "@" + x.Ver.ExeName));
-            Con.WriteLine(ignoreList._Combine(","));
+            Con.WriteLine(ignoreList.Distinct(StrCmpi)._Combine(","));
         }
 
         Con.WriteLine($"");
