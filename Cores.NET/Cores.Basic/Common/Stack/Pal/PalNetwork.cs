@@ -122,8 +122,6 @@ namespace IPA.Cores.Basic
 
         public static void Init()
         {
-            if (Env.IsWindows) return;
-
             if (OnceFlag.IsFirstCall())
             {
                 var pol = CreateUnixOpenSslCipherSuitesPolicyInternal();

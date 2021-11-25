@@ -1,10 +1,14 @@
-﻿■ Windows 10 Self Test 2021/11/24
+﻿■ Win メモ
+SslTestSuite self /parallel:64 /interval:1000 /ignore: /expectedcertstr:old=01_TestHost_RSA1024_SHA1_2036;new=02_TestHost_RSA4096_SHA256_2099
+
+
+■ Windows 10 Self Test 2021/11/24
 
 SslTestSuite self /parallel:64 /interval:1000 /ignore:default /expectedcertstr:default
 
 上記は
 
-SslTestSuite self /parallel:64 /interval:1000 /ignore:@ssl3@,@tls1_3@,RC4-SHA@,DHE-RSA-AES128-SHA@,DHE-RSA-AES256-SHA@,DHE-RSA-AES128-SHA256@,DHE-RSA-CHACHA20-POLY1305@,ECDHE-RSA-CHACHA20-POLY1305@,DHE-RSA-AES256-SHA256@ /expectedcertstr:old=01_TestHost_RSA1024_SHA1_2036;new=02_TestHost_RSA4096_SHA256_2099
+SslTestSuite self /parallel:64 /interval:1000 /ignore:@ssl3@,DHE-RSA-AES128-SHA@,DHE-RSA-AES256-SHA@,DHE-RSA-AES128-SHA256@,DHE-RSA-AES256-SHA256@,DHE-RSA-CHACHA20-POLY1305@,ECDHE-RSA-CHACHA20-POLY1305@,RC4-SHA@,@tls1_3@ /expectedcertstr:old=01_TestHost_RSA1024_SHA1_2036;new=02_TestHost_RSA4096_SHA256_2099
 
 
 と等価 (default 指定時: ソースコード中に定数があるぞ)
