@@ -3022,6 +3022,11 @@ public static class BasicHelper
     public static bool _IsPrintable(this string str) => Str.IsPrintable(str);
     public static bool _IsSafeAndPrintable(this char c, bool crlfIsOk = false, bool htmlTagAreNotGood = false) => Str.IsSafeAndPrintable(c, crlfIsOk, htmlTagAreNotGood);
     public static bool _IsSafeAndPrintable(this string s, bool crlfIsOk = false, bool htmlTagAreNotGood = false) => Str.IsSafeAndPrintable(s, crlfIsOk, htmlTagAreNotGood);
+
+    public static bool IsOrGreater(this WindowsFamily thisFamily, WindowsFamily targetFamily)
+    {
+        return thisFamily >= targetFamily;
+    }
 }
 
 

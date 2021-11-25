@@ -49,7 +49,7 @@ using System.Collections;
 
 namespace IPA.Cores.Basic;
 
-// 注: DaemonCenter で利用しているためいじらないこと
+// 注: DaemonCenter で利用しているためいじらないこと (名前を変えないこと、項目を減らさないこと)
 [Serializable]
 public class EnvInfoSnapshot
 {
@@ -101,6 +101,36 @@ public class EnvInfoSnapshot
     public string GcMode = Env.GcMode;
     public string GcCompactionMode = Env.GcCompactionMode;
     public string GcLatencyMode = Env.GcLatencyMode;
+    public WindowsFamily WindowsFamily = Env.WindowsFamily;
+    public bool IsOnGitHubActions = Env.IsOnGitHubActions;
+}
+
+[Flags]
+public enum WindowsFamily : long
+{
+    Unknown = 0,
+    WindowsXP = 2600,
+    WindowsServer2003 = 3790,
+    WindowsVista = 6002,
+    WindowsServer2008 = 6003,
+    WindowsServer2008R2 = 7601,
+    WindowsServer2012_Windows8 = 9200,
+    WindowsServer2012R2_Windows81 = 9600,
+    Windows10_1507 = 10240,
+    Windows10_1511 = 10586,
+    WindowsServer2016_Windows10_1607 = 14393,
+    Windows10_1703 = 15063,
+    Windows10_1709 = 16299,
+    Windows10_1803 = 17134,
+    WindowsServer2019_Windows10_1809 = 17763,
+    Windows10_1903 = 18362,
+    Windows10_1909 = 18363,
+    Windows10_2004 = 19041,
+    Windows10_20H2 = 19042,
+    Windows10_21H1 = 19043,
+    Windows10_21H2 = 19044,
+    WindowsServer2022 = 20348,
+    Windows11_21H2 = 22000,
 }
 
 public static class EnvFastOsInfo
@@ -108,11 +138,38 @@ public static class EnvFastOsInfo
     public static bool IsWindows { get; }
     public static bool IsUnix => !IsWindows;
     public static OperatingSystem OsInfo { get; }
+    public static WindowsFamily WindowsFamily { get; } = WindowsFamily.Unknown;
+
+    static readonly WindowsFamily[] WinFamilyDefs;
 
     static EnvFastOsInfo()
     {
+        WinFamilyDefs = WindowsFamily.Unknown.GetEnumValuesList().OrderBy(x => (long)x).Distinct().ToArray();
+
         OsInfo = Environment.OSVersion;
         IsWindows = (OsInfo.Platform == PlatformID.Win32NT);
+
+        if (IsWindows)
+        {
+            int build = OsInfo.Version.Build;
+
+            WindowsFamily = GetWindowsVersionFromBuildNumber(build);
+        }
+    }
+
+    public static WindowsFamily GetWindowsVersionFromBuildNumber(int build)
+    {
+        WindowsFamily ret = WindowsFamily.Unknown;
+
+        foreach (WindowsFamily ver in WinFamilyDefs)
+        {
+            if ((long)build >= (long)ver)
+            {
+                ret = ver;
+            }
+        }
+
+        return ret;
     }
 }
 
@@ -149,6 +206,7 @@ public static class Env
     static public string MachineName { get; }
     public static string CommandLine { get; private set; }
     public static OperatingSystem OsInfo { get; }
+    public static WindowsFamily WindowsFamily { get; }
     public static bool IsWindows { get; }
     public static bool IsUnix => !IsWindows;
     public static bool IsMac { get; }
@@ -172,6 +230,7 @@ public static class Env
     public static bool IsHostedByDotNetProcess { get; }
     public static string DotNetHostProcessExeName { get; } = "";
     public static int NumCpus { get; }
+    public static bool IsOnGitHubActions { get; }
 
     public static string GcMode { get; } = System.Runtime.GCSettings.IsServerGC ? "ServerGC" : "WorkstationGC";
     public static string GcCompactionMode { get; } = System.Runtime.GCSettings.LargeObjectHeapCompactionMode.ToString();
@@ -226,6 +285,9 @@ public static class Env
 
             UnixApi.InitUnixLimitsValue(IsMac, (IntPtr.Size == 8));
         }
+        WindowsFamily = EnvFastOsInfo.WindowsFamily;
+
+        IsOnGitHubActions = Environment.GetEnvironmentVariable("GITHUB_WORKFLOW")._IsFilled();
 
         PathSeparator = "" + Path.DirectorySeparatorChar;
         if (Str.IsEmptyStr(PathSeparator))

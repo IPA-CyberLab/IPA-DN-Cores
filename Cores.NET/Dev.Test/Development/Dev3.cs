@@ -115,7 +115,10 @@ TLS_AES_256_GCM_SHA384                      tls1_3                      lts_open
 TLS_AES_128_GCM_SHA256                      tls1_3                      lts_openssl_exesuite_1.1.1l lts_openssl_exesuite_3.0.0
 ";
 
-    public const string Def_SelfTest_Ignore_For_Windows = "@ssl3@,DHE-RSA-AES128-SHA@,DHE-RSA-AES256-SHA@,DHE-RSA-AES128-SHA256@,DHE-RSA-AES256-SHA256@,DHE-RSA-CHACHA20-POLY1305@,ECDHE-RSA-CHACHA20-POLY1305@,RC4-SHA@,@tls1_3@";
+    public const string Def_SelfTest_Ignore_For_Windows_Before_2022 = "@ssl3@,DHE-RSA-AES128-SHA@,DHE-RSA-AES256-SHA@,DHE-RSA-AES128-SHA256@,DHE-RSA-AES256-SHA256@,DHE-RSA-CHACHA20-POLY1305@,ECDHE-RSA-CHACHA20-POLY1305@,RC4-SHA@,@tls1_3@";
+    public const string Def_SelfTest_Ignore_For_Windows_After_2022 = "@ssl3@,DHE-RSA-AES128-SHA@,DHE-RSA-AES256-SHA@,DHE-RSA-AES128-SHA256@,DHE-RSA-AES256-SHA256@,DHE-RSA-CHACHA20-POLY1305@,ECDHE-RSA-CHACHA20-POLY1305@,RC4-SHA@,TLS_CHACHA20_POLY1305_SHA256@";
+    public const string Def_SelfTest_Ignore_For_Windows_After_2022_GitHubActions = "@ssl3@,@tls1@,@tls1_1@,DHE-RSA-AES128-SHA@,DHE-RSA-AES256-SHA@,DHE-RSA-AES128-SHA256@,DHE-RSA-AES256-SHA256@,DHE-RSA-CHACHA20-POLY1305@,ECDHE-RSA-CHACHA20-POLY1305@,RC4-SHA@,AES128-GCM-SHA256@,AES128-SHA@,AES256-GCM-SHA384@,AES256-SHA@,AES256-SHA256@,DES-CBC3-SHA@,DHE-RSA-AES128-GCM-SHA256@,TLS_CHACHA20_POLY1305_SHA256@";
+
     public const string Def_SelfTest_Ignore_For_Unix = "RC4-SHA@,@ssl3@,DES-CBC3-SHA@,DHE-RSA-AES128-GCM-SHA256@,DHE-RSA-AES128-SHA@,DHE-RSA-AES128-SHA256@,DHE-RSA-AES256-GCM-SHA384@,DHE-RSA-AES256-SHA@,DHE-RSA-AES256-SHA256@,DHE-RSA-CHACHA20-POLY1305@";
 
     public const string Def_SelfTest_Expected_Certs_For_Windows = "old=01_TestHost_RSA1024_SHA1_2036;new=02_TestHost_RSA4096_SHA256_2099";
@@ -387,8 +390,33 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
 
             if (ignoresList._IsSamei("default"))
             {
-                ignoresList = Env.IsWindows ? Def_SelfTest_Ignore_For_Windows : Def_SelfTest_Ignore_For_Unix;
+                if (Env.IsWindows)
+                {
+                    ignoresList = Def_SelfTest_Ignore_For_Windows_Before_2022;
+
+                    if (Env.WindowsFamily.IsOrGreater(WindowsFamily.WindowsServer2022))
+                    {
+                        ignoresList = Def_SelfTest_Ignore_For_Windows_After_2022;
+
+                        if (Env.IsOnGitHubActions)
+                        {
+                            // メモ 2021/11/26: GitHub Actions が提供する Windows Server 2022 の OS イメージは、なぜか、TLS 1.0, TLS 1.1 がレジストリ上で無効化されている。
+                            // これが原因で SslSelfTest の TLS 1.0, TLS 1.1 系 + 一部のアルゴリズムのテストが失敗してしまうようである。
+                            // "Enable TLS 1.0 and 1.1 (disabled since windows-2022 GitHub custom images) " のレジストリ変更を実装したが、
+                            // Windows の再起動が必要なようであり、GitHub Actions ではうまく利用できなかった。
+
+                            ignoresList = Def_SelfTest_Ignore_For_Windows_After_2022_GitHubActions;
+                        }
+                    }
+                }
+                else
+                {
+                    ignoresList = Def_SelfTest_Ignore_For_Unix;
+                }
             }
+
+            Con.WriteLine("Self test: Host and port: " + hostPort);
+            Con.WriteLine("Self test: ignoresList: " + ignoresList);
         }
 
         var hostAndPortTuple = hostPort._ParseHostnaneAndPort(443);

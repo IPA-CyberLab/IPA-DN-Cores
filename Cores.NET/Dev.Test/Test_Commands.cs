@@ -126,6 +126,11 @@ partial class TestDevCommands
         string ignList = vl["ignore"].StrValue;
         string expectedcertstr = vl["expectedcertstr"].StrValue;
 
+        EnvInfoSnapshot envInfo = new EnvInfoSnapshot();
+
+        envInfo._PrintAsJson();
+
+
         if (Env.IsMac)
         {
             Con.WriteLine();
