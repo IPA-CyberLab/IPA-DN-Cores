@@ -2630,6 +2630,10 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         }
     }
 
+    public static void Test_211126()
+    {
+    }
+
     public static void Test_211125()
     {
         List<TlsCipherSuite> list = new List<TlsCipherSuite>();
@@ -2651,6 +2655,12 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_211126();
+            return;
+        }
+
         if (true)
         {
             Test_211125();

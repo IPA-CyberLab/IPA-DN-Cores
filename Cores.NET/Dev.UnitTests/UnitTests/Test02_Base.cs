@@ -331,6 +331,81 @@ public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
     {
         Assert.True(MasterData.ExtensionToMime.Get(".xlsx")._IsSamei("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
     }
+
+    [Fact]
+    public void Win32FileTest()
+    {
+        if (Env.IsWindows == false) return;
+
+        Async(async () =>
+        {
+            const string dirAcl = "D:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FA;;;S-1-5-21-2439965180-1288029102-2284794580-1001)";
+            const string fileAcl = "D:PAI(A;;FA;;;WD)(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;S-1-5-21-2439965180-1288029102-2284794580-1001)";
+            const string altStream = "W1pvbmVUcmFuc2Zlcl0NClpvbmVJZD0zDQpSZWZlcnJlclVybD1odHRwczovL3N0YXRpYy5sdHMuZG4uaXBhbnR0Lm5ldC9kLzIxMDExMV8wMDNfdWJ1bnR1X3NldHVwX3NjcmlwdHNfNTk4NjcvDQpIb3N0VXJsPWh0dHBzOi8vc3RhdGljLmx0cy5kbi5pcGFudHQubmV0L2QvMjEwMTExXzAwM191YnVudHVfc2V0dXBfc2NyaXB0c181OTg2Ny8yMTAxMTFfYXB0X3VidW50dV9qYXBhbl9zZXJ2ZXIuc2gNCg==";
+
+            DirectoryPath dirPath = Env.MyLocalTempDir._CombinePath(Str.GenRandStr());
+
+            try
+            {
+                dirPath.DeleteDirectory(true);
+            }
+            catch { }
+
+            dirPath.CreateDirectory();
+
+            FileMetadata dirMeta1 = new FileMetadata(
+                    securityData: new FileSecurityMetadata()
+                    {
+                        Acl = new FileSecurityAcl
+                        {
+                            Win32AclSddl = dirAcl
+                        },
+                    }
+                );
+
+            dirPath.SetDirectoryMetadata(dirMeta1);
+
+            FilePath filePath1 = dirPath.Combine("test1.txt");
+            FilePath filePath2 = dirPath.Combine("test2.txt");
+
+            await filePath1.WriteDataToFileAsync("Hello"._GetBytes_Ascii(), FileFlags.Async | FileFlags.AutoCreateDirectory);
+
+            await filePath2.WriteDataToFileAsync("Hello"._GetBytes_Ascii(), FileFlags.Async | FileFlags.AutoCreateDirectory);
+
+            FileMetadata fileMeta1 = new FileMetadata(specialOperation: FileSpecialOperationFlags.SetCompressionFlag,
+                securityData: new FileSecurityMetadata()
+                {
+                    Acl = new FileSecurityAcl
+                    {
+                        Win32AclSddl = fileAcl
+                    },
+                },
+                alternateStream: new FileAlternateStreamMetadata { Items = new FileAlternateStreamItemMetadata { Name = ":Zone.Identifier:$DATA", Data = altStream._Base64Decode() }._SingleArray() }
+                );
+
+            await filePath1.SetFileMetadataAsync(fileMeta1);
+
+            await Lfs.CopyFileAsync(filePath1, filePath2, new CopyFileParams(flags: FileFlags.Async, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.All)));
+
+            FileMetadata fileMeta2 = await filePath2.GetFileMetadataAsync();
+
+            if (fileMeta1.Security!.Acl!.Win32AclSddl._IsSamei(fileMeta2.Security!.Acl!.Win32AclSddl) == false)
+            {
+                throw new CoresException("Different ACL.");
+            }
+
+            if (fileMeta2.AlternateStream!.Items![0].Data!._MemEquals(altStream._Base64Decode()) == false)
+            {
+                throw new CoresException("Different alternative stream.");
+            }
+
+            var fileMeta1_2 = await filePath1.GetFileMetadataAsync();
+            if (fileMeta1_2.Attributes!.Value.Bit(FileAttributes.Compressed) == false)
+            {
+                throw new CoresException("FileAttributes.Compressed not set.");
+            }
+        });
+    }
 }
 
 

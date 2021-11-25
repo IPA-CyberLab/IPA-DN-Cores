@@ -333,10 +333,7 @@ namespace IPA.Cores.Basic
                     throw PalWin32FileStream.GetExceptionForWin32Error(errorCode, fullPath);
                 }
 
-                if (((FileOptions)additionalFlags).Bit(FileOptions.Asynchronous))
-                {
-                    handle._EnsureThreadPoolBindingInitialized();
-                }
+                handle._EnsureThreadPoolBindingInitialized();
 
                 return handle;
             }

@@ -395,11 +395,11 @@ public class DirSuperBackup : AsyncService
                     {
                         srcFilePath = Fs.PathParser.Combine(srcDir, srcFile.EncrypedFileName);
 
-                            // 暗号化ファイルである
-                            if (Options.EncryptPassword._IsNullOrZeroLen())
+                        // 暗号化ファイルである
+                        if (Options.EncryptPassword._IsNullOrZeroLen())
                         {
-                                // パスワードが指定されていない
-                                throw new CoresException($"The file '{srcFilePath}' is encrypted, but no password is specified.");
+                            // パスワードが指定されていない
+                            throw new CoresException($"The file '{srcFilePath}' is encrypted, but no password is specified.");
                         }
 
                         isEncrypted = true;
@@ -408,44 +408,44 @@ public class DirSuperBackup : AsyncService
 
                     srcFileMetadata = srcFile.MetaData;
 
-                        // このファイルと同一の先ファイル名がすでに宛先ディレクトリに物理的に存在するかどうか確認する
-                        bool exists = await Fs.IsFileExistsAsync(destFilePath, cancel);
+                    // このファイルと同一の先ファイル名がすでに宛先ディレクトリに物理的に存在するかどうか確認する
+                    bool exists = await Fs.IsFileExistsAsync(destFilePath, cancel);
 
                     bool restoreThisFile = false;
 
                     if (exists)
                     {
-                            // すでに宛先ディレクトリに存在する物理的なファイルのメタデータを取得する
-                            FileMetadata destExistsMetadata = await Fs.GetFileMetadataAsync(destFilePath, cancel: cancel);
+                        // すでに宛先ディレクトリに存在する物理的なファイルのメタデータを取得する
+                        FileMetadata destExistsMetadata = await Fs.GetFileMetadataAsync(destFilePath, cancel: cancel);
 
                         if (Options.Flags.Bit(DirSuperBackupFlags.RestoreOnlyNewer) == false)
                         {
-                                // 古いファイルも復元する
-                                if (Options.Flags.Bit(DirSuperBackupFlags.RestoreDoNotSkipExactSame))
+                            // 古いファイルも復元する
+                            if (Options.Flags.Bit(DirSuperBackupFlags.RestoreDoNotSkipExactSame))
                             {
-                                    // 必ず上書きする
-                                    restoreThisFile = true;
+                                // 必ず上書きする
+                                restoreThisFile = true;
                             }
                             else
                             {
-                                    // ファイルサイズを比較する
-                                    if (destExistsMetadata.Size != srcFileMetadata.Size)
+                                // ファイルサイズを比較する
+                                if (destExistsMetadata.Size != srcFileMetadata.Size)
                                 {
-                                        // ファイルサイズが異なる
-                                        restoreThisFile = true;
+                                    // ファイルサイズが異なる
+                                    restoreThisFile = true;
                                 }
 
-                                    // 日付を比較する
-                                    if (srcFileMetadata!.LastWriteTime!.Value.Ticks != destExistsMetadata.LastWriteTime!.Value.Ticks)
+                                // 日付を比較する
+                                if (srcFileMetadata!.LastWriteTime!.Value.Ticks != destExistsMetadata.LastWriteTime!.Value.Ticks)
                                 {
-                                        // 最終更新日時が異なる
-                                        restoreThisFile = true;
+                                    // 最終更新日時が異なる
+                                    restoreThisFile = true;
                                 }
 
                                 if (restoreThisFile == false)
                                 {
-                                        // 新旧両方のファイルが存在する場合で、ファイルサイズも日付も同じであれば、復元先ファイル内容がバックアップファイルと同一かチェックし、同一の場合はコピーをスキップする
-                                        ResultOrError<int> sameRet;
+                                    // 新旧両方のファイルが存在する場合で、ファイルサイズも日付も同じであれば、復元先ファイル内容がバックアップファイルと同一かチェックし、同一の場合はコピーをスキップする
+                                    ResultOrError<int> sameRet;
 
                                     if (isEncrypted == false)
                                     {
@@ -465,12 +465,12 @@ public class DirSuperBackup : AsyncService
                         }
                         else
                         {
-                                // バックアップのほうが新しい場合のみ復元するモード
-                                // 日付を比較する
-                                if (srcFileMetadata!.LastWriteTime!.Value.Ticks > destExistsMetadata.LastWriteTime!.Value.Ticks)
+                            // バックアップのほうが新しい場合のみ復元するモード
+                            // 日付を比較する
+                            if (srcFileMetadata!.LastWriteTime!.Value.Ticks > destExistsMetadata.LastWriteTime!.Value.Ticks)
                             {
-                                    // 最終更新日時がバックアップのほうが新しい
-                                    restoreThisFile = true;
+                                // 最終更新日時がバックアップのほうが新しい
+                                restoreThisFile = true;
                             }
                         }
                     }
@@ -481,19 +481,19 @@ public class DirSuperBackup : AsyncService
 
                     if (restoreThisFile)
                     {
-                            // すべての判断に合格したら、このファイルの復元を実施する
-                            if (exists)
+                        // すべての判断に合格したら、このファイルの復元を実施する
+                        if (exists)
                         {
                             if (Options.Flags.Bit(DirSuperBackupFlags.RestoreMakeBackup))
                             {
-                                    // 復元先に同名のファイルがすでに存在する場合は、
-                                    // .original.xxxx.0123.original のような形式でまだ存在しない連番に古いファイル名をリネームする
-                                    using (await SafeLock.LockWithAwait(cancel))
+                                // 復元先に同名のファイルがすでに存在する場合は、
+                                // .original.xxxx.0123.original のような形式でまだ存在しない連番に古いファイル名をリネームする
+                                using (await SafeLock.LockWithAwait(cancel))
                                 {
                                     string newOldFileName;
 
-                                        // 連番でかつ存在していないファイル名を決定する
-                                        for (int i = 0; ; i++)
+                                    // 連番でかつ存在していないファイル名を決定する
+                                    for (int i = 0; ; i++)
                                     {
                                         string newOldFileNameCandidate = $".original.{srcFile.FileName}.{i:D4}.original";
 
@@ -504,13 +504,13 @@ public class DirSuperBackup : AsyncService
                                         }
                                     }
 
-                                        // 変更されたファイル名を .old ファイルにリネーム実行する
-                                        string newOldFilePath = Fs.PathParser.Combine(destDir, newOldFileName);
+                                    // 変更されたファイル名を .old ファイルにリネーム実行する
+                                    string newOldFilePath = Fs.PathParser.Combine(destDir, newOldFileName);
                                     await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileRename", destFilePath, newOldFilePath));
                                     await Fs.MoveFileAsync(destFilePath, newOldFilePath, cancel);
 
-                                        // 隠しファイルにする
-                                        try
+                                    // 隠しファイルにする
+                                    try
                                     {
                                         var meta = await Fs.GetFileMetadataAsync(newOldFilePath, cancel: cancel);
                                         if (meta.Attributes != null)
@@ -525,23 +525,23 @@ public class DirSuperBackup : AsyncService
                             }
                         }
 
-                            // 復元メイン
-                            await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileCopy", srcFilePath, destFilePath));
+                        // 復元メイン
+                        await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileCopy", srcFilePath, destFilePath));
 
-                            // ファイルをコピーする
-                            await Fs.CopyFileAsync(srcFilePath, destFilePath,
-                            new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify | FileFlags.Async,
-                            metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
-                            encryptOption: isEncrypted ? EncryptOption.Decrypt | EncryptOption.Compress : EncryptOption.None,
-                            encryptPassword: encryptPassword),
-                            cancel: cancel,
-                            newFileMeatadata: Options.Flags.Bit(DirSuperBackupFlags.RestoreNoAcl) ? null : srcFileMetadata);
+                        // ファイルをコピーする
+                        await Fs.CopyFileAsync(srcFilePath, destFilePath,
+                        new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify | FileFlags.Async,
+                        metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
+                        encryptOption: isEncrypted ? EncryptOption.Decrypt | EncryptOption.Compress : EncryptOption.None,
+                        encryptPassword: encryptPassword),
+                        cancel: cancel,
+                        newFileMeatadata: Options.Flags.Bit(DirSuperBackupFlags.RestoreNoAcl) ? null : srcFileMetadata);
 
                         Stat.Copy_NumFiles++;
                         Stat.Copy_TotalSize += srcFile.MetaData.Size;
 
-                            // メタデータを再度復元
-                            try
+                        // メタデータを再度復元
+                        try
                         {
                             var meta = Options.Flags.Bit(DirSuperBackupFlags.RestoreNoAcl) ? srcFileMetadata.Clone(FileMetadataCopyMode.TimeAll | FileMetadataCopyMode.Attributes | FileMetadataCopyMode.ReplicateArchiveBit | FileMetadataCopyMode.AlternateStream | FileMetadataCopyMode.Author) : srcFileMetadata;
 
@@ -557,9 +557,9 @@ public class DirSuperBackup : AsyncService
                             catch { }
                             if ((existingFileMetadata?.Attributes?.Bit(FileAttributes.ReadOnly) ?? true) == false)
                             {
-                                    // メタデータの属性の設定に失敗したが、軽微なエラーなのでエラーを出して続行する
-                                    // (宛先ファイルが ReadOnly の場合は、この操作はエラーとなる可能性が高い。このような場合は、予期されている動作なので、エラーは表示しない)
-                                    await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("FileAttributeSetError", srcFilePath, destFilePath, ex.Message));
+                                // メタデータの属性の設定に失敗したが、軽微なエラーなのでエラーを出して続行する
+                                // (宛先ファイルが ReadOnly の場合は、この操作はエラーとなる可能性が高い。このような場合は、予期されている動作なので、エラーは表示しない)
+                                await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("FileAttributeSetError", srcFilePath, destFilePath, ex.Message));
                                 Stat.Error_NumFiles++;
                             }
                         }
@@ -575,8 +575,8 @@ public class DirSuperBackup : AsyncService
                     Stat.Error_NumFiles++;
                     Stat.Error_TotalSize += srcFileMetadata?.Size ?? 0;
 
-                        // ファイル単位のエラー発生
-                        await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("FileError", srcFilePath, destFilePath, ex.Message));
+                    // ファイル単位のエラー発生
+                    await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("FileError", srcFilePath, destFilePath, ex.Message));
                 }
                 finally
                 {
@@ -741,88 +741,88 @@ public class DirSuperBackup : AsyncService
                 {
                     srcFileMetadata = await Fs.GetFileMetadataAsync(srcFile.FullPath, cancel: cancel);
 
-                        // このファイルと同一のファイル名がすでに宛先ディレクトリに物理的に存在するかどうか確認する
-                        bool exists = await Fs.IsFileExistsAsync(destFilePath, cancel);
+                    // このファイルと同一のファイル名がすでに宛先ディレクトリに物理的に存在するかどうか確認する
+                    bool exists = await Fs.IsFileExistsAsync(destFilePath, cancel);
 
                     bool fileChangedOrNew = false;
 
                     if (exists)
                     {
-                            // すでに宛先ディレクトリに存在する物理的なファイルのメタデータを取得する
-                            FileMetadata destExistsMetadata = await Fs.GetFileMetadataAsync(destFilePath, cancel: cancel);
+                        // すでに宛先ディレクトリに存在する物理的なファイルのメタデータを取得する
+                        FileMetadata destExistsMetadata = await Fs.GetFileMetadataAsync(destFilePath, cancel: cancel);
 
                         if (Options.EncryptPassword._IsNullOrZeroLen())
                         {
-                                // 暗号化なし
-                                // ファイルサイズを比較する
-                                if (destExistsMetadata.Size != srcFile.Size)
+                            // 暗号化なし
+                            // ファイルサイズを比較する
+                            if (destExistsMetadata.Size != srcFile.Size)
                             {
-                                    // ファイルサイズが異なる
-                                    fileChangedOrNew = true;
+                                // ファイルサイズが異なる
+                                fileChangedOrNew = true;
                             }
                         }
                         else
                         {
-                                // 暗号化あり
-                                // 宛先ディレクトリのメタデータにファイル情報が存在し、そのメタデータ情報におけるファイルサイズが元ファイルと同じであり、
-                                // かつそのメタデータ情報に記載されている EncryptedPhysicalSize が宛先ディレクトリにある物理ファイルと全く同一である
-                                // 場合は、宛先ファイルが正しく存在すると仮定する
+                            // 暗号化あり
+                            // 宛先ディレクトリのメタデータにファイル情報が存在し、そのメタデータ情報におけるファイルサイズが元ファイルと同じであり、
+                            // かつそのメタデータ情報に記載されている EncryptedPhysicalSize が宛先ディレクトリにある物理ファイルと全く同一である
+                            // 場合は、宛先ファイルが正しく存在すると仮定する
 
-                                string tmp1 = Fs.PathParser.GetFileName(destFilePath);
+                            string tmp1 = Fs.PathParser.GetFileName(destFilePath);
                             if ((destDirOldMetaData?.FileList.Where(x => x.EncrypedFileName._IsSamei(tmp1) && x.EncryptedPhysicalSize == destExistsMetadata.Size && x.MetaData.Size == srcFile.Size).Any() ?? false) == false)
                             {
-                                    // ファイルサイズが異なるとみなす
-                                    fileChangedOrNew = true;
+                                // ファイルサイズが異なるとみなす
+                                fileChangedOrNew = true;
                             }
                         }
 
-                            // 日付を比較する。ただし宛先ディレクトリの物理的なファイルの日付は信用できないので、メタデータ上のファイルサイズと比較する
-                            if (destDirOldMetaData != null)
+                        // 日付を比較する。ただし宛先ディレクトリの物理的なファイルの日付は信用できないので、メタデータ上のファイルサイズと比較する
+                        if (destDirOldMetaData != null)
                         {
                             DirSuperBackupMetadataFile? existsFileMetadataFromDirMetadata = destDirOldMetaData.FileList.Where(x => x.FileName._IsSamei(srcFile.Name)).SingleOrDefault();
                             if (existsFileMetadataFromDirMetadata == null)
                             {
-                                    // メタデータ上に存在しない
-                                    fileChangedOrNew = true;
+                                // メタデータ上に存在しない
+                                fileChangedOrNew = true;
                             }
                             else
                             {
                                 if (existsFileMetadataFromDirMetadata.MetaData!.LastWriteTime!.Value.Ticks != srcFileMetadata.LastWriteTime!.Value.Ticks)
                                 {
-                                        // 最終更新日時が異なる
-                                        fileChangedOrNew = true;
+                                    // 最終更新日時が異なる
+                                    fileChangedOrNew = true;
                                 }
                             }
                         }
                         else
                         {
-                                // 宛先ディレクトリ上にメタデータがない
-                                fileChangedOrNew = true;
+                            // 宛先ディレクトリ上にメタデータがない
+                            fileChangedOrNew = true;
                         }
                     }
                     else
                     {
-                            // 新しいファイルである
-                            fileChangedOrNew = true;
+                        // 新しいファイルである
+                        fileChangedOrNew = true;
                     }
 
                     string? oldFilePathToDelete = null;
 
                     if (fileChangedOrNew)
                     {
-                            // ファイルが新しいか、または更新された場合は、そのファイルをバックアップする
-                            // ただし、バックアップ先に同名のファイルがすでに存在する場合は、
-                            // .old.xxxx.YYYYMMDD_HHMMSS.0123._backup_history のような形式でまだ存在しない連番に古いファイル名をリネームする
+                        // ファイルが新しいか、または更新された場合は、そのファイルをバックアップする
+                        // ただし、バックアップ先に同名のファイルがすでに存在する場合は、
+                        // .old.xxxx.YYYYMMDD_HHMMSS.0123._backup_history のような形式でまだ存在しない連番に古いファイル名をリネームする
 
-                            if (exists)
+                        if (exists)
                         {
                             using (await SafeLock.LockWithAwait(cancel))
                             {
                                 string yymmdd = Str.DateTimeToStrShort(DateTime.UtcNow);
                                 string newOldFileName;
 
-                                    // 連番でかつ存在していないファイル名を決定する
-                                    for (int i = 0; ; i++)
+                                // 連番でかつ存在していないファイル名を決定する
+                                for (int i = 0; ; i++)
                                 {
                                     string newOldFileNameCandidate = $".old.{Fs.PathParser.GetFileName(destFilePath)}.{yymmdd}.{i:D4}{Consts.Extensions.DirSuperBackupHistory}";
 
@@ -836,15 +836,15 @@ public class DirSuperBackup : AsyncService
                                     }
                                 }
 
-                                    // 変更されたファイル名を ._backup_history ファイルにリネーム実行する
-                                    string newOldFilePath = Fs.PathParser.Combine(destDir, newOldFileName);
+                                // 変更されたファイル名を ._backup_history ファイルにリネーム実行する
+                                string newOldFilePath = Fs.PathParser.Combine(destDir, newOldFileName);
                                 await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileRename", destFilePath, newOldFilePath));
                                 await Fs.MoveFileAsync(destFilePath, newOldFilePath, cancel);
 
                                 oldFilePathToDelete = newOldFilePath;
 
-                                    // 隠しファイルにする
-                                    try
+                                // 隠しファイルにする
+                                try
                                 {
                                     var meta = await Fs.GetFileMetadataAsync(newOldFilePath, cancel: cancel);
                                     if (meta.Attributes != null && meta.Attributes.Bit(FileAttributes.Hidden) == false)
@@ -858,9 +858,9 @@ public class DirSuperBackup : AsyncService
                             }
                         }
 
-                            // ファイルをコピーする
-                            // 属性は、ファイルの日付情報のみコピーする
-                            await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileCopy", srcFile.FullPath, destFilePath));
+                        // ファイルをコピーする
+                        // 属性は、ファイルの日付情報のみコピーする
+                        await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileCopy", srcFile.FullPath, destFilePath));
 
                         await Fs.CopyFileAsync(srcFile.FullPath, destFilePath,
                             new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify | FileFlags.Async, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
@@ -883,9 +883,9 @@ public class DirSuperBackup : AsyncService
 
                         if (Options.Flags.Bit(DirSuperBackupFlags.BackupMakeHistory) == false)
                         {
-                                // History を残さない場合
-                                // コピーに成功したので ._backup_history ファイルは削除する
-                                if (oldFilePathToDelete._IsNotZeroLen())
+                            // History を残さない場合
+                            // コピーに成功したので ._backup_history ファイルは削除する
+                            if (oldFilePathToDelete._IsNotZeroLen())
                             {
                                 try
                                 {
@@ -917,15 +917,15 @@ public class DirSuperBackup : AsyncService
                         Stat.Skip_NumFiles++;
                         Stat.Skip_TotalSize += srcFile.Size;
 
-                            // ファイルの日付情報のみ更新する
-                            try
+                        // ファイルの日付情報のみ更新する
+                        try
                         {
                             await Fs.SetFileMetadataAsync(destFilePath, srcFileMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
                         }
                         catch
                         {
-                                // ファイルの日付情報の更新は失敗してもよい
-                            }
+                            // ファイルの日付情報の更新は失敗してもよい
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -933,8 +933,8 @@ public class DirSuperBackup : AsyncService
                     Stat.Error_NumFiles++;
                     Stat.Error_TotalSize += srcFile.Size;
 
-                        // ファイル単位のエラー発生
-                        await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("FileError", srcFile.FullPath, destFilePath, ex.Message));
+                    // ファイル単位のエラー発生
+                    await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("FileError", srcFile.FullPath, destFilePath, ex.Message));
 
                     noError = false;
                 }
@@ -943,8 +943,8 @@ public class DirSuperBackup : AsyncService
                     concurrentNum.Decrement();
                 }
 
-                    // このファイルに関するメタデータを追加する
-                    if (srcFileMetadata != null)
+                // このファイルに関するメタデータを追加する
+                if (srcFileMetadata != null)
                 {
                     lock (destDirNewMetaData.FileList)
                     {
