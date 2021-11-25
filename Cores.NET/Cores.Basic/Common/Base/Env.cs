@@ -88,6 +88,7 @@ public class EnvInfoSnapshot
     public bool Is64BitWindows = Env.Is64BitWindows;
     public bool IsWow64 = Env.IsWow64;
     public Architecture CpuInfo = Env.CpuInfo;
+    public string CpuInfoStr = Env.CpuInfo.ToString();
     public string FrameworkInfoString = Env.FrameworkInfoString;
     public string OsInfoString = Env.OsInfoString;
     public bool IsCoresLibraryDebugBuild = Env.IsCoresLibraryDebugBuild;
@@ -101,7 +102,7 @@ public class EnvInfoSnapshot
     public string GcMode = Env.GcMode;
     public string GcCompactionMode = Env.GcCompactionMode;
     public string GcLatencyMode = Env.GcLatencyMode;
-    public WindowsFamily WindowsFamily = Env.WindowsFamily;
+    public string WindowsFamily = Env.WindowsFamily.ToString();
     public bool IsOnGitHubActions = Env.IsOnGitHubActions;
 }
 
