@@ -240,7 +240,7 @@ public static class Env
     public static bool IsDebuggerAttached => System.Diagnostics.Debugger.IsAttached;
 
     public static bool Is64BitProcess => (IntPtr.Size == 8);
-    public static bool Is64BitWindows => (Is64BitProcess || Kernel.InternalCheckIsWow64());
+    public static bool Is64BitWindows => (Env.IsWindows && (Is64BitProcess || Kernel.InternalCheckIsWow64()));
     public static bool IsWow64 => Kernel.InternalCheckIsWow64();
 
     public static Architecture CpuInfo { get; } = RuntimeInformation.ProcessArchitecture;
