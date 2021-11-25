@@ -47,6 +47,12 @@ jobs:
           New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' -name 'DisabledByDefault' -value 0 -PropertyType 'DWord' -Force | Out-Null
           
           Write-Host 'TLS 1.1 has been enabled.'
+
+          $depencies = Get-Service HTTP -DependentServices |? Status -eq Running
+          Stop-Service $depencies
+          Restart-Service HTTP
+          Start-Service $depencies
+          Write-Host 'HTTP service restarted.'
         shell: pwsh
         if: matrix.operating-system == 'windows-2022'
 
