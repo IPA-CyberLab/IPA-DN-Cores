@@ -301,7 +301,6 @@ namespace IPA.Cores.Basic
 
         public static SafeFileHandle OpenHandle(string fullPath, bool asDirectory, bool writeMode = false, bool backupMode = false, bool asyncMode = true, int additionalFlags = 0)
         {
-            asyncMode = true;
             string root = fullPath.Substring(0, Win32PathInternal.GetRootLength(fullPath.AsSpan()));
             if (root == fullPath && root[1] == Path.VolumeSeparatorChar)
             {
