@@ -66,6 +66,42 @@ partial class TestDevCommands
         return 0;
     }
 
+    [ConsoleCommand(
+        "PrintRegKeys",
+        "PrintRegKeys [root] /key:[baseKey]",
+        "PrintRegKeys")]
+    static int PrintRegKeys(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+            new ConsoleParam("[root]", null, null, null, null),
+            new ConsoleParam("key", null, null, null, null),
+        };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string root = vl.DefaultParam.StrValue;
+        string key = vl["key"].StrValue;
+
+        if (Env.IsWindows == false)
+        {
+            Con.WriteLine("Windows required.");
+            return 0;
+        }
+
+        if (root._IsEmpty() || key._IsEmpty())
+        {
+            Con.WriteLine("Canceled.");
+            return Consts.ExitCodes.GenericError;
+        }
+
+        var root2  = RegRoot.LocalMachine.ParseAsDefault(root);
+
+        MsRegUtil.PrintRegKeys(root2, key);
+
+        return 0;
+    }
+
 
     [ConsoleCommand(
         "Execute SSL Test Suite",

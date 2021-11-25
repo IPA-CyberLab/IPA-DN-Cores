@@ -2626,6 +2626,15 @@ public static class BasicHelper
         return source.Where(x => x._IsFilled());
     }
 
+    public static IEnumerable<string> _FilledOnly(this IEnumerable<string> source)
+        => _OnlyFilled(source);
+
+    public static IEnumerable<T> _EmptyArrayIfNull<T>(this IEnumerable<T>? a)
+    {
+        if (a == null) return EmptyOf<T>();
+        return a;
+    }
+
     // 重み付きシャッフル (getWeigth の戻り値で重みを指定する。2 以上を指定するべきである。)
     public static IOrderedEnumerable<TSource> _ShuffleWithWeight<TSource>(this IEnumerable<TSource> source, Func<TSource, int> getWeigth)
     {

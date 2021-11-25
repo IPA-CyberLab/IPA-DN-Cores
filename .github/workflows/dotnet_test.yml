@@ -30,6 +30,9 @@ jobs:
       - name: Build Debug
         run: dotnet build -c Debug -v normal Cores.NET/Cores.NET-VS2022.sln
 
+      - name: PrintRegKeys for Windows SSL Settings
+        run: dotnet run --project Cores.NET/Dev.Test/Dev.Test.csproj --configuration Debug PrintRegKeys LocalMachine /key:SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL
+
       - name: Test Debug
         run: dotnet test -c Debug -v normal --logger:"console;verbosity=detailed" Cores.NET/Cores.NET-VS2022.sln
 
