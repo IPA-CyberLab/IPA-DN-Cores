@@ -46,7 +46,7 @@ jobs:
           New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' -name 'DisabledByDefault' -value 1 -PropertyType 'DWord' -Force | Out-Null
           Write-Host 'TLS 1.1 has been enabled.'
         shell: pwsh
-        if: matrix.os == 'windows-2022'
+        if: matrix.operating-system == 'windows-2022'
 
       - name: Checkout
         uses: actions/checkout@v2
