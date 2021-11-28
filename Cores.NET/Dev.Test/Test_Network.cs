@@ -387,7 +387,7 @@ partial class TestDevCommands
             CoresLib.Report_SimpleResult += $" (WARN! Expiring Soon: {soonHosts} hosts)";
 
             Con.WriteLine();
-            Con.WriteLine("=========== Expiring Soon Hosts Summary ===========");
+            Con.WriteLine("=========== WARN: Expiring Soon Hosts Summary ===========");
 
 
             int index = 0;
@@ -399,10 +399,37 @@ partial class TestDevCommands
                 index++;
                 Con.WriteLine($"Host #{index}/{dictSoon.Count}: IP = '{ip}', FQDNs = '{fqdns}'");
             }
+
+            Con.WriteLine();
+        }
+
+
+        if (expiredHosts >= 1)
+        {
+            Con.WriteLine();
+            Con.WriteLine("=========== INFO: Already Expired Hosts Summary ===========");
+
+
+            int index = 0;
+            foreach (var host in dictExpired)
+            {
+                string ip = host.Key;
+                string fqdns = host.Value.Select(x => x.FriendName).Distinct(StrCmpi)._OrderByValue(StrComparer.FqdnReverseStrComparer)._Combine(", ");
+
+                index++;
+                Con.WriteLine($"Host #{index}/{dictExpired.Count}: IP = '{ip}', FQDNs = '{fqdns}'");
+            }
+
+            Con.WriteLine();
+        }
+
+
+        if (soonHosts >= 1)
+        {
             string printStr = dictSoon._ObjectToJson();
 
             Con.WriteLine();
-            Con.WriteLine("=========== Expiring Soon Certificates ===========");
+            Con.WriteLine("=========== WARN: Expiring Soon Certificates Details ===========");
             Con.WriteLine(printStr);
             Con.WriteLine();
         }
@@ -413,7 +440,7 @@ partial class TestDevCommands
             string printStr = dictExpired._ObjectToJson();
 
             Con.WriteLine();
-            Con.WriteLine("=========== Already Expired Certificates ===========");
+            Con.WriteLine("=========== INFO: Already Expired Certificates Details ===========");
             Con.WriteLine(printStr);
             Con.WriteLine();
         }
