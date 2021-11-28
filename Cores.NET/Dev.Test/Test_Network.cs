@@ -377,9 +377,8 @@ partial class TestDevCommands
         Con.WriteLine("", flags: LogFlags.Heading);
 
 
-        Con.WriteLine();
         Con.WriteLine($" Total SniHostnameIpAddressPairs: {list.Count._ToString3()}", flags: LogFlags.Heading);
-        Con.WriteLine($" Total SslCertCollectorItems:     {ret.Count._ToString3()}", flags: LogFlags.Heading);
+        Con.WriteLine($" Total SslCertCollectorItems: {ret.Count._ToString3()}", flags: LogFlags.Heading);
         Con.WriteLine($" Took time: {(endTick - startTick)._ToTimeSpanMSecs()._ToTsStr()}", flags: LogFlags.Heading);
         Con.WriteLine();
 
@@ -387,7 +386,6 @@ partial class TestDevCommands
         {
             CoresLib.Report_SimpleResult += $" (WARN! Expiring Soon: {soonHosts} hosts)";
 
-            Con.WriteLine();
             Con.WriteLine();
             Con.WriteLine("=========== Expiring Soon Hosts Summary ===========");
 
@@ -404,11 +402,8 @@ partial class TestDevCommands
             string printStr = dictSoon._ObjectToJson();
 
             Con.WriteLine();
-            Con.WriteLine();
             Con.WriteLine("=========== Expiring Soon Certificates ===========");
             Con.WriteLine(printStr);
-            Con.WriteLine();
-            Con.WriteLine();
             Con.WriteLine();
         }
 
@@ -418,11 +413,8 @@ partial class TestDevCommands
             string printStr = dictExpired._ObjectToJson();
 
             Con.WriteLine();
-            Con.WriteLine();
             Con.WriteLine("=========== Already Expired Certificates ===========");
             Con.WriteLine(printStr);
-            Con.WriteLine();
-            Con.WriteLine();
             Con.WriteLine();
         }
 
