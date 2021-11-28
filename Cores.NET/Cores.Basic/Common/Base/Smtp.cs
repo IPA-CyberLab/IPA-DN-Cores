@@ -554,7 +554,7 @@ public class SmtpLogRoute : LogRouteBase
         StringWriter w = new StringWriter();
 
         w.WriteLine($"Reported: {DtOffsetNow._ToDtStr()}");
-        w.WriteLine($"Program: {CoresLib.AppName}");
+        w.WriteLine($"Program: {CoresLib.AppName} Built: {Env.BuildTimeStamp._ToDtStr()}");
         w.WriteLine($"Hostname: {Env.DnsFqdnHostName}");
         w.WriteLine($"Global: {globalInfo}, Local: {MyLocalIp}");
         w.WriteLine($"Command: {cmdName}, Result: {(CoresLib.Report_HasError ? "*Error* - " : "OK - ")}{resultStr}");

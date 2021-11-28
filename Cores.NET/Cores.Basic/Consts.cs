@@ -120,6 +120,8 @@ public static partial class Consts
 
         public static readonly TimeSpan MaxCertExpireSpanTargetForUpdate = new TimeSpan(4 * 365, 0, 0, 0);
 
+        public static readonly TimeSpan JapanStandardTimeOffset = new TimeSpan(9, 0, 0);
+
         // SQL Server その他の一般的なデータベースでインデックス可能な最大安全文字列長
         public const int SqlMaxSafeStrLength = 300;
     }

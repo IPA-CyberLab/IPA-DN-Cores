@@ -65,6 +65,7 @@ public class EnvInfoSnapshot
     public string HeaderText = "";
     public DateTimeOffset TimeStamp = DateTime.Now;
     public DateTimeOffset BootTime = Env.BootTime;
+    public DateTimeOffset BuildTimeStamp = Env.BuildTimeStamp;
     public string MachineName = Env.MachineName;
     public string FrameworkVersion = Env.FrameworkVersion.ToString();
     public string AppRealProcessExeFileName = Env.AppRealProcessExeFileName;
@@ -224,6 +225,7 @@ public static class Env
     public static Assembly ExeAssembly { get; }
     public static string ExeAssemblySimpleName { get; }
     public static string ExeAssemblyFullName { get; }
+    public static Assembly CoresBasicLibAssembly { get; }
     public static bool IgnoreCaseInFileSystem => (IsWindows || IsMac);
     public static StrComparer FilePathStringComparer { get; }
     public static PathParser LocalPathParser => PathParser.Local;
@@ -232,6 +234,7 @@ public static class Env
     public static string DotNetHostProcessExeName { get; } = "";
     public static int NumCpus { get; }
     public static bool IsOnGitHubActions { get; }
+    public static DateTimeOffset BuildTimeStamp { get; }
 
     public static string GcMode { get; } = System.Runtime.GCSettings.IsServerGC ? "ServerGC" : "WorkstationGC";
     public static string GcCompactionMode { get; } = System.Runtime.GCSettings.LargeObjectHeapCompactionMode.ToString();
@@ -263,6 +266,10 @@ public static class Env
         int debugChecker = 0;
         Debug.Assert((++debugChecker) >= 1);
         Env.IsCoresLibraryDebugBuild = (debugChecker >= 1);
+
+        CoresBasicLibAssembly = typeof(Env).Assembly;
+
+        BuildTimeStamp = GetAssemblyBuildDate(CoresBasicLibAssembly);
 
         ExeAssembly = Assembly.GetExecutingAssembly();
         var asmName = ExeAssembly.GetName();
@@ -724,6 +731,33 @@ public static class Env
         vals.Add("MaxThreads", $"WorkerThreads = {maxWorkerThreads}, CompletionPortThreads = {maxCompletionPortThreads}");
 
         return vals;
+    }
+
+    // Thanks to: https://www.meziantou.net/getting-the-date-of-build-of-a-dotnet-assembly-at-runtime.htm
+    static DateTimeOffset GetAssemblyBuildDate(Assembly assembly)
+    {
+        try
+        {
+            const string BuildVersionMetadataPrefix = "+build";
+
+            var attribute = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+            if (attribute?.InformationalVersion != null)
+            {
+                var value = attribute.InformationalVersion;
+                var index = value.IndexOf(BuildVersionMetadataPrefix);
+                if (index > 0)
+                {
+                    value = value.Substring(index + BuildVersionMetadataPrefix.Length);
+
+                    DateTime dt = Str.StrToDateTime(value, emptyToZeroDateTime: true);
+
+                    return dt._AsDateTimeOffset(false).ToOffset(Consts.Numbers.JapanStandardTimeOffset);
+                }
+            }
+        }
+        catch { }
+
+        return Util.ZeroDateTimeOffsetValue;
     }
 }
 

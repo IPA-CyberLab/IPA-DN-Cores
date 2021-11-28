@@ -387,6 +387,20 @@ partial class TestDevCommands
         {
             CoresLib.Report_SimpleResult += $" (WARN! Expiring Soon: {soonHosts} hosts)";
 
+            Con.WriteLine();
+            Con.WriteLine();
+            Con.WriteLine("=========== Expiring Soon Hosts Summary ===========");
+
+
+            int index = 0;
+            foreach (var host in dictSoon)
+            {
+                string ip = host.Key;
+                string fqdns = host.Value.Select(x => x.FriendName).Distinct(StrCmpi)._OrderByValue(StrComparer.FqdnReverseStrComparer)._Combine(", ");
+
+                index++;
+                Con.WriteLine($"Host #{index}/{dictSoon.Count}: IP = '{ip}', FQDNs = '{fqdns}'");
+            }
             string printStr = dictSoon._ObjectToJson();
 
             Con.WriteLine();

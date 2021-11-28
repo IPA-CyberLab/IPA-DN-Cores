@@ -3040,6 +3040,18 @@ public static class BasicHelper
         list.Clear();
         list.AddRange(result);
     }
+
+    public static IOrderedEnumerable<T> _OrderByValue<T>(this IEnumerable<T> list)
+        => list.OrderBy(x => x);
+
+    public static IOrderedEnumerable<T> _OrderByValue<T>(this IEnumerable<T> list, IComparer<T> comparer)
+        => list.OrderBy(x => x, comparer);
+
+    public static IOrderedEnumerable<T> _OrderByValueDescending<T>(this IEnumerable<T> list)
+        => list.OrderByDescending(x => x);
+
+    public static IOrderedEnumerable<T> _OrderByValueDescending<T>(this IEnumerable<T> list, IComparer<T> comparer)
+        => list.OrderByDescending(x => x, comparer);
 }
 
 

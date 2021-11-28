@@ -98,7 +98,7 @@ class TestDevAppMain
         )]
     static int TestDev(ConsoleService c, string cmdName, string str)
     {
-        c.WriteLine($"Copyright (c) 2018-{DateTimeOffset.Now.Year} IPA CyberLab. All Rights Reserved.");
+        c.WriteLine($"Copyright (c) 2018-{Env.BuildTimeStamp.Year} IPA CyberLab. All Rights Reserved.");
         c.WriteLine("");
 
         ConsoleParam[] args =
