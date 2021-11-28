@@ -3027,6 +3027,19 @@ public static class BasicHelper
     {
         return thisFamily >= targetFamily;
     }
+
+    public static void _DoSortBy<T>(this List<T> list, Func<List<T>, IOrderedEnumerable<T>> sortFunc)
+    {
+        var result = sortFunc(list).ToList();
+
+        if (result.Count != list.Count())
+        {
+            throw new CoresLibException("result.Count != list.Count()");
+        }
+
+        list.Clear();
+        list.AddRange(result);
+    }
 }
 
 

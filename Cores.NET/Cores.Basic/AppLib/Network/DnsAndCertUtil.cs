@@ -117,6 +117,14 @@ public static class WildcardCertServerUtil
     }
 }
 
+public class SslCertCollectorUtilSettings
+{
+    public int TryCount { get; init; } = 3;
+    public IEnumerable<int> PotentialHttpsPorts { get; init; } = Consts.Ports.PotentialHttpsPorts;
+    public bool DoNotIgnoreLetsEncrypt { get; init; } = false;
+    public bool Silent { get; init; } = false;
+}
+
 // 大解説書
 // 
 // 1. DNS ゾーンファイルを入力してユニークな FQDN レコードの一覧を出力する
@@ -142,8 +150,11 @@ public class SslCertCollectorUtil
 
     ConcurrentBag<SslCertCollectorItem> ResultList = new ConcurrentBag<SslCertCollectorItem>();
 
-    public SslCertCollectorUtil(int maxConcurrentTasks, IEnumerable<SniHostnameIpAddressPair> pairs, TcpIpSystem? tcpIp = null)
+    public SslCertCollectorUtilSettings Settings { get; }
+
+    public SslCertCollectorUtil(int maxConcurrentTasks, IEnumerable<SniHostnameIpAddressPair> pairs, SslCertCollectorUtilSettings? settings = null, TcpIpSystem? tcpIp = null)
     {
+        this.Settings = settings ?? new SslCertCollectorUtilSettings();
         this.TcpIp = tcpIp ?? LocalNet;
 
         this.MaxConcurrentTasks = maxConcurrentTasks._Max(1);
@@ -204,7 +215,10 @@ public class SslCertCollectorUtil
 
                 int completed = totalCount - Queue.Count;
 
-                Con.WriteLine("{0} / {1}", completed._ToString3(), totalCount._ToString3());
+                if (this.Settings.Silent == false)
+                {
+                    Con.WriteLine("{0} / {1}", completed._ToString3(), totalCount._ToString3());
+                }
             }
         })._LaissezFaire(true);
 
@@ -234,9 +248,9 @@ public class SslCertCollectorUtil
 
             e._MarkNotNull();
 
-            foreach (int port in Consts.Ports.PotentialHttpsPorts)
+            foreach (int port in this.Settings.PotentialHttpsPorts)
             {
-                for (int i = 0; i < 3; i++)
+                for (int i = 0; i < Math.Max(this.Settings.TryCount, 1); i++)
                 {
                     // 処理を いたします
                     // 3 回トライする
@@ -251,7 +265,10 @@ public class SslCertCollectorUtil
                     }
                     catch (Exception ex)
                     {
-                        $"Error: {e.SniHostName}:{port} => {ex.Message}"._Print();
+                        if (this.Settings.Silent == false)
+                        {
+                            $"Error: {e.SniHostName}:{port} => {ex.Message}"._Print();
+                        }
                     }
                 }
             }
@@ -279,12 +296,15 @@ public class SslCertCollectorUtil
                 e.CertNotBefore = cert2.CertData.NotBefore;
 
                 // 無視リストに含まれないものだけを出力
-                if (Consts.Strings.AutoEnrollCertificateSubjectInStrList.Where(x => e.CertIssuer._InStr(x, true)).Any() == false)
+                if (this.Settings.DoNotIgnoreLetsEncrypt || Consts.Strings.AutoEnrollCertificateSubjectInStrList.Where(x => e.CertIssuer._InStr(x, true)).Any() == false)
                 {
                     this.ResultList.Add(e);
                 }
 
-                $"OK: {e.SniHostName}:{e.Port} => {e._ObjectToJson(compact: true)}"._Print();
+                if (this.Settings.Silent == false)
+                {
+                    $"OK: {e.SniHostName}:{e.Port} => {e._ObjectToJson(compact: true)}"._Print();
+                }
             }
         }
     }
@@ -391,7 +411,7 @@ public class DnsIpPairGeneratorUtil
 
         addressList._DoForEach(addr =>
         {
-            $"{fqdn} => {addr}"._Print();
+            //$"{fqdn} => {addr}"._Print();
             ResultList.Add(new SniHostnameIpAddressPair(sniHostName: fqdn, ipAddress: addr.ToString()));
         });
     }

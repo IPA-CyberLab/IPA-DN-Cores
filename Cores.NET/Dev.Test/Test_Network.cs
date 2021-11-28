@@ -251,6 +251,169 @@ partial class TestDevCommands
         return 0;
     }
 
+
+    [ConsoleCommand(
+        "SslCertChecker command",
+        "SslCertChecker [dnsZonesDir]",
+        "SslCertChecker command")]
+    static int SslCertChecker(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+                new ConsoleParam("[dnsZonesDir]", ConsoleService.Prompt, "dnsZonesDir: ", ConsoleService.EvalNotEmpty, null),
+            };
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string dirZonesDir = vl.DefaultParam.StrValue;//@"C:\Users\yagi\Desktop\dnstest";//
+
+        var dirList = Lfs.EnumDirectory(dirZonesDir, false);
+        if (dirList.Where(x => x.IsFile && (IgnoreCaseTrim)Lfs.PathParser.GetExtension(x.Name) == ".dns").Any() == false)
+        {
+            // 指定されたディレクトリに *.dns ファイルが 1 つもない場合は子ディレクトリ名をソートして一番大きいものを選択する
+            dirZonesDir = dirList.OrderByDescending(x => x.Name).Where(x => x.IsDirectory).Select(x => x.FullPath).First();
+        }
+
+        //Con.WriteLine($"Target directory: '{dirZonesDir}'");
+
+        // 1. DNS ゾーンファイルを入力してユニークな FQDN レコードの一覧を生成する
+        DnsFlattenUtil flat = new DnsFlattenUtil();
+
+        foreach (FileSystemEntity ent in Lfs.EnumDirectory(dirZonesDir, true))
+        {
+            if (ent.IsFile)
+            {
+                string fn = ent.FullPath;
+                //fn._Print();
+
+                flat.InputZoneFile(Lfs.PathParser.GetFileNameWithoutExtension(fn), Lfs.ReadDataFromFile(fn).Span);
+            }
+        }
+
+        // 2. FQDN の一覧を入力して FQDN と IP アドレスのペアの一覧を生成する
+        DnsIpPairGeneratorUtil pairGenerator = new DnsIpPairGeneratorUtil(100, flat.FqdnSet);
+
+        List<SniHostnameIpAddressPair> list = pairGenerator.ExecuteAsync()._GetResult().ToList();
+
+        List<int> ports_FastDebug = new();
+        ports_FastDebug.Add(443);
+
+        // 3. FQDN と IP アドレスのペアの一覧を入力して SSL 証明書一覧を出力する
+        SslCertCollectorUtil col = new SslCertCollectorUtil(1000, list,
+            new SslCertCollectorUtilSettings
+            {
+                //TryCount = 1,
+                //PotentialHttpsPorts = portsTmp,
+                DoNotIgnoreLetsEncrypt = true,
+                Silent = true,
+            });
+
+        long startTick = Time.Tick64;
+
+        IReadOnlyList<SslCertCollectorItem> ret = col.ExecuteAsync()._GetResult();
+
+        long endTick = Time.Tick64;
+
+        DateTimeOffset now = DtOffsetNow;
+        DateTimeOffset threshold2 = now.AddDays(28);
+
+        // 証明書が古くなっていれば警告を出す
+        // IP アドレスごとに整理
+        SortedDictionary<string, List<SslCertCollectorItem>> dictSoon = new SortedDictionary<string, List<SslCertCollectorItem>>(StrComparer.IpAddressStrComparer);
+        SortedDictionary<string, List<SslCertCollectorItem>> dictExpired = new SortedDictionary<string, List<SslCertCollectorItem>>(StrComparer.IpAddressStrComparer);
+
+        foreach (var item in ret.Where(x => x.IpAddress._IsFilled()))
+        {
+            var span = item.CertNotAfter - item.CertNotBefore;
+
+            // もともと有効期限が 約 3 年間よりも長い証明書が登録されている場合は、意図的に登録されているオレオレ証明書であるので、更新対象としてマークしない
+            if (span < Consts.Numbers.MaxCertExpireSpanTargetForUpdate)
+            {
+                // 古いかどうか確認
+                if (item.CertNotAfter < threshold2)
+                {
+                    if (item.CertNotAfter < now)
+                    {
+                        // すでに有効期限超過
+                        var o = dictExpired._GetOrNew(item.IpAddress!, () => new List<SslCertCollectorItem>());
+                        o.Add(item);
+                    }
+                    else
+                    {
+                        // 有効期限 間もなく
+                        var o = dictSoon._GetOrNew(item.IpAddress!, () => new List<SslCertCollectorItem>());
+                        o.Add(item);
+                    }
+                }
+            }
+        }
+
+        dictSoon.Values._DoForEach(x => x._DoSortBy(x => x.OrderBy(x => x.FriendName, StrComparer.FqdnReverseStrComparer).OrderBy(x => x.SniHostName, StrComparer.FqdnReverseStrComparer).OrderBy(x => x.Port)));
+
+        int soonHosts = dictSoon.Count();
+        int expiredHosts = dictExpired.Count();
+
+        Con.WriteLine();
+
+        Con.WriteLine("----");
+
+        if (soonHosts >= 1)
+        {
+            Con.WriteLine($"Result: WARNING: Total {soonHosts} host's SSL certificates are expiring soon. Please check!", flags: LogFlags.Heading);
+        }
+        else
+        {
+            Con.WriteLine($"Result: OK: No host's SSL certificates are expiring soon. Good.", flags: LogFlags.Heading);
+        }
+        Con.WriteLine("", flags: LogFlags.Heading);
+
+        if (expiredHosts >= 1)
+        {
+            Con.WriteLine($"Result: Info: Total {expiredHosts} host's SSL certificates are already expired.", flags: LogFlags.Heading);
+        }
+        else
+        {
+            Con.WriteLine($"Result: Info: No host's SSL certificates are already expired.", flags: LogFlags.Heading);
+        }
+        Con.WriteLine("", flags: LogFlags.Heading);
+
+
+        Con.WriteLine();
+        Con.WriteLine($" Total SniHostnameIpAddressPairs: {list.Count._ToString3()}", flags: LogFlags.Heading);
+        Con.WriteLine($" Total SslCertCollectorItems:     {ret.Count._ToString3()}", flags: LogFlags.Heading);
+        Con.WriteLine($" Took time: {(endTick - startTick)._ToTimeSpanMSecs()._ToTsStr()}", flags: LogFlags.Heading);
+        Con.WriteLine();
+
+        if (soonHosts >= 1)
+        {
+            CoresLib.Report_SimpleResult += $" (WARN! Expiring Soon: {soonHosts} hosts)";
+
+            string printStr = dictSoon._ObjectToJson();
+
+            Con.WriteLine();
+            Con.WriteLine();
+            Con.WriteLine("=========== Expiring Soon Certificates ===========");
+            Con.WriteLine(printStr);
+            Con.WriteLine();
+            Con.WriteLine();
+            Con.WriteLine();
+        }
+
+
+        if (expiredHosts >= 1)
+        {
+            string printStr = dictExpired._ObjectToJson();
+
+            Con.WriteLine();
+            Con.WriteLine();
+            Con.WriteLine("=========== Already Expired Certificates ===========");
+            Con.WriteLine(printStr);
+            Con.WriteLine();
+            Con.WriteLine();
+            Con.WriteLine();
+        }
+
+        return 0;
+    }
     [ConsoleCommand(
         "TcpStressServer command",
         "TcpStressServer [port]",
@@ -818,8 +981,8 @@ Content-Length: {totalSize}
         {
             Task acceptTask = TaskUtil.StartAsyncTaskAsync(async () =>
             {
-                    // Accept ループタスク
-                    while (true)
+                // Accept ループタスク
+                while (true)
                 {
                     ConnSock sock = await listener.AcceptNextSocketFromQueueUtilAsync();
 
