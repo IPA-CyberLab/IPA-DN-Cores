@@ -175,7 +175,7 @@ public class IisAdmin : AsyncService
         return bindItems;
     }
 
-    public void UpdateCerts(IEnumerable<CertificateStore> certsList, bool updateSameCert)
+    public void UpdateCerts(IEnumerable<CertificateStore> certsList, bool updateSameCert, string emptySiteAs)
     {
         int numWarningTotal = 0;
         int warningCerts = 0;
@@ -208,7 +208,7 @@ public class IisAdmin : AsyncService
         foreach (var bind in bindItems.OrderBy(x => x.SiteName, StrComparer.IgnoreCaseComparer).ThenBy(x => x.BindingInfo, StrComparer.IgnoreCaseComparer))
         {
             index++;
-            Con.WriteLine($"Binding #{index}/{bindItems.Count}: '{bind.SiteName}' - '{bind.BindingInfo}': '{bind.Cert}'");
+            Con.WriteLine($"Binding #{index}/{bindItems.Count}: '{bind.SiteName}' - '{bind.BindingInfo}' (Hostname: '{bind.HostName._NonNull()}'): '{bind.Cert}'");
         }
 
         Con.WriteLine();
@@ -261,6 +261,13 @@ public class IisAdmin : AsyncService
                     else
                     {
                         // ホスト名が空の場合はどうすれば良いかわからないので 警告を 出します！！
+                        if (emptySiteAs._IsFilled())
+                        {
+                            // ホスト名は空ですが、EMPTYSITEAS が指定されているので、その指定されている文字列がホスト名であると仮定して処理をしてみます。
+                            var candidates = certsList.GetHostnameMatchedCertificatesList(emptySiteAs);
+
+                            candidates._DoForEach(x => newCandidateCerts.Add(x.Item1));
+                        }
                     }
                 }
             }
