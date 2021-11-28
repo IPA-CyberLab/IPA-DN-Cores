@@ -314,7 +314,7 @@ partial class TestDevCommands
         long endTick = Time.Tick64;
 
         DateTimeOffset now = DtOffsetNow;
-        DateTimeOffset threshold2 = now.AddDays(28);
+        DateTimeOffset threshold2 = now.AddDays(20);
 
         // 証明書が古くなっていれば警告を出す
         // IP アドレスごとに整理
