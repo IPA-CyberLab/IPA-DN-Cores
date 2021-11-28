@@ -474,7 +474,7 @@ partial class TestDevCommands
 {
     [ConsoleCommand(
   "IIS 証明書更新",
-  "CertUpdateIis [cert_server_base_url] [/USERNAME:username] [/PASSWORD:password] [/UPDATESAME:updatesame]",
+  "CertUpdateIis [cert_server_base_url,url2,...] [/USERNAME:username,username2,...] [/PASSWORD:password,password2,...] [/UPDATESAME:updatesame] [/EMPTYSITEAS:aaa.example.org]",
   "IIS 証明書更新"
   )]
     static int CertUpdateIis(ConsoleService c, string cmdName, string str)
@@ -485,31 +485,56 @@ partial class TestDevCommands
                 new ConsoleParam("USERNAME"),
                 new ConsoleParam("PASSWORD"),
                 new ConsoleParam("UPDATESAME"),
+                new ConsoleParam("EMPTYSITEAS"),
             };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
         Async(async () =>
         {
-                // 証明書のダウンロード
-                Con.WriteLine($"Downloading certificates from the server '{vl.DefaultParam.StrValue}'...");
-            var certs = await WildcardCertServerUtil.DownloadAllLatestCertsAsync(vl.DefaultParam.StrValue, vl["USERNAME"].StrValue, vl["PASSWORD"].StrValue);
+            string urlsStr = vl.DefaultParam.StrValue;
+            string usernamesStr = vl["USERNAME"].StrValue;
+            string passwordsStr = vl["PASSWORD"].StrValue;
 
-            Con.WriteLine($"Downloaded {certs.Count} certificates from the server.", flags: LogFlags.Heading);
+            var urlsList = urlsStr._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",");
+            var usernamesList = usernamesStr._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",");
+            var passwordsList = passwordsStr._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",");
+
+            if (urlsList.Length == 0) throw new CoresException("urlsList.length == 0");
+            if (urlsList.Length != usernamesList.Length) throw new CoresException("urlsList.Length != usernamesList.Length");
+            if (urlsList.Length != passwordsList.Length) throw new CoresException("urlsList.Length != passwordsList.Length");
+
+
+            List<CertificateStore> certsList = new List<CertificateStore>();
+
+            // 証明書のダウンロード
+            for (int i = 0; i < urlsList.Length; i++)
+            {
+                string url = urlsList[i];
+                string username = usernamesList[i];
+                string password = passwordsList[i];
+
+                Con.WriteLine($"Downloading certificates from the server '{url}'...");
+                var certs = await WildcardCertServerUtil.DownloadAllLatestCertsAsync(url, username, password);
+
+                certs.ForEach(x => certsList.Add(x));
+            }
+
+            Con.WriteLine($"Downloaded {certsList.Count} certificates from {urlsList.Length} server(s).", flags: LogFlags.Heading);
 
             int index = 0;
-            foreach (var cert in certs.Select(x => x.PrimaryCertificate).OrderBy(x => x.CommonNameOrFirstDnsName, StrComparer.FqdnReverseStrComparer))
+            foreach (var cert in certsList.Select(x => x.PrimaryCertificate).OrderBy(x => x.CommonNameOrFirstDnsName, StrComparer.FqdnReverseStrComparer))
             {
                 index++;
-                Con.WriteLine($"Cert #{index}/{certs.Count}: " + cert.ToString());
+                Con.WriteLine($"Cert #{index}/{certsList.Count}: " + cert.ToString());
             }
 
             Con.WriteLine();
 
-                // IIS 証明書更新
-                using IisAdmin util = new IisAdmin();
+            // IIS 証明書更新
+            using IisAdmin util = new IisAdmin();
 
-            util.UpdateCerts(certs, vl["UPDATESAME"].BoolValue);
+            util.UpdateCerts(certsList, vl["UPDATESAME"].BoolValue, vl["EMPTYSITEAS"].StrValue);
         });
 
         return 0;
