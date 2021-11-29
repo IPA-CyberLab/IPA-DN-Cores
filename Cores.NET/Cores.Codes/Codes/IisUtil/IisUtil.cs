@@ -221,7 +221,7 @@ public class IisAdmin : AsyncService
 
             List<CertificateStore> newCandidateCerts = new List<CertificateStore>();
 
-            if (cert.IsMultipleSanCertificate() == false)
+            if (cert.IsMultipleSanCertificate() == false && cert.HostNameList.Any(x => x.HostName._InStri("iis-default-short-ssl-cert")) == false)
             {
                 // すでに登録されている証明書がシングル証明書の場合、その証明書の DNS 名から、この binding が現在どのホスト名での使用を意図しているものであるのか判別する
                 foreach (var certDns in cert.HostNameList)
