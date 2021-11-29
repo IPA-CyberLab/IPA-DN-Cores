@@ -247,6 +247,13 @@ public class IisAdmin : AsyncService
                 if (bind.BindingInfo._IsSamei("ftp"))
                 {
                     // FTP の場合で、すでに登録されている証明書が SAN 複数 DNS 名保持証明書の場合、判断ができないので更新はしない
+                    if (emptySiteAs._IsFilled())
+                    {
+                        // EMPTYSITEAS が指定されているので、その指定されている文字列がホスト名であると仮定して処理をしてみます。
+                        var candidates = certsList.GetHostnameMatchedCertificatesList(emptySiteAs);
+
+                        candidates._DoForEach(x => newCandidateCerts.Add(x.Item1));
+                    }
                 }
                 else
                 {
@@ -283,8 +290,8 @@ public class IisAdmin : AsyncService
             var bestCert = newCandidateCerts.OrderByDescending(x => x.PrimaryCertificate.NotAfter).ThenBy(x => x.DigestSHA1Str).FirstOrDefault();
             if (bestCert != null)
             {
-                // この最も有効期限が長い候補の証明書と、現在登録されている証明書との有効期限を比較し、候補証明書のほうが発行日が新しければ更新する
-                if (bestCert.NotBefore > cert.NotBefore || (updateSameCert && bestCert.DigestSHA1Str._IsSameHex(cert.DigestSHA1Str)))
+                // この最も有効期限が長い候補の証明書と、現在登録されている証明書との有効期限を比較し、候補証明書のほうが発行日が新しいか、または期限が長ければ、更新する
+                if (bestCert.NotBefore > cert.NotBefore || bestCert.NotAfter > cert.NotAfter  || (updateSameCert && bestCert.DigestSHA1Str._IsSameHex(cert.DigestSHA1Str)))
                 {
                     // 更新対象としてマーク
                     bind.NewCert = bestCert;
