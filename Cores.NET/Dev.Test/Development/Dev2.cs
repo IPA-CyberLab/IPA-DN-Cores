@@ -138,8 +138,8 @@ public class HadbCodeTest
     public async Task Test1Async()
     {
         var settings = new HadbSqlSettings(SystemName,
-            new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbPassword),
-            new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbPassword),
+            new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbPassword, true),
+            new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbPassword, true),
             HadbOptionFlags.None);
 
         await using Sys sys1 = new Sys(settings, new Dyn() { Hello = "Hello World" });
@@ -183,6 +183,44 @@ public class HadbCodeTest
             string u1_uid = "";
             string u2_uid = "";
             string u3_uid = "";
+
+            await sys1.TranAsync(true, async tran =>
+            {
+                string s = await tran.AtomicGetKvAsync(" inchiki");
+                Dbg.TestTrue(s == "");
+
+                await tran.AtomicSetKvAsync("inchiki ", "123");
+
+                return true;
+            });
+
+            await sys2.TranAsync(false, async tran =>
+            {
+                string s = await tran.AtomicGetKvAsync("inchiki  ");
+                Dbg.TestTrue(s == "123");
+                return true;
+            });
+
+            await sys1.TranAsync(true, async tran =>
+            {
+                string s = await tran.AtomicGetKvAsync("   inchiki");
+                Dbg.TestTrue(s == "123");
+
+                await tran.AtomicSetKvAsync(" inchiki", "456");
+
+                return true;
+            });
+
+            await sys2.TranAsync(false, async tran =>
+            {
+                var db = (tran as HadbSqlBase<Mem, Dyn>.HadbSqlTran)!.Db;
+
+                var test = await db.QueryWithValueAsync("select count(*) from HADB_KV where KV_SYSTEM_NAME = @ and KV_KEY = @", sys1.SystemName, "inchiki");
+
+                Dbg.TestTrue(test.Int == 1);
+
+                return true;
+            });
 
             await sys1.TranAsync(true, async tran =>
             {

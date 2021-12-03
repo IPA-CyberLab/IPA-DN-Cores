@@ -124,6 +124,7 @@ public static partial class Consts
 
         // SQL Server その他の一般的なデータベースでインデックス可能な最大安全文字列長
         public const int SqlMaxSafeStrLength = 300;
+        public const int SqlMaxSafeStrLengthActual = 350;
     }
 
     public static partial class MaxLens

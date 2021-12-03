@@ -1586,21 +1586,21 @@ namespace IPA.Cores.Basic
         }
 
         // UID を正規化する
-        public static string NormalizeUid(string? uid, bool checkSqlSafe = false)
+        public static string NormalizeUid(string? uid, bool checkSqlSafe = false, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength)
         {
             string ret = uid._NonNullTrim().ToUpper();
 
-            if (checkSqlSafe) ret._CheckSqlMaxSafeStrLength();
+            if (checkSqlSafe) ret._CheckSqlMaxSafeStrLength(maxStrLength: maxStrLength);
 
             return ret;
         }
 
         // 任意のキーを正規化する
-        public static string NormalizeKey(string? key, bool checkSqlSafe = false)
+        public static string NormalizeKey(string? key, bool checkSqlSafe = false, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength)
         {
             string ret = key._NonNullTrim().ToUpper();
 
-            if (checkSqlSafe) ret._CheckSqlMaxSafeStrLength();
+            if (checkSqlSafe) ret._CheckSqlMaxSafeStrLength(maxStrLength: maxStrLength);
 
             return ret;
         }

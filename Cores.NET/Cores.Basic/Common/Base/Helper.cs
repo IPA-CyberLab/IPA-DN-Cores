@@ -2998,13 +2998,13 @@ public static class BasicHelper
         return null;
     }
 
-    public static string _NormalizeUid(this string? uid, bool checkSqlSafe = false) => Str.NormalizeUid(uid, checkSqlSafe);
-    public static string _NormalizeKey(this string? key, bool checkSqlSafe = false) => Str.NormalizeKey(key, checkSqlSafe);
+    public static string _NormalizeUid(this string? uid, bool checkSqlSafe = false, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength) => Str.NormalizeUid(uid, checkSqlSafe, maxStrLength);
+    public static string _NormalizeKey(this string? key, bool checkSqlSafe = false, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength) => Str.NormalizeKey(key, checkSqlSafe, maxStrLength);
 
-    public static void _CheckSqlMaxSafeStrLength(this string? str, string? paramName = null)
+    public static void _CheckSqlMaxSafeStrLength(this string? str, string? paramName = null, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength)
     {
         str = str._NonNull();
-        if (str.Length > Consts.Numbers.SqlMaxSafeStrLength)
+        if (str.Length > maxStrLength)
         {
             if (paramName._IsFilled())
             {

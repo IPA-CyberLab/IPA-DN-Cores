@@ -254,6 +254,86 @@ public class HadbSqlSettings : HadbSettingsBase
     }
 }
 
+[EasyTable("HADB_SNAP")]
+public sealed class HadbSqlSnapRow : INormalizable
+{
+    [EasyManualKey]
+    public string SNAP_UID { get; set; } = "";
+    public string SNAP_SYSTEM_NAME { get; set; } = "";
+    public long SNAP_NO { get; set; } = 0;
+    public DateTimeOffset SNAP_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
+    public string SNAP_EXT1 { get; set; } = "";
+    public string SNAP_EXT2 { get; set; } = "";
+
+    public void Normalize()
+    {
+        this.SNAP_UID = this.SNAP_UID._NormalizeKey(true);
+        this.SNAP_SYSTEM_NAME = this.SNAP_SYSTEM_NAME._NormalizeKey(true);
+        this.SNAP_DT = this.SNAP_DT._NormalizeDateTimeOffset();
+        this.SNAP_EXT1 = this.SNAP_EXT1._NonNull();
+        this.SNAP_EXT2 = this.SNAP_EXT2._NonNull();
+    }
+}
+
+[EasyTable("HADB_KV")]
+public sealed class HadbSqlKvRow : INormalizable
+{
+    [EasyKey]
+    public long KV_ID { get; set; } = 0;
+    public string KV_SYSTEM_NAME { get; set; } = "";
+    public string KV_KEY { get; set; } = "";
+    public string KV_VALUE { get; set; } = "";
+    public bool KV_DELETED { get; set; } = false;
+    public DateTimeOffset KV_CREATE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
+    public DateTimeOffset KV_UPDATE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
+
+    public void Normalize()
+    {
+        this.KV_SYSTEM_NAME = this.KV_SYSTEM_NAME._NormalizeKey(true);
+        this.KV_KEY = this.KV_KEY._NormalizeKey(true, Consts.Numbers.SqlMaxSafeStrLengthActual);
+        this.KV_VALUE = this.KV_VALUE._NonNull();
+        this.KV_CREATE_DT = this.KV_CREATE_DT._NormalizeDateTimeOffset();
+        this.KV_UPDATE_DT = this.KV_UPDATE_DT._NormalizeDateTimeOffset();
+    }
+}
+
+[EasyTable("HADB_LOG")]
+public sealed class HadbSqlLog : INormalizable
+{
+    [EasyKey]
+    public long LOG_ID { get; set; } = 0;
+    public string LOG_UID { get; set; } = "";
+    public string LOG_SYSTEM_NAME { get; set; } = "";
+    public string LOG_TYPE { get; set; } = "";
+    public string LOG_NAMESPACE { get; set; } = "";
+    public DateTimeOffset LOG_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
+    public long LOG_SNAP_NO { get; set; } = 0;
+    public bool LOG_DELETED { get; set; } = false;
+    public string LOG_LABEL1 { get; set; } = "";
+    public string LOG_LABEL2 { get; set; } = "";
+    public string LOG_LABEL3 { get; set; } = "";
+    public string LOG_LABEL4 { get; set; } = "";
+    public string LOG_VALUE { get; set; } = "";
+    public string LOG_EXT1 { get; set; } = "";
+    public string LOG_EXT2 { get; set; } = "";
+
+    public void Normalize()
+    {
+        this.LOG_UID = this.LOG_UID._NormalizeKey(true);
+        this.LOG_SYSTEM_NAME = this.LOG_SYSTEM_NAME._NormalizeKey(true);
+        this.LOG_TYPE = this.LOG_TYPE._NonNullTrim();
+        this.LOG_NAMESPACE = this.LOG_NAMESPACE._NormalizeKey(true);
+        this.LOG_DT = this.LOG_DT._NormalizeDateTimeOffset();
+        this.LOG_LABEL1 = this.LOG_LABEL1._NormalizeKey(true);
+        this.LOG_LABEL2 = this.LOG_LABEL2._NormalizeKey(true);
+        this.LOG_LABEL3 = this.LOG_LABEL3._NormalizeKey(true);
+        this.LOG_LABEL4 = this.LOG_LABEL4._NormalizeKey(true);
+        this.LOG_VALUE = this.LOG_VALUE._NonNull();
+        this.LOG_EXT1 = this.LOG_EXT1._NonNull();
+        this.LOG_EXT2 = this.LOG_EXT2._NonNull();
+    }
+}
+
 [EasyTable("HADB_CONFIG")]
 public sealed class HadbSqlConfigRow : INormalizable
 {
@@ -280,9 +360,11 @@ public sealed class HadbSqlDataRow : INormalizable
     public string DATA_UID { get; set; } = "";
     public string DATA_SYSTEMNAME { get; set; } = "";
     public string DATA_TYPE { get; set; } = "";
+    public string DATA_NAMESPACE { get; set; } = "";
     public long DATA_VER { get; set; } = 0;
     public bool DATA_DELETED { get; set; } = false;
     public long DATA_ARCHIVE_AGE { get; set; } = 0;
+    public long DATA_SNAP_NO { get; set; } = 0;
     public DateTimeOffset DATA_CREATE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
     public DateTimeOffset DATA_UPDATE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
     public DateTimeOffset DATA_DELETE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
@@ -305,6 +387,7 @@ public sealed class HadbSqlDataRow : INormalizable
         this.DATA_UID = this.DATA_UID._NormalizeUid(true);
         this.DATA_SYSTEMNAME = this.DATA_SYSTEMNAME._NormalizeKey(true);
         this.DATA_TYPE = this.DATA_TYPE._NonNullTrim();
+        this.DATA_NAMESPACE = this.DATA_NAMESPACE._NormalizeKey(true);
         this.DATA_CREATE_DT = this.DATA_CREATE_DT._NormalizeDateTimeOffset();
         this.DATA_UPDATE_DT = this.DATA_UPDATE_DT._NormalizeDateTimeOffset();
         this.DATA_DELETE_DT = this.DATA_DELETE_DT._NormalizeDateTimeOffset();
@@ -415,16 +498,16 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         {
             await dbWriter.TranAsync(async () =>
             {
-                    // DB にまだ値がない場合のみ書き込む。
-                    // すでにある場合は書き込みしない。
+                // DB にまだ値がない場合のみ書き込む。
+                // すでにある場合は書き込みしない。
 
-                    var tmp = await dbWriter.EasySelectAsync<HadbSqlConfigRow>("select * from HADB_CONFIG where CONFIG_SYSTEMNAME = @CONFIG_SYSTEMNAME and CONFIG_NAME = @CONFIG_NAME",
-                    new
-                    {
-                        CONFIG_SYSTEMNAME = this.SystemName,
-                        CONFIG_NAME = missingValueName,
-                    },
-                    cancel: cancel);
+                var tmp = await dbWriter.EasySelectAsync<HadbSqlConfigRow>("select * from HADB_CONFIG where CONFIG_SYSTEMNAME = @CONFIG_SYSTEMNAME and CONFIG_NAME = @CONFIG_NAME",
+                new
+                {
+                    CONFIG_SYSTEMNAME = this.SystemName,
+                    CONFIG_NAME = missingValueName,
+                },
+                cancel: cancel);
 
                 if (tmp.Any())
                 {
@@ -460,7 +543,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             await dbReader.TranReadSnapshotIfNecessaryAsync(async () =>
             {
                 rowList = await dbReader.EasySelectAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE_AGE = 0", new { DATA_SYSTEMNAME = this.SystemName }); // TODO: get only latest
-                });
+            });
         }
         catch (Exception ex)
         {
@@ -594,6 +677,66 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             },
             cancel: cancel,
             throwErrorIfMultipleFound: true);
+    }
+
+    protected internal override async Task<string> AtomicGetKvImplAsync(HadbTran tran, string key, CancellationToken cancel = default)
+    {
+        key = key._NormalizeKey(true);
+
+        var dbReader = ((HadbSqlTran)tran).Db;
+
+        var existingRow = await dbReader.EasySelectSingleAsync<HadbSqlKvRow>("select * from HADB_KV where KV_KEY = @KV_KEY and KV_SYSTEM_NAME = @KV_SYSTEM_NAME and KV_DELETED = 0",
+            new
+            {
+                KV_KEY = key,
+                KV_SYSTEM_NAME = this.SystemName,
+            },
+            cancel: cancel,
+            throwErrorIfMultipleFound: true);
+
+        if (existingRow != null)
+        {
+            return existingRow.KV_VALUE._NonNull();
+        }
+
+        return "";
+    }
+
+    protected internal override async Task AtomicSetKvImplAsync(HadbTran tran, string key, string value, CancellationToken cancel = default)
+    {
+        key = key._NormalizeKey(true);
+        value = value._NonNull();
+
+        tran.CheckIsWriteMode();
+
+        var dbWriter = ((HadbSqlTran)tran).Db;
+
+        var now = DtOffsetNow;
+
+        var row = await dbWriter.EasyFindOrInsertAsync<HadbSqlKvRow>("select * from HADB_KV where KV_KEY = @KV_KEY and KV_SYSTEM_NAME = @KV_SYSTEM_NAME and KV_DELETED = 0",
+            new
+            {
+                KV_KEY = key,
+                KV_SYSTEM_NAME = this.SystemName,
+            },
+            new HadbSqlKvRow
+            {
+                KV_SYSTEM_NAME = this.SystemName,
+                KV_KEY = key,
+                KV_VALUE = value,
+                KV_DELETED = false,
+                KV_CREATE_DT = now,
+                KV_UPDATE_DT = now,
+            }
+        );
+
+        if (row.KV_VALUE != value)
+        {
+            row.KV_UPDATE_DT = now;
+            row.KV_VALUE = value;
+
+            await dbWriter.EasyUpdateAsync(row, true, cancel);
+        }
     }
 
     protected internal override async Task AtomicAddDataListToDatabaseImplAsync(HadbTran tran, IEnumerable<HadbObject> dataList, CancellationToken cancel = default)
@@ -1712,6 +1855,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     protected internal abstract Task<IEnumerable<HadbObject>> AtomicSearchDataListByLabelsFromDatabaseImplAsync(HadbTran tran, HadbLabels labels, string typeName, CancellationToken cancel = default);
     protected internal abstract Task<HadbObject> AtomicDeleteDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, CancellationToken cancel = default);
     protected internal abstract Task<HadbObject> AtomicUpdateDataOnDatabaseImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default);
+    protected internal abstract Task<string> AtomicGetKvImplAsync(HadbTran tran, string key, CancellationToken cancel = default);
+    protected internal abstract Task AtomicSetKvImplAsync(HadbTran tran, string key, string value, CancellationToken cancel = default);
 
     protected internal abstract Task<bool> LazyUpdateImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default);
 
@@ -2029,7 +2174,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () => CheckIfReady(doNotThrowError: EnsureSpecial.Yes).IsOk, cancel, true);
     }
 
-    public async Task<bool> TranAsync(bool writeMode, Func<HadbTran, Task<bool>> task, CancellationToken cancel = default, DeadlockRetryConfig? retryConfig = null)
+    public async Task<bool> TranAsync(bool writeMode, Func<HadbTran, Task<bool>> task, bool takeSnapshot = false, CancellationToken cancel = default, DeadlockRetryConfig? retryConfig = null)
     {
         CheckIfReady();
         retryConfig ??= this.DefaultDeadlockRetryConfig;
@@ -2040,7 +2185,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         {
             await using var tran = await this.BeginDatabaseTransactionImplAsync(writeMode, true, cancel);
 
-            await tran.BeginAsync(cancel);
+            await tran.BeginAsync(takeSnapshot, cancel);
 
             if (await task(tran))
             {
@@ -2186,9 +2331,20 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             }
         }
 
-        public Task BeginAsync(CancellationToken cancel = default)
+        readonly Once BeginFlag = new Once();
+
+        public Task BeginAsync(bool takeSnapshot, CancellationToken cancel = default)
         {
-            return TaskCompleted;
+            if (BeginFlag.IsFirstCall())
+            {
+                // Snapshot 処理
+
+                return TaskCompleted;
+            }
+            else
+            {
+                throw new CoresLibException("Transaction already began.");
+            }
         }
 
         public void CheckIsWriteMode()
@@ -2215,21 +2371,37 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             this.ApplyObjectsList.AddRange(tmp);
         }
 
+        readonly Once CommitedFlag = new Once();
+
         public async Task CommitAsync(CancellationToken cancel = default)
         {
-            if (this.IsWriteMode)
+            if (finished == false)
             {
-                await this.CommitImplAsync(cancel);
+                if (CommitedFlag.IsFirstCall())
+                {
+                    if (this.IsWriteMode)
+                    {
+                        await this.CommitImplAsync(cancel);
 
-                await FinishInternalAsync(cancel);
+                        await FinishInternalAsync(cancel);
+                    }
+                }
+                else
+                {
+                    throw new CoresLibException("Transaction already committed.");
+                }
+            }
+            else
+            {
+                throw new CoresLibException("Transaction already finished.");
             }
         }
 
-        readonly Once flushed = new Once();
+        readonly Once finished = new Once();
 
         async Task FinishInternalAsync(CancellationToken cancel = default)
         {
-            if (flushed.IsFirstCall())
+            if (finished.IsFirstCall())
             {
                 using (await this.MemDb.CriticalLockAsync.LockWithAwait(cancel))
                 {
@@ -2426,6 +2598,22 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             this.AddApplyObject(ret);
 
             return ret;
+        }
+
+        public async Task<string> AtomicGetKvAsync(string key, CancellationToken cancel = default)
+        {
+            Hadb.CheckIfReady();
+
+            string ret = await Hadb.AtomicGetKvImplAsync(this, key, cancel);
+
+            return ret;
+        }
+
+        public async Task AtomicSetKvAsync(string key, string value, CancellationToken cancel = default)
+        {
+            Hadb.CheckIfReady();
+
+            await Hadb.AtomicSetKvImplAsync(this, key, value, cancel);
         }
 
         public async Task<bool> LazyUpdateAsync(HadbObject obj, CancellationToken cancel = default)

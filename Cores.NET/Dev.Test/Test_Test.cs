@@ -918,7 +918,7 @@ static class TestClass
 
     static void Test_ThinLgWanConfigMaker()
     {
-        if (true)
+        if (false)
         {
             string src = @"C:\Dropbox\COENET\メモ資料\200930 自治体テレワーク for LGWAN 開発設計資料\第三世代 本番環境\G. Config および手順書集\G-22. HTTPS 画面通信受付サーバ (LGWAN 公開セグメント側)\_内部用_テンプレート\lgwang0.txt";
             for (int i = 1; i <= 32; i++)
@@ -939,7 +939,7 @@ static class TestClass
             }
         }
 
-        if (true)
+        if (false)
         {
             string src = @"C:\Dropbox\COENET\メモ資料\200930 自治体テレワーク for LGWAN 開発設計資料\第三世代 本番環境\G. Config および手順書集\G-26. HTTPS 画面通信受付サーバ (インターネット公開セグメント側)\_内部用_テンプレート\inetg0.txt";
             for (int i = 1; i <= 32; i++)
@@ -954,6 +954,56 @@ static class TestClass
                         __INDEX1__ = i,
                         __INDEX2__ = i.ToString("D2"),
                         __VMNUMBER__ = (((i - 1) / 8) + 1),
+                    });
+
+                Lfs.WriteStringToFile(dst, dstData);
+            }
+        }
+
+        if (true)
+        {
+            string src = @"C:\Dropbox\COENET\メモ資料\200930 自治体テレワーク for LGWAN 開発設計資料\4. 第四世代 本番環境 (関西拡張後)\G. Config および手順書集\G-22. HTTPS 画面通信受付サーバ (LGWAN 公開セグメント側)\_内部用_テンプレート\lgwang100.txt";
+            for (int i = 101; i <= 132; i++)
+            {
+                string dst = @"C:\Dropbox\COENET\メモ資料\200930 自治体テレワーク for LGWAN 開発設計資料\4. 第四世代 本番環境 (関西拡張後)\G. Config および手順書集\G-22. HTTPS 画面通信受付サーバ (LGWAN 公開セグメント側)\" +
+                    $"lgwang{i}.txt";
+
+                string srcData = Lfs.ReadStringFromFile(src);
+                string dstData = srcData._ReplaceStrWithReplaceClass(
+                    new
+                    {
+                        __INDEX1__ = i,
+                        __INDEX2__ = (i % 100).ToString("D2"),
+                        __MGMT_IP__ = $"10.47.10.{i + 32}",
+                        __PUB_IP__ = $"10.47.3.{i}",
+                        __PRI_IP__ = $"10.47.5.{i}",
+                        __GATE_IP__ = $"10.47.3.{i + 32}",
+                        __VMNUMBER__ = ((((i - 100) - 1) / 8) + 1) + 100,
+                    });
+
+                Lfs.WriteStringToFile(dst, dstData);
+            }
+        }
+
+        if (true)
+        {
+            string src = @"C:\Dropbox\COENET\メモ資料\200930 自治体テレワーク for LGWAN 開発設計資料\4. 第四世代 本番環境 (関西拡張後)\G. Config および手順書集\G-26. HTTPS 画面通信受付サーバ (インターネット公開セグメント側)\_内部用_テンプレート\inetg100.txt";
+            for (int i = 101; i <= 132; i++)
+            {
+                string dst = @"C:\Dropbox\COENET\メモ資料\200930 自治体テレワーク for LGWAN 開発設計資料\4. 第四世代 本番環境 (関西拡張後)\G. Config および手順書集\G-26. HTTPS 画面通信受付サーバ (インターネット公開セグメント側)\" +
+                    $"inetg{i}.txt";
+
+                string srcData = Lfs.ReadStringFromFile(src);
+                string dstData = srcData._ReplaceStrWithReplaceClass(
+                    new
+                    {
+                        __INDEX1__ = i,
+                        __INDEX2__ = (i % 100).ToString("D2"),
+                        __MGMT_IP__ = $"10.47.10.{i - 36}",
+                        __PUB_IP__ = $"163.220.245.{i + 50}",
+                        __PRI_IP__ = $"10.47.4.{i + 32}",
+                        __GATE_IP__ = $"10.47.3.{i + 32}",
+                        __VMNUMBER__ = ((((i - 100) - 1) / 8) + 1) + 100,
                     });
 
                 Lfs.WriteStringToFile(dst, dstData);
@@ -2658,6 +2708,18 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
     {
         if (true)
         {
+            Test_211108();
+            return;
+        }
+
+        if (false)
+        {
+            Test_ThinLgWanConfigMaker();
+            return;
+        }
+
+        if (true)
+        {
             Test_211126();
             return;
         }
@@ -2682,12 +2744,6 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         //    Con.WriteLine(b.ToString());
         //    Con.WriteLine();
         //}
-
-        if (true)
-        {
-            Test_211108();
-            return;
-        }
 
         if (true)
         {
@@ -3401,12 +3457,6 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         if (true)
         {
             Test_ThinLgWanSshConfigMaker();
-            return;
-        }
-
-        if (true)
-        {
-            Test_ThinLgWanConfigMaker();
             return;
         }
 
