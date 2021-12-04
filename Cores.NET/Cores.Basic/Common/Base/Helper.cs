@@ -3052,6 +3052,24 @@ public static class BasicHelper
 
     public static IOrderedEnumerable<T> _OrderByValueDescending<T>(this IEnumerable<T> list, IComparer<T> comparer)
         => list.OrderByDescending(x => x, comparer);
+
+    public static bool _TryNormalize(this object? obj)
+    {
+        if (obj == null) return false;
+        var target = obj as INormalizable;
+        if (target != null)
+        {
+            target.Normalize();
+            return true;
+        }
+        return false;
+    }
+
+    public static void _TryNormalizeAll<T>(this IEnumerable<T?>? array)
+    {
+        if (array == null) return;
+        array._DoForEach(x => x._TryNormalize());
+    }
 }
 
 

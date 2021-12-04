@@ -658,7 +658,13 @@ public sealed class Database : AsyncService
     }
 
     public async Task<IEnumerable<T>> EasyQueryAsync<T>(string commandStr, object? param = null)
-        => await Connection.QueryAsync<T>(await SetupDapperAsync(commandStr, param, typeof(T)));
+    {
+        var ret = await Connection.QueryAsync<T>(await SetupDapperAsync(commandStr, param, typeof(T)));
+
+        ret._TryNormalizeAll();
+
+        return ret;
+    }
 
     public async Task<int> EasyExecuteAsync(string commandStr, object? param = null)
         => await Connection.ExecuteAsync(await SetupDapperAsync(commandStr, param, null));
@@ -724,6 +730,8 @@ public sealed class Database : AsyncService
             throw new CoresLibException($"throwErrorIfNotFound == true and no elements returned from the database.");
         }
 
+        BasicHelper._TryNormalize(ret);
+
         return ret;
     }
 
@@ -733,6 +741,8 @@ public sealed class Database : AsyncService
         EnsureDapperTypeMapping(typeof(T));
 
         var ret = await SqlMapperExtensions.GetAllAsync<T>(Connection, Transaction);
+
+        ret._TryNormalizeAll();
 
         if (throwErrorIfNotFound && ret.Count() == 0)
         {
@@ -748,6 +758,8 @@ public sealed class Database : AsyncService
         await EnsureOpenAsync(cancel);
         EnsureDapperTypeMapping(typeof(T));
 
+        data._TryNormalize();
+
         return await SqlMapperExtensions.InsertAsync<T>(Connection, data, Transaction);
     }
 
@@ -755,6 +767,8 @@ public sealed class Database : AsyncService
     {
         await EnsureOpenAsync(cancel);
         EnsureDapperTypeMapping(typeof(T));
+
+        data._TryNormalize();
 
         bool ret = await SqlMapperExtensions.UpdateAsync<T>(Connection, data, Transaction);
 
@@ -768,6 +782,8 @@ public sealed class Database : AsyncService
     {
         await EnsureOpenAsync(cancel);
         EnsureDapperTypeMapping(typeof(T));
+
+        data._TryNormalize();
 
         bool ret = await SqlMapperExtensions.DeleteAsync<T>(Connection, data, Transaction);
 
@@ -811,6 +827,8 @@ public sealed class Database : AsyncService
     public async Task<T> EasyFindOrInsertAsync<T>(string selectStr, object? selectParam, T newEntity) where T : class
     {
         newEntity._NullCheck(nameof(newEntity));
+
+        newEntity._TryNormalize();
 
         if (selectParam == null) selectParam = new { };
 

@@ -254,24 +254,26 @@ public class HadbSqlSettings : HadbSettingsBase
     }
 }
 
-[EasyTable("HADB_SNAP")]
-public sealed class HadbSqlSnapRow : INormalizable
+[EasyTable("HADB_SNAPSHOT")]
+public sealed class HadbSqlSnapshotRow : INormalizable
 {
     [EasyManualKey]
-    public string SNAP_UID { get; set; } = "";
-    public string SNAP_SYSTEM_NAME { get; set; } = "";
-    public long SNAP_NO { get; set; } = 0;
-    public DateTimeOffset SNAP_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
-    public string SNAP_EXT1 { get; set; } = "";
-    public string SNAP_EXT2 { get; set; } = "";
+    public string SNAPSHOT_UID { get; set; } = "";
+    public string SNAPSHOT_SYSTEM_NAME { get; set; } = "";
+    public long SNAPSHOT_NO { get; set; } = 0;
+    public DateTimeOffset SNAPSHOT_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
+    public string SNAPSHOT_DESCRIPTION { get; set; } = "";
+    public string SNAPSHOT_EXT1 { get; set; } = "";
+    public string SNAPSHOT_EXT2 { get; set; } = "";
 
     public void Normalize()
     {
-        this.SNAP_UID = this.SNAP_UID._NormalizeKey(true);
-        this.SNAP_SYSTEM_NAME = this.SNAP_SYSTEM_NAME._NormalizeKey(true);
-        this.SNAP_DT = this.SNAP_DT._NormalizeDateTimeOffset();
-        this.SNAP_EXT1 = this.SNAP_EXT1._NonNull();
-        this.SNAP_EXT2 = this.SNAP_EXT2._NonNull();
+        this.SNAPSHOT_UID = this.SNAPSHOT_UID._NormalizeKey(true);
+        this.SNAPSHOT_SYSTEM_NAME = this.SNAPSHOT_SYSTEM_NAME._NormalizeKey(true);
+        this.SNAPSHOT_DT = this.SNAPSHOT_DT._NormalizeDateTimeOffset();
+        this.SNAPSHOT_DESCRIPTION = this.SNAPSHOT_DESCRIPTION._NonNull();
+        this.SNAPSHOT_EXT1 = this.SNAPSHOT_EXT1._NonNull();
+        this.SNAPSHOT_EXT2 = this.SNAPSHOT_EXT2._NonNull();
     }
 }
 
@@ -364,7 +366,7 @@ public sealed class HadbSqlDataRow : INormalizable
     public long DATA_VER { get; set; } = 0;
     public bool DATA_DELETED { get; set; } = false;
     public long DATA_ARCHIVE_AGE { get; set; } = 0;
-    public long DATA_SNAP_NO { get; set; } = 0;
+    public long DATA_SNAPSHOT_NO { get; set; } = 0;
     public DateTimeOffset DATA_CREATE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
     public DateTimeOffset DATA_UPDATE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
     public DateTimeOffset DATA_DELETE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
@@ -739,6 +741,26 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         }
     }
 
+    protected internal override async Task AtomicAddSnapImplAsync(HadbTran tran, HadbSnapshot snap, CancellationToken cancel = default)
+    {
+        tran.CheckIsWriteMode();
+
+        var dbWriter = ((HadbSqlTran)tran).Db;
+
+        HadbSqlSnapshotRow r = new HadbSqlSnapshotRow
+        {
+            SNAPSHOT_UID = snap.Uid,
+            SNAPSHOT_SYSTEM_NAME = snap.SystemName,
+            SNAPSHOT_NO = snap.Number,
+            SNAPSHOT_DT = snap.TimeStamp,
+            SNAPSHOT_DESCRIPTION = snap.Description,
+            SNAPSHOT_EXT1 = snap.Ext1,
+            SNAPSHOT_EXT2 = snap.Ext2,
+        };
+
+        await dbWriter.EasyInsertAsync(r, cancel);
+    }
+
     protected internal override async Task AtomicAddDataListToDatabaseImplAsync(HadbTran tran, IEnumerable<HadbObject> dataList, CancellationToken cancel = default)
     {
         tran.CheckIsWriteMode();
@@ -1040,7 +1062,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 public enum HadbOptionFlags : long
 {
     None = 0,
-    NoAutoDbUpdate,
+    NoAutoDbReloadAndUpdate,
 }
 
 [Flags]
@@ -1142,6 +1164,28 @@ public abstract class HadbData : INormalizable
         => (T)this;
 }
 
+public sealed class HadbSnapshot
+{
+    public string Uid { get; }
+    public string SystemName { get; }
+    public long Number { get; }
+    public DateTimeOffset TimeStamp { get; }
+    public string Description { get; }
+    public string Ext1 { get; }
+    public string Ext2 { get; }
+
+    public HadbSnapshot(string uid, string systemName, long number, DateTimeOffset timeStamp, string description, string ext1, string ext2)
+    {
+        Uid = uid._NormalizeUid(true);
+        SystemName = systemName._NormalizeKey(true);
+        Number = number;
+        TimeStamp = timeStamp._NormalizeDateTimeOffset();
+        Description = description._NonNull();
+        Ext1 = ext1._NonNull();
+        Ext2 = ext2._NonNull();
+    }
+}
+
 public sealed class HadbObject : INormalizable
 {
     public readonly CriticalSection<HadbObject> Lock = new CriticalSection<HadbObject>();
@@ -1163,6 +1207,8 @@ public sealed class HadbObject : INormalizable
     public DateTimeOffset DeleteDt { get; private set; }
 
     public long ArchiveAge { get; private set; }
+
+    public long SnapshotNo { get; private set; }
 
     public HadbData UserData { get; private set; }
 
@@ -1857,6 +1903,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     protected internal abstract Task<HadbObject> AtomicUpdateDataOnDatabaseImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default);
     protected internal abstract Task<string> AtomicGetKvImplAsync(HadbTran tran, string key, CancellationToken cancel = default);
     protected internal abstract Task AtomicSetKvImplAsync(HadbTran tran, string key, string value, CancellationToken cancel = default);
+    protected internal abstract Task AtomicAddSnapImplAsync(HadbTran tran, HadbSnapshot snap, CancellationToken cancel = default);
 
     protected internal abstract Task<bool> LazyUpdateImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default);
 
@@ -2087,7 +2134,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             Debug($"ReloadMainLoopAsync: Waiting for {nextWaitTime._ToString3()} msecs for next DB read.");
             await cancel._WaitUntilCanceledAsync(nextWaitTime);
 
-            if (this.Settings.OptionFlags.Bit(HadbOptionFlags.NoAutoDbUpdate)) return;
+            if (this.Settings.OptionFlags.Bit(HadbOptionFlags.NoAutoDbReloadAndUpdate)) return;
         }
 
         Debug($"ReloadMainLoopAsync: Finished.");
@@ -2095,7 +2142,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     async Task LazyUpdateMainLoopAsync(CancellationToken cancel)
     {
-        if (this.Settings.OptionFlags.Bit(HadbOptionFlags.NoAutoDbUpdate)) return;
+        if (this.Settings.OptionFlags.Bit(HadbOptionFlags.NoAutoDbReloadAndUpdate)) return;
 
         int numCycle = 0;
         int numError = 0;
@@ -2304,9 +2351,11 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     public abstract class HadbTran : AsyncService
     {
-        public bool IsWriteMode;
-        public bool IsTransaction;
-        public HadbMemDataBase MemDb;
+        public bool IsWriteMode { get; }
+        public bool IsTransaction { get; }
+        public bool TakeSnapshot { get; private set; }
+        public long CurrentSnapNoForWriteMode { get; private set; }
+        public HadbMemDataBase MemDb { get; }
         List<HadbObject> ApplyObjectsList = new List<HadbObject>();
 
         public IReadOnlyList<HadbObject> GetApplyObjectsList() => this.ApplyObjectsList;
@@ -2333,13 +2382,42 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
         readonly Once BeginFlag = new Once();
 
-        public Task BeginAsync(bool takeSnapshot, CancellationToken cancel = default)
+        public async Task BeginAsync(bool takeSnapshot, CancellationToken cancel = default)
         {
             if (BeginFlag.IsFirstCall())
             {
-                // Snapshot 処理
+                if (this.IsWriteMode)
+                {
+                    this.TakeSnapshot = takeSnapshot;
 
-                return TaskCompleted;
+                    // Snapshot 処理をする。
+                    // まず現在の Snapshot 番号を取得する。
+                    this.CurrentSnapNoForWriteMode = (await this.AtomicGetKvAsync("_hadb_sys_current_snapshot_no", cancel))._ToLong();
+
+                    if (this.CurrentSnapNoForWriteMode == 0)
+                    {
+                        // 初めての場合は、必ず Snapshot を撮る。
+                        this.TakeSnapshot = true;
+                    }
+
+                    if (this.TakeSnapshot)
+                    {
+                        // Snapshot を撮る場合、Snapshot 番号をインクリメントする。
+                        this.CurrentSnapNoForWriteMode++;
+
+                        // インクリメントされた Snapshot 番号を書き込む。
+                        await this.AtomicSetKvAsync("_hadb_sys_current_snapshot_no", this.CurrentSnapNoForWriteMode.ToString(), cancel);
+
+                        var snap = new HadbSnapshot(Str.NewUid("SNAPSHOT", '_'), Hadb.SystemName, this.CurrentSnapNoForWriteMode, DtOffsetNow, "Initial Snapshot", "", "");
+
+                        // 最後の Snapshot 情報を書き込む。
+                        await this.AtomicSetKvAsync("_hadb_sys_current_snapshot_uid", snap.Uid, cancel);
+                        await this.AtomicSetKvAsync("_hadb_sys_current_snapshot_timestamp", snap.TimeStamp._ToDtStr(withMSsecs: true, withNanoSecs: true), cancel);
+
+                        // Snapshot テーブルを追記する。
+                        await this.AtomicAddSnapshotInternalAsync(EnsureInternal.Yes, snap, cancel);
+                    }
+                }
             }
             else
             {
@@ -2614,6 +2692,13 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             Hadb.CheckIfReady();
 
             await Hadb.AtomicSetKvImplAsync(this, key, value, cancel);
+        }
+
+        internal async Task AtomicAddSnapshotInternalAsync(EnsureInternal yes, HadbSnapshot snap, CancellationToken cancel = default)
+        {
+            Hadb.CheckIfReady();
+
+            await Hadb.AtomicAddSnapImplAsync(this, snap, cancel);
         }
 
         public async Task<bool> LazyUpdateAsync(HadbObject obj, CancellationToken cancel = default)
