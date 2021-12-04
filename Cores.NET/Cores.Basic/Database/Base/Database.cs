@@ -81,18 +81,20 @@ public class SqlDatabaseConnectionSetting
     public string UserId { get; }
     public string Password { get; }
     public bool Pooling { get; }
+    public int Port { get; }
 
-    public SqlDatabaseConnectionSetting(string dataSource, string initialCatalog, string userId, string password, bool pooling = false /* Linux 版 SQL Client では true にすると動作不良を引き起こすため、false を推奨 */ )
+    public SqlDatabaseConnectionSetting(string dataSource, string initialCatalog, string userId, string password, bool pooling = false, int port = Consts.Ports.MsSqlServer /* Linux 版 SQL Client では true にすると動作不良を引き起こすため、false を推奨 */ )
     {
         this.DataSource = dataSource;
         this.InitialDatalog = initialCatalog;
         this.UserId = userId;
         this.Password = password;
         this.Pooling = pooling;
+        this.Port = port._IsInTcpUdpPortRange() ? Consts.Ports.MsSqlServer : port;
     }
 
     public static implicit operator string(SqlDatabaseConnectionSetting config)
-        => $"Data Source={config.DataSource};Initial Catalog={config.InitialDatalog};Persist Security Info=True;Pooling={config.Pooling._ToBoolStr()};User ID={config.UserId};Password={config.Password}";
+        => $"Data Source={config.DataSource}{(config.Port == Consts.Ports.MsSqlServer ? "" : "," + config.Port.ToString()) };Initial Catalog={config.InitialDatalog};Persist Security Info=True;Pooling={config.Pooling._ToBoolStr()};User ID={config.UserId};Password={config.Password}";
 
 }
 
@@ -600,16 +602,16 @@ public sealed class Database : AsyncService
                     {
                         var properties = type.GetProperties();
 
-                            // UserName == USER_NAME
-                            var c1 = properties.SingleOrDefault(p => p.Name._IsSameiIgnoreUnderscores(columnName)
-                            || p.GetCustomAttributes(true).OfType<DapperColumn>().Any(a => a.Name._IsSameiIgnoreUnderscores(columnName)));
+                        // UserName == USER_NAME
+                        var c1 = properties.SingleOrDefault(p => p.Name._IsSameiIgnoreUnderscores(columnName)
+                        || p.GetCustomAttributes(true).OfType<DapperColumn>().Any(a => a.Name._IsSameiIgnoreUnderscores(columnName)));
                         if (c1 != null) return c1;
 
                         int i = columnName.IndexOf("_");
                         if (i >= 2)
                         {
-                                // UserName == USERS_USERNAME
-                                string columnName2 = columnName.Substring(i + 1);
+                            // UserName == USERS_USERNAME
+                            string columnName2 = columnName.Substring(i + 1);
 
                             var c2 = properties.SingleOrDefault(p => p.Name._IsSameiIgnoreUnderscores(columnName2)
                                 || p.GetCustomAttributes(true).OfType<DapperColumn>().Any(a => a.Name._IsSameiIgnoreUnderscores(columnName2)));

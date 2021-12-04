@@ -671,13 +671,11 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
 
-        List<string> conditions = new List<string>();
-
         uid = uid._NormalizeUid(true);
 
         if (uid._IsEmpty()) return null;
 
-        return await db.EasySelectSingleAsync<HadbSqlDataRow>($"select * from HADB_DATA where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE_AGE = 0 and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
+        return await db.EasySelectSingleAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE_AGE = 0 and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
             new
             {
                 DATA_UID = uid,
@@ -864,6 +862,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
     protected internal override async Task<HadbObject> AtomicUpdateDataOnDatabaseImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default)
     {
+        int maxArchive = Math.Max(data.GetData<HadbData>().GetMaxArchivedCount(), 0);
+
         data.CheckIsNotMemoryDbObject();
         tran.CheckIsWriteMode();
         var dbWriter = ((HadbSqlTran)tran).Db;
@@ -885,22 +885,42 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         }
 
         // 現在のアーカイブを一段繰り上げる
-        await dbWriter.EasyExecuteAsync("update HADB_DATA set DATA_ARCHIVE_AGE = DATA_ARCHIVE_AGE + 1 where DATA_UID like @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE_AGE >= 1",
+        await dbWriter.EasyExecuteAsync("update HADB_DATA set DATA_ARCHIVE_AGE = DATA_ARCHIVE_AGE + 1 where DATA_UID like @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE_AGE >= 1 and DATA_NAMESPACE = @DATA_NAMESPACE",
             new
             {
                 DATA_UID = data.Uid + ":%",
                 DATA_SYSTEMNAME = this.SystemName,
                 DATA_TYPE = typeName,
+                DATA_NAMESPACE = data.NameSpace,
             });
 
         // 現在のデータをアーカイブ化する
-        HadbSqlDataRow rowOld = row._CloneDeep();
+        if (maxArchive >= 1)
+        {
+            HadbSqlDataRow rowOld = row._CloneDeep();
 
-        rowOld.DATA_UID += ":" + rowOld.DATA_VER.ToString("D20");
-        rowOld.DATA_ARCHIVE_AGE = 1;
-        rowOld.Normalize();
+            rowOld.DATA_UID += ":" + rowOld.DATA_VER.ToString("D20");
+            rowOld.DATA_ARCHIVE_AGE = 1;
+            rowOld.Normalize();
 
-        await dbWriter.EasyInsertAsync(rowOld, cancel);
+            await dbWriter.EasyInsertAsync(rowOld, cancel);
+        }
+
+        // 古いアーカイブを物理的に消す
+        if (maxArchive != int.MaxValue)
+        {
+            await dbWriter.EasyExecuteAsync("delete from HADB_DATA where DATA_UID like @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE_AGE >= 1 and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_ARCHIVE_AGE >= @DATA_ARCHIVE_AGE_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
+                new
+                {
+                    DATA_UID = data.Uid + ":%",
+                    DATA_SYSTEMNAME = this.SystemName,
+                    DATA_TYPE = typeName,
+                    DATA_NAMESPACE = data.NameSpace,
+                    DATA_ARCHIVE_AGE_THRESHOLD = maxArchive + 1,
+                    DATA_SNAPSHOT_NO = tran.CurrentSnapNoForWriteMode,
+                }
+            );
+        }
 
         // DB に書き込む前に DB 上で KEY1 ～ KEY4 の重複を検査する (当然、更新しようとしている自分自身への重複は例外的に許可する)
         var existingRow = await GetRowByKeyAsync(dbWriter, typeName, data.NameSpace, keys, cancel, excludeUid: row.DATA_UID);
@@ -949,6 +969,44 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         return ret;
     }
 
+    protected internal override async Task<IEnumerable<HadbObject>> AtomicGetArchivedDataFromDatabaseImplAsync(HadbTran tran, int maxItems, string uid, string typeName, string nameSpace, CancellationToken cancel = default)
+    {
+        nameSpace = nameSpace._HadbNameSpaceNormalize();
+        typeName = typeName._NonNullTrim();
+
+        if (maxItems <= 0) return EmptyOf<HadbObject>();
+
+        var db = ((HadbSqlTran)tran).Db;
+
+        uid = uid._NormalizeUid(true);
+
+        if (uid._IsEmpty()) return EmptyOf<HadbObject>();
+
+        var rows = await db.EasySelectAsync<HadbSqlDataRow>($"select top {maxItems} * from HADB_DATA where (DATA_UID = @DATA_UID or DATA_UID like @DATA_UID_LIKE) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE order by DATA_ARCHIVE_AGE asc",
+            new
+            {
+                DATA_UID = uid,
+                DATA_UID_LIKE = uid + ":%",
+                DATA_SYSTEMNAME = this.SystemName,
+                DATA_TYPE = typeName,
+                DATA_NAMESPACE = nameSpace,
+            },
+            cancel: cancel);
+
+        rows = rows.OrderBy(x => x.DATA_ARCHIVE_AGE); // 念のため
+
+        List<HadbObject> ret = new List<HadbObject>();
+
+        foreach (var row in rows)
+        {
+            var item = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE_AGE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+
+            ret.Add(item);
+        }
+
+        return ret;
+    }
+
     protected internal override async Task<HadbObject?> AtomicSearchDataByKeyFromDatabaseImplAsync(HadbTran tran, HadbKeys key, string typeName, string nameSpace, CancellationToken cancel = default)
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
@@ -989,8 +1047,9 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         return ret;
     }
 
-    protected internal override async Task<HadbObject> AtomicDeleteDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, CancellationToken cancel = default)
+    protected internal override async Task<HadbObject> AtomicDeleteDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, int maxArchive, CancellationToken cancel = default)
     {
+        maxArchive = Math.Max(maxArchive, 0);
         nameSpace = nameSpace._HadbNameSpaceNormalize();
         typeName = typeName._NonNullTrim();
         uid = uid._NormalizeUid(true);
@@ -1007,28 +1066,50 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         }
 
         // 現在のアーカイブを一段繰り上げる
-        await dbWriter.EasyExecuteAsync("update HADB_DATA set DATA_ARCHIVE_AGE = DATA_ARCHIVE_AGE + 1 where DATA_UID like @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE_AGE >= 1",
+        await dbWriter.EasyExecuteAsync("update HADB_DATA set DATA_ARCHIVE_AGE = DATA_ARCHIVE_AGE + 1 where DATA_UID like @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE_AGE >= 1 and DATA_NAMESPACE = @DATA_NAMESPACE",
             new
             {
                 DATA_UID = uid + ":%",
                 DATA_SYSTEMNAME = this.SystemName,
                 DATA_TYPE = typeName,
+                DATA_NAMESPACE = nameSpace,
             });
 
         // 現在のデータをアーカイブ化する
-        HadbSqlDataRow rowOld = row._CloneDeep();
+        // 現在のデータをアーカイブ化する
+        if (maxArchive >= 1)
+        {
+            HadbSqlDataRow rowOld = row._CloneDeep();
 
-        rowOld.DATA_UID += ":" + rowOld.DATA_VER.ToString("D20");
-        rowOld.DATA_ARCHIVE_AGE = 1;
-        rowOld.Normalize();
+            rowOld.DATA_UID += ":" + rowOld.DATA_VER.ToString("D20");
+            rowOld.DATA_ARCHIVE_AGE = 1;
+            rowOld.Normalize();
 
-        await dbWriter.EasyInsertAsync(rowOld, cancel);
+            await dbWriter.EasyInsertAsync(rowOld, cancel);
+        }
+
+        // 古いアーカイブを物理的に消す
+        if (maxArchive != int.MaxValue)
+        {
+            await dbWriter.EasyExecuteAsync("delete from HADB_DATA where DATA_UID like @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE_AGE >= 1 and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_ARCHIVE_AGE >= @DATA_ARCHIVE_AGE_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
+                new
+                {
+                    DATA_UID = uid + ":%",
+                    DATA_SYSTEMNAME = this.SystemName,
+                    DATA_TYPE = typeName,
+                    DATA_NAMESPACE = nameSpace,
+                    DATA_ARCHIVE_AGE_THRESHOLD = maxArchive + 1,
+                    DATA_SNAPSHOT_NO = tran.CurrentSnapNoForWriteMode,
+                }
+            );
+        }
 
         // データを削除済みにする
         row.DATA_VER++;
         row.DATA_UPDATE_DT = row.DATA_DELETE_DT = DtOffsetNow;
         row.DATA_DELETED = true;
         row.DATA_LAZY_COUNT1 = 0;
+        row.DATA_SNAPSHOT_NO = tran.CurrentSnapNoForWriteMode;
 
         await dbWriter.EasyUpdateAsync(row, true, cancel);
 
@@ -1155,6 +1236,7 @@ public abstract class HadbData : INormalizable
 {
     public virtual HadbKeys GetKeys() => new HadbKeys("");
     public virtual HadbLabels GetLabels() => new HadbLabels("");
+    public virtual int GetMaxArchivedCount() => int.MaxValue;
 
     public abstract void Normalize();
 
@@ -1934,9 +2016,10 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     protected internal abstract Task AtomicAddDataListToDatabaseImplAsync(HadbTran tran, IEnumerable<HadbObject> dataList, CancellationToken cancel = default);
     protected internal abstract Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, CancellationToken cancel = default);
+    protected internal abstract Task<IEnumerable<HadbObject>> AtomicGetArchivedDataFromDatabaseImplAsync(HadbTran tran, int maxItems, string uid, string typeName, string nameSpace, CancellationToken cancel = default);
     protected internal abstract Task<HadbObject?> AtomicSearchDataByKeyFromDatabaseImplAsync(HadbTran tran, HadbKeys keys, string typeName, string nameSpace, CancellationToken cancel = default);
     protected internal abstract Task<IEnumerable<HadbObject>> AtomicSearchDataListByLabelsFromDatabaseImplAsync(HadbTran tran, HadbLabels labels, string typeName, string nameSpace, CancellationToken cancel = default);
-    protected internal abstract Task<HadbObject> AtomicDeleteDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, CancellationToken cancel = default);
+    protected internal abstract Task<HadbObject> AtomicDeleteDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, int maxArchive, CancellationToken cancel = default);
     protected internal abstract Task<HadbObject> AtomicUpdateDataOnDatabaseImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default);
     protected internal abstract Task<string> AtomicGetKvImplAsync(HadbTran tran, string key, CancellationToken cancel = default);
     protected internal abstract Task AtomicSetKvImplAsync(HadbTran tran, string key, string value, CancellationToken cancel = default);
@@ -2167,11 +2250,11 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
             Debug($"ReloadMainLoopAsync: numCycle={numCycle}, numError={numError} End. Took time: {(endTick - startTick)._ToString3()} msecs.");
 
+            if (this.Settings.OptionFlags.Bit(HadbOptionFlags.NoAutoDbReloadAndUpdate)) return;
+
             int nextWaitTime = Util.GenRandInterval(ok ? this.CurrentDynamicConfig.HadbReloadIntervalMsecsLastOk : this.CurrentDynamicConfig.HadbReloadIntervalMsecsLastError);
             Debug($"ReloadMainLoopAsync: Waiting for {nextWaitTime._ToString3()} msecs for next DB read.");
             await cancel._WaitUntilCanceledAsync(nextWaitTime);
-
-            if (this.Settings.OptionFlags.Bit(HadbOptionFlags.NoAutoDbReloadAndUpdate)) return;
         }
 
         Debug($"ReloadMainLoopAsync: Finished.");
@@ -2632,6 +2715,19 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             return ret;
         }
 
+        public async Task<IEnumerable<HadbObject>> AtomicGetArchivedAsync<T>(string uid, int maxItems = int.MaxValue, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default) where T : HadbData
+            => await AtomicGetArchivedAsync(uid, typeof(T).Name, maxItems, nameSpace, cancel);
+
+        public async Task<IEnumerable<HadbObject>> AtomicGetArchivedAsync(string uid, string typeName, int maxItems = int.MaxValue, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        {
+            nameSpace = nameSpace._HadbNameSpaceNormalize();
+
+            CheckBegan();
+            Hadb.CheckIfReady();
+
+            return await Hadb.AtomicGetArchivedDataFromDatabaseImplAsync(this, maxItems, uid, typeName, nameSpace, cancel);
+        }
+
         public async Task<HadbObject> AtomicUpdateAsync(HadbObject obj, CancellationToken cancel = default)
         {
             CheckBegan();
@@ -2716,13 +2812,13 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         {
             CheckBegan();
             model.Normalize();
-            return await AtomicDeleteByKeyAsync<T>(model.GetKeys(), nameSpace, cancel);
+            return await AtomicDeleteByKeyAsync<T>(model.GetKeys(), nameSpace, model.GetMaxArchivedCount(), cancel);
         }
 
-        public async Task<HadbObject> AtomicDeleteByKeyAsync<T>(HadbKeys keys, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default) where T : HadbData
-            => await AtomicDeleteByKeyAsync(keys, typeof(T).Name, nameSpace, cancel);
+        public async Task<HadbObject> AtomicDeleteByKeyAsync<T>(HadbKeys keys, string nameSpace = Consts.Strings.HadbDefaultNameSpace, int maxArchive = int.MaxValue, CancellationToken cancel = default) where T : HadbData
+            => await AtomicDeleteByKeyAsync(keys, typeof(T).Name, nameSpace, maxArchive, cancel);
 
-        public async Task<HadbObject> AtomicDeleteByKeyAsync(HadbKeys keys, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        public async Task<HadbObject> AtomicDeleteByKeyAsync(HadbKeys keys, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace, int maxArchive = int.MaxValue, CancellationToken cancel = default)
         {
             nameSpace = nameSpace._HadbNameSpaceNormalize();
             CheckBegan();
@@ -2732,18 +2828,18 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                 throw new CoresLibException($"Object not found. keys = {keys._ObjectToJson(compact: true)}");
             }
 
-            return await AtomicDeleteAsync(obj.Uid, typeName, nameSpace, cancel);
+            return await AtomicDeleteAsync(obj.Uid, typeName, nameSpace, maxArchive, cancel);
         }
 
-        public async Task<HadbObject> AtomicDeleteAsync<T>(string uid, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default) where T : HadbData
-            => await AtomicDeleteAsync(uid, typeof(T).Name, nameSpace, cancel);
+        public async Task<HadbObject> AtomicDeleteAsync<T>(string uid, string nameSpace = Consts.Strings.HadbDefaultNameSpace, int maxArchive = int.MaxValue, CancellationToken cancel = default) where T : HadbData
+            => await AtomicDeleteAsync(uid, typeof(T).Name, nameSpace, maxArchive, cancel);
 
-        public async Task<HadbObject> AtomicDeleteAsync(string uid, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        public async Task<HadbObject> AtomicDeleteAsync(string uid, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace, int maxArchive = int.MaxValue, CancellationToken cancel = default)
         {
             CheckBegan();
             Hadb.CheckIfReady();
 
-            HadbObject ret = await Hadb.AtomicDeleteDataFromDatabaseImplAsync(this, uid, typeName, nameSpace, cancel);
+            HadbObject ret = await Hadb.AtomicDeleteDataFromDatabaseImplAsync(this, uid, typeName, nameSpace, maxArchive, cancel);
 
             this.AddApplyObject(ret);
 

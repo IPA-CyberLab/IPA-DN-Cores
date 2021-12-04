@@ -2400,13 +2400,17 @@ static class TestClass
 
     static void Test_211108()
     {
-        Async(async () =>
+        do
         {
-            HadbCodeTest t = new HadbCodeTest();
-            await t.Test1Async();
-            t.SystemName._Print();
+            Async(async () =>
+            {
+                HadbCodeTest t = new HadbCodeTest();
+                await t.Test1Async();
+                t.SystemName._Print();
+            }
+            );
         }
-        );
+        while (false);
     }
 
     static void Test_211017()

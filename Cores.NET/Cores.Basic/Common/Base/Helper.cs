@@ -3078,6 +3078,9 @@ public static class BasicHelper
         nameSpace = nameSpace._ReplaceStr(":", "_", true);
         return nameSpace;
     }
+
+    public static bool _IsInTcpUdpPortRange(this int port)
+        => (port >= 1 && port <= 65535);
 }
 
 

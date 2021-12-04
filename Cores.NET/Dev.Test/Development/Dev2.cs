@@ -116,6 +116,8 @@ public class HadbCodeTest
         {
             return new HadbLabels(this.Company, this.LastIp);
         }
+
+        public override int GetMaxArchivedCount() => 10;
     }
 
     public class Mem : HadbMemDataBase
@@ -140,7 +142,7 @@ public class HadbCodeTest
         var settings = new HadbSqlSettings(SystemName,
             new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbPassword, true),
             new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbPassword, true),
-            HadbOptionFlags.None);
+            HadbOptionFlags.NoAutoDbReloadAndUpdate);
 
         await using Sys sys1 = new Sys(settings, new Dyn() { Hello = "Hello World" });
         await using Sys sys2 = new Sys(settings, new Dyn() { Hello = "Hello World" });
@@ -178,6 +180,44 @@ public class HadbCodeTest
         await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
         Dbg.TestTrue(sys2.CurrentDynamicConfig.Hello == "Neko");
 
+        await sys1.TranAsync(true, async tran =>
+        {
+            string s = await tran.AtomicGetKvAsync(" inchiki");
+            Dbg.TestTrue(s == "");
+
+            await tran.AtomicSetKvAsync("inchiki ", "123");
+
+            return true;
+        });
+
+        await sys2.TranAsync(false, async tran =>
+        {
+            string s = await tran.AtomicGetKvAsync("inchiki  ");
+            Dbg.TestTrue(s == "123");
+            return true;
+        });
+
+        await sys1.TranAsync(true, async tran =>
+        {
+            string s = await tran.AtomicGetKvAsync("   inchiki");
+            Dbg.TestTrue(s == "123");
+
+            await tran.AtomicSetKvAsync(" inchiki", "456");
+
+            return true;
+        });
+
+        await sys2.TranAsync(false, async tran =>
+        {
+            var db = (tran as HadbSqlBase<Mem, Dyn>.HadbSqlTran)!.Db;
+
+            var test = await db.QueryWithValueAsync("select count(*) from HADB_KV where KV_SYSTEM_NAME = @ and KV_KEY = @", sys1.SystemName, "inchiki");
+
+            Dbg.TestTrue(test.Int == 1);
+
+            return true;
+        });
+
         for (int i = 0; i < 2; i++)
         {
             string nameSpace = $"__NameSpace_{i}__";
@@ -187,44 +227,6 @@ public class HadbCodeTest
 
             Con.WriteLine($"--- Namespace: {nameSpace} ---");
 
-            //await sys1.TranAsync(true, async tran =>
-            //{
-            //    string s = await tran.AtomicGetKvAsync(" inchiki");
-            //    Dbg.TestTrue(s == "");
-
-            //    await tran.AtomicSetKvAsync("inchiki ", "123");
-
-            //    return true;
-            //});
-
-            //await sys2.TranAsync(false, async tran =>
-            //{
-            //    string s = await tran.AtomicGetKvAsync("inchiki  ");
-            //    Dbg.TestTrue(s == "123");
-            //    return true;
-            //});
-
-            //await sys1.TranAsync(true, async tran =>
-            //{
-            //    string s = await tran.AtomicGetKvAsync("   inchiki");
-            //    Dbg.TestTrue(s == "123");
-
-            //    await tran.AtomicSetKvAsync(" inchiki", "456");
-
-            //    return true;
-            //});
-
-            //await sys2.TranAsync(false, async tran =>
-            //{
-            //    var db = (tran as HadbSqlBase<Mem, Dyn>.HadbSqlTran)!.Db;
-
-            //    var test = await db.QueryWithValueAsync("select count(*) from HADB_KV where KV_SYSTEM_NAME = @ and KV_KEY = @", sys1.SystemName, "inchiki");
-
-            //    Dbg.TestTrue(test.Int == 1);
-
-            //    return true;
-            //});
-
             Dbg.TestNull(sys1.FastSearchByKey(new User() { Name = "User1" }, nameSpace));
             Dbg.TestNull(sys1.FastSearchByKey(new User() { Name = "User2" }, nameSpace));
             Dbg.TestNull(sys1.FastSearchByKey(new User() { Name = "User3" }, nameSpace));
@@ -232,6 +234,37 @@ public class HadbCodeTest
             Dbg.TestNull(sys2.FastSearchByKey(new User() { Name = "User1" }, nameSpace));
             Dbg.TestNull(sys2.FastSearchByKey(new User() { Name = "User2" }, nameSpace));
             Dbg.TestNull(sys2.FastSearchByKey(new User() { Name = "User3" }, nameSpace));
+
+
+            string neko_uid = "";
+
+            await sys1.TranAsync(true, async tran =>
+            {
+                var obj = await tran.AtomicAddAsync(new User { Id="NekoSan", AuthKey = "Neko123", Company = "University of Tsukuba", FullName = "Neko YaHoo!", Int1 = 0, LastIp = "9.3.1.7", Name = "Super-San" });
+                neko_uid = obj.Uid;
+                return true;
+            });
+
+            await sys1.TranAsync(true, async tran =>
+            {
+                for (int i = 0; i < 20; i++)
+                {
+                    var obj = await tran.AtomicGetAsync<User>(neko_uid);
+                    var user = obj!.GetData<User>();
+                    user.Name = "Super-Oracle" + i.ToString();
+                    user.LastIp = "0.0.0." + i.ToString();
+
+                    await tran.AtomicUpdateAsync(obj);
+                }
+                return true;
+            });
+
+            await sys1.TranAsync(false, async tran =>
+            {
+                var list = await tran.AtomicGetArchivedAsync<User>(neko_uid);
+                Dbg.TestTrue(list.Count() == 11);
+                return true;
+            });
 
             RefLong snapshot0 = new RefLong();
 
@@ -500,6 +533,16 @@ public class HadbCodeTest
                 return true;
             }, takeSnapshot: true, snapshotNoRet: snapshot2);
 
+            // アーカイブ取得実験
+            await sys1.TranAsync(false, async tran =>
+            {
+                var archiveList = await tran.AtomicGetArchivedAsync<User>(u1_uid, nameSpace: nameSpace);
+                Dbg.TestTrue(archiveList.Count() == 2);
+                Dbg.TestTrue(archiveList.ElementAt(0).SnapshotNo == snapshot2);
+                Dbg.TestTrue(archiveList.ElementAt(1).SnapshotNo == snapshot0);
+                return false;
+            });
+
             Dbg.TestTrue(sys2.MemDb!.InternalData.IndexedKeysTable.Where(x => x.Key._InStri(nameSpace)).Count() == (4 * 3));
             Dbg.TestTrue(sys2.MemDb!.InternalData.IndexedLabelsTable.Where(x => x.Key._InStri(nameSpace)).Sum(x => x.Value.Count) == (2 * 3));
             Dbg.TestTrue(sys2.MemDb!.InternalData.IndexedLabelsTable.Where(x => x.Key._InStri(nameSpace)).Count() == (2 * 3));
@@ -612,6 +655,17 @@ public class HadbCodeTest
 
                 return true;
             }, takeSnapshot: true, snapshotNoRet: snapshot3);
+
+            // アーカイブ取得実験
+            await sys1.TranAsync(false, async tran =>
+            {
+                var archiveList = await tran.AtomicGetArchivedAsync<User>(u1_uid, nameSpace: nameSpace);
+                Dbg.TestTrue(archiveList.Count() == 3);
+                Dbg.TestTrue(archiveList.ElementAt(0).SnapshotNo == snapshot3);
+                Dbg.TestTrue(archiveList.ElementAt(1).SnapshotNo == snapshot2);
+                Dbg.TestTrue(archiveList.ElementAt(2).SnapshotNo == snapshot0);
+                return false;
+            });
 
             {
                 var obj = sys1.FastSearchByLabels<User>(new User { Company = " softETHER " }, nameSpace).Single();
@@ -766,12 +820,25 @@ public class HadbCodeTest
 
 
 
+            RefLong snapshot4 = new RefLong();
 
             // sys1 で削除コミットし、sys2 に反映されるかどうか
             await sys1.TranAsync(true, async tran =>
             {
                 await tran.AtomicDeleteByKeyAsync(new User { AuthKey = "X001" }, nameSpace);
                 return true;
+            }, takeSnapshot: true, snapshot4);
+
+            // アーカイブ取得実験
+            await sys2.TranAsync(false, async tran =>
+            {
+                var archiveList = await tran.AtomicGetArchivedAsync<User>(u1_uid, nameSpace: nameSpace);
+                Dbg.TestTrue(archiveList.Count() == 4);
+                Dbg.TestTrue(archiveList.ElementAt(0).SnapshotNo == snapshot4);
+                Dbg.TestTrue(archiveList.ElementAt(1).SnapshotNo == snapshot3);
+                Dbg.TestTrue(archiveList.ElementAt(2).SnapshotNo == snapshot2);
+                Dbg.TestTrue(archiveList.ElementAt(3).SnapshotNo == snapshot0);
+                return false;
             });
 
             // sys1 のメモリ検索上なくなったか
