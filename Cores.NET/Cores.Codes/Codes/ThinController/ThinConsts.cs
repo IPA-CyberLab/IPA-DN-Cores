@@ -71,6 +71,7 @@ using static IPA.Cores.Globals.Basic;
 using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
+using System.Data;
 
 namespace IPA.Cores.Codes;
 
@@ -97,6 +98,10 @@ public static partial class ThinControllerConsts
     public static readonly Copenhagen<int> ThinWebClient_WebSocketCertMaintainer_Interval_Normal_Msecs = 1 * 60 * 60 * 1000;
     public static readonly Copenhagen<int> ThinWebClient_WebSocketCertMaintainer_Interval_Retry_Initial_Msecs = 15 * 1000;
     public static readonly Copenhagen<int> ThinWebClient_WebSocketCertMaintainer_Interval_Retry_Max_Msecs = 5 * 60 * 1000;
+
+    // DB 接続時のトランザクション分離レベルのデフォルト値
+    public static readonly Copenhagen<IsolationLevel> Controller_DatabaseIsolationLevel_Read = IsolationLevel.Snapshot;
+    public static readonly Copenhagen<IsolationLevel> Controller_DatabaseIsolationLevel_Write = IsolationLevel.Snapshot;
 
     // DB の Var で設定可能な変数のデフォルト値
     public static readonly Copenhagen<int> Default_ControllerMaxConcurrentWpcRequestProcessingForUsers = 500;

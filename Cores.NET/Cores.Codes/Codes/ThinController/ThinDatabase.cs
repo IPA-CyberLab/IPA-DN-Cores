@@ -412,7 +412,7 @@ public class ThinDatabase : AsyncServiceWithMainLoop
 
     public async Task<Database> OpenDatabaseForReadAsync(CancellationToken cancel = default)
     {
-        Database db = new Database(this.Controller.SettingsFastSnapshot.DbConnectionString_Read, defaultIsolationLevel: IsolationLevel.Snapshot);
+        Database db = new Database(this.Controller.SettingsFastSnapshot.DbConnectionString_Read, defaultIsolationLevel: ThinControllerConsts.Controller_DatabaseIsolationLevel_Read);
 
         try
         {
@@ -431,7 +431,7 @@ public class ThinDatabase : AsyncServiceWithMainLoop
 
     public async Task<Database> OpenDatabaseForWriteAsync(CancellationToken cancel = default)
     {
-        Database db = new Database(this.Controller.SettingsFastSnapshot.DbConnectionString_Write, defaultIsolationLevel: IsolationLevel.Serializable);
+        Database db = new Database(this.Controller.SettingsFastSnapshot.DbConnectionString_Write, defaultIsolationLevel: ThinControllerConsts.Controller_DatabaseIsolationLevel_Write);
 
         try
         {
