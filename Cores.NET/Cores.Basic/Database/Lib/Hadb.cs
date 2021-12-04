@@ -123,6 +123,7 @@ public class HadbDynamicConfig : INormalizable
     public int HadbLazyUpdateIntervalMsecs;
     public int HadbBackupFileWriteIntervalMsecs;
     public int HadbRecordStatIntervalMsecs;
+    public int HadbAutomaticSnapshotIntervalMsecs;
 
     public HadbDynamicConfig()
     {
@@ -136,6 +137,7 @@ public class HadbDynamicConfig : INormalizable
         this.HadbLazyUpdateIntervalMsecs = this.HadbLazyUpdateIntervalMsecs._ZeroOrDefault(Consts.HadbDynamicConfigDefaultValues.HadbLazyUpdateIntervalMsecs, max: Consts.HadbDynamicConfigMaxValues.HadbLazyUpdateIntervalMsecs);
         this.HadbBackupFileWriteIntervalMsecs = this.HadbBackupFileWriteIntervalMsecs._ZeroOrDefault(Consts.HadbDynamicConfigDefaultValues.HadbBackupFileWriteIntervalMsecs, max: Consts.HadbDynamicConfigMaxValues.HadbBackupFileWriteIntervalMsecs);
         this.HadbRecordStatIntervalMsecs = this.HadbRecordStatIntervalMsecs._ZeroOrDefault(Consts.HadbDynamicConfigDefaultValues.HadbRecordStatIntervalMsecs, max: Consts.HadbDynamicConfigMaxValues.HadbRecordStatIntervalMsecs);
+        this.HadbAutomaticSnapshotIntervalMsecs = Math.Max(this.HadbAutomaticSnapshotIntervalMsecs, 0);
 
         this.NormalizeImpl();
     }
@@ -2763,10 +2765,14 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
         public async Task BeginAsync(bool takeSnapshot, CancellationToken cancel = default)
         {
+            long autoSnapshotInterval = this.Hadb.CurrentDynamicConfig.HadbAutomaticSnapshotIntervalMsecs;
+
             if (BeganFlag.IsFirstCall())
             {
                 if (this.IsWriteMode)
                 {
+                    var now = DtOffsetNow;
+
                     this.TakeSnapshot = takeSnapshot;
 
                     // Snapshot 処理をする。
@@ -2775,12 +2781,22 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                     this.CurrentSnapNoForWriteMode = kvList.SingleOrDefault(x => x.Key._IsSamei("_hadb_sys_current_snapshot_no")).Value._ToLong();
 
                     // 最後に Snapshot が撮られた日時を取得する
-                    var lastTaken = Str.StrToDateTime(kvList.SingleOrDefault(x => x.Key._IsSamei("_hadb_sys_current_snapshot_no")).Value);
+                    var lastTaken = Str.DtstrToDateTimeOffset(kvList.SingleOrDefault(x => x.Key._IsSamei("_hadb_sys_current_snapshot_timestamp")).Value);
+
+                    string snapshotDescrption = "Normal Snapshot";
 
                     if (this.CurrentSnapNoForWriteMode == 0)
                     {
                         // 初めての場合は、必ず Snapshot を撮る。
                         this.TakeSnapshot = true;
+                        snapshotDescrption = "Initial Snapshot";
+                    }
+
+                    if (this.TakeSnapshot == false && autoSnapshotInterval != 0 && lastTaken.AddMilliseconds(autoSnapshotInterval) < now)
+                    {
+                        // 自動スナップショットを撮る。
+                        this.TakeSnapshot = true;
+                        snapshotDescrption = $"Automatic Snapshot (Interval = {Str.TimeSpanToTsStr(autoSnapshotInterval._ToTimeSpanMSecs(), true)})";
                     }
 
                     if (this.TakeSnapshot)
@@ -2791,7 +2807,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                         // インクリメントされた Snapshot 番号を書き込む。
                         await this.AtomicSetKvAsync("_hadb_sys_current_snapshot_no", this.CurrentSnapNoForWriteMode.ToString(), cancel);
 
-                        var snap = new HadbSnapshot(Str.NewUid("SNAPSHOT", '_'), Hadb.SystemName, this.CurrentSnapNoForWriteMode, DtOffsetNow, "Initial Snapshot", "", "");
+                        var snap = new HadbSnapshot(Str.NewUid("SNAPSHOT", '_'), Hadb.SystemName, this.CurrentSnapNoForWriteMode, now, snapshotDescrption, "", "");
 
                         // 最後の Snapshot 情報を書き込む。
                         await this.AtomicSetKvAsync("_hadb_sys_current_snapshot_uid", snap.Uid, cancel);
