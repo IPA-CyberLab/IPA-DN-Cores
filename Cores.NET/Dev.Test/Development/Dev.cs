@@ -925,7 +925,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         row.DATA_EXT1 = data.Ext1;
         row.DATA_EXT2 = data.Ext2;
         row.DATA_LAZY_COUNT1 = 0;
-        row.DATA_SNAPSHOT_NO = data.SnapshotNo;
+        row.DATA_SNAPSHOT_NO = tran.CurrentSnapNoForWriteMode;
         row.DATA_NAMESPACE = data.NameSpace;
 
         await dbWriter.EasyUpdateAsync(row, true, cancel);
@@ -1394,6 +1394,11 @@ public sealed class HadbObject : INormalizable
                 throw new CoresLibException($"this.Uid '{this.Uid}' != obj.Uid '{newObj.Uid}'");
             }
 
+            if (this.NameSpace._IsSamei(newObj.NameSpace) == false)
+            {
+                throw new CoresLibException($"this.NameSpace '{this.NameSpace}' != obj.NameSpace '{newObj.NameSpace}'");
+            }
+
             if (this.ArchiveAge != 0)
             {
                 throw new CoresLibException($"this.ArchiveAge == {this.ArchiveAge}");
@@ -1428,6 +1433,7 @@ public sealed class HadbObject : INormalizable
                 this._Ext1 = newObj.Ext1;
                 this._Ext2 = newObj.Ext2;
                 this.Ver = newObj.Ver;
+                this.SnapshotNo = newObj.SnapshotNo;
             }
             else
             {
@@ -2252,7 +2258,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () => CheckIfReady(doNotThrowError: EnsureSpecial.Yes).IsOk, cancel, true);
     }
 
-    public async Task<bool> TranAsync(bool writeMode, Func<HadbTran, Task<bool>> task, bool takeSnapshot = false, CancellationToken cancel = default, DeadlockRetryConfig? retryConfig = null)
+    public async Task<bool> TranAsync(bool writeMode, Func<HadbTran, Task<bool>> task, bool takeSnapshot = false, RefLong? snapshotNoRet = null, CancellationToken cancel = default, DeadlockRetryConfig? retryConfig = null)
     {
         CheckIfReady();
         retryConfig ??= this.DefaultDeadlockRetryConfig;
@@ -2269,6 +2275,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             {
                 await tran.CommitAsync(cancel);
 
+                snapshotNoRet?.Set(tran.CurrentSnapNoForWriteMode);
                 return true;
             }
             else

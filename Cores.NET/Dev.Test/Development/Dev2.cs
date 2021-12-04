@@ -185,6 +185,8 @@ public class HadbCodeTest
             string u2_uid = "";
             string u3_uid = "";
 
+            Con.WriteLine($"--- Namespace: {nameSpace} ---");
+
             //await sys1.TranAsync(true, async tran =>
             //{
             //    string s = await tran.AtomicGetKvAsync(" inchiki");
@@ -231,13 +233,15 @@ public class HadbCodeTest
             Dbg.TestNull(sys2.FastSearchByKey(new User() { Name = "User2" }, nameSpace));
             Dbg.TestNull(sys2.FastSearchByKey(new User() { Name = "User3" }, nameSpace));
 
+            RefLong snapshot0 = new RefLong();
+
             await sys1.TranAsync(true, async tran =>
             {
                 User u = new User() { Id = "u1", Name = "User1", AuthKey = "a001", Company = "NTT", LastIp = "A123:b456:0001::c789", FullName = "Tanaka", Int1 = 100 };
                 var obj = await tran.AtomicAddAsync(u, nameSpace, "a", "1");
                 u1_uid = obj.Uid;
                 return true;
-            });
+            }, takeSnapshot: true, snapshotNoRet: snapshot0);
 
             var test2 = sys1.FastSearchByKey(new User() { Name = "User1" }, nameSpace);
             Dbg.TestNotNull(test2);
@@ -257,6 +261,13 @@ public class HadbCodeTest
                 Dbg.TestTrue(obj.Ext2 == "1");
             }
 
+            await sys2.TranAsync(false, async tran =>
+            {
+                var obj = await tran.AtomicGetAsync<User>(u1_uid, nameSpace);
+                Dbg.TestTrue(obj!.SnapshotNo == snapshot0);
+                return true;
+            });
+
             await sys1.TranAsync(true, async tran =>
             {
                 User u = new User() { Id = "u2", Name = "User2", AuthKey = "a002", Company = "NTT", LastIp = "af80:b456:0001::c789", FullName = "Yamada", Int1 = 200 };
@@ -265,13 +276,15 @@ public class HadbCodeTest
                 return true;
             });
 
+            RefLong snapshot1 = new RefLong();
+
             await sys1.TranAsync(true, async tran =>
             {
                 User u = new User() { Id = "u3", Name = "User3", AuthKey = "a003", Company = "IPA", LastIp = "A123:b456:0001::c789", FullName = "Unagi", Int1 = 300 };
                 var obj = await tran.AtomicAddAsync(u, nameSpace, "c", "3");
                 u3_uid = obj.Uid;
                 return true;
-            });
+            }, takeSnapshot: true, snapshotNoRet: snapshot1);
 
             {
                 await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
@@ -284,6 +297,7 @@ public class HadbCodeTest
                 Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
                 Dbg.TestTrue(obj.Ext1 == "c");
                 Dbg.TestTrue(obj.Ext2 == "3");
+                Dbg.TestTrue(obj.SnapshotNo == snapshot1);
             }
 
             await sys1.TranAsync(false, async tran =>
@@ -297,6 +311,7 @@ public class HadbCodeTest
                 Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
                 Dbg.TestTrue(obj.Ext1 == "a");
                 Dbg.TestTrue(obj.Ext2 == "1");
+                Dbg.TestTrue(obj.SnapshotNo == snapshot0);
                 return false;
             });
 
@@ -311,6 +326,7 @@ public class HadbCodeTest
                 Dbg.TestTrue(u.LastIp == "af80:b456:1::c789");
                 Dbg.TestTrue(obj.Ext1 == "b");
                 Dbg.TestTrue(obj.Ext2 == "2");
+                Dbg.TestTrue(obj.SnapshotNo == snapshot0);
                 return false;
             });
 
@@ -322,6 +338,9 @@ public class HadbCodeTest
                 var list2 = list.ToArray();
                 Dbg.TestTrue(list2[0].Id == "u1");
                 Dbg.TestTrue(list2[1].Id == "u2");
+
+                Dbg.TestTrue(obj.Where(x => x.SnapshotNo == snapshot0).Count() == 2);
+                Dbg.TestTrue(obj.Where(x => x.SnapshotNo == snapshot1).Count() == 0);
                 return false;
             });
 
@@ -338,6 +357,7 @@ public class HadbCodeTest
                 Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
                 Dbg.TestTrue(obj.Ext1 == "c");
                 Dbg.TestTrue(obj.Ext2 == "3");
+                Dbg.TestTrue(obj.SnapshotNo == snapshot1);
                 obj.FastUpdate<User>(x =>
                 {
                     x.Int1++;
@@ -358,6 +378,7 @@ public class HadbCodeTest
                 Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
                 Dbg.TestTrue(obj.Ext1 == "a");
                 Dbg.TestTrue(obj.Ext2 == "1");
+                Dbg.TestTrue(obj.SnapshotNo == snapshot0);
                 obj.FastUpdate<User>(x =>
                 {
                     x.Int1++;
@@ -380,6 +401,7 @@ public class HadbCodeTest
                 Dbg.TestTrue(u.Int1 == 301);
                 Dbg.TestTrue(obj.Ext1 == "c");
                 Dbg.TestTrue(obj.Ext2 == "3");
+                Dbg.TestTrue(obj.SnapshotNo == snapshot1);
                 obj.FastUpdate<User>(x =>
                 {
                     x.Int1++;
@@ -399,6 +421,7 @@ public class HadbCodeTest
                 Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
                 Dbg.TestTrue(obj.Ext1 == "a");
                 Dbg.TestTrue(obj.Ext2 == "1");
+                Dbg.TestTrue(obj.SnapshotNo == snapshot0);
                 obj.FastUpdate<User>(x =>
                 {
                     x.Int1++;
@@ -448,7 +471,10 @@ public class HadbCodeTest
                 Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
                 Dbg.TestTrue(obj.Ext1 == "a");
                 Dbg.TestTrue(obj.Ext2 == "1");
+                Dbg.TestTrue(obj.SnapshotNo == snapshot0);
             }
+
+            RefLong snapshot2 = new RefLong();
 
             // sys2 でデータ編集コミット --> sys1 でメモリ更新 --> sys1 で高速更新 --> sys2 で観測できるか?
             await sys2.TranAsync(true, async tran =>
@@ -469,10 +495,10 @@ public class HadbCodeTest
                 obj.Ext1 = "z";
                 obj.Ext2 = "99";
 
-                await tran.AtomicUpdateAsync(obj);
+                var x = await tran.AtomicUpdateAsync(obj);
 
                 return true;
-            });
+            }, takeSnapshot: true, snapshotNoRet: snapshot2);
 
             Dbg.TestTrue(sys2.MemDb!.InternalData.IndexedKeysTable.Where(x => x.Key._InStri(nameSpace)).Count() == (4 * 3));
             Dbg.TestTrue(sys2.MemDb!.InternalData.IndexedLabelsTable.Where(x => x.Key._InStri(nameSpace)).Sum(x => x.Value.Count) == (2 * 3));
@@ -486,6 +512,7 @@ public class HadbCodeTest
                 Dbg.TestTrue(u.Int1 == 103);
                 Dbg.TestTrue(obj.Ext1 == "z");
                 Dbg.TestTrue(obj.Ext2 == "99");
+                Dbg.TestTrue(obj.SnapshotNo == snapshot2);
             }
 
             Dbg.TestTrue(sys1.MemDb!.InternalData.IndexedKeysTable.Where(x => x.Key._InStri(nameSpace)).Count() == (4 * 3));
@@ -510,6 +537,7 @@ public class HadbCodeTest
                 Dbg.TestTrue(u.Int1 == 103);
                 Dbg.TestTrue(obj.Ext1 == "z");
                 Dbg.TestTrue(obj.Ext2 == "99");
+                Dbg.TestTrue(obj.SnapshotNo == snapshot2);
                 obj.FastUpdate<User>(x =>
                 {
                     x.Int1++;
@@ -532,6 +560,7 @@ public class HadbCodeTest
                 Dbg.TestTrue(u.Int1 == 104);
                 Dbg.TestTrue(obj.Ext1 == "z");
                 Dbg.TestTrue(obj.Ext2 == "99");
+                Dbg.TestTrue(obj.SnapshotNo == snapshot2);
 
                 // 追加テスト: キー値またはラベル値の変更でエラーが発生することを確認
                 obj.FastUpdate<User>(x =>
@@ -565,6 +594,8 @@ public class HadbCodeTest
             await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
             await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
 
+            RefLong snapshot3 = new RefLong();
+
             // sys2 でコミット編集 -> sys1 で高速編集 -> sys1 で遅延コミット -> sys1 を更新し sys1 の高速コミットが失われ sys2 のコミットが適用されていることを確認
             await sys2.TranAsync(true, async tran =>
             {
@@ -580,7 +611,7 @@ public class HadbCodeTest
                 await tran.AtomicUpdateAsync(obj);
 
                 return true;
-            });
+            }, takeSnapshot: true, snapshotNoRet: snapshot3);
 
             {
                 var obj = sys1.FastSearchByLabels<User>(new User { Company = " softETHER " }, nameSpace).Single();
@@ -593,6 +624,7 @@ public class HadbCodeTest
                 Dbg.TestTrue(u.Int1 == 104);
                 Dbg.TestTrue(obj.Ext1 == "z");
                 Dbg.TestTrue(obj.Ext2 == "99");
+                Dbg.TestTrue(obj.SnapshotNo == snapshot2);
                 obj.FastUpdate<User>(x =>
                 {
                     x.Int1 = 555;
@@ -610,6 +642,7 @@ public class HadbCodeTest
                 Dbg.TestTrue(u.Int1 == 105);
                 Dbg.TestTrue(obj.Ext1 == "p");
                 Dbg.TestTrue(obj.Ext2 == "1234");
+                Dbg.TestTrue(obj.SnapshotNo == snapshot3);
             }
 
             {
@@ -618,6 +651,7 @@ public class HadbCodeTest
                 Dbg.TestTrue(u.Int1 == 105);
                 Dbg.TestTrue(obj.Ext1 == "p");
                 Dbg.TestTrue(obj.Ext2 == "1234");
+                Dbg.TestTrue(obj.SnapshotNo == snapshot3);
             }
 
             // キーが重複するような更新に失敗するかどうか (メモリデータベースの検査)
@@ -633,6 +667,7 @@ public class HadbCodeTest
                 Dbg.TestTrue(u.Int1 == 105);
                 Dbg.TestTrue(obj.Ext1 == "p");
                 Dbg.TestTrue(obj.Ext2 == "1234");
+                Dbg.TestTrue(obj.SnapshotNo == snapshot3);
 
                 u.AuthKey = " A002 ";
 
@@ -659,6 +694,7 @@ public class HadbCodeTest
                 Dbg.TestTrue(u.Int1 == 105);
                 Dbg.TestTrue(obj.Ext1 == "p");
                 Dbg.TestTrue(obj.Ext2 == "1234");
+                Dbg.TestTrue(obj.SnapshotNo == snapshot3);
 
                 u.AuthKey = " A002 ";
 
@@ -669,6 +705,7 @@ public class HadbCodeTest
 
                 return false;
             });
+
 
             sys1.DebugFlags = sys1.DebugFlags.BitRemove(HadbDebugFlags.NoCheckMemKeyDuplicate);
 
