@@ -108,6 +108,11 @@ public class HadbTestMem : HadbMemDataBase
         ret.Add(typeof(HadbTestData));
         return ret;
     }
+
+    protected override List<Type> GetDefinedUserLogTypesImpl()
+    {
+        throw new NotImplementedException();
+    }
 }
 
 public class HadbTest : HadbSqlBase<HadbTestMem, HadbTestDynamicConfig>
@@ -300,7 +305,7 @@ public sealed class HadbSqlKvRow : INormalizable
 }
 
 [EasyTable("HADB_LOG")]
-public sealed class HadbSqlLog : INormalizable
+public sealed class HadbSqlLogRow : INormalizable
 {
     [EasyKey]
     public long LOG_ID { get; set; } = 0;
@@ -559,7 +564,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         foreach (var row in rowList)
         {
-            Type? type = this.GetTypeByTypeName(row.DATA_TYPE);
+            Type? type = this.GetDataTypeByTypeName(row.DATA_TYPE);
             if (type != null)
             {
                 HadbData? data = (HadbData?)row.DATA_VALUE._JsonToObject(type);
@@ -819,6 +824,107 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             // DB に書き込む
             await dbWriter.EasyInsertAsync(row, cancel);
         }
+    }
+
+    protected internal override async Task AtomicAddLogImplAsync(HadbTran tran, HadbLog log, string nameSpace, string ext1, string ext2, CancellationToken cancel = default)
+    {
+        nameSpace = nameSpace._HadbNameSpaceNormalize();
+        tran.CheckIsWriteMode();
+        var dbWriter = ((HadbSqlTran)tran).Db;
+
+        string typeName = log.GetLogDataTypeName();
+        string uid = Str.NewUid("LOG_" + typeName, '_');
+        uid = uid._NormalizeUid(true);
+
+        var label = log.GetLabels();
+
+        HadbSqlLogRow row = new HadbSqlLogRow
+        {
+            LOG_UID = uid,
+            LOG_SYSTEM_NAME = this.SystemName,
+            LOG_TYPE = typeName,
+            LOG_NAMESPACE = nameSpace,
+            LOG_DT = DtOffsetNow,
+            LOG_SNAP_NO = tran.CurrentSnapNoForWriteMode,
+            LOG_DELETED = false,
+            LOG_LABEL1 = label.Label1,
+            LOG_LABEL2 = label.Label2,
+            LOG_LABEL3 = label.Label3,
+            LOG_LABEL4 = label.Label4,
+            LOG_VALUE = log.GetLogDataJsonString(),
+            LOG_EXT1 = ext1._NonNull(),
+            LOG_EXT2 = ext2._NonNull(),
+        };
+
+        row.Normalize();
+
+        await dbWriter.EasyInsertAsync(row, cancel);
+    }
+
+    protected internal override async Task<IEnumerable<HadbLog>> AtomicSearchLogImplAsync(HadbTran tran, string typeName, HadbLogQuery query, string nameSpace, CancellationToken cancel = default)
+    {
+        typeName = typeName._NonNullTrim();
+        query.Normalize();
+        nameSpace = nameSpace._HadbNameSpaceNormalize();
+        var db = ((HadbSqlTran)tran).Db;
+
+        List<string> conditions = new List<string>();
+
+        if (query.Uid._IsFilled()) conditions.Add("LOG_UID = @LOG_UID");
+        if (query.TimeStart._IsZeroDateTime() == false) conditions.Add("LOG_DT >= @DT_START");
+        if (query.TimeEnd._IsZeroDateTime() == false) conditions.Add("LOG_DT <= @DT_END");
+        if (query.SnapshotNoStart > 0) conditions.Add("LOG_SNAP_NO >= @SNAP_START");
+        if (query.SnapshotNoEnd > 0) conditions.Add("LOG_SNAP_NO <= @SNAP_END");
+
+        var labels = query.Labels;
+        if (labels.Label1._IsFilled()) conditions.Add("LOG_LABEL1 = @LOG_LABEL1");
+        if (labels.Label2._IsFilled()) conditions.Add("LOG_LABEL2 = @LOG_LABEL2");
+        if (labels.Label3._IsFilled()) conditions.Add("LOG_LABEL3 = @LOG_LABEL3");
+        if (labels.Label4._IsFilled()) conditions.Add("LOG_LABEL4 = @LOG_LABEL4");
+
+        var labels2 = query.SearchTemplate?.GetLabels() ?? new HadbLabels("");
+        if (labels2.Label1._IsFilled()) conditions.Add("LOG_LABEL1 = @LOG_LABEL1_02");
+        if (labels2.Label2._IsFilled()) conditions.Add("LOG_LABEL2 = @LOG_LABEL2_02");
+        if (labels2.Label3._IsFilled()) conditions.Add("LOG_LABEL3 = @LOG_LABEL3_02");
+        if (labels2.Label4._IsFilled()) conditions.Add("LOG_LABEL4 = @LOG_LABEL4_02");
+
+        if (conditions.Count == 0) conditions.Add("1 = 1");
+
+        string qstr = $"select {(query.MaxReturmItems >= 1 ? $"top {query.MaxReturmItems}" : "")} * from HADB_LOG where {conditions._Combine(" and ")} and LOG_SYSTEM_NAME = @LOG_SYSTEM_NAME and LOG_TYPE = @LOG_TYPE and LOG_NAMESPACE = @LOG_NAMESPACE and LOG_DELETED = 0 order by LOG_ID desc";
+
+        var rows = await db.EasySelectAsync<HadbSqlLogRow>(qstr,
+            new
+            {
+                LOG_UID = query.Uid,
+                DT_START = query.TimeStart,
+                DT_END = query.TimeEnd,
+                SNAP_START = query.SnapshotNoStart,
+                SNAP_END = query.SnapshotNoEnd,
+
+                LOG_LABEL1 = labels.Label1._NonNull(),
+                LOG_LABEL2 = labels.Label2._NonNull(),
+                LOG_LABEL3 = labels.Label3._NonNull(),
+                LOG_LABEL4 = labels.Label4._NonNull(),
+
+                LOG_LABEL1_02 = labels2.Label1._NonNull(),
+                LOG_LABEL2_02 = labels2.Label2._NonNull(),
+                LOG_LABEL3_02 = labels2.Label3._NonNull(),
+                LOG_LABEL4_02 = labels2.Label4._NonNull(),
+
+                LOG_SYSTEM_NAME = this.SystemName,
+                LOG_TYPE = typeName,
+                LOG_NAMESPACE = nameSpace,
+            },
+            cancel: cancel);
+
+        List<HadbLog> ret = new List<HadbLog>();
+
+        foreach (var row in rows)
+        {
+            ret.Add(this.JsonToHadbLog(row.LOG_VALUE, typeName));
+        }
+
+        return ret;
     }
 
     protected internal override async Task<bool> LazyUpdateImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default)
@@ -1230,6 +1336,31 @@ public struct HadbLabels : IEquatable<HadbLabels>
         if (this.Label4._IsSamei(other.Label4) == false) return false;
         return true;
     }
+}
+
+public abstract class HadbLog : INormalizable
+{
+    public virtual HadbLabels GetLabels() => new HadbLabels("");
+
+    public abstract void Normalize();
+
+    public Type GetLogDataType() => this.GetType();
+    public string GetLogDataTypeName() => this.GetType().Name;
+    public string GetLogDataJsonString()
+    {
+        try
+        {
+            this.Normalize();
+        }
+        catch (Exception ex)
+        {
+            ex._Debug();
+        }
+        return this._ObjectToJson(compact: true);
+    }
+
+    public T GetData<T>() where T : HadbLog
+        => (T)this;
 }
 
 public abstract class HadbData : INormalizable
@@ -1741,6 +1872,7 @@ public abstract class HadbMemDataBase
     }
 
     protected abstract List<Type> GetDefinedUserDataTypesImpl();
+    protected abstract List<Type> GetDefinedUserLogTypesImpl();
 
     public readonly AsyncLock CriticalLockAsync = new AsyncLock();
 
@@ -1766,6 +1898,25 @@ public abstract class HadbMemDataBase
             if (type.IsSubclassOf(typeof(HadbData)) == false)
             {
                 throw new CoresLibException($"type {type.ToString()} is not a subclass of {nameof(HadbData)}.");
+            }
+
+            ret.Add(type.Name, type);
+        }
+
+        return ret;
+    }
+
+    public StrDictionary<Type> GetDefinedUserLogTypesByName()
+    {
+        StrDictionary<Type> ret = new StrDictionary<Type>(StrComparer.SensitiveCaseComparer);
+
+        List<Type> tmp = GetDefinedUserLogTypesImpl();
+
+        foreach (var type in tmp)
+        {
+            if (type.IsSubclassOf(typeof(HadbLog)) == false)
+            {
+                throw new CoresLibException($"type {type.ToString()} is not a subclass of {nameof(HadbLog)}.");
             }
 
             ret.Add(type.Name, type);
@@ -1990,6 +2141,25 @@ public abstract class HadbMemDataBase
     }
 }
 
+public class HadbLogQuery : INormalizable
+{
+    public int MaxReturmItems { get; set; } = 0;
+    public string Uid { get; set; } = "";
+    public DateTimeOffset TimeStart { get; set; } = Util.ZeroDateTimeOffsetValue;
+    public DateTimeOffset TimeEnd { get; set; } = Util.ZeroDateTimeOffsetValue;
+    public long SnapshotNoStart { get; set; } = 0;
+    public long SnapshotNoEnd { get; set; } = 0;
+    public HadbLabels Labels { get; set; } = new HadbLabels("");
+    public HadbLog? SearchTemplate { get; set; } = null;
+
+    public void Normalize()
+    {
+        this.Uid = this.Uid._NormalizeUid(true);
+        this.TimeStart = this.TimeStart._NormalizeDateTimeOffset();
+        this.TimeEnd = this.TimeEnd._NormalizeDateTimeOffset();
+    }
+}
+
 public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     where TMem : HadbMemDataBase, new()
     where TDynamicConfig : HadbDynamicConfig
@@ -2025,6 +2195,9 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     protected internal abstract Task AtomicSetKvImplAsync(HadbTran tran, string key, string value, CancellationToken cancel = default);
     protected internal abstract Task AtomicAddSnapImplAsync(HadbTran tran, HadbSnapshot snap, CancellationToken cancel = default);
 
+    protected internal abstract Task AtomicAddLogImplAsync(HadbTran tran, HadbLog log, string nameSpace, string ext1, string ext2, CancellationToken cancel = default);
+    protected internal abstract Task<IEnumerable<HadbLog>> AtomicSearchLogImplAsync(HadbTran tran, string typeName, HadbLogQuery query, string nameSpace, CancellationToken cancel = default);
+
     protected internal abstract Task<bool> LazyUpdateImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default);
 
     protected abstract Task<KeyValueList<string, string>> LoadDynamicConfigFromDatabaseImplAsync(CancellationToken cancel = default);
@@ -2034,6 +2207,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     protected abstract bool IsDeadlockExceptionImpl(Exception ex);
 
     public StrDictionary<Type> DefinedDataTypesByName { get; }
+    public StrDictionary<Type> DefinedLogTypesByName { get; }
 
     public DeadlockRetryConfig DefaultDeadlockRetryConfig { get; set; }
 
@@ -2058,6 +2232,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
             TMem tmpMem = new TMem();
             this.DefinedDataTypesByName = tmpMem.GetDefinedUserDataTypesByName();
+            this.DefinedLogTypesByName = tmpMem.GetDefinedUserLogTypesByName();
 
             this.DefaultDeadlockRetryConfig = new DeadlockRetryConfig(CoresConfig.Database.DefaultDatabaseTransactionRetryAverageIntervalSecs, CoresConfig.Database.DefaultDatabaseTransactionRetryCount);
         }
@@ -2068,11 +2243,11 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         }
     }
 
-    public Type? GetTypeByTypeName(string name) => this.DefinedDataTypesByName._GetOrDefault(name);
+    public Type? GetDataTypeByTypeName(string name) => this.DefinedDataTypesByName._GetOrDefault(name);
 
-    public Type GetTypeByTypeName(string name, EnsureSpecial notFoundError)
+    public Type GetDataTypeByTypeName(string name, EnsureSpecial notFoundError)
     {
-        Type? ret = GetTypeByTypeName(name);
+        Type? ret = GetDataTypeByTypeName(name);
 
         if (ret == null)
         {
@@ -2084,7 +2259,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     public HadbData JsonToHadbData(string json, string typeName)
     {
-        Type t = GetTypeByTypeName(typeName, EnsureSpecial.Yes);
+        Type t = GetDataTypeByTypeName(typeName, EnsureSpecial.Yes);
 
         HadbData? ret = (HadbData?)json._JsonToObject(t);
         if (ret == null)
@@ -2094,6 +2269,35 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
         return ret;
     }
+
+
+    public Type? GetLogTypeByTypeName(string name) => this.DefinedLogTypesByName._GetOrDefault(name);
+
+    public Type GetLogTypeByTypeName(string name, EnsureSpecial notFoundError)
+    {
+        Type? ret = GetLogTypeByTypeName(name);
+
+        if (ret == null)
+        {
+            throw new CoresException($"Type name '{name}' not found.");
+        }
+
+        return ret;
+    }
+
+    public HadbLog JsonToHadbLog(string json, string typeName)
+    {
+        Type t = GetLogTypeByTypeName(typeName, EnsureSpecial.Yes);
+
+        HadbLog? ret = (HadbLog?)json._JsonToObject(t);
+        if (ret == null)
+        {
+            throw new CoresLibException("_JsonToObject() returned null.");
+        }
+
+        return ret;
+    }
+
 
     public void Start()
     {
@@ -2836,6 +3040,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
         public async Task<HadbObject> AtomicDeleteAsync(string uid, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace, int maxArchive = int.MaxValue, CancellationToken cancel = default)
         {
+            nameSpace = nameSpace._HadbNameSpaceNormalize();
             CheckBegan();
             Hadb.CheckIfReady();
 
@@ -2870,6 +3075,27 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             Hadb.CheckIfReady();
 
             await Hadb.AtomicAddSnapImplAsync(this, snap, cancel);
+        }
+
+        public async Task AtomicAddLogAsync(HadbLog log, string nameSpace = Consts.Strings.HadbDefaultNameSpace, string ext1 = "", string ext2 = "", CancellationToken cancel = default)
+        {
+            nameSpace = nameSpace._HadbNameSpaceNormalize();
+            CheckBegan();
+            Hadb.CheckIfReady();
+
+            await Hadb.AtomicAddLogImplAsync(this, log, nameSpace, ext1, ext2, cancel);
+        }
+
+        public async Task<IEnumerable<HadbLog>> AtomicSearchLogAsync<T>(HadbLogQuery query, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default) where T : HadbLog
+            => await AtomicSearchLogAsync(typeof(T).Name, query, nameSpace, cancel);
+
+        public async Task<IEnumerable<HadbLog>> AtomicSearchLogAsync(string typeName, HadbLogQuery query, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        {
+            nameSpace = nameSpace._HadbNameSpaceNormalize();
+            CheckBegan();
+            Hadb.CheckIfReady();
+
+            return await Hadb.AtomicSearchLogImplAsync(this, typeName, query, nameSpace, cancel);
         }
 
         public async Task<bool> LazyUpdateAsync(HadbObject obj, CancellationToken cancel = default)

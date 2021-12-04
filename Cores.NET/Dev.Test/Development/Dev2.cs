@@ -64,6 +64,7 @@ using System.Net.Sockets;
 using Newtonsoft.Json;
 using System.Data;
 using System.Reflection;
+using Newtonsoft.Json.Converters;
 
 namespace IPA.Cores.Basic;
 
@@ -77,6 +78,33 @@ public static class HadbCodeTest
     public class Sys : HadbSqlBase<Mem, Dyn>
     {
         public Sys(HadbSqlSettings settings, Dyn dynamicConfig) : base(settings, dynamicConfig) { }
+    }
+
+    [Flags]
+    public enum LogEvent : long
+    {
+        None = 0,
+        Hello,
+        Dog,
+        Cat,
+        Mouse,
+    }
+
+    public class Log : HadbLog
+    {
+        [JsonConverter(typeof(StringEnumConverter))]
+        public LogEvent Event { get; set; } = LogEvent.None;
+
+        public string Str { get; set; } = "";
+        public int Int { get; set; } = 0;
+
+        public override void Normalize()
+        {
+            this.Str = this.Str._NonNullTrim();
+        }
+
+        public override HadbLabels GetLabels()
+            => new HadbLabels(this.Event.ToString(), this.Str, this.Int == 0 ? "" : this.Int.ToString());
     }
 
     public class User : HadbData
@@ -119,6 +147,13 @@ public static class HadbCodeTest
         {
             List<Type> ret = new List<Type>();
             ret.Add(typeof(User));
+            return ret;
+        }
+
+        protected override List<Type> GetDefinedUserLogTypesImpl()
+        {
+            List<Type> ret = new List<Type>();
+            ret.Add(typeof(Log));
             return ret;
         }
     }
@@ -218,12 +253,30 @@ public static class HadbCodeTest
             Dbg.TestNull(sys2.FastSearchByKey(new User() { Name = "User2" }, nameSpace));
             Dbg.TestNull(sys2.FastSearchByKey(new User() { Name = "User3" }, nameSpace));
 
+            await sys1.TranAsync(true, async tran =>
+            {
+                await tran.AtomicAddLogAsync(new Log { Event = LogEvent.Cat, Int = 333, Str = "Hello333" }, nameSpace: nameSpace);
+                await tran.AtomicAddLogAsync(new Log { Event = LogEvent.Mouse, Int = 444, Str = "Hello444" }, nameSpace: nameSpace);
+                await tran.AtomicAddLogAsync(new Log { Event = LogEvent.Dog, Int = 555, Str = "Hello555" }, nameSpace: nameSpace);
+                await tran.AtomicAddLogAsync(new Log { Event = LogEvent.Cat, Int = 555, Str = "Hello555" }, nameSpace: nameSpace);
+                return true;
+            });
+
+            await sys1.TranAsync(false, async tran =>
+            {
+                var logs = await tran.AtomicSearchLogAsync<Log>(new HadbLogQuery { /*SearchTemplate = new Log { Event = LogEvent.Cat } */ }, nameSpace: nameSpace);
+                Dbg.TestTrue(logs.Count() == 4);
+
+                logs = await tran.AtomicSearchLogAsync<Log>(new HadbLogQuery { SearchTemplate = new Log { Event = LogEvent.Cat }  }, nameSpace: nameSpace);
+                Dbg.TestTrue(logs.Count() == 2);
+                return false;
+            });
 
             string neko_uid = "";
 
             await sys1.TranAsync(true, async tran =>
             {
-                var obj = await tran.AtomicAddAsync(new User { Id="NekoSan", AuthKey = "Neko123", Company = "University of Tsukuba", FullName = "Neko YaHoo!", Int1 = 0, LastIp = "9.3.1.7", Name = "Super-San" },
+                var obj = await tran.AtomicAddAsync(new User { Id = "NekoSan", AuthKey = "Neko123", Company = "University of Tsukuba", FullName = "Neko YaHoo!", Int1 = 0, LastIp = "9.3.1.7", Name = "Super-San" },
                     nameSpace2);
                 neko_uid = obj.Uid;
                 return true;
