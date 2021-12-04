@@ -443,7 +443,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
     {
         Database db = new Database(
             writeMode ? this.Settings.SqlConnectStringForWrite : this.Settings.SqlConnectStringForRead,
-            defaultIsolationLevel: writeMode ? IsolationLevel.Serializable : IsolationLevel.Snapshot);
+            defaultIsolationLevel: writeMode ? IsolationLevel.Snapshot : IsolationLevel.Snapshot);
 
         try
         {
@@ -2186,6 +2186,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     public int LastReloadTookMsecs { get; private set; } = 0;
     public int LastLazyUpdateTookMsecs { get; private set; } = 0;
     public bool IsDatabaseConnectedForReload { get; private set; } = false;
+    public Exception LastDatabaseConnectForReloadError { get; private set; } = new CoresException("Unknown error.");
+    public int DatabaseConnectForReloadErrorCount { get; private set; } = 0;
     public bool IsDatabaseConnectedForLazyWrite { get; private set; } = false;
 
     protected HadbSettingsBase Settings { get; }
@@ -2415,8 +2417,12 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
             this.IsDatabaseConnectedForReload = true;
         }
-        catch
+        catch (Exception ex)
         {
+            ex._Debug();
+
+            this.DatabaseConnectForReloadErrorCount++;
+            this.LastDatabaseConnectForReloadError = ex;
             this.IsDatabaseConnectedForReload = false;
 
             // データベースからもバックアップファイルからもまだデータが読み込まれていない場合は、バックアップファイルから読み込む
@@ -2470,7 +2476,10 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
             Debug($"ReloadMainLoopAsync: numCycle={numCycle}, numError={numError} End. Took time: {(endTick - startTick)._ToString3()} msecs.");
 
-            if (this.Settings.OptionFlags.Bit(HadbOptionFlags.NoAutoDbReloadAndUpdate)) return;
+            if (this.IsDatabaseConnectedForReload)
+            {
+                if (this.Settings.OptionFlags.Bit(HadbOptionFlags.NoAutoDbReloadAndUpdate)) return;
+            }
 
             int nextWaitTime = Util.GenRandInterval(ok ? this.CurrentDynamicConfig.HadbReloadIntervalMsecsLastOk : this.CurrentDynamicConfig.HadbReloadIntervalMsecsLastError);
             Debug($"ReloadMainLoopAsync: Waiting for {nextWaitTime._ToString3()} msecs for next DB read.");
@@ -2555,10 +2564,23 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         return true;
     }
 
-    public async Task WaitUntilReadyForAtomicAsync(CancellationToken cancel = default)
+    public async Task WaitUntilReadyForAtomicAsync(int maxDbTryCountError = 1, CancellationToken cancel = default)
     {
+        maxDbTryCountError = Math.Max(maxDbTryCountError, 1);
         await Task.Yield();
-        await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () => CheckIfReady(doNotThrowError: EnsureSpecial.Yes).IsOk, cancel, true);
+        int startErrorCount = this.DatabaseConnectForReloadErrorCount;
+        await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () =>
+        {
+            bool ret = CheckIfReady(doNotThrowError: EnsureSpecial.Yes).IsOk;
+            if (ret == false)
+            {
+                if (this.DatabaseConnectForReloadErrorCount >= (startErrorCount + maxDbTryCountError))
+                {
+                    throw this.LastDatabaseConnectForReloadError;
+                }
+            }
+            return ret;
+        }, cancel, true);
     }
 
     public async Task<bool> TranAsync(bool writeMode, Func<HadbTran, Task<bool>> task, bool takeSnapshot = false, RefLong? snapshotNoRet = null, CancellationToken cancel = default, DeadlockRetryConfig? retryConfig = null)

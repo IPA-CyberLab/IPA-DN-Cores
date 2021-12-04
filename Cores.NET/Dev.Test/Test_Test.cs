@@ -2399,30 +2399,68 @@ static class TestClass
     }
 
 
-    static void Test_211108()
+    static void Test_211108(int num = 1)
     {
         const string TestDbServer = "10.40.0.103";
-        const string TestDbName = "TEST_DN_DBSVC1";
-        const string TestDbReadUser = "sql_test_dn_dbsvc1_reader";
-        const string TestDbWriteUser = "sql_test_dn_dbsvc1_writer";
-        const string TestDbPassword = "testabc";
+        const string TestDbName = "HADB001";
+        const string TestDbReadUser = "sql_hadb001_reader";
+        const string TestDbReadPassword = "sql_hadb_reader_default_password";
+        const string TestDbWriteUser = "sql_hadb001_writer";
+        const string TestDbWritePassword = "sql_hadb_writer_default_password";
 
-        do
+        for (int i = 0;i < 10000;i++)
         {
+            $"=========== try i = {i} ============="._Print();
+
+            bool error = false;
+
             Async(async () =>
             {
-                string systemName = ("HADB_CODE_TEST_" + Str.DateTimeToYymmddHHmmssLong(DtNow) + "_" + Env.MachineName + "_" + Str.GenerateRandomDigit(8)).ToUpper();
+                AsyncManualResetEvent start = new AsyncManualResetEvent();
+                List<Task> taskList = new List<Task>();
 
-                HadbSqlSettings settings = new HadbSqlSettings(systemName,
-                    new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbPassword, true),
-                    new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbPassword, true),
-                    HadbOptionFlags.NoAutoDbReloadAndUpdate);
+                for (int i = 0; i < num; i++)
+                {
+                    var task = TaskUtil.StartAsyncTaskAsync(async () =>
+                    {
+                        await Task.Yield();
+                        await start.WaitAsync();
 
-                await HadbCodeTest.Test1Async(settings, systemName);
+                        try
+                        {
+                            string systemName = ("HADB_CODE_TEST_" + Str.DateTimeToYymmddHHmmssLong(DtNow) + "_" + Env.MachineName + "_" + Str.GenerateRandomDigit(8)).ToUpper();
+
+                            HadbSqlSettings settings = new HadbSqlSettings(systemName,
+                                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
+                                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
+                                HadbOptionFlags.NoAutoDbReloadAndUpdate);
+
+                            await HadbCodeTest.Test1Async(settings, systemName);
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Error();
+                        }
+                    }
+                    );
+
+                    taskList.Add(task);
+                }
+
+                start.Set(true);
+
+                foreach (var task in taskList)
+                {
+                    var ret = await task._TryAwaitAndRetBool();
+                    if (ret.IsError) error = true;
+                }
+            });
+
+            if (error)
+            {
+                throw new CoresException("Error occured.");
             }
-            );
         }
-        while (false);
     }
 
     static void Test_211017()
@@ -2734,7 +2772,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
         if (true)
         {
-            Test_211108();
+            Test_211108(8);
             return;
         }
 

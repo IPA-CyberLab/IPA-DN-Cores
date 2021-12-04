@@ -64,7 +64,7 @@ public static partial class CoresConfig
 {
     public static partial class Database
     {
-        public static readonly Copenhagen<IsolationLevel> DefaultIsolationLevel = IsolationLevel.ReadCommitted;
+        public static readonly Copenhagen<IsolationLevel> DefaultIsolationLevel = IsolationLevel.Snapshot;
 
         public static readonly Copenhagen<int> DefaultDatabaseTransactionRetryAverageIntervalSecs = 100;
 

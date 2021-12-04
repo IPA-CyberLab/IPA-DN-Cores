@@ -159,11 +159,11 @@ public static class HadbCodeTest
         await using Sys sys2 = new Sys(settings, new Dyn() { Hello = "Hello World" });
 
         sys1.Start();
-        await sys1.WaitUntilReadyForAtomicAsync();
+        await sys1.WaitUntilReadyForAtomicAsync(2);
 
         sys2.Start();
-        await sys2.WaitUntilReadyForAtomicAsync();
-
+        await sys2.WaitUntilReadyForAtomicAsync(2);
+        //return;
         // Dynamic Config が DB に正しく反映されているか
         await sys1.TranAsync(true, async tran =>
         {
