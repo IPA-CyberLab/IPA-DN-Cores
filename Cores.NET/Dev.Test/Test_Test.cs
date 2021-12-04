@@ -2439,7 +2439,7 @@ static class TestClass
                 {
                     await db.TranAsync(writeMode: false, async tran =>
                     {
-                        var obj = await tran.AtomicGetAsync<HadbTestData>(uid);
+                        var obj = await tran.AtomicGetAsync<HadbTestData>(uid, "");
                         obj._PrintAsJson();
                         return false;
                     });
@@ -2448,7 +2448,7 @@ static class TestClass
                 {
                     await db.TranAsync(writeMode: false, async tran =>
                     {
-                        var obj = await tran.AtomicSearchByKeyAsync<HadbTestData>(new HadbKeys(key));
+                        var obj = await tran.AtomicSearchByKeyAsync<HadbTestData>(new HadbKeys(key), "");
                         obj._PrintAsJson();
                         return false;
                     });
@@ -2457,7 +2457,7 @@ static class TestClass
                 {
                     await db.TranAsync(writeMode: false, async tran =>
                     {
-                        var obj = await tran.AtomicSearchByLabelsAsync<HadbTestData>(new HadbLabels(label));
+                        var obj = await tran.AtomicSearchByLabelsAsync<HadbTestData>(new HadbLabels(label), "");
                         obj._PrintAsJson();
                         return false;
                     });
@@ -2466,14 +2466,14 @@ static class TestClass
                 {
                     await db.TranAsync(writeMode: true, async tran =>
                     {
-                        var obj = await tran.AtomicDeleteAsync<HadbTestData>(uid2);
+                        var obj = await tran.AtomicDeleteAsync<HadbTestData>(uid2, "");
                         Con.WriteLine($"Deleted = {obj._ObjectToJson()}");
                         return true;
                     });
                 }
                 else if (str._TryTrimStartWith(out string key3, StringComparison.OrdinalIgnoreCase, "*"))
                 {
-                    var obj = db.FastSearchByKey<HadbTestData>(new HadbKeys(key3));
+                    var obj = db.FastSearchByKey<HadbTestData>(new HadbKeys(key3), "");
                     if (obj == null)
                     {
                         Con.WriteLine("Not found.");
@@ -2492,7 +2492,7 @@ static class TestClass
                 {
                     await db.TranAsync(writeMode: true, async tran =>
                     {
-                        var obj = await tran.AtomicSearchByKeyAsync<HadbTestData>(new HadbKeys(key2));
+                        var obj = await tran.AtomicSearchByKeyAsync<HadbTestData>(new HadbKeys(key2), "");
                         if (obj == null)
                         {
                             Con.WriteLine("Not found.");
@@ -2522,7 +2522,7 @@ static class TestClass
                             TestInt = 1,
                         };
 
-                        await tran.AtomicAddAsync(host);
+                        await tran.AtomicAddAsync(host, "");
                         return true;
                     });
                 }

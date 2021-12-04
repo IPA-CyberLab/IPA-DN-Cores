@@ -1076,7 +1076,7 @@ namespace IPA.Cores.Basic
         public int WaitForExit(int timeout = Timeout.Infinite, CancellationToken cancel = default)
             => WaitForExitAsync(timeout, cancel)._GetResult();
 
-        readonly Once ProcessKilledOnceFlag = new Once();
+        Once ProcessKilledOnceFlag = new Once();
 
         void KillProcessInternal()
         {

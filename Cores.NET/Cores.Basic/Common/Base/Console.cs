@@ -2589,7 +2589,7 @@ public class ConsoleService
 public static class UnixConsoleSpecialUtil
 {
     // UNIX 版 .NET でコンソールのモードが勝手に変更されないようにする
-    static readonly Once Once;
+    static Once Once;
     public static void DisableDotNetConsoleModeChange()
     {
         if (Once.IsFirstCall())

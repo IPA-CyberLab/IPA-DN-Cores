@@ -106,7 +106,7 @@ namespace IPA.Cores.Basic
         // 
         // このような初期化処理を行なうコードが PalUnixOpenSslSpecialUtil クラスである。
 
-        static readonly Once OnceFlag = new Once();
+        static Once OnceFlag = new Once();
 
         public static void TryInit()
         {

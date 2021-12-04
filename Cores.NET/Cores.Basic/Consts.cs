@@ -240,6 +240,8 @@ public static partial class Consts
         public const string DefaultSessionIdPrefix = "SESSION";
 
         public const string EasyEncryptDefaultPassword = "pLkw4jkN8YxcD54AJ2rVvaD3sdnJEzMN";
+
+        public const string HadbDefaultNameSpace = "default_ns";
     }
 
     public static partial class HiveNames

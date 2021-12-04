@@ -432,7 +432,7 @@ public static class BasicHelper
     public static bool _IsInt(this string s) => Str.IsInt(s);
     public static bool _IsNumber(this string s) => Str.IsNumber(s);
     public static bool _InStr(this string s, string keyword, bool ignoreCase = false) => Str.InStr(s, keyword, !ignoreCase);
-    public static bool _InStri(this string s, string keyword) => Str.InStr(s, keyword, true);
+    public static bool _InStri(this string s, string keyword) => Str.InStr(s, keyword, false);
     public static string[] _ParseCmdLine(this string s) => Str.ParseCmdLine(s);
     public static object? _Old_XmlToObjectPublic(this string s, Type t) => Str.XMLToObjectSimple_PublicLegacy(s, t);
     public static StrToken _ToToken(this string s, string splitStr = " ,\t\r\n") => new StrToken(s, splitStr);
@@ -3069,6 +3069,14 @@ public static class BasicHelper
     {
         if (array == null) return;
         array._DoForEach(x => x._TryNormalize());
+    }
+
+    public static string _HadbNameSpaceNormalize(this string nameSpace)
+    {
+        if (nameSpace._IsEmpty()) nameSpace = Consts.Strings.HadbDefaultNameSpace;
+        nameSpace = nameSpace._NormalizeKey(true);
+        nameSpace = nameSpace._ReplaceStr(":", "_", true);
+        return nameSpace;
     }
 }
 

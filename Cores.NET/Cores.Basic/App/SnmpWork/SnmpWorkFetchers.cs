@@ -488,7 +488,7 @@ public class SnmpWorkFetcherSpeed : SnmpWorkFetcherBase
 
 public class SnmpWorkFetcherPing : SnmpWorkFetcherBase
 {
-    static readonly Once FirstPing = new Once();
+    static Once FirstPing = new Once();
 
     public SnmpWorkFetcherPing(SnmpWorkHost host) : base(host)
     {
