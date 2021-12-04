@@ -2398,15 +2398,27 @@ static class TestClass
         Console.ReadLine();
     }
 
+
     static void Test_211108()
     {
+        const string TestDbServer = "10.40.0.103";
+        const string TestDbName = "TEST_DN_DBSVC1";
+        const string TestDbReadUser = "sql_test_dn_dbsvc1_reader";
+        const string TestDbWriteUser = "sql_test_dn_dbsvc1_writer";
+        const string TestDbPassword = "testabc";
+
         do
         {
             Async(async () =>
             {
-                HadbCodeTest t = new HadbCodeTest();
-                await t.Test1Async();
-                t.SystemName._Print();
+                string systemName = ("HADB_CODE_TEST_" + Str.DateTimeToYymmddHHmmssLong(DtNow) + "_" + Env.MachineName + "_" + Str.GenerateRandomDigit(8)).ToUpper();
+
+                HadbSqlSettings settings = new HadbSqlSettings(systemName,
+                    new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbPassword, true),
+                    new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbPassword, true),
+                    HadbOptionFlags.NoAutoDbReloadAndUpdate);
+
+                await HadbCodeTest.Test1Async(settings, systemName);
             }
             );
         }

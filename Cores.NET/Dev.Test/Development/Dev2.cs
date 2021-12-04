@@ -67,18 +67,11 @@ using System.Reflection;
 
 namespace IPA.Cores.Basic;
 
-public class HadbCodeTest
+public static class HadbCodeTest
 {
     public class Dyn : HadbDynamicConfig
     {
         public string Hello { get; set; } = "";
-    }
-
-    public string SystemName;
-
-    public HadbCodeTest()
-    {
-        this.SystemName = ("HADB_CODE_TEST_" + Str.DateTimeToYymmddHHmmssLong(DtNow) + "_" + Env.MachineName + "_" + Str.GenerateRandomDigit(8)).ToUpper();
     }
 
     public class Sys : HadbSqlBase<Mem, Dyn>
@@ -131,19 +124,8 @@ public class HadbCodeTest
     }
 
 
-    public const string TestDbServer = "10.40.0.103";
-    public const string TestDbName = "TEST_DN_DBSVC1";
-    public const string TestDbReadUser = "sql_test_dn_dbsvc1_reader";
-    public const string TestDbWriteUser = "sql_test_dn_dbsvc1_writer";
-    public const string TestDbPassword = "testabc";
-
-    public async Task Test1Async()
+    public static async Task Test1Async(HadbSqlSettings settings, string systemName)
     {
-        var settings = new HadbSqlSettings(SystemName,
-            new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbPassword, true),
-            new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbPassword, true),
-            HadbOptionFlags.NoAutoDbReloadAndUpdate);
-
         await using Sys sys1 = new Sys(settings, new Dyn() { Hello = "Hello World" });
         await using Sys sys2 = new Sys(settings, new Dyn() { Hello = "Hello World" });
 
@@ -160,7 +142,7 @@ public class HadbCodeTest
 
             var rows = await db.EasySelectAsync<HadbSqlConfigRow>("select * from HADB_CONFIG where CONFIG_SYSTEMNAME = @CONFIG_SYSTEMNAME", new
             {
-                CONFIG_SYSTEMNAME = SystemName,
+                CONFIG_SYSTEMNAME = systemName,
             });
 
             Dbg.TestTrue((rows.Where(x => x.CONFIG_NAME == "HadbReloadIntervalMsecsLastOk").Single()).CONFIG_VALUE._ToInt() == Consts.HadbDynamicConfigDefaultValues.HadbReloadIntervalMsecsLastOk);
@@ -221,6 +203,7 @@ public class HadbCodeTest
         for (int i = 0; i < 2; i++)
         {
             string nameSpace = $"__NameSpace_{i}__";
+            string nameSpace2 = $"__NekoSpace_{i}__";
             string u1_uid = "";
             string u2_uid = "";
             string u3_uid = "";
@@ -240,7 +223,8 @@ public class HadbCodeTest
 
             await sys1.TranAsync(true, async tran =>
             {
-                var obj = await tran.AtomicAddAsync(new User { Id="NekoSan", AuthKey = "Neko123", Company = "University of Tsukuba", FullName = "Neko YaHoo!", Int1 = 0, LastIp = "9.3.1.7", Name = "Super-San" });
+                var obj = await tran.AtomicAddAsync(new User { Id="NekoSan", AuthKey = "Neko123", Company = "University of Tsukuba", FullName = "Neko YaHoo!", Int1 = 0, LastIp = "9.3.1.7", Name = "Super-San" },
+                    nameSpace2);
                 neko_uid = obj.Uid;
                 return true;
             });
@@ -249,7 +233,7 @@ public class HadbCodeTest
             {
                 for (int i = 0; i < 20; i++)
                 {
-                    var obj = await tran.AtomicGetAsync<User>(neko_uid);
+                    var obj = await tran.AtomicGetAsync<User>(neko_uid, nameSpace2);
                     var user = obj!.GetData<User>();
                     user.Name = "Super-Oracle" + i.ToString();
                     user.LastIp = "0.0.0." + i.ToString();
@@ -261,7 +245,7 @@ public class HadbCodeTest
 
             await sys1.TranAsync(false, async tran =>
             {
-                var list = await tran.AtomicGetArchivedAsync<User>(neko_uid);
+                var list = await tran.AtomicGetArchivedAsync<User>(neko_uid, nameSpace: nameSpace2);
                 Dbg.TestTrue(list.Count() == 11);
                 return true;
             });
