@@ -715,6 +715,27 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         return "";
     }
 
+    protected internal override async Task<StrDictionary<string>> AtomicGetKvListImplAsync(HadbTran tran, CancellationToken cancel = default)
+    {
+        var dbReader = ((HadbSqlTran)tran).Db;
+
+        var rows = await dbReader.EasySelectAsync<HadbSqlKvRow>("select * from HADB_KV where KV_SYSTEM_NAME = @KV_SYSTEM_NAME and KV_DELETED = 0",
+            new
+            {
+                KV_SYSTEM_NAME = this.SystemName,
+            },
+            cancel: cancel);
+
+        StrDictionary<string> ret = new StrDictionary<string>(StrCmpi);
+
+        foreach (var row in rows)
+        {
+            ret.Add(row.KV_KEY, row.KV_VALUE);
+        }
+
+        return ret;
+    }
+
     protected internal override async Task AtomicSetKvImplAsync(HadbTran tran, string key, string value, CancellationToken cancel = default)
     {
         key = key._NormalizeKey(true);
@@ -2192,6 +2213,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     protected internal abstract Task<HadbObject> AtomicDeleteDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, int maxArchive, CancellationToken cancel = default);
     protected internal abstract Task<HadbObject> AtomicUpdateDataOnDatabaseImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default);
     protected internal abstract Task<string> AtomicGetKvImplAsync(HadbTran tran, string key, CancellationToken cancel = default);
+    protected internal abstract Task<StrDictionary<string>> AtomicGetKvListImplAsync(HadbTran tran, CancellationToken cancel = default);
     protected internal abstract Task AtomicSetKvImplAsync(HadbTran tran, string key, string value, CancellationToken cancel = default);
     protected internal abstract Task AtomicAddSnapImplAsync(HadbTran tran, HadbSnapshot snap, CancellationToken cancel = default);
 
@@ -2733,7 +2755,11 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
                     // Snapshot 処理をする。
                     // まず現在の Snapshot 番号を取得する。
-                    this.CurrentSnapNoForWriteMode = (await this.AtomicGetKvAsync("_hadb_sys_current_snapshot_no", cancel))._ToLong();
+                    var kvList = await this.AtomicGetKvListAsync(cancel);
+                    this.CurrentSnapNoForWriteMode = kvList.SingleOrDefault(x => x.Key._IsSamei("_hadb_sys_current_snapshot_no")).Value._ToLong();
+
+                    // 最後に Snapshot が撮られた日時を取得する
+                    var lastTaken = Str.StrToDateTime(kvList.SingleOrDefault(x => x.Key._IsSamei("_hadb_sys_current_snapshot_no")).Value);
 
                     if (this.CurrentSnapNoForWriteMode == 0)
                     {
@@ -3059,6 +3085,14 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             string ret = await Hadb.AtomicGetKvImplAsync(this, key, cancel);
 
             return ret;
+        }
+
+        public async Task<StrDictionary<string>> AtomicGetKvListAsync(CancellationToken cancel = default)
+        {
+            CheckBegan();
+            Hadb.CheckIfReady();
+
+            return await Hadb.AtomicGetKvListImplAsync(this, cancel);
         }
 
         public async Task AtomicSetKvAsync(string key, string value, CancellationToken cancel = default)

@@ -6245,6 +6245,37 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        public static DateTimeOffset DtstrToDateTimeOffset(string str)
+        {
+            if (str._IsEmpty()) return ZeroDateTimeOffsetValue;
+
+            string[] tokens = str._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, " ");
+
+            DateTime date = Str.StrToDate(tokens[0], false);
+            DateTime time = Str.StrToTime(tokens[1], false);
+
+            TimeSpan offset = default;
+            string offsetStr = tokens.ElementAt(2);
+            if (offsetStr._IsEmpty())
+            {
+            }
+            else
+            {
+                if (offsetStr[0] == '+')
+                {
+                    offset = TimeSpan.Parse(offsetStr.Substring(1), CultureInfo.InvariantCulture);
+                }
+                else
+                {
+                    offset = -TimeSpan.Parse(offsetStr.Substring(1), CultureInfo.InvariantCulture);
+                }
+            }
+
+            DateTime dt = date.Add(time.TimeOfDay);
+
+            return new DateTimeOffset(dt._OverwriteKind(DateTimeKind.Unspecified), offset);
+        }
+
         // "20190924-123456+0900" という形式のファイル名をパースする
         public static ResultOrError<DateTimeOffset> FileNameStrToDateTimeOffset(string str)
         {

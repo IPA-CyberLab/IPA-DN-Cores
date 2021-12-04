@@ -339,8 +339,8 @@ public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
 
         Async(async () =>
         {
-            const string dirAcl = "D:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FA;;;S-1-5-21-2439965180-1288029102-2284794580-1001)";
-            const string fileAcl = "D:PAI(A;;FA;;;WD)(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;S-1-5-21-2439965180-1288029102-2284794580-1001)";
+            const string dirAcl = "D:PAI(A;OICI;FA;;;BU)(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FA;;;S-1-5-21-2439965180-1288029102-2284794580-1001)";
+            const string fileAcl = "D:PAI(A;;FA;;;WD)(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;BU)(A;;FA;;;S-1-5-21-2439965180-1288029102-2284794580-1001)";
             const string altStream = "W1pvbmVUcmFuc2Zlcl0NClpvbmVJZD0zDQpSZWZlcnJlclVybD1odHRwczovL3N0YXRpYy5sdHMuZG4uaXBhbnR0Lm5ldC9kLzIxMDExMV8wMDNfdWJ1bnR1X3NldHVwX3NjcmlwdHNfNTk4NjcvDQpIb3N0VXJsPWh0dHBzOi8vc3RhdGljLmx0cy5kbi5pcGFudHQubmV0L2QvMjEwMTExXzAwM191YnVudHVfc2V0dXBfc2NyaXB0c181OTg2Ny8yMTAxMTFfYXB0X3VidW50dV9qYXBhbl9zZXJ2ZXIuc2gNCg==";
 
             DirectoryPath dirPath = Env.MyLocalTempDir._CombinePath(Str.GenRandStr());
@@ -364,7 +364,7 @@ public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
                 );
 
             dirPath.SetDirectoryMetadata(dirMeta1);
-
+            
             FilePath filePath1 = dirPath.Combine("test1.txt");
             FilePath filePath2 = dirPath.Combine("test2.txt");
 
@@ -391,7 +391,7 @@ public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
 
             if (fileMeta1.Security!.Acl!.Win32AclSddl._IsSamei(fileMeta2.Security!.Acl!.Win32AclSddl) == false)
             {
-                throw new CoresException("Different ACL.");
+                throw new CoresException($"Different ACL. '{fileMeta1.Security!.Acl!.Win32AclSddl}' != '{fileMeta2.Security!.Acl!.Win32AclSddl}'");
             }
 
             if (fileMeta2.AlternateStream!.Items![0].Data!._MemEquals(altStream._Base64Decode()) == false)
@@ -405,6 +405,28 @@ public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
                 throw new CoresException("FileAttributes.Compressed not set.");
             }
         });
+    }
+
+    [Fact]
+    public void TestDateTimeOffsetStr()
+    {
+        for (int i = 0; i < 10; i++)
+        {
+            DateTimeOffset src = DtOffsetNow.AddTicks(Secure.RandSInt63() % 1000000000);
+            if ((i % 3) == 0)
+            {
+                src = src.ToUniversalTime();
+            }
+            else if ((i % 3) == 1)
+            {
+                src = src.ToOffset(new TimeSpan(-7, 30, 0));
+            }
+            string dtStr = src._ToDtStr(true, withNanoSecs: true);
+            DateTimeOffset dst = Str.DtstrToDateTimeOffset(dtStr);
+            string dtStr2 = dst._ToDtStr(true, withNanoSecs: true);
+            Dbg.TestTrue(dtStr == dtStr2);
+            Dbg.TestTrue(src.Ticks == dst.Ticks);
+        }
     }
 }
 
