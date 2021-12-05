@@ -33,6 +33,13 @@
 // Author: Daiyuu Nobori
 // Hadb Library
 
+// メモ HADB 物理 DB 消費領域
+//      アーカイブ割合 4/5 のとき:
+//      25 万レコード時  データ領域 450MB、インデックス領域 694 MB
+//      つまり 1 レコードあたり データサイズ 1.8KB, インデックスサイズ 2.5KB (だいたいの目安)
+//      通常時 1 レコードあたり 12KB くらい見ておくべし
+//      SQL Server Express の DB は 10GB までなので 80 万レコードくらいが限度か?
+
 #if CORES_BASIC_DATABASE
 
 #pragma warning disable CA2235 // Mark all non-serializable fields

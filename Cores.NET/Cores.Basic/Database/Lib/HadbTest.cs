@@ -378,20 +378,20 @@ public static class HadbCodeTest
             //    return true;
             //});
 
-            await sys1.TranAsync(true, async tran =>
+            for (int k = 0; k < 20; k++)
             {
-                //neko_uid._Print();
-                for (int i = 0; i < 20; i++)
+                await sys1.TranAsync(true, async tran =>
                 {
+                    //neko_uid._Print();
                     var obj = await tran.AtomicGetAsync<User>(neko_uid, nameSpace2);
                     var user = obj!.GetData<User>();
                     //user.Name = "Super-Oracle" + i.ToString();
                     user.LastIp = "0.0.0." + i.ToString();
 
                     await tran.AtomicUpdateAsync(obj);
-                }
-                return true;
-            });
+                    return true;
+                });
+            }
 
             await sys1.TranAsync(false, async tran =>
             {
