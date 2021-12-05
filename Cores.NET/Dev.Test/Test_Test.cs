@@ -2408,8 +2408,8 @@ static class TestClass
 
     static void Test_211205(int threads = 1, int count = 1, int numInsertsOrUpdates = 100, HADB_DDNS_TestType type = HADB_DDNS_TestType.Test0_ManyUpdate, bool truncate = true)
     {
-        const string TestDbServer = "10.40.0.103"; // lab
-        //const string TestDbServer = "10.21.2.132"; // dnt
+        //const string TestDbServer = "10.40.0.103"; // lab
+        const string TestDbServer = "10.21.2.132"; // dnt
         const string TestDbName = "HADB001";
         const string TestDbReadUser = "sql_hadb001_reader";
         const string TestDbReadPassword = "sql_hadb_reader_default_password";
@@ -3027,17 +3027,17 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             return;
         }
 
-        if (false)
+        if (true)
         {
             // HADB DDNS 模擬テスト #3 (ランダム変更しまくり)
-            Test_211205(threads: 100, count: 1, numInsertsOrUpdates: 3000, type: HADB_DDNS_TestType.Test2_RandomUpdates, truncate: false); // 30 万レコード追加テスト
+            Test_211205(threads: 100, count: 1, numInsertsOrUpdates: 30000, type: HADB_DDNS_TestType.Test2_RandomUpdates, truncate: false); // 300 万レコード追加テスト
             return;
         }
 
-        if (false)
+        if (true)
         {
             // HADB DDNS 模擬テスト #2 (追加しまくり)
-            Test_211205(threads: 100, count: 1, numInsertsOrUpdates: 3000, type: HADB_DDNS_TestType.Test1_ManyInserts, truncate: true); // 30 万レコード追加テスト
+            Test_211205(threads: 100, count: 1, numInsertsOrUpdates: 30000, type: HADB_DDNS_TestType.Test1_ManyInserts, truncate: true); // 300 万レコード追加テスト
             return;
         }
 
