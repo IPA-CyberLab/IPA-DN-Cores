@@ -631,7 +631,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             return null;
         }
 
-        // READCOMMITTEDLOCK は、トランザクション分離レベルが Snapshot かつ読み取り専用の場合にのみ付ける。
+        // READCOMMITTEDLOCK は、「トランザクション分離レベルが Snapshot かつ読み取り専用の場合」以外に付ける。
         string where = $"select * from HADB_DATA { (lightLock ? "with (READCOMMITTEDLOCK)" : "") } where {conditions.Select(x => $" ( {x} )")._Combine(" or ")}";
 
         return await db.EasySelectSingleAsync<HadbSqlDataRow>(where,
@@ -664,7 +664,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             return EmptyOf<HadbSqlDataRow>();
         }
 
-        // READCOMMITTEDLOCK は、トランザクション分離レベルが Snapshot かつ読み取り専用の場合にのみ付ける。
+        // READCOMMITTEDLOCK は、「トランザクション分離レベルが Snapshot かつ読み取り専用の場合」以外に付ける。
         return await db.EasySelectAsync<HadbSqlDataRow>($"select * from HADB_DATA { (lightLock ? "with (READCOMMITTEDLOCK)" : "") } where DATA_DELETED = 0 and DATA_ARCHIVE = 0 and ({conditions._Combine(" and ")}) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
             new
             {

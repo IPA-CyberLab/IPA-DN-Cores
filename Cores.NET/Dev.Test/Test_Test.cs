@@ -2401,7 +2401,8 @@ static class TestClass
 
     static void Test_211205(int threads = 1, int count = 1)
     {
-        const string TestDbServer = "10.40.0.103";
+        //const string TestDbServer = "10.40.0.103"; // lab
+        const string TestDbServer = "10.21.2.132"; // dnt
         const string TestDbName = "HADB001";
         const string TestDbReadUser = "sql_hadb001_reader";
         const string TestDbReadPassword = "sql_hadb_reader_default_password";
@@ -2477,7 +2478,8 @@ static class TestClass
     }
     static void Test_211108(int threads = 1, int count = 1)
     {
-        const string TestDbServer = "10.40.0.103";
+        //const string TestDbServer = "10.40.0.103"; // lab
+        const string TestDbServer = "10.21.2.132"; // dnt
         const string TestDbName = "HADB001";
         const string TestDbReadUser = "sql_hadb001_reader";
         const string TestDbReadPassword = "sql_hadb_reader_default_password";
@@ -3004,13 +3006,14 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
         if (false)
         {
-            Test_211205(threads: 100, count: 1);
+            Test_211205(threads: 100, count: 10000);
             return;
         }
 
         if (true)
         {
-            Test_211108(threads: 100, count: 300);
+            Test_211108(threads: 100, count: 30000);
+            //Test_211108(threads: 1, count: 1);
             return;
         }
 

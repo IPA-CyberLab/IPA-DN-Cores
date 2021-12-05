@@ -220,6 +220,7 @@ public static class HadbCodeTest
         }
 
         public override int GetMaxArchivedCount() => 10;
+        //public override int GetMaxArchivedCount() => int.MaxValue;
     }
 
     public class Mem : HadbMemDataBase
@@ -396,7 +397,10 @@ public static class HadbCodeTest
             await sys1.TranAsync(false, async tran =>
             {
                 var list = await tran.AtomicGetArchivedAsync<User>(neko_uid, nameSpace: nameSpace2);
-                Dbg.TestTrue(list.Count() == 11);
+                if ((new User()).GetMaxArchivedCount() != int.MaxValue)
+                {
+                    Dbg.TestTrue(list.Count() == 11);
+                }
                 return true;
             });
 
