@@ -1921,7 +1921,7 @@ static class TestClass
                 var allRecvList = await sock.ReceiveDatagramsListAsync();
                 recvMeasure.Add(allRecvList.Count);
 
-                var allSendList = await allRecvList._ProcessDatagramWithMultiTasksAsync(async (perTaskRecvList) =>
+                var allSendList = await allRecvList._ProcessParallelAndAggregateAsync(async (perTaskRecvList) =>
                 {
                     List<Datagram> perTaskSendList = new List<Datagram>(perTaskRecvList.Count);
 
@@ -2420,7 +2420,7 @@ static class TestClass
             new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
             new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
             IsolationLevel.Snapshot, IsolationLevel.Serializable,
-            HadbOptionFlags.NoAutoDbReloadAndUpdate | HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll | HadbOptionFlags.NoMemDb);
+            HadbOptionFlags.NoAutoDbReloadAndUpdate | HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll | HadbOptionFlags.NoMemDb );
 
         if (truncate)
         {
@@ -3027,6 +3027,14 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             return;
         }
 
+        if (false)
+        {
+            // HADB 普通のテスト
+            Test_211108(threads: 100, count: 30000);
+            //Test_211108(threads: 1, count: 1);
+            return;
+        }
+
         if (true)
         {
             // HADB DDNS 模擬テスト #3 (ランダム変更しまくり)
@@ -3045,14 +3053,6 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         {
             // HADB DDNS 模擬テスト #1 (更新しまくり)
             Test_211205(threads: 100, count: 10000, numInsertsOrUpdates: 100, type: HADB_DDNS_TestType.Test0_ManyUpdate, truncate: true);
-            return;
-        }
-
-        if (true)
-        {
-            // HADB 普通のテスト
-            Test_211108(threads: 100, count: 30000);
-            //Test_211108(threads: 1, count: 1);
             return;
         }
 
