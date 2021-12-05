@@ -37,6 +37,7 @@
 //      30 万 DDNS 模擬レコード時  データ領域 300MB、インデックス領域 600 MB
 //      つまり 1 レコードあたり デーサイズ 1.0KB、インデックスサイズ 2.0 KB (だいたいの目安)
 //      SQL Server Express の DB は 10GB までなので 300 万レコードくらいが限度か?
+//      .NET オンメモリ上で MemDb に展開すると 10GB くらいのメモリを消費した。数分かかった。
 
 #if CORES_BASIC_DATABASE
 
@@ -553,14 +554,14 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         IEnumerable<HadbSqlDataRow> rows = null!;
 
 
-        Dbg.Where();
+        //Dbg.Where();
         try
         {
             await using var dbReader = await this.OpenSqlDatabaseAsync(false, cancel);
 
             await dbReader.TranReadSnapshotIfNecessaryAsync(async () =>
             {
-                rows = await dbReader.EasySelectAsync<HadbSqlDataRow>("select top 300000 * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0", new { DATA_SYSTEMNAME = this.SystemName }); // TODO: get only latest
+                rows = await dbReader.EasySelectAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0", new { DATA_SYSTEMNAME = this.SystemName }); // TODO: get only latest
             });
         }
         catch (Exception ex)
@@ -569,17 +570,17 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             throw;
         }
 
-        Dbg.Where();
+        //Dbg.Where();
         
         var rowsList = rows.ToList();
 
-        rowsList.Count._Print();
+        //rowsList.Count._Print();
 
         await rowsList._NormalizeAllParallelAsync(cancel: cancel);
 
-        Dbg.Where();
+        //Dbg.Where();
 
-        List<HadbObject> ret = await rowsList._ProcessParallelAsync(srcList =>
+        List<HadbObject> ret = await rowsList._ProcessParallelAndAggregateAsync(srcList =>
         {
             List<HadbObject> tmp = new List<HadbObject>();
             foreach (var row in srcList)
@@ -599,9 +600,9 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             return TR(tmp);
         }, cancel: cancel);
 
-        Dbg.Where();
+        //Dbg.Where();
 
-        ret.Count._Print();
+        //ret.Count._Print();
 
         return ret;
     }
@@ -1766,7 +1767,7 @@ public abstract class HadbMemDataBase
 {
     public class DataSet
     {
-        public StrDictionary<HadbObject> AllObjectsDict = new StrDictionary<HadbObject>(StrComparer.IgnoreCaseComparer);
+        public ConcurrentStrDictionary<HadbObject> AllObjectsDict = new ConcurrentStrDictionary<HadbObject>(StrComparer.IgnoreCaseComparer);
         public ImmutableDictionary<string, HadbObject> IndexedKeysTable = ImmutableDictionary<string, HadbObject>.Empty.WithComparers(StrComparer.IgnoreCaseComparer);
         public ImmutableDictionary<string, ConcurrentHashSet<HadbObject>> IndexedLabelsTable = ImmutableDictionary<string, ConcurrentHashSet<HadbObject>>.Empty.WithComparers(StrComparer.IgnoreCaseComparer);
 
@@ -2008,40 +2009,49 @@ public abstract class HadbMemDataBase
                 data = new DataSet();
             }
 
-            foreach (var newObj in objectList)
+            var objectList2 = objectList.ToList();
+
+            // 並列化の試み 2021/12/06 うまくいくか未定
+            await objectList2._ProcessParallelAsync(someObjects =>
             {
-                try
+                foreach (var newObj in someObjects)
                 {
-                    if (data.AllObjectsDict.TryGetValue(newObj.Uid, out HadbObject? currentObj))
+                    try
                     {
-                        if (currentObj.Internal_UpdateIfNew(EnsureSpecial.Yes, newObj, out HadbKeys oldKeys, out HadbLabels oldLabels))
+                        if (data.AllObjectsDict.TryGetValue(newObj.Uid, out HadbObject? currentObj))
                         {
-                            if (currentObj.Deleted == false)
+                            if (currentObj.Internal_UpdateIfNew(EnsureSpecial.Yes, newObj, out HadbKeys oldKeys, out HadbLabels oldLabels))
                             {
-                                countUpdated++;
-                                data.IndexedTable_UpdateObject_Critical(currentObj, oldKeys, oldLabels);
-                            }
-                            else
-                            {
-                                countRemoved++;
-                                data.IndexedTable_DeleteObject_Critical(currentObj, oldKeys, oldLabels);
+                                if (currentObj.Deleted == false)
+                                {
+                                    countUpdated++;
+                                    data.IndexedTable_UpdateObject_Critical(currentObj, oldKeys, oldLabels);
+                                }
+                                else
+                                {
+                                    countRemoved++;
+                                    data.IndexedTable_DeleteObject_Critical(currentObj, oldKeys, oldLabels); // おそらく正しい? 2021/12/06
+                                }
                             }
                         }
-                    }
-                    else
-                    {
-                        var obj2 = newObj.ToMemoryDbObject(this);
-                        data.AllObjectsDict[newObj.Uid] = obj2;
+                        else
+                        {
+                            var obj2 = newObj.ToMemoryDbObject(this);
+                            data.AllObjectsDict[newObj.Uid] = obj2;
 
-                        data.IndexedTable_AddObject_Critical(obj2);
-                        countInserted++;
+                            data.IndexedTable_AddObject_Critical(obj2);
+                            countInserted++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
                     }
                 }
-                catch (Exception ex)
-                {
-                    ex._Debug();
-                }
-            }
+
+                return TR();
+            });
+
 
             this.InternalData = data;
         }

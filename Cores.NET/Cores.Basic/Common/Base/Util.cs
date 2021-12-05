@@ -6682,6 +6682,11 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class ConcurrentStrDictionary<TValue> : ConcurrentDictionary<string, TValue>
+    {
+        public ConcurrentStrDictionary(IEqualityComparer<string>? comparer = null) : base(comparer ?? StrComparer.IgnoreCaseComparer) { }
+    }
+
     public class StrDictionary<TValue> : Dictionary<string, TValue>
     {
         public StrDictionary(IEqualityComparer<string>? comparer = null) : base(comparer ?? StrComparer.IgnoreCaseComparer) { }

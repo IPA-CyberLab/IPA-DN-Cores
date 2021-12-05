@@ -165,18 +165,18 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
             {
                 var allRecvList = await udpSock.ReceiveDatagramsListAsync(cancel: cancel);
 
-                var allSendList = await allRecvList._ProcessDatagramWithMultiTasksAsync(async (perTaskRecvList) =>
+                var allSendList = await allRecvList._ProcessParallelAndAggregateAsync(async (perTaskRecvList) =>
                 {
                     var ret = Sync(() =>
                     {
                         Span<DnsUdpPacket> perTaskRequestPacketsList = new DnsUdpPacket[perTaskRecvList.Count];
                         int perTaskRequestPacketsListCount = 0;
 
-                            //double start = Time.NowHighResDouble;
+                        //double start = Time.NowHighResDouble;
 
-                            //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- Start loop 1: perTaskRecvList.Count = {perTaskRecvList.Count}");
+                        //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- Start loop 1: perTaskRecvList.Count = {perTaskRecvList.Count}");
 
-                            foreach (var item in perTaskRecvList)
+                        foreach (var item in perTaskRecvList)
                         {
                             try
                             {
@@ -189,16 +189,16 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
                             catch { }
                         }
 
-                            //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- End loop 1: perTaskRequestPacketsListCount = {perTaskRequestPacketsListCount}");
+                        //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- End loop 1: perTaskRequestPacketsListCount = {perTaskRequestPacketsListCount}");
 
-                            Span<DnsUdpPacket> perTaskReaponsePacketsList = Setting.Callback(perTaskRequestPacketsList);
+                        Span<DnsUdpPacket> perTaskReaponsePacketsList = Setting.Callback(perTaskRequestPacketsList);
 
                         Span<Datagram> perTaskSendList = new Datagram[perTaskRequestPacketsListCount];
                         int perTaskSendListCount = 0;
 
-                            //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- Start loop 2: perTaskReaponsePacketsList.Count = {perTaskReaponsePacketsList.Length}");
+                        //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- Start loop 2: perTaskReaponsePacketsList.Count = {perTaskReaponsePacketsList.Length}");
 
-                            foreach (var responsePkt in perTaskReaponsePacketsList)
+                        foreach (var responsePkt in perTaskReaponsePacketsList)
                         {
                             try
                             {
@@ -211,9 +211,9 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
                             catch { }
                         }
 
-                            //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- End loop 2: perTaskSendListCount = {perTaskSendListCount}");
+                        //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- End loop 2: perTaskSendListCount = {perTaskSendListCount}");
 
-                            return perTaskSendList.Slice(0, perTaskSendListCount).ToArray().ToList();
+                        return perTaskSendList.Slice(0, perTaskSendListCount).ToArray().ToList();
                     });
 
                     return ret;
