@@ -550,15 +550,17 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
     protected override async Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(CancellationToken cancel = default)
     {
-        IEnumerable<HadbSqlDataRow> rowList = null!;
+        IEnumerable<HadbSqlDataRow> rows = null!;
 
+
+        Dbg.Where();
         try
         {
             await using var dbReader = await this.OpenSqlDatabaseAsync(false, cancel);
 
             await dbReader.TranReadSnapshotIfNecessaryAsync(async () =>
             {
-                rowList = await dbReader.EasySelectAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0", new { DATA_SYSTEMNAME = this.SystemName }); // TODO: get only latest
+                rows = await dbReader.EasySelectAsync<HadbSqlDataRow>("select top 300000 * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0", new { DATA_SYSTEMNAME = this.SystemName }); // TODO: get only latest
             });
         }
         catch (Exception ex)
@@ -567,24 +569,39 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             throw;
         }
 
-        rowList._NormalizeAll();
+        Dbg.Where();
+        
+        var rowsList = rows.ToList();
 
-        List<HadbObject> ret = new List<HadbObject>();
+        rowsList.Count._Print();
 
-        foreach (var row in rowList)
+        await rowsList._NormalizeAllParallelAsync(cancel: cancel);
+
+        Dbg.Where();
+
+        List<HadbObject> ret = await rowsList._ProcessParallelAsync(srcList =>
         {
-            Type? type = this.GetDataTypeByTypeName(row.DATA_TYPE);
-            if (type != null)
+            List<HadbObject> tmp = new List<HadbObject>();
+            foreach (var row in srcList)
             {
-                HadbData? data = (HadbData?)row.DATA_VALUE._JsonToObject(type);
-                if (data != null)
+                Type? type = this.GetDataTypeByTypeName(row.DATA_TYPE);
+                if (type != null)
                 {
-                    HadbObject obj = new HadbObject(data, row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, false, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+                    HadbData? data = (HadbData?)row.DATA_VALUE._JsonToObject(type);
+                    if (data != null)
+                    {
+                        HadbObject obj = new HadbObject(data, row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, false, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
 
-                    ret.Add(obj);
+                        tmp.Add(obj);
+                    }
                 }
             }
-        }
+            return TR(tmp);
+        }, cancel: cancel);
+
+        Dbg.Where();
+
+        ret.Count._Print();
 
         return ret;
     }
@@ -2002,13 +2019,13 @@ public abstract class HadbMemDataBase
                             if (currentObj.Deleted == false)
                             {
                                 countUpdated++;
+                                data.IndexedTable_UpdateObject_Critical(currentObj, oldKeys, oldLabels);
                             }
                             else
                             {
                                 countRemoved++;
+                                data.IndexedTable_DeleteObject_Critical(currentObj, oldKeys, oldLabels);
                             }
-
-                            data.IndexedTable_UpdateObject_Critical(currentObj, oldKeys, oldLabels);
                         }
                     }
                     else
