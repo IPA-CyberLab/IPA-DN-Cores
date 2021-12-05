@@ -101,7 +101,7 @@ public static partial class ThinControllerConsts
 
     // DB 接続時のトランザクション分離レベルのデフォルト値
     public static readonly Copenhagen<IsolationLevel> Controller_DatabaseIsolationLevel_Read = IsolationLevel.Snapshot;
-    public static readonly Copenhagen<IsolationLevel> Controller_DatabaseIsolationLevel_Write = IsolationLevel.Snapshot;
+    public static readonly Copenhagen<IsolationLevel> Controller_DatabaseIsolationLevel_Write = IsolationLevel.Serializable;
 
     // DB の Var で設定可能な変数のデフォルト値
     public static readonly Copenhagen<int> Default_ControllerMaxConcurrentWpcRequestProcessingForUsers = 500;
