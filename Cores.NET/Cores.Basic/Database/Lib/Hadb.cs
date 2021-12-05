@@ -34,11 +34,9 @@
 // Hadb Library
 
 // メモ HADB 物理 DB 消費領域
-//      アーカイブ割合 4/5 のとき:
-//      25 万レコード時  データ領域 450MB、インデックス領域 694 MB
-//      つまり 1 レコードあたり データサイズ 1.8KB, インデックスサイズ 2.5KB (だいたいの目安)
-//      通常時 1 レコードあたり 12KB くらい見ておくべし
-//      SQL Server Express の DB は 10GB までなので 80 万レコードくらいが限度か?
+//      30 万 DDNS 模擬レコード時  データ領域 300MB、インデックス領域 600 MB
+//      つまり 1 レコードあたり デーサイズ 1.0KB、インデックスサイズ 2.0 KB (だいたいの目安)
+//      SQL Server Express の DB は 10GB までなので 300 万レコードくらいが限度か?
 
 #if CORES_BASIC_DATABASE
 
@@ -615,16 +613,16 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         }
     }
 
-    protected async Task<HadbSqlDataRow?> GetRowByKeyAsync(Database db, string typeName, string nameSpace, HadbKeys key, bool lightLock, CancellationToken cancel = default)
+    protected async Task<HadbSqlDataRow?> GetRowByKeyAsync(Database db, string typeName, string nameSpace, HadbKeys key, bool lightLock, bool and, CancellationToken cancel = default)
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
 
         List<string> conditions = new List<string>();
 
-        if (key.Key1._IsFilled()) conditions.Add("DATA_ARCHIVE = 0 and DATA_DELETED = 0 and DATA_KEY1 = @DATA_KEY1 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
-        if (key.Key2._IsFilled()) conditions.Add("DATA_ARCHIVE = 0 and DATA_DELETED = 0 and DATA_KEY2 = @DATA_KEY2 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
-        if (key.Key3._IsFilled()) conditions.Add("DATA_ARCHIVE = 0 and DATA_DELETED = 0 and DATA_KEY3 = @DATA_KEY3 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
-        if (key.Key4._IsFilled()) conditions.Add("DATA_ARCHIVE = 0 and DATA_DELETED = 0 and DATA_KEY4 = @DATA_KEY4 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
+        if (key.Key1._IsFilled()) conditions.Add("DATA_ARCHIVE = 0 and DATA_DELETED = 0 and DATA_KEY1 != '' and DATA_KEY1 = @DATA_KEY1 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
+        if (key.Key2._IsFilled()) conditions.Add("DATA_ARCHIVE = 0 and DATA_DELETED = 0 and DATA_KEY2 != '' and DATA_KEY2 = @DATA_KEY2 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
+        if (key.Key3._IsFilled()) conditions.Add("DATA_ARCHIVE = 0 and DATA_DELETED = 0 and DATA_KEY3 != '' and DATA_KEY3 = @DATA_KEY3 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
+        if (key.Key4._IsFilled()) conditions.Add("DATA_ARCHIVE = 0 and DATA_DELETED = 0 and DATA_KEY4 != '' and DATA_KEY4 = @DATA_KEY4 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
 
         if (conditions.Count == 0)
         {
@@ -632,7 +630,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         }
 
         // READCOMMITTEDLOCK は、「トランザクション分離レベルが Snapshot かつ読み取り専用の場合」以外に付ける。
-        string where = $"select * from HADB_DATA { (lightLock ? "with (READCOMMITTEDLOCK)" : "") } where {conditions.Select(x => $" ( {x} )")._Combine(" or ")}";
+        string where = $"select * from HADB_DATA  { (lightLock ? "with (READCOMMITTEDLOCK)" : "") } where {conditions.Select(x => $" ( {x} )")._Combine(and ? " and " : " or ")}";
 
         return await db.EasySelectSingleAsync<HadbSqlDataRow>(where,
             new
@@ -654,10 +652,10 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         nameSpace = nameSpace._HadbNameSpaceNormalize();
         List<string> conditions = new List<string>();
 
-        if (labels.Label1._IsFilled()) conditions.Add("DATA_LABEL1 = @DATA_LABEL1");
-        if (labels.Label2._IsFilled()) conditions.Add("DATA_LABEL2 = @DATA_LABEL2");
-        if (labels.Label3._IsFilled()) conditions.Add("DATA_LABEL3 = @DATA_LABEL3");
-        if (labels.Label4._IsFilled()) conditions.Add("DATA_LABEL4 = @DATA_LABEL4");
+        if (labels.Label1._IsFilled()) conditions.Add("DATA_LABEL1 != '' and DATA_DELETED = 0 and DATA_ARCHIVE = 0 and DATA_LABEL1 = @DATA_LABEL1");
+        if (labels.Label2._IsFilled()) conditions.Add("DATA_LABEL2 != '' and DATA_DELETED = 0 and DATA_ARCHIVE = 0 and DATA_LABEL2 = @DATA_LABEL2");
+        if (labels.Label3._IsFilled()) conditions.Add("DATA_LABEL3 != '' and DATA_DELETED = 0 and DATA_ARCHIVE = 0 and DATA_LABEL3 = @DATA_LABEL3");
+        if (labels.Label4._IsFilled()) conditions.Add("DATA_LABEL4 != '' and DATA_DELETED = 0 and DATA_ARCHIVE = 0 and DATA_LABEL4 = @DATA_LABEL4");
 
         if (conditions.Count == 0)
         {
@@ -665,7 +663,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         }
 
         // READCOMMITTEDLOCK は、「トランザクション分離レベルが Snapshot かつ読み取り専用の場合」以外に付ける。
-        return await db.EasySelectAsync<HadbSqlDataRow>($"select * from HADB_DATA { (lightLock ? "with (READCOMMITTEDLOCK)" : "") } where DATA_DELETED = 0 and DATA_ARCHIVE = 0 and ({conditions._Combine(" and ")}) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
+        return await db.EasySelectAsync<HadbSqlDataRow>($"select * from HADB_DATA { (lightLock ? "with (READCOMMITTEDLOCK)" : "") } where ({conditions._Combine(" and ")}) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
             new
             {
                 DATA_LABEL1 = labels.Label1,
@@ -1152,14 +1150,14 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         return ret;
     }
 
-    protected internal override async Task<HadbObject?> AtomicSearchDataByKeyFromDatabaseImplAsync(HadbTran tran, HadbKeys key, string typeName, string nameSpace, CancellationToken cancel = default)
+    protected internal override async Task<HadbObject?> AtomicSearchDataByKeyFromDatabaseImplAsync(HadbTran tran, HadbKeys key, string typeName, string nameSpace, bool and, CancellationToken cancel = default)
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
         typeName = typeName._NonNullTrim();
 
         var dbReader = ((HadbSqlTran)tran).Db;
 
-        var row = await GetRowByKeyAsync(dbReader, typeName, nameSpace, key, !tran.IsDbSnapshotReadMode, cancel);
+        var row = await GetRowByKeyAsync(dbReader, typeName, nameSpace, key, !tran.IsDbSnapshotReadMode, and, cancel);
 
         if (row == null) return null;
 
@@ -1319,6 +1317,7 @@ public enum HadbOptionFlags : long
     NoInitConfigDb = 2,
     NoInitSnapshot = 4,
     DoNotTakeSnapshotAtAll = 8,
+    NoMemDb = 16,
 }
 
 [Flags]
@@ -2229,6 +2228,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     protected HadbSettingsBase Settings { get; }
     public string SystemName => Settings.SystemName;
+    bool IsEnabled_NoMemDb => Settings.OptionFlags.Bit(HadbOptionFlags.NoMemDb);
 
     public TDynamicConfig CurrentDynamicConfig { get; private set; }
 
@@ -2241,7 +2241,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     protected internal abstract Task AtomicAddDataListToDatabaseImplAsync(HadbTran tran, IEnumerable<HadbObject> dataList, CancellationToken cancel = default);
     protected internal abstract Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, CancellationToken cancel = default);
     protected internal abstract Task<IEnumerable<HadbObject>> AtomicGetArchivedDataFromDatabaseImplAsync(HadbTran tran, int maxItems, string uid, string typeName, string nameSpace, CancellationToken cancel = default);
-    protected internal abstract Task<HadbObject?> AtomicSearchDataByKeyFromDatabaseImplAsync(HadbTran tran, HadbKeys keys, string typeName, string nameSpace, CancellationToken cancel = default);
+    protected internal abstract Task<HadbObject?> AtomicSearchDataByKeyFromDatabaseImplAsync(HadbTran tran, HadbKeys keys, string typeName, string nameSpace, bool and, CancellationToken cancel = default);
     protected internal abstract Task<IEnumerable<HadbObject>> AtomicSearchDataListByLabelsFromDatabaseImplAsync(HadbTran tran, HadbLabels labels, string typeName, string nameSpace, CancellationToken cancel = default);
     protected internal abstract Task<HadbObject> AtomicDeleteDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, int maxArchive, CancellationToken cancel = default);
     protected internal abstract Task<HadbObject> AtomicUpdateDataOnDatabaseImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default);
@@ -2444,15 +2444,25 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
             using (await Lock_UpdateCoreAsync.LockWithAwait(cancel))
             {
-                // DB からオブジェクト一覧を読み込む
-                var loadedObjectsList = await this.ReloadDataFromDatabaseImplAsync(cancel);
+                if (this.IsEnabled_NoMemDb == false)
+                {
+                    // DB からオブジェクト一覧を読み込む
+                    var loadedObjectsList = await this.ReloadDataFromDatabaseImplAsync(cancel);
 
-                TMem? currentMemDb = this.MemDb;
-                if (currentMemDb == null) currentMemDb = new TMem();
+                    TMem? currentMemDb = this.MemDb;
+                    if (currentMemDb == null) currentMemDb = new TMem();
 
-                await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, true, cancel);
+                    await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, true, cancel);
 
-                this.MemDb = currentMemDb;
+                    this.MemDb = currentMemDb;
+                }
+                else
+                {
+                    // DB からオブジェクト一覧は読み込まない
+                    TMem? currentMemDb = this.MemDb;
+                    if (currentMemDb == null) currentMemDb = new TMem(); // 適当に空を食わせておく
+                    this.MemDb = currentMemDb;
+                }
             }
 
             this.IsDatabaseConnectedForReload = true;
@@ -2589,6 +2599,11 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         ret.ThrowIfException();
     }
 
+    public void CheckMemDb()
+    {
+        if (this.IsEnabled_NoMemDb) throw new CoresLibException("NoMemDB option is enabled.");
+    }
+
     public ResultOrExeption<bool> CheckIfReady(EnsureSpecial doNotThrowError)
     {
         if (this.IsDatabaseConnectedForReload == false)
@@ -2681,6 +2696,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     public HadbObject? FastGet(string uid, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace)
     {
         this.CheckIfReady();
+        this.CheckMemDb();
         nameSpace = nameSpace._HadbNameSpaceNormalize();
 
         var mem = this.MemDb!;
@@ -2708,6 +2724,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
         this.CheckIfReady();
+        this.CheckMemDb();
 
         var mem = this.MemDb!;
 
@@ -2733,6 +2750,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
         this.CheckIfReady();
+        this.CheckMemDb();
 
         var mem = this.MemDb!;
 
@@ -3076,24 +3094,24 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             return obj2;
         }
 
-        public async Task<HadbObject?> AtomicSearchByKeyAsync<T>(T model, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default) where T : HadbData
+        public async Task<HadbObject?> AtomicSearchByKeyAsync<T>(T model, string nameSpace = Consts.Strings.HadbDefaultNameSpace, bool and = false, CancellationToken cancel = default) where T : HadbData
         {
             nameSpace = nameSpace._HadbNameSpaceNormalize();
             CheckBegan();
             model.Normalize();
-            return await AtomicSearchByKeyAsync<T>(model.GetKeys(), nameSpace, cancel);
+            return await AtomicSearchByKeyAsync<T>(model.GetKeys(), nameSpace, and, cancel);
         }
 
-        public async Task<HadbObject?> AtomicSearchByKeyAsync<T>(HadbKeys keys, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default) where T : HadbData
-            => await AtomicSearchByKeyAsync(keys, typeof(T).Name, nameSpace, cancel);
+        public async Task<HadbObject?> AtomicSearchByKeyAsync<T>(HadbKeys keys, string nameSpace = Consts.Strings.HadbDefaultNameSpace, bool and = false, CancellationToken cancel = default) where T : HadbData
+            => await AtomicSearchByKeyAsync(keys, typeof(T).Name, nameSpace, and, cancel);
 
-        public async Task<HadbObject?> AtomicSearchByKeyAsync(HadbKeys keys, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        public async Task<HadbObject?> AtomicSearchByKeyAsync(HadbKeys keys, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace, bool and = false, CancellationToken cancel = default)
         {
             nameSpace = nameSpace._HadbNameSpaceNormalize();
             CheckBegan();
             Hadb.CheckIfReady();
 
-            HadbObject? ret = await Hadb.AtomicSearchDataByKeyFromDatabaseImplAsync(this, keys, typeName, nameSpace, cancel);
+            HadbObject? ret = await Hadb.AtomicSearchDataByKeyFromDatabaseImplAsync(this, keys, typeName, nameSpace, and, cancel);
 
             if (ret == null) return null;
 
@@ -3127,21 +3145,21 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             return items.Where(x => x.Deleted == false);
         }
 
-        public async Task<HadbObject> AtomicDeleteByKeyAsync<T>(T model, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default) where T : HadbData
+        public async Task<HadbObject> AtomicDeleteByKeyAsync<T>(T model, string nameSpace = Consts.Strings.HadbDefaultNameSpace, bool and = false, CancellationToken cancel = default) where T : HadbData
         {
             CheckBegan();
             model.Normalize();
-            return await AtomicDeleteByKeyAsync<T>(model.GetKeys(), nameSpace, model.GetMaxArchivedCount(), cancel);
+            return await AtomicDeleteByKeyAsync<T>(model.GetKeys(), nameSpace, model.GetMaxArchivedCount(), and, cancel);
         }
 
-        public async Task<HadbObject> AtomicDeleteByKeyAsync<T>(HadbKeys keys, string nameSpace = Consts.Strings.HadbDefaultNameSpace, int maxArchive = int.MaxValue, CancellationToken cancel = default) where T : HadbData
-            => await AtomicDeleteByKeyAsync(keys, typeof(T).Name, nameSpace, maxArchive, cancel);
+        public async Task<HadbObject> AtomicDeleteByKeyAsync<T>(HadbKeys keys, string nameSpace = Consts.Strings.HadbDefaultNameSpace, int maxArchive = int.MaxValue, bool and = false, CancellationToken cancel = default) where T : HadbData
+            => await AtomicDeleteByKeyAsync(keys, typeof(T).Name, nameSpace, maxArchive, and, cancel);
 
-        public async Task<HadbObject> AtomicDeleteByKeyAsync(HadbKeys keys, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace, int maxArchive = int.MaxValue, CancellationToken cancel = default)
+        public async Task<HadbObject> AtomicDeleteByKeyAsync(HadbKeys keys, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace, int maxArchive = int.MaxValue, bool and = false, CancellationToken cancel = default)
         {
             nameSpace = nameSpace._HadbNameSpaceNormalize();
             CheckBegan();
-            var obj = await this.AtomicSearchByKeyAsync(keys, typeName, nameSpace, cancel);
+            var obj = await this.AtomicSearchByKeyAsync(keys, typeName, nameSpace, and, cancel);
             if (obj == null)
             {
                 throw new CoresLibException($"Object not found. keys = {keys._ObjectToJson(compact: true)}");
