@@ -108,10 +108,10 @@ public static class HadbCodeTest2
         public override HadbKeys GetKeys() => new HadbKeys(this.HostName, this.AuthKey);
         public override HadbLabels GetLabels() => new HadbLabels(this.IpAddress1, this.IpAddress2);
 
-        //public override int GetMaxArchivedCount() => 5;
+        public override int GetMaxArchivedCount() => 5;
     }
 
-    public static async Task Test1Async(HadbSqlSettings settings, int count)
+    public static async Task Test2Async(HadbSqlSettings settings, int count)
     {
         await using Sys sys1 = new Sys(settings, new Dyn() { Hello = "Hello World" });
 
@@ -135,7 +135,8 @@ public static class HadbCodeTest2
             //i._Print();
             await sys1.TranAsync(true, async tran =>
             {
-                var obj2 = await tran.AtomicSearchByKeyAsync(new Record { AuthKey = rec.AuthKey });
+                //var obj2 = await tran.AtomicSearchByKeyAsync(new Record { AuthKey = rec.AuthKey });
+                var obj2 = await tran.AtomicGetAsync<Record>(obj.Uid);
                 var r = obj2!.GetData<Record>();
 
                 r.IpAddress1 = Str.GenRandStr();

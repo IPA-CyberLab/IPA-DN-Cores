@@ -2408,7 +2408,26 @@ static class TestClass
         const string TestDbWriteUser = "sql_hadb001_writer";
         const string TestDbWritePassword = "sql_hadb_writer_default_password";
 
-        for (int i = 0; i < 10000; i++)
+        HadbSqlSettings settings = new HadbSqlSettings("DDNS",
+            new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
+            new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
+            IsolationLevel.Snapshot, IsolationLevel.Serializable,
+            HadbOptionFlags.NoAutoDbReloadAndUpdate | HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll);
+
+        Async(async () =>
+        {
+            await using var db = new Database(settings.SqlConnectStringForWrite, settings.IsolationLevelForWrite);
+
+            await db.EnsureOpenAsync();
+
+            await db.QueryWithNoReturnAsync("truncate table HADB_CONFIG");
+            await db.QueryWithNoReturnAsync("truncate table HADB_DATA");
+            await db.QueryWithNoReturnAsync("truncate table HADB_KV");
+            await db.QueryWithNoReturnAsync("truncate table HADB_LOG");
+            await db.QueryWithNoReturnAsync("truncate table HADB_SNAPSHOT");
+        });
+
+        for (int i = 0; i < 1; i++)
         {
             $"=========== try i = {i} ============="._Print();
 
@@ -2428,13 +2447,8 @@ static class TestClass
 
                         try
                         {
-                            HadbSqlSettings settings = new HadbSqlSettings("DDNS",
-                                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
-                                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
-                                IsolationLevel.Snapshot, IsolationLevel.Serializable,
-                                HadbOptionFlags.NoAutoDbReloadAndUpdate);
 
-                            await HadbCodeTest2.Test1Async(settings, 1000);
+                            await HadbCodeTest2.Test2Async(settings, 100);
                         }
                         catch (Exception ex)
                         {
@@ -2921,7 +2935,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
             await db.EnsureOpenAsync();
 
-            await db.QueryWithNoReturnAsync("truncate table HADB_KV");
+            //await db.QueryWithNoReturnAsync("truncate table HADB_KV");
         });
 
         for (int i = 0; i < 1; i++)
@@ -2975,15 +2989,15 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
     public static void Test_Generic()
     {
-        if (true)
+        if (false)
         {
-            Test_211205(25);
+            Test_211204_Transaction_DeadLockTest(5, IsolationLevel.Serializable, false);
             return;
         }
 
         if (true)
         {
-            Test_211204_Transaction_DeadLockTest(5, IsolationLevel.Serializable, true);
+            Test_211205(100);
             return;
         }
 
