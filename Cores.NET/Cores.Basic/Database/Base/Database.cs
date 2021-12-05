@@ -64,7 +64,7 @@ public static partial class CoresConfig
 {
     public static partial class Database
     {
-        public static readonly Copenhagen<IsolationLevel> DefaultIsolationLevel = IsolationLevel.Snapshot;
+        public static readonly Copenhagen<IsolationLevel> DefaultIsolationLevel = IsolationLevel.Serializable;
 
         public static readonly Copenhagen<int> DefaultDatabaseTransactionRetryAverageIntervalSecs = 100;
 
@@ -624,7 +624,22 @@ public sealed class Database : AsyncService
         }
     }
 
-    async Task<CommandDefinition> SetupDapperAsync(string commandStr, object? param, Type? type = null, CancellationToken cancel = default)
+    //async Task<CommandDefinition> SetupDapperAsync(string commandStr, object? param, Type? type = null, CancellationToken cancel = default)
+    //{
+    //    await EnsureOpenAsync(cancel);
+
+    //    EnsureDapperTypeMapping(type);
+
+    //    if (param != null)
+    //        EnsureDapperTypeMapping(param.GetType());
+
+    //    // 2021/09/04 注意: Dapper は Cancel に対応していない。少なくとも 2.0.90 の async メソッドで確認。
+    //    CommandDefinition cmd = new CommandDefinition(commandStr, param, this.Transaction, commandTimeout: this.CommandTimeoutSecs);
+
+    //    return cmd;
+    //}
+
+    async Task SetupDapperAsync(string commandStr, object? param, Type? type = null, CancellationToken cancel = default)
     {
         await EnsureOpenAsync(cancel);
 
@@ -632,11 +647,6 @@ public sealed class Database : AsyncService
 
         if (param != null)
             EnsureDapperTypeMapping(param.GetType());
-
-        // 2021/09/04 注意: Dapper は Cancel に対応していない。少なくとも 2.0.90 の async メソッドで確認。
-        CommandDefinition cmd = new CommandDefinition(commandStr, param, this.Transaction, commandTimeout: this.CommandTimeoutSecs);
-
-        return cmd;
     }
 
     public async Task<T> GetOrInsertIfEmptyAsync<T>(string selectStr, object? selectParam, string insertStr, object insertParam, string newCreatedRowSelectWithIdCmd)
@@ -661,7 +671,10 @@ public sealed class Database : AsyncService
 
     public async Task<IEnumerable<T>> EasyQueryAsync<T>(string commandStr, object? param = null)
     {
-        var ret = await Connection.QueryAsync<T>(await SetupDapperAsync(commandStr, param, typeof(T)));
+        //var ret = await Connection.QueryAsync<T>(await SetupDapperAsync(commandStr, param, typeof(T)));
+
+        await SetupDapperAsync(commandStr, param, typeof(T));
+        var ret = await Connection.QueryAsync<T>(commandStr, param, Transaction, this.CommandTimeoutSecs);
 
         ret._TryNormalizeAll();
 
@@ -669,10 +682,18 @@ public sealed class Database : AsyncService
     }
 
     public async Task<int> EasyExecuteAsync(string commandStr, object? param = null)
-        => await Connection.ExecuteAsync(await SetupDapperAsync(commandStr, param, null));
+    {
+        await SetupDapperAsync(commandStr, param);
+
+        return await Connection.ExecuteAsync(commandStr, param, Transaction, CommandTimeoutSecs);
+    }
 
     public async Task<T> ExecuteScalarAsync<T>(string commandStr, object? param = null)
-        => (T)(await Connection.ExecuteScalarAsync(await SetupDapperAsync(commandStr, param, null)));
+    {
+        await SetupDapperAsync(commandStr, param);
+
+        return await Connection.ExecuteScalarAsync<T>(commandStr, param, Transaction, CommandTimeoutSecs);
+    }
 
     public IEnumerable<T> EasyQuery<T>(string commandStr, object? param = null)
         => EasyQueryAsync<T>(commandStr, param)._GetResult();

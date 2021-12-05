@@ -248,10 +248,16 @@ public class HadbSqlSettings : HadbSettingsBase
     public string SqlConnectStringForRead { get; }
     public string SqlConnectStringForWrite { get; }
 
-    public HadbSqlSettings(string systemName, string sqlConnectStringForRead, string sqlConnectStringForWrite, HadbOptionFlags optionFlags = HadbOptionFlags.None) : base(systemName, optionFlags)
+    public IsolationLevel IsolationLevelForRead { get; }
+    public IsolationLevel IsolationLevelForWrite { get; }
+
+    public HadbSqlSettings(string systemName, string sqlConnectStringForRead, string sqlConnectStringForWrite, IsolationLevel isoLevelForRead, IsolationLevel isoLevelForWrite, HadbOptionFlags optionFlags = HadbOptionFlags.None) : base(systemName, optionFlags)
     {
         this.SqlConnectStringForRead = sqlConnectStringForRead;
         this.SqlConnectStringForWrite = sqlConnectStringForWrite;
+
+        this.IsolationLevelForRead = isoLevelForRead;
+        this.IsolationLevelForWrite = isoLevelForWrite;
     }
 }
 
@@ -445,7 +451,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
     {
         Database db = new Database(
             writeMode ? this.Settings.SqlConnectStringForWrite : this.Settings.SqlConnectStringForRead,
-            defaultIsolationLevel: writeMode ? IsolationLevel.Snapshot : IsolationLevel.Snapshot);
+            defaultIsolationLevel: writeMode ? this.Settings.IsolationLevelForWrite : this.Settings.IsolationLevelForRead);
 
         try
         {

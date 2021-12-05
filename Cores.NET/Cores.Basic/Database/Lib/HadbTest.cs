@@ -61,6 +61,92 @@ using Newtonsoft.Json.Converters;
 
 namespace IPA.Cores.Basic;
 
+public static class HadbCodeTest2
+{
+    public class Dyn : HadbDynamicConfig
+    {
+        public string Hello { get; set; } = "";
+    }
+
+    public class Sys : HadbSqlBase<Mem, Dyn>
+    {
+        public Sys(HadbSqlSettings settings, Dyn dynamicConfig) : base(settings, dynamicConfig) { }
+    }
+
+    public class Mem : HadbMemDataBase
+    {
+        protected override List<Type> GetDefinedUserDataTypesImpl()
+        {
+            List<Type> ret = new List<Type>();
+            ret.Add(typeof(Record));
+            return ret;
+        }
+
+        protected override List<Type> GetDefinedUserLogTypesImpl()
+        {
+            List<Type> ret = new List<Type>();
+            //ret.Add(typeof(Log));
+            return ret;
+        }
+    }
+
+    public class Record : HadbData
+    {
+        public string HostName { get; set; } = "";
+        public string IpAddress1 { get; set; } = "";
+        public string IpAddress2 { get; set; } = "";
+        public string AuthKey { get; set; } = "";
+
+        public override void Normalize()
+        {
+            this.HostName = this.HostName._NormalizeKey(true);
+            this.IpAddress1 = this.IpAddress1._NormalizeIp();
+            this.IpAddress2 = this.IpAddress2._NormalizeIp();
+            this.AuthKey = this.AuthKey._NormalizeKey(true);
+        }
+
+        public override HadbKeys GetKeys() => new HadbKeys(this.HostName, this.AuthKey);
+        public override HadbLabels GetLabels() => new HadbLabels(this.IpAddress1, this.IpAddress2);
+
+        //public override int GetMaxArchivedCount() => 5;
+    }
+
+    public static async Task Test1Async(HadbSqlSettings settings, int count)
+    {
+        await using Sys sys1 = new Sys(settings, new Dyn() { Hello = "Hello World" });
+
+        sys1.Start();
+        await sys1.WaitUntilReadyForAtomicAsync(2);
+
+        HadbObject obj = null!;
+        Record rec = null!;
+
+        await sys1.TranAsync(true, async tran =>
+        {
+            Record r = new Record { HostName = "host" + Str.GenRandStr(), AuthKey = Str.GenRandStr(), IpAddress1 = Str.GenRandStr(), IpAddress2 = Str.GenRandStr() };
+
+            obj = await tran.AtomicAddAsync(r);
+            rec = r;
+            return true;
+        });
+
+        for (int i = 0; i < count; i++)
+        {
+            //i._Print();
+            await sys1.TranAsync(true, async tran =>
+            {
+                var obj2 = await tran.AtomicSearchByKeyAsync(new Record { AuthKey = rec.AuthKey });
+                var r = obj2!.GetData<Record>();
+
+                r.IpAddress1 = Str.GenRandStr();
+
+                await tran.AtomicUpdateAsync(obj2);
+
+                return true;
+            });
+        }
+    }
+}
 
 public static class HadbCodeTest
 {
@@ -275,6 +361,17 @@ public static class HadbCodeTest
                 neko_uid = obj.Uid;
                 return true;
             });
+
+
+            //await sys1.TranAsync(true, async tran =>
+            //{
+            //    for (int i = 0; i < 100; i++)
+            //    {
+            //        var obj = await tran.AtomicAddAsync(new User { Id = $"BulkUser{i}", AuthKey = $"SuperTomato{i}", Company = $"Neko Inu {i}", FullName = $"Neko {i} YaHoo!", Int1 = i, LastIp = $"9.{i}.1.7", Name = $"Super-Tomato {i}" },
+            //            nameSpace2);
+            //    }
+            //    return true;
+            //});
 
             await sys1.TranAsync(true, async tran =>
             {

@@ -2399,6 +2399,68 @@ static class TestClass
     }
 
 
+    static void Test_211205(int num = 1)
+    {
+        const string TestDbServer = "10.40.0.103";
+        const string TestDbName = "HADB001";
+        const string TestDbReadUser = "sql_hadb001_reader";
+        const string TestDbReadPassword = "sql_hadb_reader_default_password";
+        const string TestDbWriteUser = "sql_hadb001_writer";
+        const string TestDbWritePassword = "sql_hadb_writer_default_password";
+
+        for (int i = 0; i < 10000; i++)
+        {
+            $"=========== try i = {i} ============="._Print();
+
+            bool error = false;
+
+            Async(async () =>
+            {
+                AsyncManualResetEvent start = new AsyncManualResetEvent();
+                List<Task> taskList = new List<Task>();
+
+                for (int i = 0; i < num; i++)
+                {
+                    var task = TaskUtil.StartAsyncTaskAsync(async () =>
+                    {
+                        await Task.Yield();
+                        await start.WaitAsync();
+
+                        try
+                        {
+                            HadbSqlSettings settings = new HadbSqlSettings("DDNS",
+                                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
+                                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
+                                IsolationLevel.Snapshot, IsolationLevel.Serializable,
+                                HadbOptionFlags.NoAutoDbReloadAndUpdate);
+
+                            await HadbCodeTest2.Test1Async(settings, 1000);
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Error();
+                        }
+                    }
+                    );
+
+                    taskList.Add(task);
+                }
+
+                start.Set(true);
+
+                foreach (var task in taskList)
+                {
+                    var ret = await task._TryAwaitAndRetBool();
+                    if (ret.IsError) error = true;
+                }
+            });
+
+            if (error)
+            {
+                throw new CoresException("Error occured.");
+            }
+        }
+    }
     static void Test_211108(int num = 1)
     {
         const string TestDbServer = "10.40.0.103";
@@ -2408,7 +2470,7 @@ static class TestClass
         const string TestDbWriteUser = "sql_hadb001_writer";
         const string TestDbWritePassword = "sql_hadb_writer_default_password";
 
-        for (int i = 0;i < 10000;i++)
+        for (int i = 0; i < 10000; i++)
         {
             $"=========== try i = {i} ============="._Print();
 
@@ -2433,6 +2495,7 @@ static class TestClass
                             HadbSqlSettings settings = new HadbSqlSettings(systemName,
                                 new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
                                 new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
+                                IsolationLevel.Serializable, IsolationLevel.Serializable,
                                 HadbOptionFlags.NoAutoDbReloadAndUpdate);
 
                             await HadbCodeTest.Test1Async(settings, systemName);
@@ -2470,6 +2533,7 @@ static class TestClass
             var settings = new HadbSqlSettings("TEST",
                 new SqlDatabaseConnectionSetting("10.40.0.103", "TEST_DN_DBSVC1", "sql_test_dn_dbsvc1_reader", "testabc"),
                 new SqlDatabaseConnectionSetting("10.40.0.103", "TEST_DN_DBSVC1", "sql_test_dn_dbsvc1_writer", "testabc"),
+                IsolationLevel.Serializable, IsolationLevel.Serializable,
                 HadbOptionFlags.NoAutoDbReloadAndUpdate);
 
             await using HadbTest db = new HadbTest(settings,
@@ -2758,15 +2822,168 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         //b2._GetString_UTF8(true)._Print();
     }
 
-    public static void Test_211204()
+    static async Task Test_211204_Transaction_DeadLockTest_Async(HadbSqlSettings settings, int id, IsolationLevel isoLevel, bool useDapper)
     {
+        await using var db = new Database(settings.SqlConnectStringForWrite, isoLevel);
+
+        await db.EnsureOpenAsync();
+
+        string key = "DTEST" + id.ToString("D10");
+
+        await db.TranAsync(async () =>
+        {
+            if (useDapper == false)
+            {
+                await db.QueryAsync("select * from HADB_KV where KV_SYSTEM_NAME = 'a' and KV_KEY = @ and KV_DELETED = 0", key);
+
+                var data = await db.ReadAllDataAsync();
+
+                var rows = data.RowList!;
+
+                if (rows.Length == 0)
+                {
+                    await db.QueryWithNoReturnAsync("insert into HADB_KV (KV_SYSTEM_NAME, KV_KEY, KV_VALUE, KV_DELETED, KV_CREATE_DT, KV_UPDATE_DT) " +
+                        "values (@,@,@,@,@,@)",
+                        "a", key, "1", false, DtOffsetNow, DtOffsetNow);
+                }
+                else if (rows.Length == 1)
+                {
+                    int x = rows[0]["KV_VALUE"].String._ToInt();
+                    x++;
+                    await db.QueryWithNoReturnAsync("update HADB_KV set KV_VALUE = @ where KV_ID = @", x.ToString(), rows[0]["KV_ID"].Int64);
+                }
+                else
+                {
+                    throw new CoresException($"rows.Length = {rows.Length}");
+                }
+            }
+            else
+            {
+                if (false)
+                {
+                    var row = await db.EasySelectSingleAsync<HadbSqlKvRow>("select * from HADB_KV where KV_SYSTEM_NAME = 'a' and KV_KEY = @KV_KEY and KV_DELETED = 0",
+                        new
+                        {
+                            KV_KEY = key
+                        }, throwErrorIfMultipleFound: true);
+
+                    if (row == null)
+                    {
+                        await db.EasyInsertAsync(new HadbSqlKvRow { KV_SYSTEM_NAME = "a", KV_KEY = key, KV_VALUE = "1", KV_CREATE_DT = DtOffsetNow, KV_UPDATE_DT = DtOffsetNow, KV_DELETED = false });
+                    }
+                    else
+                    {
+                        int x = row.KV_VALUE._ToInt();
+                        x++;
+                        row.KV_VALUE = x.ToString();
+                        await db.EasyUpdateAsync(row);
+                    }
+                }
+                else
+                {
+                    var row = await db.EasyFindOrInsertAsync<HadbSqlKvRow>("select * from HADB_KV where KV_SYSTEM_NAME = 'a' and KV_KEY = @KV_KEY and KV_DELETED = 0",
+                        new
+                        {
+                            KV_KEY = key
+                        },
+                        new HadbSqlKvRow { KV_SYSTEM_NAME = "a", KV_KEY = key, KV_VALUE = "0", KV_CREATE_DT = DtOffsetNow, KV_UPDATE_DT = DtOffsetNow, KV_DELETED = false });
+
+                    int x = row.KV_VALUE._ToInt();
+                    x++;
+                    row.KV_VALUE = x.ToString();
+                    await db.EasyUpdateAsync(row);
+                }
+            }
+
+            return true;
+
+        });
+    }
+
+    public static void Test_211204_Transaction_DeadLockTest(int num = 1, IsolationLevel isoLevel = IsolationLevel.Serializable, bool useDapper = false)
+    {
+        const string TestDbServer = "10.40.0.103";
+        const string TestDbName = "HADB001";
+        const string TestDbReadUser = "sql_hadb001_reader";
+        const string TestDbReadPassword = "sql_hadb_reader_default_password";
+        const string TestDbWriteUser = "sql_hadb001_writer";
+        const string TestDbWritePassword = "sql_hadb_writer_default_password";
+
+        HadbSqlSettings settings = new HadbSqlSettings("DDNS",
+            new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
+            new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
+            isoLevel, isoLevel,
+            HadbOptionFlags.NoAutoDbReloadAndUpdate);
+
+        Async(async () =>
+        {
+            await using var db = new Database(settings.SqlConnectStringForWrite, settings.IsolationLevelForWrite);
+
+            await db.EnsureOpenAsync();
+
+            await db.QueryWithNoReturnAsync("truncate table HADB_KV");
+        });
+
+        for (int i = 0; i < 1; i++)
+        {
+            $"=========== try i = {i} ============="._Print();
+
+            bool error = false;
+
+            Async(async () =>
+            {
+                AsyncManualResetEvent start = new AsyncManualResetEvent();
+                List<Task> taskList = new List<Task>();
+
+                for (int i = 0; i < num; i++)
+                {
+                    var task = TaskUtil.StartAsyncTaskAsync(async () =>
+                    {
+                        await Task.Yield();
+                        await start.WaitAsync();
+
+                        try
+                        {
+
+                            await Test_211204_Transaction_DeadLockTest_Async(settings, i, settings.IsolationLevelForWrite, useDapper);
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Error();
+                        }
+                    }
+                    );
+
+                    taskList.Add(task);
+                }
+
+                start.Set(true);
+
+                foreach (var task in taskList)
+                {
+                    var ret = await task._TryAwaitAndRetBool();
+                    if (ret.IsError) error = true;
+                }
+            });
+
+            if (error)
+            {
+                throw new CoresException("Error occured.");
+            }
+        }
     }
 
     public static void Test_Generic()
     {
-        if (false)
+        if (true)
         {
-            Test_211204();
+            Test_211205(25);
+            return;
+        }
+
+        if (true)
+        {
+            Test_211204_Transaction_DeadLockTest(5, IsolationLevel.Serializable, true);
             return;
         }
 
