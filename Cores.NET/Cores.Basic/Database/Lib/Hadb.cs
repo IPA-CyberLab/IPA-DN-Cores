@@ -251,7 +251,7 @@ public class HadbSqlSettings : HadbSettingsBase
     public IsolationLevel IsolationLevelForRead { get; }
     public IsolationLevel IsolationLevelForWrite { get; }
 
-    public HadbSqlSettings(string systemName, string sqlConnectStringForRead, string sqlConnectStringForWrite, IsolationLevel isoLevelForRead, IsolationLevel isoLevelForWrite, HadbOptionFlags optionFlags = HadbOptionFlags.None) : base(systemName, optionFlags)
+    public HadbSqlSettings(string systemName, string sqlConnectStringForRead, string sqlConnectStringForWrite, IsolationLevel isoLevelForRead = IsolationLevel.Snapshot, IsolationLevel isoLevelForWrite = IsolationLevel.Serializable, HadbOptionFlags optionFlags = HadbOptionFlags.None) : base(systemName, optionFlags)
     {
         this.SqlConnectStringForRead = sqlConnectStringForRead;
         this.SqlConnectStringForWrite = sqlConnectStringForWrite;
@@ -372,7 +372,7 @@ public sealed class HadbSqlDataRow : INormalizable
     public string DATA_NAMESPACE { get; set; } = "";
     public long DATA_VER { get; set; } = 0;
     public bool DATA_DELETED { get; set; } = false;
-    public long DATA_ARCHIVE_AGE { get; set; } = 0;
+    public bool DATA_ARCHIVE { get; set; } = false;
     public long DATA_SNAPSHOT_NO { get; set; } = 0;
     public DateTimeOffset DATA_CREATE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
     public DateTimeOffset DATA_UPDATE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
@@ -553,7 +553,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
             await dbReader.TranReadSnapshotIfNecessaryAsync(async () =>
             {
-                rowList = await dbReader.EasySelectAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE_AGE = 0", new { DATA_SYSTEMNAME = this.SystemName }); // TODO: get only latest
+                rowList = await dbReader.EasySelectAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0", new { DATA_SYSTEMNAME = this.SystemName }); // TODO: get only latest
             });
         }
         catch (Exception ex)
@@ -574,7 +574,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 HadbData? data = (HadbData?)row.DATA_VALUE._JsonToObject(type);
                 if (data != null)
                 {
-                    HadbObject obj = new HadbObject(data, row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, 0, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+                    HadbObject obj = new HadbObject(data, row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, false, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
 
                     ret.Add(obj);
                 }
@@ -614,10 +614,10 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         List<string> conditions = new List<string>();
 
-        if (key.Key1._IsFilled()) conditions.Add("DATA_ARCHIVE_AGE = 0 and DATA_DELETED = 0 and DATA_KEY1 = @DATA_KEY1 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
-        if (key.Key2._IsFilled()) conditions.Add("DATA_ARCHIVE_AGE = 0 and DATA_DELETED = 0 and DATA_KEY2 = @DATA_KEY2 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
-        if (key.Key3._IsFilled()) conditions.Add("DATA_ARCHIVE_AGE = 0 and DATA_DELETED = 0 and DATA_KEY3 = @DATA_KEY3 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
-        if (key.Key4._IsFilled()) conditions.Add("DATA_ARCHIVE_AGE = 0 and DATA_DELETED = 0 and DATA_KEY4 = @DATA_KEY4 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
+        if (key.Key1._IsFilled()) conditions.Add("DATA_ARCHIVE = 0 and DATA_DELETED = 0 and DATA_KEY1 = @DATA_KEY1 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
+        if (key.Key2._IsFilled()) conditions.Add("DATA_ARCHIVE = 0 and DATA_DELETED = 0 and DATA_KEY2 = @DATA_KEY2 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
+        if (key.Key3._IsFilled()) conditions.Add("DATA_ARCHIVE = 0 and DATA_DELETED = 0 and DATA_KEY3 = @DATA_KEY3 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
+        if (key.Key4._IsFilled()) conditions.Add("DATA_ARCHIVE = 0 and DATA_DELETED = 0 and DATA_KEY4 = @DATA_KEY4 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
 
         if (conditions.Count == 0)
         {
@@ -658,7 +658,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         }
 
         // READCOMMITTEDLOCK は、トランザクション分離レベルが Snapshot かつ読み取り専用の場合にのみ付ける。
-        return await db.EasySelectAsync<HadbSqlDataRow>($"select * from HADB_DATA { (lightLock ? "with (READCOMMITTEDLOCK)" : "") } where DATA_DELETED = 0 and DATA_ARCHIVE_AGE = 0 and ({conditions._Combine(" and ")}) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
+        return await db.EasySelectAsync<HadbSqlDataRow>($"select * from HADB_DATA { (lightLock ? "with (READCOMMITTEDLOCK)" : "") } where DATA_DELETED = 0 and DATA_ARCHIVE = 0 and ({conditions._Combine(" and ")}) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
             new
             {
                 DATA_LABEL1 = labels.Label1,
@@ -680,7 +680,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         if (uid._IsEmpty()) return null;
 
-        return await db.EasySelectSingleAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE_AGE = 0 and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
+        return await db.EasySelectSingleAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE = 0 and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
             new
             {
                 DATA_UID = uid,
@@ -813,7 +813,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 DATA_TYPE = data.GetUserDataTypeName(),
                 DATA_VER = data.Ver,
                 DATA_DELETED = false,
-                DATA_ARCHIVE_AGE = 0,
+                DATA_ARCHIVE = false,
                 DATA_SNAPSHOT_NO = data.SnapshotNo,
                 DATA_NAMESPACE = data.NameSpace,
                 DATA_CREATE_DT = data.CreateDt,
@@ -962,7 +962,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         if (data.Deleted) throw new CoresLibException("data.Deleted == true");
 
         string query = "update HADB_DATA set DATA_VALUE = @DATA_VALUE, DATA_UPDATE_DT = @DATA_UPDATE_DT, DATA_LAZY_COUNT1 = DATA_LAZY_COUNT1 + 1, DATA_LAZY_COUNT2 = DATA_LAZY_COUNT2 + 1 " +
-            "where DATA_UID = @DATA_UID and DATA_VER = @DATA_VER and DATA_UPDATE_DT < @DATA_UPDATE_DT and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE_AGE = 0 and DATA_DELETED = 0 and " +
+            "where DATA_UID = @DATA_UID and DATA_VER = @DATA_VER and DATA_UPDATE_DT < @DATA_UPDATE_DT and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE = 0 and DATA_DELETED = 0 and " +
             "DATA_KEY1 = @DATA_KEY1 and DATA_KEY2 = @DATA_KEY2 and DATA_KEY3 = @DATA_KEY3 and DATA_KEY4 = @DATA_KEY4 and " +
             "DATA_LABEL1 = @DATA_LABEL1 and DATA_LABEL2 = @DATA_LABEL2 and DATA_LABEL3 = @DATA_LABEL3 and DATA_LABEL4 = DATA_LABEL4";
 
@@ -1017,7 +1017,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         if (true)
         {
             //// 現在のアーカイブを一段繰り上げる
-            //await dbWriter.EasyExecuteAsync("update HADB_DATA set DATA_ARCHIVE_AGE = DATA_ARCHIVE_AGE + 1 where DATA_UID like @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE_AGE >= 1 and DATA_NAMESPACE = @DATA_NAMESPACE",
+            //await dbWriter.EasyExecuteAsync("update HADB_DATA set DATA_ARCHIVE = DATA_ARCHIVE + 1 where DATA_UID like @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE >= 1 and DATA_NAMESPACE = @DATA_NAMESPACE",
             //    new
             //    {
             //        DATA_UID = data.Uid + ":%",
@@ -1033,7 +1033,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
                 rowOld.DATA_UID_ORIGINAL = rowOld.DATA_UID;
                 rowOld.DATA_UID += ":" + rowOld.DATA_VER.ToString("D20");
-                rowOld.DATA_ARCHIVE_AGE = 1;
+                rowOld.DATA_ARCHIVE = true;
                 rowOld.Normalize();
 
                 await dbWriter.EasyInsertAsync(rowOld, cancel);
@@ -1045,7 +1045,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
                     if (threshold >= 1)
                     {
-                        await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK) where DATA_ARCHIVE_AGE = 1 and DATA_UID_ORIGINAL = @DATA_UID and DATA_VER < @DATA_VER_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
+                        await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK) where DATA_ARCHIVE = 1 and DATA_UID_ORIGINAL = @DATA_UID and DATA_VER < @DATA_VER_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
                             new
                             {
                                 DATA_UID = data.Uid,
@@ -1089,7 +1089,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         await dbWriter.EasyUpdateAsync(row, true, cancel);
 
-        return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE_AGE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+        return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
     }
 
     protected internal override async Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, CancellationToken cancel = default)
@@ -1103,7 +1103,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         if (row == null) return null;
 
-        HadbObject ret = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE_AGE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+        HadbObject ret = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
 
         return ret;
     }
@@ -1121,24 +1121,23 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         if (uid._IsEmpty()) return EmptyOf<HadbObject>();
 
-        var rows = await db.EasySelectAsync<HadbSqlDataRow>($"select top {maxItems} * from HADB_DATA where (DATA_UID = @DATA_UID or DATA_UID like @DATA_UID_LIKE) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE order by DATA_ARCHIVE_AGE asc",
+        var rows = await db.EasySelectAsync<HadbSqlDataRow>($"select top {maxItems} * from HADB_DATA where (DATA_UID = @DATA_UID or DATA_UID_ORIGINAL = @DATA_UID) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE order by DATA_VER desc",
             new
             {
                 DATA_UID = uid,
-                DATA_UID_LIKE = uid + ":%",
                 DATA_SYSTEMNAME = this.SystemName,
                 DATA_TYPE = typeName,
                 DATA_NAMESPACE = nameSpace,
             },
             cancel: cancel);
 
-        rows = rows.OrderBy(x => x.DATA_ARCHIVE_AGE); // 念のため
+        rows = rows.OrderByDescending(x => x.DATA_VER); // 念のため
 
         List<HadbObject> ret = new List<HadbObject>();
 
         foreach (var row in rows)
         {
-            var item = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE_AGE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+            var item = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
 
             ret.Add(item);
         }
@@ -1157,7 +1156,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         if (row == null) return null;
 
-        HadbObject ret = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE_AGE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+        HadbObject ret = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
 
         return ret;
     }
@@ -1178,7 +1177,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         foreach (var row in rows)
         {
-            var item = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE_AGE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+            var item = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
 
             ret.Add(item);
         }
@@ -1209,7 +1208,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         if (true)
         {
             //// 現在のアーカイブを一段繰り上げる
-            //await dbWriter.EasyExecuteAsync("update HADB_DATA set DATA_ARCHIVE_AGE = DATA_ARCHIVE_AGE + 1 where DATA_UID like @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE_AGE >= 1 and DATA_NAMESPACE = @DATA_NAMESPACE",
+            //await dbWriter.EasyExecuteAsync("update HADB_DATA set DATA_ARCHIVE = DATA_ARCHIVE + 1 where DATA_UID like @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE >= 1 and DATA_NAMESPACE = @DATA_NAMESPACE",
             //    new
             //    {
             //        DATA_UID = data.Uid + ":%",
@@ -1225,7 +1224,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
                 rowOld.DATA_UID_ORIGINAL = rowOld.DATA_UID;
                 rowOld.DATA_UID += ":" + rowOld.DATA_VER.ToString("D20");
-                rowOld.DATA_ARCHIVE_AGE = 1;
+                rowOld.DATA_ARCHIVE = true;
                 rowOld.Normalize();
 
                 await dbWriter.EasyInsertAsync(rowOld, cancel);
@@ -1237,7 +1236,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
                     if (threshold >= 1)
                     {
-                        await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK) where DATA_ARCHIVE_AGE = 1 and DATA_UID_ORIGINAL = @DATA_UID and DATA_VER < @DATA_VER_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
+                        await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK) where DATA_ARCHIVE = 1 and DATA_UID_ORIGINAL = @DATA_UID and DATA_VER < @DATA_VER_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
                             new
                             {
                                 DATA_UID = uid,
@@ -1262,7 +1261,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         await dbWriter.EasyUpdateAsync(row, true, cancel);
 
-        return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE_AGE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+        return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
     }
 
 
@@ -1309,17 +1308,17 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 public enum HadbOptionFlags : long
 {
     None = 0,
-    NoAutoDbReloadAndUpdate,
-    NoInitConfigDb,
-    NoInitSnapshot,
-    DoNotTakeSnapshotAtAll,
+    NoAutoDbReloadAndUpdate = 1,
+    NoInitConfigDb = 2,
+    NoInitSnapshot = 4,
+    DoNotTakeSnapshotAtAll = 8,
 }
 
 [Flags]
 public enum HadbDebugFlags : long
 {
     None = 0,
-    NoCheckMemKeyDuplicate,
+    NoCheckMemKeyDuplicate = 1,
 }
 
 public abstract class HadbSettingsBase
@@ -1482,7 +1481,7 @@ public sealed class HadbObject : INormalizable
 
     public DateTimeOffset DeleteDt { get; private set; }
 
-    public long ArchiveAge { get; private set; }
+    public bool Archive { get; private set; }
 
     public long SnapshotNo { get; private set; }
 
@@ -1500,9 +1499,9 @@ public sealed class HadbObject : INormalizable
 
     public string GetUserDataJsonString() => this.UserData.GetUserDataJsonString();
 
-    public HadbObject(HadbData userData, long snapshotNo, string nameSpace, string ext1 = "", string ext2 = "") : this(userData, ext1, ext2, Str.NewUid(userData.GetUserDataTypeName(), '_'), 1, 0, snapshotNo, nameSpace, false, DtOffsetNow, DtOffsetNow, DtOffsetZero) { }
+    public HadbObject(HadbData userData, long snapshotNo, string nameSpace, string ext1 = "", string ext2 = "") : this(userData, ext1, ext2, Str.NewUid(userData.GetUserDataTypeName(), '_'), 1, false, snapshotNo, nameSpace, false, DtOffsetNow, DtOffsetNow, DtOffsetZero) { }
 
-    public HadbObject(HadbData userData, string ext1, string ext2, string uid, long ver, long archiveAge, long snapshotNo, string nameSpace, bool deleted, DateTimeOffset createDt, DateTimeOffset updateDt, DateTimeOffset deleteDt, HadbMemDataBase? memDb = null)
+    public HadbObject(HadbData userData, string ext1, string ext2, string uid, long ver, bool archive, long snapshotNo, string nameSpace, bool deleted, DateTimeOffset createDt, DateTimeOffset updateDt, DateTimeOffset deleteDt, HadbMemDataBase? memDb = null)
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
 
@@ -1522,7 +1521,7 @@ public sealed class HadbObject : INormalizable
         this.SnapshotNo = snapshotNo;
         this.NameSpace = nameSpace;
         this.Ver = Math.Max(ver, 1);
-        this.ArchiveAge = Math.Max(archiveAge, 0);
+        this.Archive = archive;
         this.Deleted = deleted;
         this.CreateDt = createDt._NormalizeDateTimeOffset();
         this.UpdateDt = updateDt._NormalizeDateTimeOffset();
@@ -1533,7 +1532,7 @@ public sealed class HadbObject : INormalizable
         this.MemDb = memDb;
         if (this.MemDb != null)
         {
-            if (this.ArchiveAge != 0) throw new CoresLibException("this.ArchiveAge != 0");
+            if (this.Archive) throw new CoresLibException("this.Archive == true");
         }
 
         this.Normalize();
@@ -1544,9 +1543,9 @@ public sealed class HadbObject : INormalizable
         memDb._NullCheck();
 
         CheckIsNotMemoryDbObject();
-        if (this.ArchiveAge != 0) throw new CoresLibException("this.ArchiveAge != 0");
+        if (this.Archive) throw new CoresLibException("this.Archive == true");
 
-        return new HadbObject(this.UserData, this.Ext1, this.Ext2, this.Uid, this.Ver, this.ArchiveAge, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt, memDb);
+        return new HadbObject(this.UserData, this.Ext1, this.Ext2, this.Uid, this.Ver, this.Archive, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt, memDb);
     }
 
     public HadbObject ToNonMemoryDbObject()
@@ -1555,7 +1554,7 @@ public sealed class HadbObject : INormalizable
 
         lock (this.Lock)
         {
-            var q = new HadbObject(this.UserData, this.Ext1, this.Ext2, this.Uid, this.Ver, this.ArchiveAge, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt);
+            var q = new HadbObject(this.UserData, this.Ext1, this.Ext2, this.Uid, this.Ver, this.Archive, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt);
 
             q.InternalFastUpdateVersion = this.InternalFastUpdateVersion;
 
@@ -1566,7 +1565,7 @@ public sealed class HadbObject : INormalizable
     public HadbObject CloneObject()
     {
         CheckIsNotMemoryDbObject();
-        return new HadbObject(this.UserData, this.Ext1, this.Ext2, this.Uid, this.Ver, this.ArchiveAge, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt);
+        return new HadbObject(this.UserData, this.Ext1, this.Ext2, this.Uid, this.Ver, this.Archive, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt);
     }
 
     public void CheckIsMemoryDbObject()
@@ -1586,7 +1585,7 @@ public sealed class HadbObject : INormalizable
         lock (this.Lock)
         {
             if (this.Deleted) throw new CoresLibException($"this.Deleted == true");
-            if (this.ArchiveAge != 0) throw new CoresLibException($"this.ArchiveAge == {this.ArchiveAge}");
+            if (this.Archive) throw new CoresLibException("this.Archive == true");
 
             var oldKeys = this.GetKeys();
             var oldLabels = this.GetLabels();
@@ -1658,14 +1657,14 @@ public sealed class HadbObject : INormalizable
                 throw new CoresLibException($"this.NameSpace '{this.NameSpace}' != obj.NameSpace '{newObj.NameSpace}'");
             }
 
-            if (this.ArchiveAge != 0)
+            if (this.Archive)
             {
-                throw new CoresLibException($"this.ArchiveAge == {this.ArchiveAge}");
+                throw new CoresLibException($"this.Archive == true");
             }
 
-            if (newObj.ArchiveAge != 0)
+            if (newObj.Archive)
             {
-                throw new CoresLibException($"obj.ArchiveAge == {newObj.ArchiveAge}");
+                throw new CoresLibException($"obj.Archive == true");
             }
 
             bool update = false;
@@ -2033,7 +2032,7 @@ public abstract class HadbMemDataBase
     public HadbObject ApplyObjectToMemDb_Critical(HadbObject newObj)
     {
         newObj.Normalize();
-        if (newObj.ArchiveAge != 0) throw new CoresLibException("obj.ArchiveAge != 0");
+        if (newObj.Archive) throw new CoresLibException("obj.Archive == true");
 
         var data = this.InternalData;
 
@@ -2283,7 +2282,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             this.DefinedDataTypesByName = tmpMem.GetDefinedUserDataTypesByName();
             this.DefinedLogTypesByName = tmpMem.GetDefinedUserLogTypesByName();
 
-            this.DefaultDeadlockRetryConfig = new DeadlockRetryConfig(CoresConfig.Database.DefaultDatabaseTransactionRetryAverageIntervalSecs, CoresConfig.Database.DefaultDatabaseTransactionRetryCount);
+            this.DefaultDeadlockRetryConfig = new DeadlockRetryConfig(CoresConfig.Database.DefaultDatabaseTransactionRetryAverageIntervalSecs, CoresConfig.Database.DefaultDatabaseTransactionRetryCount, CoresConfig.Database.DefaultDatabaseTransactionRetryIntervalMaxFactor);
         }
         catch
         {
@@ -2650,7 +2649,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                 numRetry++;
                 if (numRetry <= retryConfig.RetryCount)
                 {
-                    int nextInterval = Util.GenRandInterval(retryConfig.RetryAverageInterval);
+                    int nextInterval = Util.GenRandIntervalWithRetry(retryConfig.RetryAverageInterval, numRetry, retryConfig.RetryAverageInterval * retryConfig.RetryIntervalMaxFactor, 60.0);
 
                     $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {ex.ToString()}"._Debug();
 
@@ -3219,7 +3218,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         {
             CheckBegan();
             Hadb.CheckIfReady();
-            if (obj.Deleted || obj.ArchiveAge != 0) return false;
+            if (obj.Deleted || obj.Archive) return false;
             obj.CheckIsNotMemoryDbObject();
 
             return await Hadb.LazyUpdateImplAsync(this, obj, cancel);

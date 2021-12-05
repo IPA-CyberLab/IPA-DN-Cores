@@ -252,69 +252,73 @@ public static class HadbCodeTest
         await sys2.WaitUntilReadyForAtomicAsync(2);
         //return;
         // Dynamic Config が DB に正しく反映されているか
-        await sys1.TranAsync(true, async tran =>
-        {
-            var db = (tran as HadbSqlBase<Mem, Dyn>.HadbSqlTran)!.Db;
 
-            var rows = await db.EasySelectAsync<HadbSqlConfigRow>("select * from HADB_CONFIG where CONFIG_SYSTEMNAME = @CONFIG_SYSTEMNAME", new
+        if (settings.OptionFlags.Bit(HadbOptionFlags.NoInitConfigDb) == false)
+        {
+            await sys1.TranAsync(true, async tran =>
             {
-                CONFIG_SYSTEMNAME = systemName,
+                var db = (tran as HadbSqlBase<Mem, Dyn>.HadbSqlTran)!.Db;
+
+                var rows = await db.EasySelectAsync<HadbSqlConfigRow>("select * from HADB_CONFIG where CONFIG_SYSTEMNAME = @CONFIG_SYSTEMNAME", new
+                {
+                    CONFIG_SYSTEMNAME = systemName,
+                });
+
+                Dbg.TestTrue((rows.Where(x => x.CONFIG_NAME == "HadbReloadIntervalMsecsLastOk").Single()).CONFIG_VALUE._ToInt() == Consts.HadbDynamicConfigDefaultValues.HadbReloadIntervalMsecsLastOk);
+                Dbg.TestTrue((rows.Where(x => x.CONFIG_NAME == "Hello").Single()).CONFIG_VALUE == "Hello World");
+
+                var helloRow = rows.Where(x => x.CONFIG_NAME == "Hello").Single();
+                helloRow.CONFIG_VALUE = "Neko";
+                await db.EasyUpdateAsync(helloRow);
+
+                return true;
             });
 
-            Dbg.TestTrue((rows.Where(x => x.CONFIG_NAME == "HadbReloadIntervalMsecsLastOk").Single()).CONFIG_VALUE._ToInt() == Consts.HadbDynamicConfigDefaultValues.HadbReloadIntervalMsecsLastOk);
-            Dbg.TestTrue((rows.Where(x => x.CONFIG_NAME == "Hello").Single()).CONFIG_VALUE == "Hello World");
+            // DB の値を変更した後、Dynamic Config が正しくメモリに反映されるか
+            await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
+            Dbg.TestTrue(sys1.CurrentDynamicConfig.Hello == "Neko");
 
-            var helloRow = rows.Where(x => x.CONFIG_NAME == "Hello").Single();
-            helloRow.CONFIG_VALUE = "Neko";
-            await db.EasyUpdateAsync(helloRow);
+            await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
+            Dbg.TestTrue(sys2.CurrentDynamicConfig.Hello == "Neko");
 
-            return true;
-        });
+            await sys1.TranAsync(true, async tran =>
+            {
+                string s = await tran.AtomicGetKvAsync(" inchiki");
+                Dbg.TestTrue(s == "");
 
-        // DB の値を変更した後、Dynamic Config が正しくメモリに反映されるか
-        await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
-        Dbg.TestTrue(sys1.CurrentDynamicConfig.Hello == "Neko");
+                await tran.AtomicSetKvAsync("inchiki ", "123");
 
-        await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
-        Dbg.TestTrue(sys2.CurrentDynamicConfig.Hello == "Neko");
+                return true;
+            });
 
-        await sys1.TranAsync(true, async tran =>
-        {
-            string s = await tran.AtomicGetKvAsync(" inchiki");
-            Dbg.TestTrue(s == "");
+            await sys2.TranAsync(false, async tran =>
+            {
+                string s = await tran.AtomicGetKvAsync("inchiki  ");
+                Dbg.TestTrue(s == "123");
+                return true;
+            });
 
-            await tran.AtomicSetKvAsync("inchiki ", "123");
+            await sys1.TranAsync(true, async tran =>
+            {
+                string s = await tran.AtomicGetKvAsync("   inchiki");
+                Dbg.TestTrue(s == "123");
 
-            return true;
-        });
+                await tran.AtomicSetKvAsync(" inchiki", "456");
 
-        await sys2.TranAsync(false, async tran =>
-        {
-            string s = await tran.AtomicGetKvAsync("inchiki  ");
-            Dbg.TestTrue(s == "123");
-            return true;
-        });
+                return true;
+            });
 
-        await sys1.TranAsync(true, async tran =>
-        {
-            string s = await tran.AtomicGetKvAsync("   inchiki");
-            Dbg.TestTrue(s == "123");
+            await sys2.TranAsync(false, async tran =>
+            {
+                var db = (tran as HadbSqlBase<Mem, Dyn>.HadbSqlTran)!.Db;
 
-            await tran.AtomicSetKvAsync(" inchiki", "456");
+                var test = await db.QueryWithValueAsync("select count(*) from HADB_KV where KV_SYSTEM_NAME = @ and KV_KEY = @", sys1.SystemName, "inchiki");
 
-            return true;
-        });
+                Dbg.TestTrue(test.Int == 1);
 
-        await sys2.TranAsync(false, async tran =>
-        {
-            var db = (tran as HadbSqlBase<Mem, Dyn>.HadbSqlTran)!.Db;
-
-            var test = await db.QueryWithValueAsync("select count(*) from HADB_KV where KV_SYSTEM_NAME = @ and KV_KEY = @", sys1.SystemName, "inchiki");
-
-            Dbg.TestTrue(test.Int == 1);
-
-            return true;
-        });
+                return true;
+            });
+        }
 
         for (int i = 0; i < 2; i++)
         {
@@ -376,11 +380,12 @@ public static class HadbCodeTest
 
             await sys1.TranAsync(true, async tran =>
             {
+                //neko_uid._Print();
                 for (int i = 0; i < 20; i++)
                 {
                     var obj = await tran.AtomicGetAsync<User>(neko_uid, nameSpace2);
                     var user = obj!.GetData<User>();
-                    user.Name = "Super-Oracle" + i.ToString();
+                    //user.Name = "Super-Oracle" + i.ToString();
                     user.LastIp = "0.0.0." + i.ToString();
 
                     await tran.AtomicUpdateAsync(obj);
@@ -502,7 +507,7 @@ public static class HadbCodeTest
                 Dbg.TestTrue(list2[1].Id == "u2");
 
                 Dbg.TestTrue(obj.Where(x => x.SnapshotNo == snapshot0).Count() == 2);
-                Dbg.TestTrue(obj.Where(x => x.SnapshotNo == snapshot1).Count() == 0);
+                Dbg.TestTrue(obj.Where(x => x.SnapshotNo != snapshot0).Count() == 0);
                 return false;
             });
 
