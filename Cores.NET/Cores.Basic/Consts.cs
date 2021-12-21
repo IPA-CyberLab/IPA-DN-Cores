@@ -362,6 +362,9 @@ public static partial class Consts
 
         public const string Zip = ".zip";
 
+        public const string Data = ".dat";
+        public const string Backup = ".bak";
+
         public const string Win32Executable = ".exe";
 
         public const string Filter_SourceCodes = "*.c;*.cpp;*.h;*.rc;*.stb;*.cs;*.fx;*.hlsl;*.cxx;*.cc;*.hh;*.hpp;*.hxx;*.hh;*.txt;*.cshtml;*.scss;*.ts;*.js;*.resx;*.htm;*.html;*.aspx;*.ascx;*.asmx;*.asp;*.vbhtml;*.razor;*.css;*.xml;*.json;*.sln;*.vcxproj;*.csproj;*.md;*.yml;";

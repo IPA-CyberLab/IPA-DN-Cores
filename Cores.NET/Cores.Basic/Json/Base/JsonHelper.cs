@@ -203,7 +203,7 @@ namespace IPA.Cores.Basic
             => ReadJsonFromFileEncryptedAsync<T>(path, password, maxSize, flags, cancel, includeNull, maxDepth, nullIfError)._GetResult();
 
         public async Task<long> WriteJsonToFileAsync<T>(string path, [AllowNull] T obj, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
-            bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
+            bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool withBackup = false)
         {
             //string jsonStr = obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling);
 
@@ -219,14 +219,31 @@ namespace IPA.Cores.Basic
                 }
             }
 
+            if (withBackup)
+            {
+                string backupFilePath = path + Consts.Extensions.Backup;
+
+                try
+                {
+                    if (await this.IsFileExistsAsync(path, cancel))
+                    {
+                        await this.CopyFileAsync(path, backupFilePath, new CopyFileParams(flags: flags | FileFlags.AutoCreateDirectory | FileFlags.WriteOnlyIfChanged), cancel: cancel);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ex._Error();
+                }
+            }
+
             return await this.WriteHugeMemoryBufferToFileAsync(path, mem, flags, doNotOverwrite, cancel);
         }
         public long WriteJsonToFile<T>(string path, [AllowNull] T obj, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
-            bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
-            => WriteJsonToFileAsync(path, obj, flags, doNotOverwrite, cancel, includeNull, escapeHtml, maxDepth, compact, referenceHandling)._GetResult();
+            bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool withBackup = false)
+            => WriteJsonToFileAsync(path, obj, flags, doNotOverwrite, cancel, includeNull, escapeHtml, maxDepth, compact, referenceHandling, withBackup)._GetResult();
 
         public async Task<T> ReadJsonFromFileAsync<T>(string path, long maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default,
-            bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool nullIfError = false)
+            bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool nullIfError = false, bool withBackup = false)
         {
             try
             {
@@ -234,21 +251,46 @@ namespace IPA.Cores.Basic
                 {
                     if ((await this.IsFileExistsAsync(path, cancel)) == false)
                     {
-                        return default!;
+                        if (withBackup)
+                        {
+                            if ((await this.IsFileExistsAsync(path + Consts.Extensions.Backup, cancel)) == false)
+                            {
+                                return default!;
+                            }
+                        }
+                        else
+                        {
+                            return default!;
+                        }
                     }
                 }
 
-                //string jsonStr = await this.ReadStringFromFileAsync(path, null, maxSize, flags, false, cancel);
-
-                //return jsonStr._JsonToObject<T>(includeNull, maxDepth, false);
-
-                HugeMemoryBuffer<byte> mem = await this.ReadHugeMemoryBufferFromFileAsync(path, maxSize, flags, cancel);
-
-                await using (BufferBasedStream stream = new BufferBasedStream(mem))
+L_RETRY:
+                try
                 {
-                    using (StreamReader r = new StreamReader(stream, Str.Utf8Encoding, true, Consts.Numbers.DefaultVeryLargeBufferSize))
+                    HugeMemoryBuffer<byte> mem = await this.ReadHugeMemoryBufferFromFileAsync(path, maxSize, flags, cancel);
+
+                    await using (BufferBasedStream stream = new BufferBasedStream(mem))
                     {
-                        return r._JsonToObject<T>(includeNull, maxDepth)!;
+                        using (StreamReader r = new StreamReader(stream, Str.Utf8Encoding, true, Consts.Numbers.DefaultVeryLargeBufferSize))
+                        {
+                            return r._JsonToObject<T>(includeNull, maxDepth)!;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (withBackup == false)
+                    {
+                        throw;
+                    }
+                    else
+                    {
+                        ex._Error();
+                        withBackup = false;
+                        path += Consts.Extensions.Backup;
+                        $"Trying the backup file '{path}' ..."._Error();
+                        goto L_RETRY;
                     }
                 }
             }
@@ -261,8 +303,8 @@ namespace IPA.Cores.Basic
             }
         }
         public T ReadJsonFromFile<T>(string path, long maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default,
-            bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool nullIfError = false)
-            => ReadJsonFromFileAsync<T>(path, maxSize, flags, cancel, includeNull, maxDepth, nullIfError)._GetResult();
+            bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool nullIfError = false, bool withBackup = false)
+            => ReadJsonFromFileAsync<T>(path, maxSize, flags, cancel, includeNull, maxDepth, nullIfError, withBackup)._GetResult();
     }
 }
 
