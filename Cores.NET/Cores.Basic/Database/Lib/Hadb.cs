@@ -571,7 +571,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         }
 
         //Dbg.Where();
-        
+
         var rowsList = rows.ToList();
 
         //rowsList.Count._Print();
@@ -1349,11 +1349,20 @@ public abstract class HadbSettingsBase
 {
     public string SystemName { get; }
     public HadbOptionFlags OptionFlags { get; }
+    public DirectoryPath BackupDir { get; }
 
-    public HadbSettingsBase(string systemName, HadbOptionFlags optionFlags = HadbOptionFlags.None)
+    public HadbSettingsBase(string systemName, HadbOptionFlags optionFlags = HadbOptionFlags.None, DirectoryPath? backupDir = null)
     {
+        if (this.SystemName._IsEmpty()) throw new CoresLibException("systemName is empty.");
         this.SystemName = systemName._NonNullTrim().ToUpper();
         this.OptionFlags = optionFlags;
+
+        if (backupDir == null)
+        {
+            backupDir = new DirectoryPath(Env.AppLocalDir._CombinePath("HadbBackup", this.SystemName._MakeVerySafeAsciiOnlyNonSpaceFileName()));
+        }
+
+        this.BackupDir = backupDir;
     }
 }
 
