@@ -2134,26 +2134,26 @@ public static class BasicHelper
         }
     }
 
-    public static async Task<List<Datagram>> _ProcessDatagramWithMultiTasksAsync(this List<Datagram> recvPacketsList, Func<List<Datagram>, Task<List<Datagram>>> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
+    public static async Task _ProcessParallelAsync<T>(this List<T> srcList, Func<List<T>, Task> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
     {
-        recvPacketsList._NullCheck();
+        srcList._NullCheck();
 
         int numTasks = numCpus ?? Env.NumCpus;
         if (numTasks <= 0) numTasks = 1;
 
-        List<Datagram>[] srcListList = new List<Datagram>[numTasks];
+        List<T>[] srcListList = new List<T>[numTasks];
 
-        List<Datagram> ret = new List<Datagram>(recvPacketsList.Count);
+        int srcCount = srcList.Count;
 
         if (operation == MultitaskDivideOperation.RoundRobin)
         {
             for (int i = 0; i < numTasks; i++)
             {
-                srcListList[i] = new List<Datagram>((recvPacketsList.Count / numTasks) + 1);
+                srcListList[i] = new List<T>((srcList.Count / numTasks) + 1);
             }
 
             int index = 0;
-            foreach (var d in recvPacketsList)
+            foreach (var d in srcList)
             {
                 srcListList[index % numTasks].Add(d);
                 index++;
@@ -2161,8 +2161,8 @@ public static class BasicHelper
         }
         else
         {
-            int countPerTask = recvPacketsList.Count / numTasks;
-            int countForLastTask = recvPacketsList.Count - (countPerTask * (numTasks - 1));
+            int countPerTask = srcList.Count / numTasks;
+            int countForLastTask = srcList.Count - (countPerTask * (numTasks - 1));
             for (int i = 0; i < numTasks; i++)
             {
                 int startIndex = countPerTask * i;
@@ -2172,22 +2172,78 @@ public static class BasicHelper
                     count = countForLastTask;
                 }
 
-                srcListList[i] = recvPacketsList.GetRange(startIndex, count);
+                srcListList[i] = srcList.GetRange(startIndex, count);
             }
         }
 
         //Con.WriteLine($"Total: {recvPacketsList.Count}");
+
 
         srcListList = srcListList.Where(x => x.Any()).ToArray();
 
         await TaskUtil.ForEachAsync(srcListList.Length, srcListList, async (list, c) =>
         {
             //Con.WriteLine($"  Task ${ThreadObj.CurrentThreadId}: {list.Count}");
-            var resultPackets = await action(list);
+            await action(list);
+        }, cancel);
+    }
+
+    public static async Task<List<TOut>> _ProcessParallelAndAggregateAsync<TIn, TOut>(this List<TIn> srcList, Func<List<TIn>, Task<List<TOut>>> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
+    {
+        srcList._NullCheck();
+
+        int numTasks = numCpus ?? Env.NumCpus;
+        if (numTasks <= 0) numTasks = 1;
+
+        List<TIn>[] srcListList = new List<TIn>[numTasks];
+
+        int srcCount = srcList.Count;
+
+        if (operation == MultitaskDivideOperation.RoundRobin)
+        {
+            for (int i = 0; i < numTasks; i++)
+            {
+                srcListList[i] = new List<TIn>((srcList.Count / numTasks) + 1);
+            }
+
+            int index = 0;
+            foreach (var d in srcList)
+            {
+                srcListList[index % numTasks].Add(d);
+                index++;
+            }
+        }
+        else
+        {
+            int countPerTask = srcList.Count / numTasks;
+            int countForLastTask = srcList.Count - (countPerTask * (numTasks - 1));
+            for (int i = 0; i < numTasks; i++)
+            {
+                int startIndex = countPerTask * i;
+                int count = countPerTask;
+                if (i == (numTasks - 1))
+                {
+                    count = countForLastTask;
+                }
+
+                srcListList[i] = srcList.GetRange(startIndex, count);
+            }
+        }
+
+        //Con.WriteLine($"Total: {recvPacketsList.Count}");
+
+        List<TOut> ret = new List<TOut>(srcList.Count);
+
+        srcListList = srcListList.Where(x => x.Any()).ToArray();
+
+        await TaskUtil.ForEachAsync(srcListList.Length, srcListList, async (list, c) =>
+        {
+            //Con.WriteLine($"  Task ${ThreadObj.CurrentThreadId}: {list.Count}");
+            var results = await action(list);
 
             lock (ret)
             {
-                ret.AddRange(resultPackets);
+                ret.AddRange(results);
             }
         }, cancel);
 
@@ -2982,7 +3038,18 @@ public static class BasicHelper
 
     public static Tuple<string, int> _ParseHostnaneAndPort(this string str, int defaultPort) => Str.ParseHostnaneAndPort(str, defaultPort);
 
-    public static void _NormalizeAll(this IEnumerable<INormalizable> list) => list._DoForEach(x => x.Normalize());
+    public static void _NormalizeAll<T>(this IEnumerable<T> list) where T : INormalizable
+        => list._DoForEach(x => x.Normalize());
+
+    public static async Task _NormalizeAllParallelAsync<T>(this List<T> list, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
+        where T : INormalizable
+    {
+        await list._ProcessParallelAndAggregateAsync(src =>
+        {
+            src._NormalizeAll();
+            return TR(src);
+        }, numCpus, operation, cancel);
+    }
 
     public static Type? GetFieldOrPropertyInfo(this MemberInfo info)
     {

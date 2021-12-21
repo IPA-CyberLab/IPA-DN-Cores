@@ -108,10 +108,10 @@ public static class HadbCodeTest2
         public override HadbKeys GetKeys() => new HadbKeys(this.HostName, this.AuthKey);
         public override HadbLabels GetLabels() => new HadbLabels(this.IpAddress1, this.IpAddress2);
 
-        //public override int GetMaxArchivedCount() => 5;
+        public override int GetMaxArchivedCount() => 5;
     }
 
-    public static async Task Test1Async(HadbSqlSettings settings, int count)
+    public static async Task ManyUpdatesTestAsync(HadbSqlSettings settings, int count)
     {
         await using Sys sys1 = new Sys(settings, new Dyn() { Hello = "Hello World" });
 
@@ -135,13 +135,85 @@ public static class HadbCodeTest2
             //i._Print();
             await sys1.TranAsync(true, async tran =>
             {
-                var obj2 = await tran.AtomicSearchByKeyAsync(new Record { AuthKey = rec.AuthKey });
+                //var obj2 = await tran.AtomicSearchByKeyAsync(new Record { AuthKey = rec.AuthKey });
+                var obj2 = await tran.AtomicGetAsync<Record>(obj.Uid);
                 var r = obj2!.GetData<Record>();
 
                 r.IpAddress1 = Str.GenRandStr();
 
                 await tran.AtomicUpdateAsync(obj2);
 
+                return true;
+            });
+        }
+    }
+
+    public static async Task DummyInsertsTestAsync(HadbSqlSettings settings, int count, int thread_id)
+    {
+        await using Sys sys1 = new Sys(settings, new Dyn() { Hello = "Hello World" });
+
+        sys1.Start();
+        await sys1.WaitUntilReadyForAtomicAsync(2);
+
+        HadbObject obj = null!;
+        Record rec = null!;
+
+        for (int i = 0; i < count; i++)
+        {
+            await sys1.TranAsync(true, async tran =>
+            {
+                Record r = new Record { HostName = "host_" + thread_id.ToString("D10") + "_" + i.ToString("D10"), AuthKey = "auth_" + i.ToString("D10") + "_" + thread_id.ToString("D10"), IpAddress1 = Str.GenRandStr().Substring(0, 4), IpAddress2 = Str.GenRandStr().Substring(0, 6) };
+
+                obj = await tran.AtomicAddAsync(r);
+                rec = r;
+                return true;
+            });
+        }
+    }
+
+    public static async Task DummyRandomUpdatesTestAsync(HadbSqlSettings settings, int maxCounts, int maxThreadId)
+    {
+        await using Sys sys1 = new Sys(settings, new Dyn() { Hello = "Hello World" });
+
+        sys1.Start();
+        await sys1.WaitUntilReadyForAtomicAsync(2);
+
+        for (int j = 0; ; j++)
+        {
+            await sys1.TranAsync(true, async tran =>
+            {
+                //for (int k = 0; k < 100; k++)
+                {
+                    int thread_id = (Util.RandSInt31() % maxThreadId) + 1;
+                    int i = Util.RandSInt31() % maxCounts;
+
+                    Record byHostName = new Record { HostName = "host_" + thread_id.ToString("D10") + "_" + i.ToString("D10") };
+                    //Record byAuthKey = new Record { AuthKey = "auth_" + i.ToString("D10") + "_" + thread_id.ToString("D10") };
+
+                    var obj1 = await tran.AtomicSearchByKeyAsync(byHostName);
+                    //var obj2 = await tran.AtomicSearchByKeyAsync(byAuthKey);
+
+                    //if (obj1 == null) byHostName.GetUserDataJsonString()._Print();
+                    //if (obj2 == null) byAuthKey.GetUserDataJsonString()._Print();
+
+                    obj1!.GetUserDataJsonString()._Print();
+                    //obj2!.GetUserDataJsonString()._Print();
+
+                    var r1 = obj1.GetData<Record>();
+                    //var r2 = obj2.GetData<Record>();
+
+                    r1.IpAddress1 = Str.GenRandStr().Substring(0, 4);
+                    r1.IpAddress2 = Str.GenRandStr().Substring(0, 6);
+
+                    //r2.IpAddress1 = Str.GenRandStr().Substring(0, 4);
+                    //r2.IpAddress2 = Str.GenRandStr().Substring(0, 6);
+
+                    if (tran.IsWriteMode)
+                    {
+                        await tran.AtomicUpdateAsync(obj1);
+                    }
+                    //await tran.AtomicUpdateAsync(obj2);
+                }
                 return true;
             });
         }
@@ -219,6 +291,7 @@ public static class HadbCodeTest
         }
 
         public override int GetMaxArchivedCount() => 10;
+        //public override int GetMaxArchivedCount() => int.MaxValue;
     }
 
     public class Mem : HadbMemDataBase
@@ -251,69 +324,73 @@ public static class HadbCodeTest
         await sys2.WaitUntilReadyForAtomicAsync(2);
         //return;
         // Dynamic Config が DB に正しく反映されているか
-        await sys1.TranAsync(true, async tran =>
-        {
-            var db = (tran as HadbSqlBase<Mem, Dyn>.HadbSqlTran)!.Db;
 
-            var rows = await db.EasySelectAsync<HadbSqlConfigRow>("select * from HADB_CONFIG where CONFIG_SYSTEMNAME = @CONFIG_SYSTEMNAME", new
+        if (settings.OptionFlags.Bit(HadbOptionFlags.NoInitConfigDb) == false)
+        {
+            await sys1.TranAsync(true, async tran =>
             {
-                CONFIG_SYSTEMNAME = systemName,
+                var db = (tran as HadbSqlBase<Mem, Dyn>.HadbSqlTran)!.Db;
+
+                var rows = await db.EasySelectAsync<HadbSqlConfigRow>("select * from HADB_CONFIG where CONFIG_SYSTEMNAME = @CONFIG_SYSTEMNAME", new
+                {
+                    CONFIG_SYSTEMNAME = systemName,
+                });
+
+                Dbg.TestTrue((rows.Where(x => x.CONFIG_NAME == "HadbReloadIntervalMsecsLastOk").Single()).CONFIG_VALUE._ToInt() == Consts.HadbDynamicConfigDefaultValues.HadbReloadIntervalMsecsLastOk);
+                Dbg.TestTrue((rows.Where(x => x.CONFIG_NAME == "Hello").Single()).CONFIG_VALUE == "Hello World");
+
+                var helloRow = rows.Where(x => x.CONFIG_NAME == "Hello").Single();
+                helloRow.CONFIG_VALUE = "Neko";
+                await db.EasyUpdateAsync(helloRow);
+
+                return true;
             });
 
-            Dbg.TestTrue((rows.Where(x => x.CONFIG_NAME == "HadbReloadIntervalMsecsLastOk").Single()).CONFIG_VALUE._ToInt() == Consts.HadbDynamicConfigDefaultValues.HadbReloadIntervalMsecsLastOk);
-            Dbg.TestTrue((rows.Where(x => x.CONFIG_NAME == "Hello").Single()).CONFIG_VALUE == "Hello World");
+            // DB の値を変更した後、Dynamic Config が正しくメモリに反映されるか
+            await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
+            Dbg.TestTrue(sys1.CurrentDynamicConfig.Hello == "Neko");
 
-            var helloRow = rows.Where(x => x.CONFIG_NAME == "Hello").Single();
-            helloRow.CONFIG_VALUE = "Neko";
-            await db.EasyUpdateAsync(helloRow);
+            await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
+            Dbg.TestTrue(sys2.CurrentDynamicConfig.Hello == "Neko");
 
-            return true;
-        });
+            await sys1.TranAsync(true, async tran =>
+            {
+                string s = await tran.AtomicGetKvAsync(" inchiki");
+                Dbg.TestTrue(s == "");
 
-        // DB の値を変更した後、Dynamic Config が正しくメモリに反映されるか
-        await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
-        Dbg.TestTrue(sys1.CurrentDynamicConfig.Hello == "Neko");
+                await tran.AtomicSetKvAsync("inchiki ", "123");
 
-        await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
-        Dbg.TestTrue(sys2.CurrentDynamicConfig.Hello == "Neko");
+                return true;
+            });
 
-        await sys1.TranAsync(true, async tran =>
-        {
-            string s = await tran.AtomicGetKvAsync(" inchiki");
-            Dbg.TestTrue(s == "");
+            await sys2.TranAsync(false, async tran =>
+            {
+                string s = await tran.AtomicGetKvAsync("inchiki  ");
+                Dbg.TestTrue(s == "123");
+                return true;
+            });
 
-            await tran.AtomicSetKvAsync("inchiki ", "123");
+            await sys1.TranAsync(true, async tran =>
+            {
+                string s = await tran.AtomicGetKvAsync("   inchiki");
+                Dbg.TestTrue(s == "123");
 
-            return true;
-        });
+                await tran.AtomicSetKvAsync(" inchiki", "456");
 
-        await sys2.TranAsync(false, async tran =>
-        {
-            string s = await tran.AtomicGetKvAsync("inchiki  ");
-            Dbg.TestTrue(s == "123");
-            return true;
-        });
+                return true;
+            });
 
-        await sys1.TranAsync(true, async tran =>
-        {
-            string s = await tran.AtomicGetKvAsync("   inchiki");
-            Dbg.TestTrue(s == "123");
+            await sys2.TranAsync(false, async tran =>
+            {
+                var db = (tran as HadbSqlBase<Mem, Dyn>.HadbSqlTran)!.Db;
 
-            await tran.AtomicSetKvAsync(" inchiki", "456");
+                var test = await db.QueryWithValueAsync("select count(*) from HADB_KV where KV_SYSTEM_NAME = @ and KV_KEY = @", sys1.SystemName, "inchiki");
 
-            return true;
-        });
+                Dbg.TestTrue(test.Int == 1);
 
-        await sys2.TranAsync(false, async tran =>
-        {
-            var db = (tran as HadbSqlBase<Mem, Dyn>.HadbSqlTran)!.Db;
-
-            var test = await db.QueryWithValueAsync("select count(*) from HADB_KV where KV_SYSTEM_NAME = @ and KV_KEY = @", sys1.SystemName, "inchiki");
-
-            Dbg.TestTrue(test.Int == 1);
-
-            return true;
-        });
+                return true;
+            });
+        }
 
         for (int i = 0; i < 2; i++)
         {
@@ -373,24 +450,28 @@ public static class HadbCodeTest
             //    return true;
             //});
 
-            await sys1.TranAsync(true, async tran =>
+            for (int k = 0; k < 20; k++)
             {
-                for (int i = 0; i < 20; i++)
+                await sys1.TranAsync(true, async tran =>
                 {
+                    //neko_uid._Print();
                     var obj = await tran.AtomicGetAsync<User>(neko_uid, nameSpace2);
                     var user = obj!.GetData<User>();
-                    user.Name = "Super-Oracle" + i.ToString();
+                    //user.Name = "Super-Oracle" + i.ToString();
                     user.LastIp = "0.0.0." + i.ToString();
 
                     await tran.AtomicUpdateAsync(obj);
-                }
-                return true;
-            });
+                    return true;
+                });
+            }
 
             await sys1.TranAsync(false, async tran =>
             {
                 var list = await tran.AtomicGetArchivedAsync<User>(neko_uid, nameSpace: nameSpace2);
-                Dbg.TestTrue(list.Count() == 11);
+                if ((new User()).GetMaxArchivedCount() != int.MaxValue)
+                {
+                    Dbg.TestTrue(list.Count() == 11);
+                }
                 return true;
             });
 
@@ -501,7 +582,7 @@ public static class HadbCodeTest
                 Dbg.TestTrue(list2[1].Id == "u2");
 
                 Dbg.TestTrue(obj.Where(x => x.SnapshotNo == snapshot0).Count() == 2);
-                Dbg.TestTrue(obj.Where(x => x.SnapshotNo == snapshot1).Count() == 0);
+                Dbg.TestTrue(obj.Where(x => x.SnapshotNo != snapshot0).Count() == 0);
                 return false;
             });
 

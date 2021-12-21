@@ -66,9 +66,9 @@ public static partial class CoresConfig
     {
         public static readonly Copenhagen<IsolationLevel> DefaultIsolationLevel = IsolationLevel.Serializable;
 
-        public static readonly Copenhagen<int> DefaultDatabaseTransactionRetryAverageIntervalSecs = 100;
-
+        public static readonly Copenhagen<int> DefaultDatabaseTransactionRetryAverageIntervalSecs = 200;
         public static readonly Copenhagen<int> DefaultDatabaseTransactionRetryCount = 10;
+        public static readonly Copenhagen<int> DefaultDatabaseTransactionRetryIntervalMaxFactor = 5;
 
         public static readonly Copenhagen<int> DefaultOpenTryCount = 2;
     }
@@ -414,13 +414,15 @@ public struct UsingTran : IDisposable, IAsyncDisposable
 // デッドロック再試行設定
 public class DeadlockRetryConfig
 {
-    public readonly int RetryAverageInterval;
-    public readonly int RetryCount;
+    public int RetryAverageInterval { get; }
+    public int RetryCount { get; }
+    public int RetryIntervalMaxFactor { get; }
 
-    public DeadlockRetryConfig(int RetryAverageInterval, int RetryCount)
+    public DeadlockRetryConfig(int RetryAverageInterval, int RetryCount, int RetryIntervalMaxFactor = 1)
     {
         this.RetryAverageInterval = RetryAverageInterval;
         this.RetryCount = RetryCount;
+        this.RetryIntervalMaxFactor = Math.Max(RetryIntervalMaxFactor, 1);
     }
 }
 
@@ -450,7 +452,7 @@ public sealed class Database : AsyncService
     public int CommandTimeoutSecs { get; set; } = DefaultCommandTimeoutSecs;
 
     public static readonly DeadlockRetryConfig DefaultDeadlockRetryConfig
-        = new DeadlockRetryConfig(CoresConfig.Database.DefaultDatabaseTransactionRetryAverageIntervalSecs, CoresConfig.Database.DefaultDatabaseTransactionRetryCount);
+        = new DeadlockRetryConfig(CoresConfig.Database.DefaultDatabaseTransactionRetryAverageIntervalSecs, CoresConfig.Database.DefaultDatabaseTransactionRetryCount, CoresConfig.Database.DefaultDatabaseTransactionRetryIntervalMaxFactor);
 
     public DeadlockRetryConfig DeadlockRetryConfig { get; } = DefaultDeadlockRetryConfig;
 
@@ -1289,11 +1291,11 @@ public sealed class Database : AsyncService
                 numRetry++;
                 if (numRetry <= retryConfig.RetryCount)
                 {
-                    int nextInterval = Util.GenRandInterval(retryConfig.RetryAverageInterval);
+                    int nextInterval = Util.GenRandIntervalWithRetry(retryConfig.RetryAverageInterval, numRetry, retryConfig.RetryAverageInterval * retryConfig.RetryIntervalMaxFactor, 60.0);
 
                     $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {sqlex.ToString()}"._Debug();
 
-                    Kernel.SleepThread(Util.GenRandInterval(nextInterval));
+                    Kernel.SleepThread(nextInterval);
 
                     goto LABEL_RETRY;
                 }
@@ -1354,7 +1356,7 @@ public sealed class Database : AsyncService
                 numRetry++;
                 if (numRetry <= retryConfig.RetryCount)
                 {
-                    int nextInterval = Util.GenRandInterval(retryConfig.RetryAverageInterval);
+                    int nextInterval = Util.GenRandIntervalWithRetry(retryConfig.RetryAverageInterval, numRetry, retryConfig.RetryAverageInterval * retryConfig.RetryIntervalMaxFactor, 60.0);
 
                     $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {sqlex.ToString()}"._Debug();
 

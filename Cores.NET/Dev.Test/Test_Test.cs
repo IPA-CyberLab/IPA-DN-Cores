@@ -1921,7 +1921,7 @@ static class TestClass
                 var allRecvList = await sock.ReceiveDatagramsListAsync();
                 recvMeasure.Add(allRecvList.Count);
 
-                var allSendList = await allRecvList._ProcessDatagramWithMultiTasksAsync(async (perTaskRecvList) =>
+                var allSendList = await allRecvList._ProcessParallelAndAggregateAsync(async (perTaskRecvList) =>
                 {
                     List<Datagram> perTaskSendList = new List<Datagram>(perTaskRecvList.Count);
 
@@ -2398,17 +2398,47 @@ static class TestClass
         Console.ReadLine();
     }
 
-
-    static void Test_211205(int num = 1)
+    [Flags]
+    enum HADB_DDNS_TestType
     {
-        const string TestDbServer = "10.40.0.103";
+        Test0_ManyUpdate,
+        Test1_ManyInserts,
+        Test2_RandomUpdates,
+    }
+
+    static void Test_211205(int threads = 1, int count = 1, int numInsertsOrUpdates = 100, HADB_DDNS_TestType type = HADB_DDNS_TestType.Test0_ManyUpdate, bool truncate = true)
+    {
+        //const string TestDbServer = "10.40.0.103"; // lab
+        const string TestDbServer = "10.21.2.132"; // dnt
         const string TestDbName = "HADB001";
         const string TestDbReadUser = "sql_hadb001_reader";
         const string TestDbReadPassword = "sql_hadb_reader_default_password";
         const string TestDbWriteUser = "sql_hadb001_writer";
         const string TestDbWritePassword = "sql_hadb_writer_default_password";
 
-        for (int i = 0; i < 10000; i++)
+        HadbSqlSettings settings = new HadbSqlSettings("DDNS",
+            new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
+            new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
+            IsolationLevel.Snapshot, IsolationLevel.Serializable,
+            HadbOptionFlags.NoAutoDbReloadAndUpdate | HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll | HadbOptionFlags.NoMemDb );
+
+        if (truncate)
+        {
+            Async(async () =>
+            {
+                await using var db = new Database(settings.SqlConnectStringForWrite, settings.IsolationLevelForWrite);
+
+                await db.EnsureOpenAsync();
+
+                await db.QueryWithNoReturnAsync("truncate table HADB_CONFIG");
+                await db.QueryWithNoReturnAsync("truncate table HADB_DATA");
+                await db.QueryWithNoReturnAsync("truncate table HADB_KV");
+                await db.QueryWithNoReturnAsync("truncate table HADB_LOG");
+                await db.QueryWithNoReturnAsync("truncate table HADB_SNAPSHOT");
+            });
+        }
+
+        for (int i = 0; i < count; i++)
         {
             $"=========== try i = {i} ============="._Print();
 
@@ -2419,22 +2449,30 @@ static class TestClass
                 AsyncManualResetEvent start = new AsyncManualResetEvent();
                 List<Task> taskList = new List<Task>();
 
-                for (int i = 0; i < num; i++)
+                RefInt threadIdSeed = new RefInt();
+
+                for (int i = 0; i < threads; i++)
                 {
                     var task = TaskUtil.StartAsyncTaskAsync(async () =>
                     {
+                        int threadId = threadIdSeed.Increment();
                         await Task.Yield();
                         await start.WaitAsync();
 
                         try
                         {
-                            HadbSqlSettings settings = new HadbSqlSettings("DDNS",
-                                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
-                                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
-                                IsolationLevel.Snapshot, IsolationLevel.Serializable,
-                                HadbOptionFlags.NoAutoDbReloadAndUpdate);
-
-                            await HadbCodeTest2.Test1Async(settings, 1000);
+                            if (type == HADB_DDNS_TestType.Test0_ManyUpdate)
+                            {
+                                await HadbCodeTest2.ManyUpdatesTestAsync(settings, numInsertsOrUpdates);
+                            }
+                            else if (type == HADB_DDNS_TestType.Test1_ManyInserts)
+                            {
+                                await HadbCodeTest2.DummyInsertsTestAsync(settings, numInsertsOrUpdates, threadId);
+                            }
+                            else if (type == HADB_DDNS_TestType.Test2_RandomUpdates)
+                            {
+                                await HadbCodeTest2.DummyRandomUpdatesTestAsync(settings, numInsertsOrUpdates, threads);
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -2461,16 +2499,17 @@ static class TestClass
             }
         }
     }
-    static void Test_211108(int num = 1)
+    static void Test_211108(int threads = 1, int count = 1)
     {
-        const string TestDbServer = "10.40.0.103";
+        //const string TestDbServer = "10.40.0.103"; // lab
+        const string TestDbServer = "10.21.2.132"; // dnt
         const string TestDbName = "HADB001";
         const string TestDbReadUser = "sql_hadb001_reader";
         const string TestDbReadPassword = "sql_hadb_reader_default_password";
         const string TestDbWriteUser = "sql_hadb001_writer";
         const string TestDbWritePassword = "sql_hadb_writer_default_password";
 
-        for (int i = 0; i < 10000; i++)
+        for (int i = 0; i < count; i++)
         {
             $"=========== try i = {i} ============="._Print();
 
@@ -2481,7 +2520,7 @@ static class TestClass
                 AsyncManualResetEvent start = new AsyncManualResetEvent();
                 List<Task> taskList = new List<Task>();
 
-                for (int i = 0; i < num; i++)
+                for (int i = 0; i < threads; i++)
                 {
                     var task = TaskUtil.StartAsyncTaskAsync(async () =>
                     {
@@ -2492,11 +2531,18 @@ static class TestClass
                         {
                             string systemName = ("HADB_CODE_TEST_" + Str.DateTimeToYymmddHHmmssLong(DtNow) + "_" + Env.MachineName + "_" + Str.GenerateRandomDigit(8)).ToUpper();
 
+                            var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate;
+
+                            if (threads >= 2)
+                            {
+                                flags |= HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll;
+                            }
+
                             HadbSqlSettings settings = new HadbSqlSettings(systemName,
                                 new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
                                 new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
-                                IsolationLevel.Serializable, IsolationLevel.Serializable,
-                                HadbOptionFlags.NoAutoDbReloadAndUpdate);
+                                IsolationLevel.Snapshot, IsolationLevel.Serializable,
+                                flags);
 
                             await HadbCodeTest.Test1Async(settings, systemName);
                         }
@@ -2921,7 +2967,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
             await db.EnsureOpenAsync();
 
-            await db.QueryWithNoReturnAsync("truncate table HADB_KV");
+            //await db.QueryWithNoReturnAsync("truncate table HADB_KV");
         });
 
         for (int i = 0; i < 1; i++)
@@ -2975,21 +3021,38 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
     public static void Test_Generic()
     {
-        if (true)
+        if (false)
         {
-            Test_211205(25);
+            Test_211204_Transaction_DeadLockTest(5, IsolationLevel.Serializable, false);
+            return;
+        }
+
+        if (false)
+        {
+            // HADB 普通のテスト
+            Test_211108(threads: 100, count: 30000);
+            //Test_211108(threads: 1, count: 1);
             return;
         }
 
         if (true)
         {
-            Test_211204_Transaction_DeadLockTest(5, IsolationLevel.Serializable, true);
+            // HADB DDNS 模擬テスト #3 (ランダム変更しまくり)
+            Test_211205(threads: 100, count: 1, numInsertsOrUpdates: 30000, type: HADB_DDNS_TestType.Test2_RandomUpdates, truncate: false); // 300 万レコード追加テスト
             return;
         }
 
         if (true)
         {
-            Test_211108(100);
+            // HADB DDNS 模擬テスト #2 (追加しまくり)
+            Test_211205(threads: 100, count: 1, numInsertsOrUpdates: 30000, type: HADB_DDNS_TestType.Test1_ManyInserts, truncate: true); // 300 万レコード追加テスト
+            return;
+        }
+
+        if (false)
+        {
+            // HADB DDNS 模擬テスト #1 (更新しまくり)
+            Test_211205(threads: 100, count: 10000, numInsertsOrUpdates: 100, type: HADB_DDNS_TestType.Test0_ManyUpdate, truncate: true);
             return;
         }
 
