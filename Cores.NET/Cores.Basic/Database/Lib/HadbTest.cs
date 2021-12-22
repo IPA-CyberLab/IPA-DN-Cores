@@ -137,7 +137,7 @@ public static class HadbCodeTest2
             {
                 //var obj2 = await tran.AtomicSearchByKeyAsync(new Record { AuthKey = rec.AuthKey });
                 var obj2 = await tran.AtomicGetAsync<Record>(obj.Uid);
-                var r = obj2!.GetData<Record>();
+                var r = obj2!.GetData();
 
                 r.IpAddress1 = Str.GenRandStr();
 
@@ -199,7 +199,7 @@ public static class HadbCodeTest2
                     obj1!.GetUserDataJsonString()._Print();
                     //obj2!.GetUserDataJsonString()._Print();
 
-                    var r1 = obj1.GetData<Record>();
+                    var r1 = obj1.GetData();
                     //var r2 = obj2.GetData<Record>();
 
                     r1.IpAddress1 = Str.GenRandStr().Substring(0, 4);
@@ -456,7 +456,7 @@ public static class HadbCodeTest
                 {
                     //neko_uid._Print();
                     var obj = await tran.AtomicGetAsync<User>(neko_uid, nameSpace2);
-                    var user = obj!.GetData<User>();
+                    var user = obj!.GetData();
                     //user.Name = "Super-Oracle" + i.ToString();
                     user.LastIp = "0.0.0." + i.ToString();
 
@@ -493,7 +493,7 @@ public static class HadbCodeTest
                 var test3 = sys2.FastSearchByKey(new User() { Name = "User1" }, nameSpace);
                 Dbg.TestNotNull(test2);
                 var obj = sys2.FastGet<User>(u1_uid, nameSpace);
-                var u = obj!.GetData<User>();
+                var u = obj!.GetData();
                 Dbg.TestTrue(u.Id == "u1");
                 Dbg.TestTrue(u.Name == "User1");
                 Dbg.TestTrue(u.AuthKey == "a001");
@@ -531,7 +531,7 @@ public static class HadbCodeTest
             {
                 await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
                 var obj = sys2.FastSearchByKey<User>(new HadbKeys("", "", "A003"), nameSpace);
-                var u = obj!.GetData<User>();
+                var u = obj!.GetData();
                 Dbg.TestTrue(u.Id == "u3");
                 Dbg.TestTrue(u.Name == "User3");
                 Dbg.TestTrue(u.AuthKey == "a003");
@@ -545,7 +545,7 @@ public static class HadbCodeTest
             await sys1.TranAsync(false, async tran =>
             {
                 var obj = await tran.AtomicGetAsync<User>(u1_uid, nameSpace);
-                var u = obj!.GetData<User>();
+                var u = obj!.GetData();
                 Dbg.TestTrue(u.Id == "u1");
                 Dbg.TestTrue(u.Name == "User1");
                 Dbg.TestTrue(u.AuthKey == "a001");
@@ -560,7 +560,7 @@ public static class HadbCodeTest
             await sys1.TranAsync(false, async tran =>
             {
                 var obj = await tran.AtomicSearchByKeyAsync<User>(new HadbKeys("", "uSER2"), nameSpace);
-                var u = obj!.GetData<User>();
+                var u = obj!.GetData();
                 Dbg.TestTrue(u.Id == "u2");
                 Dbg.TestTrue(u.Name == "User2");
                 Dbg.TestTrue(u.AuthKey == "a002");
@@ -575,7 +575,7 @@ public static class HadbCodeTest
             await sys1.TranAsync(false, async tran =>
             {
                 var obj = await tran.AtomicSearchByLabelsAsync(new User { Company = "ntt" }, nameSpace);
-                var list = obj.Select(x => x.GetData<User>()).OrderBy(x => x.Id, StrComparer.IgnoreCaseTrimComparer);
+                var list = obj.Select(x => x.GetData()).OrderBy(x => x.Id, StrComparer.IgnoreCaseTrimComparer);
                 Dbg.TestTrue(list.Count() == 2);
                 var list2 = list.ToArray();
                 Dbg.TestTrue(list2[0].Id == "u1");
@@ -591,7 +591,7 @@ public static class HadbCodeTest
             {
                 await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
                 var obj = sys2.FastSearchByLabels(new User { Company = "ipa" }, nameSpace).Single();
-                var u = obj.GetData<User>();
+                var u = obj.GetData();
                 Dbg.TestTrue(u.Id == "u3");
                 Dbg.TestTrue(u.Name == "User3");
                 Dbg.TestTrue(u.AuthKey == "a003");
@@ -600,7 +600,7 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "c");
                 Dbg.TestTrue(obj.Ext2 == "3");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot1);
-                obj.FastUpdate<User>(x =>
+                obj.FastUpdate(x =>
                 {
                     x.Int1++;
                     return true;
@@ -612,7 +612,7 @@ public static class HadbCodeTest
             {
                 await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
                 var obj = sys2.FastSearchByLabels(new User { Company = "ntt", LastIp = "A123:b456:0001:0000:0000:0000:0000:c789" }, nameSpace).Single();
-                var u = obj.GetData<User>();
+                var u = obj.GetData();
                 Dbg.TestTrue(u.Id == "u1");
                 Dbg.TestTrue(u.Name == "User1");
                 Dbg.TestTrue(u.AuthKey == "a001");
@@ -621,7 +621,7 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "a");
                 Dbg.TestTrue(obj.Ext2 == "1");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot0);
-                obj.FastUpdate<User>(x =>
+                obj.FastUpdate(x =>
                 {
                     x.Int1++;
                     return true;
@@ -632,7 +632,7 @@ public static class HadbCodeTest
             {
                 await sys1.ReloadCoreAsync(EnsureSpecial.Yes, fullReloadMode: false);
                 var obj = sys1.FastSearchByLabels(new User { Company = "ipa" }, nameSpace).Single();
-                var u = obj.GetData<User>();
+                var u = obj.GetData();
                 Dbg.TestTrue(u.Id == "u3");
                 Dbg.TestTrue(u.Name == "User3");
                 Dbg.TestTrue(u.AuthKey == "a003");
@@ -642,7 +642,7 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "c");
                 Dbg.TestTrue(obj.Ext2 == "3");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot1);
-                obj.FastUpdate<User>(x =>
+                obj.FastUpdate(x =>
                 {
                     x.Int1++;
                     return true;
@@ -653,7 +653,7 @@ public static class HadbCodeTest
             {
                 await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
                 var obj = sys1.FastSearchByLabels(new User { Company = "ntt", LastIp = "A123:b456:0001:0000:0000:0000:0000:c789" }, nameSpace).Single();
-                var u = obj.GetData<User>();
+                var u = obj.GetData();
                 Dbg.TestTrue(u.Id == "u1");
                 Dbg.TestTrue(u.Name == "User1");
                 Dbg.TestTrue(u.AuthKey == "a001");
@@ -662,7 +662,7 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "a");
                 Dbg.TestTrue(obj.Ext2 == "1");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot0);
-                obj.FastUpdate<User>(x =>
+                obj.FastUpdate(x =>
                 {
                     x.Int1++;
                     return true;
@@ -676,7 +676,7 @@ public static class HadbCodeTest
                 await sys2.TranAsync(true, async tran =>
                 {
                     var obj = await tran.AtomicSearchByKeyAsync(new User { AuthKey = "  A001  " }, nameSpace);
-                    var u = obj!.GetData<User>();
+                    var u = obj!.GetData();
                     Dbg.TestTrue(u.FullName == "Tanaka");
                     Dbg.TestTrue(u.Int1 == 102);
 
@@ -703,7 +703,7 @@ public static class HadbCodeTest
             {
                 // AtomicSearchByKeyAsync を実行した結果 sys2 のメモリが更新されていないことを検査
                 var obj = sys2.FastSearchByLabels(new User { Company = "ntt", LastIp = "A123:b456:0001:0000:0000:0000:0000:c789" }, nameSpace).Single();
-                var u = obj.GetData<User>();
+                var u = obj.GetData();
                 Dbg.TestTrue(u.Id == "u1");
                 Dbg.TestTrue(u.Name == "User1");
                 Dbg.TestTrue(u.AuthKey == "a001");
@@ -720,7 +720,7 @@ public static class HadbCodeTest
             await sys2.TranAsync(true, async tran =>
             {
                 var obj = await tran.AtomicSearchByKeyAsync(new User { AuthKey = "  A001  " }, nameSpace);
-                var u = obj!.GetData<User>();
+                var u = obj!.GetData();
                 Dbg.TestTrue(u.FullName == "Tanaka");
                 Dbg.TestTrue(u.Int1 == 102);
 
@@ -757,7 +757,7 @@ public static class HadbCodeTest
             {
                 // AtomicSearchByKeyAsync を実行した結果 sys2 のメモリも自動で更新されたかどうか検査
                 var obj = sys2.FastSearchByLabels(new User { Company = "softether", LastIp = "2001:af80:0000:0000:0000:0000:0000:0001" }, nameSpace).Single();
-                var u = obj.GetData<User>();
+                var u = obj.GetData();
                 Dbg.TestTrue(u.FullName == "Neko");
                 Dbg.TestTrue(u.Int1 == 103);
                 Dbg.TestTrue(obj.Ext1 == "z");
@@ -778,7 +778,7 @@ public static class HadbCodeTest
             {
                 await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
                 var obj = sys1.FastGet<User>(u1_uid, nameSpace);
-                var u = obj!.GetData<User>();
+                var u = obj!.GetData();
                 Dbg.TestTrue(u.Id == "new_u1");
                 Dbg.TestTrue(u.Name == "User1New");
                 Dbg.TestTrue(u.AuthKey == "x001");
@@ -788,7 +788,7 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "z");
                 Dbg.TestTrue(obj.Ext2 == "99");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot2);
-                obj.FastUpdate<User>(x =>
+                obj.FastUpdate(x =>
                 {
                     x.Int1++;
                     return true;
@@ -801,7 +801,7 @@ public static class HadbCodeTest
             {
                 await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
                 var obj = sys2.FastGet<User>(u1_uid, nameSpace);
-                var u = obj!.GetData<User>();
+                var u = obj!.GetData();
                 Dbg.TestTrue(u.Id == "new_u1");
                 Dbg.TestTrue(u.Name == "User1New");
                 Dbg.TestTrue(u.AuthKey == "x001");
@@ -813,19 +813,19 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.SnapshotNo == snapshot2);
 
                 // 追加テスト: キー値またはラベル値の変更でエラーが発生することを確認
-                obj.FastUpdate<User>(x =>
+                obj.FastUpdate(x =>
                 {
                     x.AuthKey = " X001 ";
                     return true;
                 });
-                obj.FastUpdate<User>(x =>
+                obj.FastUpdate(x =>
                 {
                     x.Company = "SOFTETHER";
                     return true;
                 });
                 Dbg.TestException(() =>
                 {
-                    obj.FastUpdate<User>(x =>
+                    obj.FastUpdate(x =>
                     {
                         x.AuthKey = "CAT";
                         return true;
@@ -833,7 +833,7 @@ public static class HadbCodeTest
                 });
                 Dbg.TestException(() =>
                 {
-                    obj.FastUpdate<User>(x =>
+                    obj.FastUpdate(x =>
                     {
                         x.Company = "NEKO";
                         return true;
@@ -850,7 +850,7 @@ public static class HadbCodeTest
             await sys2.TranAsync(true, async tran =>
             {
                 var obj = await tran.AtomicSearchByKeyAsync(new User { AuthKey = "  X001  " }, nameSpace);
-                var u = obj!.GetData<User>();
+                var u = obj!.GetData();
                 Dbg.TestTrue(u.FullName == "Neko");
                 Dbg.TestTrue(u.Int1 == 104);
                 obj.Ext1 = "p";
@@ -876,7 +876,7 @@ public static class HadbCodeTest
 
             {
                 var obj = sys1.FastSearchByLabels<User>(new User { Company = " softETHER " }, nameSpace).Single();
-                var u = obj!.GetData<User>();
+                var u = obj!.GetData();
                 Dbg.TestTrue(u.Id == "new_u1");
                 Dbg.TestTrue(u.Name == "User1New");
                 Dbg.TestTrue(u.AuthKey == "x001");
@@ -886,7 +886,7 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "z");
                 Dbg.TestTrue(obj.Ext2 == "99");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot2);
-                obj.FastUpdate<User>(x =>
+                obj.FastUpdate(x =>
                 {
                     x.Int1 = 555;
                     return true;
@@ -899,7 +899,7 @@ public static class HadbCodeTest
 
             {
                 var obj = sys1.FastSearchByLabels<User>(new User { Company = " softETHER " }, nameSpace).Single();
-                var u = obj!.GetData<User>();
+                var u = obj!.GetData();
                 Dbg.TestTrue(u.Int1 == 105);
                 Dbg.TestTrue(obj.Ext1 == "p");
                 Dbg.TestTrue(obj.Ext2 == "1234");
@@ -908,7 +908,7 @@ public static class HadbCodeTest
 
             {
                 var obj = sys2.FastSearchByLabels<User>(new User { Company = " softETHER " }, nameSpace).Single();
-                var u = obj!.GetData<User>();
+                var u = obj!.GetData();
                 Dbg.TestTrue(u.Int1 == 105);
                 Dbg.TestTrue(obj.Ext1 == "p");
                 Dbg.TestTrue(obj.Ext2 == "1234");
@@ -919,7 +919,7 @@ public static class HadbCodeTest
             await sys1.TranAsync(true, async tran =>
             {
                 var obj = await tran.AtomicSearchByKeyAsync(new User { AuthKey = "  X001  " }, nameSpace);
-                var u = obj!.GetData<User>();
+                var u = obj!.GetData();
                 Dbg.TestTrue(u.Id == "new_u1");
                 Dbg.TestTrue(u.Name == "User1New");
                 Dbg.TestTrue(u.AuthKey == "x001");
@@ -946,7 +946,7 @@ public static class HadbCodeTest
             await sys1.TranAsync(true, async tran =>
             {
                 var obj = await tran.AtomicSearchByKeyAsync(new User { AuthKey = "  X001  " }, nameSpace);
-                var u = obj!.GetData<User>();
+                var u = obj!.GetData();
                 Dbg.TestTrue(u.Id == "new_u1");
                 Dbg.TestTrue(u.Name == "User1New");
                 Dbg.TestTrue(u.AuthKey == "x001");

@@ -85,6 +85,7 @@ using IPA.Cores.ClientApi.SlackApi;
 
 using IPA.Cores.Codes;
 using System.Net.Security;
+using System.ComponentModel;
 
 
 #pragma warning disable CS0219
@@ -2645,7 +2646,7 @@ static class TestClass
                     }
                     else
                     {
-                        obj.FastUpdate<HadbTestData>(x =>
+                        obj.FastUpdate(x =>
                         {
                             x.TestInt++;
                             x.IPv4Address += "_" + Secure.RandSInt31() % 10;
@@ -2665,7 +2666,7 @@ static class TestClass
                         }
                         else
                         {
-                            var data = obj.GetData<HadbTestData>();
+                            var data = obj.GetData();
                             data.IPv4Address += "_" + Secure.RandSInt31() % 10;
                             data.IPv6Address += "_" + Secure.RandSInt31() % 10;
                             data.HostName += "_" + Secure.RandSInt31() % 10;
@@ -3020,8 +3021,41 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         }
     }
 
+    class GTest1<T> : ExpandableObjectConverter
+        where T: class
+    {
+        public T? t;
+
+        public override bool CanConvertTo(ITypeDescriptorContext? context, Type? destinationType)
+        {
+            Where();
+            return base.CanConvertTo(context, destinationType);
+        }
+    }
+
+    static void Test_211222()
+    {
+        //Task<string> task1 = TR("Hello");
+        //Task task2 = task1;
+        //Task<object> task3 = (Task<object>)((object)task2);
+
+        GTest1<object> a = new GTest1<object>();
+        GTest1<string> b = new GTest1<string>();
+        b.t = "Hello";
+
+        object? obj = b;
+        a = (GTest1<object>)obj;
+
+    }
+
     public static void Test_Generic()
     {
+        if (false)
+        {
+            Test_211222();
+            return;
+        }
+
         if (false)
         {
             Test_211204_Transaction_DeadLockTest(5, IsolationLevel.Serializable, false);
