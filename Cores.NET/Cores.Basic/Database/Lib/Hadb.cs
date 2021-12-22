@@ -96,7 +96,7 @@ public class HadbTestDynamicConfig : HadbDynamicConfig
 
     protected override void NormalizeImpl()
     {
-        this.TestAbc = this.TestAbc._ZeroOrDefault(100, max: 1000);
+        this.TestAbc = this.TestAbc._ZeroToDefault(100, max: 1000);
     }
 }
 
@@ -126,8 +126,9 @@ public class HadbDynamicConfig : INormalizable
 
     public int HadbReloadIntervalMsecsLastOk;
     public int HadbReloadIntervalMsecsLastError;
+    public int HadbReloadTimeShiftMarginMsecs;
+    public int HadbFullReloadIntervalMsecs;
     public int HadbLazyUpdateIntervalMsecs;
-    public int HadbBackupFileWriteIntervalMsecs;
     public int HadbRecordStatIntervalMsecs;
     public int HadbAutomaticSnapshotIntervalMsecs;
 
@@ -138,11 +139,12 @@ public class HadbDynamicConfig : INormalizable
 
     public void Normalize()
     {
-        this.HadbReloadIntervalMsecsLastOk = this.HadbReloadIntervalMsecsLastOk._ZeroOrDefault(Consts.HadbDynamicConfigDefaultValues.HadbReloadIntervalMsecsLastOk, max: Consts.HadbDynamicConfigMaxValues.HadbReloadIntervalMsecsLastOk);
-        this.HadbReloadIntervalMsecsLastError = this.HadbReloadIntervalMsecsLastError._ZeroOrDefault(Consts.HadbDynamicConfigDefaultValues.HadbReloadIntervalMsecsLastError, max: Consts.HadbDynamicConfigMaxValues.HadbReloadIntervalMsecsLastError);
-        this.HadbLazyUpdateIntervalMsecs = this.HadbLazyUpdateIntervalMsecs._ZeroOrDefault(Consts.HadbDynamicConfigDefaultValues.HadbLazyUpdateIntervalMsecs, max: Consts.HadbDynamicConfigMaxValues.HadbLazyUpdateIntervalMsecs);
-        this.HadbBackupFileWriteIntervalMsecs = this.HadbBackupFileWriteIntervalMsecs._ZeroOrDefault(Consts.HadbDynamicConfigDefaultValues.HadbBackupFileWriteIntervalMsecs, max: Consts.HadbDynamicConfigMaxValues.HadbBackupFileWriteIntervalMsecs);
-        this.HadbRecordStatIntervalMsecs = this.HadbRecordStatIntervalMsecs._ZeroOrDefault(Consts.HadbDynamicConfigDefaultValues.HadbRecordStatIntervalMsecs, max: Consts.HadbDynamicConfigMaxValues.HadbRecordStatIntervalMsecs);
+        this.HadbReloadIntervalMsecsLastOk = this.HadbReloadIntervalMsecsLastOk._ZeroToDefault(Consts.HadbDynamicConfigDefaultValues.HadbReloadIntervalMsecsLastOk, max: Consts.HadbDynamicConfigMaxValues.HadbReloadIntervalMsecsLastOk);
+        this.HadbReloadIntervalMsecsLastError = this.HadbReloadIntervalMsecsLastError._ZeroToDefault(Consts.HadbDynamicConfigDefaultValues.HadbReloadIntervalMsecsLastError, max: Consts.HadbDynamicConfigMaxValues.HadbReloadIntervalMsecsLastError);
+        this.HadbReloadTimeShiftMarginMsecs = this.HadbReloadTimeShiftMarginMsecs._ZeroToDefault(Consts.HadbDynamicConfigDefaultValues.HadbReloadTimeShiftMarginMsecs, max: Consts.HadbDynamicConfigMaxValues.HadbReloadTimeShiftMarginMsecs);
+        this.HadbFullReloadIntervalMsecs = this.HadbFullReloadIntervalMsecs._ZeroToDefault(Consts.HadbDynamicConfigDefaultValues.HadbFullReloadIntervalMsecs, max: Consts.HadbDynamicConfigMaxValues.HadbFullReloadIntervalMsecs);
+        this.HadbLazyUpdateIntervalMsecs = this.HadbLazyUpdateIntervalMsecs._ZeroToDefault(Consts.HadbDynamicConfigDefaultValues.HadbLazyUpdateIntervalMsecs, max: Consts.HadbDynamicConfigMaxValues.HadbLazyUpdateIntervalMsecs);
+        this.HadbRecordStatIntervalMsecs = this.HadbRecordStatIntervalMsecs._ZeroToDefault(Consts.HadbDynamicConfigDefaultValues.HadbRecordStatIntervalMsecs, max: Consts.HadbDynamicConfigMaxValues.HadbRecordStatIntervalMsecs);
         this.HadbAutomaticSnapshotIntervalMsecs = Math.Max(this.HadbAutomaticSnapshotIntervalMsecs, 0);
 
         this.NormalizeImpl();
@@ -264,6 +266,31 @@ public class HadbSqlSettings : HadbSettingsBase
 
         this.IsolationLevelForRead = isoLevelForRead;
         this.IsolationLevelForWrite = isoLevelForWrite;
+    }
+}
+
+[EasyTable("HADB_SNAPSHOT")]
+public sealed class HadbSqlStatRow : INormalizable
+{
+    [EasyManualKey]
+    public string STAT_UID { get; set; } = "";
+    public string STAT_SYSTEMNAME { get; set; } = "";
+    public long STAT_SNAPSHOT_NO { get; set; } = 0;
+    public DateTimeOffset STAT_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
+    public string STAT_GENERATOR { get; set; } = "";
+    public string STAT_VALUE { get; set; } = "";
+    public string STAT_EXT1 { get; set; } = "";
+    public string STAT_EXT2 { get; set; } = "";
+
+    public void Normalize()
+    {
+        this.STAT_UID = this.STAT_UID._NormalizeKey(true);
+        this.STAT_SYSTEMNAME = this.STAT_SYSTEMNAME._NormalizeKey(true);
+        this.STAT_DT = this.STAT_DT._NormalizeDateTimeOffset();
+        this.STAT_GENERATOR = this.STAT_GENERATOR._NonNullTrim().ToLower();
+        this.STAT_VALUE = this.STAT_VALUE._NonNull();
+        this.STAT_EXT1 = this.STAT_EXT1._NonNull();
+        this.STAT_EXT2 = this.STAT_EXT2._NonNull();
     }
 }
 
@@ -549,7 +576,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         }
     }
 
-    protected override async Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(CancellationToken cancel = default)
+    protected override async Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(bool fullReloadMode, DateTimeOffset partialReloadMinUpdateTime, CancellationToken cancel = default)
     {
         IEnumerable<HadbSqlDataRow> rows = null!;
 
@@ -561,7 +588,14 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
             await dbReader.TranReadSnapshotIfNecessaryAsync(async () =>
             {
-                rows = await dbReader.EasySelectAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0", new { DATA_SYSTEMNAME = this.SystemName }); // TODO: get only latest
+                string sql = "select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0";
+
+                if (fullReloadMode == false)
+                {
+                    sql += " and DATA_UPDATE_DT >= @DT_MIN";
+                }
+
+                rows = await dbReader.EasySelectAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0", new { DATA_SYSTEMNAME = this.SystemName, DT_MIN = partialReloadMinUpdateTime });
             });
         }
         catch (Exception ex)
@@ -1353,7 +1387,7 @@ public abstract class HadbSettingsBase
 
     public HadbSettingsBase(string systemName, HadbOptionFlags optionFlags = HadbOptionFlags.None, DirectoryPath? backupDir = null)
     {
-        if (this.SystemName._IsEmpty()) throw new CoresLibException("systemName is empty.");
+        if (systemName._IsEmpty()) throw new CoresLibException("systemName is empty.");
         this.SystemName = systemName._NonNullTrim().ToUpper();
         this.OptionFlags = optionFlags;
 
@@ -2003,11 +2037,12 @@ public abstract class HadbMemDataBase
         return ret;
     }
 
-    public async Task ReloadFromDatabaseAsync(IEnumerable<HadbObject> objectList, bool fullReloadMode, CancellationToken cancel = default)
+    public async Task ReloadFromDatabaseAsync(IEnumerable<HadbObject> objectList, bool fullReloadMode, DateTimeOffset partialReloadMinUpdateTime, CancellationToken cancel = default)
     {
         int countInserted = 0;
         int countUpdated = 0;
         int countRemoved = 0;
+        List<HadbObject> objectList2;
 
         using (await this.CriticalLockAsync.LockWithAwait(cancel))
         {
@@ -2018,7 +2053,7 @@ public abstract class HadbMemDataBase
                 data = new DataSet();
             }
 
-            var objectList2 = objectList.ToList();
+            objectList2 = objectList.ToList();
 
             // 並列化の試み 2021/12/06 うまくいくか未定
             await objectList2._ProcessParallelAsync(someObjects =>
@@ -2065,10 +2100,7 @@ public abstract class HadbMemDataBase
             this.InternalData = data;
         }
 
-        if (countInserted > 0 || countRemoved > 0 || countUpdated > 0)
-        {
-            //Debug($"Update Local Memory from Database: New={countInserted._ToString3()}, Update={countUpdated._ToString3()}, Remove={countRemoved._ToString3()}");
-        }
+        Debug($"ReloadFromDatabaseAsync: Update Local Memory from Database: Mode={(fullReloadMode ? "FullReload" : $"PartialReload since '{partialReloadMinUpdateTime._ToDtStr()}'")}, DB_ReadObjs={objectList2.Count._ToString3()}, New={countInserted._ToString3()}, Update={countUpdated._ToString3()}, Remove={countRemoved._ToString3()}");
     }
 
     public HadbObject ApplyObjectToMemDb_Critical(HadbObject newObj)
@@ -2262,6 +2294,11 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     public int DatabaseConnectForReloadErrorCount { get; private set; } = 0;
     public bool IsDatabaseConnectedForLazyWrite { get; private set; } = false;
 
+    public long LastDatabaseReloadTick { get; private set; } = 0;
+    public long LastDatabaseFullReloadTick { get; private set; } = 0;
+    public DateTimeOffset LastDatabaseReloadTime { get; private set; } = ZeroDateTimeOffsetValue;
+    public DateTimeOffset LastDatabaseFullReloadTime { get; private set; } = ZeroDateTimeOffsetValue;
+
     protected HadbSettingsBase Settings { get; }
     public string SystemName => Settings.SystemName;
     bool IsEnabled_NoMemDb => Settings.OptionFlags.Bit(HadbOptionFlags.NoMemDb);
@@ -2293,7 +2330,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     protected abstract Task<KeyValueList<string, string>> LoadDynamicConfigFromDatabaseImplAsync(CancellationToken cancel = default);
     protected abstract Task AppendMissingDynamicConfigToDatabaseImplAsync(KeyValueList<string, string> missingValues, CancellationToken cancel = default);
-    protected abstract Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(CancellationToken cancel = default);
+    protected abstract Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(bool fullReloadMode, DateTimeOffset partialReloadMinUpdateTime, CancellationToken cancel = default);
 
     protected abstract bool IsDeadlockExceptionImpl(Exception ex);
 
@@ -2471,24 +2508,38 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         }
     }
 
-    public async Task ReloadCoreAsync(EnsureSpecial yes, CancellationToken cancel = default)
+    public async Task ReloadCoreAsync(EnsureSpecial yes, bool fullReloadMode = true, DateTimeOffset partialReloadMinUpdateTime = default, CancellationToken cancel = default)
     {
+        if (fullReloadMode == false)
+        {
+            if (partialReloadMinUpdateTime._IsZeroDateTime())
+            {
+                partialReloadMinUpdateTime = this.LastDatabaseReloadTime - this.CurrentDynamicConfig.HadbReloadTimeShiftMarginMsecs._ToTimeSpanMSecs();
+            }
+        }
+
         try
         {
+            long nowTick;
+            DateTimeOffset nowTime;
+
             // Dynamic Config の値の読み込み
             await ReloadDynamicConfigValuesAsync(cancel);
 
             using (await Lock_UpdateCoreAsync.LockWithAwait(cancel))
             {
+                nowTick = Time.Tick64;
+                nowTime = DtOffsetNow;
+
                 if (this.IsEnabled_NoMemDb == false)
                 {
                     // DB からオブジェクト一覧を読み込む
-                    var loadedObjectsList = await this.ReloadDataFromDatabaseImplAsync(cancel);
+                    var loadedObjectsList = await this.ReloadDataFromDatabaseImplAsync(fullReloadMode, partialReloadMinUpdateTime, cancel);
 
                     TMem? currentMemDb = this.MemDb;
                     if (currentMemDb == null) currentMemDb = new TMem();
 
-                    await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, true, cancel);
+                    await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, fullReloadMode, partialReloadMinUpdateTime, cancel);
 
                     this.MemDb = currentMemDb;
                 }
@@ -2499,6 +2550,16 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                     if (currentMemDb == null) currentMemDb = new TMem(); // 適当に空を食わせておく
                     this.MemDb = currentMemDb;
                 }
+            }
+
+            // 成功した場合は内部変数を更新
+            this.LastDatabaseReloadTick = nowTick;
+            this.LastDatabaseReloadTime = nowTime;
+
+            if (fullReloadMode)
+            {
+                this.LastDatabaseFullReloadTick = nowTick;
+                this.LastDatabaseFullReloadTime = nowTime;
             }
 
             this.IsDatabaseConnectedForReload = true;
@@ -2540,9 +2601,19 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             long startTick = Time.HighResTick64;
             bool ok = false;
 
+            long now = Time.Tick64;
+
+            bool fullReloadMode = false;
+
+            if (this.LastDatabaseFullReloadTick == 0 || (now >= (this.LastDatabaseFullReloadTick + this.CurrentDynamicConfig.HadbFullReloadIntervalMsecs)))
+            {
+                fullReloadMode = true;
+            }
+
             try
             {
-                await ReloadCoreAsync(EnsureSpecial.Yes, cancel);
+                // リロード
+                await ReloadCoreAsync(EnsureSpecial.Yes, fullReloadMode, cancel: cancel);
                 ok = true;
             }
             catch (Exception ex)

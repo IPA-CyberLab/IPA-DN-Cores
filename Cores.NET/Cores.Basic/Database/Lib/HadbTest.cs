@@ -629,10 +629,8 @@ public static class HadbCodeTest
                 await sys2.LazyUpdateCoreAsync(EnsureSpecial.Yes);
             }
 
-            await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
-
             {
-                await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
+                await sys1.ReloadCoreAsync(EnsureSpecial.Yes, fullReloadMode: false);
                 var obj = sys1.FastSearchByLabels(new User { Company = "ipa" }, nameSpace).Single();
                 var u = obj.GetData<User>();
                 Dbg.TestTrue(u.Id == "u3");
@@ -1079,7 +1077,7 @@ public static class HadbCodeTest
                 Dbg.TestFalse(obj!.Deleted);
             };
 
-            await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
+            await sys2.ReloadCoreAsync(EnsureSpecial.Yes, fullReloadMode: false);
 
             // sys2 のメモリ上からいなくなったか
             {

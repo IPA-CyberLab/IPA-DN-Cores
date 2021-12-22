@@ -2435,6 +2435,7 @@ static class TestClass
                 await db.QueryWithNoReturnAsync("truncate table HADB_KV");
                 await db.QueryWithNoReturnAsync("truncate table HADB_LOG");
                 await db.QueryWithNoReturnAsync("truncate table HADB_SNAPSHOT");
+                await db.QueryWithNoReturnAsync("truncate table HADB_STAT");
             });
         }
 
@@ -2501,8 +2502,8 @@ static class TestClass
     }
     static void Test_211108(int threads = 1, int count = 1)
     {
-        //const string TestDbServer = "10.40.0.103"; // lab
-        const string TestDbServer = "10.21.2.132"; // dnt
+        const string TestDbServer = "10.40.0.103"; // lab
+        //const string TestDbServer = "10.21.2.132"; // dnt
         const string TestDbName = "HADB001";
         const string TestDbReadUser = "sql_hadb001_reader";
         const string TestDbReadPassword = "sql_hadb_reader_default_password";
@@ -3027,11 +3028,11 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             return;
         }
 
-        if (false)
+        if (true)
         {
             // HADB 普通のテスト
-            Test_211108(threads: 100, count: 30000);
-            //Test_211108(threads: 1, count: 1);
+            //Test_211108(threads: 100, count: 30000);
+            Test_211108(threads: 1, count: 1);
             return;
         }
 
