@@ -50,6 +50,62 @@ namespace IPA.TestDev;
 
 partial class TestDevCommands
 {
+    // ランダムな内容をファイルに書き込む (書き込みに失敗するまで永遠に書き込みを試行する)
+    [ConsoleCommand(
+        "WriteRandomFile command",
+        "WriteRandomFile [fileName]",
+        "WriteRandomFile command")]
+    static int WriteRandomFile(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+                new ConsoleParam("[fileName]", ConsoleService.Prompt, "File name: ", ConsoleService.EvalNotEmpty, null),
+            };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string filePath = vl.DefaultParam.StrValue;
+
+        Async(async () =>
+        {
+            int randSeedSize = 16 * 1024 * 1024;
+            Memory<byte> randSeed = Util.Rand(randSeedSize);
+            int blockSize = 8 * 1024 * 1024;
+            Memory<byte> baseBuffer = Util.Rand(blockSize);
+            Memory<byte> tmpBuffer = Util.Rand(blockSize);
+
+            await using var file = await Lfs.CreateAsync(filePath, flags: FileFlags.AutoCreateDirectory);
+
+            ThroughputMeasuse measure = new ThroughputMeasuse(baseUnitMsecs: 1000);
+
+            using var measurePrinter = measure.StartPrinter("Speed Mbytes/sec: ", toStr3: true);
+
+            using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: false,
+                reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
+                ), null))
+            {
+                long totalSize = 0;
+
+                while (true)
+                {
+                    int seedStart = Util.RandSInt31() % (randSeedSize - blockSize);
+                    tmpBuffer.Span._Xor(baseBuffer.Span, randSeed.Span.Slice(seedStart, blockSize));
+
+                    await file.WriteAsync(tmpBuffer);
+
+                    totalSize += tmpBuffer.Length;
+
+                    measure.Add(tmpBuffer.Length);
+
+                    reporter.ReportProgress(new ProgressData(totalSize));
+                }
+            }
+        });
+
+        return 0;
+    }
+
+
     // 指定されたサブディレクトリにあるすべてのファイルを読む
     [ConsoleCommand(
         "ReadAllFiles command",
