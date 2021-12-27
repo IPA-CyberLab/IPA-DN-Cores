@@ -1836,30 +1836,30 @@ public static class BasicHelper
     public static T _FilledOrDefault<T>(this T obj, T? defaultValue = default, bool zeroValueIsEmpty = true) => (obj._IsFilled(zeroValueIsEmpty) ? obj : defaultValue);
 
     [MethodImpl(Inline)]
-    public static int _ZeroOrDefault(this int i, int defaultValue, int min = 0, int max = int.MaxValue)
+    public static int _ZeroToDefault(this int i, int defaultValue, int min = 0, int max = int.MaxValue)
     {
-        if (i == 0) i = defaultValue;
+        if (i <= 0) i = defaultValue;
         i = Math.Max(i, min);
         i = Math.Min(i, max);
         return i;
     }
 
     [MethodImpl(Inline)]
-    public static int _ZeroOrDefault(this int? i, int defaultValue, int min = 0, int max = int.MaxValue)
-        => _ZeroOrDefault(i ?? 0, defaultValue, min, max);
+    public static int _ZeroToDefault(this int? i, int defaultValue, int min = 0, int max = int.MaxValue)
+        => _ZeroToDefault(i ?? 0, defaultValue, min, max);
 
     [MethodImpl(Inline)]
-    public static long _ZeroOrDefault(this long i, long defaultValue, long min = 0, long max = long.MaxValue)
+    public static long _ZeroToDefault(this long i, long defaultValue, long min = 0, long max = long.MaxValue)
     {
-        if (i == 0) i = defaultValue;
+        if (i <= 0) i = defaultValue;
         i = Math.Max(i, min);
         i = Math.Min(i, max);
         return i;
     }
 
     [MethodImpl(Inline)]
-    public static long _ZeroOrDefault(this long? i, long defaultValue, long min = 0, long max = long.MaxValue)
-        => _ZeroOrDefault(i ?? 0, defaultValue, min, max);
+    public static long _ZeroToDefault(this long? i, long defaultValue, long min = 0, long max = long.MaxValue)
+        => _ZeroToDefault(i ?? 0, defaultValue, min, max);
 
     [MethodImpl(Inline)]
     [return: NotNull]

@@ -324,8 +324,9 @@ public static partial class Consts
     {
         public const int HadbReloadIntervalMsecsLastOk = 5 * 1000;
         public const int HadbReloadIntervalMsecsLastError = 1 * 1000;
+        public const int HadbReloadTimeShiftMarginMsecs = 15 * 1000;
+        public const int HadbFullReloadIntervalMsecs = 15 * 1000;
         public const int HadbLazyUpdateIntervalMsecs = 1 * 1000;
-        public const int HadbBackupFileWriteIntervalMsecs = 5 * 1000;
         public const int HadbRecordStatIntervalMsecs = 5 * 1000;
     }
 
@@ -333,8 +334,9 @@ public static partial class Consts
     {
         public const int HadbReloadIntervalMsecsLastOk = 30 * 60 * 1000;
         public const int HadbReloadIntervalMsecsLastError = 30 * 60 * 1000;
+        public const int HadbReloadTimeShiftMarginMsecs = 4 * 60 * 60 * 1000;
+        public const int HadbFullReloadIntervalMsecs = 4 * 60 * 60 * 1000;
         public const int HadbLazyUpdateIntervalMsecs = 5 * 60 * 1000;
-        public const int HadbBackupFileWriteIntervalMsecs = 24 * 60 * 60 * 1000;
         public const int HadbRecordStatIntervalMsecs = 60 * 60 * 1000;
     }
 
@@ -361,6 +363,9 @@ public static partial class Consts
         public const string Filter_Keys = "*.key;*.pem";
 
         public const string Zip = ".zip";
+
+        public const string Data = ".dat";
+        public const string Backup = ".bak";
 
         public const string Win32Executable = ".exe";
 
