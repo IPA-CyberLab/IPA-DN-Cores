@@ -3148,6 +3148,40 @@ public static class BasicHelper
 
     public static bool _IsInTcpUdpPortRange(this int port)
         => (port >= 1 && port <= 65535);
+
+    public static long _Inc<T>(this IDictionary<T, long> dict, T key) where T : notnull
+        => _Add(dict, key, 1);
+    public static long _Add<T>(this IDictionary<T, long> dict, T key, long addValue) where T : notnull
+    {
+        long c = 0;
+        if (dict.TryGetValue(key, out c) == false)
+        {
+            c = 0;
+        }
+
+        c += addValue;
+
+        dict[key] = c;
+
+        return c;
+    }
+
+    public static int _Inc<T>(this IDictionary<T, int> dict, T key) where T : notnull
+        => _Add(dict, key, 1);
+    public static int _Add<T>(this IDictionary<T, int> dict, T key, int addValue) where T : notnull
+    {
+        int c = 0;
+        if (dict.TryGetValue(key, out c) == false)
+        {
+            c = 0;
+        }
+
+        c += addValue;
+
+        dict[key] = c;
+
+        return c;
+    }
 }
 
 

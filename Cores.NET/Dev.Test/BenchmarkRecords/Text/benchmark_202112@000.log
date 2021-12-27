@@ -1,0 +1,82 @@
+﻿2021/12/27 17:00:06.288 +09:00 ----- Start new benchmark -----
+2021/12/27 17:00:06.293 +09:00 Commit: 0f02586f3cbf6dee05e1d1c6a800825abca9951f
+2021/12/27 17:00:06.293 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/27 17:00:06.293 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/27 17:00:06.293 +09:00 Framework: .NET 6.0.1
+2021/12/27 17:00:06.293 +09:00 Host: PC34
+2021/12/27 17:00:07.123 +09:00 Async call with no async func #1: Nothing: 14.18 ns, 70,513,097 / sec
+2021/12/27 17:00:07.703 +09:00 Async call with no async func #2: Task.CompletedTask after: 14.44 ns, 69,255,998 / sec
+2021/12/27 17:00:08.284 +09:00 Async call with no async func #3: Task.CompletedTask before: 14.67 ns, 68,178,221 / sec
+2021/12/27 17:00:08.828 +09:00 Async call with no async func #4: Task.CompletedTask many times: 26.91 ns, 37,155,066 / sec
+2021/12/27 17:00:16.067 +09:00 ----- Start new benchmark -----
+2021/12/27 17:00:16.072 +09:00 Commit: 0f02586f3cbf6dee05e1d1c6a800825abca9951f
+2021/12/27 17:00:16.072 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/27 17:00:16.072 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/27 17:00:16.072 +09:00 Framework: .NET 6.0.1
+2021/12/27 17:00:16.072 +09:00 Host: PC34
+2021/12/27 17:00:16.898 +09:00 HADB GetTypeName: 6.07 ns, 164,691,353 / sec
+2021/12/27 17:00:17.526 +09:00 Async call with no async func #1: Nothing: 16.39 ns, 61,013,649 / sec
+2021/12/27 17:00:18.109 +09:00 Async call with no async func #2: Task.CompletedTask after: 15.06 ns, 66,382,031 / sec
+2021/12/27 17:00:18.684 +09:00 Async call with no async func #3: Task.CompletedTask before: 14.41 ns, 69,391,963 / sec
+2021/12/27 17:01:00.487 +09:00 ----- Start new benchmark -----
+2021/12/27 17:01:00.491 +09:00 Commit: 0f02586f3cbf6dee05e1d1c6a800825abca9951f
+2021/12/27 17:01:00.491 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/27 17:01:00.491 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/27 17:01:00.491 +09:00 Framework: .NET 6.0.1
+2021/12/27 17:01:00.491 +09:00 Host: PC34
+2021/12/27 17:01:01.357 +09:00 HADB GetTypeName: 5.41 ns, 184,976,334 / sec
+2021/12/27 17:01:01.924 +09:00 Async call with no async func #1: Nothing: 13.86 ns, 72,132,635 / sec
+2021/12/27 17:01:16.574 +09:00 ----- Start new benchmark -----
+2021/12/27 17:01:16.578 +09:00 Commit: 0f02586f3cbf6dee05e1d1c6a800825abca9951f
+2021/12/27 17:01:16.578 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/27 17:01:16.578 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/27 17:01:16.578 +09:00 Framework: .NET 6.0.1
+2021/12/27 17:01:16.578 +09:00 Host: PC34
+2021/12/27 17:01:17.386 +09:00 HADB GetTypeName: 5.68 ns, 175,965,863 / sec
+2021/12/27 17:01:17.962 +09:00 Async call with no async func #1: Nothing: 14.21 ns, 70,365,705 / sec
+2021/12/27 17:02:00.150 +09:00 ----- Start new benchmark -----
+2021/12/27 17:02:00.155 +09:00 Commit: 0f02586f3cbf6dee05e1d1c6a800825abca9951f
+2021/12/27 17:02:00.155 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/27 17:02:00.155 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/27 17:02:00.155 +09:00 Framework: .NET 6.0.1
+2021/12/27 17:02:00.155 +09:00 Host: PC34
+2021/12/27 17:02:00.971 +09:00 HADB GetTypeName: 0.56 ns, 1,800,019,350 / sec
+2021/12/27 17:02:01.533 +09:00 Async call with no async func #1: Nothing: 13.55 ns, 73,797,785 / sec
+2021/12/27 17:02:41.601 +09:00 ----- Start new benchmark -----
+2021/12/27 17:02:41.606 +09:00 Commit: 0f02586f3cbf6dee05e1d1c6a800825abca9951f
+2021/12/27 17:02:41.606 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/27 17:02:41.606 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/27 17:02:41.606 +09:00 Framework: .NET 6.0.1
+2021/12/27 17:02:41.606 +09:00 Host: PC34
+2021/12/27 17:02:42.419 +09:00 HADB GetTypeName: 0.54 ns, 1,849,517,152 / sec
+2021/12/27 17:02:43.005 +09:00 Async call with no async func #1: Nothing: 14.28 ns, 70,039,161 / sec
+2021/12/27 17:05:57.751 +09:00 ----- Start new benchmark -----
+2021/12/27 17:05:57.755 +09:00 Commit: 0f02586f3cbf6dee05e1d1c6a800825abca9951f
+2021/12/27 17:05:57.755 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/27 17:05:57.755 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/27 17:05:57.755 +09:00 Framework: .NET 6.0.1
+2021/12/27 17:05:57.755 +09:00 Host: PC34
+2021/12/27 17:05:58.598 +09:00 HADB GetTypeName: 6.33 ns, 158,011,264 / sec
+2021/12/27 17:05:59.232 +09:00 Async call with no async func #1: Nothing: 17.14 ns, 58,329,062 / sec
+2021/12/27 17:05:59.826 +09:00 Async call with no async func #2: Task.CompletedTask after: 15.30 ns, 65,361,818 / sec
+2021/12/27 17:06:00.400 +09:00 Async call with no async func #3: Task.CompletedTask before: 14.38 ns, 69,538,487 / sec
+2021/12/27 17:08:38.960 +09:00 ----- Start new benchmark -----
+2021/12/27 17:08:38.964 +09:00 Commit: 0f02586f3cbf6dee05e1d1c6a800825abca9951f
+2021/12/27 17:08:38.964 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/27 17:08:38.964 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/27 17:08:38.964 +09:00 Framework: .NET 6.0.1
+2021/12/27 17:08:38.964 +09:00 Host: PC34
+2021/12/27 17:08:39.788 +09:00 HADB GetTypeName: 0.53 ns, 1,873,981,022 / sec
+2021/12/27 17:08:40.352 +09:00 Async call with no async func #1: Nothing: 13.67 ns, 73,171,828 / sec
+2021/12/27 17:08:41.002 +09:00 Async call with no async func #2: Task.CompletedTask after: 18.09 ns, 55,267,970 / sec
+2021/12/27 17:08:41.603 +09:00 Async call with no async func #3: Task.CompletedTask before: 15.28 ns, 65,459,779 / sec
+2021/12/27 17:08:49.565 +09:00 ----- Start new benchmark -----
+2021/12/27 17:08:49.570 +09:00 Commit: 0f02586f3cbf6dee05e1d1c6a800825abca9951f
+2021/12/27 17:08:49.570 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/27 17:08:49.570 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/27 17:08:49.570 +09:00 Framework: .NET 6.0.1
+2021/12/27 17:08:49.570 +09:00 Host: PC34
+2021/12/27 17:08:50.377 +09:00 HADB GetTypeName: 0.53 ns, 1,879,836,172 / sec
+2021/12/27 17:08:51.005 +09:00 Async call with no async func #1: Nothing: 16.91 ns, 59,140,108 / sec
+2021/12/27 17:08:51.659 +09:00 Async call with no async func #2: Task.CompletedTask after: 18.24 ns, 54,836,987 / sec
+2021/12/27 17:08:52.236 +09:00 Async call with no async func #3: Task.CompletedTask before: 14.59 ns, 68,548,361 / sec

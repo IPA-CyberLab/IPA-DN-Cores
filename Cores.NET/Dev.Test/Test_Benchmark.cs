@@ -367,6 +367,15 @@ public static class BmTest_DeepClone
 
 partial class TestDevCommands
 {
+    public class BM_HadbTestData : HadbData
+    {
+        public int Abc;
+
+        public override void Normalize()
+        {
+        }
+    }
+
     const int Benchmark_CountForVeryFast = 200000000;
     const int Benchmark_CountForFast = 10000000;
     const int Benchmark_CountForNormal = 10000;
@@ -565,6 +574,9 @@ partial class TestDevCommands
             testDic9.Add(new TestSt5 { IntValue = i }, i);
         }
 
+        BM_HadbTestData hadbTestData = new BM_HadbTestData { Abc = 123 };
+        HadbObject< BM_HadbTestData> hadbTestObj = new HadbObject(hadbTestData, 0, "abc");
+
         BenchMask_BoostUp_PacketParser("190527_novlan_simple_udp");
         BenchMask_BoostUp_PacketParser("190527_novlan_simple_tcp");
         BenchMask_BoostUp_PacketParser("190527_vlan_simple_udp");
@@ -581,6 +593,17 @@ partial class TestDevCommands
         HadbTestData cloneDeepSampleObj2 = new HadbTestData() { HostName = "abc", IPv4Address = "123", IPv6Address = "456", TestInt = 789 };
 
         var queue = new MicroBenchmarkQueue()
+
+        .Add(new MicroBenchmark($"HADB GetTypeName", Benchmark_CountForFast, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.ObjectSlow = hadbTestObj.GetUserDataTypeName();
+                }
+            });
+        }), enabled: true, priority: 211227)
 
         .Add(new MicroBenchmark($"Async call with no async func #1: Nothing", Benchmark_CountForFast, count =>
         {

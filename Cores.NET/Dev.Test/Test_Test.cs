@@ -2501,8 +2501,8 @@ static class TestClass
     }
     static void Test_211108(int threads = 1, int count = 1)
     {
-        //const string TestDbServer = "10.40.0.103"; // lab
-        const string TestDbServer = "10.21.2.132"; // dnt
+        const string TestDbServer = "10.40.0.103"; // lab
+        //const string TestDbServer = "10.21.2.132"; // dnt
         const string TestDbName = "HADB001";
         const string TestDbReadUser = "sql_hadb001_reader";
         const string TestDbReadPassword = "sql_hadb_reader_default_password";
@@ -2644,7 +2644,7 @@ static class TestClass
                     }
                     else
                     {
-                        obj.FastUpdate<HadbTestData>(x =>
+                        obj.FastUpdate(x =>
                         {
                             x.TestInt++;
                             x.IPv4Address += "_" + Secure.RandSInt31() % 10;
@@ -2664,7 +2664,7 @@ static class TestClass
                         }
                         else
                         {
-                            var data = obj.GetData<HadbTestData>();
+                            var data = obj.GetData();
                             data.IPv4Address += "_" + Secure.RandSInt31() % 10;
                             data.IPv6Address += "_" + Secure.RandSInt31() % 10;
                             data.HostName += "_" + Secure.RandSInt31() % 10;
@@ -3030,8 +3030,8 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         if (true)
         {
             // HADB 普通のテスト
-            Test_211108(threads: 100, count: 3000000);
-            //Test_211108(threads: 1, count: 1);
+            //Test_211108(threads: 100, count: 3000000);
+            Test_211108(threads: 1, count: 1);
             return;
         }
 

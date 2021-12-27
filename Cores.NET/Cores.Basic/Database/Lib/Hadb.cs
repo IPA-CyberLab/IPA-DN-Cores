@@ -269,7 +269,7 @@ public class HadbSqlSettings : HadbSettingsBase
     }
 }
 
-[EasyTable("HADB_SNAPSHOT")]
+[EasyTable("HADB_STAT")]
 public sealed class HadbSqlStatRow : INormalizable
 {
     [EasyManualKey]
@@ -531,6 +531,33 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         return ret;
     }
 
+    protected override async Task WriteStatImplAsync(HadbTran tran, DateTimeOffset dt, string generator, string value, string ext1, string ext2, CancellationToken cancel = default)
+    {
+        await using var dbWriter = ((HadbSqlTran)tran).Db;
+        tran.CheckIsWriteMode();
+
+        // 現在の Snapshot No を取得
+        long snapNo = (await this.AtomicGetKvImplAsync(tran, "_HADB_SYS_CURRENT_SNAPSHOT_NO", cancel))._ToLong();
+
+        // STAT を書き込み
+        HadbSqlStatRow r = new HadbSqlStatRow
+        {
+            STAT_UID = Str.NewUid("STAT", '_'),
+            STAT_SYSTEMNAME = this.SystemName,
+            STAT_SNAPSHOT_NO = snapNo,
+            STAT_DT = dt,
+            STAT_GENERATOR = generator._NonNullTrim()._NormalizeFqdn().ToLower(),
+            STAT_VALUE = value._NonNull(),
+            STAT_EXT1 = ext1._NonNull(),
+            STAT_EXT2 = ext2._NonNull(),
+        };
+
+        await dbWriter.EasyInsertAsync(r, cancel);
+
+        // 最後に STAT を書き込んだ日時を書き込み
+        await this.AtomicSetKvImplAsync(tran, "_HADB_SYS_LAST_STAT_WRITE_DT", dt._ToDtStr(withMSsecs: true, withNanoSecs: true));
+    }
+
     protected override async Task AppendMissingDynamicConfigToDatabaseImplAsync(KeyValueList<string, string> missingValues, CancellationToken cancel = default)
     {
         if (missingValues.Any() == false) return;
@@ -753,7 +780,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
     {
         key = key._NormalizeKey(true);
 
-        var dbReader = ((HadbSqlTran)tran).Db;
+        Database? dbReader = ((HadbSqlTran)tran).Db;
 
         var existingRow = await dbReader.EasySelectSingleAsync<HadbSqlKvRow>("select * from HADB_KV where KV_KEY = @KV_KEY and KV_SYSTEM_NAME = @KV_SYSTEM_NAME and KV_DELETED = 0",
             new
@@ -774,7 +801,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
     protected internal override async Task<StrDictionary<string>> AtomicGetKvListImplAsync(HadbTran tran, CancellationToken cancel = default)
     {
-        var dbReader = ((HadbSqlTran)tran).Db;
+        Database? dbReader = ((HadbSqlTran)tran).Db;
 
         var rows = await dbReader.EasySelectAsync<HadbSqlKvRow>("select * from HADB_KV where KV_SYSTEM_NAME = @KV_SYSTEM_NAME and KV_DELETED = 0",
             new
@@ -798,9 +825,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         key = key._NormalizeKey(true);
         value = value._NonNull();
 
+        Database? dbWriter = ((HadbSqlTran)tran).Db;
         tran.CheckIsWriteMode();
-
-        var dbWriter = ((HadbSqlTran)tran).Db;
 
         var now = DtOffsetNow;
 
@@ -1487,8 +1513,12 @@ public abstract class HadbData : INormalizable
 
     //public static implicit operator HadbObject(HadbData data) => data.ToNewObject();
 
-    public Type GetUserDataType() => this.GetType();
-    public string GetUserDataTypeName() => this.GetType().Name;
+    Type _Type => this.GetType();
+    string _TypeName => this._Type.Name;
+
+    public Type GetUserDataType() => this._Type;
+    public string GetUserDataTypeName() => this._TypeName;
+
     public string GetUserDataJsonString()
     {
         try
@@ -1529,7 +1559,7 @@ public sealed class HadbSnapshot
 }
 
 public sealed class HadbObject<T> : INormalizable // 単なるラッパー
-    where T: HadbData
+    where T : HadbData
 {
     public HadbObject TargetObject { get; }
 
@@ -1630,6 +1660,9 @@ public sealed class HadbObject : INormalizable
 
     public string GetUserDataJsonString() => this.UserData.GetUserDataJsonString();
 
+    public Type UserDataType { get; }
+    public string UserDataTypeName { get; }
+
     public HadbObject(HadbData userData, long snapshotNo, string nameSpace, string ext1 = "", string ext2 = "") : this(userData, ext1, ext2, Str.NewUid(userData.GetUserDataTypeName(), '_'), 1, false, snapshotNo, nameSpace, false, DtOffsetNow, DtOffsetNow, DtOffsetZero) { }
 
     public HadbObject(HadbData userData, string ext1, string ext2, string uid, long ver, bool archive, long snapshotNo, string nameSpace, bool deleted, DateTimeOffset createDt, DateTimeOffset updateDt, DateTimeOffset deleteDt, HadbMemDataBase? memDb = null)
@@ -1665,6 +1698,9 @@ public sealed class HadbObject : INormalizable
         {
             if (this.Archive) throw new CoresLibException("this.Archive == true");
         }
+
+        this.UserDataType = this.UserData.GetUserDataType();
+        this.UserDataTypeName = this.UserData.GetUserDataTypeName();
 
         this.Normalize();
     }
@@ -1834,8 +1870,8 @@ public sealed class HadbObject : INormalizable
         }
     }
 
-    public Type GetUserDataType() => this.UserData.GetUserDataType();
-    public string GetUserDataTypeName() => this.UserData.GetUserDataTypeName();
+    public Type GetUserDataType() => this.UserDataType;
+    public string GetUserDataTypeName() => this.UserDataTypeName;
     public string GetUidPrefix() => this.GetUserDataTypeName().ToUpper();
 
     public HadbKeys GetKeys() => this.Deleted == false ? this.UserData.GetKeys() : new HadbKeys("");
@@ -1844,7 +1880,7 @@ public sealed class HadbObject : INormalizable
     public T GetData<T>() where T : HadbData
         => (T)this.UserData;
 
-    public HadbObject<T> GetGenerics<T>() where T: HadbData
+    public HadbObject<T> GetGenerics<T>() where T : HadbData
         => new HadbObject<T>(this);
 
     public void Normalize()
@@ -2059,6 +2095,8 @@ public abstract class HadbMemDataBase
 
     readonly CriticalSection<HadbMemDataBase> LazyUpdateQueueLock = new CriticalSection<HadbMemDataBase>();
     internal ImmutableDictionary<HadbObject, int> _LazyUpdateQueue = ImmutableDictionary<HadbObject, int>.Empty;
+
+    public int GetLazyUpdateQueueLength() => this._LazyUpdateQueue.Count;
 
     public void Debug(string str)
     {
@@ -2354,7 +2392,13 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     Task LazyUpdateMainLoopTask;
 
     public bool IsLoopStarted { get; private set; } = false;
-    public int LastReloadTookMsecs { get; private set; } = 0;
+
+    public int DbLastFullReloadTookMsecs { get; private set; } = 0;
+    public int DbLastPartialReloadTookMsecs { get; private set; } = 0;
+
+    public int MemLastFullReloadTookMsecs { get; private set; } = 0;
+    public int MemLastPartialReloadTookMsecs { get; private set; } = 0;
+
     public int LastLazyUpdateTookMsecs { get; private set; } = 0;
     public bool IsDatabaseConnectedForReload { get; private set; } = false;
     public Exception LastDatabaseConnectForReloadError { get; private set; } = new CoresException("Unknown error.");
@@ -2373,6 +2417,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     public TDynamicConfig CurrentDynamicConfig { get; private set; }
 
     public TMem? MemDb { get; private set; } = null;
+
+    public int GetLazyUpdateQueueLength() => this.MemDb?.GetLazyUpdateQueueLength() ?? 0;
 
     readonly AsyncLock DynamicConfigValueDbLockAsync = new AsyncLock();
 
@@ -2399,7 +2445,12 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     protected abstract Task AppendMissingDynamicConfigToDatabaseImplAsync(KeyValueList<string, string> missingValues, CancellationToken cancel = default);
     protected abstract Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(bool fullReloadMode, DateTimeOffset partialReloadMinUpdateTime, CancellationToken cancel = default);
 
+    protected abstract Task WriteStatImplAsync(HadbTran tran, DateTimeOffset dt, string generator, string value, string ext1, string ext2, CancellationToken cancel = default);
+
     protected abstract bool IsDeadlockExceptionImpl(Exception ex);
+
+
+    protected virtual Task AddAdditionalStatAsync(EasyJsonStrAttributes stat, List<HadbObject> objectList, CancellationToken cancel = default) => TaskCompleted;
 
     public StrDictionary<Type> DefinedDataTypesByName { get; }
     public StrDictionary<Type> DefinedLogTypesByName { get; }
@@ -2575,6 +2626,88 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         }
     }
 
+    public void UpdateSystemRelatimeStat(EasyJsonStrAttributes stat)
+    {
+        // 追加の統計情報 (標準)
+        long processMemory = 0;
+        int numThreads = 0;
+        int numHandles = 0;
+        try
+        {
+            var proc = Process.GetCurrentProcess();
+            processMemory = proc.PrivateMemorySize64;
+            numThreads = proc.Threads.Count;
+            numHandles = proc.HandleCount;
+        }
+        catch { }
+
+        CoresRuntimeStat sys = new CoresRuntimeStat();
+        sys.Refresh(forceGc: false);
+        stat.Set("Sys/DotNet/NumRunningTasks", sys.Task);
+        stat.Set("Sys/DotNet/NumDelayedTasks", sys.D);
+        stat.Set("Sys/DotNet/NumTimerTasks", sys.Q);
+        stat.Set("Sys/DotNet/NumObjects", sys.Obj);
+        stat.Set("Sys/DotNet/CpuUsage", sys.Cpu);
+        stat.Set("Sys/DotNet/ManagedMemory_MBytes", (double)sys.Mem / 1024.0);
+        stat.Set("Sys/DotNet/ProcessMemory_MBytes", (double)processMemory / 1024.0 / 1024.0);
+        stat.Set("Sys/DotNet/NumNativeThreads", numThreads);
+        stat.Set("Sys/DotNet/NumNativeHandles", numHandles);
+        stat.Set("Sys/DotNet/GcTotal", sys.Gc);
+        stat.Set("Sys/DotNet/Gc0", sys.Gc0);
+        stat.Set("Sys/DotNet/Gc1", sys.Gc1);
+        stat.Set("Sys/DotNet/Gc2", sys.Gc2);
+        stat.Set("Sys/DotNet/BootDays", (double)Time.Tick64 / (double)(24 * 60 * 60 * 1000));
+        stat.Set("Hadb/Sys/DbLazyUpdateQueueLength", this.GetLazyUpdateQueueLength());
+        stat.Set("Hadb/Sys/DbConcurrentTranRead", this.DbConcurrentTranRead);
+        stat.Set("Hadb/Sys/DbConcurrentTranWrite", this.DbConcurrentTranWrite);
+        stat.Set("Hadb/Sys/DbTotalDeadlockCount", this.DbTotalDeadlockCount);
+        stat.Set("Hadb/Sys/DbLastFullReloadTookMsecs", this.DbLastFullReloadTookMsecs);
+        stat.Set("Hadb/Sys/DbLastPartialReloadTookMsecs", this.DbLastPartialReloadTookMsecs);
+        stat.Set("Hadb/Sys/IsDatabaseConnectedForLazyWrite", this.IsDatabaseConnectedForLazyWrite);
+        stat.Set("Hadb/Sys/IsDatabaseConnectedForReload", this.IsDatabaseConnectedForReload);
+        stat.Set("Hadb/Sys/MemLastFullReloadTookMsecs", this.MemLastFullReloadTookMsecs);
+        stat.Set("Hadb/Sys/MemLastPartialReloadTookMsecs", this.MemLastPartialReloadTookMsecs);
+    }
+
+    async Task<EasyJsonStrAttributes> GenerateStatInternalAsync(List<HadbObject> objectList, CancellationToken cancel = default)
+    {
+        EasyJsonStrAttributes stat = new EasyJsonStrAttributes();
+
+        Dictionary<string, long> dict = new Dictionary<string, long>(StrCmpi);
+
+        long totalCount = 0;
+
+        // オブジェクトごとの個数のカウント
+        // hadb/count/NameSpace/TypeName
+        foreach (var obj in objectList)
+        {
+            if (obj.Deleted == false && obj.Archive == false)
+            {
+                string key = $"Hadb/Count/{obj.NameSpace}/{obj.GetUserDataTypeName()}";
+
+                dict._Inc(key);
+
+                totalCount++;
+            }
+        }
+
+        // すべてのオブジェクト総数
+        dict["Hadb/Count/_AllObjects"] = totalCount;
+
+        foreach (var kv in dict)
+        {
+            stat.TryAdd(kv.Key, kv.Value.ToString());
+        }
+
+        // 追加の統計情報 (開発者が定義)
+        await this.AddAdditionalStatAsync(stat, objectList, cancel);
+
+        // リアルタイム統計 (システム状態) の更新
+        UpdateSystemRelatimeStat(stat);
+
+        return stat;
+    }
+
     public async Task ReloadCoreAsync(EnsureSpecial yes, bool fullReloadMode = true, DateTimeOffset partialReloadMinUpdateTime = default, CancellationToken cancel = default)
     {
         if (fullReloadMode == false)
@@ -2601,14 +2734,67 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                 if (this.IsEnabled_NoMemDb == false)
                 {
                     // DB からオブジェクト一覧を読み込む
-                    var loadedObjectsList = await this.ReloadDataFromDatabaseImplAsync(fullReloadMode, partialReloadMinUpdateTime, cancel);
+                    long dbStartTick = Time.HighResTick64;
+                    List<HadbObject> loadedObjectsList = await this.ReloadDataFromDatabaseImplAsync(fullReloadMode, partialReloadMinUpdateTime, cancel);
+                    long dbEndTick = Time.HighResTick64;
+
+                    if (fullReloadMode)
+                    {
+                        DbLastFullReloadTookMsecs = (int)(dbEndTick - dbStartTick);
+                    }
+                    else
+                    {
+                        DbLastPartialReloadTookMsecs = (int)(dbEndTick - dbStartTick);
+                    }
 
                     TMem? currentMemDb = this.MemDb;
                     if (currentMemDb == null) currentMemDb = new TMem();
 
+                    long memStartTick = Time.HighResTick64;
                     await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, fullReloadMode, partialReloadMinUpdateTime, cancel);
+                    long memEndTick = Time.HighResTick64;
+
+                    if (fullReloadMode)
+                    {
+                        MemLastFullReloadTookMsecs = (int)(memEndTick - memStartTick);
+                    }
+                    else
+                    {
+                        MemLastPartialReloadTookMsecs = (int)(memEndTick - memStartTick);
+                    }
 
                     this.MemDb = currentMemDb;
+
+                    this.IsDatabaseConnectedForReload = true;
+
+                    if (fullReloadMode)
+                    {
+                        // stat を生成する
+                        bool saveStat = false;
+
+                        saveStat = true;
+
+                        if (saveStat)
+                        {
+                            var stat = await this.GenerateStatInternalAsync(loadedObjectsList, cancel);
+
+                            // stat をデータベースに追記する
+                            try
+                            {
+                                await this.TranAsync(true, async tran =>
+                                {
+                                    await this.WriteStatImplAsync(tran, DtOffsetNow, Env.DnsFqdnHostName, stat.ToJsonString(), "", "", cancel);
+
+                                    return true;
+                                },
+                                cancel: cancel);
+                            }
+                            catch (Exception ex)
+                            {
+                                ex._Error();
+                            }
+                        }
+                    }
                 }
                 else
                 {
@@ -2638,6 +2824,17 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             this.DatabaseConnectForReloadErrorCount++;
             this.LastDatabaseConnectForReloadError = ex;
             this.IsDatabaseConnectedForReload = false;
+
+            if (fullReloadMode)
+            {
+                DbLastFullReloadTookMsecs = 0;
+                MemLastFullReloadTookMsecs = 0;
+            }
+            else
+            {
+                DbLastPartialReloadTookMsecs = 0;
+                MemLastPartialReloadTookMsecs = 0;
+            }
 
             // データベースからもバックアップファイルからもまだデータが読み込まれていない場合は、バックアップファイルから読み込む
             if (this.MemDb == null)
@@ -2689,14 +2886,6 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             }
 
             long endTick = Time.HighResTick64;
-            if (ok)
-            {
-                LastReloadTookMsecs = (int)(endTick - startTick);
-            }
-            else
-            {
-                LastReloadTookMsecs = 0;
-            }
 
             Debug($"ReloadMainLoopAsync: numCycle={numCycle}, numError={numError} End. Took time: {(endTick - startTick)._ToString3()} msecs.");
 
@@ -2812,53 +3001,87 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         }, cancel, true);
     }
 
+
+    public int DbConcurrentTranWrite => _DbConcurrentTranWrite;
+    public int DbConcurrentTranRead => _DbConcurrentTranRead;
+    public int DbTotalDeadlockCount => _DbTotalDeadlockCount;
+
+    int _DbConcurrentTranWrite = 0;
+    int _DbConcurrentTranRead = 0;
+    int _DbTotalDeadlockCount = 0;
+
     public async Task<bool> TranAsync(bool writeMode, Func<HadbTran, Task<bool>> task, bool takeSnapshot = false, RefLong? snapshotNoRet = null, CancellationToken cancel = default, DeadlockRetryConfig? retryConfig = null)
     {
         CheckIfReady();
         retryConfig ??= this.DefaultDeadlockRetryConfig;
         int numRetry = 0;
 
-        LABEL_RETRY:
+        if (writeMode)
+        {
+            Interlocked.Increment(ref _DbConcurrentTranWrite);
+        }
+        else
+        {
+            Interlocked.Increment(ref _DbConcurrentTranRead);
+        }
+
         try
         {
-            await using var tran = await this.BeginDatabaseTransactionImplAsync(writeMode, true, cancel);
-
-            await tran.BeginAsync(takeSnapshot, cancel);
-
-            if (await task(tran))
+            LABEL_RETRY:
+            try
             {
-                await tran.CommitAsync(cancel);
+                await using var tran = await this.BeginDatabaseTransactionImplAsync(writeMode, true, cancel);
 
-                snapshotNoRet?.Set(tran.CurrentSnapNoForWriteMode);
-                return true;
+                await tran.BeginAsync(takeSnapshot, cancel);
+
+                if (await task(tran))
+                {
+                    await tran.CommitAsync(cancel);
+
+                    snapshotNoRet?.Set(tran.CurrentSnapNoForWriteMode);
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                return false;
+                if (this.IsDeadlockExceptionImpl(ex))
+                {
+                    // デッドロック発生
+                    Interlocked.Increment(ref _DbTotalDeadlockCount);
+
+                    numRetry++;
+                    if (numRetry <= retryConfig.RetryCount)
+                    {
+                        int nextInterval = Util.GenRandIntervalWithRetry(retryConfig.RetryAverageInterval, numRetry, retryConfig.RetryAverageInterval * retryConfig.RetryIntervalMaxFactor, 60.0);
+
+                        $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {ex.ToString()}"._Debug();
+
+                        await Task.Delay(nextInterval);
+
+                        goto LABEL_RETRY;
+                    }
+
+                    throw;
+                }
+                else
+                {
+                    throw;
+                }
             }
         }
-        catch (Exception ex)
+        finally
         {
-            if (this.IsDeadlockExceptionImpl(ex))
+            if (writeMode)
             {
-                // デッドロック発生
-                numRetry++;
-                if (numRetry <= retryConfig.RetryCount)
-                {
-                    int nextInterval = Util.GenRandIntervalWithRetry(retryConfig.RetryAverageInterval, numRetry, retryConfig.RetryAverageInterval * retryConfig.RetryIntervalMaxFactor, 60.0);
-
-                    $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {ex.ToString()}"._Debug();
-
-                    await Task.Delay(nextInterval);
-
-                    goto LABEL_RETRY;
-                }
-
-                throw;
+                Interlocked.Decrement(ref _DbConcurrentTranWrite);
             }
             else
             {
-                throw;
+                Interlocked.Decrement(ref _DbConcurrentTranRead);
             }
         }
     }
@@ -3162,7 +3385,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         }
 
         public async Task<HadbObject<T>> AtomicAddAsync<T>(T data, string nameSpace = Consts.Strings.HadbDefaultNameSpace, string ext1 = "", string ext2 = "", CancellationToken cancel = default)
-            where T: HadbData
+            where T : HadbData
             => (await AtomicAddAsync(data._SingleArray(), nameSpace, ext1, ext2, cancel)).Single();
 
         public async Task<List<HadbObject>> AtomicAddAsync(IEnumerable<HadbData> dataList, string nameSpace = Consts.Strings.HadbDefaultNameSpace, string ext1 = "", string ext2 = "", CancellationToken cancel = default)
@@ -3413,15 +3636,15 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             return await Hadb.AtomicSearchLogImplAsync(this, typeName, query, nameSpace, cancel);
         }
 
-        public async Task<bool> LazyUpdateAsync(HadbObject obj, CancellationToken cancel = default)
-        {
-            CheckBegan();
-            Hadb.CheckIfReady();
-            if (obj.Deleted || obj.Archive) return false;
-            obj.CheckIsNotMemoryDbObject();
+        //public async Task<bool> LazyUpdateAsync(HadbObject obj, CancellationToken cancel = default)
+        //{
+        //    CheckBegan();
+        //    Hadb.CheckIfReady();
+        //    if (obj.Deleted || obj.Archive) return false;
+        //    obj.CheckIsNotMemoryDbObject();
 
-            return await Hadb.LazyUpdateImplAsync(this, obj, cancel);
-        }
+        //    return await Hadb.LazyUpdateImplAsync(this, obj, cancel);
+        //}
     }
 }
 

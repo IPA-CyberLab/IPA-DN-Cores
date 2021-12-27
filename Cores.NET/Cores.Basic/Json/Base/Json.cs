@@ -354,6 +354,28 @@ public class EasyJsonStrAttributes
         return json._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type);
     }
 
+    public void Set(string key, object? value)
+    {
+        string tmp = "";
+        if (value is double d)
+        {
+            tmp = d.ToString("F3");
+        }
+        else
+        {
+            tmp = value?.ToString() ?? "";
+        }
+
+        this.Set(key, tmp);
+    }
+
+    public void Set(string key, string? value)
+    {
+        value = value._NonNull();
+
+        this[key] = value;
+    }
+
     public string this[string key]
     {
         get => this.Dict._GetOrDefault(key._NonNullTrim(), "")._NonNullTrim();
