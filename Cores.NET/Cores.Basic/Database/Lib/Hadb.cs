@@ -533,7 +533,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
     protected override async Task WriteStatImplAsync(HadbTran tran, DateTimeOffset dt, string generator, string value, string ext1, string ext2, CancellationToken cancel = default)
     {
-        await using var dbWriter = ((HadbSqlTran)tran).Db;
+        var dbWriter = ((HadbSqlTran)tran).Db;
         tran.CheckIsWriteMode();
 
         // 現在の Snapshot No を取得

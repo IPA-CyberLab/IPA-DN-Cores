@@ -1,0 +1,82 @@
+﻿{"TimeStamp":"2021-12-27T17:00:06.2889078+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:00:06.2931754+09:00","Data":"Commit: 0f02586f3cbf6dee05e1d1c6a800825abca9951f","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:00:06.2931916+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:00:06.2931946+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:00:06.2931959+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:00:06.2931969+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:00:07.1230678+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":14.1817625,"PerSecond":70513097},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:00:07.7033532+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":14.43918239130435,"PerSecond":69255998},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:00:08.2845861+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":14.667440434782609,"PerSecond":68178221},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:00:08.8280022+09:00","Data":{"TestName":"Async call with no async func #4: Task.CompletedTask many times","Ret":26.91422956521739,"PerSecond":37155066},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:00:16.0678771+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:00:16.0721254+09:00","Data":"Commit: 0f02586f3cbf6dee05e1d1c6a800825abca9951f","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:00:16.072141+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:00:16.0721424+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:00:16.0721435+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:00:16.0721446+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:00:16.8983581+09:00","Data":{"TestName":"HADB GetTypeName","Ret":6.071964166666667,"PerSecond":164691353},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:00:17.5267665+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":16.389775200000003,"PerSecond":61013649},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:00:18.1093485+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":15.0643175,"PerSecond":66382031},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:00:18.6849297+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":14.410890652173913,"PerSecond":69391963},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:01:00.4872991+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:01:00.4915457+09:00","Data":"Commit: 0f02586f3cbf6dee05e1d1c6a800825abca9951f","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:01:00.4915602+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:01:00.4915615+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:01:00.4915627+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:01:00.4915645+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:01:01.357401+09:00","Data":{"TestName":"HADB GetTypeName","Ret":5.406096956521739,"PerSecond":184976334},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:01:01.9241063+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":13.86335043478261,"PerSecond":72132635},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:01:16.5742617+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:01:16.5785438+09:00","Data":"Commit: 0f02586f3cbf6dee05e1d1c6a800825abca9951f","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:01:16.5785577+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:01:16.5785591+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:01:16.5785609+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:01:16.578562+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:01:17.3861849+09:00","Data":{"TestName":"HADB GetTypeName","Ret":5.682920416666667,"PerSecond":175965863},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:01:17.9626118+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":14.21146847826087,"PerSecond":70365705},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:02:00.150657+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:02:00.1550518+09:00","Data":"Commit: 0f02586f3cbf6dee05e1d1c6a800825abca9951f","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:02:00.1550709+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:02:00.1550723+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:02:00.1550735+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:02:00.1550757+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:02:00.9712181+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.5555495833333333,"PerSecond":1800019350},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:02:01.5337356+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":13.550542173913044,"PerSecond":73797785},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:02:41.6019307+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:02:41.6061633+09:00","Data":"Commit: 0f02586f3cbf6dee05e1d1c6a800825abca9951f","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:02:41.606183+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:02:41.6061845+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:02:41.6061855+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:02:41.6061866+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:02:42.4196383+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.5406816576086957,"PerSecond":1849517152},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:02:43.005943+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":14.277726666666666,"PerSecond":70039161},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:05:57.7513933+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:05:57.7556926+09:00","Data":"Commit: 0f02586f3cbf6dee05e1d1c6a800825abca9951f","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:05:57.7557106+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:05:57.755712+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:05:57.7557131+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:05:57.7557143+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:05:58.5980402+09:00","Data":{"TestName":"HADB GetTypeName","Ret":6.328662717391305,"PerSecond":158011264},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:05:59.2320995+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":17.144112391304347,"PerSecond":58329062},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:05:59.8262781+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":15.29945195652174,"PerSecond":65361818},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:06:00.4006008+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":14.380525652173912,"PerSecond":69538487},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:08:38.9600406+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:08:38.9643866+09:00","Data":"Commit: 0f02586f3cbf6dee05e1d1c6a800825abca9951f","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:08:38.9644081+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:08:38.9644094+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:08:38.9644105+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:08:38.9644125+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:08:39.7884244+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.5336233333333333,"PerSecond":1873981022},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:08:40.3528322+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":13.666461739130435,"PerSecond":73171828},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:08:41.0027246+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":18.09366239130435,"PerSecond":55267970},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:08:41.6032756+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":15.27655625,"PerSecond":65459779},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:08:49.5658961+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:08:49.5700553+09:00","Data":"Commit: 0f02586f3cbf6dee05e1d1c6a800825abca9951f","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:08:49.5700689+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:08:49.5700711+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:08:49.5700722+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:08:49.5700733+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-27T17:08:50.3775858+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.5319612500000002,"PerSecond":1879836172},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:08:51.0058758+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":16.90899847826087,"PerSecond":59140108},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:08:51.6591893+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":18.235866666666666,"PerSecond":54836987},"Tag":"result"}
+{"TimeStamp":"2021-12-27T17:08:52.2364526+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":14.588240833333332,"PerSecond":68548361},"Tag":"result"}
