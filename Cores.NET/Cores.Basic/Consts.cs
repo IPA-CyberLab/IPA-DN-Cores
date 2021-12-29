@@ -301,6 +301,9 @@ public static partial class Consts
         public const string LogBrowserHistoryDirName = "_history";
         public const string LogBrowserZipFileName = "_download_zip";
 
+        public const string HadbBackupDatabaseFileName = "Database.json";
+        public const string HadbBackupDynamicConfigFileName = "DynamicConfig.json";
+
         public static readonly IEnumerable<string> StandardExcludeDirNames = new string[] { ".svn", "_vti_cnf", "_vti_pvt", "_private", ".git", ".vs" };
 
         public static bool IsSpecialFileNameForLogBrowser(string? fn)

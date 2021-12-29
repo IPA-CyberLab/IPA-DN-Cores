@@ -85,6 +85,7 @@ using IPA.Cores.ClientApi.SlackApi;
 
 using IPA.Cores.Codes;
 using System.Net.Security;
+using Newtonsoft.Json.Linq;
 
 
 #pragma warning disable CS0219
@@ -3018,9 +3019,44 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             }
         }
     }
+    public class TestHadbData2
+    {
+        public object Data1 = null!;
+    }
+
+    public class TestHadbData1 : HadbData
+    {
+        public string Hello { get; set; } = "";
+
+        public override void Normalize()
+        {
+            this.Hello = this.Hello._NonNull();
+        }
+    }
+
+    static void Test_211229()
+    {
+        TestHadbData1 data1 = new TestHadbData1 { Hello = "World" };
+
+        TestHadbData2 data2 = new TestHadbData2 { Data1 = data1 };
+
+        string txt = data2._ObjectToJson();
+
+        txt._Print();
+
+        TestHadbData2? data3 = txt._JsonToObject<TestHadbData2>();
+
+        data3._ObjectToJson()._Print();
+    }
 
     public static void Test_Generic()
     {
+        if (false)
+        {
+            Test_211229();
+            return;
+        }
+
         if (false)
         {
             Test_211204_Transaction_DeadLockTest(5, IsolationLevel.Serializable, false);

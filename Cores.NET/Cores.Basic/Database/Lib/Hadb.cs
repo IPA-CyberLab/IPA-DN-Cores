@@ -64,6 +64,8 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Reflection;
 using System.Data;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 
 namespace IPA.Cores.Basic;
 
@@ -480,19 +482,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
     }
 
     protected override bool IsDeadlockExceptionImpl(Exception ex)
-    {
-        Microsoft.Data.SqlClient.SqlException? sqlEx = ex as Microsoft.Data.SqlClient.SqlException;
-
-        if (sqlEx != null)
-        {
-            if (sqlEx.Number == 1205)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+        => Database.IsDeadlockException(ex);
 
     public async Task<Database> OpenSqlDatabaseAsync(bool writeMode, CancellationToken cancel = default)
     {
@@ -1647,6 +1637,31 @@ public sealed class HadbObject<T> : INormalizable // 単なるラッパー
     }
 }
 
+public sealed class HadbSerializedObject
+{
+    public string Uid { get; set; } = "";
+
+    public long Ver { get; set; }
+
+    public DateTimeOffset CreateDt { get; set; }
+
+    public DateTimeOffset UpdateDt { get; set; }
+
+    public DateTimeOffset DeleteDt { get; set; }
+
+    public long SnapshotNo { get; set; }
+
+    public string NameSpace { get; set; } = "";
+
+    public string Ext1 { get; set; } = "";
+
+    public string Ext2 { get; set; } = "";
+
+    public object UserData { get; set; } = null!;
+
+    public string UserDataTypeName { get; set; } = "";
+}
+
 public sealed class HadbObject : INormalizable
 {
     public readonly CriticalSection<HadbObject> Lock = new CriticalSection<HadbObject>();
@@ -1667,11 +1682,11 @@ public sealed class HadbObject : INormalizable
 
     public DateTimeOffset DeleteDt { get; private set; }
 
-    public bool Archive { get; private set; }
+    public bool Archive { get; }
 
     public long SnapshotNo { get; private set; }
 
-    public string NameSpace { get; private set; }
+    public string NameSpace { get; }
 
     public HadbData UserData { get; private set; }
 
@@ -1918,6 +1933,28 @@ public sealed class HadbObject : INormalizable
         {
             ex._Debug();
         }
+    }
+
+    public HadbSerializedObject ToSerializedObject()
+    {
+        CheckIsNotMemoryDbObject();
+        if (this.Deleted) throw new CoresLibException("this.Deleted == true");
+
+        HadbSerializedObject ret = new HadbSerializedObject
+        {
+            Uid = this.Uid,
+            Ver = this.Ver,
+            CreateDt = this.CreateDt,
+            UpdateDt = this.UpdateDt,
+            DeleteDt = this.DeleteDt,
+            SnapshotNo = this.SnapshotNo,
+            UserData = this.UserData,
+            Ext1 = this.Ext1,
+            Ext2 = this.Ext2,
+            UserDataTypeName = this.UserDataTypeName,
+        };
+
+        return ret;
     }
 }
 
@@ -2409,6 +2446,12 @@ public class HadbLogQuery : INormalizable
     }
 }
 
+public class HadbBackupDatabase
+{
+    public DateTimeOffset TimeStamp = ZeroDateTimeOffsetValue;
+    public List<HadbSerializedObject> ObjectsList = null!;
+}
+
 public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     where TMem : HadbMemDataBase, new()
     where TDynamicConfig : HadbDynamicConfig
@@ -2743,6 +2786,9 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             }
         }
 
+        FilePath backupDatabasePath = this.Settings.BackupDir.Combine(Consts.FileNames.HadbBackupDatabaseFileName);
+        FilePath backupDynamicConfigPath = this.Settings.BackupDir.Combine(Consts.FileNames.HadbBackupDynamicConfigFileName);
+
         try
         {
             long nowTick;
@@ -2796,7 +2842,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
                     if (fullReloadMode)
                     {
-                        // stat を生成する
+                        // stat を定期的に生成する
                         bool saveStat = false;
 
                         if (this.CurrentDynamicConfig.HadbAutomaticStatIntervalMsecs >= 1 && (lastStatWrittenTimeStamp.Value._IsZeroDateTime() || (DtOffsetNow >= (lastStatWrittenTimeStamp.Value + this.CurrentDynamicConfig.HadbAutomaticStatIntervalMsecs._ToTimeSpanMSecs()))))
@@ -2825,6 +2871,34 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                                 ex._Error();
                             }
                         }
+
+                        // DB のデータをローカルバックアップファイルに書き込む
+                        await backupDynamicConfigPath.FileSystem.WriteJsonToFileAsync(backupDynamicConfigPath.PathString, this.CurrentDynamicConfig,
+                            backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
+                            cancel: cancel, withBackup: true);
+
+                        HadbBackupDatabase backupData = new HadbBackupDatabase
+                        {
+                            ObjectsList = await loadedObjectsList._ProcessParallelAndAggregateAsync(x =>
+                            {
+                                List<HadbSerializedObject> ret = new List<HadbSerializedObject>();
+
+                                foreach (var obj in x)
+                                {
+                                    if (obj.Archive == false && obj.Deleted == false)
+                                    {
+                                        ret.Add(obj.ToSerializedObject());
+                                    }
+                                }
+
+                                return TR(ret);
+                            }, cancel: cancel),
+                            TimeStamp = nowTime,
+                        };
+
+                        await backupDatabasePath.FileSystem.WriteJsonToFileAsync(backupDatabasePath.PathString, backupData,
+                            backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
+                            cancel: cancel, withBackup: true);
                     }
                 }
                 else
@@ -2871,6 +2945,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             if (this.MemDb == null)
             {
                 // TODOTODO
+                //HadbBackupDatabase loadData = await backupDatabasePath.FileSystem.ReadJsonFromFileAsync< HadbBackupDatabase>(backupDatabasePath.PathString,
             }
 
             // バックアップファイルの読み込みを行なった上で、DB 例外はちゃんと throw する

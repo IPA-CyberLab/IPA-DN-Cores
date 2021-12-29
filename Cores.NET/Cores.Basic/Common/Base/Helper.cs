@@ -3182,6 +3182,9 @@ public static class BasicHelper
 
         return c;
     }
+
+    public static bool _IsDeadlockException(this Exception? ex)
+        => Database.IsDeadlockException(ex);
 }
 
 

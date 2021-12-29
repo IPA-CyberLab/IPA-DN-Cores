@@ -1283,9 +1283,9 @@ public sealed class Database : AsyncService
                 }
             }
         }
-        catch (SqlException sqlex)
+        catch (Exception ex)
         {
-            if (sqlex.Number == 1205)
+            if (ex._IsDeadlockException())
             {
                 // デッドロック発生
                 numRetry++;
@@ -1293,7 +1293,7 @@ public sealed class Database : AsyncService
                 {
                     int nextInterval = Util.GenRandIntervalWithRetry(retryConfig.RetryAverageInterval, numRetry, retryConfig.RetryAverageInterval * retryConfig.RetryIntervalMaxFactor, 60.0);
 
-                    $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {sqlex.ToString()}"._Debug();
+                    $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {ex.ToString()}"._Debug();
 
                     Kernel.SleepThread(nextInterval);
 
@@ -1347,10 +1347,10 @@ public sealed class Database : AsyncService
                 }
             }
         }
-        catch (SqlException sqlex)
+        catch (Exception ex)
         {
             //sqlex._Debug();
-            if (sqlex.Number == 1205)
+            if (ex._IsDeadlockException())
             {
                 // デッドロック発生
                 numRetry++;
@@ -1358,7 +1358,7 @@ public sealed class Database : AsyncService
                 {
                     int nextInterval = Util.GenRandIntervalWithRetry(retryConfig.RetryAverageInterval, numRetry, retryConfig.RetryAverageInterval * retryConfig.RetryIntervalMaxFactor, 60.0);
 
-                    $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {sqlex.ToString()}"._Debug();
+                    $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {ex.ToString()}"._Debug();
 
                     await Task.Delay(nextInterval);
 
@@ -1541,6 +1541,21 @@ public sealed class Database : AsyncService
 
         await Transaction._DisposeSafeAsync();
         Transaction = null;
+    }
+
+    public static bool IsDeadlockException(Exception? ex)
+    {
+        if (ex == null) return false;
+
+        if (ex is SqlException sql)
+        {
+            if (sql.Number == 1205)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 
