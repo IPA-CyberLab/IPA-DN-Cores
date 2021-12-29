@@ -327,7 +327,15 @@ public static partial class Consts
         public const int HadbReloadTimeShiftMarginMsecs = 15 * 1000;
         public const int HadbFullReloadIntervalMsecs = 15 * 1000;
         public const int HadbLazyUpdateIntervalMsecs = 1 * 1000;
-        public const int HadbRecordStatIntervalMsecs = 5 * 1000;
+
+        public const int HadbAutomaticSnapshotIntervalMsecs = 12 * 60 * 60 * 1000;
+        public const int HadbAutomaticStatIntervalMsecs = 60 * 60 * 1000;
+
+        public const int HadbMaxDbConcurrentWriteTransactionsTotal = 50;
+        public const int HadbMaxDbConcurrentReadTransactionsTotal = 500;
+
+        public const int HadbMaxDbConcurrentWriteTransactionsPerClient = 5;
+        public const int HadbMaxDbConcurrentReadTransactionsPerClient = 25;
     }
 
     public static partial class HadbDynamicConfigMaxValues
@@ -337,7 +345,6 @@ public static partial class Consts
         public const int HadbReloadTimeShiftMarginMsecs = 4 * 60 * 60 * 1000;
         public const int HadbFullReloadIntervalMsecs = 4 * 60 * 60 * 1000;
         public const int HadbLazyUpdateIntervalMsecs = 5 * 60 * 1000;
-        public const int HadbRecordStatIntervalMsecs = 60 * 60 * 1000;
     }
 
     public static partial class BlazorApp

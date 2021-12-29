@@ -224,6 +224,11 @@ public static class HadbCodeTest
 {
     public class Dyn : HadbDynamicConfig
     {
+        public Dyn()
+        {
+            this.HadbAutomaticSnapshotIntervalMsecs = 0;
+        }
+
         public string Hello { get; set; } = "";
     }
 

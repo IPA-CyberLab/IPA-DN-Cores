@@ -6849,7 +6849,7 @@ namespace IPA.Cores.Basic
 
     public interface IConcurrentLimiter
     {
-        bool TryEnter(object key, out int currentCount);
+        bool TryEnter(object key, out int currentCount, int maxConcurrentRequestsOverride = 0);
         void Exit(object key, out int currentCount);
     }
 
@@ -6870,18 +6870,35 @@ namespace IPA.Cores.Basic
 
         public FastEventListenerList<ConcurrentLimiter<TKey>, NonsenseEventType> EventListener { get; } = new FastEventListenerList<ConcurrentLimiter<TKey>, NonsenseEventType>();
 
-        public ConcurrentLimiter(int maxConcurrentRequests)
+        public ConcurrentLimiter(int maxConcurrentRequests = int.MaxValue)
         {
             this.MaxConcurrentRequests = maxConcurrentRequests._NonNegative();
         }
 
-        public bool TryEnter(TKey key, out int currentCount)
+        public IHolder EnterWithUsing(TKey key, out int currentCount, int maxConcurrentRequestsOverride = 0)
+        {
+            if (this.TryEnter(key, out currentCount, maxConcurrentRequestsOverride) == false)
+            {
+                int maxValue = maxConcurrentRequestsOverride >= 1 ? maxConcurrentRequestsOverride : this.MaxConcurrentRequests;
+
+                throw new CoresException($"ConcurrentLimiter exceeded: Key = '{key.ToString()}', Current = {currentCount}, Max = {maxValue}");
+            }
+
+            return new Holder(() =>
+            {
+                this.Exit(key, out _);
+            });
+        }
+
+        public bool TryEnter(TKey key, out int currentCount, int maxConcurrentRequestsOverride = 0)
         {
             if (this.MaxConcurrentRequests == 0)
             {
                 currentCount = 0;
                 return true;
             }
+
+            int maxValue = maxConcurrentRequestsOverride >= 1 ? maxConcurrentRequestsOverride : this.MaxConcurrentRequests;
 
             lock (LockObj)
             {
@@ -6895,7 +6912,7 @@ namespace IPA.Cores.Basic
                     Debug.Assert(currentCount >= 1);
                 }
 
-                if (currentCount >= this.MaxConcurrentRequests)
+                if (currentCount >= maxValue)
                 {
                     if (entry != null)
                     {
@@ -6904,7 +6921,7 @@ namespace IPA.Cores.Basic
                         if (entry.LastErrorReportTick == 0 || (now >= (entry.LastErrorReportTick + 1000L)))
                         {
                             entry.LastErrorReportTick = now;
-                            this.EventListener.Fire(this, NonsenseEventType.Nonsense, $"ConcurrentLimiter exceeded: Key = '{key.ToString()}', Current = {currentCount}, Max = {this.MaxConcurrentRequests}");
+                            this.EventListener.Fire(this, NonsenseEventType.Nonsense, $"ConcurrentLimiter exceeded: Key = '{key.ToString()}', Current = {currentCount}, Max = {maxValue}");
                         }
                     }
 
@@ -6954,10 +6971,10 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public bool TryEnter(object key, out int currentCount)
+        public bool TryEnter(object key, out int currentCount, int maxConcurrentRequestsOverride = 0)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            return TryEnter((TKey)key, out currentCount);
+            return TryEnter((TKey)key, out currentCount, maxConcurrentRequestsOverride);
         }
 
         public void Exit(object key, out int currentCount)

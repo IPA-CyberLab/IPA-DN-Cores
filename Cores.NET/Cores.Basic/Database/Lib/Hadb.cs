@@ -124,13 +124,19 @@ public class HadbDynamicConfig : INormalizable
 {
     protected virtual void NormalizeImpl() { }
 
-    public int HadbReloadIntervalMsecsLastOk;
-    public int HadbReloadIntervalMsecsLastError;
-    public int HadbReloadTimeShiftMarginMsecs;
-    public int HadbFullReloadIntervalMsecs;
-    public int HadbLazyUpdateIntervalMsecs;
-    public int HadbRecordStatIntervalMsecs;
-    public int HadbAutomaticSnapshotIntervalMsecs;
+    public int HadbReloadIntervalMsecsLastOk = Consts.HadbDynamicConfigDefaultValues.HadbReloadIntervalMsecsLastOk;
+    public int HadbReloadIntervalMsecsLastError = Consts.HadbDynamicConfigDefaultValues.HadbReloadIntervalMsecsLastError;
+    public int HadbReloadTimeShiftMarginMsecs = Consts.HadbDynamicConfigDefaultValues.HadbReloadTimeShiftMarginMsecs;
+    public int HadbFullReloadIntervalMsecs = Consts.HadbDynamicConfigDefaultValues.HadbFullReloadIntervalMsecs;
+    public int HadbLazyUpdateIntervalMsecs = Consts.HadbDynamicConfigDefaultValues.HadbLazyUpdateIntervalMsecs;
+
+    public int HadbAutomaticSnapshotIntervalMsecs = Consts.HadbDynamicConfigDefaultValues.HadbAutomaticSnapshotIntervalMsecs;
+    public int HadbAutomaticStatIntervalMsecs = Consts.HadbDynamicConfigDefaultValues.HadbAutomaticStatIntervalMsecs;
+
+    public int HadbMaxDbConcurrentWriteTransactionsTotal = Consts.HadbDynamicConfigDefaultValues.HadbMaxDbConcurrentWriteTransactionsTotal;
+    public int HadbMaxDbConcurrentReadTransactionsTotal = Consts.HadbDynamicConfigDefaultValues.HadbMaxDbConcurrentReadTransactionsTotal;
+    public int HadbMaxDbConcurrentWriteTransactionsPerClient = Consts.HadbDynamicConfigDefaultValues.HadbMaxDbConcurrentWriteTransactionsPerClient;
+    public int HadbMaxDbConcurrentReadTransactionsPerClient = Consts.HadbDynamicConfigDefaultValues.HadbMaxDbConcurrentReadTransactionsPerClient;
 
     public HadbDynamicConfig()
     {
@@ -144,8 +150,14 @@ public class HadbDynamicConfig : INormalizable
         this.HadbReloadTimeShiftMarginMsecs = this.HadbReloadTimeShiftMarginMsecs._ZeroToDefault(Consts.HadbDynamicConfigDefaultValues.HadbReloadTimeShiftMarginMsecs, max: Consts.HadbDynamicConfigMaxValues.HadbReloadTimeShiftMarginMsecs);
         this.HadbFullReloadIntervalMsecs = this.HadbFullReloadIntervalMsecs._ZeroToDefault(Consts.HadbDynamicConfigDefaultValues.HadbFullReloadIntervalMsecs, max: Consts.HadbDynamicConfigMaxValues.HadbFullReloadIntervalMsecs);
         this.HadbLazyUpdateIntervalMsecs = this.HadbLazyUpdateIntervalMsecs._ZeroToDefault(Consts.HadbDynamicConfigDefaultValues.HadbLazyUpdateIntervalMsecs, max: Consts.HadbDynamicConfigMaxValues.HadbLazyUpdateIntervalMsecs);
-        this.HadbRecordStatIntervalMsecs = this.HadbRecordStatIntervalMsecs._ZeroToDefault(Consts.HadbDynamicConfigDefaultValues.HadbRecordStatIntervalMsecs, max: Consts.HadbDynamicConfigMaxValues.HadbRecordStatIntervalMsecs);
+
         this.HadbAutomaticSnapshotIntervalMsecs = Math.Max(this.HadbAutomaticSnapshotIntervalMsecs, 0);
+        this.HadbAutomaticStatIntervalMsecs = Math.Max(this.HadbAutomaticStatIntervalMsecs, 0);
+
+        this.HadbMaxDbConcurrentWriteTransactionsTotal = this.HadbMaxDbConcurrentWriteTransactionsTotal._ZeroToDefault(Consts.HadbDynamicConfigDefaultValues.HadbMaxDbConcurrentWriteTransactionsTotal);
+        this.HadbMaxDbConcurrentReadTransactionsTotal = this.HadbMaxDbConcurrentReadTransactionsTotal._ZeroToDefault(Consts.HadbDynamicConfigDefaultValues.HadbMaxDbConcurrentReadTransactionsTotal);
+        this.HadbMaxDbConcurrentWriteTransactionsPerClient = this.HadbMaxDbConcurrentWriteTransactionsPerClient._ZeroToDefault(Consts.HadbDynamicConfigDefaultValues.HadbMaxDbConcurrentWriteTransactionsPerClient);
+        this.HadbMaxDbConcurrentReadTransactionsPerClient = this.HadbMaxDbConcurrentReadTransactionsPerClient._ZeroToDefault(Consts.HadbDynamicConfigDefaultValues.HadbMaxDbConcurrentReadTransactionsPerClient);
 
         this.NormalizeImpl();
     }
@@ -603,7 +615,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         }
     }
 
-    protected override async Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(bool fullReloadMode, DateTimeOffset partialReloadMinUpdateTime, CancellationToken cancel = default)
+    protected override async Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(bool fullReloadMode, DateTimeOffset partialReloadMinUpdateTime, Ref<DateTimeOffset>? lastStatTimestamp, CancellationToken cancel = default)
     {
         IEnumerable<HadbSqlDataRow> rows = null!;
 
@@ -623,6 +635,19 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 }
 
                 rows = await dbReader.EasySelectAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0", new { DATA_SYSTEMNAME = this.SystemName, DT_MIN = partialReloadMinUpdateTime });
+
+                HadbSqlKvRow? kv = await dbReader.EasySelectSingleAsync<HadbSqlKvRow>("select top 1 * from HADB_KV where KV_SYSTEM_NAME = @KV_SYSTEM_NAME and KV_KEY = @KV_KEY and KV_DELETED = 0 order by KV_ID desc",
+                    new
+                    {
+                        KV_SYSTEM_NAME = this.SystemName,
+                        KV_KEY = "_HADB_SYS_LAST_STAT_WRITE_DT",
+                    });
+
+                DateTimeOffset lastStat = Util.ZeroDateTimeOffsetValue;
+
+                if (kv != null) lastStat = Str.DtstrToDateTimeOffset(kv.KV_VALUE);
+
+                lastStatTimestamp?.Set(lastStat);
             });
         }
         catch (Exception ex)
@@ -2443,7 +2468,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     protected abstract Task<KeyValueList<string, string>> LoadDynamicConfigFromDatabaseImplAsync(CancellationToken cancel = default);
     protected abstract Task AppendMissingDynamicConfigToDatabaseImplAsync(KeyValueList<string, string> missingValues, CancellationToken cancel = default);
-    protected abstract Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(bool fullReloadMode, DateTimeOffset partialReloadMinUpdateTime, CancellationToken cancel = default);
+    protected abstract Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(bool fullReloadMode, DateTimeOffset partialReloadMinUpdateTime, Ref<DateTimeOffset>? lastStatTimestamp, CancellationToken cancel = default);
 
     protected abstract Task WriteStatImplAsync(HadbTran tran, DateTimeOffset dt, string generator, string value, string ext1, string ext2, CancellationToken cancel = default);
 
@@ -2658,9 +2683,9 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         stat.Set("Sys/DotNet/Gc2", sys.Gc2);
         stat.Set("Sys/DotNet/BootDays", (double)Time.Tick64 / (double)(24 * 60 * 60 * 1000));
         stat.Set("Hadb/Sys/DbLazyUpdateQueueLength", this.GetLazyUpdateQueueLength());
-        stat.Set("Hadb/Sys/DbConcurrentTranRead", this.DbConcurrentTranRead);
-        stat.Set("Hadb/Sys/DbConcurrentTranWrite", this.DbConcurrentTranWrite);
-        stat.Set("Hadb/Sys/DbTotalDeadlockCount", this.DbTotalDeadlockCount);
+        stat.Set("Hadb/Sys/DbConcurrentTranRead", this.DbConcurrentTranReadTotal);
+        stat.Set("Hadb/Sys/DbConcurrentTranWrite", this.DbConcurrentTranWriteTotal);
+        stat.Set("Hadb/Sys/DbTotalDeadlockCount", this.DbTotalDeadlockCountTotal);
         stat.Set("Hadb/Sys/DbLastFullReloadTookMsecs", this.DbLastFullReloadTookMsecs);
         stat.Set("Hadb/Sys/DbLastPartialReloadTookMsecs", this.DbLastPartialReloadTookMsecs);
         stat.Set("Hadb/Sys/IsDatabaseConnectedForLazyWrite", this.IsDatabaseConnectedForLazyWrite);
@@ -2734,8 +2759,10 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                 if (this.IsEnabled_NoMemDb == false)
                 {
                     // DB からオブジェクト一覧を読み込む
+                    Ref<DateTimeOffset> lastStatWrittenTimeStamp = new Ref<DateTimeOffset>(ZeroDateTimeOffsetValue);
+
                     long dbStartTick = Time.HighResTick64;
-                    List<HadbObject> loadedObjectsList = await this.ReloadDataFromDatabaseImplAsync(fullReloadMode, partialReloadMinUpdateTime, cancel);
+                    List<HadbObject> loadedObjectsList = await this.ReloadDataFromDatabaseImplAsync(fullReloadMode, partialReloadMinUpdateTime, lastStatWrittenTimeStamp, cancel);
                     long dbEndTick = Time.HighResTick64;
 
                     if (fullReloadMode)
@@ -2772,7 +2799,10 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                         // stat を生成する
                         bool saveStat = false;
 
-                        saveStat = true;
+                        if (this.CurrentDynamicConfig.HadbAutomaticStatIntervalMsecs >= 1 && (lastStatWrittenTimeStamp.Value._IsZeroDateTime() || (DtOffsetNow >= (lastStatWrittenTimeStamp.Value + this.CurrentDynamicConfig.HadbAutomaticStatIntervalMsecs._ToTimeSpanMSecs()))))
+                        {
+                            saveStat = true;
+                        }
 
                         if (saveStat)
                         {
@@ -2787,7 +2817,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
                                     return true;
                                 },
-                                cancel: cancel);
+                                cancel: cancel,
+                                ignoreQuota: true);
                             }
                             catch (Exception ex)
                             {
@@ -3002,27 +3033,45 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     }
 
 
-    public int DbConcurrentTranWrite => _DbConcurrentTranWrite;
-    public int DbConcurrentTranRead => _DbConcurrentTranRead;
-    public int DbTotalDeadlockCount => _DbTotalDeadlockCount;
+    public int DbConcurrentTranWriteTotal => _DbConcurrentTranWriteTotal;
+    public int DbConcurrentTranReadTotal => _DbConcurrentTranReadTotal;
+    public int DbTotalDeadlockCountTotal => _DbTotalDeadlockCountTotal;
 
-    int _DbConcurrentTranWrite = 0;
-    int _DbConcurrentTranRead = 0;
-    int _DbTotalDeadlockCount = 0;
+    int _DbConcurrentTranWriteTotal = 0;
+    int _DbConcurrentTranReadTotal = 0;
+    int _DbTotalDeadlockCountTotal = 0;
 
-    public async Task<bool> TranAsync(bool writeMode, Func<HadbTran, Task<bool>> task, bool takeSnapshot = false, RefLong? snapshotNoRet = null, CancellationToken cancel = default, DeadlockRetryConfig? retryConfig = null)
+    readonly ConcurrentLimiter<string> DbConcurrentTranLimiterWritePerClient = new ConcurrentLimiter<string>();
+    readonly ConcurrentLimiter<string> DbConcurrentTranLimiterReadPerClient = new ConcurrentLimiter<string>();
+
+    public async Task<bool> TranAsync(bool writeMode, Func<HadbTran, Task<bool>> task, bool takeSnapshot = false, RefLong? snapshotNoRet = null, CancellationToken cancel = default, DeadlockRetryConfig? retryConfig = null, bool ignoreQuota = false, string clientName = "")
     {
         CheckIfReady();
         retryConfig ??= this.DefaultDeadlockRetryConfig;
         int numRetry = 0;
 
+        // 同時並列実行トランザクション数の制限
+        using IDisposable concurrentLimitEntry = (ignoreQuota || clientName._IsEmpty()) ? new EmptyDisposable() :
+            (writeMode ? this.DbConcurrentTranLimiterWritePerClient.EnterWithUsing(clientName, out _, this.CurrentDynamicConfig.HadbMaxDbConcurrentWriteTransactionsPerClient) :
+                         this.DbConcurrentTranLimiterReadPerClient.EnterWithUsing(clientName, out _, this.CurrentDynamicConfig.HadbMaxDbConcurrentReadTransactionsPerClient));
+
         if (writeMode)
         {
-            Interlocked.Increment(ref _DbConcurrentTranWrite);
+            int current = Interlocked.Increment(ref _DbConcurrentTranWriteTotal);
+            if (ignoreQuota == false && current > this.CurrentDynamicConfig.HadbMaxDbConcurrentWriteTransactionsTotal)
+            {
+                Interlocked.Decrement(ref _DbConcurrentTranWriteTotal);
+                throw new CoresException("Too many concurrent write transactions running. Please wait for moment and try again later.");
+            }
         }
         else
         {
-            Interlocked.Increment(ref _DbConcurrentTranRead);
+            int current = Interlocked.Increment(ref _DbConcurrentTranReadTotal);
+            if (ignoreQuota == false && current > this.CurrentDynamicConfig.HadbMaxDbConcurrentReadTransactionsTotal)
+            {
+                Interlocked.Decrement(ref _DbConcurrentTranReadTotal);
+                throw new CoresException("Too many concurrent read transactions running. Please wait for moment and try again later.");
+            }
         }
 
         try
@@ -3051,7 +3100,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                 if (this.IsDeadlockExceptionImpl(ex))
                 {
                     // デッドロック発生
-                    Interlocked.Increment(ref _DbTotalDeadlockCount);
+                    Interlocked.Increment(ref _DbTotalDeadlockCountTotal);
 
                     numRetry++;
                     if (numRetry <= retryConfig.RetryCount)
@@ -3077,11 +3126,11 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         {
             if (writeMode)
             {
-                Interlocked.Decrement(ref _DbConcurrentTranWrite);
+                Interlocked.Decrement(ref _DbConcurrentTranWriteTotal);
             }
             else
             {
-                Interlocked.Decrement(ref _DbConcurrentTranRead);
+                Interlocked.Decrement(ref _DbConcurrentTranReadTotal);
             }
         }
     }
