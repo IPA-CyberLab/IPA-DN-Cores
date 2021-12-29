@@ -298,7 +298,7 @@ public class ThinControllerOtpServerSettings
     public ThinControllerOtpServerSettings(string smtpServerHostname, int smtpServerPort, string smtpServerUsername, string smtpServerPassword, string awsSnsRegionEndPointName, string awsSnsAccessKeyId, string awsSnsSecretAccessKey, string awsSnsDefaultCountryCode)
     {
         this.SmtpServerHostname = smtpServerHostname;
-        this.SmtpServerPort = smtpServerPort._ZeroOrDefault(Consts.Ports.Smtp);
+        this.SmtpServerPort = smtpServerPort._ZeroToDefault(Consts.Ports.Smtp);
         this.SmtpServerUsername = smtpServerUsername;
         this.SmtpServerPassword = smtpServerPassword;
         this.AwsSnsRegionEndPointName = awsSnsRegionEndPointName;
@@ -2134,19 +2134,19 @@ public class ThinController : AsyncService
     // 設定値プロパティ集
     // ここで、this.Db はまだ null である可能性があるため、? を付けること
     public int CurrentValue_ControllerMaxConcurrentWpcRequestProcessingForUsers
-        => (this.Db?.MemDb?.ControllerMaxConcurrentWpcRequestProcessingForUsers)._ZeroOrDefault(ThinControllerConsts.Default_ControllerMaxConcurrentWpcRequestProcessingForUsers);
+        => (this.Db?.MemDb?.ControllerMaxConcurrentWpcRequestProcessingForUsers)._ZeroToDefault(ThinControllerConsts.Default_ControllerMaxConcurrentWpcRequestProcessingForUsers);
 
     public int CurrentValue_ControllerDbFullReloadIntervalMsecs
-        => (this.Db?.MemDb?.ControllerDbFullReloadIntervalMsecs)._ZeroOrDefault(ThinControllerConsts.Default_ControllerDbFullReloadIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbReadFullReloadIntervalMsecs);
+        => (this.Db?.MemDb?.ControllerDbFullReloadIntervalMsecs)._ZeroToDefault(ThinControllerConsts.Default_ControllerDbFullReloadIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbReadFullReloadIntervalMsecs);
 
     public int CurrentValue_ControllerDbWriteUpdateIntervalMsecs
-        => (this.Db?.MemDb?.ControllerDbWriteUpdateIntervalMsecs)._ZeroOrDefault(ThinControllerConsts.Default_ControllerDbWriteUpdateIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbWriteUpdateIntervalMsecs);
+        => (this.Db?.MemDb?.ControllerDbWriteUpdateIntervalMsecs)._ZeroToDefault(ThinControllerConsts.Default_ControllerDbWriteUpdateIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbWriteUpdateIntervalMsecs);
 
     public int CurrentValue_ControllerDbBackupFileWriteIntervalMsecs
-        => (this.Db?.MemDb?.ControllerDbBackupFileWriteIntervalMsecs)._ZeroOrDefault(ThinControllerConsts.Default_ControllerDbBackupFileWriteIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbBackupFileWriteIntervalMsecs);
+        => (this.Db?.MemDb?.ControllerDbBackupFileWriteIntervalMsecs)._ZeroToDefault(ThinControllerConsts.Default_ControllerDbBackupFileWriteIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbBackupFileWriteIntervalMsecs);
 
     public int CurrentValue_ControllerRecordStatIntervalMsecs
-        => (this.Db?.MemDb?.ControllerRecordStatIntervalMsecs)._ZeroOrDefault(ThinControllerConsts.Default_ControllerRecordStatIntervalMsecs, max: ThinControllerConsts.Max_ControllerRecordStatIntervalMsecs);
+        => (this.Db?.MemDb?.ControllerRecordStatIntervalMsecs)._ZeroToDefault(ThinControllerConsts.Default_ControllerRecordStatIntervalMsecs, max: ThinControllerConsts.Max_ControllerRecordStatIntervalMsecs);
 
     // ユーティリティ関数系
 

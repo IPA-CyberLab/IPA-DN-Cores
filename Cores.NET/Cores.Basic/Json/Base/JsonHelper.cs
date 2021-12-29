@@ -95,7 +95,7 @@ namespace IPA.Cores.Helper.Basic
             => (fs ?? Lfs).WriteJsonToFile<T>(path, obj, flags, doNotOverwrite, cancel, includeNull, escapeHtml, maxDepth, compact, referenceHandling);
 
         [return: MaybeNull]
-        public static T _FileToObject<T>(this string path, FileSystem? fs = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default,
+        public static T _FileToObject<T>(this string path, FileSystem? fs = null, long maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default,
             bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool nullIfError = false)
             => (fs ?? Lfs).ReadJsonFromFile<T>(path, maxSize, flags, cancel, includeNull, maxDepth, nullIfError);
 
