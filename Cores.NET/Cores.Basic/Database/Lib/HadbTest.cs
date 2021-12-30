@@ -589,8 +589,8 @@ public static class HadbCodeTest
                 $"Local Backup Read Test #2"._Print();
                 await using Sys sys3_fromBackup = new Sys(settings, new Dyn() { Hello = "Hello World" });
 
-                FilePath backupDatabasePath = sys3_fromBackup.Settings.BackupDir.Combine(Consts.FileNames.HadbBackupDatabaseFileName);
-                FilePath backupDynamicConfigPath = sys3_fromBackup.Settings.BackupDir.Combine(Consts.FileNames.HadbBackupDynamicConfigFileName);
+                FilePath backupDatabasePath = sys3_fromBackup.Settings.BackupDataFile;
+                FilePath backupDynamicConfigPath = sys3_fromBackup.Settings.BackupDynamicConfigFile;
 
                 var fileData1 = await backupDatabasePath.ReadDataFromFileAsync();
                 var fileData2 = await backupDynamicConfigPath.ReadDataFromFileAsync();
@@ -627,8 +627,8 @@ public static class HadbCodeTest
                 $"Local Backup Failure Test"._Print();
                 await using Sys sys3_fromBackup = new Sys(settings, new Dyn() { Hello = "Hello World" });
 
-                FilePath backupDatabasePath = sys3_fromBackup.Settings.BackupDir.Combine(Consts.FileNames.HadbBackupDatabaseFileName);
-                FilePath backupDynamicConfigPath = sys3_fromBackup.Settings.BackupDir.Combine(Consts.FileNames.HadbBackupDynamicConfigFileName);
+                FilePath backupDatabasePath = sys3_fromBackup.Settings.BackupDataFile;
+                FilePath backupDynamicConfigPath = sys3_fromBackup.Settings.BackupDynamicConfigFile;
 
                 // メインデータを壊す
                 var fileData1 = await backupDatabasePath.ReadDataFromFileAsync();
@@ -639,8 +639,8 @@ public static class HadbCodeTest
                 await backupDynamicConfigPath.WriteDataToFileAsync(fileData2);
 
                 // バックアップデータも壊す
-                backupDatabasePath = sys3_fromBackup.Settings.BackupDir.Combine(Consts.FileNames.HadbBackupDatabaseFileName + Consts.Extensions.Backup);
-                backupDynamicConfigPath = sys3_fromBackup.Settings.BackupDir.Combine(Consts.FileNames.HadbBackupDynamicConfigFileName + Consts.Extensions.Backup);
+                backupDatabasePath = sys3_fromBackup.Settings.BackupDataFile.PathString + Consts.Extensions.Backup;
+                backupDynamicConfigPath = sys3_fromBackup.Settings.BackupDynamicConfigFile.PathString + Consts.Extensions.Backup;
 
                 fileData1 = await backupDatabasePath.ReadDataFromFileAsync();
                 fileData2 = await backupDynamicConfigPath.ReadDataFromFileAsync();

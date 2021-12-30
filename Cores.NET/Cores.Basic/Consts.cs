@@ -244,7 +244,7 @@ public static partial class Consts
 
         public const string EasyEncryptDefaultPassword = "pLkw4jkN8YxcD54AJ2rVvaD3sdnJEzMN";
 
-        public const string HadbDefaultNameSpace = "default_ns";
+        public const string HadbDefaultNameSpace = "DEFAULT_NS";
     }
 
     public static partial class HiveNames

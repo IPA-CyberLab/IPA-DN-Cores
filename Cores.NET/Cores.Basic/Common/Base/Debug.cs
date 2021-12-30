@@ -1055,6 +1055,55 @@ namespace IPA.Cores.Basic
                 throw new CoresLibException(message, filename, line, caller);
             }
         }
+
+        public static string GetWebFileLocalCacheForDebugTempPath(string fileUrl, int expectedFileSize)
+        {
+            string tmp = fileUrl._MakeVerySafeAsciiOnlyNonSpaceString() + "_" + expectedFileSize + ".dat";
+
+            string dir = Env.AppLocalDir._CombinePath("DbgWebFileBackup", tmp);
+
+            string fn = PPLinux.GetFileName(fileUrl)._MakeVerySafeAsciiOnlyNonSpaceFileName() + "_" + expectedFileSize + ".dat";
+
+            return dir._CombinePath(fn);
+        }
+
+        public static async Task<string> DownloadWebFileLocalCacheAsync(string fileUrl, int expectedFileSize, CancellationToken cancel = default)
+        {
+            bool exists = false;
+            string fullPath = GetWebFileLocalCacheForDebugTempPath(fileUrl, expectedFileSize);
+
+            try
+            {
+                if (await Lfs.IsFileExistsAsync(fullPath, cancel))
+                {
+                    var meta = await Lfs.GetFileMetadataAsync(fullPath, cancel: cancel);
+                    if (meta.Size == expectedFileSize)
+                    {
+                        exists = true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+
+            if (exists == false)
+            {
+                var result = await SimpleHttpDownloader.DownloadAsync(fileUrl, WebMethods.GET, printStatus: true, new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true }));
+
+                if (result.DataSize != expectedFileSize)
+                {
+                    throw new CoresLibException($"result.DataSize ({result.DataSize}) != expectedFileSize ({expectedFileSize})");
+                }
+
+                await Lfs.WriteDataToFileAsync(fullPath, result.Data, FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag, cancel: cancel);
+            }
+
+            return fullPath;
+        }
+        public static string DownloadWebFileLocalCache(string fileUrl, int expectedFileSize, CancellationToken cancel = default)
+            => DownloadWebFileLocalCacheAsync(fileUrl, expectedFileSize, cancel)._GetResult();
     }
 
     public class ObjectContainerForDebugVars
@@ -1785,7 +1834,7 @@ namespace IPA.Cores.Basic
         public static StaticModule<LeakCheckerResult> Module { get; } = new StaticModule<LeakCheckerResult>(ModuleInit, ModuleFree);
 
         static void ModuleInit()
-        { 
+        {
             FullStackTrace = CoresConfig.DebugSettings.LeakCheckerFullStackLog;
             _InternalList = new Dictionary<long, LeakCheckerHolder>();
             LeakCounters = new int[(int)Util.GetMaxEnumValue<LeakCounterKind>() + 1];

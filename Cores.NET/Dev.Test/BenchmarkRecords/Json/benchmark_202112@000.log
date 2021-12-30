@@ -80,3 +80,390 @@
 {"TimeStamp":"2021-12-27T17:08:51.0058758+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":16.90899847826087,"PerSecond":59140108},"Tag":"result"}
 {"TimeStamp":"2021-12-27T17:08:51.6591893+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":18.235866666666666,"PerSecond":54836987},"Tag":"result"}
 {"TimeStamp":"2021-12-27T17:08:52.2364526+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":14.588240833333332,"PerSecond":68548361},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:14:45.1642363+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:14:45.168512+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:14:45.168528+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:14:45.1685293+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:14:45.1685312+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:14:45.1685323+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:14:46.995088+09:00","Data":{"TestName":"HADB FastSearch","Ret":927.64314418811,"PerSecond":1078000},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:14:47.6340282+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.23421940789473683,"PerSecond":4269501016},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:14:48.3557441+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":16.45071125,"PerSecond":60787645},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:14:49.0289239+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":14.514393260869566,"PerSecond":68897127},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:15:42.8308532+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:15:42.8350656+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:15:42.8350794+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:15:42.8350817+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:15:42.8350828+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:15:42.8350839+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:15:44.6716689+09:00","Data":{"TestName":"HADB FastSearch","Ret":740.405182752947,"PerSecond":1350611},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:15:45.3092964+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.23451911184210528,"PerSecond":4264044802},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:15:46.0445298+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":17.242315,"PerSecond":57996852},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:16:04.9566227+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:16:04.960876+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:16:04.9608917+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:16:04.9608931+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:16:04.9608942+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:16:04.960896+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:16:06.6830522+09:00","Data":{"TestName":"HADB FastSearch","Ret":1029.4338508488752,"PerSecond":971407},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:16:07.3002477+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.17098284722222212,"PerSecond":5848539875},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:16:08.0022049+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":16.368784583333333,"PerSecond":61091890},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:16:13.2367414+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:16:13.2409608+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:16:13.2409748+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:16:13.2409769+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:16:13.2409781+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:16:13.2409792+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:18:33.8266934+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:18:33.8309194+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:18:33.8309332+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:18:33.8309355+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:18:33.8309373+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:18:33.8309383+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:18:35.5072932+09:00","Data":{"TestName":"HADB FastSearch","Ret":929.6969709208519,"PerSecond":1075619},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:18:36.1282416+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.2377708881578946,"PerSecond":4205729337},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:18:36.854539+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":14.602178333333333,"PerSecond":68482932},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:18:37.5507699+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":14.509321304347825,"PerSecond":68921211},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:18:38.2703025+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":16.963104565217392,"PerSecond":58951472},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:18:38.9192692+09:00","Data":{"TestName":"Async call with no async func #4: Task.CompletedTask many times","Ret":27.62934,"PerSecond":36193408},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:18:39.957313+09:00","Data":{"TestName":"Async call with no async func #5: Task.CompletedTask many times ValueTask","Ret":65.3766852631579,"PerSecond":15295972},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:18:40.7068624+09:00","Data":{"TestName":"FastTick64.Now","Ret":0.4281665000000001,"PerSecond":2335540029},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:18:41.5468239+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":4832564.877630246,"PerSecond":206},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:00.7679711+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:20:00.773343+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:20:00.7733673+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:20:00.7733688+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:20:00.7733699+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:20:00.7733709+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:20:02.5362132+09:00","Data":{"TestName":"HADB FastSearch","Ret":885.5453271841862,"PerSecond":1129247},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:03.1895279+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.4725937218045113,"PerSecond":2115982404},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:03.9054682+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":16.720196304347827,"PerSecond":59807910},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:04.5841155+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":14.579137608695653,"PerSecond":68591162},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:05.2526382+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":14.436781315789473,"PerSecond":69267517},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:05.9605602+09:00","Data":{"TestName":"Async call with no async func #4: Task.CompletedTask many times","Ret":28.65785434782609,"PerSecond":34894447},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:07.0514103+09:00","Data":{"TestName":"Async call with no async func #5: Task.CompletedTask many times ValueTask","Ret":65.34423086956521,"PerSecond":15303569},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:07.9640111+09:00","Data":{"TestName":"FastTick64.Now","Ret":0.74046225,"PerSecond":1350507740},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:08.7614599+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":4409094.561945919,"PerSecond":226},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:09.3741585+09:00","Data":{"TestName":"CloneDeep_DeepCloner","Ret":183221.51944368664,"PerSecond":5457},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:09.9993662+09:00","Data":{"TestName":"CloneDeep_DeepCloner_cloneDeepSampleObj2","Ret":151.11432730780186,"PerSecond":6617506},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:10.606489+09:00","Data":{"TestName":"DnsTools_Build","Ret":343.65596527036075,"PerSecond":2909886},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:11.2261437+09:00","Data":{"TestName":"DnsTools_Parse","Ret":197.38527118450196,"PerSecond":5066234},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:12.121741+09:00","Data":{"TestName":"EvaluateAclNormal","Ret":53158.159862618726,"PerSecond":18811},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:12.747807+09:00","Data":{"TestName":"EvaluateAclCached1","Ret":621.323884612852,"PerSecond":1609466},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:13.3730068+09:00","Data":{"TestName":"EvaluateAclCached2","Ret":93.21660507314056,"PerSecond":10727702},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:13.9931867+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":1347.1444046436006,"PerSecond":742310},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:14.6105612+09:00","Data":{"TestName":"SimpleAsynService","Ret":8960.476809285194,"PerSecond":111601},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:15.2624834+09:00","Data":{"TestName":"WpcPacket","Ret":3379.7177103970203,"PerSecond":295882},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:39.8994483+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:20:39.9052794+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:20:39.9053252+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:20:39.9053276+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:20:39.9053311+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:20:39.905333+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:20:41.6377805+09:00","Data":{"TestName":"HADB FastSearch","Ret":840.8649927318838,"PerSecond":1189251},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:42.2803304+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.3903350175438598,"PerSecond":2561901840},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:20:42.9670965+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":16.24789956521739,"PerSecond":61546416},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:21:04.0943404+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:21:04.0985558+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:21:04.0985704+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:21:04.0985717+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:21:04.0985728+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:21:04.0985739+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:21:05.9537248+09:00","Data":{"TestName":"HADB FastSearch","Ret":979.752689463212,"PerSecond":1020665},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:22:10.5969707+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:22:10.6014154+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:22:10.6014454+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:22:10.6014478+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:22:10.601451+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:22:10.6014527+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:22:12.3849249+09:00","Data":{"TestName":"HADB FastSearch","Ret":837.7791643985104,"PerSecond":1193631},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:22:13.0337162+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.5657226315789474,"PerSecond":1767650689},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:22:13.7745829+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":17.372213333333335,"PerSecond":57563189},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:41.8666717+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:26:41.8708626+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:26:41.8708763+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:26:41.8708776+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:26:41.8708787+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:26:41.8708805+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:26:43.6311618+09:00","Data":{"TestName":"HADB FastSearch","Ret":900.9235738997209,"PerSecond":1109972},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:44.2407336+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.1764692361111111,"PerSecond":5666710085},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:44.9302733+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":16.14567260869565,"PerSecond":61936100},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:45.6045377+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":14.544309565217393,"PerSecond":68755412},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:46.3529251+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":14.99431695652174,"PerSecond":66691934},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:47.0349406+09:00","Data":{"TestName":"Async call with no async func #4: Task.CompletedTask many times","Ret":27.634096521739128,"PerSecond":36187179},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:48.0470056+09:00","Data":{"TestName":"Async call with no async func #5: Task.CompletedTask many times ValueTask","Ret":62.381158695652175,"PerSecond":16030481},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:48.8315697+09:00","Data":{"TestName":"FastTick64.Now","Ret":0.678936,"PerSecond":1472892879},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:49.669249+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":4809209.8867725935,"PerSecond":207},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:50.2800368+09:00","Data":{"TestName":"CloneDeep_DeepCloner","Ret":171418.25586198122,"PerSecond":5833},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:50.8898098+09:00","Data":{"TestName":"CloneDeep_DeepCloner_cloneDeepSampleObj2","Ret":527.4892274319669,"PerSecond":1895773},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:51.502698+09:00","Data":{"TestName":"DnsTools_Build","Ret":426.4242587776333,"PerSecond":2345082},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:52.1063758+09:00","Data":{"TestName":"DnsTools_Parse","Ret":195.68317442837298,"PerSecond":5110301},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:52.9041636+09:00","Data":{"TestName":"EvaluateAclNormal","Ret":45762.67232097703,"PerSecond":21851},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:53.5031521+09:00","Data":{"TestName":"EvaluateAclCached1","Ret":706.6565299448606,"PerSecond":1415114},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:54.1183155+09:00","Data":{"TestName":"EvaluateAclCached2","Ret":86.95541342988307,"PerSecond":11500146},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:54.7504687+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":1536.5582097368863,"PerSecond":650805},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:55.3818677+09:00","Data":{"TestName":"SimpleAsynService","Ret":5691.644076755265,"PerSecond":175696},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:55.9705814+09:00","Data":{"TestName":"WpcPacket","Ret":2836.489311478043,"PerSecond":352548},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:56.6879097+09:00","Data":{"TestName":"WpcPacket2","Ret":7786.8149489886055,"PerSecond":128422},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:57.309814+09:00","Data":{"TestName":"AsyncEvent","Ret":2929.518111197639,"PerSecond":341353},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:57.995312+09:00","Data":{"TestName":"SyncEvent","Ret":10763.694372216512,"PerSecond":92904},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:58.6031569+09:00","Data":{"TestName":"IsSpanAllZero","Ret":136.68247212780665,"PerSecond":7316227},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:59.1893825+09:00","Data":{"TestName":"CalcCrc32ForZipEncryption","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:26:59.7926072+09:00","Data":{"TestName":"Sync()","Ret":0.32251028915092594,"PerSecond":3100676268},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:27:00.3936558+09:00","Data":{"TestName":"RateLimiter","Ret":75.29294312593039,"PerSecond":13281457},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:27:00.9939469+09:00","Data":{"TestName":"ignore case compare string 1","Ret":15.780408423102074,"PerSecond":63369715},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:27:01.6023469+09:00","Data":{"TestName":"ignore case compare string 2","Ret":11.517672095933767,"PerSecond":86823100},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:27:02.2111758+09:00","Data":{"TestName":"isemptystr #2","Ret":4.174124147315639,"PerSecond":239571216},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:27:18.7470535+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:18.7512815+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:18.7512975+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:18.7512999+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:18.751301+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:18.751302+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:20.5025382+09:00","Data":{"TestName":"HADB FastSearch","Ret":847.553707561627,"PerSecond":1179866},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:27:21.1424453+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.25701562499999997,"PerSecond":3890814031},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:27:21.8646649+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":17.460101666666667,"PerSecond":57273435},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:27:24.3953365+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:24.3995427+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:24.3995556+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:24.3995571+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:24.3995583+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:24.3995601+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:26.1270548+09:00","Data":{"TestName":"HADB FastSearch","Ret":796.8792371794872,"PerSecond":1254895},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:27:35.1885834+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:35.1939689+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:35.1939943+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:35.1939957+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:35.1939978+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:35.1939988+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:37.0131027+09:00","Data":{"TestName":"HADB FastSearch","Ret":895.8010968900205,"PerSecond":1116319},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:27:37.6546005+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.4882256390977444,"PerSecond":2048233275},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:27:39.7574751+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:39.761691+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:39.7617059+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:39.7617073+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:39.7617084+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:39.7617095+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:27:41.4985735+09:00","Data":{"TestName":"HADB FastSearch","Ret":882.7285805047868,"PerSecond":1132851},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:28:02.2597185+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:02.2639455+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:02.2639612+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:02.2639626+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:02.2639637+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:02.2639656+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:04.0660603+09:00","Data":{"TestName":"HADB FastSearch","Ret":534.8355602752096,"PerSecond":1869733},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:28:04.7011716+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.3501288421052633,"PerSecond":2856091471},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:28:05.4361144+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":17.661264782608697,"PerSecond":56621086},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:28:06.1325894+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":15.613535434782609,"PerSecond":64046993},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:28:06.7945661+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":13.966744736842106,"PerSecond":71598645},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:28:10.4343346+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:10.438512+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:10.4385256+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:10.4385271+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:10.4385288+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:10.43853+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:12.208426+09:00","Data":{"TestName":"HADB FastSearch","Ret":554.1918114555706,"PerSecond":1804429},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:28:39.3455197+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:39.3497264+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:39.3497406+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:39.3497419+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:39.3497431+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:39.3497447+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:41.0793478+09:00","Data":{"TestName":"HADB FastSearch","Ret":1320.644309720113,"PerSecond":757206},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:28:41.6971171+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.2745398684210525,"PerSecond":3642458218},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:28:42.4177817+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":13.6484408,"PerSecond":73268442},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:28:44.3634991+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:44.3676418+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:44.3676548+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:44.3676562+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:44.3676578+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:44.3676589+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:46.1383075+09:00","Data":{"TestName":"HADB FastSearch","Ret":1038.4081300878372,"PerSecond":963012},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:28:48.8980339+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:48.9022514+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:48.9022703+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:48.9022725+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:48.9022736+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:48.9022747+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:50.691512+09:00","Data":{"TestName":"HADB FastSearch","Ret":1247.8614119537626,"PerSecond":801371},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:28:51.3024965+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.1905636111111111,"PerSecond":5247591574},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:28:59.3903832+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:59.3946602+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:59.3946822+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:59.3946836+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:59.3946848+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:28:59.3946866+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:29:01.1971143+09:00","Data":{"TestName":"HADB FastSearch","Ret":699.4838914788065,"PerSecond":1429625},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:29:01.835031+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.2542070833333334,"PerSecond":3933800690},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:29:02.57034+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":17.458549166666664,"PerSecond":57278528},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:29:05.3997782+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:29:05.40392+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:29:05.403934+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:29:05.4039354+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:29:05.4039365+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:29:05.4039381+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:29:07.1051862+09:00","Data":{"TestName":"HADB FastSearch","Ret":666.4474771114789,"PerSecond":1500493},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:32:02.9344544+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:32:02.9388041+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:32:02.9388251+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:32:02.9388265+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:32:02.9388276+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:32:02.9388287+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:32:04.7838804+09:00","Data":{"TestName":"HADB FastSearch","Ret":666.7382197632855,"PerSecond":1499839},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:32:09.7597366+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:32:09.7639985+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:32:09.7640137+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:32:09.7640151+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:32:09.7640162+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:32:09.7640172+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:32:11.5319091+09:00","Data":{"TestName":"HADB FastSearch","Ret":695.9420344744317,"PerSecond":1436901},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:32:25.5053743+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:32:25.5096319+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:32:25.5096476+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:32:25.5096491+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:32:25.5096503+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:32:25.5096523+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:32:27.3421116+09:00","Data":{"TestName":"HADB FastSearch","Ret":889.8081505766735,"PerSecond":1123837},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:34:17.3032675+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:34:17.3075806+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:34:17.3075995+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:34:17.307601+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:34:17.3076021+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:34:17.3076032+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:34:19.121309+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":127.9100464963707,"PerSecond":7817994},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:34:19.7554843+09:00","Data":{"TestName":"HADB FastSearch","Ret":848.6257830374896,"PerSecond":1178375},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:34:20.3867985+09:00","Data":{"TestName":"HADB GetTypeName","Ret":1.1391075000000002,"PerSecond":877880270},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:34:21.0548917+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":13.896814999999998,"PerSecond":71958934},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:34:21.8586361+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":16.4417264,"PerSecond":60820863},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:34:22.6229169+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":19.848820217391303,"PerSecond":50380828},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:34:23.3394793+09:00","Data":{"TestName":"Async call with no async func #4: Task.CompletedTask many times","Ret":33.26164260869565,"PerSecond":30064660},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:34:24.4021351+09:00","Data":{"TestName":"Async call with no async func #5: Task.CompletedTask many times ValueTask","Ret":67.36248636363636,"PerSecond":14845057},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:34:25.4489745+09:00","Data":{"TestName":"FastTick64.Now","Ret":0.9579267500000002,"PerSecond":1043921155},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:34:55.4425246+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:34:55.4468852+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:34:55.4469003+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:34:55.4469025+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:34:55.4469037+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:34:55.4469048+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:34:57.4109205+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":171.54788607134554,"PerSecond":5829276},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:34:58.0443777+09:00","Data":{"TestName":"HADB FastSearch","Ret":959.0438448967141,"PerSecond":1042705},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:34:58.6672862+09:00","Data":{"TestName":"HADB GetTypeName","Ret":1.050874202898551,"PerSecond":951588684},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:34:59.3419165+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":13.946612391304349,"PerSecond":71701999},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:00.025925+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":14.854633157894737,"PerSecond":67319063},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:00.749156+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":17.257905416666667,"PerSecond":57944459},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:01.4245505+09:00","Data":{"TestName":"Async call with no async func #4: Task.CompletedTask many times","Ret":29.192126086956524,"PerSecond":34255812},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:02.4355632+09:00","Data":{"TestName":"Async call with no async func #5: Task.CompletedTask many times ValueTask","Ret":62.661278181818176,"PerSecond":15958819},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:05.5360833+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:05.5402391+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:05.5402533+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:05.5402547+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:05.5402564+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:05.5402575+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:07.3529849+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":141.65099463398047,"PerSecond":7059604},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:07.9835549+09:00","Data":{"TestName":"HADB FastSearch","Ret":945.3432894584083,"PerSecond":1057816},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:08.6095935+09:00","Data":{"TestName":"HADB GetTypeName","Ret":1.18973125,"PerSecond":840525959},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:09.2761782+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":13.959868260869566,"PerSecond":71633913},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:10.0171531+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":15.752462608695652,"PerSecond":63482137},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:18.7015904+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:18.7069554+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:18.7069783+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:18.7069799+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:18.7069811+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:18.7069829+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:20.5047209+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":127.99361120052527,"PerSecond":7812889},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:21.1438861+09:00","Data":{"TestName":"HADB FastSearch","Ret":1098.4897043559874,"PerSecond":910340},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:21.7601108+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.9791105685618728,"PerSecond":1021335109},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:22.420034+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":13.593238913043477,"PerSecond":73565984},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:23.1964801+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":14.972188199999998,"PerSecond":66790504},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:23.9184094+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":17.19327875,"PerSecond":58162262},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:24.6050675+09:00","Data":{"TestName":"Async call with no async func #4: Task.CompletedTask many times","Ret":30.255671304347825,"PerSecond":33051654},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:41.0177828+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:41.0219951+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:41.0220101+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:41.0220115+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:41.0220132+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:41.0220144+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:42.842717+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":131.68044272791354,"PerSecond":7594142},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:43.4856946+09:00","Data":{"TestName":"HADB FastSearch","Ret":858.7712085758219,"PerSecond":1164454},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:53.6117217+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:53.6171922+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:53.6172184+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:53.6172199+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:53.6172211+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:53.6172222+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:35:55.41793+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":130.67208801498128,"PerSecond":7652743},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:56.0538881+09:00","Data":{"TestName":"HADB FastSearch","Ret":939.6531304912878,"PerSecond":1064222},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:35:56.6707176+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.9619885284280936,"PerSecond":1039513435},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:36:05.8015677+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:36:05.8057594+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:36:05.8057736+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:36:05.8057758+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:36:05.805777+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:36:05.8057782+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:36:07.5922467+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":133.28105787700787,"PerSecond":7502941},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:36:08.2337969+09:00","Data":{"TestName":"HADB FastSearch","Ret":1025.1863847893133,"PerSecond":975432},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:36:08.8511102+09:00","Data":{"TestName":"HADB GetTypeName","Ret":1.1109654166666665,"PerSecond":900118027},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:36:12.0454509+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:36:12.049633+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:36:12.0496475+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:36:12.0496497+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:36:12.049651+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:36:12.0496524+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:36:13.8223215+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":137.10612859938576,"PerSecond":7293619},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:36:14.4613958+09:00","Data":{"TestName":"HADB FastSearch","Ret":765.7214076050282,"PerSecond":1305958},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:36:15.1169992+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.8972681666666669,"PerSecond":1114494013},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:36:52.0476596+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:36:52.0518542+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:36:52.0518686+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:36:52.0518705+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:36:52.0518715+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:36:52.0518725+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:36:53.8077513+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":135.67389278382686,"PerSecond":7370614},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:36:59.8203828+09:00","Data":{"TestName":"HADB FastSearch","Ret":563.9516866666668,"PerSecond":1773201},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:00.5131583+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.49435758333333335,"PerSecond":2022827268},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:01.2965286+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":20.260616600000002,"PerSecond":49356839},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:07.5073635+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:07.5115432+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:07.5115574+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:07.5115588+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:07.5115599+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:07.5115609+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:09.3444182+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":148.15283043515433,"PerSecond":6749786},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:14.8926233+09:00","Data":{"TestName":"HADB FastSearch","Ret":516.196235,"PerSecond":1937247},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:15.5188425+09:00","Data":{"TestName":"HADB GetTypeName","Ret":0.525759320652174,"PerSecond":1902010978},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:16.1911902+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":13.29911052631579,"PerSecond":75192998},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:16.9571774+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":18.230152083333333,"PerSecond":54854177},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:17.6611746+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":15.10551875,"PerSecond":66200970},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:18.3088524+09:00","Data":{"TestName":"Async call with no async func #4: Task.CompletedTask many times","Ret":26.37784111111111,"PerSecond":37910608},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:19.3955478+09:00","Data":{"TestName":"Async call with no async func #5: Task.CompletedTask many times ValueTask","Ret":70.50460434782609,"PerSecond":14183470},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:23.0238729+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:23.0281099+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:23.0281279+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:23.0281302+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:23.0281314+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:23.0281325+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:24.8026923+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":137.53535090272436,"PerSecond":7270857},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:25.4746049+09:00","Data":{"TestName":"HADB FastSearch","Ret":498.1959008264463,"PerSecond":2007242},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:26.0926692+09:00","Data":{"TestName":"HADB GetTypeName","Ret":1.1388408333333335,"PerSecond":878085831},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:35.1113129+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:35.1155533+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:35.1155686+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:35.11557+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:35.1155711+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:35.1155722+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:36.9557072+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":133.3672424531255,"PerSecond":7498093},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:37.6077747+09:00","Data":{"TestName":"HADB FastSearch","Ret":686.7452710049424,"PerSecond":1456143},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:38.2376663+09:00","Data":{"TestName":"HADB GetTypeName","Ret":1.1938076333333334,"PerSecond":837655893},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:38.898962+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":13.75827,"PerSecond":72683556},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:39.6177007+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":14.838719545454547,"PerSecond":67391259},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:37:59.2253387+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:59.2295783+09:00","Data":"Commit: 7503ddf1addefa0946537eefb24d0b38b4dd936b","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:59.2295953+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:59.2295968+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:59.2295979+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:37:59.229599+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2021-12-30T17:38:01.0152211+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":34.15191137771349,"PerSecond":29280938},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:38:01.7190371+09:00","Data":{"TestName":"HADB FastSearch","Ret":712.7576967554077,"PerSecond":1403001},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:38:02.372273+09:00","Data":{"TestName":"HADB GetTypeName","Ret":1.4052441090909091,"PerSecond":711620133},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:38:03.0967687+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":15.983177083333334,"PerSecond":62565783},"Tag":"result"}
+{"TimeStamp":"2021-12-30T17:38:03.777141+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":14.208412777777777,"PerSecond":70380838},"Tag":"result"}

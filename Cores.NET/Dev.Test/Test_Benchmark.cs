@@ -36,6 +36,7 @@ using System.IO.Enumeration;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 
 using IPA.Cores.Basic;
@@ -58,6 +59,74 @@ using IPA.Cores.Basic.DnsLib;
 #pragma warning disable CS0414
 
 namespace IPA.TestDev;
+
+public class HadbBenchTest
+{
+    public class User : HadbData
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string AuthKey { get; set; } = "";
+        public string FullName { get; set; } = "";
+        public string Company { get; set; } = "";
+        public string LastIp { get; set; } = "";
+
+        public int Int1 { get; set; } = 0;
+
+        public override void Normalize()
+        {
+            this.Id = this.Id._NonNullTrim();
+            this.Name = this.Name._NonNullTrim();
+            this.AuthKey = this.AuthKey._NonNullTrim();
+            this.Company = this.Company._NonNullTrim();
+            this.FullName = this.FullName._NonNullTrim();
+            this.LastIp = this.LastIp._NormalizeIp();
+        }
+
+        public override HadbKeys GetKeys()
+        {
+            return new HadbKeys(this.Id, this.Name, this.AuthKey);
+        }
+
+        public override HadbLabels GetLabels()
+        {
+            return new HadbLabels(this.Company, this.LastIp);
+        }
+
+        public override int GetMaxArchivedCount() => 10;
+    }
+
+    public class Mem : HadbMemDataBase
+    {
+        protected override List<Type> GetDefinedUserDataTypesImpl()
+        {
+            List<Type> ret = new List<Type>();
+            ret.Add(typeof(User));
+            return ret;
+        }
+
+        protected override List<Type> GetDefinedUserLogTypesImpl()
+        {
+            List<Type> ret = new List<Type>();
+            return ret;
+        }
+    }
+
+    public class Dyn : HadbDynamicConfig
+    {
+        public Dyn()
+        {
+            this.HadbAutomaticSnapshotIntervalMsecs = 0;
+        }
+
+        public string Hello { get; set; } = "";
+    }
+
+    public class Sys : HadbSqlBase<Mem, Dyn>
+    {
+        public Sys(HadbSqlSettings settings, Dyn dynamicConfig) : base(settings, dynamicConfig) { }
+    }
+}
 
 static class BenchmarkTestTarget1
 {
@@ -592,7 +661,55 @@ partial class TestDevCommands
         var cloneDeepSampleObj = BmTest_DeepClone.CreateSampleObject();
         HadbTestData cloneDeepSampleObj2 = new HadbTestData() { HostName = "abc", IPv4Address = "123", IPv6Address = "456", TestInt = 789 };
 
+
+        string databaseBackupTmpFilePath = Dbg.DownloadWebFileLocalCache("http://lts.dn.ipantt.net/d/211230_001_86373/Database.json", 6044349);
+
+
+        HadbSqlSettings hadbBenchSettings = new HadbSqlSettings("_Dummy",
+            new SqlDatabaseConnectionSetting("", "", "", "", true),
+            new SqlDatabaseConnectionSetting("", "", "", "", true),
+            optionFlags: HadbOptionFlags.NoAutoDbReloadAndUpdate, backupDataFile: databaseBackupTmpFilePath);
+
+
+        using HadbBenchTest.Sys hadbBenchSys = new HadbBenchTest.Sys(hadbBenchSettings, new HadbBenchTest.Dyn());
+        hadbBenchSys.DebugFlags |= HadbDebugFlags.NoDbLoadAndUseOnlyLocalBackup;
+        hadbBenchSys.WaitUntilReadyForFastAsync()._GetResult();
+
+
+        ImmutableDictionary<string, string> immDictTest = ImmutableDictionary<string, string>.Empty.WithComparers(StrCmpi);
+
+        for (int i = 0; i < 10000; i++)
+        {
+            immDictTest = immDictTest.Add(i.ToString(), i.ToString());
+        }
+
         var queue = new MicroBenchmarkQueue()
+
+        .Add(new MicroBenchmark($"ImmutableDictionary Search 10000", Benchmark_CountForNormal * 10, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    int index = count % 10000;
+                    immDictTest.TryGetValue(index.ToString(), out string? x);
+                    Limbo.ObjectSlow = x;
+                }
+            });
+        }), enabled: true, priority: 211227)
+
+        .Add(new MicroBenchmark($"HADB FastSearch", Benchmark_CountForNormal * 10, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    int index = count % 10000;
+                    //var obj = hadbBenchSys.FastSearchByKey(new HadbKeys(index.ToString()), "User");
+                    var obj = hadbBenchSys.FastSearchByKey(new HadbBenchTest.User { AuthKey = index.ToString() });
+                }
+            });
+        }), enabled: true, priority: 211227)
 
         .Add(new MicroBenchmark($"HADB GetTypeName", Benchmark_CountForFast, count =>
         {

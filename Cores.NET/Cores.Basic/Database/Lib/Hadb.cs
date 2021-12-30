@@ -273,7 +273,8 @@ public class HadbSqlSettings : HadbSettingsBase
     public IsolationLevel IsolationLevelForRead { get; }
     public IsolationLevel IsolationLevelForWrite { get; }
 
-    public HadbSqlSettings(string systemName, string sqlConnectStringForRead, string sqlConnectStringForWrite, IsolationLevel isoLevelForRead = IsolationLevel.Snapshot, IsolationLevel isoLevelForWrite = IsolationLevel.Serializable, HadbOptionFlags optionFlags = HadbOptionFlags.None) : base(systemName, optionFlags)
+    public HadbSqlSettings(string systemName, string sqlConnectStringForRead, string sqlConnectStringForWrite, IsolationLevel isoLevelForRead = IsolationLevel.Snapshot, IsolationLevel isoLevelForWrite = IsolationLevel.Serializable, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null)
+        : base(systemName, optionFlags, backupDataFile, backupDynamicConfigFile)
     {
         this.SqlConnectStringForRead = sqlConnectStringForRead;
         this.SqlConnectStringForWrite = sqlConnectStringForWrite;
@@ -1419,26 +1420,34 @@ public enum HadbDebugFlags : long
     None = 0,
     NoCheckMemKeyDuplicate = 1,
     CauseErrorOnDatabaseReload = 2,
+    NoDbLoadAndUseOnlyLocalBackup = 4,
 }
 
 public abstract class HadbSettingsBase
 {
     public string SystemName { get; }
     public HadbOptionFlags OptionFlags { get; }
-    public DirectoryPath BackupDir { get; }
+    public FilePath BackupDataFile { get; }
+    public FilePath BackupDynamicConfigFile { get; }
 
-    public HadbSettingsBase(string systemName, HadbOptionFlags optionFlags = HadbOptionFlags.None, DirectoryPath? backupDir = null)
+    public HadbSettingsBase(string systemName, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null)
     {
         if (systemName._IsEmpty()) throw new CoresLibException("systemName is empty.");
         this.SystemName = systemName._NonNullTrim().ToUpper();
         this.OptionFlags = optionFlags;
 
-        if (backupDir == null)
+        if (backupDataFile == null)
         {
-            backupDir = new DirectoryPath(Env.AppLocalDir._CombinePath("HadbBackup", this.SystemName._MakeVerySafeAsciiOnlyNonSpaceFileName()));
+            backupDataFile = new FilePath(Env.AppLocalDir._CombinePath("HadbBackup", this.SystemName._MakeVerySafeAsciiOnlyNonSpaceFileName())._CombinePath(Consts.FileNames.HadbBackupDatabaseFileName));
         }
 
-        this.BackupDir = backupDir;
+        if (backupDynamicConfigFile == null)
+        {
+            backupDynamicConfigFile = new FilePath(Env.AppLocalDir._CombinePath("HadbBackup", this.SystemName._MakeVerySafeAsciiOnlyNonSpaceFileName())._CombinePath(Consts.FileNames.HadbBackupDynamicConfigFileName));
+        }
+
+        this.BackupDataFile = backupDataFile;
+        this.BackupDynamicConfigFile = backupDynamicConfigFile;
     }
 }
 
@@ -2798,15 +2807,15 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             }
         }
 
-        FilePath backupDatabasePath = this.Settings.BackupDir.Combine(Consts.FileNames.HadbBackupDatabaseFileName);
-        FilePath backupDynamicConfigPath = this.Settings.BackupDir.Combine(Consts.FileNames.HadbBackupDynamicConfigFileName);
+        FilePath backupDatabasePath = this.Settings.BackupDataFile;
+        FilePath backupDynamicConfigPath = this.Settings.BackupDynamicConfigFile;
 
         try
         {
             long nowTick;
             DateTimeOffset nowTime;
 
-            if (this.DebugFlags.Bit(HadbDebugFlags.CauseErrorOnDatabaseReload))
+            if (this.DebugFlags.Bit(HadbDebugFlags.CauseErrorOnDatabaseReload) || this.DebugFlags.Bit(HadbDebugFlags.NoDbLoadAndUseOnlyLocalBackup))
             {
                 throw new CoresException("Dummy Exception for Debug: CauseErrorOnDatabaseReload");
             }
@@ -2944,7 +2953,10 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         }
         catch (Exception ex)
         {
-            ex._Debug();
+            if (this.DebugFlags.Bit(HadbDebugFlags.NoDbLoadAndUseOnlyLocalBackup) == false)
+            {
+                ex._Debug();
+            }
 
             this.DatabaseConnectForReloadErrorCount++;
             this.LastDatabaseConnectForReloadError = ex;
@@ -2983,7 +2995,10 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                         {
                             // DynamicConfig の読み込みには失敗しても良いことにする
                             // ただし、エラーはログに出力する
-                            ex2._Error();
+                            if (this.DebugFlags.Bit(HadbDebugFlags.NoDbLoadAndUseOnlyLocalBackup) == false)
+                            {
+                                ex2._Error();
+                            }
                         }
 
                         // データ本体
@@ -3031,7 +3046,10 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             }
 
             // バックアップファイルの読み込みを行なった上で、DB 例外はちゃんと throw する
-            throw;
+            if (this.DebugFlags.Bit(HadbDebugFlags.NoDbLoadAndUseOnlyLocalBackup) == false)
+            {
+                throw;
+            }
         }
     }
 
@@ -3073,6 +3091,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                 ex._Error();
             }
 
+            if (this.DebugFlags.Bit(HadbDebugFlags.NoDbLoadAndUseOnlyLocalBackup)) return;
+
             long endTick = Time.HighResTick64;
 
             Debug($"ReloadMainLoopAsync: numCycle={numCycle}, numError={numError} End. Took time: {(endTick - startTick)._ToString3()} msecs.");
@@ -3081,6 +3101,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             {
                 if (this.Settings.OptionFlags.Bit(HadbOptionFlags.NoAutoDbReloadAndUpdate)) return;
             }
+
 
             int nextWaitTime = Util.GenRandInterval(ok ? this.CurrentDynamicConfig.HadbReloadIntervalMsecsLastOk : this.CurrentDynamicConfig.HadbReloadIntervalMsecsLastError);
             Debug($"ReloadMainLoopAsync: Waiting for {nextWaitTime._ToString3()} msecs for next DB read.");
@@ -3116,7 +3137,10 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             }
             catch (Exception ex)
             {
-                ex._Error();
+                if (this.DebugFlags.Bit(HadbDebugFlags.NoDbLoadAndUseOnlyLocalBackup) == false)
+                {
+                    ex._Error();
+                }
             }
 
             long endTick = Time.HighResTick64;
@@ -3141,7 +3165,10 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     public void Debug(string str)
     {
-        $"{this.GetType().Name}: {str}"._Debug();
+        if (this.DebugFlags.Bit(HadbDebugFlags.NoDbLoadAndUseOnlyLocalBackup) == false)
+        {
+            $"{this.GetType().Name}: {str}"._Debug();
+        }
     }
 
     public void CheckIfReady(bool requireDatabaseConnected = true)
@@ -3175,6 +3202,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     public async Task WaitUntilReadyForAtomicAsync(int maxDbTryCountError = 1, CancellationToken cancel = default)
     {
+        this.Start();
         maxDbTryCountError = Math.Max(maxDbTryCountError, 1);
         await Task.Yield();
         int startErrorCount = this.DatabaseConnectForReloadErrorCount;
@@ -3194,6 +3222,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     public async Task WaitUntilReadyForFastAsync(CancellationToken cancel = default)
     {
+        this.Start();
         await Task.Yield();
         await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () =>
         {

@@ -2421,7 +2421,7 @@ static class TestClass
             new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
             new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
             IsolationLevel.Snapshot, IsolationLevel.Serializable,
-            HadbOptionFlags.NoAutoDbReloadAndUpdate | HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll | HadbOptionFlags.NoMemDb );
+            HadbOptionFlags.NoAutoDbReloadAndUpdate | HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll | HadbOptionFlags.NoMemDb);
 
         if (truncate)
         {
@@ -2500,6 +2500,92 @@ static class TestClass
             }
         }
     }
+
+    static void Test_211230()
+    {
+        //const string TestDbServer = "10.40.0.103"; // lab
+        const string TestDbServer = "10.21.2.132"; // dnt
+        const string TestDbName = "HADB001";
+        const string TestDbReadUser = "sql_hadb001_reader";
+        const string TestDbReadPassword = "sql_hadb_reader_default_password";
+        const string TestDbWriteUser = "sql_hadb001_writer";
+        const string TestDbWritePassword = "sql_hadb_writer_default_password";
+
+        Async(async () =>
+        {
+            string systemName = "MANYDATA";
+
+            var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate;
+
+            HadbSqlSettings settings = new HadbSqlSettings(systemName,
+                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
+                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
+                IsolationLevel.Snapshot, IsolationLevel.Serializable,
+                flags);
+
+            await using var db = new Database(settings.SqlConnectStringForWrite, settings.IsolationLevelForWrite);
+
+            await db.EnsureOpenAsync();
+
+            await db.QueryWithNoReturnAsync("truncate table HADB_CONFIG");
+            await db.QueryWithNoReturnAsync("truncate table HADB_DATA");
+            await db.QueryWithNoReturnAsync("truncate table HADB_KV");
+            await db.QueryWithNoReturnAsync("truncate table HADB_LOG");
+            await db.QueryWithNoReturnAsync("truncate table HADB_SNAPSHOT");
+
+            await using HadbBenchTest.Sys sys = new HadbBenchTest.Sys(settings, new HadbBenchTest.Dyn());
+
+            await sys.WaitUntilReadyForAtomicAsync();
+
+            await sys.TranAsync(true, async tran =>
+            {
+                for (int i = 0; i < 10000; i++)
+                {
+                    await tran.AtomicAddAsync<HadbBenchTest.User>(new HadbBenchTest.User
+                    {
+                        AuthKey = i.ToString(),
+                        Company = i.ToString(),
+                        FullName = i.ToString(),
+                        Id = i.ToString(),
+                        Int1 = i,
+                        LastIp = i.ToString(),
+                        Name = i.ToString(),
+                    });
+
+                    i._Print();
+                }
+
+                return true;
+            });
+
+            await sys.ReloadCoreAsync(EnsureSpecial.Yes);
+        });
+    }
+
+    static void Test_211230_02()
+    {
+        string systemName = "MANYDATA";
+
+        var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate;
+
+        string databaseBackupTmpFilePath = Dbg.DownloadWebFileLocalCache("http://lts.dn.ipantt.net/d/211230_001_86373/Database.json", 6044349);
+
+
+        HadbSqlSettings settings = new HadbSqlSettings(systemName,
+            new SqlDatabaseConnectionSetting("", "", "", "", true),
+            new SqlDatabaseConnectionSetting("", "", "", "", true),
+            IsolationLevel.Snapshot, IsolationLevel.Serializable,
+            flags, databaseBackupTmpFilePath);
+
+
+        using HadbBenchTest.Sys sys = new HadbBenchTest.Sys(settings, new HadbBenchTest.Dyn());
+        sys.DebugFlags |= HadbDebugFlags.CauseErrorOnDatabaseReload;
+        sys.WaitUntilReadyForFastAsync()._GetResult();
+
+        var x = sys.FastSearchByKey(new HadbBenchTest.User { AuthKey = "123" });
+        x!.GetUserDataJsonString()._Print();
+    }
+
     static void Test_211108(int threads = 1, int count = 1)
     {
         const string TestDbServer = "10.40.0.103"; // lab
@@ -3051,6 +3137,18 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_211230_02();
+            return;
+        }
+
+        if (false)
+        {
+            Test_211230();
+            return;
+        }
+
         if (false)
         {
             Test_211229();
