@@ -165,6 +165,21 @@ public static class Json
         }
     }
 
+    public static JsonSerializer CreateSerializer(bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
+    {
+        JsonSerializerSettings setting = new JsonSerializerSettings()
+        {
+            MaxDepth = maxDepth,
+            NullValueHandling = includeNull ? NullValueHandling.Include : NullValueHandling.Ignore,
+            ReferenceLoopHandling = ReferenceLoopHandling.Error,
+            PreserveReferencesHandling = referenceHandling ? PreserveReferencesHandling.All : PreserveReferencesHandling.None,
+            StringEscapeHandling = escapeHtml ? StringEscapeHandling.EscapeHtml : StringEscapeHandling.Default,
+            Formatting = compact ? Formatting.None : Formatting.Indented,
+        };
+
+        return JsonSerializer.Create(setting);
+    }
+
     [return: NotNullIfNotNull("obj")]
     public static T CloneWithJson<T>([AllowNull] T obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null)
     {

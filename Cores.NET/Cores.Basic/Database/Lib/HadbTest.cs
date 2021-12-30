@@ -547,6 +547,111 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.SnapshotNo == snapshot1);
             }
 
+            {
+                $"Local Backup Read Test #1"._Print();
+                await using Sys sys3_fromBackup = new Sys(settings, new Dyn() { Hello = "Hello World" });
+                sys3_fromBackup.DebugFlags |= HadbDebugFlags.CauseErrorOnDatabaseReload;
+                sys3_fromBackup.Start();
+                await sys3_fromBackup.WaitUntilReadyForFastAsync();
+                $"Local Backup Read OK"._Print();
+
+                var test3 = sys3_fromBackup.FastSearchByKey(new User() { Name = "User1" }, nameSpace);
+                Dbg.TestNotNull(test2);
+                var obj = sys3_fromBackup.FastGet<User>(u1_uid, nameSpace);
+                var u = obj!.GetData();
+                Dbg.TestTrue(u.Id == "u1");
+                Dbg.TestTrue(u.Name == "User1");
+                Dbg.TestTrue(u.AuthKey == "a001");
+                Dbg.TestTrue(u.Company == "NTT");
+                Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
+                Dbg.TestTrue(obj.Ext1 == "a");
+                Dbg.TestTrue(obj.Ext2 == "1");
+
+                var x = sys3_fromBackup.FastEnumObjects<User>(nameSpace).ToList();
+
+                Dbg.TestTrue(sys3_fromBackup.FastEnumObjects<User>(nameSpace).Count() == 3);
+
+                Dbg.TestTrue(sys3_fromBackup.CurrentDynamicConfig.Hello == "Neko");
+            }
+
+            await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
+
+            {
+                $"Local Backup Read Test #2"._Print();
+                await using Sys sys3_fromBackup = new Sys(settings, new Dyn() { Hello = "Hello World" });
+
+                FilePath backupDatabasePath = sys3_fromBackup.Settings.BackupDir.Combine(Consts.FileNames.HadbBackupDatabaseFileName);
+                FilePath backupDynamicConfigPath = sys3_fromBackup.Settings.BackupDir.Combine(Consts.FileNames.HadbBackupDynamicConfigFileName);
+
+                var fileData1 = await backupDatabasePath.ReadDataFromFileAsync();
+                var fileData2 = await backupDynamicConfigPath.ReadDataFromFileAsync();
+                fileData1 = fileData1.Slice(0, fileData1.Length - 16);
+                fileData2 = fileData2.Slice(0, fileData2.Length - 16);
+                await backupDatabasePath.WriteDataToFileAsync(fileData1);
+                await backupDynamicConfigPath.WriteDataToFileAsync(fileData2);
+
+                sys3_fromBackup.DebugFlags |= HadbDebugFlags.CauseErrorOnDatabaseReload;
+                sys3_fromBackup.Start();
+                await sys3_fromBackup.WaitUntilReadyForFastAsync();
+                $"Local Backup Read OK"._Print();
+
+                var test3 = sys3_fromBackup.FastSearchByKey(new User() { Name = "User1" }, nameSpace);
+                Dbg.TestNotNull(test2);
+                var obj = sys3_fromBackup.FastGet<User>(u1_uid, nameSpace);
+                var u = obj!.GetData();
+                Dbg.TestTrue(u.Id == "u1");
+                Dbg.TestTrue(u.Name == "User1");
+                Dbg.TestTrue(u.AuthKey == "a001");
+                Dbg.TestTrue(u.Company == "NTT");
+                Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
+                Dbg.TestTrue(obj.Ext1 == "a");
+                Dbg.TestTrue(obj.Ext2 == "1");
+
+                var x = sys3_fromBackup.FastEnumObjects<User>(nameSpace).ToList();
+
+                Dbg.TestTrue(sys3_fromBackup.FastEnumObjects<User>(nameSpace).Count() == 3);
+
+                Dbg.TestTrue(sys3_fromBackup.CurrentDynamicConfig.Hello == "Neko");
+            }
+
+            {
+                $"Local Backup Failure Test"._Print();
+                await using Sys sys3_fromBackup = new Sys(settings, new Dyn() { Hello = "Hello World" });
+
+                FilePath backupDatabasePath = sys3_fromBackup.Settings.BackupDir.Combine(Consts.FileNames.HadbBackupDatabaseFileName);
+                FilePath backupDynamicConfigPath = sys3_fromBackup.Settings.BackupDir.Combine(Consts.FileNames.HadbBackupDynamicConfigFileName);
+
+                // メインデータを壊す
+                var fileData1 = await backupDatabasePath.ReadDataFromFileAsync();
+                var fileData2 = await backupDynamicConfigPath.ReadDataFromFileAsync();
+                fileData1 = fileData1.Slice(0, fileData1.Length - 16);
+                fileData2 = fileData2.Slice(0, fileData2.Length - 16);
+                await backupDatabasePath.WriteDataToFileAsync(fileData1);
+                await backupDynamicConfigPath.WriteDataToFileAsync(fileData2);
+
+                // バックアップデータも壊す
+                backupDatabasePath = sys3_fromBackup.Settings.BackupDir.Combine(Consts.FileNames.HadbBackupDatabaseFileName + Consts.Extensions.Backup);
+                backupDynamicConfigPath = sys3_fromBackup.Settings.BackupDir.Combine(Consts.FileNames.HadbBackupDynamicConfigFileName + Consts.Extensions.Backup);
+
+                fileData1 = await backupDatabasePath.ReadDataFromFileAsync();
+                fileData2 = await backupDynamicConfigPath.ReadDataFromFileAsync();
+                fileData1 = fileData1.Slice(0, fileData1.Length - 16);
+                fileData2 = fileData2.Slice(0, fileData2.Length - 16);
+                await backupDatabasePath.WriteDataToFileAsync(fileData1);
+                await backupDynamicConfigPath.WriteDataToFileAsync(fileData2);
+
+                sys3_fromBackup.DebugFlags |= HadbDebugFlags.CauseErrorOnDatabaseReload;
+                sys3_fromBackup.Start();
+
+                await Dbg.TestExceptionAsync(async ()=>
+                {
+                    await sys3_fromBackup.WaitUntilReadyForFastAsync();
+                    $"Local Backup Read OK"._Print();
+                });
+
+                Dbg.TestTrue(sys3_fromBackup.CurrentDynamicConfig.Hello == "Hello World");
+            }
+
             await sys1.TranAsync(false, async tran =>
             {
                 var obj = await tran.AtomicGetAsync<User>(u1_uid, nameSpace);

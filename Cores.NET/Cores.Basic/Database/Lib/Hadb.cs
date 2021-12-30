@@ -1418,6 +1418,7 @@ public enum HadbDebugFlags : long
 {
     None = 0,
     NoCheckMemKeyDuplicate = 1,
+    CauseErrorOnDatabaseReload = 2,
 }
 
 public abstract class HadbSettingsBase
@@ -1948,6 +1949,7 @@ public sealed class HadbObject : INormalizable
             UpdateDt = this.UpdateDt,
             DeleteDt = this.DeleteDt,
             SnapshotNo = this.SnapshotNo,
+            NameSpace = this.NameSpace,
             UserData = this.UserData,
             Ext1 = this.Ext1,
             Ext2 = this.Ext2,
@@ -2204,7 +2206,15 @@ public abstract class HadbMemDataBase
         return ret;
     }
 
-    public async Task ReloadFromDatabaseAsync(IEnumerable<HadbObject> objectList, bool fullReloadMode, DateTimeOffset partialReloadMinUpdateTime, CancellationToken cancel = default)
+    public void GetAllObjects(out ConcurrentStrDictionary<HadbObject> dict, out AsyncLock criticalLock)
+    {
+        DataSet data = this.InternalData;
+
+        dict = data.AllObjectsDict;
+        criticalLock = this.CriticalLockAsync;
+    }
+
+    public async Task ReloadFromDatabaseAsync(IEnumerable<HadbObject> objectList, bool fullReloadMode, DateTimeOffset partialReloadMinUpdateTime, string dataSourceInfo, CancellationToken cancel = default)
     {
         int countInserted = 0;
         int countUpdated = 0;
@@ -2267,7 +2277,7 @@ public abstract class HadbMemDataBase
             this.InternalData = data;
         }
 
-        Debug($"ReloadFromDatabaseAsync: Update Local Memory from Database: Mode={(fullReloadMode ? "FullReload" : $"PartialReload since '{partialReloadMinUpdateTime._ToDtStr()}'")}, DB_ReadObjs={objectList2.Count._ToString3()}, New={countInserted._ToString3()}, Update={countUpdated._ToString3()}, Remove={countRemoved._ToString3()}");
+        Debug($"ReloadFromDatabaseAsync: Update Local Memory from {dataSourceInfo}: Mode={(fullReloadMode ? "FullReload" : $"PartialReload since '{partialReloadMinUpdateTime._ToDtStr()}'")}, DB_ReadObjs={objectList2.Count._ToString3()}, New={countInserted._ToString3()}, Update={countUpdated._ToString3()}, Remove={countRemoved._ToString3()}");
     }
 
     public HadbObject ApplyObjectToMemDb_Critical(HadbObject newObj)
@@ -2477,6 +2487,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     public long LastDatabaseFullReloadTick { get; private set; } = 0;
     public DateTimeOffset LastDatabaseReloadTime { get; private set; } = ZeroDateTimeOffsetValue;
     public DateTimeOffset LastDatabaseFullReloadTime { get; private set; } = ZeroDateTimeOffsetValue;
+
+    public Exception? LastMemDbBackupLocalLoadError { get; private set; } = null;
 
     protected HadbSettingsBase Settings { get; }
     public string SystemName => Settings.SystemName;
@@ -2794,6 +2806,11 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             long nowTick;
             DateTimeOffset nowTime;
 
+            if (this.DebugFlags.Bit(HadbDebugFlags.CauseErrorOnDatabaseReload))
+            {
+                throw new CoresException("Dummy Exception for Debug: CauseErrorOnDatabaseReload");
+            }
+
             // Dynamic Config の値の読み込み
             await ReloadDynamicConfigValuesAsync(cancel);
 
@@ -2824,7 +2841,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                     if (currentMemDb == null) currentMemDb = new TMem();
 
                     long memStartTick = Time.HighResTick64;
-                    await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, fullReloadMode, partialReloadMinUpdateTime, cancel);
+                    await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, fullReloadMode, partialReloadMinUpdateTime, "Database", cancel);
                     long memEndTick = Time.HighResTick64;
 
                     if (fullReloadMode)
@@ -2944,8 +2961,70 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             // データベースからもバックアップファイルからもまだデータが読み込まれていない場合は、バックアップファイルから読み込む
             if (this.MemDb == null)
             {
-                // TODOTODO
-                //HadbBackupDatabase loadData = await backupDatabasePath.FileSystem.ReadJsonFromFileAsync< HadbBackupDatabase>(backupDatabasePath.PathString,
+                if (this.IsEnabled_NoMemDb == false)
+                {
+                    try
+                    {
+                        try
+                        {
+                            // DynamicConfig
+                            TDynamicConfig loadDynamicConfig = await backupDynamicConfigPath.FileSystem.ReadJsonFromFileAsync<TDynamicConfig>(backupDynamicConfigPath.PathString,
+                                cancel: cancel,
+                                withBackup: true);
+
+                            loadDynamicConfig.Normalize();
+
+                            this.CurrentDynamicConfig = loadDynamicConfig;
+                        }
+                        catch (Exception ex2)
+                        {
+                            // DynamicConfig の読み込みには失敗しても良いことにする
+                            // ただし、エラーはログに出力する
+                            ex2._Error();
+                        }
+
+                        // データ本体
+                        HadbBackupDatabase loadData = await backupDatabasePath.FileSystem.ReadJsonFromFileAsync<HadbBackupDatabase>(backupDatabasePath.PathString,
+                            maxSize: Consts.Numbers.LocalDatabaseJsonFileMaxSize,
+                            cancel: cancel,
+                            withBackup: true);
+
+                        var loadedObjectsList = await loadData.ObjectsList._ProcessParallelAndAggregateAsync(x =>
+                        {
+                            List<HadbObject> ret = new List<HadbObject>();
+                            var serializer = Json.CreateSerializer();
+
+                            foreach (var obj in x)
+                            {
+                                JObject jo = (JObject)obj.UserData;
+                                Type type = GetDataTypeByTypeName(obj.UserDataTypeName, EnsureSpecial.Yes);
+                                HadbData data = (HadbData)jo.ToObject(type, serializer);
+                                HadbObject a = new HadbObject(data, obj.Ext1, obj.Ext2, obj.Uid, obj.Ver, false, obj.SnapshotNo, obj.NameSpace, false, obj.CreateDt, obj.UpdateDt, obj.DeleteDt);
+                                ret.Add(a);
+                            }
+                            return TR(ret);
+                        },
+                        cancel: cancel);
+
+                        TMem? currentMemDb = new TMem();
+
+                        long memStartTick = Time.HighResTick64;
+                        await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, true, default, $"Local Database Backup File '{backupDatabasePath.PathString}'", cancel);
+                        long memEndTick = Time.HighResTick64;
+
+                        this.MemDb = currentMemDb;
+                    }
+                    catch (Exception ex3)
+                    {
+                        // ローカルファイルからのデータベース読み込みに失敗
+                        LastMemDbBackupLocalLoadError = ex3;
+                    }
+                }
+                else
+                {
+                    // ローカルファイルからのデータベース読み込みがそもそも禁止されている
+                    LastMemDbBackupLocalLoadError = ex;
+                }
             }
 
             // バックアップファイルの読み込みを行なった上で、DB 例外はちゃんと throw する
@@ -2975,7 +3054,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
             bool fullReloadMode = false;
 
-            if (this.LastDatabaseFullReloadTick == 0 || (now >= (this.LastDatabaseFullReloadTick + this.CurrentDynamicConfig.HadbFullReloadIntervalMsecs)))
+            if (this.LastDatabaseFullReloadTick == 0 || (now >= (this.LastDatabaseFullReloadTick + this.CurrentDynamicConfig.HadbFullReloadIntervalMsecs)) || this.MemDb == null)
             {
                 fullReloadMode = true;
             }
@@ -3016,7 +3095,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         int numError = 0;
         await Task.Yield();
         Debug($"LazyUpdateMainLoopAsync: Waiting for start.");
-        await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () => (this.CheckIfReady(EnsureSpecial.Yes).IsOk), cancel, true);
+        await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () => (this.CheckIfReady(requireDatabaseConnected: true, EnsureSpecial.Yes).IsOk), cancel, true);
         Debug($"LazyUpdateMainLoopAsync: Started.");
 
         while (cancel.IsCancellationRequested == false)
@@ -3062,9 +3141,9 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         $"{this.GetType().Name}: {str}"._Debug();
     }
 
-    public void CheckIfReady()
+    public void CheckIfReady(bool requireDatabaseConnected = true)
     {
-        var ret = CheckIfReady(doNotThrowError: EnsureSpecial.Yes);
+        var ret = CheckIfReady(requireDatabaseConnected, doNotThrowError: EnsureSpecial.Yes);
         ret.ThrowIfException();
     }
 
@@ -3073,11 +3152,14 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         if (this.IsEnabled_NoMemDb) throw new CoresLibException("NoMemDB option is enabled.");
     }
 
-    public ResultOrExeption<bool> CheckIfReady(EnsureSpecial doNotThrowError)
+    public ResultOrExeption<bool> CheckIfReady(bool requireDatabaseConnected, EnsureSpecial doNotThrowError)
     {
-        if (this.IsDatabaseConnectedForReload == false)
+        if (requireDatabaseConnected)
         {
-            return new CoresLibException("IsDatabaseConnectedForReload == false");
+            if (this.IsDatabaseConnectedForReload == false)
+            {
+                return new CoresLibException("IsDatabaseConnectedForReload == false");
+            }
         }
 
         if (this.MemDb == null)
@@ -3095,12 +3177,29 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         int startErrorCount = this.DatabaseConnectForReloadErrorCount;
         await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () =>
         {
-            bool ret = CheckIfReady(doNotThrowError: EnsureSpecial.Yes).IsOk;
+            bool ret = CheckIfReady(requireDatabaseConnected: true, doNotThrowError: EnsureSpecial.Yes).IsOk;
             if (ret == false)
             {
                 if (this.DatabaseConnectForReloadErrorCount >= (startErrorCount + maxDbTryCountError))
                 {
                     throw this.LastDatabaseConnectForReloadError;
+                }
+            }
+            return ret;
+        }, cancel, true);
+    }
+
+    public async Task WaitUntilReadyForFastAsync(CancellationToken cancel = default)
+    {
+        await Task.Yield();
+        await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () =>
+        {
+            bool ret = CheckIfReady(requireDatabaseConnected: false, doNotThrowError: EnsureSpecial.Yes).IsOk;
+            if (ret == false)
+            {
+                if (this.LastMemDbBackupLocalLoadError != null)
+                {
+                    throw this.LastMemDbBackupLocalLoadError;
                 }
             }
             return ret;
@@ -3216,7 +3315,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     public HadbObject? FastGet(string uid, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace)
     {
-        this.CheckIfReady();
+        this.CheckIfReady(requireDatabaseConnected: false);
         this.CheckMemDb();
         nameSpace = nameSpace._HadbNameSpaceNormalize();
 
@@ -3244,7 +3343,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     public HadbObject? FastSearchByKey(HadbKeys keys, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace)
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
-        this.CheckIfReady();
+        this.CheckIfReady(requireDatabaseConnected: false);
         this.CheckMemDb();
 
         var mem = this.MemDb!;
@@ -3270,7 +3369,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     public IEnumerable<HadbObject> FastSearchByLabels(HadbLabels labels, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace)
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
-        this.CheckIfReady();
+        this.CheckIfReady(requireDatabaseConnected: false);
         this.CheckMemDb();
 
         var mem = this.MemDb!;
@@ -3278,6 +3377,43 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         var items = mem.IndexedLabelsTable_SearchByLabels(labels, typeName, nameSpace);
 
         return items.Where(x => x.Deleted == false);
+    }
+
+    public void FastGetAllObjects(out ConcurrentStrDictionary<HadbObject> dict, out AsyncLock criticalLock)
+    {
+        this.CheckIfReady(requireDatabaseConnected: false);
+        this.CheckMemDb();
+
+        var mem = this.MemDb!;
+
+        mem.GetAllObjects(out dict, out criticalLock);
+    }
+
+    public IEnumerable<HadbObject<T>> FastEnumObjects<T>(string nameSpace = Consts.Strings.HadbDefaultNameSpace) where T : HadbData
+        => FastEnumObjects(typeof(T).Name, nameSpace).Select(x => x.GetGenerics<T>());
+
+    public IEnumerable<HadbObject> FastEnumObjects(string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace)
+    {
+        nameSpace = nameSpace._HadbNameSpaceNormalize();
+        this.CheckIfReady(requireDatabaseConnected: false);
+        this.CheckMemDb();
+
+        FastGetAllObjects(out ConcurrentStrDictionary<HadbObject> dict, out AsyncLock criticalLock);
+
+        List<HadbObject> ret = new List<HadbObject>();
+
+        using (criticalLock.LockLegacy())
+        {
+            foreach (var obj in dict.Values)
+            {
+                if (obj.UserDataTypeName == typeName && obj.NameSpace == nameSpace && obj.Deleted == false)
+                {
+                    ret.Add(obj);
+                }
+            }
+        }
+
+        return ret;
     }
 
 
