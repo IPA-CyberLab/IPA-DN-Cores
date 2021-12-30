@@ -1205,6 +1205,39 @@ public static class HadbCodeTest
                 obj = sys2.FastGet<User>(u1_uid, nameSpace);
                 Dbg.TestNull(obj);
             };
+
+            await sys2.ReloadCoreAsync(EnsureSpecial.Yes, fullReloadMode: false);
+
+
+
+            // ローカルバックアップ JSON データからデータベースに書き戻しをする実験
+
+            // まずデータを消す
+            await sys2.TranAsync(true, async tran =>
+            {
+                var db = (tran as HadbSqlBase<Mem, Dyn>.HadbSqlTran)!.Db;
+
+                await db.QueryWithNoReturnAsync("delete from HADB_DATA where DATA_SYSTEMNAME = @", sys2.SystemName);
+
+                return true;
+            });
+
+            // 復活させる
+            await sys2.RestoreDataFromHadbObjectListAsync(sys2.Settings.BackupDataFile);
+
+            // 書き戻し後にデータが復活していることを確認
+            {
+                await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
+                var obj = sys1.FastSearchByKey<User>(new HadbKeys("", "", "A003"), nameSpace);
+                var u = obj!.GetData();
+                Dbg.TestTrue(u.Id == "u3");
+                Dbg.TestTrue(u.Name == "User3");
+                Dbg.TestTrue(u.AuthKey == "a003");
+                Dbg.TestTrue(u.Company == "IPA");
+                Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
+                Dbg.TestTrue(obj.Ext1 == "c");
+                Dbg.TestTrue(obj.Ext2 == "3");
+            }
         }
     }
 }

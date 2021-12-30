@@ -606,10 +606,165 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         }
     }
 
+    protected override async Task RestoreDataFromHadbObjectListImplAsync(List<HadbObject> objectList, CancellationToken cancel = default)
+    {
+        await using var db = await this.OpenSqlDatabaseAsync(true, cancel);
+
+        DateTimeOffset now = DtOffsetNow;
+
+        await db.TranAsync(async () =>
+        {
+            string postfix = "_OLD_" + Str.DateTimeToYymmddHHmmssLong(now.LocalDateTime).ToString();
+            string newSystemName = this.SystemName + postfix;
+
+            // 古いデータのシステム名カラムを変更し、事実上削除したことと同一効果とする
+            await db.EasyExecuteAsync("update HADB_DATA set DATA_SYSTEMNAME = @NEW_NAME, DATA_UID = DATA_UID + @POSTFIX where DATA_SYSTEMNAME = @OLD_NAME",
+                new
+                {
+                    NEW_NAME = newSystemName,
+                    OLD_NAME = this.SystemName,
+                    POSTFIX = postfix,
+                });
+
+            await db.EasyExecuteAsync("update HADB_KV set KV_SYSTEM_NAME = @NEW_NAME where KV_SYSTEM_NAME = @OLD_NAME",
+                new
+                {
+                    NEW_NAME = newSystemName,
+                    OLD_NAME = this.SystemName,
+                });
+
+            await db.EasyExecuteAsync("update HADB_SNAPSHOT set SNAPSHOT_SYSTEM_NAME = @NEW_NAME where SNAPSHOT_SYSTEM_NAME = @OLD_NAME",
+                new
+                {
+                    NEW_NAME = newSystemName,
+                    OLD_NAME = this.SystemName,
+                });
+
+            await db.EasyExecuteAsync("update HADB_STAT set STAT_SYSTEMNAME = @NEW_NAME where STAT_SYSTEMNAME = @OLD_NAME",
+                new
+                {
+                    NEW_NAME = newSystemName,
+                    OLD_NAME = this.SystemName,
+                });
+
+            await db.EasyExecuteAsync("update HADB_LOG set LOG_SYSTEM_NAME = @NEW_NAME where LOG_SYSTEM_NAME = @OLD_NAME",
+                new
+                {
+                    NEW_NAME = newSystemName,
+                    OLD_NAME = this.SystemName,
+                });
+
+            HashSet<long> snapshotSet = new HashSet<long>();
+
+            // データを書き戻す
+            foreach (var obj in objectList)
+            {
+                if (obj.Deleted == false)
+                {
+                    var keys = obj.GetKeys();
+                    var labels = obj.GetLabels();
+
+                    HadbSqlDataRow row = new HadbSqlDataRow
+                    {
+                        DATA_UID = obj.Uid,
+                        DATA_SYSTEMNAME = this.SystemName,
+                        DATA_TYPE = obj.UserDataTypeName,
+                        DATA_NAMESPACE = obj.NameSpace,
+                        DATA_VER = obj.Ver,
+                        DATA_DELETED = false,
+                        DATA_ARCHIVE = false,
+                        DATA_SNAPSHOT_NO = obj.SnapshotNo,
+                        DATA_CREATE_DT = obj.CreateDt,
+                        DATA_UPDATE_DT = obj.UpdateDt,
+                        DATA_DELETE_DT = obj.DeleteDt,
+                        DATA_KEY1 = keys.Key1,
+                        DATA_KEY2 = keys.Key2,
+                        DATA_KEY3 = keys.Key3,
+                        DATA_KEY4 = keys.Key4,
+                        DATA_LABEL1 = labels.Label1,
+                        DATA_LABEL2 = labels.Label2,
+                        DATA_LABEL3 = labels.Label3,
+                        DATA_LABEL4 = labels.Label4,
+                        DATA_VALUE = obj.GetUserDataJsonString(),
+                        DATA_EXT1 = obj.Ext1,
+                        DATA_EXT2 = obj.Ext2,
+                        DATA_UID_ORIGINAL = obj.Uid,
+                    };
+
+                    snapshotSet.Add(obj.SnapshotNo);
+
+                    await db.EasyInsertAsync(row, cancel);
+                }
+            }
+
+            // 対応するスナップショットを一気に自動生成する
+            var snapshots = snapshotSet.OrderBy(x => x);
+            if (snapshots.Any() == false)
+            {
+                snapshots = (new long[] { 1 }).ToList().OrderBy(x => x);
+            }
+
+            long maxSnapshotNo = 0;
+            string maxSnapshotUid = "";
+            DateTimeOffset maxSnapshotTs = DtOffsetZero;
+
+            foreach (var snapshot in snapshots)
+            {
+                HadbSqlSnapshotRow row = new HadbSqlSnapshotRow
+                {
+                    SNAPSHOT_UID = Str.NewUid("SNAPSHOT", '_'),
+                    SNAPSHOT_SYSTEM_NAME = this.SystemName,
+                    SNAPSHOT_NO = snapshot,
+                    SNAPSHOT_DT = DtOffsetNow,
+                    SNAPSHOT_DESCRIPTION = $"Restored Dummy Snapshot " + snapshot.ToString(),
+                    SNAPSHOT_EXT1 = "",
+                    SNAPSHOT_EXT2 = "",
+                };
+
+                maxSnapshotNo = row.SNAPSHOT_NO;
+                maxSnapshotUid = row.SNAPSHOT_UID;
+                maxSnapshotTs = row.SNAPSHOT_DT;
+
+                await db.EasyInsertAsync(row, cancel);
+            }
+
+            await db.EasyInsertAsync(new HadbSqlKvRow
+            {
+                KV_SYSTEM_NAME = this.SystemName,
+                KV_KEY = "_HADB_SYS_CURRENT_SNAPSHOT_NO",
+                KV_VALUE = maxSnapshotNo.ToString(),
+                KV_DELETED = false,
+                KV_CREATE_DT = DtOffsetNow,
+                KV_UPDATE_DT = DtOffsetNow,
+            }, cancel);
+
+            await db.EasyInsertAsync(new HadbSqlKvRow
+            {
+                KV_SYSTEM_NAME = this.SystemName,
+                KV_KEY = "_HADB_SYS_CURRENT_SNAPSHOT_UID",
+                KV_VALUE = maxSnapshotUid,
+                KV_DELETED = false,
+                KV_CREATE_DT = DtOffsetNow,
+                KV_UPDATE_DT = DtOffsetNow,
+            }, cancel);
+
+            await db.EasyInsertAsync(new HadbSqlKvRow
+            {
+                KV_SYSTEM_NAME = this.SystemName,
+                KV_KEY = "_HADB_SYS_CURRENT_SNAPSHOT_TIMESTAMP",
+                KV_VALUE = maxSnapshotTs._ToDtStr(withMSsecs: true, withNanoSecs: true),
+                KV_DELETED = false,
+                KV_CREATE_DT = DtOffsetNow,
+                KV_UPDATE_DT = DtOffsetNow,
+            }, cancel);
+
+            return true;
+        });
+    }
+
     protected override async Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(bool fullReloadMode, DateTimeOffset partialReloadMinUpdateTime, Ref<DateTimeOffset>? lastStatTimestamp, CancellationToken cancel = default)
     {
         IEnumerable<HadbSqlDataRow> rows = null!;
-
 
         //Dbg.Where();
         try
@@ -2554,6 +2709,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     protected abstract Task<KeyValueList<string, string>> LoadDynamicConfigFromDatabaseImplAsync(CancellationToken cancel = default);
     protected abstract Task AppendMissingDynamicConfigToDatabaseImplAsync(KeyValueList<string, string> missingValues, CancellationToken cancel = default);
     protected abstract Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(bool fullReloadMode, DateTimeOffset partialReloadMinUpdateTime, Ref<DateTimeOffset>? lastStatTimestamp, CancellationToken cancel = default);
+    protected abstract Task RestoreDataFromHadbObjectListImplAsync(List<HadbObject> objectList, CancellationToken cancel = default);
 
     protected abstract Task WriteStatImplAsync(HadbTran tran, DateTimeOffset dt, string generator, string value, string ext1, string ext2, CancellationToken cancel = default);
 
@@ -3023,27 +3179,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                         }
 
                         // データ本体
-                        HadbBackupDatabase loadData = await backupDatabasePath.FileSystem.ReadJsonFromFileAsync<HadbBackupDatabase>(backupDatabasePath.PathString,
-                            maxSize: Consts.Numbers.LocalDatabaseJsonFileMaxSize,
-                            cancel: cancel,
-                            withBackup: true);
-
-                        var loadedObjectsList = await loadData.ObjectsList._ProcessParallelAndAggregateAsync(x =>
-                        {
-                            List<HadbObject> ret = new List<HadbObject>();
-                            var serializer = Json.CreateSerializer();
-
-                            foreach (var obj in x)
-                            {
-                                JObject jo = (JObject)obj.UserData;
-                                Type type = GetDataTypeByTypeName(obj.UserDataTypeName, EnsureSpecial.Yes);
-                                HadbData data = (HadbData)jo.ToObject(type, serializer);
-                                HadbObject a = new HadbObject(data, obj.Ext1, obj.Ext2, obj.Uid, obj.Ver, false, obj.SnapshotNo, obj.NameSpace, false, obj.CreateDt, obj.UpdateDt, obj.DeleteDt);
-                                ret.Add(a);
-                            }
-                            return TR(ret);
-                        },
-                        cancel: cancel);
+                        List<HadbObject> loadedObjectsList = await LoadLocalBackupDataAsync(backupDatabasePath, cancel);
 
                         TMem? currentMemDb = new TMem();
 
@@ -3072,6 +3208,43 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                 throw;
             }
         }
+    }
+
+    // JSON 形式のローカルバックアップデータから HadbObject のリストを読み込む
+    async Task<List<HadbObject>> LoadLocalBackupDataAsync(FilePath backupDatabasePath, CancellationToken cancel = default)
+    {
+        HadbBackupDatabase loadData = await backupDatabasePath.FileSystem.ReadJsonFromFileAsync<HadbBackupDatabase>(backupDatabasePath.PathString,
+            maxSize: Consts.Numbers.LocalDatabaseJsonFileMaxSize,
+            cancel: cancel,
+            withBackup: true);
+
+        // マルチスレッド並列処理による高速化
+        List<HadbObject> loadedObjectsList = await loadData.ObjectsList._ProcessParallelAndAggregateAsync(x =>
+        {
+            List<HadbObject> ret = new List<HadbObject>();
+            var serializer = Json.CreateSerializer();
+
+            foreach (var obj in x)
+            {
+                JObject jo = (JObject)obj.UserData;
+                Type type = GetDataTypeByTypeName(obj.UserDataTypeName, EnsureSpecial.Yes);
+                HadbData data = (HadbData)jo.ToObject(type, serializer);
+                HadbObject a = new HadbObject(data, obj.Ext1, obj.Ext2, obj.Uid, obj.Ver, false, obj.SnapshotNo, obj.NameSpace, false, obj.CreateDt, obj.UpdateDt, obj.DeleteDt);
+                ret.Add(a);
+            }
+            return TR(ret);
+        },
+        cancel: cancel);
+
+        return loadedObjectsList;
+    }
+
+    // JSON 形式のローカルバックアップデータからデータベースに書き戻しをする
+    public async Task RestoreDataFromHadbObjectListAsync(FilePath backupDatabasePath, CancellationToken cancel = default)
+    {
+        var list = await this.LoadLocalBackupDataAsync(backupDatabasePath, cancel);
+
+        await this.RestoreDataFromHadbObjectListImplAsync(list, cancel);
     }
 
     async Task ReloadMainLoopAsync(CancellationToken cancel)
