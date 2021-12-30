@@ -707,6 +707,8 @@ partial class TestDevCommands
 
         .Add(new MicroBenchmark($"HADB FastSearch", Benchmark_CountForNormal * 10, count =>
         {
+            // メモ
+            // HADB FastSearch: 496.71 ns, 2,013,233 / sec
             Async(async () =>
             {
                 for (int c = 0; c < count; c++)
@@ -720,6 +722,8 @@ partial class TestDevCommands
 
         .Add(new MicroBenchmark($"HADB FastSearch 2", Benchmark_CountForNormal * 10, count =>
         {
+            // メモ
+            // HADB FastSearch 2: 216.59 ns, 4,616,981 / sec
             Async(async () =>
             {
                 for (int c = 0; c < count; c++)
