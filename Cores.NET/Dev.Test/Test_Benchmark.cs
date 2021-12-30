@@ -678,21 +678,28 @@ partial class TestDevCommands
 
         ImmutableDictionary<string, string> immDictTest = ImmutableDictionary<string, string>.Empty.WithComparers(StrCmpi);
 
-        for (int i = 0; i < 10000; i++)
+        int immDictCount = 10000;
+
+        for (int i = 0; i < immDictCount; i++)
         {
-            immDictTest = immDictTest.Add(i.ToString(), i.ToString());
+            immDictTest = immDictTest.Add("Key1" + ":" + "User" + ":" + "DEFAULT_NS" + ":" + i.ToString(), i.ToString());
         }
 
         var queue = new MicroBenchmarkQueue()
 
-        .Add(new MicroBenchmark($"ImmutableDictionary Search 10000", Benchmark_CountForNormal * 10, count =>
+        .Add(new MicroBenchmark($"ImmutableDictionary Search " + immDictCount, immDictCount, count =>
         {
+            // メモ
+            // ImmutableDictionary Search 10000: 176.78 ns, 5,656,631 / sec
+            // ImmutableDictionary Search 100000: 401.02 ns, 2,493,644 / sec
+            // ImmutableDictionary Search 1000000: 880.13 ns, 1,136,194 / sec
+            // ImmutableDictionary Search 10000000: 1,021.03 ns, 979,400 / sec
             Async(async () =>
             {
-                for (int c = 0; c < count; c++)
+                for (int c = 0; c < immDictCount; c++)
                 {
-                    int index = count % 10000;
-                    immDictTest.TryGetValue(index.ToString(), out string? x);
+                    int index = c;
+                    immDictTest.TryGetValue("Key1" + ":" + "User" + ":" + "DEFAULT_NS" + ":" + index.ToString(), out string? x);
                     Limbo.ObjectSlow = x;
                 }
             });
@@ -705,8 +712,26 @@ partial class TestDevCommands
                 for (int c = 0; c < count; c++)
                 {
                     int index = count % 10000;
-                    //var obj = hadbBenchSys.FastSearchByKey(new HadbKeys(index.ToString()), "User");
-                    var obj = hadbBenchSys.FastSearchByKey(new HadbBenchTest.User { AuthKey = index.ToString() });
+                    var obj = hadbBenchSys.FastSearchByKey(new HadbKeys(index.ToString()), "User");
+                    //var obj = hadbBenchSys.FastSearchByKey(new HadbBenchTest.User { AuthKey = index.ToString() });
+                }
+            });
+        }), enabled: true, priority: 211227)
+
+        .Add(new MicroBenchmark($"HADB FastSearch 2", Benchmark_CountForNormal * 10, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    int index = count % 10000;
+                    var keys = new HadbKeys(index.ToString());
+                    if (keys.Key1._IsFilled())
+                    {
+                        hadbBenchSys.MemDb!.InternalData.IndexedKeysTable.TryGetValue("Key1" + ":" + "User" + ":" + "DEFAULT_NS" + ":" + keys.Key1, out HadbObject? ret);
+                        Limbo.ObjectSlow = ret;
+                        //var obj = hadbBenchSys.FastSearchByKey(new HadbBenchTest.User { AuthKey = index.ToString() });
+                    }
                 }
             });
         }), enabled: true, priority: 211227)
