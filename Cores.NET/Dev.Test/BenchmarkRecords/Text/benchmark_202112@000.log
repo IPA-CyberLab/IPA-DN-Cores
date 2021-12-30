@@ -940,3 +940,206 @@
 2021/12/30 18:38:10.306 +09:00 ImmutableDictionary Search 10000: 179.05 ns, 5,584,901 / sec
 2021/12/30 18:38:10.980 +09:00 HADB FastSearch: 496.71 ns, 2,013,233 / sec
 2021/12/30 18:38:11.583 +09:00 HADB FastSearch 2: 200.99 ns, 4,975,439 / sec
+2021/12/30 18:48:20.486 +09:00 ----- Start new benchmark -----
+2021/12/30 18:48:20.490 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 18:48:20.490 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 18:48:20.490 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 18:48:20.490 +09:00 Framework: .NET 6.0.1
+2021/12/30 18:48:20.490 +09:00 Host: PC34
+2021/12/30 18:48:22.243 +09:00 ImmutableDictionary Search 10000: 162.00 ns, 6,173,022 / sec
+2021/12/30 18:48:22.884 +09:00 HADB FastSearch: 520.14 ns, 1,922,546 / sec
+2021/12/30 18:48:23.512 +09:00 HADB FastSearch 2: 171.99 ns, 5,814,420 / sec
+2021/12/30 18:48:24.155 +09:00 HADB GetTypeName: 0.52 ns, 1,908,111,700 / sec
+2021/12/30 18:48:24.880 +09:00 Async call with no async func #1: Nothing: 16.88 ns, 59,226,052 / sec
+2021/12/30 18:48:28.505 +09:00 ----- Start new benchmark -----
+2021/12/30 18:48:28.509 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 18:48:28.509 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 18:48:28.509 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 18:48:28.509 +09:00 Framework: .NET 6.0.1
+2021/12/30 18:48:28.509 +09:00 Host: PC34
+2021/12/30 18:48:30.359 +09:00 ImmutableDictionary Search 10000: 164.29 ns, 6,086,700 / sec
+2021/12/30 18:48:30.999 +09:00 HADB FastSearch: 544.02 ns, 1,838,156 / sec
+2021/12/30 18:48:31.592 +09:00 HADB FastSearch 2: 179.04 ns, 5,585,452 / sec
+2021/12/30 18:48:32.222 +09:00 HADB GetTypeName: 0.52 ns, 1,910,143,724 / sec
+2021/12/30 18:48:32.959 +09:00 Async call with no async func #1: Nothing: 14.50 ns, 68,962,289 / sec
+2021/12/30 18:49:42.077 +09:00 ----- Start new benchmark -----
+2021/12/30 18:49:42.082 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 18:49:42.082 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 18:49:42.082 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 18:49:42.082 +09:00 Framework: .NET 6.0.1
+2021/12/30 18:49:42.082 +09:00 Host: PC34
+2021/12/30 18:49:43.900 +09:00 ImmutableDictionary Search 10000: 162.25 ns, 6,163,178 / sec
+2021/12/30 18:49:44.577 +09:00 HADB FastSearch: 497.25 ns, 2,011,041 / sec
+2021/12/30 18:49:45.193 +09:00 HADB FastSearch 2: 190.15 ns, 5,259,091 / sec
+2021/12/30 18:49:45.830 +09:00 HADB GetTypeName: 0.73 ns, 1,371,168,776 / sec
+2021/12/30 18:49:46.605 +09:00 Async call with no async func #1: Nothing: 15.22 ns, 65,690,345 / sec
+2021/12/30 18:49:47.343 +09:00 Async call with no async func #2: Task.CompletedTask after: 18.13 ns, 55,171,577 / sec
+2021/12/30 18:49:48.046 +09:00 Async call with no async func #3: Task.CompletedTask before: 14.82 ns, 67,489,995 / sec
+2021/12/30 18:49:53.538 +09:00 ----- Start new benchmark -----
+2021/12/30 18:49:53.543 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 18:49:53.543 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 18:49:53.543 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 18:49:53.543 +09:00 Framework: .NET 6.0.1
+2021/12/30 18:49:53.543 +09:00 Host: PC34
+2021/12/30 18:49:55.391 +09:00 ImmutableDictionary Search 10000: 160.83 ns, 6,217,780 / sec
+2021/12/30 18:49:56.067 +09:00 HADB FastSearch: 515.52 ns, 1,939,794 / sec
+2021/12/30 18:49:56.672 +09:00 HADB FastSearch 2: 219.71 ns, 4,551,438 / sec
+2021/12/30 18:52:36.681 +09:00 ----- Start new benchmark -----
+2021/12/30 18:52:36.685 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 18:52:36.685 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 18:52:36.685 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 18:52:36.685 +09:00 Framework: .NET 6.0.1
+2021/12/30 18:52:36.685 +09:00 Host: PC34
+2021/12/30 18:52:38.511 +09:00 ImmutableDictionary Search 10000: 163.72 ns, 6,107,962 / sec
+2021/12/30 18:52:39.168 +09:00 HADB FastSearch: 484.83 ns, 2,062,589 / sec
+2021/12/30 18:52:39.788 +09:00 HADB FastSearch 2: 188.68 ns, 5,300,019 / sec
+2021/12/30 18:52:40.431 +09:00 HADB GetTypeName: 0.58 ns, 1,738,843,065 / sec
+2021/12/30 18:52:41.215 +09:00 Async call with no async func #1: Nothing: 15.40 ns, 64,930,845 / sec
+2021/12/30 18:53:29.595 +09:00 ----- Start new benchmark -----
+2021/12/30 18:53:29.600 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 18:53:29.600 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 18:53:29.600 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 18:53:29.600 +09:00 Framework: .NET 6.0.1
+2021/12/30 18:53:29.600 +09:00 Host: PC34
+2021/12/30 18:53:31.429 +09:00 ImmutableDictionary Search 10000: 161.82 ns, 6,179,541 / sec
+2021/12/30 18:53:32.091 +09:00 HADB FastSearch: 405.22 ns, 2,467,808 / sec
+2021/12/30 18:53:32.690 +09:00 HADB FastSearch 2: 174.45 ns, 5,732,293 / sec
+2021/12/30 18:53:35.946 +09:00 ----- Start new benchmark -----
+2021/12/30 18:53:35.951 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 18:53:35.951 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 18:53:35.951 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 18:53:35.951 +09:00 Framework: .NET 6.0.1
+2021/12/30 18:53:35.951 +09:00 Host: PC34
+2021/12/30 18:53:37.758 +09:00 ImmutableDictionary Search 10000: 167.91 ns, 5,955,407 / sec
+2021/12/30 18:53:38.403 +09:00 HADB FastSearch: 441.83 ns, 2,263,318 / sec
+2021/12/30 18:53:39.007 +09:00 HADB FastSearch 2: 188.49 ns, 5,305,302 / sec
+2021/12/30 18:58:06.323 +09:00 ----- Start new benchmark -----
+2021/12/30 18:58:06.327 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 18:58:06.327 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 18:58:06.327 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 18:58:06.327 +09:00 Framework: .NET 6.0.1
+2021/12/30 18:58:06.327 +09:00 Host: PC34
+2021/12/30 18:58:08.142 +09:00 ImmutableDictionary Search 10000: 164.82 ns, 6,067,312 / sec
+2021/12/30 18:58:32.822 +09:00 ----- Start new benchmark -----
+2021/12/30 18:58:32.827 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 18:58:32.827 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 18:58:32.827 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 18:58:32.827 +09:00 Framework: .NET 6.0.1
+2021/12/30 18:58:32.827 +09:00 Host: PC34
+2021/12/30 18:58:34.597 +09:00 ImmutableDictionary Search 10000: 162.55 ns, 6,152,060 / sec
+2021/12/30 18:58:35.267 +09:00 HADB FastSearch: 429.72 ns, 2,327,088 / sec
+2021/12/30 18:58:35.870 +09:00 HADB FastSearch 2: 187.47 ns, 5,334,189 / sec
+2021/12/30 18:58:48.523 +09:00 ----- Start new benchmark -----
+2021/12/30 18:58:48.528 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 18:58:48.528 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 18:58:48.528 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 18:58:48.528 +09:00 Framework: .NET 6.0.1
+2021/12/30 18:58:48.528 +09:00 Host: PC34
+2021/12/30 18:58:50.278 +09:00 ImmutableDictionary Search 10000: 162.93 ns, 6,137,515 / sec
+2021/12/30 18:59:47.936 +09:00 ----- Start new benchmark -----
+2021/12/30 18:59:47.941 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 18:59:47.941 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 18:59:47.941 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 18:59:47.941 +09:00 Framework: .NET 6.0.1
+2021/12/30 18:59:47.941 +09:00 Host: PC34
+2021/12/30 18:59:49.767 +09:00 ImmutableDictionary Search 10000: 165.31 ns, 6,049,189 / sec
+2021/12/30 18:59:50.410 +09:00 HADB FastSearch: 389.78 ns, 2,565,540 / sec
+2021/12/30 18:59:51.031 +09:00 HADB FastSearch 2: 177.81 ns, 5,624,093 / sec
+2021/12/30 19:00:03.309 +09:00 ----- Start new benchmark -----
+2021/12/30 19:00:03.314 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 19:00:03.314 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 19:00:03.314 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 19:00:03.314 +09:00 Framework: .NET 6.0.1
+2021/12/30 19:00:03.314 +09:00 Host: PC34
+2021/12/30 19:00:05.188 +09:00 ImmutableDictionary Search 10000: 160.46 ns, 6,231,926 / sec
+2021/12/30 19:04:34.096 +09:00 ----- Start new benchmark -----
+2021/12/30 19:04:34.101 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 19:04:34.101 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 19:04:34.101 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 19:04:34.101 +09:00 Framework: .NET 6.0.1
+2021/12/30 19:04:34.101 +09:00 Host: PC34
+2021/12/30 19:04:35.882 +09:00 ImmutableDictionary Search 10000: 169.67 ns, 5,893,759 / sec
+2021/12/30 19:05:04.975 +09:00 ----- Start new benchmark -----
+2021/12/30 19:05:04.979 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 19:05:04.979 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 19:05:04.979 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 19:05:04.979 +09:00 Framework: .NET 6.0.1
+2021/12/30 19:05:04.979 +09:00 Host: PC34
+2021/12/30 19:05:06.807 +09:00 ImmutableDictionary Search 10000: 166.24 ns, 6,015,334 / sec
+2021/12/30 19:05:07.460 +09:00 HADB FastSearch: 473.34 ns, 2,112,649 / sec
+2021/12/30 19:05:08.070 +09:00 HADB FastSearch 2: 173.75 ns, 5,755,435 / sec
+2021/12/30 19:05:10.957 +09:00 ----- Start new benchmark -----
+2021/12/30 19:05:10.961 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 19:05:10.961 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 19:05:10.961 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 19:05:10.961 +09:00 Framework: .NET 6.0.1
+2021/12/30 19:05:10.961 +09:00 Host: PC34
+2021/12/30 19:05:12.762 +09:00 ImmutableDictionary Search 10000: 165.95 ns, 6,025,857 / sec
+2021/12/30 19:05:13.433 +09:00 HADB FastSearch: 423.11 ns, 2,363,466 / sec
+2021/12/30 19:05:14.040 +09:00 HADB FastSearch 2: 163.43 ns, 6,118,682 / sec
+2021/12/30 19:05:14.676 +09:00 HADB GetTypeName: 0.53 ns, 1,903,458,744 / sec
+2021/12/30 19:05:15.420 +09:00 Async call with no async func #1: Nothing: 13.64 ns, 73,323,945 / sec
+2021/12/30 19:05:17.166 +09:00 ----- Start new benchmark -----
+2021/12/30 19:05:17.170 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 19:05:17.170 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 19:05:17.170 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 19:05:17.170 +09:00 Framework: .NET 6.0.1
+2021/12/30 19:05:17.170 +09:00 Host: PC34
+2021/12/30 19:05:18.957 +09:00 ImmutableDictionary Search 10000: 182.14 ns, 5,490,229 / sec
+2021/12/30 19:05:19.589 +09:00 HADB FastSearch: 378.18 ns, 2,644,233 / sec
+2021/12/30 19:05:20.231 +09:00 HADB FastSearch 2: 205.39 ns, 4,868,710 / sec
+2021/12/30 19:05:20.870 +09:00 HADB GetTypeName: 0.55 ns, 1,813,285,261 / sec
+2021/12/30 19:05:22.988 +09:00 Async call with no async func #1: Nothing: 13.90 ns, 71,919,645 / sec
+2021/12/30 19:05:33.891 +09:00 ----- Start new benchmark -----
+2021/12/30 19:05:33.895 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 19:05:33.895 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 19:05:33.895 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 19:05:33.895 +09:00 Framework: .NET 6.0.1
+2021/12/30 19:05:33.895 +09:00 Host: PC34
+2021/12/30 19:05:35.564 +09:00 ImmutableDictionary Search 10000: 160.62 ns, 6,225,792 / sec
+2021/12/30 19:05:36.190 +09:00 HADB FastSearch: 446.90 ns, 2,237,628 / sec
+2021/12/30 19:05:36.818 +09:00 HADB FastSearch 2: 135.45 ns, 7,382,623 / sec
+2021/12/30 19:05:42.155 +09:00 ----- Start new benchmark -----
+2021/12/30 19:05:42.159 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 19:05:42.159 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 19:05:42.159 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 19:05:42.159 +09:00 Framework: .NET 6.0.1
+2021/12/30 19:05:42.159 +09:00 Host: PC34
+2021/12/30 19:05:43.908 +09:00 ImmutableDictionary Search 10000: 166.14 ns, 6,019,022 / sec
+2021/12/30 19:05:44.545 +09:00 HADB FastSearch: 400.51 ns, 2,496,814 / sec
+2021/12/30 19:05:45.222 +09:00 HADB FastSearch 2: 170.33 ns, 5,870,900 / sec
+2021/12/30 19:06:16.825 +09:00 ----- Start new benchmark -----
+2021/12/30 19:06:16.829 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 19:06:16.829 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 19:06:16.829 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 19:06:16.829 +09:00 Framework: .NET 6.0.1
+2021/12/30 19:06:16.829 +09:00 Host: PC34
+2021/12/30 19:06:18.535 +09:00 ImmutableDictionary Search 10000: 167.70 ns, 5,963,059 / sec
+2021/12/30 19:06:19.175 +09:00 HADB FastSearch: 404.76 ns, 2,470,574 / sec
+2021/12/30 19:06:19.860 +09:00 HADB FastSearch 2: 155.17 ns, 6,444,493 / sec
+2021/12/30 19:06:20.501 +09:00 HADB GetTypeName: 0.78 ns, 1,287,720,410 / sec
+2021/12/30 19:06:21.233 +09:00 Async call with no async func #1: Nothing: 16.74 ns, 59,748,826 / sec
+2021/12/30 19:06:21.993 +09:00 Async call with no async func #2: Task.CompletedTask after: 15.53 ns, 64,384,758 / sec
+2021/12/30 19:06:22.669 +09:00 Async call with no async func #3: Task.CompletedTask before: 14.74 ns, 67,848,978 / sec
+2021/12/30 19:06:27.720 +09:00 ----- Start new benchmark -----
+2021/12/30 19:06:27.724 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 19:06:27.724 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 19:06:27.724 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 19:06:27.724 +09:00 Framework: .NET 6.0.1
+2021/12/30 19:06:27.724 +09:00 Host: PC34
+2021/12/30 19:06:29.542 +09:00 ImmutableDictionary Search 10000: 168.91 ns, 5,920,420 / sec
+2021/12/30 19:06:30.211 +09:00 HADB FastSearch: 434.66 ns, 2,300,664 / sec
+2021/12/30 19:06:30.823 +09:00 HADB FastSearch 2: 178.07 ns, 5,615,771 / sec
+2021/12/30 19:06:31.465 +09:00 HADB GetTypeName: 0.53 ns, 1,893,872,887 / sec
+2021/12/30 19:06:32.189 +09:00 Async call with no async func #1: Nothing: 13.80 ns, 72,465,652 / sec
+2021/12/30 19:06:32.938 +09:00 Async call with no async func #2: Task.CompletedTask after: 14.82 ns, 67,453,800 / sec
+2021/12/30 19:06:33.623 +09:00 Async call with no async func #3: Task.CompletedTask before: 14.27 ns, 70,054,030 / sec
+2021/12/30 19:06:45.454 +09:00 ----- Start new benchmark -----
+2021/12/30 19:06:45.458 +09:00 Commit: e3cdd6048346fa6ce9e5e9644b3b460cf6212303
+2021/12/30 19:06:45.458 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2021/12/30 19:06:45.458 +09:00 OS: Microsoft Windows 10.0.19044
+2021/12/30 19:06:45.458 +09:00 Framework: .NET 6.0.1
+2021/12/30 19:06:45.458 +09:00 Host: PC34
+2021/12/30 19:06:47.198 +09:00 ImmutableDictionary Search 10000: 162.61 ns, 6,149,786 / sec
+2021/12/30 19:06:47.822 +09:00 HADB FastSearch: 389.40 ns, 2,568,034 / sec
+2021/12/30 19:06:48.499 +09:00 HADB FastSearch 2: 179.30 ns, 5,577,132 / sec

@@ -3137,7 +3137,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
     public static void Test_Generic()
     {
-        if (true)
+        if (false)
         {
             Test_211230_02();
             return;

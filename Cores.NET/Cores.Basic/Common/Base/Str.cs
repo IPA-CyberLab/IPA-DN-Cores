@@ -6830,10 +6830,12 @@ namespace IPA.Cores.Basic
             return "";
         }
         // 空かどうか調べる
+        [MethodImpl(Inline)]
         public static bool IsEmptyStr([NotNullWhen(false)] string? s)
         {
             return string.IsNullOrWhiteSpace(s);
         }
+        [MethodImpl(Inline)]
         public static bool IsFilledStr([NotNullWhen(true)] string? str)
         {
             return !IsEmptyStr(str);

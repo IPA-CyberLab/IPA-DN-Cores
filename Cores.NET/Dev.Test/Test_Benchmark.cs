@@ -699,7 +699,7 @@ partial class TestDevCommands
                 for (int c = 0; c < immDictCount; c++)
                 {
                     int index = c;
-                    immDictTest.TryGetValue("Key1" + ":" + "User" + ":" + "DEFAULT_NS" + ":" + index.ToString(), out string? x);
+                    immDictTest.TryGetValue(index.ToString() + ":" + "Key1" + ":" + "User" + ":" + "DEFAULT_NS", out string? x);
                     Limbo.ObjectSlow = x;
                 }
             });
@@ -708,13 +708,14 @@ partial class TestDevCommands
         .Add(new MicroBenchmark($"HADB FastSearch", Benchmark_CountForNormal * 10, count =>
         {
             // メモ
-            // HADB FastSearch: 496.71 ns, 2,013,233 / sec
+            // HADB FastSearch: 378.18 ns, 2,644,233 / sec
             Async(async () =>
             {
                 for (int c = 0; c < count; c++)
                 {
                     int index = count % 10000;
                     var obj = hadbBenchSys.FastSearchByKey(new HadbKeys(index.ToString()), "User");
+                    //obj._NullCheck();
                     //var obj = hadbBenchSys.FastSearchByKey(new HadbBenchTest.User { AuthKey = index.ToString() });
                 }
             });

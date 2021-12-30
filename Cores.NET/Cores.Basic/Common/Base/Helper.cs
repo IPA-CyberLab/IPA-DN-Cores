@@ -1820,7 +1820,9 @@ public static class BasicHelper
     public static bool _IsEmpty<T>([NotNullWhen(false)] this T data, bool zeroValueIsEmpty = false) => Util.IsEmpty(data, zeroValueIsEmpty);
     public static bool _IsFilled<T>([NotNullWhen(true)] this T data, bool zeroValueIsEmpty = false) => Util.IsFilled(data, zeroValueIsEmpty);
 
+    [MethodImpl(Inline)]
     public static bool _IsEmpty([NotNullWhen(false)] this string? str) => Str.IsEmptyStr(str);
+    [MethodImpl(Inline)]
     public static bool _IsFilled([NotNullWhen(true)] this string? str) => Str.IsFilledStr(str);
 
     public static string[] _Split(this string str, StringSplitOptions options, params string[] separators) => str.Split(separators, options);
@@ -3142,7 +3144,10 @@ public static class BasicHelper
     {
         if (nameSpace._IsEmpty()) nameSpace = Consts.Strings.HadbDefaultNameSpace;
         nameSpace = nameSpace._NormalizeKey(true);
-        nameSpace = nameSpace._ReplaceStr(":", "_", true);
+        if (nameSpace._InStr(":"))
+        {
+            nameSpace = nameSpace._ReplaceStr(":", "_", true);
+        }
         return nameSpace;
     }
 
