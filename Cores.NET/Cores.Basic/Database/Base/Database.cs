@@ -82,8 +82,11 @@ public class SqlDatabaseConnectionSetting
     public string Password { get; }
     public bool Pooling { get; }
     public int Port { get; }
+    public bool Encrypt { get; }
+    public bool TrustServerCertificate { get; }
 
-    public SqlDatabaseConnectionSetting(string dataSource, string initialCatalog, string userId, string password, bool pooling = false, int port = Consts.Ports.MsSqlServer /* Linux 版 SQL Client では true にすると動作不良を引き起こすため、false を推奨 */ )
+    public SqlDatabaseConnectionSetting(string dataSource, string initialCatalog, string userId, string password, bool pooling = false /* Linux 版 SQL Client では true にすると動作不良を引き起こすため、false を推奨 */
+        , int port = Consts.Ports.MsSqlServer, bool encrypt = false, bool trustServerCertificate = true)
     {
         this.DataSource = dataSource;
         this.InitialDatalog = initialCatalog;
@@ -91,11 +94,35 @@ public class SqlDatabaseConnectionSetting
         this.Password = password;
         this.Pooling = pooling;
         this.Port = port._IsInTcpUdpPortRange() ? Consts.Ports.MsSqlServer : port;
+        this.Encrypt = encrypt;
+        this.TrustServerCertificate = trustServerCertificate;
     }
 
     public static implicit operator string(SqlDatabaseConnectionSetting config)
-        => $"Data Source={config.DataSource}{(config.Port == Consts.Ports.MsSqlServer ? "" : "," + config.Port.ToString()) };Initial Catalog={config.InitialDatalog};Persist Security Info=True;Pooling={config.Pooling._ToBoolStr()};User ID={config.UserId};Password={config.Password}";
+        => $"Data Source={config.DataSource}{(config.Port == Consts.Ports.MsSqlServer ? "" : "," + config.Port.ToString()) };Initial Catalog={config.InitialDatalog};Persist Security Info=True;Pooling={config.Pooling._ToBoolStr()};User ID={config.UserId};Password={config.Password};Encrypt={config.Encrypt};TrustServerCertificate={config.TrustServerCertificate};";
 
+    // SQL データベースライブラリのバージョンアップに伴い SQL 接続文字列を互換性を実現する目的で正規化する。
+    // 参考: https://techcommunity.microsoft.com/t5/sql-server-blog/released-general-availability-of-microsoft-data-sqlclient-4-0/ba-p/2983346
+    // TODO: 実装が適当である。そのうち、接続文字列の文法を厳密に認識した実装に変更することが推奨される。
+    public static string NormalizeSqlDatabaseConnectionStringForCompabitility(string src)
+    {
+        string tmp = "";
+        string src2 = src._ReplaceStr(" ", "");
+        if (src2._InStri("Encrypt=") == false)
+        {
+            tmp += "Encrypt=False;";
+        }
+        if (src2._InStri("TrustServerCertificate=") == false)
+        {
+            tmp += "TrustServerCertificate=True;";
+        }
+        if (src.LastOrDefault() != ';')
+        {
+            src += ";";
+        }
+        src += tmp;
+        return src;
+    }
 }
 
 public class EasyTable : TableAttribute
@@ -473,6 +500,8 @@ public sealed class Database : AsyncService
             this.OpenTryCount = openTryCount;
 
             DbConnection? conn;
+
+            dbServerConnectionString = SqlDatabaseConnectionSetting.NormalizeSqlDatabaseConnectionStringForCompabitility(dbServerConnectionString);
 
             switch (serverType)
             {
@@ -1524,8 +1553,18 @@ public sealed class Database : AsyncService
         }
 
         CloseQuery();
-        Transaction.Rollback();
-        Transaction.Dispose();
+        try
+        {
+            Transaction.Rollback();
+        }
+        catch (Exception ex)
+        {
+            // Rollback 時に System.InvalidCastException: Unable to cast object of type 'Microsoft.Data.SqlClient.SqlDataReader' to type 'Microsoft.Data.SqlClient.SqlTransaction'.
+            // という謎のエラーが Microsoft.Data.SqlClient.SqlInternalTransaction ライブラリの CheckTransactionLevelAndZombie() -> Zombie() -> ZombieParent()
+            // で発生することがある。これはおそらく Microsoft のライブラリのバグであるが、これが発生した場合は無視する必要がある。
+            ex._Error();
+        }
+        Transaction._DisposeSafe();
         Transaction = null;
     }
     public async Task RollbackAsync(CancellationToken cancel = default)
@@ -1537,7 +1576,17 @@ public sealed class Database : AsyncService
 
         await CloseQueryAsync();
 
-        await Transaction.RollbackAsync(cancel);
+        try
+        {
+            await Transaction.RollbackAsync(cancel);
+        }
+        catch (Exception ex)
+        {
+            // Rollback 時に System.InvalidCastException: Unable to cast object of type 'Microsoft.Data.SqlClient.SqlDataReader' to type 'Microsoft.Data.SqlClient.SqlTransaction'.
+            // という謎のエラーが Microsoft.Data.SqlClient.SqlInternalTransaction ライブラリの CheckTransactionLevelAndZombie() -> Zombie() -> ZombieParent()
+            // で発生することがある。これはおそらく Microsoft のライブラリのバグであるが、これが発生した場合は無視する必要がある。
+            ex._Error();
+        }
 
         await Transaction._DisposeSafeAsync();
         Transaction = null;

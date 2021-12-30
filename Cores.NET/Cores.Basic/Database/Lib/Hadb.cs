@@ -2855,6 +2855,37 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
                     this.MemDb = currentMemDb;
 
+                    if (fullReloadMode)
+                    {
+                        // DB のデータをローカルバックアップファイルに書き込む
+                        await backupDynamicConfigPath.FileSystem.WriteJsonToFileAsync(backupDynamicConfigPath.PathString, this.CurrentDynamicConfig,
+                            backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
+                            cancel: cancel, withBackup: true);
+
+                        HadbBackupDatabase backupData = new HadbBackupDatabase
+                        {
+                            ObjectsList = await loadedObjectsList._ProcessParallelAndAggregateAsync(x =>
+                            {
+                                List<HadbSerializedObject> ret = new List<HadbSerializedObject>();
+
+                                foreach (var obj in x)
+                                {
+                                    if (obj.Archive == false && obj.Deleted == false)
+                                    {
+                                        ret.Add(obj.ToSerializedObject());
+                                    }
+                                }
+
+                                return TR(ret);
+                            }, cancel: cancel),
+                            TimeStamp = nowTime,
+                        };
+
+                        await backupDatabasePath.FileSystem.WriteJsonToFileAsync(backupDatabasePath.PathString, backupData,
+                            backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
+                            cancel: cancel, withBackup: true);
+                    }
+
                     this.IsDatabaseConnectedForReload = true;
 
                     if (fullReloadMode)
@@ -2888,34 +2919,6 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                                 ex._Error();
                             }
                         }
-
-                        // DB のデータをローカルバックアップファイルに書き込む
-                        await backupDynamicConfigPath.FileSystem.WriteJsonToFileAsync(backupDynamicConfigPath.PathString, this.CurrentDynamicConfig,
-                            backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
-                            cancel: cancel, withBackup: true);
-
-                        HadbBackupDatabase backupData = new HadbBackupDatabase
-                        {
-                            ObjectsList = await loadedObjectsList._ProcessParallelAndAggregateAsync(x =>
-                            {
-                                List<HadbSerializedObject> ret = new List<HadbSerializedObject>();
-
-                                foreach (var obj in x)
-                                {
-                                    if (obj.Archive == false && obj.Deleted == false)
-                                    {
-                                        ret.Add(obj.ToSerializedObject());
-                                    }
-                                }
-
-                                return TR(ret);
-                            }, cancel: cancel),
-                            TimeStamp = nowTime,
-                        };
-
-                        await backupDatabasePath.FileSystem.WriteJsonToFileAsync(backupDatabasePath.PathString, backupData,
-                            backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
-                            cancel: cancel, withBackup: true);
                     }
                 }
                 else
@@ -3221,6 +3224,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     public async Task<bool> TranAsync(bool writeMode, Func<HadbTran, Task<bool>> task, bool takeSnapshot = false, RefLong? snapshotNoRet = null, CancellationToken cancel = default, DeadlockRetryConfig? retryConfig = null, bool ignoreQuota = false, string clientName = "")
     {
         CheckIfReady();
+
         retryConfig ??= this.DefaultDeadlockRetryConfig;
         int numRetry = 0;
 

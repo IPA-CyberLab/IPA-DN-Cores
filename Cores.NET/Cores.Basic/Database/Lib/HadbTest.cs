@@ -572,6 +572,15 @@ public static class HadbCodeTest
                 Dbg.TestTrue(sys3_fromBackup.FastEnumObjects<User>(nameSpace).Count() == 3);
 
                 Dbg.TestTrue(sys3_fromBackup.CurrentDynamicConfig.Hello == "Neko");
+
+                await Dbg.TestExceptionAsync(async () =>
+                {
+                    await sys3_fromBackup.TranAsync(true, async tran =>
+                    {
+                        await tran.AtomicAddAsync(new User { AuthKey = "fbi", Company = "cia", FullName = "dnobori", Id = "nekosanz", Int1 = 123, LastIp = "1.2.3.4", Name = "Filesan" }, nameSpace: nameSpace);
+                        return true;
+                    });
+                });
             }
 
             await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
