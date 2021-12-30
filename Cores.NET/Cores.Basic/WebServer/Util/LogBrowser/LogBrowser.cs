@@ -474,11 +474,11 @@ public class LogBrowser : AsyncService
                             alog.Username = username;
                             alog.Password = Str.MakeCharArray('*', password.Length);
 
-                                // ユーザー名とパスワードが一致するものが 1 つ以上あるかどうか
-                                bool ok = secureJson.AuthDatabase
-                                .Where(db => db.Key._IsFilled() && db.Value._IsFilled())
-                                .Where(db => db.Key._IsSamei(username) && Secure.VeritySaltedPassword(db.Value, password))
-                                .Any();
+                            // ユーザー名とパスワードが一致するものが 1 つ以上あるかどうか
+                            bool ok = secureJson.AuthDatabase
+                            .Where(db => db.Key._IsFilled() && db.Value._IsFilled())
+                            .Where(db => db.Key._IsSamei(username) && Secure.VeritySaltedPassword(db.Value, password))
+                            .Any();
 
                             alog.PasswordMatched = ok;
 
@@ -901,21 +901,23 @@ public class LogBrowser : AsyncService
                     {
                         try
                         {
-                            // 元のファイルの先頭に BOM が付いていて、先頭をスキップする場合は、
-                            // 応答データに先頭にも BOM を付ける。
-                            // 2020.12.19 元のファイルに BOM がなくても、UTF-8 であることが確実であれば BOM を付ける。
                             byte[] bom = new byte[3];
-                            if (await randomAccess.ReadRandomAsync(0, bom, cancel) == 3)
+                            if (await randomAccess.ReadRandomAsync(0, bom, cancel) == 3 && Str.BOM_UTF_8._MemEquals(bom))
                             {
-                                if (Str.BOM_UTF_8._MemEquals(bom))
+                                // 元のファイルの先頭に BOM が付いていて、先頭をスキップする場合は、
+                                // 応答データに先頭にも BOM を付ける。
+                                if (readStart != 0)
                                 {
                                     preData = Str.BOM_UTF_8;
                                 }
                             }
-
-                            if (isUtf8)
+                            else
                             {
-                                preData = Str.BOM_UTF_8;
+                                // 2020.12.19 元のファイルに BOM がなくても、UTF-8 であることが確実であれば BOM を付ける。
+                                if (isUtf8)
+                                {
+                                    preData = Str.BOM_UTF_8;
+                                }
                             }
                         }
                         catch { }
