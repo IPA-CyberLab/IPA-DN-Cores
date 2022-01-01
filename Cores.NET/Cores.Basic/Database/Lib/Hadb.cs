@@ -820,14 +820,15 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         //rowsList.Count._Print();
 
-        await rowsList._NormalizeAllParallelAsync(cancel: cancel);
+        //await rowsList._NormalizeAllParallelAsync(cancel: cancel);
+        rowsList._NormalizeAll();
 
         //Dbg.Where();
 
-        List<HadbObject> ret = await rowsList._ProcessParallelAndAggregateAsync(srcList =>
+        List<HadbObject> ret = new List<HadbObject>();
         {
             List<HadbObject> tmp = new List<HadbObject>();
-            foreach (var row in srcList)
+            foreach (var row in rowsList)
             {
                 Type? type = this.GetDataTypeByTypeName(row.DATA_TYPE);
                 if (type != null)
@@ -837,12 +838,12 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                     {
                         HadbObject obj = new HadbObject(data, row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, false, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
 
-                        tmp.Add(obj);
+                        ret.Add(obj);
                     }
                 }
             }
-            return TR(tmp);
-        }, cancel: cancel);
+            
+        }
 
         //Dbg.Where();
 
@@ -2155,7 +2156,7 @@ public abstract class HadbMemDataBase
 {
     public class DataSet
     {
-        public ConcurrentStrDictionary<HadbObject> AllObjectsDict = new ConcurrentStrDictionary<HadbObject>(StrComparer.SensitiveCaseComparer);
+        public StrDictionary<HadbObject> AllObjectsDict = new StrDictionary<HadbObject>(StrComparer.SensitiveCaseComparer);
         public ImmutableDictionary<string, HadbObject> IndexedKeysTable = ImmutableDictionary<string, HadbObject>.Empty.WithComparers(StrComparer.SensitiveCaseComparer);
         public ImmutableDictionary<string, ConcurrentHashSet<HadbObject>> IndexedLabelsTable = ImmutableDictionary<string, ConcurrentHashSet<HadbObject>>.Empty.WithComparers(StrComparer.SensitiveCaseComparer);
 
@@ -2376,7 +2377,7 @@ public abstract class HadbMemDataBase
         return ret;
     }
 
-    public void GetAllObjects(out ConcurrentStrDictionary<HadbObject> dict, out AsyncLock criticalLock)
+    public void GetAllObjects(out StrDictionary<HadbObject> dict, out AsyncLock criticalLock)
     {
         DataSet data = this.InternalData;
 
@@ -2911,84 +2912,6 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     public void UpdateSystemRelatimeStat(EasyJsonStrAttributes stat)
     {
-        // 追加の統計情報 (標準)
-        long processMemory = 0;
-        int numThreads = 0;
-        int numHandles = 0;
-        try
-        {
-            var proc = Process.GetCurrentProcess();
-            processMemory = proc.PrivateMemorySize64;
-            numThreads = proc.Threads.Count;
-            numHandles = proc.HandleCount;
-        }
-        catch { }
-
-        CoresRuntimeStat sys = new CoresRuntimeStat();
-        sys.Refresh(forceGc: false);
-        stat.Set("Sys/DotNet/NumRunningTasks", sys.Task);
-        stat.Set("Sys/DotNet/NumDelayedTasks", sys.D);
-        stat.Set("Sys/DotNet/NumTimerTasks", sys.Q);
-        stat.Set("Sys/DotNet/NumObjects", sys.Obj);
-        stat.Set("Sys/DotNet/CpuUsage", sys.Cpu);
-        stat.Set("Sys/DotNet/ManagedMemory_MBytes", (double)sys.Mem / 1024.0);
-        stat.Set("Sys/DotNet/ProcessMemory_MBytes", (double)processMemory / 1024.0 / 1024.0);
-        stat.Set("Sys/DotNet/NumNativeThreads", numThreads);
-        stat.Set("Sys/DotNet/NumNativeHandles", numHandles);
-        stat.Set("Sys/DotNet/GcTotal", sys.Gc);
-        stat.Set("Sys/DotNet/Gc0", sys.Gc0);
-        stat.Set("Sys/DotNet/Gc1", sys.Gc1);
-        stat.Set("Sys/DotNet/Gc2", sys.Gc2);
-        stat.Set("Sys/DotNet/BootDays", (double)Time.Tick64 / (double)(24 * 60 * 60 * 1000));
-        stat.Set("Hadb/Sys/DbLazyUpdateQueueLength", this.GetLazyUpdateQueueLength());
-        stat.Set("Hadb/Sys/DbConcurrentTranRead", this.DbConcurrentTranReadTotal);
-        stat.Set("Hadb/Sys/DbConcurrentTranWrite", this.DbConcurrentTranWriteTotal);
-        stat.Set("Hadb/Sys/DbTotalDeadlockCount", this.DbTotalDeadlockCountTotal);
-        stat.Set("Hadb/Sys/DbLastFullReloadTookMsecs", this.DbLastFullReloadTookMsecs);
-        stat.Set("Hadb/Sys/DbLastPartialReloadTookMsecs", this.DbLastPartialReloadTookMsecs);
-        stat.Set("Hadb/Sys/IsDatabaseConnectedForLazyWrite", this.IsDatabaseConnectedForLazyWrite);
-        stat.Set("Hadb/Sys/IsDatabaseConnectedForReload", this.IsDatabaseConnectedForReload);
-        stat.Set("Hadb/Sys/MemLastFullReloadTookMsecs", this.MemLastFullReloadTookMsecs);
-        stat.Set("Hadb/Sys/MemLastPartialReloadTookMsecs", this.MemLastPartialReloadTookMsecs);
-    }
-
-    async Task<EasyJsonStrAttributes> GenerateStatInternalAsync(List<HadbObject> objectList, CancellationToken cancel = default)
-    {
-        EasyJsonStrAttributes stat = new EasyJsonStrAttributes();
-
-        Dictionary<string, long> dict = new Dictionary<string, long>(StrCmpi);
-
-        long totalCount = 0;
-
-        // オブジェクトごとの個数のカウント
-        // hadb/count/NameSpace/TypeName
-        foreach (var obj in objectList)
-        {
-            if (obj.Deleted == false && obj.Archive == false)
-            {
-                string key = $"Hadb/Count/{obj.NameSpace}/{obj.GetUserDataTypeName()}";
-
-                dict._Inc(key);
-
-                totalCount++;
-            }
-        }
-
-        // すべてのオブジェクト総数
-        dict["Hadb/Count/_AllObjects"] = totalCount;
-
-        foreach (var kv in dict)
-        {
-            stat.TryAdd(kv.Key, kv.Value.ToString());
-        }
-
-        // 追加の統計情報 (開発者が定義)
-        await this.AddAdditionalStatAsync(stat, objectList, cancel);
-
-        // リアルタイム統計 (システム状態) の更新
-        UpdateSystemRelatimeStat(stat);
-
-        return stat;
     }
 
     public async Task ReloadCoreAsync(EnsureSpecial yes, bool fullReloadMode = true, DateTimeOffset partialReloadMinUpdateTime = default, CancellationToken cancel = default)
@@ -3058,79 +2981,79 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
                     this.MemDb = currentMemDb;
 
-                    if (fullReloadMode)
-                    {
-                        if (this.Settings.OptionFlags.Bit(HadbOptionFlags.NoLocalBackup) == false)
-                        {
-                            // DB のデータをローカルバックアップファイルに書き込む
-                            await backupDynamicConfigPath.FileSystem.WriteJsonToFileAsync(backupDynamicConfigPath.PathString, this.CurrentDynamicConfig,
-                                backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
-                                cancel: cancel, withBackup: true);
+                    //if (fullReloadMode)
+                    //{
+                    //    if (this.Settings.OptionFlags.Bit(HadbOptionFlags.NoLocalBackup) == false)
+                    //    {
+                    //        // DB のデータをローカルバックアップファイルに書き込む
+                    //        await backupDynamicConfigPath.FileSystem.WriteJsonToFileAsync(backupDynamicConfigPath.PathString, this.CurrentDynamicConfig,
+                    //            backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
+                    //            cancel: cancel, withBackup: true);
 
-                            HadbBackupDatabase backupData = new HadbBackupDatabase
-                            {
-                                ObjectsList = await loadedObjectsList._ProcessParallelAndAggregateAsync(x =>
-                                {
-                                    List<HadbSerializedObject> ret = new List<HadbSerializedObject>();
+                    //        HadbBackupDatabase backupData = new HadbBackupDatabase
+                    //        {
+                    //            ObjectsList = await loadedObjectsList._ProcessParallelAndAggregateAsync(x =>
+                    //            {
+                    //                List<HadbSerializedObject> ret = new List<HadbSerializedObject>();
 
-                                    foreach (var obj in x)
-                                    {
-                                        if (obj.Archive == false && obj.Deleted == false)
-                                        {
-                                            ret.Add(obj.ToSerializedObject());
-                                        }
-                                    }
+                    //                foreach (var obj in x)
+                    //                {
+                    //                    if (obj.Archive == false && obj.Deleted == false)
+                    //                    {
+                    //                        ret.Add(obj.ToSerializedObject());
+                    //                    }
+                    //                }
 
-                                    return TR(ret);
-                                }, cancel: cancel),
-                                TimeStamp = nowTime,
-                            };
+                    //                return TR(ret);
+                    //            }, cancel: cancel),
+                    //            TimeStamp = nowTime,
+                    //        };
 
-                            await backupDatabasePath.FileSystem.WriteJsonToFileAsync(backupDatabasePath.PathString, backupData,
-                                backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
-                                cancel: cancel, withBackup: true);
-                        }
-                    }
+                    //        await backupDatabasePath.FileSystem.WriteJsonToFileAsync(backupDatabasePath.PathString, backupData,
+                    //            backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
+                    //            cancel: cancel, withBackup: true);
+                    //    }
+                    //}
 
                     this.IsDatabaseConnectedForReload = true;
 
-                    if (fullReloadMode)
-                    {
-                        // stat を定期的に生成する
-                        bool saveStat = false;
+                    //if (fullReloadMode)
+                    //{
+                    //    // stat を定期的に生成する
+                    //    bool saveStat = false;
 
-                        if (this.CurrentDynamicConfig.HadbAutomaticStatIntervalMsecs >= 1 && (lastStatWrittenTimeStamp.Value._IsZeroDateTime() || (DtOffsetNow >= (lastStatWrittenTimeStamp.Value + this.CurrentDynamicConfig.HadbAutomaticStatIntervalMsecs._ToTimeSpanMSecs()))))
-                        {
-                            saveStat = true;
-                        }
+                    //    if (this.CurrentDynamicConfig.HadbAutomaticStatIntervalMsecs >= 1 && (lastStatWrittenTimeStamp.Value._IsZeroDateTime() || (DtOffsetNow >= (lastStatWrittenTimeStamp.Value + this.CurrentDynamicConfig.HadbAutomaticStatIntervalMsecs._ToTimeSpanMSecs()))))
+                    //    {
+                    //        saveStat = true;
+                    //    }
 
-                        if (this.Settings.OptionFlags.Bit(HadbOptionFlags.DoNotSaveStat))
-                        {
-                            saveStat = false;
-                        }
+                    //    if (this.Settings.OptionFlags.Bit(HadbOptionFlags.DoNotSaveStat))
+                    //    {
+                    //        saveStat = false;
+                    //    }
 
-                        if (saveStat)
-                        {
-                            var stat = await this.GenerateStatInternalAsync(loadedObjectsList, cancel);
+                    //    if (saveStat)
+                    //    {
+                    //        var stat = await this.GenerateStatInternalAsync(loadedObjectsList, cancel);
 
-                            // stat をデータベースに追記する
-                            try
-                            {
-                                await this.TranAsync(true, async tran =>
-                                {
-                                    await this.WriteStatImplAsync(tran, DtOffsetNow, Env.DnsFqdnHostName, stat.ToJsonString(), "", "", cancel);
+                    //        // stat をデータベースに追記する
+                    //        try
+                    //        {
+                    //            await this.TranAsync(true, async tran =>
+                    //            {
+                    //                await this.WriteStatImplAsync(tran, DtOffsetNow, Env.DnsFqdnHostName, stat.ToJsonString(), "", "", cancel);
 
-                                    return true;
-                                },
-                                cancel: cancel,
-                                ignoreQuota: true);
-                            }
-                            catch (Exception ex)
-                            {
-                                ex._Error();
-                            }
-                        }
-                    }
+                    //                return true;
+                    //            },
+                    //            cancel: cancel,
+                    //            ignoreQuota: true);
+                    //        }
+                    //        catch (Exception ex)
+                    //        {
+                    //            ex._Error();
+                    //        }
+                    //    }
+                    //}
                 }
                 else
                 {
@@ -3176,56 +3099,56 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             }
 
             // データベースからもバックアップファイルからもまだデータが読み込まれていない場合は、バックアップファイルから読み込む
-            if (this.MemDb == null)
-            {
-                if (this.IsEnabled_NoMemDb == false && this.Settings.OptionFlags.Bit(HadbOptionFlags.NoLocalBackup) == false)
-                {
-                    try
-                    {
-                        try
-                        {
-                            // DynamicConfig
-                            TDynamicConfig loadDynamicConfig = await backupDynamicConfigPath.FileSystem.ReadJsonFromFileAsync<TDynamicConfig>(backupDynamicConfigPath.PathString,
-                                cancel: cancel,
-                                withBackup: true);
+            //if (this.MemDb == null)
+            //{
+            //    if (this.IsEnabled_NoMemDb == false && this.Settings.OptionFlags.Bit(HadbOptionFlags.NoLocalBackup) == false)
+            //    {
+            //        try
+            //        {
+            //            try
+            //            {
+            //                // DynamicConfig
+            //                TDynamicConfig loadDynamicConfig = await backupDynamicConfigPath.FileSystem.ReadJsonFromFileAsync<TDynamicConfig>(backupDynamicConfigPath.PathString,
+            //                    cancel: cancel,
+            //                    withBackup: true);
 
-                            loadDynamicConfig.Normalize();
+            //                loadDynamicConfig.Normalize();
 
-                            this.CurrentDynamicConfig = loadDynamicConfig;
-                        }
-                        catch (Exception ex2)
-                        {
-                            // DynamicConfig の読み込みには失敗しても良いことにする
-                            // ただし、エラーはログに出力する
-                            if (this.DebugFlags.Bit(HadbDebugFlags.NoDbLoadAndUseOnlyLocalBackup) == false)
-                            {
-                                ex2._Error();
-                            }
-                        }
+            //                this.CurrentDynamicConfig = loadDynamicConfig;
+            //            }
+            //            catch (Exception ex2)
+            //            {
+            //                // DynamicConfig の読み込みには失敗しても良いことにする
+            //                // ただし、エラーはログに出力する
+            //                if (this.DebugFlags.Bit(HadbDebugFlags.NoDbLoadAndUseOnlyLocalBackup) == false)
+            //                {
+            //                    ex2._Error();
+            //                }
+            //            }
 
-                        // データ本体
-                        List<HadbObject> loadedObjectsList = await LoadLocalBackupDataAsync(backupDatabasePath, cancel);
+            //            // データ本体
+            //            List<HadbObject> loadedObjectsList = await LoadLocalBackupDataAsync(backupDatabasePath, cancel);
 
-                        TMem? currentMemDb = new TMem();
+            //            TMem? currentMemDb = new TMem();
 
-                        long memStartTick = Time.HighResTick64;
-                        await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, true, default, $"Local Database Backup File '{backupDatabasePath.PathString}'", cancel);
-                        long memEndTick = Time.HighResTick64;
+            //            long memStartTick = Time.HighResTick64;
+            //            await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, true, default, $"Local Database Backup File '{backupDatabasePath.PathString}'", cancel);
+            //            long memEndTick = Time.HighResTick64;
 
-                        this.MemDb = currentMemDb;
-                    }
-                    catch (Exception ex3)
-                    {
-                        // ローカルファイルからのデータベース読み込みに失敗
-                        LastMemDbBackupLocalLoadError = ex3;
-                    }
-                }
-                else
-                {
-                    // ローカルファイルからのデータベース読み込みがそもそも禁止されている
-                    LastMemDbBackupLocalLoadError = ex;
-                }
-            }
+            //            this.MemDb = currentMemDb;
+            //        }
+            //        catch (Exception ex3)
+            //        {
+            //            // ローカルファイルからのデータベース読み込みに失敗
+            //            LastMemDbBackupLocalLoadError = ex3;
+            //        }
+            //    }
+            //    else
+            //    {
+            //        // ローカルファイルからのデータベース読み込みがそもそも禁止されている
+            //        LastMemDbBackupLocalLoadError = ex;
+            //    }
+            //}
 
             // バックアップファイルの読み込みを行なった上で、DB 例外はちゃんと throw する
             if (this.DebugFlags.Bit(HadbDebugFlags.NoDbLoadAndUseOnlyLocalBackup) == false)
@@ -3235,42 +3158,42 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         }
     }
 
-    // JSON 形式のローカルバックアップデータから HadbObject のリストを読み込む
-    async Task<List<HadbObject>> LoadLocalBackupDataAsync(FilePath backupDatabasePath, CancellationToken cancel = default)
-    {
-        HadbBackupDatabase loadData = await backupDatabasePath.FileSystem.ReadJsonFromFileAsync<HadbBackupDatabase>(backupDatabasePath.PathString,
-            maxSize: Consts.Numbers.LocalDatabaseJsonFileMaxSize,
-            cancel: cancel,
-            withBackup: true);
+    //// JSON 形式のローカルバックアップデータから HadbObject のリストを読み込む
+    //async Task<List<HadbObject>> LoadLocalBackupDataAsync(FilePath backupDatabasePath, CancellationToken cancel = default)
+    //{
+    //    HadbBackupDatabase loadData = await backupDatabasePath.FileSystem.ReadJsonFromFileAsync<HadbBackupDatabase>(backupDatabasePath.PathString,
+    //        maxSize: Consts.Numbers.LocalDatabaseJsonFileMaxSize,
+    //        cancel: cancel,
+    //        withBackup: true);
 
-        // マルチスレッド並列処理による高速化
-        List<HadbObject> loadedObjectsList = await loadData.ObjectsList._ProcessParallelAndAggregateAsync(x =>
-        {
-            List<HadbObject> ret = new List<HadbObject>();
-            var serializer = Json.CreateSerializer();
+    //    // マルチスレッド並列処理による高速化
+    //    List<HadbObject> loadedObjectsList = await loadData.ObjectsList._ProcessParallelAndAggregateAsync(x =>
+    //    {
+    //        List<HadbObject> ret = new List<HadbObject>();
+    //        var serializer = Json.CreateSerializer();
 
-            foreach (var obj in x)
-            {
-                JObject jo = (JObject)obj.UserData;
-                Type type = GetDataTypeByTypeName(obj.UserDataTypeName, EnsureSpecial.Yes);
-                HadbData data = (HadbData)jo.ToObject(type, serializer);
-                HadbObject a = new HadbObject(data, obj.Ext1, obj.Ext2, obj.Uid, obj.Ver, false, obj.SnapshotNo, obj.NameSpace, false, obj.CreateDt, obj.UpdateDt, obj.DeleteDt);
-                ret.Add(a);
-            }
-            return TR(ret);
-        },
-        cancel: cancel);
+    //        foreach (var obj in x)
+    //        {
+    //            JObject jo = (JObject)obj.UserData;
+    //            Type type = GetDataTypeByTypeName(obj.UserDataTypeName, EnsureSpecial.Yes);
+    //            HadbData data = (HadbData)jo.ToObject(type, serializer);
+    //            HadbObject a = new HadbObject(data, obj.Ext1, obj.Ext2, obj.Uid, obj.Ver, false, obj.SnapshotNo, obj.NameSpace, false, obj.CreateDt, obj.UpdateDt, obj.DeleteDt);
+    //            ret.Add(a);
+    //        }
+    //        return TR(ret);
+    //    },
+    //    cancel: cancel);
 
-        return loadedObjectsList;
-    }
+    //    return loadedObjectsList;
+    //}
 
-    // JSON 形式のローカルバックアップデータからデータベースに書き戻しをする
-    public async Task RestoreDataFromHadbObjectListAsync(FilePath backupDatabasePath, CancellationToken cancel = default)
-    {
-        var list = await this.LoadLocalBackupDataAsync(backupDatabasePath, cancel);
+    //// JSON 形式のローカルバックアップデータからデータベースに書き戻しをする
+    //public async Task RestoreDataFromHadbObjectListAsync(FilePath backupDatabasePath, CancellationToken cancel = default)
+    //{
+    //    var list = await this.LoadLocalBackupDataAsync(backupDatabasePath, cancel);
 
-        await this.RestoreDataFromHadbObjectListImplAsync(list, cancel);
-    }
+    //    await this.RestoreDataFromHadbObjectListImplAsync(list, cancel);
+    //}
 
     async Task ReloadMainLoopAsync(CancellationToken cancel)
     {
@@ -3466,8 +3389,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     int _DbConcurrentTranReadTotal = 0;
     int _DbTotalDeadlockCountTotal = 0;
 
-    readonly ConcurrentLimiter<string> DbConcurrentTranLimiterWritePerClient = new ConcurrentLimiter<string>();
-    readonly ConcurrentLimiter<string> DbConcurrentTranLimiterReadPerClient = new ConcurrentLimiter<string>();
+    //readonly ConcurrentLimiter<string> DbConcurrentTranLimiterWritePerClient = new ConcurrentLimiter<string>();
+    //readonly ConcurrentLimiter<string> DbConcurrentTranLimiterReadPerClient = new ConcurrentLimiter<string>();
 
     public async Task<bool> TranAsync(bool writeMode, Func<HadbTran, Task<bool>> task, bool takeSnapshot = false, RefLong? snapshotNoRet = null, CancellationToken cancel = default, DeadlockRetryConfig? retryConfig = null, bool ignoreQuota = false, string clientName = "")
     {
@@ -3476,29 +3399,29 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         retryConfig ??= this.DefaultDeadlockRetryConfig;
         int numRetry = 0;
 
-        // 同時並列実行トランザクション数の制限
-        using IDisposable concurrentLimitEntry = (ignoreQuota || clientName._IsEmpty()) ? new EmptyDisposable() :
-            (writeMode ? this.DbConcurrentTranLimiterWritePerClient.EnterWithUsing(clientName, out _, this.CurrentDynamicConfig.HadbMaxDbConcurrentWriteTransactionsPerClient) :
-                         this.DbConcurrentTranLimiterReadPerClient.EnterWithUsing(clientName, out _, this.CurrentDynamicConfig.HadbMaxDbConcurrentReadTransactionsPerClient));
+        //// 同時並列実行トランザクション数の制限
+        //using IDisposable concurrentLimitEntry = (ignoreQuota || clientName._IsEmpty()) ? new EmptyDisposable() :
+        //    (writeMode ? this.DbConcurrentTranLimiterWritePerClient.EnterWithUsing(clientName, out _, this.CurrentDynamicConfig.HadbMaxDbConcurrentWriteTransactionsPerClient) :
+        //                 this.DbConcurrentTranLimiterReadPerClient.EnterWithUsing(clientName, out _, this.CurrentDynamicConfig.HadbMaxDbConcurrentReadTransactionsPerClient));
 
-        if (writeMode)
-        {
-            int current = Interlocked.Increment(ref _DbConcurrentTranWriteTotal);
-            if (ignoreQuota == false && current > this.CurrentDynamicConfig.HadbMaxDbConcurrentWriteTransactionsTotal)
-            {
-                Interlocked.Decrement(ref _DbConcurrentTranWriteTotal);
-                throw new CoresException("Too many concurrent write transactions running. Please wait for moment and try again later.");
-            }
-        }
-        else
-        {
-            int current = Interlocked.Increment(ref _DbConcurrentTranReadTotal);
-            if (ignoreQuota == false && current > this.CurrentDynamicConfig.HadbMaxDbConcurrentReadTransactionsTotal)
-            {
-                Interlocked.Decrement(ref _DbConcurrentTranReadTotal);
-                throw new CoresException("Too many concurrent read transactions running. Please wait for moment and try again later.");
-            }
-        }
+        //if (writeMode)
+        //{
+        //    int current = Interlocked.Increment(ref _DbConcurrentTranWriteTotal);
+        //    if (ignoreQuota == false && current > this.CurrentDynamicConfig.HadbMaxDbConcurrentWriteTransactionsTotal)
+        //    {
+        //        Interlocked.Decrement(ref _DbConcurrentTranWriteTotal);
+        //        throw new CoresException("Too many concurrent write transactions running. Please wait for moment and try again later.");
+        //    }
+        //}
+        //else
+        //{
+        //    int current = Interlocked.Increment(ref _DbConcurrentTranReadTotal);
+        //    if (ignoreQuota == false && current > this.CurrentDynamicConfig.HadbMaxDbConcurrentReadTransactionsTotal)
+        //    {
+        //        Interlocked.Decrement(ref _DbConcurrentTranReadTotal);
+        //        throw new CoresException("Too many concurrent read transactions running. Please wait for moment and try again later.");
+        //    }
+        //}
 
         try
         {
@@ -3550,14 +3473,14 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         }
         finally
         {
-            if (writeMode)
-            {
-                Interlocked.Decrement(ref _DbConcurrentTranWriteTotal);
-            }
-            else
-            {
-                Interlocked.Decrement(ref _DbConcurrentTranReadTotal);
-            }
+            //if (writeMode)
+            //{
+            //    Interlocked.Decrement(ref _DbConcurrentTranWriteTotal);
+            //}
+            //else
+            //{
+            //    Interlocked.Decrement(ref _DbConcurrentTranReadTotal);
+            //}
         }
     }
 
@@ -3631,7 +3554,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         return items.Where(x => x.Deleted == false);
     }
 
-    public void FastGetAllObjects(out ConcurrentStrDictionary<HadbObject> dict, out AsyncLock criticalLock)
+    public void FastGetAllObjects(out StrDictionary<HadbObject> dict, out AsyncLock criticalLock)
     {
         this.CheckIfReady(requireDatabaseConnected: false);
         this.CheckMemDb();
@@ -3650,7 +3573,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         this.CheckIfReady(requireDatabaseConnected: false);
         this.CheckMemDb();
 
-        FastGetAllObjects(out ConcurrentStrDictionary<HadbObject> dict, out AsyncLock criticalLock);
+        FastGetAllObjects(out StrDictionary<HadbObject> dict, out AsyncLock criticalLock);
 
         List<HadbObject> ret = new List<HadbObject>();
 

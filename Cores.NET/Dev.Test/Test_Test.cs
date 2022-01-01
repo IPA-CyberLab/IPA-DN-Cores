@@ -2399,82 +2399,82 @@ static class TestClass
     }
 
 
-    static void Test_211205(int threads = 1, int count = 1)
-    {
-        const string TestDbServer = "10.40.0.103";
-        const string TestDbName = "HADB001";
-        const string TestDbReadUser = "sql_hadb001_reader";
-        const string TestDbReadPassword = "sql_hadb_reader_default_password";
-        const string TestDbWriteUser = "sql_hadb001_writer";
-        const string TestDbWritePassword = "sql_hadb_writer_default_password";
+    //static void Test_211205(int threads = 1, int count = 1)
+    //{
+    //    const string TestDbServer = "10.40.0.103";
+    //    const string TestDbName = "HADB001";
+    //    const string TestDbReadUser = "sql_hadb001_reader";
+    //    const string TestDbReadPassword = "sql_hadb_reader_default_password";
+    //    const string TestDbWriteUser = "sql_hadb001_writer";
+    //    const string TestDbWritePassword = "sql_hadb_writer_default_password";
 
-        HadbSqlSettings settings = new HadbSqlSettings("DDNS",
-            new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
-            new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
-            IsolationLevel.Snapshot, IsolationLevel.Serializable,
-            HadbOptionFlags.NoAutoDbReloadAndUpdate | HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll);
+    //    HadbSqlSettings settings = new HadbSqlSettings("DDNS",
+    //        new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
+    //        new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
+    //        IsolationLevel.Snapshot, IsolationLevel.Serializable,
+    //        HadbOptionFlags.NoAutoDbReloadAndUpdate | HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll);
 
-        Async(async () =>
-        {
-            await using var db = new Database(settings.SqlConnectStringForWrite, settings.IsolationLevelForWrite);
+    //    Async(async () =>
+    //    {
+    //        await using var db = new Database(settings.SqlConnectStringForWrite, settings.IsolationLevelForWrite);
 
-            await db.EnsureOpenAsync();
+    //        await db.EnsureOpenAsync();
 
-            await db.QueryWithNoReturnAsync("truncate table HADB_CONFIG");
-            await db.QueryWithNoReturnAsync("truncate table HADB_DATA");
-            await db.QueryWithNoReturnAsync("truncate table HADB_KV");
-            await db.QueryWithNoReturnAsync("truncate table HADB_LOG");
-            await db.QueryWithNoReturnAsync("truncate table HADB_SNAPSHOT");
-        });
+    //        await db.QueryWithNoReturnAsync("truncate table HADB_CONFIG");
+    //        await db.QueryWithNoReturnAsync("truncate table HADB_DATA");
+    //        await db.QueryWithNoReturnAsync("truncate table HADB_KV");
+    //        await db.QueryWithNoReturnAsync("truncate table HADB_LOG");
+    //        await db.QueryWithNoReturnAsync("truncate table HADB_SNAPSHOT");
+    //    });
 
-        for (int i = 0; i < count; i++)
-        {
-            $"=========== try i = {i} ============="._Print();
+    //    for (int i = 0; i < count; i++)
+    //    {
+    //        $"=========== try i = {i} ============="._Print();
 
-            bool error = false;
+    //        bool error = false;
 
-            Async(async () =>
-            {
-                AsyncManualResetEvent start = new AsyncManualResetEvent();
-                List<Task> taskList = new List<Task>();
+    //        Async(async () =>
+    //        {
+    //            AsyncManualResetEvent start = new AsyncManualResetEvent();
+    //            List<Task> taskList = new List<Task>();
 
-                for (int i = 0; i < threads; i++)
-                {
-                    var task = TaskUtil.StartAsyncTaskAsync(async () =>
-                    {
-                        await Task.Yield();
-                        await start.WaitAsync();
+    //            for (int i = 0; i < threads; i++)
+    //            {
+    //                var task = TaskUtil.StartAsyncTaskAsync(async () =>
+    //                {
+    //                    await Task.Yield();
+    //                    await start.WaitAsync();
 
-                        try
-                        {
+    //                    try
+    //                    {
 
-                            await HadbCodeTest2.Test2Async(settings, 100);
-                        }
-                        catch (Exception ex)
-                        {
-                            ex._Error();
-                        }
-                    }
-                    );
+    //                        await HadbCodeTest2.Test2Async(settings, 100);
+    //                    }
+    //                    catch (Exception ex)
+    //                    {
+    //                        ex._Error();
+    //                    }
+    //                }
+    //                );
 
-                    taskList.Add(task);
-                }
+    //                taskList.Add(task);
+    //            }
 
-                start.Set(true);
+    //            start.Set(true);
 
-                foreach (var task in taskList)
-                {
-                    var ret = await task._TryAwaitAndRetBool();
-                    if (ret.IsError) error = true;
-                }
-            });
+    //            foreach (var task in taskList)
+    //            {
+    //                var ret = await task._TryAwaitAndRetBool();
+    //                if (ret.IsError) error = true;
+    //            }
+    //        });
 
-            if (error)
-            {
-                throw new CoresException("Error occured.");
-            }
-        }
-    }
+    //        if (error)
+    //        {
+    //            throw new CoresException("Error occured.");
+    //        }
+    //    }
+    //}
     static void Test_211108(int threads = 1, int count = 1)
     {
         try
@@ -2629,7 +2629,7 @@ static class TestClass
                     }
                     else
                     {
-                        obj.FastUpdate<HadbTestData>(x =>
+                        obj.FastUpdate(x =>
                         {
                             x.TestInt++;
                             x.IPv4Address += "_" + Secure.RandSInt31() % 10;
@@ -2649,7 +2649,7 @@ static class TestClass
                         }
                         else
                         {
-                            var data = obj.GetData<HadbTestData>();
+                            var data = obj.GetData();
                             data.IPv4Address += "_" + Secure.RandSInt31() % 10;
                             data.IPv6Address += "_" + Secure.RandSInt31() % 10;
                             data.HostName += "_" + Secure.RandSInt31() % 10;
@@ -3014,7 +3014,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
         if (false)
         {
-            Test_211205(threads: 100, count: 1);
+            //Test_211205(threads: 100, count: 1);
             return;
         }
 
