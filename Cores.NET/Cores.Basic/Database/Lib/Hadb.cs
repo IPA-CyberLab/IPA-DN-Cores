@@ -1568,6 +1568,7 @@ public enum HadbOptionFlags : long
     DoNotTakeSnapshotAtAll = 8,
     NoMemDb = 16,
     DoNotSaveStat = 32,
+    NoLocalBackup = 64,
 }
 
 [Flags]
@@ -3044,33 +3045,36 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
                     if (fullReloadMode)
                     {
-                        // DB のデータをローカルバックアップファイルに書き込む
-                        await backupDynamicConfigPath.FileSystem.WriteJsonToFileAsync(backupDynamicConfigPath.PathString, this.CurrentDynamicConfig,
-                            backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
-                            cancel: cancel, withBackup: true);
-
-                        HadbBackupDatabase backupData = new HadbBackupDatabase
+                        if (this.Settings.OptionFlags.Bit(HadbOptionFlags.NoLocalBackup) == false)
                         {
-                            ObjectsList = await loadedObjectsList._ProcessParallelAndAggregateAsync(x =>
+                            // DB のデータをローカルバックアップファイルに書き込む
+                            await backupDynamicConfigPath.FileSystem.WriteJsonToFileAsync(backupDynamicConfigPath.PathString, this.CurrentDynamicConfig,
+                                backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
+                                cancel: cancel, withBackup: true);
+
+                            HadbBackupDatabase backupData = new HadbBackupDatabase
                             {
-                                List<HadbSerializedObject> ret = new List<HadbSerializedObject>();
-
-                                foreach (var obj in x)
+                                ObjectsList = await loadedObjectsList._ProcessParallelAndAggregateAsync(x =>
                                 {
-                                    if (obj.Archive == false && obj.Deleted == false)
+                                    List<HadbSerializedObject> ret = new List<HadbSerializedObject>();
+
+                                    foreach (var obj in x)
                                     {
-                                        ret.Add(obj.ToSerializedObject());
+                                        if (obj.Archive == false && obj.Deleted == false)
+                                        {
+                                            ret.Add(obj.ToSerializedObject());
+                                        }
                                     }
-                                }
 
-                                return TR(ret);
-                            }, cancel: cancel),
-                            TimeStamp = nowTime,
-                        };
+                                    return TR(ret);
+                                }, cancel: cancel),
+                                TimeStamp = nowTime,
+                            };
 
-                        await backupDatabasePath.FileSystem.WriteJsonToFileAsync(backupDatabasePath.PathString, backupData,
-                            backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
-                            cancel: cancel, withBackup: true);
+                            await backupDatabasePath.FileSystem.WriteJsonToFileAsync(backupDatabasePath.PathString, backupData,
+                                backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
+                                cancel: cancel, withBackup: true);
+                        }
                     }
 
                     this.IsDatabaseConnectedForReload = true;
@@ -3159,7 +3163,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             // データベースからもバックアップファイルからもまだデータが読み込まれていない場合は、バックアップファイルから読み込む
             if (this.MemDb == null)
             {
-                if (this.IsEnabled_NoMemDb == false)
+                if (this.IsEnabled_NoMemDb == false && this.Settings.OptionFlags.Bit(HadbOptionFlags.NoLocalBackup) == false)
                 {
                     try
                     {
