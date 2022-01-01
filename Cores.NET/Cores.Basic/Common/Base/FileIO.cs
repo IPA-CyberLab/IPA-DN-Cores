@@ -1686,6 +1686,8 @@ namespace IPA.Cores.Basic
                         catch (Exception ex)
                         {
                             Con.WriteDebug($"IO.Write('{this.Name}') failed. {ex.Message}");
+                            Console.WriteLine($"IO.Write('{this.Name}') failed. {ex.Message}");
+                            Environment.FailFast("err!");
                             return false;
                         }
                     }
