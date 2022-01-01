@@ -2625,7 +2625,7 @@ static class TestClass
 
                                 var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate;
 
-                                //flags |= HadbOptionFlags.NoLocalBackup;
+                                flags |= HadbOptionFlags.NoLocalBackup;
 
                                 if (threads >= 2)
                                 {
@@ -3182,7 +3182,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             // HADB 普通のテスト
             //Test_211108(threads: 100, count: 3000000);
             while (true)
-            Test_211108(threads: 1, count: 10);
+                Test_211108(threads: 10, count: 2);
             return;
         }
 

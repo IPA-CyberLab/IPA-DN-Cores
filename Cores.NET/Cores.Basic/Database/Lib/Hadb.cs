@@ -1580,7 +1580,7 @@ public enum HadbDebugFlags : long
     NoDbLoadAndUseOnlyLocalBackup = 4,
 }
 
-public abstract class HadbSettingsBase
+public abstract class HadbSettingsBase // CloneDeep 禁止
 {
     public string SystemName { get; }
     public HadbOptionFlags OptionFlags { get; }
@@ -2677,7 +2677,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     public Exception? LastMemDbBackupLocalLoadError { get; private set; } = null;
 
-    protected HadbSettingsBase Settings { get; }
+    public HadbSettingsBase Settings { get; }
     public string SystemName => Settings.SystemName;
     bool IsEnabled_NoMemDb => Settings.OptionFlags.Bit(HadbOptionFlags.NoMemDb);
 
@@ -2735,7 +2735,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
             if (settings.SystemName._IsEmpty()) throw new CoresLibException("SystemName is empty.");
 
-            this.Settings = settings._CloneDeep();
+            this.Settings = settings; // CloneDeep 禁止
 
             dynamicConfig._NullCheck(nameof(dynamicConfig));
             this.CurrentDynamicConfig = dynamicConfig;

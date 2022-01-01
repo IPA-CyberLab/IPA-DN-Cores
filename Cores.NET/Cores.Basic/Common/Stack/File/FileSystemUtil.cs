@@ -1059,7 +1059,7 @@ public abstract class FileObjectRandomAccessWrapperBase : FileObject
         => this.BaseAccess.WriteRandomAsync(position, data, cancel);
 }
 
-public abstract class FileSystemPath : IEquatable<FileSystemPath>
+public abstract class FileSystemPath : IEquatable<FileSystemPath> // CloneDeep 禁止
 {
     public string PathString { get; }
     public FileSystem FileSystem { get; }
@@ -1094,7 +1094,7 @@ public abstract class FileSystemPath : IEquatable<FileSystemPath>
     public static implicit operator string(FileSystemPath path) => path.ToString();
 }
 
-public class DirectoryPath : FileSystemPath
+public class DirectoryPath : FileSystemPath // CloneDeep 禁止
 {
     public DirectoryPath(string pathString, FileSystem? fileSystem = null, FileFlags flags = FileFlags.None) : base(pathString, fileSystem, flags)
     {
@@ -1209,7 +1209,7 @@ public class DirectoryPath : FileSystemPath
     }
 }
 
-public class FilePath : FileSystemPath
+public class FilePath : FileSystemPath // CloneDeep 禁止
 {
     readonly Singleton<EasyFileAccess> EasyAccessSingleton;
 
