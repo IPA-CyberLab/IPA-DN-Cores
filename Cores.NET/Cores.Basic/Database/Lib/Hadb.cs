@@ -1349,7 +1349,7 @@ public abstract class HadbSettingsBase
 {
     public string SystemName { get; }
     public HadbOptionFlags OptionFlags { get; }
-    public DirectoryPath BackupDir { get; }
+    //public DirectoryPath BackupDir { get; }
 
     public HadbSettingsBase(string systemName, HadbOptionFlags optionFlags = HadbOptionFlags.None, DirectoryPath? backupDir = null)
     {
@@ -1357,12 +1357,12 @@ public abstract class HadbSettingsBase
         if (this.SystemName._IsEmpty()) throw new CoresLibException("systemName is empty.");
         this.OptionFlags = optionFlags;
 
-        if (backupDir == null)
-        {
-            backupDir = new DirectoryPath(Env.AppLocalDir._CombinePath("HadbBackup", this.SystemName._MakeVerySafeAsciiOnlyNonSpaceFileName()));
-        }
+        //if (backupDir == null)
+        //{
+        //    backupDir = new DirectoryPath(Env.AppLocalDir._CombinePath("HadbBackup", this.SystemName._MakeVerySafeAsciiOnlyNonSpaceFileName()));
+        //}
 
-        this.BackupDir = backupDir;
+        //this.BackupDir = backupDir;
     }
 }
 
