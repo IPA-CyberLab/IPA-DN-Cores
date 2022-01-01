@@ -136,7 +136,7 @@ namespace IPA.Cores.Basic
                 }
                 else
                 {
-                    eventName = @"Global\usermodesvc_" + Util.Rand(16)._GetHexString().ToLower();
+                    eventName = @"Global\usermodesvc_" + Util.Rand(16)._GetHexString().ToLowerInvariant();
 
                     eventHandle = new EventWaitHandle(false, EventResetMode.ManualReset, eventName);
 

@@ -292,7 +292,7 @@ public class PackElement : IComparable
     {
         PackElement e = (PackElement)obj!;
 
-        return this.name.ToUpper().CompareTo(e.name.ToUpper());
+        return string.Compare(this.name, e.name, StringComparison.OrdinalIgnoreCase);
     }
 
     // 読み込む

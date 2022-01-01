@@ -132,7 +132,7 @@ public class CactiTask
                     // URL 等
                     if (line._GetKeyAndValue(out string key, out string value))
                     {
-                        switch (key.ToUpper())
+                        switch (key.ToUpperInvariant())
                         {
                             case "URL":
                                 ret.BaseUrl = value;
@@ -199,7 +199,7 @@ public class CactiTask
                     }
                 }
 
-                switch (line.ToUpper())
+                switch (line.ToUpperInvariant())
                 {
                     case "[HOSTS]":
                         mode = 1;

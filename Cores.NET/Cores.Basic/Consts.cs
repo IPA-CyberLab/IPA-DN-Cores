@@ -310,7 +310,7 @@ public static partial class Consts
 
         public static bool IsSpecialFileNameForLogBrowser(string? fn)
         {
-            fn = fn._NonNullTrim().ToLower();
+            fn = fn._NonNullTrim().ToLowerInvariant();
 
             switch (fn)
             {

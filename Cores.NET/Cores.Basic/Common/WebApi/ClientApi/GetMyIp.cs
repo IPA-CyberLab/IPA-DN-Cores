@@ -165,7 +165,7 @@ public class GetMyIpClient : AsyncService
                 {
                     if (line._GetKeyAndValue(out string key, out string value, "="))
                     {
-                        key = key.ToUpper();
+                        key = key.ToUpperInvariant();
 
                         switch (key)
                         {

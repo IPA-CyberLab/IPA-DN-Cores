@@ -122,7 +122,7 @@ public static class BaseEncoding
 
         if (isCaseIgnored)
         {
-            alphabet = alphabet.ToLower();
+            alphabet = alphabet.ToLowerInvariant();
             for (byte i = 0; i < alphabet.Length; i++)
             {
                 res[alphabet[i]] = i;
@@ -1194,7 +1194,7 @@ internal static class EnumHelper<T>
         {
             _names[values[i]] = names[i];
             _values[names[i]] = values[i];
-            _values[names[i].ToLower()] = values[i];
+            _values[names[i].ToLowerInvariant()] = values[i];
         }
     }
 
@@ -1206,7 +1206,7 @@ internal static class EnumHelper<T>
             return false;
         }
 
-        return _values.TryGetValue((ignoreCase ? s.ToLower() : s), out value);
+        return _values.TryGetValue((ignoreCase ? s.ToLowerInvariant() : s), out value);
     }
 
     public static string ToString(T value)

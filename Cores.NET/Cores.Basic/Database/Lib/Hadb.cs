@@ -82,7 +82,7 @@ public class HadbTestData : HadbData
 
     public override void Normalize()
     {
-        this.HostName = this.HostName._NonNullTrim().ToLower();
+        this.HostName = this.HostName._NonNullTrim().ToLowerInvariant();
         this.IPv4Address = this.IPv4Address._NormalizeIp();
         this.IPv6Address = this.IPv6Address._NormalizeIp();
     }
@@ -302,7 +302,7 @@ public sealed class HadbSqlStatRow : INormalizable
         this.STAT_UID = this.STAT_UID._NormalizeKey(true);
         this.STAT_SYSTEMNAME = this.STAT_SYSTEMNAME._NormalizeKey(true);
         this.STAT_DT = this.STAT_DT._NormalizeDateTimeOffset();
-        this.STAT_GENERATOR = this.STAT_GENERATOR._NonNullTrim().ToLower();
+        this.STAT_GENERATOR = this.STAT_GENERATOR._NonNullTrim().ToLowerInvariant();
         this.STAT_VALUE = this.STAT_VALUE._NonNull();
         this.STAT_EXT1 = this.STAT_EXT1._NonNull();
         this.STAT_EXT2 = this.STAT_EXT2._NonNull();
@@ -549,7 +549,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             STAT_SYSTEMNAME = this.SystemName,
             STAT_SNAPSHOT_NO = snapNo,
             STAT_DT = dt,
-            STAT_GENERATOR = generator._NonNullTrim()._NormalizeFqdn().ToLower(),
+            STAT_GENERATOR = generator._NonNullTrim()._NormalizeFqdn().ToLowerInvariant(),
             STAT_VALUE = value._NonNull(),
             STAT_EXT1 = ext1._NonNull(),
             STAT_EXT2 = ext2._NonNull(),
@@ -1588,7 +1588,7 @@ public abstract class HadbSettingsBase
     public HadbSettingsBase(string systemName, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null)
     {
         if (systemName._IsEmpty()) throw new CoresLibException("systemName is empty.");
-        this.SystemName = systemName._NonNullTrim().ToUpper();
+        this.SystemName = systemName._NonNullTrim().ToUpperInvariant();
         this.OptionFlags = optionFlags;
 
         if (backupDataFile == null)
@@ -2077,7 +2077,7 @@ public sealed class HadbObject : INormalizable
 
     public Type GetUserDataType() => this.UserDataType;
     public string GetUserDataTypeName() => this.UserDataTypeName;
-    public string GetUidPrefix() => this.GetUserDataTypeName().ToUpper();
+    public string GetUidPrefix() => this.GetUserDataTypeName().ToUpperInvariant();
 
     public HadbKeys GetKeys() => this.Deleted == false ? this.UserData.GetKeys() : new HadbKeys("");
     public HadbLabels GetLabels() => this.Deleted == false ? this.UserData.GetLabels() : new HadbLabels("");

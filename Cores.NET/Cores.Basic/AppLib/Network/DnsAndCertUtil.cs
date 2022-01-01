@@ -85,7 +85,7 @@ public static class WildcardCertServerUtil
                     //    href.EndsWith("coe.ad.jp") ||
                     //    href.EndsWith("open.ad.jp"))
 
-                    domainNameList.Add(href.ToLower());
+                    domainNameList.Add(href.ToLowerInvariant());
                 }
             }
         }
@@ -477,7 +477,7 @@ public class DnsFlattenUtil
             if (tokens.Length >= 3)
             {
                 string hostName = tokens[0];
-                string type = tokens[tokens.Length - 2].ToUpper();
+                string type = tokens[tokens.Length - 2].ToUpperInvariant();
 
                 if (type == "A" || type == "AAAA" || type == "CNAME")
                 {

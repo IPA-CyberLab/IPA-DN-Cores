@@ -189,7 +189,7 @@ public class WpcItemList : List<WpcItem>
 
     public void Add(string name, ReadOnlyMemory<byte> data)
     {
-        name = name.ToUpper();
+        name = name.ToUpperInvariant();
 
         int index = this.Where(x => x.Name._IsSamei(name)).Count();
 
@@ -227,7 +227,7 @@ public class WpcItem
     public WpcItem(string name, int index, ReadOnlyMemory<byte> data)
     {
         if (name.Length > 4) throw new ArgumentException("name.Length > 4");
-        this.Name = name.ToUpper();
+        this.Name = name.ToUpperInvariant();
         this.Index = index;
         this.Data = data;
     }
@@ -239,7 +239,7 @@ public class WpcItem
 
         var nameBuf = buf.Read(4, allowPartial: true);
         if (nameBuf.Length != 4) return false;
-        name = nameBuf._GetString_Ascii().ToUpper();
+        name = nameBuf._GetString_Ascii().ToUpperInvariant();
 
         int i = name.IndexOf(' ');
         if (i != -1) name = name.Substring(0, i);
@@ -261,14 +261,14 @@ public class WpcItem
 
     public void Emit(ref SpanBuffer<byte> buf)
     {
-        string name = this.Name.ToUpper();
+        string name = this.Name.ToUpperInvariant();
         if (name.Length < 4)
         {
             int pad = 4 - name.Length;
             name = name + ' '._MakeCharArray(pad);
         }
 
-        var nameBuf = name.ToUpper()._GetBytes_Ascii();
+        var nameBuf = name.ToUpperInvariant()._GetBytes_Ascii();
         if (nameBuf.Length != 4) throw new CoresLibException("nameBuf.Length != 4");
 
         string dataStr = Str.Base64ToSafe64(Str.Base64Encode(this.Data));

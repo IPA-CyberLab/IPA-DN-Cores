@@ -378,11 +378,11 @@ public class UnixShellProcessor : ShellProcessor
         if (BashInited.IsFirstCall() == false) throw new CoresLibException("InitBashAsync is already called.");
 
         // プロンプト文字列の生成
-        string randstr = "prompt_" + Str.GenRandStr().ToLower().Substring(0, 12);
+        string randstr = "prompt_" + Str.GenRandStr().ToLowerInvariant().Substring(0, 12);
         BashPromptIdStrExportPs1 = "export PS1=\"\\133" + randstr + "\\041\\!\\041\\w\\041\\u\\135\"";
         BashPromptIdStrPlainText = "[" + randstr + "!";
 
-        randstr = "inline_" + Str.GenRandStr().ToLower().Substring(0, 12);
+        randstr = "inline_" + Str.GenRandStr().ToLowerInvariant().Substring(0, 12);
         BashNextInlinePromptStrPlainText = "[" + randstr + "!";
         string nextInlineExportPs1 = "export PS2=\"\\133" + randstr + "\\041\\!\\041\\w\\041\\u\\135 \"";
 

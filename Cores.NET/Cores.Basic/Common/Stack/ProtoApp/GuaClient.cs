@@ -83,7 +83,7 @@ namespace IPA.Cores.Helper.GuaHelper
 
         public static GuaKeyboardLayout StrToKeyboardLayout(this string str, bool unknownAsDefault = false)
         {
-            switch (str.ToLower())
+            switch (str.ToLowerInvariant())
             {
                 case "en-us-qwerty": return GuaKeyboardLayout.EnglishUs;
                 case "ja-jp-qwerty": return GuaKeyboardLayout.Japanese;
@@ -127,7 +127,7 @@ namespace IPA.Cores.Helper.GuaHelper
 
         public static GuaResizeMethods StrToResizeMethod(this string str, bool unknownAsDefault = false)
         {
-            switch (str.ToLower())
+            switch (str.ToLowerInvariant())
             {
                 case "display-update": return GuaResizeMethods.DisplayUpdate;
                 case "reconnect": return GuaResizeMethods.Reconnect;
@@ -155,7 +155,7 @@ namespace IPA.Cores.Helper.GuaHelper
 
         public static GuaProtocol StrToGuaProtocol(this string str, bool unknownAsDefault = false)
         {
-            switch (str.ToLower())
+            switch (str.ToLowerInvariant())
             {
                 case "rdp": return GuaProtocol.Rdp;
                 case "vnc": return GuaProtocol.Vnc;

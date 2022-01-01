@@ -2045,7 +2045,7 @@ namespace IPA.Cores.Basic
 
         static string GetPipeName(string appId)
         {
-            string appIdHash = Str.ByteToHex(Secure.HashSHA1(Str.Utf8Encoding.GetBytes(appId.ToLower() + ":HashDebugHost")), "").ToLower();
+            string appIdHash = Str.ByteToHex(Secure.HashSHA1(Str.Utf8Encoding.GetBytes(appId.ToLowerInvariant() + ":HashDebugHost")), "").ToLowerInvariant();
 
             return "pipe_" + appIdHash;
         }

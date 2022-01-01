@@ -93,7 +93,7 @@ public static class AspUtil
             }
         }
 
-        upper = src.ToLower();
+        upper = src.ToLowerInvariant();
         i = upper.IndexOf("</title>");
         if (i == -1)
         {
@@ -124,7 +124,7 @@ public static class AspUtil
         string upper;
         int i;
 
-        upper = src.ToLower();
+        upper = src.ToLowerInvariant();
         i = upper.IndexOf("</at>");
         if (i == -1)
         {
@@ -154,7 +154,7 @@ public static class AspUtil
     // URL が Default.aspx を指す場合は Default.aspx を抜き取る
     public static string RemoveDefaultHtml(string url)
     {
-        string tmp = url.ToLower();
+        string tmp = url.ToLowerInvariant();
         if (tmp.EndsWith("/default.asp") || tmp.EndsWith("/default.aspx") || tmp.EndsWith("/default.htm") || tmp.EndsWith("/default.html"))
         {
             return GetUrlDirNameFromPath(url);

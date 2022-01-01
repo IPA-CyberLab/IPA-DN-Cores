@@ -1017,8 +1017,8 @@ public class ThinControllerSession : IDisposable, IAsyncDisposable
 
             if (sessionId.Length == 40 && clientId.Length == 40)
             {
-                sessionId = sessionId.ToUpper();
-                clientId = clientId.ToUpper();
+                sessionId = sessionId.ToUpperInvariant();
+                clientId = clientId.ToUpperInvariant();
 
                 sessionAndClientTable._GetOrNew(sessionId, () => new HashSet<string>()).Add(clientId);
 
@@ -1287,7 +1287,7 @@ public class ThinControllerSession : IDisposable, IAsyncDisposable
             cancel.ThrowIfCancellationRequested();
 
             // 関数を実行する
-            switch (this.FunctionName.ToLower())
+            switch (this.FunctionName.ToLowerInvariant())
             {
                 // テスト系
                 case "test": return ProcTest(req, cancel);
@@ -1811,7 +1811,7 @@ public class ThinController : AsyncService
                             stat.Stat_CurrentUserSessionsServer,
                             stat.Stat_CurrentUserSessionsClient1,
                             stat.Stat_CurrentUserSessionsClient2,
-                            Env.MachineName.ToLower(),
+                            Env.MachineName.ToLowerInvariant(),
                             stat._ObjectToJson(compact: true)
                             );
         });
@@ -2446,7 +2446,7 @@ public class ThinController : AsyncService
     // PCID 候補生成
     public static string GeneratePcidCandidateStringFromKeyAndNumber(string key, string add)
     {
-        key = key.ToLower().Trim();
+        key = key.ToLowerInvariant().Trim();
         string ret = key + "-" + add;
 
         ret._SliceHead(ThinControllerConsts.MaxPcidLen);

@@ -162,7 +162,7 @@ public class HostsCache : AsyncServiceWithMainLoop
 
     public void AddLastAccess(string name, DateTime ipv4, DateTime azurev4)
     {
-        name = name.ToLower().Trim();
+        name = name.ToLowerInvariant().Trim();
 
         lock (LockObj)
         {
@@ -202,7 +202,7 @@ public class HostsCache : AsyncServiceWithMainLoop
                 return null;
             }
 
-            key = key.ToLower();
+            key = key.ToLowerInvariant();
             lock (LockObj)
             {
                 if (ban_list.ContainsKey(key))
@@ -220,7 +220,7 @@ public class HostsCache : AsyncServiceWithMainLoop
 
     public Host? SearchHost(string name)
     {
-        name = name.ToLower().Trim();
+        name = name.ToLowerInvariant().Trim();
 
         try
         {
@@ -324,7 +324,7 @@ cancel: cancel);
                     {
                         Host h = new Host();
 
-                        h.Name = r.HOST_NAME.ToLower();
+                        h.Name = r.HOST_NAME.ToLowerInvariant();
                         h.IPv4 = r.HOST_LAST_IPV4;
                         h.IPv6 = r.HOST_LAST_IPV6;
                         h.AzureIPv4 = r.HOST_AZURE_IP;
@@ -408,7 +408,7 @@ FROM                       BAN");
                         {
                             Host h = new Host();
 
-                            h.Name = r.HOST_NAME.ToLower();
+                            h.Name = r.HOST_NAME.ToLowerInvariant();
                             h.IPv4 = r.HOST_LAST_IPV4;
                             h.IPv6 = r.HOST_LAST_IPV6;
                             h.AzureIPv4 = r.HOST_AZURE_IP;
@@ -439,7 +439,7 @@ FROM                       BAN");
 
                                     Str.NormalizeString(ref key);
 
-                                    key = key.ToLower();
+                                    key = key.ToLowerInvariant();
 
                                     if (ban_list.ContainsKey(key) == false)
                                     {

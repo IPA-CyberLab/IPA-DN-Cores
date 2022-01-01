@@ -191,7 +191,7 @@ public class DaneStream : AuthenticatedStream
     public void AuthenticateAsClient(string targetHost, int port, ProtocolType protocol = ProtocolType.Tcp, X509CertificateCollection clientCertificates = null, SslProtocols enabledSslProtocols = SslProtocols.None, bool checkCertificateRevocation = false)
     {
         if (enabledSslProtocols == SslProtocols.None) enabledSslProtocols = IPA.Cores.Basic.CoresConfig.SslSettings.DefaultSslProtocolVersionsAsClient;
-        _tlsaRecords = _resolver.ResolveSecure<TlsaRecord>(DomainName.Parse("_" + port + "._" + EnumHelper<ProtocolType>.ToString(protocol).ToLower() + "." + targetHost), RecordType.Tlsa);
+        _tlsaRecords = _resolver.ResolveSecure<TlsaRecord>(DomainName.Parse("_" + port + "._" + EnumHelper<ProtocolType>.ToString(protocol).ToLowerInvariant() + "." + targetHost), RecordType.Tlsa);
         _sslStream.AuthenticateAsClient(targetHost, clientCertificates ?? new X509CertificateCollection(), enabledSslProtocols, checkCertificateRevocation);
     }
 
@@ -210,7 +210,7 @@ public class DaneStream : AuthenticatedStream
     public async Task AuthenticateAsClientAsync(string targetHost, int port, ProtocolType protocol = ProtocolType.Tcp, X509CertificateCollection clientCertificates = null, SslProtocols enabledSslProtocols = SslProtocols.None, bool checkCertificateRevocation = false)
     {
         if (enabledSslProtocols == SslProtocols.None) enabledSslProtocols = IPA.Cores.Basic.CoresConfig.SslSettings.DefaultSslProtocolVersionsAsClient;
-        _tlsaRecords = await _resolver.ResolveSecureAsync<TlsaRecord>(DomainName.Parse("_" + port + "._" + EnumHelper<ProtocolType>.ToString(protocol).ToLower() + "." + targetHost), RecordType.Tlsa);
+        _tlsaRecords = await _resolver.ResolveSecureAsync<TlsaRecord>(DomainName.Parse("_" + port + "._" + EnumHelper<ProtocolType>.ToString(protocol).ToLowerInvariant() + "." + targetHost), RecordType.Tlsa);
         await _sslStream.AuthenticateAsClientAsync(targetHost, clientCertificates ?? new X509CertificateCollection(), enabledSslProtocols, checkCertificateRevocation);
     }
 

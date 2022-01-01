@@ -126,7 +126,7 @@ public class SenderIDRecord : SpfRecordBase
             res.Append(".");
             res.Append(MinorVersion);
             res.Append("/");
-            res.Append(String.Join(",", Scopes.Where(s => s != SenderIDScope.Unknown).Select(s => EnumHelper<SenderIDScope>.ToString(s).ToLower())));
+            res.Append(String.Join(",", Scopes.Where(s => s != SenderIDScope.Unknown).Select(s => EnumHelper<SenderIDScope>.ToString(s).ToLowerInvariant())));
         }
 
         if ((Terms != null) && (Terms.Count > 0))
@@ -419,7 +419,7 @@ public class SpfMechanism : SpfTerm
                 break;
         }
 
-        res.Append(EnumHelper<SpfMechanismType>.ToString(Type).ToLower());
+        res.Append(EnumHelper<SpfMechanismType>.ToString(Type).ToLowerInvariant());
 
         if (!String.IsNullOrEmpty(Domain))
         {
@@ -517,7 +517,7 @@ public class SpfModifier : SpfTerm
     {
         StringBuilder res = new StringBuilder();
 
-        res.Append(EnumHelper<SpfModifierType>.ToString(Type).ToLower());
+        res.Append(EnumHelper<SpfModifierType>.ToString(Type).ToLowerInvariant());
         res.Append("=");
         res.Append(Domain);
 

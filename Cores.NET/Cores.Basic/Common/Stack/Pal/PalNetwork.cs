@@ -869,8 +869,8 @@ namespace IPA.Cores.Basic
 
             if (hostName._IsEmpty()) hostName = "unknown-host";
 
-            hostName = hostName.ToLower();
-            domainName = domainName.ToLower();
+            hostName = hostName.ToLowerInvariant();
+            domainName = domainName.ToLowerInvariant();
 
             return prop;
         }
@@ -954,8 +954,8 @@ namespace IPA.Cores.Basic
         public override bool Equals(BackgroundStateDataBase? otherArg)
         {
             PalHostNetInfo other = (PalHostNetInfo)otherArg!;
-            if (string.Equals(this.HostName, other.HostName) == false) return false;
-            if (string.Equals(this.DomainName, other.DomainName) == false) return false;
+            if (string.Equals(this.HostName, other.HostName, StringComparison.Ordinal) == false) return false;
+            if (string.Equals(this.DomainName, other.DomainName, StringComparison.Ordinal) == false) return false;
             if (this.IsIPv4Supported != other.IsIPv4Supported) return false;
             if (this.IsIPv6Supported != other.IsIPv6Supported) return false;
             if (this.IPAddressListBinary.Span.SequenceEqual(other.IPAddressListBinary.Span) == false) return false;

@@ -458,7 +458,7 @@ public class SnmpWorkHost : AsyncService
 
     public int GetOrCreateIndex(int baseIndex, string str)
     {
-        str = str.ToLower().Trim();
+        str = str.ToLowerInvariant().Trim();
 
         lock (InternalDbLock)
         {

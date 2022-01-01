@@ -2588,13 +2588,16 @@ static class TestClass
 
     static void Test_211108(int threads = 1, int count = 1)
     {
-        const string TestDbServer = "10.40.0.103"; // lab
+        const string TestDbServer = "10.22.0.5,7012"; // dn-mssql2019dev1
+        //const string TestDbServer = "10.40.0.103"; // lab
         //const string TestDbServer = "10.21.2.132"; // dnt
         const string TestDbName = "HADB001";
         const string TestDbReadUser = "sql_hadb001_reader";
-        const string TestDbReadPassword = "sql_hadb_reader_default_password";
         const string TestDbWriteUser = "sql_hadb001_writer";
-        const string TestDbWritePassword = "sql_hadb_writer_default_password";
+        //const string TestDbReadPassword = "sql_hadb_reader_default_password";
+        //const string TestDbWritePassword = "sql_hadb_writer_default_password";
+        const string TestDbReadPassword = "DnTakosanPass8931Dx";
+        const string TestDbWritePassword = "DnTakosanPass8931Dx";
 
         for (int i = 0; i < count; i++)
         {
@@ -2616,7 +2619,7 @@ static class TestClass
 
                         try
                         {
-                            string systemName = ("HADB_CODE_TEST_" + Str.DateTimeToYymmddHHmmssLong(DtNow) + "_" + Env.MachineName + "_" + Str.GenerateRandomDigit(8)).ToUpper();
+                            string systemName = ("HADB_CODE_TEST_" + Str.DateTimeToYymmddHHmmssLong(DtNow) + "_" + Env.MachineName + "_" + Str.GenerateRandomDigit(8)).ToUpperInvariant();
 
                             var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate;
 

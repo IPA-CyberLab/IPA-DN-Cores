@@ -2004,18 +2004,18 @@ namespace IPA.Cores.Basic
 
                 if (a.AddressFamily == AddressFamily.InterNetworkV6)
                 {
-                    return a.ToString().ToLower();
+                    return a.ToString().ToLowerInvariant();
                 }
                 else if (a.AddressFamily == AddressFamily.InterNetwork)
                 {
-                    return a.ToString().ToLower();
+                    return a.ToString().ToLowerInvariant();
                 }
             }
             catch
             {
             }
 
-            return str.ToLower();
+            return str.ToLowerInvariant();
         }
 
         // MAC アドレスをバイト配列に変換する
@@ -2047,11 +2047,11 @@ namespace IPA.Cores.Basic
 
             if (linuxStyle == false)
             {
-                ret = ret.ToUpper();
+                ret = ret.ToUpperInvariant();
             }
             else
             {
-                ret = ret.ToLower();
+                ret = ret.ToLowerInvariant();
             }
 
             return ret;
@@ -2070,7 +2070,7 @@ namespace IPA.Cores.Basic
 
             if (a.AddressFamily == AddressFamily.InterNetworkV6)
             {
-                return a.ToString().ToLower();
+                return a.ToString().ToLowerInvariant();
             }
 
             throw new ApplicationException("a.AddressFamily != AddressFamily.InterNetworkV6");
@@ -2083,7 +2083,7 @@ namespace IPA.Cores.Basic
 
             if (a.AddressFamily == AddressFamily.InterNetwork)
             {
-                return a.ToString().ToLower();
+                return a.ToString().ToLowerInvariant();
             }
 
             throw new ApplicationException("a.AddressFamily != AddressFamily.InterNetwork");
@@ -3685,7 +3685,7 @@ namespace IPA.Cores.Basic
 
             public LegacyDomainUtil(string domainStr)
             {
-                string str = domainStr.Trim().ToLower();
+                string str = domainStr.Trim().ToLowerInvariant();
                 string str2 = "";
 
                 foreach (char c in str)
@@ -4103,7 +4103,7 @@ namespace IPA.Cores.Basic
             // ホスト名の正規化
             public static string NormalizeHostName(string hostName)
             {
-                return hostName.Trim().ToLower();
+                return hostName.Trim().ToLowerInvariant();
             }
         }
     }

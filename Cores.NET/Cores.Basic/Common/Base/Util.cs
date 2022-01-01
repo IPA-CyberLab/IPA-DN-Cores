@@ -3418,7 +3418,7 @@ namespace IPA.Cores.Basic
 
             count = Math.Min(count, long.MaxValue);
 
-            seed = seed._NonNullTrim().ToLower();
+            seed = seed._NonNullTrim().ToLowerInvariant();
 
             long rand = (long)(Secure.HashSHA1AsLong(seed._GetBytes_UTF8()) & long.MaxValue);
 

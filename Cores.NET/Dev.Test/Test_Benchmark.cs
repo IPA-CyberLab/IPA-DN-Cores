@@ -685,7 +685,62 @@ partial class TestDevCommands
             immDictTest = immDictTest.Add("Key1" + ":" + "User" + ":" + "DEFAULT_NS" + ":" + i.ToString(), i.ToString());
         }
 
+        string testStr = "こんにちはabcABCａｂｃＡＢＣ123１２３こんにちは";
+
         var queue = new MicroBenchmarkQueue()
+
+
+        // メモ
+        // ToUpperInvariant() が一番速い！？
+        // Str ToUpper(): 149.54 ns, 6,686,980 / sec
+        // Str ToUpperInvariant(): 120.73 ns, 8,282,892 / sec
+        // Str ToLower(): 128.30 ns, 7,794,358 / sec
+        // Str ToLowerInvariant(): 152.64 ns, 6,551,327 / sec
+
+        //.Add(new MicroBenchmark($"Str ToUpper()", Benchmark_CountForFast, count =>
+        //{
+        //    Async(async () =>
+        //    {
+        //        for (int c = 0; c < count; c++)
+        //        {
+        //            Limbo.ObjectSlow = testStr.ToUpper();
+        //        }
+        //    });
+        //}), enabled: true, priority: 211227)
+
+        //.Add(new MicroBenchmark($"Str ToUpperInvariant()", Benchmark_CountForFast, count =>
+        //{
+        //    Async(async () =>
+        //    {
+        //        for (int c = 0; c < count; c++)
+        //        {
+        //            Limbo.ObjectSlow = testStr.ToUpperInvariant();
+        //        }
+        //    });
+        //}), enabled: true, priority: 211227)
+
+        //.Add(new MicroBenchmark($"Str ToLower()", Benchmark_CountForFast, count =>
+        //{
+        //    Async(async () =>
+        //    {
+        //        for (int c = 0; c < count; c++)
+        //        {
+        //            Limbo.ObjectSlow = testStr.ToLower();
+        //        }
+        //    });
+        //}), enabled: true, priority: 211227)
+
+        //.Add(new MicroBenchmark($"Str ToLowerInvariant()", Benchmark_CountForFast, count =>
+        //{
+        //    Async(async () =>
+        //    {
+        //        for (int c = 0; c < count; c++)
+        //        {
+        //            Limbo.ObjectSlow = testStr.ToLowerInvariant();
+        //        }
+        //    });
+        //}), enabled: true, priority: 211227)
+
 
         .Add(new MicroBenchmark($"ImmutableDictionary Search " + immDictCount, immDictCount, count =>
         {

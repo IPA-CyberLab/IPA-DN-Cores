@@ -524,7 +524,7 @@ public static class Env
             IO.MakeDir(Win32_WinTempDir);
             if (Win32_WindowsDir.Length >= 2 && Win32_WindowsDir[1] == ':')
             {
-                Win32_WindowsDir = Win32_WindowsDir.Substring(0, 2).ToUpper();
+                Win32_WindowsDir = Win32_WindowsDir.Substring(0, 2).ToUpperInvariant();
             }
             else
             {

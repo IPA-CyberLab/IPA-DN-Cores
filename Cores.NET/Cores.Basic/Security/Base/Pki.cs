@@ -1144,7 +1144,7 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
                                 {
                                     string value = (string)altName[1];
 
-                                    dnsNames.Add(value.ToLower());
+                                    dnsNames.Add(value.ToLowerInvariant());
                                 }
                             }
                             catch { }
@@ -1168,7 +1168,7 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
                         {
                             if (key.Equals(X509Name.CN))
                             {
-                                dnsNames.Add(value.ToLower());
+                                dnsNames.Add(value.ToLowerInvariant());
 
                                 if (commonName._IsEmpty()) commonName = value;
                             }

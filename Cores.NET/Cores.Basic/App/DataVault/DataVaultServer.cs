@@ -95,11 +95,11 @@ public class DataVaultData : ICloneable
         if (this.KeyShortValue._IsEmpty()) this.KeyShortValue = "all";
         if (this.KeyFullValue._IsEmpty()) this.KeyFullValue = "all";
 
-        this.SystemName = WinParser.MakeSafeFileName(this.SystemName._NonNullTrim()).ToLower()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
-        this.LogName = WinParser.MakeSafeFileName(this.LogName._NonNullTrim()).ToLower()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
-        this.KeyType = WinParser.MakeSafeFileName(this.KeyType._NonNullTrim()).ToLower()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
-        this.KeyShortValue = WinParser.MakeSafeFileName(this.KeyShortValue._NonNullTrim()).ToLower()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
-        this.KeyFullValue = WinParser.MakeSafeFileName(this.KeyFullValue._NonNullTrim()).ToLower()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
+        this.SystemName = WinParser.MakeSafeFileName(this.SystemName._NonNullTrim()).ToLowerInvariant()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
+        this.LogName = WinParser.MakeSafeFileName(this.LogName._NonNullTrim()).ToLowerInvariant()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
+        this.KeyType = WinParser.MakeSafeFileName(this.KeyType._NonNullTrim()).ToLowerInvariant()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
+        this.KeyShortValue = WinParser.MakeSafeFileName(this.KeyShortValue._NonNullTrim()).ToLowerInvariant()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
+        this.KeyFullValue = WinParser.MakeSafeFileName(this.KeyFullValue._NonNullTrim()).ToLowerInvariant()._TruncStr(Consts.MaxLens.DataVaultPathElementMaxLen);
 
         if (this.TimeStamp == default) this.TimeStamp = Util.ZeroDateTimeOffsetValue;
     }
