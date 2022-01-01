@@ -3029,7 +3029,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         {
             // HADB 普通のテスト
             while (true)
-            Test_211108(threads: 10, count: 10);
+            Test_211108(threads: 30, count: 1);
             //Test_211108(threads: 1, count: 1);
             return;
         }
