@@ -317,7 +317,7 @@ public static class HadbCodeTest
     }
 
 
-    public static async Task Test1Async(HadbSqlSettings settings, string systemName)
+    public static async Task Test1Async(HadbSqlSettings settings, string systemName, bool backupTest)
     {
         await using Sys sys1 = new Sys(settings, new Dyn() { Hello = "Hello World" });
         await using Sys sys2 = new Sys(settings, new Dyn() { Hello = "Hello World" });
@@ -547,6 +547,7 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.SnapshotNo == snapshot1);
             }
 
+            if (backupTest == false)
             {
                 $"Local Backup Read Test #1"._Print();
                 await using Sys sys3_fromBackup = new Sys(settings, new Dyn() { Hello = "Hello World" });
@@ -585,6 +586,7 @@ public static class HadbCodeTest
 
             await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
 
+            if (backupTest == false)
             {
                 $"Local Backup Read Test #2"._Print();
                 await using Sys sys3_fromBackup = new Sys(settings, new Dyn() { Hello = "Hello World" });
@@ -623,6 +625,7 @@ public static class HadbCodeTest
                 Dbg.TestTrue(sys3_fromBackup.CurrentDynamicConfig.Hello == "Neko");
             }
 
+            if (backupTest == false)
             {
                 $"Local Backup Failure Test"._Print();
                 await using Sys sys3_fromBackup = new Sys(settings, new Dyn() { Hello = "Hello World" });
@@ -1210,33 +1213,36 @@ public static class HadbCodeTest
 
 
 
-            // ローカルバックアップ JSON データからデータベースに書き戻しをする実験
-
-            // まずデータを消す
-            await sys2.TranAsync(true, async tran =>
+            if (backupTest == false)
             {
-                var db = (tran as HadbSqlBase<Mem, Dyn>.HadbSqlTran)!.Db;
+                // ローカルバックアップ JSON データからデータベースに書き戻しをする実験
 
-                await db.QueryWithNoReturnAsync("delete from HADB_DATA where DATA_SYSTEMNAME = @", sys2.SystemName);
+                // まずデータを消す
+                await sys2.TranAsync(true, async tran =>
+                {
+                    var db = (tran as HadbSqlBase<Mem, Dyn>.HadbSqlTran)!.Db;
 
-                return true;
-            });
+                    await db.QueryWithNoReturnAsync("delete from HADB_DATA where DATA_SYSTEMNAME = @", sys2.SystemName);
 
-            // 復活させる
-            await sys2.RestoreDataFromHadbObjectListAsync(sys2.Settings.BackupDataFile);
+                    return true;
+                });
 
-            // 書き戻し後にデータが復活していることを確認
-            {
-                await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
-                var obj = sys1.FastSearchByKey<User>(new HadbKeys("", "", "A003"), nameSpace);
-                var u = obj!.GetData();
-                Dbg.TestTrue(u.Id == "u3");
-                Dbg.TestTrue(u.Name == "User3");
-                Dbg.TestTrue(u.AuthKey == "a003");
-                Dbg.TestTrue(u.Company == "IPA");
-                Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
-                Dbg.TestTrue(obj.Ext1 == "c");
-                Dbg.TestTrue(obj.Ext2 == "3");
+                // 復活させる
+                await sys2.RestoreDataFromHadbObjectListAsync(sys2.Settings.BackupDataFile);
+
+                // 書き戻し後にデータが復活していることを確認
+                {
+                    await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
+                    var obj = sys1.FastSearchByKey<User>(new HadbKeys("", "", "A003"), nameSpace);
+                    var u = obj!.GetData();
+                    Dbg.TestTrue(u.Id == "u3");
+                    Dbg.TestTrue(u.Name == "User3");
+                    Dbg.TestTrue(u.AuthKey == "a003");
+                    Dbg.TestTrue(u.Company == "IPA");
+                    Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
+                    Dbg.TestTrue(obj.Ext1 == "c");
+                    Dbg.TestTrue(obj.Ext2 == "3");
+                }
             }
         }
     }

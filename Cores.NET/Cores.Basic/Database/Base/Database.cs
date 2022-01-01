@@ -670,7 +670,7 @@ public sealed class Database : AsyncService
     //    return cmd;
     //}
 
-    async Task SetupDapperAsync(string commandStr, object? param, Type? type = null, CancellationToken cancel = default)
+    async Task SetupDapperAsync(object? param, Type? type = null, CancellationToken cancel = default)
     {
         await EnsureOpenAsync(cancel);
 
@@ -704,7 +704,7 @@ public sealed class Database : AsyncService
     {
         //var ret = await Connection.QueryAsync<T>(await SetupDapperAsync(commandStr, param, typeof(T)));
 
-        await SetupDapperAsync(commandStr, param, typeof(T));
+        await SetupDapperAsync(param, typeof(T));
         var ret = await Connection.QueryAsync<T>(commandStr, param, Transaction, this.CommandTimeoutSecs);
 
         ret._TryNormalizeAll();
@@ -714,14 +714,14 @@ public sealed class Database : AsyncService
 
     public async Task<int> EasyExecuteAsync(string commandStr, object? param = null)
     {
-        await SetupDapperAsync(commandStr, param);
+        await SetupDapperAsync(param);
 
         return await Connection.ExecuteAsync(commandStr, param, Transaction, CommandTimeoutSecs);
     }
 
     public async Task<T> ExecuteScalarAsync<T>(string commandStr, object? param = null)
     {
-        await SetupDapperAsync(commandStr, param);
+        await SetupDapperAsync(param);
 
         return await Connection.ExecuteScalarAsync<T>(commandStr, param, Transaction, CommandTimeoutSecs);
     }
@@ -1555,7 +1555,7 @@ public sealed class Database : AsyncService
         CloseQuery();
         try
         {
-            Transaction.Rollback();
+            Transaction.Dispose();
         }
         catch (Exception ex)
         {
@@ -1564,7 +1564,7 @@ public sealed class Database : AsyncService
             // で発生することがある。これはおそらく Microsoft のライブラリのバグであるが、これが発生した場合は無視する必要がある。
             ex._Error();
         }
-        Transaction._DisposeSafe();
+        //Transaction._DisposeSafe();
         Transaction = null;
     }
     public async Task RollbackAsync(CancellationToken cancel = default)
@@ -1578,7 +1578,7 @@ public sealed class Database : AsyncService
 
         try
         {
-            await Transaction.RollbackAsync(cancel);
+            await Transaction.DisposeAsync();
         }
         catch (Exception ex)
         {
@@ -1588,7 +1588,7 @@ public sealed class Database : AsyncService
             ex._Error();
         }
 
-        await Transaction._DisposeSafeAsync();
+        //await Transaction._DisposeSafeAsync();
         Transaction = null;
     }
 

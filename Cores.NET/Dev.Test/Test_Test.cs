@@ -2599,66 +2599,77 @@ static class TestClass
         const string TestDbReadPassword = "DnTakosanPass8931Dx";
         const string TestDbWritePassword = "DnTakosanPass8931Dx";
 
-        for (int i = 0; i < count; i++)
+        try
         {
-            $"=========== try i = {i} ============="._Print();
-
-            bool error = false;
-
-            Async(async () =>
+            for (int i = 0; i < count; i++)
             {
-                AsyncManualResetEvent start = new AsyncManualResetEvent();
-                List<Task> taskList = new List<Task>();
+                $"=========== try i = {i} ============="._Print();
 
-                for (int i = 0; i < threads; i++)
+                bool error = false;
+
+                Async(async () =>
                 {
-                    var task = TaskUtil.StartAsyncTaskAsync(async () =>
+                    AsyncManualResetEvent start = new AsyncManualResetEvent();
+                    List<Task> taskList = new List<Task>();
+
+                    for (int i = 0; i < threads; i++)
                     {
-                        await Task.Yield();
-                        await start.WaitAsync();
-
-                        try
+                        var task = TaskUtil.StartAsyncTaskAsync(async () =>
                         {
-                            string systemName = ("HADB_CODE_TEST_" + Str.DateTimeToYymmddHHmmssLong(DtNow) + "_" + Env.MachineName + "_" + Str.GenerateRandomDigit(8)).ToUpperInvariant();
+                            await Task.Yield();
+                            await start.WaitAsync();
 
-                            var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate;
-
-                            if (threads >= 2)
+                            try
                             {
-                                flags |= HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll;
+                                string systemName = ("HADB_CODE_TEST_" + Str.DateTimeToYymmddHHmmssLong(DtNow) + "_" + Env.MachineName + "_" + Str.GenerateRandomDigit(8)).ToUpperInvariant();
+
+                                var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate;
+
+                                if (threads >= 2)
+                                {
+                                    flags |= HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll | HadbOptionFlags.DoNotSaveStat;
+                                }
+
+                                HadbSqlSettings settings = new HadbSqlSettings(systemName,
+                                    new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, false),
+                                    new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, false),
+                                    IsolationLevel.Snapshot, IsolationLevel.Serializable,
+                                    flags);
+
+                                await HadbCodeTest.Test1Async(settings, systemName, threads >= 2);
                             }
-
-                            HadbSqlSettings settings = new HadbSqlSettings(systemName,
-                                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
-                                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
-                                IsolationLevel.Snapshot, IsolationLevel.Serializable,
-                                flags);
-
-                            await HadbCodeTest.Test1Async(settings, systemName);
+                            catch (Exception ex)
+                            {
+                                ex._Error();
+                            }
                         }
-                        catch (Exception ex)
-                        {
-                            ex._Error();
-                        }
+                        );
+
+                        taskList.Add(task);
                     }
-                    );
 
-                    taskList.Add(task);
-                }
+                    start.Set(true);
 
-                start.Set(true);
+                    foreach (var task in taskList)
+                    {
+                        var ret = await task._TryAwaitAndRetBool();
+                        if (ret.IsError) error = true;
+                    }
+                });
 
-                foreach (var task in taskList)
+                if (error)
                 {
-                    var ret = await task._TryAwaitAndRetBool();
-                    if (ret.IsError) error = true;
+                    throw new CoresException("Error occured.");
                 }
-            });
-
-            if (error)
-            {
-                throw new CoresException("Error occured.");
             }
+
+            "--- All OK! ---"._Print();
+        }
+        catch (Exception ex)
+        {
+            "--- Error! ---"._Print();
+            ex._Error();
+            "--- Error! ---"._Print();
         }
     }
 
@@ -3168,7 +3179,8 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         {
             // HADB 普通のテスト
             //Test_211108(threads: 100, count: 3000000);
-            Test_211108(threads: 1, count: 1);
+            while (true)
+            Test_211108(threads: 10, count: 10);
             return;
         }
 

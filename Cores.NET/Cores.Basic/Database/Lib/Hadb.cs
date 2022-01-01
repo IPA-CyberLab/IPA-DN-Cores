@@ -1567,6 +1567,7 @@ public enum HadbOptionFlags : long
     NoInitSnapshot = 4,
     DoNotTakeSnapshotAtAll = 8,
     NoMemDb = 16,
+    DoNotSaveStat = 32,
 }
 
 [Flags]
@@ -3082,6 +3083,11 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                         if (this.CurrentDynamicConfig.HadbAutomaticStatIntervalMsecs >= 1 && (lastStatWrittenTimeStamp.Value._IsZeroDateTime() || (DtOffsetNow >= (lastStatWrittenTimeStamp.Value + this.CurrentDynamicConfig.HadbAutomaticStatIntervalMsecs._ToTimeSpanMSecs()))))
                         {
                             saveStat = true;
+                        }
+
+                        if (this.Settings.OptionFlags.Bit(HadbOptionFlags.DoNotSaveStat))
+                        {
+                            saveStat = false;
                         }
 
                         if (saveStat)
