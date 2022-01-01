@@ -2625,7 +2625,7 @@ static class TestClass
 
                                 var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate;
 
-                                //flags |= HadbOptionFlags.NoLocalBackup;
+                                flags |= HadbOptionFlags.NoLocalBackup;
 
                                 if (threads >= 2)
                                 {
@@ -2633,12 +2633,12 @@ static class TestClass
                                 }
 
                                 HadbSqlSettings settings = new HadbSqlSettings(systemName,
-                                    new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, false),
-                                    new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, false),
+                                    new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
+                                    new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
                                     IsolationLevel.Snapshot, IsolationLevel.Serializable,
                                     flags);
 
-                                await HadbCodeTest.Test1Async(settings, systemName, false);
+                                await HadbCodeTest.Test1Async(settings, systemName);
                             }
                             catch (Exception ex)
                             {
@@ -3182,7 +3182,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             // HADB 普通のテスト
             //Test_211108(threads: 100, count: 3000000);
             while (true)
-            Test_211108(threads: 1, count: 10);
+            Test_211108(threads: 10, count: 10);
             return;
         }
 

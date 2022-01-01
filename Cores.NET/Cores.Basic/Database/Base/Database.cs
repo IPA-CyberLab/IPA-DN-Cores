@@ -99,13 +99,14 @@ public class SqlDatabaseConnectionSetting
     }
 
     public static implicit operator string(SqlDatabaseConnectionSetting config)
-        => $"Data Source={config.DataSource}{(config.Port == Consts.Ports.MsSqlServer ? "" : "," + config.Port.ToString()) };Initial Catalog={config.InitialDatalog};Persist Security Info=True;Pooling={config.Pooling._ToBoolStr()};User ID={config.UserId};Password={config.Password};Encrypt={config.Encrypt};TrustServerCertificate={config.TrustServerCertificate};";
+        => $"Data Source={config.DataSource}{(config.Port == Consts.Ports.MsSqlServer ? "" : "," + config.Port.ToString()) };Initial Catalog={config.InitialDatalog};Persist Security Info=True;Pooling={config.Pooling._ToBoolStr()};User ID={config.UserId};Password={config.Password};";
 
     // SQL データベースライブラリのバージョンアップに伴い SQL 接続文字列を互換性を実現する目的で正規化する。
     // 参考: https://techcommunity.microsoft.com/t5/sql-server-blog/released-general-availability-of-microsoft-data-sqlclient-4-0/ba-p/2983346
     // TODO: 実装が適当である。そのうち、接続文字列の文法を厳密に認識した実装に変更することが推奨される。
     public static string NormalizeSqlDatabaseConnectionStringForCompabitility(string src)
     {
+        return src;
         string tmp = "";
         string src2 = src._ReplaceStr(" ", "");
         if (src2._InStri("Encrypt=") == false)
@@ -1312,9 +1313,9 @@ public sealed class Database : AsyncService
                 }
             }
         }
-        catch (Exception ex)
+        catch (SqlException sqlex)
         {
-            if (ex._IsDeadlockException())
+            if (sqlex.Number == 1205)
             {
                 // デッドロック発生
                 numRetry++;
@@ -1322,7 +1323,7 @@ public sealed class Database : AsyncService
                 {
                     int nextInterval = Util.GenRandIntervalWithRetry(retryConfig.RetryAverageInterval, numRetry, retryConfig.RetryAverageInterval * retryConfig.RetryIntervalMaxFactor, 60.0);
 
-                    $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {ex.ToString()}"._Debug();
+                    $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {sqlex.ToString()}"._Debug();
 
                     Kernel.SleepThread(nextInterval);
 
@@ -1376,10 +1377,10 @@ public sealed class Database : AsyncService
                 }
             }
         }
-        catch (Exception ex)
+        catch (SqlException sqlex)
         {
             //sqlex._Debug();
-            if (ex._IsDeadlockException())
+            if (sqlex.Number == 1205)
             {
                 // デッドロック発生
                 numRetry++;
@@ -1387,7 +1388,7 @@ public sealed class Database : AsyncService
                 {
                     int nextInterval = Util.GenRandIntervalWithRetry(retryConfig.RetryAverageInterval, numRetry, retryConfig.RetryAverageInterval * retryConfig.RetryIntervalMaxFactor, 60.0);
 
-                    $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {ex.ToString()}"._Debug();
+                    $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {sqlex.ToString()}"._Debug();
 
                     await Task.Delay(nextInterval);
 
@@ -1553,18 +1554,8 @@ public sealed class Database : AsyncService
         }
 
         CloseQuery();
-        try
-        {
-            Transaction.Dispose();
-        }
-        catch (Exception ex)
-        {
-            // Rollback 時に System.InvalidCastException: Unable to cast object of type 'Microsoft.Data.SqlClient.SqlDataReader' to type 'Microsoft.Data.SqlClient.SqlTransaction'.
-            // という謎のエラーが Microsoft.Data.SqlClient.SqlInternalTransaction ライブラリの CheckTransactionLevelAndZombie() -> Zombie() -> ZombieParent()
-            // で発生することがある。これはおそらく Microsoft のライブラリのバグであるが、これが発生した場合は無視する必要がある。
-            ex._Error();
-        }
-        //Transaction._DisposeSafe();
+        Transaction.Rollback();
+        Transaction.Dispose();
         Transaction = null;
     }
     public async Task RollbackAsync(CancellationToken cancel = default)
@@ -1576,35 +1567,10 @@ public sealed class Database : AsyncService
 
         await CloseQueryAsync();
 
-        try
-        {
-            await Transaction.DisposeAsync();
-        }
-        catch (Exception ex)
-        {
-            // Rollback 時に System.InvalidCastException: Unable to cast object of type 'Microsoft.Data.SqlClient.SqlDataReader' to type 'Microsoft.Data.SqlClient.SqlTransaction'.
-            // という謎のエラーが Microsoft.Data.SqlClient.SqlInternalTransaction ライブラリの CheckTransactionLevelAndZombie() -> Zombie() -> ZombieParent()
-            // で発生することがある。これはおそらく Microsoft のライブラリのバグであるが、これが発生した場合は無視する必要がある。
-            ex._Error();
-        }
+        await Transaction.RollbackAsync(cancel);
 
-        //await Transaction._DisposeSafeAsync();
+        await Transaction._DisposeSafeAsync();
         Transaction = null;
-    }
-
-    public static bool IsDeadlockException(Exception? ex)
-    {
-        if (ex == null) return false;
-
-        if (ex is SqlException sql)
-        {
-            if (sql.Number == 1205)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 }
 

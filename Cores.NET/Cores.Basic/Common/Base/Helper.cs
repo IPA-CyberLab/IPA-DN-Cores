@@ -2190,7 +2190,12 @@ public static class BasicHelper
         }, cancel);
     }
 
-    public static async Task<List<TOut>> _ProcessParallelAndAggregateAsync<TIn, TOut>(this List<TIn> srcList, Func<List<TIn>, Task<List<TOut>>> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
+    public static Task<List<TOut>> _ProcessParallelAndAggregateAsync<TIn, TOut>(this List<TIn> srcList, Func<List<TIn>, Task<List<TOut>>> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
+    {
+        return action(srcList);
+    }
+
+    public static async Task<List<TOut>> _ProcessParallelAndAggregateAsync__NONE<TIn, TOut>(this List<TIn> srcList, Func<List<TIn>, Task<List<TOut>>> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
     {
         srcList._NullCheck();
 
@@ -3199,8 +3204,8 @@ public static class BasicHelper
         return c;
     }
 
-    public static bool _IsDeadlockException(this Exception? ex)
-        => Database.IsDeadlockException(ex);
+    //public static bool _IsDeadlockException(this Exception? ex)
+    //    => Database.IsDeadlockException(ex);
 }
 
 

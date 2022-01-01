@@ -483,7 +483,19 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
     }
 
     protected override bool IsDeadlockExceptionImpl(Exception ex)
-        => Database.IsDeadlockException(ex);
+    {
+        Microsoft.Data.SqlClient.SqlException? sqlEx = ex as Microsoft.Data.SqlClient.SqlException;
+
+        if (sqlEx != null)
+        {
+            if (sqlEx.Number == 1205)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     public async Task<Database> OpenSqlDatabaseAsync(bool writeMode, CancellationToken cancel = default)
     {
@@ -1695,11 +1707,11 @@ public abstract class HadbData : INormalizable
 
     //public static implicit operator HadbObject(HadbData data) => data.ToNewObject();
 
-    Type _Type => this.GetType();
-    string _TypeName => this._Type.Name;
+    //Type _Type => this.GetType();
+    //string _TypeName => this._Type.Name;
 
-    public Type GetUserDataType() => this._Type;
-    public string GetUserDataTypeName() => this._TypeName;
+    public Type GetUserDataType() => this.GetType();
+    public string GetUserDataTypeName() => this.GetType().Name;
 
     public string GetUserDataJsonString()
     {
@@ -2390,8 +2402,10 @@ public abstract class HadbMemDataBase
 
             objectList2 = objectList.ToList();
 
+            var someObjects = objectList;
+
             // 並列化の試み 2021/12/06 うまくいくか未定
-            await objectList2._ProcessParallelAsync(someObjects =>
+            //await objectList2._ProcessParallelAsync(someObjects =>
             {
                 foreach (var newObj in someObjects)
                 {
@@ -2428,8 +2442,9 @@ public abstract class HadbMemDataBase
                     }
                 }
 
-                return TR();
-            });
+                //return TR();
+            }
+            //);
 
 
             this.InternalData = data;
