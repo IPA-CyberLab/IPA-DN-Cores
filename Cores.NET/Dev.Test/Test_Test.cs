@@ -2477,73 +2477,83 @@ static class TestClass
     }
     static void Test_211108(int threads = 1, int count = 1)
     {
-        const string TestDbServer = "10.40.0.103";
-        const string TestDbName = "HADB001";
-        const string TestDbReadUser = "sql_hadb001_reader";
-        const string TestDbReadPassword = "sql_hadb_reader_default_password";
-        const string TestDbWriteUser = "sql_hadb001_writer";
-        const string TestDbWritePassword = "sql_hadb_writer_default_password";
-
-        for (int i = 0; i < count; i++)
+        try
         {
-            $"=========== try i = {i} ============="._Print();
+            const string TestDbServer = "dn-mssql2019dev1.sec.softether.co.jp,7012";
+            const string TestDbName = "HADB001";
+            const string TestDbReadUser = "sql_hadb001_reader";
+            const string TestDbReadPassword = "DnTakosanPass8931Dx";
+            const string TestDbWriteUser = "sql_hadb001_writer";
+            const string TestDbWritePassword = "DnTakosanPass8931Dx";
 
-            bool error = false;
-
-            Async(async () =>
+            for (int i = 0; i < count; i++)
             {
-                AsyncManualResetEvent start = new AsyncManualResetEvent();
-                List<Task> taskList = new List<Task>();
+                $"=========== try i = {i} ============="._Print();
 
-                for (int i = 0; i < threads; i++)
+                bool error = false;
+
+                Async(async () =>
                 {
-                    var task = TaskUtil.StartAsyncTaskAsync(async () =>
+                    AsyncManualResetEvent start = new AsyncManualResetEvent();
+                    List<Task> taskList = new List<Task>();
+
+                    for (int i = 0; i < threads; i++)
                     {
-                        await Task.Yield();
-                        await start.WaitAsync();
-
-                        try
+                        var task = TaskUtil.StartAsyncTaskAsync(async () =>
                         {
-                            string systemName = ("HADB_CODE_TEST_" + Str.DateTimeToYymmddHHmmssLong(DtNow) + "_" + Env.MachineName + "_" + Str.GenerateRandomDigit(8)).ToUpper();
+                            await Task.Yield();
+                            await start.WaitAsync();
 
-                            var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate;
-
-                            if (threads >= 2)
+                            try
                             {
-                                flags |= HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll;
+                                string systemName = ("HADB_CODE_TEST_" + Str.DateTimeToYymmddHHmmssLong(DtNow) + "_" + Env.MachineName + "_" + Str.GenerateRandomDigit(8)).ToUpper();
+
+                                var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate;
+
+                                if (threads >= 2)
+                                {
+                                    flags |= HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll;
+                                }
+
+                                HadbSqlSettings settings = new HadbSqlSettings(systemName,
+                                    new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
+                                    new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
+                                    IsolationLevel.Snapshot, IsolationLevel.Serializable,
+                                    flags);
+
+                                await HadbCodeTest.Test1Async(settings, systemName);
                             }
-
-                            HadbSqlSettings settings = new HadbSqlSettings(systemName,
-                                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
-                                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
-                                IsolationLevel.Snapshot, IsolationLevel.Serializable,
-                                flags);
-
-                            await HadbCodeTest.Test1Async(settings, systemName);
+                            catch (Exception ex)
+                            {
+                                ex._Error();
+                            }
                         }
-                        catch (Exception ex)
-                        {
-                            ex._Error();
-                        }
+                        );
+
+                        taskList.Add(task);
                     }
-                    );
 
-                    taskList.Add(task);
-                }
+                    start.Set(true);
 
-                start.Set(true);
+                    foreach (var task in taskList)
+                    {
+                        var ret = await task._TryAwaitAndRetBool();
+                        if (ret.IsError) error = true;
+                    }
+                });
 
-                foreach (var task in taskList)
+                if (error)
                 {
-                    var ret = await task._TryAwaitAndRetBool();
-                    if (ret.IsError) error = true;
+                    throw new CoresException("Error occured.");
                 }
-            });
-
-            if (error)
-            {
-                throw new CoresException("Error occured.");
             }
+            $"--- ALL OK ---"._Print();
+        }
+        catch (Exception ex)
+        {
+            $"--- ERROR ---"._Print();
+            ex._Error();
+            $"--- ERROR ---"._Print();
         }
     }
 
@@ -3010,7 +3020,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
         if (true)
         {
-            Test_211108(threads: 100, count: 2);
+            Test_211108(threads: 100, count: 100);
             return;
         }
 
