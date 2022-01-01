@@ -1,0 +1,26 @@
+2022/01/01 16:43:21.367 +09:00 ----- Start new benchmark -----
+2022/01/01 16:43:21.371 +09:00 Commit: b5af8114357ccbe06446605542c717e0c3b6319f
+2022/01/01 16:43:21.371 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/01 16:43:21.371 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/01 16:43:21.371 +09:00 Framework: .NET 6.0.1
+2022/01/01 16:43:21.371 +09:00 Host: PC34
+2022/01/01 16:43:24.487 +09:00 Str ToUpper(): 165.50 ns, 6,042,463 / sec
+2022/01/01 16:43:26.072 +09:00 Str ToUpperInvariant(): 120.34 ns, 8,310,092 / sec
+2022/01/01 16:43:27.715 +09:00 Str ToLower(): 120.50 ns, 8,298,805 / sec
+2022/01/01 16:43:29.588 +09:00 Str ToLowerInvariant(): 144.53 ns, 6,919,081 / sec
+2022/01/01 16:43:30.209 +09:00 ImmutableDictionary Search 10000: 155.99 ns, 6,410,838 / sec
+2022/01/01 16:43:30.837 +09:00 HADB FastSearch: 428.17 ns, 2,335,521 / sec
+2022/01/01 16:43:44.910 +09:00 ----- Start new benchmark -----
+2022/01/01 16:43:44.914 +09:00 Commit: b5af8114357ccbe06446605542c717e0c3b6319f
+2022/01/01 16:43:44.914 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/01 16:43:44.914 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/01 16:43:44.914 +09:00 Framework: .NET 6.0.1
+2022/01/01 16:43:44.914 +09:00 Host: PC34
+2022/01/01 16:43:47.957 +09:00 Str ToUpper(): 149.54 ns, 6,686,980 / sec
+2022/01/01 16:43:49.542 +09:00 Str ToUpperInvariant(): 120.73 ns, 8,282,892 / sec
+2022/01/01 16:43:51.212 +09:00 Str ToLower(): 128.30 ns, 7,794,358 / sec
+2022/01/01 16:43:53.176 +09:00 Str ToLowerInvariant(): 152.64 ns, 6,551,327 / sec
+2022/01/01 16:43:53.801 +09:00 ImmutableDictionary Search 10000: 214.99 ns, 4,651,347 / sec
+2022/01/01 16:43:54.446 +09:00 HADB FastSearch: 465.15 ns, 2,149,835 / sec
+2022/01/01 16:43:55.087 +09:00 HADB FastSearch 2: 99.54 ns, 10,046,356 / sec
+2022/01/01 16:43:55.695 +09:00 HADB GetTypeName: 0.43 ns, 2,342,513,818 / sec

@@ -299,7 +299,7 @@ public sealed class HadbSqlStatRow : INormalizable
 
     public void Normalize()
     {
-        this.STAT_UID = this.STAT_UID._NormalizeKey(true);
+        this.STAT_UID = this.STAT_UID._NormalizeUid();
         this.STAT_SYSTEMNAME = this.STAT_SYSTEMNAME._NormalizeKey(true);
         this.STAT_DT = this.STAT_DT._NormalizeDateTimeOffset();
         this.STAT_GENERATOR = this.STAT_GENERATOR._NonNullTrim().ToLowerInvariant();
@@ -323,7 +323,7 @@ public sealed class HadbSqlSnapshotRow : INormalizable
 
     public void Normalize()
     {
-        this.SNAPSHOT_UID = this.SNAPSHOT_UID._NormalizeKey(true);
+        this.SNAPSHOT_UID = this.SNAPSHOT_UID._NormalizeUid();
         this.SNAPSHOT_SYSTEM_NAME = this.SNAPSHOT_SYSTEM_NAME._NormalizeKey(true);
         this.SNAPSHOT_DT = this.SNAPSHOT_DT._NormalizeDateTimeOffset();
         this.SNAPSHOT_DESCRIPTION = this.SNAPSHOT_DESCRIPTION._NonNull();
@@ -376,15 +376,15 @@ public sealed class HadbSqlLogRow : INormalizable
 
     public void Normalize()
     {
-        this.LOG_UID = this.LOG_UID._NormalizeKey(true);
+        this.LOG_UID = this.LOG_UID._NormalizeUid();
         this.LOG_SYSTEM_NAME = this.LOG_SYSTEM_NAME._NormalizeKey(true);
         this.LOG_TYPE = this.LOG_TYPE._NonNullTrim();
         this.LOG_NAMESPACE = this.LOG_NAMESPACE._NormalizeKey(true);
         this.LOG_DT = this.LOG_DT._NormalizeDateTimeOffset();
-        this.LOG_LABEL1 = this.LOG_LABEL1._NormalizeKey(true);
-        this.LOG_LABEL2 = this.LOG_LABEL2._NormalizeKey(true);
-        this.LOG_LABEL3 = this.LOG_LABEL3._NormalizeKey(true);
-        this.LOG_LABEL4 = this.LOG_LABEL4._NormalizeKey(true);
+        this.LOG_LABEL1 = this.LOG_LABEL1._NormalizeKey(false);
+        this.LOG_LABEL2 = this.LOG_LABEL2._NormalizeKey(false);
+        this.LOG_LABEL3 = this.LOG_LABEL3._NormalizeKey(false);
+        this.LOG_LABEL4 = this.LOG_LABEL4._NormalizeKey(false);
         this.LOG_VALUE = this.LOG_VALUE._NonNull();
         this.LOG_EXT1 = this.LOG_EXT1._NonNull();
         this.LOG_EXT2 = this.LOG_EXT2._NonNull();
@@ -442,7 +442,7 @@ public sealed class HadbSqlDataRow : INormalizable
 
     public void Normalize()
     {
-        this.DATA_UID = this.DATA_UID._NormalizeUid(true);
+        this.DATA_UID = this.DATA_UID._NormalizeUid();
         this.DATA_SYSTEMNAME = this.DATA_SYSTEMNAME._NormalizeKey(true);
         this.DATA_TYPE = this.DATA_TYPE._NonNullTrim();
         this.DATA_NAMESPACE = this.DATA_NAMESPACE._NormalizeKey(true);
@@ -453,14 +453,14 @@ public sealed class HadbSqlDataRow : INormalizable
         this.DATA_KEY2 = this.DATA_KEY2._NormalizeKey(true);
         this.DATA_KEY3 = this.DATA_KEY3._NormalizeKey(true);
         this.DATA_KEY4 = this.DATA_KEY4._NormalizeKey(true);
-        this.DATA_LABEL1 = this.DATA_LABEL1._NormalizeKey(true);
-        this.DATA_LABEL2 = this.DATA_LABEL2._NormalizeKey(true);
-        this.DATA_LABEL3 = this.DATA_LABEL3._NormalizeKey(true);
-        this.DATA_LABEL4 = this.DATA_LABEL4._NormalizeKey(true);
+        this.DATA_LABEL1 = this.DATA_LABEL1._NormalizeKey(false);
+        this.DATA_LABEL2 = this.DATA_LABEL2._NormalizeKey(false);
+        this.DATA_LABEL3 = this.DATA_LABEL3._NormalizeKey(false);
+        this.DATA_LABEL4 = this.DATA_LABEL4._NormalizeKey(false);
         this.DATA_VALUE = this.DATA_VALUE._NonNull();
         this.DATA_EXT1 = this.DATA_EXT1._NonNull();
         this.DATA_EXT2 = this.DATA_EXT2._NonNull();
-        this.DATA_UID_ORIGINAL = this.DATA_UID_ORIGINAL._NormalizeUid(true);
+        this.DATA_UID_ORIGINAL = this.DATA_UID_ORIGINAL._NormalizeUid();
     }
 }
 
@@ -931,7 +931,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
 
-        uid = uid._NormalizeUid(true);
+        uid = uid._NormalizeUid();
 
         if (uid._IsEmpty()) return null;
 
@@ -1110,7 +1110,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         string typeName = log.GetLogDataTypeName();
         string uid = Str.NewUid("LOG_" + typeName, '_');
-        uid = uid._NormalizeUid(true);
+        uid = uid._NormalizeUid();
 
         var label = log.GetLabels();
 
@@ -1371,7 +1371,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         var db = ((HadbSqlTran)tran).Db;
 
-        uid = uid._NormalizeUid(true);
+        uid = uid._NormalizeUid();
 
         if (uid._IsEmpty()) return EmptyOf<HadbObject>();
 
@@ -1444,7 +1444,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         maxArchive = Math.Max(maxArchive, 0);
         nameSpace = nameSpace._HadbNameSpaceNormalize();
         typeName = typeName._NonNullTrim();
-        uid = uid._NormalizeUid(true);
+        uid = uid._NormalizeUid();
 
         tran.CheckIsWriteMode();
         var dbWriter = ((HadbSqlTran)tran).Db;
@@ -1640,10 +1640,10 @@ public struct HadbLabels : IEquatable<HadbLabels>
 
     public HadbLabels(string label1, string? label2 = null, string? label3 = null, string? label4 = null)
     {
-        this.Label1 = label1._NormalizeKey(true);
-        this.Label2 = label2._NormalizeKey(true);
-        this.Label3 = label3._NormalizeKey(true);
-        this.Label4 = label4._NormalizeKey(true);
+        this.Label1 = label1._NormalizeKey(false);
+        this.Label2 = label2._NormalizeKey(false);
+        this.Label3 = label3._NormalizeKey(false);
+        this.Label4 = label4._NormalizeKey(false);
     }
 
     public bool Equals(HadbLabels other)
@@ -1728,7 +1728,7 @@ public sealed class HadbSnapshot
 
     public HadbSnapshot(string uid, string systemName, long number, DateTimeOffset timeStamp, string description, string ext1, string ext2)
     {
-        Uid = uid._NormalizeUid(true);
+        Uid = uid._NormalizeUid();
         SystemName = systemName._NormalizeKey(true);
         Number = number;
         TimeStamp = timeStamp._NormalizeDateTimeOffset();
@@ -1876,7 +1876,7 @@ public sealed class HadbObject : INormalizable
 
         nameSpace = nameSpace._NormalizeKey(true);
 
-        this.Uid = uid._NormalizeUid(true);
+        this.Uid = uid._NormalizeUid();
 
         if (this.Uid._IsEmpty())
         {
@@ -2250,8 +2250,8 @@ public abstract class HadbMemDataBase
         {
             obj.CheckIsMemoryDbObject();
 
-            oldLabel = oldLabel._NormalizeKey(true);
-            newLabel = newLabel._NormalizeKey(true);
+            oldLabel = oldLabel._NormalizeKey(false);
+            newLabel = newLabel._NormalizeKey(false);
 
             if (oldLabel._IsSamei(newLabel) == false)
             {
@@ -2272,7 +2272,7 @@ public abstract class HadbMemDataBase
         public IEnumerable<HadbObject> IndexedLabelsTable_SearchObjects(HadbIndexColumn column, string typeName, string label, string nameSpace)
         {
             nameSpace = nameSpace._HadbNameSpaceNormalize();
-            label = label._NormalizeKey(true);
+            label = label._NormalizeKey(false);
             typeName = typeName._NonNullTrim();
 
             if (label._IsEmpty()) return EmptyOf<HadbObject>();
@@ -2490,7 +2490,7 @@ public abstract class HadbMemDataBase
     public HadbObject? IndexedKeysTable_SearchByUid(string uid, string typeName, string nameSpace)
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
-        uid = uid._NormalizeKey(true);
+        uid = uid._NormalizeUid();
 
         typeName = typeName._NonNullTrim();
 
@@ -2635,7 +2635,7 @@ public class HadbLogQuery : INormalizable
 
     public void Normalize()
     {
-        this.Uid = this.Uid._NormalizeUid(true);
+        this.Uid = this.Uid._NormalizeUid();
         this.TimeStart = this.TimeStart._NormalizeDateTimeOffset();
         this.TimeEnd = this.TimeEnd._NormalizeDateTimeOffset();
     }

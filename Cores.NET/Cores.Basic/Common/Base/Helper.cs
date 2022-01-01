@@ -3067,8 +3067,19 @@ public static class BasicHelper
         return null;
     }
 
-    public static string _NormalizeUid(this string? uid, bool checkSqlSafe = false, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength) => Str.NormalizeUid(uid, checkSqlSafe, maxStrLength);
-    public static string _NormalizeKey(this string? key, bool checkSqlSafe = false, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength) => Str.NormalizeKey(key, checkSqlSafe, maxStrLength);
+    public static string _NormalizeUid(this string? uid, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength) => Str.NormalizeUid(uid, maxStrLength);
+    public static string _NormalizeKey(this string? key, bool checkAsciiSafe = false, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength) => Str.NormalizeKey(key, checkAsciiSafe, maxStrLength);
+
+    public static void _CheckAsciiPrintableOneLine(this string? str)
+    {
+        str._NullCheck();
+        if (str._IsAsciiOneLinePrintable() == false)
+        {
+            throw new CoresException($"String '{str}' is not a safe ASCII string.");
+        }
+    }
+
+    public static bool _IsAsciiOneLinePrintable(this string str) => Str.IsAsciiOneLinePrintable(str);
 
     public static void _CheckSqlMaxSafeStrLength(this string? str, string? paramName = null, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength)
     {

@@ -31,33 +31,25 @@
 // LAW OR COURT RULE.
 
 using System;
-using System.Text;
 using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Collections.Concurrent;
-using System.Collections.Immutable;
-using System.Web;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
-using System.Xml.Serialization;
-using System.Reflection;
 using System.Linq;
+using System.Net;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-
-using IPA.Cores.Basic;
+using System.Web;
+using System.Xml.Serialization;
 using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using System.Net;
-using System.Net.Sockets;
-using System.Collections;
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
-using System.Text.RegularExpressions;
-using System.Runtime.CompilerServices;
-using System.Net.Security;
 
 namespace IPA.Cores.Basic
 {
@@ -1586,21 +1578,34 @@ namespace IPA.Cores.Basic
         }
 
         // UID を正規化する
-        public static string NormalizeUid(string? uid, bool checkSqlSafe = false, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength)
+        public static string NormalizeUid(string? uid, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength)
         {
             string ret = uid._NonNullTrim().ToUpperInvariant();
 
-            if (checkSqlSafe) ret._CheckSqlMaxSafeStrLength(maxStrLength: maxStrLength);
+            if (maxStrLength != int.MaxValue && maxStrLength < 0)
+            {
+                ret._CheckSqlMaxSafeStrLength(maxStrLength: maxStrLength);
+            }
+
+            ret._CheckAsciiPrintableOneLine();
 
             return ret;
         }
 
         // 任意のキーを正規化する
-        public static string NormalizeKey(string? key, bool checkSqlSafe = false, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength)
+        public static string NormalizeKey(string? key, bool checkAsciiSafe = false, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength)
         {
             string ret = key._NonNullTrim().ToUpperInvariant();
 
-            if (checkSqlSafe) ret._CheckSqlMaxSafeStrLength(maxStrLength: maxStrLength);
+            if (maxStrLength != int.MaxValue && maxStrLength < 0)
+            {
+                ret._CheckSqlMaxSafeStrLength(maxStrLength: maxStrLength);
+            }
+
+            if (checkAsciiSafe)
+            {
+                ret._CheckAsciiPrintableOneLine();
+            }
 
             return ret;
         }
@@ -3521,7 +3526,7 @@ namespace IPA.Cores.Basic
         {
             foreach (char c in str)
             {
-                if (IsAsciiOneLinePrintable(c) == false)
+                if (!(c >= 32 && c <= 126))
                 {
                     return false;
                 }
