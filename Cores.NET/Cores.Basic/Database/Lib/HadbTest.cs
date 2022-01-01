@@ -322,7 +322,7 @@ public static class HadbCodeTest
 
         sys2.Start();
         await sys2.WaitUntilReadyForAtomicAsync(2);
-        //return;
+        return;
         // Dynamic Config が DB に正しく反映されているか
 
         if (settings.OptionFlags.Bit(HadbOptionFlags.NoInitConfigDb) == false)
