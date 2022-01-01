@@ -1353,8 +1353,8 @@ public abstract class HadbSettingsBase
 
     public HadbSettingsBase(string systemName, HadbOptionFlags optionFlags = HadbOptionFlags.None, DirectoryPath? backupDir = null)
     {
-        if (this.SystemName._IsEmpty()) throw new CoresLibException("systemName is empty.");
         this.SystemName = systemName._NonNullTrim().ToUpper();
+        if (this.SystemName._IsEmpty()) throw new CoresLibException("systemName is empty.");
         this.OptionFlags = optionFlags;
 
         if (backupDir == null)
