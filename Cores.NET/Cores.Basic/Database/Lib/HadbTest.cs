@@ -315,14 +315,14 @@ public static class HadbCodeTest
     public static async Task Test1Async(HadbSqlSettings settings, string systemName)
     {
         await using Sys sys1 = new Sys(settings, new Dyn() { Hello = "Hello World" });
-        await using Sys sys2 = new Sys(settings, new Dyn() { Hello = "Hello World" });
 
         sys1.Start();
         await sys1.WaitUntilReadyForAtomicAsync(2);
+        return;
 
+        await using Sys sys2 = new Sys(settings, new Dyn() { Hello = "Hello World" });
         sys2.Start();
         await sys2.WaitUntilReadyForAtomicAsync(2);
-        return;
         // Dynamic Config が DB に正しく反映されているか
 
         if (settings.OptionFlags.Bit(HadbOptionFlags.NoInitConfigDb) == false)
