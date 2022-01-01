@@ -18,4 +18,6 @@ go
 truncate table HADB_SNAPSHOT
 go
 
+truncate table HADB_STAT
+go
 
