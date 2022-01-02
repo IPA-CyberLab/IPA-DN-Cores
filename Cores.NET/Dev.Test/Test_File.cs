@@ -71,7 +71,7 @@ partial class TestDevCommands
 
         Async(async () =>
         {
-            int blockSize = 1 * 1000 * 1000;
+            int blockSize = 10 * 1000 * 1000;
             int randSeedSize = blockSize * 16;
 
             if (targetSize <= 0)
