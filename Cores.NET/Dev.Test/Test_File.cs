@@ -107,7 +107,7 @@ partial class TestDevCommands
 
             await file.SeekAsync(currentSize, SeekOrigin.Begin);
 
-            ThroughputMeasuse measure = new ThroughputMeasuse(baseUnitMsecs: 1000);
+            ThroughputMeasuse measure = new ThroughputMeasuse(baseUnitMsecs: 10000);
 
             using var measurePrinter = measure.StartPrinter("Speed Mbytes/sec: ", toStr3: true);
 
@@ -127,7 +127,7 @@ partial class TestDevCommands
             ""._Print();
 
             using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: false,
-                reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
+                reportTimingSetting: new ProgressReportTimingSetting(false, 10000)
                 ), null))
             {
                 Memory<byte> tmp = new byte[blockSize];
@@ -137,6 +137,8 @@ partial class TestDevCommands
                     int randIndex = (new SeedBasedRandomGenerator(currentBlockIndex.ToString())).GetSInt31() % (randSeedSize - blockSize);
 
                     tmp.Span._Xor(baseRandData.Span, randSeed.Span.Slice(randIndex, blockSize));
+
+
 
                     await file.WriteAsync(tmp);
 
