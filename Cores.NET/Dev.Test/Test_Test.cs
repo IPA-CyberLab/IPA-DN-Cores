@@ -2633,8 +2633,8 @@ static class TestClass
                                 }
 
                                 HadbSqlSettings settings = new HadbSqlSettings(systemName,
-                                    new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, false),
-                                    new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, false),
+                                    new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
+                                    new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
                                     IsolationLevel.Snapshot, IsolationLevel.Serializable,
                                     flags);
 
