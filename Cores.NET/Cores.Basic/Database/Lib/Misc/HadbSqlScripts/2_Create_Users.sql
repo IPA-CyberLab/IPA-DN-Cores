@@ -60,3 +60,7 @@ GO
 ALTER ROLE [db_owner] ADD MEMBER [sql_hadb001_writer]
 GO
 
+
+USE [master]
+GO
+
