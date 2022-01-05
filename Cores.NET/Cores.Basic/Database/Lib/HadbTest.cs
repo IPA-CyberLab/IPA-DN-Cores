@@ -547,7 +547,7 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.SnapshotNo == snapshot1);
             }
 
-            if (backupTest == false)
+            if (backupTest)
             {
                 $"Local Backup Read Test #1"._Print();
                 await using Sys sys3_fromBackup = new Sys(settings, new Dyn() { Hello = "Hello World" });
@@ -586,7 +586,7 @@ public static class HadbCodeTest
 
             await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
 
-            if (backupTest == false)
+            if (backupTest)
             {
                 $"Local Backup Read Test #2"._Print();
                 await using Sys sys3_fromBackup = new Sys(settings, new Dyn() { Hello = "Hello World" });
@@ -625,7 +625,7 @@ public static class HadbCodeTest
                 Dbg.TestTrue(sys3_fromBackup.CurrentDynamicConfig.Hello == "Neko");
             }
 
-            if (backupTest == false)
+            if (backupTest)
             {
                 $"Local Backup Failure Test"._Print();
                 await using Sys sys3_fromBackup = new Sys(settings, new Dyn() { Hello = "Hello World" });
@@ -1213,7 +1213,7 @@ public static class HadbCodeTest
 
 
 
-            if (backupTest == false)
+            if (backupTest)
             {
                 // ローカルバックアップ JSON データからデータベースに書き戻しをする実験
 

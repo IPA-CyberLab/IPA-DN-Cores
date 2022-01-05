@@ -2638,7 +2638,7 @@ static class TestClass
                                     IsolationLevel.Snapshot, IsolationLevel.Serializable,
                                     flags);
 
-                                await HadbCodeTest.Test1Async(settings, systemName, false);
+                                await HadbCodeTest.Test1Async(settings, systemName, true);
                             }
                             catch (Exception ex)
                             {
@@ -3182,7 +3182,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             // HADB 普通のテスト
             //Test_211108(threads: 100, count: 3000000);
             while (true)
-                Test_211108(threads: 10, count: 2);
+                Test_211108(threads: 100, count: 2);
             return;
         }
 
