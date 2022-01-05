@@ -883,8 +883,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             return null;
         }
 
-        // READCOMMITTEDLOCK は、「トランザクション分離レベルが Snapshot かつ読み取り専用の場合」以外に付ける。
-        string where = $"select * from HADB_DATA  { (lightLock ? "with (READCOMMITTEDLOCK)" : "") } where {conditions.Select(x => $" ( {x} )")._Combine(and ? " and " : " or ")}";
+        // READCOMMITTEDLOCK, ROWLOCK は、「トランザクション分離レベルが Snapshot かつ読み取り専用の場合」以外に付ける。
+        string where = $"select * from HADB_DATA  { (lightLock ? "with (READCOMMITTEDLOCK, ROWLOCK)" : "") } where {conditions.Select(x => $" ( {x} )")._Combine(and ? " and " : " or ")}";
 
         return await db.EasySelectSingleAsync<HadbSqlDataRow>(where,
             new
@@ -916,8 +916,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             return EmptyOf<HadbSqlDataRow>();
         }
 
-        // READCOMMITTEDLOCK は、「トランザクション分離レベルが Snapshot かつ読み取り専用の場合」以外に付ける。
-        return await db.EasySelectAsync<HadbSqlDataRow>($"select * from HADB_DATA { (lightLock ? "with (READCOMMITTEDLOCK)" : "") } where ({conditions._Combine(" and ")}) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
+        // READCOMMITTEDLOCK, ROWLOCK は、「トランザクション分離レベルが Snapshot かつ読み取り専用の場合」以外に付ける。
+        return await db.EasySelectAsync<HadbSqlDataRow>($"select * from HADB_DATA { (lightLock ? "with (READCOMMITTEDLOCK, ROWLOCK)" : "") } where ({conditions._Combine(" and ")}) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
             new
             {
                 DATA_LABEL1 = labels.Label1,
@@ -931,7 +931,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             cancel: cancel);
     }
 
-    protected async Task<HadbSqlDataRow?> GetRowByUidAsync(Database db, string typeName, string nameSpace, string uid, CancellationToken cancel = default)
+    protected async Task<HadbSqlDataRow?> GetRowByUidAsync(Database db, string typeName, string nameSpace, string uid, bool lightLock, CancellationToken cancel = default)
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
 
@@ -939,7 +939,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         if (uid._IsEmpty()) return null;
 
-        return await db.EasySelectSingleAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE = 0 and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
+        // READCOMMITTEDLOCK, ROWLOCK は、「トランザクション分離レベルが Snapshot かつ読み取り専用の場合」以外に付ける。
+        return await db.EasySelectSingleAsync<HadbSqlDataRow>($"select * from HADB_DATA { (lightLock ? "with(READCOMMITTEDLOCK, ROWLOCK)" : "") } where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE = 0 and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
             new
             {
                 DATA_UID = uid,
@@ -1263,7 +1264,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         if (data.Deleted) throw new CoresLibException("data.Deleted == true");
 
         // 現在のデータを取得
-        var row = await this.GetRowByUidAsync(dbWriter, typeName, data.NameSpace, data.Uid, cancel);
+        var row = await this.GetRowByUidAsync(dbWriter, typeName, data.NameSpace, data.Uid, !tran.IsDbSnapshotReadMode, cancel);
         if (row == null)
         {
             // 現在のデータがない
@@ -1304,7 +1305,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                     if (threshold >= 1)
                     {
                         // デッドロックを防ぐため、行を明確に指定 (行範囲ロックを活用)
-                        await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK) where DATA_UID != @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 1 and DATA_UID_ORIGINAL = @DATA_UID and DATA_VER < @DATA_VER_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
+                        await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (ROWLOCK) where DATA_UID != @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 1 and DATA_UID_ORIGINAL = @DATA_UID and DATA_VER < @DATA_VER_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
                             new
                             {
                                 DATA_UID = data.Uid,
@@ -1349,7 +1350,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         //await dbWriter.EasyUpdateAsync(row, true, cancel);
 
         // デッドロックを防ぐため、where 句が重要。手動で実行するのである。
-        await dbWriter.EasyExecuteAsync("update HADB_DATA set DATA_VER = @DATA_VER, DATA_UPDATE_DT = @DATA_UPDATE_DT, " +
+        await dbWriter.EasyExecuteAsync("update HADB_DATA with (ROWLOCK) set DATA_VER = @DATA_VER, DATA_UPDATE_DT = @DATA_UPDATE_DT, " +
             "DATA_KEY1 = @DATA_KEY1, DATA_KEY2 = @DATA_KEY2, DATA_KEY3 = @DATA_KEY3, DATA_KEY4 = @DATA_KEY4, " +
             "DATA_LABEL1 = @DATA_LABEL1, DATA_LABEL2 = @DATA_LABEL2, DATA_LABEL3 = @DATA_LABEL3, DATA_LABEL4 = @DATA_LABEL4, " +
             "DATA_VALUE = @DATA_VALUE, DATA_EXT1 = @DATA_EXT1, DATA_EXT2 = @DATA_EXT2, " +
@@ -1389,7 +1390,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         var dbReader = ((HadbSqlTran)tran).Db;
 
-        HadbSqlDataRow? row = await GetRowByUidAsync(dbReader, typeName, nameSpace, uid, cancel);
+        HadbSqlDataRow? row = await GetRowByUidAsync(dbReader, typeName, nameSpace, uid, !tran.IsDbSnapshotReadMode, cancel);
 
         if (row == null) return null;
 
@@ -1485,7 +1486,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         tran.CheckIsWriteMode();
         var dbWriter = ((HadbSqlTran)tran).Db;
 
-        HadbSqlDataRow? row = await GetRowByUidAsync(dbWriter, typeName, nameSpace, uid, cancel);
+        HadbSqlDataRow? row = await GetRowByUidAsync(dbWriter, typeName, nameSpace, uid, !tran.IsDbSnapshotReadMode, cancel);
 
         if (row == null)
         {
@@ -1526,7 +1527,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
                     if (threshold >= 1)
                     {
-                        await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK) where DATA_ARCHIVE = 1 and DATA_UID_ORIGINAL = @DATA_UID and DATA_VER < @DATA_VER_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
+                        await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (ROWLOCK) where DATA_ARCHIVE = 1 and DATA_UID_ORIGINAL = @DATA_UID and DATA_VER < @DATA_VER_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
                             new
                             {
                                 DATA_UID = uid,
@@ -1552,7 +1553,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         //await dbWriter.EasyUpdateAsync(row, true, cancel);
 
         // デッドロックを防ぐため、where 句が重要。手動で実行するのである。
-        await dbWriter.EasyExecuteAsync("update HADB_DATA set DATA_VER = @DATA_VER, DATA_UPDATE_DT = @DATA_UPDATE_DT, DATA_DELETED = @DATA_DELETED, " +
+        await dbWriter.EasyExecuteAsync("update HADB_DATA with (ROWLOCK) set DATA_VER = @DATA_VER, DATA_UPDATE_DT = @DATA_UPDATE_DT, DATA_DELETED = @DATA_DELETED, " +
             "DATA_LAZY_COUNT1 = @DATA_LAZY_COUNT1, DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO " +
             "where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE = 0 and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
             new
@@ -1623,6 +1624,7 @@ public enum HadbOptionFlags : long
     NoMemDb = 16,
     DoNotSaveStat = 32,
     NoLocalBackup = 64,
+    DataUidForPartitioningByUidOptimized = 128,
 }
 
 [Flags]

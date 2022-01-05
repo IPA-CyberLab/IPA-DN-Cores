@@ -1611,7 +1611,7 @@ namespace IPA.Cores.Basic
         }
 
         // 新しい UID を生成する
-        public static string NewUid(string prefix = "UID", char concat = '-')
+        public static string NewUid(string prefix = "UID", char concat = '-', bool prependAtoZHashChar = false)
         {
             // <PREFIX>-AAAAAAAAAA-BBB-CCDDDDDEEEEEEE-FFFFF-GGGGG
 
