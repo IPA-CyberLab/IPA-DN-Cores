@@ -594,6 +594,10 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 {
                     sql += " and DATA_UPDATE_DT >= @DT_MIN";
                 }
+                else
+                {
+                    sql += " and DATA_DELETED = 0";
+                }
 
                 rows = await dbReader.EasySelectAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0", new { DATA_SYSTEMNAME = this.SystemName, DT_MIN = partialReloadMinUpdateTime });
             });
