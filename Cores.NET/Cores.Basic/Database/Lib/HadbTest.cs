@@ -572,7 +572,10 @@ public static class HadbCodeTest
 
                 Dbg.TestTrue(sys3_fromBackup.FastEnumObjects<User>(nameSpace).Count() == 3);
 
-                Dbg.TestTrue(sys3_fromBackup.CurrentDynamicConfig.Hello == "Neko");
+                if (settings.OptionFlags.Bit(HadbOptionFlags.NoInitConfigDb) == false)
+                {
+                    Dbg.TestTrue(sys3_fromBackup.CurrentDynamicConfig.Hello == "Neko");
+                }
 
                 await Dbg.TestExceptionAsync(async () =>
                 {
@@ -622,7 +625,10 @@ public static class HadbCodeTest
 
                 Dbg.TestTrue(sys3_fromBackup.FastEnumObjects<User>(nameSpace).Count() == 3);
 
-                Dbg.TestTrue(sys3_fromBackup.CurrentDynamicConfig.Hello == "Neko");
+                if (settings.OptionFlags.Bit(HadbOptionFlags.NoInitConfigDb) == false)
+                {
+                    Dbg.TestTrue(sys3_fromBackup.CurrentDynamicConfig.Hello == "Neko");
+                }
             }
 
             if (backupTest)
