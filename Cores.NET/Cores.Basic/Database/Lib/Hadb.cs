@@ -1304,8 +1304,11 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
                     if (threshold >= 1)
                     {
-                        // デッドロックを防ぐため、行を明確に指定 (行範囲ロックを活用)
-                        await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK, ROWLOCK) where DATA_UID != @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 1 and DATA_UID_ORIGINAL = @DATA_UID and DATA_VER < @DATA_VER_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
+                        // 物理的なデータベースから古いアーカイブを削除する。
+                        // ここで、DELETE 句で where 条件式で広く指定するとロック範囲が広範囲となりデッドロック発生の原因となるので、
+                        // 代わりに nolock の select で削除すべきデータを列挙してから主キーを用いて手動で 1 つずつ削除を実施する。
+                        // (通常は削除されるデータは 1 個だけなので問題にはならないはずである。)
+                        var physicalDeleteUidList = await dbWriter.EasyQueryAsync<string>("select DATA_UID from HADB_DATA with (NOLOCK) where DATA_UID != @DATA_UID and DATA_ARCHIVE = 1 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_UID_ORIGINAL = @DATA_UID and DATA_VER < @DATA_VER_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
                             new
                             {
                                 DATA_UID = data.Uid,
@@ -1316,6 +1319,15 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                                 DATA_SNAPSHOT_NO = tran.CurrentSnapNoForWriteMode,
                             }
                         );
+
+                        foreach (var physicalDeleteUid in physicalDeleteUidList)
+                        {
+                            await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK, ROWLOCK) where DATA_UID = @DATA_UID",
+                                new
+                                {
+                                    DATA_UID = physicalDeleteUid,
+                                });
+                        }
                     }
                 }
             }
@@ -1527,8 +1539,11 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
                     if (threshold >= 1)
                     {
-                        // デッドロックを防ぐため、行を明確に指定 (行範囲ロックを活用)
-                        await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK) where DATA_UID != @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 1 and DATA_UID_ORIGINAL = @DATA_UID and DATA_VER < @DATA_VER_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
+                        // 物理的なデータベースから古いアーカイブを削除する。
+                        // ここで、DELETE 句で where 条件式で広く指定するとロック範囲が広範囲となりデッドロック発生の原因となるので、
+                        // 代わりに nolock の select で削除すべきデータを列挙してから主キーを用いて手動で 1 つずつ削除を実施する。
+                        // (通常は削除されるデータは 1 個だけなので問題にはならないはずである。)
+                        var physicalDeleteUidList = await dbWriter.EasyQueryAsync<string>("select DATA_UID from HADB_DATA with (NOLOCK) where DATA_UID != @DATA_UID and DATA_ARCHIVE = 1 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_UID_ORIGINAL = @DATA_UID and DATA_VER < @DATA_VER_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
                             new
                             {
                                 DATA_UID = uid,
@@ -1539,6 +1554,15 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                                 DATA_SNAPSHOT_NO = tran.CurrentSnapNoForWriteMode,
                             }
                         );
+
+                        foreach (var physicalDeleteUid in physicalDeleteUidList)
+                        {
+                            await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK, ROWLOCK) where DATA_UID = @DATA_UID",
+                                new
+                                {
+                                    DATA_UID = physicalDeleteUid,
+                                });
+                        }
                     }
                 }
             }
