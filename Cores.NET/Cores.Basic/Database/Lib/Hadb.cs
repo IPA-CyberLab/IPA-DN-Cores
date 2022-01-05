@@ -1305,7 +1305,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                     if (threshold >= 1)
                     {
                         // デッドロックを防ぐため、行を明確に指定 (行範囲ロックを活用)
-                        await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (ROWLOCK) where DATA_UID != @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 1 and DATA_UID_ORIGINAL = @DATA_UID and DATA_VER < @DATA_VER_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
+                        await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK, ROWLOCK) where DATA_UID != @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 1 and DATA_UID_ORIGINAL = @DATA_UID and DATA_VER < @DATA_VER_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
                             new
                             {
                                 DATA_UID = data.Uid,
@@ -1527,7 +1527,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
                     if (threshold >= 1)
                     {
-                        await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (ROWLOCK) where DATA_ARCHIVE = 1 and DATA_UID_ORIGINAL = @DATA_UID and DATA_VER < @DATA_VER_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
+                        // デッドロックを防ぐため、行を明確に指定 (行範囲ロックを活用)
+                        await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK) where DATA_UID != @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 1 and DATA_UID_ORIGINAL = @DATA_UID and DATA_VER < @DATA_VER_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
                             new
                             {
                                 DATA_UID = uid,
@@ -1747,7 +1748,7 @@ public abstract class HadbData : INormalizable
 
     public abstract void Normalize();
 
-    public HadbObject ToNewObject(long snapshotNo, string nameSpace, string ext1 = "", string ext2 = "") => new HadbObject(this, snapshotNo, nameSpace, ext1, ext2);
+    public HadbObject ToNewObject(long snapshotNo, string nameSpace, bool prependAtoZHashChar, string ext1 = "", string ext2 = "") => new HadbObject(this, snapshotNo, nameSpace, prependAtoZHashChar, ext1, ext2);
 
     //public static implicit operator HadbObject(HadbData data) => data.ToNewObject();
 
@@ -1926,7 +1927,7 @@ public sealed class HadbObject : INormalizable
     public Type UserDataType { get; }
     public string UserDataTypeName { get; }
 
-    public HadbObject(HadbData userData, long snapshotNo, string nameSpace, string ext1 = "", string ext2 = "") : this(userData, ext1, ext2, Str.NewUid(userData.GetUserDataTypeName(), '_'), 1, false, snapshotNo, nameSpace, false, DtOffsetNow, DtOffsetNow, DtOffsetZero) { }
+    public HadbObject(HadbData userData, long snapshotNo, string nameSpace, bool prependAtoZHashChar, string ext1 = "", string ext2 = "") : this(userData, ext1, ext2, Str.NewUid(userData.GetUserDataTypeName(), '_', prependAtoZHashChar), 1, false, snapshotNo, nameSpace, false, DtOffsetNow, DtOffsetNow, DtOffsetZero) { }
 
     public HadbObject(HadbData userData, string ext1, string ext2, string uid, long ver, bool archive, long snapshotNo, string nameSpace, bool deleted, DateTimeOffset createDt, DateTimeOffset updateDt, DateTimeOffset deleteDt, HadbMemDataBase? memDb = null)
     {
@@ -3971,7 +3972,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                     }
                 }
 
-                objList.Add(data.ToNewObject(this.CurrentSnapNoForWriteMode, nameSpace, ext1, ext2));
+                objList.Add(data.ToNewObject(this.CurrentSnapNoForWriteMode, nameSpace, this.Hadb.Settings.OptionFlags.Bit(HadbOptionFlags.DataUidForPartitioningByUidOptimized), ext1, ext2));
             }
 
             await Hadb.AtomicAddDataListToDatabaseImplAsync(this, objList, cancel);

@@ -2629,6 +2629,8 @@ static class TestClass
 
                                 flags |= HadbOptionFlags.NoLocalBackup;
 
+                                flags |= HadbOptionFlags.DataUidForPartitioningByUidOptimized;
+
                                 if (threads >= 2)
                                 {
                                     flags |= HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll | HadbOptionFlags.DoNotSaveStat;

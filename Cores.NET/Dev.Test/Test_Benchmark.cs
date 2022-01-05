@@ -644,7 +644,7 @@ partial class TestDevCommands
         }
 
         BM_HadbTestData hadbTestData = new BM_HadbTestData { Abc = 123 };
-        HadbObject< BM_HadbTestData> hadbTestObj = new HadbObject(hadbTestData, 0, "abc");
+        HadbObject< BM_HadbTestData> hadbTestObj = new HadbObject(hadbTestData, 0, "abc", false);
 
         BenchMask_BoostUp_PacketParser("190527_novlan_simple_udp");
         BenchMask_BoostUp_PacketParser("190527_novlan_simple_tcp");
