@@ -2586,6 +2586,8 @@ static class TestClass
         x!.GetUserDataJsonString()._Print();
     }
 
+    static int Test_211108_Seed = 0;
+
     static void Test_211108(int threads = 1, int count = 1)
     {
         //const string TestDbServer = "10.22.0.5,7012"; // dn-mssql2019dev1
@@ -2621,7 +2623,9 @@ static class TestClass
 
                             try
                             {
-                                string systemName = ("HADB_CODE_TEST_" + Str.DateTimeToYymmddHHmmssLong(DtNow) + "_" + Env.MachineName + "_" + Str.GenerateRandomDigit(8)).ToUpperInvariant();
+                                int seed = Interlocked.Increment(ref Test_211108_Seed);
+
+                                string systemName = ("HADB_CODE_TEST_" + Str.DateTimeToYymmddHHmmssLong(DtNow) + "_" + Env.MachineName + "_" + Str.GenerateRandomDigit(8) + "_" + seed.ToString("D8")).ToUpperInvariant();
 
                                 systemName = "" + (char)('A' + Secure.RandSInt31() % 26) + systemName;
 
