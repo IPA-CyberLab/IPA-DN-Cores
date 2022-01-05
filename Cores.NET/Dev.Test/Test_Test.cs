@@ -2623,6 +2623,8 @@ static class TestClass
                             {
                                 string systemName = ("HADB_CODE_TEST_" + Str.DateTimeToYymmddHHmmssLong(DtNow) + "_" + Env.MachineName + "_" + Str.GenerateRandomDigit(8)).ToUpperInvariant();
 
+                                systemName = "" + (char)('A' + Secure.RandSInt31() % 26) + systemName;
+
                                 var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate;
 
                                 flags |= HadbOptionFlags.NoLocalBackup;
@@ -2638,11 +2640,13 @@ static class TestClass
                                     IsolationLevel.Snapshot, IsolationLevel.Serializable,
                                     flags);
 
-                                await HadbCodeTest.Test1Async(settings, systemName, true);
+                                await HadbCodeTest.Test1Async(settings, systemName, flags.Bit(HadbOptionFlags.NoLocalBackup) == false);
                             }
                             catch (Exception ex)
                             {
+                                "--------------------- ERROR !!! ---------------"._Error();
                                 ex._Error();
+                                throw;
                             }
                         }
                         );
@@ -2672,6 +2676,7 @@ static class TestClass
             "--- Error! ---"._Print();
             ex._Error();
             "--- Error! ---"._Print();
+            throw;
         }
     }
 
@@ -3182,7 +3187,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             // HADB 普通のテスト
             //Test_211108(threads: 100, count: 3000000);
             while (true)
-                Test_211108(threads: 100, count: 2);
+                Test_211108(threads: 10, count: 1);
             return;
         }
 
