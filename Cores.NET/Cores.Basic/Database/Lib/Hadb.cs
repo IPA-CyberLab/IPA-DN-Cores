@@ -1301,9 +1301,9 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 {
                     long threshold = newVer - maxArchive;
 
-                    if (threshold >= 1)
+                    if (threshold >= 1&&false)
                     {
-                        await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK) where DATA_ARCHIVE = 1 and DATA_UID_ORIGINAL = @DATA_UID and DATA_VER < @DATA_VER_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
+                        await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK) where DATA_ARCHIVE = 1 and DATA_UID_ORIGINAL = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_VER < @DATA_VER_THRESHOLD and DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO",
                             new
                             {
                                 DATA_UID = data.Uid,
@@ -1345,7 +1345,37 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         row.DATA_SNAPSHOT_NO = tran.CurrentSnapNoForWriteMode;
         row.DATA_NAMESPACE = data.NameSpace;
 
-        await dbWriter.EasyUpdateAsync(row, true, cancel);
+        //await dbWriter.EasyUpdateAsync(row, true, cancel);
+
+        await dbWriter.EasyExecuteAsync("update HADB_DATA set DATA_VER = @DATA_VER, DATA_UPDATE_DT = @DATA_UPDATE_DT, " +
+            "DATA_KEY1 = @DATA_KEY1, DATA_KEY2 = @DATA_KEY2, DATA_KEY3 = @DATA_KEY3, DATA_KEY4 = @DATA_KEY4, " +
+            "DATA_LABEL1 = @DATA_LABEL1, DATA_LABEL2 = @DATA_LABEL2, DATA_LABEL3 = @DATA_LABEL3, DATA_LABEL4 = @DATA_LABEL4, " +
+            "DATA_VALUE = @DATA_VALUE, DATA_EXT1 = @DATA_EXT1, DATA_EXT2 = @DATA_EXT2, " +
+            "DATA_LAZY_COUNT1 = @DATA_LAZY_COUNT1, DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO, DATA_NAMESPACE = @DATA_NAMESPACE " +
+            "where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE = 0 and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
+            new
+            {
+                DATA_VER = row.DATA_VER,
+                DATA_UPDATE_DT = row.DATA_UPDATE_DT,
+                DATA_KEY1 = row.DATA_KEY1,
+                DATA_KEY2 = row.DATA_KEY2,
+                DATA_KEY3 = row.DATA_KEY3,
+                DATA_KEY4 = row.DATA_KEY4,
+                DATA_LABEL1 = row.DATA_LABEL1,
+                DATA_LABEL2 = row.DATA_LABEL2,
+                DATA_LABEL3 = row.DATA_LABEL3,
+                DATA_LABEL4 = row.DATA_LABEL4,
+                DATA_VALUE = row.DATA_VALUE,
+                DATA_EXT1 = row.DATA_EXT1,
+                DATA_EXT2 = row.DATA_EXT2,
+                DATA_LAZY_COUNT1 = row.DATA_LAZY_COUNT1,
+                DATA_SNAPSHOT_NO = row.DATA_SNAPSHOT_NO,
+
+                DATA_UID = row.DATA_UID,
+                DATA_SYSTEMNAME = row.DATA_SYSTEMNAME,
+                DATA_TYPE = row.DATA_TYPE,
+                DATA_NAMESPACE = row.DATA_NAMESPACE,
+            });
 
         return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
     }
@@ -1517,7 +1547,24 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         row.DATA_LAZY_COUNT1 = 0;
         row.DATA_SNAPSHOT_NO = tran.CurrentSnapNoForWriteMode;
 
-        await dbWriter.EasyUpdateAsync(row, true, cancel);
+        //await dbWriter.EasyUpdateAsync(row, true, cancel);
+
+        await dbWriter.EasyExecuteAsync("update HADB_DATA set DATA_VER = @DATA_VER, DATA_UPDATE_DT = @DATA_UPDATE_DT, DATA_DELETED = @DATA_DELETED, " +
+            "DATA_LAZY_COUNT1 = @DATA_LAZY_COUNT1, DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO " +
+            "where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE = 0 and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
+            new
+            {
+                DATA_VER = row.DATA_VER,
+                DATA_UPDATE_DT = row.DATA_UPDATE_DT,
+                DATA_DELETED = row.DATA_DELETED,
+                DATA_LAZY_COUNT1 = row.DATA_LAZY_COUNT1,
+                DATA_SNAPSHOT_NO = row.DATA_SNAPSHOT_NO,
+                DATA_UID = row.DATA_UID,
+                DATA_SYSTEMNAME = row.DATA_SYSTEMNAME,
+                DATA_TYPE = row.DATA_TYPE,
+                DATA_NAMESPACE = row.DATA_NAMESPACE,
+            }
+            );
 
         return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
     }
