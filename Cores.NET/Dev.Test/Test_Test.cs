@@ -2588,16 +2588,16 @@ static class TestClass
 
     static void Test_211108(int threads = 1, int count = 1)
     {
-        const string TestDbServer = "10.22.0.5,7012"; // dn-mssql2019dev1
+        //const string TestDbServer = "10.22.0.5,7012"; // dn-mssql2019dev1
         //const string TestDbServer = "10.40.0.103"; // lab
-        //const string TestDbServer = "10.21.2.132"; // dnt
+        const string TestDbServer = "10.21.2.132"; // dnt
         const string TestDbName = "HADB001";
         const string TestDbReadUser = "sql_hadb001_reader";
         const string TestDbWriteUser = "sql_hadb001_writer";
-        //const string TestDbReadPassword = "sql_hadb_reader_default_password";
-        //const string TestDbWritePassword = "sql_hadb_writer_default_password";
-        const string TestDbReadPassword = "DnTakosanPass8931Dx";
-        const string TestDbWritePassword = "DnTakosanPass8931Dx";
+        const string TestDbReadPassword = "sql_hadb_reader_default_password";
+        const string TestDbWritePassword = "sql_hadb_writer_default_password";
+        //const string TestDbReadPassword = "DnTakosanPass8931Dx";
+        //const string TestDbWritePassword = "DnTakosanPass8931Dx";
 
         try
         {
