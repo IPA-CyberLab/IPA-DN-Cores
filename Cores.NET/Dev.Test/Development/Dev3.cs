@@ -855,7 +855,7 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
         string tmpDirPath = PP.Combine(Env.AppLocalDir, "Temp", "lts_openssl_cache", VersionYymmdd);
         string tmpExePath = PP.Combine(tmpDirPath, exeName);
 
-        string lockName = tmpDirPath.ToLower() + "_lock_" + ver._ObjectToJson()._HashSHA1()._GetHexString();
+        string lockName = tmpDirPath.ToLowerInvariant() + "_lock_" + ver._ObjectToJson()._HashSHA1()._GetHexString();
 
         GlobalLock lockObject = new GlobalLock(lockName);
 

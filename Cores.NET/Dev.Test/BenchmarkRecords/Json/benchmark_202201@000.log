@@ -1,0 +1,31 @@
+﻿{"TimeStamp":"2022-01-01T16:43:02.5578038+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-01-01T16:43:02.5618845+09:00","Data":"Commit: b5af8114357ccbe06446605542c717e0c3b6319f","Tag":"text"}
+{"TimeStamp":"2022-01-01T16:43:02.5618906+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-01-01T16:43:02.5618918+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2022-01-01T16:43:02.5618929+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2022-01-01T16:43:02.5618946+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-01-01T16:43:21.3672187+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-01-01T16:43:21.371381+09:00","Data":"Commit: b5af8114357ccbe06446605542c717e0c3b6319f","Tag":"text"}
+{"TimeStamp":"2022-01-01T16:43:21.3713948+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-01-01T16:43:21.3713962+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2022-01-01T16:43:21.3713973+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2022-01-01T16:43:21.3713992+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-01-01T16:43:24.48707+09:00","Data":{"TestName":"Str ToUpper()","Ret":165.49542416666668,"PerSecond":6042463},"Tag":"result"}
+{"TimeStamp":"2022-01-01T16:43:26.0729503+09:00","Data":{"TestName":"Str ToUpperInvariant()","Ret":120.3355995652174,"PerSecond":8310092},"Tag":"result"}
+{"TimeStamp":"2022-01-01T16:43:27.7157137+09:00","Data":{"TestName":"Str ToLower()","Ret":120.4992747826087,"PerSecond":8298805},"Tag":"result"}
+{"TimeStamp":"2022-01-01T16:43:29.5680328+09:00","Data":{"TestName":"Str ToLowerInvariant()","Ret":144.5278556521739,"PerSecond":6919081},"Tag":"result"}
+{"TimeStamp":"2022-01-01T16:43:30.2094651+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":155.9858323290926,"PerSecond":6410838},"Tag":"result"}
+{"TimeStamp":"2022-01-01T16:43:30.8372218+09:00","Data":{"TestName":"HADB FastSearch","Ret":428.16985266323024,"PerSecond":2335521},"Tag":"result"}
+{"TimeStamp":"2022-01-01T16:43:44.9102659+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-01-01T16:43:44.9143794+09:00","Data":"Commit: b5af8114357ccbe06446605542c717e0c3b6319f","Tag":"text"}
+{"TimeStamp":"2022-01-01T16:43:44.9143939+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-01-01T16:43:44.9143952+09:00","Data":"OS: Microsoft Windows 10.0.19044","Tag":"text"}
+{"TimeStamp":"2022-01-01T16:43:44.9143962+09:00","Data":"Framework: .NET 6.0.1","Tag":"text"}
+{"TimeStamp":"2022-01-01T16:43:44.9143973+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-01-01T16:43:47.957458+09:00","Data":{"TestName":"Str ToUpper()","Ret":149.54432083333333,"PerSecond":6686980},"Tag":"result"}
+{"TimeStamp":"2022-01-01T16:43:49.5422598+09:00","Data":{"TestName":"Str ToUpperInvariant()","Ret":120.73076826086955,"PerSecond":8282892},"Tag":"result"}
+{"TimeStamp":"2022-01-01T16:43:51.2128413+09:00","Data":{"TestName":"Str ToLower()","Ret":128.29791916666667,"PerSecond":7794358},"Tag":"result"}
+{"TimeStamp":"2022-01-01T16:43:53.1763288+09:00","Data":{"TestName":"Str ToLowerInvariant()","Ret":152.6408191304348,"PerSecond":6551327},"Tag":"result"}
+{"TimeStamp":"2022-01-01T16:43:53.8018694+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":214.99144487166103,"PerSecond":4651347},"Tag":"result"}
+{"TimeStamp":"2022-01-01T16:43:54.4466665+09:00","Data":{"TestName":"HADB FastSearch","Ret":465.15182303003917,"PerSecond":2149835},"Tag":"result"}
+{"TimeStamp":"2022-01-01T16:43:55.0872119+09:00","Data":{"TestName":"HADB FastSearch 2","Ret":99.53857126535276,"PerSecond":10046356},"Tag":"result"}

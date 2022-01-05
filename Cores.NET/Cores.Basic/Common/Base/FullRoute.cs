@@ -947,7 +947,7 @@ public class FullRouteAsList
 
             if (as_num >= 1)
             {
-                as_country_2 = as_country_2.ToUpper();
+                as_country_2 = as_country_2.ToUpperInvariant();
 
                 Insert(new FullRouteAsNumber(as_num, as_name, as_country_2));
             }
@@ -1128,7 +1128,7 @@ public class FullRouteCountryList
 
                 if (tokens.Length >= 3 && tokens[0].Length == 2 && Str.IsEmptyStr(tokens[2]) == false)
                 {
-                    ret.Insert(new FullRouteCountryEntry(tokens[0].ToUpper().Trim(), tokens[2].Trim()));
+                    ret.Insert(new FullRouteCountryEntry(tokens[0].ToUpperInvariant().Trim(), tokens[2].Trim()));
                 }
             }
         }
@@ -1151,7 +1151,7 @@ public class FullRouteCountryList
                 throw new ApplicationException("if (Str.InStr(name, \",\"))");
             }
 
-            ret.Insert(new FullRouteCountryEntry(cc.ToUpper(), name));
+            ret.Insert(new FullRouteCountryEntry(cc.ToUpperInvariant(), name));
         }
 
         return ret;

@@ -122,6 +122,8 @@ public static partial class Consts
 
         public static readonly TimeSpan JapanStandardTimeOffset = new TimeSpan(9, 0, 0);
 
+        public const long LocalDatabaseJsonFileMaxSize = 256L * 1024L * 1024L * 1024L; // 256GB (とりあえず)
+
         // SQL Server その他の一般的なデータベースでインデックス可能な最大安全文字列長
         public const int SqlMaxSafeStrLength = 300;
         public const int SqlMaxSafeStrLengthActual = 350;
@@ -242,7 +244,7 @@ public static partial class Consts
 
         public const string EasyEncryptDefaultPassword = "pLkw4jkN8YxcD54AJ2rVvaD3sdnJEzMN";
 
-        public const string HadbDefaultNameSpace = "default_ns";
+        public const string HadbDefaultNameSpace = "DEFAULT_NS";
     }
 
     public static partial class HiveNames
@@ -301,11 +303,14 @@ public static partial class Consts
         public const string LogBrowserHistoryDirName = "_history";
         public const string LogBrowserZipFileName = "_download_zip";
 
+        public const string HadbBackupDatabaseFileName = "Database.json";
+        public const string HadbBackupDynamicConfigFileName = "DynamicConfig.json";
+
         public static readonly IEnumerable<string> StandardExcludeDirNames = new string[] { ".svn", "_vti_cnf", "_vti_pvt", "_private", ".git", ".vs" };
 
         public static bool IsSpecialFileNameForLogBrowser(string? fn)
         {
-            fn = fn._NonNullTrim().ToLower();
+            fn = fn._NonNullTrim().ToLowerInvariant();
 
             switch (fn)
             {
@@ -327,7 +332,15 @@ public static partial class Consts
         public const int HadbReloadTimeShiftMarginMsecs = 15 * 1000;
         public const int HadbFullReloadIntervalMsecs = 15 * 1000;
         public const int HadbLazyUpdateIntervalMsecs = 1 * 1000;
-        public const int HadbRecordStatIntervalMsecs = 5 * 1000;
+
+        public const int HadbAutomaticSnapshotIntervalMsecs = 12 * 60 * 60 * 1000;
+        public const int HadbAutomaticStatIntervalMsecs = 60 * 60 * 1000;
+
+        public const int HadbMaxDbConcurrentWriteTransactionsTotal = 50;
+        public const int HadbMaxDbConcurrentReadTransactionsTotal = 500;
+
+        public const int HadbMaxDbConcurrentWriteTransactionsPerClient = 5;
+        public const int HadbMaxDbConcurrentReadTransactionsPerClient = 25;
     }
 
     public static partial class HadbDynamicConfigMaxValues
@@ -337,7 +350,6 @@ public static partial class Consts
         public const int HadbReloadTimeShiftMarginMsecs = 4 * 60 * 60 * 1000;
         public const int HadbFullReloadIntervalMsecs = 4 * 60 * 60 * 1000;
         public const int HadbLazyUpdateIntervalMsecs = 5 * 60 * 1000;
-        public const int HadbRecordStatIntervalMsecs = 60 * 60 * 1000;
     }
 
     public static partial class BlazorApp

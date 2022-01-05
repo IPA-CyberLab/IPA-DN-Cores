@@ -289,7 +289,7 @@ public class BigNumber
     {
         BigNumber multiplier = new BigNumber(1);
         BigNumber result = new BigNumber();
-        value = (value.ToUpper()).Trim();
+        value = (value.ToUpperInvariant()).Trim();
         int limit = 0;
 
         if (value[0] == '-')

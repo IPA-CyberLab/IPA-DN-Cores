@@ -82,8 +82,11 @@ public class SqlDatabaseConnectionSetting
     public string Password { get; }
     public bool Pooling { get; }
     public int Port { get; }
+    public bool Encrypt { get; }
+    public bool TrustServerCertificate { get; }
 
-    public SqlDatabaseConnectionSetting(string dataSource, string initialCatalog, string userId, string password, bool pooling = false, int port = Consts.Ports.MsSqlServer /* Linux 版 SQL Client では true にすると動作不良を引き起こすため、false を推奨 */ )
+    public SqlDatabaseConnectionSetting(string dataSource, string initialCatalog, string userId, string password, bool pooling = false /* Linux 版 SQL Client では true にすると動作不良を引き起こすため、false を推奨 */
+        , int port = Consts.Ports.MsSqlServer, bool encrypt = false, bool trustServerCertificate = true)
     {
         this.DataSource = dataSource;
         this.InitialDatalog = initialCatalog;
@@ -91,11 +94,35 @@ public class SqlDatabaseConnectionSetting
         this.Password = password;
         this.Pooling = pooling;
         this.Port = port._IsInTcpUdpPortRange() ? Consts.Ports.MsSqlServer : port;
+        this.Encrypt = encrypt;
+        this.TrustServerCertificate = trustServerCertificate;
     }
 
     public static implicit operator string(SqlDatabaseConnectionSetting config)
-        => $"Data Source={config.DataSource}{(config.Port == Consts.Ports.MsSqlServer ? "" : "," + config.Port.ToString()) };Initial Catalog={config.InitialDatalog};Persist Security Info=True;Pooling={config.Pooling._ToBoolStr()};User ID={config.UserId};Password={config.Password}";
+        => $"Data Source={config.DataSource}{(config.Port == Consts.Ports.MsSqlServer ? "" : "," + config.Port.ToString()) };Initial Catalog={config.InitialDatalog};Persist Security Info=True;Pooling={config.Pooling._ToBoolStr()};User ID={config.UserId};Password={config.Password};Encrypt={config.Encrypt};TrustServerCertificate={config.TrustServerCertificate};";
 
+    // SQL データベースライブラリのバージョンアップに伴い SQL 接続文字列を互換性を実現する目的で正規化する。
+    // 参考: https://techcommunity.microsoft.com/t5/sql-server-blog/released-general-availability-of-microsoft-data-sqlclient-4-0/ba-p/2983346
+    // TODO: 実装が適当である。そのうち、接続文字列の文法を厳密に認識した実装に変更することが推奨される。
+    public static string NormalizeSqlDatabaseConnectionStringForCompabitility(string src)
+    {
+        string tmp = "";
+        string src2 = src._ReplaceStr(" ", "");
+        if (src2._InStri("Encrypt=") == false)
+        {
+            tmp += "Encrypt=False;";
+        }
+        if (src2._InStri("TrustServerCertificate=") == false)
+        {
+            tmp += "TrustServerCertificate=True;";
+        }
+        if (src.LastOrDefault() != ';')
+        {
+            src += ";";
+        }
+        src += tmp;
+        return src;
+    }
 }
 
 public class EasyTable : TableAttribute
@@ -474,6 +501,8 @@ public sealed class Database : AsyncService
 
             DbConnection? conn;
 
+            dbServerConnectionString = SqlDatabaseConnectionSetting.NormalizeSqlDatabaseConnectionStringForCompabitility(dbServerConnectionString);
+
             switch (serverType)
             {
                 case DatabaseServerType.SQLite:
@@ -641,7 +670,7 @@ public sealed class Database : AsyncService
     //    return cmd;
     //}
 
-    async Task SetupDapperAsync(string commandStr, object? param, Type? type = null, CancellationToken cancel = default)
+    async Task SetupDapperAsync(object? param, Type? type = null, CancellationToken cancel = default)
     {
         await EnsureOpenAsync(cancel);
 
@@ -675,7 +704,7 @@ public sealed class Database : AsyncService
     {
         //var ret = await Connection.QueryAsync<T>(await SetupDapperAsync(commandStr, param, typeof(T)));
 
-        await SetupDapperAsync(commandStr, param, typeof(T));
+        await SetupDapperAsync(param, typeof(T));
         var ret = await Connection.QueryAsync<T>(commandStr, param, Transaction, this.CommandTimeoutSecs);
 
         ret._TryNormalizeAll();
@@ -685,14 +714,14 @@ public sealed class Database : AsyncService
 
     public async Task<int> EasyExecuteAsync(string commandStr, object? param = null)
     {
-        await SetupDapperAsync(commandStr, param);
+        await SetupDapperAsync(param);
 
         return await Connection.ExecuteAsync(commandStr, param, Transaction, CommandTimeoutSecs);
     }
 
     public async Task<T> ExecuteScalarAsync<T>(string commandStr, object? param = null)
     {
-        await SetupDapperAsync(commandStr, param);
+        await SetupDapperAsync(param);
 
         return await Connection.ExecuteScalarAsync<T>(commandStr, param, Transaction, CommandTimeoutSecs);
     }
@@ -1283,9 +1312,9 @@ public sealed class Database : AsyncService
                 }
             }
         }
-        catch (SqlException sqlex)
+        catch (Exception ex)
         {
-            if (sqlex.Number == 1205)
+            if (ex._IsDeadlockException())
             {
                 // デッドロック発生
                 numRetry++;
@@ -1293,7 +1322,7 @@ public sealed class Database : AsyncService
                 {
                     int nextInterval = Util.GenRandIntervalWithRetry(retryConfig.RetryAverageInterval, numRetry, retryConfig.RetryAverageInterval * retryConfig.RetryIntervalMaxFactor, 60.0);
 
-                    $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {sqlex.ToString()}"._Debug();
+                    $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {ex.ToString()}"._Debug();
 
                     Kernel.SleepThread(nextInterval);
 
@@ -1347,10 +1376,10 @@ public sealed class Database : AsyncService
                 }
             }
         }
-        catch (SqlException sqlex)
+        catch (Exception ex)
         {
             //sqlex._Debug();
-            if (sqlex.Number == 1205)
+            if (ex._IsDeadlockException())
             {
                 // デッドロック発生
                 numRetry++;
@@ -1358,7 +1387,7 @@ public sealed class Database : AsyncService
                 {
                     int nextInterval = Util.GenRandIntervalWithRetry(retryConfig.RetryAverageInterval, numRetry, retryConfig.RetryAverageInterval * retryConfig.RetryIntervalMaxFactor, 60.0);
 
-                    $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {sqlex.ToString()}"._Debug();
+                    $"Deadlock retry occured. numRetry = {numRetry}. Waiting for {nextInterval} msecs. {ex.ToString()}"._Debug();
 
                     await Task.Delay(nextInterval);
 
@@ -1524,8 +1553,18 @@ public sealed class Database : AsyncService
         }
 
         CloseQuery();
-        Transaction.Rollback();
-        Transaction.Dispose();
+        try
+        {
+            Transaction.Dispose();
+        }
+        catch (Exception ex)
+        {
+            // Rollback 時に System.InvalidCastException: Unable to cast object of type 'Microsoft.Data.SqlClient.SqlDataReader' to type 'Microsoft.Data.SqlClient.SqlTransaction'.
+            // という謎のエラーが Microsoft.Data.SqlClient.SqlInternalTransaction ライブラリの CheckTransactionLevelAndZombie() -> Zombie() -> ZombieParent()
+            // で発生することがある。これはおそらく Microsoft のライブラリのバグであるが、これが発生した場合は無視する必要がある。
+            ex._Error();
+        }
+        //Transaction._DisposeSafe();
         Transaction = null;
     }
     public async Task RollbackAsync(CancellationToken cancel = default)
@@ -1537,10 +1576,35 @@ public sealed class Database : AsyncService
 
         await CloseQueryAsync();
 
-        await Transaction.RollbackAsync(cancel);
+        try
+        {
+            await Transaction.DisposeAsync();
+        }
+        catch (Exception ex)
+        {
+            // Rollback 時に System.InvalidCastException: Unable to cast object of type 'Microsoft.Data.SqlClient.SqlDataReader' to type 'Microsoft.Data.SqlClient.SqlTransaction'.
+            // という謎のエラーが Microsoft.Data.SqlClient.SqlInternalTransaction ライブラリの CheckTransactionLevelAndZombie() -> Zombie() -> ZombieParent()
+            // で発生することがある。これはおそらく Microsoft のライブラリのバグであるが、これが発生した場合は無視する必要がある。
+            ex._Error();
+        }
 
-        await Transaction._DisposeSafeAsync();
+        //await Transaction._DisposeSafeAsync();
         Transaction = null;
+    }
+
+    public static bool IsDeadlockException(Exception? ex)
+    {
+        if (ex == null) return false;
+
+        if (ex is SqlException sql)
+        {
+            if (sql.Number == 1205)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 

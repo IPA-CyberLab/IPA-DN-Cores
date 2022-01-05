@@ -201,7 +201,7 @@ public static class MasterData
         {
             this.Id = id;
             this.Prefix = new EasyIpAclRule(prefixStr);
-            this.Comment = comment._NonNullTrim().ToUpper();
+            this.Comment = comment._NonNullTrim().ToUpperInvariant();
         }
     }
 
@@ -282,7 +282,7 @@ public static class MasterData
                     string[] tokens = line2._Split(StringSplitOptions.RemoveEmptyEntries, ' ', '　', '\t');
                     if (tokens.Length == 1)
                     {
-                        string suffix = tokens[0].ToLower();
+                        string suffix = tokens[0].ToLowerInvariant();
 
                         suffix = suffix._Split(StringSplitOptions.RemoveEmptyEntries, '.')._Combine(".");
 
@@ -349,8 +349,8 @@ public static class MasterData
                 {
                     if (line2._GetKeyAndValue(out string key, out string value))
                     {
-                        key = key.ToLower();
-                        value = value.ToLower();
+                        key = key.ToLowerInvariant();
+                        value = value.ToLowerInvariant();
 
                         if (key.StartsWith(".")) key = key.Substring(1);
 

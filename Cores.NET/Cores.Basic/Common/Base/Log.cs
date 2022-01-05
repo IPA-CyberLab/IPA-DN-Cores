@@ -158,7 +158,7 @@ public class LogJsonData
 
         if (this.Guid._IsEmpty()) this.Guid = Str.NewGuid();
 
-        this.MachineName = this.MachineName._NonNullTrim().ToLower();
+        this.MachineName = this.MachineName._NonNullTrim().ToLowerInvariant();
         if (this.MachineName._IsEmpty()) this.MachineName = defaultSrcMachineName;
 
         if (this.AppName._IsEmpty()) this.AppName = "unknown";

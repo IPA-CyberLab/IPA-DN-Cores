@@ -136,7 +136,7 @@ public class SmtpCharsetList
         {
             Encoding enc = GetAppropriateCharset(name);
             byte[] data = enc.GetBytes(name);
-            string text = string.Format("=?{0}?B?{1}?= <{2}>", enc.WebName.ToUpper(),
+            string text = string.Format("=?{0}?B?{1}?= <{2}>", enc.WebName.ToUpperInvariant(),
                 Convert.ToBase64String(data, Base64FormattingOptions.None), addr);
             return text;
         }
@@ -322,7 +322,7 @@ public class SmtpBody
 
         Encoding subjectEnc = CharsetList.GetAppropriateCharset(this.Subject);
         byte[] subjectData = subjectEnc.GetBytes(this.Subject);
-        string subjectText = string.Format("=?{0}?B?{1}?=", subjectEnc.WebName.ToUpper(),
+        string subjectText = string.Format("=?{0}?B?{1}?=", subjectEnc.WebName.ToUpperInvariant(),
             Convert.ToBase64String(subjectData, Base64FormattingOptions.None));
         if (Str.IsAscii(this.Subject))
         {

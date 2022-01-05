@@ -2495,7 +2495,7 @@ public abstract class DnsMessageBase
         messageData[currentPosition++] = (byte)label.Length;
 
         if (useCanonical)
-            label = label.ToLower();
+            label = label.ToLowerInvariant();
 
         EncodeByteArray(messageData, ref currentPosition, Encoding.ASCII.GetBytes(label));
 
@@ -4839,7 +4839,7 @@ internal static class RecordTypeHelper
         {
             return "TYPE" + (int)recordType;
         }
-        return res.ToUpper();
+        return res.ToUpperInvariant();
     }
 
     public static bool TryParseShortString(string s, out RecordType recordType)

@@ -236,7 +236,7 @@ namespace IPA.Cores.Basic
 
         string GenerateSingleInstanceName(string candidateFullPath)
         {
-            return $"UniqueDirectoryProvider_" + candidateFullPath._NonNullTrim().ToLower();
+            return $"UniqueDirectoryProvider_" + candidateFullPath._NonNullTrim().ToLowerInvariant();
         }
     }
 
@@ -520,7 +520,7 @@ namespace IPA.Cores.Basic
                         buf = hamcore_io.Read(Util.SizeOfInt32)!;
                         c.Offset = Util.ByteToUInt(buf);
 
-                        list.Add(c.FileName.ToUpper(), c);
+                        list.Add(c.FileName.ToUpperInvariant(), c);
                     }
                 }
                 catch
@@ -564,7 +564,7 @@ namespace IPA.Cores.Basic
                 lock (list)
                 {
                     HamCoreEntry c;
-                    string key = filename.ToUpper();
+                    string key = filename.ToUpperInvariant();
 
                     b = null;
 

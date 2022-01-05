@@ -106,7 +106,7 @@ public class ThinSession : IValidatable, INormalizable
 
     public void Normalize()
     {
-        Msid = Msid._NonNull().ToUpper();
+        Msid = Msid._NonNull().ToUpperInvariant();
         SessionId = SessionId._NonNull();
         IpAddress = IpAddress._NonNull();
         HostName = HostName._NonNull();
@@ -184,7 +184,7 @@ public class ThinGate : IValidatable, INormalizable
 
     public void Normalize()
     {
-        GateId = GateId._NonNull().ToUpper();
+        GateId = GateId._NonNull().ToUpperInvariant();
         IpAddress = IpAddress._NonNull();
         if (Port == 0) Port = Consts.Ports.Https;
         HostName = HostName._NonNull();
@@ -342,7 +342,7 @@ public class ThinSessionManager
         gate.Validate();
 
         if (sessionId.Length != 40) throw new CoresLibException("sessionId.Length != 40");
-        sessionId = sessionId.ToUpper();
+        sessionId = sessionId.ToUpperInvariant();
 
         if (this.GateTable.TryGetValue(gate.GateId, out ThinGate? currentGate))
         {

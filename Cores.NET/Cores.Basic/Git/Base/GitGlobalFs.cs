@@ -179,7 +179,7 @@ public static class GitGlobalFs
 
     static string GenerateNewRepositoryDirName(string repoUrl)
     {
-        repoUrl = repoUrl.Trim().ToLower();
+        repoUrl = repoUrl.Trim().ToLowerInvariant();
 
         string repoName = LinuxParser.GetFileNameWithoutExtension(LinuxParser.RemoveLastSeparatorChar(repoUrl));
 

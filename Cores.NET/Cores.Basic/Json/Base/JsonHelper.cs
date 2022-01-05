@@ -95,7 +95,7 @@ namespace IPA.Cores.Helper.Basic
             => (fs ?? Lfs).WriteJsonToFile<T>(path, obj, flags, doNotOverwrite, cancel, includeNull, escapeHtml, maxDepth, compact, referenceHandling);
 
         [return: MaybeNull]
-        public static T _FileToObject<T>(this string path, FileSystem? fs = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default,
+        public static T _FileToObject<T>(this string path, FileSystem? fs = null, long maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default,
             bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool nullIfError = false)
             => (fs ?? Lfs).ReadJsonFromFile<T>(path, maxSize, flags, cancel, includeNull, maxDepth, nullIfError);
 
@@ -222,17 +222,39 @@ namespace IPA.Cores.Basic
             if (withBackup)
             {
                 string backupFilePath = path + Consts.Extensions.Backup;
+                bool isExistingFileOkAsJson = false;
 
                 try
                 {
                     if (await this.IsFileExistsAsync(path, cancel))
                     {
-                        await this.CopyFileAsync(path, backupFilePath, new CopyFileParams(flags: flags | FileFlags.AutoCreateDirectory | FileFlags.WriteOnlyIfChanged), cancel: cancel);
+                        // 元ファイルが存在する場合、その元ファイルが JSON 形式として破損していないかどうかチェックする
+                        try
+                        {
+                            var x = await this.ReadJsonFromFileAsync<object>(path, cancel: cancel);
+                            isExistingFileOkAsJson = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            $"Exiting file '{path}' is invalid as JSON format. The file may be corrupted."._Error();
+                            ex._Error();
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
                     ex._Error();
+                }
+
+                if (isExistingFileOkAsJson)
+                {
+                    // 元ファイルが JSON 形式として正しい場合だけ、バックアップファイルに元ファイルの内容をコピーする。
+                    // この場合、このコピー作業に失敗したら、この WriteJsonToFileAsync メソッドの処理は直ちに終了する。
+                    // (コピー作業に失敗したということは、ファイルシステムの空き容量不足が主原因として考えられる。
+                    //  この場合、このコピー作業の失敗エラーを無視して、メインファイルへの書き込みも実施してしまうと、
+                    //  メインファイルも空き容量不足で破損した状態となり、データ喪失が発生するおそれがある。
+                    //  これを防止するため、このようなケースにおいては、バックアップファイルへの書き込みは実施してはならない。)
+                    await this.CopyFileAsync(path, backupFilePath, new CopyFileParams(flags: flags | FileFlags.AutoCreateDirectory | FileFlags.WriteOnlyIfChanged), cancel: cancel);
                 }
             }
 

@@ -2343,4 +2343,17 @@ public static class MemoryExtHelper
 
         return ret;
     }
+
+    [MethodImpl(Inline)]
+    public static unsafe void _Xor(this Span<byte> dest, ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
+    {
+        if (dest.Length < a.Length) throw new CoresLibException("dest.Length < a.Length");
+        if (a.Length != b.Length) throw new CoresLibException("a.Length != b.Length");
+        if (a.Length == 0) return;
+        int len = a.Length;
+        for (int i = 0; i < len; i++)
+        {
+            dest[i] = (byte)(a[i] ^ b[i]);
+        }
+    }
 }

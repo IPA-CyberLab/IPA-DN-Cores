@@ -218,10 +218,10 @@ public class ThinMemoryDb // 注意! MemDb ファイル保存するため、む�
     // ファイルから復元
     public ThinMemoryDb(string filePath)
     {
-        ThinMemoryDb? tmp = Lfs.ReadJsonFromFile<ThinMemoryDb>(filePath, nullIfError: true);
+        ThinMemoryDb? tmp = Lfs.ReadJsonFromFile<ThinMemoryDb>(filePath, maxSize: Consts.Numbers.LocalDatabaseJsonFileMaxSize, nullIfError: true);
         if (tmp == null)
         {
-            tmp = Lfs.ReadJsonFromFile<ThinMemoryDb>(filePath + ".bak", nullIfError: false);
+            tmp = Lfs.ReadJsonFromFile<ThinMemoryDb>(filePath + ".bak", maxSize: Consts.Numbers.LocalDatabaseJsonFileMaxSize, nullIfError: false);
         }
 
         this.SvcList = tmp.SvcList;

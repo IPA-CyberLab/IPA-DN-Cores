@@ -283,7 +283,7 @@ namespace IPA.Cores.Basic
             NameOfMutant = $"SingleInstance_" + name._NonNullTrim();
 
             if (ignoreCase)
-                NameOfMutant = NameOfMutant.ToLower();
+                NameOfMutant = NameOfMutant.ToLowerInvariant();
 
             lock (LockObj)
             {
@@ -674,8 +674,8 @@ namespace IPA.Cores.Basic
 
         public static string GenerateInternalName(string name)
         {
-            name = name.Trim().ToLower();
-            return "Cores_DotNet_Mutex_" + Str.ByteToStr(Str.HashStr(name)).ToLower();
+            name = name.Trim().ToLowerInvariant();
+            return "Cores_DotNet_Mutex_" + Str.ByteToStr(Str.HashStr(name)).ToLowerInvariant();
         }
 
         public abstract void Lock(bool nonBlock = false);
@@ -727,7 +727,7 @@ namespace IPA.Cores.Basic
             string NormalizeName(string name)
             {
                 Str.NormalizeString(ref name);
-                name = name.ToUpper();
+                name = name.ToUpperInvariant();
                 return name;
             }
 

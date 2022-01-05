@@ -240,7 +240,7 @@ public class WpcEntry
     {
         byte[] ret = new byte[4];
         uint len;
-        entryName = entryName.ToUpper();
+        entryName = entryName.ToUpperInvariant();
         len = (uint)entryName.Length;
         byte[] entryNameByte = Str.AsciiEncoding.GetBytes(entryName);
         uint i;

@@ -913,7 +913,7 @@ namespace IPA.Cores.Basic
                 return 1;
             }
 
-            Con.WriteLine($"Executing the {cmdType.ToString().ToLower()} command.");
+            Con.WriteLine($"Executing the {cmdType.ToString().ToLowerInvariant()} command.");
             Con.WriteLine();
 
             DaemonHost host = new DaemonHost(daemon, defaultDaemonSettings);

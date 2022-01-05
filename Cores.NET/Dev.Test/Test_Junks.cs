@@ -1139,7 +1139,7 @@ partial class TestDevCommands
 
         Encoding? encoding = null;
 
-        switch (encode.ToLower())
+        switch (encode.ToLowerInvariant())
         {
             case "sjis":
                 encoding = Str.ShiftJisEncoding;
@@ -1159,7 +1159,7 @@ partial class TestDevCommands
 
         CrlfStyle crlfStyle = CrlfStyle.CrLf;
 
-        switch (newline.ToLower())
+        switch (newline.ToLowerInvariant())
         {
             case "crlf":
                 crlfStyle = CrlfStyle.CrLf;

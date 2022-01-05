@@ -298,7 +298,7 @@ public class ThinControllerOtpServerSettings
     public ThinControllerOtpServerSettings(string smtpServerHostname, int smtpServerPort, string smtpServerUsername, string smtpServerPassword, string awsSnsRegionEndPointName, string awsSnsAccessKeyId, string awsSnsSecretAccessKey, string awsSnsDefaultCountryCode)
     {
         this.SmtpServerHostname = smtpServerHostname;
-        this.SmtpServerPort = smtpServerPort._ZeroOrDefault(Consts.Ports.Smtp);
+        this.SmtpServerPort = smtpServerPort._ZeroToDefault(Consts.Ports.Smtp);
         this.SmtpServerUsername = smtpServerUsername;
         this.SmtpServerPassword = smtpServerPassword;
         this.AwsSnsRegionEndPointName = awsSnsRegionEndPointName;
@@ -1017,8 +1017,8 @@ public class ThinControllerSession : IDisposable, IAsyncDisposable
 
             if (sessionId.Length == 40 && clientId.Length == 40)
             {
-                sessionId = sessionId.ToUpper();
-                clientId = clientId.ToUpper();
+                sessionId = sessionId.ToUpperInvariant();
+                clientId = clientId.ToUpperInvariant();
 
                 sessionAndClientTable._GetOrNew(sessionId, () => new HashSet<string>()).Add(clientId);
 
@@ -1287,7 +1287,7 @@ public class ThinControllerSession : IDisposable, IAsyncDisposable
             cancel.ThrowIfCancellationRequested();
 
             // 関数を実行する
-            switch (this.FunctionName.ToLower())
+            switch (this.FunctionName.ToLowerInvariant())
             {
                 // テスト系
                 case "test": return ProcTest(req, cancel);
@@ -1811,7 +1811,7 @@ public class ThinController : AsyncService
                             stat.Stat_CurrentUserSessionsServer,
                             stat.Stat_CurrentUserSessionsClient1,
                             stat.Stat_CurrentUserSessionsClient2,
-                            Env.MachineName.ToLower(),
+                            Env.MachineName.ToLowerInvariant(),
                             stat._ObjectToJson(compact: true)
                             );
         });
@@ -2134,19 +2134,19 @@ public class ThinController : AsyncService
     // 設定値プロパティ集
     // ここで、this.Db はまだ null である可能性があるため、? を付けること
     public int CurrentValue_ControllerMaxConcurrentWpcRequestProcessingForUsers
-        => (this.Db?.MemDb?.ControllerMaxConcurrentWpcRequestProcessingForUsers)._ZeroOrDefault(ThinControllerConsts.Default_ControllerMaxConcurrentWpcRequestProcessingForUsers);
+        => (this.Db?.MemDb?.ControllerMaxConcurrentWpcRequestProcessingForUsers)._ZeroToDefault(ThinControllerConsts.Default_ControllerMaxConcurrentWpcRequestProcessingForUsers);
 
     public int CurrentValue_ControllerDbFullReloadIntervalMsecs
-        => (this.Db?.MemDb?.ControllerDbFullReloadIntervalMsecs)._ZeroOrDefault(ThinControllerConsts.Default_ControllerDbFullReloadIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbReadFullReloadIntervalMsecs);
+        => (this.Db?.MemDb?.ControllerDbFullReloadIntervalMsecs)._ZeroToDefault(ThinControllerConsts.Default_ControllerDbFullReloadIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbReadFullReloadIntervalMsecs);
 
     public int CurrentValue_ControllerDbWriteUpdateIntervalMsecs
-        => (this.Db?.MemDb?.ControllerDbWriteUpdateIntervalMsecs)._ZeroOrDefault(ThinControllerConsts.Default_ControllerDbWriteUpdateIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbWriteUpdateIntervalMsecs);
+        => (this.Db?.MemDb?.ControllerDbWriteUpdateIntervalMsecs)._ZeroToDefault(ThinControllerConsts.Default_ControllerDbWriteUpdateIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbWriteUpdateIntervalMsecs);
 
     public int CurrentValue_ControllerDbBackupFileWriteIntervalMsecs
-        => (this.Db?.MemDb?.ControllerDbBackupFileWriteIntervalMsecs)._ZeroOrDefault(ThinControllerConsts.Default_ControllerDbBackupFileWriteIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbBackupFileWriteIntervalMsecs);
+        => (this.Db?.MemDb?.ControllerDbBackupFileWriteIntervalMsecs)._ZeroToDefault(ThinControllerConsts.Default_ControllerDbBackupFileWriteIntervalMsecs, max: ThinControllerConsts.Max_ControllerDbBackupFileWriteIntervalMsecs);
 
     public int CurrentValue_ControllerRecordStatIntervalMsecs
-        => (this.Db?.MemDb?.ControllerRecordStatIntervalMsecs)._ZeroOrDefault(ThinControllerConsts.Default_ControllerRecordStatIntervalMsecs, max: ThinControllerConsts.Max_ControllerRecordStatIntervalMsecs);
+        => (this.Db?.MemDb?.ControllerRecordStatIntervalMsecs)._ZeroToDefault(ThinControllerConsts.Default_ControllerRecordStatIntervalMsecs, max: ThinControllerConsts.Max_ControllerRecordStatIntervalMsecs);
 
     // ユーティリティ関数系
 
@@ -2446,7 +2446,7 @@ public class ThinController : AsyncService
     // PCID 候補生成
     public static string GeneratePcidCandidateStringFromKeyAndNumber(string key, string add)
     {
-        key = key.ToLower().Trim();
+        key = key.ToLowerInvariant().Trim();
         string ret = key + "-" + add;
 
         ret._SliceHead(ThinControllerConsts.MaxPcidLen);

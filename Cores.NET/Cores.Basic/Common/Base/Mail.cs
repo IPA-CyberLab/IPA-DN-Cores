@@ -197,7 +197,7 @@ public class SendMail
         mail.Body = "";
 
         byte[] sub = encoding.GetBytes(subject);
-        string subjectText = string.Format("=?{0}?B?{1}?=", encoding.WebName.ToUpper(),
+        string subjectText = string.Format("=?{0}?B?{1}?=", encoding.WebName.ToUpperInvariant(),
             Convert.ToBase64String(sub, Base64FormattingOptions.None));
 
         mail.Subject = subjectText;

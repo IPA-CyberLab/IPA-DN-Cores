@@ -160,7 +160,7 @@ internal class TSigAlgorithmHelper
 
     public static TSigAlgorithm GetAlgorithmByName(DomainName name)
     {
-        switch (name.ToString().ToLower())
+        switch (name.ToString().ToLowerInvariant())
         {
             case "hmac-md5.sig-alg.reg.int":
                 return TSigAlgorithm.Md5;

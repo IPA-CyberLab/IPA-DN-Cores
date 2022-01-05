@@ -48,9 +48,9 @@ public class Stb
     {
         get
         {
-            if (entryList.ContainsKey(name.ToUpper()))
+            if (entryList.ContainsKey(name.ToUpperInvariant()))
             {
-                return entryList[name.ToUpper()].String;
+                return entryList[name.ToUpperInvariant()].String;
             }
             else
             {
@@ -87,9 +87,9 @@ public class Stb
             StbEntry? t = StbEntry.ParseTableLine(tmp, ref prefix);
             if (t != null)
             {
-                if (entryList.ContainsKey(t.Name.ToUpper()) == false)
+                if (entryList.ContainsKey(t.Name.ToUpperInvariant()) == false)
                 {
-                    entryList.Add(t.Name.ToUpper(), t);
+                    entryList.Add(t.Name.ToUpperInvariant(), t);
                 }
             }
         }

@@ -85,7 +85,7 @@ using IPA.Cores.ClientApi.SlackApi;
 
 using IPA.Cores.Codes;
 using System.Net.Security;
-using System.ComponentModel;
+using Newtonsoft.Json.Linq;
 
 
 #pragma warning disable CS0219
@@ -2421,7 +2421,7 @@ static class TestClass
             new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
             new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
             IsolationLevel.Snapshot, IsolationLevel.Serializable,
-            HadbOptionFlags.NoAutoDbReloadAndUpdate | HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll | HadbOptionFlags.NoMemDb );
+            HadbOptionFlags.NoAutoDbReloadAndUpdate | HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll | HadbOptionFlags.NoMemDb);
 
         if (truncate)
         {
@@ -2436,7 +2436,6 @@ static class TestClass
                 await db.QueryWithNoReturnAsync("truncate table HADB_KV");
                 await db.QueryWithNoReturnAsync("truncate table HADB_LOG");
                 await db.QueryWithNoReturnAsync("truncate table HADB_SNAPSHOT");
-                await db.QueryWithNoReturnAsync("truncate table HADB_STAT");
             });
         }
 
@@ -2501,76 +2500,178 @@ static class TestClass
             }
         }
     }
-    static void Test_211108(int threads = 1, int count = 1)
+
+    static void Test_211230()
     {
-        const string TestDbServer = "10.40.0.103"; // lab
-        //const string TestDbServer = "10.21.2.132"; // dnt
+        //const string TestDbServer = "10.40.0.103"; // lab
+        const string TestDbServer = "10.21.2.132"; // dnt
         const string TestDbName = "HADB001";
         const string TestDbReadUser = "sql_hadb001_reader";
         const string TestDbReadPassword = "sql_hadb_reader_default_password";
         const string TestDbWriteUser = "sql_hadb001_writer";
         const string TestDbWritePassword = "sql_hadb_writer_default_password";
 
-        for (int i = 0; i < count; i++)
+        Async(async () =>
         {
-            $"=========== try i = {i} ============="._Print();
+            string systemName = "MANYDATA";
 
-            bool error = false;
+            var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate;
 
-            Async(async () =>
+            HadbSqlSettings settings = new HadbSqlSettings(systemName,
+                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
+                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
+                IsolationLevel.Snapshot, IsolationLevel.Serializable,
+                flags);
+
+            await using var db = new Database(settings.SqlConnectStringForWrite, settings.IsolationLevelForWrite);
+
+            await db.EnsureOpenAsync();
+
+            await db.QueryWithNoReturnAsync("truncate table HADB_CONFIG");
+            await db.QueryWithNoReturnAsync("truncate table HADB_DATA");
+            await db.QueryWithNoReturnAsync("truncate table HADB_KV");
+            await db.QueryWithNoReturnAsync("truncate table HADB_LOG");
+            await db.QueryWithNoReturnAsync("truncate table HADB_SNAPSHOT");
+
+            await using HadbBenchTest.Sys sys = new HadbBenchTest.Sys(settings, new HadbBenchTest.Dyn());
+
+            await sys.WaitUntilReadyForAtomicAsync();
+
+            await sys.TranAsync(true, async tran =>
             {
-                AsyncManualResetEvent start = new AsyncManualResetEvent();
-                List<Task> taskList = new List<Task>();
-
-                for (int i = 0; i < threads; i++)
+                for (int i = 0; i < 10000; i++)
                 {
-                    var task = TaskUtil.StartAsyncTaskAsync(async () =>
+                    await tran.AtomicAddAsync<HadbBenchTest.User>(new HadbBenchTest.User
                     {
-                        await Task.Yield();
-                        await start.WaitAsync();
+                        AuthKey = i.ToString(),
+                        Company = i.ToString(),
+                        FullName = i.ToString(),
+                        Id = i.ToString(),
+                        Int1 = i,
+                        LastIp = i.ToString(),
+                        Name = i.ToString(),
+                    });
 
-                        try
-                        {
-                            string systemName = ("HADB_CODE_TEST_" + Str.DateTimeToYymmddHHmmssLong(DtNow) + "_" + Env.MachineName + "_" + Str.GenerateRandomDigit(8)).ToUpper();
-
-                            var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate;
-
-                            if (threads >= 2)
-                            {
-                                flags |= HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll;
-                            }
-
-                            HadbSqlSettings settings = new HadbSqlSettings(systemName,
-                                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
-                                new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
-                                IsolationLevel.Snapshot, IsolationLevel.Serializable,
-                                flags);
-
-                            await HadbCodeTest.Test1Async(settings, systemName);
-                        }
-                        catch (Exception ex)
-                        {
-                            ex._Error();
-                        }
-                    }
-                    );
-
-                    taskList.Add(task);
+                    i._Print();
                 }
 
-                start.Set(true);
-
-                foreach (var task in taskList)
-                {
-                    var ret = await task._TryAwaitAndRetBool();
-                    if (ret.IsError) error = true;
-                }
+                return true;
             });
 
-            if (error)
+            await sys.ReloadCoreAsync(EnsureSpecial.Yes);
+        });
+    }
+
+    static void Test_211230_02()
+    {
+        string systemName = "MANYDATA";
+
+        var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate;
+
+        string databaseBackupTmpFilePath = Dbg.DownloadWebFileLocalCache("http://lts.dn.ipantt.net/d/211230_001_86373/Database.json", 6044349);
+
+
+        HadbSqlSettings settings = new HadbSqlSettings(systemName,
+            new SqlDatabaseConnectionSetting("", "", "", "", true),
+            new SqlDatabaseConnectionSetting("", "", "", "", true),
+            IsolationLevel.Snapshot, IsolationLevel.Serializable,
+            flags, databaseBackupTmpFilePath);
+
+
+        using HadbBenchTest.Sys sys = new HadbBenchTest.Sys(settings, new HadbBenchTest.Dyn());
+        sys.DebugFlags |= HadbDebugFlags.CauseErrorOnDatabaseReload;
+        sys.WaitUntilReadyForFastAsync()._GetResult();
+
+        var x = sys.FastSearchByKey(new HadbBenchTest.User { AuthKey = "123" });
+        x!.GetUserDataJsonString()._Print();
+    }
+
+    static void Test_211108(int threads = 1, int count = 1)
+    {
+        const string TestDbServer = "10.22.0.5,7012"; // dn-mssql2019dev1
+        //const string TestDbServer = "10.40.0.103"; // lab
+        //const string TestDbServer = "10.21.2.132"; // dnt
+        const string TestDbName = "HADB001";
+        const string TestDbReadUser = "sql_hadb001_reader";
+        const string TestDbWriteUser = "sql_hadb001_writer";
+        //const string TestDbReadPassword = "sql_hadb_reader_default_password";
+        //const string TestDbWritePassword = "sql_hadb_writer_default_password";
+        const string TestDbReadPassword = "DnTakosanPass8931Dx";
+        const string TestDbWritePassword = "DnTakosanPass8931Dx";
+
+        try
+        {
+            for (int i = 0; i < count; i++)
             {
-                throw new CoresException("Error occured.");
+                $"=========== try i = {i} ============="._Print();
+
+                bool error = false;
+
+                Async(async () =>
+                {
+                    AsyncManualResetEvent start = new AsyncManualResetEvent();
+                    List<Task> taskList = new List<Task>();
+
+                    for (int i = 0; i < threads; i++)
+                    {
+                        var task = TaskUtil.StartAsyncTaskAsync(async () =>
+                        {
+                            await Task.Yield();
+                            await start.WaitAsync();
+
+                            try
+                            {
+                                string systemName = ("HADB_CODE_TEST_" + Str.DateTimeToYymmddHHmmssLong(DtNow) + "_" + Env.MachineName + "_" + Str.GenerateRandomDigit(8)).ToUpperInvariant();
+
+                                var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate;
+
+                                flags |= HadbOptionFlags.NoLocalBackup;
+
+                                if (threads >= 2)
+                                {
+                                    flags |= HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll | HadbOptionFlags.DoNotSaveStat;
+                                }
+
+                                HadbSqlSettings settings = new HadbSqlSettings(systemName,
+                                    new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
+                                    new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
+                                    IsolationLevel.Snapshot, IsolationLevel.Serializable,
+                                    flags);
+
+                                await HadbCodeTest.Test1Async(settings, systemName, false);
+                            }
+                            catch (Exception ex)
+                            {
+                                ex._Error();
+                            }
+                        }
+                        );
+
+                        taskList.Add(task);
+                    }
+
+                    start.Set(true);
+
+                    foreach (var task in taskList)
+                    {
+                        var ret = await task._TryAwaitAndRetBool();
+                        if (ret.IsError) error = true;
+                    }
+                });
+
+                if (error)
+                {
+                    throw new CoresException("Error occured.");
+                }
             }
+
+            "--- All OK! ---"._Print();
+        }
+        catch (Exception ex)
+        {
+            "--- Error! ---"._Print();
+            ex._Error();
+            "--- Error! ---"._Print();
         }
     }
 
@@ -3020,39 +3121,53 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             }
         }
     }
-
-    class GTest1<T> : ExpandableObjectConverter
-        where T: class
+    public class TestHadbData2
     {
-        public T? t;
+        public object Data1 = null!;
+    }
 
-        public override bool CanConvertTo(ITypeDescriptorContext? context, Type? destinationType)
+    public class TestHadbData1 : HadbData
+    {
+        public string Hello { get; set; } = "";
+
+        public override void Normalize()
         {
-            Where();
-            return base.CanConvertTo(context, destinationType);
+            this.Hello = this.Hello._NonNull();
         }
     }
 
-    static void Test_211222()
+    static void Test_211229()
     {
-        //Task<string> task1 = TR("Hello");
-        //Task task2 = task1;
-        //Task<object> task3 = (Task<object>)((object)task2);
+        TestHadbData1 data1 = new TestHadbData1 { Hello = "World" };
 
-        GTest1<object> a = new GTest1<object>();
-        GTest1<string> b = new GTest1<string>();
-        b.t = "Hello";
+        TestHadbData2 data2 = new TestHadbData2 { Data1 = data1 };
 
-        object? obj = b;
-        a = (GTest1<object>)obj;
+        string txt = data2._ObjectToJson();
 
+        txt._Print();
+
+        TestHadbData2? data3 = txt._JsonToObject<TestHadbData2>();
+
+        data3._ObjectToJson()._Print();
     }
 
     public static void Test_Generic()
     {
         if (false)
         {
-            Test_211222();
+            Test_211230_02();
+            return;
+        }
+
+        if (false)
+        {
+            Test_211230();
+            return;
+        }
+
+        if (false)
+        {
+            Test_211229();
             return;
         }
 
@@ -3065,8 +3180,9 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         if (true)
         {
             // HADB 普通のテスト
-            //Test_211108(threads: 100, count: 30000);
-            Test_211108(threads: 1, count: 1);
+            //Test_211108(threads: 100, count: 3000000);
+            while (true)
+                Test_211108(threads: 10, count: 2);
             return;
         }
 

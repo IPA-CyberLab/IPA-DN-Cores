@@ -1820,7 +1820,9 @@ public static class BasicHelper
     public static bool _IsEmpty<T>([NotNullWhen(false)] this T data, bool zeroValueIsEmpty = false) => Util.IsEmpty(data, zeroValueIsEmpty);
     public static bool _IsFilled<T>([NotNullWhen(true)] this T data, bool zeroValueIsEmpty = false) => Util.IsFilled(data, zeroValueIsEmpty);
 
+    [MethodImpl(Inline)]
     public static bool _IsEmpty([NotNullWhen(false)] this string? str) => Str.IsEmptyStr(str);
+    [MethodImpl(Inline)]
     public static bool _IsFilled([NotNullWhen(true)] this string? str) => Str.IsFilledStr(str);
 
     public static string[] _Split(this string str, StringSplitOptions options, params string[] separators) => str.Split(separators, options);
@@ -3065,8 +3067,19 @@ public static class BasicHelper
         return null;
     }
 
-    public static string _NormalizeUid(this string? uid, bool checkSqlSafe = false, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength) => Str.NormalizeUid(uid, checkSqlSafe, maxStrLength);
-    public static string _NormalizeKey(this string? key, bool checkSqlSafe = false, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength) => Str.NormalizeKey(key, checkSqlSafe, maxStrLength);
+    public static string _NormalizeUid(this string? uid, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength) => Str.NormalizeUid(uid, maxStrLength);
+    public static string _NormalizeKey(this string? key, bool checkAsciiSafe = false, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength) => Str.NormalizeKey(key, checkAsciiSafe, maxStrLength);
+
+    public static void _CheckAsciiPrintableOneLine(this string? str)
+    {
+        str._NullCheck();
+        if (str._IsAsciiOneLinePrintable() == false)
+        {
+            throw new CoresException($"String '{str}' is not a safe ASCII string.");
+        }
+    }
+
+    public static bool _IsAsciiOneLinePrintable(this string str) => Str.IsAsciiOneLinePrintable(str);
 
     public static void _CheckSqlMaxSafeStrLength(this string? str, string? paramName = null, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength)
     {
@@ -3142,12 +3155,52 @@ public static class BasicHelper
     {
         if (nameSpace._IsEmpty()) nameSpace = Consts.Strings.HadbDefaultNameSpace;
         nameSpace = nameSpace._NormalizeKey(true);
-        nameSpace = nameSpace._ReplaceStr(":", "_", true);
+        if (nameSpace._InStr(":"))
+        {
+            nameSpace = nameSpace._ReplaceStr(":", "_", true);
+        }
         return nameSpace;
     }
 
     public static bool _IsInTcpUdpPortRange(this int port)
         => (port >= 1 && port <= 65535);
+
+    public static long _Inc<T>(this IDictionary<T, long> dict, T key) where T : notnull
+        => _Add(dict, key, 1);
+    public static long _Add<T>(this IDictionary<T, long> dict, T key, long addValue) where T : notnull
+    {
+        long c = 0;
+        if (dict.TryGetValue(key, out c) == false)
+        {
+            c = 0;
+        }
+
+        c += addValue;
+
+        dict[key] = c;
+
+        return c;
+    }
+
+    public static int _Inc<T>(this IDictionary<T, int> dict, T key) where T : notnull
+        => _Add(dict, key, 1);
+    public static int _Add<T>(this IDictionary<T, int> dict, T key, int addValue) where T : notnull
+    {
+        int c = 0;
+        if (dict.TryGetValue(key, out c) == false)
+        {
+            c = 0;
+        }
+
+        c += addValue;
+
+        dict[key] = c;
+
+        return c;
+    }
+
+    public static bool _IsDeadlockException(this Exception? ex)
+        => Database.IsDeadlockException(ex);
 }
 
 

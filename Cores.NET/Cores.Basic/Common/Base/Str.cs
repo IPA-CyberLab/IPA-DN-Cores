@@ -31,33 +31,25 @@
 // LAW OR COURT RULE.
 
 using System;
-using System.Text;
 using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Collections.Concurrent;
-using System.Collections.Immutable;
-using System.Web;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
-using System.Xml.Serialization;
-using System.Reflection;
 using System.Linq;
+using System.Net;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-
-using IPA.Cores.Basic;
+using System.Web;
+using System.Xml.Serialization;
 using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using System.Net;
-using System.Net.Sockets;
-using System.Collections;
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
-using System.Text.RegularExpressions;
-using System.Runtime.CompilerServices;
-using System.Net.Security;
 
 namespace IPA.Cores.Basic
 {
@@ -116,7 +108,7 @@ namespace IPA.Cores.Basic
             void NormalizeName(ref string name)
             {
                 Str.NormalizeString(ref name);
-                name = name.ToUpper();
+                name = name.ToUpperInvariant();
                 if (Str.InStr(name, "="))
                 {
                     throw new InvalidDataException(name);
@@ -1334,8 +1326,8 @@ namespace IPA.Cores.Basic
 
             if (ignoreCase)
             {
-                targetStr = targetStr.ToUpper();
-                wildcard = wildcard.ToUpper();
+                targetStr = targetStr.ToUpperInvariant();
+                wildcard = wildcard.ToUpperInvariant();
             }
 
             try
@@ -1419,7 +1411,7 @@ namespace IPA.Cores.Basic
 
             string str = Str.ByteToHex(mac, paddingStr);
 
-            if (lowerStr) str = str.ToLower();
+            if (lowerStr) str = str.ToLowerInvariant();
 
             return str;
         }
@@ -1455,7 +1447,7 @@ namespace IPA.Cores.Basic
             string ret = data._GetHexString(padding);
 
             if (lowerCase)
-                ret = ret.ToLower();
+                ret = ret.ToLowerInvariant();
 
             return ret;
         }
@@ -1577,30 +1569,43 @@ namespace IPA.Cores.Basic
             string e = (Secure.RandUInt64() % 100000UL).ToString("D5");
             string f = (((ulong)((now - new DateTime(2015, 8, 10)).TotalSeconds / 9600.0)) % 100000UL).ToString("D5");
             string g = (Secure.RandUInt64() % 100000UL).ToString("D5");
-            string hash_str = a + b + d + e + f + g + prefix.ToUpper();
+            string hash_str = a + b + d + e + f + g + prefix.ToUpperInvariant();
             byte[] hash = Secure.HashSHA1(Str.AsciiEncoding.GetBytes(hash_str));
             Buf buf = new Buf(hash);
             string c = (buf.ReadInt64() % 100000UL).ToString("D5");
 
-            return "ID-" + a + "-" + b + "-" + c + d + e + "-" + prefix.ToUpper() + "-" + f + "-" + g;
+            return "ID-" + a + "-" + b + "-" + c + d + e + "-" + prefix.ToUpperInvariant() + "-" + f + "-" + g;
         }
 
         // UID を正規化する
-        public static string NormalizeUid(string? uid, bool checkSqlSafe = false, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength)
+        public static string NormalizeUid(string? uid, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength)
         {
-            string ret = uid._NonNullTrim().ToUpper();
+            string ret = uid._NonNullTrim().ToUpperInvariant();
 
-            if (checkSqlSafe) ret._CheckSqlMaxSafeStrLength(maxStrLength: maxStrLength);
+            if (maxStrLength != int.MaxValue && maxStrLength < 0)
+            {
+                ret._CheckSqlMaxSafeStrLength(maxStrLength: maxStrLength);
+            }
+
+            ret._CheckAsciiPrintableOneLine();
 
             return ret;
         }
 
         // 任意のキーを正規化する
-        public static string NormalizeKey(string? key, bool checkSqlSafe = false, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength)
+        public static string NormalizeKey(string? key, bool checkAsciiSafe = false, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength)
         {
-            string ret = key._NonNullTrim().ToUpper();
+            string ret = key._NonNullTrim().ToUpperInvariant();
 
-            if (checkSqlSafe) ret._CheckSqlMaxSafeStrLength(maxStrLength: maxStrLength);
+            if (maxStrLength != int.MaxValue && maxStrLength < 0)
+            {
+                ret._CheckSqlMaxSafeStrLength(maxStrLength: maxStrLength);
+            }
+
+            if (checkAsciiSafe)
+            {
+                ret._CheckAsciiPrintableOneLine();
+            }
 
             return ret;
         }
@@ -1641,18 +1646,18 @@ namespace IPA.Cores.Basic
             string e = (Secure.RandUInt64() % 100000UL).ToString("D5");
             string f = (((ulong)((now - new DateTime(2015, 8, 10)).TotalSeconds / 9600.0)) % 100000UL).ToString("D5");
             string g = (Secure.RandUInt64() % 100000UL).ToString("D5");
-            string hash_str = a + b + d + e + f + g + prefix.ToUpper();
+            string hash_str = a + b + d + e + f + g + prefix.ToUpperInvariant();
             byte[] hash = Secure.HashSHA1(Str.AsciiEncoding.GetBytes(hash_str));
             Buf buf = new Buf(hash);
             string c = (buf.ReadInt64() % 100000UL).ToString("D5");
 
-            return prefix.ToUpper() + concat + a + concat + b + concat + c + d + e + concat + f + concat + g;
+            return prefix.ToUpperInvariant() + concat + a + concat + b + concat + c + d + e + concat + f + concat + g;
         }
         // ID 文字列を短縮する
         public static string? GetShortId(string fullId)
         {
             Str.NormalizeString(ref fullId);
-            fullId = fullId.ToUpper();
+            fullId = fullId.ToUpperInvariant();
 
             if (fullId.StartsWith("ID-") == false)
             {
@@ -1893,7 +1898,7 @@ namespace IPA.Cores.Basic
             if (data.Length != 20)
                 return false;
 
-            dst = data._GetHexString().ToLower();
+            dst = data._GetHexString().ToLowerInvariant();
 
             return true;
         }
@@ -3521,7 +3526,7 @@ namespace IPA.Cores.Basic
         {
             foreach (char c in str)
             {
-                if (IsAsciiOneLinePrintable(c) == false)
+                if (!(c >= 32 && c <= 126))
                 {
                     return false;
                 }
@@ -3844,7 +3849,7 @@ namespace IPA.Cores.Basic
                 foreach (string s in ret)
                 {
                     string t = s;
-                    if (distinctCaseSensitive == false) t = s.ToUpper();
+                    if (distinctCaseSensitive == false) t = s.ToUpperInvariant();
                     if (tmp.Add(t))
                     {
                         ret2.Add(t);
@@ -3976,7 +3981,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                return string.Compare(s1, s2, true);
+                return string.Compare(s1, s2, StringComparison.OrdinalIgnoreCase);
             }
             catch
             {
@@ -3987,7 +3992,7 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                return string.Compare(s1, s2, false);
+                return string.Compare(s1, s2, StringComparison.Ordinal);
             }
             catch
             {
@@ -4037,7 +4042,7 @@ namespace IPA.Cores.Basic
             {
                 int r = -x.Key.Length.CompareTo(y.Key.Length);
                 if (r != 0) return r;
-                return string.Compare(x.Key, y.Key);
+                return string.Compare(x.Key, y.Key, StringComparison.Ordinal);
             });
 
             foreach (var kv in list)
@@ -5072,7 +5077,7 @@ namespace IPA.Cores.Basic
         // SHA-256 パスワードハッシュ
         public static string HashPasswordSHA256(string password)
         {
-            return Str.ByteToHex(Secure.HashSHA256(Str.Utf8Encoding.GetBytes(password))).ToUpper();
+            return Str.ByteToHex(Secure.HashSHA256(Str.Utf8Encoding.GetBytes(password))).ToUpperInvariant();
         }
 
         // バイト列を文字列に変換
@@ -6700,7 +6705,7 @@ namespace IPA.Cores.Basic
                 string tmp = "";
                 int i, len;
 
-                str = str!.ToUpper().Trim();
+                str = str!.ToUpperInvariant().Trim();
                 len = str.Length;
 
                 for (i = 0; i < len; i++)
@@ -6830,10 +6835,12 @@ namespace IPA.Cores.Basic
             return "";
         }
         // 空かどうか調べる
+        [MethodImpl(Inline)]
         public static bool IsEmptyStr([NotNullWhen(false)] string? s)
         {
             return string.IsNullOrWhiteSpace(s);
         }
+        [MethodImpl(Inline)]
         public static bool IsFilledStr([NotNullWhen(true)] string? str)
         {
             return !IsEmptyStr(str);
@@ -6933,11 +6940,11 @@ namespace IPA.Cores.Basic
         // 文字列比較
         public static int StrCmpRetInt(string s1, string s2)
         {
-            return string.Compare(s1, s2, false);
+            return string.Compare(s1, s2, StringComparison.Ordinal);
         }
         public static int StrCmpiRetInt(string s1, string s2)
         {
-            return string.Compare(s1, s2, true);
+            return string.Compare(s1, s2, StringComparison.OrdinalIgnoreCase);
         }
 
         // 文字列がリストに含まれるかどうか比較
@@ -7174,7 +7181,7 @@ namespace IPA.Cores.Basic
 
             foreach (string s in t)
             {
-                string key = s.ToUpper();
+                string key = s.ToUpperInvariant();
 
                 if (o.ContainsKey(key) == false)
                 {
@@ -7577,7 +7584,7 @@ namespace IPA.Cores.Basic
 
         public static string NormalizeFqdn(string fqdn)
         {
-            fqdn = fqdn._NonNullTrim().ToLower();
+            fqdn = fqdn._NonNullTrim().ToLowerInvariant();
             return fqdn.Split(".", StringSplitOptions.RemoveEmptyEntries)._Combine(".");
         }
 
@@ -7590,7 +7597,7 @@ namespace IPA.Cores.Basic
                 if (tokens.Length <= 1) return false;
                 foreach (string token in tokens)
                 {
-                    string token2 = token.ToLower();
+                    string token2 = token.ToLowerInvariant();
                     if (token2.Length > 63) return false;
                     foreach (char c in token2)
                     {
@@ -7796,7 +7803,7 @@ namespace IPA.Cores.Basic
         // 文字コード自動判別機
         private static class StrEncodingAutoDetectorInternal
         {
-            public readonly static string UnknownStr = "{" + Str.NewGuid().ToLower() + "}";
+            public readonly static string UnknownStr = "{" + Str.NewGuid().ToLowerInvariant() + "}";
 
             public readonly static List<Encoding> EncodingsWithUnknownStrReplacement = new List<Encoding>();
             public readonly static List<Encoding> EncodingsNormal = new List<Encoding>();
@@ -8581,13 +8588,13 @@ namespace IPA.Cores.Basic
 
         public StrTableLanguage(string key, string name_English, string name_Local, int windowsLocaleId, string unixLocalesStrList, string httpAcceptLanguageStartWithList, StrTable table)
         {
-            Key = key._NonNullTrim().ToLower();
+            Key = key._NonNullTrim().ToLowerInvariant();
             Name_English = name_English;
             Name_Local = name_Local;
             WindowsLocaleId = windowsLocaleId;
 
-            unixLocalesStrList._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",")._DoForEach(x => this.UnixLocalesList.Add(x.ToLower()));
-            httpAcceptLanguageStartWithList._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",")._DoForEach(x => this.HttpAcceptLanguageList.Add(x.ToLower()));
+            unixLocalesStrList._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",")._DoForEach(x => this.UnixLocalesList.Add(x.ToLowerInvariant()));
+            httpAcceptLanguageStartWithList._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",")._DoForEach(x => this.HttpAcceptLanguageList.Add(x.ToLowerInvariant()));
 
             this.Table = table;
         }
@@ -8613,7 +8620,7 @@ namespace IPA.Cores.Basic
         {
             ByKeyCache = new Singleton<string, StrTableLanguage>(key =>
             {
-                key = key._NonNullTrim().ToLower()._TruncStr(2);
+                key = key._NonNullTrim().ToLowerInvariant()._TruncStr(2);
 
                 lock (this.Lock)
                 {
@@ -8633,7 +8640,7 @@ namespace IPA.Cores.Basic
 
             ByHttpAcceptLanguageCache = new Singleton<string, StrTableLanguage>(language =>
             {
-                language = language._NonNullTrim().ToLower()._TruncStr(2);
+                language = language._NonNullTrim().ToLowerInvariant()._TruncStr(2);
 
                 lock (this.Lock)
                 {
@@ -8675,13 +8682,13 @@ namespace IPA.Cores.Basic
 
         public StrTableLanguage FindLanguageByKey(string key)
         {
-            key = key._NonNullTrim().ToLower()._TruncStr(2);
+            key = key._NonNullTrim().ToLowerInvariant()._TruncStr(2);
             return this.ByKeyCache[key];
         }
 
         public StrTableLanguage FindLanguageByHttpAcceptLanguage(string language)
         {
-            language = language._NonNullTrim().ToLower()._TruncStr(2);
+            language = language._NonNullTrim().ToLowerInvariant()._TruncStr(2);
             return this.ByHttpAcceptLanguageCache[language];
         }
     }
@@ -8726,7 +8733,7 @@ namespace IPA.Cores.Basic
 
         public string GetStr(string key, string notFoundValue = "")
         {
-            key = key._NonNullTrim().ToUpper();
+            key = key._NonNullTrim().ToUpperInvariant();
 
             return this.EntryList._GetOrDefault(key, notFoundValue)._NonNull();
         }
@@ -8756,7 +8763,7 @@ namespace IPA.Cores.Basic
             Str.GetKeyAndValue(line, out string key, out string value);
             if (key._IsEmpty()) return;
 
-            key = key.ToUpper();
+            key = key.ToUpperInvariant();
 
             value = UnescapeStr(value);
 

@@ -136,7 +136,7 @@ partial class TestDevCommands
 
                     r.IpSortKey = IPAddr.FromAddress(item.Ip).GetZeroPaddingFullString();
                     r.Ip = item.Ip.ToString();
-                    r.FqdnSortKey = Str.ReverseFqdnStr(item.HostnameList.First()).ToLower();
+                    r.FqdnSortKey = Str.ReverseFqdnStr(item.HostnameList.First()).ToLowerInvariant();
                     r.FqdnList = item.HostnameList._Combine(" / ");
 
                     csvWriter.WriteData(r);

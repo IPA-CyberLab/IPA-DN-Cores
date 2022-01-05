@@ -124,7 +124,7 @@ public class ReadIni2
     {
         try
         {
-            List<string> list = datas![key.ToUpper()];
+            List<string> list = datas![key.ToUpperInvariant()];
 
             return list.ToArray();
         }
@@ -157,7 +157,7 @@ public class ReadIni2
             string? s;
             try
             {
-                List<string> list = datas![key.ToUpper()];
+                List<string> list = datas![key.ToUpperInvariant()];
 
                 if (index >= 0 && index < list.Count)
                 {
@@ -253,7 +253,7 @@ public class ReadIni2
 
                                 if (Str.GetKeyAndValue(line, out key, out value))
                                 {
-                                    key = key.ToUpper();
+                                    key = key.ToUpperInvariant();
 
                                     if (datas.ContainsKey(key) == false)
                                     {

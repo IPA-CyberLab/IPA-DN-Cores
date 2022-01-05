@@ -111,7 +111,7 @@ public class ReadIni
             {
                 lock (typeof(ReadIni))
                 {
-                    s = datas![key.ToUpper()];
+                    s = datas![key.ToUpperInvariant()];
                 }
             }
             catch
@@ -202,7 +202,7 @@ public class ReadIni
 
                                 if (Str.GetKeyAndValue(line, out key, out value))
                                 {
-                                    key = key.ToUpper();
+                                    key = key.ToUpperInvariant();
 
                                     if (datas.ContainsKey(key) == false)
                                     {
@@ -213,7 +213,7 @@ public class ReadIni
                                         int i;
                                         for (i = 1; ; i++)
                                         {
-                                            string key2 = string.Format("{0}({1})", key, i).ToUpper();
+                                            string key2 = string.Format("{0}({1})", key, i).ToUpperInvariant();
 
                                             if (datas.ContainsKey(key2) == false)
                                             {

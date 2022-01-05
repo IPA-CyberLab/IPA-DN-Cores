@@ -303,7 +303,7 @@ public class MailItem : IComparable<MailItem>
                 }
 
                 // 追加: メールアドレスのみをキーにする
-                s = DestMailUser.MailAddress.ToUpper();
+                s = DestMailUser.MailAddress.ToUpperInvariant();
 
                 hashCache = Str.ByteToStr(Str.HashStr(s));
             }

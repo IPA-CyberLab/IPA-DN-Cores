@@ -50,6 +50,108 @@ namespace IPA.TestDev;
 
 partial class TestDevCommands
 {
+    // ランダムに見える内容をファイルに書き込む。しかし、実際にはランダムではなく、同一の乱数内容である。
+    // ファイルシステムの正常性を確認するために便利である。
+    [ConsoleCommand(
+        "WriteRandomFile command",
+        "WriteRandomFile [fileName] [/size:length]",
+        "WriteRandomFile command")]
+    static int WriteRandomFile(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+            new ConsoleParam("[fileName]", ConsoleService.Prompt, "File name: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("size", ConsoleService.Prompt, "Size (0 to infinite): ", ConsoleService.EvalNotEmpty, null),
+        };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string filePath = vl.DefaultParam.StrValue;
+        long targetSize = vl["size"].StrValue._ToLong();
+
+        Async(async () =>
+        {
+            int blockSize = 1000 * 1000;
+            int randSeedSize = blockSize * 16;
+
+            if (targetSize <= 0)
+            {
+                targetSize = long.MaxValue;
+            }
+
+            targetSize = (targetSize / (long)blockSize) * (long)blockSize;
+
+            long targetBlockCount = targetSize / blockSize;
+
+            ""._Print();
+            $"Target Size: {targetSize._ToString3()} bytes"._Print();
+            $"Target Blocks: {targetBlockCount._ToString3()} blocks"._Print();
+
+            SeedBasedRandomGenerator gen = new SeedBasedRandomGenerator("Hello");
+
+            ReadOnlyMemory<byte> randSeed = gen.GetBytes(randSeedSize);
+
+            ReadOnlyMemory<byte> baseRandData = (new SeedBasedRandomGenerator("World")).GetBytes(blockSize);
+
+            await using var file = await Lfs.OpenOrCreateAppendAsync(filePath, flags: FileFlags.AutoCreateDirectory);
+
+            long currentSize = await file.GetFileSizeAsync();
+            currentSize = (currentSize / (long)blockSize) * (long)blockSize;
+            await file.SetFileSizeAsync(currentSize);
+
+            long currentBlockCount = currentSize / blockSize;
+
+            ""._Print();
+            $"Current File Size: {currentSize._ToString3()} bytes"._Print();
+            $"Current File Blocks: {currentBlockCount._ToString3()} blocks"._Print();
+
+            await file.SeekAsync(currentSize, SeekOrigin.Begin);
+
+            ThroughputMeasuse measure = new ThroughputMeasuse(baseUnitMsecs: 10000);
+
+            using var measurePrinter = measure.StartPrinter("Speed Mbytes/sec: ", toStr3: true);
+
+            if (currentSize >= targetSize)
+            {
+                $"currentSize ({currentSize._ToString3()}) >= targetSize ({targetSize._ToString3()})"._Print();
+                return;
+            }
+
+            long sizeToWrite = targetSize - currentSize;
+            long blockToWrite = sizeToWrite / blockSize;
+
+            ""._Print();
+            $"Size to Write: {sizeToWrite._ToString3()} bytes"._Print();
+            $"Blocks to Write: {blockToWrite._ToString3()} blocks"._Print();
+
+            ""._Print();
+
+            using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: false,
+                reportTimingSetting: new ProgressReportTimingSetting(false, 10000)
+                ), null))
+            {
+                Memory<byte> tmp = new byte[blockSize];
+
+                for (long currentBlockIndex = currentBlockCount; currentBlockIndex < targetBlockCount; currentBlockIndex++)
+                {
+                    int randIndex = (new SeedBasedRandomGenerator(currentBlockIndex.ToString())).GetSInt31() % (randSeedSize - blockSize);
+
+                    tmp.Span._Xor(baseRandData.Span, randSeed.Span.Slice(randIndex, blockSize));
+
+
+
+                    await file.WriteAsync(tmp);
+
+                    reporter.ReportProgress(new ProgressData((currentBlockIndex - currentBlockCount) * blockSize, sizeToWrite));
+                    measure.Add(blockSize);
+                }
+            }
+        });
+
+        return 0;
+    }
+
+
     // 指定されたサブディレクトリにあるすべてのファイルを読む
     [ConsoleCommand(
         "ReadAllFiles command",

@@ -486,7 +486,7 @@ public class CertVault : AsyncServiceWithMainLoop
 
             if (url.Url._IsFilled())
             {
-                string safeUrlStr = url.Url._MakeVerySafeAsciiOnlyNonSpaceString(true).ToLower();
+                string safeUrlStr = url.Url._MakeVerySafeAsciiOnlyNonSpaceString(true).ToLowerInvariant();
 
                 var dir = this.CertServerFetchedDir.GetSubDirectory(safeUrlStr);
 
