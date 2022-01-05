@@ -1320,7 +1320,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                             }
                         );
 
-                        foreach (var physicalDeleteUid in physicalDeleteUidList)
+                        foreach (var physicalDeleteUid in physicalDeleteUidList.Where(x => x._InStr(":")))
                         {
                             await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK, ROWLOCK) where DATA_UID = @DATA_UID",
                                 new
@@ -1555,7 +1555,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                             }
                         );
 
-                        foreach (var physicalDeleteUid in physicalDeleteUidList)
+                        foreach (var physicalDeleteUid in physicalDeleteUidList.Where(x => x._InStr(":")))
                         {
                             await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK, ROWLOCK) where DATA_UID = @DATA_UID",
                                 new
