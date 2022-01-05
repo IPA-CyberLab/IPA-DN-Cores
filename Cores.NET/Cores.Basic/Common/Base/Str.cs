@@ -1651,6 +1651,11 @@ namespace IPA.Cores.Basic
             Buf buf = new Buf(hash);
             string c = (buf.ReadInt64() % 100000UL).ToString("D5");
 
+            if (prependAtoZHashChar)
+            {
+                prefix = "" + (char)('A' + (Util.RandSInt31() % 26)) + prefix;
+            }
+
             return prefix.ToUpperInvariant() + concat + a + concat + b + concat + c + d + e + concat + f + concat + g;
         }
         // ID 文字列を短縮する
