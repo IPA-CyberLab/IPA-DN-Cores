@@ -464,6 +464,13 @@ public sealed class HadbSqlDataRow : INormalizable
     }
 }
 
+[Flags]
+public enum HadbTranOptions : long
+{
+    None = 0,
+    LightLock = 1,
+}
+
 public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynamicConfig>
     where TMem : HadbMemDataBase, new()
     where TDynamicConfig : HadbDynamicConfig
@@ -843,7 +850,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         return ret;
     }
 
-    protected override async Task<HadbTran> BeginDatabaseTransactionImplAsync(bool writeMode, bool isTransaction, CancellationToken cancel = default)
+    protected override async Task<HadbTran> BeginDatabaseTransactionImplAsync(bool writeMode, bool isTransaction, HadbTranOptions options, CancellationToken cancel = default)
     {
         Database db = await this.OpenSqlDatabaseAsync(writeMode, cancel);
 
@@ -856,7 +863,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
             bool isDbSnapshotReadMode = (writeMode == false) && db.DefaultIsolationLevel == IsolationLevel.Snapshot;
 
-            HadbSqlTran ret = new HadbSqlTran(writeMode, isTransaction, this, db, isDbSnapshotReadMode);
+            HadbSqlTran ret = new HadbSqlTran(writeMode, isTransaction, this, db, isDbSnapshotReadMode, options);
 
             return ret;
         }
@@ -1220,10 +1227,12 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         var labels = data.GetLabels();
         if (data.Deleted) throw new CoresLibException("data.Deleted == true");
 
-        string query = "update HADB_DATA set DATA_VALUE = @DATA_VALUE, DATA_UPDATE_DT = @DATA_UPDATE_DT, DATA_LAZY_COUNT1 = DATA_LAZY_COUNT1 + 1, DATA_LAZY_COUNT2 = DATA_LAZY_COUNT2 + 1 " +
-            "where DATA_UID = @DATA_UID and DATA_VER = @DATA_VER and DATA_UPDATE_DT < @DATA_UPDATE_DT and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE = 0 and DATA_DELETED = 0 and " +
+        string query = "update HADB_DATA with (ROWLOCK) set DATA_VALUE = @DATA_VALUE, DATA_UPDATE_DT = @DATA_UPDATE_DT, DATA_LAZY_COUNT1 = DATA_LAZY_COUNT1 + 1, DATA_LAZY_COUNT2 = DATA_LAZY_COUNT2 + 1 " +
+            "where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_VER = @DATA_VER and DATA_UPDATE_DT < @DATA_UPDATE_DT and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE = 0 and DATA_DELETED = 0 and " +
             "DATA_KEY1 = @DATA_KEY1 and DATA_KEY2 = @DATA_KEY2 and DATA_KEY3 = @DATA_KEY3 and DATA_KEY4 = @DATA_KEY4 and " +
             "DATA_LABEL1 = @DATA_LABEL1 and DATA_LABEL2 = @DATA_LABEL2 and DATA_LABEL3 = @DATA_LABEL3 and DATA_LABEL4 = DATA_LABEL4";
+
+        query = "BEGIN TRANSACTION \n" + query + "\n COMMIT TRANSACTION\n";
 
         int ret = await dbWriter.EasyExecuteAsync(query,
             new
@@ -1264,7 +1273,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         if (data.Deleted) throw new CoresLibException("data.Deleted == true");
 
         // 現在のデータを取得
-        var row = await this.GetRowByUidAsync(dbWriter, typeName, data.NameSpace, data.Uid, !tran.IsDbSnapshotReadMode, cancel);
+        var row = await this.GetRowByUidAsync(dbWriter, typeName, data.NameSpace, data.Uid, tran.ShouldUseLightLock, cancel);
         if (row == null)
         {
             // 現在のデータがない
@@ -1322,10 +1331,11 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
                         foreach (var physicalDeleteUid in physicalDeleteUidList.Where(x => x._InStr(":")))
                         {
-                            await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK, ROWLOCK) where DATA_UID = @DATA_UID",
+                            await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK, ROWLOCK) where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME",
                                 new
                                 {
                                     DATA_UID = physicalDeleteUid,
+                                    DATA_SYSTEMNAME = this.SystemName,
                                 });
                         }
                     }
@@ -1362,7 +1372,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         //await dbWriter.EasyUpdateAsync(row, true, cancel);
 
         // デッドロックを防ぐため、where 句が重要。手動で実行するのである。
-        await dbWriter.EasyExecuteAsync("update HADB_DATA with (ROWLOCK) set DATA_VER = @DATA_VER, DATA_UPDATE_DT = @DATA_UPDATE_DT, " +
+        // READCOMMITTEDLOCK にしないと、パーティション分割している場合にデッドロックが頻発する。
+        await dbWriter.EasyExecuteAsync("update HADB_DATA with (READCOMMITTEDLOCK, ROWLOCK) set DATA_VER = @DATA_VER, DATA_UPDATE_DT = @DATA_UPDATE_DT, " +
             "DATA_KEY1 = @DATA_KEY1, DATA_KEY2 = @DATA_KEY2, DATA_KEY3 = @DATA_KEY3, DATA_KEY4 = @DATA_KEY4, " +
             "DATA_LABEL1 = @DATA_LABEL1, DATA_LABEL2 = @DATA_LABEL2, DATA_LABEL3 = @DATA_LABEL3, DATA_LABEL4 = @DATA_LABEL4, " +
             "DATA_VALUE = @DATA_VALUE, DATA_EXT1 = @DATA_EXT1, DATA_EXT2 = @DATA_EXT2, " +
@@ -1402,7 +1413,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         var dbReader = ((HadbSqlTran)tran).Db;
 
-        HadbSqlDataRow? row = await GetRowByUidAsync(dbReader, typeName, nameSpace, uid, !tran.IsDbSnapshotReadMode, cancel);
+        HadbSqlDataRow? row = await GetRowByUidAsync(dbReader, typeName, nameSpace, uid, tran.ShouldUseLightLock, cancel);
 
         if (row == null) return null;
 
@@ -1455,7 +1466,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         var dbReader = ((HadbSqlTran)tran).Db;
 
-        var row = await GetRowByKeyAsync(dbReader, typeName, nameSpace, key, !tran.IsDbSnapshotReadMode, and, cancel);
+        var row = await GetRowByKeyAsync(dbReader, typeName, nameSpace, key, tran.ShouldUseLightLock, and, cancel);
 
         if (row == null) return null;
 
@@ -1472,7 +1483,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         var dbReader = ((HadbSqlTran)tran).Db;
 
-        IEnumerable<HadbSqlDataRow> rows = await GetRowsByLabelsAsync(dbReader, typeName, nameSpace, labels, !tran.IsDbSnapshotReadMode, cancel);
+        IEnumerable<HadbSqlDataRow> rows = await GetRowsByLabelsAsync(dbReader, typeName, nameSpace, labels, tran.ShouldUseLightLock, cancel);
 
         if (rows == null) return EmptyOf<HadbObject>();
 
@@ -1498,7 +1509,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         tran.CheckIsWriteMode();
         var dbWriter = ((HadbSqlTran)tran).Db;
 
-        HadbSqlDataRow? row = await GetRowByUidAsync(dbWriter, typeName, nameSpace, uid, !tran.IsDbSnapshotReadMode, cancel);
+        HadbSqlDataRow? row = await GetRowByUidAsync(dbWriter, typeName, nameSpace, uid, tran.ShouldUseLightLock, cancel);
 
         if (row == null)
         {
@@ -1557,10 +1568,11 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
                         foreach (var physicalDeleteUid in physicalDeleteUidList.Where(x => x._InStr(":")))
                         {
-                            await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK, ROWLOCK) where DATA_UID = @DATA_UID",
+                            await dbWriter.EasyExecuteAsync("delete from HADB_DATA with (READCOMMITTEDLOCK, ROWLOCK) where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME",
                                 new
                                 {
                                     DATA_UID = physicalDeleteUid,
+                                    DATA_SYSTEMNAME = this.SystemName,
                                 });
                         }
                     }
@@ -1606,7 +1618,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
     {
         public Database Db { get; }
 
-        public HadbSqlTran(bool writeMode, bool isTransaction, HadbSqlBase<TMem, TDynamicConfig> hadbSql, Database db, bool isDbSnapshotReadMode) : base(writeMode, isTransaction, isDbSnapshotReadMode, hadbSql)
+        public HadbSqlTran(bool writeMode, bool isTransaction, HadbSqlBase<TMem, TDynamicConfig> hadbSql, Database db, bool isDbSnapshotReadMode, HadbTranOptions options) : base(writeMode, isTransaction, isDbSnapshotReadMode, options, hadbSql)
         {
             try
             {
@@ -2770,7 +2782,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     readonly AsyncLock DynamicConfigValueDbLockAsync = new AsyncLock();
 
-    protected abstract Task<HadbTran> BeginDatabaseTransactionImplAsync(bool writeMode, bool isTransaction, CancellationToken cancel = default);
+    protected abstract Task<HadbTran> BeginDatabaseTransactionImplAsync(bool writeMode, bool isTransaction, HadbTranOptions options, CancellationToken cancel = default);
 
     protected internal abstract Task AtomicAddDataListToDatabaseImplAsync(HadbTran tran, IEnumerable<HadbObject> dataList, CancellationToken cancel = default);
     protected internal abstract Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, CancellationToken cancel = default);
@@ -2934,7 +2946,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             try
             {
                 // 非トランザクションの SQL 接続を開始する
-                await using var tran = await this.BeginDatabaseTransactionImplAsync(true, false, cancel);
+                await using var tran = await this.BeginDatabaseTransactionImplAsync(true, false, HadbTranOptions.LightLock, cancel);
 
                 // 現在 キューに入っている項目に対する Lazy Update の実行
                 // キューは Immutable なので、現在の Queue を取得する
@@ -3535,7 +3547,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     readonly ConcurrentLimiter<string> DbConcurrentTranLimiterWritePerClient = new ConcurrentLimiter<string>();
     readonly ConcurrentLimiter<string> DbConcurrentTranLimiterReadPerClient = new ConcurrentLimiter<string>();
 
-    public async Task<bool> TranAsync(bool writeMode, Func<HadbTran, Task<bool>> task, bool takeSnapshot = false, RefLong? snapshotNoRet = null, CancellationToken cancel = default, DeadlockRetryConfig? retryConfig = null, bool ignoreQuota = false, string clientName = "")
+    public async Task<bool> TranAsync(bool writeMode, Func<HadbTran, Task<bool>> task, HadbTranOptions options = HadbTranOptions.LightLock, bool takeSnapshot = false, RefLong? snapshotNoRet = null, CancellationToken cancel = default, DeadlockRetryConfig? retryConfig = null, bool ignoreQuota = false, string clientName = "")
     {
         CheckIfReady();
 
@@ -3571,7 +3583,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             LABEL_RETRY:
             try
             {
-                await using var tran = await this.BeginDatabaseTransactionImplAsync(writeMode, true, cancel);
+                await using var tran = await this.BeginDatabaseTransactionImplAsync(writeMode, true, options, cancel);
 
                 await tran.BeginAsync(takeSnapshot, cancel);
 
@@ -3747,17 +3759,19 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             await base.CleanupImplAsync(ex);
         }
     }
-
-
+    
     public abstract class HadbTran : AsyncService
     {
         public bool IsWriteMode { get; }
         public bool IsTransaction { get; }
         public bool TakeSnapshot { get; private set; }
         public bool IsDbSnapshotReadMode { get; }
+        public HadbTranOptions Options { get; }
         public long CurrentSnapNoForWriteMode { get; private set; }
         public HadbMemDataBase MemDb { get; }
         List<HadbObject> ApplyObjectsList = new List<HadbObject>();
+
+        public bool ShouldUseLightLock => !this.IsDbSnapshotReadMode && this.Options.Bit(HadbTranOptions.LightLock);
 
         public IReadOnlyList<HadbObject> GetApplyObjectsList() => this.ApplyObjectsList;
 
@@ -3765,13 +3779,14 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
         public HadbBase<TMem, TDynamicConfig> Hadb;
 
-        public HadbTran(bool writeMode, bool isTransaction, bool isDbSnapshotReadMode, HadbBase<TMem, TDynamicConfig> hadb)
+        public HadbTran(bool writeMode, bool isTransaction, bool isDbSnapshotReadMode, HadbTranOptions options, HadbBase<TMem, TDynamicConfig> hadb)
         {
             try
             {
                 this.IsDbSnapshotReadMode = isDbSnapshotReadMode;
                 this.IsWriteMode = writeMode;
                 this.IsTransaction = isTransaction;
+                this.Options = options;
                 this.Hadb = hadb;
                 this.MemDb = this.Hadb.MemDb!;
             }

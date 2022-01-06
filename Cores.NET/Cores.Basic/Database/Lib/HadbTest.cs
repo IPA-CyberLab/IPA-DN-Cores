@@ -504,6 +504,7 @@ public static class HadbCodeTest
                 Dbg.TestTrue(u.AuthKey == "a001");
                 Dbg.TestTrue(u.Company == "NTT");
                 Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
+                Dbg.TestTrue(u.Int1 == 100);
                 Dbg.TestTrue(obj.Ext1 == "a");
                 Dbg.TestTrue(obj.Ext2 == "1");
             }
@@ -565,6 +566,7 @@ public static class HadbCodeTest
                 Dbg.TestTrue(u.AuthKey == "a001");
                 Dbg.TestTrue(u.Company == "NTT");
                 Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
+                Dbg.TestTrue(u.Int1 == 100);
                 Dbg.TestTrue(obj.Ext1 == "a");
                 Dbg.TestTrue(obj.Ext2 == "1");
 
@@ -618,6 +620,7 @@ public static class HadbCodeTest
                 Dbg.TestTrue(u.AuthKey == "a001");
                 Dbg.TestTrue(u.Company == "NTT");
                 Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
+                Dbg.TestTrue(u.Int1 == 100);
                 Dbg.TestTrue(obj.Ext1 == "a");
                 Dbg.TestTrue(obj.Ext2 == "1");
 
@@ -679,6 +682,7 @@ public static class HadbCodeTest
                 Dbg.TestTrue(u.AuthKey == "a001");
                 Dbg.TestTrue(u.Company == "NTT");
                 Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
+                Dbg.TestTrue(u.Int1 == 100);
                 Dbg.TestTrue(obj.Ext1 == "a");
                 Dbg.TestTrue(obj.Ext2 == "1");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot0);
@@ -787,6 +791,12 @@ public static class HadbCodeTest
                 Dbg.TestTrue(u.AuthKey == "a001");
                 Dbg.TestTrue(u.Company == "NTT");
                 Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
+
+                if (u.Int1 != 101)
+                {
+                    $"------ WRONG 4 ! ------\nuid = {obj.Uid}\nu = {u.GetUserDataJsonString()}\n"._Error();
+                }
+                Dbg.TestTrue(u.Int1 == 101);
                 Dbg.TestTrue(obj.Ext1 == "a");
                 Dbg.TestTrue(obj.Ext2 == "1");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot0);
@@ -806,6 +816,11 @@ public static class HadbCodeTest
                     var obj = await tran.AtomicSearchByKeyAsync(new User { AuthKey = "  A001  " }, nameSpace);
                     var u = obj!.GetData();
                     Dbg.TestTrue(u.FullName == "Tanaka");
+
+                    if (u.Int1 != 102)
+                    {
+                        $"------ WRONG 3 ! ------\nuid = {obj.Uid}\nu = {u.GetUserDataJsonString()}\n"._Error();
+                    }
                     Dbg.TestTrue(u.Int1 == 102);
 
                     obj.Ext1 = "k";
@@ -837,6 +852,12 @@ public static class HadbCodeTest
                 Dbg.TestTrue(u.AuthKey == "a001");
                 Dbg.TestTrue(u.Company == "NTT");
                 Dbg.TestTrue(u.LastIp == "a123:b456:1::c789");
+
+                if (u.Int1 != 101)
+                {
+                    $"------ WRONG 2 ! ------\nuid = {obj.Uid}\nu = {u.GetUserDataJsonString()}\n"._Error();
+                }
+                Dbg.TestTrue(u.Int1 == 101);
                 Dbg.TestTrue(obj.Ext1 == "a");
                 Dbg.TestTrue(obj.Ext2 == "1");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot0);
@@ -850,6 +871,11 @@ public static class HadbCodeTest
                 var obj = await tran.AtomicSearchByKeyAsync(new User { AuthKey = "  A001  " }, nameSpace);
                 var u = obj!.GetData();
                 Dbg.TestTrue(u.FullName == "Tanaka");
+
+                if (u.Int1 != 102)
+                {
+                    $"------ WRONG 1 ! ------\nuid = {obj.Uid}\nu = {u.GetUserDataJsonString()}\n"._Error();
+                }
                 Dbg.TestTrue(u.Int1 == 102);
 
                 u.Company = "SoftEther";
@@ -1162,7 +1188,7 @@ public static class HadbCodeTest
             {
                 await tran.AtomicDeleteByKeyAsync(new User { AuthKey = "X001" }, nameSpace);
                 return true;
-            }, takeSnapshot: true, snapshot4);
+            }, takeSnapshot: true, snapshotNoRet: snapshot4);
 
             // アーカイブ取得実験
             await sys2.TranAsync(false, async tran =>
