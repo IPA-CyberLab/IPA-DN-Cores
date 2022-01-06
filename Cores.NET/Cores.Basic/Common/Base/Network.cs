@@ -2000,7 +2000,10 @@ namespace IPA.Cores.Basic
 
             try
             {
-                IPAddr a = IPAddr.FromString(str);
+                if (IPAddress.TryParse(str, out IPAddress? a) == false)
+                {
+                    return str.ToLowerInvariant();
+                }
 
                 if (a.AddressFamily == AddressFamily.InterNetworkV6)
                 {
@@ -2009,6 +2012,10 @@ namespace IPA.Cores.Basic
                 else if (a.AddressFamily == AddressFamily.InterNetwork)
                 {
                     return a.ToString().ToLowerInvariant();
+                }
+                else
+                {
+                    return str.ToLowerInvariant();
                 }
             }
             catch

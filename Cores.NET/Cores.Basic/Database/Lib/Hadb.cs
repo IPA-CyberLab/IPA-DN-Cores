@@ -791,7 +791,11 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                     sql += " and DATA_DELETED = 0";
                 }
 
-                rows = await dbReader.EasySelectAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0", new { DATA_SYSTEMNAME = this.SystemName, DT_MIN = partialReloadMinUpdateTime });
+                Debug($"ReloadDataFromDatabaseImplAsync: Start DB Select.");
+
+                rows = await dbReader.EasySelectAsync<HadbSqlDataRow>("select top 1000000 * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0", new { DATA_SYSTEMNAME = this.SystemName, DT_MIN = partialReloadMinUpdateTime });
+
+                Debug($"ReloadDataFromDatabaseImplAsync: Finished DB Select. Rows = {rows.Count()._ToString3()}");
 
                 HadbSqlKvRow? kv = await dbReader.EasySelectSingleAsync<HadbSqlKvRow>("select top 1 * from HADB_KV where KV_SYSTEM_NAME = @KV_SYSTEM_NAME and KV_KEY = @KV_KEY and KV_DELETED = 0 order by KV_ID desc",
                     new
@@ -823,31 +827,62 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         //Dbg.Where();
 
-        List<HadbObject> ret = await rowsList._ProcessParallelAndAggregateAsync(srcList =>
-        {
-            List<HadbObject> tmp = new List<HadbObject>();
-            foreach (var row in srcList)
-            {
-                Type? type = this.GetDataTypeByTypeName(row.DATA_TYPE);
-                if (type != null)
-                {
-                    HadbData? data = (HadbData?)row.DATA_VALUE._JsonToObject(type);
-                    if (data != null)
-                    {
-                        HadbObject obj = new HadbObject(data, row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, false, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+        Debug($"ReloadDataFromDatabaseImplAsync: Start Processing DB Rows to HadbObject convert. Rows = {rows.Count()._ToString3()}");
 
-                        tmp.Add(obj);
+        ProgressReporter? reporter = null;
+
+        if (fullReloadMode)
+        {
+            reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Debug, toStr3: true, showEta: true,
+                reportTimingSetting: new ProgressReportTimingSetting(false, 1000)));
+        }
+
+        long currentCount = 0;
+        long totalCount = rowsList.Count;
+
+        try
+        {
+            List<HadbObject> ret = await rowsList._ProcessParallelAndAggregateAsync(srcList =>
+            {
+                List<HadbObject> tmp = new List<HadbObject>();
+                int i = 0;
+                foreach (var row in srcList)
+                {
+                    Type? type = this.GetDataTypeByTypeName(row.DATA_TYPE);
+                    if (type != null)
+                    {
+                        HadbData? data = (HadbData?)row.DATA_VALUE._JsonToObject(type);
+                        if (data != null)
+                        {
+                            HadbObject obj = new HadbObject(data, row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, false, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+
+                            tmp.Add(obj);
+
+                            i++;
+
+                            if ((i % 100) == 0)
+                            {
+                                long current = Interlocked.Add(ref currentCount, 100);
+                                reporter?.ReportProgress(new ProgressData(current, totalCount, false, "DB Rows to HADB Object"));
+                            }
+                        }
                     }
                 }
-            }
-            return TR(tmp);
-        }, cancel: cancel);
+                return TR(tmp);
+            }, cancel: cancel);
 
-        //Dbg.Where();
+            Debug($"ReloadDataFromDatabaseImplAsync: Finished Processing DB Rows to HadbObject convert. Objects = {ret.Count._ToString3()}");
 
-        //ret.Count._Print();
+            //Dbg.Where();
 
-        return ret;
+            //ret.Count._Print();
+
+            return ret;
+        }
+        finally
+        {
+            reporter._DisposeSafe();
+        }
     }
 
     protected override async Task<HadbTran> BeginDatabaseTransactionImplAsync(bool writeMode, bool isTransaction, HadbTranOptions options, CancellationToken cancel = default)
@@ -3105,9 +3140,13 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                     // DB からオブジェクト一覧を読み込む
                     Ref<DateTimeOffset> lastStatWrittenTimeStamp = new Ref<DateTimeOffset>(ZeroDateTimeOffsetValue);
 
+                    Debug($"ReloadCoreAsync: Start Reload Data From Database. fullReloadMode = {fullReloadMode}, partialReloadMinUpdateTime = {partialReloadMinUpdateTime._ToDtStr(true)}");
+
                     long dbStartTick = Time.HighResTick64;
                     List<HadbObject> loadedObjectsList = await this.ReloadDataFromDatabaseImplAsync(fullReloadMode, partialReloadMinUpdateTime, lastStatWrittenTimeStamp, cancel);
                     long dbEndTick = Time.HighResTick64;
+
+                    Debug($"ReloadCoreAsync: Finished Reload Data From Database. fullReloadMode = {fullReloadMode}, Objects = {loadedObjectsList.Count._ToString3()}, Took time: {((int)(dbEndTick - dbStartTick))._ToTimeSpanMSecs()._ToTsStr(true)}");
 
                     if (fullReloadMode)
                     {
@@ -3121,9 +3160,13 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                     TMem? currentMemDb = this.MemDb;
                     if (currentMemDb == null) currentMemDb = new TMem();
 
+                    Debug($"ReloadCoreAsync: Start Reload Data Into Memory. fullReloadMode = {fullReloadMode}, Objects = {loadedObjectsList.Count._ToString3()}, partialReloadMinUpdateTime = {partialReloadMinUpdateTime._ToDtStr(true)}");
+
                     long memStartTick = Time.HighResTick64;
                     await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, fullReloadMode, partialReloadMinUpdateTime, "Database", cancel);
                     long memEndTick = Time.HighResTick64;
+
+                    Debug($"ReloadCoreAsync: Finished Reload Data From Database. fullReloadMode = {fullReloadMode}, Objects = {loadedObjectsList.Count._ToString3()}, Took time: {((int)(memEndTick - memStartTick))._ToTimeSpanMSecs()._ToTsStr(true)}");
 
                     if (fullReloadMode)
                     {
@@ -3145,6 +3188,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                                 backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
                                 cancel: cancel, withBackup: true);
 
+                            Debug($"ReloadCoreAsync: Start Local Backup Memory Processing. Objects = {loadedObjectsList.Count._ToString3()}");
+
                             HadbBackupDatabase backupData = new HadbBackupDatabase
                             {
                                 ObjectsList = await loadedObjectsList._ProcessParallelAndAggregateAsync(x =>
@@ -3164,9 +3209,11 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                                 TimeStamp = nowTime,
                             };
 
-                            await backupDatabasePath.FileSystem.WriteJsonToFileAsync(backupDatabasePath.PathString, backupData,
+                            Debug($"ReloadCoreAsync: Start Local Backup Physical File Write. Objects = {backupData.ObjectsList.Count._ToString3()}");
+                            long size = await backupDatabasePath.FileSystem.WriteJsonToFileAsync(backupDatabasePath.PathString, backupData,
                                 backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
                                 cancel: cancel, withBackup: true);
+                            Debug($"ReloadCoreAsync: Finished Local Backup Physical File Write. File Size: {size._ToString3()} bytes, Objects = {backupData.ObjectsList.Count._ToString3()}, File Path = '{backupDatabasePath.PathString}'");
                         }
                     }
 
@@ -3282,13 +3329,19 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                         }
 
                         // データ本体
+                        Debug($"ReloadCoreAsync: Start LoadLocalBackupDataAsync. Path = '{backupDatabasePath.PathString}'");
                         List<HadbObject> loadedObjectsList = await LoadLocalBackupDataAsync(backupDatabasePath, cancel);
+                        Debug($"ReloadCoreAsync: Finished LoadLocalBackupDataAsync. loadedObjectsList Count = {loadedObjectsList.Count._ToString3()}");
 
                         TMem? currentMemDb = new TMem();
 
+                        Debug($"ReloadCoreAsync: Start Restoring Local Backup Data Into Memory. Objects = {loadedObjectsList.Count._ToString3()}");
+                        
                         long memStartTick = Time.HighResTick64;
                         await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, true, default, $"Local Database Backup File '{backupDatabasePath.PathString}'", cancel);
                         long memEndTick = Time.HighResTick64;
+
+                        Debug($"ReloadCoreAsync: Finished Restoring Local Backup Data Into Memory. Objects = {loadedObjectsList.Count._ToString3()}, Took time: {((int)(memEndTick - memStartTick))._ToTimeSpanMSecs()._ToTsStr(true)}");
 
                         this.MemDb = currentMemDb;
                     }

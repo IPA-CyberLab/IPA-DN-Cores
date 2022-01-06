@@ -143,6 +143,8 @@ public static class HadbCodeTest2
 
                 await tran.AtomicUpdateAsync(obj2);
 
+                Measure1?.Add(1);
+
                 return true;
             });
         }
@@ -166,8 +168,40 @@ public static class HadbCodeTest2
 
                 obj = await tran.AtomicAddAsync(r);
                 rec = r;
+                Measure1?.Add(1);
                 return true;
             });
+        }
+    }
+
+    static ThroughputMeasuse? Measure1 = null;
+
+    public static void StartMeasure()
+    {
+        if (Measure1 == null)
+        {
+            Measure1 = new ThroughputMeasuse(1000, 1000);
+            Measure1.StartPrinter(intervalMsecs: 1000, toStr3: true);
+        }
+    }
+
+    public static async Task OnMemoryQueryTestLoopAsync(Sys sys, int maxCounts, int maxThreadId)
+    {
+        await Task.Yield();
+        while (true)
+        {
+            int thread_id = (Util.RandSInt31() % maxThreadId) + 1;
+            int i = Util.RandSInt31() % maxCounts;
+
+            Record byHostName = new Record { HostName = "host_" + thread_id.ToString("D10") + "_" + i.ToString("D10") };
+            //Record byAuthKey = new Record { AuthKey = "auth_" + i.ToString("D10") + "_" + thread_id.ToString("D10") };
+
+            var obj1 = sys.FastSearchByKey(byHostName);
+            if (obj1 == null)
+            {
+                Environment.FailFast("NULL!");
+            }
+            Measure1?.Add(1);
         }
     }
 
@@ -196,10 +230,10 @@ public static class HadbCodeTest2
                     //if (obj1 == null) byHostName.GetUserDataJsonString()._Print();
                     //if (obj2 == null) byAuthKey.GetUserDataJsonString()._Print();
 
-                    obj1!.GetUserDataJsonString()._Print();
+                    //obj1!.GetUserDataJsonString()._Print();
                     //obj2!.GetUserDataJsonString()._Print();
 
-                    var r1 = obj1.GetData();
+                    var r1 = obj1!.GetData();
                     //var r2 = obj2.GetData<Record>();
 
                     r1.IpAddress1 = Str.GenRandStr().Substring(0, 4);
@@ -211,6 +245,7 @@ public static class HadbCodeTest2
                     if (tran.IsWriteMode)
                     {
                         await tran.AtomicUpdateAsync(obj1);
+                        Measure1?.Add(1);
                     }
                     //await tran.AtomicUpdateAsync(obj2);
                 }

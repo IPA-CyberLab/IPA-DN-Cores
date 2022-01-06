@@ -2405,6 +2405,7 @@ static class TestClass
         Test0_ManyUpdate,
         Test1_ManyInserts,
         Test2_RandomUpdates,
+        Test3_OnMemoryQueryTestLoop,
     }
 
     static void Test_211205(int threads = 1, int count = 1, int numInsertsOrUpdates = 100, HADB_DDNS_TestType type = HADB_DDNS_TestType.Test0_ManyUpdate, bool truncate = true)
@@ -2417,11 +2418,18 @@ static class TestClass
         const string TestDbWriteUser = "sql_hadb001_writer";
         const string TestDbWritePassword = "sql_hadb_writer_default_password";
 
+        var options = HadbOptionFlags.NoAutoDbReloadAndUpdate | HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll | HadbOptionFlags.NoMemDb | HadbOptionFlags.DataUidForPartitioningByUidOptimized | HadbOptionFlags.NoLocalBackup;
+
+        if (type == HADB_DDNS_TestType.Test3_OnMemoryQueryTestLoop)
+        {
+            options = options.BitRemove(HadbOptionFlags.NoMemDb);
+        }
+
         HadbSqlSettings settings = new HadbSqlSettings("DDNS",
             new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
             new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
             IsolationLevel.Snapshot, IsolationLevel.Serializable,
-            HadbOptionFlags.NoAutoDbReloadAndUpdate | HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll | HadbOptionFlags.NoMemDb);
+            options);
 
         if (truncate)
         {
@@ -2438,6 +2446,34 @@ static class TestClass
                 await db.QueryWithNoReturnAsync("truncate table HADB_SNAPSHOT");
             });
         }
+
+        if (type == HADB_DDNS_TestType.Test3_OnMemoryQueryTestLoop)
+        {
+            HadbCodeTest2.Sys sys1 = new HadbCodeTest2.Sys(settings, new HadbCodeTest2.Dyn() { Hello = "Hello World" });
+
+            Async(async () =>
+            {
+                $"Load Start"._Print();
+
+                long tickStart = Time.HighResTick64;
+                await sys1.WaitUntilReadyForFastAsync();
+                long tickEnd = Time.HighResTick64;
+
+                $"Load Completed: {(tickEnd - tickStart)._ToTimeSpanMSecs()._ToTsStr(true, false)}"._Print();
+
+                HadbCodeTest2.StartMeasure();
+
+                for (int i = 0; i < Env.NumCpus; i++)
+                {
+                    Task t = TaskUtil.StartAsyncTaskAsync(async () =>
+                    {
+                        await HadbCodeTest2.OnMemoryQueryTestLoopAsync(sys1, numInsertsOrUpdates, threads);
+                    });
+                }
+            });
+        }
+
+        HadbCodeTest2.StartMeasure();
 
         for (int i = 0; i < count; i++)
         {
@@ -3188,12 +3224,19 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             return;
         }
 
-        if (true)
+        if (false)
         {
             // HADB 普通のテスト
             //Test_211108(threads: 100, count: 3000000);
             while (true)
-                Test_211108(threads: 10, count: 1);
+                Test_211108(threads: 100, count: 1);
+            return;
+        }
+
+        if (true)
+        {
+            // HADB DDNS 模擬テスト #4 (オンメモリで検索しまくり)
+            Test_211205(threads: 100, count: 1, numInsertsOrUpdates: 30000, type: HADB_DDNS_TestType.Test3_OnMemoryQueryTestLoop, truncate: false);
             return;
         }
 
@@ -3201,6 +3244,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         {
             // HADB DDNS 模擬テスト #3 (ランダム変更しまくり)
             Test_211205(threads: 100, count: 1, numInsertsOrUpdates: 30000, type: HADB_DDNS_TestType.Test2_RandomUpdates, truncate: false); // 300 万レコード追加テスト
+            // メモ: 2700 レコード / 秒 くらい追加できた。(パーティション UID 分割時)
             return;
         }
 
@@ -3208,6 +3252,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         {
             // HADB DDNS 模擬テスト #2 (追加しまくり)
             Test_211205(threads: 100, count: 1, numInsertsOrUpdates: 30000, type: HADB_DDNS_TestType.Test1_ManyInserts, truncate: true); // 300 万レコード追加テスト
+            // メモ: 6000 レコード / 秒 くらい追加できた。(パーティション UID 分割時)
             return;
         }
 
