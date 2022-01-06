@@ -2423,6 +2423,8 @@ static class TestClass
         if (type == HADB_DDNS_TestType.Test3_OnMemoryQueryTestLoop)
         {
             options = options.BitRemove(HadbOptionFlags.NoMemDb);
+
+            options = options.BitRemove(HadbOptionFlags.NoLocalBackup);
         }
 
         HadbSqlSettings settings = new HadbSqlSettings("DDNS",
@@ -3200,8 +3202,70 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         data3._ObjectToJson()._Print();
     }
 
+    public class TestCls1
+    {
+        public List<TestCls2> List = new List<TestCls2>();
+    }
+
+    public class TestCls2
+    {
+        public string TestStr = "";
+        public int TestInt = 0;
+    }
+
+    static void Test_220106()
+    {
+        Async(async () =>
+        {
+            string path = @"c:\tmp2\220106\test.json";
+            string str = 'z'._MakeCharArray(1 * 1000 * 1000);
+            int count = 1 * 1000 * 8;
+
+            "Adding..."._Print();
+
+            TestCls1 z = new TestCls1();
+            for (int i = 0; i < count; i++)
+            {
+                z.List.Add(new TestCls2 { TestInt = i, TestStr = str });
+            }
+
+            "Done."._Print();
+
+            ""._Print();
+
+            "Saving..."._Print();
+            await Lfs.WriteJsonToFileAsync(path, z, FileFlags.AutoCreateDirectory | FileFlags.OnCreateRemoveCompressionFlag);
+            "Done."._Print();
+
+            ""._Print();
+
+            "Loading..."._Print();
+            var z2 = await Lfs.ReadJsonFromFileAsync<TestCls1>(path, long.MaxValue);
+            "Done."._Print();
+
+            ""._Print();
+
+            "Checking..."._Print();
+            for (int i = 0; i < count; i++)
+            {
+                var e = z2.List[i];
+                Dbg.TestTrue(e.TestInt == i);
+                Dbg.TestTrue(e.TestStr == str);
+            }
+            "Done."._Print();
+
+            ""._Print();
+        });
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_220106();
+            return;
+        }
+
         if (false)
         {
             Test_211230_02();
@@ -3232,6 +3296,12 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             //Test_211108(threads: 100, count: 3000000);
             while (true)
                 Test_211108(threads: 100, count: 1);
+            return;
+        }
+
+        if (true)
+        {
+            Test_220106();
             return;
         }
 
