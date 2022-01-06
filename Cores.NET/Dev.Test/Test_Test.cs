@@ -2470,6 +2470,8 @@ static class TestClass
                         await HadbCodeTest2.OnMemoryQueryTestLoopAsync(sys1, numInsertsOrUpdates, threads);
                     });
                 }
+
+                await SleepInfiniteAsync();
             });
         }
 

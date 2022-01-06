@@ -38,6 +38,22 @@
 //      つまり 1 レコードあたり デーサイズ 1.0KB、インデックスサイズ 2.0 KB (だいたいの目安)
 //      SQL Server Express の DB は 10GB までなので 300 万レコードくらいが限度か?
 //      .NET オンメモリ上で MemDb に展開すると 10GB くらいのメモリを消費した。数分かかった。
+//      
+// メモ 2  2022/01/06 模擬 DDNS 実験結果  300 万 DDNS 模擬レコード実験
+//      Atomic 追加: 6000 レコード / 秒 (ランダムレコード)
+//      Atomic 更新: 2700 レコード / 秒 (ランダムレコード)
+//      
+//      オンメモリで消費するプロセスメモリ: 約 8GB (余裕をもって 10GB と考えること)
+//      FastSearchByKey の速度: 4,500,000 qps
+//      
+//      SQL DB: データ領域 2.GB, インデックス領域 7.1GB
+//      SQL サーバーからのフルリロード時間: 30 秒 (ネットワーク経由、700Mbps くらい出る)
+//      リロードした SQL Row を HadbObject に変換する時間: 36 秒
+//      HadbObject を MemDb に注入する時間: 150 秒
+//      ロードにかかる合計時間: 220 秒程度
+//      
+//      SQL サーバープロセスの消費メモリ: 10GB
+//      SQL サーバーの tempdb のサイズ: 2.5GB くらいまで拡大した
 
 #if CORES_BASIC_DATABASE
 
@@ -793,7 +809,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
                 Debug($"ReloadDataFromDatabaseImplAsync: Start DB Select.");
 
-                rows = await dbReader.EasySelectAsync<HadbSqlDataRow>("select top 1000000 * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0", new { DATA_SYSTEMNAME = this.SystemName, DT_MIN = partialReloadMinUpdateTime });
+                rows = await dbReader.EasySelectAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0", new { DATA_SYSTEMNAME = this.SystemName, DT_MIN = partialReloadMinUpdateTime });
 
                 Debug($"ReloadDataFromDatabaseImplAsync: Finished DB Select. Rows = {rows.Count()._ToString3()}");
 
@@ -2500,7 +2516,7 @@ public abstract class HadbMemDataBase
         criticalLock = this.CriticalLockAsync;
     }
 
-    public async Task ReloadFromDatabaseAsync(IEnumerable<HadbObject> objectList, bool fullReloadMode, DateTimeOffset partialReloadMinUpdateTime, string dataSourceInfo, CancellationToken cancel = default)
+    public async Task ReloadFromDatabaseIntoMemoryDbAsync(IEnumerable<HadbObject> objectList, bool fullReloadMode, DateTimeOffset partialReloadMinUpdateTime, string dataSourceInfo, CancellationToken cancel = default)
     {
         int countInserted = 0;
         int countUpdated = 0;
@@ -2518,52 +2534,77 @@ public abstract class HadbMemDataBase
 
             objectList2 = objectList.ToList();
 
-            // 並列化の試み 2021/12/06 うまくいくか未定
-            await objectList2._ProcessParallelAsync(someObjects =>
+            ProgressReporter? reporter = null;
+
+            if (fullReloadMode)
             {
-                foreach (var newObj in someObjects)
+                reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Debug, toStr3: true, showEta: true,
+                    reportTimingSetting: new ProgressReportTimingSetting(false, 1000)));
+            }
+
+            long currentCount = 0;
+            long totalCount = objectList2.Count;
+
+            try
+            {
+                // 並列化の試み 2021/12/06 うまくいくか未定
+                await objectList2._ProcessParallelAsync(someObjects =>
                 {
-                    try
+                    foreach (var newObj in someObjects)
                     {
-                        if (data.AllObjectsDict.TryGetValue(newObj.Uid, out HadbObject? currentObj))
+                        long currentCount2 = Interlocked.Increment(ref currentCount);
+
+                        if ((currentCount2 % 100) == 0)
                         {
-                            if (currentObj.Internal_UpdateIfNew(EnsureSpecial.Yes, newObj, out HadbKeys oldKeys, out HadbLabels oldLabels))
+                            reporter?.ReportProgress(new ProgressData(currentCount2, totalCount, false, "Reload HADB Object Into Memory DB"));
+                        }
+
+                        try
+                        {
+                            if (data.AllObjectsDict.TryGetValue(newObj.Uid, out HadbObject? currentObj))
                             {
-                                if (currentObj.Deleted == false)
+                                if (currentObj.Internal_UpdateIfNew(EnsureSpecial.Yes, newObj, out HadbKeys oldKeys, out HadbLabels oldLabels))
                                 {
-                                    countUpdated++;
-                                    data.IndexedTable_UpdateObject_Critical(currentObj, oldKeys, oldLabels);
-                                }
-                                else
-                                {
-                                    countRemoved++;
-                                    data.IndexedTable_DeleteObject_Critical(currentObj, oldKeys, oldLabels); // おそらく正しい? 2021/12/06
+                                    if (currentObj.Deleted == false)
+                                    {
+                                        Interlocked.Increment(ref countUpdated);
+                                        data.IndexedTable_UpdateObject_Critical(currentObj, oldKeys, oldLabels);
+                                    }
+                                    else
+                                    {
+                                        Interlocked.Increment(ref countRemoved);
+                                        data.IndexedTable_DeleteObject_Critical(currentObj, oldKeys, oldLabels); // おそらく正しい? 2021/12/06
+                                    }
                                 }
                             }
+                            else
+                            {
+                                var obj2 = newObj.ToMemoryDbObject(this);
+                                data.AllObjectsDict[newObj.Uid] = obj2;
+
+                                data.IndexedTable_AddObject_Critical(obj2);
+                                Interlocked.Increment(ref countInserted);
+                            }
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            var obj2 = newObj.ToMemoryDbObject(this);
-                            data.AllObjectsDict[newObj.Uid] = obj2;
-
-                            data.IndexedTable_AddObject_Critical(obj2);
-                            countInserted++;
+                            ex._Debug();
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        ex._Debug();
-                    }
-                }
 
-                return TR();
-            });
+                    return TR();
+                });
 
 
-            this.InternalData = data;
+                this.InternalData = data;
+            }
+            finally
+            {
+                reporter._DisposeSafe();
+            }
         }
 
-        Debug($"ReloadFromDatabaseAsync: Update Local Memory from {dataSourceInfo}: Mode={(fullReloadMode ? "FullReload" : $"PartialReload since '{partialReloadMinUpdateTime._ToDtStr()}'")}, DB_ReadObjs={objectList2.Count._ToString3()}, New={countInserted._ToString3()}, Update={countUpdated._ToString3()}, Remove={countRemoved._ToString3()}");
+        Debug($"ReloadFromDatabaseIntoMemoryDbAsync: Update Local Memory from {dataSourceInfo}: Mode={(fullReloadMode ? "FullReload" : $"PartialReload since '{partialReloadMinUpdateTime._ToDtStr()}'")}, DB_ReadObjs={objectList2.Count._ToString3()}, New={countInserted._ToString3()}, Update={countUpdated._ToString3()}, Remove={countRemoved._ToString3()}");
     }
 
     public HadbObject ApplyObjectToMemDb_Critical(HadbObject newObj)
@@ -3163,7 +3204,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                     Debug($"ReloadCoreAsync: Start Reload Data Into Memory. fullReloadMode = {fullReloadMode}, Objects = {loadedObjectsList.Count._ToString3()}, partialReloadMinUpdateTime = {partialReloadMinUpdateTime._ToDtStr(true)}");
 
                     long memStartTick = Time.HighResTick64;
-                    await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, fullReloadMode, partialReloadMinUpdateTime, "Database", cancel);
+                    await currentMemDb.ReloadFromDatabaseIntoMemoryDbAsync(loadedObjectsList, fullReloadMode, partialReloadMinUpdateTime, "Database", cancel);
                     long memEndTick = Time.HighResTick64;
 
                     Debug($"ReloadCoreAsync: Finished Reload Data From Database. fullReloadMode = {fullReloadMode}, Objects = {loadedObjectsList.Count._ToString3()}, Took time: {((int)(memEndTick - memStartTick))._ToTimeSpanMSecs()._ToTsStr(true)}");
@@ -3338,7 +3379,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                         Debug($"ReloadCoreAsync: Start Restoring Local Backup Data Into Memory. Objects = {loadedObjectsList.Count._ToString3()}");
                         
                         long memStartTick = Time.HighResTick64;
-                        await currentMemDb.ReloadFromDatabaseAsync(loadedObjectsList, true, default, $"Local Database Backup File '{backupDatabasePath.PathString}'", cancel);
+                        await currentMemDb.ReloadFromDatabaseIntoMemoryDbAsync(loadedObjectsList, true, default, $"Local Database Backup File '{backupDatabasePath.PathString}'", cancel);
                         long memEndTick = Time.HighResTick64;
 
                         Debug($"ReloadCoreAsync: Finished Restoring Local Backup Data Into Memory. Objects = {loadedObjectsList.Count._ToString3()}, Took time: {((int)(memEndTick - memStartTick))._ToTimeSpanMSecs()._ToTsStr(true)}");

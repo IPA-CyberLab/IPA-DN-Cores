@@ -89,7 +89,7 @@ namespace IPA.Cores.Basic
             public static readonly Copenhagen<StatisticsReporterLogTypes> CoresStatLogType = StatisticsReporterLogTypes.Snapshot;
             public static readonly Copenhagen<bool> CoresStatPrintToConsole = false;
 
-            public static readonly Copenhagen<int> AutoGcCollectIntervalSecs = 5 * 60; // 単位: 秒
+            public static readonly Copenhagen<int> AutoGcCollectIntervalSecs = 0;//5 * 60; // 単位: 秒  2022/1/6 大量にメモリ消費しているとき大変遅くなるので、なしにした。
 
             public static void SetDebugModeInternal(DebugMode mode = DebugMode.Debug, bool printStatToConsole = false, bool leakFullStack = false)
             {

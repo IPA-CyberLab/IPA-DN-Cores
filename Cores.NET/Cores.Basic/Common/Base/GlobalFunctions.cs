@@ -77,6 +77,8 @@ public static partial class Basic
 
     public static Task SleepAsync(int msecs) => Task.Delay(msecs);
 
+    public static Task SleepInfiniteAsync() => SleepAsync(-1);
+
     public static async Task SleepRandIntervalAsync(int standard = 1000, double plusMinusPercentage = 30.0)
     {
         await SleepAsync(Util.GenRandInterval(standard, plusMinusPercentage));
