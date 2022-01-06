@@ -3260,7 +3260,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
     public static void Test_Generic()
     {
-        if (true)
+        if (false)
         {
             Test_220106();
             return;
@@ -3290,12 +3290,12 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             return;
         }
 
-        if (false)
+        if (true)
         {
             // HADB 普通のテスト
             //Test_211108(threads: 100, count: 3000000);
             while (true)
-                Test_211108(threads: 100, count: 1);
+                Test_211108(threads: 10, count: 1);
             return;
         }
 
