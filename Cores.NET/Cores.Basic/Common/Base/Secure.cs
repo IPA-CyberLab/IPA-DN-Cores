@@ -365,10 +365,12 @@ namespace IPA.Cores.Basic
             return ChaChaPoly.EasyDecryptWithPassword(src, password);
         }
 
-        public static async Task<byte[]> CalcStreamHashAsync(Stream stream, HashAlgorithm hash, long truncateSize = long.MaxValue, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalReadSize = null, CancellationToken cancel = default)
+        public static async Task<byte[]> CalcStreamHashAsync(Stream stream, HashAlgorithm hash, long truncateSize = long.MaxValue, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalReadSize = null, CancellationToken cancel = default, ProgressReporterBase? progressReporter = null, string? progressReporterAdditionalInfo = null, long? progressReporterTotalSizeHint = null)
         {
             checked
             {
+                progressReporterAdditionalInfo = progressReporterAdditionalInfo._NonNull();
+
                 hash.Initialize();
 
                 byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
@@ -397,6 +399,11 @@ namespace IPA.Cores.Basic
                     hash.TransformBlock(buffer, 0, readSize, null, 0);
                     currentSize += readSize;
 
+                    if (progressReporter != null)
+                    {
+                        progressReporter.ReportProgress(new ProgressData(currentSize, progressReporterTotalSizeHint, false, progressReporterAdditionalInfo));
+                    }
+
                     Debug.Assert(currentSize <= truncateSize);
 
                     if (currentSize == truncateSize)
@@ -406,6 +413,11 @@ namespace IPA.Cores.Basic
                 }
 
                 hash.TransformFinalBlock(buffer, 0, 0);
+
+                if (progressReporter != null)
+                {
+                    progressReporter.ReportProgress(new ProgressData(currentSize, currentSize, true, progressReporterAdditionalInfo));
+                }
 
                 ArrayPool<byte>.Shared.Return(buffer);
 

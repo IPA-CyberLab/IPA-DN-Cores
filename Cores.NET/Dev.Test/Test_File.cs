@@ -42,6 +42,7 @@ using System.Diagnostics;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Security.Cryptography;
 
 #pragma warning disable CS0162
 #pragma warning disable CS0219
@@ -151,6 +152,51 @@ partial class TestDevCommands
         return 0;
     }
 
+
+    [ConsoleCommand(
+        "Sha1Sum command",
+        "Sha1Sum [fileName]",
+        "Sha1Sum command")]
+    static int Sha1Sum(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+            new ConsoleParam("[fileName]", ConsoleService.Prompt, "File name: ", ConsoleService.EvalNotEmpty, null),
+        };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string fileName = vl.DefaultParam.StrValue;
+
+        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, 
+            reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
+            ), null))
+        {
+            Async(async () =>
+            {
+                using SHA1 sha = SHA1.Create();
+
+                int bufSize = 8 * 1024 * 1024;
+                await using var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, bufSize, false);
+                long totalSize = fs.Length;
+
+                RefLong totalReadSize = new RefLong();
+
+                var hash = await Secure.CalcStreamHashAsync(fs, sha, bufferSize: bufSize, totalReadSize: totalReadSize,
+                    progressReporter: reporter,
+                    progressReporterAdditionalInfo: "Sha1Sum",
+                    progressReporterTotalSizeHint: totalSize);
+
+                $"File Name: '{fileName}'"._Print();
+                $"File Size: {totalSize._ToString3()}"._Print();
+                $"Hash: {hash._GetHexString().ToLowerInvariant()}"._Print();
+
+                ""._Print();
+            });
+        }
+
+        return 0;
+    }
 
     // 指定されたサブディレクトリにあるすべてのファイルを読む
     [ConsoleCommand(
