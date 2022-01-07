@@ -184,7 +184,6 @@ partial class TestDevCommands
 
                 var hash = await Secure.CalcStreamHashAsync(fs, sha, bufferSize: bufSize, totalReadSize: totalReadSize,
                     progressReporter: reporter,
-                    progressReporterAdditionalInfo: "Sha1Sum",
                     progressReporterTotalSizeHint: totalSize);
 
                 $"File Name: '{fileName}'"._Print();
