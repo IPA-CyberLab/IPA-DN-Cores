@@ -5458,12 +5458,12 @@ namespace IPA.Cores.Basic
             return $"{value:F1}%";
         }
 
-        public virtual string GenerateStatusStr(ProgressReporterSettingBase setting, ProgressReport report)
+        public virtual string GenerateStatusStr(ProgressReporterSettingBase setting, ProgressReport report, ProgressThroughput? throughput = null)
         {
-            string statusStr = "...";
-            if (report.Type == ProgressReportType.Start) statusStr = " Started:";
-            if (report.Type == ProgressReportType.Finish) statusStr = " Finished:";
-            if (report.Type == ProgressReportType.Abort) statusStr = " Aborted:";
+            string statusStr = ":";
+            if (report.Type == ProgressReportType.Start) statusStr = ":Started:";
+            if (report.Type == ProgressReportType.Finish) statusStr = ":Finished:";
+            if (report.Type == ProgressReportType.Abort) statusStr = ":Aborted:";
             string etaStr = "";
 
             if (setting.ShowEta)
@@ -5476,11 +5476,20 @@ namespace IPA.Cores.Basic
                 }
             }
 
+            string throughputStr = "";
+
+            if (setting.Options.Bit(ProgressReporterOptions.ShowThroughput) && throughput != null)
+            {
+                string s = ((long)throughput.Throughput)._GetFileSizeStr();
+
+                throughputStr = $" {s}/s";
+            }
+
             string addInfo2 = "";
             if (this.AdditionalInfo._IsFilled()) addInfo2 = " " + this.AdditionalInfo;
 
             return $"{setting.Title}{statusStr} {GetPercentageStr(setting, report.Percentage)} " +
-                $"({LongValueToString(report.Data.CurrentCount, setting.ToStr3, "", setting.FileSizeStr)} / {LongValueToString(report.Data.TotalCount, setting.ToStr3, setting.Unit, setting.FileSizeStr)}).{etaStr}{addInfo2}";
+                $"({LongValueToString(report.Data.CurrentCount, setting.ToStr3, "", setting.FileSizeStr)}/{LongValueToString(report.Data.TotalCount, setting.ToStr3, setting.Unit, setting.FileSizeStr)}){etaStr}{throughputStr}{addInfo2}";
         }
     }
 
@@ -5504,6 +5513,26 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public sealed class ProgressThroughput
+    {
+        public long DurationMsecs;
+        public long Value;
+        public double Throughput;
+
+        public ProgressThroughput(long durationMsecs, long value)
+        {
+            durationMsecs = Math.Max(durationMsecs, 0);
+
+            this.DurationMsecs = durationMsecs;
+            this.Value = value;
+
+            if (this.DurationMsecs != 0)
+            {
+                this.Throughput = (double)this.Value / ((double)this.DurationMsecs / 1000.0);
+            }
+        }
+    }
+
     public class ProgressReportTimingSetting
     {
         public bool ReportEveryTiming { get; }
@@ -5518,6 +5547,13 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [Flags]
+    public enum ProgressReporterOptions : long
+    {
+        None = 0,
+        ShowThroughput = 1,
+    }
+
     public class ProgressReporterSettingBase
     {
         public string Title { get; set; }
@@ -5528,9 +5564,11 @@ namespace IPA.Cores.Basic
 
         public bool ShowEta { get; set; }
 
+        public ProgressReporterOptions Options { get; }
+
         public ProgressReportTimingSetting ReportTimingSetting { get; set; }
 
-        public ProgressReporterSettingBase(string title = "Processing", string unit = "", bool toStr3 = false, bool showEta = true, bool fileSizeStr = false, ProgressReportTimingSetting? reportTimingSetting = null)
+        public ProgressReporterSettingBase(string title = "Ok", string unit = "", bool toStr3 = false, bool showEta = true, bool fileSizeStr = false, ProgressReportTimingSetting? reportTimingSetting = null, ProgressReporterOptions options = ProgressReporterOptions.None)
         {
             if (reportTimingSetting == null)
             {
@@ -5543,6 +5581,7 @@ namespace IPA.Cores.Basic
             this.FileSizeStr = fileSizeStr;
 
             this.ReportTimingSetting = reportTimingSetting;
+            this.Options = options;
         }
     }
 
@@ -5554,7 +5593,7 @@ namespace IPA.Cores.Basic
 
         protected override void ReceiveProgressInternal(ProgressData data, ProgressReportType type) { }
 
-        protected override void ReportedImpl(ProgressReport report) { }
+        protected override void ReportedImpl(ProgressReport report, ProgressThroughput? throughtput) { }
     }
 
     public abstract class ProgressReporterBase : IDisposable
@@ -5565,9 +5604,10 @@ namespace IPA.Cores.Basic
 
         ProgressReport? ReportOnStart = null;
         ProgressReport? LastReport = null;
+        ProgressReport? LastReportForThroughput = null;
         ProgressReport? ReportOnFinishOrAbort = null;
 
-        protected abstract void ReportedImpl(ProgressReport report);
+        protected abstract void ReportedImpl(ProgressReport report, ProgressThroughput? throughput);
 
         public ProgressReporterSettingBase Setting { get; }
 
@@ -5682,9 +5722,25 @@ namespace IPA.Cores.Basic
 
             LastReport = report;
 
+            if (this.LastReportForThroughput == null) this.LastReportForThroughput = report;
+
             if (DetermineToReportOrNot(report))
             {
-                ReportedImpl(report);
+                ProgressThroughput? throughtput = null;
+
+                if (this.Setting.Options.Bit(ProgressReporterOptions.ShowThroughput))
+                {
+                    var a = report;
+                    var b = this.LastReportForThroughput;
+
+                    throughtput = new ProgressThroughput(a.Tick - b.Tick, a.Data.CurrentCount - b.Data.CurrentCount);
+
+                    this.LastReportForThroughput = report;
+
+                    if (throughtput.DurationMsecs == 0) throughtput = null;
+                }
+
+                ReportedImpl(report, throughtput);
             }
         }
 
@@ -5778,9 +5834,9 @@ namespace IPA.Cores.Basic
         public ProgressReportListener? Listener { get; set; }
         public ProgressReporterOutputs AdditionalOutputs { get; }
 
-        public ProgressReporterSetting(ProgressReporterOutputs outputs, ProgressReportListener? listener = null, string title = "Processing", string unit = "", bool toStr3 = false, bool showEta = true,
-            bool fileSizeStr = false, ProgressReportTimingSetting? reportTimingSetting = null)
-            : base(title, unit, toStr3, showEta, fileSizeStr, reportTimingSetting)
+        public ProgressReporterSetting(ProgressReporterOutputs outputs, ProgressReportListener? listener = null, string title = "Ok", string unit = "", bool toStr3 = false, bool showEta = true,
+            bool fileSizeStr = false, ProgressReportTimingSetting? reportTimingSetting = null, ProgressReporterOptions options = ProgressReporterOptions.None)
+            : base(title, unit, toStr3, showEta, fileSizeStr, reportTimingSetting, options)
         {
             this.AdditionalOutputs = outputs;
         }
@@ -5794,9 +5850,9 @@ namespace IPA.Cores.Basic
         {
         }
 
-        protected override void ReportedImpl(ProgressReport report)
+        protected override void ReportedImpl(ProgressReport report, ProgressThroughput? throughtput)
         {
-            string str = report.Data.GenerateStatusStr(MySetting, report);
+            string str = report.Data.GenerateStatusStr(MySetting, report, throughtput);
 
             if (str._IsFilled())
             {

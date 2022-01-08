@@ -365,7 +365,10 @@ namespace IPA.Cores.Basic
             return ChaChaPoly.EasyDecryptWithPassword(src, password);
         }
 
-        public static async Task<byte[]> CalcStreamHashAsync(Stream stream, HashAlgorithm hash, long truncateSize = long.MaxValue, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalReadSize = null, CancellationToken cancel = default, ProgressReporterBase? progressReporter = null, string? progressReporterAdditionalInfo = null, long? progressReporterTotalSizeHint = null)
+        public static async Task<byte[]> CalcStreamHashAsync(Stream stream, HashAlgorithm hash, long truncateSize = long.MaxValue,
+            int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalReadSize = null, CancellationToken cancel = default,
+            ProgressReporterBase? progressReporter = null, string? progressReporterAdditionalInfo = null, long? progressReporterTotalSizeHint = null,
+            ThroughputMeasuse? measure = null)
         {
             checked
             {
@@ -402,6 +405,11 @@ namespace IPA.Cores.Basic
                     if (progressReporter != null)
                     {
                         progressReporter.ReportProgress(new ProgressData(currentSize, progressReporterTotalSizeHint, false, progressReporterAdditionalInfo));
+                    }
+
+                    if (measure != null)
+                    {
+                        measure.Add(readSize);
                     }
 
                     Debug.Assert(currentSize <= truncateSize);

@@ -108,10 +108,6 @@ partial class TestDevCommands
 
             await file.SeekAsync(currentSize, SeekOrigin.Begin);
 
-            ThroughputMeasuse measure = new ThroughputMeasuse(baseUnitMsecs: 10000);
-
-            using var measurePrinter = measure.StartPrinter("Speed Mbytes/sec: ", toStr3: true);
-
             if (currentSize >= targetSize)
             {
                 $"currentSize ({currentSize._ToString3()}) >= targetSize ({targetSize._ToString3()})"._Print();
@@ -127,8 +123,9 @@ partial class TestDevCommands
 
             ""._Print();
 
-            using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: false,
-                reportTimingSetting: new ProgressReportTimingSetting(false, 10000)
+            using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true,
+                options: ProgressReporterOptions.ShowThroughput,
+                reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
                 ), null))
             {
                 Memory<byte> tmp = new byte[blockSize];
@@ -139,12 +136,9 @@ partial class TestDevCommands
 
                     tmp.Span._Xor(baseRandData.Span, randSeed.Span.Slice(randIndex, blockSize));
 
-
-
                     await file.WriteAsync(tmp);
 
                     reporter.ReportProgress(new ProgressData((currentBlockIndex - currentBlockCount) * blockSize, sizeToWrite));
-                    measure.Add(blockSize);
                 }
             }
         });
@@ -168,7 +162,7 @@ partial class TestDevCommands
 
         string fileName = vl.DefaultParam.StrValue;
 
-        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, 
+        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.ShowThroughput, 
             reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
             ), null))
         {
