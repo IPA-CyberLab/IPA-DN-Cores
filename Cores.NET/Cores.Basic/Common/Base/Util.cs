@@ -5478,9 +5478,25 @@ namespace IPA.Cores.Basic
 
             string throughputStr = "";
 
-            if (setting.Options.Bit(ProgressReporterOptions.ShowThroughput) && throughput != null)
+            if (setting.Options.Bit(ProgressReporterOptions.EnableThroughput) && throughput != null)
             {
-                string s = ((long)throughput.Throughput)._GetFileSizeStr();
+                string s;
+
+                if (setting.Options.Bit(ProgressReporterOptions.ShowThroughputAsInt) == false)
+                {
+                    s = ((long)throughput.Throughput)._GetFileSizeStr();
+                }
+                else
+                {
+                    if (setting.ToStr3 == false)
+                    {
+                        s = throughput.Throughput.ToString("F3");
+                    }
+                    else
+                    {
+                        s = ((long)throughput.Throughput)._ToString3();
+                    }
+                }
 
                 throughputStr = $" {s}/s";
             }
@@ -5516,19 +5532,19 @@ namespace IPA.Cores.Basic
     public sealed class ProgressThroughput
     {
         public long DurationMsecs;
-        public long Value;
+        public long Volume;
         public double Throughput;
 
-        public ProgressThroughput(long durationMsecs, long value)
+        public ProgressThroughput(long durationMsecs, long volume)
         {
             durationMsecs = Math.Max(durationMsecs, 0);
 
             this.DurationMsecs = durationMsecs;
-            this.Value = value;
+            this.Volume = volume;
 
             if (this.DurationMsecs != 0)
             {
-                this.Throughput = (double)this.Value / ((double)this.DurationMsecs / 1000.0);
+                this.Throughput = (double)this.Volume / ((double)this.DurationMsecs / 1000.0);
             }
         }
     }
@@ -5551,7 +5567,8 @@ namespace IPA.Cores.Basic
     public enum ProgressReporterOptions : long
     {
         None = 0,
-        ShowThroughput = 1,
+        EnableThroughput = 1,
+        ShowThroughputAsInt = 2,
     }
 
     public class ProgressReporterSettingBase
@@ -5643,11 +5660,16 @@ namespace IPA.Cores.Basic
             {
                 if (data == null) return;
 
+                if (data.IsFinish)
+                {
+                    DoNothing();
+                }
+
                 lock (LockObj)
                 {
                     if (ReportOnStart == null)
                     {
-                        ReceiveProgressInternal(data, ProgressReportType.Start);
+                        ReceiveProgressInternal(data, data.IsFinish ? ProgressReportType.Finish : ProgressReportType.Start);
                     }
                     else
                     {
@@ -5711,11 +5733,12 @@ namespace IPA.Cores.Basic
 
             ProgressReport report = new ProgressReport(type, data, percentage, eta);
 
-            if (type == ProgressReportType.Start)
+            if ((type == ProgressReportType.Start || type == ProgressReportType.Finish) || ReportOnStart == null)
             {
                 ReportOnStart = report;
             }
-            else if (type == ProgressReportType.Finish || type == ProgressReportType.Abort)
+            
+            if (type == ProgressReportType.Finish || type == ProgressReportType.Abort)
             {
                 ReportOnFinishOrAbort = report;
             }
@@ -5728,7 +5751,7 @@ namespace IPA.Cores.Basic
             {
                 ProgressThroughput? throughtput = null;
 
-                if (this.Setting.Options.Bit(ProgressReporterOptions.ShowThroughput))
+                if (this.Setting.Options.Bit(ProgressReporterOptions.EnableThroughput))
                 {
                     var a = report;
                     var b = this.LastReportForThroughput;

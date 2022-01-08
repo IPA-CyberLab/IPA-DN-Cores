@@ -856,6 +856,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         if (fullReloadMode)
         {
             reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Debug, toStr3: true, showEta: true,
+                options: ProgressReporterOptions.EnableThroughput | ProgressReporterOptions.ShowThroughputAsInt,
                 reportTimingSetting: new ProgressReportTimingSetting(false, 1000)));
         }
 
@@ -892,6 +893,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 }
                 return TR(tmp);
             }, cancel: cancel);
+
+            reporter?.ReportProgress(new ProgressData(ret.Count, ret.Count, true, "DB Rows to HADB Object"));
 
             Debug($"ReloadDataFromDatabaseImplAsync: Finished Processing DB Rows to HadbObject convert. Objects = {ret.Count._ToString3()}");
 
@@ -2545,6 +2548,7 @@ public abstract class HadbMemDataBase
             if (fullReloadMode)
             {
                 reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Debug, toStr3: true, showEta: true,
+                    options: ProgressReporterOptions.EnableThroughput | ProgressReporterOptions.ShowThroughputAsInt,
                     reportTimingSetting: new ProgressReportTimingSetting(false, 1000)));
             }
 
@@ -2601,6 +2605,7 @@ public abstract class HadbMemDataBase
                     return TR();
                 });
 
+                reporter?.ReportProgress(new ProgressData(totalCount, totalCount, true, "Reload HADB Object Into Memory DB"));
 
                 this.InternalData = data;
             }

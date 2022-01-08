@@ -124,7 +124,7 @@ partial class TestDevCommands
             ""._Print();
 
             using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true,
-                options: ProgressReporterOptions.ShowThroughput,
+                options: ProgressReporterOptions.EnableThroughput,
                 reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
                 ), null))
             {
@@ -162,7 +162,7 @@ partial class TestDevCommands
 
         string fileName = vl.DefaultParam.StrValue;
 
-        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.ShowThroughput, 
+        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput, 
             reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
             ), null))
         {
