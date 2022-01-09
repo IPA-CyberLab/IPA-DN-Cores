@@ -74,6 +74,7 @@ partial class TestDevCommands
         {
             int blockSize = 1000 * 1000;
             int randSeedSize = blockSize * 16;
+            int sizePerFlush = 500 * 1000 * 1000;
 
             if (targetSize <= 0)
             {
@@ -130,6 +131,8 @@ partial class TestDevCommands
             {
                 Memory<byte> tmp = new byte[blockSize];
 
+                long currentNotYetFlushedSize = 0;
+
                 for (long currentBlockIndex = currentBlockCount; currentBlockIndex < targetBlockCount; currentBlockIndex++)
                 {
                     int randIndex = (new SeedBasedRandomGenerator(currentBlockIndex.ToString())).GetSInt31() % (randSeedSize - blockSize);
@@ -137,6 +140,14 @@ partial class TestDevCommands
                     tmp.Span._Xor(baseRandData.Span, randSeed.Span.Slice(randIndex, blockSize));
 
                     await file.WriteAsync(tmp);
+
+                    currentNotYetFlushedSize += blockSize;
+
+                    if (currentNotYetFlushedSize >= sizePerFlush)
+                    {
+                        currentNotYetFlushedSize = 0;
+                        await file.FlushAsync();
+                    }
 
                     reporter.ReportProgress(new ProgressData((currentBlockIndex - currentBlockCount) * blockSize, sizeToWrite));
                 }
@@ -162,7 +173,7 @@ partial class TestDevCommands
 
         string fileName = vl.DefaultParam.StrValue;
 
-        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput, 
+        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
             reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
             ), null))
         {
