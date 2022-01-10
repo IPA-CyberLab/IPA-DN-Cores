@@ -262,6 +262,9 @@ partial class TestDevCommands
 
                     using (var f = Lfs.Open(file.FullPath))
                     {
+                        long fileSize = await f.GetFileSizeAsync();
+                        string info = $"File #{TotalReadNum._ToString3()}: '{file.FullPath}' ({fileSize._GetFileSizeStr()})";
+
                         while (true)
                         {
                             int readSize = await f.ReadAsync(this.TmpBuffer);
@@ -269,7 +272,7 @@ partial class TestDevCommands
 
                             TotalReadSize += readSize;
 
-                            r.ReportProgress(new ProgressData(TotalReadSize));
+                            r.ReportProgress(new ProgressData(TotalReadSize, additionalInfo: info));
                         }
                     }
                 }
