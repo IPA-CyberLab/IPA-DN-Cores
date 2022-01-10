@@ -5476,29 +5476,54 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            string throughputStr = "";
+            string throughputStr;
 
             if (setting.Options.Bit(ProgressReporterOptions.EnableThroughput) && throughput != null)
             {
-                string s;
+                double value = throughput.Throughput;
+
+                if (setting.Options.Bit(ProgressReporterOptions.ShowThroughputBps))
+                {
+                    value = throughput.Throughput * 8.0;
+                }
 
                 if (setting.Options.Bit(ProgressReporterOptions.ShowThroughputAsInt) == false)
                 {
-                    s = ((long)throughput.Throughput)._GetFileSizeStr();
-                }
-                else
-                {
-                    if (setting.ToStr3 == false)
+                    if (setting.Options.Bit(ProgressReporterOptions.ShowThroughputBps))
                     {
-                        s = throughput.Throughput.ToString("F3");
+                        throughputStr = " " + ((long)value)._GetBpsStr();
                     }
                     else
                     {
-                        s = ((long)throughput.Throughput)._ToString3();
+                        throughputStr = " " + ((long)value)._GetFileSizeStr() + "/s";
                     }
                 }
+                else
+                {
+                    string s;
 
-                throughputStr = $" {s}/s";
+                    if (setting.ToStr3 == false)
+                    {
+                        s = value.ToString("F3");
+                    }
+                    else
+                    {
+                        s = ((long)value)._ToString3();
+                    }
+
+                    if (setting.Options.Bit(ProgressReporterOptions.ShowThroughputBps))
+                    {
+                        throughputStr = $" {s}bps";
+                    }
+                    else
+                    {
+                        throughputStr = $" {s}/s";
+                    }
+                }
+            }
+            else
+            {
+                throughputStr = "";
             }
 
             string addInfo2 = "";
@@ -5569,6 +5594,7 @@ namespace IPA.Cores.Basic
         None = 0,
         EnableThroughput = 1,
         ShowThroughputAsInt = 2,
+        ShowThroughputBps = 4,
     }
 
     public class ProgressReporterSettingBase
@@ -5737,7 +5763,7 @@ namespace IPA.Cores.Basic
             {
                 ReportOnStart = report;
             }
-            
+
             if (type == ProgressReportType.Finish || type == ProgressReportType.Abort)
             {
                 ReportOnFinishOrAbort = report;
@@ -5912,15 +5938,15 @@ namespace IPA.Cores.Basic
     public class ProgressFileProcessingReporter : ProgressReporter
     {
         public ProgressFileProcessingReporter(object? state, ProgressReporterOutputs outputs, ProgressReportListener? listener = null,
-            string title = "Processing a file", ProgressReportTimingSetting? reportTimingSetting = null)
-            : base(new ProgressReporterSetting(outputs, listener, title, "", false, true, true, reportTimingSetting), state) { }
+            string title = "Processing a file", ProgressReportTimingSetting? reportTimingSetting = null, ProgressReporterOptions options = ProgressReporterOptions.None)
+            : base(new ProgressReporterSetting(outputs, listener, title, "", false, true, true, reportTimingSetting, options), state) { }
     }
 
     public class ProgressFileDownloadingReporter : ProgressReporter
     {
         public ProgressFileDownloadingReporter(object? state, ProgressReporterOutputs outputs, ProgressReportListener? listener = null,
-            string title = "Downloading a file", ProgressReportTimingSetting? reportTimingSetting = null)
-            : base(new ProgressReporterSetting(outputs, listener, title, "", false, true, true, reportTimingSetting), state) { }
+            string title = "Downloading a file", ProgressReportTimingSetting? reportTimingSetting = null, ProgressReporterOptions options = ProgressReporterOptions.None)
+            : base(new ProgressReporterSetting(outputs, listener, title, "", false, true, true, reportTimingSetting, options), state) { }
     }
 
     public abstract class ProgressReporterFactoryBase
@@ -5928,12 +5954,14 @@ namespace IPA.Cores.Basic
         public ProgressReporterOutputs Outputs { get; set; }
         public ProgressReportListener? Listener { get; set; }
         public ProgressReportTimingSetting? ReportTimingSetting { get; set; }
+        public ProgressReporterOptions Options { get; set; }
 
-        public ProgressReporterFactoryBase(ProgressReporterOutputs outputs, ProgressReportListener? listener = null, ProgressReportTimingSetting? reportTimingSetting = null)
+        public ProgressReporterFactoryBase(ProgressReporterOutputs outputs, ProgressReportListener? listener = null, ProgressReportTimingSetting? reportTimingSetting = null, ProgressReporterOptions options = ProgressReporterOptions.None)
         {
             this.Outputs = outputs;
             this.Listener = listener;
             this.ReportTimingSetting = reportTimingSetting;
+            this.Options = options;
         }
 
         public abstract ProgressReporterBase CreateNewReporter(string title, object? state = null);
@@ -5941,30 +5969,30 @@ namespace IPA.Cores.Basic
 
     public class ProgressFileProcessingReporterFactory : ProgressReporterFactoryBase
     {
-        public ProgressFileProcessingReporterFactory(ProgressReporterOutputs outputs, ProgressReportListener? listener = null, ProgressReportTimingSetting? reportTimingSetting = null)
-            : base(outputs, listener, reportTimingSetting) { }
+        public ProgressFileProcessingReporterFactory(ProgressReporterOutputs outputs, ProgressReportListener? listener = null, ProgressReportTimingSetting? reportTimingSetting = null, ProgressReporterOptions options = ProgressReporterOptions.None)
+            : base(outputs, listener, reportTimingSetting, options) { }
 
         public override ProgressReporterBase CreateNewReporter(string title, object? state = null)
         {
-            return new ProgressFileProcessingReporter(state, this.Outputs, this.Listener, title, this.ReportTimingSetting);
+            return new ProgressFileProcessingReporter(state, this.Outputs, this.Listener, title, this.ReportTimingSetting, this.Options);
         }
     }
 
     public class ProgressFileDownloadingReporterFactory : ProgressReporterFactoryBase
     {
-        public ProgressFileDownloadingReporterFactory(ProgressReporterOutputs outputs, ProgressReportListener? listener = null, ProgressReportTimingSetting? reportTimingSetting = null)
-            : base(outputs, listener, reportTimingSetting) { }
+        public ProgressFileDownloadingReporterFactory(ProgressReporterOutputs outputs, ProgressReportListener? listener = null, ProgressReportTimingSetting? reportTimingSetting = null, ProgressReporterOptions options = ProgressReporterOptions.None)
+            : base(outputs, listener, reportTimingSetting, options) { }
 
         public override ProgressReporterBase CreateNewReporter(string title, object? state = null)
         {
-            return new ProgressFileDownloadingReporter(state, this.Outputs, this.Listener, title, this.ReportTimingSetting);
+            return new ProgressFileDownloadingReporter(state, this.Outputs, this.Listener, title, this.ReportTimingSetting, this.Options);
         }
     }
 
     public class NullReporterFactory : ProgressReporterFactoryBase
     {
         public NullReporterFactory()
-            : base(ProgressReporterOutputs.None, null, null) { }
+            : base(ProgressReporterOutputs.None, null, null, ProgressReporterOptions.None) { }
 
         public override ProgressReporterBase CreateNewReporter(string title, object? state = null)
         {

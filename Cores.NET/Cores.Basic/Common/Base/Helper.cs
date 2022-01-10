@@ -2904,6 +2904,11 @@ public static class BasicHelper
     public static string _GetFileSizeStr(this ulong size) => Str.GetFileSizeStr((long)Math.Min(size, long.MaxValue));
     public static string _GetFileSizeStr(this uint size) => Str.GetFileSizeStr(size);
 
+    public static string _GetBpsStr(this long size) => Str.GetBpsStr(size);
+    public static string _GetBpsStr(this int size) => Str.GetBpsStr(size);
+    public static string _GetBpsStr(this ulong size) => Str.GetBpsStr((long)Math.Min(size, long.MaxValue));
+    public static string _GetBpsStr(this uint size) => Str.GetBpsStr(size);
+
     [return: NotNullIfNotNull("memoryList")]
     public static List<string>? _ToStringList(this List<Memory<byte>>? memoryList, Encoding? encoding = null)
     {

@@ -219,6 +219,7 @@ partial class TestDevCommands
         string dirName = vl.DefaultParam.StrValue;
 
         using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: false,
+            options: ProgressReporterOptions.EnableThroughput,
             reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
             ), null))
         {
@@ -395,7 +396,7 @@ partial class TestDevCommands
             {
                 using (var file = Lfs.Create(dstFileName, flags: FileFlags.AutoCreateDirectory))
                 {
-                    using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true), null))
+                    using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
                     {
                         FileUtil.CopyBetweenFileBaseAsync(disk, file, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024), reporter: reporter)._GetResult();
                     }
@@ -440,7 +441,7 @@ partial class TestDevCommands
             {
                 using (var file = Lfs.Open(dstFileName, flags: FileFlags.AutoCreateDirectory))
                 {
-                    using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true), null))
+                    using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
                     {
                         FileUtil.CopyBetweenFileBaseAsync(file, disk, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024), reporter: reporter)._GetResult();
                     }
@@ -672,7 +673,7 @@ partial class TestDevCommands
 
         Lfs.CopyFile(vl.DefaultParam.StrValue, vl["dest"].StrValue,
             new CopyFileParams(overwrite: true, flags: FileFlags.AutoCreateDirectory, ignoreReadError: true,
-            reporterFactory: new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Console)),
+            reporterFactory: new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Console, options: ProgressReporterOptions.EnableThroughput)),
             readErrorIgnored: ignoredError);
 
         if (ignoredError)

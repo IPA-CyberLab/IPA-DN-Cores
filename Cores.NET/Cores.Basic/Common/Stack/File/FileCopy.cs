@@ -220,8 +220,8 @@ public class CopyFileParams
     public ProgressReporterFactoryBase ProgressReporterFactory { get; }
 
     public static ProgressReporterFactoryBase NullReporterFactory { get; } = new NullReporterFactory();
-    public static ProgressReporterFactoryBase ConsoleReporterFactory { get; } = new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Console);
-    public static ProgressReporterFactoryBase DebugReporterFactory { get; } = new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Debug);
+    public static ProgressReporterFactoryBase ConsoleReporterFactory { get; } = new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Console, options: ProgressReporterOptions.EnableThroughput);
+    public static ProgressReporterFactoryBase DebugReporterFactory { get; } = new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Debug, options: ProgressReporterOptions.EnableThroughput);
 
     public CopyFileParams(bool overwrite = true, FileFlags flags = FileFlags.None, FileMetadataCopier? metadataCopier = null, int bufferSize = 0, bool asyncCopy = true,
         bool ignoreReadError = false, int ignoreReadErrorSectorSize = 0,
