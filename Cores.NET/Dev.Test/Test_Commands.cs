@@ -67,6 +67,50 @@ partial class TestDevCommands
     }
 
     [ConsoleCommand(
+        "PrependLineNumber command",
+        "PrependLineNumber [srcFile] [/DEST:destfile]",
+        "Prepend Line Number.")]
+    static int PrependLineNumber(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+            new ConsoleParam("[srcFile]", ConsoleService.Prompt, "Src File Path: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("DEST", ConsoleService.Prompt, "Dest File Path: ", ConsoleService.EvalNotEmpty, null),
+        };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string src = vl.DefaultParam.StrValue;
+        string dest = vl["DEST"].StrValue;
+
+        if (src._IsSamei(dest))
+        {
+            Con.WriteError("Source is Dest.");
+            return 1;
+        }
+
+        var body = Lfs.ReadStringFromFile(src);
+
+        string[] lines = body._GetLines(singleLineAtLeast: true);
+
+        int keta = lines.Length.ToString().Length;
+
+        StringWriter w = new StringWriter();
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            string lineStr = (i + 1).ToString("D" + keta);
+            string tmp = lineStr + ": " + lines[i];
+
+            w.WriteLine(tmp);
+        }
+
+        Lfs.WriteStringToFile(dest, w.ToString(), writeBom: true, flags: FileFlags.AutoCreateDirectory);
+
+        return 0;
+    }
+
+    [ConsoleCommand(
         "PrintRegKeys",
         "PrintRegKeys [root] /key:[baseKey]",
         "PrintRegKeys")]
