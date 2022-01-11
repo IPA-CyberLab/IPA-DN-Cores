@@ -124,7 +124,7 @@ partial class TestDevCommands
 
             ""._Print();
 
-            using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true,
+            using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true,
                 options: ProgressReporterOptions.EnableThroughput,
                 reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
                 ), null))
@@ -160,43 +160,63 @@ partial class TestDevCommands
 
     [ConsoleCommand(
         "Sha1Sum command",
-        "Sha1Sum [fileName]",
+        "Sha1Sum [fileName] [/START:start_offset] [/SIZE:size]",
         "Sha1Sum command")]
     static int Sha1Sum(ConsoleService c, string cmdName, string str)
     {
         ConsoleParam[] args =
         {
             new ConsoleParam("[fileName]", ConsoleService.Prompt, "File name: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("START"),
+            new ConsoleParam("SIZE"),
         };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
         string fileName = vl.DefaultParam.StrValue;
+        long startOffset = vl["START"].StrValue._ToLong();
+        startOffset = Math.Max(startOffset, 0);
+        long sizeToRead = vl["SIZE"].StrValue._ToLong();
+        sizeToRead = Math.Max(sizeToRead, 0);
+        if (sizeToRead == 0)
+        {
+            sizeToRead = long.MaxValue;
+        }
 
-        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
+        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
             reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
             ), null))
         {
-            Async(async () =>
+            Async((Func<Task>)(async () =>
             {
                 using SHA1 sha = SHA1.Create();
 
                 int bufSize = 8 * 1024 * 1024;
                 await using var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, bufSize, false);
-                long totalSize = fs.Length;
+                long fileSize = fs.Length;
+
+                startOffset = Math.Min(startOffset, fileSize);
+                sizeToRead = Math.Max(fileSize - startOffset, 0);
+
+                fs.Seek(startOffset, SeekOrigin.Begin);
 
                 RefLong totalReadSize = new RefLong();
 
+                $"File Name: '{fileName}'"._Print();
+                $"File Size: {fileSize._ToString3()}"._Print();
+                $"Read Offset: {startOffset._ToString3()}"._Print();
+                $"Total Read Size (Estimated): {sizeToRead._ToString3()}"._Print();
+
                 var hash = await Secure.CalcStreamHashAsync(fs, sha, bufferSize: bufSize, totalReadSize: totalReadSize,
                     progressReporter: reporter,
-                    progressReporterTotalSizeHint: totalSize);
+                    progressReporterTotalSizeHint: sizeToRead);
 
                 $"File Name: '{fileName}'"._Print();
-                $"File Size: {totalSize._ToString3()}"._Print();
+                $"Total Read Size (Actual): {totalReadSize.Value._ToString3()}"._Print();
                 $"Hash: {hash._GetHexString().ToLowerInvariant()}"._Print();
 
                 ""._Print();
-            });
+            }));
         }
 
         return 0;
@@ -218,7 +238,7 @@ partial class TestDevCommands
 
         string dirName = vl.DefaultParam.StrValue;
 
-        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: false,
+        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: false,
             options: ProgressReporterOptions.EnableThroughput,
             reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
             ), null))
@@ -399,7 +419,7 @@ partial class TestDevCommands
             {
                 using (var file = Lfs.Create(dstFileName, flags: FileFlags.AutoCreateDirectory))
                 {
-                    using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
+                    using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
                     {
                         FileUtil.CopyBetweenFileBaseAsync(disk, file, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024), reporter: reporter)._GetResult();
                     }
@@ -444,7 +464,7 @@ partial class TestDevCommands
             {
                 using (var file = Lfs.Open(dstFileName, flags: FileFlags.AutoCreateDirectory))
                 {
-                    using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
+                    using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
                     {
                         FileUtil.CopyBetweenFileBaseAsync(file, disk, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024), reporter: reporter)._GetResult();
                     }
@@ -676,7 +696,7 @@ partial class TestDevCommands
 
         Lfs.CopyFile(vl.DefaultParam.StrValue, vl["dest"].StrValue,
             new CopyFileParams(overwrite: true, flags: FileFlags.AutoCreateDirectory, ignoreReadError: true,
-            reporterFactory: new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Console, options: ProgressReporterOptions.EnableThroughput)),
+            reporterFactory: new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.ConsoleAndDebug, options: ProgressReporterOptions.EnableThroughput)),
             readErrorIgnored: ignoredError);
 
         if (ignoredError)

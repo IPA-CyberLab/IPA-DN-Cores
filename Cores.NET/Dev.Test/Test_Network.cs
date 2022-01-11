@@ -167,7 +167,7 @@ partial class TestDevCommands
         FileDownloader.DownloadUrlListedAsync(vl.DefaultParam.StrValue,
             vl["dest"].StrValue,
             extList,
-            reporterFactory: new ProgressFileDownloadingReporterFactory(ProgressReporterOutputs.Console, options: ProgressReporterOptions.EnableThroughput | ProgressReporterOptions.ShowThroughputBps)
+            reporterFactory: new ProgressFileDownloadingReporterFactory(ProgressReporterOutputs.ConsoleAndDebug, options: ProgressReporterOptions.EnableThroughput | ProgressReporterOptions.ShowThroughputBps)
             )._GetResult();
 
         return 0;

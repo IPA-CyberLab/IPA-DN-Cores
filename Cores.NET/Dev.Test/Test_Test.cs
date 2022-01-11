@@ -4597,7 +4597,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
                             $"----------- {i}"._Debug();
 
-                            using var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, title: $"Task {taskId}", unit: "bytes", toStr3: true));
+                            using var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, title: $"Task {taskId}", unit: "bytes", toStr3: true));
 
                             HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
 
@@ -4699,7 +4699,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
                         $"----------- {i}"._Debug();
 
-                        using var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, title: "Downloading", unit: "bytes", toStr3: true));
+                        using var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, title: "Downloading", unit: "bytes", toStr3: true));
 
                         HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
 
@@ -5066,7 +5066,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
                         $"----------- {i}"._Debug();
 
-                        using var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, title: "Downloading", unit: "bytes", toStr3: true));
+                        using var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, title: "Downloading", unit: "bytes", toStr3: true));
 
                         HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
 
@@ -5142,7 +5142,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         if (true)
         {
             FileDownloader.DownloadUrlListedAsync("https://raw.githubusercontent.com/dotnet/core/master/release-notes/3.1/3.1.6/3.1.6.md", @"c:\tmp\down1", "tar.gz,zip,exe",
-                reporterFactory: new ProgressFileDownloadingReporterFactory(ProgressReporterOutputs.Console)
+                reporterFactory: new ProgressFileDownloadingReporterFactory(ProgressReporterOutputs.ConsoleAndDebug)
                 )._GetResult();
             return;
         }

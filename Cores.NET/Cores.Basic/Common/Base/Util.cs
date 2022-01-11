@@ -5874,6 +5874,7 @@ namespace IPA.Cores.Basic
         None = 0,
         Console = 1,
         Debug = 2,
+        ConsoleAndDebug = Console | Debug,
     }
 
     public delegate void ProgressReportListener(ProgressReport report, string str);
@@ -5911,9 +5912,21 @@ namespace IPA.Cores.Basic
                 {
                     if (outputs.Bit(ProgressReporterOutputs.Console))
                     {
-                        lock (Con.ConsoleWriteLock)
+                        bool skip = false;
+                        if (outputs.Bit(ProgressReporterOutputs.Debug))
                         {
-                            Console.WriteLine(str);
+                            if (Dbg.IsDebugMode)
+                            {
+                                skip = true;
+                            }
+                        }
+
+                        if (skip == false)
+                        {
+                            lock (Con.ConsoleWriteLock)
+                            {
+                                Console.WriteLine(str);
+                            }
                         }
                     }
                 }
