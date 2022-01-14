@@ -141,7 +141,7 @@ partial class TestDevCommands
 
         var root2  = RegRoot.LocalMachine.ParseAsDefault(root);
 
-        MsRegUtil.PrintRegKeys(root2, key);
+        MsReg.PrintRegKeys(root2, key);
 
         return 0;
     }

@@ -1187,6 +1187,35 @@ namespace IPA.Cores.Basic
                 return false;
             }
         }
+
+        public static void PrintRegKeys(RegRoot root, string key, int depth = 0)
+        {
+            const int padUnit = 2;
+
+            key._TryTrimStartWith(out key, StrCmpi, @"\");
+
+            string pad1 = ' '._MakeCharArray(depth * padUnit);
+            string pad2 = ' '._MakeCharArray((depth + 1) * padUnit);
+
+            Con.WriteLine($"{pad1}[{root}\\{key}]");
+
+            var x = MsReg.EnumKey(root, key);
+
+            var subkeys = MsReg.EnumKey(root, key)._EmptyArrayIfNull().OrderBy(x => x, StrCmpi);
+            var values = MsReg.EnumValue(root, key)._EmptyArrayIfNull().OrderBy(x => x, StrCmpi);
+
+            foreach (var value in values)
+            {
+                object? data = MsReg.ReadValue(root, key, value);
+                Con.WriteLine($"{pad2}{value}='{data._ObjectToJson(compact: true)}'");
+            }
+
+            Con.WriteLine();
+            foreach (var subkey in subkeys)
+            {
+                PrintRegKeys(root, key + @"\" + subkey, depth + 1);
+            }
+        }
     }
 
     public delegate int Win32CallOverlappedMainProc(IntPtr inPtr, int inSize, IntPtr outPtr, int outSize, RefInt outReturnedSize, IntPtr overlapped);
