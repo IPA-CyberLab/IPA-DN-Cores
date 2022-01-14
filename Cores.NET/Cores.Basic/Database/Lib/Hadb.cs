@@ -432,6 +432,36 @@ public sealed class HadbSqlConfigRow : INormalizable
     }
 }
 
+[EasyTable("HADB_QUICK")]
+public sealed class HadbSqlQuickRow : INormalizable
+{
+    [EasyManualKey]
+    public string QUICK_UID { get; set; } = "";
+    public string QUICK_SYSTEMNAME { get; set; } = "";
+    public string QUICK_TYPE { get; set; } = "";
+    public string QUICK_NAMESPACE { get; set; } = "";
+    public bool QUICK_DELETED { get; set; }
+    public string QUICK_KEY { get; set; } = "";
+    public string QUICK_VALUE { get; set; } = "";
+    public DateTimeOffset QUICK_CREATE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
+    public DateTimeOffset QUICK_UPDATE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
+    public DateTimeOffset QUICK_DELETE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
+    public long QUICK_UPDATE_COUNT { get; set; }
+
+    public void Normalize()
+    {
+        this.QUICK_UID = this.QUICK_UID._NormalizeUid();
+        this.QUICK_SYSTEMNAME = this.QUICK_SYSTEMNAME._NormalizeKey(true);
+        this.QUICK_TYPE = this.QUICK_TYPE._NonNullTrim();
+        this.QUICK_NAMESPACE = this.QUICK_NAMESPACE._NormalizeKey(true);
+        this.QUICK_KEY = this.QUICK_KEY._NormalizeKey(true);
+        this.QUICK_VALUE = this.QUICK_VALUE._NonNull();
+        this.QUICK_CREATE_DT = this.QUICK_CREATE_DT._NormalizeDateTimeOffset();
+        this.QUICK_UPDATE_DT = this.QUICK_UPDATE_DT._NormalizeDateTimeOffset();
+        this.QUICK_DELETE_DT = this.QUICK_DELETE_DT._NormalizeDateTimeOffset();
+    }
+}
+
 [EasyTable("HADB_DATA")]
 public sealed class HadbSqlDataRow : INormalizable
 {
@@ -934,6 +964,263 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         }
     }
 
+    protected internal override async Task<HadbQuick<T>?> AtomicGetQuickFromDatabaseImplAsync<T>(HadbTran tran, string uid, string nameSpace, CancellationToken cancel = default)
+    {
+        uid = uid._NormalizeUid();
+        nameSpace = nameSpace._HadbNameSpaceNormalize();
+        string typeName = typeof(T).Name;
+
+        var db = ((HadbSqlTran)tran).Db;
+
+        // READCOMMITTEDLOCK, ROWLOCK は、「トランザクション分離レベルが Snapshot かつ読み取り専用の場合」以外に付ける。
+        string query = $"select * from HADB_QUICK { (tran.ShouldUseLightLock ? "with (READCOMMITTEDLOCK, ROWLOCK)" : "") } where QUICK_UID = @QUICK_UID and QUICK_SYSTEMNAME = @QUICK_SYSTEMNAME and QUICK_NAMESPACE = @QUICK_NAMESPACE and QUICK_TYPE = @QUICK_TYPE and QUICK_DELETED = 0";
+
+        var row = await db.EasySelectSingleAsync<HadbSqlQuickRow>(query,
+            new
+            {
+                QUICK_UID = uid,
+                QUICK_SYSTEMNAME = this.SystemName,
+                QUICK_NAMESPACE = nameSpace,
+                QUICK_TYPE = typeName,
+            },
+            throwErrorIfMultipleFound: true,
+            cancel: cancel);
+
+        if (row == null)
+        {
+            return null;
+        }
+
+        HadbQuick<T> ret = new HadbQuick<T>(
+            row.QUICK_VALUE._JsonToObject<T>(),
+            row.QUICK_UID,
+            row.QUICK_NAMESPACE,
+            row.QUICK_KEY,
+            row.QUICK_CREATE_DT,
+            row.QUICK_UPDATE_DT,
+            row.QUICK_UPDATE_COUNT);
+
+        return ret;
+    }
+
+    protected internal override async Task<IEnumerable<HadbQuick<T>>> AtomicSearchQuickByKeyOnDatabaseImplAsync<T>(HadbTran tran, string key, bool startWith, string nameSpace, CancellationToken cancel = default)
+    {
+        key = key._NormalizeKey(true);
+        nameSpace = nameSpace._HadbNameSpaceNormalize();
+        string typeName = typeof(T).Name;
+
+        var db = ((HadbSqlTran)tran).Db;
+
+        // READCOMMITTEDLOCK, ROWLOCK は、「トランザクション分離レベルが Snapshot かつ読み取り専用の場合」以外に付ける。
+        string query = $"select * from HADB_QUICK  { (tran.ShouldUseLightLock ? "with (READCOMMITTEDLOCK, ROWLOCK)" : "") } " +
+            $"where {(key._IsEmpty() ? "" : (startWith ? "QUICK_KEY like @QUICK_KEY escape '?' and" : "QUICK_KEY = @QUICK_KEY and"))} " +
+            "QUICK_SYSTEMNAME = @QUICK_SYSTEMNAME and QUICK_NAMESPACE = @QUICK_NAMESPACE and QUICK_TYPE = @QUICK_TYPE and QUICK_DELETED = 0";
+
+        var rows = await db.EasySelectAsync<HadbSqlQuickRow>(query,
+            new
+            {
+                QUICK_KEY = (startWith ? EscapeLikeToken(key, '?') + "%" : key),
+                QUICK_SYSTEMNAME = this.SystemName,
+                QUICK_NAMESPACE = nameSpace,
+                QUICK_TYPE = typeName,
+            },
+            cancel: cancel);
+
+        return await rows.ToList()._ProcessParallelAndAggregateAsync(rowPartList =>
+        {
+            List<HadbQuick<T>> tmp = new List<HadbQuick<T>>();
+            foreach (var row in rowPartList)
+            {
+                tmp.Add(new HadbQuick<T>(
+                    row.QUICK_VALUE._JsonToObject<T>(),
+                    row.QUICK_UID,
+                    row.QUICK_NAMESPACE,
+                    row.QUICK_KEY,
+                    row.QUICK_CREATE_DT,
+                    row.QUICK_UPDATE_DT,
+                    row.QUICK_UPDATE_COUNT));
+            }
+            return TR(tmp);
+        },
+        cancel: cancel);
+    }
+
+    protected internal override async Task AtomicUpdateQuickByUidOnDatabaseImplAsync<T>(HadbTran tran, string uid, string nameSpace, T userData, CancellationToken cancel = default)
+    {
+        uid = uid._NormalizeUid();
+        nameSpace = nameSpace._HadbNameSpaceNormalize();
+        string typeName = typeof(T).Name;
+
+        tran.CheckIsWriteMode();
+        var db = ((HadbSqlTran)tran).Db;
+
+        // デッドロックを防ぐため、where 句が重要。手動で実行するのである。
+        // READCOMMITTEDLOCK にしないと、パーティション分割している場合にデッドロックが頻発する。
+        string query = "update HADB_QUICK with (READCOMMITTEDLOCK, ROWLOCK) " +
+            "set QUICK_VALUE = @QUICK_VALUE, QUICK_UPDATE_DT = @QUICK_UPDATE_DT, QUICK_UPDATE_COUNT = QUICK_UPDATE_COUNT + 1 " +
+            "where QUICK_UID = @QUICK_UID and QUICK_SYSTEMNAME = @QUICK_SYSTEMNAME and QUICK_NAMESPACE = @QUICK_NAMESPACE and QUICK_TYPE = @QUICK_TYPE and QUICK_DELETED = 0";
+
+        int r = await db.EasyExecuteAsync(query,
+            new
+            {
+                QUICK_VALUE = userData._ObjectToJson(compact: true),
+                QUICK_UPDATE_DT = DtOffsetNow,
+                QUICK_UID = uid,
+                QUICK_SYSTEMNAME = this.SystemName,
+                QUICK_TYPE = typeName,
+                QUICK_NAMESPACE = nameSpace,
+            });
+
+        if (r == 0)
+        {
+            throw new CoresLibException($"The specified UID '{uid}' not found on the database.");
+        }
+    }
+
+    protected internal override async Task<bool> AtomicAddOrUpdateQuickByKeyOnDatabaseImplAsync<T>(HadbTran tran, string key, string nameSpace, T userData, bool doNotOverwrite, CancellationToken cancel = default)
+    {
+        key = key._NormalizeKey(true);
+        nameSpace = nameSpace._HadbNameSpaceNormalize();
+        string typeName = typeof(T).Name;
+
+        var json = userData._ObjectToJson(compact: true);
+
+        tran.CheckIsWriteMode();
+        var db = ((HadbSqlTran)tran).Db;
+
+        var now = DtOffsetNow;
+
+        L_ADD:
+        if (doNotOverwrite)
+        {
+            // 新規追加 (KEY が重複する場合は SQL Server 側でインデックス一意エラーになるので、KEY の一意性はチェックしなくてよい)
+            HadbSqlQuickRow r = new HadbSqlQuickRow
+            {
+                QUICK_UID = Str.NewUid("QUICK", '_', this.Settings.OptionFlags.Bit(HadbOptionFlags.DataUidForPartitioningByUidOptimized)),
+                QUICK_SYSTEMNAME = this.SystemName,
+                QUICK_TYPE = typeName,
+                QUICK_NAMESPACE = nameSpace,
+                QUICK_DELETED = false,
+                QUICK_KEY = key,
+                QUICK_VALUE = json,
+                QUICK_CREATE_DT = now,
+                QUICK_UPDATE_DT = now,
+                QUICK_DELETE_DT = DtOffsetZero,
+                QUICK_UPDATE_COUNT = 1,
+            };
+
+            await db.EasyInsertAsync(r, cancel);
+
+            return false;
+        }
+
+        // 既に存在する一致行を上書き
+        // デッドロックを防ぐため、where 句が重要。手動で実行するのである。
+        // READCOMMITTEDLOCK にしないと、パーティション分割している場合にデッドロックが頻発する。
+        string query = "update HADB_QUICK with (READCOMMITTEDLOCK, ROWLOCK) " +
+            "set QUICK_VALUE = @QUICK_VALUE, QUICK_UPDATE_DT = @QUICK_UPDATE_DT, QUICK_UPDATE_COUNT = QUICK_UPDATE_COUNT + 1 " +
+            "where QUICK_KEY = @QUICK_KEY and QUICK_SYSTEMNAME = @QUICK_SYSTEMNAME and QUICK_NAMESPACE = @QUICK_NAMESPACE and QUICK_TYPE = @QUICK_TYPE and QUICK_DELETED = 0";
+
+        int i = await db.EasyExecuteAsync(
+            query,
+            new
+            {
+                QUICK_VALUE = json,
+                QUICK_UPDATE_DT = now,
+                QUICK_KEY = key,
+                QUICK_SYSTEMNAME = this.SystemName,
+                QUICK_NAMESPACE = nameSpace,
+                QUICK_TYPE = typeName,
+            });
+
+        if (i <= 0)
+        {
+            // まだ存在しないので作成する
+            doNotOverwrite = true;
+            goto L_ADD;
+        }
+
+        return true;
+    }
+
+    protected internal override async Task<bool> AtomicDeleteQuickByUidOnDatabaseImplAsync<T>(HadbTran tran, string uid, string nameSpace, T userData, CancellationToken cancel = default)
+    {
+        uid = uid._NormalizeUid();
+        nameSpace = nameSpace._HadbNameSpaceNormalize();
+        string typeName = typeof(T).Name;
+
+        tran.CheckIsWriteMode();
+        var db = ((HadbSqlTran)tran).Db;
+
+        // 既に存在する一致行を上書き
+        // デッドロックを防ぐため、where 句が重要。手動で実行するのである。
+        // READCOMMITTEDLOCK にしないと、パーティション分割している場合にデッドロックが頻発する。
+        string query = $"update HADB_QUICK with (READCOMMITTEDLOCK, ROWLOCK) " +
+            "set QUICK_DELETED = 1 and QUICK_DELETE_DT = @QUICK_DELETE_DT " +
+            "where QUICK_UID = @QUICK_UID and QUICK_SYSTEMNAME = @QUICK_SYSTEMNAME and QUICK_NAMESPACE = @QUICK_NAMESPACE and QUICK_TYPE = @QUICK_TYPE and QUICK_DELETED = 0";
+
+        int i = await db.EasyExecuteAsync(query,
+            new
+            {
+                QUICK_DELETE_DT = DtOffsetNow,
+                QUICK_UID = uid,
+                QUICK_SYSTEMNAME = this.SystemName,
+                QUICK_NAMESPACE = nameSpace,
+                QUICK_TYPE = typeName,
+            });
+
+        return i >= 1;
+    }
+
+    protected internal override async Task<int> AtomicDeleteQuickByKeyOnDatabaseImplAsync<T>(HadbTran tran, string key, bool startWith, string nameSpace, T userData, CancellationToken cancel = default)
+    {
+        key = key._NormalizeKey(true);
+        nameSpace = nameSpace._HadbNameSpaceNormalize();
+        string typeName = typeof(T).Name;
+
+        tran.CheckIsWriteMode();
+        var db = ((HadbSqlTran)tran).Db;
+
+        // 既に存在する一致行を上書き
+        // デッドロックを防ぐため、where 句が重要。手動で実行するのである。
+        // READCOMMITTEDLOCK にしないと、パーティション分割している場合にデッドロックが頻発する。
+        string query = $"update HADB_QUICK with (READCOMMITTEDLOCK, ROWLOCK) " +
+            "set QUICK_DELETED = 1 and QUICK_DELETE_DT = @QUICK_DELETE_DT " +
+            $"where {(key._IsEmpty() ? "" : (startWith ? "QUICK_KEY like @QUICK_KEY escape '?' and" : "QUICK_KEY = @QUICK_KEY and"))} " +
+            "QUICK_SYSTEMNAME = @QUICK_SYSTEMNAME and QUICK_NAMESPACE = @QUICK_NAMESPACE and QUICK_TYPE = @QUICK_TYPE and QUICK_DELETED = 0";
+
+        int i = await db.EasyExecuteAsync(query,
+            new
+            {
+                QUICK_DELETE_DT = DtOffsetNow,
+                QUICK_KEY = (startWith ? EscapeLikeToken(key, '?') + "%" : key),
+                QUICK_SYSTEMNAME = this.SystemName,
+                QUICK_NAMESPACE = nameSpace,
+                QUICK_TYPE = typeName,
+            });
+
+        return i;
+    }
+
+    string EscapeLikeToken(string src, char escapeChar = '!')
+    {
+        src = src._NonNull();
+
+        if (src.IndexOf(escapeChar, StrCmpi) != -1)
+        {
+            throw new CoresException("Source src string contains escape char '" + escapeChar + "'.");
+        }
+
+        src = src._ReplaceStr("%", "" + escapeChar + "%");
+        src = src._ReplaceStr("_", "" + escapeChar + "_");
+        src = src._ReplaceStr("[", "" + escapeChar + "[");
+        src = src._ReplaceStr("]", "" + escapeChar + "]");
+        src = src._ReplaceStr("^", "" + escapeChar + "^");
+        src = src._ReplaceStr("-", "" + escapeChar + "-");
+
+        return src;
+    }
+
     protected async Task<HadbSqlDataRow?> GetRowByKeyAsync(Database db, string typeName, string nameSpace, HadbKeys key, bool lightLock, bool and, CancellationToken cancel = default)
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
@@ -951,9 +1238,9 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         }
 
         // READCOMMITTEDLOCK, ROWLOCK は、「トランザクション分離レベルが Snapshot かつ読み取り専用の場合」以外に付ける。
-        string where = $"select * from HADB_DATA  { (lightLock ? "with (READCOMMITTEDLOCK, ROWLOCK)" : "") } where {conditions.Select(x => $" ( {x} )")._Combine(and ? " and " : " or ")}";
+        string query = $"select * from HADB_DATA  { (lightLock ? "with (READCOMMITTEDLOCK, ROWLOCK)" : "") } where {conditions.Select(x => $" ( {x} )")._Combine(and ? " and " : " or ")}";
 
-        return await db.EasySelectSingleAsync<HadbSqlDataRow>(where,
+        return await db.EasySelectSingleAsync<HadbSqlDataRow>(query,
             new
             {
                 DATA_KEY1 = key.Key1,
@@ -1507,16 +1794,16 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         rows = rows.OrderByDescending(x => x.DATA_VER); // 念のため
 
-        List<HadbObject> ret = new List<HadbObject>();
-
-        foreach (var row in rows)
+        return await rows.ToList()._ProcessParallelAndAggregateAsync(partOfRows =>
         {
-            var item = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
-
-            ret.Add(item);
-        }
-
-        return ret;
+            List<HadbObject> tmp = new List<HadbObject>();
+            foreach (var row in partOfRows)
+            {
+                tmp.Add(new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT));
+            }
+            return TR(tmp);
+        },
+        cancel: cancel);
     }
 
     protected internal override async Task<HadbObject?> AtomicSearchDataByKeyFromDatabaseImplAsync(HadbTran tran, HadbKeys key, string typeName, string nameSpace, bool and, CancellationToken cancel = default)
@@ -1547,16 +1834,16 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         if (rows == null) return EmptyOf<HadbObject>();
 
-        List<HadbObject> ret = new List<HadbObject>();
-
-        foreach (var row in rows)
+        return await rows.ToList()._ProcessParallelAndAggregateAsync(partOfRows =>
         {
-            var item = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
-
-            ret.Add(item);
-        }
-
-        return ret;
+            List<HadbObject> tmp = new List<HadbObject>();
+            foreach (var row in partOfRows)
+            {
+                tmp.Add(new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT));
+            }
+            return TR(tmp);
+        },
+        cancel: cancel);
     }
 
     protected internal override async Task<HadbObject> AtomicDeleteDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, int maxArchive, CancellationToken cancel = default)
@@ -1980,6 +2267,39 @@ public sealed class HadbSerializedObject
     public object UserData { get; set; } = null!;
 
     public string UserDataTypeName { get; set; } = "";
+}
+
+public sealed class HadbQuick<T>
+{
+    public string Uid { get; }
+
+    public string NameSpace { get; }
+
+    public string Key { get; }
+
+    public DateTimeOffset CreateDt { get; }
+
+    public DateTimeOffset UpdateDt { get; }
+
+    public long UpdateCount { get; }
+
+    public T? UserData { get; }
+
+    public HadbQuick(T? userData, string uid, string nameSpace, string key, DateTimeOffset createDt, DateTimeOffset updateDt, long updateCount)
+    {
+        if (userData is object x)
+        {
+            x._NullCheck(nameof(userData));
+        }
+
+        this.Uid = uid._NormalizeUid();
+        this.NameSpace = nameSpace._NormalizeKey(true);
+        this.Key = key._NormalizeKey(true);
+        this.CreateDt = createDt._NormalizeDateTimeOffset();
+        this.UpdateDt = updateDt._NormalizeDateTimeOffset();
+        this.UpdateCount = Math.Max(updateCount, 0);
+        this.UserData = userData;
+    }
 }
 
 public sealed class HadbObject : INormalizable
@@ -2883,6 +3203,13 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     protected internal abstract Task AtomicSetKvImplAsync(HadbTran tran, string key, string value, CancellationToken cancel = default);
     protected internal abstract Task AtomicAddSnapImplAsync(HadbTran tran, HadbSnapshot snap, CancellationToken cancel = default);
 
+    protected internal abstract Task<HadbQuick<T>?> AtomicGetQuickFromDatabaseImplAsync<T>(HadbTran tran, string uid, string nameSpace, CancellationToken cancel = default);
+    protected internal abstract Task<IEnumerable<HadbQuick<T>>> AtomicSearchQuickByKeyOnDatabaseImplAsync<T>(HadbTran tran, string key, bool startWith, string nameSpace, CancellationToken cancel = default);
+    protected internal abstract Task AtomicUpdateQuickByUidOnDatabaseImplAsync<T>(HadbTran tran, string uid, string nameSpace, T userData, CancellationToken cancel = default);
+    protected internal abstract Task<bool> AtomicAddOrUpdateQuickByKeyOnDatabaseImplAsync<T>(HadbTran tran, string key, string nameSpace, T userData, bool doNotOverwrite, CancellationToken cancel = default);
+    protected internal abstract Task<bool> AtomicDeleteQuickByUidOnDatabaseImplAsync<T>(HadbTran tran, string uid, string nameSpace, T userData, CancellationToken cancel = default);
+    protected internal abstract Task<int> AtomicDeleteQuickByKeyOnDatabaseImplAsync<T>(HadbTran tran, string key, bool startWith, string nameSpace, T userData, CancellationToken cancel = default);
+
     protected internal abstract Task AtomicAddLogImplAsync(HadbTran tran, HadbLog log, string nameSpace, string ext1, string ext2, CancellationToken cancel = default);
     protected internal abstract Task<IEnumerable<HadbLog>> AtomicSearchLogImplAsync(HadbTran tran, string typeName, HadbLogQuery query, string nameSpace, CancellationToken cancel = default);
 
@@ -3388,7 +3715,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                         TMem? currentMemDb = new TMem();
 
                         Debug($"ReloadCoreAsync: Start Restoring Local Backup Data Into Memory. Objects = {loadedObjectsList.Count._ToString3()}");
-                        
+
                         long memStartTick = Time.HighResTick64;
                         await currentMemDb.ReloadFromDatabaseIntoMemoryDbAsync(loadedObjectsList, true, default, $"Local Database Backup File '{backupDatabasePath.PathString}'", cancel);
                         long memEndTick = Time.HighResTick64;
@@ -3864,7 +4191,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             await base.CleanupImplAsync(ex);
         }
     }
-    
+
     public abstract class HadbTran : AsyncService
     {
         public bool IsWriteMode { get; }

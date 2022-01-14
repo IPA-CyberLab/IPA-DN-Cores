@@ -2136,6 +2136,64 @@ public static class BasicHelper
         }
     }
 
+    public static async Task _DoForEachParallelAsync<T>(this IEnumerable<T> list, Func<T, int, Task> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
+    {
+        list._NullCheck();
+        List<T> list2 = list.ToList();
+
+        await _ProcessParallelAsync(list2, async src =>
+        {
+            await list2._DoForEachAsync(action, cancel);
+        },
+        numCpus,
+        operation,
+        cancel);
+    }
+
+    public static async Task _DoForEachParallelAsync<T>(this IEnumerable<T> list, Func<T, Task> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
+    {
+        list._NullCheck();
+        List<T> list2 = list.ToList();
+
+        await _ProcessParallelAsync(list2, async src =>
+        {
+            await list2._DoForEachAsync(action, cancel);
+        },
+        numCpus,
+        operation,
+        cancel);
+    }
+
+    public static async Task _DoForEachParallelAsync<T>(this IEnumerable<T> list, Action<T, int> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
+    {
+        list._NullCheck();
+        List<T> list2 = list.ToList();
+
+        await _ProcessParallelAsync(list2, src =>
+        {
+            list2._DoForEach(action);
+            return TR();
+        },
+        numCpus,
+        operation,
+        cancel);
+    }
+
+    public static async Task _DoForEachParallelAsync<T>(this IEnumerable<T> list, Action<T> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
+    {
+        list._NullCheck();
+        List<T> list2 = list.ToList();
+
+        await _ProcessParallelAsync(list2, src =>
+        {
+            list2._DoForEach(action);
+            return TR();
+        },
+        numCpus,
+        operation,
+        cancel);
+    }
+
     public static async Task _ProcessParallelAsync<T>(this List<T> srcList, Func<List<T>, Task> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
     {
         srcList._NullCheck();
@@ -2178,28 +2236,30 @@ public static class BasicHelper
             }
         }
 
-        //Con.WriteLine($"Total: {recvPacketsList.Count}");
-
-
         srcListList = srcListList.Where(x => x.Any()).ToArray();
 
         await TaskUtil.ForEachAsync(srcListList.Length, srcListList, async (list, c) =>
         {
-            //Con.WriteLine($"  Task ${ThreadObj.CurrentThreadId}: {list.Count}");
             await action(list);
         }, cancel);
     }
 
-    public static async Task<List<TOut>> _ProcessParallelAndAggregateAsync<TIn, TOut>(this List<TIn> srcList, Func<List<TIn>, Task<List<TOut>>> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
+    public static async Task<List<TOut>> _ProcessParallelAndAggregateAsync<TIn, TOut>(this List<TIn> srcList, Func<List<TIn>, Task<List<TOut>>> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default, bool onlyIfMany = true)
     {
         srcList._NullCheck();
 
         int numTasks = numCpus ?? Env.NumCpus;
         if (numTasks <= 0) numTasks = 1;
 
-        List<TIn>[] srcListList = new List<TIn>[numTasks];
-
         int srcCount = srcList.Count;
+
+        if (onlyIfMany && srcCount < CoresConfig.TaskAsyncSettings.ParallelProcessingMinCountThreshold.Value)
+        {
+            // 少量の場合は並列処理しない
+            return await action(srcList);
+        }
+
+        List<TIn>[] srcListList = new List<TIn>[numTasks];
 
         if (operation == MultitaskDivideOperation.RoundRobin)
         {
@@ -2232,15 +2292,12 @@ public static class BasicHelper
             }
         }
 
-        //Con.WriteLine($"Total: {recvPacketsList.Count}");
-
         List<TOut> ret = new List<TOut>(srcList.Count);
 
         srcListList = srcListList.Where(x => x.Any()).ToArray();
 
         await TaskUtil.ForEachAsync(srcListList.Length, srcListList, async (list, c) =>
         {
-            //Con.WriteLine($"  Task ${ThreadObj.CurrentThreadId}: {list.Count}");
             var results = await action(list);
 
             lock (ret)
@@ -3150,10 +3207,27 @@ public static class BasicHelper
         return false;
     }
 
-    public static void _TryNormalizeAll<T>(this IEnumerable<T?>? array)
+    public static void _TryNormalizeAll<T>(this IEnumerable<T?>? array, bool noParallel = true)
     {
         if (array == null) return;
-        array._DoForEach(x => x._TryNormalize());
+
+        if (noParallel == false)
+        {
+            // 通常は並列実行するが、オーバーヘッドがあるため、個数が少ない場合は直列実行する
+            if (array.Count() < CoresConfig.TaskAsyncSettings.ParallelProcessingMinCountThreshold.Value)
+            {
+                noParallel = true;
+            }
+        }
+
+        if (noParallel)
+        {
+            array._DoForEach(x => x._TryNormalize());
+        }
+        else
+        {
+            array._DoForEachParallelAsync(x => x._TryNormalize())._GetResult();
+        }
     }
 
     public static string _HadbNameSpaceNormalize(this string nameSpace)

@@ -184,6 +184,9 @@ public static partial class CoresConfig
         // TaskCreationOptions.RunContinuationsAsynchronously を指定すると、別スレッドで作成されるようになる。
         // デッドロック問題がある場合は、TaskCreationOptions.RunContinuationsAsynchronously にすると解決される場合がある。
         public static readonly Copenhagen<TaskCreationOptions> AsyncEventTaskCreationOption = TaskCreationOptions.RunContinuationsAsynchronously;
+
+        // 何個以上の場合に並列処理するか
+        public static readonly Copenhagen<int> ParallelProcessingMinCountThreshold = 128;
     }
 }
 

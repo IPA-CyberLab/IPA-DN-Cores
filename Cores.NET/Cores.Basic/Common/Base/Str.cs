@@ -1653,7 +1653,7 @@ namespace IPA.Cores.Basic
 
             if (prependAtoZHashChar)
             {
-                prefix = "" + (char)('A' + (Util.RandSInt31() % 26)) + prefix;
+                prefix = "" + (char)('A' + (Util.RandSInt31() % 26)) + concat + prefix;
             }
 
             return prefix.ToUpperInvariant() + concat + a + concat + b + concat + c + d + e + concat + f + concat + g;
