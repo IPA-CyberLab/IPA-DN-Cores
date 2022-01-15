@@ -640,10 +640,9 @@ public class DDNSServer : AsyncService
         }
     }
 
-    Span<DnsUdpPacket> ProcessQueryList(Span<DnsUdpPacket> requestList)
+    Task<List<DnsUdpPacket>> ProcessQueryList(List<DnsUdpPacket> requestList)
     {
-        Span<DnsUdpPacket> replyList = new DnsUdpPacket[requestList.Length];
-        int replyListCount = 0;
+        List<DnsUdpPacket> replyList = new List<DnsUdpPacket>(requestList.Count);
 
         foreach (var request in requestList)
         {
@@ -666,7 +665,7 @@ public class DDNSServer : AsyncService
 
                 if (reply != null)
                 {
-                    replyList[replyListCount++] = new DnsUdpPacket(request.RemoteEndPoint, request.LocalEndPoint, reply);
+                    replyList.Add(new DnsUdpPacket(request.RemoteEndPoint, request.LocalEndPoint, reply));
                 }
             }
             catch (Exception ex)
@@ -675,7 +674,7 @@ public class DDNSServer : AsyncService
             }
         }
 
-        return replyList.Slice(0, replyListCount);
+        return TR(replyList);
     }
 
     void write(string str)

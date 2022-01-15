@@ -2386,9 +2386,7 @@ static class TestClass
         using EasyDnsServer s = new EasyDnsServer(new EasyDnsServerSetting(
             reqList =>
             {
-                Span<DnsUdpPacket> resList = new DnsUdpPacket[reqList.Length];
-
-                int index = 0;
+                List<DnsUdpPacket> retList = new List<DnsUdpPacket>(reqList.Count);
 
                 foreach (var req in reqList)
                 {
@@ -2396,11 +2394,11 @@ static class TestClass
                     {
                         DnsUdpPacket res = new DnsUdpPacket(req.RemoteEndPoint, req.LocalEndPoint, req.Message);
 
-                        resList[index++] = res;
+                        retList.Add(res);
                     }
                 }
 
-                return resList;
+                return TR(retList);
             }, 8053
             ));
 

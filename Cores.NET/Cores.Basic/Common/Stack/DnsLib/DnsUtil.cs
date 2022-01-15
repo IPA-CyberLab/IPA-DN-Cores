@@ -116,14 +116,14 @@ public class DnsUdpPacket
 
 
 
-public delegate Span<DnsUdpPacket> EasyDnsServerProcessPacketsCallback(Span<DnsUdpPacket> requestList);
+public delegate Task<List<DnsUdpPacket>> EasyDnsServerProcessPacketsCallbackAsync(List<DnsUdpPacket> requestList);
 
 public class EasyDnsServerSetting
 {
     public int UdpPort { get; }
-    public EasyDnsServerProcessPacketsCallback Callback { get; }
+    public EasyDnsServerProcessPacketsCallbackAsync Callback { get; }
 
-    public EasyDnsServerSetting(EasyDnsServerProcessPacketsCallback callback, int udpPort = Consts.Ports.Dns)
+    public EasyDnsServerSetting(EasyDnsServerProcessPacketsCallbackAsync callback, int udpPort = Consts.Ports.Dns)
     {
         this.Callback = callback;
         this.UdpPort = udpPort;
@@ -167,62 +167,52 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
 
                 var allSendList = await allRecvList._ProcessParallelAndAggregateAsync(async (perTaskRecvList) =>
                 {
-                    var ret = Sync(() =>
+                    List<DnsUdpPacket> perTaskRequestPacketsList = new List<DnsUdpPacket>(perTaskRecvList.Count);
+
+                    //double start = Time.NowHighResDouble;
+
+                    //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- Start loop 1: perTaskRecvList.Count = {perTaskRecvList.Count}");
+
+                    foreach (var item in perTaskRecvList)
                     {
-                        Span<DnsUdpPacket> perTaskRequestPacketsList = new DnsUdpPacket[perTaskRecvList.Count];
-                        int perTaskRequestPacketsListCount = 0;
-
-                        //double start = Time.NowHighResDouble;
-
-                        //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- Start loop 1: perTaskRecvList.Count = {perTaskRecvList.Count}");
-
-                        foreach (var item in perTaskRecvList)
+                        if (item != null)
                         {
-                            if (item != null)
+                            try
                             {
-                                try
-                                {
-                                    var request = DnsUtil.ParsePacket(item.Data.Span);
+                                var request = DnsUtil.ParsePacket(item.Data.Span);
 
-                                    DnsUdpPacket pkt = new DnsUdpPacket(item.RemoteIPEndPoint, item.LocalIPEndPoint, request);
+                                DnsUdpPacket pkt = new DnsUdpPacket(item.RemoteIPEndPoint, item.LocalIPEndPoint, request);
 
-                                    perTaskRequestPacketsList[perTaskRequestPacketsListCount++] = pkt;
-                                }
-                                catch { }
+                                perTaskRequestPacketsList.Add(pkt);
                             }
+                            catch { }
                         }
+                    }
 
-                        //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- End loop 1: perTaskRequestPacketsListCount = {perTaskRequestPacketsListCount}");
+                    //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- End loop 1: perTaskRequestPacketsListCount = {perTaskRequestPacketsListCount}");
 
-                        Span<DnsUdpPacket> perTaskReaponsePacketsList = Setting.Callback(perTaskRequestPacketsList);
+                    List<DnsUdpPacket> perTaskReaponsePacketsList = await Setting.Callback(perTaskRequestPacketsList);
 
-                        Span<Datagram> perTaskSendList = new Datagram[perTaskRequestPacketsListCount];
-                        int perTaskSendListCount = 0;
+                    List<Datagram> perTaskSendList = new List<Datagram>(perTaskReaponsePacketsList.Count);
 
-                        //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- Start loop 2: perTaskReaponsePacketsList.Count = {perTaskReaponsePacketsList.Length}");
+                    //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- Start loop 2: perTaskReaponsePacketsList.Count = {perTaskReaponsePacketsList.Length}");
 
-                        foreach (var responsePkt in perTaskReaponsePacketsList)
+                    foreach (var responsePkt in perTaskReaponsePacketsList)
+                    {
+                        try
                         {
-                            if (responsePkt != null)
-                            {
-                                try
-                                {
-                                    Memory<byte> packetData = DnsUtil.BuildPacket(responsePkt.Message).ToArray();
+                            Memory<byte> packetData = DnsUtil.BuildPacket(responsePkt.Message).ToArray();
 
-                                    var datagram = new Datagram(packetData, responsePkt.RemoteEndPoint, responsePkt.LocalEndPoint);
+                            var datagram = new Datagram(packetData, responsePkt.RemoteEndPoint, responsePkt.LocalEndPoint);
 
-                                    perTaskSendList[perTaskSendListCount++] = datagram;
-                                }
-                                catch { }
-                            }
+                            perTaskSendList.Add(datagram);
                         }
+                        catch { }
+                    }
 
-                        //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- End loop 2: perTaskSendListCount = {perTaskSendListCount}");
+                    //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- End loop 2: perTaskSendListCount = {perTaskSendListCount}");
 
-                        return perTaskSendList.Slice(0, perTaskSendListCount).ToArray().ToList();
-                    });
-
-                    return ret;
+                    return perTaskSendList;
                 },
                 operation: MultitaskDivideOperation.RoundRobin,
                 cancel: cancel);
