@@ -2379,9 +2379,12 @@ static class TestClass
     {
         // --- 受信 ---
         // pktlinux (Xeon 4C) ===> pc34 (Corei9 10C)
-        // ストレートパケット 同期処理
+        // ストレートパケット 同期処理 + Span
         // 打ち返し: 240 kqps くらい出た
         // 
+        // ストレートパケット 非同期処理 + List
+        // 打ち返し: 256 kqps くらい出た
+        //  結論  非同期でよい。GC は Server Mode にしたほうが少し安定するが、クライアントモードでもまあよい。
 
         using EasyDnsServer s = new EasyDnsServer(new EasyDnsServerSetting(
             reqList =>
