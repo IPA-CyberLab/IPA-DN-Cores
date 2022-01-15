@@ -153,7 +153,7 @@ partial class TestDevCommands
 
     [ConsoleCommand(
         "Execute HADB Test Suite",
-        "TestHadbSuite [/THREADS:num_threads=10] [/LOOP1=loop1_in_thread=10] [/LOOP2=loop2_whole=3]",
+        "TestHadbSuite [/THREADS:num_threads=10] [/LOOP1=loop1_in_thread=3] [/LOOP2=loop2_whole=1]",
         "Execute HADB Test Suite")]
     static int TestHadbSuite(ConsoleService c, string cmdName, string str)
     {
@@ -171,8 +171,8 @@ partial class TestDevCommands
         int loop2 = vl["LOOP2"].IntValue;
 
         if (numThreads <= 0) numThreads = 10;
-        if (loop1 <= 0) loop1 = 10;
-        if (loop2 <= 0) loop2 = 3;
+        if (loop1 <= 0) loop1 = 3;
+        if (loop2 <= 0) loop2 = 1;
 
         const string TestDbServer = "dn-mssql2019dev1.ipantt.net,7012"; // dn-mssql2019dev1
         const string TestDbName = "HADB001";
