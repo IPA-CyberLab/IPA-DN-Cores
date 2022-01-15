@@ -42,6 +42,7 @@ using System.Text;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Data;
 
 namespace IPA.TestDev;
 
@@ -145,6 +146,136 @@ partial class TestDevCommands
 
         return 0;
     }
+
+
+
+    static int Seed_TestHadbSuite = 0;
+
+    [ConsoleCommand(
+        "Execute HADB Test Suite",
+        "TestHadbSuite [/THREADS:num_threads=10] [/LOOP1=loop1_in_thread=10] [/LOOP2=loop2_whole=3]",
+        "Execute HADB Test Suite")]
+    static int TestHadbSuite(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+            new ConsoleParam("THREADS"),
+            new ConsoleParam("LOOP1"),
+            new ConsoleParam("LOOP2"),
+        };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        int numThreads = vl["THREADS"].IntValue;
+        int loop1 = vl["LOOP1"].IntValue;
+        int loop2 = vl["LOOP2"].IntValue;
+
+        if (numThreads <= 0) numThreads = 10;
+        if (loop1 <= 0) loop1 = 10;
+        if (loop2 <= 0) loop2 = 3;
+
+        const string TestDbServer = "10.22.0.5,7012"; // dn-mssql2019dev1
+        //const string TestDbServer = "10.40.0.103"; // lab
+        //const string TestDbServer = "10.21.2.132"; // dnt
+        const string TestDbName = "HADB001";
+        const string TestDbReadUser = "sql_hadb001_reader";
+        const string TestDbWriteUser = "sql_hadb001_writer";
+        //const string TestDbReadPassword = "sql_hadb_reader_default_password";
+        //const string TestDbWritePassword = "sql_hadb_writer_default_password";
+        const string TestDbReadPassword = "DnTakosanPass8931Dx";
+        const string TestDbWritePassword = "DnTakosanPass8931Dx";
+
+
+        for (int k = 0; k < loop2; k++)
+        {
+            try
+            {
+                for (int i = 0; i < loop1; i++)
+                {
+                    $"=========== try i = {i} ============="._Print();
+
+                    bool error = false;
+
+                    Async(async () =>
+                    {
+                        AsyncManualResetEvent start = new AsyncManualResetEvent();
+                        List<Task> taskList = new List<Task>();
+
+                        for (int i = 0; i < numThreads; i++)
+                        {
+                            var task = TaskUtil.StartAsyncTaskAsync(async () =>
+                            {
+                                await Task.Yield();
+                                await start.WaitAsync();
+
+                                try
+                                {
+                                    int seed = Interlocked.Increment(ref Seed_TestHadbSuite);
+
+                                    string systemName = ("HADB_CODE_TEST_" + Str.DateTimeToYymmddHHmmssLong(DtNow) + "_" + Env.MachineName + "_" + Str.GenerateRandomDigit(8) + "_" + seed.ToString("D8")).ToUpperInvariant();
+
+                                    systemName = "" + (char)('A' + Secure.RandSInt31() % 26) + "_" + systemName;
+
+                                    var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate;
+
+                                    flags |= HadbOptionFlags.NoLocalBackup;
+
+                                    flags |= HadbOptionFlags.DataUidForPartitioningByUidOptimized;
+
+                                    if (numThreads >= 2)
+                                    {
+                                        flags |= HadbOptionFlags.NoInitConfigDb | HadbOptionFlags.NoInitSnapshot | HadbOptionFlags.DoNotTakeSnapshotAtAll | HadbOptionFlags.DoNotSaveStat;
+                                    }
+
+                                    HadbSqlSettings settings = new HadbSqlSettings(systemName,
+                                        new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbReadUser, TestDbReadPassword, true),
+                                        new SqlDatabaseConnectionSetting(TestDbServer, TestDbName, TestDbWriteUser, TestDbWritePassword, true),
+                                        IsolationLevel.Snapshot, IsolationLevel.Serializable,
+                                        flags);
+
+                                    await HadbCodeTest.Test1Async(settings, systemName, flags.Bit(HadbOptionFlags.NoLocalBackup) == false, numThreads >= 2);
+                                }
+                                catch (Exception ex)
+                                {
+                                    "--------------------- ERROR !!! ---------------"._Error();
+                                    ex._Error();
+                                    throw;
+                                }
+                            }
+                            );
+
+                            taskList.Add(task);
+                        }
+
+                        start.Set(true);
+
+                        foreach (var task in taskList)
+                        {
+                            var ret = await task._TryAwaitAndRetBool();
+                            if (ret.IsError) error = true;
+                        }
+                    });
+
+                    if (error)
+                    {
+                        throw new CoresException("Error occured.");
+                    }
+                }
+
+                $"--- Whole Loop #{loop2}: All OK! ---"._Print();
+            }
+            catch (Exception ex)
+            {
+                $"--- Whole Loop #{loop2}: Error! ---"._Print();
+                ex._Error();
+                $"--- Whole Loop #{loop2}: Error! ---"._Print();
+                throw;
+            }
+        }
+
+        return 0;
+    }
+
 
 
     [ConsoleCommand(
