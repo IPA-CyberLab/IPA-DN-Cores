@@ -174,14 +174,10 @@ partial class TestDevCommands
         if (loop1 <= 0) loop1 = 10;
         if (loop2 <= 0) loop2 = 3;
 
-        const string TestDbServer = "10.22.0.5,7012"; // dn-mssql2019dev1
-        //const string TestDbServer = "10.40.0.103"; // lab
-        //const string TestDbServer = "10.21.2.132"; // dnt
+        const string TestDbServer = "dn-mssql2019dev1.ipantt.net,7012"; // dn-mssql2019dev1
         const string TestDbName = "HADB001";
         const string TestDbReadUser = "sql_hadb001_reader";
         const string TestDbWriteUser = "sql_hadb001_writer";
-        //const string TestDbReadPassword = "sql_hadb_reader_default_password";
-        //const string TestDbWritePassword = "sql_hadb_writer_default_password";
         const string TestDbReadPassword = "DnTakosanPass8931Dx";
         const string TestDbWritePassword = "DnTakosanPass8931Dx";
 
