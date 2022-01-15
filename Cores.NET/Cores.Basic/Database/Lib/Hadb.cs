@@ -992,7 +992,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         }
 
         HadbQuick<T> ret = new HadbQuick<T>(
-            row.QUICK_VALUE._JsonToObject<T>(),
+            row.QUICK_VALUE._JsonToObject<T>()!,
             row.QUICK_UID,
             row.QUICK_NAMESPACE,
             row.QUICK_KEY,
@@ -1032,7 +1032,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             foreach (var row in rowPartList)
             {
                 tmp.Add(new HadbQuick<T>(
-                    row.QUICK_VALUE._JsonToObject<T>(),
+                    row.QUICK_VALUE._JsonToObject<T>()!,
                     row.QUICK_UID,
                     row.QUICK_NAMESPACE,
                     row.QUICK_KEY,
@@ -1156,7 +1156,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         // デッドロックを防ぐため、where 句が重要。手動で実行するのである。
         // READCOMMITTEDLOCK にしないと、パーティション分割している場合にデッドロックが頻発する。
         string query = $"update HADB_QUICK with (READCOMMITTEDLOCK, ROWLOCK) " +
-            "set QUICK_DELETED = 1 and QUICK_DELETE_DT = @QUICK_DELETE_DT " +
+            "set QUICK_DELETED = 1, QUICK_DELETE_DT = @QUICK_DELETE_DT " +
             "where QUICK_UID = @QUICK_UID and QUICK_SYSTEMNAME = @QUICK_SYSTEMNAME and QUICK_NAMESPACE = @QUICK_NAMESPACE and QUICK_TYPE = @QUICK_TYPE and QUICK_DELETED = 0";
 
         int i = await db.EasyExecuteAsync(query,
@@ -1185,7 +1185,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         // デッドロックを防ぐため、where 句が重要。手動で実行するのである。
         // READCOMMITTEDLOCK にしないと、パーティション分割している場合にデッドロックが頻発する。
         string query = $"update HADB_QUICK with (READCOMMITTEDLOCK, ROWLOCK) " +
-            "set QUICK_DELETED = 1 and QUICK_DELETE_DT = @QUICK_DELETE_DT " +
+            "set QUICK_DELETED = 1, QUICK_DELETE_DT = @QUICK_DELETE_DT " +
             $"where {(key._IsEmpty() ? "" : (startWith ? "QUICK_KEY like @QUICK_KEY escape '?' and" : "QUICK_KEY = @QUICK_KEY and"))} " +
             "QUICK_SYSTEMNAME = @QUICK_SYSTEMNAME and QUICK_NAMESPACE = @QUICK_NAMESPACE and QUICK_TYPE = @QUICK_TYPE and QUICK_DELETED = 0";
 
@@ -2283,9 +2283,9 @@ public sealed class HadbQuick<T>
 
     public long UpdateCount { get; }
 
-    public T? Data { get; }
+    public T Data { get; }
 
-    public HadbQuick(T? userData, string uid, string nameSpace, string key, DateTimeOffset createDt, DateTimeOffset updateDt, long updateCount)
+    public HadbQuick(T userData, string uid, string nameSpace, string key, DateTimeOffset createDt, DateTimeOffset updateDt, long updateCount)
     {
         if (userData is object x)
         {
@@ -4692,12 +4692,43 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             return obj.Data;
         }
 
-        public async Task<IEnumerable<HadbQuick<T>>> AtomicSearchQuickAsync<T>(string key, bool startWith = false, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        public async Task<IEnumerable<HadbQuick<T>>> AtomicSearchQuickStartWithAsync<T>(string key, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
         {
             CheckBegan();
             Hadb.CheckIfReady();
 
-            return await Hadb.AtomicSearchQuickByKeyOnDatabaseImplAsync<T>(this, key, startWith, nameSpace, cancel);
+            return await Hadb.AtomicSearchQuickByKeyOnDatabaseImplAsync<T>(this, key, true, nameSpace, cancel);
+        }
+
+        public async Task<List<T>> AtomicSearchQuickStartWithValueAsync<T>(string key, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        {
+            var obj = await AtomicSearchQuickStartWithAsync<T>(key, nameSpace, cancel);
+            if (obj == null) return new List<T>();
+
+            List<T> ret = new List<T>();
+            foreach (var item in obj)
+            {
+                ret.Add(item.Data);
+            }
+            return ret;
+        }
+
+        public async Task<HadbQuick<T>?> AtomicSearchQuickAsync<T>(string key, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        {
+            CheckBegan();
+            Hadb.CheckIfReady();
+
+            var list = await Hadb.AtomicSearchQuickByKeyOnDatabaseImplAsync<T>(this, key, false, nameSpace, cancel);
+
+            return list.SingleOrDefault();
+        }
+
+        public async Task<T?> AtomicSearchQuickValueAsync<T>(string key, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        {
+            var obj = await AtomicSearchQuickAsync<T>(key, nameSpace, cancel);
+            if (obj == null) return default;
+
+            return obj.Data;
         }
 
         public async Task AtomicUpdateQuickAsync<T>(string uid, T userData, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)

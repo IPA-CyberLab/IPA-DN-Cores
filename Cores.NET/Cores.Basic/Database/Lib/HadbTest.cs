@@ -447,9 +447,76 @@ public static class HadbCodeTest
             await sys1.TranAsync(true, async tran =>
             {
                 Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync("neko1", "Hello", true, nameSpace));
+                Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync("neko2", "World", true, nameSpace));
+                Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync("neko3", 123, true, nameSpace));
+                Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync("apple1", "Dog", true, nameSpace));
                 return true;
             });
 
+            await Dbg.TestExceptionAsync(async () =>
+            {
+                await sys2.TranAsync(true, async tran =>
+                {
+                    Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync(" NEKO1 ", "Hello", true, nameSpace));
+                    return true;
+                });
+            });
+
+            await sys2.TranAsync(true, async tran =>
+            {
+                Dbg.TestTrue(await tran.AtomicAddOrUpdateQuickAsync(" NEKO1 ", "Hello2", false, nameSpace));
+                return true;
+            });
+
+            await sys2.TranAsync(false, async tran =>
+            {
+                string? s1 = await tran.AtomicSearchQuickValueAsync<string>("neko", nameSpace);
+                Dbg.TestNull(s1);
+
+                string? neko1 = await tran.AtomicSearchQuickValueAsync<string>("neko1", nameSpace);
+                Dbg.TestTrue(neko1 == "Hello2");
+
+                List<string> list1 = await tran.AtomicSearchQuickStartWithValueAsync<string>("neko", nameSpace);
+
+                Dbg.TestTrue(list1.Count == 2);
+                Dbg.TestTrue(list1.Contains("Hello2"));
+                Dbg.TestTrue(list1.Contains("World"));
+
+                List<int> list2 = await tran.AtomicSearchQuickStartWithValueAsync<int>("neko", nameSpace);
+
+                Dbg.TestTrue(list2.Count == 1);
+                Dbg.TestTrue(list2[0] == 123);
+
+                return false;
+            });
+
+            await sys1.TranAsync(true, async tran =>
+            {
+                int r = await tran.AtomicDeleteQuickAsync<string>(" NEKO ", false, nameSpace);
+                Dbg.TestTrue(r == 0);
+
+                r = await tran.AtomicDeleteQuickAsync<string>(" NEKO ", true, nameSpace);
+                Dbg.TestTrue(r == 2);
+
+                return true;
+            });
+
+            await sys2.TranAsync(false, async tran =>
+            {
+                string? neko1 = await tran.AtomicSearchQuickValueAsync<string>("neko1", nameSpace);
+                Dbg.TestTrue(neko1 == null);
+
+                List<string> list1 = await tran.AtomicSearchQuickStartWithValueAsync<string>("neko", nameSpace);
+
+                Dbg.TestTrue(list1.Count == 0);
+
+                List<int> list2 = await tran.AtomicSearchQuickStartWithValueAsync<int>("neko", nameSpace);
+
+                Dbg.TestTrue(list2.Count == 1);
+                Dbg.TestTrue(list2[0] == 123);
+
+                return false;
+            });
 
 
             // 以下、普通のデータのテスト
@@ -711,7 +778,7 @@ public static class HadbCodeTest
                 sys3_fromBackup.DebugFlags |= HadbDebugFlags.CauseErrorOnDatabaseReload;
                 sys3_fromBackup.Start();
 
-                await Dbg.TestExceptionAsync(async ()=>
+                await Dbg.TestExceptionAsync(async () =>
                 {
                     await sys3_fromBackup.WaitUntilReadyForFastAsync();
                     $"Local Backup Read OK"._Print();

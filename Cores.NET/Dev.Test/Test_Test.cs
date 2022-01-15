@@ -2573,7 +2573,7 @@ static class TestClass
             await db.QueryWithNoReturnAsync("truncate table HADB_KV");
             await db.QueryWithNoReturnAsync("truncate table HADB_LOG");
             await db.QueryWithNoReturnAsync("truncate table HADB_SNAPSHOT");
-            await db.QueryWithNoReturnAsync("truncate table HADB_QUICk);
+            await db.QueryWithNoReturnAsync("truncate table HADB_QUICk");
 
             await using HadbBenchTest.Sys sys = new HadbBenchTest.Sys(settings, new HadbBenchTest.Dyn());
 
@@ -2669,7 +2669,7 @@ static class TestClass
 
                                 string systemName = ("HADB_CODE_TEST_" + Str.DateTimeToYymmddHHmmssLong(DtNow) + "_" + Env.MachineName + "_" + Str.GenerateRandomDigit(8) + "_" + seed.ToString("D8")).ToUpperInvariant();
 
-                                systemName = "" + (char)('A' + Secure.RandSInt31() % 26) + systemName;
+                                systemName = "" + (char)('A' + Secure.RandSInt31() % 26) + "_" + systemName;
 
                                 var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate;
 
