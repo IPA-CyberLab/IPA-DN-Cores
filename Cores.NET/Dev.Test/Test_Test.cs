@@ -2688,7 +2688,7 @@ static class TestClass
                                     IsolationLevel.Snapshot, IsolationLevel.Serializable,
                                     flags);
 
-                                await HadbCodeTest.Test1Async(settings, systemName, flags.Bit(HadbOptionFlags.NoLocalBackup) == false);
+                                await HadbCodeTest.Test1Async(settings, systemName, flags.Bit(HadbOptionFlags.NoLocalBackup) == false, true);
                             }
                             catch (Exception ex)
                             {

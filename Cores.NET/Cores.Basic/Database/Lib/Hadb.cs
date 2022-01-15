@@ -1185,9 +1185,9 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         // デッドロックを防ぐため、where 句が重要。手動で実行するのである。
         // READCOMMITTEDLOCK にしないと、パーティション分割している場合にデッドロックが頻発する。
         string query = $"update HADB_QUICK with (READCOMMITTEDLOCK, ROWLOCK) " +
-            "set QUICK_DELETED = 1, QUICK_DELETE_DT = @QUICK_DELETE_DT " +
-            $"where {(key._IsEmpty() ? "" : (startWith ? "QUICK_KEY like @QUICK_KEY escape '?' and" : "QUICK_KEY = @QUICK_KEY and"))} " +
-            "QUICK_SYSTEMNAME = @QUICK_SYSTEMNAME and QUICK_NAMESPACE = @QUICK_NAMESPACE and QUICK_TYPE = @QUICK_TYPE and QUICK_DELETED = 0";
+        "set QUICK_DELETED = 1, QUICK_DELETE_DT = @QUICK_DELETE_DT " +
+        $"where {(key._IsEmpty() ? "" : (startWith ? "QUICK_KEY like @QUICK_KEY escape '?' and" : "QUICK_KEY = @QUICK_KEY and"))} " +
+        "QUICK_SYSTEMNAME = @QUICK_SYSTEMNAME and QUICK_NAMESPACE = @QUICK_NAMESPACE and QUICK_TYPE = @QUICK_TYPE and QUICK_DELETED = 0";
 
         int i = await db.EasyExecuteAsync(query,
             new
@@ -1579,6 +1579,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             "DATA_KEY1 = @DATA_KEY1 and DATA_KEY2 = @DATA_KEY2 and DATA_KEY3 = @DATA_KEY3 and DATA_KEY4 = @DATA_KEY4 and " +
             "DATA_LABEL1 = @DATA_LABEL1 and DATA_LABEL2 = @DATA_LABEL2 and DATA_LABEL3 = @DATA_LABEL3 and DATA_LABEL4 = DATA_LABEL4";
 
+        // 毎回、大変短いトランザクションを実行したことにする
         query = "BEGIN TRANSACTION \n" + query + "\n COMMIT TRANSACTION\n";
 
         int ret = await dbWriter.EasyExecuteAsync(query,

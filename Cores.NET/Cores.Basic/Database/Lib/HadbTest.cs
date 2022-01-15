@@ -36,6 +36,7 @@
 #if CORES_BASIC_DATABASE
 
 #pragma warning disable CA2235 // Mark all non-serializable fields
+#pragma warning disable CS0162 // 到達できないコードが検出されました
 
 using System;
 using System.Buffers;
@@ -352,7 +353,7 @@ public static class HadbCodeTest
     }
 
 
-    public static async Task Test1Async(HadbSqlSettings settings, string systemName, bool backupTest)
+    public static async Task Test1Async(HadbSqlSettings settings, string systemName, bool backupTest, bool parallel)
     {
         await using Sys sys1 = new Sys(settings, new Dyn() { Hello = "Hello World" });
         await using Sys sys2 = new Sys(settings, new Dyn() { Hello = "Hello World" });
@@ -443,80 +444,115 @@ public static class HadbCodeTest
             Con.WriteLine($"--- Namespace: {nameSpace} ---");
 
 
-            // 以下、Quick のテスト
-            await sys1.TranAsync(true, async tran =>
+            for (int k = 0; k < 10; k++)
             {
-                Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync("neko1", "Hello", true, nameSpace));
-                Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync("neko2", "World", true, nameSpace));
-                Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync("neko3", 123, true, nameSpace));
-                Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync("apple1", "Dog", true, nameSpace));
-                return true;
-            });
-
-            await Dbg.TestExceptionAsync(async () =>
-            {
-                await sys2.TranAsync(true, async tran =>
+                // 以下、Quick のテスト
+                await sys1.TranAsync(true, async tran =>
                 {
-                    Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync(" NEKO1 ", "Hello", true, nameSpace));
+                    Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync("neko1", "Hello", true, nameSpace));
+                    Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync("neko2", "World", true, nameSpace));
+                    Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync("neko3", 123, true, nameSpace));
+                    Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync("apple1", "Dog", true, nameSpace));
                     return true;
                 });
-            });
 
-            await sys2.TranAsync(true, async tran =>
-            {
-                Dbg.TestTrue(await tran.AtomicAddOrUpdateQuickAsync(" NEKO1 ", "Hello2", false, nameSpace));
-                return true;
-            });
+                await Dbg.TestExceptionAsync(async () =>
+                {
+                    await sys2.TranAsync(true, async tran =>
+                    {
+                        Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync(" NEKO1 ", "Hello", true, nameSpace));
+                        return true;
+                    });
+                });
 
-            await sys2.TranAsync(false, async tran =>
-            {
-                string? s1 = await tran.AtomicSearchQuickValueAsync<string>("neko", nameSpace);
-                Dbg.TestNull(s1);
+                await sys2.TranAsync(true, async tran =>
+                {
+                    Dbg.TestTrue(await tran.AtomicAddOrUpdateQuickAsync(" NEKO1 ", "Hello2", false, nameSpace));
+                    return true;
+                });
 
-                string? neko1 = await tran.AtomicSearchQuickValueAsync<string>("neko1", nameSpace);
-                Dbg.TestTrue(neko1 == "Hello2");
+                await sys2.TranAsync(false, async tran =>
+                {
+                    string? s1 = await tran.AtomicSearchQuickValueAsync<string>("neko", nameSpace);
+                    Dbg.TestNull(s1);
 
-                List<string> list1 = await tran.AtomicSearchQuickStartWithValueAsync<string>("neko", nameSpace);
+                    string? neko1 = await tran.AtomicSearchQuickValueAsync<string>("neko1", nameSpace);
+                    Dbg.TestTrue(neko1 == "Hello2");
 
-                Dbg.TestTrue(list1.Count == 2);
-                Dbg.TestTrue(list1.Contains("Hello2"));
-                Dbg.TestTrue(list1.Contains("World"));
+                    List<string> list1 = await tran.AtomicSearchQuickStartWithValueAsync<string>("neko", nameSpace);
 
-                List<int> list2 = await tran.AtomicSearchQuickStartWithValueAsync<int>("neko", nameSpace);
+                    Dbg.TestTrue(list1.Count == 2);
+                    Dbg.TestTrue(list1.Contains("Hello2"));
+                    Dbg.TestTrue(list1.Contains("World"));
 
-                Dbg.TestTrue(list2.Count == 1);
-                Dbg.TestTrue(list2[0] == 123);
+                    List<int> list2 = await tran.AtomicSearchQuickStartWithValueAsync<int>("neko", nameSpace);
 
-                return false;
-            });
+                    Dbg.TestTrue(list2.Count == 1);
+                    Dbg.TestTrue(list2[0] == 123);
 
-            await sys1.TranAsync(true, async tran =>
-            {
-                int r = await tran.AtomicDeleteQuickAsync<string>(" NEKO ", false, nameSpace);
-                Dbg.TestTrue(r == 0);
+                    return false;
+                });
 
-                r = await tran.AtomicDeleteQuickAsync<string>(" NEKO ", true, nameSpace);
-                Dbg.TestTrue(r == 2);
+                await sys1.TranAsync(true, async tran =>
+                {
+                    int r = await tran.AtomicDeleteQuickAsync<string>(" NEKO ", false, nameSpace);
+                    Dbg.TestTrue(r == 0);
 
-                return true;
-            });
+                    if (parallel == false)
+                    {
+                        r = await tran.AtomicDeleteQuickAsync<string>(" NEKO ", true, nameSpace);
+                        Dbg.TestTrue(r == 2);
+                    }
+                    else
+                    {
+                        r = await tran.AtomicDeleteQuickAsync<string>("neko1", false, nameSpace);
+                        Dbg.TestTrue(r == 1);
 
-            await sys2.TranAsync(false, async tran =>
-            {
-                string? neko1 = await tran.AtomicSearchQuickValueAsync<string>("neko1", nameSpace);
-                Dbg.TestTrue(neko1 == null);
+                        r = await tran.AtomicDeleteQuickAsync<string>("neko2", false, nameSpace);
+                        Dbg.TestTrue(r == 1);
+                    }
 
-                List<string> list1 = await tran.AtomicSearchQuickStartWithValueAsync<string>("neko", nameSpace);
+                    return true;
+                });
 
-                Dbg.TestTrue(list1.Count == 0);
+                await sys2.TranAsync(false, async tran =>
+                {
+                    string? neko1 = await tran.AtomicSearchQuickValueAsync<string>("neko1", nameSpace);
+                    Dbg.TestTrue(neko1 == null);
 
-                List<int> list2 = await tran.AtomicSearchQuickStartWithValueAsync<int>("neko", nameSpace);
+                    List<string> list1 = await tran.AtomicSearchQuickStartWithValueAsync<string>("neko", nameSpace);
 
-                Dbg.TestTrue(list2.Count == 1);
-                Dbg.TestTrue(list2[0] == 123);
+                    Dbg.TestTrue(list1.Count == 0);
 
-                return false;
-            });
+                    List<int> list2 = await tran.AtomicSearchQuickStartWithValueAsync<int>("neko", nameSpace);
+
+                    Dbg.TestTrue(list2.Count == 1);
+                    Dbg.TestTrue(list2[0] == 123);
+
+                    return false;
+                });
+
+                await sys1.TranAsync(true, async tran =>
+                {
+                    if (parallel == false)
+                    {
+                        int r = await tran.AtomicDeleteQuickAsync<int>(" NEKO ", true, nameSpace);
+                        Dbg.TestTrue(r == 1);
+
+                        r = await tran.AtomicDeleteQuickAsync<string>(" Apple ", true, nameSpace);
+                        Dbg.TestTrue(r == 1);
+                    }
+                    else
+                    {
+                        int r = await tran.AtomicDeleteQuickAsync<int>(" neko3 ", false, nameSpace);
+                        Dbg.TestTrue(r == 1);
+
+                        r = await tran.AtomicDeleteQuickAsync<string>(" Apple1 ", false, nameSpace);
+                        Dbg.TestTrue(r == 1);
+                    }
+                    return true;
+                });
+            }
 
 
             // 以下、普通のデータのテスト
