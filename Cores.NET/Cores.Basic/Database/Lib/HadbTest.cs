@@ -442,6 +442,18 @@ public static class HadbCodeTest
 
             Con.WriteLine($"--- Namespace: {nameSpace} ---");
 
+
+            // 以下、Quick のテスト
+            await sys1.TranAsync(true, async tran =>
+            {
+                Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync("neko1", "Hello", true, nameSpace));
+                return true;
+            });
+
+
+
+            // 以下、普通のデータのテスト
+
             Dbg.TestNull(sys1.FastSearchByKey(new User() { Name = "User1" }, nameSpace));
             Dbg.TestNull(sys1.FastSearchByKey(new User() { Name = "User2" }, nameSpace));
             Dbg.TestNull(sys1.FastSearchByKey(new User() { Name = "User3" }, nameSpace));

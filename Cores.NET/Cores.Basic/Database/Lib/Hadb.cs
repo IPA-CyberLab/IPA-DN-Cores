@@ -1143,7 +1143,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         return true;
     }
 
-    protected internal override async Task<bool> AtomicDeleteQuickByUidOnDatabaseImplAsync<T>(HadbTran tran, string uid, string nameSpace, T userData, CancellationToken cancel = default)
+    protected internal override async Task<bool> AtomicDeleteQuickByUidOnDatabaseImplAsync<T>(HadbTran tran, string uid, string nameSpace, CancellationToken cancel = default)
     {
         uid = uid._NormalizeUid();
         nameSpace = nameSpace._HadbNameSpaceNormalize();
@@ -1172,7 +1172,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         return i >= 1;
     }
 
-    protected internal override async Task<int> AtomicDeleteQuickByKeyOnDatabaseImplAsync<T>(HadbTran tran, string key, bool startWith, string nameSpace, T userData, CancellationToken cancel = default)
+    protected internal override async Task<int> AtomicDeleteQuickByKeyOnDatabaseImplAsync<T>(HadbTran tran, string key, bool startWith, string nameSpace, CancellationToken cancel = default)
     {
         key = key._NormalizeKey(true);
         nameSpace = nameSpace._HadbNameSpaceNormalize();
@@ -2283,7 +2283,7 @@ public sealed class HadbQuick<T>
 
     public long UpdateCount { get; }
 
-    public T? UserData { get; }
+    public T? Data { get; }
 
     public HadbQuick(T? userData, string uid, string nameSpace, string key, DateTimeOffset createDt, DateTimeOffset updateDt, long updateCount)
     {
@@ -2298,7 +2298,13 @@ public sealed class HadbQuick<T>
         this.CreateDt = createDt._NormalizeDateTimeOffset();
         this.UpdateDt = updateDt._NormalizeDateTimeOffset();
         this.UpdateCount = Math.Max(updateCount, 0);
-        this.UserData = userData;
+        this.Data = userData;
+    }
+
+    public static implicit operator T?(HadbQuick<T>? src)
+    {
+        if (src == null) return default;
+        return src.Data;
     }
 }
 
@@ -3207,8 +3213,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     protected internal abstract Task<IEnumerable<HadbQuick<T>>> AtomicSearchQuickByKeyOnDatabaseImplAsync<T>(HadbTran tran, string key, bool startWith, string nameSpace, CancellationToken cancel = default);
     protected internal abstract Task AtomicUpdateQuickByUidOnDatabaseImplAsync<T>(HadbTran tran, string uid, string nameSpace, T userData, CancellationToken cancel = default);
     protected internal abstract Task<bool> AtomicAddOrUpdateQuickByKeyOnDatabaseImplAsync<T>(HadbTran tran, string key, string nameSpace, T userData, bool doNotOverwrite, CancellationToken cancel = default);
-    protected internal abstract Task<bool> AtomicDeleteQuickByUidOnDatabaseImplAsync<T>(HadbTran tran, string uid, string nameSpace, T userData, CancellationToken cancel = default);
-    protected internal abstract Task<int> AtomicDeleteQuickByKeyOnDatabaseImplAsync<T>(HadbTran tran, string key, bool startWith, string nameSpace, T userData, CancellationToken cancel = default);
+    protected internal abstract Task<bool> AtomicDeleteQuickByUidOnDatabaseImplAsync<T>(HadbTran tran, string uid, string nameSpace, CancellationToken cancel = default);
+    protected internal abstract Task<int> AtomicDeleteQuickByKeyOnDatabaseImplAsync<T>(HadbTran tran, string key, bool startWith, string nameSpace, CancellationToken cancel = default);
 
     protected internal abstract Task AtomicAddLogImplAsync(HadbTran tran, HadbLog log, string nameSpace, string ext1, string ext2, CancellationToken cancel = default);
     protected internal abstract Task<IEnumerable<HadbLog>> AtomicSearchLogImplAsync(HadbTran tran, string typeName, HadbLogQuery query, string nameSpace, CancellationToken cancel = default);
@@ -4670,6 +4676,61 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
         //    return await Hadb.LazyUpdateImplAsync(this, obj, cancel);
         //}
+
+        public async Task<HadbQuick<T>?> AtomicGetQuickAsync<T>(string uid, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        {
+            CheckBegan();
+            Hadb.CheckIfReady();
+
+            return await Hadb.AtomicGetQuickFromDatabaseImplAsync<T>(this, uid, nameSpace, cancel);
+        }
+
+        public async Task<T?> AtomicGetQuickValueAsync<T>(string uid, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        {
+            var obj = await AtomicGetQuickAsync<T>(uid, nameSpace, cancel);
+            if (obj == null) return default;
+            return obj.Data;
+        }
+
+        public async Task<IEnumerable<HadbQuick<T>>> AtomicSearchQuickAsync<T>(string key, bool startWith = false, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        {
+            CheckBegan();
+            Hadb.CheckIfReady();
+
+            return await Hadb.AtomicSearchQuickByKeyOnDatabaseImplAsync<T>(this, key, startWith, nameSpace, cancel);
+        }
+
+        public async Task AtomicUpdateQuickAsync<T>(string uid, T userData, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        {
+            CheckBegan();
+            Hadb.CheckIfReady();
+
+            await Hadb.AtomicUpdateQuickByUidOnDatabaseImplAsync<T>(this, uid, nameSpace, userData, cancel);
+        }
+
+        public async Task<bool> AtomicAddOrUpdateQuickAsync<T>(string key, T userData, bool doNotOverwrite = false, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        {
+            CheckBegan();
+            Hadb.CheckIfReady();
+
+            return await Hadb.AtomicAddOrUpdateQuickByKeyOnDatabaseImplAsync(this, key, nameSpace, userData, doNotOverwrite, cancel);
+        }
+
+        public async Task<bool> AtomicDeleteQuickAsync<T>(string uid, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        {
+            CheckBegan();
+            Hadb.CheckIfReady();
+
+            return await Hadb.AtomicDeleteQuickByUidOnDatabaseImplAsync<T>(this, uid, nameSpace, cancel);
+        }
+
+        public async Task<int> AtomicDeleteQuickAsync<T>(string key, bool startWith, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        {
+            CheckBegan();
+            Hadb.CheckIfReady();
+
+            return await Hadb.AtomicDeleteQuickByKeyOnDatabaseImplAsync<T>(this, key, startWith, nameSpace, cancel);
+        }
     }
 }
 

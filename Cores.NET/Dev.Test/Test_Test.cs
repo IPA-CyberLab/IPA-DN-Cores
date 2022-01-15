@@ -2446,6 +2446,7 @@ static class TestClass
                 await db.QueryWithNoReturnAsync("truncate table HADB_KV");
                 await db.QueryWithNoReturnAsync("truncate table HADB_LOG");
                 await db.QueryWithNoReturnAsync("truncate table HADB_SNAPSHOT");
+                await db.QueryWithNoReturnAsync("truncate table HADB_QUICK");
             });
         }
 
@@ -2572,6 +2573,7 @@ static class TestClass
             await db.QueryWithNoReturnAsync("truncate table HADB_KV");
             await db.QueryWithNoReturnAsync("truncate table HADB_LOG");
             await db.QueryWithNoReturnAsync("truncate table HADB_SNAPSHOT");
+            await db.QueryWithNoReturnAsync("truncate table HADB_QUICk);
 
             await using HadbBenchTest.Sys sys = new HadbBenchTest.Sys(settings, new HadbBenchTest.Dyn());
 
