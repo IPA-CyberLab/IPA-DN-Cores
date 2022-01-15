@@ -522,7 +522,7 @@ public enum HadbTranOptions : long
 {
     None = 0,
     UseStrictLock = 1,
-    NoTransaction = 2,
+    NoTransactionOnWrite = 2,
 
     Default = None,
 }
@@ -4000,9 +4000,9 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     public async Task<bool> TranAsync(bool writeMode, Func<HadbTran, Task<bool>> task, HadbTranOptions options = HadbTranOptions.Default, bool takeSnapshot = false, RefLong? snapshotNoRet = null, CancellationToken cancel = default, DeadlockRetryConfig? retryConfig = null, bool ignoreQuota = false, string clientName = "")
     {
-        if (options.Bit(HadbTranOptions.UseStrictLock) && options.Bit(HadbTranOptions.NoTransaction))
+        if (options.Bit(HadbTranOptions.UseStrictLock) && options.Bit(HadbTranOptions.NoTransactionOnWrite))
         {
-            throw new ArgumentException("options.Bit(HadbTranOptions.UseStrictLock) && options.Bit(HadbTranOptions.LightTransaction)");
+            throw new ArgumentException("options.Bit(HadbTranOptions.UseStrictLock) && options.Bit(HadbTranOptions.NoTransactionOnWrite)");
         }
 
         CheckIfReady();
@@ -4039,7 +4039,18 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             LABEL_RETRY:
             try
             {
-                await using var tran = await this.BeginDatabaseTransactionImplAsync(writeMode, options.Bit(HadbTranOptions.NoTransaction) == false, options, cancel);
+                bool isTransaction;
+
+                if (writeMode == false)
+                {
+                    isTransaction = false;
+                }
+                else
+                {
+                    isTransaction = !options.Bit(HadbTranOptions.NoTransactionOnWrite);
+                }
+
+                await using var tran = await this.BeginDatabaseTransactionImplAsync(writeMode, isTransaction, options, cancel);
 
                 await tran.BeginAsync(takeSnapshot, cancel);
 
