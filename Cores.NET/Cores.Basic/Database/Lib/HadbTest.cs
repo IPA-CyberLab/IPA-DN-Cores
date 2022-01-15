@@ -454,7 +454,7 @@ public static class HadbCodeTest
                     Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync("neko3", 123, true, nameSpace));
                     Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync("apple1", "Dog", true, nameSpace));
                     return true;
-                });
+                }, options: HadbTranOptions.NoTransaction);
 
                 await Dbg.TestExceptionAsync(async () =>
                 {
@@ -462,14 +462,14 @@ public static class HadbCodeTest
                     {
                         Dbg.TestFalse(await tran.AtomicAddOrUpdateQuickAsync(" NEKO1 ", "Hello", true, nameSpace));
                         return true;
-                    });
+                    }, options: HadbTranOptions.NoTransaction);
                 });
 
                 await sys2.TranAsync(true, async tran =>
                 {
                     Dbg.TestTrue(await tran.AtomicAddOrUpdateQuickAsync(" NEKO1 ", "Hello2", false, nameSpace));
                     return true;
-                });
+                }, options: HadbTranOptions.NoTransaction);
 
                 await sys2.TranAsync(false, async tran =>
                 {
@@ -491,7 +491,7 @@ public static class HadbCodeTest
                     Dbg.TestTrue(list2[0] == 123);
 
                     return false;
-                });
+                }, options: HadbTranOptions.NoTransaction);
 
                 await sys1.TranAsync(true, async tran =>
                 {
@@ -513,7 +513,7 @@ public static class HadbCodeTest
                     }
 
                     return true;
-                });
+                }, options: HadbTranOptions.NoTransaction);
 
                 await sys2.TranAsync(false, async tran =>
                 {
@@ -530,7 +530,7 @@ public static class HadbCodeTest
                     Dbg.TestTrue(list2[0] == 123);
 
                     return false;
-                });
+                }, options: HadbTranOptions.NoTransaction);
 
                 await sys1.TranAsync(true, async tran =>
                 {
@@ -551,7 +551,7 @@ public static class HadbCodeTest
                         Dbg.TestTrue(r == 1);
                     }
                     return true;
-                });
+                }, options: HadbTranOptions.NoTransaction);
             }
 
 

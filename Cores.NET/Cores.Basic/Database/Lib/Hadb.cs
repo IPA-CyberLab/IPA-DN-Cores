@@ -446,6 +446,7 @@ public sealed class HadbSqlQuickRow : INormalizable
     public DateTimeOffset QUICK_CREATE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
     public DateTimeOffset QUICK_UPDATE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
     public DateTimeOffset QUICK_DELETE_DT { get; set; } = Util.ZeroDateTimeOffsetValue;
+    public long QUICK_SNAPSHOT_NO { get; set; }
     public long QUICK_UPDATE_COUNT { get; set; }
 
     public void Normalize()
@@ -520,7 +521,10 @@ public sealed class HadbSqlDataRow : INormalizable
 public enum HadbTranOptions : long
 {
     None = 0,
-    LightLock = 1,
+    UseStrictLock = 1,
+    NoTransaction = 2,
+
+    Default = None,
 }
 
 public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynamicConfig>
@@ -998,6 +1002,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             row.QUICK_KEY,
             row.QUICK_CREATE_DT,
             row.QUICK_UPDATE_DT,
+            row.QUICK_SNAPSHOT_NO,
             row.QUICK_UPDATE_COUNT);
 
         return ret;
@@ -1038,6 +1043,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                     row.QUICK_KEY,
                     row.QUICK_CREATE_DT,
                     row.QUICK_UPDATE_DT,
+                    row.QUICK_SNAPSHOT_NO,
                     row.QUICK_UPDATE_COUNT));
             }
             return TR(tmp);
@@ -1057,7 +1063,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         // デッドロックを防ぐため、where 句が重要。手動で実行するのである。
         // READCOMMITTEDLOCK にしないと、パーティション分割している場合にデッドロックが頻発する。
         string query = "update HADB_QUICK with (READCOMMITTEDLOCK, ROWLOCK) " +
-            "set QUICK_VALUE = @QUICK_VALUE, QUICK_UPDATE_DT = @QUICK_UPDATE_DT, QUICK_UPDATE_COUNT = QUICK_UPDATE_COUNT + 1 " +
+            "set QUICK_VALUE = @QUICK_VALUE, QUICK_UPDATE_DT = @QUICK_UPDATE_DT, QUICK_SNAPSHOT_NO = @QUICK_SNAPSHOT_NO, QUICK_UPDATE_COUNT = QUICK_UPDATE_COUNT + 1 " +
             "where QUICK_UID = @QUICK_UID and QUICK_SYSTEMNAME = @QUICK_SYSTEMNAME and QUICK_NAMESPACE = @QUICK_NAMESPACE and QUICK_TYPE = @QUICK_TYPE and QUICK_DELETED = 0";
 
         int r = await db.EasyExecuteAsync(query,
@@ -1069,6 +1075,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 QUICK_SYSTEMNAME = this.SystemName,
                 QUICK_TYPE = typeName,
                 QUICK_NAMESPACE = nameSpace,
+                QUICK_SNAPSHOT_NO = tran.CurrentSnapNoForWriteMode,
             });
 
         if (r == 0)
@@ -1106,6 +1113,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 QUICK_CREATE_DT = now,
                 QUICK_UPDATE_DT = now,
                 QUICK_DELETE_DT = DtOffsetZero,
+                QUICK_SNAPSHOT_NO = tran.CurrentSnapNoForWriteMode,
                 QUICK_UPDATE_COUNT = 1,
             };
 
@@ -1118,7 +1126,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         // デッドロックを防ぐため、where 句が重要。手動で実行するのである。
         // READCOMMITTEDLOCK にしないと、パーティション分割している場合にデッドロックが頻発する。
         string query = "update HADB_QUICK with (READCOMMITTEDLOCK, ROWLOCK) " +
-            "set QUICK_VALUE = @QUICK_VALUE, QUICK_UPDATE_DT = @QUICK_UPDATE_DT, QUICK_UPDATE_COUNT = QUICK_UPDATE_COUNT + 1 " +
+            "set QUICK_VALUE = @QUICK_VALUE, QUICK_UPDATE_DT = @QUICK_UPDATE_DT, QUICK_SNAPSHOT_NO = @QUICK_SNAPSHOT_NO, QUICK_UPDATE_COUNT = QUICK_UPDATE_COUNT + 1 " +
             "where QUICK_KEY = @QUICK_KEY and QUICK_SYSTEMNAME = @QUICK_SYSTEMNAME and QUICK_NAMESPACE = @QUICK_NAMESPACE and QUICK_TYPE = @QUICK_TYPE and QUICK_DELETED = 0";
 
         int i = await db.EasyExecuteAsync(
@@ -1131,6 +1139,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 QUICK_SYSTEMNAME = this.SystemName,
                 QUICK_NAMESPACE = nameSpace,
                 QUICK_TYPE = typeName,
+                QUICK_SNAPSHOT_NO = tran.CurrentSnapNoForWriteMode,
             });
 
         if (i <= 0)
@@ -2282,11 +2291,13 @@ public sealed class HadbQuick<T>
 
     public DateTimeOffset UpdateDt { get; }
 
+    public long SnapshotNo { get; }
+
     public long UpdateCount { get; }
 
     public T Data { get; }
 
-    public HadbQuick(T userData, string uid, string nameSpace, string key, DateTimeOffset createDt, DateTimeOffset updateDt, long updateCount)
+    public HadbQuick(T userData, string uid, string nameSpace, string key, DateTimeOffset createDt, DateTimeOffset updateDt, long snapshotNo, long updateCount)
     {
         if (userData is object x)
         {
@@ -2298,6 +2309,7 @@ public sealed class HadbQuick<T>
         this.Key = key._NormalizeKey(true);
         this.CreateDt = createDt._NormalizeDateTimeOffset();
         this.UpdateDt = updateDt._NormalizeDateTimeOffset();
+        this.SnapshotNo = Math.Max(snapshotNo, 0);
         this.UpdateCount = Math.Max(updateCount, 0);
         this.Data = userData;
     }
@@ -3367,7 +3379,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             try
             {
                 // 非トランザクションの SQL 接続を開始する
-                await using var tran = await this.BeginDatabaseTransactionImplAsync(true, false, HadbTranOptions.LightLock, cancel);
+                await using var tran = await this.BeginDatabaseTransactionImplAsync(true, false, HadbTranOptions.None, cancel);
 
                 // 現在 キューに入っている項目に対する Lazy Update の実行
                 // キューは Immutable なので、現在の Queue を取得する
@@ -3986,8 +3998,13 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     readonly ConcurrentLimiter<string> DbConcurrentTranLimiterWritePerClient = new ConcurrentLimiter<string>();
     readonly ConcurrentLimiter<string> DbConcurrentTranLimiterReadPerClient = new ConcurrentLimiter<string>();
 
-    public async Task<bool> TranAsync(bool writeMode, Func<HadbTran, Task<bool>> task, HadbTranOptions options = HadbTranOptions.LightLock, bool takeSnapshot = false, RefLong? snapshotNoRet = null, CancellationToken cancel = default, DeadlockRetryConfig? retryConfig = null, bool ignoreQuota = false, string clientName = "")
+    public async Task<bool> TranAsync(bool writeMode, Func<HadbTran, Task<bool>> task, HadbTranOptions options = HadbTranOptions.Default, bool takeSnapshot = false, RefLong? snapshotNoRet = null, CancellationToken cancel = default, DeadlockRetryConfig? retryConfig = null, bool ignoreQuota = false, string clientName = "")
     {
+        if (options.Bit(HadbTranOptions.UseStrictLock) && options.Bit(HadbTranOptions.NoTransaction))
+        {
+            throw new ArgumentException("options.Bit(HadbTranOptions.UseStrictLock) && options.Bit(HadbTranOptions.LightTransaction)");
+        }
+
         CheckIfReady();
 
         retryConfig ??= this.DefaultDeadlockRetryConfig;
@@ -4022,7 +4039,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             LABEL_RETRY:
             try
             {
-                await using var tran = await this.BeginDatabaseTransactionImplAsync(writeMode, true, options, cancel);
+                await using var tran = await this.BeginDatabaseTransactionImplAsync(writeMode, options.Bit(HadbTranOptions.NoTransaction) == false, options, cancel);
 
                 await tran.BeginAsync(takeSnapshot, cancel);
 
@@ -4210,7 +4227,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         public HadbMemDataBase MemDb { get; }
         List<HadbObject> ApplyObjectsList = new List<HadbObject>();
 
-        public bool ShouldUseLightLock => !this.IsDbSnapshotReadMode && this.Options.Bit(HadbTranOptions.LightLock);
+        public bool ShouldUseLightLock => !this.IsDbSnapshotReadMode && !this.Options.Bit(HadbTranOptions.UseStrictLock);
 
         public IReadOnlyList<HadbObject> GetApplyObjectsList() => this.ApplyObjectsList;
 
