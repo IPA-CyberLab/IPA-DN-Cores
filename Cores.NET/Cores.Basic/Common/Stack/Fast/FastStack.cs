@@ -1911,7 +1911,7 @@ public class NetUdpListenerOptions
     public NetUdpListenerOptions(TcpDirectionType mode, IPEndPoint? clientEndPoint = null, int pollingMsecs = 1 * 1000, int numCpus = 0)
     {
         this.Mode = mode;
-        if (numCpus <= 0) numCpus = Env.NumCpus;
+        if (numCpus <= 0) numCpus = (Env.IsDebuggerAttached ? 2 : Env.NumCpus);
         if (pollingMsecs >= 0) pollingMsecs = Math.Max(pollingMsecs, 250);
         this.PollingMsecs = pollingMsecs;
         this.NumCpus = Math.Min(Math.Max(numCpus, 1), 64);

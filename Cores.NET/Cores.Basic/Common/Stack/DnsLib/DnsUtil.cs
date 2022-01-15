@@ -178,15 +178,18 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
 
                         foreach (var item in perTaskRecvList)
                         {
-                            try
+                            if (item != null)
                             {
-                                var request = DnsUtil.ParsePacket(item.Data.Span);
+                                try
+                                {
+                                    var request = DnsUtil.ParsePacket(item.Data.Span);
 
-                                DnsUdpPacket pkt = new DnsUdpPacket(item.RemoteIPEndPoint, item.LocalIPEndPoint, request);
+                                    DnsUdpPacket pkt = new DnsUdpPacket(item.RemoteIPEndPoint, item.LocalIPEndPoint, request);
 
-                                perTaskRequestPacketsList[perTaskRequestPacketsListCount++] = pkt;
+                                    perTaskRequestPacketsList[perTaskRequestPacketsListCount++] = pkt;
+                                }
+                                catch { }
                             }
-                            catch { }
                         }
 
                         //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- End loop 1: perTaskRequestPacketsListCount = {perTaskRequestPacketsListCount}");
@@ -200,15 +203,18 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
 
                         foreach (var responsePkt in perTaskReaponsePacketsList)
                         {
-                            try
+                            if (responsePkt != null)
                             {
-                                Memory<byte> packetData = DnsUtil.BuildPacket(responsePkt.Message).ToArray();
+                                try
+                                {
+                                    Memory<byte> packetData = DnsUtil.BuildPacket(responsePkt.Message).ToArray();
 
-                                var datagram = new Datagram(packetData, responsePkt.RemoteEndPoint, responsePkt.LocalEndPoint);
+                                    var datagram = new Datagram(packetData, responsePkt.RemoteEndPoint, responsePkt.LocalEndPoint);
 
-                                perTaskSendList[perTaskSendListCount++] = datagram;
+                                    perTaskSendList[perTaskSendListCount++] = datagram;
+                                }
+                                catch { }
                             }
-                            catch { }
                         }
 
                         //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- End loop 2: perTaskSendListCount = {perTaskSendListCount}");

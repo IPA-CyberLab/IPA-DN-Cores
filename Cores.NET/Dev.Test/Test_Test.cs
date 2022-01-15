@@ -2377,6 +2377,12 @@ static class TestClass
 
     static void Test_210901_EasyDnsServer()
     {
+        // --- 受信 ---
+        // pktlinux (Xeon 4C) ===> pc34 (Corei9 10C)
+        // ストレートパケット 同期処理
+        // 打ち返し: 240 kqps くらい出た
+        // 
+
         using EasyDnsServer s = new EasyDnsServer(new EasyDnsServerSetting(
             reqList =>
             {
@@ -2386,13 +2392,16 @@ static class TestClass
 
                 foreach (var req in reqList)
                 {
-                    DnsUdpPacket res = new DnsUdpPacket(req.RemoteEndPoint, req.LocalEndPoint, req.Message);
+                    if (req != null)
+                    {
+                        DnsUdpPacket res = new DnsUdpPacket(req.RemoteEndPoint, req.LocalEndPoint, req.Message);
 
-                    resList[index++] = res;
+                        resList[index++] = res;
+                    }
                 }
 
                 return resList;
-            }, 5353
+            }, 8053
             ));
 
         Console.Write("Quit>");
@@ -3262,6 +3271,12 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_210901_EasyDnsServer();
+            return;
+        }
+
         if (false)
         {
             Test_220106();
@@ -3373,12 +3388,6 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         if (true)
         {
             Test_211017();
-            return;
-        }
-
-        if (true)
-        {
-            Test_210901_EasyDnsServer();
             return;
         }
 
