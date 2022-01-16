@@ -51,6 +51,134 @@ namespace IPA.TestDev;
 
 partial class TestDevCommands
 {
+    // HDD のテストのため、巨大なテストファイルをディスク容量が枯渇するか指定されたサイズに達するまで連番で書き込みする。
+    [ConsoleCommand(
+        "WriteDiskTestFiles command",
+        "WriteDiskTestFiles [dirPath] [/SIZE:single_file_size=1000000000000 (1TB)] [/TOTALSIZE:total_file_size]",
+        "WriteDiskTestFiles command")]
+    static int WriteDiskTestFiles(ConsoleService c, string cmdName, string str)
+    {
+        const int blockSize = 1000 * 1000;
+        const int randSeedSize = blockSize * 16;
+        const int sizePerFlush = 500 * 1000 * 1000;
+
+        ConsoleParam[] args =
+        {
+            new ConsoleParam("[dirPath]", ConsoleService.Prompt, "Dir Path: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("SIZE"),
+            new ConsoleParam("TOTALSIZE"),
+        };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string dirPath = vl.DefaultParam.StrValue;
+        long singleFileSize = vl["SIZE"].StrValue._ToLong();
+        if (singleFileSize <= 0) singleFileSize = 1_000_000_000_000;
+        singleFileSize = (singleFileSize / (long)blockSize) * (long)blockSize;
+
+        long totalAllFileSize = vl["TOTALSIZE"].StrValue._ToLong();
+        if (totalAllFileSize <= 0) totalAllFileSize = long.MaxValue;
+        totalAllFileSize = (totalAllFileSize / singleFileSize) * singleFileSize;
+
+        Async(async () =>
+        {
+            SeedBasedRandomGenerator gen = new SeedBasedRandomGenerator("Hello");
+
+            ReadOnlyMemory<byte> randSeed = gen.GetBytes(randSeedSize);
+
+            ReadOnlyMemory<byte> baseRandData = (new SeedBasedRandomGenerator("World")).GetBytes(blockSize);
+
+            await Lfs.CreateDirectoryAsync(dirPath);
+
+            long currentTotalWriteSize = 0;
+
+            using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true,
+                options: ProgressReporterOptions.EnableThroughput,
+                reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
+                ), null))
+            {
+                for (int index = 0; ; index++)
+                {
+                    if (currentTotalWriteSize >= totalAllFileSize)
+                    {
+                        break;
+                    }
+
+                    string filePath = dirPath._CombinePath("test_" + index.ToString("D4") + ".dat");
+                    long targetBlockCount = singleFileSize / blockSize;
+
+                    $"--- BEGIN: {filePath} ---"._Print();
+                    $"Target Size: {singleFileSize._ToString3()} bytes"._Print();
+                    $"Target Blocks: {targetBlockCount._ToString3()} blocks"._Print();
+
+                    await using var file = await Lfs.OpenOrCreateAppendAsync(filePath, flags: FileFlags.AutoCreateDirectory);
+
+                    long existingFileSize = await file.GetFileSizeAsync();
+                    existingFileSize = (existingFileSize / (long)blockSize) * (long)blockSize;
+
+                    long currentBlockCount = existingFileSize / blockSize;
+
+                    ""._Print();
+                    $"Current File Size: {existingFileSize._ToString3()} bytes"._Print();
+                    $"Current File Blocks: {currentBlockCount._ToString3()} blocks"._Print();
+
+                    currentTotalWriteSize += existingFileSize;
+
+                    if (existingFileSize >= singleFileSize)
+                    {
+                        $"Skipping: currentSize ({existingFileSize._ToString3()}) >= targetSize ({singleFileSize._ToString3()})"._Print();
+
+                        continue;
+                    }
+
+                    await file.SetFileSizeAsync(existingFileSize);
+                    await file.SeekAsync(existingFileSize, SeekOrigin.Begin);
+
+                    long sizeToWrite = singleFileSize - existingFileSize;
+                    long blockToWrite = sizeToWrite / blockSize;
+
+                    ""._Print();
+                    $"Size to Write: {sizeToWrite._ToString3()} bytes"._Print();
+                    $"Blocks to Write: {blockToWrite._ToString3()} blocks"._Print();
+
+                    ""._Print();
+
+                    Memory<byte> tmp = new byte[blockSize];
+
+                    long currentNotYetFlushedSize = 0;
+
+                    for (long currentBlockIndex = currentBlockCount; currentBlockIndex < targetBlockCount; currentBlockIndex++)
+                    {
+                        int randIndex = (new SeedBasedRandomGenerator(currentBlockIndex.ToString())).GetSInt31() % (randSeedSize - blockSize);
+
+                        tmp.Span._Xor(baseRandData.Span, randSeed.Span.Slice(randIndex, blockSize));
+
+                        await file.WriteAsync(tmp);
+
+                        currentNotYetFlushedSize += blockSize;
+
+                        if (currentNotYetFlushedSize >= sizePerFlush)
+                        {
+                            currentNotYetFlushedSize = 0;
+                            await file.FlushAsync();
+                        }
+
+                        currentTotalWriteSize += blockSize;
+
+                        reporter.ReportProgress(new ProgressData(currentTotalWriteSize, totalAllFileSize, additionalInfo: filePath._GetFileName()._NonNullTrim()));
+                    }
+
+                    $"--- FINISHED: {filePath} ---"._Print();
+                    ""._Print();
+                }
+
+                reporter.ReportProgress(new ProgressData(currentTotalWriteSize, totalAllFileSize, additionalInfo: "ALL"));
+            }
+        });
+
+        return 0;
+    }
+
     // ランダムに見える内容をファイルに書き込む。しかし、実際にはランダムではなく、同一の乱数内容である。
     // ファイルシステムの正常性を確認するために便利である。
     [ConsoleCommand(

@@ -2377,6 +2377,7 @@ static class TestClass
 
     static void Test_210901_EasyDnsServer()
     {
+        // 2022/1/15 シンプルテスト
         // --- 受信 ---
         // pktlinux (Xeon 4C) ===> pc34 (Corei9 10C)
         // ストレートパケット 同期処理 + Span
@@ -2384,6 +2385,12 @@ static class TestClass
         // 
         // ストレートパケット 非同期処理 + List
         // 打ち返し: 256 kqps くらい出た
+        //  結論  非同期でよい。GC は Server Mode にしたほうが少し安定するが、クライアントモードでもまあよい。
+        //
+        // --- 受信 ---
+        // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
+        // ストレートパケット 非同期処理 + List
+        // 打ち返し: 200 kqps くらい出た
         //  結論  非同期でよい。GC は Server Mode にしたほうが少し安定するが、クライアントモードでもまあよい。
 
         using EasyDnsServer s = new EasyDnsServer(new EasyDnsServerSetting(
