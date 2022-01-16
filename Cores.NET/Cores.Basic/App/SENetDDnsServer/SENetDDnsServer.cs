@@ -640,7 +640,7 @@ public class DDNSServer : AsyncService
         }
     }
 
-    List<DnsUdpPacket> ProcessQueryList(List<DnsUdpPacket> requestList)
+    List<DnsUdpPacket> ProcessQueryList(EasyDnsServer dnsServer, List<DnsUdpPacket> requestList)
     {
         List<DnsUdpPacket> replyList = new List<DnsUdpPacket>(requestList.Count);
 

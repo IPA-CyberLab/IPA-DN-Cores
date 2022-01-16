@@ -2394,15 +2394,29 @@ static class TestClass
         //  結論  非同期でよい。GC は Server Mode にしたほうが少し安定するが、クライアントモードでもまあよい。
 
         using EasyDnsServer s = new EasyDnsServer(new EasyDnsServerSetting(
-            reqList =>
+            (dnsServer, reqList) =>
             {
                 List<DnsUdpPacket> retList = new List<DnsUdpPacket>(reqList.Count);
 
                 foreach (DnsUdpPacket req in reqList)
                 {
-                    DnsUdpPacket res = new DnsUdpPacket(req.RemoteEndPoint, req.LocalEndPoint, req.Message);
+                    if (false)
+                    {
+                        DnsUdpPacket res = new DnsUdpPacket(req.RemoteEndPoint, req.LocalEndPoint, req.Message);
 
-                    retList.Add(res);
+                        retList.Add(res);
+                    }
+                    else
+                    {
+                        dnsServer.BeginDelayDnsPacketProcessing(req, async req2 =>
+                        {
+                            DnsUdpPacket? res = new DnsUdpPacket(req2.RemoteEndPoint, req2.LocalEndPoint, req2.Message);
+
+                            await Task.CompletedTask;
+
+                            return res;
+                        });
+                    }
                 }
 
                 return retList;
@@ -3290,7 +3304,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
     public static void Test_Generic()
     {
-        if (true)
+        if (false)
         {
             Test_220116();
             return;
