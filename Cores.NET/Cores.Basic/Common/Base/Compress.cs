@@ -44,10 +44,10 @@ namespace IPA.Cores.Basic;
 
 public static class DeflateUtil
 {
-    public static byte[] EasyCompress(ReadOnlySpan<byte> src)
+    public static byte[] EasyCompress(ReadOnlySpan<byte> src, CompressionLevel level = CompressionLevel.Optimal)
     {
         using MemoryStream ms = new MemoryStream();
-        using var d = new DeflateStream(ms, CompressionLevel.Optimal);
+        using var d = new DeflateStream(ms, level);
         d.Write(src);
         d.Flush();
         return ms.ToArray();

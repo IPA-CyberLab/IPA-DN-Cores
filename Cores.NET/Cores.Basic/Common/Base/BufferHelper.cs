@@ -35,6 +35,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Buffers;
 using System.Buffers.Binary;
+using System.IO.Compression;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -176,11 +177,11 @@ public static class MemoryExtHelper
     [MethodImpl(Inline)]
     public static bool _IsAllZero(this ReadOnlySpanBuffer<byte> target) => Util.IsSpanAllZero(target);
 
-    public static byte[] _EasyCompress(this Span<byte> src) => DeflateUtil.EasyCompress(src);
-    public static byte[] _EasyCompress(this ReadOnlySpan<byte> src) => DeflateUtil.EasyCompress(src);
-    public static byte[] _EasyCompress(this Memory<byte> src) => DeflateUtil.EasyCompress(src.Span);
-    public static byte[] _EasyCompress(this ReadOnlyMemory<byte> src) => DeflateUtil.EasyCompress(src.Span);
-    public static byte[] _EasyCompress(this byte[] src) => DeflateUtil.EasyCompress(src);
+    public static byte[] _EasyCompress(this Span<byte> src, CompressionLevel level = CompressionLevel.Optimal) => DeflateUtil.EasyCompress(src, level);
+    public static byte[] _EasyCompress(this ReadOnlySpan<byte> src, CompressionLevel level = CompressionLevel.Optimal) => DeflateUtil.EasyCompress(src, level);
+    public static byte[] _EasyCompress(this Memory<byte> src, CompressionLevel level = CompressionLevel.Optimal) => DeflateUtil.EasyCompress(src.Span, level);
+    public static byte[] _EasyCompress(this ReadOnlyMemory<byte> src, CompressionLevel level = CompressionLevel.Optimal) => DeflateUtil.EasyCompress(src.Span, level);
+    public static byte[] _EasyCompress(this byte[] src, CompressionLevel level = CompressionLevel.Optimal) => DeflateUtil.EasyCompress(src, level);
 
     public static byte[] _EasyDecompress(this Span<byte> src) => DeflateUtil.EasyDecompress(src);
     public static byte[] _EasyDecompress(this ReadOnlySpan<byte> src) => DeflateUtil.EasyDecompress(src);

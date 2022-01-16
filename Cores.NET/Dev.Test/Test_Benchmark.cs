@@ -644,7 +644,7 @@ partial class TestDevCommands
         }
 
         BM_HadbTestData hadbTestData = new BM_HadbTestData { Abc = 123 };
-        HadbObject< BM_HadbTestData> hadbTestObj = new HadbObject(hadbTestData, 0, "abc", false);
+        HadbObject<BM_HadbTestData> hadbTestObj = new HadbObject(hadbTestData, 0, "abc", false);
 
         BenchMask_BoostUp_PacketParser("190527_novlan_simple_udp");
         BenchMask_BoostUp_PacketParser("190527_novlan_simple_tcp");
@@ -662,18 +662,18 @@ partial class TestDevCommands
         HadbTestData cloneDeepSampleObj2 = new HadbTestData() { HostName = "abc", IPv4Address = "123", IPv6Address = "456", TestInt = 789 };
 
 
-        string databaseBackupTmpFilePath = Dbg.DownloadWebFileLocalCache("http://lts.dn.ipantt.net/d/211230_001_86373/Database.json", 6044349);
+        //string databaseBackupTmpFilePath = Dbg.DownloadWebFileLocalCache("http://lts.dn.ipantt.net/d/211230_001_86373/Database.json", 6044349);
 
 
-        HadbSqlSettings hadbBenchSettings = new HadbSqlSettings("_Dummy",
-            new SqlDatabaseConnectionSetting("", "", "", "", true),
-            new SqlDatabaseConnectionSetting("", "", "", "", true),
-            optionFlags: HadbOptionFlags.NoAutoDbReloadAndUpdate, backupDataFile: databaseBackupTmpFilePath);
+        //HadbSqlSettings hadbBenchSettings = new HadbSqlSettings("_Dummy",
+        //    new SqlDatabaseConnectionSetting("", "", "", "", true),
+        //    new SqlDatabaseConnectionSetting("", "", "", "", true),
+        //    optionFlags: HadbOptionFlags.NoAutoDbReloadAndUpdate, backupDataFile: databaseBackupTmpFilePath);
 
 
-        using HadbBenchTest.Sys hadbBenchSys = new HadbBenchTest.Sys(hadbBenchSettings, new HadbBenchTest.Dyn());
-        hadbBenchSys.DebugFlags |= HadbDebugFlags.NoDbLoadAndUseOnlyLocalBackup;
-        hadbBenchSys.WaitUntilReadyForFastAsync()._GetResult();
+        //using HadbBenchTest.Sys hadbBenchSys = new HadbBenchTest.Sys(hadbBenchSettings, new HadbBenchTest.Dyn());
+        //hadbBenchSys.DebugFlags |= HadbDebugFlags.NoDbLoadAndUseOnlyLocalBackup;
+        //hadbBenchSys.WaitUntilReadyForFastAsync()._GetResult();
 
 
         ImmutableDictionary<string, string> immDictTest = ImmutableDictionary<string, string>.Empty.WithComparers(StrCmpi);
@@ -687,7 +687,81 @@ partial class TestDevCommands
 
         string testStr = "こんにちはabcABCａｂｃＡＢＣ123１２３こんにちは";
 
+        SeedBasedRandomGenerator seedRand1 = new SeedBasedRandomGenerator("HelloWorld");
+        ReadOnlyMemory<byte> rand1mb = seedRand1.GetBytes(1_000_000);
+        var randCompressedFastest = rand1mb._EasyCompress(System.IO.Compression.CompressionLevel.Fastest);
+        var randCompressedOptimal = rand1mb._EasyCompress(System.IO.Compression.CompressionLevel.Optimal);
+        var randCompressedSmallestSize = rand1mb._EasyCompress(System.IO.Compression.CompressionLevel.SmallestSize);
+
+
         var queue = new MicroBenchmarkQueue()
+
+
+        .Add(new MicroBenchmark($"DeflateStream compress 1MB Optimal", Benchmark_CountForVerySlow, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.ObjectSlow = rand1mb._EasyCompress(System.IO.Compression.CompressionLevel.Optimal);
+                }
+            });
+        }), enabled: true, priority: 211227)
+
+        .Add(new MicroBenchmark($"DeflateStream compress 1MB Fastest", Benchmark_CountForVerySlow, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.ObjectSlow = rand1mb._EasyCompress(System.IO.Compression.CompressionLevel.Fastest);
+                }
+            });
+        }), enabled: true, priority: 211227)
+
+        .Add(new MicroBenchmark($"DeflateStream compress 1MB SmallestSize", Benchmark_CountForVerySlow, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.ObjectSlow = rand1mb._EasyCompress(System.IO.Compression.CompressionLevel.SmallestSize);
+                }
+            });
+        }), enabled: true, priority: 211227)
+
+        .Add(new MicroBenchmark($"DeflateStream decompress 1MB Optimal", Benchmark_CountForVerySlow, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.ObjectSlow = randCompressedOptimal._EasyDecompress();
+                }
+            });
+        }), enabled: true, priority: 211227)
+
+        .Add(new MicroBenchmark($"DeflateStream decompress 1MB Fastest", Benchmark_CountForVerySlow, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.ObjectSlow = randCompressedFastest._EasyDecompress();
+                }
+            });
+        }), enabled: true, priority: 211227)
+
+        .Add(new MicroBenchmark($"DeflateStream decompress 1MB SmallestSize", Benchmark_CountForVerySlow, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.ObjectSlow = randCompressedSmallestSize._EasyDecompress();
+                }
+            });
+        }), enabled: true, priority: 211227)
 
 
         // メモ
@@ -760,53 +834,53 @@ partial class TestDevCommands
             });
         }), enabled: true, priority: 211227)
 
-        .Add(new MicroBenchmark($"HADB FastSearch", Benchmark_CountForNormal * 10, count =>
-        {
-            // メモ
-            // HADB FastSearch: 378.18 ns, 2,644,233 / sec (Direct Search)
-            // HADB FastSearch: 547.06 ns, 1,827,967 / sec (Generics Search)
-            Async(async () =>
-            {
-                for (int c = 0; c < count; c++)
-                {
-                    int index = count % 10000;
-                    var obj = hadbBenchSys.FastSearchByKey(new HadbKeys(index.ToString()), "User");
-                    //obj._NullCheck();
-                    //var obj = hadbBenchSys.FastSearchByKey(new HadbBenchTest.User { AuthKey = index.ToString() });
-                }
-            });
-        }), enabled: true, priority: 211227)
+        //.Add(new MicroBenchmark($"HADB FastSearch", Benchmark_CountForNormal * 10, count =>
+        //{
+        //    // メモ
+        //    // HADB FastSearch: 378.18 ns, 2,644,233 / sec (Direct Search)
+        //    // HADB FastSearch: 547.06 ns, 1,827,967 / sec (Generics Search)
+        //    Async(async () =>
+        //    {
+        //        for (int c = 0; c < count; c++)
+        //        {
+        //            int index = count % 10000;
+        //            var obj = hadbBenchSys.FastSearchByKey(new HadbKeys(index.ToString()), "User");
+        //            //obj._NullCheck();
+        //            //var obj = hadbBenchSys.FastSearchByKey(new HadbBenchTest.User { AuthKey = index.ToString() });
+        //        }
+        //    });
+        //}), enabled: true, priority: 211227)
 
-        .Add(new MicroBenchmark($"HADB FastSearch 2", Benchmark_CountForNormal * 10, count =>
-        {
-            // メモ
-            // HADB FastSearch 2: 216.59 ns, 4,616,981 / sec
-            Async(async () =>
-            {
-                for (int c = 0; c < count; c++)
-                {
-                    int index = count % 10000;
-                    var keys = new HadbKeys(index.ToString());
-                    if (keys.Key1._IsFilled())
-                    {
-                        hadbBenchSys.MemDb!.InternalData.IndexedKeysTable.TryGetValue("Key1" + ":" + "User" + ":" + "DEFAULT_NS" + ":" + keys.Key1, out HadbObject? ret);
-                        Limbo.ObjectSlow = ret;
-                        //var obj = hadbBenchSys.FastSearchByKey(new HadbBenchTest.User { AuthKey = index.ToString() });
-                    }
-                }
-            });
-        }), enabled: true, priority: 211227)
+        //.Add(new MicroBenchmark($"HADB FastSearch 2", Benchmark_CountForNormal * 10, count =>
+        //{
+        //    // メモ
+        //    // HADB FastSearch 2: 216.59 ns, 4,616,981 / sec
+        //    Async(async () =>
+        //    {
+        //        for (int c = 0; c < count; c++)
+        //        {
+        //            int index = count % 10000;
+        //            var keys = new HadbKeys(index.ToString());
+        //            if (keys.Key1._IsFilled())
+        //            {
+        //                hadbBenchSys.MemDb!.InternalData.IndexedKeysTable.TryGetValue("Key1" + ":" + "User" + ":" + "DEFAULT_NS" + ":" + keys.Key1, out HadbObject? ret);
+        //                Limbo.ObjectSlow = ret;
+        //                //var obj = hadbBenchSys.FastSearchByKey(new HadbBenchTest.User { AuthKey = index.ToString() });
+        //            }
+        //        }
+        //    });
+        //}), enabled: true, priority: 211227)
 
-        .Add(new MicroBenchmark($"HADB GetTypeName", Benchmark_CountForFast, count =>
-        {
-            Async(async () =>
-            {
-                for (int c = 0; c < count; c++)
-                {
-                    Limbo.ObjectSlow = hadbTestObj.GetUserDataTypeName();
-                }
-            });
-        }), enabled: true, priority: 211227)
+        //.Add(new MicroBenchmark($"HADB GetTypeName", Benchmark_CountForFast, count =>
+        //{
+        //    Async(async () =>
+        //    {
+        //        for (int c = 0; c < count; c++)
+        //        {
+        //            Limbo.ObjectSlow = hadbTestObj.GetUserDataTypeName();
+        //        }
+        //    });
+        //}), enabled: true, priority: 211227)
 
         .Add(new MicroBenchmark($"Async call with no async func #1: Nothing", Benchmark_CountForFast, count =>
         {
@@ -910,10 +984,10 @@ partial class TestDevCommands
 
         .Add(new MicroBenchmark($"DnsTools_Build", Benchmark_CountForNormal, count =>
         {
-                // 元: DnsTools_Build: 537.80 ns, 1,859,419 / sec
-                // 先: DnsTools_Build: 327.78 ns, 3,050,848 / sec
+            // 元: DnsTools_Build: 537.80 ns, 1,859,419 / sec
+            // 先: DnsTools_Build: 327.78 ns, 3,050,848 / sec
 
-                var packetMem = Res.AppRoot["210613_novlan_dns_query_simple.txt"].HexParsedBinary;
+            var packetMem = Res.AppRoot["210613_novlan_dns_query_simple.txt"].HexParsedBinary;
             Packet packet = new Packet(default, packetMem._CloneSpan());
             var parsed = new PacketParsed(ref packet);
             var dnsPacket = parsed.L7.Generic.GetSpan(ref packet);
@@ -930,10 +1004,10 @@ partial class TestDevCommands
 
         .Add(new MicroBenchmark($"DnsTools_Parse", Benchmark_CountForNormal, count =>
         {
-                // 元: DnsTools_Parse: 208.81 ns, 4,789,072 / sec
-                // 先: DnsTools_Parse: 193.02 ns, 5,180,911 / sec
+            // 元: DnsTools_Parse: 208.81 ns, 4,789,072 / sec
+            // 先: DnsTools_Parse: 193.02 ns, 5,180,911 / sec
 
-                var packetMem = Res.AppRoot["210613_novlan_dns_query_simple.txt"].HexParsedBinary;
+            var packetMem = Res.AppRoot["210613_novlan_dns_query_simple.txt"].HexParsedBinary;
             Packet packet = new Packet(default, packetMem._CloneSpan());
             var parsed = new PacketParsed(ref packet);
             var dnsPacket = parsed.L7.Generic.GetSpan(ref packet);
@@ -1588,12 +1662,12 @@ partial class TestDevCommands
                     v4Hedaer.TotalLength = (ushort)(sizeof(IPv4Header) + sizeof(TCPHeader) + 4);
                     v4Hedaer.Version = 4;
 
-                        //ref var vlanHeader = ref p.PrependHeader<VLanHeader>();
+                    //ref var vlanHeader = ref p.PrependHeader<VLanHeader>();
 
-                        //vlanHeader.VLanId = 12345U._Endian16();
-                        //vlanHeader.Protocol = EthernetProtocolId.IPv4._Endian16();
+                    //vlanHeader.VLanId = 12345U._Endian16();
+                    //vlanHeader.Protocol = EthernetProtocolId.IPv4._Endian16();
 
-                        ref var etherHeaderData = ref p.PrependSpan<EthernetHeader>();
+                    ref var etherHeaderData = ref p.PrependSpan<EthernetHeader>();
 
                     etherHeaderData.Protocol = EthernetProtocolId.VLan._Endian16();
 
@@ -1710,8 +1784,8 @@ partial class TestDevCommands
         .Add(new MicroBenchmark($"_IsZeroFastStruct", Benchmark_CountForFast, count =>
         {
             TCPHeader h = new TCPHeader();
-                //h.SrcPort = 3;
-                for (int c = 0; c < count; c++)
+            //h.SrcPort = 3;
+            for (int c = 0; c < count; c++)
             {
                 h._IsZeroStruct();
             }
