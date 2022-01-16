@@ -51,6 +51,301 @@ namespace IPA.TestDev;
 
 partial class TestDevCommands
 {
+    // 指定したディレクトリにあるすべてのファイルの SHA1 チェックサムを表示する
+    [ConsoleCommand(
+        "CompareBinaryFile command",
+        "CompareBinaryFile <file1> /FILE2:<file2> [/MAXDIFFS:max_diffs=1000]",
+        "CompareBinaryFile command")]
+    static int CompareBinaryFile(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+            new ConsoleParam("[file1]", ConsoleService.Prompt, "File1: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("FILE2", ConsoleService.Prompt, "File2: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("MAXDIFFS"),
+        };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string path1 = vl.DefaultParam.StrValue;
+        string path2 = vl["FILE2"].StrValue;
+        long maxDiffs = Math.Max(vl["MAXDIFFS"].StrValue._ToLong(), 0);
+        if (maxDiffs == 0) maxDiffs = 1000;
+
+        const int blockSize = 1_000_000;
+        const int printBlockSize = 25;
+
+        Async(async () =>
+        {
+            await using var file1 = await Lfs.OpenAsync(path1);
+            await using var file2 = await Lfs.OpenAsync(path2);
+
+            string fn1 = path1._GetFileName()!;
+            string fn2 = path2._GetFileName()!;
+
+            long fileSize1 = await file1.GetFileSizeAsync();
+            long fileSize2 = await file2.GetFileSizeAsync();
+
+            long compareFileSize = Math.Min(fileSize1, fileSize2);
+
+            if (fileSize1 != fileSize2)
+            {
+                $"Warning: File size is different. {path1} = {fileSize1._ToString3()}, {path2} = {fileSize2._ToString3()}"._Print();
+            }
+
+            long currentFilePos = 0;
+
+            Memory<byte> mem1 = new byte[blockSize];
+            Memory<byte> mem2 = new byte[blockSize];
+
+            long diffIndex = 0;
+
+            StringWriter diffResults = new StringWriter();
+
+            using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
+    reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
+    ), null))
+            {
+
+                while (currentFilePos < compareFileSize)
+                {
+                    long remainSize = compareFileSize - currentFilePos;
+                    int readSize = (int)Math.Min(blockSize, remainSize);
+
+                    Memory<byte> buf1 = mem1._SliceHead(readSize);
+                    Memory<byte> buf2 = mem2._SliceHead(readSize);
+
+                    int r1 = await file1.ReadAsync(mem1);
+                    if (r1 != readSize)
+                    {
+                        throw new CoresException($"{path1}: Read Error. Read Size = {readSize}, Pos = {currentFilePos._ToString3()}");
+                    }
+
+                    int r2 = await file2.ReadAsync(mem2);
+                    if (r2 != readSize)
+                    {
+                        throw new CoresException($"{path2}: Read Error. Read Size = {readSize}, Pos = {currentFilePos._ToString3()}");
+                    }
+
+                    if (buf1._MemEquals(buf2) == false)
+                    {
+                        // 相違しているようである。相違点を検査する。
+                        for (int printPos = 0; printPos < readSize; printPos += printBlockSize)
+                        {
+                            int thisPrintBlockSize = Math.Min(printBlockSize, readSize - printPos);
+
+                            Memory<byte> pbuf1 = buf1.Slice(printPos, thisPrintBlockSize);
+                            Memory<byte> pbuf2 = buf2.Slice(printPos, thisPrintBlockSize);
+
+                            if (pbuf1._MemEquals(pbuf2) == false)
+                            {
+                                // 相違点発見！
+                                long offset = currentFilePos + printPos;
+                                StringWriter w = new StringWriter();
+                                diffIndex++;
+                                w.WriteLine($"{fn1} vs {fn2}:");
+                                w.WriteLine($"Diff #{diffIndex}: Offset: {offset._ToString3()}");
+                                w.WriteLine(pbuf1._GetHexString(" "));
+                                w.WriteLine(pbuf2._GetHexString(" "));
+                                w.WriteLine();
+                                w.WriteLine();
+                                w.ToString()._Print();
+
+                                diffResults.Write(w.ToString());
+
+                                if (diffIndex >= maxDiffs)
+                                {
+                                    $"Error: Too many diffs."._Print();
+                                    goto L_ESCAPE;
+                                }
+                            }
+                        }
+                    }
+
+                    currentFilePos += readSize;
+
+                    reporter.ReportProgress(new ProgressData(currentFilePos, compareFileSize, false, (diffIndex == 0 ? "No diffs" : $"Diffs={diffIndex}")));
+                }
+
+                L_ESCAPE:
+
+                reporter.ReportProgress(new ProgressData(currentFilePos, currentFilePos, true, (diffIndex == 0 ? "No diffs" : $"Diffs={diffIndex}")));
+
+                ""._Print();
+                "------- Finished !!! -------"._Print();
+
+                if (diffIndex == 0)
+                {
+                    $"Result: No diffs."._Print();
+                }
+                else
+                {
+                    $"Total Result: {diffIndex} or more diffs."._Print();
+                    ""._Print();
+                    diffResults.ToString()._Print();
+                    $"Total Result: {diffIndex} or more diffs."._Print();
+                }
+
+                if (fileSize1 != fileSize2)
+                {
+                    $"Warning: File size is different. {path1} = {fileSize1._ToString3()}, {path2} = {fileSize2._ToString3()}"._Print();
+                }
+
+                ""._Print();
+            }
+        });
+
+        return 0;
+    }
+
+    // 指定したディレクトリにあるすべてのファイルの SHA1 チェックサムを表示する
+    [ConsoleCommand(
+    "DirSha1Sum command",
+    "DirSha1Sum [dirName]",
+    "DirSha1Sum command")]
+    static int DirSha1Sum(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+            new ConsoleParam("[dirName]", ConsoleService.Prompt, "Dir name: ", ConsoleService.EvalNotEmpty, null),
+        };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string dirName = vl.DefaultParam.StrValue;
+
+        SortedDictionary<string, string> resultList = new SortedDictionary<string, string>(Lfs.PathParser.PathStringComparer);
+
+        void PrintCurrentResultList(bool onlyConsole)
+        {
+            StringWriter w = new StringWriter();
+
+            lock (resultList)
+            {
+                if (resultList.Any() == false)
+                {
+                    return;
+                }
+
+                w.WriteLine();
+
+                w.WriteLine($"=== Begin Current Results ===");
+                foreach (var kv in resultList)
+                {
+                    w.WriteLine($"{kv.Key._GetFileName()}: {kv.Value}");
+                }
+                w.WriteLine($"=== End Current Results ===");
+                w.WriteLine();
+                w.WriteLine();
+            }
+
+            if (onlyConsole)
+            {
+                lock (Con.ConsoleWriteLock)
+                {
+                    Console.WriteLine(w.ToString());
+                }
+            }
+            else
+            {
+                w.ToString()._Print();
+            }
+        }
+
+        Async(async () =>
+        {
+            await using CancelWatcher printIntervalCancel = new CancelWatcher();
+
+            Task printInterval = TaskUtil.StartAsyncTaskAsync(async () =>
+            {
+                while (printIntervalCancel.IsCancellationRequested == false)
+                {
+                    await printIntervalCancel.CancelToken._WaitUntilCanceledAsync(60 * 1000);
+
+                    PrintCurrentResultList(true);
+                }
+            });
+
+            try
+            {
+                using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
+                    reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
+                    ), null))
+                {
+                    long totalAllFilesReadSize = 0;
+
+                    while (true)
+                    {
+                        // 次のファイル名を決める
+                        var entList = await Lfs.EnumDirectoryAsync(dirName);
+                        string targetFilePath;
+
+                        lock (resultList)
+                        {
+                            targetFilePath = entList.Where(x => x.IsFile).OrderBy(x => x.Name, Lfs.PathParser.PathStringComparer).Where(x => resultList.ContainsKey(x.FullPath) == false).FirstOrDefault()?.FullPath ?? "";
+                        }
+
+                        long estimatedAllFileSizeSum = entList.Where(x => x.IsFile).Sum(x => x.Size);
+                        if (targetFilePath._IsEmpty())
+                        {
+                            // 全部のファイルを読み込み完了した
+                            reporter.ReportProgress(new ProgressData(totalAllFilesReadSize, totalAllFilesReadSize, true, "ALL"));
+                            break;
+                        }
+
+                        using SHA1 sha = SHA1.Create();
+
+                        int bufSize = 8 * 1024 * 1024;
+                        await using var fs = new FileStream(targetFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, bufSize, false);
+                        long fileSize = fs.Length;
+
+                        string fileName = targetFilePath._GetFileName()!;
+
+                        RefLong fileTotalReadSize = new RefLong();
+
+                        $"--- START ---"._Print();
+                        $"File Name: '{fileName}'"._Print();
+                        $"File Size: {fileSize._ToString3()}"._Print();
+                        $"File Read Size (Estimated): {fileSize._ToString3()}"._Print();
+
+                        var hash = await Secure.CalcStreamHashAsync(fs, sha, bufferSize: bufSize, totalReadSize: fileTotalReadSize,
+                            progressReporter: reporter,
+                            progressReporterCurrentSizeOffset: totalAllFilesReadSize,
+                            progressReporterTotalSizeHint: estimatedAllFileSizeSum,
+                            progressReporterFinalize: false,
+                            progressReporterAdditionalInfo: fileName);
+
+                        totalAllFilesReadSize += fileTotalReadSize;
+
+                        string hashStr = hash._GetHexString().ToLowerInvariant();
+
+                        $"File Name: '{fileName}'"._Print();
+                        $"File Read Size (Actual): {fileTotalReadSize.Value._ToString3()}"._Print();
+                        $"Total All Files Read Size (Actual): {totalAllFilesReadSize._ToString3()}"._Print();
+                        $"Hash: {hashStr}"._Print();
+                        $"--- FINISHED ---"._Print();
+
+                        lock (resultList)
+                        {
+                            resultList.Add(targetFilePath, hashStr);
+                        }
+
+                        ""._Print();
+
+                        PrintCurrentResultList(false);
+                    }
+                }
+            }
+            finally
+            {
+                printIntervalCancel.Cancel();
+                await printInterval._TryWaitAsync();
+            }
+        });
+
+        return 0;
+    }
+
     // HDD のテストのため、巨大なテストファイルをディスク容量が枯渇するか指定されたサイズに達するまで連番で書き込みする。
     [ConsoleCommand(
         "WriteDiskTestFiles command",

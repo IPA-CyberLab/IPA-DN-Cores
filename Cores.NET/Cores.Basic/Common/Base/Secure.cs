@@ -367,7 +367,8 @@ namespace IPA.Cores.Basic
 
         public static async Task<byte[]> CalcStreamHashAsync(Stream stream, HashAlgorithm hash, long truncateSize = long.MaxValue,
             int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalReadSize = null, CancellationToken cancel = default,
-            ProgressReporterBase? progressReporter = null, string? progressReporterAdditionalInfo = null, long? progressReporterTotalSizeHint = null,
+            ProgressReporterBase? progressReporter = null, string? progressReporterAdditionalInfo = null, long progressReporterCurrentSizeOffset = 0, long? progressReporterTotalSizeHint = null,
+            bool progressReporterFinalize = true,
             ThroughputMeasuse? measure = null)
         {
             checked
@@ -404,7 +405,7 @@ namespace IPA.Cores.Basic
 
                     if (progressReporter != null)
                     {
-                        progressReporter.ReportProgress(new ProgressData(currentSize, progressReporterTotalSizeHint, false, progressReporterAdditionalInfo));
+                        progressReporter.ReportProgress(new ProgressData(currentSize + progressReporterCurrentSizeOffset, progressReporterTotalSizeHint, false, progressReporterAdditionalInfo));
                     }
 
                     if (measure != null)
@@ -424,7 +425,14 @@ namespace IPA.Cores.Basic
 
                 if (progressReporter != null)
                 {
-                    progressReporter.ReportProgress(new ProgressData(currentSize, currentSize, true, progressReporterAdditionalInfo));
+                    if (progressReporterFinalize)
+                    {
+                        progressReporter.ReportProgress(new ProgressData(currentSize, currentSize, true, progressReporterAdditionalInfo));
+                    }
+                    else
+                    {
+                        progressReporter.ReportProgress(new ProgressData(currentSize, progressReporterTotalSizeHint, false, progressReporterAdditionalInfo));
+                    }
                 }
 
                 ArrayPool<byte>.Shared.Return(buffer);
