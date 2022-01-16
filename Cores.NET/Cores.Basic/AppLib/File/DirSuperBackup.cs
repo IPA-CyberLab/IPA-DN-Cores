@@ -376,7 +376,7 @@ public class DirSuperBackup : AsyncService
 
             AsyncLock SafeLock = new AsyncLock();
 
-            await TaskUtil.ForEachAsync(Options.NumThreads, dirMetaData.FileList, async (srcFile, cancel) =>
+            await TaskUtil.ForEachAsync(Options.NumThreads, dirMetaData.FileList, async (srcFile, taskIndex, cancel) =>
             {
                 await Task.Yield();
 
@@ -720,7 +720,7 @@ public class DirSuperBackup : AsyncService
 
             AsyncLock SafeLock = new AsyncLock();
 
-            await TaskUtil.ForEachAsync(Options.NumThreads, fileEntries, async (srcFile, cancel) =>
+            await TaskUtil.ForEachAsync(Options.NumThreads, fileEntries, async (srcFile, taskIndex, cancel) =>
             {
                 long? encryptedPhysicalSize = null;
 

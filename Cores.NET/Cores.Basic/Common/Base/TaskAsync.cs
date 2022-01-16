@@ -795,6 +795,92 @@ public static partial class TaskUtil
     public static async Task<T> StartAsyncTaskAsync<T>(Func<Task<T>> action, bool yieldOnStart = YieldOnStartDefault, bool leakCheck = true)
     { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await action()._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
+    public static Task StartAsyncTaskAsync(Func<Task, Task> action, bool leakCheck = true)
+    {
+        if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks);
+
+        try
+        {
+            Ref<Task> taskRef = new Ref<Task>();
+
+            AsyncManualResetEvent taskRefSetEvent = new AsyncManualResetEvent();
+
+            Task task = StartAsyncTaskAsync(async () =>
+            {
+                try
+                {
+                    await taskRefSetEvent.WaitAsync();
+                    Task? currentTask = taskRef.Value;
+
+#pragma warning disable CS4014 // この呼び出しは待機されなかったため、現在のメソッドの実行は呼び出しの完了を待たずに続行されます
+                    currentTask._NullCheck("currentTask");
+#pragma warning restore CS4014 // この呼び出しは待機されなかったため、現在のメソッドの実行は呼び出しの完了を待たずに続行されます
+
+                    await action(currentTask)._LeakCheck(!leakCheck);
+                }
+                finally
+                {
+                    if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks);
+                }
+            },
+            yieldOnStart: false, leakCheck: false);
+
+            taskRef.Set(task);
+
+            taskRefSetEvent.Set(softly: false);
+
+            return task;
+        }
+        catch
+        {
+            if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks);
+            throw;
+        }
+    }
+
+    public static Task<T> StartAsyncTaskAsync<T>(Func<Task, Task<T>> action, bool leakCheck = true)
+    {
+        if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks);
+
+        try
+        {
+            Ref<Task<T>> taskRef = new Ref<Task<T>>();
+
+            AsyncManualResetEvent taskRefSetEvent = new AsyncManualResetEvent();
+
+            Task<T> task = StartAsyncTaskAsync(async() =>
+            {
+                try
+                {
+                    await taskRefSetEvent.WaitAsync();
+                    Task? currentTask = taskRef.Value;
+
+#pragma warning disable CS4014 // この呼び出しは待機されなかったため、現在のメソッドの実行は呼び出しの完了を待たずに続行されます
+                    currentTask._NullCheck("currentTask");
+#pragma warning restore CS4014 // この呼び出しは待機されなかったため、現在のメソッドの実行は呼び出しの完了を待たずに続行されます
+
+                    return await action(currentTask)._LeakCheck(!leakCheck);
+                }
+                finally
+                {
+                    if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks);
+                }
+            },
+            yieldOnStart: false, leakCheck: false);
+
+            taskRef.Set(task);
+
+            taskRefSetEvent.Set(softly: false);
+
+            return task;
+        }
+        catch
+        {
+            if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks);
+            throw;
+        }
+    }
+
     public static async Task StartAsyncTaskAsync(Task task, bool yieldOnStart = YieldOnStartDefault, bool leakCheck = true)
     { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); await task._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
     public static async Task<T> StartAsyncTaskAsync<T>(Task<T> task, bool yieldOnStart = YieldOnStartDefault, bool leakCheck = true)
@@ -913,7 +999,7 @@ public static partial class TaskUtil
     }
 
     // ForEach 非同期実行。1 つでも失敗したら例外を発生させ、すべてキャンセルする
-    public static async Task ForEachAsync<T>(int maxConcurrentTasks, IEnumerable<T> items, Func<T, CancellationToken, Task> func, CancellationToken cancel = default, int intervalBetweenTasks = 0)
+    public static async Task ForEachAsync<T>(int maxConcurrentTasks, IEnumerable<T> items, Func<T, int, CancellationToken, Task> func, CancellationToken cancel = default, int intervalBetweenTasks = 0)
     {
         AsyncConcurrentTask at = new AsyncConcurrentTask(maxConcurrentTasks);
 
@@ -923,6 +1009,8 @@ public static partial class TaskUtil
 
         RefBool hasError = false;
 
+        int taskIndex = 0;
+
         foreach (var item in items)
         {
             var task = await at.StartTaskAsync<int, int>(async (x, c) =>
@@ -930,7 +1018,7 @@ public static partial class TaskUtil
                  try
                  {
                      await Task.Yield();
-                     await func(item, c);
+                     await func(item, taskIndex, c);
                      if (intervalBetweenTasks >= 1)
                      {
                          await cancel2.CancelToken._WaitUntilCanceledAsync(intervalBetweenTasks);
@@ -953,6 +1041,8 @@ public static partial class TaskUtil
             {
                 break;
             }
+
+            taskIndex++;
         }
 
         await at.WaitAllTasksFinishAsync();
@@ -964,7 +1054,7 @@ public static partial class TaskUtil
         }
     }
 
-    public static void ForEach<T>(int maxConcurrentTasks, IEnumerable<T> items, Func<T, CancellationToken, Task> func, CancellationToken cancel = default, int intervalBetweenTasks = 0)
+    public static void ForEach<T>(int maxConcurrentTasks, IEnumerable<T> items, Func<T, int, CancellationToken, Task> func, CancellationToken cancel = default, int intervalBetweenTasks = 0)
         => ForEachAsync(maxConcurrentTasks, items, func, cancel, intervalBetweenTasks)._GetResult();
 
     public static int GetMinTimeout(params int[] values)

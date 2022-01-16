@@ -640,7 +640,7 @@ public class DDNSServer : AsyncService
         }
     }
 
-    Task<List<DnsUdpPacket>> ProcessQueryList(List<DnsUdpPacket> requestList)
+    List<DnsUdpPacket> ProcessQueryList(List<DnsUdpPacket> requestList)
     {
         List<DnsUdpPacket> replyList = new List<DnsUdpPacket>(requestList.Count);
 
@@ -674,7 +674,7 @@ public class DDNSServer : AsyncService
             }
         }
 
-        return TR(replyList);
+        return replyList;
     }
 
     void write(string str)

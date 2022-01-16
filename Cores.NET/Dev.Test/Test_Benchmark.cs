@@ -697,6 +697,55 @@ partial class TestDevCommands
         var queue = new MicroBenchmarkQueue()
 
 
+        .Add(new MicroBenchmark($"StartAsyncTaskAsync Normal (TaskResult)", Benchmark_CountForSlow, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Task t = TaskUtil.StartAsyncTaskAsync(() =>
+                    {
+                        return TR(Limbo.SInt32);
+                    });
+
+                    //await t;
+                }
+            });
+        }), enabled: true, priority: 211227)
+
+        .Add(new MicroBenchmark($"StartAsyncTaskAsync Normal (async)", Benchmark_CountForSlow, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Task t = TaskUtil.StartAsyncTaskAsync(async () =>
+                    {
+                        return Limbo.SInt32;
+                    });
+
+                    await t;
+                }
+            });
+        }), enabled: true, priority: 211227)
+
+        .Add(new MicroBenchmark($"StartAsyncTaskAsync with Task Param", Benchmark_CountForSlow, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Task t = TaskUtil.StartAsyncTaskAsync(task =>
+                    {
+                        return TR(0);
+                    });
+
+                    await t;
+                    //t._GetResult();
+                }
+            });
+        }), enabled: true, priority: 211227)
+
         .Add(new MicroBenchmark($"DeflateStream compress 1MB Optimal", Benchmark_CountForVerySlow, count =>
         {
             Async(async () =>

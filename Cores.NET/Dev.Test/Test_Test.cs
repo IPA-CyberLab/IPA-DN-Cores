@@ -1435,7 +1435,7 @@ static class TestClass
 
             await Lfs.EnumDirectoryAsync(dirName, false, EnumDirectoryFlags.NoGetPhysicalSize);
 
-            await TaskUtil.ForEachAsync(256, o, async (number, cancel) =>
+            await TaskUtil.ForEachAsync(256, o, async (number, taskIndex, cancel) =>
             {
                 await Task.Yield();
 
@@ -1490,7 +1490,7 @@ static class TestClass
                 o.Add(i);
             }
 
-            await TaskUtil.ForEachAsync(32, o, async (number, cancel) =>
+            await TaskUtil.ForEachAsync(32, o, async (number, taskIndex, cancel) =>
             {
                 await Task.Yield();
 
@@ -1529,7 +1529,7 @@ static class TestClass
 
             await Lfs.CreateDirectoryAsync(destDir);
 
-            await TaskUtil.ForEachAsync(32, srcFiles, async (srcFile, cancel) =>
+            await TaskUtil.ForEachAsync(32, srcFiles, async (srcFile, taskIndex, cancel) =>
             {
                 try
                 {
@@ -1603,7 +1603,7 @@ static class TestClass
 
                         AsyncLock SafeLock = new AsyncLock();
 
-                        await TaskUtil.ForEachAsync(48, fileEntries, async (srcFile, cancel) =>
+                        await TaskUtil.ForEachAsync(48, fileEntries, async (srcFile, taskIndex, cancel) =>
                         {
                             long? encryptedPhysicalSize = null;
 
@@ -1922,7 +1922,7 @@ static class TestClass
                 var allRecvList = await sock.ReceiveDatagramsListAsync();
                 recvMeasure.Add(allRecvList.Count);
 
-                var allSendList = await allRecvList._ProcessParallelAndAggregateAsync(async (perTaskRecvList) =>
+                var allSendList = await allRecvList._ProcessParallelAndAggregateAsync(async (perTaskRecvList, taskIndex) =>
                 {
                     List<Datagram> perTaskSendList = new List<Datagram>(perTaskRecvList.Count);
 
@@ -2398,17 +2398,14 @@ static class TestClass
             {
                 List<DnsUdpPacket> retList = new List<DnsUdpPacket>(reqList.Count);
 
-                foreach (var req in reqList)
+                foreach (DnsUdpPacket req in reqList)
                 {
-                    if (req != null)
-                    {
-                        DnsUdpPacket res = new DnsUdpPacket(req.RemoteEndPoint, req.LocalEndPoint, req.Message);
+                    DnsUdpPacket res = new DnsUdpPacket(req.RemoteEndPoint, req.LocalEndPoint, req.Message);
 
-                        retList.Add(res);
-                    }
+                    retList.Add(res);
                 }
 
-                return TR(retList);
+                return retList;
             }, 8053
             ));
 
@@ -3277,8 +3274,28 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         });
     }
 
+    public static void Test_220116()
+    {
+        Task t = TaskUtil.StartAsyncTaskAsync(async task =>
+        {
+            $"Inside: ID = {task.Id}"._Print();
+            await Task.CompletedTask;
+            return 0;
+        });
+
+        $"Outside: ID = {t.Id}"._Print();
+
+        //t._GetResult();
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_220116();
+            return;
+        }
+
         if (true)
         {
             Test_210901_EasyDnsServer();

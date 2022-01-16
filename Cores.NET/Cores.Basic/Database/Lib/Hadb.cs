@@ -899,7 +899,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         try
         {
-            List<HadbObject> ret = await rowsList._ProcessParallelAndAggregateAsync(srcList =>
+            List<HadbObject> ret = await rowsList._ProcessParallelAndAggregateAsync((srcList, taskIndex) =>
             {
                 List<HadbObject> tmp = new List<HadbObject>();
                 int i = 0;
@@ -1031,7 +1031,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             },
             cancel: cancel);
 
-        return await rows.ToList()._ProcessParallelAndAggregateAsync(rowPartList =>
+        return await rows.ToList()._ProcessParallelAndAggregateAsync((rowPartList, taskIndex) =>
         {
             List<HadbQuick<T>> tmp = new List<HadbQuick<T>>();
             foreach (var row in rowPartList)
@@ -1804,7 +1804,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         rows = rows.OrderByDescending(x => x.DATA_VER); // 念のため
 
-        return await rows.ToList()._ProcessParallelAndAggregateAsync(partOfRows =>
+        return await rows.ToList()._ProcessParallelAndAggregateAsync((partOfRows, taskIndex) =>
         {
             List<HadbObject> tmp = new List<HadbObject>();
             foreach (var row in partOfRows)
@@ -1844,7 +1844,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         if (rows == null) return EmptyOf<HadbObject>();
 
-        return await rows.ToList()._ProcessParallelAndAggregateAsync(partOfRows =>
+        return await rows.ToList()._ProcessParallelAndAggregateAsync((partOfRows, taskIndex) =>
         {
             List<HadbObject> tmp = new List<HadbObject>();
             foreach (var row in partOfRows)
@@ -2897,7 +2897,7 @@ public abstract class HadbMemDataBase
             try
             {
                 // 並列化の試み 2021/12/06 うまくいくか未定
-                await objectList2._ProcessParallelAsync(someObjects =>
+                await objectList2._ProcessParallelAsync((someObjects, taskIndex) =>
                 {
                     foreach (var newObj in someObjects)
                     {
@@ -3590,7 +3590,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
                             HadbBackupDatabase backupData = new HadbBackupDatabase
                             {
-                                ObjectsList = await loadedObjectsList._ProcessParallelAndAggregateAsync(x =>
+                                ObjectsList = await loadedObjectsList._ProcessParallelAndAggregateAsync((x, taskIndex) =>
                                 {
                                     List<HadbSerializedObject> ret = new List<HadbSerializedObject>();
 
@@ -3773,7 +3773,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             withBackup: true);
 
         // マルチスレッド並列処理による高速化
-        List<HadbObject> loadedObjectsList = await loadData.ObjectsList._ProcessParallelAndAggregateAsync(x =>
+        List<HadbObject> loadedObjectsList = await loadData.ObjectsList._ProcessParallelAndAggregateAsync((x, taskIndex) =>
         {
             List<HadbObject> ret = new List<HadbObject>();
             var serializer = Json.CreateSerializer();

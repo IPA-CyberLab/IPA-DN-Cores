@@ -1307,17 +1307,19 @@ public class DatagramSock : NetSock
         }
     }
 
-    public async Task<Datagram> ReceiveDatagramAsync(CancellationToken cancel = default, int timeout = Timeout.Infinite, bool noTimeoutException = false)
+    public async Task<Datagram?> ReceiveDatagramAsync(CancellationToken cancel = default, int timeout = Timeout.Infinite, bool noTimeoutException = false)
     {
         var list = await ReceiveDatagramsListAsync(1, cancel, timeout, noTimeoutException);
 
-        if (list.Count == 0 || list.Count >= 2)
+        if (list.Count >= 2)
             throw new CoresLibException("list.Count == 0 || list.Count >= 2");
+
+        if (list.Count == 0) return null;
 
         return list[0];
     }
 
-    public async Task<List<Datagram>> ReceiveDatagramsListAsync(int maxDatagrams = int.MaxValue, CancellationToken cancel = default, int timeout = Timeout.Infinite, bool noTimeoutException = false)
+    public async Task<List<Datagram>> ReceiveDatagramsListAsync(int maxDatagrams = int.MaxValue, CancellationToken cancel = default, int timeout = Timeout.Infinite, bool noTimeoutException = false, AsyncAutoResetEvent? cancelEvent = null)
     {
         maxDatagrams = Math.Max(maxDatagrams, 1);
 
@@ -1346,7 +1348,12 @@ public class DatagramSock : NetSock
 
             cancel.ThrowIfCancellationRequested();
 
-            await r.WaitForReadyToReadAsync(cancel, timeout, noTimeoutException: noTimeoutException);
+            if (await r.WaitForReadyToReadAsync(cancel, timeout, noTimeoutException: noTimeoutException, cancelEvent: cancelEvent) == false)
+            {
+                cancel.ThrowIfCancellationRequested();
+                // タイムアウトまたはキャンセル
+                return new List<Datagram>();
+            }
         }
     }
 }

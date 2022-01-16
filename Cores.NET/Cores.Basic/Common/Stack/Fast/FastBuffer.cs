@@ -142,7 +142,7 @@ public static class IFastBufferStateHelper
         cancel.ThrowIfCancellationRequested();
     }
 
-    public static async Task WaitForReadyToReadAsync(this IFastBufferState reader, CancellationToken cancel, int timeout, int sizeToRead = 1, bool noTimeoutException = false, AsyncAutoResetEvent? cancelEvent = null)
+    public static async Task<bool> WaitForReadyToReadAsync(this IFastBufferState reader, CancellationToken cancel, int timeout, int sizeToRead = 1, bool noTimeoutException = false, AsyncAutoResetEvent? cancelEvent = null)
     {
         sizeToRead = Math.Max(sizeToRead, 1);
 
@@ -165,14 +165,14 @@ public static class IFastBufferStateHelper
                 }
                 else
                 {
-                    return;
+                    return false;
                 }
             }
 
             cancel.ThrowIfCancellationRequested();
 
-            if (cancelEvent?.IsSet ?? false) return;
-            if ((cancelEvent?.StateVersion ?? 0) != cancelEventInitialStateVer) return;
+            if (cancelEvent?.IsSet ?? false) return false;
+            if ((cancelEvent?.StateVersion ?? 0) != cancelEventInitialStateVer) return false;
 
             await TaskUtil.WaitObjectsAsync(
                 cancels: new CancellationToken[] { cancel },
@@ -182,6 +182,8 @@ public static class IFastBufferStateHelper
         }
 
         cancel.ThrowIfCancellationRequested();
+
+        return true;
     }
 }
 

@@ -32,8 +32,6 @@
 
 #if CORES_BASIC_SECURITY
 
-#nullable disable
-
 using System;
 using System.Buffers;
 using System.Linq;
@@ -98,10 +96,13 @@ public class DnsUdpPacket
 {
     public IPEndPoint RemoteEndPoint { get; }
     public IPEndPoint LocalEndPoint { get; }
+    public IPEndPoint OriginalRemoteEndPoint { get; } // プロキシを経由してきた場合の元の DNS クライアントの情報
     public DnsMessageBase Message { get; }
 
-    public DnsUdpPacket(IPEndPoint remoteEndPoint, IPEndPoint localEndPoint, DnsMessageBase message)
+    public DnsUdpPacket(IPEndPoint remoteEndPoint, IPEndPoint localEndPoint, DnsMessageBase message, IPEndPoint? originalRemoteEndPoint = null)
     {
+        originalRemoteEndPoint ??= remoteEndPoint;
+
         if (remoteEndPoint.AddressFamily != localEndPoint.AddressFamily)
         {
             throw new CoresException("remoteEndPoint.AddressFamily != localEndPoint.AddressFamily");
@@ -109,6 +110,7 @@ public class DnsUdpPacket
 
         this.RemoteEndPoint = remoteEndPoint;
         this.LocalEndPoint = localEndPoint;
+        this.OriginalRemoteEndPoint = originalRemoteEndPoint;
         this.Message = message;
     }
 }
@@ -116,14 +118,34 @@ public class DnsUdpPacket
 
 
 
-public delegate Task<List<DnsUdpPacket>> EasyDnsServerProcessPacketsCallbackAsync(List<DnsUdpPacket> requestList);
+public delegate List<DnsUdpPacket> EasyDnsServerProcessPacketsCallback(List<DnsUdpPacket> requestList);
+
+public class EasyDnsServerDynOptions : INormalizable
+{
+    public int UdpRecvLoopPollingIntervalMsecs { get; set; } = 0;
+    public int UdpDelayedResponsePacketQueueLength { get; set; } = 0;
+
+    public EasyDnsServerDynOptions()
+    {
+        this.Normalize();
+    }
+
+    public void Normalize()
+    {
+        if (UdpRecvLoopPollingIntervalMsecs <= 0)
+            UdpRecvLoopPollingIntervalMsecs = 25;
+
+        if (UdpDelayedResponsePacketQueueLength <= 0)
+            UdpDelayedResponsePacketQueueLength = 512;
+    }
+}
 
 public class EasyDnsServerSetting
 {
     public int UdpPort { get; }
-    public EasyDnsServerProcessPacketsCallbackAsync Callback { get; }
+    public EasyDnsServerProcessPacketsCallback Callback { get; }
 
-    public EasyDnsServerSetting(EasyDnsServerProcessPacketsCallbackAsync callback, int udpPort = Consts.Ports.Dns)
+    public EasyDnsServerSetting(EasyDnsServerProcessPacketsCallback callback, int udpPort = Consts.Ports.Dns)
     {
         this.Callback = callback;
         this.UdpPort = udpPort;
@@ -134,11 +156,18 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
 {
     public EasyDnsServerSetting Setting { get; }
 
-    public EasyDnsServer(EasyDnsServerSetting setting)
+    public EasyDnsServerDynOptions DynOptions { get => this._DynOptions._CloneDeepWithNormalize(); set => this._DynOptions = value._CloneDeepWithNormalize(); }
+    EasyDnsServerDynOptions _DynOptions;
+
+    public EasyDnsServer(EasyDnsServerSetting setting, EasyDnsServerDynOptions? dynOptions = null)
     {
+        dynOptions ??= new EasyDnsServerDynOptions();
+
         try
         {
             this.Setting = setting;
+            this._DynOptions = dynOptions._CloneDeep();
+            this._DynOptions.Normalize();
 
             this.StartMainLoop(this.MainLoopAsync);
         }
@@ -149,7 +178,9 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
         }
     }
 
-#pragma warning disable CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
+    readonly ConcurrentHashSet<Task> CurrentProcessingTasks = new ConcurrentHashSet<Task>();
+    readonly List<Datagram> DelayedReplyUdpPacketsList = new List<Datagram>();
+
     async Task MainLoopAsync(CancellationToken cancel)
     {
         await using var udpListener = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Server));
@@ -163,16 +194,16 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
         {
             try
             {
-                var allRecvList = await udpSock.ReceiveDatagramsListAsync(cancel: cancel);
+                // UDP パケットを受信するまで待機して受信を実行 (タイムアウトが発生した場合も抜ける)
+                var allRecvList = await udpSock.ReceiveDatagramsListAsync(cancel: cancel, timeout: this._DynOptions.UdpRecvLoopPollingIntervalMsecs, noTimeoutException: true);
 
-                var allSendList = await allRecvList._ProcessParallelAndAggregateAsync(async (perTaskRecvList) =>
+                // 受信した UDP パケットを複数の CPU で処理
+                var allSendList = await allRecvList._ProcessParallelAndAggregateAsync((perTaskRecvList, taskIndex) =>
                 {
+                    // 以下の処理は各 CPU で分散
                     List<DnsUdpPacket> perTaskRequestPacketsList = new List<DnsUdpPacket>(perTaskRecvList.Count);
 
-                    //double start = Time.NowHighResDouble;
-
-                    //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- Start loop 1: perTaskRecvList.Count = {perTaskRecvList.Count}");
-
+                    // 受信した UDP パケットをすべてパースし DNS パケットをパースする
                     foreach (var item in perTaskRecvList)
                     {
                         if (item != null)
@@ -181,7 +212,7 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
                             {
                                 var request = DnsUtil.ParsePacket(item.Data.Span);
 
-                                DnsUdpPacket pkt = new DnsUdpPacket(item.RemoteIPEndPoint, item.LocalIPEndPoint, request);
+                                DnsUdpPacket pkt = new DnsUdpPacket(item.RemoteIPEndPoint!, item.LocalIPEndPoint!, request);
 
                                 perTaskRequestPacketsList.Add(pkt);
                             }
@@ -189,14 +220,12 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
                         }
                     }
 
-                    //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- End loop 1: perTaskRequestPacketsListCount = {perTaskRequestPacketsListCount}");
-
-                    List<DnsUdpPacket> perTaskReaponsePacketsList = await Setting.Callback(perTaskRequestPacketsList);
+                    // 指定されたコールバック関数を呼び出して DNS クエリを解決し、回答すべき DNS レスポンス一覧を生成する
+                    List<DnsUdpPacket> perTaskReaponsePacketsList = Setting.Callback(perTaskRequestPacketsList);
 
                     List<Datagram> perTaskSendList = new List<Datagram>(perTaskReaponsePacketsList.Count);
 
-                    //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- Start loop 2: perTaskReaponsePacketsList.Count = {perTaskReaponsePacketsList.Length}");
-
+                    // 回答すべき DNS レスポンス一覧をバイナリとしてビルドし UDP パケットを生成
                     foreach (var responsePkt in perTaskReaponsePacketsList)
                     {
                         try
@@ -210,14 +239,22 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
                         catch { }
                     }
 
-                    //Con.WriteDebug($"{Time.NowHighResDouble - start:F3} -- End loop 2: perTaskSendListCount = {perTaskSendListCount}");
-
-                    return perTaskSendList;
+                    return TR(perTaskSendList);
                 },
                 operation: MultitaskDivideOperation.RoundRobin,
                 cancel: cancel);
 
-                await udpSock.SendDatagramsListAsync(allSendList.ToArray());
+                // UDP パケットを応答 (通常分)
+                await udpSock.SendDatagramsListAsync(allSendList.ToArray(), cancel: cancel);
+
+                // UDP パケットを応答 (Delay 回答分)
+                Datagram[] delayedUdpPacketsArray;
+                lock (this.DelayedReplyUdpPacketsList)
+                {
+                    delayedUdpPacketsArray = DelayedReplyUdpPacketsList.ToArray();
+                    DelayedReplyUdpPacketsList.Clear();
+                }
+                await udpSock.SendDatagramsListAsync(delayedUdpPacketsArray, cancel: cancel);
             }
             catch (Exception ex)
             {
@@ -225,9 +262,65 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
             }
         }
     }
-#pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
 
-    protected override async Task CleanupImplAsync(Exception ex)
+    public bool BeginDelayDnsPacketProcessing(DnsUdpPacket requestDnsPacket, Func<DnsUdpPacket, Task<DnsUdpPacket?>> proc)
+    {
+        if (this.CurrentProcessingTasks.Count >= 1)
+        {
+            // これ以上の個数の遅延タスクを開始できない
+            return false;
+        }
+
+        if (this.DelayedReplyUdpPacketsList.Count >= this._DynOptions.UdpDelayedResponsePacketQueueLength)
+        {
+            // これ以上の応答パケットのキューメモリがない
+            return false;
+        }
+
+        try
+        {
+            Task task = TaskUtil.StartAsyncTaskAsync(async currentTask =>
+            {
+                try
+                {
+                    DnsUdpPacket? responsePkt = await proc(requestDnsPacket);
+                    if (responsePkt != null)
+                    {
+                        Memory<byte> packetData = DnsUtil.BuildPacket(responsePkt.Message).ToArray();
+
+                        var datagram = new Datagram(packetData, responsePkt.RemoteEndPoint, responsePkt.LocalEndPoint);
+
+                        if (this.DelayedReplyUdpPacketsList.Count < this._DynOptions.UdpDelayedResponsePacketQueueLength)
+                        {
+                            lock (DelayedReplyUdpPacketsList)
+                            {
+                                this.DelayedReplyUdpPacketsList.Add(datagram);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
+                finally
+                {
+                    this.CurrentProcessingTasks.Remove(currentTask);
+                }
+            });
+
+            this.CurrentProcessingTasks.Add(task);
+        }
+        catch (Exception ex)
+        {
+            // 普通ここには来ないはず
+            ex._Debug();
+        }
+
+        return false;
+    }
+
+    protected override async Task CleanupImplAsync(Exception? ex)
     {
         try
         {

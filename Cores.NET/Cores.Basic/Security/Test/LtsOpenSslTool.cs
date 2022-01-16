@@ -520,7 +520,7 @@ TLS_AES_128_GCM_SHA256                      tls1_3                      lts_open
 
         CriticalSection printLock = new CriticalSection();
 
-        await TaskUtil.ForEachAsync(maxConcurrentTasks, targets, async (t, c) =>
+        await TaskUtil.ForEachAsync(maxConcurrentTasks, targets, async (t, taskIndex, c) =>
         {
             int currentNum = x.Increment();
             Con.WriteLine($"Processing {currentNum} / {targets.Count} ... {t.Ver.ExeName} {t.SslVer} {t.CipherName}");

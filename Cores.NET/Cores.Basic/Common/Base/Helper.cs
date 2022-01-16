@@ -2141,7 +2141,7 @@ public static class BasicHelper
         list._NullCheck();
         List<T> list2 = list.ToList();
 
-        await _ProcessParallelAsync(list2, async src =>
+        await _ProcessParallelAsync(list2, async (src, taskIndex) =>
         {
             await list2._DoForEachAsync(action, cancel);
         },
@@ -2155,7 +2155,7 @@ public static class BasicHelper
         list._NullCheck();
         List<T> list2 = list.ToList();
 
-        await _ProcessParallelAsync(list2, async src =>
+        await _ProcessParallelAsync(list2, async (src, taskIndex) =>
         {
             await list2._DoForEachAsync(action, cancel);
         },
@@ -2169,7 +2169,7 @@ public static class BasicHelper
         list._NullCheck();
         List<T> list2 = list.ToList();
 
-        await _ProcessParallelAsync(list2, src =>
+        await _ProcessParallelAsync(list2, (src, taskIndex) =>
         {
             list2._DoForEach(action);
             return TR();
@@ -2184,7 +2184,7 @@ public static class BasicHelper
         list._NullCheck();
         List<T> list2 = list.ToList();
 
-        await _ProcessParallelAsync(list2, src =>
+        await _ProcessParallelAsync(list2, (src, taskIndex) =>
         {
             list2._DoForEach(action);
             return TR();
@@ -2194,7 +2194,7 @@ public static class BasicHelper
         cancel);
     }
 
-    public static async Task _ProcessParallelAsync<T>(this List<T> srcList, Func<List<T>, Task> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
+    public static async Task _ProcessParallelAsync<T>(this List<T> srcList, Func<List<T>, int, Task> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
     {
         srcList._NullCheck();
 
@@ -2238,13 +2238,13 @@ public static class BasicHelper
 
         srcListList = srcListList.Where(x => x.Any()).ToArray();
 
-        await TaskUtil.ForEachAsync(srcListList.Length, srcListList, async (list, c) =>
+        await TaskUtil.ForEachAsync(srcListList.Length, srcListList, async (list, taskIndex, c) =>
         {
-            await action(list);
+            await action(list, taskIndex);
         }, cancel);
     }
 
-    public static async Task<List<TOut>> _ProcessParallelAndAggregateAsync<TIn, TOut>(this List<TIn> srcList, Func<List<TIn>, Task<List<TOut>>> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default, bool onlyIfMany = true)
+    public static async Task<List<TOut>> _ProcessParallelAndAggregateAsync<TIn, TOut>(this List<TIn> srcList, Func<List<TIn>, int, Task<List<TOut>>> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default, bool onlyIfMany = true)
     {
         srcList._NullCheck();
 
@@ -2256,7 +2256,7 @@ public static class BasicHelper
         if (onlyIfMany && srcCount < CoresConfig.TaskAsyncSettings.ParallelProcessingMinCountThreshold.Value)
         {
             // 少量の場合は並列処理しない
-            return await action(srcList);
+            return await action(srcList, 0);
         }
 
         List<TIn>[] srcListList = new List<TIn>[numTasks];
@@ -2296,9 +2296,9 @@ public static class BasicHelper
 
         srcListList = srcListList.Where(x => x.Any()).ToArray();
 
-        await TaskUtil.ForEachAsync(srcListList.Length, srcListList, async (list, c) =>
+        await TaskUtil.ForEachAsync(srcListList.Length, srcListList, async (list, taskIndex, c) =>
         {
-            var results = await action(list);
+            var results = await action(list, taskIndex);
 
             lock (ret)
             {
@@ -3108,7 +3108,7 @@ public static class BasicHelper
     public static async Task _NormalizeAllParallelAsync<T>(this List<T> list, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
         where T : INormalizable
     {
-        await list._ProcessParallelAndAggregateAsync(src =>
+        await list._ProcessParallelAndAggregateAsync((src, taskIndex) =>
         {
             src._NormalizeAll();
             return TR(src);
@@ -3280,6 +3280,16 @@ public static class BasicHelper
 
     public static bool _IsDeadlockException(this Exception? ex)
         => Database.IsDeadlockException(ex);
+
+    [return: NotNullIfNotNull("obj")]
+    public static T? _Normalize<T>(this T? obj) where T : INormalizable
+    {
+        if (obj != null)
+        {
+            obj.Normalize();
+        }
+        return obj;
+    }
 }
 
 

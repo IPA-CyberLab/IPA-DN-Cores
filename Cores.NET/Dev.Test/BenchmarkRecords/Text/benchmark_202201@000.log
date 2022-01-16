@@ -259,3 +259,378 @@
 2022/01/16 18:38:10.828 +09:00 AsyncCallMethodFromSyncMethod: 11.79 ns, 84,803,297 / sec
 2022/01/16 18:38:11.358 +09:00 Lock for readonly object: 12.36 ns, 80,910,623 / sec
 2022/01/16 18:38:11.896 +09:00 Lock for get property object: 12.20 ns, 81,974,537 / sec
+2022/01/16 23:13:37.722 +09:00 ----- Start new benchmark -----
+2022/01/16 23:13:37.726 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:13:37.726 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:13:37.726 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:13:37.726 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:13:37.726 +09:00 Host: PC37
+2022/01/16 23:13:53.646 +09:00 ----- Start new benchmark -----
+2022/01/16 23:13:53.650 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:13:53.650 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:13:53.650 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:13:53.650 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:13:53.650 +09:00 Host: PC37
+2022/01/16 23:13:54.605 +09:00 DeflateStream compress 1MB Optimal: 26,227,739.00 ns, 38 / sec
+2022/01/16 23:14:04.526 +09:00 ----- Start new benchmark -----
+2022/01/16 23:14:04.530 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:14:04.530 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:14:04.530 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:14:04.530 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:14:04.530 +09:00 Host: PC37
+2022/01/16 23:14:05.425 +09:00 StartAsyncTaskAsync with Task Param: 2,882.03 ns, 346,977 / sec
+2022/01/16 23:14:06.146 +09:00 DeflateStream compress 1MB Optimal: 22,952,958.93 ns, 43 / sec
+2022/01/16 23:14:06.805 +09:00 DeflateStream compress 1MB Fastest: 18,785,023.95 ns, 53 / sec
+2022/01/16 23:14:07.420 +09:00 DeflateStream compress 1MB SmallestSize: 17,029,123.97 ns, 58 / sec
+2022/01/16 23:14:07.947 +09:00 DeflateStream decompress 1MB Optimal: 1,116,856.43 ns, 895 / sec
+2022/01/16 23:14:08.471 +09:00 DeflateStream decompress 1MB Fastest: 1,144,353.93 ns, 873 / sec
+2022/01/16 23:14:08.998 +09:00 DeflateStream decompress 1MB SmallestSize: 1,117,832.26 ns, 894 / sec
+2022/01/16 23:14:09.512 +09:00 ImmutableDictionary Search 10000: 163.84 ns, 6,103,540 / sec
+2022/01/16 23:14:23.926 +09:00 ----- Start new benchmark -----
+2022/01/16 23:14:23.930 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:14:23.930 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:14:23.930 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:14:23.930 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:14:23.930 +09:00 Host: PC37
+2022/01/16 23:14:24.848 +09:00 StartAsyncTaskAsync with Task Param: 2,191.33 ns, 456,343 / sec
+2022/01/16 23:14:25.600 +09:00 DeflateStream compress 1MB Optimal: 23,828,173.92 ns, 41 / sec
+2022/01/16 23:14:26.203 +09:00 DeflateStream compress 1MB Fastest: 16,903,708.92 ns, 59 / sec
+2022/01/16 23:14:26.837 +09:00 DeflateStream compress 1MB SmallestSize: 18,422,533.92 ns, 54 / sec
+2022/01/16 23:14:27.384 +09:00 DeflateStream decompress 1MB Optimal: 1,144,492.86 ns, 873 / sec
+2022/01/16 23:14:27.921 +09:00 DeflateStream decompress 1MB Fastest: 1,094,064.77 ns, 914 / sec
+2022/01/16 23:14:28.461 +09:00 DeflateStream decompress 1MB SmallestSize: 1,122,802.41 ns, 890 / sec
+2022/01/16 23:14:28.985 +09:00 ImmutableDictionary Search 10000: 161.57 ns, 6,189,250 / sec
+2022/01/16 23:14:29.564 +09:00 Async call with no async func #1: Nothing: 13.89 ns, 72,003,521 / sec
+2022/01/16 23:14:30.163 +09:00 Async call with no async func #2: Task.CompletedTask after: 14.89 ns, 67,142,900 / sec
+2022/01/16 23:14:30.781 +09:00 Async call with no async func #3: Task.CompletedTask before: 16.55 ns, 60,420,612 / sec
+2022/01/16 23:14:31.338 +09:00 Async call with no async func #4: Task.CompletedTask many times: 27.81 ns, 35,962,699 / sec
+2022/01/16 23:14:32.268 +09:00 Async call with no async func #5: Task.CompletedTask many times ValueTask: 64.88 ns, 15,412,065 / sec
+2022/01/16 23:14:33.187 +09:00 FastTick64.Now: 1.33 ns, 750,295,616 / sec
+2022/01/16 23:14:33.909 +09:00 CloneDeep_BinaryFormatter: 4,503,365.92 ns, 222 / sec
+2022/01/16 23:14:34.433 +09:00 CloneDeep_DeepCloner: 145,310.31 ns, 6,881 / sec
+2022/01/16 23:14:34.960 +09:00 CloneDeep_DeepCloner_cloneDeepSampleObj2: 146.64 ns, 6,819,274 / sec
+2022/01/16 23:14:35.472 +09:00 DnsTools_Build: 290.02 ns, 3,448,049 / sec
+2022/01/16 23:14:36.008 +09:00 DnsTools_Parse: 192.87 ns, 5,184,714 / sec
+2022/01/16 23:14:36.817 +09:00 EvaluateAclNormal: 53,520.67 ns, 18,684 / sec
+2022/01/16 23:14:48.875 +09:00 ----- Start new benchmark -----
+2022/01/16 23:14:48.879 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:14:48.879 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:14:48.879 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:14:48.879 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:14:48.879 +09:00 Host: PC37
+2022/01/16 23:14:49.781 +09:00 StartAsyncTaskAsync with Task Param: 1,372.93 ns, 728,367 / sec
+2022/01/16 23:14:50.527 +09:00 DeflateStream compress 1MB Optimal: 23,936,498.93 ns, 41 / sec
+2022/01/16 23:14:51.171 +09:00 DeflateStream compress 1MB Fastest: 18,727,903.93 ns, 53 / sec
+2022/01/16 23:14:51.817 +09:00 DeflateStream compress 1MB SmallestSize: 19,089,609.03 ns, 52 / sec
+2022/01/16 23:14:52.354 +09:00 DeflateStream decompress 1MB Optimal: 1,125,352.51 ns, 888 / sec
+2022/01/16 23:14:52.903 +09:00 DeflateStream decompress 1MB Fastest: 1,195,072.89 ns, 836 / sec
+2022/01/16 23:14:53.457 +09:00 DeflateStream decompress 1MB SmallestSize: 1,216,263.09 ns, 822 / sec
+2022/01/16 23:14:53.972 +09:00 ImmutableDictionary Search 10000: 185.45 ns, 5,392,229 / sec
+2022/01/16 23:15:04.828 +09:00 ----- Start new benchmark -----
+2022/01/16 23:15:04.833 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:15:04.833 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:15:04.833 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:15:04.833 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:15:04.833 +09:00 Host: PC37
+2022/01/16 23:15:05.769 +09:00 StartAsyncTaskAsync with Task Param: 1,315.11 ns, 760,395 / sec
+2022/01/16 23:15:06.525 +09:00 DeflateStream compress 1MB Optimal: 23,928,558.92 ns, 41 / sec
+2022/01/16 23:15:07.200 +09:00 DeflateStream compress 1MB Fastest: 20,322,294.00 ns, 49 / sec
+2022/01/16 23:15:07.855 +09:00 DeflateStream compress 1MB SmallestSize: 19,168,129.01 ns, 52 / sec
+2022/01/16 23:15:08.413 +09:00 DeflateStream decompress 1MB Optimal: 1,182,451.20 ns, 845 / sec
+2022/01/16 23:15:08.949 +09:00 DeflateStream decompress 1MB Fastest: 1,071,115.26 ns, 933 / sec
+2022/01/16 23:15:09.491 +09:00 DeflateStream decompress 1MB SmallestSize: 1,230,379.00 ns, 812 / sec
+2022/01/16 23:15:10.000 +09:00 ImmutableDictionary Search 10000: 188.96 ns, 5,292,233 / sec
+2022/01/16 23:15:20.097 +09:00 ----- Start new benchmark -----
+2022/01/16 23:15:20.101 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:15:20.101 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:15:20.101 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:15:20.101 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:15:20.101 +09:00 Host: PC37
+2022/01/16 23:15:21.006 +09:00 StartAsyncTaskAsync with Task Param: 1,560.94 ns, 640,640 / sec
+2022/01/16 23:15:21.808 +09:00 DeflateStream compress 1MB Optimal: 26,275,159.02 ns, 38 / sec
+2022/01/16 23:15:22.463 +09:00 DeflateStream compress 1MB Fastest: 19,409,374.00 ns, 51 / sec
+2022/01/16 23:15:23.127 +09:00 DeflateStream compress 1MB SmallestSize: 19,963,259.03 ns, 50 / sec
+2022/01/16 23:15:35.032 +09:00 ----- Start new benchmark -----
+2022/01/16 23:15:35.037 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:15:35.037 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:15:35.037 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:15:35.037 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:15:35.037 +09:00 Host: PC37
+2022/01/16 23:15:35.953 +09:00 StartAsyncTaskAsync with Task Param: 2,433.03 ns, 411,009 / sec
+2022/01/16 23:15:36.700 +09:00 DeflateStream compress 1MB Optimal: 24,038,319.04 ns, 41 / sec
+2022/01/16 23:15:37.343 +09:00 DeflateStream compress 1MB Fastest: 18,710,778.94 ns, 53 / sec
+2022/01/16 23:15:38.012 +09:00 DeflateStream compress 1MB SmallestSize: 19,683,424.00 ns, 50 / sec
+2022/01/16 23:15:38.563 +09:00 DeflateStream decompress 1MB Optimal: 1,216,728.59 ns, 821 / sec
+2022/01/16 23:15:39.104 +09:00 DeflateStream decompress 1MB Fastest: 1,247,443.55 ns, 801 / sec
+2022/01/16 23:15:46.045 +09:00 ----- Start new benchmark -----
+2022/01/16 23:15:46.052 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:15:46.052 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:15:46.052 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:15:46.052 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:15:46.052 +09:00 Host: PC37
+2022/01/16 23:15:47.003 +09:00 StartAsyncTaskAsync with Task Param: 2,415.99 ns, 413,908 / sec
+2022/01/16 23:15:47.773 +09:00 DeflateStream compress 1MB Optimal: 24,905,753.98 ns, 40 / sec
+2022/01/16 23:15:48.429 +09:00 DeflateStream compress 1MB Fastest: 18,825,383.98 ns, 53 / sec
+2022/01/16 23:15:49.093 +09:00 DeflateStream compress 1MB SmallestSize: 19,656,583.98 ns, 50 / sec
+2022/01/16 23:15:49.629 +09:00 DeflateStream decompress 1MB Optimal: 1,105,410.59 ns, 904 / sec
+2022/01/16 23:15:50.151 +09:00 DeflateStream decompress 1MB Fastest: 1,088,181.01 ns, 918 / sec
+2022/01/16 23:15:50.706 +09:00 DeflateStream decompress 1MB SmallestSize: 1,223,221.47 ns, 817 / sec
+2022/01/16 23:15:51.234 +09:00 ImmutableDictionary Search 10000: 158.82 ns, 6,296,326 / sec
+2022/01/16 23:15:51.833 +09:00 Async call with no async func #1: Nothing: 14.77 ns, 67,699,952 / sec
+2022/01/16 23:15:52.444 +09:00 Async call with no async func #2: Task.CompletedTask after: 15.96 ns, 62,646,742 / sec
+2022/01/16 23:15:53.047 +09:00 Async call with no async func #3: Task.CompletedTask before: 15.69 ns, 63,741,022 / sec
+2022/01/16 23:15:53.616 +09:00 Async call with no async func #4: Task.CompletedTask many times: 29.23 ns, 34,210,126 / sec
+2022/01/16 23:15:54.593 +09:00 Async call with no async func #5: Task.CompletedTask many times ValueTask: 69.07 ns, 14,477,451 / sec
+2022/01/16 23:15:55.490 +09:00 FastTick64.Now: 1.44 ns, 696,532,591 / sec
+2022/01/16 23:15:56.346 +09:00 CloneDeep_BinaryFormatter: 5,743,949.97 ns, 174 / sec
+2022/01/16 23:15:56.890 +09:00 CloneDeep_DeepCloner: 169,911.41 ns, 5,885 / sec
+2022/01/16 23:15:57.416 +09:00 CloneDeep_DeepCloner_cloneDeepSampleObj2: 172.57 ns, 5,794,703 / sec
+2022/01/16 23:15:57.946 +09:00 DnsTools_Build: 346.08 ns, 2,889,475 / sec
+2022/01/16 23:16:11.029 +09:00 ----- Start new benchmark -----
+2022/01/16 23:16:11.033 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:16:11.033 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:16:11.033 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:16:11.033 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:16:11.033 +09:00 Host: PC37
+2022/01/16 23:16:11.945 +09:00 StartAsyncTaskAsync with Task Param: 793.06 ns, 1,260,936 / sec
+2022/01/16 23:16:12.682 +09:00 DeflateStream compress 1MB Optimal: 23,271,153.92 ns, 42 / sec
+2022/01/16 23:16:29.991 +09:00 ----- Start new benchmark -----
+2022/01/16 23:16:29.995 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:16:29.995 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:16:29.995 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:16:29.995 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:16:29.995 +09:00 Host: PC37
+2022/01/16 23:16:30.891 +09:00 StartAsyncTaskAsync with Task Param: 873.03 ns, 1,145,432 / sec
+2022/01/16 23:16:31.609 +09:00 DeflateStream compress 1MB Optimal: 22,419,433.93 ns, 44 / sec
+2022/01/16 23:16:32.292 +09:00 DeflateStream compress 1MB Fastest: 20,159,128.93 ns, 49 / sec
+2022/01/16 23:16:32.930 +09:00 DeflateStream compress 1MB SmallestSize: 18,689,393.92 ns, 53 / sec
+2022/01/16 23:16:33.459 +09:00 DeflateStream decompress 1MB Optimal: 1,098,468.12 ns, 910 / sec
+2022/01/16 23:16:33.990 +09:00 DeflateStream decompress 1MB Fastest: 1,033,229.68 ns, 967 / sec
+2022/01/16 23:16:34.527 +09:00 DeflateStream decompress 1MB SmallestSize: 1,102,846.31 ns, 906 / sec
+2022/01/16 23:16:35.039 +09:00 ImmutableDictionary Search 10000: 170.58 ns, 5,862,311 / sec
+2022/01/16 23:16:50.523 +09:00 ----- Start new benchmark -----
+2022/01/16 23:16:50.527 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:16:50.527 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:16:50.527 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:16:50.527 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:16:50.527 +09:00 Host: PC37
+2022/01/16 23:16:51.431 +09:00 StartAsyncTaskAsync with Task Param: 58.05 ns, 17,225,337 / sec
+2022/01/16 23:16:52.164 +09:00 DeflateStream compress 1MB Optimal: 22,858,668.92 ns, 43 / sec
+2022/01/16 23:17:02.504 +09:00 ----- Start new benchmark -----
+2022/01/16 23:17:02.508 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:17:02.508 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:17:02.508 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:17:02.508 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:17:02.508 +09:00 Host: PC37
+2022/01/16 23:17:03.395 +09:00 StartAsyncTaskAsync with Task Param: 96.81 ns, 10,329,247 / sec
+2022/01/16 23:17:04.152 +09:00 DeflateStream compress 1MB Optimal: 24,165,038.97 ns, 41 / sec
+2022/01/16 23:17:18.731 +09:00 ----- Start new benchmark -----
+2022/01/16 23:17:18.735 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:17:18.735 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:17:18.735 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:17:18.735 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:17:18.735 +09:00 Host: PC37
+2022/01/16 23:17:19.642 +09:00 StartAsyncTaskAsync with Task Param: 2,225.45 ns, 449,347 / sec
+2022/01/16 23:17:20.439 +09:00 DeflateStream compress 1MB Optimal: 26,061,653.92 ns, 38 / sec
+2022/01/16 23:17:49.161 +09:00 ----- Start new benchmark -----
+2022/01/16 23:17:49.165 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:17:49.165 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:17:49.165 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:17:49.165 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:17:49.165 +09:00 Host: PC37
+2022/01/16 23:18:35.212 +09:00 ----- Start new benchmark -----
+2022/01/16 23:18:35.217 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:18:35.217 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:18:35.217 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:18:35.217 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:18:35.217 +09:00 Host: PC37
+2022/01/16 23:18:36.135 +09:00 StartAsyncTaskAsync with Task Param: 1,214.76 ns, 823,206 / sec
+2022/01/16 23:18:36.673 +09:00 DeflateStream compress 1MB Optimal: 26,846,459.03 ns, 37 / sec
+2022/01/16 23:19:09.132 +09:00 ----- Start new benchmark -----
+2022/01/16 23:19:09.137 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:19:09.137 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:19:09.137 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:19:09.137 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:19:09.137 +09:00 Host: PC37
+2022/01/16 23:19:10.050 +09:00 StartAsyncTaskAsync with Task Param: 1,348.10 ns, 741,783 / sec
+2022/01/16 23:19:10.589 +09:00 DeflateStream compress 1MB Optimal: 26,666,649.00 ns, 37 / sec
+2022/01/16 23:19:11.290 +09:00 DeflateStream compress 1MB Fastest: 21,292,744.05 ns, 46 / sec
+2022/01/16 23:19:11.956 +09:00 DeflateStream compress 1MB SmallestSize: 19,728,009.02 ns, 50 / sec
+2022/01/16 23:20:41.895 +09:00 ----- Start new benchmark -----
+2022/01/16 23:20:41.899 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:20:41.899 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:20:41.899 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:20:41.899 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:20:41.899 +09:00 Host: PC37
+2022/01/16 23:20:42.813 +09:00 StartAsyncTaskAsync with Task Param: 1,335.34 ns, 748,874 / sec
+2022/01/16 23:20:43.553 +09:00 DeflateStream compress 1MB Optimal: 23,292,378.92 ns, 42 / sec
+2022/01/16 23:20:44.175 +09:00 DeflateStream compress 1MB Fastest: 17,768,558.91 ns, 56 / sec
+2022/01/16 23:20:44.779 +09:00 DeflateStream compress 1MB SmallestSize: 16,980,948.97 ns, 58 / sec
+2022/01/16 23:20:45.307 +09:00 DeflateStream decompress 1MB Optimal: 1,108,098.91 ns, 902 / sec
+2022/01/16 23:20:45.853 +09:00 DeflateStream decompress 1MB Fastest: 1,092,223.77 ns, 915 / sec
+2022/01/16 23:21:39.386 +09:00 ----- Start new benchmark -----
+2022/01/16 23:21:39.391 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:21:39.391 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:21:39.391 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:21:39.391 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:21:39.391 +09:00 Host: PC37
+2022/01/16 23:21:47.582 +09:00 StartAsyncTaskAsync Normal (TaskResult): 750.53 ns, 1,332,394 / sec
+2022/01/16 23:22:27.464 +09:00 ----- Start new benchmark -----
+2022/01/16 23:22:27.468 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:22:27.468 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:22:27.468 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:22:27.468 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:22:27.468 +09:00 Host: PC37
+2022/01/16 23:22:28.355 +09:00 StartAsyncTaskAsync Normal (TaskResult): 887.37 ns, 1,126,925 / sec
+2022/01/16 23:22:28.884 +09:00 StartAsyncTaskAsync with Task Param: 1,277.84 ns, 782,573 / sec
+2022/01/16 23:22:29.616 +09:00 DeflateStream compress 1MB Optimal: 22,895,943.93 ns, 43 / sec
+2022/01/16 23:22:30.224 +09:00 DeflateStream compress 1MB Fastest: 16,788,143.92 ns, 59 / sec
+2022/01/16 23:22:52.338 +09:00 ----- Start new benchmark -----
+2022/01/16 23:22:52.342 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:22:52.342 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:22:52.342 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:22:52.342 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:22:52.342 +09:00 Host: PC37
+2022/01/16 23:22:53.248 +09:00 StartAsyncTaskAsync Normal (TaskResult): 893.82 ns, 1,118,795 / sec
+2022/01/16 23:22:53.771 +09:00 StartAsyncTaskAsync Normal (async): 851.94 ns, 1,173,793 / sec
+2022/01/16 23:22:54.287 +09:00 StartAsyncTaskAsync with Task Param: 1,282.39 ns, 779,796 / sec
+2022/01/16 23:22:55.033 +09:00 DeflateStream compress 1MB Optimal: 23,691,273.92 ns, 42 / sec
+2022/01/16 23:22:55.676 +09:00 DeflateStream compress 1MB Fastest: 18,423,188.98 ns, 54 / sec
+2022/01/16 23:22:56.286 +09:00 DeflateStream compress 1MB SmallestSize: 17,096,098.92 ns, 58 / sec
+2022/01/16 23:23:02.896 +09:00 ----- Start new benchmark -----
+2022/01/16 23:23:02.900 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:23:02.900 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:23:02.900 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:23:02.900 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:23:02.900 +09:00 Host: PC37
+2022/01/16 23:23:03.793 +09:00 StartAsyncTaskAsync Normal (TaskResult): 870.29 ns, 1,149,039 / sec
+2022/01/16 23:23:04.318 +09:00 StartAsyncTaskAsync Normal (async): 877.31 ns, 1,139,843 / sec
+2022/01/16 23:23:04.828 +09:00 StartAsyncTaskAsync with Task Param: 1,735.16 ns, 576,316 / sec
+2022/01/16 23:23:05.341 +09:00 DeflateStream compress 1MB Optimal: 25,358,668.93 ns, 39 / sec
+2022/01/16 23:23:05.948 +09:00 DeflateStream compress 1MB Fastest: 16,821,058.92 ns, 59 / sec
+2022/01/16 23:23:06.554 +09:00 DeflateStream compress 1MB SmallestSize: 16,848,163.93 ns, 59 / sec
+2022/01/16 23:23:20.879 +09:00 ----- Start new benchmark -----
+2022/01/16 23:23:20.884 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:23:20.884 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:23:20.884 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:23:20.884 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:23:20.884 +09:00 Host: PC37
+2022/01/16 23:23:21.778 +09:00 StartAsyncTaskAsync Normal (TaskResult): 889.42 ns, 1,124,324 / sec
+2022/01/16 23:23:22.287 +09:00 StartAsyncTaskAsync Normal (async): 872.89 ns, 1,145,620 / sec
+2022/01/16 23:23:22.799 +09:00 StartAsyncTaskAsync with Task Param: 949.60 ns, 1,053,074 / sec
+2022/01/16 23:23:23.546 +09:00 DeflateStream compress 1MB Optimal: 24,283,163.92 ns, 41 / sec
+2022/01/16 23:23:24.226 +09:00 DeflateStream compress 1MB Fastest: 20,102,093.98 ns, 49 / sec
+2022/01/16 23:23:24.861 +09:00 DeflateStream compress 1MB SmallestSize: 18,788,158.95 ns, 53 / sec
+2022/01/16 23:23:25.381 +09:00 DeflateStream decompress 1MB Optimal: 1,080,775.17 ns, 925 / sec
+2022/01/16 23:23:25.902 +09:00 DeflateStream decompress 1MB Fastest: 1,013,894.53 ns, 986 / sec
+2022/01/16 23:23:42.109 +09:00 ----- Start new benchmark -----
+2022/01/16 23:23:42.115 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:23:42.115 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:23:42.115 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:23:42.115 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:23:42.115 +09:00 Host: PC37
+2022/01/16 23:23:43.048 +09:00 StartAsyncTaskAsync Normal (TaskResult): 756.63 ns, 1,321,653 / sec
+2022/01/16 23:23:43.588 +09:00 StartAsyncTaskAsync Normal (async): 859.64 ns, 1,163,283 / sec
+2022/01/16 23:23:44.114 +09:00 StartAsyncTaskAsync with Task Param: 1,398.14 ns, 715,234 / sec
+2022/01/16 23:23:44.843 +09:00 DeflateStream compress 1MB Optimal: 22,666,658.94 ns, 44 / sec
+2022/01/16 23:23:45.439 +09:00 DeflateStream compress 1MB Fastest: 16,668,628.90 ns, 59 / sec
+2022/01/16 23:23:46.046 +09:00 DeflateStream compress 1MB SmallestSize: 16,959,398.92 ns, 58 / sec
+2022/01/16 23:23:46.571 +09:00 DeflateStream decompress 1MB Optimal: 1,090,171.43 ns, 917 / sec
+2022/01/16 23:23:47.095 +09:00 DeflateStream decompress 1MB Fastest: 1,021,235.72 ns, 979 / sec
+2022/01/16 23:23:47.632 +09:00 DeflateStream decompress 1MB SmallestSize: 1,119,980.18 ns, 892 / sec
+2022/01/16 23:23:48.157 +09:00 ImmutableDictionary Search 10000: 195.21 ns, 5,122,690 / sec
+2022/01/16 23:23:48.727 +09:00 Async call with no async func #1: Nothing: 14.17 ns, 70,557,229 / sec
+2022/01/16 23:23:49.317 +09:00 Async call with no async func #2: Task.CompletedTask after: 14.89 ns, 67,154,991 / sec
+2022/01/16 23:23:49.909 +09:00 Async call with no async func #3: Task.CompletedTask before: 14.77 ns, 67,704,276 / sec
+2022/01/16 23:23:50.456 +09:00 Async call with no async func #4: Task.CompletedTask many times: 26.36 ns, 37,936,285 / sec
+2022/01/16 23:23:51.399 +09:00 Async call with no async func #5: Task.CompletedTask many times ValueTask: 65.09 ns, 15,363,666 / sec
+2022/01/16 23:23:52.329 +09:00 FastTick64.Now: 1.28 ns, 781,219,178 / sec
+2022/01/16 23:24:07.431 +09:00 ----- Start new benchmark -----
+2022/01/16 23:24:07.435 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:24:07.435 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:24:07.435 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:24:07.435 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:24:07.435 +09:00 Host: PC37
+2022/01/16 23:24:08.320 +09:00 StartAsyncTaskAsync Normal (TaskResult): 33.84 ns, 29,551,167 / sec
+2022/01/16 23:24:08.845 +09:00 StartAsyncTaskAsync Normal (async): 864.72 ns, 1,156,440 / sec
+2022/01/16 23:24:09.370 +09:00 StartAsyncTaskAsync with Task Param: 1,406.12 ns, 711,177 / sec
+2022/01/16 23:24:10.102 +09:00 DeflateStream compress 1MB Optimal: 23,510,728.92 ns, 42 / sec
+2022/01/16 23:24:10.742 +09:00 DeflateStream compress 1MB Fastest: 18,833,513.97 ns, 53 / sec
+2022/01/16 23:24:11.365 +09:00 DeflateStream compress 1MB SmallestSize: 17,543,493.96 ns, 57 / sec
+2022/01/16 23:24:23.888 +09:00 ----- Start new benchmark -----
+2022/01/16 23:24:23.892 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:24:23.892 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:24:23.892 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:24:23.892 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:24:23.892 +09:00 Host: PC37
+2022/01/16 23:24:24.788 +09:00 StartAsyncTaskAsync Normal (TaskResult): 733.79 ns, 1,362,788 / sec
+2022/01/16 23:24:25.321 +09:00 StartAsyncTaskAsync Normal (async): 856.95 ns, 1,166,929 / sec
+2022/01/16 23:24:31.921 +09:00 ----- Start new benchmark -----
+2022/01/16 23:24:31.925 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:24:31.925 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:24:31.925 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:24:31.925 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:24:31.925 +09:00 Host: PC37
+2022/01/16 23:24:32.828 +09:00 StartAsyncTaskAsync Normal (TaskResult): 740.43 ns, 1,350,566 / sec
+2022/01/16 23:24:33.339 +09:00 StartAsyncTaskAsync Normal (async): 854.93 ns, 1,169,685 / sec
+2022/01/16 23:24:33.865 +09:00 StartAsyncTaskAsync with Task Param: 1,743.55 ns, 573,542 / sec
+2022/01/16 23:24:34.628 +09:00 DeflateStream compress 1MB Optimal: 24,445,188.98 ns, 40 / sec
+2022/01/16 23:24:35.231 +09:00 DeflateStream compress 1MB Fastest: 16,518,898.90 ns, 60 / sec
+2022/01/16 23:24:35.847 +09:00 DeflateStream compress 1MB SmallestSize: 17,267,293.93 ns, 57 / sec
+2022/01/16 23:24:36.378 +09:00 DeflateStream decompress 1MB Optimal: 1,124,398.92 ns, 889 / sec
+2022/01/16 23:24:36.928 +09:00 DeflateStream decompress 1MB Fastest: 1,266,078.93 ns, 789 / sec
+2022/01/16 23:24:37.461 +09:00 DeflateStream decompress 1MB SmallestSize: 1,124,440.61 ns, 889 / sec
+2022/01/16 23:24:37.979 +09:00 ImmutableDictionary Search 10000: 179.14 ns, 5,582,123 / sec
+2022/01/16 23:24:38.536 +09:00 Async call with no async func #1: Nothing: 13.52 ns, 73,979,123 / sec
+2022/01/16 23:24:39.165 +09:00 Async call with no async func #2: Task.CompletedTask after: 17.37 ns, 57,560,140 / sec
+2022/01/16 23:24:39.826 +09:00 Async call with no async func #3: Task.CompletedTask before: 17.95 ns, 55,719,816 / sec
+2022/01/16 23:24:40.370 +09:00 Async call with no async func #4: Task.CompletedTask many times: 26.49 ns, 37,744,759 / sec
+2022/01/16 23:24:41.298 +09:00 Async call with no async func #5: Task.CompletedTask many times ValueTask: 63.86 ns, 15,658,296 / sec
+2022/01/16 23:24:42.209 +09:00 FastTick64.Now: 1.27 ns, 785,662,754 / sec
+2022/01/16 23:24:42.956 +09:00 CloneDeep_BinaryFormatter: 4,763,445.97 ns, 209 / sec
+2022/01/16 23:24:43.499 +09:00 CloneDeep_DeepCloner: 182,303.88 ns, 5,485 / sec
+2022/01/16 23:24:44.016 +09:00 CloneDeep_DeepCloner_cloneDeepSampleObj2: 309.49 ns, 3,231,086 / sec
+2022/01/16 23:24:44.543 +09:00 DnsTools_Build: 371.57 ns, 2,691,293 / sec
+2022/01/16 23:24:45.069 +09:00 DnsTools_Parse: 262.58 ns, 3,808,325 / sec
+2022/01/16 23:24:45.929 +09:00 EvaluateAclNormal: 58,436.30 ns, 17,112 / sec
+2022/01/16 23:24:46.453 +09:00 EvaluateAclCached1: 687.70 ns, 1,454,121 / sec
+2022/01/16 23:24:46.988 +09:00 EvaluateAclCached2: 105.43 ns, 9,484,713 / sec
+2022/01/16 23:24:47.512 +09:00 SimpleAsyncService2: 1,468.46 ns, 680,987 / sec
+2022/01/16 23:24:48.084 +09:00 SimpleAsynService: 5,819.33 ns, 171,841 / sec
+2022/01/16 23:24:48.611 +09:00 WpcPacket: 3,709.62 ns, 269,569 / sec
+2022/01/16 23:25:27.668 +09:00 ----- Start new benchmark -----
+2022/01/16 23:25:27.673 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:25:27.673 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:25:27.673 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:25:27.673 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:25:27.673 +09:00 Host: PC37
+2022/01/16 23:25:28.573 +09:00 StartAsyncTaskAsync Normal (TaskResult): 807.75 ns, 1,238,009 / sec
+2022/01/16 23:25:29.109 +09:00 StartAsyncTaskAsync Normal (async): 867.95 ns, 1,152,133 / sec
+2022/01/16 23:25:29.635 +09:00 StartAsyncTaskAsync with Task Param: 1,398.20 ns, 715,207 / sec
+2022/01/16 23:25:30.384 +09:00 DeflateStream compress 1MB Optimal: 24,267,548.92 ns, 41 / sec
+2022/01/16 23:25:31.040 +09:00 DeflateStream compress 1MB Fastest: 18,968,598.98 ns, 52 / sec
+2022/01/16 23:25:31.649 +09:00 DeflateStream compress 1MB SmallestSize: 17,066,638.91 ns, 58 / sec
+2022/01/16 23:25:32.188 +09:00 DeflateStream decompress 1MB Optimal: 1,150,729.35 ns, 869 / sec
+2022/01/16 23:25:32.711 +09:00 DeflateStream decompress 1MB Fastest: 1,033,104.12 ns, 967 / sec
+2022/01/16 23:25:33.245 +09:00 DeflateStream decompress 1MB SmallestSize: 1,101,644.58 ns, 907 / sec
+2022/01/16 23:25:33.757 +09:00 ImmutableDictionary Search 10000: 164.93 ns, 6,063,085 / sec
+2022/01/16 23:25:34.316 +09:00 Async call with no async func #1: Nothing: 13.55 ns, 73,799,899 / sec
+2022/01/16 23:25:34.935 +09:00 Async call with no async func #2: Task.CompletedTask after: 15.98 ns, 62,594,821 / sec
+2022/01/16 23:25:35.507 +09:00 Async call with no async func #3: Task.CompletedTask before: 14.30 ns, 69,922,961 / sec
+2022/01/16 23:25:36.097 +09:00 Async call with no async func #4: Task.CompletedTask many times: 31.66 ns, 31,589,145 / sec
+2022/01/16 23:25:37.067 +09:00 Async call with no async func #5: Task.CompletedTask many times ValueTask: 69.23 ns, 14,445,484 / sec
+2022/01/16 23:25:37.971 +09:00 FastTick64.Now: 1.19 ns, 840,676,467 / sec
+2022/01/16 23:25:49.579 +09:00 ----- Start new benchmark -----
+2022/01/16 23:25:49.583 +09:00 Commit: ab310e5810985000180af57deab1e90de83a6aff
+2022/01/16 23:25:49.583 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\Dev.Test.dll
+2022/01/16 23:25:49.583 +09:00 OS: Microsoft Windows 10.0.19044
+2022/01/16 23:25:49.583 +09:00 Framework: .NET 6.0.1
+2022/01/16 23:25:49.583 +09:00 Host: PC37
+2022/01/16 23:25:50.466 +09:00 StartAsyncTaskAsync Normal (TaskResult): 752.18 ns, 1,329,471 / sec
+2022/01/16 23:25:50.990 +09:00 StartAsyncTaskAsync Normal (async): 867.34 ns, 1,152,954 / sec
+2022/01/16 23:25:51.502 +09:00 StartAsyncTaskAsync with Task Param: 986.12 ns, 1,014,079 / sec
+2022/01/16 23:25:52.228 +09:00 DeflateStream compress 1MB Optimal: 23,181,333.92 ns, 43 / sec
+2022/01/16 23:25:52.891 +09:00 DeflateStream compress 1MB Fastest: 19,208,053.91 ns, 52 / sec
+2022/01/16 23:25:53.520 +09:00 DeflateStream compress 1MB SmallestSize: 18,071,968.99 ns, 55 / sec
+2022/01/16 23:25:54.058 +09:00 DeflateStream decompress 1MB Optimal: 1,105,423.74 ns, 904 / sec
+2022/01/16 23:25:54.595 +09:00 DeflateStream decompress 1MB Fastest: 1,106,585.17 ns, 903 / sec

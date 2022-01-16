@@ -1079,7 +1079,7 @@ public static class FileDownloader
             }
         }
 
-        await TaskUtil.ForEachAsync(option.MaxConcurrentFiles, fileUrlList, async (fileUrl, cancel) =>
+        await TaskUtil.ForEachAsync(option.MaxConcurrentFiles, fileUrlList, async (fileUrl, taskIndex, cancel) =>
         {
             string destFileName = PathParser.Mac.GetFileName(fileUrl);
             string destFileFullPath = Lfs.PathParser.Combine(destDir, destFileName);
