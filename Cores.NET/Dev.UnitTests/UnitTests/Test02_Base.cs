@@ -428,6 +428,17 @@ public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
             Dbg.TestTrue(src.Ticks == dst.Ticks);
         }
     }
+
+    public class TestFuncObjectUniqueClass
+    {
+        ConcurrentHashSet<object> TestSet = new ConcurrentHashSet<object>();
+
+        public bool TryAdd(object proc)
+        {
+            return TestSet.Add(proc);
+        }
+    }
+
 }
 
 

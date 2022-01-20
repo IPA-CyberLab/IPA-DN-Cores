@@ -795,7 +795,7 @@ public static partial class TaskUtil
     public static async Task<T> StartAsyncTaskAsync<T>(Func<Task<T>> action, bool yieldOnStart = YieldOnStartDefault, bool leakCheck = true)
     { if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks); try { if (yieldOnStart) await Task.Yield(); return await action()._LeakCheck(!leakCheck); } finally { if (leakCheck) Interlocked.Decrement(ref NumPendingAsyncTasks); } }
 
-    public static Task StartAsyncTaskAsync(Func<Task, Task> action, bool leakCheck = true)
+    public static async Task StartAsyncTaskSlowAsync(Func<Task, Task> action, Action<Task>? procRunBeforeTaskStart = null, bool leakCheck = true)
     {
         if (leakCheck) Interlocked.Increment(ref NumPendingAsyncTasks);
 
@@ -810,6 +810,7 @@ public static partial class TaskUtil
                 try
                 {
                     await taskRefSetEvent.WaitAsync();
+
                     Task? currentTask = taskRef.Value;
 
 #pragma warning disable CS4014 // この呼び出しは待機されなかったため、現在のメソッドの実行は呼び出しの完了を待たずに続行されます
@@ -827,9 +828,21 @@ public static partial class TaskUtil
 
             taskRef.Set(task);
 
+            if (procRunBeforeTaskStart != null)
+            {
+                try
+                {
+                    procRunBeforeTaskStart(task);
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
+            }
+
             taskRefSetEvent.Set(softly: false);
 
-            return task;
+            await task;
         }
         catch
         {

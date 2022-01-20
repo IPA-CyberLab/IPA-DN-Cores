@@ -403,6 +403,8 @@ namespace IPA.Cores.Basic
                     hash.TransformBlock(buffer, 0, readSize, null, 0);
                     currentSize += readSize;
 
+                    totalReadSize?.Set(currentSize);
+
                     if (progressReporter != null)
                     {
                         progressReporter.ReportProgress(new ProgressData(currentSize + progressReporterCurrentSizeOffset, progressReporterTotalSizeHint, false, progressReporterAdditionalInfo));

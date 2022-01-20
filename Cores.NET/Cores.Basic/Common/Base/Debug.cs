@@ -39,6 +39,7 @@ using System.Diagnostics;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Reflection;
@@ -978,6 +979,62 @@ namespace IPA.Cores.Basic
             }
 
             CoresRuntimeStat.NextTimeCallGc = true;
+        }
+
+        static readonly ConcurrentHashSet<string> RunDebugProcIntervalOnce_HashSet = new ConcurrentHashSet<string>();
+
+        public static void RunDebugProcIntervalOnce(Func<Task> proc, int interval = 1000, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0)
+        {
+            string key = $"{filename}:{line}";
+
+            if (RunDebugProcIntervalOnce_HashSet.Add(key) == false)
+            {
+                return;
+            }
+
+            Task t = TaskUtil.StartAsyncTaskAsync(async () =>
+            {
+                while (true)
+                {
+                    await Task.Delay(interval);
+
+                    try
+                    {
+                        await proc();
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+                }
+            }, leakCheck: false);
+        }
+
+        public static void RunDebugProcIntervalOnce(Action proc, int interval = 1000, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0)
+        {
+            string key = $"{filename}:{line}";
+
+            if (RunDebugProcIntervalOnce_HashSet.Add(key) == false)
+            {
+                return;
+            }
+
+            Task t = TaskUtil.StartAsyncTaskAsync(async () =>
+            {
+                while (true)
+                {
+                    await Task.Delay(interval);
+
+                    try
+                    {
+                        proc();
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+                }
+            }, leakCheck: false);
         }
 
         public static void Suspend() => Kernel.SuspendForDebug();

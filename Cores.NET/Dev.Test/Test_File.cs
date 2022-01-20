@@ -297,7 +297,7 @@ partial class TestDevCommands
 
                         int bufSize = 8 * 1024 * 1024;
                         await using var fs = new FileStream(targetFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, bufSize, false);
-                        long fileSize = fs.Length;
+                        long fileSizeEstimated = fs.Length;
 
                         string fileName = targetFilePath._GetFileName()!;
 
@@ -305,19 +305,31 @@ partial class TestDevCommands
 
                         $"--- START ---"._Print();
                         $"File Name: '{fileName}'"._Print();
-                        $"File Size: {fileSize._ToString3()}"._Print();
-                        $"File Read Size (Estimated): {fileSize._ToString3()}"._Print();
+                        $"File Size: {fileSizeEstimated._ToString3()}"._Print();
+                        $"File Read Size (Estimated): {fileSizeEstimated._ToString3()}"._Print();
 
-                        var hash = await Secure.CalcStreamHashAsync(fs, sha, bufferSize: bufSize, totalReadSize: fileTotalReadSize,
-                            progressReporter: reporter,
-                            progressReporterCurrentSizeOffset: totalAllFilesReadSize,
-                            progressReporterTotalSizeHint: estimatedAllFileSizeSum,
-                            progressReporterFinalize: false,
-                            progressReporterAdditionalInfo: fileName);
+                        string hashStr;
+                        try
+                        {
+                            var hash = await Secure.CalcStreamHashAsync(fs, sha, bufferSize: bufSize, totalReadSize: fileTotalReadSize,
+                                progressReporter: reporter,
+                                progressReporterCurrentSizeOffset: totalAllFilesReadSize,
+                                progressReporterTotalSizeHint: estimatedAllFileSizeSum,
+                                progressReporterFinalize: false,
+                                progressReporterAdditionalInfo: fileName);
 
-                        totalAllFilesReadSize += fileTotalReadSize;
+                            totalAllFilesReadSize += fileTotalReadSize;
 
-                        string hashStr = hash._GetHexString().ToLowerInvariant();
+                            hashStr = hash._GetHexString().ToLowerInvariant();
+                        }
+                        catch (Exception ex)
+                        {
+                            hashStr = $"! Read Error Offset = {fileTotalReadSize.Value._ToString3()}, Err = {ex.Message._OneLine()}";
+
+                            ex._Print();
+
+                            totalAllFilesReadSize += fileSizeEstimated;
+                        }
 
                         $"File Name: '{fileName}'"._Print();
                         $"File Read Size (Actual): {fileTotalReadSize.Value._ToString3()}"._Print();

@@ -134,13 +134,13 @@ public class EasyDnsServerDynOptions : INormalizable
     public void Normalize()
     {
         if (UdpRecvLoopPollingIntervalMsecs <= 0)
-            UdpRecvLoopPollingIntervalMsecs = 25;
+            UdpRecvLoopPollingIntervalMsecs = 10;
 
         if (UdpDelayedProcessTaskQueueLength <= 0)
             UdpDelayedProcessTaskQueueLength = 512;
 
         if (UdpDelayedResponsePacketQueueLength <= 0)
-            UdpDelayedResponsePacketQueueLength = 512;
+            UdpDelayedResponsePacketQueueLength = 4096;
     }
 }
 
@@ -261,7 +261,7 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
                 }
                 //if (delayedUdpPacketsArray.Length >= 1)
                 //{
-                    delayedUdpPacketsArray.Length._Print();
+                    //delayedUdpPacketsArray.Length._Print();
                 //}
                 await udpSock.SendDatagramsListAsync(delayedUdpPacketsArray, cancel: cancel);
             }
@@ -274,26 +274,27 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
 
     public bool BeginDelayDnsPacketProcessing(DnsUdpPacket requestDnsPacket, Func<DnsUdpPacket, Task<DnsUdpPacket?>> proc)
     {
-        //$"{this.CurrentProcessingTasks.Count}  {this.DelayedReplyUdpPacketsList.Count}"._Print();
+        //Dbg.RunDebugProcIntervalOnce(() =>
+        //{
+        //    $"{this.CurrentProcessingTasks.Count}  {this.DelayedReplyUdpPacketsList.Count}"._Print();
+        //});
+
         if (this.CurrentProcessingTasks.Count >= this._DynOptions.UdpDelayedProcessTaskQueueLength)
         {
             // これ以上の個数の遅延タスクを開始できない
-//            Where(this.CurrentProcessingTasks.Count.ToString());
             return false;
         }
 
         if (this.DelayedReplyUdpPacketsList.Count >= this._DynOptions.UdpDelayedResponsePacketQueueLength)
         {
             // これ以上の応答パケットのキューメモリがない
-//            Where();
             return false;
         }
 
         try
         {
-            Task task = TaskUtil.StartAsyncTaskAsync(async currentTask =>
+            Task task = TaskUtil.StartAsyncTaskSlowAsync(async currentTask =>
             {
-                this.CurrentProcessingTasks.Add(currentTask);
                 try
                 {
                     DnsUdpPacket? responsePkt = await proc(requestDnsPacket);
@@ -322,9 +323,11 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
                 {
                     this.CurrentProcessingTasks.Remove(currentTask);
                 }
+            },
+            task =>
+            {
+                this.CurrentProcessingTasks.Add(task);
             });
-
-            this.CurrentProcessingTasks.Add(task);
 
             return true;
         }

@@ -2381,17 +2381,8 @@ static class TestClass
         // --- 受信 ---
         // pktlinux (Xeon 4C) ===> pc34 (Corei9 10C)
         // ストレートパケット 同期処理 + Span
-        // 打ち返し: 240 kqps くらい出た
-        // 
-        // ストレートパケット 非同期処理 + List
-        // 打ち返し: 256 kqps くらい出た
-        //  結論  非同期でよい。GC は Server Mode にしたほうが少し安定するが、クライアントモードでもまあよい。
-        //
-        // --- 受信 ---
-        // pktlinux (Xeon 4C) ===> dn-vpnvault2 (Xeon 4C)
-        // ストレートパケット 非同期処理 + List
-        // 打ち返し: 200 kqps くらい出た
-        //  結論  非同期でよい。GC は Server Mode にしたほうが少し安定するが、クライアントモードでもまあよい。
+        // 同期打ち返し: 240 kqps くらい出た
+        // 非同期打ち返し: 20 kpps くらい出た  まあ、こんなもんか。
 
         using EasyDnsServer s = new EasyDnsServer(new EasyDnsServerSetting(
             (dnsServer, reqList) =>
@@ -2402,12 +2393,14 @@ static class TestClass
                 {
                     if (false)
                     {
+                        // 同期打ち返し
                         DnsUdpPacket res = new DnsUdpPacket(req.RemoteEndPoint, req.LocalEndPoint, req.Message);
 
                         retList.Add(res);
                     }
                     else
                     {
+                        // 非同期打ち返し
                         dnsServer.BeginDelayDnsPacketProcessing(req, async req2 =>
                         {
                             DnsUdpPacket? res = new DnsUdpPacket(req2.RemoteEndPoint, req2.LocalEndPoint, req2.Message);
@@ -3288,18 +3281,26 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         });
     }
 
+    static readonly HashSet<Func<Task>> Test_220116_Sub2 = new HashSet<Func<Task>>();
+
+    static void Test_220116_Sub(Func<Task> proc)
+    {
+        Test_220116_Sub2.Add(proc)._Print();
+    }
+
     public static void Test_220116()
     {
-        Task t = TaskUtil.StartAsyncTaskAsync(async task =>
+        for (int i = 0; i < 2; i++)
         {
-            $"Inside: ID = {task.Id}"._Print();
-            await Task.CompletedTask;
-            return 0;
-        });
-
-        $"Outside: ID = {t.Id}"._Print();
-
-        //t._GetResult();
+            Test_220116_Sub(async () =>
+            {
+                await Task.Yield();
+            });
+            Test_220116_Sub(async () =>
+            {
+                await Task.Yield();
+            });
+        }
     }
 
     public static void Test_Generic()
