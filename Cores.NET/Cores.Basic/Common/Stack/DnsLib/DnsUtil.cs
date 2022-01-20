@@ -137,7 +137,7 @@ public class EasyDnsServerDynOptions : INormalizable
             UdpRecvLoopPollingIntervalMsecs = 10;
 
         if (UdpDelayedProcessTaskQueueLength <= 0)
-            UdpDelayedProcessTaskQueueLength = 512;
+            UdpDelayedProcessTaskQueueLength = 1024;
 
         if (UdpDelayedResponsePacketQueueLength <= 0)
             UdpDelayedResponsePacketQueueLength = 4096;
@@ -274,10 +274,10 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
 
     public bool BeginDelayDnsPacketProcessing(DnsUdpPacket requestDnsPacket, Func<DnsUdpPacket, Task<DnsUdpPacket?>> proc)
     {
-        //Dbg.RunDebugProcIntervalOnce(() =>
-        //{
-        //    $"{this.CurrentProcessingTasks.Count}  {this.DelayedReplyUdpPacketsList.Count}"._Print();
-        //});
+        Dbg.RunDebugProcIntervalOnce(() =>
+        {
+            $"{this.CurrentProcessingTasks.Count}  {this.DelayedReplyUdpPacketsList.Count}"._Print();
+        });
 
         if (this.CurrentProcessingTasks.Count >= this._DynOptions.UdpDelayedProcessTaskQueueLength)
         {

@@ -2405,6 +2405,9 @@ static class TestClass
                         {
                             DnsUdpPacket? res = new DnsUdpPacket(req2.RemoteEndPoint, req2.LocalEndPoint, req2.Message);
 
+                            //await Task.Yield();
+                            //await Task.Delay(1000);
+
                             await Task.CompletedTask;
 
                             return res;
