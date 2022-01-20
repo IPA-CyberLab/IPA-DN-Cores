@@ -2382,18 +2382,21 @@ static class TestClass
         // pktlinux (Xeon 4C) ===> pc34 (Corei9 10C)
         // ストレートパケット 同期処理 + Span
         // 同期打ち返し: 240 kqps くらい出た
-        // 非同期打ち返し: 20 kpps くらい出た  まあ、こんなもんか。
+        // 同期打ち返し (パース処理で例外が発生する場合): 140 kqps くらい
+        // 非同期打ち返し: 20 kqps くらい出た  まあ、こんなもんか。
 
         using EasyDnsServer s = new EasyDnsServer(new EasyDnsServerSetting(
             (dnsServer, reqList) =>
             {
                 List<DnsUdpPacket> retList = new List<DnsUdpPacket>(reqList.Count);
+                var test1 = new byte[384];
 
                 foreach (DnsUdpPacket req in reqList)
                 {
-                    if (false)
+                    if (true)
                     {
                         // 同期打ち返し
+
                         DnsUdpPacket res = new DnsUdpPacket(req.RemoteEndPoint, req.LocalEndPoint, req.Message);
 
                         retList.Add(res);

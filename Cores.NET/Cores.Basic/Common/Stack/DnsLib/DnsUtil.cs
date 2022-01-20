@@ -118,8 +118,6 @@ public class DnsUdpPacket
 
 
 
-public delegate List<DnsUdpPacket> EasyDnsServerProcessPacketsCallback(EasyDnsServer dnsServer, List<DnsUdpPacket> requestList);
-
 public class EasyDnsServerDynOptions : INormalizable
 {
     public int UdpRecvLoopPollingIntervalMsecs { get; set; } = 0;
@@ -147,9 +145,9 @@ public class EasyDnsServerDynOptions : INormalizable
 public class EasyDnsServerSetting
 {
     public int UdpPort { get; }
-    public EasyDnsServerProcessPacketsCallback Callback { get; }
+    public Func<EasyDnsServer, List<DnsUdpPacket>, List<DnsUdpPacket>> Callback { get; }
 
-    public EasyDnsServerSetting(EasyDnsServerProcessPacketsCallback callback, int udpPort = Consts.Ports.Dns)
+    public EasyDnsServerSetting(Func<EasyDnsServer, List<DnsUdpPacket>, List<DnsUdpPacket>> callback, int udpPort = Consts.Ports.Dns)
     {
         this.Callback = callback;
         this.UdpPort = udpPort;
@@ -261,7 +259,7 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
                 }
                 //if (delayedUdpPacketsArray.Length >= 1)
                 //{
-                    //delayedUdpPacketsArray.Length._Print();
+                //delayedUdpPacketsArray.Length._Print();
                 //}
                 await udpSock.SendDatagramsListAsync(delayedUdpPacketsArray, cancel: cancel);
             }

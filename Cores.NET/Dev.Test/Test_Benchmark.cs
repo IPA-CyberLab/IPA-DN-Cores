@@ -697,6 +697,24 @@ partial class TestDevCommands
         var queue = new MicroBenchmarkQueue()
 
 
+        .Add(new MicroBenchmark($"throw Exception", Benchmark_CountForNormal, count =>
+        {
+            Async(async () =>
+            {
+                var test1 = new byte[384];
+                for (int c = 0; c < count; c++)
+                {
+                    try
+                    {
+                        test1[Limbo.SInt32Volatile + 12345] = (byte)Limbo.UInt32Volatile;
+                    }
+                    catch
+                    {
+                    }
+                }
+            });
+        }), enabled: true, priority: 211227)
+
         .Add(new MicroBenchmark($"StartAsyncTaskAsync Normal (TaskResult)", Benchmark_CountForSlow, count =>
         {
             Async(async () =>
