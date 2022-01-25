@@ -411,6 +411,10 @@ public class EasyDnsResponder
             public KeyValueList<string, List<Record>> WildcardEndWithRecordList = new KeyValueList<string, List<Record>>(); // "*abc" または "*.abc" という先頭ワイルドカード
             public KeyValueList<string, List<Record>> WildcardInStrRecordList = new KeyValueList<string, List<Record>>(); // "*abc*" とか "abc*def" とか "abc?def" という複雑なワイルドカード
 
+            public bool Has_WildcardAnyRecordList = false;
+            public bool Has_WildcardEndWithRecordList = false;
+            public bool Has_WildcardInStrRecordList = false;
+
             public Zone(DataSet parent, EasyDnsResponderZone src)
             {
                 this.ParentDataSet = parent;
@@ -495,6 +499,10 @@ public class EasyDnsResponder
                 this.WildcardEndWithRecordList._DoSortBy(x => x.OrderByDescending(y => y.Key.Length).ThenByDescending(y => y.Key));
                 this.WildcardInStrRecordList._DoSortBy(x => x.OrderByDescending(y => y.Key.Length).ThenByDescending(y => y.Key));
 
+                this.Has_WildcardAnyRecordList = this.WildcardAnyRecordList.Any();
+                this.Has_WildcardEndWithRecordList = this.WildcardEndWithRecordList.Any();
+                this.Has_WildcardInStrRecordList = this.WildcardInStrRecordList.Any();
+
                 this.SrcZone = src._CloneDeep();
             }
 
@@ -511,31 +519,47 @@ public class EasyDnsResponder
 
                 if (records == null)
                 {
-                    // もし完全一致するものが 1 つも無ければ、
-                    // 先頭ワイルドカード一致を検索し、一致するものがないかどうか調べる
-                    foreach (var r in this.WildcardEndWithRecordList)
+                    if (this.Has_WildcardEndWithRecordList) // 高速化 (効果があるかどうかは不明)
                     {
-                        if (hostLabelNormalized.EndsWith(r.Key))
+                        // もし完全一致するものが 1 つも無ければ、
+                        // 先頭ワイルドカード一致を検索し、一致するものがないかどうか調べる
+                        foreach (var r in this.WildcardEndWithRecordList)
                         {
-                            // 後方一致あり
-                            records = r.Value;
-                            break;
+                            if (hostLabelNormalized.EndsWith(r.Key))
+                            {
+                                // 後方一致あり
+                                records = r.Value;
+                                break;
+                            }
                         }
                     }
                 }
 
                 if (records == null)
                 {
-                    // もし完全一致または後方一致するものが 1 つも無ければ、
-                    // 複雑なワイルドカード一致を検索し、一致するものがないかどうか調べる
-                    foreach (var r in this.WildcardInStrRecordList)
+                    if (this.Has_WildcardInStrRecordList) // 高速化 (効果があるかどうかは不明)
                     {
-                        if (hostLabelNormalized._WildcardMatch(r.Key))
+                        // もし完全一致または後方一致するものが 1 つも無ければ、
+                        // 複雑なワイルドカード一致を検索し、一致するものがないかどうか調べる
+                        foreach (var r in this.WildcardInStrRecordList)
                         {
-                            // 一致あり
-                            records = r.Value;
-                            break;
+                            if (hostLabelNormalized._WildcardMatch(r.Key))
+                            {
+                                // 一致あり
+                                records = r.Value;
+                                break;
+                            }
                         }
+                    }
+                }
+
+                if (records == null)
+                {
+                    if (this.Has_WildcardAnyRecordList) // 高速化 (効果があるかどうかは不明)
+                    {
+                        // これまででまだ一致するものが無ければ、
+                        // any アスタリスクレコードがあればそれを返す
+                        records = this.WildcardAnyRecordList;
                     }
                 }
 
