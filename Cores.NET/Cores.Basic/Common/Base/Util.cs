@@ -6854,6 +6854,25 @@ namespace IPA.Cores.Basic
 
             this.Add(key, value);
         }
+
+        public TValue GetSingleOrNew(TKey key, TValue newValue, IEqualityComparer<TKey>? comparer = null)
+        {
+            var exists = this.Where(x => comparer?.Equals(x.Key, key) ?? object.Equals(x.Key, key));
+            if (exists.Any()) return exists.Single().Value;
+
+            this.Add(key, newValue);
+            return newValue;
+        }
+
+        public TValue GetSingleOrNew(TKey key, Func<TValue> newValueProc, IEqualityComparer<TKey>? comparer = null)
+        {
+            var exists = this.Where(x => comparer?.Equals(x.Key, key) ?? object.Equals(x.Key, key));
+            if (exists.Any()) return exists.Single().Value;
+
+            TValue newValue = newValueProc();
+            this.Add(key, newValue);
+            return newValue;
+        }
     }
 
     [Flags]

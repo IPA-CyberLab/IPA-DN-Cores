@@ -4886,6 +4886,38 @@ namespace IPA.Cores.Basic
             return b.ToString();
         }
 
+        public static string CombineStringSpan(Span<string> strList, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...")
+        {
+            sepstr = sepstr._NonNull();
+
+            StringBuilder b = new StringBuilder();
+
+            int num = 0;
+
+            foreach (string? s in strList)
+            {
+                if (removeEmpty == false || s._IsFilled())
+                {
+                    if (num >= maxItems)
+                    {
+                        b.Append(ommitStr._NonNull());
+                        break;
+                    }
+
+                    if (num >= 1)
+                    {
+                        b.Append(sepstr);
+                    }
+
+                    if (s != null) b.Append(s);
+
+                    num++;
+                }
+            }
+
+            return b.ToString();
+        }
+
         // 文字列の最大長を指定してそこまで切り取る
         public static string TruncStr(string? str, int len)
         {

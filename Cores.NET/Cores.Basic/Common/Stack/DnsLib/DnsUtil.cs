@@ -90,6 +90,14 @@ public static class DnsUtil
 
         return str._ToUInt();
     }
+
+    [MethodImpl(Inline)]
+    public static bool IsEmptyDomain(this DomainName dn)
+    {
+        if (dn.LabelCount <= 0) return true;
+
+        return false;
+    }
 }
 
 public class DnsUdpPacket

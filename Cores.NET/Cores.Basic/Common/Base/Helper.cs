@@ -593,6 +593,9 @@ public static class BasicHelper
     public static string _Combine(this IEnumerable<string?> t, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringArray(t, sepstr, removeEmpty, maxItems, ommitStr);
     public static string _Combine(this IEnumerable<string?> t, char sepChar, bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringArray(t, sepChar.ToString(), removeEmpty, maxItems, ommitStr);
 
+    public static string _Combine(this Span<string> t, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringSpan(t, sepstr, removeEmpty, maxItems, ommitStr);
+    public static string _Combine(this Span<string> t, char sepChar, bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringSpan(t, sepChar.ToString(), removeEmpty, maxItems, ommitStr);
+
     public static string _MakeAsciiOneLinePrintableStr(this string? src, char alternativeChar = ' ') => Str.MakeAsciiOneLinePrintableStr(src, alternativeChar);
 
     public static string _MakeCharArray(this char c, int len) => Str.MakeCharArray(c, len);
@@ -3289,6 +3292,15 @@ public static class BasicHelper
             obj.Normalize();
         }
         return obj;
+    }
+
+    public static string? _ElementAtOrDefaultStr(this IEnumerable<string> source, int index, string defaultValueIfEmpty)
+    {
+        string? ret = source.ElementAtOrDefault(index);
+
+        if (ret._IsEmpty()) ret = defaultValueIfEmpty._NonNull();
+
+        return ret;
     }
 }
 
