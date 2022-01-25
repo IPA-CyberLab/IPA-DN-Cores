@@ -91,6 +91,7 @@ public class EasyDnsResponderRecordSettings
 public enum EasyDnsResponderRecordType
 {
     None = 0,
+    Any,
     A,
     AAAA,
     NS,
@@ -165,435 +166,583 @@ public class EasyDnsResponder
     public Func<EasyDnsResponderDynamicRecordCallbackRequest, EasyDnsResponderDynamicRecordCallbackResult>? Callback { get; set; }
 
     // 内部データセット
-    public class DataSet
+    public class Record_A : Record
     {
-        // 内部レコードデータ
-        public class Record_A : Record
+        public IPAddress IPv4Address;
+
+        public Record_A(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
         {
-            public IPAddress IPv4Address;
+            string tmp = src.Contents._NonNullTrim();
+            if (tmp._IsEmpty()) throw new CoresLibException("Contents is empty.");
 
-            public Record_A(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
-            {
-                string tmp = src.Contents._NonNullTrim();
-                if (tmp._IsEmpty()) throw new CoresLibException("Contents is empty.");
+            this.IPv4Address = IPAddress.Parse(tmp);
 
-                this.IPv4Address = IPAddress.Parse(tmp);
-
-                if (this.IPv4Address.AddressFamily != AddressFamily.InterNetwork)
-                    throw new CoresLibException($"AddressFamily of '{tmp}' is not IPv4.");
-            }
+            if (this.IPv4Address.AddressFamily != AddressFamily.InterNetwork)
+                throw new CoresLibException($"AddressFamily of '{tmp}' is not IPv4.");
         }
 
-        public class Record_AAAA : Record
+        protected override string ToStringForCompareImpl()
         {
-            public IPAddress IPv6Address;
+            return this.IPv4Address.ToString();
+        }
+    }
 
-            public Record_AAAA(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
-            {
-                string tmp = src.Contents._NonNullTrim();
-                if (tmp._IsEmpty()) throw new CoresLibException("Contents is empty.");
+    public class Record_AAAA : Record
+    {
+        public IPAddress IPv6Address;
 
-                this.IPv6Address = IPAddress.Parse(tmp);
+        public Record_AAAA(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
+        {
+            string tmp = src.Contents._NonNullTrim();
+            if (tmp._IsEmpty()) throw new CoresLibException("Contents is empty.");
 
-                if (this.IPv6Address.AddressFamily != AddressFamily.InterNetworkV6)
-                    throw new CoresLibException($"AddressFamily of '{tmp}' is not IPv6.");
-            }
+            this.IPv6Address = IPAddress.Parse(tmp);
+            this.IPv6Address.ScopeId = 0;
+
+            if (this.IPv6Address.AddressFamily != AddressFamily.InterNetworkV6)
+                throw new CoresLibException($"AddressFamily of '{tmp}' is not IPv6.");
         }
 
-        public class Record_NS : Record
+        protected override string ToStringForCompareImpl()
         {
-            public DomainName ServerName;
+            return this.IPv6Address.ToString();
+        }
+    }
 
-            public Record_NS(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
+    public class Record_NS : Record
+    {
+        public DomainName ServerName;
+
+        public Record_NS(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
+        {
+            if (this.Name._InStr("*") || this.Name._InStr("?"))
             {
-                string tmp = src.Contents._NonNullTrim();
-                if (tmp._IsEmpty()) throw new CoresLibException("Contents is empty.");
-
-                this.ServerName = DomainName.Parse(tmp);
-
-                if (this.ServerName.IsEmptyDomain()) throw new CoresLibException("NS server field is empty.");
+                throw new CoresLibException($"NS record doesn't allow wildcard names. Specified name: '{this.Name}'");
             }
+
+            string tmp = src.Contents._NonNullTrim();
+            if (tmp._IsEmpty()) throw new CoresLibException("Contents is empty.");
+
+            this.ServerName = DomainName.Parse(tmp);
+
+            if (this.ServerName.IsEmptyDomain()) throw new CoresLibException("NS server field is empty.");
         }
 
-        public class Record_CNAME : Record
+        protected override string ToStringForCompareImpl()
         {
-            public DomainName CName;
+            return this.ServerName.ToString();
+        }
+    }
 
-            public Record_CNAME(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
-            {
-                string tmp = src.Contents._NonNullTrim();
-                if (tmp._IsEmpty()) throw new CoresLibException("Contents is empty.");
+    public class Record_CNAME : Record
+    {
+        public DomainName CName;
 
-                this.CName = DomainName.Parse(tmp);
+        public Record_CNAME(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
+        {
+            string tmp = src.Contents._NonNullTrim();
+            if (tmp._IsEmpty()) throw new CoresLibException("Contents is empty.");
 
-                if (this.CName.IsEmptyDomain()) throw new CoresLibException("CNAME field is empty.");
-            }
+            this.CName = DomainName.Parse(tmp);
+
+            if (this.CName.IsEmptyDomain()) throw new CoresLibException("CNAME field is empty.");
         }
 
-        public class Record_SOA : Record
+        protected override string ToStringForCompareImpl()
         {
-            public DomainName MasterName;
-            public DomainName ResponsibleName;
-            public uint SerialNumber;
-            public int RefreshIntervalSecs;
-            public int RetryIntervalSecs;
-            public int ExpireIntervalSecs;
-            public int NegativeCacheTtlSecs;
+            return this.CName.ToString();
+        }
+    }
 
-            public Record_SOA(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
-            {
-                string[] tokens = src.Contents._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ';', ',');
+    public class Record_SOA : Record
+    {
+        public DomainName MasterName;
+        public DomainName ResponsibleName;
+        public uint SerialNumber;
+        public int RefreshIntervalSecs;
+        public int RetryIntervalSecs;
+        public int ExpireIntervalSecs;
+        public int NegativeCacheTtlSecs;
 
-                if (tokens.Length == 0) throw new CoresLibException("Contents is empty.");
+        public Record_SOA(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
+        {
+            if (this.Name._IsFilled()) throw new CoresLibException($"SOA record doesn't allow Name field. Name is not empty: '{this.Name}'");
 
-                this.MasterName = DomainName.Parse(tokens.ElementAt(0));
-                this.ResponsibleName = DomainName.Parse(tokens._ElementAtOrDefaultStr(1, "somebody.example.org."));
+            string[] tokens = src.Contents._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ';', ',');
 
-                this.SerialNumber = tokens.ElementAtOrDefault(2)._ToUInt();
-                if (this.SerialNumber <= 0) this.SerialNumber = 1;
+            if (tokens.Length == 0) throw new CoresLibException("Contents is empty.");
 
-                this.RefreshIntervalSecs = tokens.ElementAtOrDefault(3)._ToInt();
-                if (this.RefreshIntervalSecs <= 0) this.RefreshIntervalSecs = DevCoresConfig.EasyDnsResponderSettings.Default_RefreshIntervalSecs;
+            this.MasterName = DomainName.Parse(tokens.ElementAt(0));
+            this.ResponsibleName = DomainName.Parse(tokens._ElementAtOrDefaultStr(1, "somebody.example.org."));
 
-                this.RetryIntervalSecs = tokens.ElementAtOrDefault(4)._ToInt();
-                if (this.RetryIntervalSecs <= 0) this.RetryIntervalSecs = DevCoresConfig.EasyDnsResponderSettings.Default_RetryIntervalSecs;
+            this.SerialNumber = tokens.ElementAtOrDefault(2)._ToUInt();
+            if (this.SerialNumber <= 0) this.SerialNumber = 1;
 
-                this.ExpireIntervalSecs = tokens.ElementAtOrDefault(5)._ToInt();
-                if (this.ExpireIntervalSecs <= 0) this.ExpireIntervalSecs = DevCoresConfig.EasyDnsResponderSettings.Default_ExpireIntervalSecs;
+            this.RefreshIntervalSecs = tokens.ElementAtOrDefault(3)._ToInt();
+            if (this.RefreshIntervalSecs <= 0) this.RefreshIntervalSecs = DevCoresConfig.EasyDnsResponderSettings.Default_RefreshIntervalSecs;
 
-                this.NegativeCacheTtlSecs = tokens.ElementAtOrDefault(6)._ToInt();
-                if (this.NegativeCacheTtlSecs <= 0) this.NegativeCacheTtlSecs = DevCoresConfig.EasyDnsResponderSettings.Default_NegativeCacheTtlSecs;
-            }
+            this.RetryIntervalSecs = tokens.ElementAtOrDefault(4)._ToInt();
+            if (this.RetryIntervalSecs <= 0) this.RetryIntervalSecs = DevCoresConfig.EasyDnsResponderSettings.Default_RetryIntervalSecs;
+
+            this.ExpireIntervalSecs = tokens.ElementAtOrDefault(5)._ToInt();
+            if (this.ExpireIntervalSecs <= 0) this.ExpireIntervalSecs = DevCoresConfig.EasyDnsResponderSettings.Default_ExpireIntervalSecs;
+
+            this.NegativeCacheTtlSecs = tokens.ElementAtOrDefault(6)._ToInt();
+            if (this.NegativeCacheTtlSecs <= 0) this.NegativeCacheTtlSecs = DevCoresConfig.EasyDnsResponderSettings.Default_NegativeCacheTtlSecs;
         }
 
-        public class Record_PTR : Record
+        protected override string ToStringForCompareImpl()
         {
-            public DomainName Ptr;
+            return $"{MasterName} {ResponsibleName} {SerialNumber} {RefreshIntervalSecs} {RetryIntervalSecs} {ExpireIntervalSecs} {NegativeCacheTtlSecs}";
+        }
+    }
 
-            public Record_PTR(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
-            {
-                string tmp = src.Contents._NonNullTrim();
-                if (tmp._IsEmpty()) throw new CoresLibException("Contents is empty.");
+    public class Record_PTR : Record
+    {
+        public DomainName Ptr;
 
-                this.Ptr = DomainName.Parse(tmp);
+        public Record_PTR(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
+        {
+            string tmp = src.Contents._NonNullTrim();
+            if (tmp._IsEmpty()) throw new CoresLibException("Contents is empty.");
 
-                if (this.Ptr.IsEmptyDomain()) throw new CoresLibException("CNAME field is empty.");
-            }
+            this.Ptr = DomainName.Parse(tmp);
+
+            if (this.Ptr.IsEmptyDomain()) throw new CoresLibException("CNAME field is empty.");
         }
 
-        public class Record_MX : Record
+        protected override string ToStringForCompareImpl()
         {
-            public DomainName MailServer;
-            public ushort Preference;
+            return this.Ptr.ToString();
+        }
+    }
 
-            public Record_MX(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
-            {
-                string[] tokens = src.Contents._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ';', ',');
+    public class Record_MX : Record
+    {
+        public DomainName MailServer;
+        public ushort Preference;
 
-                if (tokens.Length == 0) throw new CoresLibException("Contents is empty.");
+        public Record_MX(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
+        {
+            string[] tokens = src.Contents._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ';', ',');
 
-                this.MailServer = DomainName.Parse(tokens.ElementAt(0));
+            if (tokens.Length == 0) throw new CoresLibException("Contents is empty.");
 
-                this.Preference = (ushort)tokens.ElementAtOrDefault(1)._ToUInt();
-                if (this.Preference <= 0) this.Preference = DevCoresConfig.EasyDnsResponderSettings.Default_MxPreference;
-            }
+            this.MailServer = DomainName.Parse(tokens.ElementAt(0));
+
+            this.Preference = (ushort)tokens.ElementAtOrDefault(1)._ToUInt();
+            if (this.Preference <= 0) this.Preference = DevCoresConfig.EasyDnsResponderSettings.Default_MxPreference;
         }
 
-        public class Record_TXT : Record
+        protected override string ToStringForCompareImpl()
         {
-            public string TextData;
+            return this.MailServer.ToString() + " " + this.Preference;
+        }
+    }
 
-            public Record_TXT(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
-            {
-                this.TextData = src.Contents._NonNull();
-            }
+    public class Record_TXT : Record
+    {
+        public string TextData;
+
+        public Record_TXT(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
+        {
+            this.TextData = src.Contents._NonNull();
         }
 
-        public class Record_Dynamic : Record
+        protected override string ToStringForCompareImpl()
         {
-            public string CallbackId;
+            return this.TextData;
+        }
+    }
 
-            public Record_Dynamic(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
+    public class Record_Dynamic : Record
+    {
+        public string CallbackId;
+
+        public Record_Dynamic(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
+        {
+            switch (src.Type)
             {
-                switch (src.Type)
+                case EasyDnsResponderRecordType.A:
+                case EasyDnsResponderRecordType.AAAA:
+                case EasyDnsResponderRecordType.CNAME:
+                case EasyDnsResponderRecordType.MX:
+                case EasyDnsResponderRecordType.NS:
+                case EasyDnsResponderRecordType.PTR:
+                case EasyDnsResponderRecordType.TXT:
+                    this.CallbackId = src.Contents._NonNull();
+
+                    if (this.CallbackId._IsEmpty()) throw new CoresLibException("Callback ID is empty.");
+                    break;
+            }
+
+            throw new CoresLibException($"Invalid Dynamic Record Type '{this.Name}': {src.Type}");
+        }
+
+        protected override string ToStringForCompareImpl()
+        {
+            return this.CallbackId;
+        }
+    }
+
+    public abstract class Record
+    {
+        public Zone ParentZone;
+        public string Name;
+        public EasyDnsResponderRecordType Type;
+        public EasyDnsResponderRecordSettings Settings;
+        public EasyDnsResponderRecord SrcRecord;
+
+        protected abstract string ToStringForCompareImpl();
+
+        readonly CachedProperty<string> _StringForCompareCache;
+        public string ToStringForCompare() => _StringForCompareCache;
+
+        public Record(Zone parent, EasyDnsResponderRecord src)
+        {
+            this.ParentZone = parent;
+
+            this.Settings = (src.Settings ?? parent.Settings)._CloneDeep();
+
+            this.Name = src.Name._NormalizeFqdn();
+
+            this.Type = src.Type;
+
+            this.SrcRecord = src._CloneDeep();
+
+            this._StringForCompareCache = new CachedProperty<string>(getter: () =>
+            {
+                return $"{Name} {Type} {this.ToStringForCompareImpl()}";
+            });
+        }
+
+        public static Record CreateFrom(Zone parent, EasyDnsResponderRecord src)
+        {
+            if (src.Attribute.Bit(EasyDnsResponderRecordAttribute.DynamicRecord))
+            {
+                // ダイナミックレコード
+                return new Record_Dynamic(parent, src);
+            }
+
+            switch (src.Type)
+            {
+                case EasyDnsResponderRecordType.A:
+                    return new Record_A(parent, src);
+
+                case EasyDnsResponderRecordType.AAAA:
+                    return new Record_AAAA(parent, src);
+
+                case EasyDnsResponderRecordType.NS:
+                    return new Record_NS(parent, src);
+
+                case EasyDnsResponderRecordType.CNAME:
+                    return new Record_CNAME(parent, src);
+
+                case EasyDnsResponderRecordType.SOA:
+                    return new Record_SOA(parent, src);
+
+                case EasyDnsResponderRecordType.PTR:
+                    return new Record_PTR(parent, src);
+
+                case EasyDnsResponderRecordType.MX:
+                    return new Record_MX(parent, src);
+
+                case EasyDnsResponderRecordType.TXT:
+                    return new Record_TXT(parent, src);
+            }
+
+            throw new CoresLibException($"Unknown record type: {src.Type}");
+        }
+    }
+
+    // 内部ゾーンデータ
+    public class Zone
+    {
+        public DataSet ParentDataSet;
+        public string DomainFqdn;
+        public EasyDnsResponderRecordSettings Settings;
+        public EasyDnsResponderZone SrcZone;
+
+        public List<Record> RecordList = new List<Record>();
+        public StrDictionary<List<Record>> RecordDictByName = new StrDictionary<List<Record>>();
+
+        public HashSet<string> SubDomainList = new HashSet<string>(); // レコードが 1 つ以上存在するサブドメインのリスト
+
+        public Record_SOA SOARecord;
+
+        public List<Record> WildcardAnyRecordList = new List<Record>(); // "*" という名前のワイルドカード
+        public KeyValueList<string, List<Record>> WildcardEndWithRecordList = new KeyValueList<string, List<Record>>(); // "*abc" または "*.abc" という先頭ワイルドカード
+        public KeyValueList<string, List<Record>> WildcardInStrRecordList = new KeyValueList<string, List<Record>>(); // "*abc*" とか "abc*def" とか "abc?def" という複雑なワイルドカード
+
+        public List<Record> NSRecord = new List<Record>(); // このゾーンそのものの NS レコード
+        public StrDictionary<List<Record>> NSDelegationRecordList = new StrDictionary<List<Record>>(); // サブドメイン権限委譲レコード
+
+        public bool Has_WildcardAnyRecordList = false;
+        public bool Has_WildcardEndWithRecordList = false;
+        public bool Has_WildcardInStrRecordList = false;
+        public bool Has_WildcardNSDelegationRecordList = false;
+
+        public Zone(DataSet parent, EasyDnsResponderZone src)
+        {
+            this.ParentDataSet = parent;
+
+            this.Settings = (src.DefaultSettings ?? parent.Settings)._CloneDeep();
+
+            this.DomainFqdn = src.DomainName._NormalizeFqdn();
+
+            if (this.DomainFqdn._IsEmpty())
+            {
+                throw new CoresLibException("Invalid FQDN in Zone");
+            }
+
+            Record_SOA? soa = null;
+
+            // レコード情報のコンパイル
+            foreach (var srcRecord in src.RecordList)
+            {
+                var record = Record.CreateFrom(this, srcRecord);
+
+                if (record.Type != EasyDnsResponderRecordType.SOA)
                 {
-                    case EasyDnsResponderRecordType.A:
-                    case EasyDnsResponderRecordType.AAAA:
-                    case EasyDnsResponderRecordType.CNAME:
-                    case EasyDnsResponderRecordType.MX:
-                    case EasyDnsResponderRecordType.NS:
-                    case EasyDnsResponderRecordType.PTR:
-                    case EasyDnsResponderRecordType.TXT:
-                        this.CallbackId = src.Contents._NonNull();
-
-                        if (this.CallbackId._IsEmpty()) throw new CoresLibException("Callback ID is empty.");
-                        break;
-                }
-
-                throw new CoresLibException($"Invalid Dynamic Record Type '{this.Name}': {src.Type}");
-            }
-        }
-
-        public abstract class Record
-        {
-            public Zone ParentZone;
-            public string Name;
-            public EasyDnsResponderRecordType Type;
-            public EasyDnsResponderRecordSettings Settings;
-            public EasyDnsResponderRecord SrcRecord;
-
-            public Record(Zone parent, EasyDnsResponderRecord src)
-            {
-                this.ParentZone = parent;
-
-                this.Settings = (src.Settings ?? parent.Settings)._CloneDeep();
-
-                this.Name = src.Name._NormalizeFqdn();
-
-                this.Type = src.Type;
-
-                this.SrcRecord = src._CloneDeep();
-            }
-
-            public static Record CreateFrom(Zone parent, EasyDnsResponderRecord src)
-            {
-                if (src.Attribute.Bit(EasyDnsResponderRecordAttribute.DynamicRecord))
-                {
-                    // ダイナミックレコード
-                    return new Record_Dynamic(parent, src);
-                }
-
-                switch (src.Type)
-                {
-                    case EasyDnsResponderRecordType.A:
-                        return new Record_A(parent, src);
-
-                    case EasyDnsResponderRecordType.AAAA:
-                        return new Record_AAAA(parent, src);
-
-                    case EasyDnsResponderRecordType.NS:
-                        return new Record_NS(parent, src);
-
-                    case EasyDnsResponderRecordType.CNAME:
-                        return new Record_CNAME(parent, src);
-
-                    case EasyDnsResponderRecordType.SOA:
-                        return new Record_SOA(parent, src);
-
-                    case EasyDnsResponderRecordType.PTR:
-                        return new Record_PTR(parent, src);
-
-                    case EasyDnsResponderRecordType.MX:
-                        return new Record_MX(parent, src);
-
-                    case EasyDnsResponderRecordType.TXT:
-                        return new Record_TXT(parent, src);
-                }
-
-                throw new CoresLibException($"Unknown record type: {src.Type}");
-            }
-        }
-
-        // 内部ゾーンデータ
-        public class Zone
-        {
-            public DataSet ParentDataSet;
-            public string DomainFqdn;
-            public EasyDnsResponderRecordSettings Settings;
-            public EasyDnsResponderZone SrcZone;
-
-            public List<Record> RecordList = new List<Record>();
-            public StrDictionary<List<Record>> RecordDictByName = new StrDictionary<List<Record>>();
-
-            public Record_SOA SOARecord;
-
-            public List<Record> WildcardAnyRecordList = new List<Record>(); // "*" という名前のワイルドカード
-            public KeyValueList<string, List<Record>> WildcardEndWithRecordList = new KeyValueList<string, List<Record>>(); // "*abc" または "*.abc" という先頭ワイルドカード
-            public KeyValueList<string, List<Record>> WildcardInStrRecordList = new KeyValueList<string, List<Record>>(); // "*abc*" とか "abc*def" とか "abc?def" という複雑なワイルドカード
-
-            public bool Has_WildcardAnyRecordList = false;
-            public bool Has_WildcardEndWithRecordList = false;
-            public bool Has_WildcardInStrRecordList = false;
-
-            public Zone(DataSet parent, EasyDnsResponderZone src)
-            {
-                this.ParentDataSet = parent;
-
-                this.Settings = (src.DefaultSettings ?? parent.Settings)._CloneDeep();
-
-                this.DomainFqdn = src.DomainName._NormalizeFqdn();
-
-                if (this.DomainFqdn._IsEmpty())
-                {
-                    throw new CoresLibException("Invalid FQDN in Zone");
-                }
-
-                Record_SOA? soa = null;
-
-                // レコード情報のコンパイル
-                foreach (var srcRecord in src.RecordList)
-                {
-                    var record = Record.CreateFrom(this, srcRecord);
-
-                    if (record.Type != EasyDnsResponderRecordType.SOA)
+                    string tmp1 = record.ToStringForCompare();
+                    if (this.RecordList.Where(x => x.ToStringForCompare() == tmp1).Any() == false)
                     {
+                        // 全く同じ内容のレコードが 2 つ追加されることは禁止する。最初の 1 つ目のみをリストに追加するのである。
                         this.RecordList.Add(record);
+                    }
+                }
+                else
+                {
+                    // SOA レコード
+                    if (soa != null)
+                    {
+                        // SOA レコードは 2 つ以上指定できない
+                        throw new CoresLibException("SOA record is duplicating.");
+                    }
+
+                    soa = (Record_SOA)record;
+                }
+            }
+
+            // SOA レコードが無い場合は、適当にでっち上げる
+            if (soa == null)
+            {
+                soa = new Record_SOA(this,
+                    new EasyDnsResponderRecord
+                    {
+                        Type = EasyDnsResponderRecordType.SOA,
+                        Attribute = EasyDnsResponderRecordAttribute.None,
+                        Contents = this.DomainFqdn,
+                    });
+            }
+
+            this.SOARecord = soa;
+
+            this.SubDomainList.Add(""); // サブドメインリストにまずこのゾーン自体を追加する
+
+            // レコード情報を検索を高速化するためにハッシュテーブル等として並べて保持する
+            foreach (var r in this.RecordList)
+            {
+                if (r.Type == EasyDnsResponderRecordType.SOA) { } // SOA レコードは追加しない
+                else if (r.Type == EasyDnsResponderRecordType.NS) { } // NS レコードは後で特殊な処理を行なう
+                else
+                {
+                    // 普通の種類のレコード (A など)
+                    if (r.Name._InStr("*") || r.Name._InStr("?"))
+                    {
+                        // ワイルドカードレコード
+                        if (r.Name == "*")
+                        {
+                            // any ワイルドカード
+                            this.WildcardAnyRecordList.Add(r);
+                        }
+                        else if (r.Name.StartsWith("*") && r.Name.Substring(1)._InStr("*") == false && r.Name.Substring(1)._InStr("?") == false && r.Name.Substring(1).Length >= 1)
+                        {
+                            // 先頭ワイルドカード (*abc)
+                            this.WildcardEndWithRecordList.GetSingleOrNew(r.Name.Substring(1), () => new List<Record>(), StrComparer.IgnoreCaseComparer).Add(r);
+                        }
+                        else
+                        {
+                            // 複雑なワイルドカード (abc*def とか abc*def といったもの)
+                            this.WildcardInStrRecordList.GetSingleOrNew(r.Name, () => new List<Record>(), StrComparer.IgnoreCaseComparer).Add(r);
+                        }
                     }
                     else
                     {
-                        // SOA レコード
-                        if (soa != null)
-                        {
-                            // SOA レコードは 2 つ以上指定できない
-                            throw new CoresLibException("SOA record is duplicating.");
-                        }
-
-                        soa = (Record_SOA)record;
-                    }
-                }
-
-                // SOA レコードが無い場合は、適当にでっち上げる
-                if (soa == null)
-                {
-                    soa = new Record_SOA(this,
-                        new EasyDnsResponderRecord
-                        {
-                            Type = EasyDnsResponderRecordType.SOA,
-                            Attribute = EasyDnsResponderRecordAttribute.None,
-                            Contents = this.DomainFqdn,
-                        });
-                }
-
-                this.SOARecord = soa;
-
-                // レコード情報を検索を高速化するためにハッシュテーブル等として並べて保持する
-                foreach (var r in this.RecordList)
-                {
-                    if (r.Type != EasyDnsResponderRecordType.SOA)
-                    {
+                        // 非ワイルドカードレコード
                         this.RecordDictByName._GetOrNew(r.Name).Add(r);
 
-                        if (r.Name._InStr("*") || r.Name._InStr("?"))
+                        // レコード名が a.b.c の場合、 a.b.c, b.c, c をサブドメイン存在リストに追加する
+                        var labels = r.Name.Split(".").AsSpan();
+                        int numLabels = labels.Length;
+                        for (int i = 0; i < numLabels; i++)
                         {
-                            if (r.Name == "*")
-                            {
-                                // any ワイルドカード
-                                this.WildcardAnyRecordList.Add(r);
-                            }
-                            else if (r.Name.StartsWith("*") && r.Name.Substring(1)._InStr("*") == false && r.Name.Substring(1)._InStr("?") == false && r.Name.Substring(1).Length >= 1)
-                            {
-                                // 先頭ワイルドカード (*abc)
-                                this.WildcardEndWithRecordList.GetSingleOrNew(r.Name.Substring(1), () => new List<Record>(), StrComparer.IgnoreCaseComparer).Add(r);
-                            }
-                            else
-                            {
-                                // 複雑なワイルドカード (abc*def とか abc*def といったもの)
-                                this.WildcardInStrRecordList.GetSingleOrNew(r.Name, () => new List<Record>(), StrComparer.IgnoreCaseComparer).Add(r);
-                            }
+                            this.SubDomainList.Add(labels.Slice(i)._Combine("."));
                         }
                     }
                 }
-
-                // 先頭ワイルドカードリストと複雑なワイルドカードリストは、文字列長で逆ソートする。
-                // つまり、できるだけ文字列長が長い候補が優先してマッチするようにするのである。
-                this.WildcardEndWithRecordList._DoSortBy(x => x.OrderByDescending(y => y.Key.Length).ThenByDescending(y => y.Key));
-                this.WildcardInStrRecordList._DoSortBy(x => x.OrderByDescending(y => y.Key.Length).ThenByDescending(y => y.Key));
-
-                this.Has_WildcardAnyRecordList = this.WildcardAnyRecordList.Any();
-                this.Has_WildcardEndWithRecordList = this.WildcardEndWithRecordList.Any();
-                this.Has_WildcardInStrRecordList = this.WildcardInStrRecordList.Any();
-
-                this.SrcZone = src._CloneDeep();
             }
 
-            public SearchResult Search(SearchRequest request, string hostLabelNormalized)
+            foreach (var r in this.RecordList.Where(x => x.Type == EasyDnsResponderRecordType.NS))
             {
-                List<Record>? records = null;
-
-                // まず完全一致するものがないか確かめる
-                if (this.RecordDictByName.TryGetValue(hostLabelNormalized, out List<Record>? found))
+                // NS レコードに関する処理
+                if (r.Name._IsEmpty())
                 {
-                    // 完全一致あり
-                    records = found;
+                    // これは、このゾーンそのものに関する NS 情報である。Name は空文字である。
+                    this.NSRecord.Add(r);
                 }
-
-                if (records == null)
+                else
                 {
-                    if (this.Has_WildcardEndWithRecordList) // 高速化 (効果があるかどうかは不明)
+                    // これは、サブドメインに関する NS 情報である。つまり、Name にはサブドメイン名が入っている。
+                    // これは、DNS における権限委譲 (delegate) と呼ばれる。
+                    // たとえば abc.def である。
+                    // そこで、まずこの NS サブドメインが定義済みサブドメイン (普通のサブドメイン) の一覧と重複しないかどうか検査する。
+                    if (this.SubDomainList.Contains(r.Name))
                     {
-                        // もし完全一致するものが 1 つも無ければ、
-                        // 先頭ワイルドカード一致を検索し、一致するものがないかどうか調べる
-                        foreach (var r in this.WildcardEndWithRecordList)
-                        {
-                            if (hostLabelNormalized.EndsWith(r.Key))
-                            {
-                                // 後方一致あり
-                                records = r.Value;
-                                break;
-                            }
-                        }
+                        // 一致するのでエラーとする。つまり、普通のサブドメインが存在する場合、同じ名前の NS サブドメインの登録は禁止するのである。
+                        throw new CoresLibException($"NS record Name: {r.Name} is duplicating with the existing sub domain record.");
                     }
+
+                    // 問題なければ、NS 権限委譲レコードとして追加する。
+                    this.NSDelegationRecordList._GetOrNew(r.Name).Add(r);
                 }
-
-                if (records == null)
-                {
-                    if (this.Has_WildcardInStrRecordList) // 高速化 (効果があるかどうかは不明)
-                    {
-                        // もし完全一致または後方一致するものが 1 つも無ければ、
-                        // 複雑なワイルドカード一致を検索し、一致するものがないかどうか調べる
-                        foreach (var r in this.WildcardInStrRecordList)
-                        {
-                            if (hostLabelNormalized._WildcardMatch(r.Key))
-                            {
-                                // 一致あり
-                                records = r.Value;
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                if (records == null)
-                {
-                    if (this.Has_WildcardAnyRecordList) // 高速化 (効果があるかどうかは不明)
-                    {
-                        // これまででまだ一致するものが無ければ、
-                        // any アスタリスクレコードがあればそれを返す
-                        records = this.WildcardAnyRecordList;
-                    }
-                }
-
-                // この状態でまだ一致するものがなければ、空リストを返す
-                if (records == null)
-                {
-                    records = new List<Record>();
-                }
-
-                SearchResult ret = new SearchResult
-                {
-                    RecordList = records,
-                    SOARecord = this.SOARecord,
-                    Zone = this,
-                };
-
-                return ret;
             }
+
+            // 先頭ワイルドカードリストと複雑なワイルドカードリストは、文字列長で逆ソートする。
+            // つまり、できるだけ文字列長が長い候補が優先してマッチするようにするのである。
+            this.WildcardEndWithRecordList._DoSortBy(x => x.OrderByDescending(y => y.Key.Length).ThenByDescending(y => y.Key));
+            this.WildcardInStrRecordList._DoSortBy(x => x.OrderByDescending(y => y.Key.Length).ThenByDescending(y => y.Key));
+
+            this.Has_WildcardAnyRecordList = this.WildcardAnyRecordList.Any();
+            this.Has_WildcardEndWithRecordList = this.WildcardEndWithRecordList.Any();
+            this.Has_WildcardInStrRecordList = this.WildcardInStrRecordList.Any();
+            this.Has_WildcardNSDelegationRecordList = this.NSDelegationRecordList.Any();
+
+            this.SrcZone = src._CloneDeep();
         }
 
-        // 検索要求
-        public class SearchRequest
+        public SearchResult Search(SearchRequest request, string hostLabelNormalized, ReadOnlyMemory<string> hostLabelSpan)
         {
-            public string FqdnNormalized { init; get; } = null!;
-        }
+            List<Record>? answers = null;
 
-        // 検索結果
-        public class SearchResult
-        {
-            public List<Record> RecordList { init; get; } = null!;
-            public Zone Zone { init; get; } = null!;
-            public Record_SOA SOARecord { init; get; } = null!;
-        }
+            // まず完全一致するものがないか確かめる
+            if (this.RecordDictByName.TryGetValue(hostLabelNormalized, out List<Record>? found))
+            {
+                // 完全一致あり
+                answers = found;
+            }
 
+            if (answers == null)
+            {
+                if (hostLabelSpan.Length >= 1)
+                {
+                    // 完全一致がなければ、次に NS レコードによって権限委譲されているサブドメインがあるかどうか確認する。
+                    // この場合、クエリサブドメイン名が a.b.c の場合、
+                    // a.b.c、b.c、c の順で検索し、最初に発見されたものを NS 委譲されているサブドメインとして扱う。
+                    for (int i = 0; i < hostLabelSpan.Length; i++)
+                    {
+                        if (this.NSDelegationRecordList.TryGetValue(hostLabelSpan.Slice(i)._Combine("."), out List<Record>? found2))
+                        {
+                            // 権限委譲ドメイン情報が見つかった
+                            SearchResult ret2 = new SearchResult
+                            {
+                                SOARecord = this.SOARecord,
+                                Zone = this,
+                                RecordList = found2,
+                                ResultType = SearchResultType.NsDelegation,
+                            };
+
+                            return ret2;
+                        }
+                    }
+                }
+            }
+
+            if (answers == null)
+            {
+                if (this.Has_WildcardEndWithRecordList) // 高速化 (効果があるかどうかは不明)
+                {
+                    // もし完全一致するものが 1 つも無ければ、
+                    // 先頭ワイルドカード一致を検索し、一致するものがないかどうか調べる
+                    foreach (var r in this.WildcardEndWithRecordList)
+                    {
+                        if (hostLabelNormalized.EndsWith(r.Key))
+                        {
+                            // 後方一致あり
+                            answers = r.Value;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (answers == null)
+            {
+                if (this.Has_WildcardInStrRecordList) // 高速化 (効果があるかどうかは不明)
+                {
+                    // もし完全一致または後方一致するものが 1 つも無ければ、
+                    // 複雑なワイルドカード一致を検索し、一致するものがないかどうか調べる
+                    foreach (var r in this.WildcardInStrRecordList)
+                    {
+                        if (hostLabelNormalized._WildcardMatch(r.Key))
+                        {
+                            // 一致あり
+                            answers = r.Value;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (answers == null)
+            {
+                if (this.Has_WildcardAnyRecordList) // 高速化 (効果があるかどうかは不明)
+                {
+                    // これまででまだ一致するものが無ければ、
+                    // any アスタリスクレコードがあればそれを返す
+                    answers = this.WildcardAnyRecordList;
+                }
+            }
+
+            // この状態でまだ一致するものがなければ、サブドメイン一覧に一致する場合は空リストを返し、
+            // いずれのサブドメインにも一致しない場合は null を返す。(null の場合、DNS 的には NXDOMAIN を意味することとする。)
+            if (answers == null)
+            {
+                if (hostLabelSpan.Length == 0)
+                {
+                    // サブドメイン名がない (つまり、このドメインと全く一緒) の場合は、空リストを返す。
+                    answers = new List<Record>();
+                }
+                else
+                {
+                    for (int i = 0; i < hostLabelSpan.Length; i++)
+                    {
+                        if (this.SubDomainList.Contains(hostLabelSpan.Slice(i)._Combine(".")))
+                        {
+                            // いずれかの階層でサブドメインリストが見つかった
+                            answers = new List<Record>();
+                            break;
+                        }
+                    }
+
+                    // いずれの階層でもサブドメインリストが見つからなかった場合は、answers は null のままとなる。
+                }
+            }
+
+            SearchResult ret = new SearchResult
+            {
+                RecordList = answers,
+                SOARecord = this.SOARecord,
+                Zone = this,
+                ResultType = SearchResultType.NormalAnswer,
+            };
+
+            return ret;
+        }
+    }
+
+    public class DataSet
+    {
         // 内部データの実体
         public Dictionary<string, Zone> ZoneDict = new Dictionary<string, Zone>();
         public EasyDnsResponderRecordSettings Settings;
@@ -623,11 +772,13 @@ public class EasyDnsResponder
             // の順で一致するゾーンがないかどうか検索する。
             // つまり、複数の一致する可能性があるゾーンがある場合、一致する文字長が最も長いゾーンを選択するのである。
 
-            var labels = request.FqdnNormalized.Split(".").AsSpan();
+            ReadOnlyMemory<string> labels = request.FqdnNormalized.Split(".").AsMemory();
             int numLabels = labels.Length;
 
             Zone? zone = null;
             string hostLabelStr = "";
+
+            ReadOnlyMemory<string> hostLabels = default;
 
             for (int i = numLabels; i >= 1; i--)
             {
@@ -641,7 +792,7 @@ public class EasyDnsResponder
                     // あった
                     zone = zoneTmp;
 
-                    var hostLabels = labels.Slice(0, numLabels - i);
+                    hostLabels = labels.Slice(0, numLabels - i);
 
                     hostLabelStr = hostLabels._Combine(".");
 
@@ -652,11 +803,98 @@ public class EasyDnsResponder
             if (zone == null)
             {
                 // 一致するゾーンが 1 つもありません！
+                // DNS 的には Refused を意味することとする。
                 return null;
             }
 
-            return zone.Search(request, hostLabelStr);
+            return zone.Search(request, hostLabelStr, hostLabels);
         }
+    }
+
+    // 検索要求
+    public class SearchRequest
+    {
+        public string FqdnNormalized { init; get; } = null!;
+    }
+
+    [Flags]
+    public enum SearchResultType
+    {
+        NormalAnswer = 0,
+        NsDelegation = 1,
+    }
+
+    // 検索結果
+    public class SearchResult
+    {
+        public List<Record>? RecordList { get; set; } = null; // null: サブドメインが全く存在しない 空リスト: サブドメインは存在するものの、レコードは存在しない
+        public Zone Zone { get; set; } = null!;
+        public Record_SOA SOARecord { get; set; } = null!;
+        public SearchResultType ResultType { get; set; } = SearchResultType.NormalAnswer;
+    }
+
+    DataSet? CurrentDataSet = null;
+
+    public void LoadSetting(EasyDnsResponderSettings setting)
+    {
+        var dataSet = new DataSet(setting);
+
+        this.CurrentDataSet = dataSet;
+    }
+
+    public SearchResult? Query(SearchRequest request, EasyDnsResponderRecordType type)
+    {
+        var dataSet = this.CurrentDataSet;
+        if (dataSet == null)
+        {
+            return null;
+        }
+
+        // 純粋な Zone の検索処理を実施する。クエリにおける要求レコードタイプは見ない。
+        SearchResult? ret = dataSet.Search(request);
+
+        // 次にクエリにおける要求レコードタイプに従って特別処理を行なう。
+        if (ret != null)
+        {
+            var zone = ret.Zone;
+
+            if (type == EasyDnsResponderRecordType.NS)
+            {
+                if (ret.ResultType == SearchResultType.NormalAnswer)
+                {
+                    // 特別処理: クエリ種類が NS の場合で、普通の結果の場合、結果にはこのゾーンの NS レコード一覧を埋め込むのである。
+                    ret.RecordList = zone.NSRecord;
+                }
+                else if (ret.ResultType == SearchResultType.NsDelegation)
+                {
+                    // 特別処理: クエリ種類が NS の場合で、権限委譲されているドメインの場合、結果には権限委譲のための NS レコードを埋め込むのである。
+                    // (dataSet.Search() によって、すでに埋め込みされているはずである。したがって、ここでは何もしない。)
+                }
+            }
+            else
+            {
+                // 応答リストを指定されたクエリ種類によってフィルタする。
+                if (ret.RecordList != null)
+                {
+                    if (type != EasyDnsResponderRecordType.Any)
+                    {
+                        List<Record> tmpList = new List<Record>(ret.RecordList.Count);
+
+                        foreach (var r in ret.RecordList)
+                        {
+                            if (r.Type == type)
+                            {
+                                tmpList.Add(r);
+                            }
+                        }
+
+                        ret.RecordList = tmpList;
+                    }
+                }
+            }
+        }
+
+        return ret;
     }
 }
 

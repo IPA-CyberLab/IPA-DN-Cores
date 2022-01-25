@@ -596,6 +596,15 @@ public static class BasicHelper
     public static string _Combine(this Span<string> t, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringSpan(t, sepstr, removeEmpty, maxItems, ommitStr);
     public static string _Combine(this Span<string> t, char sepChar, bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringSpan(t, sepChar.ToString(), removeEmpty, maxItems, ommitStr);
 
+    public static string _Combine(this ReadOnlySpan<string> t, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringSpan(t, sepstr, removeEmpty, maxItems, ommitStr);
+    public static string _Combine(this ReadOnlySpan<string> t, char sepChar, bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringSpan(t, sepChar.ToString(), removeEmpty, maxItems, ommitStr);
+
+    public static string _Combine(this Memory<string> t, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringSpan(t.Span, sepstr, removeEmpty, maxItems, ommitStr);
+    public static string _Combine(this Memory<string> t, char sepChar, bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringSpan(t.Span, sepChar.ToString(), removeEmpty, maxItems, ommitStr);
+
+    public static string _Combine(this ReadOnlyMemory<string> t, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringSpan(t.Span, sepstr, removeEmpty, maxItems, ommitStr);
+    public static string _Combine(this ReadOnlyMemory<string> t, char sepChar, bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringSpan(t.Span, sepChar.ToString(), removeEmpty, maxItems, ommitStr);
+
     public static string _MakeAsciiOneLinePrintableStr(this string? src, char alternativeChar = ' ') => Str.MakeAsciiOneLinePrintableStr(src, alternativeChar);
 
     public static string _MakeCharArray(this char c, int len) => Str.MakeCharArray(c, len);

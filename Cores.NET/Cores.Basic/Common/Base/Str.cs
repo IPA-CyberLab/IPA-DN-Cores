@@ -4886,7 +4886,7 @@ namespace IPA.Cores.Basic
             return b.ToString();
         }
 
-        public static string CombineStringSpan(Span<string> strList, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...")
+        public static string CombineStringSpan(ReadOnlySpan<string> strList, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...")
         {
             sepstr = sepstr._NonNull();
 
