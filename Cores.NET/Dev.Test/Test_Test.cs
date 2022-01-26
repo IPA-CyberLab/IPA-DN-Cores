@@ -976,7 +976,7 @@ static class TestClass
                         __INDEX1__ = i,
                         __INDEX2__ = (i % 100).ToString("D2"),
                         __MGMT_IP__ = $"10.47.10.{i + 32}",
-                        __PUB_IP__ = $"10.47.3.{i}",
+                        __PUB_IP__ = $"10.37.3.{i}",
                         __PRI_IP__ = $"10.47.5.{i}",
                         __GATE_IP__ = $"10.47.3.{i + 32}",
                         __VMNUMBER__ = ((((i - 100) - 1) / 8) + 1) + 100,
@@ -986,7 +986,7 @@ static class TestClass
             }
         }
 
-        if (true)
+        if (false)
         {
             string src = @"C:\Dropbox\COENET\メモ資料\200930 自治体テレワーク for LGWAN 開発設計資料\4. 第四世代 本番環境 (関西拡張後)\G. Config および手順書集\G-26. HTTPS 画面通信受付サーバ (インターネット公開セグメント側)\_内部用_テンプレート\inetg100.txt";
             for (int i = 101; i <= 132; i++)
@@ -3311,6 +3311,12 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_ThinLgWanConfigMaker();
+            return;
+        }
+
         if (false)
         {
             Test_220116();
@@ -3395,12 +3401,6 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         {
             // HADB DDNS 模擬テスト #1 (更新しまくり)
             Test_211205(threads: 100, count: 10000, numInsertsOrUpdates: 100, type: HADB_DDNS_TestType.Test0_ManyUpdate, truncate: true);
-            return;
-        }
-
-        if (false)
-        {
-            Test_ThinLgWanConfigMaker();
             return;
         }
 

@@ -1570,6 +1570,9 @@ public class AutoArchiver : AsyncServiceWithMainLoop
             {
                 await FileSystem.DeleteFileAsync(deleteFile, cancel: cancel);
             }
+            catch (OperationCanceledException)
+            {
+            }
             catch (Exception ex)
             {
                 ex._Debug();
