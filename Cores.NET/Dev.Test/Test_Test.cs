@@ -3316,13 +3316,13 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
     {
         public string? Str1;
         public int? Int1;
-        List<string>? StringArray;
+        public List<string>? StringArray;
 
         public static HelloData SampleData()
         {
             return new HelloData
             {
-                Str1 = "Hello",
+                Str1 = "Hello?World/Test\\Data\"Data2'Data3",
                 Int1 = 123,
                 StringArray = new List<string>(new string[] { "A", "BB", "CCC" }),
             };
@@ -3337,6 +3337,9 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
         [RpcMethodHelp("こんにちは２", "ねこさん")]
         public Task<string> Hello2([RpcParamHelp("いぬ", 8945)] int a, [RpcParamHelp("とり")] HelloData b);
+
+        [RpcMethodHelp("こんにちは３")]
+        public Task<HelloData> Hello3();
     }
 
     public class JsonRpcTest220129 : EasyJsonRpcServer<JsonRpcTest220129Interface>, JsonRpcTest220129Interface
@@ -3354,7 +3357,16 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         public async Task<string> Hello2(int a, HelloData b)
         {
             await Task.CompletedTask;
-            return $"Hello 2 {a} - {b._GetObjectDump()}";
+            return $"Hello 2 {a} - {b._GetObjectDump()} - [{b.Str1}]";
+        }
+
+        public Task<HelloData> Hello3()
+        {
+            HelloData d = new HelloData();
+            d.Int1 = 123;
+            d.Str1 = "Hello World";
+            d.StringArray = new List<string> { "Hello", "Neko" };
+            return TR(d);
         }
     }
 
@@ -3363,6 +3375,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         HttpServerOptions opt = new HttpServerOptions
         {
             AutomaticRedirectToHttpsIfPossible = false,
+            //UseKestrelWithIPACoreStack = false,
         };
 
         using JsonRpcTest220129 svr = new JsonRpcTest220129(opt);

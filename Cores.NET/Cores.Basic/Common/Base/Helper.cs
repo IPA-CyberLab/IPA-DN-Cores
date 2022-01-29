@@ -3317,6 +3317,29 @@ public static class BasicHelper
 
         return ret;
     }
+
+    public static string? _EscapeBashArg(this string arg, bool normalizeCrLfToLf = true)
+    {
+        arg = arg._NonNull();
+
+        if (normalizeCrLfToLf) arg = arg._NormalizeCrlf(CrlfStyle.Lf);
+
+        // ' -> '\''
+        arg = arg._ReplaceStr("'", "'\\''");
+
+        // \r -> '$'\r''
+        arg = arg._ReplaceStr("\r", "'$'\\r''");
+
+        // \n -> '$'\n''
+        arg = arg._ReplaceStr("\n", "'$'\\n''");
+
+        // \t -> '$'\t''
+        arg = arg._ReplaceStr("\t", "'$'\\t''");
+
+        arg = "'" + arg + "'";
+
+        return arg;
+    }
 }
 
 

@@ -64,6 +64,8 @@ namespace IPA.Cores.Basic;
 
 public class JsonRpcHttpServer : JsonRpcServer
 {
+    public string RpcBaseAbsoluteUrlPath = ""; // "/rpc/" のような絶対パス。末尾に / を含む。
+
     public JsonRpcHttpServer(JsonRpcServerApi api, JsonRpcServerConfig? cfg = null) : base(api, cfg) { }
 
     public virtual async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
@@ -75,11 +77,9 @@ public class JsonRpcHttpServer : JsonRpcServer
             string rpcMethod = routeData.Values._GetStr("rpc_method");
             if (rpcMethod._IsEmpty())
             {
-                string baseUrl = request.GetEncodedUrl();
+                var baseUri = request.GetEncodedUrl()._ParseUrl()._CombineUrl(this.RpcBaseAbsoluteUrlPath);
 
-                baseUrl._Print();
-
-                await response._SendStringContentsAsync($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTimeOffset.Now._ToDtStr(withNanoSecs: true)}\r\n\r\n{GenerateHelpString()}", cancel: cancel);
+                await response._SendStringContentsAsync($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTimeOffset.Now._ToDtStr(withNanoSecs: true)}\r\n\r\n{GenerateHelpString(baseUri)}", cancel: cancel);
             }
             else
             {
@@ -93,7 +93,17 @@ public class JsonRpcHttpServer : JsonRpcServer
                     {
                         string value = request.Query[key];
 
-                        jObj.Add(key, JToken.FromObject(value));
+                        string valueTrim = value.Trim();
+                        if (valueTrim.StartsWith("{") && valueTrim.EndsWith("}"))
+                        {
+                            // JSON Data
+                            jObj.Add(key, value._JsonToObject<JObject>());
+                        }
+                        else
+                        {
+                            // Primitive Date
+                            jObj.Add(key, JToken.FromObject(value));
+                        }
                     }
 
                     args = jObj._ObjectToJson(compact: true);
@@ -102,12 +112,12 @@ public class JsonRpcHttpServer : JsonRpcServer
                 //string id = "GET-" + Str.NewGuid().ToUpperInvariant();
                 string in_str = "{'jsonrpc':'2.0','method':'" + rpcMethod + "','params':" + args + "}";
 
-                await ProcessHttpRequestMain(request, response, in_str, Consts.MimeTypes.TextUtf8);
+                await ProcessHttpRequestMain(request, response, in_str, Consts.MimeTypes.TextUtf8, Consts.HttpStatusCodes.InternalServerError, true);
             }
         }
         catch (Exception ex)
         {
-            await response._SendStringContentsAsync(ex.ToString(), cancel: cancel);
+            await response._SendStringContentsAsync("Request Error: " + ex.ToString(), cancel: cancel, statusCode: Consts.HttpStatusCodes.InternalServerError);
         }
     }
 
@@ -125,8 +135,10 @@ public class JsonRpcHttpServer : JsonRpcServer
         }
     }
 
-    protected virtual async Task ProcessHttpRequestMain(HttpRequest request, HttpResponse response, string inStr, string responseContentsType = Consts.MimeTypes.Json)
+    protected virtual async Task ProcessHttpRequestMain(HttpRequest request, HttpResponse response, string inStr, string responseContentsType = Consts.MimeTypes.Json, int httpStatusWhenError = Consts.HttpStatusCodes.Ok, bool simpleResultWhenOk = false)
     {
+        int statusCode = Consts.HttpStatusCodes.Ok;
+
         string ret_str = "";
         try
         {
@@ -148,7 +160,14 @@ public class JsonRpcHttpServer : JsonRpcServer
             //string in_str = (request.Body.ReadToEnd(this.Config.MaxRequestBodyLen)).GetString_UTF8();
             //Dbg.WriteLine("in_str: " + in_str);
 
-            ret_str = await this.CallMethods(inStr, client_info);
+            RefBool allError = new RefBool();
+
+            ret_str = await this.CallMethods(inStr, client_info, allError, simpleResultWhenOk);
+
+            if (allError)
+            {
+                statusCode = httpStatusWhenError;
+            }
         }
         catch (Exception ex)
         {
@@ -162,15 +181,22 @@ public class JsonRpcHttpServer : JsonRpcServer
                 Id = null,
                 Result = null,
             }._ObjectToJson();
+
+            statusCode = httpStatusWhenError;
         }
 
         //Dbg.WriteLine("ret_str: " + ret_str);
 
-        await response._SendStringContentsAsync(ret_str, responseContentsType, cancel: request._GetRequestCancellationToken());
+        await response._SendStringContentsAsync(ret_str, responseContentsType, cancel: request._GetRequestCancellationToken(), statusCode: statusCode);
     }
 
     public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string path = "/rpc")
     {
+        path = path._NonNullTrim();
+
+        if (path.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{path}'");
+        if (path.Length >= 2 && path.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
+
         RouteBuilder rb = new RouteBuilder(appBuilder);
 
         rb.MapGet(path, GetRequestHandler);
@@ -180,10 +206,13 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         IRouter router = rb.Build();
         appBuilder.UseRouter(router);
+
+        this.RpcBaseAbsoluteUrlPath = path;
+        if (this.RpcBaseAbsoluteUrlPath.EndsWith("/") == false) this.RpcBaseAbsoluteUrlPath += "/";
     }
 
     // ヘルプ文字列を生成する
-    string GenerateHelpString()
+    string GenerateHelpString(Uri rpcBaseUri)
     {
         var methodList = this.Api.EnumMethodsForHelp();
 
@@ -195,9 +224,10 @@ public class JsonRpcHttpServer : JsonRpcServer
         {
             methodIndex++;
 
-            w.WriteLine("==================================");
-            w.WriteLine($"RPC Method #{methodIndex}: {m.Name} {m.Description._SurroundIfFilled()}".TrimEnd());
-            w.WriteLine("==================================");
+            string title = $"RPC Method #{methodIndex}: {m.Name} {m.Description._SurroundIfFilled()}".TrimEnd();
+            w.WriteLine(Str.MakeCharArray('=', title._GetWidth()));
+            w.WriteLine(title);
+            w.WriteLine(Str.MakeCharArray('=', title._GetWidth()));
             w.WriteLine();
             w.WriteLine($"Method Name: {m.Name}");
             w.WriteLine();
@@ -208,6 +238,8 @@ public class JsonRpcHttpServer : JsonRpcServer
             }
 
             var pl = m.ParametersHelpList;
+
+            QueryStringList qsList = new QueryStringList();
 
             if (pl.Count == 0)
             {
@@ -221,6 +253,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                 for (int i = 0; i < pl.Count; i++)
                 {
                     var pp = pl[i];
+                    string? qsSampleOrDefauleValue = null;
 
                     w.WriteLine($"  Parameter #{i + 1}: {pp.Name} {m.Description._SurroundIfFilled()}".TrimEnd());
                     w.WriteLine($"    Name: {pp.Name}");
@@ -230,7 +263,8 @@ public class JsonRpcHttpServer : JsonRpcServer
                     }
                     if (pp.SampleValueOneLineStr._IsFilled())
                     {
-                        w.WriteLine($"    Sample: {pp.SampleValueOneLineStr}");
+                        w.WriteLine($"    Sample Data: {pp.SampleValueOneLineStr}");
+                        qsSampleOrDefauleValue = pp.SampleValueOneLineStr;
                     }
                     if (pp.IsPrimitiveType)
                     {
@@ -244,7 +278,25 @@ public class JsonRpcHttpServer : JsonRpcServer
                     if (pp.Mandatory == false)
                     {
                         w.WriteLine($"    Default Value: {pp.DefaultValue._ObjectToJson(includeNull: true, compact: true)}");
+                        if (qsSampleOrDefauleValue == null)
+                        {
+                            qsSampleOrDefauleValue = pp.DefaultValue._ObjectToJson(includeNull: true, compact: true);
+                        }
                     }
+
+                    if (qsSampleOrDefauleValue == null)
+                    {
+                        if (pp.IsPrimitiveType)
+                        {
+                            qsSampleOrDefauleValue = $"value_{i + 1}";
+                        }
+                        else
+                        {
+                            qsSampleOrDefauleValue = "{JSON_Input_Value_No_{i + 1}_Here}";
+                        }
+                    }
+
+                    qsList.Add(pp.Name, pp.SampleValueOneLineStr);
 
                     w.WriteLine();
                 }
@@ -253,12 +305,12 @@ public class JsonRpcHttpServer : JsonRpcServer
 
             if (m.HasRetValue == false)
             {
-                w.WriteLine("No Return Value.");
+                w.WriteLine("No Result Value.");
                 w.WriteLine();
             }
             else
             {
-                w.WriteLine("Return Value:");
+                w.WriteLine("Result Value:");
                 if (m.IsRetValuePrimitiveType)
                 {
                     w.WriteLine($"  Type: Primitive Value - {m.RetValueTypeName}");
@@ -270,7 +322,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
                 if (m.RetValueSampleValueJsonMultilineStr._IsFilled())
                 {
-                    w.WriteLine("  Sample:");
+                    w.WriteLine("  Sample Result Data:");
                     w.WriteLine("  --------------------");
                     w.Write($"  {m.RetValueSampleValueJsonMultilineStr}"._NormalizeCrlf(ensureLastLineCrlf: true));
                     w.WriteLine("  --------------------");
@@ -279,11 +331,27 @@ public class JsonRpcHttpServer : JsonRpcServer
                 w.WriteLine("");
             }
 
-            w.WriteLine("HTTP Simple GET with Query String Sample:");
             w.WriteLine();
-            w.WriteLine("    --- HTTP GET URL with Query String Sample ---");
 
+
+
+            w.WriteLine("RPC Call Sample: HTTP GET with Query String Sample:");
             w.WriteLine();
+
+            w.WriteLine("    --- RPC Call Sample: HTTP GET with Query String Sample ---");
+            string urlDir = rpcBaseUri._CombineUrlDir(m.Name).ToString();
+            if (qsList.Any())
+            {
+                urlDir += "?" + qsList.ToString();
+                urlDir = urlDir._DecodeUrlPath();
+            }
+            w.WriteLine($"    {urlDir}");
+            w.WriteLine();
+            w.WriteLine($"      # wget command line sample on Linux bash (retcode = 0 when successful)");
+            w.WriteLine($"      curl --get --globoff --fail -k --raw --verbose {urlDir._EscapeBashArg()}");
+            w.WriteLine();
+            w.WriteLine($"      # curl command line sample on Linux bash (retcode = 0 when successful)");
+            w.WriteLine($"      wget --content-on-error --no-verbose -O - -o /dev/null --no-check-certificate {urlDir._EscapeBashArg()}");
         }
 
         return w.ToString();

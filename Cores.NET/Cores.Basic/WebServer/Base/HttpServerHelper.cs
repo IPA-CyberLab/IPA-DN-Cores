@@ -71,13 +71,15 @@ public static class WebServerHelper
         await h._SendStreamContentsAsync(result.Stream, result.Length, result.ContentType, cancel, result.PreData, result.PostData, result.StatusCode, result.AdditionalHeaders);
     }
 
-    public static Task _SendStringContentsAsync(this HttpResponse h, string body, string contentsType = Consts.MimeTypes.TextUtf8, Encoding? encoding = null, CancellationToken cancel = default(CancellationToken))
+    public static Task _SendStringContentsAsync(this HttpResponse h, string body, string contentsType = Consts.MimeTypes.TextUtf8, Encoding? encoding = null, CancellationToken cancel = default(CancellationToken), int statusCode = Consts.HttpStatusCodes.Ok)
     {
         if (encoding == null) encoding = Str.Utf8Encoding;
         byte[] ret_data = encoding.GetBytes(body);
 
         h.ContentType = contentsType;
         h.ContentLength = ret_data.Length;
+        h.StatusCode = statusCode;
+
         return h.Body.WriteAsync(ret_data, 0, ret_data.Length, cancel);
     }
 

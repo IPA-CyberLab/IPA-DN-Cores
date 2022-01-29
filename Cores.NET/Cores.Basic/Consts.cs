@@ -446,7 +446,7 @@ public static partial class Consts
         public const int Found = 302;
         public const int NotModified = 304;
         public const int TemporaryRedirect = 307;
-        public const int BadRequest = 100;
+        //public const int BadRequest = 100; 注意して利用すること！ 危険！ コメントアウトした
         public const int Unauthorized = 401;
         public const int Forbidden = 403;
         public const int NotFound = 404;

@@ -279,7 +279,7 @@ public class RpcParameterHelp
             }
         }
 
-        this.SampleValueOneLineStr = this.SampleValueObject?._ObjectToJson(compact: true) ?? "";
+        this.SampleValueOneLineStr = this.SampleValueObject?._ObjectToJson(includeNull: true, compact: true) ?? "";
 
         if (info.HasDefaultValue == false)
         {
@@ -593,8 +593,10 @@ public abstract class JsonRpcServer
         }
     }
 
-    public async Task<string> CallMethods(string inStr, JsonRpcClientInfo clientInfo)
+    public async Task<string> CallMethods(string inStr, JsonRpcClientInfo clientInfo, RefBool allError, bool simpleResultWhenOk)
     {
+        allError.Set(false);
+
         bool is_single = false;
         List<JsonRpcRequest> requestList = new List<JsonRpcRequest>();
         try
@@ -716,12 +718,32 @@ public abstract class JsonRpcServer
         if (is_single)
         {
             if (response_list.Count >= 1)
-                return response_list[0]._ObjectToJson();
+            {
+                var resSingle = response_list[0];
+                if (resSingle.IsError)
+                {
+                    allError.Set(true);
+                }
+
+                if (resSingle.IsOk && simpleResultWhenOk)
+                {
+                    return resSingle.Result._ObjectToJson();
+                }
+                else
+                {
+                    return resSingle._ObjectToJson();
+                }
+            }
             else
+            {
                 return "";
+            }
         }
         else
+        {
+            allError.Set(response_list.All(x => x.IsError));
             return response_list._ObjectToJson();
+        }
     }
 }
 
