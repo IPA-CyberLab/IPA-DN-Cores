@@ -37,6 +37,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Linq;
 using Castle.DynamicProxy;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -66,6 +67,53 @@ public class JsonRpcException : Exception
         this.RpcError = err!;
     }
 }
+
+
+public class JsonRpcRequestForHelp
+{
+    [JsonProperty("jsonrpc")]
+    public string? Version { get; set; } = "2.0";
+
+    [JsonProperty("method")]
+    public string? Method { get; set; } = "";
+
+    [JsonProperty("params")]
+    public object? Params { get; set; } = null;
+
+    [JsonProperty("id")]
+    public string? Id { get; set; } = null;
+}
+
+public class JsonRpcResponseForHelp_Ok
+{
+    [JsonProperty("jsonrpc")]
+    public string? Version { get; set; } = "2.0";
+
+    [JsonProperty("result")]
+    public object? Result { get; set; } = null;
+
+    //[JsonProperty("error")]
+    //public JsonRpcError? Error { get; set; } = null;
+
+    [JsonProperty("id", NullValueHandling = NullValueHandling.Include)]
+    public virtual string? Id { get; set; } = null;
+}
+
+public class JsonRpcResponseForHelp_Error
+{
+    [JsonProperty("jsonrpc")]
+    public string? Version { get; set; } = "2.0";
+
+    //[JsonProperty("result")]
+    //public object? Result { get; set; } = null;
+
+    [JsonProperty("error")]
+    public JsonRpcError? Error { get; set; } = null;
+
+    [JsonProperty("id", NullValueHandling = NullValueHandling.Include)]
+    public virtual string? Id { get; set; } = null;
+}
+
 
 public class JsonRpcRequest
 {
@@ -172,7 +220,78 @@ public class JsonRpcError
     public object? Data { get; set; } = null;
 }
 
+[AttributeUsage(AttributeTargets.Interface)]
 public class RpcInterfaceAttribute : Attribute { }
+
+[AttributeUsage(AttributeTargets.Method)]
+public class RpcMethodHelpAttribute : Attribute
+{
+    public string Description { get; }
+    public object? SampleReturnValueIfPrimitive { get; }
+
+    public RpcMethodHelpAttribute(string description, object? sampleReturnValueIfPrimitive = null)
+    {
+        this.Description = description._NonNullTrim();
+        this.SampleReturnValueIfPrimitive = sampleReturnValueIfPrimitive;
+    }
+}
+
+[AttributeUsage(AttributeTargets.Parameter)]
+public class RpcParamHelpAttribute : Attribute
+{
+    public string Description { get; }
+    public object? SampleValueIfPrimitive { get; }
+
+    public RpcParamHelpAttribute(string description, object? sampleValueIfPrimitive = null)
+    {
+        this.Description = description._NonNullTrim();
+        this.SampleValueIfPrimitive = sampleValueIfPrimitive;
+    }
+}
+
+public class RpcParameterHelp
+{
+    public string Name { get; }
+    public Type Type { get; }
+    public string TypeName { get; }
+    public bool IsPrimitiveType { get; }
+    public string Description { get; } = "";
+    public object? SampleValueObject { get; }
+    public string SampleValueOneLineStr { get; } = "";
+    public bool Mandatory { get; }
+    public object? DefaultValue { get; }
+
+    public RpcParameterHelp(ParameterInfo info)
+    {
+        this.Name = info.Name._NonNull();
+        this.Type = info.ParameterType;
+        this.TypeName = this.Type.Name;
+        this.IsPrimitiveType = Dbg.IsPrimitiveType(this.Type);
+        this.SampleValueObject = SampleDataUtil.Get(this.Type);
+
+        var attr = info.GetCustomAttribute<RpcParamHelpAttribute>();
+        if (attr != null)
+        {
+            this.Description = attr.Description;
+            if (this.IsPrimitiveType && attr.SampleValueIfPrimitive != null)
+            {
+                this.SampleValueObject = attr.SampleValueIfPrimitive;
+            }
+        }
+
+        this.SampleValueOneLineStr = this.SampleValueObject?._ObjectToJson(compact: true) ?? "";
+
+        if (info.HasDefaultValue == false)
+        {
+            this.Mandatory = true;
+            this.DefaultValue = info.DefaultValue;
+        }
+        else
+        {
+            this.Mandatory = false;
+        }
+    }
+}
 
 public class RpcMethodInfo
 {
@@ -184,6 +303,15 @@ public class RpcMethodInfo
     public Type? TaskType { get; }
     public bool IsGenericTask { get; }
     public Type? GeneticTaskType { get; }
+    public List<RpcParameterHelp> _ParametersHelpList = new List<RpcParameterHelp>();
+    public IReadOnlyList<RpcParameterHelp> ParametersHelpList => _ParametersHelpList;
+    public bool HasRetValue { get; }
+    public Type? RetValueType => this.GeneticTaskType;
+    public string RetValueTypeName => this.RetValueType?.Name ?? "void";
+    public string Description { get; } = "";
+    public object? RetValueSampleValueObject { get; }
+    public string RetValueSampleValueJsonMultilineStr { get; } = "";
+    public bool IsRetValuePrimitiveType { get; }
 
     public RpcMethodInfo(Type targetClass, string methodName)
     {
@@ -222,6 +350,35 @@ public class RpcMethodInfo
         this.Name = methodName;
         this.ReturnParameter = r;
         this.ParametersByIndex = methodInfo.GetParameters();
+
+        foreach (var param in this.ParametersByIndex)
+        {
+            this._ParametersHelpList.Add(new RpcParameterHelp(param));
+        }
+
+        if (this.RetValueType != null)
+        {
+            this.RetValueSampleValueObject = SampleDataUtil.Get(this.RetValueType);
+            this.IsRetValuePrimitiveType = Dbg.IsPrimitiveType(this.RetValueType);
+            this.HasRetValue = true;
+        }
+        else
+        {
+            this.IsRetValuePrimitiveType = true;
+            this.HasRetValue = false;
+        }
+
+        var attr = methodInfo.GetCustomAttribute<RpcMethodHelpAttribute>();
+        if (attr != null)
+        {
+            this.Description = attr.Description;
+            if (this.IsRetValuePrimitiveType && attr.SampleReturnValueIfPrimitive != null)
+            {
+                this.RetValueSampleValueObject = attr.SampleReturnValueIfPrimitive;
+            }
+        }
+
+        this.RetValueSampleValueJsonMultilineStr = this.RetValueSampleValueObject?._ObjectToJson(includeNull: true, compact: false) ?? "";
     }
 
     public async Task<object?> InvokeMethod(object targetInstance, string methodName, JObject param)
@@ -237,10 +394,17 @@ public class RpcMethodInfo
             {
                 ParameterInfo pi = this.ParametersByIndex[i];
                 if (param != null && param.TryGetValue(pi.Name, out var value))
+                {
                     inParams[i] = value.ToObject(pi.ParameterType);
+                }
                 else if (pi.HasDefaultValue)
+                {
                     inParams[i] = pi.DefaultValue;
-                else throw new ArgumentException($"The parameter '{pi.Name}' is missing.");
+                }
+                else
+                {
+                    throw new ArgumentException($"The parameter '{pi.Name}' is missing.");
+                }
             }
         }
 
@@ -273,30 +437,27 @@ public abstract class JsonRpcServerApi : AsyncService
 
     public JsonRpcServerApi(CancellationToken cancel = default) : base(cancel)
     {
-        this.RpcInterface = GetRpcInterface();
+        try
+        {
+            this.RpcInterface = GetRpcInterface();
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
     }
 
     protected JsonRpcClientInfo ClientInfo { get => TaskVar<JsonRpcClientInfo>.Value; }
 
-    Dictionary<string, RpcMethodInfo> MethodInfoCache = new Dictionary<string, RpcMethodInfo>();
-    public RpcMethodInfo? GetMethodInfo(string methodName)
+    FastCache<string, RpcMethodInfo> MethodInfoCache = new FastCache<string, RpcMethodInfo>(expireMsecs: int.MaxValue);
+    public RpcMethodInfo GetMethodInfo(string methodName)
     {
-        RpcMethodInfo? m = null;
-        lock (MethodInfoCache)
-        {
-            if (MethodInfoCache.ContainsKey(methodName) == false)
-            {
-                m = GetMethodInfoMain(methodName);
-                MethodInfoCache.Add(methodName, m);
-            }
-            else
-                m = MethodInfoCache[methodName];
-        }
-        return m;
+        return MethodInfoCache.GetOrCreate(methodName, GetMethodInfoMain)!;
     }
     RpcMethodInfo GetMethodInfoMain(string methodName)
     {
-        RpcMethodInfo mi = new RpcMethodInfo(this.GetType(), methodName);
+        RpcMethodInfo mi = new RpcMethodInfo(this.RpcInterface, methodName);
         if (this.RpcInterface.GetMethod(mi.Name) == null)
         {
             throw new ApplicationException($"The method '{methodName}' is not defined on the interface '{this.RpcInterface.Name}'.");
@@ -334,6 +495,33 @@ public abstract class JsonRpcServerApi : AsyncService
     public virtual void FinishCall(object? param) { }
 
     public virtual Task FinishCallAsync(object? param) => Task.CompletedTask;
+
+    public List<RpcMethodInfo> EnumMethodsForHelp()
+    {
+        List<RpcMethodInfo> ret = new List<RpcMethodInfo>();
+
+        var methodInfoList = this.RpcInterface.GetMethods(BindingFlags.Instance | BindingFlags.Public);
+
+        HashSet<string> nameSet = new HashSet<string>();
+
+        foreach (var m in methodInfoList)
+        {
+            try
+            {
+                string name = m.Name;
+
+                if (nameSet.Add(name))
+                {
+                    var info = GetMethodInfo(name);
+
+                    ret.Add(info);
+                }
+            }
+            catch { }
+        }
+
+        return ret;
+    }
 }
 
 public abstract class JsonRpcServer
@@ -411,10 +599,14 @@ public abstract class JsonRpcServer
         List<JsonRpcRequest> requestList = new List<JsonRpcRequest>();
         try
         {
-            if (inStr.StartsWith("{"))
+            if (inStr.StartsWith("{") || this.Config.MultiRequestAllowed == false)
             {
                 is_single = true;
                 JsonRpcRequest r = inStr._JsonToObject<JsonRpcRequest>()!;
+                if (r.Id._IsEmpty())
+                {
+                    r.Id = "REQ_" + Str.NewGuid().ToUpperInvariant();
+                }
                 requestList.Add(r);
             }
             else
@@ -536,6 +728,7 @@ public abstract class JsonRpcServer
 public class JsonRpcServerConfig
 {
     public int MaxRequestBodyLen { get; set; } = CoresConfig.JsonRpcServerSettings.DefaultMaxRequestBodyLen.Value;
+    public bool MultiRequestAllowed { get; set; } = false;
 }
 
 public abstract class JsonRpcClient

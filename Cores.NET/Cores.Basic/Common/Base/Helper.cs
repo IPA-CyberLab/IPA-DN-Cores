@@ -367,6 +367,9 @@ public static class BasicHelper
     public static void _SetMax(this ref ulong i, ulong target) => i = Math.Max(i, target);
 
     [MethodImpl(Inline)]
+    public static string _ToBoolYesNoStr(this bool b) => b ? "Yes" : "No";
+
+    [MethodImpl(Inline)]
     public static string _ToBoolStr(this bool b) => b._ToBoolStrFirstUpper();
 
     [MethodImpl(Inline)]
@@ -1836,6 +1839,9 @@ public static class BasicHelper
     public static bool _IsEmpty([NotNullWhen(false)] this string? str) => Str.IsEmptyStr(str);
     [MethodImpl(Inline)]
     public static bool _IsFilled([NotNullWhen(true)] this string? str) => Str.IsFilledStr(str);
+
+    [MethodImpl(Inline)]
+    public static string _SurroundIfFilled(this string? str, string strBefore = "(", string strAfter = ")") => str._IsEmpty() ? "" : $"{strBefore}{str._NonNullTrim()}{strAfter}";
 
     public static string[] _Split(this string str, StringSplitOptions options, params string[] separators) => str.Split(separators, options);
     public static string[] _Split(this string str, StringSplitOptions options, params char[] separators) => str.Split(separators, options);

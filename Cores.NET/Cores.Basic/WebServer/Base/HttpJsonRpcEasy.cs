@@ -48,11 +48,31 @@ public abstract class EasyJsonRpcServer<TInterface> : JsonRpcServerApi
 {
     HttpServer<JsonRpcHttpServerBuilder> HttpServer;
 
-    public EasyJsonRpcServer(HttpServerOptions httpConfig, CancellationToken cancel = default) : base(cancel)
+    public EasyJsonRpcServer(HttpServerOptions httpConfig, CancellationToken cancel = default, JsonRpcServerConfig? rpcCfg = null) : base(cancel)
     {
-        JsonRpcServerConfig rpcCfg = new JsonRpcServerConfig();
+        try
+        {
+            rpcCfg ??= new JsonRpcServerConfig();
 
-        this.HttpServer = JsonRpcHttpServerBuilder.StartServer(httpConfig, rpcCfg, this, cancel);
+            this.HttpServer = JsonRpcHttpServerBuilder.StartServer(httpConfig, rpcCfg, this, cancel);
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
+    }
+
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
+        {
+            await this.HttpServer._DisposeSafeAsync();
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
+        }
     }
 }
 

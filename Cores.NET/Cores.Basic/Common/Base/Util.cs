@@ -8490,6 +8490,66 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public static class SampleDataUtil<T>
+    {
+        public static T? SampleData;
+
+        static SampleDataUtil()
+        {
+            try
+            {
+                Type type = typeof(T);
+
+                var method = type.GetMethod("SampleData", BindingFlags.Static | BindingFlags.Public);
+
+                if (method != null)
+                {
+                    object? ret = method.Invoke(null, new object[] { });
+
+                    if (ret != null)
+                    {
+                        SampleData = (T)ret;
+                    }
+                }
+            }
+            catch
+            {
+                SampleData = default;
+            }
+        }
+    }
+
+    public static class SampleDataUtil
+    {
+        static readonly FastCache<Type, object?> CacheData = new FastCache<Type, object?>(int.MaxValue);
+
+        public static object? Get(Type type)
+        {
+            if (Dbg.IsPrimitiveType(type)) return null;
+
+            return CacheData.GetOrCreate(type, t =>
+            {
+                try
+                {
+                    var method = t.GetMethod("SampleData", BindingFlags.Static | BindingFlags.Public);
+
+                    if (method != null)
+                    {
+                        object? ret = method.Invoke(null, new object[] { });
+
+                        if (ret != null)
+                        {
+                            return ret;
+                        }
+                    }
+                }
+                catch { }
+
+                return null;
+            });
+        }
+    }
+
 
     public static class EmptyEnumerable<T>
     {

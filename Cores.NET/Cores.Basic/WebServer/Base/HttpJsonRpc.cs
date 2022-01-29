@@ -37,11 +37,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Linq;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Http.Extensions;
 using Castle.DynamicProxy;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -50,6 +52,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using Microsoft.Extensions.Hosting;
+using System.IO;
 
 #if CORES_BASIC_HTTPSERVER
 // ASP.NET Core 3.0 用の型名を無理やり ASP.NET Core 2.2 でコンパイルするための型エイリアスの設定
@@ -72,7 +75,11 @@ public class JsonRpcHttpServer : JsonRpcServer
             string rpcMethod = routeData.Values._GetStr("rpc_method");
             if (rpcMethod._IsEmpty())
             {
-                await response._SendStringContentsAsync($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTime.Now._ToDtStr(withNanoSecs: true)}", cancel: cancel);
+                string baseUrl = request.GetEncodedUrl();
+
+                baseUrl._Print();
+
+                await response._SendStringContentsAsync($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTimeOffset.Now._ToDtStr(withNanoSecs: true)}\r\n\r\n{GenerateHelpString()}", cancel: cancel);
             }
             else
             {
@@ -92,8 +99,8 @@ public class JsonRpcHttpServer : JsonRpcServer
                     args = jObj._ObjectToJson(compact: true);
                 }
 
-                string id = "GET-" + Str.NewGuid();
-                string in_str = "{'jsonrpc':'2.0','method':'" + rpcMethod + "','params':" + args + ",'id':'" + id + "'}";
+                //string id = "GET-" + Str.NewGuid().ToUpperInvariant();
+                string in_str = "{'jsonrpc':'2.0','method':'" + rpcMethod + "','params':" + args + "}";
 
                 await ProcessHttpRequestMain(request, response, in_str, Consts.MimeTypes.TextUtf8);
             }
@@ -173,6 +180,113 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         IRouter router = rb.Build();
         appBuilder.UseRouter(router);
+    }
+
+    // ヘルプ文字列を生成する
+    string GenerateHelpString()
+    {
+        var methodList = this.Api.EnumMethodsForHelp();
+
+        StringWriter w = new StringWriter();
+
+        int methodIndex = 0;
+
+        foreach (var m in methodList.OrderBy(x => x.Name, StrCmpi))
+        {
+            methodIndex++;
+
+            w.WriteLine("==================================");
+            w.WriteLine($"RPC Method #{methodIndex}: {m.Name} {m.Description._SurroundIfFilled()}".TrimEnd());
+            w.WriteLine("==================================");
+            w.WriteLine();
+            w.WriteLine($"Method Name: {m.Name}");
+            w.WriteLine();
+            if (m.Description._IsFilled())
+            {
+                w.WriteLine($"Description: {m.Description}");
+                w.WriteLine();
+            }
+
+            var pl = m.ParametersHelpList;
+
+            if (pl.Count == 0)
+            {
+                w.WriteLine($"No Input Parameters.");
+                w.WriteLine();
+            }
+            else
+            {
+                w.WriteLine($"Input Parameters ({pl.Count}):");
+
+                for (int i = 0; i < pl.Count; i++)
+                {
+                    var pp = pl[i];
+
+                    w.WriteLine($"  Parameter #{i + 1}: {pp.Name} {m.Description._SurroundIfFilled()}".TrimEnd());
+                    w.WriteLine($"    Name: {pp.Name}");
+                    if (pp.Description._IsFilled())
+                    {
+                        w.WriteLine($"    Description: {pp.Description}");
+                    }
+                    if (pp.SampleValueOneLineStr._IsFilled())
+                    {
+                        w.WriteLine($"    Sample: {pp.SampleValueOneLineStr}");
+                    }
+                    if (pp.IsPrimitiveType)
+                    {
+                        w.WriteLine($"    Type: Primitive Value - {pp.TypeName}");
+                    }
+                    else
+                    {
+                        w.WriteLine($"    Type: JSON Data - {pp.TypeName}");
+                    }
+                    w.WriteLine($"    Mandatory: {pp.Mandatory._ToBoolYesNoStr()}");
+                    if (pp.Mandatory == false)
+                    {
+                        w.WriteLine($"    Default Value: {pp.DefaultValue._ObjectToJson(includeNull: true, compact: true)}");
+                    }
+
+                    w.WriteLine();
+                }
+
+            }
+
+            if (m.HasRetValue == false)
+            {
+                w.WriteLine("No Return Value.");
+                w.WriteLine();
+            }
+            else
+            {
+                w.WriteLine("Return Value:");
+                if (m.IsRetValuePrimitiveType)
+                {
+                    w.WriteLine($"  Type: Primitive Value - {m.RetValueTypeName}");
+                }
+                else
+                {
+                    w.WriteLine($"  Type: JSON Data - {m.RetValueTypeName}");
+                }
+
+                if (m.RetValueSampleValueJsonMultilineStr._IsFilled())
+                {
+                    w.WriteLine("  Sample:");
+                    w.WriteLine("  --------------------");
+                    w.Write($"  {m.RetValueSampleValueJsonMultilineStr}"._NormalizeCrlf(ensureLastLineCrlf: true));
+                    w.WriteLine("  --------------------");
+                }
+
+                w.WriteLine("");
+            }
+
+            w.WriteLine("HTTP Simple GET with Query String Sample:");
+            w.WriteLine();
+            w.WriteLine("    --- HTTP GET URL with Query String Sample ---");
+
+            w.WriteLine();
+        }
+
+        return w.ToString();
     }
 }
 

@@ -31,6 +31,8 @@
 // LAW OR COURT RULE.
 
 #pragma warning disable CA2235 // Mark all non-serializable fields
+#pragma warning disable CS0414
+#pragma warning disable IDE0052 // 読み取られていないプライベート メンバーを削除
 
 using System;
 using System.IO;
@@ -86,6 +88,7 @@ using IPA.Cores.ClientApi.SlackApi;
 using IPA.Cores.Codes;
 using System.Net.Security;
 using Newtonsoft.Json.Linq;
+using System.Diagnostics.CodeAnalysis;
 
 
 #pragma warning disable CS0219
@@ -3309,8 +3312,74 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         }
     }
 
+    public class HelloData
+    {
+        public string? Str1;
+        public int? Int1;
+        List<string>? StringArray;
+
+        public static HelloData SampleData()
+        {
+            return new HelloData
+            {
+                Str1 = "Hello",
+                Int1 = 123,
+                StringArray = new List<string>(new string[] { "A", "BB", "CCC" }),
+            };
+        }
+    }
+
+    [RpcInterface]
+    public interface JsonRpcTest220129Interface
+    {
+        [RpcMethodHelp("こんにちは")]
+        public Task<string> Hello([RpcParamHelp("ねこ", 4567)] int a = 123);
+
+        [RpcMethodHelp("こんにちは２", "ねこさん")]
+        public Task<string> Hello2([RpcParamHelp("いぬ", 8945)] int a, [RpcParamHelp("とり")] HelloData b);
+    }
+
+    public class JsonRpcTest220129 : EasyJsonRpcServer<JsonRpcTest220129Interface>, JsonRpcTest220129Interface
+    {
+        public JsonRpcTest220129(HttpServerOptions httpConfig, CancellationToken cancel = default, JsonRpcServerConfig? rpcCfg = null) : base(httpConfig, cancel, rpcCfg)
+        {
+        }
+
+        public async Task<string> Hello(int a = 456)
+        {
+            await Task.CompletedTask;
+            return $"Hello {a}";
+        }
+
+        public async Task<string> Hello2(int a, HelloData b)
+        {
+            await Task.CompletedTask;
+            return $"Hello 2 {a} - {b._GetObjectDump()}";
+        }
+    }
+
+    public static void Test_220129()
+    {
+        HttpServerOptions opt = new HttpServerOptions
+        {
+            AutomaticRedirectToHttpsIfPossible = false,
+        };
+
+        using JsonRpcTest220129 svr = new JsonRpcTest220129(opt);
+
+        Con.ReadLine("quit>");
+
+        svr._DisposeSafe();
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_220129();
+            return;
+        }
+
         if (true)
         {
             Test_ThinLgWanConfigMaker();
