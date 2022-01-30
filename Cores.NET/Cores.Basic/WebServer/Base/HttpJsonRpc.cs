@@ -79,7 +79,14 @@ public class JsonRpcHttpServer : JsonRpcServer
             {
                 var baseUri = request.GetEncodedUrl()._ParseUrl()._CombineUrl(this.RpcBaseAbsoluteUrlPath);
 
-                await response._SendStringContentsAsync($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTimeOffset.Now._ToDtStr(withNanoSecs: true)}\r\n\r\n{GenerateHelpString(baseUri)}", cancel: cancel);
+                string helpStr = "";
+
+                if (this.Config.PrintHelp)
+                {
+                    helpStr = GenerateHelpString(baseUri);
+                }
+
+                await response._SendStringContentsAsync($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTimeOffset.Now._ToDtStr(withNanoSecs: true)}\r\n\r\n{helpStr}", cancel: cancel, normalizeCrlf: CrlfStyle.Lf);
             }
             else
             {
@@ -117,7 +124,7 @@ public class JsonRpcHttpServer : JsonRpcServer
         }
         catch (Exception ex)
         {
-            await response._SendStringContentsAsync("Request Error: " + ex.ToString(), cancel: cancel, statusCode: Consts.HttpStatusCodes.InternalServerError);
+            await response._SendStringContentsAsync("Request Error: " + ex.ToString(), cancel: cancel, statusCode: Consts.HttpStatusCodes.InternalServerError, normalizeCrlf: CrlfStyle.Lf);
         }
     }
 
@@ -131,7 +138,7 @@ public class JsonRpcHttpServer : JsonRpcServer
         }
         catch (Exception ex)
         {
-            await response._SendStringContentsAsync(ex.ToString(), cancel: request._GetRequestCancellationToken());
+            await response._SendStringContentsAsync(ex.ToString(), cancel: request._GetRequestCancellationToken(), normalizeCrlf: CrlfStyle.Lf);
         }
     }
 
@@ -187,7 +194,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         //Dbg.WriteLine("ret_str: " + ret_str);
 
-        await response._SendStringContentsAsync(ret_str, responseContentsType, cancel: request._GetRequestCancellationToken(), statusCode: statusCode);
+        await response._SendStringContentsAsync(ret_str, responseContentsType, cancel: request._GetRequestCancellationToken(), statusCode: statusCode, normalizeCrlf: CrlfStyle.Lf);
     }
 
     public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string path = "/rpc")
@@ -212,7 +219,12 @@ public class JsonRpcHttpServer : JsonRpcServer
     }
 
     // ヘルプ文字列を生成する
+    readonly FastCache<Uri, string> helpStringCache = new FastCache<Uri, string>();
     string GenerateHelpString(Uri rpcBaseUri)
+    {
+        return helpStringCache.GetOrCreate(rpcBaseUri, x => GenerateHelpStringCore(x))!;
+    }
+    string GenerateHelpStringCore(Uri rpcBaseUri)
     {
         var methodList = this.Api.EnumMethodsForHelp();
 
@@ -225,9 +237,9 @@ public class JsonRpcHttpServer : JsonRpcServer
             methodIndex++;
 
             string title = $"RPC Method #{methodIndex}: {m.Name} {m.Description._SurroundIfFilled()}".TrimEnd();
-            w.WriteLine(Str.MakeCharArray('=', title._GetWidth()));
+            w.WriteLine("======================================================================");
             w.WriteLine(title);
-            w.WriteLine(Str.MakeCharArray('=', title._GetWidth()));
+            w.WriteLine("======================================================================");
             w.WriteLine();
             w.WriteLine($"Method Name: {m.Name}");
             w.WriteLine();
@@ -238,6 +250,8 @@ public class JsonRpcHttpServer : JsonRpcServer
             }
 
             var pl = m.ParametersHelpList;
+
+            var sampleRequestJsonData = Json.NewJsonObject();
 
             QueryStringList qsList = new QueryStringList();
 
@@ -296,7 +310,9 @@ public class JsonRpcHttpServer : JsonRpcServer
                         }
                     }
 
-                    qsList.Add(pp.Name, pp.SampleValueOneLineStr);
+                    qsList.Add(pp.Name, qsSampleOrDefauleValue);
+
+                    sampleRequestJsonData.TryAdd(pp.Name, JToken.FromObject(pp.SampleValueObject));
 
                     w.WriteLine();
                 }
@@ -323,9 +339,9 @@ public class JsonRpcHttpServer : JsonRpcServer
                 if (m.RetValueSampleValueJsonMultilineStr._IsFilled())
                 {
                     w.WriteLine("  Sample Result Data:");
-                    w.WriteLine("  --------------------");
-                    w.Write($"  {m.RetValueSampleValueJsonMultilineStr}"._NormalizeCrlf(ensureLastLineCrlf: true));
-                    w.WriteLine("  --------------------");
+                    w.WriteLine("--------------------");
+                    w.Write($"{m.RetValueSampleValueJsonMultilineStr}"._NormalizeCrlf(ensureLastLineCrlf: true));
+                    w.WriteLine("--------------------");
                 }
 
                 w.WriteLine("");
@@ -335,23 +351,73 @@ public class JsonRpcHttpServer : JsonRpcServer
 
 
 
-            w.WriteLine("RPC Call Sample: HTTP GET with Query String Sample:");
-            w.WriteLine();
+            //w.WriteLine("RPC Call Sample: HTTP GET with Query String Sample:");
+            //w.WriteLine();
 
-            w.WriteLine("    --- RPC Call Sample: HTTP GET with Query String Sample ---");
+            w.WriteLine("--- RPC Call Sample: HTTP GET with Query String Sample ---");
             string urlDir = rpcBaseUri._CombineUrlDir(m.Name).ToString();
             if (qsList.Any())
             {
                 urlDir += "?" + qsList.ToString();
                 urlDir = urlDir._DecodeUrlPath();
             }
-            w.WriteLine($"    {urlDir}");
+            w.WriteLine($"HTTP GET Target URL: {urlDir}");
             w.WriteLine();
-            w.WriteLine($"      # wget command line sample on Linux bash (retcode = 0 when successful)");
-            w.WriteLine($"      curl --get --globoff --fail -k --raw --verbose {urlDir._EscapeBashArg()}");
+            w.WriteLine($"# curl command line sample on Linux bash (retcode = 0 when successful)");
+            w.WriteLine($"wget --content-on-error --no-verbose -O - -o /dev/null --no-check-certificate {urlDir._EscapeBashArg()}");
             w.WriteLine();
-            w.WriteLine($"      # curl command line sample on Linux bash (retcode = 0 when successful)");
-            w.WriteLine($"      wget --content-on-error --no-verbose -O - -o /dev/null --no-check-certificate {urlDir._EscapeBashArg()}");
+            w.WriteLine($"# wget command line sample on Linux bash (retcode = 0 when successful)");
+            w.WriteLine($"curl --get --globoff --fail -k --raw --verbose {urlDir._EscapeBashArg()}");
+            w.WriteLine();
+            w.WriteLine();
+
+            JsonRpcRequestForHelp reqSample = new JsonRpcRequestForHelp
+            {
+                Version = "2.0",
+                Method = m.Name,
+                Params = sampleRequestJsonData,
+            };
+
+            w.WriteLine("--- RPC Call Sample: HTTP POST with JSON-RPC Sample ---");
+            w.WriteLine($"HTTP POST Target URL: {rpcBaseUri}");
+            w.WriteLine();
+            w.WriteLine($"# curl JSON-RPC call command line sample on Linux bash:");
+            w.WriteLine($"cat <<\\EOF | curl --request POST --globoff --fail -k --raw --verbose --data @- '{rpcBaseUri}'");
+            w.Write(reqSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
+            w.WriteLine("EOF");
+            w.WriteLine();
+
+            w.WriteLine("# JSON-RPC call response sample (when successful):");
+            var okSample = new JsonRpcResponseForHelp_Ok
+            {
+                Version = "2.0",
+                Result = m.RetValueSampleValueObject,
+            };
+            w.WriteLine($"--------------------");
+            w.Write(okSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
+            w.WriteLine($"--------------------");
+            w.WriteLine();
+
+            w.WriteLine("# JSON-RPC call response sample (when error):");
+            var errorSample = new JsonRpcResponseForHelp_Error
+            {
+                Version = "2.0",
+                Error = new JsonRpcError
+                {
+                    Code = -32603,
+                    Message = "Sample Error",
+                    Data = "Sample Error Detail Data\nThis is a sample error data.",
+                },
+            };
+            w.WriteLine($"--------------------");
+            w.Write(errorSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
+            w.WriteLine($"--------------------");
+            w.WriteLine();
+
+            w.WriteLine();
+            w.WriteLine();
+            w.WriteLine();
+            w.WriteLine();
         }
 
         return w.ToString();

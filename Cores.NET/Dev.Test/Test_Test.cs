@@ -3356,6 +3356,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
         public async Task<string> Hello2(int a, HelloData b)
         {
+            throw new CoresException("Error!");
             await Task.CompletedTask;
             return $"Hello 2 {a} - {b._GetObjectDump()} - [{b.Str1}]";
         }
@@ -3378,7 +3379,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             //UseKestrelWithIPACoreStack = false,
         };
 
-        using JsonRpcTest220129 svr = new JsonRpcTest220129(opt);
+        using JsonRpcTest220129 svr = new JsonRpcTest220129(opt, rpcCfg: new JsonRpcServerConfig { PrintHelp = true, });
 
         Con.ReadLine("quit>");
 
@@ -3446,7 +3447,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             // HADB 普通のテスト
             //Test_211108(threads: 100, count: 3000000);
             //while (true)
-                Test_211108(threads: 10, count: 10);
+            Test_211108(threads: 10, count: 10);
             return;
         }
 

@@ -80,8 +80,8 @@ public class JsonRpcRequestForHelp
     [JsonProperty("params")]
     public object? Params { get; set; } = null;
 
-    [JsonProperty("id")]
-    public string? Id { get; set; } = null;
+    //[JsonProperty("id")]
+    //public string? Id { get; set; } = null;
 }
 
 public class JsonRpcResponseForHelp_Ok
@@ -95,8 +95,8 @@ public class JsonRpcResponseForHelp_Ok
     //[JsonProperty("error")]
     //public JsonRpcError? Error { get; set; } = null;
 
-    [JsonProperty("id", NullValueHandling = NullValueHandling.Include)]
-    public virtual string? Id { get; set; } = null;
+    //[JsonProperty("id", NullValueHandling = NullValueHandling.Include)]
+    //public virtual string? Id { get; set; } = null;
 }
 
 public class JsonRpcResponseForHelp_Error
@@ -110,8 +110,8 @@ public class JsonRpcResponseForHelp_Error
     [JsonProperty("error")]
     public JsonRpcError? Error { get; set; } = null;
 
-    [JsonProperty("id", NullValueHandling = NullValueHandling.Include)]
-    public virtual string? Id { get; set; } = null;
+    //[JsonProperty("id", NullValueHandling = NullValueHandling.Include)]
+    //public virtual string? Id { get; set; } = null;
 }
 
 
@@ -751,6 +751,7 @@ public class JsonRpcServerConfig
 {
     public int MaxRequestBodyLen { get; set; } = CoresConfig.JsonRpcServerSettings.DefaultMaxRequestBodyLen.Value;
     public bool MultiRequestAllowed { get; set; } = false;
+    public bool PrintHelp { get; set; } = false;
 }
 
 public abstract class JsonRpcClient
