@@ -116,7 +116,7 @@ public class BasicAuthMiddleware
             // 認証失敗
             string header = $"Basic realm=\"{Settings.Realm._FilledOrDefault("Auth")}\'";
 
-            context.Response.StatusCode = 401;
+            context.Response.StatusCode = Consts.HttpStatusCodes.Unauthorized;
             context.Response.Headers.Append(HeaderNames.WWWAuthenticate, header);
         }
         else
@@ -130,35 +130,53 @@ public class BasicAuthMiddleware
 // BASIC 認証の細かい実装 (static クラス)
 public static class BasicAuthImpl
 {
+    public static Tuple<string, string>? ParseBasicAuthenticationHeader(string authorizationHeaderValue)
+    {
+        if (authorizationHeaderValue._IsFilled())
+        {
+            if (Str.GetKeyAndValue(authorizationHeaderValue, out string scheme, out string base64, " \t"))
+            {
+                if (scheme._IsSamei("Basic"))
+                {
+                    if (base64._IsFilled())
+                    {
+                        base64 = base64._NonNullTrim();
+
+                        // Base64 デコード
+                        string usernameAndPassword = base64._Base64Decode()._GetString_UTF8();
+
+                        if (Str.GetKeyAndValue(usernameAndPassword, out string username, out string password, ":"))
+                        {
+                            return new Tuple<string, string>(username, password);
+                        }
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
     public static async Task<ResultAndError<string>> TryAuthenticateAsync(HttpRequest request, Func<string, string, Task<bool>>? passwordAuthCallback)
     {
-        string header = request.Headers["Authorization"];
+        string header = request.Headers._GetStrFirst("Authorization");
 
-        if (header._IsEmpty()) return false;
+        var usernameAndPassword = ParseBasicAuthenticationHeader(header);
 
-        if (Str.GetKeyAndValue(header, out string scheme, out string base64, " \t") == false)
+        if (usernameAndPassword == null)
+        {
             return false;
-
-        if (scheme._IsSamei("Basic") == false) return false;
-
-        if (base64._IsEmpty()) return false;
-
-        base64 = base64._NonNullTrim();
-
-        // Base64 デコード
-        string usernameAndPassword = base64._Base64Decode()._GetString_UTF8();
-
-        if (Str.GetKeyAndValue(usernameAndPassword, out string username, out string password, ":") == false) return false;
+        }
 
         // ユーザー認証を実施
         bool ok = false;
 
         if (passwordAuthCallback != null)
         {
-            ok = await passwordAuthCallback(username, password);
+            ok = await passwordAuthCallback(usernameAndPassword.Item1, usernameAndPassword.Item2);
         }
 
-        return new ResultAndError<string>(username, ok);
+        return new ResultAndError<string>(usernameAndPassword.Item1, ok);
     }
 }
 

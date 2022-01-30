@@ -60,6 +60,8 @@ public class LogDefJsonRpc : ILogRecordTimeStamp
     public string? RpcMethodName;
     public bool RpcResultOk;
     public JsonRpcError? RpcError;
+    public string? SuppliedUsername;
+    public string? SuppliedPassword;
 }
 
 #endif // CORES_BASIC_JSON

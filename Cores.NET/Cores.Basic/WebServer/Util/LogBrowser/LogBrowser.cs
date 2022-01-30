@@ -496,7 +496,7 @@ public class LogBrowser : AsyncService
                             // 認証案内を出す
                             string htmlBody = BuildAuthRequiredHtml(new DirectoryPath(physicalPath, RootFs), fullUri.ToString(), secureJson);
 
-                            return new HttpStringResult(htmlBody, contentType: Consts.MimeTypes.HtmlUtf8, statusCode: 401, additionalHeaders: headers);
+                            return new HttpStringResult(htmlBody, contentType: Consts.MimeTypes.HtmlUtf8, statusCode: Consts.HttpStatusCodes.Unauthorized, additionalHeaders: headers);
                         }
 
                         // 認証成功

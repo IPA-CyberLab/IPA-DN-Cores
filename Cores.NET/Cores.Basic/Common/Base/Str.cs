@@ -1110,6 +1110,22 @@ namespace IPA.Cores.Basic
             return Str.Utf8Encoding;
         }
 
+        public static string PrependIndent(string src, int indentWidth = 4, char indentChar = ' ', CrlfStyle crlfStyle = CrlfStyle.LocalPlatform)
+        {
+            var lines = src._GetLines();
+
+            StringWriter w = new StringWriter();
+
+            string padding = indentChar._MakeCharArray(indentWidth);
+
+            foreach (var line in lines)
+            {
+                w.WriteLine(padding + line);
+            }
+
+            return w.ToString()._NormalizeCrlf(crlfStyle, true);
+        }
+
         static readonly CriticalSection LockNewId = new CriticalSection();
         static ulong LastNewIdMSecs = 0;
 

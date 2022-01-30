@@ -146,32 +146,70 @@ public class JsonRpcHttpServer : JsonRpcServer
     {
         int statusCode = Consts.HttpStatusCodes.Ok;
 
-        string ret_str = "";
+        string retStr = "";
         try
         {
-            SortedDictionary<string, string> headers = new SortedDictionary<string, string>();
+            SortedDictionary<string, string> requestHeaders = new SortedDictionary<string, string>();
             foreach (string headerName in request.Headers.Keys)
             {
                 if (request.Headers.TryGetValue(headerName, out var val))
                 {
-                    headers.Add(headerName, val.ToString());
+                    requestHeaders.Add(headerName, val.ToString());
+                }
+            }
+
+            string suppliedUsername = "";
+            string suppliedPassword = "";
+
+            // ヘッダにおける認証クレデンシャルが提供されているかどうか調べる
+            suppliedUsername = request.Headers._GetStrFirst("X-RPC-Auth-Username");
+            suppliedPassword = request.Headers._GetStrFirst("X-RPC-Auth-Password");
+
+            // Query String における認証クレデンシャルが提供されているかどうか調べる
+            if (suppliedUsername._IsEmpty() || suppliedPassword._IsEmpty())
+            {
+                suppliedUsername = request._GetQueryStringFirst("rpc_auth_username");
+                suppliedPassword = request._GetQueryStringFirst("rpc_auth_password");
+            }
+
+            if (suppliedUsername._IsEmpty() || suppliedPassword._IsEmpty())
+            {
+                // Basic 認証または Query String における認証クレデンシャルが提供されているかどうか調べる
+                var basicAuthHeader = BasicAuthImpl.ParseBasicAuthenticationHeader(request.Headers._GetStrFirst("Authorization"));
+                if (basicAuthHeader != null)
+                {
+                    suppliedUsername = basicAuthHeader.Item1;
+                    suppliedPassword = basicAuthHeader.Item2;
                 }
             }
 
             var conn = request.HttpContext.Connection;
-            JsonRpcClientInfo client_info = new JsonRpcClientInfo(this, conn.LocalIpAddress!._UnmapIPv4().ToString(), conn.LocalPort,
+
+            JsonRpcClientInfo client_info = new JsonRpcClientInfo(
+                conn.LocalIpAddress!._UnmapIPv4().ToString(), conn.LocalPort,
                 conn.RemoteIpAddress!._UnmapIPv4().ToString(), conn.RemotePort,
-                headers);
+                requestHeaders,
+                suppliedUsername,
+                suppliedPassword);
 
-            //string in_str = request.Body.ReadToEnd().GetString_UTF8();
-            //string in_str = (request.Body.ReadToEnd(this.Config.MaxRequestBodyLen)).GetString_UTF8();
-            //Dbg.WriteLine("in_str: " + in_str);
+            var callResults = await this.CallMethods(inStr, client_info, simpleResultWhenOk);
 
-            RefBool allError = new RefBool();
+            retStr = callResults.ResultString;
 
-            ret_str = await this.CallMethods(inStr, client_info, allError, simpleResultWhenOk);
+            if (callResults.Error_AuthRequired)
+            {
+                // Basic 認証の要求
+                KeyValueList<string, string> basicAuthResponseHeaders = new KeyValueList<string, string>();
+                basicAuthResponseHeaders.Add(Consts.HttpHeaders.WWWAuthenticate, $"Basic realm=\"User Authentication for {this.RpcBaseAbsoluteUrlPath}\"");
 
-            if (allError)
+                await using var basicAuthRequireResult = new HttpStringResult(retStr, contentType: Consts.MimeTypes.TextUtf8, statusCode: Consts.HttpStatusCodes.Unauthorized, additionalHeaders: basicAuthResponseHeaders);
+
+                await response._SendHttpResultAsync(basicAuthRequireResult, cancel: request._GetRequestCancellationToken());
+
+                return;
+            }
+
+            if (callResults.AllError)
             {
                 statusCode = httpStatusWhenError;
             }
@@ -182,7 +220,7 @@ public class JsonRpcHttpServer : JsonRpcServer
             if (ex is JsonRpcException) json_ex = (JsonRpcException)ex;
             else json_ex = new JsonRpcException(new JsonRpcError(1234, ex._GetSingleException().Message, ex.ToString()));
 
-            ret_str = new JsonRpcResponseError()
+            retStr = new JsonRpcResponseError()
             {
                 Error = json_ex.RpcError,
                 Id = null,
@@ -192,9 +230,7 @@ public class JsonRpcHttpServer : JsonRpcServer
             statusCode = httpStatusWhenError;
         }
 
-        //Dbg.WriteLine("ret_str: " + ret_str);
-
-        await response._SendStringContentsAsync(ret_str, responseContentsType, cancel: request._GetRequestCancellationToken(), statusCode: statusCode, normalizeCrlf: CrlfStyle.Lf);
+        await response._SendStringContentsAsync(retStr, responseContentsType, cancel: request._GetRequestCancellationToken(), statusCode: statusCode, normalizeCrlf: CrlfStyle.Lf);
     }
 
     public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string path = "/rpc")
@@ -232,22 +268,63 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         int methodIndex = 0;
 
+        w.WriteLine();
+        w.WriteLine();
+        w.WriteLine(@"/***********************************************************************
+**
+** HTTP RPC Help Guide
+** 
+** You can call this RPC API with either HTTP Query String or JSON-RPC.
+**
+***********************************************************************/
+");
+        w.WriteLine();
+        w.WriteLine();
+
+        w.WriteLine($"List of all {methodList.Count} RPC Methods:");
+
         foreach (var m in methodList.OrderBy(x => x.Name, StrCmpi))
         {
             methodIndex++;
 
-            string title = $"RPC Method #{methodIndex}: {m.Name} {m.Description._SurroundIfFilled()}".TrimEnd();
+            string helpStr = $"RPC Method #{methodIndex}: {m.RetValueTypeName} {m.Name}({(m.ParametersHelpList.Select(x => x.TypeName + " " + x.Name + (x.Mandatory ? "" : " = " + x.DefaultValue._ObjectToJson(compact: true) ))._Combine(", "))});";
+
+            if (m.Description._IsFilled()) helpStr += " // " + m.Description;
+
+            w.WriteLine($"- {helpStr}");
+        }
+
+        w.WriteLine();
+        w.WriteLine();
+        w.WriteLine();
+
+        methodIndex = 0;
+
+        foreach (var m in methodList.OrderBy(x => x.Name, StrCmpi))
+        {
+            methodIndex++;
+
             w.WriteLine("======================================================================");
-            w.WriteLine(title);
+
+            string helpStr = $"RPC Method #{methodIndex}: {m.Name}({(m.ParametersHelpList.Select(x => x.Name + ": " + x.TypeName)._Combine(", "))}): {m.RetValueTypeName};";
+
+            if (m.Description._IsFilled()) helpStr += " // " + m.Description;
+
+            w.WriteLine($"- {helpStr}");
+
             w.WriteLine("======================================================================");
             w.WriteLine();
-            w.WriteLine($"Method Name: {m.Name}");
+            w.WriteLine($"RPC Method Name: {m.Name}");
             w.WriteLine();
+
             if (m.Description._IsFilled())
             {
-                w.WriteLine($"Description: {m.Description}");
+                w.WriteLine($"RPC Description: {m.Description}");
                 w.WriteLine();
             }
+
+            w.WriteLine($"RPC Authenication Required: {m.RequireAuth._ToBoolYesNoStr()}");
+            w.WriteLine();
 
             var pl = m.ParametersHelpList;
 
@@ -257,36 +334,46 @@ public class JsonRpcHttpServer : JsonRpcServer
 
             if (pl.Count == 0)
             {
-                w.WriteLine($"No Input Parameters.");
+                w.WriteLine($"No RPC Input Parameters.");
                 w.WriteLine();
             }
             else
             {
-                w.WriteLine($"Input Parameters ({pl.Count}):");
+                w.WriteLine($"RPC Input: {pl.Count} Parameters");
 
                 for (int i = 0; i < pl.Count; i++)
                 {
                     var pp = pl[i];
                     string? qsSampleOrDefauleValue = null;
 
-                    w.WriteLine($"  Parameter #{i + 1}: {pp.Name} {m.Description._SurroundIfFilled()}".TrimEnd());
+                    w.WriteLine($"  Parameter #{i + 1}: {pp.Name} {pp.Description._SurroundIfFilled()}".TrimEnd());
                     w.WriteLine($"    Name: {pp.Name}");
                     if (pp.Description._IsFilled())
                     {
                         w.WriteLine($"    Description: {pp.Description}");
                     }
-                    if (pp.SampleValueOneLineStr._IsFilled())
-                    {
-                        w.WriteLine($"    Sample Data: {pp.SampleValueOneLineStr}");
-                        qsSampleOrDefauleValue = pp.SampleValueOneLineStr;
-                    }
                     if (pp.IsPrimitiveType)
                     {
-                        w.WriteLine($"    Type: Primitive Value - {pp.TypeName}");
+                        w.WriteLine($"    Input Data Type: Primitive Value - {pp.TypeName}");
                     }
                     else
                     {
-                        w.WriteLine($"    Type: JSON Data - {pp.TypeName}");
+                        w.WriteLine($"    Input Data Type: JSON Data - {pp.TypeName}");
+                    }
+                    if (pp.SampleValueOneLineStr._IsFilled())
+                    {
+                        if (pp.IsPrimitiveType)
+                        {
+                            w.WriteLine($"    Input Data Example: {pp.SampleValueOneLineStr}");
+                        }
+                        else
+                        {
+                            w.WriteLine($"    Input Data Example (JSON):");
+                            w.WriteLine($"    --------------------");
+                            w.Write(pp.SampleValueMultiLineStr._PrependIndent(4));
+                            w.WriteLine($"    --------------------");
+                        }
+                        qsSampleOrDefauleValue = pp.SampleValueOneLineStr;
                     }
                     w.WriteLine($"    Mandatory: {pp.Mandatory._ToBoolYesNoStr()}");
                     if (pp.Mandatory == false)
@@ -321,27 +408,27 @@ public class JsonRpcHttpServer : JsonRpcServer
 
             if (m.HasRetValue == false)
             {
-                w.WriteLine("No Result Value.");
+                w.WriteLine("No RPC Result Value.");
                 w.WriteLine();
             }
             else
             {
-                w.WriteLine("Result Value:");
+                w.WriteLine("RPC Result Value:");
                 if (m.IsRetValuePrimitiveType)
                 {
-                    w.WriteLine($"  Type: Primitive Value - {m.RetValueTypeName}");
+                    w.WriteLine($"  Output Data Type: Primitive Value - {m.RetValueTypeName}");
                 }
                 else
                 {
-                    w.WriteLine($"  Type: JSON Data - {m.RetValueTypeName}");
+                    w.WriteLine($"  Output Data Type: JSON Data - {m.RetValueTypeName}");
                 }
 
                 if (m.RetValueSampleValueJsonMultilineStr._IsFilled())
                 {
-                    w.WriteLine("  Sample Result Data:");
-                    w.WriteLine("--------------------");
-                    w.Write($"{m.RetValueSampleValueJsonMultilineStr}"._NormalizeCrlf(ensureLastLineCrlf: true));
-                    w.WriteLine("--------------------");
+                    w.WriteLine("  Sample Result Output Data:");
+                    w.WriteLine("  --------------------");
+                    w.Write($"{m.RetValueSampleValueJsonMultilineStr}"._PrependIndent(2));
+                    w.WriteLine("  --------------------");
                 }
 
                 w.WriteLine("");
@@ -350,71 +437,168 @@ public class JsonRpcHttpServer : JsonRpcServer
             w.WriteLine();
 
 
-
-            //w.WriteLine("RPC Call Sample: HTTP GET with Query String Sample:");
-            //w.WriteLine();
-
-            w.WriteLine("--- RPC Call Sample: HTTP GET with Query String Sample ---");
-            string urlDir = rpcBaseUri._CombineUrlDir(m.Name).ToString();
-            if (qsList.Any())
+            if (m.RequireAuth == false)
             {
-                urlDir += "?" + qsList.ToString();
-                urlDir = urlDir._DecodeUrlPath();
-            }
-            w.WriteLine($"HTTP GET Target URL: {urlDir}");
-            w.WriteLine();
-            w.WriteLine($"# curl command line sample on Linux bash (retcode = 0 when successful)");
-            w.WriteLine($"wget --content-on-error --no-verbose -O - -o /dev/null --no-check-certificate {urlDir._EscapeBashArg()}");
-            w.WriteLine();
-            w.WriteLine($"# wget command line sample on Linux bash (retcode = 0 when successful)");
-            w.WriteLine($"curl --get --globoff --fail -k --raw --verbose {urlDir._EscapeBashArg()}");
-            w.WriteLine();
-            w.WriteLine();
-
-            JsonRpcRequestForHelp reqSample = new JsonRpcRequestForHelp
-            {
-                Version = "2.0",
-                Method = m.Name,
-                Params = sampleRequestJsonData,
-            };
-
-            w.WriteLine("--- RPC Call Sample: HTTP POST with JSON-RPC Sample ---");
-            w.WriteLine($"HTTP POST Target URL: {rpcBaseUri}");
-            w.WriteLine();
-            w.WriteLine($"# curl JSON-RPC call command line sample on Linux bash:");
-            w.WriteLine($"cat <<\\EOF | curl --request POST --globoff --fail -k --raw --verbose --data @- '{rpcBaseUri}'");
-            w.Write(reqSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
-            w.WriteLine("EOF");
-            w.WriteLine();
-
-            w.WriteLine("# JSON-RPC call response sample (when successful):");
-            var okSample = new JsonRpcResponseForHelp_Ok
-            {
-                Version = "2.0",
-                Result = m.RetValueSampleValueObject,
-            };
-            w.WriteLine($"--------------------");
-            w.Write(okSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
-            w.WriteLine($"--------------------");
-            w.WriteLine();
-
-            w.WriteLine("# JSON-RPC call response sample (when error):");
-            var errorSample = new JsonRpcResponseForHelp_Error
-            {
-                Version = "2.0",
-                Error = new JsonRpcError
+                string urlDir = rpcBaseUri._CombineUrlDir(m.Name).ToString();
+                if (qsList.Any())
                 {
-                    Code = -32603,
-                    Message = "Sample Error",
-                    Data = "Sample Error Detail Data\nThis is a sample error data.",
-                },
-            };
-            w.WriteLine($"--------------------");
-            w.Write(errorSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
-            w.WriteLine($"--------------------");
-            w.WriteLine();
+                    urlDir += "?" + qsList.ToString();
+                }
+                urlDir = urlDir._DecodeUrlPath();
 
-            w.WriteLine();
+                w.WriteLine("--- RPC Call Sample: HTTP GET with Query String Sample ---");
+
+                w.WriteLine($"# HTTP GET Target URL (You can test it with your web browser easily):");
+                w.WriteLine($"{urlDir}");
+                w.WriteLine();
+                w.WriteLine($"# wget command line sample on Linux bash (retcode = 0 when successful):");
+                w.WriteLine($"wget --content-on-error --no-verbose -O - --no-check-certificate {urlDir._EscapeBashArg()}");
+                w.WriteLine();
+                w.WriteLine($"# curl command line sample on Linux bash (retcode = 0 when successful):");
+                w.WriteLine($"curl --get --globoff --fail -k --raw --verbose {urlDir._EscapeBashArg()}");
+                w.WriteLine();
+                w.WriteLine();
+
+                JsonRpcRequestForHelp reqSample = new JsonRpcRequestForHelp
+                {
+                    Version = "2.0",
+                    Method = m.Name,
+                    Params = sampleRequestJsonData,
+                };
+
+                w.WriteLine("--- RPC Call Sample: HTTP POST with JSON-RPC Sample ---");
+                w.WriteLine($"# HTTP POST Target URL (You can test it with your web browser easily):");
+                w.WriteLine($"{urlDir}");
+                w.WriteLine();
+                w.WriteLine($"# curl JSON-RPC call command line sample on Linux bash:");
+                w.WriteLine($"cat <<\\EOF | curl --request POST --globoff --fail -k --raw --verbose --data @- '{rpcBaseUri}'");
+                w.Write(reqSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
+                w.WriteLine("EOF");
+                w.WriteLine();
+
+                w.WriteLine("# JSON-RPC call response sample (when successful):");
+                var okSample = new JsonRpcResponseForHelp_Ok
+                {
+                    Version = "2.0",
+                    Result = m.RetValueSampleValueObject,
+                };
+                w.WriteLine($"--------------------");
+                w.Write(okSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
+                w.WriteLine($"--------------------");
+                w.WriteLine();
+
+                w.WriteLine("# JSON-RPC call response sample (when error):");
+                var errorSample = new JsonRpcResponseForHelp_Error
+                {
+                    Version = "2.0",
+                    Error = new JsonRpcError
+                    {
+                        Code = -32603,
+                        Message = "Sample Error",
+                        Data = "Sample Error Detail Data\nThis is a sample error data.",
+                    },
+                };
+                w.WriteLine($"--------------------");
+                w.Write(errorSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
+                w.WriteLine($"--------------------");
+                w.WriteLine();
+            }
+            else
+            {
+                string urlSimple = rpcBaseUri._CombineUrlDir(m.Name).ToString();
+                if (qsList.Any())
+                {
+                    urlSimple += "?" + qsList.ToString();
+                }
+                urlSimple = urlSimple._DecodeUrlPath();
+
+                string urlWithBasicAuth = rpcBaseUri._CombineUrlDir(m.Name).ToString();
+                if (qsList.Any())
+                {
+                    urlWithBasicAuth += "?" + qsList.ToString();
+                }
+                urlWithBasicAuth = urlWithBasicAuth._DecodeUrlPath();
+                urlWithBasicAuth = urlWithBasicAuth._AddCredentialOnUrl("USERNAME_HERE", "PASSWORD_HERE");
+
+                string urlWithQsAuth = rpcBaseUri._CombineUrlDir(m.Name).ToString();
+                urlWithQsAuth += $"?rpc_auth_username=USERNAME_HERE&rpc_auth_password=PASSWORD_HERE";
+                if (qsList.Any())
+                {
+                    urlWithQsAuth += "&" + qsList.ToString();
+                }
+                urlWithQsAuth = urlWithQsAuth._DecodeUrlPath();
+
+                w.WriteLine("--- RPC Call Sample: HTTP GET with Query String Sample ---");
+                w.WriteLine($"# HTTP GET Target URL (You can test it with your web browser easily):");
+                w.WriteLine("# (with HTTP Basic Authentication)");
+                w.WriteLine($"{urlWithBasicAuth}");
+                w.WriteLine("# (with HTTP Query String Authentication)");
+                w.WriteLine($"{urlWithQsAuth}");
+                w.WriteLine();
+                w.WriteLine($"# wget command line sample on Linux bash (retcode = 0 when successful):");
+                w.WriteLine("# (with HTTP Basic Authentication)");
+                w.WriteLine($"wget --content-on-error --no-verbose -O - --no-check-certificate {urlWithBasicAuth._EscapeBashArg()}");
+                w.WriteLine("# (with HTTP Query String Authentication)");
+                w.WriteLine($"wget --content-on-error --no-verbose -O - --no-check-certificate {urlWithQsAuth._EscapeBashArg()}");
+                w.WriteLine("# (with HTTP Header Authentication)");
+                w.WriteLine($"wget --content-on-error --no-verbose -O - --no-check-certificate --header 'X-RPC-Auth-Username: USERNAME_HERE' --header 'X-RPC-Auth-Password: PASSWORD_HERE' {urlSimple._EscapeBashArg()}");
+                w.WriteLine();
+                w.WriteLine($"# curl command line sample on Linux bash (retcode = 0 when successful):");
+                w.WriteLine("# (with HTTP Basic Authentication)");
+                w.WriteLine($"curl --get --globoff --fail -k --raw --verbose {urlWithBasicAuth._EscapeBashArg()}");
+                w.WriteLine("# (with HTTP Query String Authentication)");
+                w.WriteLine($"curl --get --globoff --fail -k --raw --verbose {urlWithQsAuth._EscapeBashArg()}");
+                w.WriteLine("# (with HTTP Header Authentication)");
+                w.WriteLine($"curl --get --globoff --fail -k --raw --verbose --header 'X-RPC-Auth-Username: USERNAME_HERE' --header 'X-RPC-Auth-Password: PASSWORD_HERE' {urlSimple._EscapeBashArg()}");
+                w.WriteLine();
+                w.WriteLine();
+
+                JsonRpcRequestForHelp reqSample = new JsonRpcRequestForHelp
+                {
+                    Version = "2.0",
+                    Method = m.Name,
+                    Params = sampleRequestJsonData,
+                };
+
+                w.WriteLine("--- RPC Call Sample: HTTP POST with JSON-RPC Sample ---");
+                w.WriteLine($"# HTTP POST Target URL (You can test it with your web browser easily):");
+                w.WriteLine($"{urlWithBasicAuth}");
+                w.WriteLine();
+                w.WriteLine($"# curl JSON-RPC call command line sample on Linux bash:");
+                w.WriteLine($"cat <<\\EOF | curl --request POST --globoff --fail -k --raw --verbose --data @- '{rpcBaseUri}'");
+                w.Write(reqSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
+                w.WriteLine("EOF");
+                w.WriteLine();
+
+                w.WriteLine("# JSON-RPC call response sample (when successful):");
+                var okSample = new JsonRpcResponseForHelp_Ok
+                {
+                    Version = "2.0",
+                    Result = m.RetValueSampleValueObject,
+                };
+                w.WriteLine($"--------------------");
+                w.Write(okSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
+                w.WriteLine($"--------------------");
+                w.WriteLine();
+
+                w.WriteLine("# JSON-RPC call response sample (when error):");
+                var errorSample = new JsonRpcResponseForHelp_Error
+                {
+                    Version = "2.0",
+                    Error = new JsonRpcError
+                    {
+                        Code = -32603,
+                        Message = "Sample Error",
+                        Data = "Sample Error Detail Data\nThis is a sample error data.",
+                    },
+                };
+                w.WriteLine($"--------------------");
+                w.Write(errorSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
+                w.WriteLine($"--------------------");
+                w.WriteLine();
+            }
+
+
             w.WriteLine();
             w.WriteLine();
             w.WriteLine();

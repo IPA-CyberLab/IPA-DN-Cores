@@ -450,6 +450,9 @@ public static class BasicHelper
     public static string? _Print(this string? s) { Con.WriteLine(s); return s; }
     public static string? _Debug(this string? s) { Dbg.WriteLine(s); return s; }
 
+    public static string _PrependIndent(this string src, int indentWidth = 4, char indentChar = ' ', CrlfStyle crlfStyle = CrlfStyle.LocalPlatform)
+        => Str.PrependIndent(src, indentWidth, indentChar, crlfStyle);
+
     [return: NotNullIfNotNull("s")]
     public static string? _MaskPassword(this string? s, char maskedChar = '*')
     {
@@ -3339,6 +3342,20 @@ public static class BasicHelper
         arg = "'" + arg + "'";
 
         return arg;
+    }
+
+    public static string _AddCredentialOnUrl(this string url, string username, string password)
+    {
+        string tmp = url._NonNullTrim();
+        if (tmp.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        {
+            tmp = "http://" + username + ":" + password + "@" + tmp._Slice(7);
+        }
+        else if (tmp.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            tmp = "https://" + username + ":" + password + "@" + tmp._Slice(8);
+        }
+        return tmp;
     }
 }
 

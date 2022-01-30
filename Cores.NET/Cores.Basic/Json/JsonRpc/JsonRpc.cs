@@ -224,6 +224,9 @@ public class JsonRpcError
 public class RpcInterfaceAttribute : Attribute { }
 
 [AttributeUsage(AttributeTargets.Method)]
+public class RpcRequireAuth : Attribute { }
+
+[AttributeUsage(AttributeTargets.Method)]
 public class RpcMethodHelpAttribute : Attribute
 {
     public string Description { get; }
@@ -258,6 +261,7 @@ public class RpcParameterHelp
     public string Description { get; } = "";
     public object? SampleValueObject { get; }
     public string SampleValueOneLineStr { get; } = "";
+    public string SampleValueMultiLineStr { get; } = "";
     public bool Mandatory { get; }
     public object? DefaultValue { get; }
 
@@ -281,14 +285,16 @@ public class RpcParameterHelp
 
         this.SampleValueOneLineStr = this.SampleValueObject?._ObjectToJson(includeNull: true, compact: true) ?? "";
 
+        this.SampleValueMultiLineStr = this.SampleValueObject?._ObjectToJson(includeNull: true, compact: false) ?? "";
+
         if (info.HasDefaultValue == false)
         {
             this.Mandatory = true;
-            this.DefaultValue = info.DefaultValue;
         }
         else
         {
             this.Mandatory = false;
+            this.DefaultValue = info.DefaultValue;
         }
     }
 }
@@ -312,6 +318,7 @@ public class RpcMethodInfo
     public object? RetValueSampleValueObject { get; }
     public string RetValueSampleValueJsonMultilineStr { get; } = "";
     public bool IsRetValuePrimitiveType { get; }
+    public bool RequireAuth { get; }
 
     public RpcMethodInfo(Type targetClass, string methodName)
     {
@@ -379,6 +386,8 @@ public class RpcMethodInfo
         }
 
         this.RetValueSampleValueJsonMultilineStr = this.RetValueSampleValueObject?._ObjectToJson(includeNull: true, compact: false) ?? "";
+
+        this.RequireAuth = (methodInfo.GetCustomAttribute<RpcRequireAuth>() != null) ? true : false;
     }
 
     public async Task<object?> InvokeMethod(object targetInstance, string methodName, JObject param)
@@ -429,6 +438,11 @@ public class RpcMethodInfo
             return retvalue;
         }
     }
+}
+
+public class JsonRpcAuthErrorException : CoresException
+{
+    public JsonRpcAuthErrorException() : base("JSON-RPC Authentication Error") { }
 }
 
 public abstract class JsonRpcServerApi : AsyncService
@@ -522,6 +536,119 @@ public abstract class JsonRpcServerApi : AsyncService
 
         return ret;
     }
+
+    protected void TryAuth(Func<string, string, bool> callback)
+    {
+        try
+        {
+            var clientInfo = TaskVar.Get<JsonRpcClientInfo>();
+
+            if (clientInfo != null && clientInfo.IsBasicAuthCredentialSupplied)
+            {
+                bool ok = callback(clientInfo.BasicAuthUsername, clientInfo.BasicAuthPassword);
+
+                if (ok)
+                {
+                    // 認証成功
+                    return;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // ヘンなエラー発生
+            ex._Debug();
+        }
+
+        // 認証失敗 例外発生させる
+        throw new JsonRpcAuthErrorException();
+    }
+}
+
+public class JsonRpcLocalClient<TInterface> where TInterface : class
+{
+    public JsonRpcClientInfo RpcClientInfo { get; }
+    public JsonRpcServerApi Api { get; }
+
+    public JsonRpcLocalClient(JsonRpcServerApi api, JsonRpcClientInfo clientInfo)
+    {
+        this.Api = api;
+        this.RpcClientInfo = clientInfo;
+    }
+
+    public async Task<T> CallAsync<T>(Func<TInterface, Task<T>> proc)
+    {
+        JsonRpcClientInfo clientInfo = this.RpcClientInfo;
+
+        TInterface? targetInterface = this.Api as TInterface;
+
+        if (targetInterface == null)
+        {
+            throw new CoresLibException($"The RPC Server doesn't implement the '{typeof(TInterface).Name}' interface.");
+        }
+
+        T? ret;
+
+        TaskVar.Set<JsonRpcClientInfo>(clientInfo);
+        try
+        {
+            object? param1 = null;
+            try
+            {
+                param1 = this.Api.StartCall(clientInfo);
+
+                object? param2 = null;
+                try
+                {
+                    param2 = await this.Api.StartCallAsync(clientInfo, param1);
+
+                    ret = await proc(targetInterface);
+                }
+                finally
+                {
+                    try
+                    {
+                        await this.Api.FinishCallAsync(param2);
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+            finally
+            {
+                try
+                {
+                    this.Api.FinishCall(param1);
+                }
+                catch
+                {
+                }
+            }
+        }
+        finally
+        {
+            TaskVar.Set<JsonRpcClientInfo>(null);
+        }
+
+        return ret;
+    }
+}
+
+public sealed class JsonRpcCallResult
+{
+    public string ResultString { get; }
+    public bool AllError { get; }
+    public bool Error_AuthRequired { get; }
+    public string Error_AuthRequiredMethodName { get; }
+
+    public JsonRpcCallResult(string resultString, bool allError, bool errAuthRequired = false, string authRequiredMethodName = "")
+    {
+        this.ResultString = resultString._NonNull();
+        this.AllError = allError;
+        this.Error_AuthRequired = errAuthRequired;
+        this.Error_AuthRequiredMethodName = authRequiredMethodName;
+    }
 }
 
 public abstract class JsonRpcServer
@@ -536,7 +663,7 @@ public abstract class JsonRpcServer
         this.Config = cfg ?? new JsonRpcServerConfig();
     }
 
-    public async Task<JsonRpcResponse> CallMethod(JsonRpcRequest req)
+    public async Task<JsonRpcResponse> CallMethod(JsonRpcRequest req, Ref<Exception?> exception)
     {
         try
         {
@@ -574,6 +701,7 @@ public abstract class JsonRpcServer
         }
         catch (JsonRpcException ex)
         {
+            exception.Set(ex);
             return new JsonRpcResponseError()
             {
                 Id = req.Id,
@@ -584,6 +712,7 @@ public abstract class JsonRpcServer
         catch (Exception ex)
         {
             ex = ex._GetSingleException();
+            exception.Set(ex);
             return new JsonRpcResponseError()
             {
                 Id = req.Id,
@@ -593,18 +722,16 @@ public abstract class JsonRpcServer
         }
     }
 
-    public async Task<string> CallMethods(string inStr, JsonRpcClientInfo clientInfo, RefBool allError, bool simpleResultWhenOk)
+    public async Task<JsonRpcCallResult> CallMethods(string inputStr, JsonRpcClientInfo clientInfo, bool simpleResultWhenOk)
     {
-        allError.Set(false);
-
-        bool is_single = false;
+        bool isSingle = false;
         List<JsonRpcRequest> requestList = new List<JsonRpcRequest>();
         try
         {
-            if (inStr.StartsWith("{") || this.Config.MultiRequestAllowed == false)
+            if (inputStr.StartsWith("{") || this.Config.MultiRequestAllowed == false)
             {
-                is_single = true;
-                JsonRpcRequest r = inStr._JsonToObject<JsonRpcRequest>()!;
+                isSingle = true;
+                JsonRpcRequest r = inputStr._JsonToObject<JsonRpcRequest>()!;
                 if (r.Id._IsEmpty())
                 {
                     r.Id = "REQ_" + Str.NewGuid().ToUpperInvariant();
@@ -613,7 +740,7 @@ public abstract class JsonRpcServer
             }
             else
             {
-                JsonRpcRequest[] rr = inStr._JsonToObject<JsonRpcRequest[]>()!;
+                JsonRpcRequest[] rr = inputStr._JsonToObject<JsonRpcRequest[]>()!;
                 requestList = new List<JsonRpcRequest>(rr);
             }
         }
@@ -621,6 +748,40 @@ public abstract class JsonRpcServer
         {
             throw new JsonRpcException(new JsonRpcError(-32700, "Parse error"));
         }
+
+        bool anyAuthRequiredMethod = false;
+        string authRequestedMethodName = "";
+
+        foreach (JsonRpcRequest req in requestList)
+        {
+            // Basic 認証が必要なメソッドが 1 つ以上存在するかチェック
+            RpcMethodInfo? method = this.Api.GetMethodInfo(req.Method!);
+            if (method != null)
+            {
+                if (method.RequireAuth)
+                {
+                    anyAuthRequiredMethod = true;
+                    authRequestedMethodName = method.Name;
+                    break;
+                }
+            }
+        }
+
+        if (anyAuthRequiredMethod && clientInfo.IsBasicAuthCredentialSupplied == false)
+        {
+            // Basic 認証が必要であるにもかかわらずクレデンシャルが提供されていない
+            string retStr = new JsonRpcResponseError()
+            {
+                Error = new JsonRpcError(-32600, $"Basic Authentication credential is required by method '{authRequestedMethodName}'. Retry HTTP request with a Basic Authentication header."),
+                Id = null,
+                Result = null,
+            }._ObjectToJson();
+
+            return new JsonRpcCallResult(retStr, true, true, authRequestedMethodName);
+        }
+
+        bool authError_WhenSingle = false;
+        string authErrorMethodName_WhenSingle = "";
 
         List<JsonRpcResponse> response_list = new List<JsonRpcResponse>();
 
@@ -650,17 +811,32 @@ public abstract class JsonRpcServer
                             },
                             ConnectedDateTime = clientInfo.ConnectedDateTime,
                             RpcMethodName = req.Method,
+                            SuppliedUsername = clientInfo.BasicAuthUsername._NullIfEmpty(),
+                            SuppliedPassword = clientInfo.BasicAuthPassword._MaskPassword()._NullIfEmpty(),
                         };
 
                         try
                         {
-                            JsonRpcResponse res = await CallMethod(req);
+                            Ref<Exception?> applicationException = new Ref<Exception?>();
+
+                            JsonRpcResponse res = await CallMethod(req, applicationException);
                             if (req.Id != null) response_list.Add(res);
 
                             log.RpcResultOk = res.IsOk;
                             if (res.IsOk == false)
                             {
                                 log.RpcError = res.Error;
+                                var ex = applicationException.Value;
+
+                                if (ex is JsonRpcAuthErrorException)
+                                {
+                                    // 認証エラー
+                                    if (isSingle)
+                                    {
+                                        authError_WhenSingle = true;
+                                        authErrorMethodName_WhenSingle = req.Method._NonNull();
+                                    }
+                                }
                             }
                         }
                         catch (Exception ex)
@@ -715,34 +891,29 @@ public abstract class JsonRpcServer
             TaskVar.Set<JsonRpcClientInfo>(null);
         }
 
-        if (is_single)
+        if (isSingle)
         {
             if (response_list.Count >= 1)
             {
                 var resSingle = response_list[0];
-                if (resSingle.IsError)
-                {
-                    allError.Set(true);
-                }
 
                 if (resSingle.IsOk && simpleResultWhenOk)
                 {
-                    return resSingle.Result._ObjectToJson();
+                    return new JsonRpcCallResult(resSingle.Result._ObjectToJson(), resSingle.IsError, authError_WhenSingle, authErrorMethodName_WhenSingle);
                 }
                 else
                 {
-                    return resSingle._ObjectToJson();
+                    return new JsonRpcCallResult(resSingle._ObjectToJson(), resSingle.IsError, authError_WhenSingle, authErrorMethodName_WhenSingle);
                 }
             }
             else
             {
-                return "";
+                return new JsonRpcCallResult("", false);
             }
         }
         else
         {
-            allError.Set(response_list.All(x => x.IsError));
-            return response_list._ObjectToJson();
+            return new JsonRpcCallResult(response_list._ObjectToJson(), response_list.All(x => x.IsError));
         }
     }
 }
@@ -1134,20 +1305,29 @@ public class JsonRpcClientInfo
     public int RemotePort { get; }
     public DateTimeOffset ConnectedDateTime { get; }
     public SortedDictionary<string, string> Headers { get; }
-    public JsonRpcServer RpcServer { get; }
+    //public JsonRpcServer RpcServer { get; }
     public object? Param1 { get; set; }
     public object? Param2 { get; set; }
     public object? Param3 { get; set; }
+    public string BasicAuthUsername { get; set; }
+    public string BasicAuthPassword { get; set; }
+    public bool IsBasicAuthCredentialSupplied => BasicAuthUsername._IsFilled() && BasicAuthPassword._IsFilled();
+    public bool IsLocalClient { get; }
 
-    public JsonRpcClientInfo(JsonRpcServer rpcServer, string localIp, int localPort, string remoteIp, int remotePort, SortedDictionary<string, string> headers)
+    public JsonRpcClientInfo(string localIp, int localPort, string remoteIp, int remotePort, SortedDictionary<string, string>? headers = null,
+        string? basicAuthUsername = null, string? basicAuthPassword = null, bool isLocalClient = false)
     {
-        this.RpcServer = rpcServer;
+        //this.RpcServer = rpcServer;
         this.ConnectedDateTime = DateTimeOffset.Now;
         this.LocalIP = localIp._NonNull();
         this.LocalPort = localPort;
         this.RemoteIP = remoteIp._NonNull();
         this.RemotePort = remotePort;
-        this.Headers = headers;
+        this.Headers = headers ?? new SortedDictionary<string, string>();
+
+        this.BasicAuthUsername = basicAuthUsername._NonNull();
+        this.BasicAuthPassword = basicAuthPassword._NonNull();
+        this.IsLocalClient = isLocalClient;
     }
 
     public override string ToString()

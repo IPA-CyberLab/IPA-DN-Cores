@@ -3332,7 +3332,8 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
     [RpcInterface]
     public interface JsonRpcTest220129Interface
     {
-        [RpcMethodHelp("こんにちは")]
+        [RpcRequireAuth]
+        [RpcMethodHelp("こんにちは", "Neko Str")]
         public Task<string> Hello([RpcParamHelp("ねこ", 4567)] int a = 123);
 
         [RpcMethodHelp("こんにちは２", "ねこさん")]
@@ -3340,6 +3341,9 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
         [RpcMethodHelp("こんにちは３")]
         public Task<HelloData> Hello3();
+
+        [RpcMethodHelp("こんにちは4")]
+        public Task Hello4();
     }
 
     public class JsonRpcTest220129 : EasyJsonRpcServer<JsonRpcTest220129Interface>, JsonRpcTest220129Interface
@@ -3350,13 +3354,15 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
         public async Task<string> Hello(int a = 456)
         {
+            TryAuth((u, p) => u == "USERNAME_HERE" && p == "PASSWORD_HERE");
+
             await Task.CompletedTask;
             return $"Hello {a}";
         }
 
         public async Task<string> Hello2(int a, HelloData b)
         {
-            throw new CoresException("Error!");
+            //throw new CoresException("Error!");
             await Task.CompletedTask;
             return $"Hello 2 {a} - {b._GetObjectDump()} - [{b.Str1}]";
         }
@@ -3368,6 +3374,11 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             d.Str1 = "Hello World";
             d.StringArray = new List<string> { "Hello", "Neko" };
             return TR(d);
+        }
+
+        public Task Hello4()
+        {
+            return TR();
         }
     }
 
@@ -3381,9 +3392,40 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
         using JsonRpcTest220129 svr = new JsonRpcTest220129(opt, rpcCfg: new JsonRpcServerConfig { PrintHelp = true, });
 
+        using CancelWatcher cancel = new CancelWatcher();
+
+        var t = TaskUtil.StartAsyncTaskAsync(async () =>
+        {
+            var c = cancel.CancelToken;
+
+            while (c.IsCancellationRequested == false)
+            {
+                JsonRpcClientInfo info = new JsonRpcClientInfo("local", 0, "local", 0, null, "USERNAME_HERE", "PASSWORD_HERE", isLocalClient: true);
+
+                var localClient = new JsonRpcLocalClient<JsonRpcTest220129Interface>(svr, info);
+
+                try
+                {
+                    var res = await localClient.CallAsync(t => t.Hello());
+
+                    res._ObjectToJson(includeNull: true)._Print();
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
+                
+                await c._WaitUntilCanceledAsync(1000);
+            }
+        });
+
         Con.ReadLine("quit>");
 
+        cancel.Cancel();
+
         svr._DisposeSafe();
+
+        t._TryWait();
     }
 
     public static void Test_Generic()
