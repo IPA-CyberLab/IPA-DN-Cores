@@ -129,14 +129,15 @@ public class StatMan : AsyncService
     IPAddress CurrentLocalIp = IPAddress.Loopback;
 
     StatManDatabase Database;
-
+    
     public string FileNameFullPath;
 
     public StatMan(StatManConfig config)
     {
         try
         {
-            this.Config = config._CloneDeep();
+            // this.Config = config._CloneDeep(); DO NOT CLONE THIE OBJECT!! delegate をクローンすると不具合が発生します。
+            this.Config = config;
 
             this.Config.Callback = config.Callback;
 
