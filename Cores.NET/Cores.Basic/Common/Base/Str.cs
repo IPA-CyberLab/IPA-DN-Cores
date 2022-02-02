@@ -984,6 +984,16 @@ namespace IPA.Cores.Basic
         CommaTime = 4,
     }
 
+    public class UrlEncodeParam
+    {
+        public string DoNotEncodeCharList { get; set; }
+
+        public UrlEncodeParam(string dontEncodeCharList = "")
+        {
+            this.DoNotEncodeCharList = dontEncodeCharList;
+        }
+    }
+
     // 文字列操作
     public static class Str
     {
@@ -3223,11 +3233,33 @@ namespace IPA.Cores.Basic
         }
 
         // URL エンコード
-        public static string EncodeUrl(string? str, Encoding? encoding = null)
+        public static string EncodeUrl(string? str, Encoding? encoding = null, UrlEncodeParam? param = null)
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
             if (str == null) str = "";
-            return Uri.EscapeDataString(str);
+
+            string ignoreCharList = param?.DoNotEncodeCharList._NonNull() ?? "";
+
+            if (ignoreCharList._IsEmpty())
+            {
+                return Uri.EscapeDataString(str);
+            }
+            else
+            {
+                StringBuilder b = new StringBuilder();
+                foreach (char c in str)
+                {
+                    if (ignoreCharList.IndexOf(c) == -1)
+                    {
+                        b.Append(Uri.EscapeDataString("" + c));
+                    }
+                    else
+                    {
+                        b.Append(c);
+                    }
+                }
+                return b.ToString();
+            }
         }
 
         // URL デコード
@@ -8517,7 +8549,7 @@ namespace IPA.Cores.Basic
         public override string ToString()
             => ToString(null);
 
-        public string ToString(Encoding? encoding)
+        public string ToString(Encoding? encoding, UrlEncodeParam? urlEncodeParam = null)
         {
             if (encoding == null) encoding = Str.Utf8Encoding;
 
@@ -8534,8 +8566,8 @@ namespace IPA.Cores.Basic
                     string value = kv.Value._NonNull();
 
                     // key と value を URL エンコードする
-                    key = key._EncodeUrl(encoding);
-                    value = value._EncodeUrl(encoding);
+                    key = key._EncodeUrl(encoding, urlEncodeParam);
+                    value = value._EncodeUrl(encoding, urlEncodeParam);
 
                     if (value._IsEmpty())
                     {

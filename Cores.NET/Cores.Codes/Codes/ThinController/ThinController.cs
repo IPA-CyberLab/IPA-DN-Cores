@@ -151,6 +151,73 @@ public abstract class ThinControllerHookBase
 }
 #pragma warning restore CS1998 // 非同期メソッドは、'await' 演算子がないため、同期的に実行されます
 
+
+// ThinController 設定 (Vars.cs で固定的に設定変更可能な設定項目)
+public static class ThinControllerGlobalSettings
+{
+    // シン・テレワークシステム プライベート版を用いて商用サービスを実装したいユーザー (システム開発者) 向けの機能
+    public static readonly Copenhagen<bool> PaidService_Enabled = false;    // 商用サービス化機能の有効化フラグ (デフォルトで無効)
+    public static readonly Copenhagen<TimeSpan> PaidService_TrialSpan = new TimeSpan(30, 0, 0, 0);  // 体験版として利用を開始してから無償で体験利用ができる日数
+    public static readonly Copenhagen<string> PaidService_RedirectUrl = "https://example.org/?pcid=<PCID>&flag=<FLAG>&tag=<TAG>"; // 体験版の利用期限が切れたか、製品版のアクティベーションが切れた場合に表示される Web ページの URL
+    public static readonly Copenhagen<string> PaidService_RpcEndPointPath = "/rpc_paid";
+    public static readonly Copenhagen<string> PaidService_RpcAuthUsername = "USERNAME_HERE";
+    public static readonly Copenhagen<string> PaidService_RpcAuthPassword = "PASSWORD_HERE";
+}
+
+// シン・テレワークシステム プライベート版を用いて商用サービスを実装したいユーザー (システム開発者) 向けの機能
+[Flags]
+public enum ThinControllerPaidServiceRedirectUrlStatusFlag
+{
+    TrialExpired = 0,  // 体験版の有効期限が切れた
+    Deactivated = 1,   // 製品版として利用していたが、何らかの理由でアクティベーション解除がされた
+}
+
+public class ABC
+{
+    public string A;
+    public int B;
+    public double C;
+}
+
+// 商用サービス構築開発者用 RPC-API インターフェイス
+[RpcInterface]
+public interface IThinControllerPaidServiceApi
+{
+    [RpcRequireAuth]
+    [RpcMethodHelp("テスト関数。パラメータで int 型で指定された値を文字列に変換し、Hello という文字列を前置して返却する。RPC を呼び出すためのテストコードを実際に記述する際のテストとして便利である。", "Hello 123")]
+    public Task<string> Test([RpcParamHelp("テスト入力整数値", 123)] int i);
+}
+
+public class ThinControllerPaidServiceApi : JsonRpcServerApi, IThinControllerPaidServiceApi
+{
+    public ThinControllerPaidServiceApi(ThinController controller)
+    {
+        try
+        {
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
+    }
+
+    protected void Auth()
+    {
+        this.TryAuth((user, pass) =>
+        {
+            return user == ThinControllerGlobalSettings.PaidService_RpcAuthUsername && pass == ThinControllerGlobalSettings.PaidService_RpcAuthPassword;
+        });
+    }
+
+    public Task<string> Test(int i)
+    {
+        Auth();
+        return TR($"Hello {i}");
+    }
+}
+
+
 // ThinController 統計データ
 public class ThinControllerStat
 {
@@ -1650,6 +1717,8 @@ public class ThinController : AsyncService
 
     public StatMan? StatMan { get; }
 
+    public JsonRpcHttpServer PaidServiceRpcServer { get; }
+
     public readonly ThroughputMeasuse Throughput_ClientGetWolMacList = new ThroughputMeasuse();
     public readonly ThroughputMeasuse Throughput_ClientConnect = new ThroughputMeasuse();
     public readonly ThroughputMeasuse Throughput_RenameMachine = new ThroughputMeasuse();
@@ -1740,6 +1809,14 @@ public class ThinController : AsyncService
             StatMan?.AddReport("BootCount_Total", 1);
 
             this.WebSocketCertMaintainer = new ThinControllerWebSocketCertMaintainer(this);
+
+            // 商用サービス用 RPC エンドポイントを Web サーバーに登録
+            this.PaidServiceRpcServer = new JsonRpcHttpServer(new ThinControllerPaidServiceApi(this),
+                new JsonRpcServerConfig
+                {
+                    PrintHelp = true,
+                }
+                );
         }
         catch (Exception ex)
         {
@@ -2079,8 +2156,8 @@ public class ThinController : AsyncService
         {
             if (serviceType == ThinControllerServiceType.ApiServiceForGateway)
             {
-                    // Gateway 宛のポートに通信が来たら IP ACL を確認する
-                    var addr = context.Connection.RemoteIpAddress!._UnmapIPv4();
+                // Gateway 宛のポートに通信が来たら IP ACL を確認する
+                var addr = context.Connection.RemoteIpAddress!._UnmapIPv4();
                 if (EasyIpAcl.Evaluate(this.Db.GetVarString("GatewayServicePortIpAcl"), addr) == EasyIpAclAction.Deny)
                 {
                     await using var errResult = new HttpErrorResult(Consts.HttpStatusCodes.Forbidden, $"Your IP address '{addr}' is not allowed to access to this endpoint.");
@@ -2107,6 +2184,9 @@ public class ThinController : AsyncService
 
             await next();
         });
+
+        // 商用サービス用 RPC エンドポイントを Web サーバーに登録
+        this.PaidServiceRpcServer.RegisterRoutesToHttpServer(app, ThinControllerGlobalSettings.PaidService_RpcEndPointPath);
     }
 
     protected override async Task CleanupImplAsync(Exception? ex)

@@ -224,7 +224,7 @@ public class JsonRpcError
 public class RpcInterfaceAttribute : Attribute { }
 
 [AttributeUsage(AttributeTargets.Method)]
-public class RpcRequireAuth : Attribute { }
+public class RpcRequireAuthAttribute : Attribute { }
 
 [AttributeUsage(AttributeTargets.Method)]
 public class RpcMethodHelpAttribute : Attribute
@@ -281,6 +281,11 @@ public class RpcParameterHelp
             {
                 this.SampleValueObject = attr.SampleValueIfPrimitive;
             }
+        }
+
+        if (this.SampleValueObject == null)
+        {
+            this.SampleValueObject = Util.CreateNewSampleObjectFromTypeWithoutParam(this.Type);
         }
 
         this.SampleValueOneLineStr = this.SampleValueObject?._ObjectToJson(includeNull: true, compact: true) ?? "";
@@ -387,7 +392,7 @@ public class RpcMethodInfo
 
         this.RetValueSampleValueJsonMultilineStr = this.RetValueSampleValueObject?._ObjectToJson(includeNull: true, compact: false) ?? "";
 
-        this.RequireAuth = (methodInfo.GetCustomAttribute<RpcRequireAuth>() != null) ? true : false;
+        this.RequireAuth = (methodInfo.GetCustomAttribute<RpcRequireAuthAttribute>() != null) ? true : false;
     }
 
     public async Task<object?> InvokeMethod(object targetInstance, string methodName, JObject param)
@@ -531,7 +536,10 @@ public abstract class JsonRpcServerApi : AsyncService
                     ret.Add(info);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                ex._Debug();
+            }
         }
 
         return ret;

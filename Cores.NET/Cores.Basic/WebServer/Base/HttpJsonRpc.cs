@@ -283,7 +283,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         w.WriteLine($"List of all {methodList.Count} RPC Methods:");
 
-        foreach (var m in methodList.OrderBy(x => x.Name, StrCmpi))
+        foreach (var m in methodList)
         {
             methodIndex++;
 
@@ -300,7 +300,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         methodIndex = 0;
 
-        foreach (var m in methodList.OrderBy(x => x.Name, StrCmpi))
+        foreach (var m in methodList)
         {
             methodIndex++;
 
@@ -344,7 +344,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                 for (int i = 0; i < pl.Count; i++)
                 {
                     var pp = pl[i];
-                    string? qsSampleOrDefauleValue = null;
+                    string? qsSampleOrDefaultValue = null;
 
                     w.WriteLine($"  Parameter #{i + 1}: {pp.Name} {pp.Description._SurroundIfFilled()}".TrimEnd());
                     w.WriteLine($"    Name: {pp.Name}");
@@ -373,31 +373,37 @@ public class JsonRpcHttpServer : JsonRpcServer
                             w.Write(pp.SampleValueMultiLineStr._PrependIndent(4));
                             w.WriteLine($"    --------------------");
                         }
-                        qsSampleOrDefauleValue = pp.SampleValueOneLineStr;
+                        qsSampleOrDefaultValue = pp.SampleValueOneLineStr;
                     }
                     w.WriteLine($"    Mandatory: {pp.Mandatory._ToBoolYesNoStr()}");
                     if (pp.Mandatory == false)
                     {
                         w.WriteLine($"    Default Value: {pp.DefaultValue._ObjectToJson(includeNull: true, compact: true)}");
-                        if (qsSampleOrDefauleValue == null)
+                        if (qsSampleOrDefaultValue == null)
                         {
-                            qsSampleOrDefauleValue = pp.DefaultValue._ObjectToJson(includeNull: true, compact: true);
+                            qsSampleOrDefaultValue = pp.DefaultValue._ObjectToJson(includeNull: true, compact: true);
                         }
                     }
 
-                    if (qsSampleOrDefauleValue == null)
+                    if (qsSampleOrDefaultValue == null)
                     {
                         if (pp.IsPrimitiveType)
                         {
-                            qsSampleOrDefauleValue = $"value_{i + 1}";
+                            qsSampleOrDefaultValue = $"value_{i + 1}";
                         }
                         else
                         {
-                            qsSampleOrDefauleValue = "{JSON_Input_Value_for_No_{i + 1}_Here}";
+                            qsSampleOrDefaultValue = "{JSON_Input_Value_for_No_{i + 1}_Here}";
                         }
                     }
 
-                    qsList.Add(pp.Name, qsSampleOrDefauleValue);
+                    // Query String の値は文字列であっても "" で囲む必要がない
+                    if (qsSampleOrDefaultValue.Length >= 2 && qsSampleOrDefaultValue.StartsWith("\"") && qsSampleOrDefaultValue.EndsWith("\""))
+                    {
+                        qsSampleOrDefaultValue = qsSampleOrDefaultValue.Substring(1, qsSampleOrDefaultValue.Length - 2);
+                    }
+
+                    qsList.Add(pp.Name, qsSampleOrDefaultValue);
 
                     sampleRequestJsonData.TryAdd(pp.Name, JToken.FromObject(pp.SampleValueObject));
 
@@ -436,15 +442,15 @@ public class JsonRpcHttpServer : JsonRpcServer
 
             w.WriteLine();
 
+            var urlEncodeParam = new UrlEncodeParam("\"'{}:=,");
 
             if (m.RequireAuth == false)
             {
                 string urlDir = rpcBaseUri._CombineUrlDir(m.Name).ToString();
                 if (qsList.Any())
                 {
-                    urlDir += "?" + qsList.ToString();
+                    urlDir += "?" + qsList.ToString(null, urlEncodeParam);
                 }
-                urlDir = urlDir._DecodeUrlPath();
 
                 w.WriteLine("--- RPC Call Sample: HTTP GET with Query String Sample ---");
 
@@ -467,8 +473,8 @@ public class JsonRpcHttpServer : JsonRpcServer
                 };
 
                 w.WriteLine("--- RPC Call Sample: HTTP POST with JSON-RPC Sample ---");
-                w.WriteLine($"# HTTP POST Target URL (You can test it with your web browser easily):");
-                w.WriteLine($"{urlDir}");
+                w.WriteLine($"# HTTP POST Target URL:");
+                w.WriteLine($"{rpcBaseUri}");
                 w.WriteLine();
                 w.WriteLine($"# curl JSON-RPC call command line sample on Linux bash:");
                 w.WriteLine($"cat <<\\EOF | curl --request POST --globoff --fail -k --raw --verbose --data @- '{rpcBaseUri}'");
@@ -508,25 +514,22 @@ public class JsonRpcHttpServer : JsonRpcServer
                 string urlSimple = rpcBaseUri._CombineUrlDir(m.Name).ToString();
                 if (qsList.Any())
                 {
-                    urlSimple += "?" + qsList.ToString();
+                    urlSimple += "?" + qsList.ToString(null, urlEncodeParam);
                 }
-                urlSimple = urlSimple._DecodeUrlPath();
 
                 string urlWithBasicAuth = rpcBaseUri._CombineUrlDir(m.Name).ToString();
                 if (qsList.Any())
                 {
-                    urlWithBasicAuth += "?" + qsList.ToString();
+                    urlWithBasicAuth += "?" + qsList.ToString(null, urlEncodeParam);
                 }
-                urlWithBasicAuth = urlWithBasicAuth._DecodeUrlPath();
                 urlWithBasicAuth = urlWithBasicAuth._AddCredentialOnUrl("USERNAME_HERE", "PASSWORD_HERE");
 
                 string urlWithQsAuth = rpcBaseUri._CombineUrlDir(m.Name).ToString();
                 urlWithQsAuth += $"?rpc_auth_username=USERNAME_HERE&rpc_auth_password=PASSWORD_HERE";
                 if (qsList.Any())
                 {
-                    urlWithQsAuth += "&" + qsList.ToString();
+                    urlWithQsAuth += "&" + qsList.ToString(null, urlEncodeParam);
                 }
-                urlWithQsAuth = urlWithQsAuth._DecodeUrlPath();
 
                 w.WriteLine("--- RPC Call Sample: HTTP GET with Query String Sample ---");
                 w.WriteLine($"# HTTP GET Target URL (You can test it with your web browser easily):");

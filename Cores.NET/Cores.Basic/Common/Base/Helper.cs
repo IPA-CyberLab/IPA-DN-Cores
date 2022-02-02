@@ -526,7 +526,7 @@ public static class BasicHelper
     public static string _StripCommentFromLine(this string str, IEnumerable<string>? commentStartStrList = null) => Str.StripCommentFromLine(str, commentStartStrList);
     public static string _RemoveSpace(this string str) { Str.RemoveSpace(ref str); return str; }
     public static string _Normalize(this string? str, bool space = true, bool toHankaku = true, bool toZenkaku = false, bool toZenkakuKana = true) { Str.NormalizeString(ref str, space, toHankaku, toZenkaku, toZenkakuKana); return str; }
-    public static string _EncodeUrl(this string? str, Encoding? e = null) => Str.EncodeUrl(str, e);
+    public static string _EncodeUrl(this string? str, Encoding? e = null, UrlEncodeParam? param = null) => Str.EncodeUrl(str, e, param);
     public static string _DecodeUrl(this string? str, Encoding? e = null) => Str.DecodeUrl(str, e);
     public static byte[] _DecodeUrlToBytes(this string? str) => Str.DecodeUrlToBytes(str);
     public static string _EncodeUrlPath(this string? str, Encoding? e = null) => Str.EncodeUrlPath(str, e);

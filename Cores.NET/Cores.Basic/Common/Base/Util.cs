@@ -2264,6 +2264,33 @@ namespace IPA.Cores.Basic
             return (RandSInt31() % (b - 1)) + a;
         }
 
+        public static object CreateNewSampleObjectFromTypeWithoutParam(Type t)
+        {
+            if (t == typeof(string)) return "Hello World";
+
+            if (t == typeof(SByte)) return (SByte)12;
+            if (t == typeof(Int16)) return (Int16)123;
+            if (t == typeof(Int32)) return (Int32)123;
+            if (t == typeof(Int64)) return (Int64)123;
+
+            if (t == typeof(Byte)) return (Byte)123;
+            if (t == typeof(UInt16)) return (UInt16)123;
+            if (t == typeof(UInt32)) return (UInt32)123;
+            if (t == typeof(UInt64)) return (UInt64)123;
+
+            return CreateObjectFromType(t);
+        }
+
+        public static T CreateObjectFromType<T>(params object?[]? args)
+            => (T)CreateObjectFromType(typeof(T), args);
+
+        public static object CreateObjectFromType(Type t, params object?[]? args)
+        {
+            object? ret = Activator.CreateInstance(t, args);
+            ret._NullCheck();
+            return ret;
+        }
+
         public static T NewWithoutConstructor<T>()
             => (T)NewWithoutConstructor(typeof(T));
 
@@ -8545,6 +8572,11 @@ namespace IPA.Cores.Basic
                 }
                 catch { }
 
+                try
+                {
+                    return Util.CreateNewSampleObjectFromTypeWithoutParam(t);
+                }
+                catch { }
                 return null;
             });
         }
