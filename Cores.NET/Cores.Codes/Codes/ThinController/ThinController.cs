@@ -172,11 +172,15 @@ public enum ThinControllerPaidServiceRedirectUrlStatusFlag
     Deactivated = 1,   // 製品版として利用していたが、何らかの理由でアクティベーション解除がされた
 }
 
-public class ABC
+public class ThinControllerRpcServerObjectInfo
 {
-    public string A;
-    public int B;
-    public double C;
+    public string Pcid = "";
+    public bool IsActivated;
+    public string Tag = "";
+    public DateTimeOffset ActivatedDateTime = ZeroDateTimeOffsetValue;
+
+    public static ThinControllerRpcServerObjectInfo _Sample
+        => new ThinControllerRpcServerObjectInfo { Pcid = "abc123", IsActivated = true, Tag = "Hello Neko", ActivatedDateTime = DtOffsetNow };
 }
 
 // 商用サービス構築開発者用 RPC-API インターフェイス
@@ -184,8 +188,20 @@ public class ABC
 public interface IThinControllerPaidServiceApi
 {
     [RpcRequireAuth]
-    [RpcMethodHelp("テスト関数。パラメータで int 型で指定された値を文字列に変換し、Hello という文字列を前置して返却する。RPC を呼び出すためのテストコードを実際に記述する際のテストとして便利である。", "Hello 123")]
+    [RpcMethodHelp("テスト関数。パラメータで int 型で指定された値を文字列に変換し、Hello という文字列を前置して返却します。RPC を呼び出すためのテストコードを実際に記述する際のテストとして便利です。", "Hello 123")]
     public Task<string> Test([RpcParamHelp("テスト入力整数値", 123)] int i);
+
+    [RpcRequireAuth]
+    [RpcMethodHelp("1 台のサーバーオブジェクトの固有 ID を指定して、サーバーオブジェクトの情報を取得します。")]
+    public Task<ThinControllerRpcServerObjectInfo?> GetServerObjectInfoByUniqueId([RpcParamHelp("サーバーオブジェクトの固有 ID。空白文字列は省略可能。半角英数字。大文字・小文字を個別しない。", "A25818D850422A4925C7328F11838612830A734C")] string uniqueId);
+
+    [RpcRequireAuth]
+    [RpcMethodHelp("1 台のサーバーオブジェクトの固有 ID を指定して、サーバーオブジェクトをアクティベーション (有効化) します。また、有効化された後のサーバーオブジェクトの情報を取得します。")]
+    public Task<ThinControllerRpcServerObjectInfo?> ActivateServerObject([RpcParamHelp("サーバーオブジェクトの固有 ID。空白文字列は省略可能。半角英数字。大文字・小文字を個別しない。", "A25818D850422A4925C7328F11838612830A734C")] string uniqueId);
+
+    [RpcRequireAuth]
+    [RpcMethodHelp("1 台のサーバーオブジェクトの固有 ID を指定して、サーバーオブジェクトをアクティベーション解除 (無効化) します。また、無効化された後のサーバーオブジェクトの情報を取得します。")]
+    public Task<ThinControllerRpcServerObjectInfo?> DeactivateServerObject([RpcParamHelp("サーバーオブジェクトの固有 ID。空白文字列は省略可能。半角英数字。大文字・小文字を個別しない。", "A25818D850422A4925C7328F11838612830A734C")] string uniqueId);
 }
 
 public class ThinControllerPaidServiceApi : JsonRpcServerApi, IThinControllerPaidServiceApi
@@ -214,6 +230,21 @@ public class ThinControllerPaidServiceApi : JsonRpcServerApi, IThinControllerPai
     {
         Auth();
         return TR($"Hello {i}");
+    }
+
+    public Task<ThinControllerRpcServerObjectInfo?> GetServerObjectInfoByUniqueId(string uniqueId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<ThinControllerRpcServerObjectInfo?> ActivateServerObject(string uniqueId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<ThinControllerRpcServerObjectInfo?> DeactivateServerObject(string uniqueId)
+    {
+        throw new NotImplementedException();
     }
 }
 

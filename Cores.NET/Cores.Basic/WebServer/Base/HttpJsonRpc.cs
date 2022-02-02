@@ -287,10 +287,11 @@ public class JsonRpcHttpServer : JsonRpcServer
         {
             methodIndex++;
 
-            string helpStr = $"RPC Method #{methodIndex}: {m.RetValueTypeName} {m.Name}({(m.ParametersHelpList.Select(x => x.TypeName + " " + x.Name + (x.Mandatory ? "" : " = " + x.DefaultValue._ObjectToJson(compact: true) ))._Combine(", "))});";
+            string helpStr = $"RPC Method #{methodIndex}: {m.Name}({(m.ParametersHelpList.Select(x => x.Name + ": " + x.TypeName + (x.Mandatory ? "" : " = " + x.DefaultValue._ObjectToJson(compact: true) ))._Combine(", "))}): {m.RetValueTypeName};";
 
             if (m.Description._IsFilled()) helpStr += " // " + m.Description;
 
+            w.WriteLine();
             w.WriteLine($"- {helpStr}");
         }
 
@@ -306,9 +307,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
             w.WriteLine("======================================================================");
 
-            string helpStr = $"RPC Method #{methodIndex}: {m.Name}({(m.ParametersHelpList.Select(x => x.Name + ": " + x.TypeName)._Combine(", "))}): {m.RetValueTypeName};";
-
-            if (m.Description._IsFilled()) helpStr += " // " + m.Description;
+            string helpStr = $"RPC Method #{methodIndex}: {m.Name}({(m.ParametersHelpList.Select(x => x.Name + ": " + x.TypeName + (x.Mandatory ? "" : " = " + x.DefaultValue._ObjectToJson(compact: true)))._Combine(", "))}): {m.RetValueTypeName};";
 
             w.WriteLine($"- {helpStr}");
 
@@ -539,19 +538,19 @@ public class JsonRpcHttpServer : JsonRpcServer
                 w.WriteLine($"{urlWithQsAuth}");
                 w.WriteLine();
                 w.WriteLine($"# wget command line sample on Linux bash (retcode = 0 when successful):");
-                w.WriteLine("# (with HTTP Basic Authentication)");
+                w.WriteLine("# (wget with HTTP Basic Authentication)");
                 w.WriteLine($"wget --content-on-error --no-verbose -O - --no-check-certificate {urlWithBasicAuth._EscapeBashArg()}");
-                w.WriteLine("# (with HTTP Query String Authentication)");
+                w.WriteLine("# (wget with HTTP Query String Authentication)");
                 w.WriteLine($"wget --content-on-error --no-verbose -O - --no-check-certificate {urlWithQsAuth._EscapeBashArg()}");
-                w.WriteLine("# (with HTTP Header Authentication)");
+                w.WriteLine("# (wget with HTTP Header Authentication)");
                 w.WriteLine($"wget --content-on-error --no-verbose -O - --no-check-certificate --header 'X-RPC-Auth-Username: USERNAME_HERE' --header 'X-RPC-Auth-Password: PASSWORD_HERE' {urlSimple._EscapeBashArg()}");
                 w.WriteLine();
                 w.WriteLine($"# curl command line sample on Linux bash (retcode = 0 when successful):");
-                w.WriteLine("# (with HTTP Basic Authentication)");
+                w.WriteLine("# (curl with HTTP Basic Authentication)");
                 w.WriteLine($"curl --get --globoff --fail -k --raw --verbose {urlWithBasicAuth._EscapeBashArg()}");
-                w.WriteLine("# (with HTTP Query String Authentication)");
+                w.WriteLine("# (curl with HTTP Query String Authentication)");
                 w.WriteLine($"curl --get --globoff --fail -k --raw --verbose {urlWithQsAuth._EscapeBashArg()}");
-                w.WriteLine("# (with HTTP Header Authentication)");
+                w.WriteLine("# (curl with HTTP Header Authentication)");
                 w.WriteLine($"curl --get --globoff --fail -k --raw --verbose --header 'X-RPC-Auth-Username: USERNAME_HERE' --header 'X-RPC-Auth-Password: PASSWORD_HERE' {urlSimple._EscapeBashArg()}");
                 w.WriteLine();
                 w.WriteLine();

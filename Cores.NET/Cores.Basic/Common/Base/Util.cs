@@ -8523,15 +8523,18 @@ namespace IPA.Cores.Basic
 
         static SampleDataUtil()
         {
+            Type type = typeof(T);
+
             try
             {
-                Type type = typeof(T);
-
-                var method = type.GetMethod("SampleData", BindingFlags.Static | BindingFlags.Public);
+                var method = type.GetProperty("_SampleData", BindingFlags.Static | BindingFlags.Public);
+                if (method == null) method = type.GetProperty("_Sample", BindingFlags.Static | BindingFlags.Public);
+                if (method == null) method = type.GetProperty("_GetSample", BindingFlags.Static | BindingFlags.Public);
+                if (method == null) method = type.GetProperty("_GetSampleData", BindingFlags.Static | BindingFlags.Public);
 
                 if (method != null)
                 {
-                    object? ret = method.Invoke(null, new object[] { });
+                    object? ret = method.GetValue(null);
 
                     if (ret != null)
                     {
@@ -8541,7 +8544,14 @@ namespace IPA.Cores.Basic
             }
             catch
             {
-                SampleData = default;
+                try
+                {
+                    SampleData = (T)Util.CreateNewSampleObjectFromTypeWithoutParam(type);
+                }
+                catch
+                {
+                    SampleData = default;
+                }
             }
         }
     }
@@ -8558,11 +8568,14 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
-                    var method = t.GetMethod("SampleData", BindingFlags.Static | BindingFlags.Public);
+                    var method = type.GetProperty("_SampleData", BindingFlags.Static | BindingFlags.Public);
+                    if (method == null) method = type.GetProperty("_Sample", BindingFlags.Static | BindingFlags.Public);
+                    if (method == null) method = type.GetProperty("_GetSample", BindingFlags.Static | BindingFlags.Public);
+                    if (method == null) method = type.GetProperty("_GetSampleData", BindingFlags.Static | BindingFlags.Public);
 
                     if (method != null)
                     {
-                        object? ret = method.Invoke(null, new object[] { });
+                        object? ret = method.GetValue(null);
 
                         if (ret != null)
                         {
