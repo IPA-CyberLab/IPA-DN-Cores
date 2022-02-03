@@ -3107,9 +3107,11 @@ public static class BasicHelper
 
     public static int _ToYymmddInt(this DateTime dt, int zeroValue = 0, bool yearTwoDigits = false) => Str.DateTimeToYymmddInt(dt, zeroValue, yearTwoDigits);
     public static int _ToHhmmssInt(this DateTime dt, int zeroValue = 0) => Str.DateTimeToHhmmssInt(dt, zeroValue);
+    public static long _ToYymmddHhmmssLong(this DateTime dt, long zeroValue = 0, bool yearTwoDigits = false) => Str.DateTimeToYymmddHHmmssLong(dt, zeroValue, yearTwoDigits);
 
     public static int _ToYymmddInt(this DateTimeOffset dt, int zeroValue = 0, bool yearTwoDigits = false) => Str.DateTimeToYymmddInt(dt.DateTime, zeroValue, yearTwoDigits);
     public static int _ToHhmmssInt(this DateTimeOffset dt, int zeroValue = 0) => Str.DateTimeToHhmmssInt(dt.DateTime, zeroValue);
+    public static long _ToYymmddHhmmssLong(this DateTimeOffset dt, long zeroValue = 0, bool yearTwoDigits = false) => Str.DateTimeToYymmddHHmmssLong(dt.DateTime, zeroValue, yearTwoDigits);
 
     public static PalX509Certificate AsPalX509Certificate(this X509Certificate cert) => new PalX509Certificate(cert);
     public static Certificate AsPkiCertificate(this X509Certificate cert) => new Certificate(new PalX509Certificate(cert));

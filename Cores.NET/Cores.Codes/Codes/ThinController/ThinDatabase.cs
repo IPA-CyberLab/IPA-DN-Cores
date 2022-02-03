@@ -867,7 +867,7 @@ public class ThinDatabase : AsyncServiceWithMainLoop
     }
 
     // 商用サービス開発者向け: サーバー情報の取得、アクティベーション、アクティベーション解除処理
-    public async Task<ThinControllerRpcServerObjectInfo?> Paid_GetOrSetServerObjectInfoAsync(string hostKey, bool? newState = null, string activationTag = "", CancellationToken cancel = default)
+    public async Task<ThinControllerRpcServerObjectInfo?> Paid_GetOrSetServerObjectInfoAsync(string hostKey, bool? newState = null, string tag = "", CancellationToken cancel = default)
     {
         hostKey = hostKey._NonNullTrim()._NormalizeHexString();
 
@@ -913,15 +913,14 @@ public class ThinDatabase : AsyncServiceWithMainLoop
             json["Paid_IsCurrentActivated"] = activate._ToBoolStrLower();
             if (activate)
             {
-                json["Paid_Tag"] = activationTag;
                 json["Paid_ActivatedOnceInPast"] = true._ToBoolStrLower();
                 json["Paid_ActivatedDateTime"] = DtOffsetNow._ToDtStr(true);
             }
             else
             {
                 json["Paid_DeactivatedDateTime"] = DtOffsetNow._ToDtStr(true);
-                json["Paid_Tag"] = "";
             }
+            json["Paid_Tag"] = tag;
 
             string newJsonStr = json.ToString();
 
@@ -1028,7 +1027,7 @@ public class ThinDatabase : AsyncServiceWithMainLoop
     }
 
     // MSID によるデータベースからの最新の Machine の取得
-    public async Task<ThinDbMachine?> SearchMachineByMsidFromDbForce(string msid, CancellationToken cancel = default)
+    public async Task<ThinDbMachine?> SearchMachineByMsidFromDbForceAsync(string msid, CancellationToken cancel = default)
     {
         if (IsDatabaseConnected == false)
         {

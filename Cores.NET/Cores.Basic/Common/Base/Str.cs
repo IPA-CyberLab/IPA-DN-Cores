@@ -6235,7 +6235,7 @@ namespace IPA.Cores.Basic
             return Str.StrToInt(ret);
         }
 
-        public static long DateTimeToYymmddHHmmssLong(DateTime dt, int zeroValue = 0, bool yearTwoDigits = false)
+        public static long DateTimeToYymmddHHmmssLong(DateTime dt, long zeroValue = 0, bool yearTwoDigits = false)
         {
             if (dt._IsZeroDateTime())
             {
