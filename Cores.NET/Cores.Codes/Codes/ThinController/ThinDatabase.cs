@@ -941,6 +941,8 @@ public class ThinDatabase : AsyncServiceWithMainLoop
             await this.AddApiLogAsync(db, activate ? "Activate" : "Deactivate",
                 new
                 {
+                    UniqueId = machine.CERT_HASH,
+                    Pcid = machine.PCID,
                     OldStatus = oldStatus,
                     NewStatus = newStatus,
                 });
