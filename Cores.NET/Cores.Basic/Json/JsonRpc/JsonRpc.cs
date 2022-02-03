@@ -265,13 +265,13 @@ public class RpcParameterHelp
     public bool Mandatory { get; }
     public object? DefaultValue { get; }
 
-    public RpcParameterHelp(ParameterInfo info)
+    public RpcParameterHelp(ParameterInfo info, string methodNameHint)
     {
         this.Name = info.Name._NonNull();
         this.Type = info.ParameterType;
         this.TypeName = this.Type.Name;
         this.IsPrimitiveType = Dbg.IsPrimitiveType(this.Type);
-        this.SampleValueObject = SampleDataUtil.Get(this.Type);
+        this.SampleValueObject = SampleDataUtil.Get(this.Type, methodNameHint);
 
         var attr = info.GetCustomAttribute<RpcParamHelpAttribute>();
         if (attr != null)
@@ -365,12 +365,12 @@ public class RpcMethodInfo
 
         foreach (var param in this.ParametersByIndex)
         {
-            this._ParametersHelpList.Add(new RpcParameterHelp(param));
+            this._ParametersHelpList.Add(new RpcParameterHelp(param, this.Name));
         }
 
         if (this.RetValueType != null)
         {
-            this.RetValueSampleValueObject = SampleDataUtil.Get(this.RetValueType);
+            this.RetValueSampleValueObject = SampleDataUtil.Get(this.RetValueType, this.Name);
             this.IsRetValuePrimitiveType = Dbg.IsPrimitiveType(this.RetValueType);
             this.HasRetValue = true;
         }
@@ -447,17 +447,25 @@ public class RpcMethodInfo
 
 public class JsonRpcAuthErrorException : CoresException
 {
-    public JsonRpcAuthErrorException() : base("JSON-RPC Authentication Error") { }
+    public string HttpBasicAuthErrorRealm { get; }
+
+    public JsonRpcAuthErrorException(string httpBasicAuthErrorRealm = "") : base("JSON-RPC Authentication Error")
+    {
+        this.HttpBasicAuthErrorRealm = httpBasicAuthErrorRealm._NonNullTrim();
+    }
 }
 
-public abstract class JsonRpcServerApi : AsyncService
+public class JsonRpcServerApi : AsyncService
 {
     public Type RpcInterface { get; }
+    public object TargetObject { get; }
 
-    public JsonRpcServerApi(CancellationToken cancel = default) : base(cancel)
+    public JsonRpcServerApi(CancellationToken cancel = default, object? targetObject = null) : base(cancel)
     {
         try
         {
+            this.TargetObject = targetObject ?? this;
+
             this.RpcInterface = GetRpcInterface();
         }
         catch
@@ -487,13 +495,13 @@ public abstract class JsonRpcServerApi : AsyncService
     public Task<object?> InvokeMethod(string methodName, JObject param, RpcMethodInfo? methodInfo = null)
     {
         if (methodInfo == null) methodInfo = GetMethodInfo(methodName);
-        return methodInfo!.InvokeMethod(this, methodName, param);
+        return methodInfo!.InvokeMethod(this.TargetObject, methodName, param);
     }
 
     protected Type GetRpcInterface()
     {
         Type? ret = null;
-        Type t = this.GetType();
+        Type t = this.TargetObject.GetType();
         var ints = t.GetTypeInfo().GetInterfaces();
         int num = 0;
         foreach (var f in ints)
@@ -542,10 +550,12 @@ public abstract class JsonRpcServerApi : AsyncService
             }
         }
 
+        ret._DoSortBy(x => x.OrderBy(i => i.Name));
+
         return ret;
     }
 
-    protected void TryAuth(Func<string, string, bool> callback)
+    public static void TryAuth(Func<string, string, bool> callback, string basicAuthErrorRealm = "")
     {
         try
         {
@@ -569,7 +579,7 @@ public abstract class JsonRpcServerApi : AsyncService
         }
 
         // 認証失敗 例外発生させる
-        throw new JsonRpcAuthErrorException();
+        throw new JsonRpcAuthErrorException(basicAuthErrorRealm);
     }
 }
 
@@ -648,14 +658,16 @@ public sealed class JsonRpcCallResult
     public string ResultString { get; }
     public bool AllError { get; }
     public bool Error_AuthRequired { get; }
+    public string Error_AuthRequiredRealmName { get; }
     public string Error_AuthRequiredMethodName { get; }
 
-    public JsonRpcCallResult(string resultString, bool allError, bool errAuthRequired = false, string authRequiredMethodName = "")
+    public JsonRpcCallResult(string resultString, bool allError, bool errAuthRequired = false, string authRequiredMethodName = "", string authRequiredRealmName = "")
     {
         this.ResultString = resultString._NonNull();
         this.AllError = allError;
         this.Error_AuthRequired = errAuthRequired;
         this.Error_AuthRequiredMethodName = authRequiredMethodName;
+        this.Error_AuthRequiredRealmName = authRequiredRealmName;
     }
 }
 
@@ -790,6 +802,7 @@ public abstract class JsonRpcServer
 
         bool authError_WhenSingle = false;
         string authErrorMethodName_WhenSingle = "";
+        string authErrorRealm_WhenSingle = "";
 
         List<JsonRpcResponse> response_list = new List<JsonRpcResponse>();
 
@@ -843,6 +856,7 @@ public abstract class JsonRpcServer
                                     {
                                         authError_WhenSingle = true;
                                         authErrorMethodName_WhenSingle = req.Method._NonNull();
+                                        authErrorRealm_WhenSingle = ((JsonRpcAuthErrorException)ex).HttpBasicAuthErrorRealm;
                                     }
                                 }
                             }
@@ -907,11 +921,11 @@ public abstract class JsonRpcServer
 
                 if (resSingle.IsOk && simpleResultWhenOk)
                 {
-                    return new JsonRpcCallResult(resSingle.Result._ObjectToJson(), resSingle.IsError, authError_WhenSingle, authErrorMethodName_WhenSingle);
+                    return new JsonRpcCallResult(resSingle.Result._ObjectToJson(), resSingle.IsError, authError_WhenSingle, authErrorMethodName_WhenSingle, authErrorRealm_WhenSingle);
                 }
                 else
                 {
-                    return new JsonRpcCallResult(resSingle._ObjectToJson(), resSingle.IsError, authError_WhenSingle, authErrorMethodName_WhenSingle);
+                    return new JsonRpcCallResult(resSingle._ObjectToJson(), resSingle.IsError, authError_WhenSingle, authErrorMethodName_WhenSingle, authErrorRealm_WhenSingle);
                 }
             }
             else
@@ -1307,6 +1321,7 @@ public class JsonRpcHttpClient<TRpcInterface> : JsonRpcHttpClient
 
 public class JsonRpcClientInfo
 {
+    // ログ保存のためシリアル化するので内容に注意せよ
     public string LocalIP { get; }
     public int LocalPort { get; }
     public string RemoteIP { get; }

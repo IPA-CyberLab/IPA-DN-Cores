@@ -8517,58 +8517,55 @@ namespace IPA.Cores.Basic
         }
     }
 
-    public static class SampleDataUtil<T>
-    {
-        public static T? SampleData;
-
-        static SampleDataUtil()
-        {
-            Type type = typeof(T);
-
-            try
-            {
-                var method = type.GetProperty("_SampleData", BindingFlags.Static | BindingFlags.Public);
-                if (method == null) method = type.GetProperty("_Sample", BindingFlags.Static | BindingFlags.Public);
-                if (method == null) method = type.GetProperty("_GetSample", BindingFlags.Static | BindingFlags.Public);
-                if (method == null) method = type.GetProperty("_GetSampleData", BindingFlags.Static | BindingFlags.Public);
-
-                if (method != null)
-                {
-                    object? ret = method.GetValue(null);
-
-                    if (ret != null)
-                    {
-                        SampleData = (T)ret;
-                    }
-                }
-            }
-            catch
-            {
-                try
-                {
-                    SampleData = (T)Util.CreateNewSampleObjectFromTypeWithoutParam(type);
-                }
-                catch
-                {
-                    SampleData = default;
-                }
-            }
-        }
-    }
-
     public static class SampleDataUtil
     {
-        static readonly FastCache<Type, object?> CacheData = new FastCache<Type, object?>(int.MaxValue);
+        static readonly FastCache<string, object?> CacheData = new FastCache<string, object?>(int.MaxValue);
 
-        public static object? Get(Type type)
+        public static object? Get(Type type, string additionalTag1 = "", string additionalTag2 = "")
         {
             if (Dbg.IsPrimitiveType(type)) return null;
 
-            return CacheData.GetOrCreate(type, t =>
+            additionalTag1 = additionalTag1._NonNullTrim();
+            if (additionalTag1.StartsWith("_"))
+            {
+                additionalTag1 = additionalTag1.Substring(1);
+            }
+
+            additionalTag2 = additionalTag1._NonNullTrim();
+            if (additionalTag2.StartsWith("_"))
+            {
+                additionalTag2 = additionalTag2.Substring(1);
+            }
+
+            string cacheTag = type.FullName + "@" + additionalTag1 + "@" + additionalTag2;
+
+            return CacheData.GetOrCreate(cacheTag, t =>
             {
                 try
                 {
-                    var method = type.GetProperty("_SampleData", BindingFlags.Static | BindingFlags.Public);
+                    PropertyInfo? method = null;
+
+                    if (additionalTag1._IsFilled())
+                    {
+                        additionalTag1 = "_" + additionalTag1;
+
+                        if (method == null) method = type.GetProperty("_SampleData" + additionalTag1, BindingFlags.Static | BindingFlags.Public);
+                        if (method == null) method = type.GetProperty("_Sample" + additionalTag1, BindingFlags.Static | BindingFlags.Public);
+                        if (method == null) method = type.GetProperty("_GetSample" + additionalTag1, BindingFlags.Static | BindingFlags.Public);
+                        if (method == null) method = type.GetProperty("_GetSampleData" + additionalTag1, BindingFlags.Static | BindingFlags.Public);
+
+                        if (additionalTag2._IsFilled())
+                        {
+                            additionalTag2 = "_" + additionalTag2;
+
+                            if (method == null) method = type.GetProperty("_SampleData" + additionalTag1 + additionalTag2, BindingFlags.Static | BindingFlags.Public);
+                            if (method == null) method = type.GetProperty("_Sample" + additionalTag1 + additionalTag2, BindingFlags.Static | BindingFlags.Public);
+                            if (method == null) method = type.GetProperty("_GetSample" + additionalTag1 + additionalTag2, BindingFlags.Static | BindingFlags.Public);
+                            if (method == null) method = type.GetProperty("_GetSampleData" + additionalTag1 + additionalTag2, BindingFlags.Static | BindingFlags.Public);
+                        }
+                    }
+
+                    if (method == null) method = type.GetProperty("_SampleData", BindingFlags.Static | BindingFlags.Public);
                     if (method == null) method = type.GetProperty("_Sample", BindingFlags.Static | BindingFlags.Public);
                     if (method == null) method = type.GetProperty("_GetSample", BindingFlags.Static | BindingFlags.Public);
                     if (method == null) method = type.GetProperty("_GetSampleData", BindingFlags.Static | BindingFlags.Public);
@@ -8587,7 +8584,7 @@ namespace IPA.Cores.Basic
 
                 try
                 {
-                    return Util.CreateNewSampleObjectFromTypeWithoutParam(t);
+                    return Util.CreateNewSampleObjectFromTypeWithoutParam(type);
                 }
                 catch { }
                 return null;

@@ -159,93 +159,8 @@ public static class ThinControllerGlobalSettings
     public static readonly Copenhagen<bool> PaidService_Enabled = false;    // 商用サービス化機能の有効化フラグ (デフォルトで無効)
     public static readonly Copenhagen<TimeSpan> PaidService_TrialSpan = new TimeSpan(30, 0, 0, 0);  // 体験版として利用を開始してから無償で体験利用ができる日数
     public static readonly Copenhagen<string> PaidService_RedirectUrl = "https://example.org/?pcid=<PCID>&flag=<FLAG>&tag=<TAG>"; // 体験版の利用期限が切れたか、製品版のアクティベーションが切れた場合に表示される Web ページの URL
-    public static readonly Copenhagen<string> PaidService_RpcEndPointPath = "/rpc_paid";
     public static readonly Copenhagen<string> PaidService_RpcAuthUsername = "USERNAME_HERE";
     public static readonly Copenhagen<string> PaidService_RpcAuthPassword = "PASSWORD_HERE";
-}
-
-// シン・テレワークシステム プライベート版を用いて商用サービスを実装したいユーザー (システム開発者) 向けの機能
-[Flags]
-public enum ThinControllerPaidServiceRedirectUrlStatusFlag
-{
-    TrialExpired = 0,  // 体験版の有効期限が切れた
-    Deactivated = 1,   // 製品版として利用していたが、何らかの理由でアクティベーション解除がされた
-}
-
-public class ThinControllerRpcServerObjectInfo
-{
-    public string Pcid = "";
-    public bool IsActivated;
-    public string Tag = "";
-    public DateTimeOffset ActivatedDateTime = ZeroDateTimeOffsetValue;
-
-    public static ThinControllerRpcServerObjectInfo _Sample
-        => new ThinControllerRpcServerObjectInfo { Pcid = "abc123", IsActivated = true, Tag = "Hello Neko", ActivatedDateTime = DtOffsetNow };
-}
-
-// 商用サービス構築開発者用 RPC-API インターフェイス
-[RpcInterface]
-public interface IThinControllerPaidServiceApi
-{
-    [RpcRequireAuth]
-    [RpcMethodHelp("テスト関数。パラメータで int 型で指定された値を文字列に変換し、Hello という文字列を前置して返却します。RPC を呼び出すためのテストコードを実際に記述する際のテストとして便利です。", "Hello 123")]
-    public Task<string> Test([RpcParamHelp("テスト入力整数値", 123)] int i);
-
-    [RpcRequireAuth]
-    [RpcMethodHelp("1 台のサーバーオブジェクトの固有 ID を指定して、サーバーオブジェクトの情報を取得します。")]
-    public Task<ThinControllerRpcServerObjectInfo?> GetServerObjectInfoByUniqueId([RpcParamHelp("サーバーオブジェクトの固有 ID。空白文字列は省略可能。半角英数字。大文字・小文字を個別しない。", "A25818D850422A4925C7328F11838612830A734C")] string uniqueId);
-
-    [RpcRequireAuth]
-    [RpcMethodHelp("1 台のサーバーオブジェクトの固有 ID を指定して、サーバーオブジェクトをアクティベーション (有効化) します。また、有効化された後のサーバーオブジェクトの情報を取得します。")]
-    public Task<ThinControllerRpcServerObjectInfo?> ActivateServerObject([RpcParamHelp("サーバーオブジェクトの固有 ID。空白文字列は省略可能。半角英数字。大文字・小文字を個別しない。", "A25818D850422A4925C7328F11838612830A734C")] string uniqueId);
-
-    [RpcRequireAuth]
-    [RpcMethodHelp("1 台のサーバーオブジェクトの固有 ID を指定して、サーバーオブジェクトをアクティベーション解除 (無効化) します。また、無効化された後のサーバーオブジェクトの情報を取得します。")]
-    public Task<ThinControllerRpcServerObjectInfo?> DeactivateServerObject([RpcParamHelp("サーバーオブジェクトの固有 ID。空白文字列は省略可能。半角英数字。大文字・小文字を個別しない。", "A25818D850422A4925C7328F11838612830A734C")] string uniqueId);
-}
-
-public class ThinControllerPaidServiceApi : JsonRpcServerApi, IThinControllerPaidServiceApi
-{
-    public ThinControllerPaidServiceApi(ThinController controller)
-    {
-        try
-        {
-        }
-        catch
-        {
-            this._DisposeSafe();
-            throw;
-        }
-    }
-
-    protected void Auth()
-    {
-        this.TryAuth((user, pass) =>
-        {
-            return user == ThinControllerGlobalSettings.PaidService_RpcAuthUsername && pass == ThinControllerGlobalSettings.PaidService_RpcAuthPassword;
-        });
-    }
-
-    public Task<string> Test(int i)
-    {
-        Auth();
-        return TR($"Hello {i}");
-    }
-
-    public Task<ThinControllerRpcServerObjectInfo?> GetServerObjectInfoByUniqueId(string uniqueId)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<ThinControllerRpcServerObjectInfo?> ActivateServerObject(string uniqueId)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<ThinControllerRpcServerObjectInfo?> DeactivateServerObject(string uniqueId)
-    {
-        throw new NotImplementedException();
-    }
 }
 
 
@@ -981,7 +896,7 @@ public class ThinControllerSession : IDisposable, IAsyncDisposable
                 return NewWpcResult(VpnError.ERR_TEMP_ERROR);
             }
 
-            await Controller.Db.UpdateDbForWolMac(ClientInfo.AuthedMachine!.MSID, wolMacList, serverMask64, DtNow, cancel);
+            await Controller.Db.UpdateDbForWolMacAsync(ClientInfo.AuthedMachine!.MSID, wolMacList, serverMask64, DtNow, cancel);
 
             machine.WOL_MACLIST = wolMacList;
             machine.SERVERMASK64 = serverMask64;
@@ -1719,7 +1634,8 @@ public class ThinControllerWebSocketCertMaintainer : AsyncServiceWithMainLoop
     }
 }
 
-public class ThinController : AsyncService
+
+public class ThinController : AsyncService, IThinControllerRpcApi
 {
 
     // Hive
@@ -1842,7 +1758,7 @@ public class ThinController : AsyncService
             this.WebSocketCertMaintainer = new ThinControllerWebSocketCertMaintainer(this);
 
             // 商用サービス用 RPC エンドポイントを Web サーバーに登録
-            this.PaidServiceRpcServer = new JsonRpcHttpServer(new ThinControllerPaidServiceApi(this),
+            this.PaidServiceRpcServer = new JsonRpcHttpServer(new JsonRpcServerApi(targetObject: this),
                 new JsonRpcServerConfig
                 {
                     PrintHelp = true,
@@ -2217,7 +2133,7 @@ public class ThinController : AsyncService
         });
 
         // 商用サービス用 RPC エンドポイントを Web サーバーに登録
-        this.PaidServiceRpcServer.RegisterRoutesToHttpServer(app, ThinControllerGlobalSettings.PaidService_RpcEndPointPath);
+        this.PaidServiceRpcServer.RegisterRoutesToHttpServer(app);
     }
 
     protected override async Task CleanupImplAsync(Exception? ex)
@@ -2643,7 +2559,190 @@ public class ThinController : AsyncService
         return "MSID-" + svcName + "-" + Str.ByteToHex(hex);
     }
 
+    void RPC_PaidService_Auth()
+    {
+        JsonRpcServerApi.TryAuth((user, pass) =>
+        {
+            return user == ThinControllerGlobalSettings.PaidService_RpcAuthUsername && pass == ThinControllerGlobalSettings.PaidService_RpcAuthPassword;
+        }, "PaidServiceApi");
+    }
+
+    public Task<string> Test(int i)
+    {
+        return TR($"Hello {i}");
+    }
+
+    public async Task<ThinControllerRpcServerObjectInfo?> GetServerObjectInfoByUniqueId(string uniqueId)
+    {
+        if (ThinControllerGlobalSettings.PaidService_Enabled == false) throw new NotImplementedException();
+        RPC_PaidService_Auth();
+
+        var ret = await this.Db.Paid_GetOrSetServerObjectInfoAsync(uniqueId);
+
+        return ret;
+    }
+
+    public async Task<ThinControllerRpcServerObjectInfo?> ActivateServerObject(string uniqueId, string activationTag)
+    {
+        if (ThinControllerGlobalSettings.PaidService_Enabled == false) throw new NotImplementedException();
+        RPC_PaidService_Auth();
+
+        activationTag = activationTag._NonNullTrim();
+
+        var ret = await this.Db.Paid_GetOrSetServerObjectInfoAsync(uniqueId, true, activationTag);
+
+        return ret;
+    }
+
+    public async Task<ThinControllerRpcServerObjectInfo?> DeactivateServerObject(string uniqueId)
+    {
+        if (ThinControllerGlobalSettings.PaidService_Enabled == false) throw new NotImplementedException();
+        RPC_PaidService_Auth();
+
+        var ret = await this.Db.Paid_GetOrSetServerObjectInfoAsync(uniqueId, false);
+
+        return ret;
+    }
+
+    public ThinControllerRpcServerObjectInfo Paid_CalcServerLicenseStatus(string pcid, string jsonAttributes, DateTimeOffset firstClientUseDate)
+    {
+        EasyJsonStrAttributes json = new EasyJsonStrAttributes(jsonAttributes);
+
+        ThinControllerRpcServerObjectInfo ret = new ThinControllerRpcServerObjectInfo
+        {
+            Pcid = pcid.Trim().ToLowerInvariant(),
+            IsCurrentActivated = json["Paid_IsCurrentActivated"]._ToBool(),
+            FirstClientUseDateTime = firstClientUseDate,
+        };
+
+        // 状態の判定
+        if (ret.IsCurrentActivated)
+        {
+            // アクティベート済み
+            ret.ActivationTag = json["Paid_Tag"];
+            ret.ActivatedOnceInPast = true;
+            ret.ActivatedDateTime = Str.DtstrToDateTimeOffset(json["Paid_ActivatedDateTime"]);
+
+            ret.Status = ThinControllerPaidServiceRedirectUrlStatusFlag.Activated;
+        }
+        else
+        {
+            // アクティベートまだ
+            ret.ActivatedOnceInPast = json["Paid_ActivatedOnceInPast"]._ToBool();
+
+            if (ret.ActivatedOnceInPast)
+            {
+                ret.Status = ThinControllerPaidServiceRedirectUrlStatusFlag.Deactivated;
+                ret.DeactivatedDateTime = Str.DtstrToDateTimeOffset(json["Paid_DeactivatedDateTime"]);
+            }
+            else
+            {
+                ret.TrialExpireDateTime = ZeroDateTimeOffsetValue;
+
+                if (firstClientUseDate._IsFilled())
+                {
+                    ret.TrialExpireDateTime = firstClientUseDate + ThinControllerGlobalSettings.PaidService_TrialSpan;
+
+                    if (DtOffsetNow > ret.TrialExpireDateTime)
+                    {
+                        ret.Status = ThinControllerPaidServiceRedirectUrlStatusFlag.TrialExpired;
+                    }
+                    else
+                    {
+                        ret.Status = ThinControllerPaidServiceRedirectUrlStatusFlag.InTrial;
+                    }
+                }
+                else
+                {
+                    ret.TrialExpireDateTime = DtOffsetNow + ThinControllerGlobalSettings.PaidService_TrialSpan;
+                    ret.Status = ThinControllerPaidServiceRedirectUrlStatusFlag.InTrial;
+                }
+            }
+        }
+
+        return ret;
+    }
 }
+
+
+// RPC-API インターフェイス
+// 主にシン・テレワークシステム プライベート版を用いて商用サービスを実装したいユーザー (システム開発者) 向けの機能
+[RpcInterface]
+public interface IThinControllerRpcApi
+{
+    [RpcMethodHelp("テスト関数。パラメータで int 型で指定された値を文字列に変換し、Hello という文字列を前置して返却します。RPC を呼び出すためのテストコードを実際に記述する際のテストとして便利です。", "Hello 123")]
+    public Task<string> Test([RpcParamHelp("テスト入力整数値", 123)] int i);
+
+    [RpcRequireAuth]
+    [RpcMethodHelp("1 台のサーバーオブジェクトの固有 ID を指定して、サーバーオブジェクトの情報を取得します。")]
+    public Task<ThinControllerRpcServerObjectInfo?> GetServerObjectInfoByUniqueId(
+        [RpcParamHelp("サーバーオブジェクトの固有 ID。空白文字列は省略可能。半角英数字。大文字・小文字を個別しない。", "00112233445566778899AABBCCDDEEFF00112233")] string uniqueId
+        );
+
+    [RpcRequireAuth]
+    [RpcMethodHelp("1 台のサーバーオブジェクトの固有 ID を指定して、サーバーオブジェクトをアクティベーション (有効化) します。また、有効化された後のサーバーオブジェクトの情報を取得します。")]
+    public Task<ThinControllerRpcServerObjectInfo?> ActivateServerObject(
+        [RpcParamHelp("サーバーオブジェクトの固有 ID。空白文字列は省略可能。半角英数字。大文字・小文字を個別しない。", "00112233445566778899AABBCCDDEEFF00112233")] string uniqueId,
+        [RpcParamHelp("任意のタグ文字列。このタグ文字列は、アクティベートされている期間中は、サーバーオブジェクトと一緒にデータベースに保存され、GetServerObjectInfoByUniqueId() API で返却される情報に含まれます。", "Hello East Telecom")] string activationTag
+        );
+
+    [RpcRequireAuth]
+    [RpcMethodHelp("1 台のサーバーオブジェクトの固有 ID を指定して、サーバーオブジェクトをアクティベーション解除 (無効化) します。また、無効化された後のサーバーオブジェクトの情報を取得します。")]
+    public Task<ThinControllerRpcServerObjectInfo?> DeactivateServerObject(
+        [RpcParamHelp("サーバーオブジェクトの固有 ID。空白文字列は省略可能。半角英数字。大文字・小文字を個別しない。", "00112233445566778899AABBCCDDEEFF00112233")] string uniqueId
+        );
+}
+
+// シン・テレワークシステム プライベート版を用いて商用サービスを実装したいユーザー (システム開発者) 向けの機能
+[Flags]
+public enum ThinControllerPaidServiceRedirectUrlStatusFlag
+{
+    InTrial = 0,    // 体験期間中
+    TrialExpired,   // 体験版の有効期限が切れた
+    Activated,      // 製品版アクティベーション済み
+    Deactivated,    // 製品版として利用していたが、何らかの理由でアクティベーション解除がされた
+}
+
+public class ThinControllerRpcServerObjectInfo
+{
+    public string Pcid = "";
+    public bool IsCurrentActivated;
+    public bool ActivatedOnceInPast;
+    public string ActivationTag = "";
+    public DateTimeOffset FirstClientUseDateTime = ZeroDateTimeOffsetValue;
+    public DateTimeOffset ActivatedDateTime = ZeroDateTimeOffsetValue;
+    public DateTimeOffset DeactivatedDateTime = ZeroDateTimeOffsetValue;
+    public DateTimeOffset TrialExpireDateTime = ZeroDateTimeOffsetValue;
+
+    [JsonConverter(typeof(StringEnumConverter))]
+    public ThinControllerPaidServiceRedirectUrlStatusFlag Status;
+
+    public static ThinControllerRpcServerObjectInfo _Sample
+        => new ThinControllerRpcServerObjectInfo
+        {
+            Pcid = "abc123",
+            IsCurrentActivated = true,
+            ActivatedOnceInPast = true,
+            ActivationTag = "Hello Neko",
+            FirstClientUseDateTime = new DateTime(2020, 4, 30).AddSeconds(29321)._AsDateTimeOffset(true, true),
+            ActivatedDateTime = new DateTime(2020, 5, 3).AddSeconds(54321)._AsDateTimeOffset(true, true),
+            DeactivatedDateTime = ZeroDateTimeOffsetValue,
+            TrialExpireDateTime = new DateTime(2019, 12, 11).AddSeconds(59321)._AsDateTimeOffset(true, true)
+        };
+
+    public static ThinControllerRpcServerObjectInfo _Sample_DeactivateServerObject
+        => new ThinControllerRpcServerObjectInfo
+        {
+            Pcid = "def456",
+            IsCurrentActivated = false,
+            ActivatedOnceInPast = true,
+            ActivationTag = "Hello East Telecom",
+            FirstClientUseDateTime = new DateTime(2020, 7, 6).AddSeconds(9321)._AsDateTimeOffset(true, true),
+            DeactivatedDateTime = new DateTime(2021, 12, 26).AddSeconds(65432)._AsDateTimeOffset(true, true),
+            TrialExpireDateTime = new DateTime(2020, 8, 8).AddSeconds(45432)._AsDateTimeOffset(true, true),
+        };
+}
+
 
 #endif
 

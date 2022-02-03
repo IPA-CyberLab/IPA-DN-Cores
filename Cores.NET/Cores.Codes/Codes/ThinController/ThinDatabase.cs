@@ -696,9 +696,10 @@ public class ThinDatabase : AsyncServiceWithMainLoop
     }
 
     readonly AsyncLock RenamePcidAsyncLock = new AsyncLock();
+    readonly AsyncLock PaidApiAsyncLock = new AsyncLock();
 
     // WoL MAC の即時更新
-    public async Task UpdateDbForWolMac(string msid, string wolMacList, long serverMask64, DateTime now, CancellationToken cancel)
+    public async Task UpdateDbForWolMacAsync(string msid, string wolMacList, long serverMask64, DateTime now, CancellationToken cancel)
     {
         msid = msid._NonNullTrim();
         now = now._NormalizeDateTime();
@@ -792,32 +793,32 @@ public class ThinDatabase : AsyncServiceWithMainLoop
         // (DB サーバー側で一意インデックスによりチェックするが、インデックスが間違っていた場合に備えて、トランザクションでも厳密にチェックするのである)
         if (await db.TranAsync(async () =>
         {
-                // MACHINE を取得
-                var machine = await db.EasySelectSingleAsync<ThinDbMachine>("SELECT * FROM MACHINE WHERE MSID = @MSID", new { MSID = msid }, false, true, cancel);
+            // MACHINE を取得
+            var machine = await db.EasySelectSingleAsync<ThinDbMachine>("SELECT * FROM MACHINE WHERE MSID = @MSID", new { MSID = msid }, false, true, cancel);
             if (machine == null)
             {
-                    // おかしいな
-                    err = VpnError.ERR_SECURITY_ERROR;
+                // おかしいな
+                err = VpnError.ERR_SECURITY_ERROR;
                 return false;
             }
 
-                // 同一 PCID が存在しないかどうかチェック
-                if ((await db.QueryWithValueAsync("SELECT COUNT(MACHINE_ID) FROM MACHINE WHERE PCID = @ AND SVC_NAME = @", newPcid, machine.SVC_NAME)).Int != 0)
+            // 同一 PCID が存在しないかどうかチェック
+            if ((await db.QueryWithValueAsync("SELECT COUNT(MACHINE_ID) FROM MACHINE WHERE PCID = @ AND SVC_NAME = @", newPcid, machine.SVC_NAME)).Int != 0)
             {
                 err = VpnError.ERR_PCID_ALREADY_EXISTS;
                 return false;
             }
 
-                // 変更の実行
-                await db.QueryWithNoReturnAsync("UPDATE MACHINE SET PCID = @, UPDATE_DATE = @, PCID_UPDATE_DATE = @, PCID_VER = PCID_VER + 1 WHERE MSID = @",
-                newPcid, now, now, msid);
+            // 変更の実行
+            await db.QueryWithNoReturnAsync("UPDATE MACHINE SET PCID = @, UPDATE_DATE = @, PCID_UPDATE_DATE = @, PCID_VER = PCID_VER + 1 WHERE MSID = @",
+            newPcid, now, now, msid);
 
-                // 変更した結果を取得
-                updatedMachine = await db.EasySelectSingleAsync<ThinDbMachine>("SELECT * FROM MACHINE WHERE MSID = @MSID", new { MSID = msid }, false, true, cancel);
+            // 変更した結果を取得
+            updatedMachine = await db.EasySelectSingleAsync<ThinDbMachine>("SELECT * FROM MACHINE WHERE MSID = @MSID", new { MSID = msid }, false, true, cancel);
             if (updatedMachine == null)
             {
-                    // おかしいな
-                    err = VpnError.ERR_SECURITY_ERROR;
+                // おかしいな
+                err = VpnError.ERR_SECURITY_ERROR;
                 return false;
             }
 
@@ -848,6 +849,109 @@ public class ThinDatabase : AsyncServiceWithMainLoop
         }
 
         return VpnError.ERR_NO_ERROR;
+    }
+
+    async Task AddApiLogAsync(Database db, string type, object data, CancellationToken cancel = default)
+    {
+        JsonRpcClientInfo? clientInfo = TaskVar<JsonRpcClientInfo>.Value;
+
+        await db.EasyExecuteAsync("insert into APILOG (APILOG_DT, APILOG_CLIENT, APILOG_TYPE, APILOG_DATA) values (@APILOG_DT, @APILOG_CLIENT, @APILOG_TYPE, @APILOG_DATA)",
+            new
+            {
+                APILOG_DT = DtOffsetNow,
+                APILOG_CLIENT = clientInfo?._ObjectToJson(compact: true) ?? "",
+                APILOG_TYPE = type._NonNullTrim(),
+                APILOG_DATA = data._ObjectToJson(compact: true),
+            }
+            );
+    }
+
+    // 商用サービス開発者向け: サーバー情報の取得、アクティベーション、アクティベーション解除処理
+    public async Task<ThinControllerRpcServerObjectInfo?> Paid_GetOrSetServerObjectInfoAsync(string hostKey, bool? newState = null, string activationTag = "", CancellationToken cancel = default)
+    {
+        hostKey = hostKey._NonNullTrim()._NormalizeHexString();
+
+        // データベースエラー時は処理禁止
+        if (IsDatabaseConnected == false)
+        {
+            throw new VpnException(VpnError.ERR_TEMP_ERROR);
+        }
+
+        await using var db = await OpenDatabaseForWriteAsync(cancel);
+
+        // この関数は同時に 1 ユーザーからしか実行されないようにする (高負荷防止のため)
+        using var asyncLock = await RenamePcidAsyncLock.LockWithAwait(cancel);
+
+        ThinControllerRpcServerObjectInfo? ret = null;
+
+        await db.TranAsync(async () =>
+        {
+            var machine = await db.EasySelectSingleAsync<ThinDbMachine>("select * from MACHINE where CERT_HASH = @CERT_HASH",
+                new
+                {
+                    CERT_HASH = hostKey,
+                }, false, true, cancel);
+
+            if (machine == null)
+            {
+                return false;
+            }
+
+            var oldStatus = this.Controller.Paid_CalcServerLicenseStatus(machine.PCID, machine.JSON_ATTRIBUTES, machine.FIRST_CLIENT_DATE._AsDateTimeOffset(true, true));
+
+            if (newState.HasValue == false || newState.Value == oldStatus.IsCurrentActivated)
+            {
+                // 状態の変更なし
+                ret = oldStatus;
+                return false;
+            }
+
+            bool activate = newState.Value;
+
+            EasyJsonStrAttributes json = new EasyJsonStrAttributes(machine.JSON_ATTRIBUTES);
+
+            json["Paid_IsCurrentActivated"] = activate._ToBoolStrLower();
+            if (activate)
+            {
+                json["Paid_Tag"] = activationTag;
+                json["Paid_ActivatedOnceInPast"] = true._ToBoolStrLower();
+                json["Paid_ActivatedDateTime"] = DtOffsetNow._ToDtStr(true);
+            }
+            else
+            {
+                json["Paid_DeactivatedDateTime"] = DtOffsetNow._ToDtStr(true);
+                json["Paid_Tag"] = "";
+            }
+
+            string newJsonStr = json.ToString();
+
+            var newStatus = this.Controller.Paid_CalcServerLicenseStatus(machine.PCID, newJsonStr, machine.FIRST_CLIENT_DATE._AsDateTimeOffset(true, true));
+
+            int i = await db.EasyExecuteAsync("update MACHINE set JSON_ATTRIBUTES = @JSON_ATTRIBUTES where CERT_HASH = @CERT_HASH",
+                new
+                {
+                    JSON_ATTRIBUTES = newJsonStr,
+                    CERT_HASH = machine.CERT_HASH,
+                });
+
+            if (i != 1)
+            {
+                throw new CoresLibException("Database update error. i != 1.");
+            }
+
+            await this.AddApiLogAsync(db, activate ? "Activate" : "Deactivate",
+                new
+                {
+                    OldStatus = oldStatus,
+                    NewStatus = newStatus,
+                });
+
+            ret = newStatus;
+
+            return true;
+        });
+
+        return ret;
     }
 
     // サーバー登録実行
@@ -881,36 +985,36 @@ public class ThinDatabase : AsyncServiceWithMainLoop
         // (DB サーバー側で一意インデックスによりチェックするが、インデックスが間違っていた場合に備えて、トランザクションでも厳密にチェックするのである)
         if (await db.TranAsync(async () =>
         {
-                // 同一 hostKey が存在しないかどうか確認
-                if ((await db.QueryWithValueAsync("SELECT COUNT(MACHINE_ID) FROM MACHINE WHERE CERT_HASH = @", hostKey)).Int != 0)
+            // 同一 hostKey が存在しないかどうか確認
+            if ((await db.QueryWithValueAsync("SELECT COUNT(MACHINE_ID) FROM MACHINE WHERE CERT_HASH = @", hostKey)).Int != 0)
             {
                 err = VpnError.ERR_SECURITY_ERROR;
                 return false;
             }
 
-                // 同一シークレットが存在しないかどうかチェック
-                if ((await db.QueryWithValueAsync("SELECT COUNT(MACHINE_ID) FROM MACHINE WHERE HOST_SECRET2 = @", hostSecret2)).Int != 0)
+            // 同一シークレットが存在しないかどうかチェック
+            if ((await db.QueryWithValueAsync("SELECT COUNT(MACHINE_ID) FROM MACHINE WHERE HOST_SECRET2 = @", hostSecret2)).Int != 0)
             {
                 err = VpnError.ERR_SECURITY_ERROR;
                 return false;
             }
 
-                // 同一 PCID が存在しないかどうかチェック
-                if ((await db.QueryWithValueAsync("SELECT COUNT(MACHINE_ID) FROM MACHINE WHERE PCID = @ AND SVC_NAME = @", pcid, svcName)).Int != 0)
+            // 同一 PCID が存在しないかどうかチェック
+            if ((await db.QueryWithValueAsync("SELECT COUNT(MACHINE_ID) FROM MACHINE WHERE PCID = @ AND SVC_NAME = @", pcid, svcName)).Int != 0)
             {
                 err = VpnError.ERR_PCID_ALREADY_EXISTS;
                 return false;
             }
 
-                // 登録の実行
-                await db.QueryWithNoReturnAsync("INSERT INTO MACHINE (SVC_NAME, MSID, PCID, CERT_HASH, CREATE_DATE, UPDATE_DATE, LAST_SERVER_DATE, LAST_CLIENT_DATE, NUM_SERVER, NUM_CLIENT, CREATE_IP, CREATE_HOST, HOST_SECRET2, PCID_UPDATE_DATE, JSON_ATTRIBUTES) " +
-                                "VALUES (@, @, @, @, @, @, @, @, @, @, @, @, @, @, @)",
-                                svcName, msid, pcid, hostKey,
-                                now, now, now, now,
-                                0, 0,
-                                ip, fqdn,
-                                hostSecret2,
-                                now, initialJsonAttributes);
+            // 登録の実行
+            await db.QueryWithNoReturnAsync("INSERT INTO MACHINE (SVC_NAME, MSID, PCID, CERT_HASH, CREATE_DATE, UPDATE_DATE, LAST_SERVER_DATE, LAST_CLIENT_DATE, NUM_SERVER, NUM_CLIENT, CREATE_IP, CREATE_HOST, HOST_SECRET2, PCID_UPDATE_DATE, JSON_ATTRIBUTES) " +
+                            "VALUES (@, @, @, @, @, @, @, @, @, @, @, @, @, @, @)",
+                            svcName, msid, pcid, hostKey,
+                            now, now, now, now,
+                            0, 0,
+                            ip, fqdn,
+                            hostSecret2,
+                            now, initialJsonAttributes);
 
             return true;
         }) == false)
@@ -1049,14 +1153,14 @@ public class ThinDatabase : AsyncServiceWithMainLoop
 
         var foundMachine2 = await db.TranReadSnapshotIfNecessaryAsync(async () =>
         {
-                // 2020/04 頃に登録された古いマシンは hostSecret2 がデータベースに登録されていない場合がある
-                return await db.EasySelectSingleAsync<ThinDbMachine>("select * from MACHINE where CERT_HASH = @CERT_HASH and (HOST_SECRET2 = @HOST_SECRET2 OR HOST_SECRET2 = '')",
-                new
-                {
-                    CERT_HASH = hostKey,
-                    HOST_SECRET2 = hostSecret2,
-                },
-                throwErrorIfMultipleFound: true, throwErrorIfNotFound: false, cancel: cancel);
+            // 2020/04 頃に登録された古いマシンは hostSecret2 がデータベースに登録されていない場合がある
+            return await db.EasySelectSingleAsync<ThinDbMachine>("select * from MACHINE where CERT_HASH = @CERT_HASH and (HOST_SECRET2 = @HOST_SECRET2 OR HOST_SECRET2 = '')",
+            new
+            {
+                CERT_HASH = hostKey,
+                HOST_SECRET2 = hostSecret2,
+            },
+            throwErrorIfMultipleFound: true, throwErrorIfNotFound: false, cancel: cancel);
         });
 
         if (foundMachine2 != null)

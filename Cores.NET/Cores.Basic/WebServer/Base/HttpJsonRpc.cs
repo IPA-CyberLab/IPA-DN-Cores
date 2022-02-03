@@ -200,7 +200,12 @@ public class JsonRpcHttpServer : JsonRpcServer
             {
                 // Basic 認証の要求
                 KeyValueList<string, string> basicAuthResponseHeaders = new KeyValueList<string, string>();
-                basicAuthResponseHeaders.Add(Consts.HttpHeaders.WWWAuthenticate, $"Basic realm=\"User Authentication for {this.RpcBaseAbsoluteUrlPath}\"");
+                string realm = $"User Authentication for {this.RpcBaseAbsoluteUrlPath}";
+                if (callResults.Error_AuthRequiredRealmName._IsFilled())
+                {
+                    realm += $" ({realm._MakeVerySafeAsciiOnlyNonSpaceFileName()})";
+                }
+                basicAuthResponseHeaders.Add(Consts.HttpHeaders.WWWAuthenticate, $"Basic realm=\"{realm}\"");
 
                 await using var basicAuthRequireResult = new HttpStringResult(retStr, contentType: Consts.MimeTypes.TextUtf8, statusCode: Consts.HttpStatusCodes.Unauthorized, additionalHeaders: basicAuthResponseHeaders);
 
