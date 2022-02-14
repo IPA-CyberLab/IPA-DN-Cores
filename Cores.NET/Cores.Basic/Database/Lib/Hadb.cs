@@ -2856,12 +2856,11 @@ public abstract class HadbMemDataBase
         return ret;
     }
 
-    public void GetAllObjects(out ConcurrentStrDictionary<HadbObject> dict, out AsyncLock criticalLock)
+    public ConcurrentStrDictionary<HadbObject> GetAllObjects()
     {
         DataSet data = this.InternalData;
 
-        dict = data.AllObjectsDict;
-        criticalLock = this.CriticalLockAsync;
+        return data.AllObjectsDict;
     }
 
     public async Task ReloadFromDatabaseIntoMemoryDbAsync(IEnumerable<HadbObject> objectList, bool fullReloadMode, DateTimeOffset partialReloadMinUpdateTime, string dataSourceInfo, CancellationToken cancel = default)
@@ -2912,27 +2911,34 @@ public abstract class HadbMemDataBase
                         {
                             if (data.AllObjectsDict.TryGetValue(newObj.Uid, out HadbObject? currentObj))
                             {
-                                if (currentObj.Internal_UpdateIfNew(EnsureSpecial.Yes, newObj, out HadbKeys oldKeys, out HadbLabels oldLabels))
+                                lock (currentObj.Lock)
                                 {
-                                    if (currentObj.Deleted == false)
+                                    if (currentObj.Internal_UpdateIfNew(EnsureSpecial.Yes, newObj, out HadbKeys oldKeys, out HadbLabels oldLabels))
                                     {
-                                        Interlocked.Increment(ref countUpdated);
-                                        data.IndexedTable_UpdateObject_Critical(currentObj, oldKeys, oldLabels);
-                                    }
-                                    else
-                                    {
-                                        Interlocked.Increment(ref countRemoved);
-                                        data.IndexedTable_DeleteObject_Critical(currentObj, oldKeys, oldLabels); // おそらく正しい? 2021/12/06
+                                        if (currentObj.Deleted == false)
+                                        {
+                                            Interlocked.Increment(ref countUpdated);
+                                            data.IndexedTable_UpdateObject_Critical(currentObj, oldKeys, oldLabels);
+                                        }
+                                        else
+                                        {
+                                            Interlocked.Increment(ref countRemoved);
+                                            data.IndexedTable_DeleteObject_Critical(currentObj, oldKeys, oldLabels); // おそらく正しい? 2021/12/06
+                                        }
                                     }
                                 }
                             }
                             else
                             {
                                 var obj2 = newObj.ToMemoryDbObject(this);
-                                data.AllObjectsDict[newObj.Uid] = obj2;
 
-                                data.IndexedTable_AddObject_Critical(obj2);
-                                Interlocked.Increment(ref countInserted);
+                                lock (obj2.Lock)
+                                {
+                                    data.AllObjectsDict[newObj.Uid] = obj2;
+
+                                    data.IndexedTable_AddObject_Critical(obj2);
+                                    Interlocked.Increment(ref countInserted);
+                                }
                             }
                         }
                         catch (Exception ex)
@@ -2957,7 +2963,7 @@ public abstract class HadbMemDataBase
         Debug($"ReloadFromDatabaseIntoMemoryDbAsync: Update Local Memory from {dataSourceInfo}: Mode={(fullReloadMode ? "FullReload" : $"PartialReload since '{partialReloadMinUpdateTime._ToDtStr()}'")}, DB_ReadObjs={objectList2.Count._ToString3()}, New={countInserted._ToString3()}, Update={countUpdated._ToString3()}, Remove={countRemoved._ToString3()}");
     }
 
-    public HadbObject ApplyObjectToMemDb_Critical(HadbObject newObj)
+    public HadbObject ApplyObjectToMemDb(HadbObject newObj)
     {
         newObj.Normalize();
         if (newObj.Archive) throw new CoresLibException("obj.Archive == true");
@@ -2966,28 +2972,35 @@ public abstract class HadbMemDataBase
 
         if (data.AllObjectsDict.TryGetValue(newObj.Uid, out HadbObject? currentObject))
         {
-            if (currentObject.Internal_UpdateIfNew(EnsureSpecial.Yes, newObj, out HadbKeys oldKeys, out HadbLabels oldLabels))
+            lock (currentObject.Lock)
             {
-                if (currentObject.Deleted == false)
+                if (currentObject.Internal_UpdateIfNew(EnsureSpecial.Yes, newObj, out HadbKeys oldKeys, out HadbLabels oldLabels))
                 {
-                    data.IndexedTable_UpdateObject_Critical(currentObject, oldKeys, oldLabels);
+                    if (currentObject.Deleted == false)
+                    {
+                        data.IndexedTable_UpdateObject_Critical(currentObject, oldKeys, oldLabels);
+                    }
+                    else
+                    {
+                        data.IndexedTable_DeleteObject_Critical(currentObject, oldKeys, oldLabels);
+                    }
                 }
-                else
-                {
-                    data.IndexedTable_DeleteObject_Critical(currentObject, oldKeys, oldLabels);
-                }
-            }
 
-            return currentObject;
+                return currentObject;
+            }
         }
         else
         {
             if (newObj.Deleted == false)
             {
                 var newObj2 = newObj.ToMemoryDbObject(this);
-                data.AllObjectsDict[newObj.Uid] = newObj2;
-                data.IndexedTable_AddObject_Critical(newObj2);
-                return newObj2;
+
+                lock (newObj2.Lock)
+                {
+                    data.AllObjectsDict[newObj.Uid] = newObj2;
+                    data.IndexedTable_AddObject_Critical(newObj2);
+                    return newObj2;
+                }
             }
             else
             {
@@ -4176,14 +4189,14 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         return items.Where(x => x.Deleted == false);
     }
 
-    public void FastGetAllObjects(out ConcurrentStrDictionary<HadbObject> dict, out AsyncLock criticalLock)
+    public ConcurrentStrDictionary<HadbObject> FastGetAllObjects()
     {
         this.CheckIfReady(requireDatabaseConnected: false);
         this.CheckMemDb();
 
         var mem = this.MemDb!;
 
-        mem.GetAllObjects(out dict, out criticalLock);
+        return mem.GetAllObjects();
     }
 
     public IEnumerable<HadbObject<T>> FastEnumObjects<T>(string nameSpace = Consts.Strings.HadbDefaultNameSpace) where T : HadbData
@@ -4195,18 +4208,15 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         this.CheckIfReady(requireDatabaseConnected: false);
         this.CheckMemDb();
 
-        FastGetAllObjects(out ConcurrentStrDictionary<HadbObject> dict, out AsyncLock criticalLock);
+        ConcurrentStrDictionary<HadbObject> dict = FastGetAllObjects();
 
         List<HadbObject> ret = new List<HadbObject>();
 
-        using (criticalLock.LockLegacy())
+        foreach (var obj in dict.Values)
         {
-            foreach (var obj in dict.Values)
+            if (obj.UserDataTypeName == typeName && obj.NameSpace == nameSpace && obj.Deleted == false)
             {
-                if (obj.UserDataTypeName == typeName && obj.NameSpace == nameSpace && obj.Deleted == false)
-                {
-                    ret.Add(obj);
-                }
+                ret.Add(obj);
             }
         }
 
@@ -4408,17 +4418,17 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
         Once finished = new Once();
 
-        async Task FinishInternalAsync(CancellationToken cancel = default)
+        Task FinishInternalAsync(CancellationToken cancel = default)
         {
             if (finished.IsFirstCall())
             {
-                using (await this.MemDb.CriticalLockAsync.LockWithAwait(cancel))
+                //using (await this.MemDb.CriticalLockAsync.LockWithAwait(cancel))
                 {
                     foreach (var obj in this.ApplyObjectsList)
                     {
                         try
                         {
-                            this.MemDb.ApplyObjectToMemDb_Critical(obj);
+                            this.MemDb.ApplyObjectToMemDb(obj);
                         }
                         catch (Exception ex)
                         {
@@ -4427,6 +4437,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                     }
                 }
             }
+
+            return TR();
         }
 
         protected override async Task CleanupImplAsync(Exception? ex)
