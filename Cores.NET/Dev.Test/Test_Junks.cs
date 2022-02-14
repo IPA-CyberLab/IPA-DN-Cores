@@ -1439,6 +1439,11 @@ class LetsEncryptClient
         Formatting = Formatting.Indented
     };
 
+    static LetsEncryptClient()
+    {
+        Json.AddStandardSettingsToJsonConverter(jsonSettings);
+    }
+
     private static Dictionary<string, HttpClient> _cachedClients = new Dictionary<string, HttpClient>(StringComparer.OrdinalIgnoreCase);
 
     private static HttpClient GetCachedClient(string url)

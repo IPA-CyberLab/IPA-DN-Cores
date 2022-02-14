@@ -64,6 +64,7 @@ using System.Net.Sockets;
 using Newtonsoft.Json;
 using System.Data;
 using System.Reflection;
+using Newtonsoft.Json.Converters;
 
 namespace IPA.Cores.Basic;
 
@@ -146,16 +147,17 @@ public class EasyDnsResponderDynamicRecordCallbackRequest
 
     public EasyDnsResponderRecordType ExpectedRecordType { init; get; }
     public string RequestFqdn { init; get; } = null!;
-    public string RequestName { init; get; } = null!;
+    public string RequestHostName { init; get; } = null!;
+    public string CallbackId { init; get; } = null!;
 }
 
 // ダイナミックレコードのコールバック関数で返却すべきデータ
 public class EasyDnsResponderDynamicRecordCallbackResult
 {
-    public IEnumerable<IPAddress>? IPAddressList { get; set; } // A, AAAA の場合
-    public IEnumerable<DomainName>? DomainNameList { get; set; } // CNAME, MX, NS, PTR の場合
-    public IEnumerable<ushort>? MxPreferenceList { get; set; } // MX の場合の Preference 値のリスト
-    public IEnumerable<string>? TextList { get; set; } // TXT の場合
+    public List<IPAddress>? IPAddressList { get; set; } // A, AAAA の場合
+    public List<DomainName>? DomainNameList { get; set; } // CNAME, MX, NS, PTR の場合
+    public List<ushort>? MxPreferenceList { get; set; } // MX の場合の Preference 値のリスト
+    public List<string>? TextList { get; set; } // TXT の場合
 
     public EasyDnsResponderRecordSettings? Settings { get; set; } // TTL 等
 }
@@ -163,7 +165,7 @@ public class EasyDnsResponderDynamicRecordCallbackResult
 public class EasyDnsResponder
 {
     // ダイナミックレコードのコールバック関数
-    public Func<EasyDnsResponderDynamicRecordCallbackRequest, EasyDnsResponderDynamicRecordCallbackResult>? Callback { get; set; }
+    public Func<EasyDnsResponderDynamicRecordCallbackRequest, EasyDnsResponderDynamicRecordCallbackResult?>? Callback { get; set; }
 
     // 内部データセット
     public class Record_A : Record
@@ -179,6 +181,14 @@ public class EasyDnsResponder
 
             if (this.IPv4Address.AddressFamily != AddressFamily.InterNetwork)
                 throw new CoresLibException($"AddressFamily of '{tmp}' is not IPv4.");
+        }
+
+        public Record_A(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, IPAddress ipv4address) : base(parent, EasyDnsResponderRecordType.A, settings, nameNormalized)
+        {
+            this.IPv4Address = ipv4address;
+
+            if (this.IPv4Address.AddressFamily != AddressFamily.InterNetwork)
+                throw new CoresLibException($"AddressFamily of '{this.IPv4Address}' is not IPv4.");
         }
 
         protected override string ToStringForCompareImpl()
@@ -201,6 +211,14 @@ public class EasyDnsResponder
 
             if (this.IPv6Address.AddressFamily != AddressFamily.InterNetworkV6)
                 throw new CoresLibException($"AddressFamily of '{tmp}' is not IPv6.");
+        }
+
+        public Record_AAAA(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, IPAddress ipv6address) : base(parent, EasyDnsResponderRecordType.AAAA, settings, nameNormalized)
+        {
+            this.IPv6Address = ipv6address;
+
+            if (this.IPv6Address.AddressFamily != AddressFamily.InterNetworkV6)
+                throw new CoresLibException($"AddressFamily of '{this.IPv6Address}' is not IPv6.");
         }
 
         protected override string ToStringForCompareImpl()
@@ -228,6 +246,11 @@ public class EasyDnsResponder
             if (this.ServerName.IsEmptyDomain()) throw new CoresLibException("NS server field is empty.");
         }
 
+        public Record_NS(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, DomainName serverName) : base(parent, EasyDnsResponderRecordType.NS, settings, nameNormalized)
+        {
+            this.ServerName = serverName;
+        }
+
         protected override string ToStringForCompareImpl()
         {
             return this.ServerName.ToString();
@@ -246,6 +269,11 @@ public class EasyDnsResponder
             this.CName = DomainName.Parse(tmp);
 
             if (this.CName.IsEmptyDomain()) throw new CoresLibException("CNAME field is empty.");
+        }
+
+        public Record_CNAME(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, DomainName cname) : base(parent, EasyDnsResponderRecordType.CNAME, settings, nameNormalized)
+        {
+            this.CName = cname;
         }
 
         protected override string ToStringForCompareImpl()
@@ -268,7 +296,7 @@ public class EasyDnsResponder
         {
             if (this.Name._IsFilled()) throw new CoresLibException($"SOA record doesn't allow Name field. Name is not empty: '{this.Name}'");
 
-            string[] tokens = src.Contents._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ';', ',');
+            string[] tokens = src.Contents._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ';', ',', ' ', '\t');
 
             if (tokens.Length == 0) throw new CoresLibException("Contents is empty.");
 
@@ -311,6 +339,11 @@ public class EasyDnsResponder
             if (this.Ptr.IsEmptyDomain()) throw new CoresLibException("CNAME field is empty.");
         }
 
+        public Record_PTR(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, DomainName ptr) : base(parent, EasyDnsResponderRecordType.PTR, settings, nameNormalized)
+        {
+            this.Ptr = ptr;
+        }
+
         protected override string ToStringForCompareImpl()
         {
             return this.Ptr.ToString();
@@ -334,6 +367,12 @@ public class EasyDnsResponder
             if (this.Preference <= 0) this.Preference = DevCoresConfig.EasyDnsResponderSettings.Default_MxPreference;
         }
 
+        public Record_MX(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, DomainName mailServer, ushort preference) : base(parent, EasyDnsResponderRecordType.MX, settings, nameNormalized)
+        {
+            this.MailServer = mailServer;
+            this.Preference = preference;
+        }
+
         protected override string ToStringForCompareImpl()
         {
             return this.MailServer.ToString() + " " + this.Preference;
@@ -347,6 +386,11 @@ public class EasyDnsResponder
         public Record_TXT(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
         {
             this.TextData = src.Contents._NonNull();
+        }
+
+        public Record_TXT(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, string textData) : base(parent, EasyDnsResponderRecordType.TXT, settings, nameNormalized)
+        {
+            this.TextData = textData._NonNull();
         }
 
         protected override string ToStringForCompareImpl()
@@ -373,7 +417,7 @@ public class EasyDnsResponder
                     this.CallbackId = src.Contents._NonNull();
 
                     if (this.CallbackId._IsEmpty()) throw new CoresLibException("Callback ID is empty.");
-                    break;
+                    return;
             }
 
             throw new CoresLibException($"Invalid Dynamic Record Type '{this.Name}': {src.Type}");
@@ -387,16 +431,28 @@ public class EasyDnsResponder
 
     public abstract class Record
     {
+        [JsonIgnore]
         public Zone ParentZone;
         public string Name;
+        [JsonConverter(typeof(StringEnumConverter))]
         public EasyDnsResponderRecordType Type;
         public EasyDnsResponderRecordSettings Settings;
-        public EasyDnsResponderRecord SrcRecord;
+
+        [JsonIgnore]
+        public EasyDnsResponderRecord? SrcRecord;
 
         protected abstract string ToStringForCompareImpl();
 
-        readonly CachedProperty<string> _StringForCompareCache;
-        public string ToStringForCompare() => _StringForCompareCache;
+        readonly CachedProperty<string>? _StringForCompareCache;
+        public string ToStringForCompare() => _StringForCompareCache ?? "";
+
+        public Record(Zone parent, EasyDnsResponderRecordType type, EasyDnsResponderRecordSettings settings, string nameNormalized)
+        {
+            this.ParentZone = parent;
+            this.Type = type;
+            this.Settings = settings;
+            this.Name = nameNormalized;
+        }
 
         public Record(Zone parent, EasyDnsResponderRecord src)
         {
@@ -474,7 +530,7 @@ public class EasyDnsResponder
         public KeyValueList<string, List<Record>> WildcardEndWithRecordList = new KeyValueList<string, List<Record>>(); // "*abc" または "*.abc" という先頭ワイルドカード
         public KeyValueList<string, List<Record>> WildcardInStrRecordList = new KeyValueList<string, List<Record>>(); // "*abc*" とか "abc*def" とか "abc?def" という複雑なワイルドカード
 
-        public List<Record> NSRecord = new List<Record>(); // このゾーンそのものの NS レコード
+        public List<Record> NSRecordList = new List<Record>(); // このゾーンそのものの NS レコード
         public StrDictionary<List<Record>> NSDelegationRecordList = new StrDictionary<List<Record>>(); // サブドメイン権限委譲レコード
 
         public bool Has_WildcardAnyRecordList = false;
@@ -589,7 +645,7 @@ public class EasyDnsResponder
                 if (r.Name._IsEmpty())
                 {
                     // これは、このゾーンそのものに関する NS 情報である。Name は空文字である。
-                    this.NSRecord.Add(r);
+                    this.NSRecordList.Add(r);
                 }
                 else
                 {
@@ -650,6 +706,7 @@ public class EasyDnsResponder
                                 Zone = this,
                                 RecordList = found2,
                                 ResultType = SearchResultType.NsDelegation,
+                                RequestHostName = hostLabelNormalized,
                             };
 
                             return ret2;
@@ -729,12 +786,25 @@ public class EasyDnsResponder
                 }
             }
 
+            if (answers != null)
+            {
+                // このゾーン名を完全一致でクエリをしてきている場合、このゾーンに関する NS レコードも追加する
+                if (hostLabelSpan.Length == 0)
+                {
+                    foreach (var ns in this.NSRecordList)
+                    {
+                        answers.Add(ns);
+                    }
+                }
+            }
+
             SearchResult ret = new SearchResult
             {
                 RecordList = answers,
                 SOARecord = this.SOARecord,
                 Zone = this,
                 ResultType = SearchResultType.NormalAnswer,
+                RequestHostName = hostLabelNormalized,
             };
 
             return ret;
@@ -828,8 +898,13 @@ public class EasyDnsResponder
     public class SearchResult
     {
         public List<Record>? RecordList { get; set; } = null; // null: サブドメインが全く存在しない 空リスト: サブドメインは存在するものの、レコードは存在しない
+
+        [JsonIgnore]
         public Zone Zone { get; set; } = null!;
+        public string ZoneDomainName => Zone.DomainFqdn;
+        public string RequestHostName { get; set; } = null!;
         public Record_SOA SOARecord { get; set; } = null!;
+        [JsonConverter(typeof(StringEnumConverter))]
         public SearchResultType ResultType { get; set; } = SearchResultType.NormalAnswer;
     }
 
@@ -858,12 +933,12 @@ public class EasyDnsResponder
         {
             var zone = ret.Zone;
 
-            if (type == EasyDnsResponderRecordType.NS)
+            if (type == EasyDnsResponderRecordType.NS || ret.ResultType == SearchResultType.NsDelegation)
             {
                 if (ret.ResultType == SearchResultType.NormalAnswer)
                 {
                     // 特別処理: クエリ種類が NS の場合で、普通の結果の場合、結果にはこのゾーンの NS レコード一覧を埋め込むのである。
-                    ret.RecordList = zone.NSRecord;
+                    ret.RecordList = zone.NSRecordList;
                 }
                 else if (ret.ResultType == SearchResultType.NsDelegation)
                 {
@@ -892,9 +967,161 @@ public class EasyDnsResponder
                     }
                 }
             }
+
+            // ダイナミックレコードが含まれている場合はコールバックを呼んで解決をする
+            if (ret.RecordList != null)
+            {
+                int count = ret.RecordList.Count;
+                List<Record> solvedDynamicRecordResults = new List<Record>();
+                List<Record_Dynamic> originalDynamicRecords = new List<Record_Dynamic>();
+
+                bool anyDynamicRecordExists = false;
+
+                for (int i = 0; i < count; i++)
+                {
+                    if (ret.RecordList[i] is Record_Dynamic dynRecord)
+                    {
+                        ResolveDynamicRecord(solvedDynamicRecordResults, dynRecord, ret, request);
+
+                        anyDynamicRecordExists = true;
+
+                        originalDynamicRecords.Add(dynRecord);
+                    }
+                }
+
+                if (anyDynamicRecordExists)
+                {
+                    // 結果リストから DynamicRecord をすべて除去し、Callback の結果得られたレコードを挿入
+                    foreach (var dynRecord in originalDynamicRecords)
+                    {
+                        ret.RecordList.Remove(dynRecord);
+                    }
+
+                    foreach (var resultRecord in solvedDynamicRecordResults)
+                    {
+                        ret.RecordList.Add(resultRecord);
+                    }
+                }
+            }
         }
 
         return ret;
+    }
+
+    // ダイナミックレコードをコールバックを用いて実際に解決する
+    void ResolveDynamicRecord(List<Record> listToAdd, Record_Dynamic dynRecord, SearchResult result, SearchRequest request)
+    {
+        EasyDnsResponderDynamicRecordCallbackRequest req = new EasyDnsResponderDynamicRecordCallbackRequest
+        {
+            Zone = result.Zone.SrcZone,
+            Record = dynRecord.SrcRecord!,
+            ExpectedRecordType = dynRecord.Type,
+            RequestFqdn = request.FqdnNormalized,
+            RequestHostName = result.RequestHostName,
+            CallbackId = dynRecord.CallbackId,
+        };
+
+        EasyDnsResponderDynamicRecordCallbackResult? callbackResult = null;
+
+        if (this.Callback == null) throw new CoresLibException("Callback delegate is not set.");
+
+        callbackResult = this.Callback(req);
+
+        if (callbackResult == null)
+        {
+            throw new CoresLibException($"Callback delegate returns null for callback ID '{dynRecord.CallbackId}'.");
+        }
+
+        EasyDnsResponderRecordSettings? settings = callbackResult.Settings;
+        if (settings == null)
+        {
+            settings = dynRecord.Settings;
+        }
+
+        switch (dynRecord.Type)
+        {
+            case EasyDnsResponderRecordType.A:
+                if (callbackResult.IPAddressList != null)
+                {
+                    foreach (var ip in callbackResult.IPAddressList)
+                    {
+                        if (ip.AddressFamily == AddressFamily.InterNetwork)
+                        {
+                            listToAdd.Add(new Record_A(result.Zone, settings, result.RequestHostName, ip));
+                        }
+                    }
+                }
+                break;
+
+            case EasyDnsResponderRecordType.AAAA:
+                if (callbackResult.IPAddressList != null)
+                {
+                    foreach (var ip in callbackResult.IPAddressList)
+                    {
+                        if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+                        {
+                            listToAdd.Add(new Record_AAAA(result.Zone, settings, result.RequestHostName, ip));
+                        }
+                    }
+                }
+                break;
+
+            case EasyDnsResponderRecordType.CNAME:
+                if (callbackResult.DomainNameList != null)
+                {
+                    foreach (var domain in callbackResult.DomainNameList)
+                    {
+                        listToAdd.Add(new Record_CNAME(result.Zone, settings, result.RequestHostName, domain));
+                    }
+                }
+                break;
+
+            case EasyDnsResponderRecordType.MX:
+                if (callbackResult.DomainNameList != null)
+                {
+                    if (callbackResult.MxPreferenceList != null)
+                    {
+                        if (callbackResult.DomainNameList.Count == callbackResult.MxPreferenceList.Count)
+                        {
+                            for (int i = 0; i < callbackResult.DomainNameList.Count; i++)
+                            {
+                                listToAdd.Add(new Record_MX(result.Zone, settings, result.RequestHostName, callbackResult.DomainNameList[i], callbackResult.MxPreferenceList[i]));
+                            }
+                        }
+                    }
+                }
+                break;
+
+            case EasyDnsResponderRecordType.NS:
+                if (callbackResult.DomainNameList != null)
+                {
+                    foreach (var domain in callbackResult.DomainNameList)
+                    {
+                        listToAdd.Add(new Record_NS(result.Zone, settings, result.RequestHostName, domain));
+                    }
+                }
+                break;
+
+            case EasyDnsResponderRecordType.PTR:
+                if (callbackResult.DomainNameList != null)
+                {
+                    foreach (var domain in callbackResult.DomainNameList)
+                    {
+                        listToAdd.Add(new Record_PTR(result.Zone, settings, result.RequestHostName, domain));
+                    }
+                }
+                break;
+
+            case EasyDnsResponderRecordType.TXT:
+                if (callbackResult.TextList != null)
+                {
+                    foreach (var text in callbackResult.TextList)
+                    {
+                        listToAdd.Add(new Record_TXT(result.Zone, settings, result.RequestHostName, text));
+                    }
+                }
+                break;
+        }
     }
 }
 

@@ -48,6 +48,7 @@ using Newtonsoft.Json.Serialization;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 
 namespace IPA.Cores.Basic;
 
@@ -96,6 +97,24 @@ public static class Json
         }
     }
 
+    public class IPAddressJsonConverter : JsonConverter
+    {
+        public static readonly IPAddressJsonConverter Singleton = new IPAddressJsonConverter();
+
+        public override bool CanConvert(Type objectType) => objectType == typeof(IPAddress);
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+            => writer.WriteValue(value.ToString());
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+            => IPAddress.Parse((string)reader.Value);
+    }
+
+    public static void AddStandardSettingsToJsonConverter(JsonSerializerSettings settings)
+    {
+        settings.Converters.Add(IPAddressJsonConverter.Singleton);
+    }
+
     public static string Serialize(object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null)
     {
         if (obj is IToJsonString specialInterface)
@@ -112,6 +131,8 @@ public static class Json
             StringEscapeHandling = escapeHtml ? StringEscapeHandling.EscapeHtml : StringEscapeHandling.Default,
             Formatting = compact ? Formatting.None : Formatting.Indented,
         };
+
+        AddStandardSettingsToJsonConverter(setting);
 
         if (type != null)
         {
@@ -152,6 +173,8 @@ public static class Json
             Formatting = compact ? Formatting.None : Formatting.Indented,
         };
 
+        AddStandardSettingsToJsonConverter(setting);
+
         if (type != null)
         {
             setting.ContractResolver = new InterfaceContractResolver(type);
@@ -176,6 +199,8 @@ public static class Json
             StringEscapeHandling = escapeHtml ? StringEscapeHandling.EscapeHtml : StringEscapeHandling.Default,
             Formatting = compact ? Formatting.None : Formatting.Indented,
         };
+
+        AddStandardSettingsToJsonConverter(setting);
 
         return JsonSerializer.Create(setting);
     }
@@ -220,6 +245,9 @@ public static class Json
             ObjectCreationHandling = ObjectCreationHandling.Replace,
             ReferenceLoopHandling = ReferenceLoopHandling.Error,
         };
+
+        AddStandardSettingsToJsonConverter(setting);
+
         return JsonConvert.DeserializeObject(str, type, setting);
     }
 
@@ -232,6 +260,8 @@ public static class Json
             ObjectCreationHandling = ObjectCreationHandling.Replace,
             ReferenceLoopHandling = ReferenceLoopHandling.Error,
         };
+
+        AddStandardSettingsToJsonConverter(setting);
 
         return JsonSerializer.Create(setting).Deserialize(srcTextReader, type);
     }

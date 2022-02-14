@@ -68,5 +68,266 @@ using Newtonsoft.Json.Converters;
 
 namespace IPA.Cores.Basic;
 
+public static class EasyDnsTest
+{
+    public static void Test1()
+    {
+        EasyDnsResponderSettings st = new EasyDnsResponderSettings();
+
+        {
+            var zone = new EasyDnsResponderZone { DomainName = "test1.com" };
+
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.A, Name = "", Contents = "9.3.1.7" });
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.AAAA, Name = "", Contents = "2001::8181" });
+
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.A, Name = "www", Contents = "1.2.3.4" });
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.A, Name = "www", Contents = "1.9.8.4" });
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.AAAA, Name = "www", Contents = "2001::1234" });
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.A, Name = "ftp", Contents = "5.6.7.8" });
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.SOA, Contents = "ns1.test1.com nobori.softether.com 123 50 100 200 25" });
+
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.NS, Name = "", Contents = "ns1.ipa.go.jp" });
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.NS, Name = "", Contents = "ns2.ipa.go.jp" });
+
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.NS, Name = "subdomain1", Contents = "ns3.ipa.go.jp" });
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.NS, Name = "subdomain1", Contents = "ns4.ipa.go.jp" });
+
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.NS, Name = "subdomain2.subdomain1", Contents = "ns5.ipa.go.jp" });
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.NS, Name = "subdomain2.subdomain1", Contents = "ns6.ipa.go.jp" });
+
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.A, Name = "www.subdomain3", Contents = "8.9.4.5" });
+
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.A, Name = "*.kgb.abc123.subdomain5", Contents = "4.9.8.9" });
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.A, Name = "*.subdomain5", Contents = "5.9.6.3" });
+
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.A, Name = "*subdomain6*", Contents = "6.7.8.9" });
+
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.A, Name = "*.subdomain7", Contents = "proc0001", Attribute = EasyDnsResponderRecordAttribute.DynamicRecord });
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.AAAA, Name = "*.subdomain7", Contents = "proc0002", Attribute = EasyDnsResponderRecordAttribute.DynamicRecord });
+
+            st.ZoneList.Add(zone);
+        }
+
+        {
+            var zone = new EasyDnsResponderZone { DomainName = "abc.test1.com" };
+
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.A, Name = "", Contents = "1.8.1.8" });
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.A, Name = "www", Contents = "8.9.3.1" });
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.AAAA, Name = "ftp", Contents = "2001::abcd" });
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.AAAA, Name = "aho.baka.manuke", Contents = "2001::abcd" });
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.SOA, Contents = "ns2.test1.com daiyuu.softether.com 894 895 896 897 898" });
+
+            st.ZoneList.Add(zone);
+        }
+
+        EasyDnsResponder r = new EasyDnsResponder();
+
+        r.LoadSetting(st);
+
+        r.Callback = (req) =>
+        {
+            switch (req.CallbackId)
+            {
+                case "proc0001":
+                    var res1 = new EasyDnsResponderDynamicRecordCallbackResult();
+                    res1.IPAddressList = new List<IPAddress>();
+                    res1.IPAddressList.Add(IPAddress.Parse("1.0.0.1"));
+                    res1.IPAddressList.Add(IPAddress.Parse("2.0.0.2"));
+                    return res1;
+
+                case "proc0002":
+                    var res2 = new EasyDnsResponderDynamicRecordCallbackResult();
+                    res2.IPAddressList = new List<IPAddress>();
+                    res2.IPAddressList.Add(IPAddress.Parse("2001::1"));
+                    res2.IPAddressList.Add(IPAddress.Parse("2001::2"));
+                    return res2;
+            }
+
+            return null;
+        };
+
+        {
+            var res = r.Query(new EasyDnsResponder.SearchRequest { FqdnNormalized = "test1.com" }, EasyDnsResponderRecordType.Any);
+
+            Dbg.TestTrue(res!.RecordList!.Where(x => x.Name != "").Count() == 0);
+
+            Dbg.TestTrue(res!.RecordList!.Where(x => x.Name == "").Where(x => x.Type == EasyDnsResponderRecordType.A).Count() == 1);
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "").Where(x => x.Type == EasyDnsResponderRecordType.A)
+                .Cast<EasyDnsResponder.Record_A>().OrderBy(x => x.IPv4Address, IpComparer.Comparer).ElementAt(0).IPv4Address.ToString() == "9.3.1.7");
+
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "").Where(x => x.Type == EasyDnsResponderRecordType.AAAA).Count() == 1);
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "").Where(x => x.Type == EasyDnsResponderRecordType.AAAA)
+                .Cast<EasyDnsResponder.Record_AAAA>().OrderBy(x => x.IPv6Address, IpComparer.Comparer).ElementAt(0).IPv6Address.ToString() == "2001::8181");
+
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "").Where(x => x.Type == EasyDnsResponderRecordType.NS).Count() == 2);
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "").Where(x => x.Type == EasyDnsResponderRecordType.NS)
+                .Cast<EasyDnsResponder.Record_NS>().OrderBy(x => x.ServerName.ToString(), StrCmpi).ElementAt(0).ServerName.ToString() == "ns1.ipa.go.jp.");
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "").Where(x => x.Type == EasyDnsResponderRecordType.NS)
+                .Cast<EasyDnsResponder.Record_NS>().OrderBy(x => x.ServerName.ToString(), StrCmpi).ElementAt(1).ServerName.ToString() == "ns2.ipa.go.jp.");
+        }
+
+        {
+            var res = r.Query(new EasyDnsResponder.SearchRequest { FqdnNormalized = "subdomain3.test1.com" }, EasyDnsResponderRecordType.Any);
+            Dbg.TestTrue(res!.RecordList != null);
+            Dbg.TestTrue(res.RecordList!.Count == 0);
+        }
+
+        {
+            var res = r.Query(new EasyDnsResponder.SearchRequest { FqdnNormalized = "subdomain4.test1.com" }, EasyDnsResponderRecordType.Any);
+            Dbg.TestTrue(res!.RecordList == null);
+        }
+
+        {
+            var res = r.Query(new EasyDnsResponder.SearchRequest { FqdnNormalized = "abc123.subdomain5.test1.com" }, EasyDnsResponderRecordType.Any);
+            Dbg.TestTrue(res!.RecordList!.Where(x => x.Type == EasyDnsResponderRecordType.A)
+                .Cast<EasyDnsResponder.Record_A>().Single().IPv4Address.ToString() == "5.9.6.3");
+        }
+
+        {
+            var res = r.Query(new EasyDnsResponder.SearchRequest { FqdnNormalized = "def456.abc123.subdomain5.test1.com" }, EasyDnsResponderRecordType.Any);
+            Dbg.TestTrue(res!.RecordList!.Where(x => x.Type == EasyDnsResponderRecordType.A)
+                .Cast<EasyDnsResponder.Record_A>().Single().IPv4Address.ToString() == "5.9.6.3");
+        }
+
+        {
+            var res = r.Query(new EasyDnsResponder.SearchRequest { FqdnNormalized = "def456.kgb.abc123.subdomain5.test1.com" }, EasyDnsResponderRecordType.Any);
+            Dbg.TestTrue(res!.RecordList!.Where(x => x.Type == EasyDnsResponderRecordType.A)
+                .Cast<EasyDnsResponder.Record_A>().Single().IPv4Address.ToString() == "4.9.8.9");
+        }
+
+        {
+            var res = r.Query(new EasyDnsResponder.SearchRequest { FqdnNormalized = "subdomain6.test1.com" }, EasyDnsResponderRecordType.Any);
+            Dbg.TestTrue(res!.RecordList!.Where(x => x.Type == EasyDnsResponderRecordType.A)
+                .Cast<EasyDnsResponder.Record_A>().Single().IPv4Address.ToString() == "6.7.8.9");
+        }
+
+        {
+            var res = r.Query(new EasyDnsResponder.SearchRequest { FqdnNormalized = "1.2.3.4.subdomain7.test1.com" }, EasyDnsResponderRecordType.Any);
+            res._PrintAsJson();
+
+            Dbg.TestTrue(res!.RecordList!.Where(x => x.Type == EasyDnsResponderRecordType.A).Count() == 2);
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Type == EasyDnsResponderRecordType.A)
+                .Cast<EasyDnsResponder.Record_A>().OrderBy(x => x.IPv4Address, IpComparer.Comparer).ElementAt(0).IPv4Address.ToString() == "1.0.0.1");
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Type == EasyDnsResponderRecordType.A)
+                .Cast<EasyDnsResponder.Record_A>().OrderBy(x => x.IPv4Address, IpComparer.Comparer).ElementAt(1).IPv4Address.ToString() == "2.0.0.2");
+
+            Dbg.TestTrue(res!.RecordList!.Where(x => x.Type == EasyDnsResponderRecordType.AAAA).Count() == 2);
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Type == EasyDnsResponderRecordType.AAAA)
+                .Cast<EasyDnsResponder.Record_AAAA>().OrderBy(x => x.IPv6Address, IpComparer.Comparer).ElementAt(0).IPv6Address.ToString() == "2001::1");
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Type == EasyDnsResponderRecordType.AAAA)
+                .Cast<EasyDnsResponder.Record_AAAA>().OrderBy(x => x.IPv6Address, IpComparer.Comparer).ElementAt(1).IPv6Address.ToString() == "2001::2");
+        }
+
+        {
+            var res = r.Query(new EasyDnsResponder.SearchRequest { FqdnNormalized = "subdomain1.test1.com" }, EasyDnsResponderRecordType.Any);
+
+            Dbg.TestTrue(res!.RecordList!.Where(x => x.Name != "subdomain1").Count() == 0);
+
+            Dbg.TestTrue(res!.RecordList!.Where(x => x.Name == "subdomain1").Where(x => x.Type == EasyDnsResponderRecordType.A).Count() == 0);
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "subdomain1").Where(x => x.Type == EasyDnsResponderRecordType.AAAA).Count() == 0);
+
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "subdomain1").Where(x => x.Type == EasyDnsResponderRecordType.NS).Count() == 2);
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "subdomain1").Where(x => x.Type == EasyDnsResponderRecordType.NS)
+                .Cast<EasyDnsResponder.Record_NS>().OrderBy(x => x.ServerName.ToString(), StrCmpi).ElementAt(0).ServerName.ToString() == "ns3.ipa.go.jp.");
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "subdomain1").Where(x => x.Type == EasyDnsResponderRecordType.NS)
+                .Cast<EasyDnsResponder.Record_NS>().OrderBy(x => x.ServerName.ToString(), StrCmpi).ElementAt(1).ServerName.ToString() == "ns4.ipa.go.jp.");
+        }
+
+        {
+            var res = r.Query(new EasyDnsResponder.SearchRequest { FqdnNormalized = "subdomain2.subdomain1.test1.com" }, EasyDnsResponderRecordType.Any);
+
+            Dbg.TestTrue(res!.RecordList!.Where(x => x.Name != "subdomain2.subdomain1").Count() == 0);
+
+            Dbg.TestTrue(res!.RecordList!.Where(x => x.Name == "subdomain2.subdomain1").Where(x => x.Type != EasyDnsResponderRecordType.NS).Count() == 0);
+
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "subdomain2.subdomain1").Where(x => x.Type == EasyDnsResponderRecordType.NS).Count() == 2);
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "subdomain2.subdomain1").Where(x => x.Type == EasyDnsResponderRecordType.NS)
+                .Cast<EasyDnsResponder.Record_NS>().OrderBy(x => x.ServerName.ToString(), StrCmpi).ElementAt(0).ServerName.ToString() == "ns5.ipa.go.jp.");
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "subdomain2.subdomain1").Where(x => x.Type == EasyDnsResponderRecordType.NS)
+                .Cast<EasyDnsResponder.Record_NS>().OrderBy(x => x.ServerName.ToString(), StrCmpi).ElementAt(1).ServerName.ToString() == "ns6.ipa.go.jp.");
+        }
+
+        {
+            var res = r.Query(new EasyDnsResponder.SearchRequest { FqdnNormalized = "xyz.abc.subdomain2.subdomain1.test1.com" }, EasyDnsResponderRecordType.Any);
+
+            Dbg.TestTrue(res!.RecordList!.Where(x => x.Name != "subdomain2.subdomain1").Count() == 0);
+
+            Dbg.TestTrue(res!.RecordList!.Where(x => x.Name == "subdomain2.subdomain1").Where(x => x.Type != EasyDnsResponderRecordType.NS).Count() == 0);
+
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "subdomain2.subdomain1").Where(x => x.Type == EasyDnsResponderRecordType.NS).Count() == 2);
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "subdomain2.subdomain1").Where(x => x.Type == EasyDnsResponderRecordType.NS)
+                .Cast<EasyDnsResponder.Record_NS>().OrderBy(x => x.ServerName.ToString(), StrCmpi).ElementAt(0).ServerName.ToString() == "ns5.ipa.go.jp.");
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "subdomain2.subdomain1").Where(x => x.Type == EasyDnsResponderRecordType.NS)
+                .Cast<EasyDnsResponder.Record_NS>().OrderBy(x => x.ServerName.ToString(), StrCmpi).ElementAt(1).ServerName.ToString() == "ns6.ipa.go.jp.");
+        }
+
+        {
+            var res = r.Query(new EasyDnsResponder.SearchRequest { FqdnNormalized = "test123.subdomain1.test1.com" }, EasyDnsResponderRecordType.Any);
+
+            Dbg.TestTrue(res!.RecordList!.Where(x => x.Name != "subdomain1").Count() == 0);
+
+            Dbg.TestTrue(res!.RecordList!.Where(x => x.Name == "subdomain1").Where(x => x.Type != EasyDnsResponderRecordType.NS).Count() == 0);
+
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "subdomain1").Where(x => x.Type == EasyDnsResponderRecordType.NS).Count() == 2);
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "subdomain1").Where(x => x.Type == EasyDnsResponderRecordType.NS)
+                .Cast<EasyDnsResponder.Record_NS>().OrderBy(x => x.ServerName.ToString(), StrCmpi).ElementAt(0).ServerName.ToString() == "ns3.ipa.go.jp.");
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "subdomain1").Where(x => x.Type == EasyDnsResponderRecordType.NS)
+                .Cast<EasyDnsResponder.Record_NS>().OrderBy(x => x.ServerName.ToString(), StrCmpi).ElementAt(1).ServerName.ToString() == "ns4.ipa.go.jp.");
+        }
+
+        {
+            var res = r.Query(new EasyDnsResponder.SearchRequest { FqdnNormalized = "www.subdomain3.test1.com" }, EasyDnsResponderRecordType.Any);
+
+            Dbg.TestTrue(res!.RecordList!.Where(x => x.Name != "www.subdomain3").Count() == 0);
+
+            Dbg.TestTrue(res!.RecordList!.Where(x => x.Name == "www.subdomain3").Where(x => x.Type == EasyDnsResponderRecordType.A).Count() == 1);
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "www.subdomain3").Where(x => x.Type == EasyDnsResponderRecordType.A)
+                .Cast<EasyDnsResponder.Record_A>().OrderBy(x => x.IPv4Address, IpComparer.Comparer).ElementAt(0).IPv4Address.ToString() == "8.9.4.5");
+        }
+
+        {
+            var res = r.Query(new EasyDnsResponder.SearchRequest { FqdnNormalized = "www.test1.com" }, EasyDnsResponderRecordType.Any);
+
+            Dbg.TestTrue(res!.SOARecord.MasterName.ToString() == "ns1.test1.com.");
+            Dbg.TestTrue(res.SOARecord.ResponsibleName.ToString() == "nobori.softether.com.");
+            Dbg.TestTrue(res.SOARecord.SerialNumber == 123);
+            Dbg.TestTrue(res.SOARecord.RefreshIntervalSecs == 50);
+            Dbg.TestTrue(res.SOARecord.RetryIntervalSecs == 100);
+            Dbg.TestTrue(res.SOARecord.ExpireIntervalSecs == 200);
+            Dbg.TestTrue(res.SOARecord.NegativeCacheTtlSecs == 25);
+
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name != "www").Count() == 0);
+
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "www").Where(x => x.Type == EasyDnsResponderRecordType.A).Count() == 2);
+
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "www").Where(x => x.Type == EasyDnsResponderRecordType.A)
+                .Cast<EasyDnsResponder.Record_A>().OrderBy(x => x.IPv4Address, IpComparer.Comparer).ElementAt(0).IPv4Address.ToString() == "1.2.3.4");
+
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "www").Where(x => x.Type == EasyDnsResponderRecordType.A)
+                .Cast<EasyDnsResponder.Record_A>().OrderBy(x => x.IPv4Address, IpComparer.Comparer).ElementAt(1).IPv4Address.ToString() == "1.9.8.4");
+
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "www").Where(x => x.Type == EasyDnsResponderRecordType.AAAA).Count() == 1);
+
+            Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "www").Where(x => x.Type == EasyDnsResponderRecordType.AAAA)
+                .Cast<EasyDnsResponder.Record_AAAA>().OrderBy(x => x.IPv6Address, IpComparer.Comparer).ElementAt(0).IPv6Address.ToString() == "2001::1234");
+        }
+
+        {
+            var res = r.Query(new EasyDnsResponder.SearchRequest { FqdnNormalized = "abc.test1.com" }, EasyDnsResponderRecordType.Any);
+
+            Dbg.TestTrue(res!.SOARecord.MasterName.ToString() == "ns2.test1.com.");
+            Dbg.TestTrue(res.SOARecord.ResponsibleName.ToString() == "daiyuu.softether.com.");
+            Dbg.TestTrue(res.SOARecord.SerialNumber == 894);
+            Dbg.TestTrue(res.SOARecord.RefreshIntervalSecs == 895);
+            Dbg.TestTrue(res.SOARecord.RetryIntervalSecs == 896);
+            Dbg.TestTrue(res.SOARecord.ExpireIntervalSecs == 897);
+            Dbg.TestTrue(res.SOARecord.NegativeCacheTtlSecs == 898);
+
+            Dbg.TestTrue(((EasyDnsResponder.Record_A)res.RecordList!.Single(x => x.Type == EasyDnsResponderRecordType.A)).IPv4Address.ToString() == "1.8.1.8");
+        }
+
+    }
+}
+
 #endif
 
