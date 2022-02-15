@@ -281,6 +281,10 @@ public class RpcParameterHelp
             {
                 this.SampleValueObject = attr.SampleValueIfPrimitive;
             }
+            else if (this.Type == typeof(JObject) && attr.SampleValueIfPrimitive != null && attr.SampleValueIfPrimitive.GetType() == typeof(string))
+            {
+                this.SampleValueObject = ((string)attr.SampleValueIfPrimitive)._JsonToJsonObject();
+            }
         }
 
         if (this.SampleValueObject == null)

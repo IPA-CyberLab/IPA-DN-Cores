@@ -68,6 +68,185 @@ using Newtonsoft.Json.Converters;
 
 namespace IPA.Cores.Basic;
 
+
+
+
+
+
+
+
+public class HadbBasedServiceStartupParam
+{
+    public string HiveDataName { get; }
+    public string DefaultHadbSystemName { get; }
+
+    public HadbBasedServiceStartupParam(string hiveDataName, string defaultHadbSystemName)
+    {
+        this.HiveDataName = hiveDataName;
+        this.DefaultHadbSystemName = defaultHadbSystemName;
+    }
+}
+
+public abstract class HadbBasedServiceHiveSettingsBase : INormalizable
+{
+    public string HadbSystemName = "";
+
+    [JsonConverter(typeof(StringEnumConverter))]
+    public HadbOptionFlags HadbOptionFlags = HadbOptionFlags.None;
+
+    public string HadbSqlServerHostname = "";
+    public int HadbSqlServerPort = 0;
+    public bool HadbSqlServerDisableConnectionPooling = false;
+
+    public string HadbSqlDatabaseName = "";
+
+    public string HadbSqlDatabaseReaderUsername = "";
+    public string HadbSqlDatabaseReaderPassword = "";
+
+    public string HadbSqlDatabaseWriterUsername = "";
+    public string HadbSqlDatabaseWriterPassword = "";
+
+    public string HadbBackupFilePathOverride = "";
+    public string HadbBackupDynamicConfigFilePathOverride = "";
+
+    public List<string> DnsResolverServerIpAddressList = new List<string>();
+
+    public void Normalize()
+    {
+        this.HadbSystemName = this.HadbSystemName._FilledOrDefault(this.GetType().Name);
+
+        this.HadbSqlServerHostname = this.HadbSqlServerHostname._FilledOrDefault("__SQL_SERVER_HOSTNAME_HERE__"); ;
+
+        if (this.HadbSqlServerPort <= 0) this.HadbSqlServerPort = Consts.Ports.MsSqlServer;
+
+        this.HadbSqlDatabaseName = this.HadbSqlDatabaseName._FilledOrDefault("HADB001");
+
+        this.HadbSqlDatabaseReaderUsername = this.HadbSqlDatabaseReaderUsername._FilledOrDefault("sql_hadb001_reader");
+        this.HadbSqlDatabaseReaderPassword = this.HadbSqlDatabaseReaderPassword._FilledOrDefault("sql_hadb_reader_default_password");
+
+        this.HadbSqlDatabaseWriterUsername = this.HadbSqlDatabaseWriterUsername._FilledOrDefault("sql_hadb001_writer");
+        this.HadbSqlDatabaseWriterPassword = this.HadbSqlDatabaseWriterPassword._FilledOrDefault("sql_hadb_writer_default_password");
+
+        if (this.DnsResolverServerIpAddressList == null || DnsResolverServerIpAddressList.Any() == false)
+        {
+            this.DnsResolverServerIpAddressList = new List<string>();
+
+            this.DnsResolverServerIpAddressList.Add("8.8.8.8");
+            this.DnsResolverServerIpAddressList.Add("1.1.1.1");
+        }
+    }
+}
+
+public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings> : AsyncService
+    where TMemDb : HadbMemDataBase, new()
+    where TDynConfig : HadbDynamicConfig
+    where THiveSettings : HadbBasedServiceHiveSettingsBase, new()
+{
+    public DateTimeOffset BootDateTime { get; } = DtOffsetNow; // サービス起動日時
+    public HadbBase<TMemDb, TDynConfig> Hadb { get; }
+    public HadbBasedServiceStartupParam ServiceStartupParam { get; }
+
+    public DnsResolver DnsResolver {get;}
+
+    // Hive
+    readonly HiveData<THiveSettings> _SettingsHive;
+
+    // Hive 設定へのアクセスを容易にするための自動プロパティ
+    CriticalSection ManagedSettingsLock => this._SettingsHive.DataLock;
+    THiveSettings ManagedSettings => this._SettingsHive.ManagedData;
+    public THiveSettings SettingsFastSnapshot => this._SettingsHive.CachedFastSnapshot;
+
+    public HadbBasedServiceBase(HadbBasedServiceStartupParam startupParam)
+    {
+        try
+        {
+            this.ServiceStartupParam = startupParam;
+
+            this._SettingsHive = new HiveData<THiveSettings>(Hive.SharedLocalConfigHive,
+                this.ServiceStartupParam.HiveDataName,
+                () => new THiveSettings { HadbSystemName = this.ServiceStartupParam.DefaultHadbSystemName },
+                HiveSyncPolicy.AutoReadWriteFile,
+                HiveSerializerSelection.RichJson);
+
+            this.DnsResolver = new DnsClientLibBasedDnsResolver(new DnsResolverSettings(flags: DnsResolverFlags.RoundRobinServers,
+                dnsServersList: this.SettingsFastSnapshot.DnsResolverServerIpAddressList.Select(x => x._ToIPEndPoint(Consts.Ports.Dns, noExceptionAndReturnNull: true))
+                .Where(x => x != null)!));
+
+            this.Hadb = this.CreateHadb();
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
+    }
+
+
+    public class HadbSys : HadbSqlBase<TMemDb, TDynConfig>
+    {
+        public HadbSys(HadbSqlSettings settings, TDynConfig dynamicConfig) : base(settings, dynamicConfig) { }
+    }
+
+    protected abstract TDynConfig CreateInitialDynamicConfigImpl();
+
+    protected virtual HadbBase<TMemDb, TDynConfig> CreateHadb()
+    {
+        var s = this.SettingsFastSnapshot;
+
+        HadbSqlSettings sqlSettings = new HadbSqlSettings(
+            s.HadbSystemName,
+            new SqlDatabaseConnectionSetting(s.HadbSqlServerHostname, s.HadbSqlDatabaseName, s.HadbSqlDatabaseReaderUsername, s.HadbSqlDatabaseReaderPassword, !s.HadbSqlServerDisableConnectionPooling, s.HadbSqlServerPort),
+            new SqlDatabaseConnectionSetting(s.HadbSqlServerHostname, s.HadbSqlDatabaseName, s.HadbSqlDatabaseWriterUsername, s.HadbSqlDatabaseWriterPassword, !s.HadbSqlServerDisableConnectionPooling, s.HadbSqlServerPort),
+            optionFlags: s.HadbOptionFlags,
+            backupDataFile: s.HadbBackupFilePathOverride._IsFilled() ? new FilePath(s.HadbBackupFilePathOverride) : null,
+            backupDynamicConfigFile: s.HadbBackupDynamicConfigFilePathOverride._IsFilled() ? new FilePath(s.HadbBackupDynamicConfigFilePathOverride) : null
+            );
+
+        return new HadbSys(sqlSettings, CreateInitialDynamicConfigImpl());
+    }
+
+    Once StartedFlag;
+
+    public void Start()
+    {
+        StartedFlag.FirstCallOrThrowException();
+
+        this.Hadb.Start();
+    }
+
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
+        {
+            await this.Hadb._DisposeSafeAsync(ex);
+
+            await this._SettingsHive._DisposeSafeAsync2();
+
+            await this.DnsResolver._DisposeSafeAsync();
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public static partial class DevCoresConfig
 {
     public static partial class EasyDnsResponderSettings

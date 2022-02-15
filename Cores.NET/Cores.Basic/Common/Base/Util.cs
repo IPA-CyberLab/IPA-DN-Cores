@@ -8576,6 +8576,7 @@ namespace IPA.Cores.Basic
 
                         if (ret != null)
                         {
+                            if (ret is INormalizable n) n._TryNormalize();
                             return ret;
                         }
                     }

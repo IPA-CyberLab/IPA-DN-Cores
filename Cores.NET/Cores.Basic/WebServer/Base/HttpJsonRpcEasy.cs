@@ -44,11 +44,11 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic;
 
-public abstract class EasyJsonRpcServer<TInterface> : JsonRpcServerApi
+public class EasyJsonRpcServer<TInterface> : JsonRpcServerApi
 {
     HttpServer<JsonRpcHttpServerBuilder> HttpServer;
 
-    public EasyJsonRpcServer(HttpServerOptions httpConfig, CancellationToken cancel = default, JsonRpcServerConfig? rpcCfg = null) : base(cancel)
+    public EasyJsonRpcServer(HttpServerOptions httpConfig, CancellationToken cancel = default, JsonRpcServerConfig? rpcCfg = null, object? targetObject = null) : base(cancel, targetObject)
     {
         try
         {

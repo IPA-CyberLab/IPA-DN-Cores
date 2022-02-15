@@ -262,6 +262,21 @@ public static partial class Basic
         return h;
     }
 
+    public static DateTimeOffset DtOffsetSample(double percentageOfYear = 0.0, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0)
+    {
+        var now = DtNow;
+
+        percentageOfYear = Math.Max(percentageOfYear, 0.0);
+        percentageOfYear = Math.Min(percentageOfYear, 1.0);
+
+        string randomStr = $"neko_{percentageOfYear}_{filename}_{line}_{now.Year}";
+        long longValue = Secure.HashSHA1AsSInt63(randomStr._GetBytes_UTF8()) % 1_0000_0000L;
+        double addDays = 30.0 * (double)longValue / (double)1_0000_0000L;
+        double days = (30.0 * 11) * percentageOfYear + addDays;
+
+        return (new DateTime(now.Year, 1, 1, 0, 0, 0))._AsDateTimeOffset(true).AddDays(days);
+    }
+
     public static bool TryRetBool(Action action, bool noDebugMessage = false, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
     {
         try

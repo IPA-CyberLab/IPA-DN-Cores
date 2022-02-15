@@ -43,6 +43,8 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.IO;
+using Newtonsoft.Json.Linq;
+using System.Collections.Generic;
 
 namespace IPA.Cores.Helper.Basic
 {
@@ -84,6 +86,9 @@ namespace IPA.Cores.Helper.Basic
         public static dynamic? _JsonToDynamic(this string str)
             => Json.DeserializeDynamic(str);
 
+        public static JObject? _JsonToJsonObject(this string str, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
+            => str._JsonToObject<JObject>(includeNull, maxDepth);
+
         public static ulong _CalcObjectHashByJson(this object o)
             => Util.CalcObjectHashByJson(o);
 
@@ -107,6 +112,9 @@ namespace IPA.Cores.Helper.Basic
         [return: NotNullIfNotNull("obj")]
         public static object? _CloneObjectWithJson(this object? obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null)
             => Json.CloneObjectWithJson(obj, escapeHtml, maxDepth, referenceHandling, type);
+
+        public static JObject _NormalizeEasyJsonStrAttributes(this JObject? src, IComparer<string>? comparer = null)
+            => EasyJsonStrAttributes.NormalizeJsonObject(src, comparer);
     }
 
     public static class JsonConsoleHelper

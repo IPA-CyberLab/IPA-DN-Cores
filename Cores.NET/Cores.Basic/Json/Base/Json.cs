@@ -49,6 +49,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Text.Json.Nodes;
 
 namespace IPA.Cores.Basic;
 
@@ -380,15 +381,38 @@ public class EasyJsonStrAttributes
         }
     }
 
+    public EasyJsonStrAttributes(JObject? obj, IComparer<string>? comparer = null)
+    {
+        comparer = comparer ?? StrComparer.IgnoreCaseTrimComparer;
+
+        this.Dict = new SortedDictionary<string, string>(comparer);
+
+        if (obj != null)
+        {
+            foreach (var item in obj)
+            {
+                string name = item.Key._NonNullTrim();
+                string value = item.Value.ToString()._NonNullTrim();
+
+                Dict.TryAdd(name, value);
+            }
+        }
+    }
+
     public static implicit operator string(EasyJsonStrAttributes attributesObj) => attributesObj.ToJsonString();
     public static implicit operator EasyJsonStrAttributes(string? str) => new EasyJsonStrAttributes(str);
 
     public override string ToString() => ToJsonString();
 
-    public string ToJsonString(bool includeNull = false, bool escapeHtml = false, int? maxDepth = 8, bool compact = true, bool referenceHandling = false, bool base64url = false, Type? type = null)
+    public static JObject NormalizeJsonObject(JObject? src, IComparer<string>? comparer = null)
     {
-        if (this.Dict.Count == 0) return "";
+        var tmp = new EasyJsonStrAttributes(src, comparer);
 
+        return tmp.ToJsonObject();
+    }
+
+    public JObject ToJsonObject()
+    {
         var json = Json.NewJsonObject();
 
         foreach (var item in this.Dict)
@@ -396,7 +420,14 @@ public class EasyJsonStrAttributes
             json.Add(item.Key, JToken.FromObject(item.Value));
         }
 
-        return json._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type);
+        return json;
+    }
+
+    public string ToJsonString(bool includeNull = false, bool escapeHtml = false, int? maxDepth = 8, bool compact = true, bool referenceHandling = false, bool base64url = false, Type? type = null)
+    {
+        if (this.Dict.Count == 0) return "";
+
+        return ToJsonObject()._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type);
     }
 
     public void Set(string key, object? value)

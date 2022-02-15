@@ -350,7 +350,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                     var pp = pl[i];
                     string? qsSampleOrDefaultValue = null;
 
-                    w.WriteLine($"  Parameter #{i + 1}: {pp.Name} {pp.Description._SurroundIfFilled()}".TrimEnd());
+                    w.WriteLine($"  Parameter #{i + 1}: {pp.Name}".TrimEnd());
                     w.WriteLine($"    Name: {pp.Name}");
                     if (pp.Description._IsFilled())
                     {

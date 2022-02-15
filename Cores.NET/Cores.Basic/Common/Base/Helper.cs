@@ -2751,6 +2751,7 @@ public static class BasicHelper
         => new SeekableStreamBasedRandomAccess(stream, autoDisposeBase);
 
     public static Task<TResult> _TaskResult<TResult>(this TResult result) => Task.FromResult(result);
+    public static Task<TResult> _TR<TResult>(this TResult result) => Task.FromResult(result);
 
     public static IOrderedEnumerable<TSource> _Shuffle<TSource>(this IEnumerable<TSource> source)
     {
@@ -3359,6 +3360,9 @@ public static class BasicHelper
         }
         return tmp;
     }
+
+    public static string _MakeStringUseOnlyChars(this string src, string charList = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-", StringComparison comparison = StringComparison.Ordinal)
+        => Str.MakeStringUseOnlyChars(src, charList, comparison);
 }
 
 

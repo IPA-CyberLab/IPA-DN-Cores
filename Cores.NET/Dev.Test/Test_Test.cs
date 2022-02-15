@@ -3414,7 +3414,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
                 {
                     ex._Debug();
                 }
-                
+
                 await c._WaitUntilCanceledAsync(1000);
             }
         });
@@ -3430,17 +3430,58 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
     public static void Test_220215_DDNSSvc()
     {
+        HttpServerOptions httpOpt = new HttpServerOptions
+        {
+            AutomaticRedirectToHttpsIfPossible = false,
+            DenyRobots = true,
+            DebugKestrelToConsole = true,
+            DebugKestrelToLog = true,
+            HttpPortsList = new int[] { 80 }.ToList(),
+            HttpsPortsList = new int[] { 443 }.ToList(),
+            UseKestrelWithIPACoreStack = false,
+        };
+
+        JsonRpcServerConfig rpcConfig = new JsonRpcServerConfig
+        {
+            MaxRequestBodyLen = 1_000_000,
+            PrintHelp = true,
+        };
+
         using MikakaDDnsService svc = new MikakaDDnsService();
+        using EasyJsonRpcServer<MikakaDDnsService.IRpc> rpc = new EasyJsonRpcServer<MikakaDDnsService.IRpc>(httpOpt, rpcCfg: rpcConfig, targetObject: svc);
 
         svc.Start();
 
         Con.ReadLine("quit>");
-
-        svc._DisposeSafe();
     }
 
     public static void Test_Generic()
     {
+        if (false)
+        {
+            while (true)
+            {
+                string s = Con.ReadLine(">")._NonNullTrim();
+
+                try
+                {
+                    if (IPEndPoint.TryParse(s, out IPEndPoint? ret))
+                    {
+                        ret.ToString()._Print();
+                    }
+                    else
+                    {
+                        "Error"._Print();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
+            }
+            return;
+        }
+
         if (true)
         {
             Test_220215_DDNSSvc();

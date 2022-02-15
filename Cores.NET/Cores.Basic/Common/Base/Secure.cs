@@ -330,6 +330,22 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        public static long HashSHA1AsSInt63(ReadOnlySpan<byte> src)
+        {
+            byte[] hash = Secure.HashSHA1(src);
+            long ret = hash._GetSInt64() & 0x7fffffffffffffffL;
+            if (ret == 0) ret = 1;
+            return ret;
+        }
+
+        public static int HashSHA1AsSInt31(ReadOnlySpan<byte> src)
+        {
+            byte[] hash = Secure.HashSHA1(src);
+            int ret = (int)(hash._GetSInt64() & 0x7fffffffL);
+            if (ret == 0) ret = 1;
+            return ret;
+        }
+
         public static string JavaScriptEasyStrEncrypt(string? srcString, string? password)
         {
             srcString = srcString._NonNull();

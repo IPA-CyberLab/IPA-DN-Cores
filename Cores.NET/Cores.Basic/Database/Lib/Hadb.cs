@@ -210,6 +210,14 @@ public class HadbDynamicConfig : INormalizable
                     updated = true;
                 }
             }
+            if (type == typeof(bool))
+            {
+                if (dataListFromDb._TryGetFirstValue(name, out string valueStr, StrComparer.IgnoreCaseTrimComparer))
+                {
+                    rw.SetValue(this, name, valueStr._ToBool());
+                    updated = true;
+                }
+            }
             else if (type == typeof(string))
             {
                 if (dataListFromDb._TryGetFirstValue(name, out string valueStr, StrComparer.IgnoreCaseTrimComparer))
@@ -253,6 +261,10 @@ public class HadbDynamicConfig : INormalizable
                 if (type == typeof(int))
                 {
                     ret.Add(name, ((int)rw.GetValue(this, name)!).ToString());
+                }
+                else if (type == typeof(bool))
+                {
+                    ret.Add(name, ((bool)rw.GetValue(this, name)!)._ToBoolStrLower());
                 }
                 else if (type == typeof(string))
                 {

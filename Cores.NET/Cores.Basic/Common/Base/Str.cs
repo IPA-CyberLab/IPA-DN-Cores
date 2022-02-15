@@ -1120,6 +1120,21 @@ namespace IPA.Cores.Basic
             return Str.Utf8Encoding;
         }
 
+        public static string MakeStringUseOnlyChars(string src, string charList = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-", StringComparison comparison = StringComparison.Ordinal)
+        {
+            src = src._NonNull();
+
+            StringBuilder sb = new StringBuilder(src.Length);
+
+            foreach (char c in src)
+            {
+                if (charList.IndexOf(c, StringComparison.Ordinal) != -1)
+                    sb.Append(c);
+            }
+
+            return sb.ToString();
+        }
+
         public static string PrependIndent(string src, int indentWidth = 4, char indentChar = ' ', CrlfStyle crlfStyle = CrlfStyle.LocalPlatform)
         {
             var lines = src._GetLines();
@@ -6345,7 +6360,7 @@ namespace IPA.Cores.Basic
             DateTime time = Str.StrToTime(tokens[1], false);
 
             TimeSpan offset = default;
-            string offsetStr = tokens.ElementAt(2);
+            string? offsetStr = tokens.ElementAtOrDefault(2);
             if (offsetStr._IsEmpty())
             {
             }
