@@ -533,7 +533,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 {
     public new HadbSqlSettings Settings => (HadbSqlSettings)base.Settings;
 
-    public HadbSqlBase(HadbSqlSettings settings, TDynamicConfig dynamicConfig) : base(settings, dynamicConfig)
+    public HadbSqlBase(HadbSqlSettings settings, TDynamicConfig initialDynamicConfig) : base(settings, initialDynamicConfig)
     {
         try
         {
@@ -3266,7 +3266,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     public HadbDebugFlags DebugFlags { get; set; } = HadbDebugFlags.None;
 
-    public HadbBase(HadbSettingsBase settings, TDynamicConfig dynamicConfig)
+    public HadbBase(HadbSettingsBase settings, TDynamicConfig initialDynamicConfig)
     {
         try
         {
@@ -3276,8 +3276,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
             this.Settings = settings; // CloneDeep 禁止
 
-            dynamicConfig._NullCheck(nameof(dynamicConfig));
-            this.CurrentDynamicConfig = dynamicConfig;
+            initialDynamicConfig._NullCheck(nameof(initialDynamicConfig));
+            this.CurrentDynamicConfig = initialDynamicConfig;
             this.CurrentDynamicConfig.Normalize();
 
             this.ReloadMainLoopTask = ReloadMainLoopAsync(this.GrandCancel)._LeakCheck();
@@ -3885,39 +3885,43 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
         while (cancel.IsCancellationRequested == false)
         {
-            numCycle++;
-            Debug($"LazyUpdateMainLoopAsync: numCycle={numCycle}, numError={numError} Start.");
-
-            long startTick = Time.HighResTick64;
-            bool ok = false;
-
-            try
+            if (this.MemDb!.GetLazyUpdateQueueLength() >= 1)
             {
-                await LazyUpdateCoreAsync(EnsureSpecial.Yes, cancel);
-                ok = true;
-            }
-            catch (Exception ex)
-            {
-                if (this.DebugFlags.Bit(HadbDebugFlags.NoDbLoadAndUseOnlyLocalBackup) == false)
+                // キューに 1 つ以上入っている場合のみ実行する
+                numCycle++;
+                Debug($"LazyUpdateMainLoopAsync: numCycle={numCycle}, numError={numError} Start.");
+
+                long startTick = Time.HighResTick64;
+                bool ok = false;
+
+                try
                 {
-                    ex._Error();
+                    await LazyUpdateCoreAsync(EnsureSpecial.Yes, cancel);
+                    ok = true;
                 }
-            }
+                catch (Exception ex)
+                {
+                    if (this.DebugFlags.Bit(HadbDebugFlags.NoDbLoadAndUseOnlyLocalBackup) == false)
+                    {
+                        ex._Error();
+                    }
+                }
 
-            long endTick = Time.HighResTick64;
-            if (ok)
-            {
-                LastLazyUpdateTookMsecs = (int)(endTick - startTick);
-            }
-            else
-            {
-                LastLazyUpdateTookMsecs = 0;
-            }
+                long endTick = Time.HighResTick64;
+                if (ok)
+                {
+                    LastLazyUpdateTookMsecs = (int)(endTick - startTick);
+                }
+                else
+                {
+                    LastLazyUpdateTookMsecs = 0;
+                }
 
-            Debug($"LazyUpdateMainLoopAsync: numCycle={numCycle}, numError={numError} End. Took time: {(endTick - startTick)._ToString3()} msecs.");
+                Debug($"LazyUpdateMainLoopAsync: numCycle={numCycle}, numError={numError} End. Took time: {(endTick - startTick)._ToString3()} msecs.");
+            }
 
             int nextWaitTime = Util.GenRandInterval(this.CurrentDynamicConfig.HadbLazyUpdateIntervalMsecs);
-            Debug($"LazyUpdateMainLoopAsync: Waiting for {nextWaitTime._ToString3()} msecs for next DB read.");
+
             await cancel._WaitUntilCanceledAsync(nextWaitTime);
         }
 

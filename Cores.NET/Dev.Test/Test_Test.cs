@@ -3428,8 +3428,25 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         t._TryWait();
     }
 
+    public static void Test_220215_DDNSSvc()
+    {
+        using MikakaDDnsService svc = new MikakaDDnsService();
+
+        svc.Start();
+
+        Con.ReadLine("quit>");
+
+        svc._DisposeSafe();
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_220215_DDNSSvc();
+            return;
+        }
+
         if (true)
         {
             EasyDnsTest.Test1();

@@ -439,6 +439,11 @@ public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
         }
     }
 
+    [Fact]
+    public void TestDnsEasyResponder()
+    {
+    }
+
 }
 
 
