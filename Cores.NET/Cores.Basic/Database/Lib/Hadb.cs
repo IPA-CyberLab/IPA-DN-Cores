@@ -2803,7 +2803,7 @@ public abstract class HadbMemDataBase
     protected abstract List<Type> GetDefinedUserDataTypesImpl();
     protected abstract List<Type> GetDefinedUserLogTypesImpl();
 
-    public readonly AsyncLock CriticalLockAsync = new AsyncLock();
+    public readonly AsyncLock DatabaseReloadLock = new AsyncLock();
 
     public DataSet InternalData = new DataSet();
 
@@ -2870,7 +2870,7 @@ public abstract class HadbMemDataBase
         int countRemoved = 0;
         List<HadbObject> objectList2;
 
-        using (await this.CriticalLockAsync.LockWithAwait(cancel))
+        using (await this.DatabaseReloadLock.LockWithAwait(cancel))
         {
             DataSet data = this.InternalData;
 
