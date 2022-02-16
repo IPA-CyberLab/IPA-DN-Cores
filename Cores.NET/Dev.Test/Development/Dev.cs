@@ -109,6 +109,8 @@ public abstract class HadbBasedServiceHiveSettingsBase : INormalizable
     public string HadbBackupFilePathOverride = "";
     public string HadbBackupDynamicConfigFilePathOverride = "";
 
+    public int LazyUpdateParallelQueueCount = 0;
+
     public List<string> DnsResolverServerIpAddressList = new List<string>();
 
     public void Normalize()
@@ -134,6 +136,9 @@ public abstract class HadbBasedServiceHiveSettingsBase : INormalizable
             this.DnsResolverServerIpAddressList.Add("8.8.8.8");
             this.DnsResolverServerIpAddressList.Add("1.1.1.1");
         }
+
+        if (this.LazyUpdateParallelQueueCount <= 0) this.LazyUpdateParallelQueueCount = 32;
+        if (this.LazyUpdateParallelQueueCount > 256) this.LazyUpdateParallelQueueCount = Consts.Numbers.HadbMaxLazyUpdateParallelQueueCount;
     }
 }
 
@@ -199,7 +204,8 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings> : 
             new SqlDatabaseConnectionSetting(s.HadbSqlServerHostname, s.HadbSqlDatabaseName, s.HadbSqlDatabaseWriterUsername, s.HadbSqlDatabaseWriterPassword, !s.HadbSqlServerDisableConnectionPooling, s.HadbSqlServerPort),
             optionFlags: s.HadbOptionFlags,
             backupDataFile: s.HadbBackupFilePathOverride._IsFilled() ? new FilePath(s.HadbBackupFilePathOverride) : null,
-            backupDynamicConfigFile: s.HadbBackupDynamicConfigFilePathOverride._IsFilled() ? new FilePath(s.HadbBackupDynamicConfigFilePathOverride) : null
+            backupDynamicConfigFile: s.HadbBackupDynamicConfigFilePathOverride._IsFilled() ? new FilePath(s.HadbBackupDynamicConfigFilePathOverride) : null,
+            lazyUpdateParallelQueueCount: s.LazyUpdateParallelQueueCount
             );
 
         return new HadbSys(sqlSettings, CreateInitialDynamicConfigImpl());

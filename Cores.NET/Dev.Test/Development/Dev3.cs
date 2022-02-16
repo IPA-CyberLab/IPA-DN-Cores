@@ -113,13 +113,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
                    "dns",
                    "register",
                    "admin",
-                   "mail",
-                   "ns00",
-                   "smtp",
-                   "root",
-                   "pop3",
-                   "imap",
-                   "ftp",
+                   "ns0",
                    "ws-",
                    "websocket-",
                    "_acme",
@@ -154,6 +148,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
         public string AuthLogin_LastIpAddress = "";
         public string AuthLogin_LastFqdn = "";
+        public long AuthLogin_Count = 0;
 
         public DateTimeOffset AuthRequested_FirstTime = DtOffsetZero;
         public DateTimeOffset AuthRequested_LastTime = DtOffsetZero;

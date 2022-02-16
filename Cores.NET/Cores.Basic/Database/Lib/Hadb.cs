@@ -307,8 +307,8 @@ public class HadbSqlSettings : HadbSettingsBase
     public IsolationLevel IsolationLevelForRead { get; }
     public IsolationLevel IsolationLevelForWrite { get; }
 
-    public HadbSqlSettings(string systemName, string sqlConnectStringForRead, string sqlConnectStringForWrite, IsolationLevel isoLevelForRead = IsolationLevel.Snapshot, IsolationLevel isoLevelForWrite = IsolationLevel.Serializable, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null)
-        : base(systemName, optionFlags, backupDataFile, backupDynamicConfigFile)
+    public HadbSqlSettings(string systemName, string sqlConnectStringForRead, string sqlConnectStringForWrite, IsolationLevel isoLevelForRead = IsolationLevel.Snapshot, IsolationLevel isoLevelForWrite = IsolationLevel.Serializable, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null, int lazyUpdateParallelQueueCount = 1)
+        : base(systemName, optionFlags, backupDataFile, backupDynamicConfigFile, lazyUpdateParallelQueueCount)
     {
         this.SqlConnectStringForRead = sqlConnectStringForRead;
         this.SqlConnectStringForWrite = sqlConnectStringForWrite;
@@ -1583,46 +1583,55 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         return ret;
     }
 
-    protected internal override async Task<bool> LazyUpdateImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default)
+    protected internal override async Task LazyUpdateImplAsync(HadbTran tran, IEnumerable<HadbObject> dataList, CancellationToken cancel = default)
     {
-        data.CheckIsNotMemoryDbObject();
         tran.CheckIsWriteMode();
         var dbWriter = ((HadbSqlTran)tran).Db;
 
-        string typeName = data.GetUserDataTypeName();
+        StringWriter queryBuilder = new StringWriter();
 
-        var keys = data.GetKeys();
-        var labels = data.GetLabels();
-        if (data.Deleted) throw new CoresLibException("data.Deleted == true");
+        var queryParams = new Dictionary<string, object>(StrCmpi);
 
-        string query = "update HADB_DATA with (ROWLOCK) set DATA_VALUE = @DATA_VALUE, DATA_UPDATE_DT = @DATA_UPDATE_DT, DATA_LAZY_COUNT1 = DATA_LAZY_COUNT1 + 1, DATA_LAZY_COUNT2 = DATA_LAZY_COUNT2 + 1 " +
-            "where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_VER = @DATA_VER and DATA_UPDATE_DT < @DATA_UPDATE_DT and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE = 0 and DATA_DELETED = 0 and " +
-            "DATA_KEY1 = @DATA_KEY1 and DATA_KEY2 = @DATA_KEY2 and DATA_KEY3 = @DATA_KEY3 and DATA_KEY4 = @DATA_KEY4 and " +
-            "DATA_LABEL1 = @DATA_LABEL1 and DATA_LABEL2 = @DATA_LABEL2 and DATA_LABEL3 = @DATA_LABEL3 and DATA_LABEL4 = DATA_LABEL4";
+        int i = 0;
 
-        // 毎回、大変短いトランザクションを実行したことにする
-        query = "BEGIN TRANSACTION \n" + query + "\n COMMIT TRANSACTION\n";
-
-        int ret = await dbWriter.EasyExecuteAsync(query,
-            new
+        foreach (var data in dataList)
+        {
+            if (data.IsMemoryDbObject == false && data.Deleted == false)
             {
-                DATA_VALUE = data.GetUserDataJsonString(),
-                DATA_UPDATE_DT = DtOffsetNow,
-                DATA_UID = data.Uid,
-                DATA_VER = data.Ver,
-                DATA_SYSTEMNAME = this.SystemName,
-                DATA_TYPE = typeName,
-                DATA_KEY1 = keys.Key1,
-                DATA_KEY2 = keys.Key2,
-                DATA_KEY3 = keys.Key3,
-                DATA_KEY4 = keys.Key4,
-                DATA_LABEL1 = labels.Label1,
-                DATA_LABEL2 = labels.Label2,
-                DATA_LABEL3 = labels.Label3,
-                DATA_LABEL4 = labels.Label4,
-            });
+                i++;
 
-        return ret >= 1;
+                string typeName = data.GetUserDataTypeName();
+
+                var keys = data.GetKeys();
+                var labels = data.GetLabels();
+
+                queryBuilder.WriteLine(
+                    "BEGIN TRANSACTION \n" +
+                    $"update HADB_DATA with (ROWLOCK) set DATA_VALUE = @DATA_VALUE_{i}, DATA_UPDATE_DT = @DATA_UPDATE_DT_{i}, DATA_LAZY_COUNT1 = DATA_LAZY_COUNT1 + 1, DATA_LAZY_COUNT2 = DATA_LAZY_COUNT2 + 1 " +
+                    $"where DATA_UID = @DATA_UID_{i} and DATA_SYSTEMNAME = @DATA_SYSTEMNAME_{i} and DATA_VER = @DATA_VER_{i} and DATA_UPDATE_DT < @DATA_UPDATE_DT and DATA_TYPE = @DATA_TYPE_{i} and DATA_ARCHIVE = 0 and DATA_DELETED = 0 and " +
+                    $"DATA_KEY1 = @DATA_KEY1_{i} and DATA_KEY2 = @DATA_KEY2_{i} and DATA_KEY3 = @DATA_KEY3_{i} and DATA_KEY4 = @DATA_KEY4_{i} and " +
+                    $"DATA_LABEL1 = @DATA_LABEL1_{i} and DATA_LABEL2 = @DATA_LABEL2_{i} and DATA_LABEL3 = @DATA_LABEL3_{i} and DATA_LABEL4 = DATA_LABEL4_{i} " +
+                    "\n" +
+                    "COMMIT TRANSACTION \n\n");
+
+                queryParams.Add($"DATA_VALUE_{i}", data.GetUserDataJsonString());
+                queryParams.Add($"DATA_UPDATE_DT_{i}", DtOffsetNow);
+                queryParams.Add($"DATA_UID_{i}", data.Uid);
+                queryParams.Add($"DATA_VER_{i}", data.Ver);
+                queryParams.Add($"DATA_SYSTEMNAME_{i}", this.SystemName);
+                queryParams.Add($"DATA_TYPE_{i}", typeName);
+                queryParams.Add($"DATA_KEY1_{i}", keys.Key1);
+                queryParams.Add($"DATA_KEY2_{i}", keys.Key2);
+                queryParams.Add($"DATA_KEY3_{i}", keys.Key3);
+                queryParams.Add($"DATA_KEY4_{i}", keys.Key4);
+                queryParams.Add($"DATA_LABEL1_{i}", labels.Label1);
+                queryParams.Add($"DATA_LABEL2_{i}", labels.Label2);
+                queryParams.Add($"DATA_LABEL3_{i}", labels.Label3);
+                queryParams.Add($"DATA_LABEL4_{i}", labels.Label4);
+            }
+        }
+
+        await dbWriter.EasyExecuteAsync(queryBuilder.ToString(), queryParams);
     }
 
     protected internal override async Task<HadbObject> AtomicUpdateDataOnDatabaseImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default)
@@ -2048,12 +2057,18 @@ public abstract class HadbSettingsBase // CloneDeep 禁止
     public HadbOptionFlags OptionFlags { get; }
     public FilePath BackupDataFile { get; }
     public FilePath BackupDynamicConfigFile { get; }
+    public int LazyUpdateParallelQueueCount { get; }
 
-    public HadbSettingsBase(string systemName, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null)
+    public HadbSettingsBase(string systemName, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null, int lazyUpdateParallelQueueCount = 1)
     {
         if (systemName._IsEmpty()) throw new CoresLibException("systemName is empty.");
         this.SystemName = systemName._NonNullTrim().ToUpperInvariant();
         this.OptionFlags = optionFlags;
+
+        if (lazyUpdateParallelQueueCount <= 0) lazyUpdateParallelQueueCount = 1;
+        if (lazyUpdateParallelQueueCount > 256) lazyUpdateParallelQueueCount = Consts.Numbers.HadbMaxLazyUpdateParallelQueueCount;
+
+        this.LazyUpdateParallelQueueCount = lazyUpdateParallelQueueCount;
 
         if (backupDataFile == null)
         {
@@ -3257,7 +3272,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     protected internal abstract Task AtomicAddLogImplAsync(HadbTran tran, HadbLog log, string nameSpace, string ext1, string ext2, CancellationToken cancel = default);
     protected internal abstract Task<IEnumerable<HadbLog>> AtomicSearchLogImplAsync(HadbTran tran, string typeName, HadbLogQuery query, string nameSpace, CancellationToken cancel = default);
 
-    protected internal abstract Task<bool> LazyUpdateImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default);
+    protected internal abstract Task LazyUpdateImplAsync(HadbTran tran, IEnumerable<HadbObject> dataList, CancellationToken cancel = default);
 
     protected abstract Task<KeyValueList<string, string>> LoadDynamicConfigFromDatabaseImplAsync(CancellationToken cancel = default);
     protected abstract Task AppendMissingDynamicConfigToDatabaseImplAsync(KeyValueList<string, string> missingValues, CancellationToken cancel = default);
