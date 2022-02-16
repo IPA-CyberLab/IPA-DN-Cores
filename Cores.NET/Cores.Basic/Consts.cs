@@ -129,6 +129,7 @@ public static partial class Consts
         public const int SqlMaxSafeStrLengthActual = 350;
 
         public const int HadbMaxLazyUpdateParallelQueueCount = 256;
+        public const int HadbDefaultLazyUpdateParallelQueueCount = 32;
     }
 
     public static partial class MaxLens

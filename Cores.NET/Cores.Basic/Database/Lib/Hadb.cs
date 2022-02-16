@@ -307,7 +307,7 @@ public class HadbSqlSettings : HadbSettingsBase
     public IsolationLevel IsolationLevelForRead { get; }
     public IsolationLevel IsolationLevelForWrite { get; }
 
-    public HadbSqlSettings(string systemName, string sqlConnectStringForRead, string sqlConnectStringForWrite, IsolationLevel isoLevelForRead = IsolationLevel.Snapshot, IsolationLevel isoLevelForWrite = IsolationLevel.Serializable, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null, int lazyUpdateParallelQueueCount = 1)
+    public HadbSqlSettings(string systemName, string sqlConnectStringForRead, string sqlConnectStringForWrite, IsolationLevel isoLevelForRead = IsolationLevel.Snapshot, IsolationLevel isoLevelForWrite = IsolationLevel.Serializable, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null, int lazyUpdateParallelQueueCount = Consts.Numbers.HadbDefaultLazyUpdateParallelQueueCount)
         : base(systemName, optionFlags, backupDataFile, backupDynamicConfigFile, lazyUpdateParallelQueueCount)
     {
         this.SqlConnectStringForRead = sqlConnectStringForRead;
@@ -1583,55 +1583,46 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         return ret;
     }
 
-    protected internal override async Task LazyUpdateImplAsync(HadbTran tran, IEnumerable<HadbObject> dataList, CancellationToken cancel = default)
+    protected internal override async Task<bool> LazyUpdateImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default)
     {
+        data.CheckIsNotMemoryDbObject();
         tran.CheckIsWriteMode();
         var dbWriter = ((HadbSqlTran)tran).Db;
 
-        StringWriter queryBuilder = new StringWriter();
+        string typeName = data.GetUserDataTypeName();
 
-        var queryParams = new Dictionary<string, object>(StrCmpi);
+        var keys = data.GetKeys();
+        var labels = data.GetLabels();
+        if (data.Deleted) throw new CoresLibException("data.Deleted == true");
 
-        int i = 0;
+        string query = "update HADB_DATA with (ROWLOCK) set DATA_VALUE = @DATA_VALUE, DATA_UPDATE_DT = @DATA_UPDATE_DT, DATA_LAZY_COUNT1 = DATA_LAZY_COUNT1 + 1, DATA_LAZY_COUNT2 = DATA_LAZY_COUNT2 + 1 " +
+            "where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_VER = @DATA_VER and DATA_UPDATE_DT < @DATA_UPDATE_DT and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE = 0 and DATA_DELETED = 0 and " +
+            "DATA_KEY1 = @DATA_KEY1 and DATA_KEY2 = @DATA_KEY2 and DATA_KEY3 = @DATA_KEY3 and DATA_KEY4 = @DATA_KEY4 and " +
+            "DATA_LABEL1 = @DATA_LABEL1 and DATA_LABEL2 = @DATA_LABEL2 and DATA_LABEL3 = @DATA_LABEL3 and DATA_LABEL4 = DATA_LABEL4";
 
-        foreach (var data in dataList)
-        {
-            if (data.IsMemoryDbObject == false && data.Deleted == false)
+        // 毎回、大変短いトランザクションを実行したことにする
+        query = "BEGIN TRANSACTION \n" + query + "\n COMMIT TRANSACTION\n";
+
+        int ret = await dbWriter.EasyExecuteAsync(query,
+            new
             {
-                i++;
+                DATA_VALUE = data.GetUserDataJsonString(),
+                DATA_UPDATE_DT = DtOffsetNow,
+                DATA_UID = data.Uid,
+                DATA_VER = data.Ver,
+                DATA_SYSTEMNAME = this.SystemName,
+                DATA_TYPE = typeName,
+                DATA_KEY1 = keys.Key1,
+                DATA_KEY2 = keys.Key2,
+                DATA_KEY3 = keys.Key3,
+                DATA_KEY4 = keys.Key4,
+                DATA_LABEL1 = labels.Label1,
+                DATA_LABEL2 = labels.Label2,
+                DATA_LABEL3 = labels.Label3,
+                DATA_LABEL4 = labels.Label4,
+            });
 
-                string typeName = data.GetUserDataTypeName();
-
-                var keys = data.GetKeys();
-                var labels = data.GetLabels();
-
-                queryBuilder.WriteLine(
-                    "BEGIN TRANSACTION \n" +
-                    $"update HADB_DATA with (ROWLOCK) set DATA_VALUE = @DATA_VALUE_{i}, DATA_UPDATE_DT = @DATA_UPDATE_DT_{i}, DATA_LAZY_COUNT1 = DATA_LAZY_COUNT1 + 1, DATA_LAZY_COUNT2 = DATA_LAZY_COUNT2 + 1 " +
-                    $"where DATA_UID = @DATA_UID_{i} and DATA_SYSTEMNAME = @DATA_SYSTEMNAME_{i} and DATA_VER = @DATA_VER_{i} and DATA_UPDATE_DT < @DATA_UPDATE_DT and DATA_TYPE = @DATA_TYPE_{i} and DATA_ARCHIVE = 0 and DATA_DELETED = 0 and " +
-                    $"DATA_KEY1 = @DATA_KEY1_{i} and DATA_KEY2 = @DATA_KEY2_{i} and DATA_KEY3 = @DATA_KEY3_{i} and DATA_KEY4 = @DATA_KEY4_{i} and " +
-                    $"DATA_LABEL1 = @DATA_LABEL1_{i} and DATA_LABEL2 = @DATA_LABEL2_{i} and DATA_LABEL3 = @DATA_LABEL3_{i} and DATA_LABEL4 = DATA_LABEL4_{i} " +
-                    "\n" +
-                    "COMMIT TRANSACTION \n\n");
-
-                queryParams.Add($"DATA_VALUE_{i}", data.GetUserDataJsonString());
-                queryParams.Add($"DATA_UPDATE_DT_{i}", DtOffsetNow);
-                queryParams.Add($"DATA_UID_{i}", data.Uid);
-                queryParams.Add($"DATA_VER_{i}", data.Ver);
-                queryParams.Add($"DATA_SYSTEMNAME_{i}", this.SystemName);
-                queryParams.Add($"DATA_TYPE_{i}", typeName);
-                queryParams.Add($"DATA_KEY1_{i}", keys.Key1);
-                queryParams.Add($"DATA_KEY2_{i}", keys.Key2);
-                queryParams.Add($"DATA_KEY3_{i}", keys.Key3);
-                queryParams.Add($"DATA_KEY4_{i}", keys.Key4);
-                queryParams.Add($"DATA_LABEL1_{i}", labels.Label1);
-                queryParams.Add($"DATA_LABEL2_{i}", labels.Label2);
-                queryParams.Add($"DATA_LABEL3_{i}", labels.Label3);
-                queryParams.Add($"DATA_LABEL4_{i}", labels.Label4);
-            }
-        }
-
-        await dbWriter.EasyExecuteAsync(queryBuilder.ToString(), queryParams);
+        return ret >= 1;
     }
 
     protected internal override async Task<HadbObject> AtomicUpdateDataOnDatabaseImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default)
@@ -2059,7 +2050,7 @@ public abstract class HadbSettingsBase // CloneDeep 禁止
     public FilePath BackupDynamicConfigFile { get; }
     public int LazyUpdateParallelQueueCount { get; }
 
-    public HadbSettingsBase(string systemName, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null, int lazyUpdateParallelQueueCount = 1)
+    public HadbSettingsBase(string systemName, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null, int lazyUpdateParallelQueueCount = Consts.Numbers.HadbDefaultLazyUpdateParallelQueueCount)
     {
         if (systemName._IsEmpty()) throw new CoresLibException("systemName is empty.");
         this.SystemName = systemName._NonNullTrim().ToUpperInvariant();
@@ -3272,7 +3263,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     protected internal abstract Task AtomicAddLogImplAsync(HadbTran tran, HadbLog log, string nameSpace, string ext1, string ext2, CancellationToken cancel = default);
     protected internal abstract Task<IEnumerable<HadbLog>> AtomicSearchLogImplAsync(HadbTran tran, string typeName, HadbLogQuery query, string nameSpace, CancellationToken cancel = default);
 
-    protected internal abstract Task LazyUpdateImplAsync(HadbTran tran, IEnumerable<HadbObject> dataList, CancellationToken cancel = default);
+    protected internal abstract Task<bool> LazyUpdateImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default);
 
     protected abstract Task<KeyValueList<string, string>> LoadDynamicConfigFromDatabaseImplAsync(CancellationToken cancel = default);
     protected abstract Task AppendMissingDynamicConfigToDatabaseImplAsync(KeyValueList<string, string> missingValues, CancellationToken cancel = default);
@@ -3418,38 +3409,87 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         {
             try
             {
-                // 非トランザクションの SQL 接続を開始する
-                await using var tran = await this.BeginDatabaseTransactionImplAsync(true, false, HadbTranOptions.None, cancel);
+                Ref<bool> anySqlConnectionError = false;
 
                 // 現在 キューに入っている項目に対する Lazy Update の実行
                 // キューは Immutable なので、現在の Queue を取得する
                 var queue = this.MemDb!._LazyUpdateQueue;
 
-                foreach (var kv in queue)
+                // キューに入っている全項目を並列化して処理する
+                var queuedObjectsList = queue.Keys.ToList();
+
+                // 非トランザクションの SQL 接続のリスト
+                HadbTran?[] tranArray = new HadbTran[this.Settings.LazyUpdateParallelQueueCount];
+                try
                 {
-                    var q = kv.Key;
-                    var copyOfQ = q.ToNonMemoryDbObject();
-
-                    bool ok = true;
-
-                    if (copyOfQ.Deleted == false)
+                    await queuedObjectsList._DoForEachParallelAsync(async (q, taskIndex) =>
                     {
-                        // 1 つの要素について DB 更新を行なう
-                        await this.LazyUpdateImplAsync(tran, copyOfQ, cancel);
-                    }
-
-                    // DB 更新に成功した場合は、DB 更新中にこのオブジェクトの内容の変更があったかどうか確認する
-                    if (ok)
-                    {
-                        if (copyOfQ.InternalFastUpdateVersion == q.InternalFastUpdateVersion)
+                        // このタスク用の SQL 接続が未接続の場合、接続を実施する
+                        if (tranArray[taskIndex] == null)
                         {
-                            // このオブジェクトの内容の変化がなければキューからこのオブジェクトを削除する
-                            this.MemDb!.DeleteFromLazyUpdateQueueInternal(q);
+                            try
+                            {
+                                tranArray[taskIndex] = await this.BeginDatabaseTransactionImplAsync(true, false, HadbTranOptions.None, cancel);
+                            }
+                            catch (Exception ex)
+                            {
+                                // SQL 接続に失敗
+                                ex._Error();
+
+                                anySqlConnectionError.Set(true);
+
+                                return;
+                            }
+                        }
+
+                        HadbTran tran = tranArray[taskIndex]!;
+
+                        var copyOfQ = q.ToNonMemoryDbObject();
+
+                        bool ok = true;
+
+                        if (copyOfQ.Deleted == false)
+                        {
+                            try
+                            {
+                                // 1 つの要素について DB 更新を行なう
+                                await this.LazyUpdateImplAsync(tran, copyOfQ, cancel);
+                            }
+                            catch (Exception ex)
+                            {
+                                ok = false;
+
+                                ex._Debug();
+                            }
+                        }
+
+                        // DB 更新に成功した場合は、DB 更新中にこのオブジェクトの内容の変更があったかどうか確認する
+                        if (ok)
+                        {
+                            if (copyOfQ.InternalFastUpdateVersion == q.InternalFastUpdateVersion)
+                            {
+                                // このオブジェクトの内容の変化がなければキューからこのオブジェクトを削除する
+                                this.MemDb!.DeleteFromLazyUpdateQueueInternal(q);
+                            }
+                        }
+                    },
+                    this.Settings.LazyUpdateParallelQueueCount,
+                    MultitaskDivideOperation.RoundRobin,
+                    cancel: cancel);
+                }
+                finally
+                {
+                    // SQL 接続をすべて解放する
+                    foreach (var tran in tranArray)
+                    {
+                        if (tran != null)
+                        {
+                            await tran._DisposeSafeAsync();
                         }
                     }
                 }
 
-                this.IsDatabaseConnectedForLazyWrite = true;
+                this.IsDatabaseConnectedForLazyWrite = !anySqlConnectionError;
             }
             catch
             {
