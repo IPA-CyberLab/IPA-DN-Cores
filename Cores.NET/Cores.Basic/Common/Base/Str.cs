@@ -1135,6 +1135,28 @@ namespace IPA.Cores.Basic
             return sb.ToString();
         }
 
+        public static bool CheckUseOnlyChars(string src, Exception? exceptionToThrow = null, string charList = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-", StringComparison comparison = StringComparison.Ordinal)
+        {
+            src = src._NonNull();
+
+            foreach (char c in src)
+            {
+                if (charList.IndexOf(c, StringComparison.Ordinal) == -1)
+                {
+                    if (exceptionToThrow != null)
+                    {
+                        throw exceptionToThrow;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
         public static string PrependIndent(string src, int indentWidth = 4, char indentChar = ' ', CrlfStyle crlfStyle = CrlfStyle.LocalPlatform)
         {
             var lines = src._GetLines();

@@ -550,6 +550,17 @@ public static class BasicHelper
     public static string _ReplaceStr(this string str, string oldKeyword, string newKeyword, bool caseSensitive = false) => Str.ReplaceStr(str, oldKeyword, newKeyword, caseSensitive);
     public static bool _CheckStrLen(this string? str, int maxLen) => Str.CheckStrLen(str, maxLen);
 
+    public static void _CheckStrFilled(this string? str, string exceptionStr)
+        => _CheckStrFilled(str, new CoresException(exceptionStr));
+
+    public static void _CheckStrFilled(this string? str, Exception? ex = null)
+    {
+        if (str._IsEmpty()) throw new ArgumentOutOfRangeException(nameof(str), $"The string is empty.");
+    }
+
+    public static void _CheckStrLenException(this string? str, int maxLen, string exceptionStr)
+        => _CheckStrLenException(str, maxLen, new Exception(exceptionStr));
+
     public static void _CheckStrLenException(this string? str, int maxLen, Exception? ex = null)
     {
         if (str._CheckStrLen(maxLen) == false) throw new ArgumentOutOfRangeException(nameof(str), $"The string length is too long. Allowed maximum length is {maxLen}.");
@@ -3363,6 +3374,12 @@ public static class BasicHelper
 
     public static string _MakeStringUseOnlyChars(this string src, string charList = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-", StringComparison comparison = StringComparison.Ordinal)
         => Str.MakeStringUseOnlyChars(src, charList, comparison);
+
+    public static void _CheckUseOnlyChars(this string src, string exceptionMessage, string charList = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-", StringComparison comparison = StringComparison.Ordinal)
+        => Str.CheckUseOnlyChars(src, new CoresException(exceptionMessage), charList, comparison);
+
+    public static bool _CheckUseOnlyChars(this string src, Exception? exceptionToThrow = null, string charList = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-", StringComparison comparison = StringComparison.Ordinal)
+        => Str.CheckUseOnlyChars(src, exceptionToThrow, charList, comparison);
 }
 
 

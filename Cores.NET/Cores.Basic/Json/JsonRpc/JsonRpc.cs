@@ -559,11 +559,23 @@ public class JsonRpcServerApi : AsyncService
         return ret;
     }
 
+    public static JsonRpcClientInfo GetCurrentRpcClientInfo()
+    {
+        var clientInfo = TaskVar.Get<JsonRpcClientInfo>();
+
+        if (clientInfo == null)
+        {
+            throw new CoresLibException("JsonRpcClientInfo task context is null. Perhaps this function is not called inside JSON RPC server.");
+        }
+
+        return clientInfo;
+    }
+
     public static void TryAuth(Func<string, string, bool> callback, string basicAuthErrorRealm = "")
     {
         try
         {
-            var clientInfo = TaskVar.Get<JsonRpcClientInfo>();
+            var clientInfo = GetCurrentRpcClientInfo();
 
             if (clientInfo != null && clientInfo.IsBasicAuthCredentialSupplied)
             {
@@ -1333,9 +1345,14 @@ public class JsonRpcClientInfo
     public DateTimeOffset ConnectedDateTime { get; }
     public SortedDictionary<string, string> Headers { get; }
     //public JsonRpcServer RpcServer { get; }
+
+    [JsonIgnore]
     public object? Param1 { get; set; }
+    [JsonIgnore]
     public object? Param2 { get; set; }
+    [JsonIgnore]
     public object? Param3 { get; set; }
+
     public string BasicAuthUsername { get; set; }
     public string BasicAuthPassword { get; set; }
     public bool IsBasicAuthCredentialSupplied => BasicAuthUsername._IsFilled() && BasicAuthPassword._IsFilled();

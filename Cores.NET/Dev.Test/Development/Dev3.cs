@@ -146,6 +146,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         public string HostLabel = "";
         public string HostSecretKey = "";
 
+        public string Email = "";
+
         public string AuthLogin_LastIpAddress = "";
         public string AuthLogin_LastFqdn = "";
         public long AuthLogin_Count = 0;
@@ -215,6 +217,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
             this.AuthRequested_FirstTime = this.AuthRequested_FirstTime._NormalizeDateTimeOffset();
             this.AuthRequested_LastTime = this.AuthRequested_LastTime._NormalizeDateTimeOffset();
+
+            this.Email = this.Email._NonNullTrim();
         }
 
         public override int GetMaxArchivedCount() => DevCoresConfig.MikakaDDnsServiceSettings.HostRecordMaxArchivedCount;
@@ -294,11 +298,11 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             [RpcParamHelp("ホストの IP アドレスを登録または更新するには、登録したい新しい IP アドレスを指定します。IP アドレスは明示的に文字列で指定することもできますが、\"myip\" という固定文字列を指定すると、この API の呼び出し元であるホストのグローバル IP アドレスを指定したものとみなされます。なお、IPv4 アドレスと IPv6 アドレスの両方を登録することも可能です。この場合は、IPv4 アドレスと IPv6 アドレスの両方を表記し、その間をカンマ文字 ',' で区切ります。IPv4 アドレスと IPv6 アドレスは、1 つずつしか指定できません。", "myip")]
             string ipAddress = "",
 
+            [RpcParamHelp("このホストレコードの所有者の連絡先メールアドレスを設定するためには、メールアドレス文字列を指定します。メールアドレスは省略することができます。\"delete\" という文字列を指定すると、すでに登録されているメールアドレスを消去することができます。メールアドレスは、この DDNS サーバーのシステム管理者のみが閲覧することができます。DDNS サーバーのシステム管理者は、DDNS サーバーに関するメンテナンスのお知らせを、指定したメールアドレス宛に送付することができます。", "optos@example.org")]
+            string email = "",
+
             [RpcParamHelp("このパラメータを指定すると、DDNS ホストレコードに付随する永続的なユーザーデータとして、任意の JSON データを記録することができます。記録される JSON データの内容は、DDNS の動作に影響を与えません。たとえば、個人的なメモ等を記録することができます。記録内容は、Key-Value 形式の文字列である必要があります。Key の値は、重複してはなりません。", "{'key1' : 'value1', 'key2' : 'value2'}")]
-                JObject? userData = null)
-        {
-            return new Host()._TaskResult();
-        }
+                JObject? userData = null);
     }
 
     public MikakaDDnsService(StartupParam? startupParam = null) : base(startupParam ?? new StartupParam())
@@ -330,6 +334,155 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
     }
 
     public Task<string> Test(int i) => $"Hello {i}"._TaskResult();
+
+    public Task<Host> DDNS_Register_Or_Update_Host(string hostSecretKey = "", string newHostLabel = "", string unlockKey = "", string licenseString = "", string ipAddress = "", string email = "", JObject? userData = null)
+    {
+        var client = JsonRpcServerApi.GetCurrentRpcClientInfo();
+
+        // パラメータの検査と正規化
+        hostSecretKey = hostSecretKey._NonNullTrim().ToUpperInvariant();
+
+        if (hostSecretKey._IsFilled())
+        {
+            hostSecretKey._CheckUseOnlyChars($"Specified {nameof(hostSecretKey)} contains invalid character.", "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+            hostSecretKey._CheckStrLenException(40, $"Specified {nameof(hostSecretKey)} is too long.");
+        }
+        else
+        {
+            // hostSecretKey が指定されていない場合は、新たに乱数で指定されたものとみなす
+            hostSecretKey = Str.GenRandStr();
+        }
+
+        newHostLabel = newHostLabel._NonNullTrim().ToLowerInvariant();
+
+        if (newHostLabel._IsFilled())
+        {
+            newHostLabel._CheckUseOnlyChars($"Specified {nameof(newHostLabel)} contains invalid character", "0123456789abcdefghijklmnopqrstuvwxyz-");
+
+            if (newHostLabel.Length < Hadb.CurrentDynamicConfig.DDns_MinHostLabelLen)
+                throw new CoresException($"Specified {nameof(newHostLabel)} is too long. {nameof(newHostLabel)} must be longer or equal than {Hadb.CurrentDynamicConfig.DDns_MinHostLabelLen} letters.");
+
+            newHostLabel._CheckStrLenException(Hadb.CurrentDynamicConfig.DDns_MaxHostLabelLen, $"Specified {nameof(newHostLabel)} is too long. {nameof(newHostLabel)} must be shorter or equal than {Hadb.CurrentDynamicConfig.DDns_MaxHostLabelLen} letters.");
+
+            foreach (var item in Hadb.CurrentDynamicConfig.DDns_ProhibitedHostnamesStartWith._NonNullTrim()
+                ._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', ';', ',', '/', '\t'))
+            {
+                if (item._IsFilled())
+                {
+                    string tmp = item.ToLowerInvariant();
+                    if (newHostLabel.StartsWith(tmp, StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new CoresException($"Specified {nameof(newHostLabel)} contains prohibited strings. Please try to use another.");
+                    }
+                }
+            }
+
+            if (newHostLabel.StartsWith("-", StringComparison.OrdinalIgnoreCase) ||
+                newHostLabel.EndsWith("-", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new CoresException($"Specified {nameof(newHostLabel)} must not start with or end with hyphon (-) character.");
+            }
+
+            if (newHostLabel._InStri("--"))
+                throw new CoresException($"Specified {nameof(newHostLabel)} must not contain double hyphon (--) string.");
+        }
+
+        unlockKey = unlockKey._MakeStringUseOnlyChars("0123456789");
+        licenseString = licenseString._NonNull();
+
+        ipAddress = ipAddress._NonNullTrim();
+
+        IPAddress? ipv4 = null;
+        IPAddress? ipv6 = null;
+
+        if (ipAddress._IsFilled())
+        {
+            if (ipAddress.StartsWith("my", StringComparison.OrdinalIgnoreCase))
+            {
+                var clientIp = client.RemoteIP._ToIPAddress(AllowedIPVersions.All, false)!;
+
+                if (clientIp.AddressFamily == AddressFamily.InterNetwork)
+                    ipv4 = clientIp;
+                else if (clientIp.AddressFamily == AddressFamily.InterNetworkV6)
+                    ipv6 = clientIp;
+                else
+                    throw new CoresException("clientIp has invalid network family.");
+            }
+            else
+            {
+                var ipTokens = ipAddress._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ',', ' ', '\t', ';');
+
+                if (ipTokens.Length == 0)
+                {
+                    ipAddress = "";
+                }
+                else if (ipTokens.Length == 1)
+                {
+                    var ip = ipTokens[0]._ToIPAddress(AllowedIPVersions.All, false)!;
+
+                    if (ip.AddressFamily == AddressFamily.InterNetwork)
+                        ipv4 = ip;
+                    else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+                        ipv6 = ip;
+                    else
+                        throw new CoresException($"{nameof(ipAddress)} has invalid network family.");
+                }
+                else if (ipTokens.Length == 2)
+                {
+                    for (int i = 0; i < ipTokens.Length; i++)
+                    {
+                        var ip = ipTokens[i]._ToIPAddress(AllowedIPVersions.All, false)!;
+
+                        if (ip.AddressFamily == AddressFamily.InterNetwork)
+                        {
+                            if (ipv4 == null)
+                            {
+                                ipv4 = ip;
+                            }
+                            else
+                            {
+                                throw new CoresException($"{nameof(ipAddress)} contains two or more IPv4 addresses");
+                            }
+                        }
+                        else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+                        {
+                            if (ipv6 == null)
+                            {
+                                ipv6 = ip;
+                            }
+                            else
+                            {
+                                throw new CoresException($"{nameof(ipAddress)} contains two or more IPv6 addresses");
+                            }
+                        }
+                        else
+                        {
+                            throw new CoresException($"{nameof(ipAddress)} has invalid network family.");
+                        }
+                    }
+                }
+                else
+                {
+                    throw new CoresException($"{nameof(ipAddress)} has invalid format.");
+                }
+            }
+        }
+
+        email = email._NonNullTrim();
+        email._CheckUseOnlyChars($"Specified {nameof(email)} contains invalid character", "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_@");
+
+        if (email._IsFilled() && email._IsSamei("delete") == false)
+        {
+            if (Str.CheckMailAddress(email) == false)
+            {
+                throw new CoresException($"{nameof(email)} has invalid email address format.");
+            }
+        }
+
+        if (userData != null) userData = userData._NormalizeEasyJsonStrAttributes();
+
+        throw new NotImplementedException();
+    }
 }
 
 

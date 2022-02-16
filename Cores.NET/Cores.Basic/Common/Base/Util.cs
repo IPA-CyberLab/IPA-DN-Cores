@@ -473,11 +473,11 @@ namespace IPA.Cores.Basic
     {
         // Do not change
         public static readonly DateTime ZeroDateTimeValue = new DateTime(1800, 1, 1);
-        public static readonly DateTimeOffset ZeroDateTimeOffsetValue = new DateTimeOffset(1800, 1, 1, 0, 0, 0, new TimeSpan(9, 0, 0));
+        public static readonly DateTimeOffset ZeroDateTimeOffsetValue = new DateTimeOffset(1800, 1, 1, 0, 0, 0, new TimeSpan(0, 0, 0));
 
         // Do not change
         public static readonly DateTime MaxDateTimeValue = new DateTime(9931, 12, 21, 0, 0, 0);
-        public static readonly DateTimeOffset MaxDateTimeOffsetValue = new DateTimeOffset(9931, 12, 21, 0, 0, 0, new TimeSpan(9, 0, 0));
+        public static readonly DateTimeOffset MaxDateTimeOffsetValue = new DateTimeOffset(9931, 12, 21, 0, 0, 0, new TimeSpan(0, 0, 0));
 
         public static readonly object EmptyObject = Limbo.EmptyObject;
 
