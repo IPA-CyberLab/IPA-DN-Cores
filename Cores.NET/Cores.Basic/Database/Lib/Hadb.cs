@@ -3399,7 +3399,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     public async Task LazyUpdateCoreAsync(EnsureSpecial yes, CancellationToken cancel = default)
     {
-        using (await Lock_UpdateCoreAsync.LockWithAwait(cancel))
+        //using (await Lock_UpdateCoreAsync.LockWithAwait(cancel)) // ロック不要? 2022/02/16 登
         {
             try
             {
@@ -3892,7 +3892,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         int numError = 0;
         await Task.Yield();
         Debug($"LazyUpdateMainLoopAsync: Waiting for start.");
-        await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () => (this.CheckIfReady(requireDatabaseConnected: true, EnsureSpecial.Yes).IsOk), cancel, true);
+        await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 1000, () => (this.CheckIfReady(requireDatabaseConnected: true, EnsureSpecial.Yes).IsOk), cancel, true);
         Debug($"LazyUpdateMainLoopAsync: Started.");
 
         while (cancel.IsCancellationRequested == false)

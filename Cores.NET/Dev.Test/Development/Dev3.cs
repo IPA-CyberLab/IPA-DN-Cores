@@ -114,8 +114,15 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
                    "register",
                    "admin",
                    "mail",
+                   "ns00",
+                   "smtp",
+                   "root",
+                   "pop3",
+                   "imap",
+                   "ftp",
                    "ws-",
                    "websocket-",
+                   "_acme",
                 }._Combine(";");
 
             DDns_ProhibitedHostnamesStartWith = DDns_ProhibitedHostnamesStartWith._NonNullTrim()
@@ -145,8 +152,11 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         public string HostLabel = "";
         public string HostSecretKey = "";
 
-        public string LastRequestedIpAddress = "";
-        public string LastRequestedFqdn = "";
+        public string AuthLogin_LastIpAddress = "";
+        public string AuthLogin_LastFqdn = "";
+
+        public DateTimeOffset AuthRequested_FirstTime = DtOffsetZero;
+        public DateTimeOffset AuthRequested_LastTime = DtOffsetZero;
 
         public string CreateRequestedIpAddress = "";
         public string CreateRequestedIpNetwork = "";
@@ -186,12 +196,11 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             this.CreateRequestedIpNetwork = this.CreateRequestedIpNetwork._NormalizeIp();
 
             this.HostAddress_IPv4 = this.HostAddress_IPv4._NormalizeIp();
-            this.HostAddress_IPv6 = this.HostAddress_IPv6._NormalizeIp();
-
             this.HostAddress_IPv4_LastUpdateTime = this.HostAddress_IPv4_LastUpdateTime._NormalizeDateTimeOffset();
-            this.HostAddress_IPv6_LastUpdateTime = this.HostAddress_IPv6_LastUpdateTime._NormalizeDateTimeOffset();
-
             this.HostAddress_IPv4_FirstUpdateTime = this.HostAddress_IPv4_FirstUpdateTime._NormalizeDateTimeOffset();
+
+            this.HostAddress_IPv6 = this.HostAddress_IPv6._NormalizeIp();
+            this.HostAddress_IPv6_LastUpdateTime = this.HostAddress_IPv6_LastUpdateTime._NormalizeDateTimeOffset();
             this.HostAddress_IPv6_FirstUpdateTime = this.HostAddress_IPv6_FirstUpdateTime._NormalizeDateTimeOffset();
 
             this.UsedUnlockKey = this.UsedUnlockKey._NonNull();
@@ -200,14 +209,17 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
             this.HostLabel_LastUpdateTime = this.HostLabel_LastUpdateTime._NormalizeDateTimeOffset();
 
-            this.LastRequestedIpAddress = this.LastRequestedIpAddress._NormalizeIp();
-            this.LastRequestedFqdn = this.LastRequestedFqdn._NormalizeFqdn();
+            this.AuthLogin_LastIpAddress = this.AuthLogin_LastIpAddress._NormalizeIp();
+            this.AuthLogin_LastFqdn = this.AuthLogin_LastFqdn._NormalizeFqdn();
 
             this.DnsQuery_FirstAccessTime = this.DnsQuery_FirstAccessTime._NormalizeDateTimeOffset();
             this.DnsQuery_LastAccessTime = this.DnsQuery_LastAccessTime._NormalizeDateTimeOffset();
 
             this.DnsQuery_FirstAccessDnsClientIp = this.DnsQuery_FirstAccessDnsClientIp._NormalizeIp();
             this.DnsQuery_LastAccessDnsClientIp = this.DnsQuery_LastAccessDnsClientIp._NormalizeIp();
+
+            this.AuthRequested_FirstTime = this.AuthRequested_FirstTime._NormalizeDateTimeOffset();
+            this.AuthRequested_LastTime = this.AuthRequested_LastTime._NormalizeDateTimeOffset();
         }
 
         public override int GetMaxArchivedCount() => DevCoresConfig.MikakaDDnsServiceSettings.HostRecordMaxArchivedCount;
@@ -216,8 +228,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         {
             HostLabel = "tanaka001",
             HostSecretKey = "00112233445566778899AABBCCDDEEFF01020304",
-            LastRequestedIpAddress = "10.20.30.40",
-            LastRequestedFqdn = "host1.example.org",
+            AuthLogin_LastIpAddress = "10.20.30.40",
+            AuthLogin_LastFqdn = "host1.example.org",
             CreateRequestedIpAddress = "3.4.5.6",
             CreateRequestedIpNetwork = "3.4.5.0",
             HostLabel_NumUpdates = 123,
@@ -284,7 +296,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             [RpcParamHelp("この DDNS サーバーで新しいホストを作成する際に、DDNS サーバーの運営者によって、固定使用許諾文字列の指定を必須としている場合は、固定使用許諾文字列を指定します。固定使用許諾文字列は DDNS サーバーの運営者から通知されます。", "The_ancient_pond_A_frog_leaps_in_The_sound_of_the_water")]
             string licenseString = "",
 
-            [RpcParamHelp("ホストの IP アドレスを登録または更新するには、このパラメータに、\"myip\" という文字列 (API の呼び出し元の)、または実際に登録したい IP アドレスを指定します。1 つのホストは、IP アドレスとして、IPv4 または IPv6 アドレスの両方を保持できます。しかし、この API の呼び出しの際には、IPv4 アドレスまたは IPv6 アドレスのいずれか一方のみを指定します。", "1.2.3.4")]
+            [RpcParamHelp("ホストの IP アドレスを登録または更新するには、登録したい新しい IPv4 アドレスを指定します。なお、IPv4 アドレスと IPv6 アドレスの両方を登録することも可能です。この場合は、IPv4 アドレスと IPv6 アドレスの両方を表記し、その間をカンマ文字 ',' で区切ります。IPv4 アドレスと IPv6 アドレスは、1 つずつしか指定できません。", "1.2.3.4,2041:AF80:123::456")]
             string ipAddress = "",
 
             [RpcParamHelp("このパラメータを指定すると、DDNS ホストレコードに付随する永続的なユーザーデータとして、任意の JSON データを記録することができます。記録される JSON データの内容は、DDNS の動作に影響を与えません。たとえば、個人的なメモ等を記録することができます。記録内容は、Key-Value 形式の文字列である必要があります。Key の値は、重複してはなりません。", "{'key1' : 'value1', 'key2' : 'value2'}")]
