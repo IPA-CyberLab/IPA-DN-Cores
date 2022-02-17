@@ -199,12 +199,13 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
     {
         [JsonConverter(typeof(StringEnumConverter))]
         public HostApiResult? ApiResult; // RPC Only
+
+        public string HostLabel = "";
         public string? HostFqdnPrimary; // RPC Only
 
         public string HostAddress_IPv4 = "";
         public string HostAddress_IPv6 = "";
         public string HostSecretKey = "";
-        public string HostLabel = "";
 
         public DateTimeOffset CreatedTime = DtOffsetZero;
 
@@ -366,12 +367,12 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         public Task<string> Test([RpcParamHelp("テスト入力整数値", 123)] int i);
 
         [RpcMethodHelp("DDNS ホストレコードを作成、更新または取得します。")]
-        public Task<Host> DDNS_HostRecord(
+        public Task<Host> DDNS_Host(
             [RpcParamHelp("ホストシークレットキーを指定します。新しいホストを作成する際には、新しいキーを指定してください。キーはクライアント側でランダムな 40 文字以内の半角英数字 (0-9、A-Z、ハイフン、アンダーバー の 38 種類の文字) を指定してください。通常は、20 バイトの乱数で生成したユニークなバイナリデータを 16 進数に変換したものを使用してください。既存のホストを更新する際には、既存のキーを指定してください。すでに存在するホストのキーが正確に指定された場合は、そのホストに関する情報の更新を希望するとみなされます。それ以外の場合は、新しいホストの作成を希望するとみなされます。ホストシークレットキーは、大文字・小文字を区別しません。ホストシークレットキーを省略した場合は、新たなホストを作成するものとみなされ、DDNS サーバー側でランダムでユニークなホストシークレットキーが新規作成されます。", "00112233445566778899AABBCCDDEEFF01020304")]
-                string hostSecretKey = "",
+                string secretKey = "",
 
             [RpcParamHelp("新しいホストラベル (ホストラベルとは、ダイナミック DNS のホスト FQDN の先頭部分のホスト名に相当します。) を作成するか、または既存のホスト名を変更する場合は、作成または変更後の希望ホスト名を指定します。新しくホストを登録する場合で、かつ、希望ホスト名が指定されていない場合は、ランダムな文字列で新しいホスト名が作成されます。", "tanaka001")]
-            string hostLabel = "",
+            string label = "",
 
             [RpcParamHelp("この DDNS サーバーで新しいホストを作成する際に、DDNS サーバーの運営者によって、登録キーの指定を必須としている場合は、未使用の登録キーを 1 つ指定します。登録キーは 25 桁の半角数字です。ハイフンは省略できます。登録キーは DDNS サーバーの運営者から発行されます。一度使用された登録キーは、再度利用することができなくなります。ただし、登録キーを用いて作成されたホストが削除された場合は、その登録キーを再び使用することができるようになります。ホストの更新時には、登録キーは省略できます。この DDNS サーバーが登録キーを不要としている場合は、登録キーは省略できます。", "12345-67890-12345-97865-89450")]
             string unlockKey = "",
@@ -422,7 +423,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
     public Task<string> Test(int i) => $"Hello {i}"._TaskResult();
 
-    public async Task<Host> DDNS_HostRecord(string hostSecretKey = "", string newHostLabel = "", string unlockKey = "", string licenseString = "", string ipAddress = "", string userGroupSecretKey = "", string email = "", JObject? userData = null)
+    public async Task<Host> DDNS_Host(string hostSecretKey = "", string newHostLabel = "", string unlockKey = "", string licenseString = "", string ipAddress = "", string userGroupSecretKey = "", string email = "", JObject? userData = null)
     {
         var client = JsonRpcServerApi.GetCurrentRpcClientInfo();
 
