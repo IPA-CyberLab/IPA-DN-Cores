@@ -119,7 +119,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                 //string id = "GET-" + Str.NewGuid().ToUpperInvariant();
                 string in_str = "{'jsonrpc':'2.0','method':'" + rpcMethod + "','params':" + args + "}";
 
-                await ProcessHttpRequestMain(request, response, in_str, Consts.MimeTypes.TextUtf8, Consts.HttpStatusCodes.InternalServerError, true);
+                await ProcessHttpRequestMain(request, response, in_str, Consts.MimeTypes.TextUtf8, Consts.HttpStatusCodes.InternalServerError, true, paramsStrComparison: StringComparison.OrdinalIgnoreCase);
             }
         }
         catch (Exception ex)
@@ -142,7 +142,7 @@ public class JsonRpcHttpServer : JsonRpcServer
         }
     }
 
-    protected virtual async Task ProcessHttpRequestMain(HttpRequest request, HttpResponse response, string inStr, string responseContentsType = Consts.MimeTypes.Json, int httpStatusWhenError = Consts.HttpStatusCodes.Ok, bool simpleResultWhenOk = false)
+    protected virtual async Task ProcessHttpRequestMain(HttpRequest request, HttpResponse response, string inStr, string responseContentsType = Consts.MimeTypes.Json, int httpStatusWhenError = Consts.HttpStatusCodes.Ok, bool simpleResultWhenOk = false, StringComparison paramsStrComparison = StringComparison.Ordinal)
     {
         int statusCode = Consts.HttpStatusCodes.Ok;
 
@@ -192,7 +192,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                 suppliedUsername,
                 suppliedPassword);
 
-            var callResults = await this.CallMethods(inStr, client_info, simpleResultWhenOk);
+            var callResults = await this.CallMethods(inStr, client_info, simpleResultWhenOk, paramsStrComparison);
 
             retStr = callResults.ResultString;
 
@@ -292,7 +292,7 @@ public class JsonRpcHttpServer : JsonRpcServer
         {
             methodIndex++;
 
-            string helpStr = $"RPC Method #{methodIndex}: {m.Name}({(m.ParametersHelpList.Select(x => x.Name + ": " + x.TypeName + (x.Mandatory ? "" : " = " + x.DefaultValue._ObjectToJson(compact: true) ))._Combine(", "))}): {m.RetValueTypeName};";
+            string helpStr = $"RPC Method #{methodIndex}: {m.Name}({(m.ParametersHelpList.Select(x => x.Name + ": " + x.TypeName + (x.Mandatory ? "" : " = " + x.DefaultValue._ObjectToJson(compact: true)))._Combine(", "))}): {m.RetValueTypeName};";
 
             if (m.Description._IsFilled()) helpStr += " // " + m.Description;
 

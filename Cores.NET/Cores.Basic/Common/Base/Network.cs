@@ -1856,6 +1856,29 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        // IP ネットワークアドレスの正規化
+        public static IPAddress NormalizeIpNetworkAddressIPv4v6(IPAddress a, int ipv4SubnetLength, int ipv6SubnetLength)
+        {
+            IPAddress mask;
+
+            if (a.AddressFamily == AddressFamily.InterNetwork)
+            {
+                mask = IPUtil.IntToSubnetMask4(ipv4SubnetLength);
+            }
+            else if (a.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                mask = IPUtil.IntToSubnetMask6(ipv6SubnetLength);
+            }
+            else
+            {
+                throw new ApplicationException("invalid AddressFamily");
+            }
+
+            IPAddress ret = IPUtil.IPAnd(a, mask);
+
+            return ret;
+        }
+
         // すべてのビットが立っているアドレス
         public static IPAddress AllFilledAddress
         {

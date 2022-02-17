@@ -113,8 +113,12 @@ public abstract class HadbBasedServiceHiveSettingsBase : INormalizable
 
     public List<string> DnsResolverServerIpAddressList = new List<string>();
 
+    public virtual void NormalizeImpl() { }
+
     public void Normalize()
     {
+        this.NormalizeImpl();
+
         this.HadbSystemName = this.HadbSystemName._FilledOrDefault(this.GetType().Name);
 
         this.HadbSqlServerHostname = this.HadbSqlServerHostname._FilledOrDefault("__SQL_SERVER_HOSTNAME_HERE__"); ;

@@ -372,9 +372,11 @@ public class RpcMethodInfo
             this._ParametersHelpList.Add(new RpcParameterHelp(param, this.Name));
         }
 
+        RefBool isGoodSample = new RefBool(false);
+
         if (this.RetValueType != null)
         {
-            this.RetValueSampleValueObject = SampleDataUtil.Get(this.RetValueType, this.Name);
+            this.RetValueSampleValueObject = SampleDataUtil.Get(this.RetValueType, this.Name, isGoodSample: isGoodSample);
             this.IsRetValuePrimitiveType = Dbg.IsPrimitiveType(this.RetValueType);
             this.HasRetValue = true;
         }
@@ -394,12 +396,12 @@ public class RpcMethodInfo
             }
         }
 
-        this.RetValueSampleValueJsonMultilineStr = this.RetValueSampleValueObject?._ObjectToJson(includeNull: true, compact: false) ?? "";
+        this.RetValueSampleValueJsonMultilineStr = this.RetValueSampleValueObject?._ObjectToJson(includeNull: !isGoodSample.Value, compact: false) ?? "";
 
         this.RequireAuth = (methodInfo.GetCustomAttribute<RpcRequireAuthAttribute>() != null) ? true : false;
     }
 
-    public async Task<object?> InvokeMethod(object targetInstance, string methodName, JObject param)
+    public async Task<object?> InvokeMethod(object targetInstance, string methodName, JObject param, StringComparison paramsStrComparison = StringComparison.Ordinal)
     {
         object?[] inParams = new object[this.ParametersByIndex.Length];
         if (this.ParametersByIndex.Length == 1 && this.ParametersByIndex[0].ParameterType == typeof(System.Object))
@@ -411,8 +413,13 @@ public class RpcMethodInfo
             for (int i = 0; i < this.ParametersByIndex.Length; i++)
             {
                 ParameterInfo pi = this.ParametersByIndex[i];
-                if (param != null && param.TryGetValue(pi.Name, out var value))
+                JToken? value;
+                if (param != null && (param.TryGetValue(pi.Name, out value) || param.TryGetValue(pi.Name, paramsStrComparison, out value)))
                 {
+                    if (pi.ParameterType._IsSubClassOfOrSame(typeof(JObject)) && value.Type == JTokenType.String && value.Value<string>() == "")
+                    {
+                        value = new JObject();
+                    }
                     inParams[i] = value.ToObject(pi.ParameterType);
                 }
                 else if (pi.HasDefaultValue)
@@ -496,10 +503,10 @@ public class JsonRpcServerApi : AsyncService
         return mi;
     }
 
-    public Task<object?> InvokeMethod(string methodName, JObject param, RpcMethodInfo? methodInfo = null)
+    public Task<object?> InvokeMethod(string methodName, JObject param, RpcMethodInfo? methodInfo = null, StringComparison paramsStrComparison = StringComparison.Ordinal)
     {
         if (methodInfo == null) methodInfo = GetMethodInfo(methodName);
-        return methodInfo!.InvokeMethod(this.TargetObject, methodName, param);
+        return methodInfo!.InvokeMethod(this.TargetObject, methodName, param, paramsStrComparison);
     }
 
     protected Type GetRpcInterface()
@@ -699,7 +706,7 @@ public abstract class JsonRpcServer
         this.Config = cfg ?? new JsonRpcServerConfig();
     }
 
-    public async Task<JsonRpcResponse> CallMethod(JsonRpcRequest req, Ref<Exception?> exception)
+    public async Task<JsonRpcResponse> CallMethod(JsonRpcRequest req, Ref<Exception?> exception, StringComparison paramsStrComparison = StringComparison.Ordinal)
     {
         try
         {
@@ -718,7 +725,7 @@ public abstract class JsonRpcServer
 
             try
             {
-                object? retObj = await this.Api.InvokeMethod(req.Method!, inObj, method);
+                object? retObj = await this.Api.InvokeMethod(req.Method!, inObj, method, paramsStrComparison);
                 if (method!.IsGenericTask == false)
                 {
                     retObj = null;
@@ -758,7 +765,7 @@ public abstract class JsonRpcServer
         }
     }
 
-    public async Task<JsonRpcCallResult> CallMethods(string inputStr, JsonRpcClientInfo clientInfo, bool simpleResultWhenOk)
+    public async Task<JsonRpcCallResult> CallMethods(string inputStr, JsonRpcClientInfo clientInfo, bool simpleResultWhenOk, StringComparison paramsStrComparison = StringComparison.Ordinal)
     {
         bool isSingle = false;
         List<JsonRpcRequest> requestList = new List<JsonRpcRequest>();
@@ -856,7 +863,7 @@ public abstract class JsonRpcServer
                         {
                             Ref<Exception?> applicationException = new Ref<Exception?>();
 
-                            JsonRpcResponse res = await CallMethod(req, applicationException);
+                            JsonRpcResponse res = await CallMethod(req, applicationException, paramsStrComparison);
                             if (req.Id != null) response_list.Add(res);
 
                             log.RpcResultOk = res.IsOk;

@@ -46,7 +46,7 @@
 //      オンメモリで消費するプロセスメモリ: 約 8GB (余裕をもって 10GB と考えること)
 //      FastSearchByKey の速度: 4,500,000 qps
 //      
-//      SQL DB: データ領域 2.GB, インデックス領域 7.1GB
+//      SQL DB: データ領域 2.0 GB, インデックス領域 7.1 GB
 //      SQL サーバーからのフルリロード時間: 30 秒 (ネットワーク経由、700Mbps くらい出る)
 //      リロードした SQL Row を HadbObject に変換する時間: 36 秒
 //      HadbObject を MemDb に注入する時間: 150 秒
@@ -2232,7 +2232,7 @@ public sealed class HadbObject<T> : INormalizable // 単なるラッパー
     public string GetUserDataJsonString() => TargetObject.GetUserDataJsonString();
     public void CheckIsMemoryDbObject() => TargetObject.CheckIsMemoryDbObject();
     public void CheckIsNotMemoryDbObject() => TargetObject.CheckIsNotMemoryDbObject();
-    public bool FastUpdate(Func<T, bool> updateFunc) => TargetObject.FastUpdate(updateFunc);
+    public T FastUpdate(Func<T, bool> updateFunc) => TargetObject.FastUpdate(updateFunc);
     public Type GetUserDataType() => TargetObject.GetUserDataType();
     public string GetUserDataTypeName() => TargetObject.GetUserDataTypeName();
     public string GetUidPrefix() => TargetObject.GetUidPrefix();
@@ -2462,9 +2462,11 @@ public sealed class HadbObject : INormalizable
         if (this.IsMemoryDbObject) throw new CoresLibException("this.IsMemoryDbObject == true");
     }
 
-    public bool FastUpdate<T>(Func<T, bool> updateFunc) where T : HadbData
+    public T FastUpdate<T>(Func<T, bool> updateFunc) where T : HadbData
     {
         CheckIsMemoryDbObject();
+
+        T retNewObj;
 
         lock (this.Lock)
         {
@@ -2474,7 +2476,7 @@ public sealed class HadbObject : INormalizable
             var oldKeys = this.GetKeys();
             var oldLabels = this.GetLabels();
 
-            var userData = this.UserData._CloneDeep().GetData<T>();
+            T userData = this.UserData._CloneDeep().GetData<T>();
 
             string oldJson = userData.GetUserDataJsonString();
 
@@ -2482,7 +2484,8 @@ public sealed class HadbObject : INormalizable
 
             if (ret == false)
             {
-                return false;
+                // 変更なし
+                return this.UserData._CloneDeep().GetData<T>();
             }
 
             try
@@ -2498,7 +2501,8 @@ public sealed class HadbObject : INormalizable
 
             if (oldJson._IsSamei(newJson))
             {
-                return false;
+                // 変更なし
+                return this.UserData._CloneDeep().GetData<T>();
             }
 
             var newKeys = userData.GetKeys();
@@ -2518,11 +2522,13 @@ public sealed class HadbObject : INormalizable
             this.UpdateDt = DtOffsetNow;
 
             this.InternalFastUpdateVersion++;
+
+            retNewObj = this.UserData.GetData<T>();
         }
 
         this.MemDb!.AddToLazyUpdateQueueInternal(this);
 
-        return true;
+        return retNewObj._CloneDeep();
     }
 
     internal bool Internal_UpdateIfNew(EnsureSpecial yes, HadbObject newObj, out HadbKeys oldKeys, out HadbLabels oldLabels)
@@ -3231,7 +3237,22 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     public string SystemName => Settings.SystemName;
     bool IsEnabled_NoMemDb => Settings.OptionFlags.Bit(HadbOptionFlags.NoMemDb);
 
-    public TDynamicConfig CurrentDynamicConfig { get; private set; }
+    TDynamicConfig _CurrentDynamicConfig;
+    bool _IsDynamicConfigInited = false;
+
+    public TDynamicConfig CurrentDynamicConfig
+    {
+        [MethodImpl(Inline)]
+        get
+        {
+            if (_IsDynamicConfigInited == false)
+            {
+                throw new CoresLibException("CurrentDynamicConfig is not loaded yet.");
+            }
+
+            return this._CurrentDynamicConfig;
+        }
+    }
 
     public TMem? MemDb { get; private set; } = null;
 
@@ -3295,8 +3316,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             this.Settings = settings; // CloneDeep 禁止
 
             initialDynamicConfig._NullCheck(nameof(initialDynamicConfig));
-            this.CurrentDynamicConfig = initialDynamicConfig;
-            this.CurrentDynamicConfig.Normalize();
+            this._CurrentDynamicConfig = initialDynamicConfig;
+            this._CurrentDynamicConfig.Normalize();
 
             this.ReloadMainLoopTask = ReloadMainLoopAsync(this.GrandCancel)._LeakCheck();
             this.LazyUpdateMainLoopTask = LazyUpdateMainLoopAsync(this.GrandCancel)._LeakCheck();
@@ -3387,7 +3408,9 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                 var loadedDynamicConfigValues = await this.LoadDynamicConfigFromDatabaseImplAsync(cancel);
 
                 // 読み込んだ DynamicConfig の最新値を適用する
-                var missingDynamicConfigValues = this.CurrentDynamicConfig.UpdateFromDatabaseAndReturnMissingValues(loadedDynamicConfigValues);
+                var missingDynamicConfigValues = this._CurrentDynamicConfig.UpdateFromDatabaseAndReturnMissingValues(loadedDynamicConfigValues);
+
+                this._IsDynamicConfigInited = true;
 
                 // 不足している DynamicConfig のデフォルト値を DB に書き込む
                 if (missingDynamicConfigValues.Any())
@@ -3588,7 +3611,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         {
             if (partialReloadMinUpdateTime._IsZeroDateTime())
             {
-                partialReloadMinUpdateTime = this.LastDatabaseReloadTime - this.CurrentDynamicConfig.HadbReloadTimeShiftMarginMsecs._ToTimeSpanMSecs();
+                partialReloadMinUpdateTime = this.LastDatabaseReloadTime - this._CurrentDynamicConfig.HadbReloadTimeShiftMarginMsecs._ToTimeSpanMSecs();
             }
         }
 
@@ -3662,7 +3685,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                         if (this.Settings.OptionFlags.Bit(HadbOptionFlags.NoLocalBackup) == false)
                         {
                             // DB のデータをローカルバックアップファイルに書き込む
-                            await backupDynamicConfigPath.FileSystem.WriteJsonToFileAsync(backupDynamicConfigPath.PathString, this.CurrentDynamicConfig,
+                            await backupDynamicConfigPath.FileSystem.WriteJsonToFileAsync(backupDynamicConfigPath.PathString, this._CurrentDynamicConfig,
                                 backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
                                 cancel: cancel, withBackup: true);
 
@@ -3702,7 +3725,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                         // stat を定期的に生成する
                         bool saveStat = false;
 
-                        if (this.CurrentDynamicConfig.HadbAutomaticStatIntervalMsecs >= 1 && (lastStatWrittenTimeStamp.Value._IsZeroDateTime() || (DtOffsetNow >= (lastStatWrittenTimeStamp.Value + this.CurrentDynamicConfig.HadbAutomaticStatIntervalMsecs._ToTimeSpanMSecs()))))
+                        if (this._CurrentDynamicConfig.HadbAutomaticStatIntervalMsecs >= 1 && (lastStatWrittenTimeStamp.Value._IsZeroDateTime() || (DtOffsetNow >= (lastStatWrittenTimeStamp.Value + this._CurrentDynamicConfig.HadbAutomaticStatIntervalMsecs._ToTimeSpanMSecs()))))
                         {
                             saveStat = true;
                         }
@@ -3794,7 +3817,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
                             loadDynamicConfig.Normalize();
 
-                            this.CurrentDynamicConfig = loadDynamicConfig;
+                            this._CurrentDynamicConfig = loadDynamicConfig;
+                            this._IsDynamicConfigInited = true;
                         }
                         catch (Exception ex2)
                         {
@@ -3903,7 +3927,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
             bool fullReloadMode = false;
 
-            if (this.LastDatabaseFullReloadTick == 0 || (now >= (this.LastDatabaseFullReloadTick + this.CurrentDynamicConfig.HadbFullReloadIntervalMsecs)) || this.MemDb == null)
+            if (this.LastDatabaseFullReloadTick == 0 || (now >= (this.LastDatabaseFullReloadTick + this._CurrentDynamicConfig.HadbFullReloadIntervalMsecs)) || this.MemDb == null)
             {
                 fullReloadMode = true;
             }
@@ -3931,7 +3955,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             }
 
 
-            int nextWaitTime = Util.GenRandInterval(ok ? this.CurrentDynamicConfig.HadbReloadIntervalMsecsLastOk : this.CurrentDynamicConfig.HadbReloadIntervalMsecsLastError);
+            int nextWaitTime = Util.GenRandInterval(ok ? this._CurrentDynamicConfig.HadbReloadIntervalMsecsLastOk : this._CurrentDynamicConfig.HadbReloadIntervalMsecsLastError);
             Debug($"ReloadMainLoopAsync: Waiting for {nextWaitTime._ToString3()} msecs for next DB read.");
             await cancel._WaitUntilCanceledAsync(nextWaitTime);
         }
@@ -3987,7 +4011,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                 Debug($"LazyUpdateMainLoopAsync: numCycle={numCycle}, numError={numError} End. Took time: {(endTick - startTick)._ToString3()} msecs.");
             }
 
-            int nextWaitTime = Util.GenRandInterval(this.CurrentDynamicConfig.HadbLazyUpdateIntervalMsecs);
+            int nextWaitTime = Util.GenRandInterval(this._CurrentDynamicConfig.HadbLazyUpdateIntervalMsecs);
 
             await cancel._WaitUntilCanceledAsync(nextWaitTime);
         }
@@ -4096,13 +4120,13 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
         // 同時並列実行トランザクション数の制限
         using IDisposable concurrentLimitEntry = (ignoreQuota || clientName._IsEmpty()) ? new EmptyDisposable() :
-            (writeMode ? this.DbConcurrentTranLimiterWritePerClient.EnterWithUsing(clientName, out _, this.CurrentDynamicConfig.HadbMaxDbConcurrentWriteTransactionsPerClient) :
-                         this.DbConcurrentTranLimiterReadPerClient.EnterWithUsing(clientName, out _, this.CurrentDynamicConfig.HadbMaxDbConcurrentReadTransactionsPerClient));
+            (writeMode ? this.DbConcurrentTranLimiterWritePerClient.EnterWithUsing(clientName, out _, this._CurrentDynamicConfig.HadbMaxDbConcurrentWriteTransactionsPerClient) :
+                         this.DbConcurrentTranLimiterReadPerClient.EnterWithUsing(clientName, out _, this._CurrentDynamicConfig.HadbMaxDbConcurrentReadTransactionsPerClient));
 
         if (writeMode)
         {
             int current = Interlocked.Increment(ref _DbConcurrentTranWriteTotal);
-            if (ignoreQuota == false && current > this.CurrentDynamicConfig.HadbMaxDbConcurrentWriteTransactionsTotal)
+            if (ignoreQuota == false && current > this._CurrentDynamicConfig.HadbMaxDbConcurrentWriteTransactionsTotal)
             {
                 Interlocked.Decrement(ref _DbConcurrentTranWriteTotal);
                 throw new CoresException("Too many concurrent write transactions running. Please wait for moment and try again later.");
@@ -4111,7 +4135,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         else
         {
             int current = Interlocked.Increment(ref _DbConcurrentTranReadTotal);
-            if (ignoreQuota == false && current > this.CurrentDynamicConfig.HadbMaxDbConcurrentReadTransactionsTotal)
+            if (ignoreQuota == false && current > this._CurrentDynamicConfig.HadbMaxDbConcurrentReadTransactionsTotal)
             {
                 Interlocked.Decrement(ref _DbConcurrentTranReadTotal);
                 throw new CoresException("Too many concurrent read transactions running. Please wait for moment and try again later.");
@@ -4361,7 +4385,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
         public async Task BeginAsync(bool takeSnapshot, CancellationToken cancel = default)
         {
-            long autoSnapshotInterval = this.Hadb.CurrentDynamicConfig.HadbAutomaticSnapshotIntervalMsecs;
+            long autoSnapshotInterval = this.Hadb._CurrentDynamicConfig.HadbAutomaticSnapshotIntervalMsecs;
 
             if (BeganFlag.IsFirstCall())
             {

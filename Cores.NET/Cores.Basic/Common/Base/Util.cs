@@ -8521,7 +8521,7 @@ namespace IPA.Cores.Basic
     {
         static readonly FastCache<string, object?> CacheData = new FastCache<string, object?>(int.MaxValue);
 
-        public static object? Get(Type type, string additionalTag1 = "", string additionalTag2 = "")
+        public static object? Get(Type type, string additionalTag1 = "", string additionalTag2 = "", RefBool? isGoodSample = null)
         {
             if (Dbg.IsPrimitiveType(type)) return null;
 
@@ -8577,6 +8577,7 @@ namespace IPA.Cores.Basic
                         if (ret != null)
                         {
                             if (ret is INormalizable n) n._TryNormalize();
+                            isGoodSample?.Set(true);
                             return ret;
                         }
                     }

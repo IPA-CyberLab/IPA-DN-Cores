@@ -390,10 +390,21 @@ public static class BasicHelper
     public static ulong _ToULong(this string? s) => Str.StrToULong(s);
     public static double _ToDouble(this string? s) => Str.StrToDouble(s);
     public static decimal _ToDecimal(this string? s) => Str.StrToDecimal(s);
+
     public static bool _IsSame(this string? s, string? t, bool ignoreCase = false) => ((s == null && t == null) ? true : ((s == null || t == null) ? false : (ignoreCase ? Str.StrCmpi(s, t) : Str.StrCmp(s, t))));
     public static bool _IsSame(this string? s, string? t, StringComparison comparison) => ((s == null && t == null) ? true : ((s == null || t == null) ? false : string.Equals(s, t, comparison)));
     public static bool _IsSamei(this string? s, string? t) => _IsSame(s, t, true);
     public static bool _IsSameiIgnoreUnderscores(this string? s, string? t) => ((s == null && t == null) ? true : ((s == null || t == null) ? false : (s.Replace("_", "")._IsSamei(t.Replace("_", "")))));
+
+    [MethodImpl(Inline)]
+    public static bool _IsDiff(this string? s, string? t, bool ignoreCase = false) => !_IsSame(s, t, ignoreCase);
+    [MethodImpl(Inline)]
+    public static bool _IsDiff(this string? s, string? t, StringComparison comparison) => !_IsSame(s, t, comparison);
+    [MethodImpl(Inline)]
+    public static bool _IsDiffi(this string? s, string? t) => !_IsSamei(s, t);
+    [MethodImpl(Inline)]
+    public static bool _IsDiffiIgnoreUnderscores(this string? s, string? t) => !_IsSameiIgnoreUnderscores(s, t);
+
     public static int _Cmp(this string? s, string? t, bool ignoreCase = false) => ((s == null && t == null) ? 0 : ((s == null ? 1 : t == null ? -1 : (ignoreCase ? Str.StrCmpiRetInt(s, t) : Str.StrCmpRetInt(s, t)))));
     public static int _Cmp(this string? s, string? t, StringComparison comparison) => ((s == null && t == null) ? 0 : ((s == null ? 1 : t == null ? -1 : string.Compare(s, t, comparison))));
     public static int _Cmpi(this string? s, string? t) => _Cmp(s, t, true);
@@ -3380,6 +3391,20 @@ public static class BasicHelper
 
     public static bool _CheckUseOnlyChars(this string src, Exception? exceptionToThrow = null, string charList = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-", StringComparison comparison = StringComparison.Ordinal)
         => Str.CheckUseOnlyChars(src, exceptionToThrow, charList, comparison);
+
+    [return: NotNullIfNotNull("ip")]
+    public static IPAddress? _RemoveScopeId(this IPAddress? ip)
+    {
+        if (ip == null) return null;
+        if (ip.AddressFamily == AddressFamily.InterNetworkV6 && ip.ScopeId != 0)
+        {
+            return new IPAddress(ip.GetAddressBytes());
+        }
+        else
+        {
+            return ip;
+        }
+    }
 }
 
 

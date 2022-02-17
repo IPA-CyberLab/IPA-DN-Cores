@@ -85,23 +85,69 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 {
     public class DynConfig : HadbDynamicConfig
     {
-        public int DDns_MaxHostPerCreateClientIpAddress;
-        public int DDns_MaxHostPerCreateClientIpNetwork;
+        public int DDns_MaxHostPerCreateClientIpAddress_Total;
+        public int DDns_MaxHostPerCreateClientIpNetwork_Total;
+        public int DDns_MaxHostPerCreateClientIpAddress_Daily;
+        public int DDns_MaxHostPerCreateClientIpNetwork_Daily;
         public int DDns_CreateRequestedIpNetwork_SubnetLength_IPv4;
         public int DDns_CreateRequestedIpNetwork_SubnetLength_IPv6;
         public string DDns_ProhibitedHostnamesStartWith = "_initial_";
         public int DDns_MaxUserDataJsonStrLength = 10 * 1024;
         public bool DDns_RequireUnlockKey = false;
         public string DDns_NewHostnamePrefix = "";
+        public int DDns_NewHostnameRandomDigits = 12;
         public bool DDns_Prohibit_IPv4AddressRegistration = false;
         public bool DDns_Prohibit_IPv6AddressRegistration = false;
         public int DDns_MinHostLabelLen;
         public int DDns_MaxHostLabelLen;
 
+        public string[] DomainNames = new string[0];
+        public string DomainNamePrimary = "";
+
         protected override void NormalizeImpl()
         {
-            if (DDns_MaxHostPerCreateClientIpAddress <= 0) DDns_MaxHostPerCreateClientIpAddress = 100;
-            if (DDns_MaxHostPerCreateClientIpNetwork <= 0) DDns_MaxHostPerCreateClientIpNetwork = 1000;
+            if (DomainNames == null || DomainNames.Any() == false)
+            {
+                var tmpList = new List<string>();
+                tmpList.Add("ddns_example.net");
+                tmpList.Add("ddns_example.org");
+                tmpList.Add("ddns_example.com");
+                DomainNames = tmpList.ToArray();
+                DomainNamePrimary = "ddns_example.org";
+            }
+
+            HashSet<string> tmp = new HashSet<string>();
+            foreach (var domainName in DomainNames)
+            {
+                string domainName2 = domainName._NormalizeFqdn();
+                if (domainName2._IsFilled())
+                {
+                    tmp.Add(domainName2);
+                }
+            }
+            DomainNames = tmp.OrderBy(x => x).ToArray();
+
+            DomainNamePrimary = DomainNamePrimary._NormalizeFqdn();
+
+            if (DomainNames.Contains(DomainNamePrimary) == false || DomainNamePrimary._IsEmpty())
+            {
+                if (DomainNames.Length >= 1)
+                {
+                    DomainNamePrimary = DomainNames[0];
+                }
+                else
+                {
+                    DomainNamePrimary = "";
+                }
+            }
+
+            if (DDns_MaxHostPerCreateClientIpAddress_Total <= 0) DDns_MaxHostPerCreateClientIpAddress_Total = 1000;
+            if (DDns_MaxHostPerCreateClientIpNetwork_Total <= 0) DDns_MaxHostPerCreateClientIpNetwork_Total = 10000;
+
+            if (DDns_MaxHostPerCreateClientIpAddress_Daily <= 0) DDns_MaxHostPerCreateClientIpAddress_Daily = 100;
+            if (DDns_MaxHostPerCreateClientIpNetwork_Daily <= 0) DDns_MaxHostPerCreateClientIpNetwork_Daily = 1000;
+
+            if (DDns_NewHostnameRandomDigits <= 0 || DDns_NewHostnameRandomDigits >= 32) DDns_NewHostnameRandomDigits = 12;
 
             if (DDns_CreateRequestedIpNetwork_SubnetLength_IPv4 <= 0 || DDns_CreateRequestedIpNetwork_SubnetLength_IPv4 > 32) DDns_CreateRequestedIpNetwork_SubnetLength_IPv4 = 24;
             if (DDns_CreateRequestedIpNetwork_SubnetLength_IPv6 <= 0 || DDns_CreateRequestedIpNetwork_SubnetLength_IPv6 > 128) DDns_CreateRequestedIpNetwork_SubnetLength_IPv6 = 56;
@@ -122,8 +168,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             DDns_ProhibitedHostnamesStartWith = DDns_ProhibitedHostnamesStartWith._NonNullTrim()
                 ._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', ';', ',', '/', '\t')._Combine(",").ToLowerInvariant();
 
-            if (DDns_NewHostnamePrefix._IsEmpty()) DDns_NewHostnamePrefix = "vpn";
-            DDns_NewHostnamePrefix = DDns_NewHostnamePrefix._NonNullTrim().ToLowerInvariant()._MakeStringUseOnlyChars();
+            if (DDns_NewHostnamePrefix._IsEmpty()) DDns_NewHostnamePrefix = "neko";
+            DDns_NewHostnamePrefix = DDns_NewHostnamePrefix._NonNullTrim().ToLowerInvariant()._MakeStringUseOnlyChars("0123456789abcdefghijklmnopqrstuvwxyz");
 
             if (DDns_MinHostLabelLen <= 0) DDns_MinHostLabelLen = 3;
             if (DDns_MaxHostLabelLen <= 0) DDns_MaxHostLabelLen = 32;
@@ -141,32 +187,45 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         }
     }
 
+    [Flags]
+    public enum HostApiResult
+    {
+        NoChange = 0,
+        Created,
+        Modified,
+    }
+
     public class Host : HadbData
     {
-        public string HostLabel = "";
-        public string HostSecretKey = "";
+        [JsonConverter(typeof(StringEnumConverter))]
+        public HostApiResult? ApiResult; // RPC Only
+        public string? HostFqdnPrimary; // RPC Only
 
-        public string Email = "";
+        public string HostAddress_IPv4 = "";
+        public string HostAddress_IPv6 = "";
+        public string HostSecretKey = "";
+        public string HostLabel = "";
+
+        public DateTimeOffset CreatedTime = DtOffsetZero;
 
         public string AuthLogin_LastIpAddress = "";
         public string AuthLogin_LastFqdn = "";
         public long AuthLogin_Count = 0;
 
-        public DateTimeOffset AuthRequested_FirstTime = DtOffsetZero;
-        public DateTimeOffset AuthRequested_LastTime = DtOffsetZero;
+        public DateTimeOffset AuthLogin_FirstTime = DtOffsetZero;
+        public DateTimeOffset AuthLogin_LastTime = DtOffsetZero;
 
         public string CreateRequestedIpAddress = "";
+        public string CreateRequestedFqdn = "";
         public string CreateRequestedIpNetwork = "";
 
         public long HostLabel_NumUpdates = 0;
         public DateTimeOffset HostLabel_LastUpdateTime = DtOffsetZero;
 
-        public string HostAddress_IPv4 = "";
         public DateTimeOffset HostAddress_IPv4_FirstUpdateTime = DtOffsetZero;
         public DateTimeOffset HostAddress_IPv4_LastUpdateTime = DtOffsetZero;
         public long HostAddress_IPv4_NumUpdates = 0;
 
-        public string HostAddress_IPv6 = "";
         public DateTimeOffset HostAddress_IPv6_FirstUpdateTime = DtOffsetZero;
         public DateTimeOffset HostAddress_IPv6_LastUpdateTime = DtOffsetZero;
         public long HostAddress_IPv6_NumUpdates = 0;
@@ -179,17 +238,24 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
         public string UsedUnlockKey = "";
 
+        public string UserGroupSecretKey = "";
+        public string Email = "";
+
         public JObject UserData = Json.NewJsonObject();
 
         public override HadbKeys GetKeys() => new HadbKeys(this.HostSecretKey, this.HostLabel, this.UsedUnlockKey);
-        public override HadbLabels GetLabels() => new HadbLabels(this.CreateRequestedIpAddress, this.CreateRequestedIpNetwork);
+        public override HadbLabels GetLabels() => new HadbLabels(this.UserGroupSecretKey, this.CreateRequestedIpAddress, this.CreateRequestedIpNetwork, this.Email);
 
         public override void Normalize()
         {
             this.HostSecretKey = this.HostSecretKey._NormalizeKey(true);
             this.HostLabel = this.HostLabel._NormalizeFqdn();
+            this.UserGroupSecretKey = this.UserGroupSecretKey._NormalizeKey(true);
+
+            this.CreatedTime = this.CreatedTime._NormalizeDateTimeOffset();
 
             this.CreateRequestedIpAddress = this.CreateRequestedIpAddress._NormalizeIp();
+            this.CreateRequestedFqdn = this.CreateRequestedFqdn._NormalizeFqdn();
             this.CreateRequestedIpNetwork = this.CreateRequestedIpNetwork._NormalizeIp();
 
             this.HostAddress_IPv4 = this.HostAddress_IPv4._NormalizeIp();
@@ -215,8 +281,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             this.DnsQuery_FirstAccessDnsClientIp = this.DnsQuery_FirstAccessDnsClientIp._NormalizeIp();
             this.DnsQuery_LastAccessDnsClientIp = this.DnsQuery_LastAccessDnsClientIp._NormalizeIp();
 
-            this.AuthRequested_FirstTime = this.AuthRequested_FirstTime._NormalizeDateTimeOffset();
-            this.AuthRequested_LastTime = this.AuthRequested_LastTime._NormalizeDateTimeOffset();
+            this.AuthLogin_FirstTime = this.AuthLogin_FirstTime._NormalizeDateTimeOffset();
+            this.AuthLogin_LastTime = this.AuthLogin_LastTime._NormalizeDateTimeOffset();
 
             this.Email = this.Email._NonNullTrim();
         }
@@ -247,7 +313,16 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             DnsQuery_FirstAccessDnsClientIp = "1.9.8.4",
             DnsQuery_LastAccessDnsClientIp = "5.9.6.3",
             UsedUnlockKey = "12345-67890-12345-97865-89450",
+            AuthLogin_Count = 121,
+            AuthLogin_FirstTime = DtOffsetSample(0.05),
+            AuthLogin_LastTime = DtOffsetSample(0.6),
+            Email = "optos@example.org",
+            UserGroupSecretKey = "33884422AAFFCCBB66992244AAAABBBBCCCCDDDD",
             UserData = "{'key1' : 'value1', 'key2' : 'value2'}"._JsonToJsonObject()!,
+            CreatedTime = DtOffsetSample(0.1),
+            CreateRequestedFqdn = "abc123.pppoe.example.org",
+            HostFqdnPrimary = "tanaka001.ddns_example.org",
+            ApiResult = HostApiResult.Modified,
         };
     }
 
@@ -256,6 +331,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         protected override List<Type> GetDefinedUserDataTypesImpl()
         {
             List<Type> ret = new List<Type>();
+            ret.Add(typeof(Host));
             return ret;
         }
 
@@ -266,7 +342,15 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         }
     }
 
-    public class HiveSettings : HadbBasedServiceHiveSettingsBase { }
+    public class HiveSettings : HadbBasedServiceHiveSettingsBase
+    {
+        public int DDns_UdpListenPort;
+
+        public override void NormalizeImpl()
+        {
+            if (DDns_UdpListenPort <= 0) DDns_UdpListenPort = Consts.Ports.Dns;
+        }
+    }
 
     public class StartupParam : HadbBasedServiceStartupParam
     {
@@ -281,24 +365,27 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         [RpcMethodHelp("テスト関数。パラメータで int 型で指定された値を文字列に変換し、Hello という文字列を前置して返却します。RPC を呼び出すためのテストコードを実際に記述する際のテストとして便利です。", "Hello 123")]
         public Task<string> Test([RpcParamHelp("テスト入力整数値", 123)] int i);
 
-        [RpcMethodHelp("DDNS ホストレコードを作成または更新します。")]
-        public Task<Host> DDNS_Register_Or_Update_Host(
-            [RpcParamHelp("ホストシークレットキーを指定します。新しいホストを作成する際には、新しいキーを指定してください。キーはクライアント側でランダムな 40 文字以内の半角英数字 (0-9 および A-Z の 36 種類の文字) を指定してください。通常は、20 バイトの乱数で生成したユニークなバイナリデータを 16 進数に変換したものを使用してください。既存のホストを更新する際には、既存のキーを指定してください。すでに存在するホストのキーが正確に指定された場合は、そのホストに関する情報の更新を希望するとみなされます。それ以外の場合は、新しいホストの作成を希望するとみなされます。ホストシークレットキーは、大文字・小文字を区別しません。ホストシークレットキーを省略した場合は、新たなホストを作成するものとみなされ、DDNS サーバー側でランダムでユニークなホストシークレットキーが新規作成されます。", "00112233445566778899AABBCCDDEEFF01020304")]
+        [RpcMethodHelp("DDNS ホストレコードを作成、更新または取得します。")]
+        public Task<Host> DDNS_HostRecord(
+            [RpcParamHelp("ホストシークレットキーを指定します。新しいホストを作成する際には、新しいキーを指定してください。キーはクライアント側でランダムな 40 文字以内の半角英数字 (0-9、A-Z、ハイフン、アンダーバー の 38 種類の文字) を指定してください。通常は、20 バイトの乱数で生成したユニークなバイナリデータを 16 進数に変換したものを使用してください。既存のホストを更新する際には、既存のキーを指定してください。すでに存在するホストのキーが正確に指定された場合は、そのホストに関する情報の更新を希望するとみなされます。それ以外の場合は、新しいホストの作成を希望するとみなされます。ホストシークレットキーは、大文字・小文字を区別しません。ホストシークレットキーを省略した場合は、新たなホストを作成するものとみなされ、DDNS サーバー側でランダムでユニークなホストシークレットキーが新規作成されます。", "00112233445566778899AABBCCDDEEFF01020304")]
                 string hostSecretKey = "",
 
             [RpcParamHelp("新しいホストラベル (ホストラベルとは、ダイナミック DNS のホスト FQDN の先頭部分のホスト名に相当します。) を作成するか、または既存のホスト名を変更する場合は、作成または変更後の希望ホスト名を指定します。新しくホストを登録する場合で、かつ、希望ホスト名が指定されていない場合は、ランダムな文字列で新しいホスト名が作成されます。", "tanaka001")]
-            string newHostLabel = "",
+            string hostLabel = "",
 
             [RpcParamHelp("この DDNS サーバーで新しいホストを作成する際に、DDNS サーバーの運営者によって、登録キーの指定を必須としている場合は、未使用の登録キーを 1 つ指定します。登録キーは 25 桁の半角数字です。ハイフンは省略できます。登録キーは DDNS サーバーの運営者から発行されます。一度使用された登録キーは、再度利用することができなくなります。ただし、登録キーを用いて作成されたホストが削除された場合は、その登録キーを再び使用することができるようになります。ホストの更新時には、登録キーは省略できます。この DDNS サーバーが登録キーを不要としている場合は、登録キーは省略できます。", "12345-67890-12345-97865-89450")]
             string unlockKey = "",
 
-            [RpcParamHelp("この DDNS サーバーで新しいホストを作成する際に、DDNS サーバーの運営者によって、固定使用許諾文字列の指定を必須としている場合は、固定使用許諾文字列を指定します。固定使用許諾文字列は DDNS サーバーの運営者から通知されます。", "The_ancient_pond_A_frog_leaps_in_The_sound_of_the_water")]
+            [RpcParamHelp("この DDNS サーバーで新しいホストの作成または既存ホストの変更操作を行なう際に、DDNS サーバーの運営者によって、固定使用許諾文字列の指定を必須としている場合は、固定使用許諾文字列を指定します。固定使用許諾文字列は DDNS サーバーの運営者から通知されます。", "Hello")]
             string licenseString = "",
 
             [RpcParamHelp("ホストの IP アドレスを登録または更新するには、登録したい新しい IP アドレスを指定します。IP アドレスは明示的に文字列で指定することもできますが、\"myip\" という固定文字列を指定すると、この API の呼び出し元であるホストのグローバル IP アドレスを指定したものとみなされます。なお、IPv4 アドレスと IPv6 アドレスの両方を登録することも可能です。この場合は、IPv4 アドレスと IPv6 アドレスの両方を表記し、その間をカンマ文字 ',' で区切ります。IPv4 アドレスと IPv6 アドレスは、1 つずつしか指定できません。", "myip")]
             string ipAddress = "",
 
-            [RpcParamHelp("このホストレコードの所有者の連絡先メールアドレスを設定するためには、メールアドレス文字列を指定します。メールアドレスは省略することができます。\"delete\" という文字列を指定すると、すでに登録されているメールアドレスを消去することができます。メールアドレスは、この DDNS サーバーのシステム管理者のみが閲覧することができます。DDNS サーバーのシステム管理者は、DDNS サーバーに関するメンテナンスのお知らせを、指定したメールアドレス宛に送付することができます。", "optos@example.org")]
+            [RpcParamHelp("ユーザーグループシークレットキーを設定または変更する場合は、ユーザーグループシークレットキーを指定します。ユーザーグループシークレットキーはクライアント側でランダムな 40 文字以内の半角英数字 (0-9、A-Z、ハイフン、アンダーバー の 38 種類の文字) を指定してください。通常は、20 バイトの乱数で生成したユニークなバイナリデータを 16 進数に変換したものを使用してください。複数のホストで、同一のユーザーグループシークレットキーを指定することが可能ですし、それが便利です。ユーザーグループシークレットキーを指定している場合、ユーザーグループシークレットキーを用いたホストレコードの列挙 API を使用すると、同じユーザーグループシークレットキーが登録されているすべてのホストレコードの情報 (各ホストのシークレットキーを含む) を列挙することができます。そのため、ユーザーグループシークレットキーを登録しておけば、同じユーザーグループシークレットキーを有する各ホストレコードの一覧やホストシークレットキーを保持していなくても、いつでも紐付けられたホストレコードにアクセスすることができて便利です。したがって、ユーザーグループシークレットキーは厳重に秘密に管理する必要があります。 \"delete\" という文字列を指定すると、すでに登録されているユーザーグループシークレットキーを消去することができます。", "33884422AAFFCCBB66992244AAAABBBBCCCCDDDD")]
+            string userGroupSecretKey = "",
+
+            [RpcParamHelp("このホストレコードの所有者の連絡先メールアドレスを設定するためには、メールアドレス文字列を指定します。メールアドレスは省略することができます。\"delete\" という文字列を指定すると、すでに登録されているメールアドレスを消去することができます。メールアドレスは、この DDNS サーバーのシステム管理者のみが閲覧することができます。DDNS サーバーのシステム管理者は、DDNS サーバーに関するメンテナンスのお知らせを、指定したメールアドレス宛に送付することができます。また、メールアドレスを登録しておけば、ホストキーの回復用 API を呼び出すことにより、そのメールアドレスに紐付いたすべてのホストシークレットキーの一覧を電子メールで送付することができます。これにより、ホストシークレットキーを紛失した場合でも、予めメールアドレスを登録しておくことにより、救済が可能です。", "optos@example.org")]
             string email = "",
 
             [RpcParamHelp("このパラメータを指定すると、DDNS ホストレコードに付随する永続的なユーザーデータとして、任意の JSON データを記録することができます。記録される JSON データの内容は、DDNS の動作に影響を与えません。たとえば、個人的なメモ等を記録することができます。記録内容は、Key-Value 形式の文字列である必要があります。Key の値は、重複してはなりません。", "{'key1' : 'value1', 'key2' : 'value2'}")]
@@ -335,16 +422,22 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
     public Task<string> Test(int i) => $"Hello {i}"._TaskResult();
 
-    public Task<Host> DDNS_Register_Or_Update_Host(string hostSecretKey = "", string newHostLabel = "", string unlockKey = "", string licenseString = "", string ipAddress = "", string email = "", JObject? userData = null)
+    public async Task<Host> DDNS_HostRecord(string hostSecretKey = "", string newHostLabel = "", string unlockKey = "", string licenseString = "", string ipAddress = "", string userGroupSecretKey = "", string email = "", JObject? userData = null)
     {
         var client = JsonRpcServerApi.GetCurrentRpcClientInfo();
+
+        var now = DtOffsetNow;
+
+        IPAddress clientIp = client.RemoteIP._ToIPAddress()!._RemoveScopeId();
+        IPAddress clientNetwork = IPUtil.NormalizeIpNetworkAddressIPv4v6(clientIp, Hadb.CurrentDynamicConfig.DDns_CreateRequestedIpNetwork_SubnetLength_IPv4, Hadb.CurrentDynamicConfig.DDns_CreateRequestedIpNetwork_SubnetLength_IPv6);
+        string clientNameStr = clientIp.ToString();
 
         // パラメータの検査と正規化
         hostSecretKey = hostSecretKey._NonNullTrim().ToUpperInvariant();
 
         if (hostSecretKey._IsFilled())
         {
-            hostSecretKey._CheckUseOnlyChars($"Specified {nameof(hostSecretKey)} contains invalid character.", "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+            hostSecretKey._CheckUseOnlyChars($"Specified {nameof(hostSecretKey)} contains invalid character.", "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-_");
             hostSecretKey._CheckStrLenException(40, $"Specified {nameof(hostSecretKey)} is too long.");
         }
         else
@@ -394,82 +487,101 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
         IPAddress? ipv4 = null;
         IPAddress? ipv6 = null;
+        string ipv4str = "";
+        string ipv6str = "";
 
-        if (ipAddress._IsFilled())
+        void InitIpAddressVariable()
         {
-            if (ipAddress.StartsWith("my", StringComparison.OrdinalIgnoreCase))
+            if (ipAddress._IsFilled())
             {
-                var clientIp = client.RemoteIP._ToIPAddress(AllowedIPVersions.All, false)!;
-
-                if (clientIp.AddressFamily == AddressFamily.InterNetwork)
-                    ipv4 = clientIp;
-                else if (clientIp.AddressFamily == AddressFamily.InterNetworkV6)
-                    ipv6 = clientIp;
-                else
-                    throw new CoresException("clientIp has invalid network family.");
-            }
-            else
-            {
-                var ipTokens = ipAddress._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ',', ' ', '\t', ';');
-
-                if (ipTokens.Length == 0)
+                if (ipAddress.StartsWith("my", StringComparison.OrdinalIgnoreCase))
                 {
-                    ipAddress = "";
-                }
-                else if (ipTokens.Length == 1)
-                {
-                    var ip = ipTokens[0]._ToIPAddress(AllowedIPVersions.All, false)!;
-
-                    if (ip.AddressFamily == AddressFamily.InterNetwork)
-                        ipv4 = ip;
-                    else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
-                        ipv6 = ip;
+                    if (clientIp.AddressFamily == AddressFamily.InterNetwork)
+                        ipv4 = clientIp;
+                    else if (clientIp.AddressFamily == AddressFamily.InterNetworkV6)
+                        ipv6 = clientIp;
                     else
-                        throw new CoresException($"{nameof(ipAddress)} has invalid network family.");
+                        throw new CoresException("clientIp has invalid network family.");
                 }
-                else if (ipTokens.Length == 2)
+                else
                 {
-                    for (int i = 0; i < ipTokens.Length; i++)
+                    var ipTokens = ipAddress._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ',', ' ', '\t', ';');
+
+                    if (ipTokens.Length == 0)
                     {
-                        var ip = ipTokens[i]._ToIPAddress(AllowedIPVersions.All, false)!;
+                        ipAddress = "";
+                    }
+                    else if (ipTokens.Length == 1)
+                    {
+                        var ip = ipTokens[0]._ToIPAddress(AllowedIPVersions.All, false)!;
 
                         if (ip.AddressFamily == AddressFamily.InterNetwork)
-                        {
-                            if (ipv4 == null)
-                            {
-                                ipv4 = ip;
-                            }
-                            else
-                            {
-                                throw new CoresException($"{nameof(ipAddress)} contains two or more IPv4 addresses");
-                            }
-                        }
+                            ipv4 = ip;
                         else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+                            ipv6 = ip;
+                        else
+                            throw new CoresException($"{nameof(ipAddress)} has invalid network family.");
+                    }
+                    else if (ipTokens.Length == 2)
+                    {
+                        for (int i = 0; i < ipTokens.Length; i++)
                         {
-                            if (ipv6 == null)
+                            var ip = ipTokens[i]._ToIPAddress(AllowedIPVersions.All, false)!;
+
+                            if (ip.AddressFamily == AddressFamily.InterNetwork)
                             {
-                                ipv6 = ip;
+                                if (ipv4 == null)
+                                {
+                                    ipv4 = ip;
+                                }
+                                else
+                                {
+                                    throw new CoresException($"{nameof(ipAddress)} contains two or more IPv4 addresses");
+                                }
+                            }
+                            else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+                            {
+                                if (ipv6 == null)
+                                {
+                                    ipv6 = ip;
+                                }
+                                else
+                                {
+                                    throw new CoresException($"{nameof(ipAddress)} contains two or more IPv6 addresses");
+                                }
                             }
                             else
                             {
-                                throw new CoresException($"{nameof(ipAddress)} contains two or more IPv6 addresses");
+                                throw new CoresException($"{nameof(ipAddress)} has invalid network family.");
                             }
-                        }
-                        else
-                        {
-                            throw new CoresException($"{nameof(ipAddress)} has invalid network family.");
                         }
                     }
-                }
-                else
-                {
-                    throw new CoresException($"{nameof(ipAddress)} has invalid format.");
+                    else
+                    {
+                        throw new CoresException($"{nameof(ipAddress)} has invalid format.");
+                    }
                 }
             }
+
+            ipv4 = ipv4._RemoveScopeId();
+            ipv6 = ipv6._RemoveScopeId();
+
+            ipv4str = ipv4?.ToString() ?? "";
+            ipv6str = ipv6?.ToString() ?? "";
+        }
+
+        InitIpAddressVariable();
+
+        userGroupSecretKey = userGroupSecretKey._NonNullTrim().ToUpperInvariant();
+
+        if (userGroupSecretKey._IsFilled())
+        {
+            userGroupSecretKey._CheckUseOnlyChars($"Specified {nameof(userGroupSecretKey)} contains invalid character.", "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-_");
+            userGroupSecretKey._CheckStrLenException(40, $"Specified {nameof(userGroupSecretKey)} is too long.");
         }
 
         email = email._NonNullTrim();
-        email._CheckUseOnlyChars($"Specified {nameof(email)} contains invalid character", "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_@");
+        email._CheckUseOnlyChars($"Specified {nameof(email)} contains invalid character", "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_@.");
 
         if (email._IsFilled() && email._IsSamei("delete") == false)
         {
@@ -481,7 +593,344 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
         if (userData != null) userData = userData._NormalizeEasyJsonStrAttributes();
 
-        throw new NotImplementedException();
+        HadbObject<Host>? retCurrentHostObj = null;
+
+        // まず、指定されたホストシークレットキーに該当するホストがメモリデータベース上にあるかどうか調べる
+        var memoryObj = Hadb.FastSearchByKey(new Host { HostSecretKey = hostSecretKey });
+
+        bool anyChangePossibility = true;
+        bool needToCreate = false;
+
+        if (memoryObj != null)
+        {
+            // メモリデータベースを指定したホストキーで検索してみる。
+            // すでにメモリデータベース上にあれば、変更点がありそうかどうか確認する。もしメモリデータベース上で変更点がないのに、物理データベース上へのクエリを発生させても、CPU 時間が無駄になるだけの可能性があるためである。
+            // ※ メモリデータベース上になければ、変更点がありそうかどうかの検査を保留する。つまり、物理データベースを叩いてみなければ分からない。
+            anyChangePossibility = false;
+
+            var current = memoryObj.Data;
+
+            if (newHostLabel._IsFilled() && current.HostLabel._IsSamei(newHostLabel) == false) anyChangePossibility = true;
+            if (ipv4str._IsFilled() || ipv6str._IsFilled())
+            {
+                if (current.HostAddress_IPv4._IsSamei(ipv4str) == false) anyChangePossibility = true;
+                if (current.HostAddress_IPv6._IsSamei(ipv6str) == false) anyChangePossibility = true;
+            }
+            if (userGroupSecretKey._IsSamei("delete"))
+            {
+                if (current.UserGroupSecretKey._IsFilled()) anyChangePossibility = true;
+            }
+            else if (userGroupSecretKey._IsFilled())
+            {
+                if (current.UserGroupSecretKey._IsSamei(userGroupSecretKey) == false) anyChangePossibility = true;
+            }
+            if (email._IsSamei("delete"))
+            {
+                if (current.Email._IsFilled()) anyChangePossibility = true;
+            }
+            else if (email._IsFilled())
+            {
+                if (current.Email._IsSame(email) == false) anyChangePossibility = true;
+            }
+
+            if (userData != null)
+            {
+                if (current.UserData._ObjectToJson(compact: true)._IsSame(userData._ObjectToJson(compact: true)) == false) anyChangePossibility = true;
+            }
+
+            retCurrentHostObj = memoryObj;
+        }
+
+        if (anyChangePossibility)
+        {
+            // メモリデータベース上での変更点があるか、または、メモリデータベース上でオブジェクトが見つからないならば、物理データベースを指定されたホストキーで検索してみる。
+            // ここでは、まだ、スナップショット読み取りモードで取得するのである。
+            anyChangePossibility = false;
+
+            HadbObject<Host>? dbObj = null;
+
+            await Hadb.TranAsync(false, async tran =>
+            {
+                dbObj = await tran.AtomicSearchByKeyAsync(new Host { HostSecretKey = hostSecretKey });
+
+                bool checkNewHostKey = false;
+
+                if (dbObj != null)
+                {
+                    var current = dbObj.Data;
+                    if (newHostLabel._IsFilled() && current.HostLabel._IsSamei(newHostLabel) == false)
+                    {
+                        checkNewHostKey = true;
+                    }
+                    retCurrentHostObj = dbObj;
+                }
+                else
+                {
+                    checkNewHostKey = true;
+
+                    if (newHostLabel._IsEmpty())
+                    {
+                        // 新しいホストを作成する場合で、newHostLabel が明示的に指定されていない場合は、prefix + 12 桁 (デフォルト) のランダムホスト名を使用する。
+                        while (true)
+                        {
+                            string candidate = Hadb.CurrentDynamicConfig.DDns_NewHostnamePrefix + Str.GenerateRandomDigit(Hadb.CurrentDynamicConfig.DDns_NewHostnameRandomDigits);
+
+                            var existing = await tran.AtomicSearchByKeyAsync(new Host { HostLabel = candidate });
+
+                            if (existing == null)
+                            {
+                                // 既存のホストと一致しない場合は、これに決める。
+                                newHostLabel = candidate;
+                                break;
+                            }
+
+                            // 既存のホストと一致する場合は、一致しなくなるまで乱数で新たに生成を試みる。
+                        }
+                    }
+                }
+
+                if (checkNewHostKey)
+                {
+                    // ホストラベルの変更または新規作成を要求された場合は、新しいホストラベルが既存のものと重複しないかどうか確認する。
+                    // 重複する場合は、ここで例外を発生させる。
+                    // (一意キー制約によって重複は阻止されるが、ここで一応手動でチェックし、重複することが明らかである場合はわかりやすい例外を発生して要求を拒否するのである。)
+                    var sameHostLabelExists = await tran.AtomicSearchByKeyAsync(new Host { HostLabel = newHostLabel });
+
+                    if (sameHostLabelExists != null)
+                    {
+                        throw new CoresException($"The same {nameof(newHostLabel)} '{newHostLabel}' already exists on the DDNS server. Please consider to choose another {nameof(newHostLabel)}.");
+                    }
+                }
+                return false;
+            },
+            clientName: clientNameStr);
+
+            if (dbObj == null)
+            {
+                // 物理データベース上にもレコードが存在しない。新規作成する必要があるようだ。
+                anyChangePossibility = true;
+                needToCreate = true;
+            }
+            else
+            {
+                // 物理データベース上のレコードの取得に成功した。同様に変更の可能性があるかどうか確認する。
+                var current = dbObj.Data;
+
+                if (newHostLabel._IsFilled() && current.HostLabel._IsSamei(newHostLabel) == false) anyChangePossibility = true;
+                if (ipv4str._IsFilled() || ipv6str._IsFilled())
+                {
+                    if (current.HostAddress_IPv4._IsSamei(ipv4str) == false) anyChangePossibility = true;
+                    if (current.HostAddress_IPv6._IsSamei(ipv6str) == false) anyChangePossibility = true;
+                }
+                if (userGroupSecretKey._IsSamei("delete"))
+                {
+                    if (current.UserGroupSecretKey._IsFilled()) anyChangePossibility = true;
+                }
+                else if (userGroupSecretKey._IsFilled())
+                {
+                    if (current.UserGroupSecretKey._IsSamei(userGroupSecretKey) == false) anyChangePossibility = true;
+                }
+                if (email._IsSamei("delete"))
+                {
+                    if (current.Email._IsFilled()) anyChangePossibility = true;
+                }
+                else if (email._IsFilled())
+                {
+                    if (current.Email._IsSame(email) == false) anyChangePossibility = true;
+                }
+
+                if (userData != null)
+                {
+                    if (current.UserData._ObjectToJson(compact: true)._IsSame(userData._ObjectToJson(compact: true)) == false) anyChangePossibility = true;
+                }
+            }
+        }
+
+        if (needToCreate)
+        {
+            // 新規作成の必要がある場合は、データベース上で新規作成をする。
+            // なお、前回の DB 読み取りの際にはホストシークレットキーを持つレコードが存在せず、この DB 書き込みの際には存在する可能性
+            // もタイミングによっては生じるが、この場合は、DB の一意キー制約によりエラーになるので、二重にホストシークレットキーを有する
+            // レコードが存在することとなるおそれはない。
+
+            string clientFqdn = await this.DnsResolver.GetHostNameSingleOrIpAsync(clientIp);
+
+            if (userData == null) userData = Json.NewJsonObject();
+
+            Host newHost = null!;
+
+            if (ipv4str._IsEmpty() && ipv6str._IsEmpty())
+            {
+                // IP アドレスが IPv4, IPv6 の両方とも指定されていない場合は、クライアントの IP アドレスが改めて指定されたものとみなす。
+                ipAddress = "myip";
+                InitIpAddressVariable();
+            }
+
+            await Hadb.TranAsync(true, async tran =>
+            {
+                newHost = new Host
+                {
+                    HostLabel = newHostLabel,
+                    HostSecretKey = hostSecretKey,
+                    AuthLogin_LastIpAddress = clientIp.ToString(),
+                    AuthLogin_LastFqdn = clientFqdn,
+                    AuthLogin_Count = 1,
+                    AuthLogin_FirstTime = now,
+                    AuthLogin_LastTime = now,
+                    CreatedTime = now,
+                    CreateRequestedIpAddress = clientIp.ToString(),
+                    CreateRequestedFqdn = clientFqdn,
+                    CreateRequestedIpNetwork = clientNetwork.ToString(),
+                    HostLabel_NumUpdates = 1,
+                    HostLabel_LastUpdateTime = now,
+                    HostAddress_IPv4 = ipv4str,
+                    HostAddress_IPv4_FirstUpdateTime = ipv4str._IsFilled() ? now : DtOffsetZero,
+                    HostAddress_IPv4_LastUpdateTime = ipv4str._IsFilled() ? now : DtOffsetZero,
+                    HostAddress_IPv4_NumUpdates = ipv4str._IsFilled() ? 1 : 0,
+                    HostAddress_IPv6 = ipv6str,
+                    HostAddress_IPv6_FirstUpdateTime = ipv6str._IsFilled() ? now : DtOffsetZero,
+                    HostAddress_IPv6_LastUpdateTime = ipv6str._IsFilled() ? now : DtOffsetZero,
+                    HostAddress_IPv6_NumUpdates = ipv6str._IsFilled() ? 1 : 0,
+                    UsedUnlockKey = "", // TODO
+                    UserGroupSecretKey = userGroupSecretKey,
+                    Email = email,
+                    UserData = userData,
+                };
+
+                await tran.AtomicAddAsync(newHost);
+
+                return true;
+            },
+            clientName: clientNameStr);
+
+            // 作成に成功したので、ホストオブジェクトを返却する。
+            newHost.HostFqdnPrimary = newHost.HostLabel + "." + Hadb.CurrentDynamicConfig.DomainNamePrimary;
+            newHost.ApiResult = HostApiResult.Created;
+            return newHost;
+        }
+
+        if (anyChangePossibility)
+        {
+            // データベース上で変更をする。
+            Host current = null!;
+
+            await Hadb.TranAsync(true, async tran =>
+            {
+                // まず最新の DB 上のデータを取得する。これは上の事前の確認時から変更されている可能性もある。
+                var currentObj = await tran.AtomicSearchByKeyAsync(new Host { HostSecretKey = hostSecretKey });
+
+                if (currentObj == null)
+                {
+                    // ここで hostSecretKey が見つからないケースは稀であるが、分散データベースのタイミング上あり得る。
+                    // この場合は、再試行するようエラーを出す。
+                    throw new CoresException($"{nameof(hostSecretKey)} is not found on the database. Please try again later.");
+                }
+
+                current = currentObj.Data;
+
+                if (newHostLabel._IsFilled() && current.HostLabel._IsSamei(newHostLabel) == false)
+                {
+                    current.HostLabel = newHostLabel;
+                    current.HostLabel_LastUpdateTime = now;
+                    current.HostLabel_NumUpdates++;
+                }
+
+                if (ipv4str._IsFilled() || ipv6str._IsFilled())
+                {
+                    if (current.HostAddress_IPv4._IsSamei(ipv4str) == false)
+                    {
+                        current.HostAddress_IPv4 = ipv4str;
+                        current.HostAddress_IPv4_LastUpdateTime = now;
+                        if (current.HostAddress_IPv4_FirstUpdateTime._IsZeroDateTime())
+                        {
+                            current.HostAddress_IPv4_FirstUpdateTime = now;
+                        }
+                        current.HostAddress_IPv4_NumUpdates++;
+                    }
+
+                    if (current.HostAddress_IPv6._IsSamei(ipv6str) == false)
+                    {
+                        current.HostAddress_IPv6 = ipv6str;
+                        current.HostAddress_IPv6_LastUpdateTime = now;
+                        if (current.HostAddress_IPv6_FirstUpdateTime._IsZeroDateTime())
+                        {
+                            current.HostAddress_IPv6_FirstUpdateTime = now;
+                        }
+                        current.HostAddress_IPv6_NumUpdates++;
+                    }
+                }
+
+                if (userGroupSecretKey._IsSamei("delete"))
+                {
+                    current.UserGroupSecretKey = "";
+                }
+                else if (userGroupSecretKey._IsFilled())
+                {
+                    current.UserGroupSecretKey = userGroupSecretKey;
+                }
+
+                if (email._IsSamei("delete"))
+                {
+                    current.Email = "";
+                }
+                else if (email._IsFilled())
+                {
+                    current.Email = email;
+                }
+
+                if (userData != null)
+                {
+                    current.UserData = userData;
+                }
+
+                current.AuthLogin_LastIpAddress = clientIp.ToString();
+                current.AuthLogin_LastTime = now;
+                current.AuthLogin_Count++;
+
+                // DB 上のデータを書き込みする。
+                await tran.AtomicUpdateAsync(currentObj);
+
+                return true;
+            },
+            clientName: clientNameStr);
+
+            // 変更に成功したので、ホストオブジェクトを返却する。
+            current.HostFqdnPrimary = current.HostLabel + "." + Hadb.CurrentDynamicConfig.DomainNamePrimary;
+            current.ApiResult = HostApiResult.Modified;
+            return current;
+        }
+
+        retCurrentHostObj._NullCheck(nameof(retCurrentHostObj));
+
+        var retCurrentHost = retCurrentHostObj.Data;
+        string clientFqdn2 = "";
+
+        if (retCurrentHost.AuthLogin_LastIpAddress != clientIp.ToString())
+        {
+            // Last FQDN は、Last IP Address が変更になった場合のみ DNS を用いて取得する。
+            // IP アドレスが前回から変更になっていない場合は、更新しない。
+            clientFqdn2 = await this.DnsResolver.GetHostNameSingleOrIpAsync(clientIp);
+        }
+
+        // 特に変更がないので、ステータスを Lazy 更新する。
+        retCurrentHost = retCurrentHostObj.FastUpdate(h =>
+        {
+            h.AuthLogin_Count++;
+            h.AuthLogin_LastIpAddress = clientIp.ToString();
+            if (clientFqdn2._IsFilled())
+            {
+                h.AuthLogin_LastFqdn = clientFqdn2;
+            }
+            h.AuthLogin_LastTime = now;
+            return true;
+        });
+
+        // 現在のオブジェクト情報を返却する。
+        retCurrentHost._NullCheck(nameof(retCurrentHost));
+        retCurrentHost.HostFqdnPrimary = retCurrentHost.HostLabel + "." + Hadb.CurrentDynamicConfig.DomainNamePrimary;
+        retCurrentHost.ApiResult = HostApiResult.NoChange;
+
+        return retCurrentHost;
     }
 }
 
