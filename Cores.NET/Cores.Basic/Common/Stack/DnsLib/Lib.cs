@@ -1018,6 +1018,16 @@ public class DomainName : IEquatable<DomainName>, IComparable<DomainName>
         return (_toString = String.Join(".", _labels.Span.ToArray().Select(x => x.ToMasterfileLabelRepresentation(true))) + ".");
     }
 
+    private string _toNormalizedFqdnFast;
+
+    public string ToNormalizedFqdnFast()
+    {
+        if (_toNormalizedFqdnFast != null)
+            return _toNormalizedFqdnFast;
+
+        return (_toNormalizedFqdnFast = _labels.Span._Combine(".", true).ToLowerInvariant());
+    }
+
     private int? _hashCode;
 
     /// <summary>

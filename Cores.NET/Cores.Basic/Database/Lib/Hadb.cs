@@ -3205,6 +3205,14 @@ public class HadbBackupDatabase
     public List<HadbSerializedObject> ObjectsList = null!;
 }
 
+[Flags]
+public enum HadbEventType
+{
+    DynamicConfigChanged = 0,
+    ReloadDataFull,
+    ReloadDataPartially,
+}
+
 public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     where TMem : HadbMemDataBase, new()
     where TDynamicConfig : HadbDynamicConfig
@@ -3232,6 +3240,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     public DateTimeOffset LastDatabaseFullReloadTime { get; private set; } = ZeroDateTimeOffsetValue;
 
     public Exception? LastMemDbBackupLocalLoadError { get; private set; } = null;
+
+    public AsyncEventListenerList<HadbBase<TMem, TDynamicConfig>, HadbEventType> EventListenerList = new AsyncEventListenerList<HadbBase<TMem, TDynamicConfig>, HadbEventType>();
 
     public HadbSettingsBase Settings { get; }
     public string SystemName => Settings.SystemName;
@@ -3398,8 +3408,12 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     readonly AsyncLock Lock_ReloadDynamicConfigValuesAsync = new AsyncLock();
 
+    Once ReloadDynamicConfigOnce;
+
     async Task ReloadDynamicConfigValuesAsync(CancellationToken cancel)
     {
+        string oldDynConfigJson = this._CurrentDynamicConfig._ObjectToJson();
+
         using (await Lock_ReloadDynamicConfigValuesAsync.LockWithAwait(cancel))
         {
             using (await DynamicConfigValueDbLockAsync.LockWithAwait(cancel))
@@ -3421,6 +3435,13 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                     }
                 }
             }
+        }
+
+        string newDynConfigJson = this._CurrentDynamicConfig._ObjectToJson();
+
+        if (ReloadDynamicConfigOnce.IsFirstCall() || oldDynConfigJson != newDynConfigJson)
+        {
+            await this.EventListenerList.FireAsync(this, HadbEventType.DynamicConfigChanged, debugLog: true);
         }
     }
 
@@ -3830,6 +3851,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                             }
                         }
 
+                        await this.EventListenerList.FireAsync(this, HadbEventType.DynamicConfigChanged, debugLog: true);
+
                         // データ本体
                         Debug($"ReloadCoreAsync: Start LoadLocalBackupDataAsync. Path = '{backupDatabasePath.PathString}'");
                         List<HadbObject> loadedObjectsList = await LoadLocalBackupDataAsync(backupDatabasePath, cancel);
@@ -3937,6 +3960,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                 // リロード
                 await ReloadCoreAsync(EnsureSpecial.Yes, fullReloadMode, cancel: cancel);
                 ok = true;
+
+                await this.EventListenerList.FireAsync(this, fullReloadMode ? HadbEventType.ReloadDataFull : HadbEventType.ReloadDataPartially, debugLog: true);
             }
             catch (Exception ex)
             {

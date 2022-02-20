@@ -100,24 +100,30 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         public bool DDns_Prohibit_IPv6AddressRegistration = false;
         public int DDns_MinHostLabelLen;
         public int DDns_MaxHostLabelLen;
+        public int DDns_Protocol_Ttl_Secs;
+        public int DDns_Protocol_Ttl_NegativeCache_Secs;
+        public string DDns_Protocol_SOA_MasterNsServerFqdn = "";
+        public string DDns_Protocol_SOA_ResponsibleFieldFqdn = "";
 
-        public string[] DomainNames = new string[0];
-        public string DomainNamePrimary = "";
+        public string[] DDns_DomainName = new string[0];
+        public string DDns_DomainNamePrimary = "";
+
+        public string[] DDns_StaticRecord = new string[0];
 
         protected override void NormalizeImpl()
         {
-            if (DomainNames == null || DomainNames.Any() == false)
+            if (DDns_DomainName == null || DDns_DomainName.Any() == false)
             {
                 var tmpList = new List<string>();
                 tmpList.Add("ddns_example.net");
                 tmpList.Add("ddns_example.org");
                 tmpList.Add("ddns_example.com");
-                DomainNames = tmpList.ToArray();
-                DomainNamePrimary = "ddns_example.org";
+                DDns_DomainName = tmpList.ToArray();
+                DDns_DomainNamePrimary = "ddns_example.org";
             }
 
             HashSet<string> tmp = new HashSet<string>();
-            foreach (var domainName in DomainNames)
+            foreach (var domainName in DDns_DomainName)
             {
                 string domainName2 = domainName._NormalizeFqdn();
                 if (domainName2._IsFilled())
@@ -125,19 +131,19 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
                     tmp.Add(domainName2);
                 }
             }
-            DomainNames = tmp.OrderBy(x => x).ToArray();
+            DDns_DomainName = tmp.OrderBy(x => x).ToArray();
 
-            DomainNamePrimary = DomainNamePrimary._NormalizeFqdn();
+            DDns_DomainNamePrimary = DDns_DomainNamePrimary._NormalizeFqdn();
 
-            if (DomainNames.Contains(DomainNamePrimary) == false || DomainNamePrimary._IsEmpty())
+            if (DDns_DomainName.Contains(DDns_DomainNamePrimary) == false || DDns_DomainNamePrimary._IsEmpty())
             {
-                if (DomainNames.Length >= 1)
+                if (DDns_DomainName.Length >= 1)
                 {
-                    DomainNamePrimary = DomainNames[0];
+                    DDns_DomainNamePrimary = DDns_DomainName[0];
                 }
                 else
                 {
-                    DomainNamePrimary = "";
+                    DDns_DomainNamePrimary = "";
                 }
             }
 
@@ -160,6 +166,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
                    "register",
                    "admin",
                    "ns0",
+                   "sample",
+                   "subdomain",
                    "ws-",
                    "websocket-",
                    "_acme",
@@ -174,6 +182,81 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             if (DDns_MinHostLabelLen <= 0) DDns_MinHostLabelLen = 3;
             if (DDns_MaxHostLabelLen <= 0) DDns_MaxHostLabelLen = 32;
             if (DDns_MaxHostLabelLen >= 64) DDns_MaxHostLabelLen = 63;
+
+            if (DDns_Protocol_Ttl_Secs <= 0) DDns_Protocol_Ttl_Secs = 60;
+            if (DDns_Protocol_Ttl_Secs >= 3600) DDns_Protocol_Ttl_Secs = 3600;
+
+            if (DDns_Protocol_Ttl_NegativeCache_Secs <= 0) DDns_Protocol_Ttl_NegativeCache_Secs = 60;
+            if (DDns_Protocol_Ttl_NegativeCache_Secs >= 3600) DDns_Protocol_Ttl_NegativeCache_Secs = 3600;
+
+            if (DDns_Protocol_SOA_MasterNsServerFqdn._IsEmpty()) DDns_Protocol_SOA_MasterNsServerFqdn = "ns01.ddns_example.org";
+            DDns_Protocol_SOA_MasterNsServerFqdn = DDns_Protocol_SOA_MasterNsServerFqdn._NormalizeFqdn();
+
+            if (DDns_Protocol_SOA_ResponsibleFieldFqdn._IsEmpty()) DDns_Protocol_SOA_ResponsibleFieldFqdn = "nobody.example.org";
+            DDns_Protocol_SOA_ResponsibleFieldFqdn = DDns_Protocol_SOA_ResponsibleFieldFqdn._NormalizeFqdn();
+
+            if (DDns_StaticRecord.Length == 0)
+            {
+                string initialRecordsList = @"
+NS @ ns01.ddns_example.org
+NS @ ns02.ddns_example.org
+
+A sample1 1.2.3.4
+
+A sample2 5.6.7.8
+AAAA sample2 2401:af80::1234
+
+A sample3 1.1.1.1
+A sample3 2.2.2.2
+A sample3 3.3.3.3
+A sample3 4.4.4.4
+AAAA sample3 2401:af80::dead:beef
+AAAA sample3 2401:af80::cafe:8945
+AAAA sample3 2401:af80::abcd:1234
+AAAA sample3 2401:af80::5678:cafe
+
+CNAME sample4 www1.your_company.net
+
+CNAME sample5 www2.your_company.net
+CNAME sample5 www3.your_company.net
+
+NS subdomain1 subdomain_ns1.your_company.com
+NS subdomain1 subdomain_ns2.your_company.net
+
+NS subdomain2 subdomain_ns3.your_company.co.jp
+NS subdomain2 subdomain_ns4.your_company.ad.jp
+
+NS _acme_challenge ssl-cert-server.your_company.net
+
+MX @ 100 mail1.your_company.net
+MX @ 200 mail2.your_company.net
+TXT @ v=spf1 ip4:130.158.0.0/16 ip4:133.51.0.0/16 ip6:2401:af80::/32 include:spf2.@ ?all
+TXT @ v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
+
+
+MX sample2 100 mail3.your_company.net
+MX sample2 200 mail4.your_company.net
+TXT sample2 v=spf1 redirect=tennoudai.net
+TXT sample2 v=spf1 ip4:130.158.0.0/16 ip4:133.51.0.0/16 ip6:2401:af80::/32 include:spf2.sample2.@ ?all
+TXT sample2 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
+
+MX sample3 100 mail5.your_company.net
+MX sample3 200 mail6.your_company.net
+TXT sample3 v=spf1 redirect=tennoudai.net
+TXT sample3 v=spf1 ip4:130.158.0.0/16 ip4:133.51.0.0/16 ip6:2401:af80::/32 include:spf2.sample3.@ ?all
+TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
+
+
+";
+
+                List<string> records = new List<string>();
+                foreach (var line in initialRecordsList._GetLines(removeEmpty: true, trim: true))
+                {
+                    records.Add(line);
+                }
+
+                this.DDns_StaticRecord = records.ToArray();
+            }
         }
     }
 
@@ -381,7 +464,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             string licenseString = "",
 
             [RpcParamHelp("ホストの IP アドレスを登録または更新するには、登録したい新しい IP アドレスを指定します。IP アドレスは明示的に文字列で指定することもできますが、\"myip\" という固定文字列を指定すると、この API の呼び出し元であるホストのグローバル IP アドレスを指定したものとみなされます。なお、IPv4 アドレスと IPv6 アドレスの両方を登録することも可能です。この場合は、IPv4 アドレスと IPv6 アドレスの両方を表記し、その間をカンマ文字 ',' で区切ります。IPv4 アドレスと IPv6 アドレスは、1 つずつしか指定できません。", "myip")]
-            string ipAddress = "",
+            string ip = "",
 
             [RpcParamHelp("ユーザーグループシークレットキーを設定または変更する場合は、ユーザーグループシークレットキーを指定します。ユーザーグループシークレットキーはクライアント側でランダムな 40 文字以内の半角英数字 (0-9、A-Z、ハイフン、アンダーバー の 38 種類の文字) を指定してください。通常は、20 バイトの乱数で生成したユニークなバイナリデータを 16 進数に変換したものを使用してください。複数のホストで、同一のユーザーグループシークレットキーを指定することが可能ですし、それが便利です。ユーザーグループシークレットキーを指定している場合、ユーザーグループシークレットキーを用いたホストレコードの列挙 API を使用すると、同じユーザーグループシークレットキーが登録されているすべてのホストレコードの情報 (各ホストのシークレットキーを含む) を列挙することができます。そのため、ユーザーグループシークレットキーを登録しておけば、同じユーザーグループシークレットキーを有する各ホストレコードの一覧やホストシークレットキーを保持していなくても、いつでも紐付けられたホストレコードにアクセスすることができて便利です。したがって、ユーザーグループシークレットキーは厳重に秘密に管理する必要があります。 \"delete\" という文字列を指定すると、すでに登録されているユーザーグループシークレットキーを消去することができます。", "33884422AAFFCCBB66992244AAAABBBBCCCCDDDD")]
             string userGroupSecretKey = "",
@@ -392,6 +475,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             [RpcParamHelp("このパラメータを指定すると、DDNS ホストレコードに付随する永続的なユーザーデータとして、任意の JSON データを記録することができます。記録される JSON データの内容は、DDNS の動作に影響を与えません。たとえば、個人的なメモ等を記録することができます。記録内容は、Key-Value 形式の文字列である必要があります。Key の値は、重複してはなりません。", "{'key1' : 'value1', 'key2' : 'value2'}")]
                 JObject? userData = null);
     }
+
+    public EasyDnsResponderBasedDnsServer DnsServer { get; private set; } = null!;
 
     public MikakaDDnsService(StartupParam? startupParam = null) : base(startupParam ?? new StartupParam())
     {
@@ -409,10 +494,55 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
     {
         try
         {
+            await this.DnsServer._DisposeSafeAsync();
         }
         finally
         {
             await base.CleanupImplAsync(ex);
+        }
+    }
+
+    protected override void StartImpl()
+    {
+        this.DnsServer = new EasyDnsResponderBasedDnsServer(
+            new EasyDnsResponderBasedDnsServerSettings
+            {
+                UdpPort = this.SettingsFastSnapshot.DDns_UdpListenPort,
+            }
+            );
+
+        this.HadbEventListenerList.RegisterCallback(async (caller, type, state, param) =>
+        {
+            switch (type)
+            {
+                case HadbEventType.DynamicConfigChanged:
+                    ReloadDnsServerSettingFromHadbDynamicConfig();
+                    break;
+            }
+            await Task.CompletedTask;
+        });
+    }
+
+    // HADB の DynamicConfig を元に DDNS サーバーの設定を構築してリロードする
+    void ReloadDnsServerSettingFromHadbDynamicConfig()
+    {
+        var config = this.Hadb.CurrentDynamicConfig;
+
+        EasyDnsResponderSettings s = new EasyDnsResponderSettings
+        {
+            DefaultSettings = new EasyDnsResponderRecordSettings
+            {
+                TtlSecs = config.DDns_Protocol_Ttl_Secs,
+            },
+        };
+
+        foreach (var domainFqdn in config.DDns_DomainName)
+        {
+            var zone = new EasyDnsResponderZone
+            {
+                DefaultSettings = s.DefaultSettings,
+                DomainName = domainFqdn,
+            };
         }
     }
 
@@ -805,7 +935,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             clientName: clientNameStr);
 
             // 作成に成功したので、ホストオブジェクトを返却する。
-            newHost.HostFqdnPrimary = newHost.HostLabel + "." + Hadb.CurrentDynamicConfig.DomainNamePrimary;
+            newHost.HostFqdnPrimary = newHost.HostLabel + "." + Hadb.CurrentDynamicConfig.DDns_DomainNamePrimary;
             newHost.ApiResult = HostApiResult.Created;
             return newHost;
         }
@@ -896,7 +1026,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             clientName: clientNameStr);
 
             // 変更に成功したので、ホストオブジェクトを返却する。
-            current.HostFqdnPrimary = current.HostLabel + "." + Hadb.CurrentDynamicConfig.DomainNamePrimary;
+            current.HostFqdnPrimary = current.HostLabel + "." + Hadb.CurrentDynamicConfig.DDns_DomainNamePrimary;
             current.ApiResult = HostApiResult.Modified;
             return current;
         }
@@ -928,7 +1058,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
         // 現在のオブジェクト情報を返却する。
         retCurrentHost._NullCheck(nameof(retCurrentHost));
-        retCurrentHost.HostFqdnPrimary = retCurrentHost.HostLabel + "." + Hadb.CurrentDynamicConfig.DomainNamePrimary;
+        retCurrentHost.HostFqdnPrimary = retCurrentHost.HostLabel + "." + Hadb.CurrentDynamicConfig.DDns_DomainNamePrimary;
         retCurrentHost.ApiResult = HostApiResult.NoChange;
 
         return retCurrentHost;

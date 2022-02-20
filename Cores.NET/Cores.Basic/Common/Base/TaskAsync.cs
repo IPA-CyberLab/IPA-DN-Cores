@@ -2924,13 +2924,19 @@ public class FastEvent<TCaller, TEventType>
         this.UserState = userState;
     }
 
-    public void CallSafe(TCaller buffer, TEventType type, object? eventParam)
+    public void CallSafe(TCaller buffer, TEventType type, object? eventParam, bool debugLog = false)
     {
         try
         {
             this.Proc(buffer, type, UserState, eventParam);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            if (debugLog)
+            {
+                ex._Debug();
+            }
+        }
     }
 }
 
@@ -2973,12 +2979,12 @@ public class FastEventListenerList<TCaller, TEventType>
     public ValueHolder<int> RegisterAsyncEventWithUsing(AsyncAutoResetEvent ev)
         => new ValueHolder<int>(id => UnregisterAsyncEvent(id), RegisterAsyncEvent(ev));
 
-    public void Fire(TCaller caller, TEventType type, object? eventState = null)
+    public void Fire(TCaller caller, TEventType type, object? eventState = null, bool debugLog = false)
     {
         var listenerList = ListenerList.GetListFast();
         if (listenerList != null)
             foreach (var e in listenerList)
-                e.CallSafe(caller, type, eventState);
+                e.CallSafe(caller, type, eventState, debugLog);
 
         var asyncEventList = AsyncEventList.GetListFast();
         if (asyncEventList != null)
@@ -3005,13 +3011,19 @@ public class AsyncEvent<TCaller, TEventType>
         this.UserState = userState;
     }
 
-    public async Task CallSafeAsync(TCaller buffer, TEventType type, object? eventState)
+    public async Task CallSafeAsync(TCaller buffer, TEventType type, object? eventState, bool debugLog = false)
     {
         try
         {
             await this.Proc(buffer, type, UserState, eventState);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            if (debugLog)
+            {
+                ex._Debug();
+            }
+        }
     }
 }
 
@@ -3048,12 +3060,12 @@ public class AsyncEventListenerList<TCaller, TEventType>
     public ValueHolder<int> RegisterAsyncEventWithUsing(AsyncAutoResetEvent ev)
         => new ValueHolder<int>(id => UnregisterAsyncEvent(id), RegisterAsyncEvent(ev));
 
-    public async Task FireAsync(TCaller caller, TEventType type, object? eventState = null)
+    public async Task FireAsync(TCaller caller, TEventType type, object? eventState = null, bool debugLog = false)
     {
         var listenerList = ListenerList.GetListFast();
         if (listenerList != null)
             foreach (var e in listenerList)
-                await e.CallSafeAsync(caller, type, eventState);
+                await e.CallSafeAsync(caller, type, eventState, debugLog);
 
         var asyncEventList = AsyncEventList.GetListFast();
         if (asyncEventList != null)
