@@ -3463,21 +3463,6 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             {
                 string s = Con.ReadLine(">")._NonNullTrim();
 
-                try
-                {
-                    if (IPEndPoint.TryParse(s, out IPEndPoint? ret))
-                    {
-                        ret.ToString()._Print();
-                    }
-                    else
-                    {
-                        "Error"._Print();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    ex._Debug();
-                }
             }
             return;
         }

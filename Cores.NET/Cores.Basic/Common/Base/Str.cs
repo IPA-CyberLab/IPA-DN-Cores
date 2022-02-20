@@ -7059,6 +7059,83 @@ namespace IPA.Cores.Basic
             }
         }
 
+        // 文字列からキー (複数) と値を取得する
+        public static bool GetKeysListAndValue(string str, int numKeys, out List<string> keys, out string value, string splitStr = Consts.Strings.DefaultKeyAndValueSplitStr)
+        {
+            uint mode = 0;
+            string valuestr = "";
+            List<string> keysList = new List<string>();
+
+            string currentKeyStr = "";
+
+            if (numKeys <= 0) throw new ArgumentOutOfRangeException(nameof(numKeys));
+
+            splitStr = splitStr._FilledOrDefault(Consts.Strings.DefaultKeyAndValueSplitStr);
+
+            foreach (char c in str)
+            {
+                switch (mode)
+                {
+                    case 0:
+                        if (IsSplitChar(c, splitStr) == false)
+                        {
+                            mode = 1;
+                            currentKeyStr += c;
+                        }
+                        break;
+
+                    case 1:
+                        if (IsSplitChar(c, splitStr) == false)
+                        {
+                            currentKeyStr += c;
+                        }
+                        else
+                        {
+                            if (keysList.Count < (numKeys - 1))
+                            {
+                                keysList.Add(currentKeyStr);
+                                currentKeyStr = "";
+                                mode = 0;
+                            }
+                            else
+                            {
+                                mode = 2;
+                            }
+                        }
+                        break;
+
+                    case 2:
+                        if (IsSplitChar(c, splitStr) == false)
+                        {
+                            mode = 3;
+                            valuestr += c;
+                        }
+                        break;
+
+                    case 3:
+                        valuestr += c;
+                        break;
+                }
+            }
+
+            if (currentKeyStr.Length >= 1)
+            {
+                keysList.Add(currentKeyStr);
+            }
+
+            if (keysList.Count < numKeys)
+            {
+                value = "";
+                keys = new List<string>();
+                return false;
+            }
+            else
+            {
+                value = valuestr;
+                keys = keysList;
+                return true;
+            }
+        }
         // 文字列比較
         public static int StrCmpRetInt(string s1, string s2)
         {

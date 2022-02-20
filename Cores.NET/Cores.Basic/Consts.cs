@@ -124,6 +124,8 @@ public static partial class Consts
 
         public const long LocalDatabaseJsonFileMaxSize = 256L * 1024L * 1024L * 1024L; // 256GB (とりあえず)
 
+        public const uint MagicNumber_u32 = 0x7eadbeef;
+
         // SQL Server その他の一般的なデータベースでインデックス可能な最大安全文字列長
         public const int SqlMaxSafeStrLength = 300;
         public const int SqlMaxSafeStrLengthActual = 350;

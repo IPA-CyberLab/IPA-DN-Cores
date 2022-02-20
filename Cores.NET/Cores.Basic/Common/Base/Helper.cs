@@ -440,6 +440,8 @@ public static class BasicHelper
     public static string[] _GetLines(this string s, bool removeEmpty = false, bool stripCommentsFromLine = false, IEnumerable<string>? commentStartStrList = null, bool singleLineAtLeast = false, bool trim = false)
         => Str.GetLines(s, removeEmpty, stripCommentsFromLine, commentStartStrList, singleLineAtLeast, trim);
     public static bool _GetKeyAndValue(this string s, out string key, out string value, string splitStr = Consts.Strings.DefaultKeyAndValueSplitStr) => Str.GetKeyAndValue(s, out key, out value, splitStr);
+    public static bool _GetKeysListAndValue(this string str, int numKeys, out List<string> keys, out string value, string splitStr = Consts.Strings.DefaultKeyAndValueSplitStr)
+        => Str.GetKeysListAndValue(str, numKeys, out keys, out value, splitStr);
     public static void _SplitUrlAndQueryString(this string src, out string url, out string queryString) => Str.SplitUrlAndQueryString(src, out url, out queryString);
     public static bool _IsDouble(this string s) => Str.IsDouble(s);
     public static bool _IsLong(this string s) => Str.IsLong(s);
@@ -1820,6 +1822,13 @@ public static class BasicHelper
         if (aex != null) ex = aex.Flatten().InnerExceptions[0];
 
         return ex;
+    }
+
+    public static string _GetOneLineExceptionString(this Exception? ex)
+    {
+        if (ex == null) return "";
+
+        return ex._GetSingleException().ToString()._OneLine();
     }
 
     public static void _ReThrow(this Exception? exception)
@@ -3404,6 +3413,46 @@ public static class BasicHelper
         {
             return ip;
         }
+    }
+
+    public static List<T> _CloneListFast<T>(this IEnumerable<T> src)
+    {
+        List<T> ret = new List<T>(src.Count());
+        foreach (var a in src)
+        {
+            ret.Add(a);
+        }
+        return ret;
+    }
+
+    public static List<T> _CloneListFast<T>(this IList<T> src)
+    {
+        List<T> ret = new List<T>(src.Count);
+        foreach (var a in src)
+        {
+            ret.Add(a);
+        }
+        return ret;
+    }
+
+    public static List<T> _CloneListFast<T>(this List<T> src)
+    {
+        List<T> ret = new List<T>(src.Count);
+        foreach (var a in src)
+        {
+            ret.Add(a);
+        }
+        return ret;
+    }
+
+    public static List<T> _CloneListFast<T>(this IReadOnlyList<T> src)
+    {
+        List<T> ret = new List<T>(src.Count);
+        foreach (var a in src)
+        {
+            ret.Add(a);
+        }
+        return ret;
     }
 }
 

@@ -489,6 +489,11 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
                 }
             }
 
+            if (answersList.Count >= 2)
+            {
+                answersList = answersList._Shuffle().ToList();
+            }
+
             if (searchResponse.ResultFlags.Bit(EasyDnsResponder.SearchResultFlags.SubDomainIsDelegated))
             {
                 // 他サブドメインへの委譲

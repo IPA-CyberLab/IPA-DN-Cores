@@ -101,9 +101,13 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         public int DDns_MinHostLabelLen;
         public int DDns_MaxHostLabelLen;
         public int DDns_Protocol_Ttl_Secs;
-        public int DDns_Protocol_Ttl_NegativeCache_Secs;
+        public int DDns_Protocol_Ttl_Secs_NS_Record;
         public string DDns_Protocol_SOA_MasterNsServerFqdn = "";
         public string DDns_Protocol_SOA_ResponsibleFieldFqdn = "";
+        public int DDns_Protocol_SOA_NegativeCacheTtlSecs;
+        public int DDns_Protocol_SOA_RefreshIntervalSecs;
+        public int DDns_Protocol_SOA_RetryIntervalSecs;
+        public int DDns_Protocol_SOA_ExpireIntervalSecs;
 
         public string[] DDns_DomainName = new string[0];
         public string DDns_DomainNamePrimary = "";
@@ -186,8 +190,20 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             if (DDns_Protocol_Ttl_Secs <= 0) DDns_Protocol_Ttl_Secs = 60;
             if (DDns_Protocol_Ttl_Secs >= 3600) DDns_Protocol_Ttl_Secs = 3600;
 
-            if (DDns_Protocol_Ttl_NegativeCache_Secs <= 0) DDns_Protocol_Ttl_NegativeCache_Secs = 60;
-            if (DDns_Protocol_Ttl_NegativeCache_Secs >= 3600) DDns_Protocol_Ttl_NegativeCache_Secs = 3600;
+            if (DDns_Protocol_Ttl_Secs_NS_Record <= 0) DDns_Protocol_Ttl_Secs_NS_Record = 15 * 60;
+            if (DDns_Protocol_Ttl_Secs_NS_Record >= 3600) DDns_Protocol_Ttl_Secs_NS_Record = 3600;
+
+            if (DDns_Protocol_SOA_NegativeCacheTtlSecs <= 0) DDns_Protocol_SOA_NegativeCacheTtlSecs = 13;
+            if (DDns_Protocol_SOA_NegativeCacheTtlSecs >= 3600) DDns_Protocol_SOA_NegativeCacheTtlSecs = 3600;
+
+            if (DDns_Protocol_SOA_RefreshIntervalSecs <= 0) DDns_Protocol_SOA_RefreshIntervalSecs = 60;
+            if (DDns_Protocol_SOA_RefreshIntervalSecs >= 3600) DDns_Protocol_SOA_RefreshIntervalSecs = 3600;
+
+            if (DDns_Protocol_SOA_RetryIntervalSecs <= 0) DDns_Protocol_SOA_RetryIntervalSecs = 60;
+            if (DDns_Protocol_SOA_RetryIntervalSecs >= 3600) DDns_Protocol_SOA_RetryIntervalSecs = 3600;
+
+            if (DDns_Protocol_SOA_ExpireIntervalSecs <= 0) DDns_Protocol_SOA_ExpireIntervalSecs = 3600 * 24 * 1024;
+            if (DDns_Protocol_SOA_ExpireIntervalSecs >= 3600 * 24 * 365 * 5) DDns_Protocol_SOA_ExpireIntervalSecs = 3600 * 24 * 365 * 5;
 
             if (DDns_Protocol_SOA_MasterNsServerFqdn._IsEmpty()) DDns_Protocol_SOA_MasterNsServerFqdn = "ns01.ddns_example.org";
             DDns_Protocol_SOA_MasterNsServerFqdn = DDns_Protocol_SOA_MasterNsServerFqdn._NormalizeFqdn();
@@ -198,8 +214,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             if (DDns_StaticRecord.Length == 0)
             {
                 string initialRecordsList = @"
-NS @ ns01.ddns_example.org
-NS @ ns02.ddns_example.org
+NS @ mikaka-ddns-ns01.your_company.com
+NS @ mikaka-ddns-ns02.your_company.org
 
 A sample1 1.2.3.4
 
@@ -215,6 +231,14 @@ AAAA sample3 2401:af80::cafe:8945
 AAAA sample3 2401:af80::abcd:1234
 AAAA sample3 2401:af80::5678:cafe
 
+A *.sample4 5.9.6.1
+A *.sample4 5.9.6.2
+AAAA *.sample4 2401:af80::1234:cafe:8945
+AAAA *.sample4 2401:af80::1234:5678:cafe
+
+A sample4 8.0.0.1
+AAAA sample4 2401:af80::1:2:3:4
+
 CNAME sample4 www1.your_company.net
 
 CNAME sample5 www2.your_company.net
@@ -226,22 +250,22 @@ NS subdomain1 subdomain_ns2.your_company.net
 NS subdomain2 subdomain_ns3.your_company.co.jp
 NS subdomain2 subdomain_ns4.your_company.ad.jp
 
-NS _acme_challenge ssl-cert-server.your_company.net
+NS _acme-challenge ssl-cert-server.your_company.net
 
-MX @ 100 mail1.your_company.net
-MX @ 200 mail2.your_company.net
+MX @ mail1.your_company.net 100
+MX @ mail2.your_company.net 200
 TXT @ v=spf1 ip4:130.158.0.0/16 ip4:133.51.0.0/16 ip6:2401:af80::/32 include:spf2.@ ?all
 TXT @ v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
 
-MX sample2 100 mail3.your_company.net
-MX sample2 200 mail4.your_company.net
+MX sample2 mail3.your_company.net 100
+MX sample2 mail4.your_company.net 200
 TXT sample2 v=spf1 redirect=tennoudai.net
 TXT sample2 v=spf1 ip4:130.158.0.0/16 ip4:133.51.0.0/16 ip6:2401:af80::/32 include:spf2.sample2.@ ?all
 TXT sample2 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
-MX sample3 100 mail5.your_company.net
-MX sample3 200 mail6.your_company.net
+MX sample3 mail5.your_company.net 100
+MX sample3 mail6.your_company.net 200
 TXT sample3 v=spf1 redirect=tennoudai.net
 TXT sample3 v=spf1 ip4:130.158.0.0/16 ip4:133.51.0.0/16 ip6:2401:af80::/32 include:spf2.sample3.@ ?all
 TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
@@ -528,7 +552,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
     {
         var config = this.Hadb.CurrentDynamicConfig;
 
-        EasyDnsResponderSettings s = new EasyDnsResponderSettings
+        EasyDnsResponderSettings settings = new EasyDnsResponderSettings
         {
             DefaultSettings = new EasyDnsResponderRecordSettings
             {
@@ -540,10 +564,39 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         {
             var zone = new EasyDnsResponderZone
             {
-                DefaultSettings = s.DefaultSettings,
+                DefaultSettings = settings.DefaultSettings,
                 DomainName = domainFqdn,
             };
+
+            foreach (var staticRecord in config.DDns_StaticRecord)
+            {
+                try
+                {
+                    EasyDnsResponderRecord rec = EasyDnsResponderRecord.FromString(staticRecord, domainFqdn);
+
+                    if (rec.Type == EasyDnsResponderRecordType.NS)
+                    {
+                        rec.Settings = new EasyDnsResponderRecordSettings { TtlSecs = config.DDns_Protocol_Ttl_Secs_NS_Record };
+                    }
+
+                    zone.RecordList.Add(rec);
+                }
+                catch (Exception ex)
+                {
+                    ex._Error();
+                }
+            }
+
+            zone.RecordList.Add(new EasyDnsResponderRecord
+            {
+                Type = EasyDnsResponderRecordType.SOA,
+                Contents = $"{config.DDns_Protocol_SOA_MasterNsServerFqdn} {config.DDns_Protocol_SOA_ResponsibleFieldFqdn} {Consts.Numbers.MagicNumber_u32} {config.DDns_Protocol_SOA_RefreshIntervalSecs} {config.DDns_Protocol_SOA_RetryIntervalSecs} {config.DDns_Protocol_SOA_ExpireIntervalSecs} {config.DDns_Protocol_SOA_NegativeCacheTtlSecs}",
+            });
+
+            settings.ZoneList.Add(zone);
         }
+
+        this.DnsServer.LoadSetting(settings);
     }
 
     protected override DynConfig CreateInitialDynamicConfigImpl()

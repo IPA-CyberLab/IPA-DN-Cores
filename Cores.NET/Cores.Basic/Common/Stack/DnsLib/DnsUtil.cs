@@ -448,6 +448,44 @@ public class EasyDnsResponderRecord
     public string Contents { get; set; } = ""; // DynamicRecord の場合はコールバック ID (任意の文字列) を指定
 
     public EasyDnsResponderRecordSettings? Settings { get; set; } = null;
+
+    public static EasyDnsResponderRecord FromString(string str, string parentDomainFqdn)
+    {
+        if (str._GetKeysListAndValue(2, out var keys, out string value) == false)
+        {
+            throw new CoresLibException($"DNS Record String: Invalid Format. Str = '{str}'");
+        }
+
+        string typeStr = keys[0];
+        var type = EasyDnsResponderRecordType.None.ParseAsDefault(typeStr);
+        if (type == EasyDnsResponderRecordType.None || type == EasyDnsResponderRecordType.SOA)
+        {
+            throw new CoresLibException($"DNS Record String: Invalid Record Type. Str = '{str}'");
+        }
+
+        string name = keys[1];
+
+        if (name == "@")
+        {
+            name = "";
+        }
+
+        value = value._ReplaceStr("@", parentDomainFqdn);
+
+        return new EasyDnsResponderRecord
+        {
+            Attribute = EasyDnsResponderRecordAttribute.None,
+            Contents = value,
+            Type = type,
+            Name = name,
+            Settings = null,
+        };
+    }
+
+    public override string ToString()
+    {
+        return $"{Attribute} {Type} {Name._FilledOrDefault("@")} {Contents}";
+    }
 }
 
 public class EasyDnsResponderZone
@@ -684,7 +722,7 @@ public class EasyDnsResponder
 
         public Record_MX(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
         {
-            string[] tokens = src.Contents._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ';', ',');
+            string[] tokens = src.Contents._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ';', ',', '\t', ' ');
 
             if (tokens.Length == 0) throw new CoresLibException("Contents is empty.");
 
@@ -923,27 +961,37 @@ public class EasyDnsResponder
             // レコード情報のコンパイル
             foreach (var srcRecord in src.RecordList)
             {
-                var record = Record.CreateFrom(this, srcRecord);
-
-                if (record.Type != EasyDnsResponderRecordType.SOA)
+                try
                 {
-                    string tmp1 = record.ToStringForCompare();
-                    if (this.RecordList.Where(x => x.ToStringForCompare() == tmp1).Any() == false)
+                    var record = Record.CreateFrom(this, srcRecord);
+
+                    if (record.Type != EasyDnsResponderRecordType.SOA)
                     {
-                        // 全く同じ内容のレコードが 2 つ追加されることは禁止する。最初の 1 つ目のみをリストに追加するのである。
-                        this.RecordList.Add(record);
+                        string tmp1 = record.ToStringForCompare();
+                        if (this.RecordList.Where(x => x.ToStringForCompare() == tmp1).Any() == false)
+                        {
+                            // 全く同じ内容のレコードが 2 つ追加されることは禁止する。最初の 1 つ目のみをリストに追加するのである。
+                            this.RecordList.Add(record);
+                        }
+                    }
+                    else
+                    {
+                        // SOA レコード
+                        if (soa != null)
+                        {
+                            // SOA レコードは 2 つ以上指定できない
+                            $"Domain '{this.DomainFqdn}': SOA record is duplicating."._Error();
+                        }
+                        else
+                        {
+                            soa = (Record_SOA)record;
+                        }
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    // SOA レコード
-                    if (soa != null)
-                    {
-                        // SOA レコードは 2 つ以上指定できない
-                        throw new CoresLibException("SOA record is duplicating.");
-                    }
-
-                    soa = (Record_SOA)record;
+                    // 1 つのレコード情報のコンパイル失敗
+                    $"Domain '{this.DomainFqdn}': {ex._GetOneLineExceptionString()}"._Error();
                 }
             }
 
@@ -1023,7 +1071,10 @@ public class EasyDnsResponder
                     if (this.SubDomainList.Contains(r.Name))
                     {
                         // 一致するのでエラーとする。つまり、普通のサブドメインが存在する場合、同じ名前の NS サブドメインの登録は禁止するのである。
-                        throw new CoresLibException($"NS record Name: {r.Name} is duplicating with the existing sub domain record.");
+                        $"NS record Name: {r.Name} is duplicating with the existing sub domain record."._Error();
+
+                        // エラーを記録するものの、この関数は失敗させない。
+                        continue;
                     }
 
                     // 問題なければ、NS 権限委譲レコードとして追加する。
@@ -1052,7 +1103,7 @@ public class EasyDnsResponder
             if (this.RecordDictByName.TryGetValue(hostLabelNormalized, out List<Record>? found))
             {
                 // 完全一致あり
-                answers = found;
+                answers = found._CloneListFast();
             }
 
             if (answers == null)
@@ -1093,7 +1144,7 @@ public class EasyDnsResponder
                         if (hostLabelNormalized.EndsWith(r.Key))
                         {
                             // 後方一致あり
-                            answers = r.Value;
+                            answers = r.Value._CloneListFast();
                             break;
                         }
                     }
@@ -1111,7 +1162,7 @@ public class EasyDnsResponder
                         if (hostLabelNormalized._WildcardMatch(r.Key))
                         {
                             // 一致あり
-                            answers = r.Value;
+                            answers = r.Value._CloneListFast();
                             break;
                         }
                     }
@@ -1124,7 +1175,7 @@ public class EasyDnsResponder
                 {
                     // これまででまだ一致するものが無ければ、
                     // any アスタリスクレコードがあればそれを返す
-                    answers = this.WildcardAnyRecordList;
+                    answers = this.WildcardAnyRecordList._CloneListFast();
                 }
             }
 
@@ -1303,19 +1354,10 @@ public class EasyDnsResponder
         {
             var zone = ret.Zone;
 
-            if (type == EasyDnsResponderRecordType.NS || ret.ResultFlags.Bit(SearchResultFlags.SubDomainIsDelegated))
+            if (ret.ResultFlags.Bit(SearchResultFlags.SubDomainIsDelegated))
             {
-                if (ret.ResultFlags.Bit(SearchResultFlags.SubDomainIsDelegated))
-                {
-                    // 特別処理: クエリ種類が NS の場合で、権限委譲されているドメインの場合、結果には権限委譲のための NS レコードを埋め込むのである。
-                    // (dataSet.Search() によって、すでに埋め込みされているはずである。したがって、ここでは何もしない。)
-                }
-                else
-                {
-                    // 特別処理: クエリ種類が NS の場合で、普通の結果の場合、結果にはこのゾーンの NS レコード一覧を埋め込むのである。
-                    ret.RecordList = zone.NSRecordList;
-                    ret.ResultFlags = ret.ResultFlags.BitRemove(SearchResultFlags.NotFound);
-                }
+                // 特別処理: クエリ種類が NS の場合で、権限委譲されているドメインの場合、結果には権限委譲のための NS レコードを埋め込むのである。
+                // (dataSet.Search() によって、すでに埋め込みされているはずである。したがって、ここでは何もしない。)
             }
             else
             {
