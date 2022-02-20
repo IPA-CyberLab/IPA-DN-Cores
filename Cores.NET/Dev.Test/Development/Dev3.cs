@@ -777,6 +777,12 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
         if (userData != null) userData = userData._NormalizeEasyJsonStrAttributes();
 
+        string testJsonStr = userData._ObjectToJson(compact: true);
+        if (testJsonStr.Length > Hadb.CurrentDynamicConfig.DDns_MaxUserDataJsonStrLength)
+        {
+            throw new CoresException($"{nameof(userData)} is too large.");
+        }
+
         HadbObject<Host>? retCurrentHostObj = null;
 
         // まず、指定されたホストシークレットキーに該当するホストがメモリデータベース上にあるかどうか調べる
