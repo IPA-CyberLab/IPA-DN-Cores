@@ -790,6 +790,58 @@ namespace IPA.Cores.Basic
     // IP ユーティリティ
     public static partial class IPUtil
     {
+        // TCP ポートが開いているかどうかチェック
+        public static async Task<bool> CheckTcpPortAsync(string hostname, int port, int connectTimeout = 500, CancellationToken cancel = default)
+        {
+            if (connectTimeout <= 0) connectTimeout = 500;
+
+            try
+            {
+                return await TaskUtil.DoAsyncWithTimeout(async c =>
+                {
+                    try
+                    {
+                        using var tcp = new TcpClient();
+                        tcp.ReceiveTimeout = connectTimeout;
+                        tcp.SendTimeout = connectTimeout;
+                        await tcp.ConnectAsync(hostname, port, c);
+                        using var stream = tcp.GetStream();
+                        return true;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                },
+                timeout: connectTimeout,
+                cancel: cancel);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        public static async Task<bool> CheckTcpPortWithRetryAsync(string hostname, int port, int numTry = 5, int connectTimeout = 500, CancellationToken cancel = default)
+        {
+            numTry = Math.Max(numTry, 1);
+
+            for (int i = 0; i < numTry; i++)
+            {
+                cancel.ThrowIfCancellationRequested();
+
+                if (i >= 1)
+                {
+                    await Task.Yield();
+                }
+
+                bool r = await CheckTcpPortAsync(hostname, port, connectTimeout, cancel);
+
+                if (r) return true;
+            }
+
+            return false;
+        }
+
         // IP アドレスからワイルドカード DNS 名を生成
         public static string GenerateWildCardDnsFqdn(IPAddress ip, string baseDomainName, string prefix = "", string suffix = "")
         {

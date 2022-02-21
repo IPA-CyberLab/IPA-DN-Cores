@@ -77,6 +77,7 @@ partial class TestDevCommands
         public string Ip = "";
         public string FqdnSortKey = "";
         public string FqdnList = "";
+        public string TcpPortList = "";
     }
 
     [ConsoleCommand(
@@ -87,15 +88,16 @@ partial class TestDevCommands
     {
         ConsoleParam[] args =
         {
-                new ConsoleParam("[subnets]", ConsoleService.Prompt, "Subnets: ", ConsoleService.EvalNotEmpty, null),
-                new ConsoleParam("servers"),
-                new ConsoleParam("threads"),
-                new ConsoleParam("interval"),
-                new ConsoleParam("try"),
-                new ConsoleParam("shuffle"),
-                new ConsoleParam("fqdnorder"),
-                new ConsoleParam("dest"),
-            };
+            new ConsoleParam("[subnets]", ConsoleService.Prompt, "Subnets: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("servers"),
+            new ConsoleParam("threads"),
+            new ConsoleParam("interval"),
+            new ConsoleParam("try"),
+            new ConsoleParam("shuffle"),
+            new ConsoleParam("fqdnorder"),
+            new ConsoleParam("dest"),
+            new ConsoleParam("ports"),
+        };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
@@ -107,6 +109,9 @@ partial class TestDevCommands
         bool shuffle = vl["shuffle"].StrValue._ToBool(true);
         bool fqdnorder = vl["fqdnorder"].StrValue._ToBool(true);
         string csv = vl["dest"].StrValue;
+        string portsStr = vl["ports"].StrValue;
+
+        PortRange portRange = new PortRange(portsStr);
 
         var serversList = servers._Split(StringSplitOptions.RemoveEmptyEntries, " ", "　", ",", "|");
         if (serversList._IsEmpty())
@@ -119,7 +124,7 @@ partial class TestDevCommands
         serversList._DoForEach(x => endPointsList.Add(new IPEndPoint(x._ToIPAddress()!, 53)));
 
         using DnsHostNameScanner scan = new DnsHostNameScanner(
-            settings: new DnsHostNameScannerSettings { Interval = interval, NumThreads = threads, NumTry = numtry, PrintStat = true, RandomInterval = true, Shuffle = shuffle, PrintOrderByFqdn = fqdnorder },
+            settings: new DnsHostNameScannerSettings { Interval = interval, NumThreads = threads, NumTry = numtry, PrintStat = true, RandomInterval = true, Shuffle = shuffle, PrintOrderByFqdn = fqdnorder, TcpPorts = portRange.ToArray(), },
             dnsSettings: new DnsResolverSettings(dnsServersList: endPointsList, flags: DnsResolverFlags.UdpOnly | DnsResolverFlags.RoundRobinServers));
 
         var list = await scan.PerformAsync(subnets);
@@ -138,6 +143,7 @@ partial class TestDevCommands
                     r.Ip = item.Ip.ToString();
                     r.FqdnSortKey = Str.ReverseFqdnStr(item.HostnameList.First()).ToLowerInvariant();
                     r.FqdnList = item.HostnameList._Combine(" / ");
+                    r.TcpPortList = item.TcpPorts.Select(x => x.ToString())._Combine(" / ");
 
                     csvWriter.WriteData(r);
                 }

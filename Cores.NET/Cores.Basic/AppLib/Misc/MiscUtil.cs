@@ -824,8 +824,8 @@ public static class FileDownloader
 
             fileSize = res.DownloadContentLength ?? -1;
 
-                // ヘッダ情報を参考情報として呼び出し元に返す
-                responseHeader.Set(res);
+            // ヘッダ情報を参考情報として呼び出し元に返す
+            responseHeader.Set(res);
 
             if (res.HttpResponseMessage.Headers.AcceptRanges.Where(x => x._IsSamei("bytes")).Any())
             {
@@ -884,11 +884,11 @@ public static class FileDownloader
 
                     if (now > (lastChangedTick + option.WebApiOptions.Settings.Timeout))
                     {
-                            // タイムアウト発生
-                            cancel2.Cancel();
+                        // タイムアウト発生
+                        cancel2.Cancel();
                         Dbg.Where();
-                            //isTimeout = true;
-                            lastException.Set(new TimeoutException());
+                        //isTimeout = true;
+                        lastException.Set(new TimeoutException());
 
                         break;
                     }
@@ -904,23 +904,23 @@ public static class FileDownloader
                 // 同時に一定数までタスクを作成する
                 var newTask = await concurrent.StartTaskAsync<int, bool>(async (p1, c1) =>
                 {
-                        //maps.CalcUnfinishedTotalSize()._Debug();
-                        bool started = false;
+                    //maps.CalcUnfinishedTotalSize()._Debug();
+                    bool started = false;
                     int taskId = taskIdSeed.Increment();
 
                     try
                     {
-                            // 新しい部分を開始
-                            var partial = maps.StartPartial();
+                        // 新しい部分を開始
+                        var partial = maps.StartPartial();
                         if (partial == null)
                         {
-                                // もう新しい部分を開始する必要がない
-                                //$"Task {taskId}: No more partial"._Debug();
-                                if (maps.IsAllFinished())
+                            // もう新しい部分を開始する必要がない
+                            //$"Task {taskId}: No more partial"._Debug();
+                            if (maps.IsAllFinished())
                             {
-                                    // IsAllFinished() は必ずチェックする。
-                                    // そうしないと、1 バイトの空白領域が残っているときに取得未了になるおそれがあるためである。
-                                    noMoreNeedNewTask.Set(true);
+                                // IsAllFinished() は必ずチェックする。
+                                // そうしないと、1 バイトの空白領域が残っているときに取得未了になるおそれがあるためである。
+                                noMoreNeedNewTask.Set(true);
                                 noMoreNeedNewTaskEvent.Set(true);
                             }
                             return false;
@@ -930,15 +930,15 @@ public static class FileDownloader
                         {
                             currentNumConcurrentTasks.Increment();
 
-                                //$"Task {taskId}: Start from {partial.StartPosition}"._Debug();
+                            //$"Task {taskId}: Start from {partial.StartPosition}"._Debug();
 
-                                // ダウンロードの実施
-                                using var http = new WebApi(option.WebApiOptions);
+                            // ダウンロードの実施
+                            using var http = new WebApi(option.WebApiOptions);
                             using var res = await http.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, url + "", cancel2, rangeStart: partial.StartPosition));
                             using var src = res.DownloadStream;
 
-                                // Normal copy
-                                using (MemoryHelper.FastAllocMemoryWithUsing(option.BufferSize, out Memory<byte> buffer))
+                            // Normal copy
+                            using (MemoryHelper.FastAllocMemoryWithUsing(option.BufferSize, out Memory<byte> buffer))
                             {
                                 while (true)
                                 {
@@ -952,8 +952,8 @@ public static class FileDownloader
 
                                     if (readSize <= 0)
                                     {
-                                            //$"Task {taskId}: No more recv data"._Debug();
-                                            break;
+                                        //$"Task {taskId}: No more recv data"._Debug();
+                                        break;
                                     }
 
                                     started = true;
@@ -971,15 +971,15 @@ public static class FileDownloader
 
                                     if (partial.AdvanceCurrentLength(sliced.Length) == false)
                                     {
-                                            // 次の partial または末尾にぶつかった
-                                            //$"Task {taskId}: Reached to the next partial"._Debug();
-                                            break;
+                                        // 次の partial または末尾にぶつかった
+                                        //$"Task {taskId}: Reached to the next partial"._Debug();
+                                        break;
                                     }
                                 }
                             }
 
-                                //$"Task {taskId}: Finished. Position: {partial.StartPosition + partial.CurrentLength}, size: {partial.CurrentLength}"._Debug();
-                                return false;
+                            //$"Task {taskId}: Finished. Position: {partial.StartPosition + partial.CurrentLength}, size: {partial.CurrentLength}"._Debug();
+                            return false;
                         }
                         finally
                         {
@@ -991,8 +991,8 @@ public static class FileDownloader
                     {
                         if (started == false)
                         {
-                                //$"Task {taskId}: error. {ex._GetSingleException().Message}"._Debug();
-                            }
+                            //$"Task {taskId}: error. {ex._GetSingleException().Message}"._Debug();
+                        }
                         lastException.Set(ex);
                         return false;
                     }
@@ -1440,12 +1440,14 @@ public class DnsHostNameScannerSettings : INormalizable
     public bool PrintStat { get; set; } = true;
     public bool PrintOrderByFqdn { get; set; } = true;
     public int NumTry { get; set; } = 3;
+    public IEnumerable<int> TcpPorts { get; set; } = new List<int>();
 
     public void Normalize()
     {
         this.NumThreads = Math.Max(this.NumThreads, 1);
         if (Interval < 0) Interval = 100;
         if (NumTry <= 0) NumTry = 1;
+        if (this.TcpPorts == null) this.TcpPorts = new List<int>();
     }
 }
 
@@ -1454,6 +1456,7 @@ public class DnsHostNameScannerEntry
     public IPAddress Ip { get; set; } = null!;
     public List<string>? HostnameList { get; set; }
     public bool NotFound { get; set; }
+    public List<int> TcpPorts { get; set; } = new List<int>();
 }
 
 public class DnsHostNameScanner : AsyncService
@@ -1495,6 +1498,8 @@ public class DnsHostNameScanner : AsyncService
 
         int numTry = Settings.NumTry;
 
+        bool usePortScan = Settings.TcpPorts.Any();
+
         for (int tryCount = 0; tryCount < numTry; tryCount++)
         {
             if (Settings.PrintStat) $"--- Starting Try #{tryCount + 1}: {BeforeQueue.Count._ToString3()} hosts ---"._Print();
@@ -1518,9 +1523,28 @@ public class DnsHostNameScanner : AsyncService
                             }
                         }
 
+                        List<int> okPorts = new List<int>();
+
+                        if (usePortScan)
+                        {
+                            // ポートスキャンの実施
+                            foreach (var port in Settings.TcpPorts)
+                            {
+                                if (await IPUtil.CheckTcpPortWithRetryAsync(target.Ip.ToString(), port, cancel: cancel))
+                                {
+                                    okPorts.Add(port);
+                                }
+                            }
+                        }
+
+                        bool anyPortOk = usePortScan && okPorts.Any();
+
                         Ref<DnsAdditionalResults> additional = new Ref<DnsAdditionalResults>();
 
                         List<string>? ret = await Dr.GetHostNameAsync(target.Ip, additional, cancel);
+
+                        string portsStr = "TCP Ports: " + (anyPortOk ? okPorts.Select(x => x.ToString())._Combine(" / ") : "None");
+                        if (usePortScan == false) portsStr = "";
 
                         if (ret._IsFilled())
                         {
@@ -1528,13 +1552,30 @@ public class DnsHostNameScanner : AsyncService
 
                             if (Settings.PrintStat)
                             {
-                                $"Try #{tryCount + 1}: {target.Ip.ToString()._AddSpacePadding(19)} {target.HostnameList._Combine(" / ")}"._Print();
+                                $"Try #{tryCount + 1}: {target.Ip.ToString()._AddSpacePadding(19)} {target.HostnameList._Combine(" / ")}   {portsStr}".Trim()._Print();
                             }
                         }
                         else
                         {
-                            target.NotFound = additional?.Value?.IsNotFound ?? false;
+                            if (usePortScan && anyPortOk)
+                            {
+                                target.HostnameList = target.Ip.ToString()._SingleList();
+
+                                if (Settings.PrintStat)
+                                {
+                                    $"Try #{tryCount + 1}: {target.Ip.ToString()._AddSpacePadding(19)} {target.HostnameList._Combine(" / ")}   {portsStr}".Trim()._Print();
+                                }
+                            }
+                            else
+                            {
+                                if (usePortScan == false)
+                                {
+                                    target.NotFound = additional?.Value?.IsNotFound ?? false;
+                                }
+                            }
                         }
+
+                        target.TcpPorts = okPorts;
 
                         lock (AfterResult)
                         {
@@ -1571,9 +1612,10 @@ public class DnsHostNameScanner : AsyncService
 
                 foreach (var item in AfterResult)
                 {
-                    if (item.HostnameList._IsEmpty() && item.NotFound == false)
+                    if ((item.HostnameList._IsEmpty() && item.NotFound == false) || (usePortScan && item.TcpPorts.Any() == false))
                     {
                         // 未解決ホストかつエラー発生ホストである
+                        // または TCP で 1 つもポート応答がなかったホストである
                         unsolvedHosts.Add(item);
                     }
                 }
@@ -1597,6 +1639,12 @@ public class DnsHostNameScanner : AsyncService
             }
         }
 
+        if (usePortScan)
+        {
+            // TCP ポートスキャンモードの場合、1 つもポートが開いていないホストはリストから消す
+            AfterResult = AfterResult.Where(x => x.TcpPorts.Any()).ToList();
+        }
+
         if (Settings.PrintStat)
         {
             Con.WriteLine();
@@ -1616,7 +1664,10 @@ public class DnsHostNameScanner : AsyncService
 
             foreach (var item in printResults)
             {
-                $"{item.Ip.ToString()._AddSpacePadding(19)} {item.HostnameList!._Combine(" / ")}"._Print();
+                string portsStr = "TCP Ports: " + item.TcpPorts.Select(x => x.ToString())._Combine(" / ");
+                if (usePortScan == false) portsStr = "";
+
+                $"{item.Ip.ToString()._AddSpacePadding(19)} {item.HostnameList!._Combine(" / ")}   {portsStr}".Trim()._Print();
             }
         }
 

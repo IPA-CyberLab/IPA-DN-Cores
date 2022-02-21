@@ -3457,14 +3457,19 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
     public static void Test_Generic()
     {
-        if (false)
+        if (true)
         {
-            while (true)
+            Async(async () =>
             {
-                string s = Con.ReadLine(">")._NonNullTrim();
-
-            }
-            return;
+                while (true)
+                {
+                    string s = Con.ReadLine(">")._NonNullTrim();
+                    bool r = await IPUtil.CheckTcpPortAsync(s, 80);
+                    r._Print();
+                    ""._Print();
+                }
+                return;
+            });
         }
 
         if (true)

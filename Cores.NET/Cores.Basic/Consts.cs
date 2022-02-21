@@ -112,6 +112,9 @@ public static partial class Consts
         public const int VlanMin = 1;
         public const int VlanMax = 4094;
 
+        public const int PortMin = 1;
+        public const int PortMax = 65535;
+
         public const int GenericMaxEntities_Small = 512;
         public const int GenericMaxSize_Middle = 1_000_000;
 

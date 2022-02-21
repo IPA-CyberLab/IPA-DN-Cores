@@ -3126,6 +3126,8 @@ public static class BasicHelper
 
     public static bool _IsValidVlanId(this int number) => number >= Consts.Numbers.VlanMin && number <= Consts.Numbers.VlanMax;
 
+    public static bool _IsValidPortNumber(this int number) => number >= Consts.Numbers.PortMin && number <= Consts.Numbers.PortMax;
+
     public static WebSocketStream _GetStream(this System.Net.WebSockets.WebSocket webSocket, bool autoDispose = false)
         => new WebSocketStream(webSocket, autoDispose);
 
