@@ -129,6 +129,8 @@ public static partial class Consts
 
         public const uint MagicNumber_u32 = 0x7eadbeef;
 
+        public const int MikakaDDns_MaxUnlockKeyCountOnce = 1000;
+
         // SQL Server その他の一般的なデータベースでインデックス可能な最大安全文字列長
         public const int SqlMaxSafeStrLength = 300;
         public const int SqlMaxSafeStrLengthActual = 350;
@@ -253,6 +255,9 @@ public static partial class Consts
         public const string EasyEncryptDefaultPassword = "pLkw4jkN8YxcD54AJ2rVvaD3sdnJEzMN";
 
         public const string HadbDefaultNameSpace = "DEFAULT_NS";
+
+        public const string DefaultAdminUsername = "USERNAME_HERE";
+        public const string DefaultAdminPassword = "PASSWORD_HERE";
     }
 
     public static partial class HiveNames

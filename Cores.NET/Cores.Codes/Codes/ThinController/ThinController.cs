@@ -165,8 +165,8 @@ public static class ThinControllerGlobalSettings
     // <TAG>: アクティベーションまたはアクティベーション解除時に指定されたタグ文字列
     // 注意: 展開後の URL は 256 文字以内である必要がある。これを超過した場合は、URL は切り捨てられる。
     public static readonly Copenhagen<string> PaidService_RedirectUrl = "https://example.org/expired/?status=<STATUS>&expired=<EXPIRED>&pcid=<PCID>&tag=<TAG>"; 
-    public static readonly Copenhagen<string> PaidService_RpcAuthUsername = "USERNAME_HERE";
-    public static readonly Copenhagen<string> PaidService_RpcAuthPassword = "PASSWORD_HERE";
+    public static readonly Copenhagen<string> PaidService_RpcAuthUsername = Consts.Strings.DefaultAdminUsername;
+    public static readonly Copenhagen<string> PaidService_RpcAuthPassword = Consts.Strings.DefaultAdminPassword;
 }
 
 

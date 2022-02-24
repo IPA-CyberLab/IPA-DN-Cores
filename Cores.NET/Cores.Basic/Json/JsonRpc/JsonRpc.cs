@@ -728,7 +728,8 @@ public abstract class JsonRpcServer
                 object? retObj = await this.Api.InvokeMethod(req.Method!, inObj, method, paramsStrComparison);
                 if (method!.IsGenericTask == false)
                 {
-                    retObj = null;
+                    // 戻り値が void 型の場合、代わりに true という bool 値を返す
+                    retObj = true;
                 }
                 return new JsonRpcResponseOk()
                 {

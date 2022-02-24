@@ -8543,6 +8543,23 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
+                    if (type.IsArray)
+                    {
+                        var arrayItemType = type.GetElementType()!;
+
+                        object? arrayItemSample = SampleDataUtil.Get(arrayItemType, additionalTag1, additionalTag2, isGoodSample);
+
+                        int count = 3;
+
+                        var sampleArray = Array.CreateInstance(arrayItemType, count);
+                        for (int i = 0; i < count; i++)
+                        {
+                            sampleArray.SetValue(arrayItemSample, i);
+                        }
+
+                        return sampleArray;
+                    }
+
                     PropertyInfo? method = null;
 
                     if (additionalTag1._IsFilled())

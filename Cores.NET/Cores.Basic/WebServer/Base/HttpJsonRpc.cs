@@ -526,10 +526,10 @@ public class JsonRpcHttpServer : JsonRpcServer
                 {
                     urlWithBasicAuth += "?" + qsList.ToString(null, urlEncodeParam);
                 }
-                urlWithBasicAuth = urlWithBasicAuth._AddCredentialOnUrl("USERNAME_HERE", "PASSWORD_HERE");
+                urlWithBasicAuth = urlWithBasicAuth._AddCredentialOnUrl(Consts.Strings.DefaultAdminUsername, Consts.Strings.DefaultAdminPassword);
 
                 string urlWithQsAuth = rpcBaseUri._CombineUrlDir(m.Name).ToString();
-                urlWithQsAuth += $"?rpc_auth_username=USERNAME_HERE&rpc_auth_password=PASSWORD_HERE";
+                urlWithQsAuth += $"?rpc_auth_username={Consts.Strings.DefaultAdminUsername}&rpc_auth_password={Consts.Strings.DefaultAdminPassword}";
                 if (qsList.Any())
                 {
                     urlWithQsAuth += "&" + qsList.ToString(null, urlEncodeParam);
@@ -548,7 +548,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                 w.WriteLine("# (wget with HTTP Query String Authentication)");
                 w.WriteLine($"wget --content-on-error --no-verbose -O - --no-check-certificate {urlWithQsAuth._EscapeBashArg()}");
                 w.WriteLine("# (wget with HTTP Header Authentication)");
-                w.WriteLine($"wget --content-on-error --no-verbose -O - --no-check-certificate --header 'X-RPC-Auth-Username: USERNAME_HERE' --header 'X-RPC-Auth-Password: PASSWORD_HERE' {urlSimple._EscapeBashArg()}");
+                w.WriteLine($"wget --content-on-error --no-verbose -O - --no-check-certificate --header 'X-RPC-Auth-Username: {Consts.Strings.DefaultAdminUsername}' --header 'X-RPC-Auth-Password: {Consts.Strings.DefaultAdminPassword}' {urlSimple._EscapeBashArg()}");
                 w.WriteLine();
                 w.WriteLine($"# curl command line sample on Linux bash (retcode = 0 when successful):");
                 w.WriteLine("# (curl with HTTP Basic Authentication)");
@@ -556,7 +556,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                 w.WriteLine("# (curl with HTTP Query String Authentication)");
                 w.WriteLine($"curl --get --globoff --fail -k --raw --verbose {urlWithQsAuth._EscapeBashArg()}");
                 w.WriteLine("# (curl with HTTP Header Authentication)");
-                w.WriteLine($"curl --get --globoff --fail -k --raw --verbose --header 'X-RPC-Auth-Username: USERNAME_HERE' --header 'X-RPC-Auth-Password: PASSWORD_HERE' {urlSimple._EscapeBashArg()}");
+                w.WriteLine($"curl --get --globoff --fail -k --raw --verbose --header 'X-RPC-Auth-Username: {Consts.Strings.DefaultAdminUsername}' --header 'X-RPC-Auth-Password: {Consts.Strings.DefaultAdminPassword}' {urlSimple._EscapeBashArg()}");
                 w.WriteLine();
                 w.WriteLine();
 

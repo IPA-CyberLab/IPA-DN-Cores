@@ -146,9 +146,23 @@ public abstract class HadbBasedServiceHiveSettingsBase : INormalizable
     }
 }
 
+public class HadbBasedServiceDynConfig : HadbDynamicConfig
+{
+    public string Service_AdminBasicAuthUsername = "";
+    public string Service_AdminBasicAuthPassword = "";
+
+    protected override void NormalizeImpl()
+    {
+        Service_AdminBasicAuthUsername = Service_AdminBasicAuthUsername._FilledOrDefault(Consts.Strings.DefaultAdminUsername);
+        Service_AdminBasicAuthPassword = Service_AdminBasicAuthPassword._FilledOrDefault(Consts.Strings.DefaultAdminPassword);
+
+        base.NormalizeImpl();
+    }
+}
+
 public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings> : AsyncService
     where TMemDb : HadbMemDataBase, new()
-    where TDynConfig : HadbDynamicConfig
+    where TDynConfig : HadbBasedServiceDynConfig
     where THiveSettings : HadbBasedServiceHiveSettingsBase, new()
 {
     public DateTimeOffset BootDateTime { get; } = DtOffsetNow; // サービス起動日時
@@ -219,6 +233,21 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings> : 
     Once StartedFlag;
 
     protected abstract void StartImpl();
+
+    public void Require_AdminBasicAuth(string realm = "")
+    {
+        if (realm._IsEmpty())
+        {
+            realm = "Basic auth for " + this.GetType().Name;
+        }
+
+        JsonRpcServerApi.TryAuth((user, pass) =>
+        {
+            var config = Hadb.CurrentDynamicConfig;
+
+            return user._IsSamei(config.Service_AdminBasicAuthUsername) && pass._IsSame(config.Service_AdminBasicAuthPassword);
+        }, realm);
+    }
 
     public void Start()
     {

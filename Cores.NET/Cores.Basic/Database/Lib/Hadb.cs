@@ -1870,7 +1870,6 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
     protected internal override async Task<HadbObject> AtomicDeleteDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, int maxArchive, CancellationToken cancel = default)
     {
-        maxArchive = Math.Max(maxArchive, 0);
         nameSpace = nameSpace._HadbNameSpaceNormalize();
         typeName = typeName._NonNullTrim();
         uid = uid._NormalizeUid();
