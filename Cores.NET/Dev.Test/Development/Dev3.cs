@@ -89,6 +89,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         public int DDns_MaxHostPerCreateClientIpNetwork_Total;
         public int DDns_MaxHostPerCreateClientIpAddress_Daily;
         public int DDns_MaxHostPerCreateClientIpNetwork_Daily;
+        public string DDns_MaxHostPerCreate_ExemptedClientIpAcl = "_initial_";
         public int DDns_CreateRequestedIpNetwork_SubnetLength_IPv4;
         public int DDns_CreateRequestedIpNetwork_SubnetLength_IPv6;
         public string DDns_ProhibitedHostnamesStartWith = "_initial_";
@@ -117,6 +118,11 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
         protected override void NormalizeImpl()
         {
+            if (DDns_MaxHostPerCreate_ExemptedClientIpAcl == "_initial_")
+            {
+                DDns_MaxHostPerCreate_ExemptedClientIpAcl = "127.0.0.0/8; 192.168.0.0/16; 172.16.0.0/24; 10.0.0.0/8; 1.2.3.4/32; 2041:af80:1234::/48";
+            }
+
             if (DDns_DomainName == null || DDns_DomainName.Any() == false)
             {
                 var tmpList = new List<string>();
@@ -460,6 +466,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         {
             List<Type> ret = new List<Type>();
             ret.Add(typeof(Host));
+            ret.Add(typeof(UnlockKey));
             return ret;
         }
 
@@ -527,7 +534,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
         [RpcRequireAuth]
         [RpcMethodHelp("新しい登録キーを作成します。登録キーを作成すると、作成された登録キーの一覧が JSON 形式で返却されます。同時に多数個の登録キーを作成することも可能です。")]
-        public Task<UnlockKey[]> DDNS_UnlockKeyCreate(
+        public Task<UnlockKey[]> DDNSAdmin_UnlockKeyCreate(
             [RpcParamHelp("作成したい登録キーの個数を指定します。指定しない場合は、1 個の登録キーを作成します。多数の登録キーを作成しようとすると、時間がかかる場合があります。", "28")]
             int count = 1
             );
@@ -699,6 +706,12 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
         unlockKey = unlockKey._MakeStringUseOnlyChars("0123456789");
         licenseString = licenseString._NonNull();
+
+        bool requireUnlockKey = Hadb.CurrentDynamicConfig.DDns_RequireUnlockKey;
+        if (requireUnlockKey == false)
+        {
+            unlockKey = "";
+        }
 
         ip = ip._NonNullTrim();
 
@@ -972,6 +985,11 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         if (needToCreate)
         {
             // 新規作成のようだぞ
+            if (requireUnlockKey && unlockKey._IsEmpty())
+            {
+                // 登録キーを要求している際に登録キーが指定されていない場合エラーにする
+                throw new CoresException($"The parameter {nameof(unlockKey)} is missing. This DDNS server requires the parameter {nameof(unlockKey)} when creating a new DDNS host object.");
+            }
 
             // 固有使用許諾文字列のチェック
             if (Hadb.CurrentDynamicConfig.DDns_RequiredLicenseString._IsFilled())
@@ -985,6 +1003,62 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 {
                     throw new CoresException($"The sepcified value of {nameof(licenseString)} is invalid. Please check the string and try again.");
                 }
+            }
+
+            // クォータをチェック。なお、オンメモリ上の DB 上でチェックはするものの、DB の物理的な検索は実施しない。
+            // したがって、API サーバーが複数ある場合で、各 API サーバーで一時期に大量にホストを作成した場合は、
+            // 若干超過して作成に成功する場合もあるのである。
+            // なお、明示的な ACL で除外されている場合は、このチェックを実施しない。
+            if (EasyIpAcl.Evaluate(Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreate_ExemptedClientIpAcl, clientIp.ToString(), EasyIpAclAction.Deny, EasyIpAclAction.Deny, enableCache: true) == EasyIpAclAction.Deny)
+            {
+                var existingHostsSameClientIpAddr = Hadb.FastSearchByLabels(new Host { CreateRequestedIpAddress = clientIp.ToString() });
+                if (existingHostsSameClientIpAddr.Count() >= Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreateClientIpAddress_Total)
+                {
+                    throw new CoresException($"The host record registration quota (total) exceeded (Limitation type #1). Your IP address {clientIp} cannot create more host records on this DDNS server. Complaint should be submit to the DDNS server administrator.");
+                }
+                if (existingHostsSameClientIpAddr.Where(x => x.CreateDt.Date == now.AddDays(1).Date).Count() >= Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreateClientIpAddress_Daily)
+                {
+                    throw new CoresException($"The host record registration quota (daily) exceeded (Limitation type #2). Your IP address {clientIp} cannot create more host records on this DDNS server today. Please wait for one or more days and try again. Complaint should be submit to the DDNS server administrator.");
+                }
+
+                var existingHostsSameClientIpNetwork = Hadb.FastSearchByLabels(new Host { CreateRequestedIpNetwork = clientNetwork.ToString() });
+                if (existingHostsSameClientIpNetwork.Count() >= Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreateClientIpNetwork_Total)
+                {
+                    throw new CoresException($"The host record registration quota (total) exceeded (Limitation type #3). Your IP address {clientIp} cannot create more host records on this DDNS server. Complaint should be submit to the DDNS server administrator.");
+                }
+                if (existingHostsSameClientIpNetwork.Where(x => x.CreateDt.Date == now.AddDays(1).Date).Count() >= Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreateClientIpNetwork_Daily)
+                {
+                    throw new CoresException($"The host record registration quota (daily) exceeded (Limitation type #4). Your IP address {clientIp} cannot create more host records on this DDNS server today. Please wait for one or more days and try again. Complaint should be submit to the DDNS server administrator.");
+                }
+            }
+
+            if (requireUnlockKey)
+            {
+                await Hadb.TranAsync(false, async tran =>
+                {
+                    // 登録キーが必要な場合は、同一の登録キーを用いたホストがすでに登録されていないかどうか調べる。
+                    // なお、ここではまず読み取り専用モードで DB を検索する。
+                    // その後、DB への書き込みの際に一意キー制約で重複は再度厳重に検出されるのである。
+                    var exist = await tran.AtomicSearchByKeyAsync(new Host { UsedUnlockKey = unlockKey });
+
+                    if (exist != null)
+                    {
+                        // すでに使用されている!
+                        throw new CoresException($"The specified {nameof(unlockKey)} ('{unlockKey}') is already used. It is unable to create two or more DDNS hosts with a single {nameof(unlockKey)}. Please contact the DDNS service administrator to request another {nameof(unlockKey)}.");
+                    }
+
+                    // そもそも指定された登録キーが存在するか調べる
+                    var exist2 = await tran.AtomicSearchByKeyAsync(new UnlockKey { Key = unlockKey });
+
+                    if (exist2 == null)
+                    {
+                        // 存在しない!
+                        throw new CoresException($"The specified {nameof(unlockKey)} ('{unlockKey}') is wrong. Please contact the DDNS service administrator to request a valid {nameof(unlockKey)}.");
+                    }
+
+                    return false;
+                },
+                clientName: clientNameStr);
             }
 
             // 新規作成の必要がある場合は、データベース上で新規作成をする。
@@ -1030,7 +1104,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                     HostAddress_IPv6_FirstUpdateTime = ipv6str._IsFilled() ? now : DtOffsetZero,
                     HostAddress_IPv6_LastUpdateTime = ipv6str._IsFilled() ? now : DtOffsetZero,
                     HostAddress_IPv6_NumUpdates = ipv6str._IsFilled() ? 1 : 0,
-                    UsedUnlockKey = "", // TODO
+                    UsedUnlockKey = unlockKey,
                     UserGroupSecretKey = userGroupSecretKey,
                     Email = email,
                     UserData = userData,
@@ -1222,7 +1296,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         });
     }
 
-    public async Task<UnlockKey[]> DDNS_UnlockKeyCreate(int count)
+    public async Task<UnlockKey[]> DDNSAdmin_UnlockKeyCreate(int count)
     {
         this.Require_AdminBasicAuth();
 
