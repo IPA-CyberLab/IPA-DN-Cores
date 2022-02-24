@@ -75,16 +75,14 @@ namespace IPA.Cores.Basic;
 
 
 
-public class HadbBasedServiceStartupParam
+public class HadbBasedServiceStartupParam : INormalizable
 {
-    public string HiveDataName { get; }
-    public string DefaultHadbSystemName { get; }
+    public string HiveDataName = "DefaultApp";
+    public string HadbSystemName = "DEFAULT_HADB";
+    public double HeavyRequestRateLimiter_LimitPerSecond = 50.0;
+    public double HeavyRequestRateLimiter_Burst = 5.0;
 
-    public HadbBasedServiceStartupParam(string hiveDataName, string defaultHadbSystemName)
-    {
-        this.HiveDataName = hiveDataName;
-        this.DefaultHadbSystemName = defaultHadbSystemName;
-    }
+    public virtual void Normalize() { }
 }
 
 public abstract class HadbBasedServiceHiveSettingsBase : INormalizable
@@ -150,11 +148,22 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
 {
     public string Service_AdminBasicAuthUsername = "";
     public string Service_AdminBasicAuthPassword = "";
+    public string Service_HeavyRequestRateLimiterAcl = "_initial_";
+    public int Service_ClientIpRateLimit_SubnetLength_IPv4 = 0;
+    public int Service_ClientIpRateLimit_SubnetLength_IPv6 = 0;
 
     protected override void NormalizeImpl()
     {
         Service_AdminBasicAuthUsername = Service_AdminBasicAuthUsername._FilledOrDefault(Consts.Strings.DefaultAdminUsername);
         Service_AdminBasicAuthPassword = Service_AdminBasicAuthPassword._FilledOrDefault(Consts.Strings.DefaultAdminPassword);
+
+        if (Service_ClientIpRateLimit_SubnetLength_IPv4 <= 0 || Service_ClientIpRateLimit_SubnetLength_IPv4 > 32) Service_ClientIpRateLimit_SubnetLength_IPv4 = 24;
+        if (Service_ClientIpRateLimit_SubnetLength_IPv6 <= 0 || Service_ClientIpRateLimit_SubnetLength_IPv6 > 128) Service_ClientIpRateLimit_SubnetLength_IPv6 = 56;
+
+        if (Service_HeavyRequestRateLimiterAcl == "_initial_")
+        {
+            Service_HeavyRequestRateLimiterAcl = "127.0.0.0/8; 192.168.0.0/16; 172.16.0.0/24; 10.0.0.0/8; 1.2.3.4/32; 2041:af80:1234::/48";
+        }
 
         base.NormalizeImpl();
     }
@@ -168,7 +177,8 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings> : 
     public DateTimeOffset BootDateTime { get; } = DtOffsetNow; // サービス起動日時
     public HadbBase<TMemDb, TDynConfig> Hadb { get; }
     public AsyncEventListenerList<HadbBase<TMemDb, TDynConfig>, HadbEventType> HadbEventListenerList => this.Hadb.EventListenerList;
-    public HadbBasedServiceStartupParam ServiceStartupParam { get; }
+
+    HadbBasedServiceStartupParam ServiceStartupParam { get; } // copy
 
     public DnsResolver DnsResolver {get;}
 
@@ -180,15 +190,19 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings> : 
     THiveSettings ManagedSettings => this._SettingsHive.ManagedData;
     public THiveSettings SettingsFastSnapshot => this._SettingsHive.CachedFastSnapshot;
 
+    public RateLimiter<string> HeavyRequestRateLimiter { get; }
+
     public HadbBasedServiceBase(HadbBasedServiceStartupParam startupParam)
     {
         try
         {
-            this.ServiceStartupParam = startupParam;
+            this.ServiceStartupParam = startupParam._CloneDeep();
+
+            this.HeavyRequestRateLimiter = new RateLimiter<string>(new RateLimiterOptions(burst: this.ServiceStartupParam.HeavyRequestRateLimiter_Burst, limitPerSecond: this.ServiceStartupParam.HeavyRequestRateLimiter_LimitPerSecond, mode: RateLimiterMode.NoPenalty));
 
             this._SettingsHive = new HiveData<THiveSettings>(Hive.SharedLocalConfigHive,
                 this.ServiceStartupParam.HiveDataName,
-                () => new THiveSettings { HadbSystemName = this.ServiceStartupParam.DefaultHadbSystemName },
+                () => new THiveSettings { HadbSystemName = this.ServiceStartupParam.HadbSystemName },
                 HiveSyncPolicy.AutoReadWriteFile,
                 HiveSerializerSelection.RichJson);
 
@@ -234,7 +248,17 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings> : 
 
     protected abstract void StartImpl();
 
-    public void Require_AdminBasicAuth(string realm = "")
+    protected JsonRpcClientInfo GetClientInfo() => JsonRpcServerApi.GetCurrentRpcClientInfo();
+    protected IPAddress GetClientIpAddress() => GetClientInfo().RemoteIP._ToIPAddress()!._RemoveScopeId();
+    protected IPAddress GetClientIpNetworkForRateLimit() => IPUtil.NormalizeIpNetworkAddressIPv4v6(GetClientIpAddress(), Hadb.CurrentDynamicConfig.Service_ClientIpRateLimit_SubnetLength_IPv4, Hadb.CurrentDynamicConfig.Service_ClientIpRateLimit_SubnetLength_IPv6);
+
+    protected string GetClientIpStr() => GetClientIpAddress().ToString();
+    protected string GetClientIpNetworkForRateLimitStr() => GetClientIpNetworkForRateLimit().ToString();
+
+    protected Task<string> GetClientFqdnAsync(CancellationToken cancel = default, bool noCache = false)
+        => this.DnsResolver.GetHostNameSingleOrIpAsync(GetClientIpAddress(), cancel, noCache);
+
+    protected void Require_AdminBasicAuth(string realm = "")
     {
         if (realm._IsEmpty())
         {
@@ -247,6 +271,17 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings> : 
 
             return user._IsSamei(config.Service_AdminBasicAuthUsername) && pass._IsSame(config.Service_AdminBasicAuthPassword);
         }, realm);
+    }
+
+    protected void Check_HeavyRequestRateLimiter()
+    {
+        if (EasyIpAcl.Evaluate(this.Hadb.CurrentDynamicConfig.Service_HeavyRequestRateLimiterAcl, this.GetClientIpAddress(), EasyIpAclAction.Deny, EasyIpAclAction.Deny, true) == EasyIpAclAction.Deny)
+        {
+            if (this.HeavyRequestRateLimiter.TryInput(this.GetClientIpNetworkForRateLimitStr(), out var e) == false)
+            {
+                throw new CoresException($"Rate limit exceeded by Check_HeavyRequestRateLimiter() with your IP address {this.GetClientIpAddress()} and request is rejected. Too many requests from your IP address or your network. Please wait for minutes. If this issue remains, please concact to the server administrator.");
+            }
+        }
     }
 
     public void Start()

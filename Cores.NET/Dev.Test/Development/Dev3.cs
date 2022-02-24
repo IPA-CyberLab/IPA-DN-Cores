@@ -81,6 +81,15 @@ public static partial class DevCoresConfig
     }
 }
 
+public class MikakaDDnsServiceStartupParam : HadbBasedServiceStartupParam
+{
+    public MikakaDDnsServiceStartupParam(string hiveDataName = "MikakaDDnsService", string hadbSystemName = "MIKAKA_DDNS")
+    {
+        this.HiveDataName = hiveDataName;
+        this.HadbSystemName = hadbSystemName;
+    }
+}
+
 public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, MikakaDDnsService.DynConfig, MikakaDDnsService.HiveSettings>, MikakaDDnsService.IRpc
 {
     public class DynConfig : HadbBasedServiceDynConfig
@@ -89,9 +98,6 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         public int DDns_MaxHostPerCreateClientIpNetwork_Total;
         public int DDns_MaxHostPerCreateClientIpAddress_Daily;
         public int DDns_MaxHostPerCreateClientIpNetwork_Daily;
-        public string DDns_MaxHostPerCreate_ExemptedClientIpAcl = "_initial_";
-        public int DDns_CreateRequestedIpNetwork_SubnetLength_IPv4;
-        public int DDns_CreateRequestedIpNetwork_SubnetLength_IPv6;
         public string DDns_ProhibitedHostnamesStartWith = "_initial_";
         public int DDns_MaxUserDataJsonStrLength = 10 * 1024;
         public bool DDns_RequireUnlockKey = false;
@@ -118,11 +124,6 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
         protected override void NormalizeImpl()
         {
-            if (DDns_MaxHostPerCreate_ExemptedClientIpAcl == "_initial_")
-            {
-                DDns_MaxHostPerCreate_ExemptedClientIpAcl = "127.0.0.0/8; 192.168.0.0/16; 172.16.0.0/24; 10.0.0.0/8; 1.2.3.4/32; 2041:af80:1234::/48";
-            }
-
             if (DDns_DomainName == null || DDns_DomainName.Any() == false)
             {
                 var tmpList = new List<string>();
@@ -165,9 +166,6 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             if (DDns_MaxHostPerCreateClientIpNetwork_Daily <= 0) DDns_MaxHostPerCreateClientIpNetwork_Daily = 1000;
 
             if (DDns_NewHostnameRandomDigits <= 0 || DDns_NewHostnameRandomDigits >= 32) DDns_NewHostnameRandomDigits = 12;
-
-            if (DDns_CreateRequestedIpNetwork_SubnetLength_IPv4 <= 0 || DDns_CreateRequestedIpNetwork_SubnetLength_IPv4 > 32) DDns_CreateRequestedIpNetwork_SubnetLength_IPv4 = 24;
-            if (DDns_CreateRequestedIpNetwork_SubnetLength_IPv6 <= 0 || DDns_CreateRequestedIpNetwork_SubnetLength_IPv6 > 128) DDns_CreateRequestedIpNetwork_SubnetLength_IPv6 = 56;
 
             if (DDns_ProhibitedHostnamesStartWith._IsSamei("_initial_"))
                 DDns_ProhibitedHostnamesStartWith = new string[] {
@@ -257,7 +255,7 @@ NS subdomain1 subdomain_ns2.your_company.net
 NS subdomain2 subdomain_ns3.your_company.co.jp
 NS subdomain2 subdomain_ns4.your_company.ad.jp
 
-NS _acme-challenge ssl-cert-server.your_company.net
+NS _acme-challenge your-ssl-cert-server.your_company.net
 
 MX @ mail1.your_company.net 100
 MX @ mail2.your_company.net 200
@@ -267,13 +265,11 @@ TXT @ v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
 MX sample2 mail3.your_company.net 100
 MX sample2 mail4.your_company.net 200
-TXT sample2 v=spf1 redirect=tennoudai.net
 TXT sample2 v=spf1 ip4:130.158.0.0/16 ip4:133.51.0.0/16 ip6:2401:af80::/32 include:spf2.sample2.@ ?all
 TXT sample2 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
 MX sample3 mail5.your_company.net 100
 MX sample3 mail6.your_company.net 200
-TXT sample3 v=spf1 redirect=tennoudai.net
 TXT sample3 v=spf1 ip4:130.158.0.0/16 ip4:133.51.0.0/16 ip6:2401:af80::/32 include:spf2.sample3.@ ?all
 TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
@@ -487,13 +483,6 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         }
     }
 
-    public class StartupParam : HadbBasedServiceStartupParam
-    {
-        public StartupParam(string hiveDataName = "MikakaDDnsService", string defaultHadbSystemName = "MIKAKA_DDNS") : base(hiveDataName, defaultHadbSystemName)
-        {
-        }
-    }
-
     [RpcInterface]
     public interface IRpc
     {
@@ -542,7 +531,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
     public EasyDnsResponderBasedDnsServer DnsServer { get; private set; } = null!;
 
-    public MikakaDDnsService(StartupParam? startupParam = null) : base(startupParam ?? new StartupParam())
+    public MikakaDDnsService(MikakaDDnsServiceStartupParam startupParam) : base(startupParam)
     {
         try
         {
@@ -648,12 +637,12 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
     public async Task<Host> DDNS_Host(string secretKey = "", string label = "", string unlockKey = "", string licenseString = "", string ip = "", string userGroupSecretKey = "", string email = "", JObject? userData = null)
     {
-        var client = JsonRpcServerApi.GetCurrentRpcClientInfo();
+        var client = this.GetClientInfo();
 
         var now = DtOffsetNow;
 
-        IPAddress clientIp = client.RemoteIP._ToIPAddress()!._RemoveScopeId();
-        IPAddress clientNetwork = IPUtil.NormalizeIpNetworkAddressIPv4v6(clientIp, Hadb.CurrentDynamicConfig.DDns_CreateRequestedIpNetwork_SubnetLength_IPv4, Hadb.CurrentDynamicConfig.DDns_CreateRequestedIpNetwork_SubnetLength_IPv6);
+        IPAddress clientIp = this.GetClientIpAddress();
+        IPAddress clientNetwork = this.GetClientIpNetworkForRateLimit();
         string clientNameStr = clientIp.ToString();
 
         // パラメータの検査と正規化
@@ -1009,26 +998,26 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             // したがって、API サーバーが複数ある場合で、各 API サーバーで一時期に大量にホストを作成した場合は、
             // 若干超過して作成に成功する場合もあるのである。
             // なお、明示的な ACL で除外されている場合は、このチェックを実施しない。
-            if (EasyIpAcl.Evaluate(Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreate_ExemptedClientIpAcl, clientIp.ToString(), EasyIpAclAction.Deny, EasyIpAclAction.Deny, enableCache: true) == EasyIpAclAction.Deny)
+            if (EasyIpAcl.Evaluate(Hadb.CurrentDynamicConfig.Service_HeavyRequestRateLimiterAcl, clientIp.ToString(), EasyIpAclAction.Deny, EasyIpAclAction.Deny, enableCache: true) == EasyIpAclAction.Deny)
             {
                 var existingHostsSameClientIpAddr = Hadb.FastSearchByLabels(new Host { CreateRequestedIpAddress = clientIp.ToString() });
                 if (existingHostsSameClientIpAddr.Count() >= Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreateClientIpAddress_Total)
                 {
-                    throw new CoresException($"The host record registration quota (total) exceeded (Limitation type #1). Your IP address {clientIp} cannot create more host records on this DDNS server. Complaint should be submit to the DDNS server administrator.");
+                    throw new CoresException($"The host record registration quota (total) exceeded (Limitation type #1). Your IP address {clientIp} cannot create more host records on this DDNS server. Complaint should be submitted to the DDNS server administrator.");
                 }
                 if (existingHostsSameClientIpAddr.Where(x => x.CreateDt.Date == now.AddDays(1).Date).Count() >= Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreateClientIpAddress_Daily)
                 {
-                    throw new CoresException($"The host record registration quota (daily) exceeded (Limitation type #2). Your IP address {clientIp} cannot create more host records on this DDNS server today. Please wait for one or more days and try again. Complaint should be submit to the DDNS server administrator.");
+                    throw new CoresException($"The host record registration quota (daily) exceeded (Limitation type #2). Your IP address {clientIp} cannot create more host records on this DDNS server today. Please wait for one or more days and try again. Complaint should be submitted to the DDNS server administrator.");
                 }
 
                 var existingHostsSameClientIpNetwork = Hadb.FastSearchByLabels(new Host { CreateRequestedIpNetwork = clientNetwork.ToString() });
                 if (existingHostsSameClientIpNetwork.Count() >= Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreateClientIpNetwork_Total)
                 {
-                    throw new CoresException($"The host record registration quota (total) exceeded (Limitation type #3). Your IP address {clientIp} cannot create more host records on this DDNS server. Complaint should be submit to the DDNS server administrator.");
+                    throw new CoresException($"The host record registration quota (total) exceeded (Limitation type #3). Your IP address {clientIp} cannot create more host records on this DDNS server. Complaint should be submitted to the DDNS server administrator.");
                 }
                 if (existingHostsSameClientIpNetwork.Where(x => x.CreateDt.Date == now.AddDays(1).Date).Count() >= Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreateClientIpNetwork_Daily)
                 {
-                    throw new CoresException($"The host record registration quota (daily) exceeded (Limitation type #4). Your IP address {clientIp} cannot create more host records on this DDNS server today. Please wait for one or more days and try again. Complaint should be submit to the DDNS server administrator.");
+                    throw new CoresException($"The host record registration quota (daily) exceeded (Limitation type #4). Your IP address {clientIp} cannot create more host records on this DDNS server today. Please wait for one or more days and try again. Complaint should be submitted to the DDNS server administrator.");
                 }
             }
 
@@ -1066,7 +1055,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             // もタイミングによっては生じるが、この場合は、DB の一意キー制約によりエラーになるので、二重にホストシークレットキーを有する
             // レコードが存在することとなるおそれはない。
 
-            string clientFqdn = await this.DnsResolver.GetHostNameSingleOrIpAsync(clientIp);
+            string clientFqdn = await this.GetClientFqdnAsync();
 
             if (userData == null) userData = Json.NewJsonObject();
 
@@ -1078,6 +1067,8 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 ip = "myip";
                 InitIpAddressVariable();
             }
+
+            this.Check_HeavyRequestRateLimiter();
 
             await Hadb.TranAsync(true, async tran =>
             {
@@ -1126,6 +1117,8 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         {
             // データベース上で変更をする。
             Host current = null!;
+
+            this.Check_HeavyRequestRateLimiter();
 
             await Hadb.TranAsync(true, async tran =>
             {
@@ -1222,7 +1215,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         {
             // Last FQDN は、Last IP Address が変更になった場合のみ DNS を用いて取得する。
             // IP アドレスが前回から変更になっていない場合は、更新しない。
-            clientFqdn2 = await this.DnsResolver.GetHostNameSingleOrIpAsync(clientIp);
+            clientFqdn2 = await this.GetClientFqdnAsync();
         }
 
         // 特に変更がないので、ステータスを Lazy 更新する。
@@ -1248,8 +1241,8 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
     public async Task DDNS_HostDelete(string secretKey)
     {
-        var client = JsonRpcServerApi.GetCurrentRpcClientInfo();
-        IPAddress clientIp = client.RemoteIP._ToIPAddress()!._RemoveScopeId();
+        IPAddress clientIp = this.GetClientIpAddress();
+        IPAddress clientNetwork = this.GetClientIpNetworkForRateLimit();
         string clientNameStr = clientIp.ToString();
 
         var now = DtOffsetNow;
@@ -1300,10 +1293,9 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
     {
         this.Require_AdminBasicAuth();
 
-        var client = JsonRpcServerApi.GetCurrentRpcClientInfo();
-        IPAddress clientIp = client.RemoteIP._ToIPAddress()!._RemoveScopeId();
-        string clientNameStr = clientIp.ToString();
-        string clientFqdn = await this.DnsResolver.GetHostNameSingleOrIpAsync(clientIp);
+        IPAddress clientIp = this.GetClientIpAddress();
+        IPAddress clientNetwork = this.GetClientIpNetworkForRateLimit();
+        string clientFqdn = await this.GetClientFqdnAsync();
 
         if (count <= 0) count = 1;
 

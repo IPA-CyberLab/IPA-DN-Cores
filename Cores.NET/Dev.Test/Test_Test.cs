@@ -3447,7 +3447,11 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             PrintHelp = true,
         };
 
-        using MikakaDDnsService svc = new MikakaDDnsService();
+        MikakaDDnsServiceStartupParam startup = new MikakaDDnsServiceStartupParam
+        {
+        };
+
+        using MikakaDDnsService svc = new MikakaDDnsService(startup);
         using EasyJsonRpcServer<MikakaDDnsService.IRpc> rpc = new EasyJsonRpcServer<MikakaDDnsService.IRpc>(httpOpt, rpcCfg: rpcConfig, targetObject: svc);
 
         svc.Start();
