@@ -366,10 +366,10 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
         allowedMax ??= CurrentDynamicConfig.Service_BasicQuota_LimitationCount;
         durationSecs ??= CurrentDynamicConfig.Service_BasicQuota_DurationSecs;
 
-        quotaName = quotaName._NormalizeKey(true);
+        string quotaName2 = quotaName._NormalizeKey(true);
         matchKey = matchKey._NormalizeKey(true);
 
-        if (allowedMax <= 0 || quotaName._IsEmpty() || matchKey._IsEmpty()) return;
+        if (allowedMax <= 0 || quotaName2._IsEmpty() || matchKey._IsEmpty()) return;
 
         bool ok = true;
 
@@ -377,7 +377,7 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
         {
             HadbLogQuery query = new HadbLogQuery
             {
-                SearchTemplate = new HadbBasedService_BasicLogBasedQuota { QuotaName = quotaName, MatchKey = matchKey },
+                SearchTemplate = new HadbBasedService_BasicLogBasedQuota { QuotaName = quotaName2, MatchKey = matchKey },
                 TimeStart = DtOffsetNow.AddSeconds(-durationSecs.Value),
             };
 
@@ -392,12 +392,12 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
 
         if (ok == false)
         {
-            throw new CoresException("Request quota exceeded. Please wait for minutes and try again. If problem remains please contact to the service administrator.");
+            throw new CoresException($"Request quota exceeded ({quotaName}). Please wait for minutes and try again. If problem remains please contact to the service administrator.");
         }
 
         await this.Hadb.TranAsync(true, async tran =>
         {
-            await tran.AtomicAddLogAsync(new HadbBasedService_BasicLogBasedQuota { QuotaName = quotaName, MatchKey = matchKey }, cancel: cancel);
+            await tran.AtomicAddLogAsync(new HadbBasedService_BasicLogBasedQuota { QuotaName = quotaName2, MatchKey = matchKey }, cancel: cancel);
 
             return true;
         }, options: HadbTranOptions.NoTransactionOnWrite);

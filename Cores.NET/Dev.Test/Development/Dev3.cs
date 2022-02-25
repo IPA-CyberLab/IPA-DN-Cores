@@ -524,6 +524,16 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         }
     }
 
+    public class HostHistoryRecord
+    {
+        public long Version;
+        public DateTimeOffset TimeStamp;
+        public Host HostData = null!;
+
+        public static HostHistoryRecord _Sample =>
+            new HostHistoryRecord { HostData = Host._Sample, TimeStamp = DtOffsetSample(0.2), Version = 1, };
+    }
+
     [RpcInterface]
     public interface IRpc
     {
@@ -547,7 +557,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             [RpcParamHelp("ホストの IP アドレスを登録または更新するには、登録したい新しい IP アドレスを指定します。IP アドレスは明示的に文字列で指定することもできますが、\"myip\" という固定文字列を指定すると、この API の呼び出し元であるホストのグローバル IP アドレスを指定したものとみなされます。なお、IPv4 アドレスと IPv6 アドレスの両方を登録することも可能です。この場合は、IPv4 アドレスと IPv6 アドレスの両方を表記し、その間をカンマ文字 ',' で区切ります。IPv4 アドレスと IPv6 アドレスは、1 つずつしか指定できません。", "myip")]
             string ip = "",
 
-            [RpcParamHelp("ユーザーグループシークレットキーを設定または変更する場合は、ユーザーグループシークレットキーを指定します。ユーザーグループシークレットキーはクライアント側でランダムな 40 文字以内の半角英数字 (0-9、A-Z、ハイフン、アンダーバー の 38 種類の文字) を指定してください。通常は、20 バイトの乱数で生成したユニークなバイナリデータを 16 進数に変換したものを使用してください。複数のホストで、同一のユーザーグループシークレットキーを指定することが可能ですし、それが便利です。ユーザーグループシークレットキーを指定している場合、ユーザーグループシークレットキーを用いたホストレコードの列挙 API を使用すると、同じユーザーグループシークレットキーが登録されているすべてのホストレコードの情報 (各ホストのシークレットキーを含む) を列挙することができます。そのため、ユーザーグループシークレットキーを登録しておけば、同じユーザーグループシークレットキーを有する各ホストレコードの一覧やホストシークレットキーを保持していなくても、いつでも紐付けられたホストレコードにアクセスすることができて便利です。したがって、ユーザーグループシークレットキーは厳重に秘密に管理する必要があります。 \"delete\" という文字列を指定すると、すでに登録されているユーザーグループシークレットキーを消去することができます。", "33884422AAFFCCBB66992244AAAABBBBCCCCDDDD")]
+            [RpcParamHelp("ユーザーグループシークレットキーを設定または変更する場合は、ユーザーグループシークレットキーを指定します。ユーザーグループシークレットキーはクライアント側でランダムな 40 文字以内の半角英数字 (0-9、A-Z、ハイフン、アンダーバー の 38 種類の文字) を指定してください。大文字・小文字を区別しません。通常は、20 バイトの乱数で生成したユニークなバイナリデータを 16 進数に変換したものを使用してください。複数のホストで、同一のユーザーグループシークレットキーを指定することが可能ですし、それが便利です。ユーザーグループシークレットキーを指定している場合、ユーザーグループシークレットキーを用いたホストレコードの列挙 API を使用すると、同じユーザーグループシークレットキーが登録されているすべてのホストレコードの情報 (各ホストのシークレットキーを含む) を列挙することができます。そのため、ユーザーグループシークレットキーを登録しておけば、同じユーザーグループシークレットキーを有する各ホストレコードの一覧やホストシークレットキーを保持していなくても、いつでも紐付けられたホストレコードにアクセスすることができて便利です。したがって、ユーザーグループシークレットキーは厳重に秘密に管理する必要があります。 \"delete\" という文字列を指定すると、すでに登録されているユーザーグループシークレットキーを消去することができます。", "33884422AAFFCCBB66992244AAAABBBBCCCCDDDD")]
             string userGroupSecretKey = "",
 
             [RpcParamHelp("このホストレコードの所有者の連絡先メールアドレスを設定するためには、メールアドレス文字列を指定します。メールアドレスは省略することができます。\"delete\" という文字列を指定すると、すでに登録されているメールアドレスを消去することができます。メールアドレスは、この DDNS サーバーのシステム管理者のみが閲覧することができます。DDNS サーバーのシステム管理者は、DDNS サーバーに関するメンテナンスのお知らせを、指定したメールアドレス宛に送付することができます。また、メールアドレスを登録しておけば、ホストキーの回復用 API を呼び出すことにより、そのメールアドレスに紐付いたすべてのホストシークレットキーの一覧を電子メールで送付することができます。これにより、ホストシークレットキーを紛失した場合でも、予めメールアドレスを登録しておくことにより、救済が可能です。", "optos@example.org")]
@@ -556,16 +566,28 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             [RpcParamHelp("このパラメータを指定すると、DDNS ホストレコードに付随する永続的なユーザーデータとして、任意の JSON データを記録することができます。記録される JSON データの内容は、DDNS の動作に影響を与えません。たとえば、個人的なメモ等を記録することができます。記録内容は、Key-Value 形式の文字列である必要があります。Key の値は、重複してはなりません。", "{'key1' : 'value1', 'key2' : 'value2'}")]
                 JObject? userData = null);
 
+        [RpcMethodHelp("DDNS ホストレコードの最近 10 件の更新履歴を取得します。更新履歴は、ホストレコードの主要情報 (ホストラベル、関連付けられている IP アドレス、その他の登録情報) が変更されるたびに追加されます。")]
+        public Task<HostHistoryRecord[]> DDNS_HostGetHistory(
+            [RpcParamHelp("履歴を取得したいホストレコードのシークレットキーを指定します。", "00112233445566778899AABBCCDDEEFF01020304")]
+            string secretKey
+            );
+
         [RpcMethodHelp("DDNS ホストレコードを削除します。ホストレコードの削除操作は回復することができません。十分注意してください。ただし、一度削除したホストレコードのホストラベルと同じ名前のホストラベルを有するホストレコードを再度作成することは可能です。")]
         public Task DDNS_HostDelete(
             [RpcParamHelp("削除したいホストレコードのシークレットキーを指定します。", "00112233445566778899AABBCCDDEEFF01020304")]
             string secretKey
             );
 
-        [RpcMethodHelp("登録済みの DDNS ホストレコードのホストシークレットキーを紛失した場合に、電子メールを用いて回復をします。予め DDNS_Host API を用いてメールアドレスが登録されている必要があります。")]
-        public Task DDNS_HostRecoveryByEmail(
+        [RpcMethodHelp("登録済みの DDNS ホストレコードのホストシークレットキーを紛失した場合に、電子メールを用いて回復をします。予め DDNS_Host API を用いてメールアドレスが登録されている必要があります。", "Email sent to your mail address 'optos@example.org'. Please check your inbox.")]
+        public Task<string> DDNS_HostRecoveryByEmail(
             [RpcParamHelp("DDNS_Host API で予め設定されているホストレコードの所有者の連絡先メールアドレス文字列を指定します。このメールアドレス宛にホストシークレットキーを含んだ回復メールが送信されます。ただし、大量のレコードが登録されている場合、メールで送信される件数は最大 3000 件 (デフォルト設定の場合) です。", "optos@example.org")]
             string email
+            );
+
+        [RpcMethodHelp("ホストレコードに予めユーザーグループシークレットキー文字列が指定されている場合、その文字列に一致するすべてのホストを列挙し、ホストキーも取得します。")]
+        public Task<Host[]> DDNS_HostEnumByUserGroupSecretKey(
+            [RpcParamHelp("DDNS_Host API で予め設定されているユーザーグループシークレットキー文字列を指定します。このキーが一致するすべてのホストが列挙され、ホストキーも取得できます。ただし、列挙可能なレコード数は最大 5000 件 (デフォルト設定の場合) です。ユーザーグループシークレットキー文字列は、大文字・小文字を区別しません。", "33884422AAFFCCBB66992244AAAABBBBCCCCDDDD")]
+            string userGroupSecretKey
             );
 
         [RpcRequireAuth]
@@ -574,6 +596,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             [RpcParamHelp("作成したい登録キーの個数を指定します。指定しない場合は、1 個の登録キーを作成します。多数の登録キーを作成しようとすると、時間がかかる場合があります。", "28")]
             int count = 1
             );
+
     }
 
     public EasyDnsResponderBasedDnsServer DnsServer { get; private set; } = null!;
@@ -1336,7 +1359,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         });
     }
 
-    public async Task DDNS_HostRecoveryByEmail(string email)
+    public async Task<string> DDNS_HostRecoveryByEmail(string email)
     {
         IPAddress clientIp = this.GetClientIpAddress();
         IPAddress clientNetwork = this.GetClientIpNetworkForRateLimit();
@@ -1367,9 +1390,100 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             throw new CoresException($"Specified email address '{email}' has no registered DNS records on this DDNS server.");
         }
 
-        await this.Basic_CheckAndAddLogBasedQuotaByClientIpAsync("HostRecovery_by_email");
+        await this.Basic_CheckAndAddLogBasedQuotaByClientIpAsync("HostRecovery_by_ip");
+        await this.Basic_CheckAndAddLogBasedQuotaAsync("HostRecovery_by_email", email);
 
         await this.Hook.DDNS_SendRecoveryMailAsync(this, list, email, this.GetClientIpStr(), await this.GetClientFqdnAsync());
+
+        return $"Email sent to your mail address '{email}'. Please check your inbox.";
+    }
+
+    public async Task<Host[]> DDNS_HostEnumByUserGroupSecretKey(string userGroupSecretKey)
+    {
+        IPAddress clientIp = this.GetClientIpAddress();
+        IPAddress clientNetwork = this.GetClientIpNetworkForRateLimit();
+        string clientNameStr = clientIp.ToString();
+
+        userGroupSecretKey = userGroupSecretKey._NormalizeKey(true);
+
+        if (userGroupSecretKey._IsFilled())
+        {
+            userGroupSecretKey._CheckUseOnlyChars($"Specified {nameof(userGroupSecretKey)} contains invalid character.", "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-_");
+            userGroupSecretKey._CheckStrLenException(40, $"Specified {nameof(userGroupSecretKey)} is too long.");
+        }
+        else
+        {
+            throw new CoresException($"The parameter {nameof(userGroupSecretKey)} is missing.");
+        }
+
+        this.Basic_Check_HeavyRequestRateLimiter(5.0);
+
+        List<Host> list = null!;
+
+        await Hadb.TranAsync(false, async tran =>
+        {
+            var objList = await tran.AtomicSearchByLabelsAsync(new Host { UserGroupSecretKey = userGroupSecretKey });
+
+            list = objList.Select(x => x.Data).OrderByDescending(x => x.DnsQuery_LastAccessTime).ThenByDescending(x => x.CreatedTime).Take(CurrentDynamicConfig.DDns_Enum_By_UserGroupSecretKey_MaxCount).ToList();
+
+            return false;
+        },
+        clientName: clientNameStr);
+
+        return list.ToArray();
+    }
+
+    public async Task<HostHistoryRecord[]> DDNS_HostGetHistory(string secretKey)
+    {
+        IPAddress clientIp = this.GetClientIpAddress();
+        IPAddress clientNetwork = this.GetClientIpNetworkForRateLimit();
+        string clientNameStr = clientIp.ToString();
+
+        // パラメータの検査と正規化
+        secretKey = secretKey._NonNullTrim().ToUpperInvariant();
+
+        if (secretKey._IsFilled())
+        {
+            secretKey._CheckUseOnlyChars($"Specified {nameof(secretKey)} contains invalid character.", "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-_");
+            secretKey._CheckStrLenException(40, $"Specified {nameof(secretKey)} is too long.");
+        }
+        else
+        {
+            throw new CoresException($"{nameof(secretKey)} is not specified.");
+        }
+
+        List<HostHistoryRecord> ret = new List<HostHistoryRecord>();
+
+        await Hadb.TranAsync(false, async tran =>
+        {
+            var obj = await tran.AtomicSearchByKeyAsync(new Host { HostSecretKey = secretKey });
+            if (obj == null)
+            {
+                // 存在しないか、すでに削除されている
+                throw new CoresException($"The host object with specified {nameof(secretKey)} is not found.");
+            }
+
+            string uid = obj.Uid;
+
+            var archives = await tran.AtomicGetArchivedAsync<Host>(uid, DevCoresConfig.MikakaDDnsServiceSettings.HostRecordMaxArchivedCount);
+
+            foreach (var a in archives)
+            {
+                ret.Add(new HostHistoryRecord
+                {
+                    HostData = a.Data,
+                    TimeStamp = a.UpdateDt,
+                    Version = a.Ver,
+                });
+            }
+
+            return false;
+        },
+        clientName: clientNameStr);
+
+        ret._DoSortBy(x => x.OrderByDescending(a => a.Version));
+
+        return ret.ToArray();
     }
 
     public async Task<UnlockKey[]> DDNSAdmin_UnlockKeyCreate(int count)
