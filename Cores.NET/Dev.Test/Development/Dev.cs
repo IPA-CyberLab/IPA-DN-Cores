@@ -144,6 +144,21 @@ public abstract class HadbBasedServiceHiveSettingsBase : INormalizable
     }
 }
 
+public class HadbBasedService_BasicLogBasedQuota : HadbLog
+{
+    public string QuotaName = "";
+    public string MatchKey = "";
+
+    public override void Normalize()
+    {
+        QuotaName = QuotaName._NormalizeKey(true);
+        MatchKey = MatchKey._NormalizeKey(true);
+    }
+
+    public override HadbLabels GetLabels()
+        => new HadbLabels(this.QuotaName, this.MatchKey);
+}
+
 public abstract class HadbBasedServiceMemDb : HadbMemDataBase
 {
     protected abstract void AddDefinedUserDataTypesImpl(List<Type> ret);
@@ -161,6 +176,8 @@ public abstract class HadbBasedServiceMemDb : HadbMemDataBase
     protected sealed override List<Type> GetDefinedUserLogTypesImpl()
     {
         List<Type> ret = new List<Type>();
+
+        ret.Add(typeof(HadbBasedService_BasicLogBasedQuota));
 
         this.AddDefinedUserLogTypesImpl(ret);
 
@@ -181,6 +198,8 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
     public string Service_SendMail_SmtpServer_Username = "";
     public string Service_SendMail_SmtpServer_Password = "";
     public string Service_SendMail_MailFromAddress = "";
+    public int Service_BasicQuota_DurationSecs = 3600;
+    public int Service_BasicQuota_LimitationCount = 10;
 
     protected override void NormalizeImpl()
     {
@@ -199,6 +218,9 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
         Service_SendMail_SmtpServer_Hostname = Service_SendMail_SmtpServer_Hostname._FilledOrDefault("your-smtp-server-address.your_company.org");
 
         Service_SendMail_MailFromAddress = Service_SendMail_MailFromAddress._FilledOrDefault("noreply@your_company.org");
+
+        if (Service_BasicQuota_DurationSecs <= 0) Service_BasicQuota_DurationSecs = 3600;
+        if (Service_BasicQuota_LimitationCount <= 0) Service_BasicQuota_LimitationCount = 10;
 
         base.NormalizeImpl();
     }
@@ -270,21 +292,6 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
         public HadbSys(HadbSqlSettings settings, TDynConfig dynamicConfig) : base(settings, dynamicConfig) { }
     }
 
-    public class BasicLogBasedQuota : HadbLog
-    {
-        public string QuotaName = "";
-        public string MatchKey = "";
-
-        public override void Normalize()
-        {
-            QuotaName = QuotaName._NormalizeKey(true);
-            MatchKey = MatchKey._NormalizeKey(true);
-        }
-
-        public override HadbLabels GetLabels()
-            => new HadbLabels(this.QuotaName, this.MatchKey);
-    }
-
     protected abstract TDynConfig CreateInitialDynamicConfigImpl();
 
     protected virtual HadbBase<TMemDb, TDynConfig> CreateHadb()
@@ -344,8 +351,21 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
         }
     }
 
-    public async Task Basic_CheckAndAddLogBasedQuotaAsync(string quotaName, string matchKey, int allowedMax, int durationMsecs = 3600 * 1000, CancellationToken cancel = default)
+    public async Task Basic_CheckAndAddLogBasedQuotaByClientIpAsync(string quotaName, int? allowedMax = null, int? durationSecs = null, CancellationToken cancel = default)
     {
+        var ip = this.GetClientIpAddress();
+
+        if (EasyIpAcl.Evaluate(this.Hadb.CurrentDynamicConfig.Service_HeavyRequestRateLimiterAcl, ip, EasyIpAclAction.Deny, EasyIpAclAction.Deny, true) == EasyIpAclAction.Deny)
+        {
+            await Basic_CheckAndAddLogBasedQuotaAsync(quotaName, ip.ToString(), allowedMax, durationSecs, cancel);
+        }
+    }
+
+    public async Task Basic_CheckAndAddLogBasedQuotaAsync(string quotaName, string matchKey, int? allowedMax = null, int? durationSecs = null, CancellationToken cancel = default)
+    {
+        allowedMax ??= CurrentDynamicConfig.Service_BasicQuota_LimitationCount;
+        durationSecs ??= CurrentDynamicConfig.Service_BasicQuota_DurationSecs;
+
         quotaName = quotaName._NormalizeKey(true);
         matchKey = matchKey._NormalizeKey(true);
 
@@ -357,11 +377,11 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
         {
             HadbLogQuery query = new HadbLogQuery
             {
-                SearchTemplate = new BasicLogBasedQuota { QuotaName = quotaName, MatchKey = matchKey },
-                TimeStart = DtOffsetNow.AddMilliseconds(-durationMsecs),
+                SearchTemplate = new HadbBasedService_BasicLogBasedQuota { QuotaName = quotaName, MatchKey = matchKey },
+                TimeStart = DtOffsetNow.AddSeconds(-durationSecs.Value),
             };
 
-            var logs = await tran.AtomicSearchLogAsync<BasicLogBasedQuota>(query, cancel: cancel);
+            var logs = await tran.AtomicSearchLogAsync<HadbBasedService_BasicLogBasedQuota>(query, cancel: cancel);
             if (logs.Count() >= allowedMax)
             {
                 ok = false;
@@ -377,7 +397,7 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
 
         await this.Hadb.TranAsync(true, async tran =>
         {
-            await tran.AtomicAddLogAsync(new BasicLogBasedQuota { QuotaName = quotaName, MatchKey = matchKey }, cancel: cancel);
+            await tran.AtomicAddLogAsync(new HadbBasedService_BasicLogBasedQuota { QuotaName = quotaName, MatchKey = matchKey }, cancel: cancel);
 
             return true;
         }, options: HadbTranOptions.NoTransactionOnWrite);

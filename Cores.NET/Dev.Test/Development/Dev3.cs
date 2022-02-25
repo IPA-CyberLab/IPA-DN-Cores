@@ -1367,6 +1367,8 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             throw new CoresException($"Specified email address '{email}' has no registered DNS records on this DDNS server.");
         }
 
+        await this.Basic_CheckAndAddLogBasedQuotaByClientIpAsync("HostRecovery_by_email");
+
         await this.Hook.DDNS_SendRecoveryMailAsync(this, list, email, this.GetClientIpStr(), await this.GetClientFqdnAsync());
     }
 
