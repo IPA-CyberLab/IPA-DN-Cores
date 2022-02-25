@@ -96,6 +96,9 @@ public class MikakaDDnsServiceHook : HadbBasedServiceHookBase
     {
         StringWriter w = new StringWriter();
 
+        w.WriteLine($"{email} 様");
+        w.WriteLine("");
+        w.WriteLine($"{svc.CurrentDynamicConfig.DDns_DomainNamePrimary} DDNS サービスをご利用いただき、ありがとうございます。");
         w.WriteLine("DDNS ホスト回復メールをお送りします。");
         w.WriteLine();
         w.WriteLine($"あなたの指定したメールアドレス {email} で登録されていてる");
