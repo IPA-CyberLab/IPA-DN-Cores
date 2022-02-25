@@ -406,12 +406,14 @@ public static class SmtpUtil
         {
             return await SendAsync(config, new MailAddress(from), new MailAddress(to), subject, body, noException, cancel);
         }
-        catch
+        catch (Exception ex)
         {
             if (noException == false)
             {
                 throw;
             }
+
+            ex._Debug();
 
             return false;
         }

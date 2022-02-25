@@ -376,12 +376,16 @@ public class RpcMethodInfo
 
         if (this.RetValueType != null)
         {
+            // 戻り値あり
             this.RetValueSampleValueObject = SampleDataUtil.Get(this.RetValueType, this.Name, isGoodSample: isGoodSample);
             this.IsRetValuePrimitiveType = Dbg.IsPrimitiveType(this.RetValueType);
             this.HasRetValue = true;
         }
         else
         {
+            // 戻り値なし: true にする
+            this.RetValueSampleValueObject = true;
+
             this.IsRetValuePrimitiveType = true;
             this.HasRetValue = false;
         }

@@ -144,6 +144,30 @@ public abstract class HadbBasedServiceHiveSettingsBase : INormalizable
     }
 }
 
+public abstract class HadbBasedServiceMemDb : HadbMemDataBase
+{
+    protected abstract void AddDefinedUserDataTypesImpl(List<Type> ret);
+    protected abstract void AddDefinedUserLogTypesImpl(List<Type> ret);
+
+    protected sealed override List<Type> GetDefinedUserDataTypesImpl()
+    {
+        List<Type> ret = new List<Type>();
+
+        this.AddDefinedUserDataTypesImpl(ret);
+
+        return ret;
+    }
+
+    protected sealed override List<Type> GetDefinedUserLogTypesImpl()
+    {
+        List<Type> ret = new List<Type>();
+
+        this.AddDefinedUserLogTypesImpl(ret);
+
+        return ret;
+    }
+}
+
 public class HadbBasedServiceDynConfig : HadbDynamicConfig
 {
     public string Service_AdminBasicAuthUsername = "";
@@ -151,6 +175,12 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
     public string Service_HeavyRequestRateLimiterAcl = "_initial_";
     public int Service_ClientIpRateLimit_SubnetLength_IPv4 = 0;
     public int Service_ClientIpRateLimit_SubnetLength_IPv6 = 0;
+    public string Service_SendMail_SmtpServer_Hostname = "";
+    public int Service_SendMail_SmtpServer_Port = 0;
+    public bool Service_SendMail_SmtpServer_EnableSsl;
+    public string Service_SendMail_SmtpServer_Username = "";
+    public string Service_SendMail_SmtpServer_Password = "";
+    public string Service_SendMail_MailFromAddress = "";
 
     protected override void NormalizeImpl()
     {
@@ -165,14 +195,24 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
             Service_HeavyRequestRateLimiterAcl = "127.0.0.0/8; 192.168.0.0/16; 172.16.0.0/24; 10.0.0.0/8; 1.2.3.4/32; 2041:af80:1234::/48";
         }
 
+        if (Service_SendMail_SmtpServer_Port <= 0) Service_SendMail_SmtpServer_Port = Consts.Ports.Smtp;
+        Service_SendMail_SmtpServer_Hostname = Service_SendMail_SmtpServer_Hostname._FilledOrDefault("your-smtp-server-address.your_company.org");
+
+        Service_SendMail_MailFromAddress = Service_SendMail_MailFromAddress._FilledOrDefault("noreply@your_company.org");
+
         base.NormalizeImpl();
     }
 }
 
-public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings> : AsyncService
-    where TMemDb : HadbMemDataBase, new()
+public abstract class HadbBasedServiceHookBase
+{
+}
+
+public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, THook> : AsyncService
+    where TMemDb : HadbBasedServiceMemDb, new()
     where TDynConfig : HadbBasedServiceDynConfig
     where THiveSettings : HadbBasedServiceHiveSettingsBase, new()
+    where THook : HadbBasedServiceHookBase
 {
     public DateTimeOffset BootDateTime { get; } = DtOffsetNow; // サービス起動日時
     public HadbBase<TMemDb, TDynConfig> Hadb { get; }
@@ -180,7 +220,7 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings> : 
 
     HadbBasedServiceStartupParam ServiceStartupParam { get; } // copy
 
-    public DnsResolver DnsResolver {get;}
+    public DnsResolver DnsResolver { get; }
 
     // Hive
     readonly HiveData<THiveSettings> _SettingsHive;
@@ -191,11 +231,16 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings> : 
     public THiveSettings SettingsFastSnapshot => this._SettingsHive.CachedFastSnapshot;
 
     public RateLimiter<string> HeavyRequestRateLimiter { get; }
+    public TDynConfig CurrentDynamicConfig => Hadb.CurrentDynamicConfig;
 
-    public HadbBasedServiceBase(HadbBasedServiceStartupParam startupParam)
+    public THook Hook { get; }
+
+    public HadbBasedServiceBase(HadbBasedServiceStartupParam startupParam, THook hook)
     {
         try
         {
+            this.Hook = hook;
+
             this.ServiceStartupParam = startupParam._CloneDeep();
 
             this.HeavyRequestRateLimiter = new RateLimiter<string>(new RateLimiterOptions(burst: this.ServiceStartupParam.HeavyRequestRateLimiter_Burst, limitPerSecond: this.ServiceStartupParam.HeavyRequestRateLimiter_LimitPerSecond, mode: RateLimiterMode.NoPenalty));
@@ -223,6 +268,21 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings> : 
     public class HadbSys : HadbSqlBase<TMemDb, TDynConfig>
     {
         public HadbSys(HadbSqlSettings settings, TDynConfig dynamicConfig) : base(settings, dynamicConfig) { }
+    }
+
+    public class BasicLogBasedQuota : HadbLog
+    {
+        public string QuotaName = "";
+        public string MatchKey = "";
+
+        public override void Normalize()
+        {
+            QuotaName = QuotaName._NormalizeKey(true);
+            MatchKey = MatchKey._NormalizeKey(true);
+        }
+
+        public override HadbLabels GetLabels()
+            => new HadbLabels(this.QuotaName, this.MatchKey);
     }
 
     protected abstract TDynConfig CreateInitialDynamicConfigImpl();
@@ -258,7 +318,7 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings> : 
     protected Task<string> GetClientFqdnAsync(CancellationToken cancel = default, bool noCache = false)
         => this.DnsResolver.GetHostNameSingleOrIpAsync(GetClientIpAddress(), cancel, noCache);
 
-    protected void Require_AdminBasicAuth(string realm = "")
+    protected void Basic_Require_AdminBasicAuth(string realm = "")
     {
         if (realm._IsEmpty())
         {
@@ -273,15 +333,79 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings> : 
         }, realm);
     }
 
-    protected void Check_HeavyRequestRateLimiter()
+    protected void Basic_Check_HeavyRequestRateLimiter(double amount = 1.0)
     {
         if (EasyIpAcl.Evaluate(this.Hadb.CurrentDynamicConfig.Service_HeavyRequestRateLimiterAcl, this.GetClientIpAddress(), EasyIpAclAction.Deny, EasyIpAclAction.Deny, true) == EasyIpAclAction.Deny)
         {
-            if (this.HeavyRequestRateLimiter.TryInput(this.GetClientIpNetworkForRateLimitStr(), out var e) == false)
+            if (this.HeavyRequestRateLimiter.TryInput(this.GetClientIpNetworkForRateLimitStr(), out var e, amount) == false)
             {
-                throw new CoresException($"Rate limit exceeded by Check_HeavyRequestRateLimiter() with your IP address {this.GetClientIpAddress()} and request is rejected. Too many requests from your IP address or your network. Please wait for minutes. If this issue remains, please concact to the server administrator.");
+                throw new CoresException($"Request rate limit exceeded with your IP address {this.GetClientIpAddress()} and your request is rejected. Too many requests from your IP address or your network. Please wait for minutes. If this issue remains, please concact to the server administrator.");
             }
         }
+    }
+
+    public async Task Basic_CheckAndAddLogBasedQuotaAsync(string quotaName, string matchKey, int allowedMax, int durationMsecs = 3600 * 1000, CancellationToken cancel = default)
+    {
+        quotaName = quotaName._NormalizeKey(true);
+        matchKey = matchKey._NormalizeKey(true);
+
+        if (allowedMax <= 0 || quotaName._IsEmpty() || matchKey._IsEmpty()) return;
+
+        bool ok = true;
+
+        await this.Hadb.TranAsync(false, async tran =>
+        {
+            HadbLogQuery query = new HadbLogQuery
+            {
+                SearchTemplate = new BasicLogBasedQuota { QuotaName = quotaName, MatchKey = matchKey },
+                TimeStart = DtOffsetNow.AddMilliseconds(-durationMsecs),
+            };
+
+            var logs = await tran.AtomicSearchLogAsync<BasicLogBasedQuota>(query, cancel: cancel);
+            if (logs.Count() >= allowedMax)
+            {
+                ok = false;
+            }
+
+            return false;
+        });
+
+        if (ok == false)
+        {
+            throw new CoresException("Request quota exceeded. Please wait for minutes and try again. If problem remains please contact to the service administrator.");
+        }
+
+        await this.Hadb.TranAsync(true, async tran =>
+        {
+            await tran.AtomicAddLogAsync(new BasicLogBasedQuota { QuotaName = quotaName, MatchKey = matchKey }, cancel: cancel);
+
+            return true;
+        }, options: HadbTranOptions.NoTransactionOnWrite);
+    }
+
+    public async Task Basic_SendMailAsync(string to, string subject, string body, string? from = null, CancellationToken cancel = default)
+    {
+        if (from._IsEmpty())
+        {
+            from = CurrentDynamicConfig.Service_SendMail_MailFromAddress;
+        }
+
+        if (from._IsEmpty())
+        {
+            from = "noreply@example.org";
+        }
+
+        to = to._NonNull();
+        subject = subject._NonNull();
+        body = body._NonNull();
+
+        var smtpConfig = new SmtpConfig(CurrentDynamicConfig.Service_SendMail_SmtpServer_Hostname,
+            CurrentDynamicConfig.Service_SendMail_SmtpServer_Port,
+            CurrentDynamicConfig.Service_SendMail_SmtpServer_EnableSsl,
+            CurrentDynamicConfig.Service_SendMail_SmtpServer_Username,
+            CurrentDynamicConfig.Service_SendMail_SmtpServer_Password);
+
+        await SmtpUtil.SendAsync(smtpConfig, from, to, subject, body, true, cancel);
     }
 
     public void Start()

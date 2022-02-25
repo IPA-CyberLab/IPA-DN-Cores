@@ -90,7 +90,47 @@ public class MikakaDDnsServiceStartupParam : HadbBasedServiceStartupParam
     }
 }
 
-public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, MikakaDDnsService.DynConfig, MikakaDDnsService.HiveSettings>, MikakaDDnsService.IRpc
+public class MikakaDDnsServiceHook : HadbBasedServiceHookBase
+{
+    public virtual async Task DDNS_SendRecoveryMailAsync(MikakaDDnsService svc, List<MikakaDDnsService.Host> hostList, string email, string requestIpStr, string requestFqdnStr, CancellationToken cancel = default)
+    {
+        StringWriter w = new StringWriter();
+
+        w.WriteLine("DDNS ホスト回復メールをお送りします。");
+        w.WriteLine();
+        w.WriteLine($"あなたの指定したメールアドレス {email} で登録されていてる");
+        w.WriteLine($"DDNS ホストの一覧は以下のとおりです。");
+        w.WriteLine();
+        w.WriteLine($"回答日時: {DtOffsetNow._ToDtStr()}");
+        w.WriteLine($"照会元 IP アドレス: {requestIpStr}");
+        w.WriteLine($"照会元 DNS ホスト名: {requestFqdnStr}");
+        w.WriteLine($"一致件数: {hostList.Count._ToString3()} 件");
+        w.WriteLine();
+
+        for (int i = 0; i < hostList.Count; i++)
+        {
+            var h = hostList[i];
+
+            w.WriteLine($"■ ホスト {i + 1}");
+            w.WriteLine("ホストラベル: " + h.HostLabel);
+            w.WriteLine("ホストシークレットキー: " + h.HostSecretKey);
+            w.WriteLine("作成日時: " + h.CreatedTime._ToDtStr());
+            w.WriteLine("クエリ件数: " + h.DnsQuery_Count._ToString3());
+            w.WriteLine("最終クエリ日時: " + h.DnsQuery_LastAccessTime._ToDtStr(zeroDateTimeStr: "(なし)"));
+            w.WriteLine();
+        }
+
+        w.WriteLine("以上");
+        w.WriteLine();
+
+        await svc.Basic_SendMailAsync(email,
+            $"DDNS ホスト回復メール - {svc.CurrentDynamicConfig.DDns_DomainNamePrimary}",
+            w.ToString(),
+            cancel: cancel);
+    }
+}
+
+public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, MikakaDDnsService.DynConfig, MikakaDDnsService.HiveSettings, MikakaDDnsServiceHook>, MikakaDDnsService.IRpc
 {
     public class DynConfig : HadbBasedServiceDynConfig
     {
@@ -116,6 +156,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         public int DDns_Protocol_SOA_RetryIntervalSecs;
         public int DDns_Protocol_SOA_ExpireIntervalSecs;
         public string DDns_RequiredLicenseString = "";
+        public int DDns_Enum_By_Email_MaxCount;
+        public int DDns_Enum_By_UserGroupSecretKey_MaxCount;
 
         public string[] DDns_DomainName = new string[0];
         public string DDns_DomainNamePrimary = "";
@@ -124,6 +166,9 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
         protected override void NormalizeImpl()
         {
+            if (DDns_Enum_By_Email_MaxCount <= 0) DDns_Enum_By_Email_MaxCount = 3000;
+            if (DDns_Enum_By_UserGroupSecretKey_MaxCount <= 0) DDns_Enum_By_UserGroupSecretKey_MaxCount = 5000;
+
             if (DDns_DomainName == null || DDns_DomainName.Any() == false)
             {
                 var tmpList = new List<string>();
@@ -456,20 +501,16 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         };
     }
 
-    public class MemDb : HadbMemDataBase
+    public class MemDb : HadbBasedServiceMemDb
     {
-        protected override List<Type> GetDefinedUserDataTypesImpl()
+        protected override void AddDefinedUserDataTypesImpl(List<Type> ret)
         {
-            List<Type> ret = new List<Type>();
             ret.Add(typeof(Host));
             ret.Add(typeof(UnlockKey));
-            return ret;
         }
 
-        protected override List<Type> GetDefinedUserLogTypesImpl()
+        protected override void AddDefinedUserLogTypesImpl(List<Type> ret)
         {
-            List<Type> ret = new List<Type>();
-            return ret;
         }
     }
 
@@ -521,6 +562,12 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             string secretKey
             );
 
+        [RpcMethodHelp("登録済みの DDNS ホストレコードのホストシークレットキーを紛失した場合に、電子メールを用いて回復をします。予め DDNS_Host API を用いてメールアドレスが登録されている必要があります。")]
+        public Task DDNS_HostRecoveryByEmail(
+            [RpcParamHelp("DDNS_Host API で予め設定されているホストレコードの所有者の連絡先メールアドレス文字列を指定します。このメールアドレス宛にホストシークレットキーを含んだ回復メールが送信されます。ただし、大量のレコードが登録されている場合、メールで送信される件数は最大 3000 件 (デフォルト設定の場合) です。", "optos@example.org")]
+            string email
+            );
+
         [RpcRequireAuth]
         [RpcMethodHelp("新しい登録キーを作成します。登録キーを作成すると、作成された登録キーの一覧が JSON 形式で返却されます。同時に多数個の登録キーを作成することも可能です。")]
         public Task<UnlockKey[]> DDNSAdmin_UnlockKeyCreate(
@@ -531,7 +578,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
     public EasyDnsResponderBasedDnsServer DnsServer { get; private set; } = null!;
 
-    public MikakaDDnsService(MikakaDDnsServiceStartupParam startupParam) : base(startupParam)
+    public MikakaDDnsService(MikakaDDnsServiceStartupParam startupParam, MikakaDDnsServiceHook hook) : base(startupParam, hook)
     {
         try
         {
@@ -1068,7 +1115,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 InitIpAddressVariable();
             }
 
-            this.Check_HeavyRequestRateLimiter();
+            this.Basic_Check_HeavyRequestRateLimiter();
 
             await Hadb.TranAsync(true, async tran =>
             {
@@ -1118,7 +1165,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             // データベース上で変更をする。
             Host current = null!;
 
-            this.Check_HeavyRequestRateLimiter();
+            this.Basic_Check_HeavyRequestRateLimiter();
 
             await Hadb.TranAsync(true, async tran =>
             {
@@ -1289,9 +1336,43 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         });
     }
 
+    public async Task DDNS_HostRecoveryByEmail(string email)
+    {
+        IPAddress clientIp = this.GetClientIpAddress();
+        IPAddress clientNetwork = this.GetClientIpNetworkForRateLimit();
+        string clientNameStr = clientIp.ToString();
+
+        email = email._NonNullTrim();
+        if (Str.CheckMailAddress(email) == false)
+        {
+            throw new CoresException($"{nameof(email)} has invalid email address format.");
+        }
+
+        this.Basic_Check_HeavyRequestRateLimiter(5.0);
+
+        List<Host> list = null!;
+
+        await Hadb.TranAsync(false, async tran =>
+        {
+            var objList = await tran.AtomicSearchByLabelsAsync(new Host { Email = email });
+
+            list = objList.Select(x => x.Data).OrderByDescending(x => x.DnsQuery_LastAccessTime).ThenByDescending(x => x.CreatedTime).Take(CurrentDynamicConfig.DDns_Enum_By_Email_MaxCount).ToList();
+
+            return false;
+        },
+        clientName: clientNameStr);
+
+        if (list.Any() == false)
+        {
+            throw new CoresException($"Specified email address '{email}' has no registered DNS records on this DDNS server.");
+        }
+
+        await this.Hook.DDNS_SendRecoveryMailAsync(this, list, email, this.GetClientIpStr(), await this.GetClientFqdnAsync());
+    }
+
     public async Task<UnlockKey[]> DDNSAdmin_UnlockKeyCreate(int count)
     {
-        this.Require_AdminBasicAuth();
+        this.Basic_Require_AdminBasicAuth();
 
         IPAddress clientIp = this.GetClientIpAddress();
         IPAddress clientNetwork = this.GetClientIpNetworkForRateLimit();

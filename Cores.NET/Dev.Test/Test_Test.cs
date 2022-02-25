@@ -3451,7 +3451,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         {
         };
 
-        using MikakaDDnsService svc = new MikakaDDnsService(startup);
+        using MikakaDDnsService svc = new MikakaDDnsService(startup, new MikakaDDnsServiceHook());
         using EasyJsonRpcServer<MikakaDDnsService.IRpc> rpc = new EasyJsonRpcServer<MikakaDDnsService.IRpc>(httpOpt, rpcCfg: rpcConfig, targetObject: svc);
 
         svc.Start();
@@ -3539,15 +3539,6 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         if (false)
         {
             Test_211204_Transaction_DeadLockTest(5, IsolationLevel.Serializable, false);
-            return;
-        }
-
-        if (true)
-        {
-            // HADB 普通のテスト
-            //Test_211108(threads: 100, count: 3000000);
-            //while (true)
-            Test_211108(threads: 10, count: 10);
             return;
         }
 
