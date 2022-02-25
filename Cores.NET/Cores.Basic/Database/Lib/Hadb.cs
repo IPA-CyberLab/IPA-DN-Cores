@@ -4175,7 +4175,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
                 if (writeMode == false)
                 {
-                    isTransaction = false;
+                    isTransaction = true;
                 }
                 else
                 {
