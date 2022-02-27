@@ -98,10 +98,11 @@ public class MikakaDDnsServiceHook : HadbBasedServiceHookBase
 
         w.WriteLine($"{email} 様");
         w.WriteLine("");
+        w.WriteLine("こんにちは！");
         w.WriteLine($"{svc.CurrentDynamicConfig.DDns_DomainNamePrimary} DDNS サービスをご利用いただき、ありがとうございます。");
         w.WriteLine("DDNS ホスト回復メールをお送りします。");
         w.WriteLine();
-        w.WriteLine($"あなたの指定したメールアドレス {email} で登録されていてる");
+        w.WriteLine($"あなたの指定したメールアドレス {email} で登録されている");
         w.WriteLine($"DDNS ホストの一覧は以下のとおりです。");
         w.WriteLine();
         w.WriteLine($"回答日時: {DtOffsetNow._ToDtStr()}");
@@ -124,6 +125,8 @@ public class MikakaDDnsServiceHook : HadbBasedServiceHookBase
         }
 
         w.WriteLine("以上");
+        w.WriteLine();
+        w.WriteLine("これは、スパム・メールでは ありません。");
         w.WriteLine();
 
         await svc.Basic_SendMailAsync(email,
@@ -370,6 +373,12 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         NoChange = 0,
         Created,
         Modified,
+    }
+
+    public class Host_Return : JsonRpcSingleReturnWithMetaData<Host>
+    {
+        public HostApiResult ApiResult;
+        public string[] HostFqdn = null!;
     }
 
     public class Host : HadbData

@@ -226,6 +226,12 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
     }
 }
 
+public class JsonRpcSingleReturnWithMetaData<T>
+    where T: HadbData
+{
+    public T Data { get; }
+}
+
 public abstract class HadbBasedServiceHookBase
 {
 }
