@@ -973,6 +973,7 @@ public class JsonRpcServerConfig
     public int MaxRequestBodyLen { get; set; } = CoresConfig.JsonRpcServerSettings.DefaultMaxRequestBodyLen.Value;
     public bool MultiRequestAllowed { get; set; } = false;
     public bool PrintHelp { get; set; } = false;
+    public string HelpServerFriendlyName { get; set; } = "";
 }
 
 public abstract class JsonRpcClient

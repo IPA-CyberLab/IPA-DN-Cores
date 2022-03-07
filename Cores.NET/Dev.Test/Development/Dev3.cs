@@ -83,10 +83,11 @@ public static partial class DevCoresConfig
 
 public class MikakaDDnsServiceStartupParam : HadbBasedServiceStartupParam
 {
-    public MikakaDDnsServiceStartupParam(string hiveDataName = "MikakaDDnsService", string hadbSystemName = "MIKAKA_DDNS")
+    public MikakaDDnsServiceStartupParam(string productName = "MikakaDDnsService", string hiveDataName = "MikakaDDnsService", string hadbSystemName = "MIKAKA_DDNS")
     {
         this.HiveDataName = hiveDataName;
         this.HadbSystemName = hadbSystemName;
+        this.ServerProductName = productName;
     }
 }
 
@@ -98,7 +99,6 @@ public class MikakaDDnsServiceHook : HadbBasedServiceHookBase
 
         w.WriteLine($"{email} 様");
         w.WriteLine("");
-        w.WriteLine("こんにちは！");
         w.WriteLine($"{svc.CurrentDynamicConfig.DDns_DomainNamePrimary} DDNS サービスをご利用いただき、ありがとうございます。");
         w.WriteLine("DDNS ホスト回復メールをお送りします。");
         w.WriteLine();
@@ -125,8 +125,6 @@ public class MikakaDDnsServiceHook : HadbBasedServiceHookBase
         }
 
         w.WriteLine("以上");
-        w.WriteLine();
-        w.WriteLine("これは、スパム・メールでは ありません。");
         w.WriteLine();
 
         await svc.Basic_SendMailAsync(email,

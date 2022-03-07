@@ -3441,14 +3441,15 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             UseKestrelWithIPACoreStack = false,
         };
 
+        MikakaDDnsServiceStartupParam startup = new MikakaDDnsServiceStartupParam
+        {
+        };
+
         JsonRpcServerConfig rpcConfig = new JsonRpcServerConfig
         {
             MaxRequestBodyLen = 1_000_000,
             PrintHelp = true,
-        };
-
-        MikakaDDnsServiceStartupParam startup = new MikakaDDnsServiceStartupParam
-        {
+            HelpServerFriendlyName = startup.ServerProductName,
         };
 
         using MikakaDDnsService svc = new MikakaDDnsService(startup, new MikakaDDnsServiceHook());

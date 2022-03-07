@@ -80,6 +80,7 @@ public class HadbBasedServiceStartupParam : INormalizable
 {
     public string HiveDataName = "DefaultApp";
     public string HadbSystemName = "DEFAULT_HADB";
+    public string ServerProductName = "DefaultServerProduct";
     public double HeavyRequestRateLimiter_LimitPerSecond = 50.0;
     public double HeavyRequestRateLimiter_Burst = 5.0;
 
