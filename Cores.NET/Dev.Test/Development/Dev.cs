@@ -262,7 +262,7 @@ public abstract class JsonRpcSingleReturnWithMetaData<T> : IToJsonString
             p.Remove();
         }
 
-        foreach (var name in rw.FieldOrPropertyNamesList.Where(x => x._IsDiffi(nameof(Data))))
+        foreach (var name in rw.FieldOrPropertyNamesList.Where(x => x._IsDiff(nameof(Data))))
         {
             object? obj = rw.GetValue(this, name);
 
