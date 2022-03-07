@@ -98,6 +98,28 @@ public static class Json
         }
     }
 
+    public class ClassWithIToJsonJsonConverter : JsonConverter
+    {
+        public static readonly ClassWithIToJsonJsonConverter Singleton = new ClassWithIToJsonJsonConverter();
+
+        public override bool CanConvert(Type objectType) => objectType._HasInterface(typeof(IToJsonString));
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            IToJsonString i = (IToJsonString)value;
+
+            var jobject = i.ToJsonString()._JsonToObject<JObject>();
+
+            if (jobject != null)
+            {
+                jobject.WriteTo(writer);
+            }
+        }
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+            => throw new NotImplementedException();
+    }
+
     public class IPAddressJsonConverter : JsonConverter
     {
         public static readonly IPAddressJsonConverter Singleton = new IPAddressJsonConverter();
@@ -114,14 +136,15 @@ public static class Json
     public static void AddStandardSettingsToJsonConverter(JsonSerializerSettings settings)
     {
         settings.Converters.Add(IPAddressJsonConverter.Singleton);
+        settings.Converters.Add(ClassWithIToJsonJsonConverter.Singleton);
     }
 
     public static string Serialize(object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null)
     {
-        if (obj is IToJsonString specialInterface)
-        {
-            return specialInterface.ToJsonString(includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type);
-        }
+        //if (obj is IToJsonString specialInterface)
+        //{
+        //    return specialInterface.ToJsonString(includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type);
+        //}
 
         JsonSerializerSettings setting = new JsonSerializerSettings()
         {
@@ -157,12 +180,12 @@ public static class Json
 
     public static void Serialize(TextWriter destTextWriter, object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type? type = null)
     {
-        if (obj is IToJsonString specialInterface)
-        {
-            string tmp = specialInterface.ToJsonString(includeNull, escapeHtml, maxDepth, compact, referenceHandling, false, type);
-            destTextWriter.Write(tmp);
-            return;
-        }
+        //if (obj is IToJsonString specialInterface)
+        //{
+        //    string tmp = specialInterface.ToJsonString(includeNull, escapeHtml, maxDepth, compact, referenceHandling, false, type);
+        //    destTextWriter.Write(tmp);
+        //    return;
+        //}
 
         JsonSerializerSettings setting = new JsonSerializerSettings()
         {

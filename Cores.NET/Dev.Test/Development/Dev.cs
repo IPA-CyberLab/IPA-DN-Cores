@@ -65,6 +65,7 @@ using Newtonsoft.Json;
 using System.Data;
 using System.Reflection;
 using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Linq;
 
 namespace IPA.Cores.Basic;
 
@@ -226,10 +227,57 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
     }
 }
 
-public class JsonRpcSingleReturnWithMetaData<T>
-    where T: HadbData
+public abstract class JsonRpcSingleReturnWithMetaData<T> : IToJsonString
+    where T : HadbData
 {
-    public T Data { get; }
+    public abstract T Data { get; }
+
+    public string ToJsonString(bool includeNull = false, bool escapeHtml = false, int? maxDepth = 8, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null)
+    {
+        string tmp = this.Data._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type);
+
+        JObject jobject = tmp._JsonToObject<JObject>(includeNull, maxDepth, base64url)!;
+
+        var rw = FieldReaderWriter.GetCached(this.GetType());
+
+        JsonSerializerSettings setting = new JsonSerializerSettings()
+        {
+            MaxDepth = maxDepth,
+            NullValueHandling = includeNull ? NullValueHandling.Include : NullValueHandling.Ignore,
+            ReferenceLoopHandling = ReferenceLoopHandling.Error,
+            PreserveReferencesHandling = referenceHandling ? PreserveReferencesHandling.All : PreserveReferencesHandling.None,
+            StringEscapeHandling = escapeHtml ? StringEscapeHandling.EscapeHtml : StringEscapeHandling.Default,
+            Formatting = compact ? Formatting.None : Formatting.Indented,
+        };
+
+        Json.AddStandardSettingsToJsonConverter(setting);
+
+        setting.Converters.Add(new StringEnumConverter());
+
+        JsonSerializer serializer = JsonSerializer.Create(setting);
+
+        var dataProperties = jobject.Properties().ToList();
+        foreach (var p in dataProperties)
+        {
+            p.Remove();
+        }
+
+        foreach (var name in rw.FieldOrPropertyNamesList.Where(x => x._IsDiffi(nameof(Data))))
+        {
+            object? obj = rw.GetValue(this, name);
+
+            var jtoken = JToken.FromObject(obj, serializer);
+
+            jobject.Add(name, jtoken);
+        }
+
+        foreach (var p in dataProperties)
+        {
+            jobject.Add(p);
+        }
+
+        return jobject._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url);
+    }
 }
 
 public abstract class HadbBasedServiceHookBase

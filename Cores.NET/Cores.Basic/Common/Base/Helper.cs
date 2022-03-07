@@ -2506,6 +2506,8 @@ public static class BasicHelper
 
     public static bool _IsSubClassOfOrSame(this Type deriverClass, Type baseClass) => deriverClass == baseClass || deriverClass.IsSubclassOf(baseClass);
 
+    public static bool _HasInterface(this Type deriverClass, Type baseInterface) => deriverClass == baseInterface || baseInterface.IsAssignableFrom(deriverClass);
+
     public static bool _IsSocketErrorDisconnected(this SocketException e) => PalSocket.IsSocketErrorDisconnected(e);
 
     public static async Task<bool> ReceiveBool8Async(this Stream stream, CancellationToken cancel = default)

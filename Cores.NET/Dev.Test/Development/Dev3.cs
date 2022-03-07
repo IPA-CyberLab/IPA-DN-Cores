@@ -377,17 +377,26 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
     public class Host_Return : JsonRpcSingleReturnWithMetaData<Host>
     {
-        public HostApiResult ApiResult;
-        public string[] HostFqdn = null!;
+        [JsonConverter(typeof(StringEnumConverter))]
+        public HostApiResult ApiResult { get; }
+
+        public string[] HostFqdn { get; }
+
+        public override Host Data { get; }
+
+        public Host_Return(Host data, HostApiResult apiResult, string[] hostFqdn)
+        {
+            ApiResult = apiResult;
+            HostFqdn = hostFqdn;
+            Data = data;
+        }
+
+        public static Host_Return _Sample => new Host_Return(Host._Sample, HostApiResult.Created, new string[] { Host._Sample.HostLabel + ".ddns_example.org" });
     }
 
     public class Host : HadbData
     {
-        [JsonConverter(typeof(StringEnumConverter))]
-        public HostApiResult? ApiResult; // RPC Only
-
         public string HostLabel = "";
-        public string? HostFqdnPrimary; // RPC Only
 
         public string HostAddress_IPv4 = "";
         public string HostAddress_IPv6 = "";
@@ -508,8 +517,6 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             UserData = "{'key1' : 'value1', 'key2' : 'value2'}"._JsonToJsonObject()!,
             CreatedTime = DtOffsetSample(0.1),
             CreateRequestedFqdn = "abc123.pppoe.example.org",
-            HostFqdnPrimary = "tanaka001.ddns_example.org",
-            ApiResult = HostApiResult.Modified,
         };
     }
 
@@ -553,7 +560,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         public Task<string> Test([RpcParamHelp("テスト入力整数値", 123)] int i);
 
         [RpcMethodHelp("DDNS ホストレコードを作成、更新または取得します。")]
-        public Task<Host> DDNS_Host(
+        public Task<Host_Return> DDNS_Host(
             [RpcParamHelp("ホストシークレットキーを指定します。新しいホストを作成する際には、新しいキーを指定してください。キーはクライアント側でランダムな 40 文字以内の半角英数字 (0-9、A-Z、ハイフン、アンダーバー の 38 種類の文字) を指定してください。通常は、20 バイトの乱数で生成したユニークなバイナリデータを 16 進数に変換したものを使用してください。既存のホストを更新する際には、既存のキーを指定してください。すでに存在するホストのキーが正確に指定された場合は、そのホストに関する情報の更新を希望するとみなされます。それ以外の場合は、新しいホストの作成を希望するとみなされます。ホストシークレットキーは、大文字・小文字を区別しません。ホストシークレットキーを省略した場合は、新たなホストを作成するものとみなされ、DDNS サーバー側でランダムでユニークなホストシークレットキーが新規作成されます。", "00112233445566778899AABBCCDDEEFF01020304")]
                 string secretKey = "",
 
@@ -715,9 +722,32 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         return new DynConfig();
     }
 
+    public List<string> GetDomainNamesList()
+    {
+        List<string> ret = new List<string>();
+
+        foreach (var x in Hadb.CurrentDynamicConfig.DDns_DomainName)
+        {
+            if (x._IsSamei(Hadb.CurrentDynamicConfig.DDns_DomainNamePrimary))
+            {
+                ret.Add(x);
+            }
+        }
+
+        foreach (var x in Hadb.CurrentDynamicConfig.DDns_DomainName)
+        {
+            if (x._IsDiffi(Hadb.CurrentDynamicConfig.DDns_DomainNamePrimary))
+            {
+                ret.Add(x);
+            }
+        }
+
+        return ret;
+    }
+
     public Task<string> Test(int i) => $"Hello {i}"._TaskResult();
 
-    public async Task<Host> DDNS_Host(string secretKey = "", string label = "", string unlockKey = "", string licenseString = "", string ip = "", string userGroupSecretKey = "", string email = "", JObject? userData = null)
+    public async Task<Host_Return> DDNS_Host(string secretKey = "", string label = "", string unlockKey = "", string licenseString = "", string ip = "", string userGroupSecretKey = "", string email = "", JObject? userData = null)
     {
         var client = this.GetClientInfo();
 
@@ -1190,9 +1220,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             clientName: clientNameStr);
 
             // 作成に成功したので、ホストオブジェクトを返却する。
-            newHost.HostFqdnPrimary = newHost.HostLabel + "." + Hadb.CurrentDynamicConfig.DDns_DomainNamePrimary;
-            newHost.ApiResult = HostApiResult.Created;
-            return newHost;
+            return new Host_Return(newHost, HostApiResult.Created, GetDomainNamesList().Select(x => newHost.HostLabel + "." + x).ToArray());
         }
 
         if (anyChangePossibility)
@@ -1283,9 +1311,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             clientName: clientNameStr);
 
             // 変更に成功したので、ホストオブジェクトを返却する。
-            current.HostFqdnPrimary = current.HostLabel + "." + Hadb.CurrentDynamicConfig.DDns_DomainNamePrimary;
-            current.ApiResult = HostApiResult.Modified;
-            return current;
+            return new Host_Return(current, HostApiResult.Modified, GetDomainNamesList().Select(x => current.HostLabel + "." + x).ToArray());
         }
 
         retCurrentHostObj._NullCheck(nameof(retCurrentHostObj));
@@ -1315,10 +1341,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
         // 現在のオブジェクト情報を返却する。
         retCurrentHost._NullCheck(nameof(retCurrentHost));
-        retCurrentHost.HostFqdnPrimary = retCurrentHost.HostLabel + "." + Hadb.CurrentDynamicConfig.DDns_DomainNamePrimary;
-        retCurrentHost.ApiResult = HostApiResult.NoChange;
-
-        return retCurrentHost;
+        return new Host_Return(retCurrentHost, HostApiResult.NoChange, GetDomainNamesList().Select(x => retCurrentHost.HostLabel + "." + x).ToArray());
     }
 
     public async Task DDNS_HostDelete(string secretKey)
