@@ -551,13 +551,32 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             new HostHistoryRecord { HostData = Host._Sample, TimeStamp = DtOffsetSample(0.2), Version = 1, };
     }
 
+    public class Test2Input
+    {
+        public int IntParam;
+        public string StrParam = "";
+
+        public static Test2Input _Sample => new Test2Input { IntParam = 32, StrParam = "Neko" };
+    }
+
+    public class Test2Output
+    {
+        public int IntParam;
+        public string StrParam = "";
+
+        public static Test2Output _Sample => new Test2Output { IntParam = 64, StrParam = "Hello" };
+    }
+
     [RpcInterface]
     public interface IRpc
     {
         [RpcMethodHelp("テスト関数。パラメータで int 型で指定された値を文字列に変換し、Hello という文字列を前置して返却します。RPC を呼び出すためのテストコードを実際に記述する際のテストとして便利です。", "Hello 123")]
         public Task<string> Test([RpcParamHelp("テスト入力整数値", 123)] int i);
 
-        [RpcMethodHelp("DDNS ホストレコードを作成、更新または取得します。")]
+        [RpcMethodHelp("テスト関数2。")]
+        public Task<Test2Output> Test2([RpcParamHelp("テスト入力値1")] Test2Input in1, [RpcParamHelp("テスト入力値2")] string in2, [RpcParamHelp("テスト入力値3", HostApiResult.Modified)] HostApiResult in3);
+
+        [RpcMethodHelp("DDNS ホストレコードを作成、更新または取得します。DDNS ホストレコードに関連付けられている IP アドレスの更新も、この API を呼び出して行ないます。")]
         public Task<Host_Return> DDNS_Host(
             [RpcParamHelp("ホストシークレットキーを指定します。新しいホストを作成する際には、新しいキーを指定してください。キーはクライアント側でランダムな 40 文字以内の半角英数字 (0-9、A-Z、ハイフン、アンダーバー の 38 種類の文字) を指定してください。通常は、20 バイトの乱数で生成したユニークなバイナリデータを 16 進数に変換したものを使用してください。既存のホストを更新する際には、既存のキーを指定してください。すでに存在するホストのキーが正確に指定された場合は、そのホストに関する情報の更新を希望するとみなされます。それ以外の場合は、新しいホストの作成を希望するとみなされます。ホストシークレットキーは、大文字・小文字を区別しません。ホストシークレットキーを省略した場合は、新たなホストを作成するものとみなされ、DDNS サーバー側でランダムでユニークなホストシークレットキーが新規作成されます。", "00112233445566778899AABBCCDDEEFF01020304")]
                 string secretKey = "",
@@ -1529,7 +1548,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
         if (count <= 0) count = 1;
 
-        if (count >= Consts.Numbers.MikakaDDns_MaxUnlockKeyCountOnce)
+        if (count > Consts.Numbers.MikakaDDns_MaxUnlockKeyCountOnce)
         {
             throw new CoresException($"Specified {nameof(count)} value ({count}) is too much. {nameof(count)} must be equal or less than {Consts.Numbers.MikakaDDns_MaxUnlockKeyCountOnce}.");
         }
@@ -1561,6 +1580,13 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         });
 
         return ret.ToArray();
+    }
+
+    public async Task<Test2Output> Test2(Test2Input in1, string in2, HostApiResult in3)
+    {
+        await Task.CompletedTask;
+
+        return new Test2Output { IntParam = in1.IntParam * 2, StrParam = in1.StrParam + "_test_" + in2 + "_" + in3.ToString()};
     }
 }
 

@@ -5387,6 +5387,11 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public static IEnumerable<KeyValuePair<string, object>> GetEnumValuesList(Type type)
+        {
+            return EnumCacheCaseSensitive[type];
+        }
+
         static Singleton<Type, Dictionary<string, object>> EnumCacheCaseSensitive = new Singleton<Type, Dictionary<string, object>>(t =>
         {
             string[] names = Enum.GetNames(t);

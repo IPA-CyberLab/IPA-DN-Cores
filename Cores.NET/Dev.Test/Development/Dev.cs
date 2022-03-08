@@ -233,7 +233,7 @@ public abstract class JsonRpcSingleReturnWithMetaData<T> : IToJsonString
 {
     public abstract T Data { get; }
 
-    public string ToJsonString(bool includeNull = false, bool escapeHtml = false, int? maxDepth = 8, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null)
+    public string ToJsonString(bool includeNull = false, bool escapeHtml = false, int? maxDepth = 8, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null, JsonFlags jsonFlags = JsonFlags.None)
     {
         string tmp = this.Data._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type);
 
@@ -251,7 +251,7 @@ public abstract class JsonRpcSingleReturnWithMetaData<T> : IToJsonString
             Formatting = compact ? Formatting.None : Formatting.Indented,
         };
 
-        Json.AddStandardSettingsToJsonConverter(setting);
+        Json.AddStandardSettingsToJsonConverter(setting, jsonFlags);
 
         setting.Converters.Add(new StringEnumConverter());
 

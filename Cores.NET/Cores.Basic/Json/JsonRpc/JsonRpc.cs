@@ -258,12 +258,14 @@ public class RpcParameterHelp
     public Type Type { get; }
     public string TypeName { get; }
     public bool IsPrimitiveType { get; }
+    public bool IsEnumType { get; }
     public string Description { get; } = "";
     public object? SampleValueObject { get; }
     public string SampleValueOneLineStr { get; } = "";
     public string SampleValueMultiLineStr { get; } = "";
     public bool Mandatory { get; }
     public object? DefaultValue { get; }
+    public SortedDictionary<long, string>? EnumValuesList { get; }
 
     public RpcParameterHelp(ParameterInfo info, string methodNameHint)
     {
@@ -272,6 +274,17 @@ public class RpcParameterHelp
         this.TypeName = this.Type.Name;
         this.IsPrimitiveType = Dbg.IsPrimitiveType(this.Type);
         this.SampleValueObject = SampleDataUtil.Get(this.Type, methodNameHint);
+
+        if (this.Type.IsEnum)
+        {
+            this.IsEnumType = true;
+
+            this.EnumValuesList = new SortedDictionary<long, string>();
+            foreach (var kv in Str.GetEnumValuesList(this.Type))
+            {
+                this.EnumValuesList.Add(Convert.ToInt64(kv.Value), kv.Key);
+            }
+        }
 
         var attr = info.GetCustomAttribute<RpcParamHelpAttribute>();
         if (attr != null)
@@ -292,9 +305,13 @@ public class RpcParameterHelp
             this.SampleValueObject = Util.CreateNewSampleObjectFromTypeWithoutParam(this.Type);
         }
 
-        this.SampleValueOneLineStr = this.SampleValueObject?._ObjectToJson(includeNull: true, compact: true) ?? "";
+        JsonFlags jsonFlags = JsonFlags.None;
 
-        this.SampleValueMultiLineStr = this.SampleValueObject?._ObjectToJson(includeNull: true, compact: false) ?? "";
+        if (this.IsEnumType) jsonFlags |= JsonFlags.AllEnumToStr;
+
+        this.SampleValueOneLineStr = this.SampleValueObject?._ObjectToJson(includeNull: true, compact: true, jsonFlags: jsonFlags) ?? "";
+
+        this.SampleValueMultiLineStr = this.SampleValueObject?._ObjectToJson(includeNull: true, compact: false, jsonFlags: jsonFlags) ?? "";
 
         if (info.HasDefaultValue == false)
         {

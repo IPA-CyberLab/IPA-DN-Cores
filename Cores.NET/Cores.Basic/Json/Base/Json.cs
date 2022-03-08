@@ -50,25 +50,33 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text.Json.Nodes;
+using Newtonsoft.Json.Converters;
 
 namespace IPA.Cores.Basic;
+
+[Flags]
+public enum JsonFlags : ulong
+{
+    None = 0,
+    AllEnumToStr = 1,
+}
 
 public static class Json
 {
     public const int DefaultMaxDepth = 8;
 
-    public static string SerializeLog(IEnumerable itemArray, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth)
+    public static string SerializeLog(IEnumerable itemArray, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, JsonFlags jsonFlags = JsonFlags.None)
     {
         StringWriter w = new StringWriter();
-        SerializeLogToTextWriterAsync(w, itemArray, includeNull, escapeHtml, maxDepth)._GetResult();
+        SerializeLogToTextWriterAsync(w, itemArray, includeNull, escapeHtml, maxDepth, jsonFlags: jsonFlags)._GetResult();
         return w.ToString();
     }
 
-    public static async Task SerializeLogToTextWriterAsync(TextWriter w, IEnumerable itemArray, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, Type? type = null)
+    public static async Task SerializeLogToTextWriterAsync(TextWriter w, IEnumerable itemArray, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, Type? type = null, JsonFlags jsonFlags = JsonFlags.None)
     {
         foreach (var item in itemArray)
         {
-            await w.WriteLineAsync(Serialize(item, includeNull, escapeHtml, maxDepth, true, type: type));
+            await w.WriteLineAsync(Serialize(item, includeNull, escapeHtml, maxDepth, true, type: type, jsonFlags: jsonFlags));
         }
     }
 
@@ -133,13 +141,20 @@ public static class Json
             => IPAddress.Parse((string)reader.Value);
     }
 
-    public static void AddStandardSettingsToJsonConverter(JsonSerializerSettings settings)
+    static readonly StringEnumConverter JsonNet_StringEnumConverter = new StringEnumConverter();
+
+    public static void AddStandardSettingsToJsonConverter(JsonSerializerSettings settings, JsonFlags flags = JsonFlags.None)
     {
         settings.Converters.Add(IPAddressJsonConverter.Singleton);
         settings.Converters.Add(ClassWithIToJsonJsonConverter.Singleton);
+
+        if (flags.Bit(JsonFlags.AllEnumToStr))
+        {
+            settings.Converters.Add(JsonNet_StringEnumConverter);
+        }
     }
 
-    public static string Serialize(object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null)
+    public static string Serialize(object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null, JsonFlags jsonFlags = JsonFlags.None)
     {
         //if (obj is IToJsonString specialInterface)
         //{
@@ -156,7 +171,7 @@ public static class Json
             Formatting = compact ? Formatting.None : Formatting.Indented,
         };
 
-        AddStandardSettingsToJsonConverter(setting);
+        AddStandardSettingsToJsonConverter(setting, jsonFlags);
 
         if (type != null)
         {
@@ -178,7 +193,7 @@ public static class Json
         return ret;
     }
 
-    public static void Serialize(TextWriter destTextWriter, object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type? type = null)
+    public static void Serialize(TextWriter destTextWriter, object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type? type = null, JsonFlags jsonFlags = JsonFlags.None)
     {
         //if (obj is IToJsonString specialInterface)
         //{
@@ -197,7 +212,7 @@ public static class Json
             Formatting = compact ? Formatting.None : Formatting.Indented,
         };
 
-        AddStandardSettingsToJsonConverter(setting);
+        AddStandardSettingsToJsonConverter(setting, jsonFlags);
 
         if (type != null)
         {
@@ -212,7 +227,7 @@ public static class Json
         }
     }
 
-    public static JsonSerializer CreateSerializer(bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false)
+    public static JsonSerializer CreateSerializer(bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, JsonFlags jsonFlags = JsonFlags.None)
     {
         JsonSerializerSettings setting = new JsonSerializerSettings()
         {
@@ -224,27 +239,27 @@ public static class Json
             Formatting = compact ? Formatting.None : Formatting.Indented,
         };
 
-        AddStandardSettingsToJsonConverter(setting);
+        AddStandardSettingsToJsonConverter(setting, jsonFlags);
 
         return JsonSerializer.Create(setting);
     }
 
     [return: NotNullIfNotNull("obj")]
-    public static T CloneWithJson<T>([AllowNull] T obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null)
+    public static T CloneWithJson<T>([AllowNull] T obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null, JsonFlags jsonFlags = JsonFlags.None)
     {
-        return (T)CloneObjectWithJson((object?)obj, escapeHtml, maxDepth, referenceHandling, type ?? typeof(T))!;
+        return (T)CloneObjectWithJson((object?)obj, escapeHtml, maxDepth, referenceHandling, type ?? typeof(T), jsonFlags)!;
     }
 
     [return: NotNullIfNotNull("obj")]
-    public static object? CloneObjectWithJson(object? obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null)
+    public static object? CloneObjectWithJson(object? obj, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, Type? type = null, JsonFlags jsonFlags = JsonFlags.None)
     {
         if (obj == null) return null;
 
         type = type ?? obj.GetType();
 
-        string data = Serialize(obj, true, escapeHtml, maxDepth, true, referenceHandling, false, type);
+        string data = Serialize(obj, true, escapeHtml, maxDepth, true, referenceHandling, false, type, jsonFlags);
 
-        object? ret = Deserialize(data, type, true, maxDepth, false);
+        object? ret = Deserialize(data, type, true, maxDepth, false, jsonFlags);
 
         ret._NullCheck();
 
@@ -252,10 +267,10 @@ public static class Json
     }
 
     [return: MaybeNull]
-    public static T Deserialize<T>(string str, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false)
-        => (T)Deserialize(str, typeof(T), includeNull, maxDepth, base64url)!;
+    public static T Deserialize<T>(string str, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false, JsonFlags jsonFlags = JsonFlags.None)
+        => (T)Deserialize(str, typeof(T), includeNull, maxDepth, base64url, jsonFlags)!;
 
-    public static object? Deserialize(string str, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false)
+    public static object? Deserialize(string str, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false, JsonFlags jsonFlags = JsonFlags.None)
     {
         if (base64url)
         {
@@ -270,12 +285,12 @@ public static class Json
             ReferenceLoopHandling = ReferenceLoopHandling.Error,
         };
 
-        AddStandardSettingsToJsonConverter(setting);
+        AddStandardSettingsToJsonConverter(setting, jsonFlags);
 
         return JsonConvert.DeserializeObject(str, type, setting);
     }
 
-    public static object? Deserialize(TextReader srcTextReader, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
+    public static object? Deserialize(TextReader srcTextReader, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, JsonFlags jsonFlags = JsonFlags.None)
     {
         JsonSerializerSettings setting = new JsonSerializerSettings()
         {
@@ -285,27 +300,27 @@ public static class Json
             ReferenceLoopHandling = ReferenceLoopHandling.Error,
         };
 
-        AddStandardSettingsToJsonConverter(setting);
+        AddStandardSettingsToJsonConverter(setting, jsonFlags);
 
         return JsonSerializer.Create(setting).Deserialize(srcTextReader, type);
     }
 
     [return: MaybeNull]
-    public static T Deserialize<T>(TextReader srcTextReader, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
-        => (T)Deserialize(srcTextReader, typeof(T), includeNull, maxDepth)!;
+    public static T Deserialize<T>(TextReader srcTextReader, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, JsonFlags jsonFlags = JsonFlags.None)
+        => (T)Deserialize(srcTextReader, typeof(T), includeNull, maxDepth, jsonFlags)!;
 
     [return: MaybeNull]
-    public static T ConvertObject<T>(object? src, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false)
-        => (T)ConvertObject(src, typeof(T), includeNull, maxDepth, referenceHandling)!;
+    public static T ConvertObject<T>(object? src, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, JsonFlags jsonFlags = JsonFlags.None)
+        => (T)ConvertObject(src, typeof(T), includeNull, maxDepth, referenceHandling, jsonFlags)!;
 
-    public static object? ConvertObject(object? src, Type destType, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false)
+    public static object? ConvertObject(object? src, Type destType, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, JsonFlags jsonFlags = JsonFlags.None)
     {
-        string str = Serialize(src, includeNull, false, maxDepth, true, referenceHandling);
-        return Deserialize(str, destType, maxDepth: maxDepth);
+        string str = Serialize(src, includeNull, false, maxDepth, true, referenceHandling, jsonFlags: jsonFlags);
+        return Deserialize(str, destType, maxDepth: maxDepth, jsonFlags: jsonFlags);
     }
 
     public static async Task<bool> DeserializeLargeArrayAsync<T>(TextReader txt, Func<T?, bool> itemReadCallback,
-        Func<string, Exception, bool>? parseErrorCallback = null, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth)
+        Func<string, Exception, bool>? parseErrorCallback = null, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, JsonFlags jsonFlags = JsonFlags.None)
         where T : class
     {
         while (true)
@@ -320,7 +335,7 @@ public static class Json
                 object? obj = null;
                 try
                 {
-                    obj = (object?)Deserialize<T>(line, includeNull, maxDepth);
+                    obj = (object?)Deserialize<T>(line, includeNull, maxDepth, jsonFlags: jsonFlags);
                 }
                 catch (Exception ex)
                 {
@@ -373,7 +388,7 @@ public static class Json
 
 public interface IToJsonString
 {
-    string ToJsonString(bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null);
+    string ToJsonString(bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null, JsonFlags jsonFlags = JsonFlags.None);
 }
 
 public class EasyJsonStrAttributes
@@ -446,11 +461,11 @@ public class EasyJsonStrAttributes
         return json;
     }
 
-    public string ToJsonString(bool includeNull = false, bool escapeHtml = false, int? maxDepth = 8, bool compact = true, bool referenceHandling = false, bool base64url = false, Type? type = null)
+    public string ToJsonString(bool includeNull = false, bool escapeHtml = false, int? maxDepth = 8, bool compact = true, bool referenceHandling = false, bool base64url = false, Type? type = null, JsonFlags jsonFlags = JsonFlags.None)
     {
         if (this.Dict.Count == 0) return "";
 
-        return ToJsonObject()._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type);
+        return ToJsonObject()._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type, jsonFlags);
     }
 
     public void Set(string key, object? value)
@@ -596,9 +611,9 @@ public class EasyJsonStrAttributes
 
 public static partial class Dbg
 {
-    static partial void InternalConvertToJsonStringIfPossible(ref string? ret, object obj, bool includeNull, bool escapeHtml, int? maxDepth, bool compact, bool referenceHandling)
+    static partial void InternalConvertToJsonStringIfPossible(ref string? ret, object obj, bool includeNull, bool escapeHtml, int? maxDepth, bool compact, bool referenceHandling, JsonFlags jsonFlags)
     {
-        ret = obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling);
+        ret = obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling, jsonFlags: jsonFlags);
     }
 
     static partial void InternalIsJsonSupported(ref bool ret)

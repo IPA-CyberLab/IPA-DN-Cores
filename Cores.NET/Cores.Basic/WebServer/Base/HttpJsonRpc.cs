@@ -65,9 +65,290 @@ namespace IPA.Cores.Basic;
 public class JsonRpcHttpServer : JsonRpcServer
 {
     public string RpcBaseAbsoluteUrlPath = ""; // "/rpc/" のような絶対パス。末尾に / を含む。
+    public string WebFormBaseAbsoluteUrlPath = ""; // "/user/" のような絶対パス。末尾に / を含む。
 
     public JsonRpcHttpServer(JsonRpcServerApi api, JsonRpcServerConfig? cfg = null) : base(api, cfg) { }
 
+    // /user の GET ハンドラ
+    public virtual async Task WebForm_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+    {
+        CancellationToken cancel = request._GetRequestCancellationToken();
+        try
+        {
+            string rpcMethod = routeData.Values._GetStr("rpc_method");
+            if (rpcMethod._IsEmpty())
+            {
+                // 目次ページの表示 (TODO)
+                var baseUri = request.GetEncodedUrl()._ParseUrl()._CombineUrl(this.RpcBaseAbsoluteUrlPath);
+
+                if (this.Config.PrintHelp)
+                {
+                    await response._SendStringContentsAsync(GenerateHtmlHelpString(baseUri), contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel, normalizeCrlf: CrlfStyle.CrLf);
+                }
+                else
+                {
+                    await response._SendStringContentsAsync($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTimeOffset.Now._ToDtStr(withNanoSecs: true)}\r\n", cancel: cancel, normalizeCrlf: CrlfStyle.Lf);
+                }
+            }
+            else
+            {
+                // API ごとのページの表示
+                JObject jObj = new JObject();
+
+                foreach (string key in request.Query.Keys)
+                {
+                    string value = request.Query[key];
+
+                    string valueTrim = value.Trim();
+                    if (valueTrim.StartsWith("{") && valueTrim.EndsWith("}"))
+                    {
+                        // JSON Data
+                        jObj.Add(key, value._JsonToObject<JObject>());
+                    }
+                    else
+                    {
+                        // Primitive Date
+                        jObj.Add(key, JToken.FromObject(value));
+                    }
+                }
+
+                string args = jObj._ObjectToJson(compact: true);
+
+                //string id = "GET-" + Str.NewGuid().ToUpperInvariant();
+                string in_str = "{'jsonrpc':'2.0','method':'" + rpcMethod + "','params':" + args + "}";
+
+                string body = WebForm_GenerateApiInputFormPage(rpcMethod);
+
+                await response._SendStringContentsAsync(body, contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel, normalizeCrlf: CrlfStyle.CrLf);
+
+                //await ProcessHttpRequestMain(request, response, in_str, Consts.MimeTypes.TextUtf8, Consts.HttpStatusCodes.InternalServerError, true, paramsStrComparison: StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        catch (Exception ex)
+        {
+            await response._SendStringContentsAsync("Request Error: " + ex.ToString(), cancel: cancel, statusCode: Consts.HttpStatusCodes.InternalServerError, normalizeCrlf: CrlfStyle.Lf);
+        }
+    }
+
+    string WebForm_GenerateApiInputFormPage(string methodName)
+    {
+        StringWriter w = new StringWriter();
+        var mi = this.Api.GetMethodInfo(methodName);
+
+        WebForm_WriteHtmlHeader(w, $"{mi.Name} - {this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} Web API Form");
+
+        w.WriteLine($"<form action='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/' method='get'>");
+        w.WriteLine($"<input name='_call' type='hidden' value='1'/>");
+
+        w.WriteLine(@"
+    <div class='box'>
+        <div class='content'>
+");
+
+        w.WriteLine($"<h2 class='title is-4'>" + $"{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} Web API Form - {mi.Name}() API" + "</h2>");
+
+        w.WriteLine($"<h3 class='title is-5'>" + $"{mi.Name}() API: {mi.Description._EncodeHtml()}" + "</h3>");
+
+        w.WriteLine($"<p><b><a href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fas fa-caret-square-right'></i> API Web Form</a></b> > <b><a href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-caret-square-right'></i> {mi.Name}() API Web Form</a></b></p>");
+
+        if (this.Config.PrintHelp)
+        {
+            w.WriteLine($"<p><b><a href='{this.RpcBaseAbsoluteUrlPath}'><i class='fas fa-info-circle'></i> API Reference Document</a></b> > <b><a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-info-circle'></i> {mi.Name}() API Document</a></b></p>");
+        }
+
+        int index = 0;
+
+        foreach (var p in mi.ParametersHelpList)
+        {
+            index++;
+
+            string sampleStr = p.SampleValueOneLineStr._IsEmpty() ? "" : $"<p>Input Example: <code>{p.SampleValueOneLineStr._RemoveQuotation()}</code></p>";
+
+            string controlStr = $@"
+                    <div class='field'>
+                        <p class='control'>
+                            <input class='input is-info text-box single-line' name='{p.Name}' type='text' value='' />
+                            {sampleStr}
+<p>{p.Description._EncodeHtml()}</p>
+                        </p>
+                    </div>
+";
+
+            if (p.IsEnumType)
+            {
+                StringWriter optionsStr = new StringWriter();
+
+                optionsStr.WriteLine($"<option></option>");
+
+                foreach (var kv in p.EnumValuesList!)
+                {
+                    optionsStr.WriteLine($"<option value='{kv.Key}'>{kv.Value}</option>");
+                }
+
+                controlStr = $@"
+                <div class='field-body'>
+                    <div class='field is-narrow'>
+                        <p class='control'>
+                                <select name='{p.Name}' class='input is-info'>
+{optionsStr}
+                                </select>
+<p>{p.Description._EncodeHtml()}</p>
+{sampleStr}
+                        </p>
+                    </div>
+                </div>
+";
+            }
+
+            w.WriteLine($@"
+            <div class='field is-horizontal'>
+                <div class='field-label is-normal'>
+                    <label class='label'>#{index} {p.Name}:<BR>({p.TypeName})</label>
+                </div>
+                <div class='field-body'>
+                    {controlStr}
+                </div>
+            </div>");
+        }
+
+        w.WriteLine($@"
+            <div class='field is-horizontal'>
+                <div class='field-label'>
+                    <!-- Left empty for spacing -->
+                </div>
+                <div class='field-body'>
+                    <div class='field'>
+                        <div class='control'>
+                            <input class='button is-link' type='submit' value='Call this API with Parameters'>
+                        </div>
+                    </div>
+                </div>
+            </div>");
+
+        w.WriteLine(@"
+        </div>
+    </div>
+");
+
+        w.WriteLine("</form>");
+
+        WebForm_WriteHtmlFooter(w);
+
+        return w.ToString();
+    }
+
+    protected virtual void WebForm_WriteHtmlHeader(StringWriter w, string title)
+    {
+        string additionalStyle = @"
+<style type='text/css'>
+/* Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification\ 
+for details on configuring this project to bundle and minify static web assets. */
+body {
+    padding-top: 0px;
+    padding-bottom: 0px;
+}
+
+/* Wrapping element */
+/* Set some basic padding to keep content from hitting the edges */
+.body-content {
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+/* Carousel */
+.carousel-caption p {
+    font-size: 20px;
+    line-height: 1.4;
+}
+
+/* Make .svg files in the carousel display properly in older browsers */
+.carousel-inner .item img[src$='.svg'] {
+    width: 100%;
+}
+
+/* QR code generator */
+#qrCode {
+    margin: 15px;
+}
+
+/* Hide/rearrange for smaller screens */
+@media screen and (max-width: 767px) {
+    /* Hide captions */
+    .carousel-caption {
+        display: none;
+    }
+}
+
+.footer {
+    padding: 1rem 1rem 1rem;
+}
+
+pre[class*='language-'] {
+    background: #f6f8fa;
+}
+
+/* Solve the conflict between Bulma and Prism */
+code[class*='language-'] .tag,
+code[class*='language-'] .number {
+    align-items: stretch;
+    background-color: transparent;
+    border-radius: 0;
+    display: inline;
+    font-size: 1em;
+    height: auto;
+    justify-content: flex-start;
+    line-height: normal;
+    padding: 0;
+    white-space: pre;
+    margin-right: 0;
+    min-width: auto;
+    text-align: left;
+    vertical-align: baseline;
+}
+
+code[class*=""language-""], pre[class*=""language-""] {
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+}
+
+</style>
+";
+
+        w.WriteLine($@"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>{title}</title>
+
+    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.css' integrity='sha256-ujE/ZUB6CMZmyJSgQjXGCF4sRRneOimQplBVLu8OU5w=' crossorigin='anonymous' />
+    <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bulma-extensions@6.2.7/dist/css/bulma-extensions.min.css' integrity='sha256-RuPsE2zPsNWVhhvpOcFlMaZ1JrOYp2uxbFmOLBYtidc=' crossorigin='anonymous'>
+    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.14.0/css/all.min.css' integrity='sha512-1PKOgIY59xJ8Co8+NE6FZ+LOAZKjy+KY8iq0G4B3CyeY6wYHN3yt9PW0XpSriVlkMXe40PTKnXrLnZ9+fkDaog==' crossorigin='anonymous' />
+    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/prism/1.16.0/themes/prism.css' integrity='sha256-Vl2/8UdUJhoDlkCr9CEJmv77kiuh4yxMF7gP1OYe6EA=' crossorigin='anonymous' />
+{additionalStyle}
+</head>
+<body>");
+    }
+
+    protected virtual void WebForm_WriteHtmlFooter(StringWriter w)
+    {
+        w.WriteLine(@"
+
+    <script src='https://cdn.jsdelivr.net/npm/bulma-extensions@6.2.7/dist/js/bulma-extensions.js' integrity='sha256-02UMNoxzmxWzx36g1Y4tr93G0oHuz+khCNMBbilTBAg=' crossorigin='anonymous'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/vue/2.6.10/vue.js' integrity='sha256-ufGElb3TnOtzl5E4c/qQnZFGP+FYEZj5kbSEdJNrw0A=' crossorigin='anonymous'></script>
+    <script src='https://cdn.jsdelivr.net/npm/buefy@0.7.10/dist/buefy.js' integrity='sha256-jzFK32XQpxIXsHY1dSlIXAerpfvTaKKBLrOGX76W9AU=' crossorigin='anonymous'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.js' integrity='sha256-XmdRbTre/3RulhYk/cOBUMpYlaAp2Rpo/s556u0OIKk=' crossorigin='anonymous'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.15/lodash.js' integrity='sha256-kzv+r6dLqmz7iYuR2OdwUgl4X5RVsoENBzigdF5cxtU=' crossorigin='anonymous'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.js' integrity='sha256-H9jAz//QLkDOy/nzE9G4aYijQtkLt9FvGmdUTwBk6gs=' crossorigin='anonymous'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/prism/1.16.0/prism.js' integrity='sha256-DIDyRYnz+KgK09kOQq3WVsIv1dcMpTZyuWimu3JMCj8=' crossorigin='anonymous'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/prism/1.16.0/components/prism-json.js' integrity='sha256-xRwOqwAdoQU7w2xCV4YQpPH5TaJMEMtzHExglTQTUZ4=' crossorigin='anonymous'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/prism/1.16.0/components/prism-bash.js' integrity='sha256-R8B0GSG+S1gSO1tPkcl2Y+s3qryWdPQDHOy4JxZtuJI=' crossorigin='anonymous'></script>
+</body>
+</html>
+");
+    }
+
+    // /rpc の GET ハンドラ
     public virtual async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
         CancellationToken cancel = request._GetRequestCancellationToken();
@@ -128,6 +409,7 @@ public class JsonRpcHttpServer : JsonRpcServer
         }
     }
 
+    // /rpc の POST ハンドラ
     public virtual async Task PostRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
         try
@@ -238,25 +520,34 @@ public class JsonRpcHttpServer : JsonRpcServer
         await response._SendStringContentsAsync(retStr, responseContentsType, cancel: request._GetRequestCancellationToken(), statusCode: statusCode, normalizeCrlf: CrlfStyle.Lf);
     }
 
-    public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string path = "/rpc")
+    public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string rpcPath = "/rpc", string webFormPath = "/user")
     {
-        path = path._NonNullTrim();
+        rpcPath = rpcPath._NonNullTrim();
+        if (rpcPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{rpcPath}'");
+        if (rpcPath.Length >= 2 && rpcPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
 
-        if (path.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{path}'");
-        if (path.Length >= 2 && path.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
+        webFormPath = webFormPath._NonNullTrim();
+        if (webFormPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{webFormPath}'");
+        if (webFormPath.Length >= 2 && webFormPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
 
         RouteBuilder rb = new RouteBuilder(appBuilder);
 
-        rb.MapGet(path, GetRequestHandler);
-        rb.MapGet(path + "/{rpc_method}", GetRequestHandler);
-        rb.MapGet(path + "/{rpc_method}/{rpc_param}", GetRequestHandler);
-        rb.MapPost(path, PostRequestHandler);
+        rb.MapGet(rpcPath, GetRequestHandler);
+        rb.MapGet(rpcPath + "/{rpc_method}", GetRequestHandler);
+        rb.MapGet(rpcPath + "/{rpc_method}/{rpc_param}", GetRequestHandler);
+        rb.MapPost(rpcPath, PostRequestHandler);
+
+        rb.MapGet(webFormPath, WebForm_GetRequestHandler);
+        rb.MapGet(webFormPath + "/{rpc_method}", WebForm_GetRequestHandler);
 
         IRouter router = rb.Build();
         appBuilder.UseRouter(router);
 
-        this.RpcBaseAbsoluteUrlPath = path;
+        this.RpcBaseAbsoluteUrlPath = rpcPath;
         if (this.RpcBaseAbsoluteUrlPath.EndsWith("/") == false) this.RpcBaseAbsoluteUrlPath += "/";
+
+        this.WebFormBaseAbsoluteUrlPath = webFormPath;
+        if (this.WebFormBaseAbsoluteUrlPath.EndsWith("/") == false) this.WebFormBaseAbsoluteUrlPath += "/";
     }
 
     // ヘルプ文字列を生成する
@@ -273,94 +564,10 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         int methodIndex = 0;
 
-        string additionalStyle = @"
-<style type='text/css'>
-/* Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification\ 
-for details on configuring this project to bundle and minify static web assets. */
-body {
-    padding-top: 0px;
-    padding-bottom: 0px;
-}
 
-/* Wrapping element */
-/* Set some basic padding to keep content from hitting the edges */
-.body-content {
-    padding-left: 15px;
-    padding-right: 15px;
-}
-
-/* Carousel */
-.carousel-caption p {
-    font-size: 20px;
-    line-height: 1.4;
-}
-
-/* Make .svg files in the carousel display properly in older browsers */
-.carousel-inner .item img[src$='.svg'] {
-    width: 100%;
-}
-
-/* QR code generator */
-#qrCode {
-    margin: 15px;
-}
-
-/* Hide/rearrange for smaller screens */
-@media screen and (max-width: 767px) {
-    /* Hide captions */
-    .carousel-caption {
-        display: none;
-    }
-}
-
-.footer {
-    padding: 1rem 1rem 1rem;
-}
-
-
-/* Solve the conflict between Bulma and Prism */
-code[class*='language-'] .tag,
-code[class*='language-'] .number {
-    align-items: stretch;
-    background-color: transparent;
-    border-radius: 0;
-    display: inline;
-    font-size: 1em;
-    height: auto;
-    justify-content: flex-start;
-    line-height: normal;
-    padding: 0;
-    white-space: pre;
-    margin-right: 0;
-    min-width: auto;
-    text-align: left;
-    vertical-align: baseline;
-}
-
-code[class*=""language-""], pre[class*=""language-""] {
-    white-space: pre-wrap !important;
-    word-break: break-word !important;
-}
-
-</style>
-";
+        WebForm_WriteHtmlHeader(w, $"{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - JSON-RPC Server API Reference");
 
         w.WriteLine($@"
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset='utf-8' />
-    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
-    <title>{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - JSON-RPC Server API Reference</title>
-
-    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.css' integrity='sha256-ujE/ZUB6CMZmyJSgQjXGCF4sRRneOimQplBVLu8OU5w=' crossorigin='anonymous' />
-    <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bulma-extensions@6.2.7/dist/css/bulma-extensions.min.css' integrity='sha256-RuPsE2zPsNWVhhvpOcFlMaZ1JrOYp2uxbFmOLBYtidc=' crossorigin='anonymous'>
-    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0-12/css/all.css' integrity='sha256-qQHUQX+gGGYfpC7Zdni08sr+h0ymXr0avmIASucY4FM=' crossorigin='anonymous' />
-    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/prism/1.16.0/themes/prism.css' integrity='sha256-Vl2/8UdUJhoDlkCr9CEJmv77kiuh4yxMF7gP1OYe6EA=' crossorigin='anonymous' />
-{additionalStyle}
-</head>
-<body>
-
     <div class='container is-fluid'>
 
 <div class='box'>
@@ -396,7 +603,7 @@ code[class*=""language-""], pre[class*=""language-""] {
             methodIndex++;
 
             w.WriteLine($"<hr id={m.Name}>");
-
+            
             string titleStr = $"RPC Method #{methodIndex}: {m.Name}() API{(m.Description._IsFilled() ? ":" : "")} {m.Description._EncodeHtml()}".Trim();
 
             w.WriteLine($"<h4 class='title is-5'>{titleStr}</h4>");
@@ -443,18 +650,34 @@ code[class*=""language-""], pre[class*=""language-""] {
                     }
                     if (pp.IsPrimitiveType)
                     {
-                        w.WriteLine($"<li>Input Data Type: Primitive Value - {pp.TypeName}</li>");
+                        if (pp.IsEnumType == false)
+                        {
+                            w.WriteLine($"<li>Input Data Type: Primitive Value - {pp.TypeName}</li>");
+                        }
+                        else
+                        {
+                            StringWriter enumWriter = new StringWriter();
+                            enumWriter.WriteLine($"enum {pp.Type.Name} {{");
+                            foreach (var enumItem in Str.GetEnumValuesList(pp.Type).OrderBy(x => x.Value))
+                            {
+                                enumWriter.WriteLine($"    {enumItem.Key}: {Convert.ToUInt64(enumItem.Value)},");
+                            }
+                            enumWriter.WriteLine("}");
+                            w.WriteLine($"<li>Input Data Type: Enumeration Value - {pp.TypeName}<BR>");
+                            w.Write($"<pre><code class='language-json'>{enumWriter.ToString()}</code></pre>");
+                            w.WriteLine($"</li>");
+                        }
                     }
                     else
                     {
-                        w.WriteLine($"<li>Input Data Type: SON Data - {pp.TypeName}</li>");
+                        w.WriteLine($"<li>Input Data Type: JSON Data - {pp.TypeName}</li>");
                     }
 
                     if (pp.SampleValueOneLineStr._IsFilled())
                     {
                         if (pp.IsPrimitiveType)
                         {
-                            w.WriteLine($"<li>Input Data Example: {pp.SampleValueOneLineStr}</li>");
+                            w.WriteLine($"<li>Input Data Example: <code>{pp.SampleValueOneLineStr}</code></li>");
                         }
                         else
                         {
@@ -467,7 +690,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                     w.WriteLine($"<li>Mandatory: {pp.Mandatory._ToBoolYesNoStr()}</li>");
                     if (pp.Mandatory == false)
                     {
-                        w.WriteLine($"<li>Default Value: {pp.DefaultValue._ObjectToJson(includeNull: true, compact: true)._EncodeHtml()}</li>");
+                        w.WriteLine($"<li>Default Value: <code>{pp.DefaultValue._ObjectToJson(includeNull: true, compact: true)._EncodeHtml()}</code></li>");
                         if (qsSampleOrDefaultValue == null)
                         {
                             qsSampleOrDefaultValue = pp.DefaultValue._ObjectToJson(includeNull: true, compact: true);
@@ -494,7 +717,11 @@ code[class*=""language-""], pre[class*=""language-""] {
 
                     qsList.Add(pp.Name, qsSampleOrDefaultValue);
 
-                    sampleRequestJsonData.TryAdd(pp.Name, JToken.FromObject(pp.SampleValueObject));
+                    JsonSerializerSettings settings = new JsonSerializerSettings();
+                    Json.AddStandardSettingsToJsonConverter(settings, JsonFlags.AllEnumToStr);
+                    JsonSerializer serializer = JsonSerializer.Create(settings);
+
+                    sampleRequestJsonData.TryAdd(pp.Name, JToken.FromObject(pp.SampleValueObject, serializer));
 
                     w.WriteLine("</ul>");
                     w.WriteLine();
@@ -715,7 +942,6 @@ code[class*=""language-""], pre[class*=""language-""] {
                 w.WriteLine();
             }
 
-
             w.WriteLine();
             w.WriteLine();
             w.WriteLine();
@@ -724,19 +950,9 @@ code[class*=""language-""], pre[class*=""language-""] {
         w.WriteLine(@"
         <p>　</p>
     </div>
-
-    <script src='https://cdn.jsdelivr.net/npm/bulma-extensions@6.2.7/dist/js/bulma-extensions.js' integrity='sha256-02UMNoxzmxWzx36g1Y4tr93G0oHuz+khCNMBbilTBAg=' crossorigin='anonymous'></script>
-    <script src='https://cdnjs.cloudflare.com/ajax/libs/vue/2.6.10/vue.js' integrity='sha256-ufGElb3TnOtzl5E4c/qQnZFGP+FYEZj5kbSEdJNrw0A=' crossorigin='anonymous'></script>
-    <script src='https://cdn.jsdelivr.net/npm/buefy@0.7.10/dist/buefy.js' integrity='sha256-jzFK32XQpxIXsHY1dSlIXAerpfvTaKKBLrOGX76W9AU=' crossorigin='anonymous'></script>
-    <script src='https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.js' integrity='sha256-XmdRbTre/3RulhYk/cOBUMpYlaAp2Rpo/s556u0OIKk=' crossorigin='anonymous'></script>
-    <script src='https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.15/lodash.js' integrity='sha256-kzv+r6dLqmz7iYuR2OdwUgl4X5RVsoENBzigdF5cxtU=' crossorigin='anonymous'></script>
-    <script src='https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.js' integrity='sha256-H9jAz//QLkDOy/nzE9G4aYijQtkLt9FvGmdUTwBk6gs=' crossorigin='anonymous'></script>
-    <script src='https://cdnjs.cloudflare.com/ajax/libs/prism/1.16.0/prism.js' integrity='sha256-DIDyRYnz+KgK09kOQq3WVsIv1dcMpTZyuWimu3JMCj8=' crossorigin='anonymous'></script>
-    <script src='https://cdnjs.cloudflare.com/ajax/libs/prism/1.16.0/components/prism-json.js' integrity='sha256-xRwOqwAdoQU7w2xCV4YQpPH5TaJMEMtzHExglTQTUZ4=' crossorigin='anonymous'></script>
-    <script src='https://cdnjs.cloudflare.com/ajax/libs/prism/1.16.0/components/prism-bash.js' integrity='sha256-R8B0GSG+S1gSO1tPkcl2Y+s3qryWdPQDHOy4JxZtuJI=' crossorigin='anonymous'></script>
-</body>
-</html>
 ");
+
+        this.WebForm_WriteHtmlFooter(w);
 
         return w.ToString();
     }
