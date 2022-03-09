@@ -1441,7 +1441,7 @@ class LetsEncryptClient
 
     static LetsEncryptClient()
     {
-        Json.AddStandardSettingsToJsonConverter(jsonSettings);
+        Json.AddStandardSettingsToJsonConverter(jsonSettings, JsonFlags.None);
     }
 
     private static Dictionary<string, HttpClient> _cachedClients = new Dictionary<string, HttpClient>(StringComparer.OrdinalIgnoreCase);

@@ -65,7 +65,7 @@ public class RichJsonHiveSerializerOptions : HiveSerializerOptions
                 Formatting = Formatting.Indented,
             };
 
-            Json.AddStandardSettingsToJsonConverter(settings);
+            Json.AddStandardSettingsToJsonConverter(settings, JsonFlags.None);
         }
 
         this.JsonSettings = settings;

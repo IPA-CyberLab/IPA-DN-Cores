@@ -3458,6 +3458,22 @@ public static class BasicHelper
         }
         return ret;
     }
+
+    public static string _RemoveQuotation(this string str)
+    {
+        str = str._NonNull();
+
+        if (str.Length >= 2 && str.StartsWith("\"") && str.EndsWith("\""))
+        {
+            str = str.Substring(1, str.Length - 2);
+        }
+        else if (str.Length >= 2 && str.StartsWith("'") && str.EndsWith("'"))
+        {
+            str = str.Substring(1, str.Length - 2);
+        }
+
+        return str;
+    }
 }
 
 
