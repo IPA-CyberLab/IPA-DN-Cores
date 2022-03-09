@@ -1902,14 +1902,14 @@ public class CsvWriter<T> : AsyncService where T : notnull, new()
         }
     }
 
-    public void WriteData(T data)
+    public void WriteData(T data, bool flush = false)
     {
         string line = Str.ObjectDataToCsv(data, this.Rw);
 
-        WriteLine(line);
+        WriteLine(line, flush);
     }
 
-    void WriteLine(string line)
+    void WriteLine(string line, bool flush = false)
     {
         if (PrintToConsole)
         {
@@ -1924,6 +1924,11 @@ public class CsvWriter<T> : AsyncService where T : notnull, new()
         var data = line._GetBytes(this.Encoding);
 
         this.BufferedStream.Write(data);
+
+        if (flush)
+        {
+            this.BufferedStream.Flush();
+        }
     }
 
     protected override async Task CleanupImplAsync(Exception? ex)
