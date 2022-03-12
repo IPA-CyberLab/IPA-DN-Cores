@@ -3474,6 +3474,20 @@ public static class BasicHelper
 
         return str;
     }
+
+    public static bool _IsNone(this string str)
+    {
+        str = str._NonNullTrim().ToLowerInvariant();
+
+        str = str._RemoveQuotation();
+
+        if (str == "none" || str == "nothing" || str == "_" || str == "__" || str == "null" || str == "!")
+        {
+            return true;
+        }
+
+        return false;
+    }
 }
 
 

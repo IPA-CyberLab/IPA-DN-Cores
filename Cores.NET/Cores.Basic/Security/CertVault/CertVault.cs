@@ -86,6 +86,8 @@ public static partial class CoresConfig
         public static readonly Copenhagen<int> CertServer_Interval_Normal_Msecs = 1 * 60 * 60 * 1000;
         public static readonly Copenhagen<int> CertServer_Interval_Retry_Initial_Msecs = 15 * 1000;
         public static readonly Copenhagen<int> CertServer_Interval_Retry_Max_Msecs = 5 * 60 * 1000;
+
+        public static readonly Copenhagen<string> AcmeDefaultPreferredChainsStr = "ISRG Root X1;(STAGING) Pretend Pear X1";
     }
 }
 
@@ -226,6 +228,8 @@ public class CertVaultSettings : INormalizable, ICloneable
     public string[]? AcmeAllowedFqdnList;
     public bool AcmeEnableFqdnIpCheck;
 
+    public string AcmePreferredChainsListStr = "";
+
     public string[]? AutoGenerateNonAcmeSubjectNameCertFqdnList;
 
     public bool CertServerUse;
@@ -278,6 +282,11 @@ public class CertVaultSettings : INormalizable, ICloneable
                         BasicAuthPassword = CoresConfig.CertVaultSettings.DefaultCertServerBasicAuthPassword,
                     }
             };
+        }
+
+        if (this.AcmePreferredChainsListStr._IsEmpty())
+        {
+            this.AcmePreferredChainsListStr = CoresConfig.CertVaultSettings.AcmeDefaultPreferredChainsStr;
         }
     }
 }
@@ -690,7 +699,7 @@ public class CertVault : AsyncServiceWithMainLoop
 
                                     try
                                     {
-                                        await ProcessAcmeFqdnAsync(account, certHostName, cancel);
+                                        await ProcessAcmeFqdnAsync(account, certHostName, cancel, this.Settings.AcmePreferredChainsListStr);
                                     }
                                     catch (Exception ex)
                                     {
@@ -786,7 +795,7 @@ public class CertVault : AsyncServiceWithMainLoop
                 {
                     if (this.Settings.AcmeEnableFqdnIpCheck == false || (await CheckFqdnHasIpAddressOfThisLocalHostAsync(fqdn, cancel)))
                     {
-                        await ProcessAcmeFqdnAsync(account, fqdn, cancel);
+                        await ProcessAcmeFqdnAsync(account, fqdn, cancel, this.Settings.AcmePreferredChainsListStr);
                     }
                 }
             }
@@ -842,7 +851,7 @@ public class CertVault : AsyncServiceWithMainLoop
         return (middle < now);
     }
 
-    async Task ProcessAcmeFqdnAsync(AcmeAccount account, string fqdn, CancellationToken cancel)
+    async Task ProcessAcmeFqdnAsync(AcmeAccount account, string fqdn, CancellationToken cancel, string preferredChains)
     {
         cancel.ThrowIfCancellationRequested();
 
@@ -867,11 +876,11 @@ public class CertVault : AsyncServiceWithMainLoop
         {
             //Con.WriteLine($"fqdn = {fqdn}, currentCert = {currentCert}, crtFileName = {crtFileName}");
 
-            await AcmeIssueAsync(account, fqdn, crtFileName, cancel);
+            await AcmeIssueAsync(account, fqdn, crtFileName, cancel, preferredChains);
         }
     }
 
-    async Task AcmeIssueAsync(AcmeAccount account, string fqdn, FilePath crtFileName, CancellationToken cancel)
+    async Task AcmeIssueAsync(AcmeAccount account, string fqdn, FilePath crtFileName, CancellationToken cancel, string preferredChains)
     {
         cancel.ThrowIfCancellationRequested();
 
@@ -882,7 +891,7 @@ public class CertVault : AsyncServiceWithMainLoop
             GlobalCertVault.SetAcmeAccountForChallengeResponse(account);
         }
 
-        CertificateStore store = await order.FinalizeAsync(this.AcmeCertKey!, cancel);
+        CertificateStore store = await order.FinalizeAsync(this.AcmeCertKey!, cancel, preferredChains);
 
         IsAcmeCertUpdated = true;
 

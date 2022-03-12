@@ -356,6 +356,26 @@ public partial class WebRet
     public string ToString(Encoding encoding) => this.Data._GetString(encoding);
 
     public WebUserRet<TUser> CreateUserRet<TUser>(TUser userData) => new WebUserRet<TUser>(this, userData);
+
+    public List<Tuple<string, KeyValueList<string, string>>> ParseWebLinks()
+    {
+        List<Tuple<string, KeyValueList<string, string>>> ret = new List<Tuple<string, KeyValueList<string, string>>>();
+
+        foreach (var str in this.Headers.Where(x => x.Key._IsSamei("Link")).Select(x => x.Value).SelectMany(x => x))
+        {
+            try
+            {
+                var parsed = Str.ParseWebLinkStr(str);
+
+                ret.Add(parsed);
+            }
+            catch
+            {
+            }
+        }
+
+        return ret;
+    }
 }
 
 [Flags]
@@ -637,7 +657,10 @@ public partial class WebApi : IDisposable, IAsyncDisposable
         throw new HttpRequestException(errStr);
     }
 
-    public virtual async Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string? postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string? value)[] queryList)
+    public virtual Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string? postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string? value)[] queryList)
+        => SimpleQueryAsync(method, false, url, cancel, postContentType, queryList);
+
+    public virtual async Task<WebRet> SimpleQueryAsync(WebMethods method, bool exactMimeType, string url, CancellationToken cancel = default, string? postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string? value)[] queryList)
     {
         if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.FormUrlEncoded;
         using HttpRequestMessage r = CreateWebRequest(method, url, queryList);
@@ -647,6 +670,14 @@ public partial class WebApi : IDisposable, IAsyncDisposable
             string qs = BuildQueryString(queryList);
 
             r.Content = new StringContent(qs, this.RequestEncoding, postContentType);
+
+            if (exactMimeType)
+            {
+                // 勝手に charset を付けさせない
+                MediaTypeHeaderValue mimeTypeHeader = new MediaTypeHeaderValue(postContentType);
+                mimeTypeHeader.CharSet = null;
+                r.Content.Headers.ContentType = mimeTypeHeader;
+            }
         }
 
         using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))

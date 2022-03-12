@@ -1120,6 +1120,37 @@ namespace IPA.Cores.Basic
             return Str.Utf8Encoding;
         }
 
+        // Web Linking (RFC 8288) のパース
+        public static Tuple<string, KeyValueList<string, string>> ParseWebLinkStr(string src)
+        {
+            // ; で区切る
+            string[] tokens = src._Split(StringSplitOptions.TrimEntries, ';');
+
+            string urlStr = tokens[0];
+
+            if (urlStr.StartsWith("<") == false || urlStr.EndsWith(">") == false)
+            {
+                throw new CoresLibException("Invalid Web Linking URL String");
+            }
+
+            urlStr = urlStr.Substring(1, urlStr.Length - 2);
+
+            if (urlStr._IsEmpty()) throw new CoresLibException("Invalid Web Linking URL String");
+
+            KeyValueList<string, string> x = new KeyValueList<string, string>();
+
+            for (int i = 1; i < tokens.Length; i++)
+            {
+                string kvstr = tokens[i];
+
+                var tk = kvstr._Split(StringSplitOptions.RemoveEmptyEntries, '=');
+
+                x.Add(tk[0]._RemoveQuotation(), tk[1]._RemoveQuotation());
+            }
+
+            return new Tuple<string, KeyValueList<string, string>>(urlStr, x);
+        }
+
         public static string MakeStringUseOnlyChars(string src, string charList = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-", StringComparison comparison = StringComparison.Ordinal)
         {
             src = src._NonNull();

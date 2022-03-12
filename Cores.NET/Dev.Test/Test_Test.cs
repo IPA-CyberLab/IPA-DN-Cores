@@ -6991,7 +6991,7 @@ ZIP ファイルのパスワード:
 
                 AcmeOrder order = ac.NewOrderAsync("012.pc34.sehosts.com")._GetResult();
 
-                CertificateStore store = order.FinalizeAsync(certKey)._GetResult();
+                CertificateStore store = order.FinalizeAsync(certKey, default, "")._GetResult();
 
                 Lfs.WriteDataToFile(@"c:\tmp\190615_acme\out.p12", store.ExportPkcs12());
             }

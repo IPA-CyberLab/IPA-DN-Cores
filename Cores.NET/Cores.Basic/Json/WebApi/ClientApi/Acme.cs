@@ -387,7 +387,7 @@ namespace IPA.Cores.ClientApi.Acme
             }
         }
 
-        public async Task<CertificateStore> FinalizeAsync(PrivKey certPrivateKey, CancellationToken cancel = default)
+        public async Task<CertificateStore> FinalizeAsync(PrivKey certPrivateKey, CancellationToken cancel, string preferredChains)
         {
             long giveup = Time.Tick64 + CoresConfig.AcmeClientSettings.GiveupTime;
 
@@ -464,13 +464,31 @@ namespace IPA.Cores.ClientApi.Acme
                     Con.WriteDebug($"ACME: The certificate issuance for '{this.Info.identifiers!.Where(x => x != null).Select(x => x!.value)._Combine(", ")}' is completed. Downloading...");
 
                     // Completed. Download the certificate
-                    byte[] certificateBody = await this.Account.Client.DownloadAsync(WebMethods.GET, this.Info.certificate!, cancel);
-
-                    CertificateStore store = new CertificateStore(certificateBody, certPrivateKey);
+                    var certChainList = await this.Account.DownloadAllCertificateChainsAsync(WebMethods.POST, this.Info.certificate!, null, cancel);
 
                     Con.WriteDebug($"ACME: Downloaded the certificate for '{this.Info.identifiers!.Where(x => x != null).Select(x => x!.value)._Combine(", ")}'.");
+                    Con.WriteDebug($"ACME: Count of Downloaded Chains: {certChainList.Count}");
+                    int index = 0;
+                    foreach (var chain in certChainList)
+                    {
+                        try
+                        {
+                            Con.WriteDebug($"ACME: Cert Chain #{index}: Tail Cert Issuer: {chain.PrimaryContainer.CertificateList.LastOrDefault()?.ToString()}");
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Debug();
+                        }
 
-                    return store;
+                        index++;
+                    }
+
+                    var ret = CertificateUtil.SelectPreferredCertificateChain(certChainList, preferredChains);
+
+                    Con.WriteDebug($"Preferred Chains Str: \"{preferredChains}\"");
+                    Con.WriteDebug($"ACME: Selected Chain Tail Cert Issuer: {ret.PrimaryContainer.CertificateList.LastOrDefault()?.ToString()}");
+
+                    return ret;
                 }
                 else
                 {
@@ -530,6 +548,56 @@ namespace IPA.Cores.ClientApi.Acme
             return this.Client.RequestAsync<TResponse>(method, this.PrivKey, this.AccountUrl, url, request, cancel);
         }
 
+        public async Task<List<CertificateStore>> DownloadAllCertificateChainsAsync(WebMethods method, string url, object? request, CancellationToken cancel = default)
+        {
+            List<CertificateStore> ret = new List<CertificateStore>();
+
+            List<WebRet> webRetList = new List<WebRet>();
+
+            // メインの証明書チェーンをダウンロードする
+            var mainRet = await DownloadAsync(method, url, request, cancel);
+
+            webRetList.Add(mainRet);
+
+            // ダウンロード時にサーバーから提示されたヘッダに WebLinking で "alternate" URL が提示されていればそれを順にダウンロードする
+            // https://datatracker.ietf.org/doc/html/rfc8555#section-7.4.2
+            foreach (var alternateUrl in mainRet.ParseWebLinks().Where(x => x.Item2.Where(x => x.Key._IsSamei("rel") && x.Value._IsSamei("alternate")).Any()).Select(x => x.Item1))
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    // 追加チェーンのダウンロードは、それぞれ 3 回トライする。ただし、全部失敗したら諦める。
+                    try
+                    {
+                        var additionalWebRet = await DownloadAsync(method, alternateUrl, request, cancel);
+
+                        webRetList.Add(additionalWebRet);
+
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+                }
+            }
+
+            foreach (var dat in webRetList.Select(x => x.Data))
+            {
+                CertificateStore cs = new CertificateStore(dat, this.PrivKey);
+
+                ret.Add(cs);
+            }
+
+            return ret;
+        }
+
+        public async Task<WebRet> DownloadAsync(WebMethods method, string url, object? request, CancellationToken cancel = default)
+        {
+            var webret = await this.Client.DownloadAsync(method, this.PrivKey, this.AccountUrl, url, request, cancel);
+
+            return webret;
+        }
+
         public string ProcessChallengeRequest(string token)
         {
             string keyThumbprintBase64 = JwsUtil.CreateJwsKey(this.PrivKey.PublicKey, out _, out _).CalcThumbprint()._Base64UrlEncode();
@@ -558,7 +626,7 @@ namespace IPA.Cores.ClientApi.Acme
         {
             AcmeEntryPoints url = await Options.GetEntryPointsAsync(cancel);
 
-            WebRet response = await Web.SimpleQueryAsync(WebMethods.HEAD, url.newNonce!, cancel);
+            WebRet response = await Web.SimpleQueryAsync(WebMethods.HEAD, url.newNonce!, cancel, Consts.MimeTypes.JoseJson);
 
             string ret = response.Headers.GetValues("Replay-Nonce").Single();
 
@@ -567,12 +635,12 @@ namespace IPA.Cores.ClientApi.Acme
             return ret;
         }
 
-        public async Task<byte[]> DownloadAsync(WebMethods method, string url, CancellationToken cancel = default)
-        {
-            WebRet ret = await Web.SimpleQueryAsync(method, url, cancel);
+        //public async Task<byte[]> DownloadAsync(WebMethods method, string url, CancellationToken cancel = default)
+        //{
+        //    WebRet ret = await Web.SimpleQueryAsync(method, true, url, cancel, Consts.MimeTypes.JoseJson);
 
-            return ret.Data;
-        }
+        //    return ret.Data;
+        //}
 
         public async Task<WebUserRet<TResponse>> RequestAsync<TResponse>(WebMethods method, PrivKey key, string? kid, string url, object? request, CancellationToken cancel = default)
         {
@@ -588,6 +656,17 @@ namespace IPA.Cores.ClientApi.Acme
             //webret.ToString()._Debug();
 
             return webret.CreateUserRet(ret!);
+        }
+
+        public async Task<WebRet> DownloadAsync(WebMethods method, PrivKey key, string? kid, string url, object? request, CancellationToken cancel = default)
+        {
+            string nonce = await GetNonceAsync(cancel);
+
+            //("*** " + url)._Debug();
+
+            WebRet webret = await Web.RequestWithJwsObjectAsync(method, key, kid, nonce, url, request, cancel, Consts.MimeTypes.JoseJson);
+
+            return webret;
         }
 
         public async Task<AcmeAccount> LoginAccountAsync(PrivKey key, string[] contacts, CancellationToken cancel = default)

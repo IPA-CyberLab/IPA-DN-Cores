@@ -1450,6 +1450,65 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
 
     public static partial class CertificateUtil
     {
+        public static CertificateStore SelectPreferredCertificateChain(IReadOnlyList<CertificateStore> list, string? preferredChainsStr = "")
+        {
+            preferredChainsStr = preferredChainsStr._NonNullTrim();
+
+            if (preferredChainsStr._IsNone())
+            {
+                preferredChainsStr = "";
+            }
+
+            string[] keys = preferredChainsStr._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ";");
+
+            // CN Exact Match
+            foreach (var key in keys)
+            {
+                if (key._IsFilled())
+                {
+                    foreach (var cs in list)
+                    {
+                        if (cs.PrimaryContainer.CertificateList.Count >= 2)
+                        {
+                            var lastCert = cs.PrimaryContainer.CertificateList.LastOrDefault();
+                            if (lastCert != null)
+                            {
+                                if (lastCert.CertData.IssuerDN.GetX509NameItemStr(X509Name.CN)._IsSamei(key))
+                                {
+                                    return cs;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Instr Match
+            foreach (var key in keys)
+            {
+                if (key._IsFilled())
+                {
+                    foreach (var cs in list)
+                    {
+                        if (cs.PrimaryContainer.CertificateList.Count >= 2)
+                        {
+                            var lastCert = cs.PrimaryContainer.CertificateList.LastOrDefault();
+                            if (lastCert != null)
+                            {
+                                if (lastCert.IssuerName._InStri(key))
+                                {
+                                    return cs;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Default (select first chain)
+            return list[0];
+        }
+
         public static ReadOnlyMemory<byte> ExportChainedCertificates(this IEnumerable<Certificate> certList)
         {
             StringWriter w = new StringWriter();
@@ -1751,6 +1810,28 @@ namespace IPA.Cores.Helper.Basic
             }
 
             return ret;
+        }
+
+        public static string? GetX509NameItemStr(this X509Name name, DerObjectIdentifier oid)
+        {
+            try
+            {
+                IList list = name.GetValueList(oid);
+
+                foreach (var item in list)
+                {
+                    if (item != null)
+                    {
+                        if (item is string)
+                        {
+                            return (string)item;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            return null;
         }
     }
 }
