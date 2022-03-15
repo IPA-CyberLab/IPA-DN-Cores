@@ -1087,10 +1087,10 @@ public class LocalFileObject : FileObject
 
     protected override async Task FlushImplAsync(CancellationToken cancel = default)
     {
-        if (UseAsyncMode)
-            await BaseStream.FlushAsync(cancel);
-        else
-            BaseStream.Flush();
+        //if (UseAsyncMode)
+        //    await BaseStream.FlushAsync(cancel);
+        //else
+        BaseStream.Flush(true); // 2022/03/15: true にしないと物理ディスクに Flush されません。また、Async メソッドではディスクへの Flush がサポートされていません。
     }
 
     protected override async Task<int> ReadRandomImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)

@@ -51,6 +51,83 @@ namespace IPA.TestDev;
 
 partial class TestDevCommands
 {
+    [ConsoleCommand(
+        "WriteLargeRandFile command",
+        "WriteLargeRandFile <path> /SIZE:<size>",
+        "WriteLargeRandFile command")]
+    static int WriteLargeRandFile(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+            new ConsoleParam("[path]", ConsoleService.Prompt, "Path: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("SIZE", ConsoleService.Prompt, "Size: ", ConsoleService.EvalNotEmpty, null),
+        };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string path = vl.DefaultParam.StrValue;
+        long targetSize = vl["SIZE"].StrValue._ToLong();
+
+        if (targetSize < 0) targetSize = long.MaxValue;
+
+        Con.WriteLine($"TargetSize: {targetSize._ToString3()} bytes");
+
+        Async(async () =>
+        {
+            await using var file = await Lfs.OpenOrCreateAppendAsync(path, flags: FileFlags.AutoCreateDirectory | FileFlags.OnCreateRemoveCompressionFlag);
+
+            long initialFileSize = await file.GetFileSizeAsync();
+
+            await file.SeekToEndAsync();
+
+            if (targetSize <= initialFileSize)
+            {
+                Con.WriteLine($"Data already exists. CurrentSize: { initialFileSize._ToString3()} bytes");
+            }
+
+            int bufSize = 1_000_000;
+
+            Memory<byte> buffer = new byte[bufSize];
+
+            int flushCount = 0;
+
+            long currentFileSize = initialFileSize;
+
+            using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
+                reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
+                ), null))
+            {
+                while (true)
+                {
+                    long currentRemainSize = targetSize - currentFileSize;
+
+                    if (currentRemainSize <= 0) break;
+
+                    int blockSize = (int)Math.Min(bufSize, currentRemainSize);
+
+                    Memory<byte> block = buffer.Slice(0, blockSize);
+
+                    Util.Rand(block.Span);
+
+                    await file.WriteAsync(block);
+
+                    currentFileSize += blockSize;
+
+                    flushCount++;
+
+                    if ((flushCount % 100) == 0)
+                    {
+                        await file.FlushAsync();
+                    }
+
+                    reporter.ReportProgress(new ProgressData(currentFileSize, targetSize));
+                }
+            }
+        });
+
+        return 0;
+    }
+
     // 指定したディレクトリにあるすべてのファイルの SHA1 チェックサムを表示する
     [ConsoleCommand(
         "CompareBinaryFile command",
