@@ -3460,15 +3460,38 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         Con.ReadLine("quit>");
     }
 
+    static void Test_220315_BackupServer_CreateBatch_For_SetAcl()
+    {
+        string src = @"aaaadmin
+bbbadmin
+cccadmin
+";
+        var tokens = src._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, '\r', '\n', ' ', '\t');
+
+        foreach (var username in tokens)
+        {
+            Con.WriteLine();
+            Con.WriteLine($@"mkdir D:\DATA\BACKUP\{username}");
+            Con.WriteLine($@"echo y| cacls D:\DATA\BACKUP\{username} /T /C /G Administrators:F SYSTEM:F rdbkread:R {username}:F");
+        }
+
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_220315_BackupServer_CreateBatch_For_SetAcl();
+            return;
+        }
+
         if (false)
         {
             Async(async () =>
             {
                 while (true)
                 {
-                    string s = Con.ReadLine(">")._NonNullTrim();
+                    string s = Con.ReadLine(" > ")._NonNullTrim();
                     bool r = await IPUtil.CheckTcpPortAsync(s, 80);
                     r._Print();
                     ""._Print();
