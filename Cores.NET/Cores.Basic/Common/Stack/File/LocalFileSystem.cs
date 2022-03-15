@@ -1090,7 +1090,11 @@ public class LocalFileObject : FileObject
         //if (UseAsyncMode)
         //    await BaseStream.FlushAsync(cancel);
         //else
-        BaseStream.Flush(true); // 2022/03/15: true にしないと物理ディスクに Flush されません。また、Async メソッドではディスクへの Flush がサポートされていません。
+        try
+        {
+            BaseStream.Flush(true); // 2022/03/15: true にしないと物理ディスクに Flush されません。また、Async メソッドではディスクへの Flush がサポートされていません。
+        }
+        catch { } // 例外が発生するかも知れませんが、無視します。
     }
 
     protected override async Task<int> ReadRandomImplAsync(long position, Memory<byte> data, CancellationToken cancel = default)
