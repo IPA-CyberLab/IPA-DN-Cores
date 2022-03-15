@@ -53,7 +53,7 @@ partial class TestDevCommands
 {
     [ConsoleCommand(
         "WriteLargeRandFile command",
-        "WriteLargeRandFile <path> /SIZE:<size>",
+        "WriteLargeRandFile <path> /SIZE:<size> [/COUNT:<count=1>]",
         "WriteLargeRandFile command")]
     static int WriteLargeRandFile(ConsoleService c, string cmdName, string str)
     {
@@ -61,69 +61,109 @@ partial class TestDevCommands
         {
             new ConsoleParam("[path]", ConsoleService.Prompt, "Path: ", ConsoleService.EvalNotEmpty, null),
             new ConsoleParam("SIZE", ConsoleService.Prompt, "Size: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("COUNT"),
         };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-        string path = vl.DefaultParam.StrValue;
-        long targetSize = vl["SIZE"].StrValue._ToLong();
+        string basePath = vl.DefaultParam.StrValue;
+        long targetOneFileSize = vl["SIZE"].StrValue._ToLong();
+        int count = vl["COUNT"].IntValue;
 
-        if (targetSize < 0) targetSize = long.MaxValue;
+        count = Math.Max(count, 1);
 
-        Con.WriteLine($"TargetSize: {targetSize._ToString3()} bytes");
+        if (targetOneFileSize < 0) targetOneFileSize = long.MaxValue;
 
-        Async(async () =>
+        Con.WriteLine($"TargetSize: {targetOneFileSize._ToString3()} bytes");
+
+        List<string> fileNameList = new List<string>();
+
+        if (count == 1)
         {
-            await using var file = await Lfs.OpenOrCreateAppendAsync(path, flags: FileFlags.AutoCreateDirectory | FileFlags.OnCreateRemoveCompressionFlag);
-
-            long initialFileSize = await file.GetFileSizeAsync();
-
-            await file.SeekToEndAsync();
-
-            if (targetSize <= initialFileSize)
+            fileNameList.Add(basePath);
+        }
+        else
+        {
+            for (int i = 0; i < count; i++)
             {
-                Con.WriteLine($"Data already exists. CurrentSize: { initialFileSize._ToString3()} bytes");
+                string fn = PP.GetFileName(basePath);
+                string fn1 = PP.GetFileNameWithoutExtension(fn);
+                string fn2 = PP.GetExtension(fn);
+                fn = $"{fn1}.{i:D4}{fn2}";
+
+                fileNameList.Add(PP.Combine(PP.GetDirectoryName(basePath), fn));
             }
+        }
 
-            int bufSize = 1_000_000;
+        long estimatedRemainSize = targetOneFileSize * count;
+        if (targetOneFileSize == long.MaxValue) estimatedRemainSize = long.MaxValue;
 
-            Memory<byte> buffer = new byte[bufSize];
+        long initialTotalSize = estimatedRemainSize;
 
-            int flushCount = 0;
-
-            long currentFileSize = initialFileSize;
-
-            using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
-                reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
-                ), null))
+        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
+            reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
+            ), null))
+        {
+            foreach (var filePath in fileNameList)
             {
-                while (true)
+                Async(async () =>
                 {
-                    long currentRemainSize = targetSize - currentFileSize;
+                    string fn = PP.GetFileName(filePath);
 
-                    if (currentRemainSize <= 0) break;
+                    await using var file = await Lfs.OpenOrCreateAppendAsync(filePath, flags: FileFlags.AutoCreateDirectory | FileFlags.OnCreateRemoveCompressionFlag);
 
-                    int blockSize = (int)Math.Min(bufSize, currentRemainSize);
+                    long initialFileSize = await file.GetFileSizeAsync();
 
-                    Memory<byte> block = buffer.Slice(0, blockSize);
+                    await file.SeekToEndAsync();
 
-                    Util.Rand(block.Span);
-
-                    await file.WriteAsync(block);
-
-                    currentFileSize += blockSize;
-
-                    flushCount++;
-
-                    if ((flushCount % 100) == 0)
+                    if (targetOneFileSize <= initialFileSize)
                     {
-                        await file.FlushAsync();
+                        Con.WriteLine($"{fn}: Data already exists. CurrentSize: { initialFileSize._ToString3()} bytes");
+                        estimatedRemainSize -= targetOneFileSize;
+                        reporter.ReportProgress(new ProgressData(initialTotalSize - estimatedRemainSize, initialTotalSize, additionalInfo: fn));
+                        return;
                     }
 
-                    reporter.ReportProgress(new ProgressData(currentFileSize, targetSize));
-                }
+                    int bufSize = 1_000_000;
+
+                    Memory<byte> buffer = new byte[bufSize];
+
+                    int flushCount = 0;
+
+                    estimatedRemainSize -= initialFileSize;
+
+                    long currentFileSize = initialFileSize;
+
+                    while (true)
+                    {
+                        long currentRemainSize = targetOneFileSize - currentFileSize;
+
+                        if (currentRemainSize <= 0) break;
+
+                        int blockSize = (int)Math.Min(bufSize, currentRemainSize);
+
+                        Memory<byte> block = buffer.Slice(0, blockSize);
+
+                        Util.Rand(block.Span);
+
+                        await file.WriteAsync(block);
+
+                        currentFileSize += blockSize;
+
+                        estimatedRemainSize -= blockSize;
+
+                        flushCount++;
+
+                        if ((flushCount % 100) == 0)
+                        {
+                            await file.FlushAsync();
+                        }
+
+                        reporter.ReportProgress(new ProgressData(initialTotalSize - estimatedRemainSize, initialTotalSize, additionalInfo: fn));
+                    }
+                });
             }
-        });
+        }
 
         return 0;
     }
