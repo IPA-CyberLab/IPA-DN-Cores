@@ -65,11 +65,11 @@ namespace IPA.Cores.Basic;
 public class JsonRpcHttpServer : JsonRpcServer
 {
     public string RpcBaseAbsoluteUrlPath = ""; // "/rpc/" のような絶対パス。末尾に / を含む。
-    public string WebFormBaseAbsoluteUrlPath = ""; // "/user/" のような絶対パス。末尾に / を含む。
+    public string WebFormBaseAbsoluteUrlPath = ""; // "/webform/" のような絶対パス。末尾に / を含む。
 
     public JsonRpcHttpServer(JsonRpcServerApi api, JsonRpcServerConfig? cfg = null) : base(api, cfg) { }
 
-    // /user の GET ハンドラ
+    // /webform の GET ハンドラ
     public virtual async Task WebForm_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
         CancellationToken cancel = request._GetRequestCancellationToken();
@@ -93,11 +93,41 @@ public class JsonRpcHttpServer : JsonRpcServer
             else
             {
                 // API ごとのページの表示
+                string suppliedUsername = "";
+                string suppliedPassword = "";
+
+                // Basic 認証または Query String における認証クレデンシャルが提供されているかどうか調べる
+                var basicAuthHeader = BasicAuthImpl.ParseBasicAuthenticationHeader(request.Headers._GetStrFirst("Authorization"));
+                if (basicAuthHeader != null)
+                {
+                    suppliedUsername = basicAuthHeader.Item1;
+                    suppliedPassword = basicAuthHeader.Item2;
+                }
+
                 JObject jObj = new JObject();
+
+                bool isCall = false;
+
+                SortedDictionary<string, string> requestHeaders = new SortedDictionary<string, string>();
+                foreach (string headerName in request.Headers.Keys)
+                {
+                    if (request.Headers.TryGetValue(headerName, out var val))
+                    {
+                        requestHeaders.Add(headerName, val.ToString());
+                    }
+                }
 
                 foreach (string key in request.Query.Keys)
                 {
                     string value = request.Query[key];
+
+                    if (key._IsSamei("_call"))
+                    {
+                        if (value._ToBool())
+                        {
+                            isCall = true;
+                        }
+                    }
 
                     string valueTrim = value.Trim();
                     if (valueTrim.StartsWith("{") && valueTrim.EndsWith("}"))
@@ -117,7 +147,29 @@ public class JsonRpcHttpServer : JsonRpcServer
                 //string id = "GET-" + Str.NewGuid().ToUpperInvariant();
                 string in_str = "{'jsonrpc':'2.0','method':'" + rpcMethod + "','params':" + args + "}";
 
-                string body = WebForm_GenerateApiInputFormPage(rpcMethod);
+                string body;
+
+                var conn = request.HttpContext.Connection;
+
+                JsonRpcClientInfo client_info = new JsonRpcClientInfo(
+                    conn.LocalIpAddress!._UnmapIPv4().ToString(), conn.LocalPort,
+                    conn.RemoteIpAddress!._UnmapIPv4().ToString(), conn.RemotePort,
+                    requestHeaders,
+                    suppliedUsername,
+                    suppliedPassword);
+
+                if (isCall == false)
+                {
+                    // Web フォームの画面表示
+                    body = WebForm_GenerateApiInputFormPage(rpcMethod);
+                }
+                else
+                {
+                    // JSON-RPC の実際の実行と結果の取得
+                    var callResults = await this.CallMethods(in_str, client_info, true, StringComparison.OrdinalIgnoreCase);
+
+                    body = WebForm_GenerateApiResultPage(rpcMethod, callResults, request.Host.Host);
+                }
 
                 await response._SendStringContentsAsync(body, contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel, normalizeCrlf: CrlfStyle.CrLf);
 
@@ -128,6 +180,60 @@ public class JsonRpcHttpServer : JsonRpcServer
         {
             await response._SendStringContentsAsync("Request Error: " + ex.ToString(), cancel: cancel, statusCode: Consts.HttpStatusCodes.InternalServerError, normalizeCrlf: CrlfStyle.Lf);
         }
+    }
+
+    string WebForm_GenerateApiResultPage(string methodName, JsonRpcCallResult callResults, string httpHostHeader)
+    {
+        StringWriter w = new StringWriter();
+        var mi = this.Api.GetMethodInfo(methodName);
+
+        WebForm_WriteHtmlHeader(w, $"{mi.Name} - {this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} Web API Result Data");
+
+        w.WriteLine(@"
+    <div class='box'>
+        <div class='content'>
+");
+
+        var bomUtfData = callResults.ResultString._GetBytes_UTF8(bom: true);
+
+        var now = DtOffsetNow;
+
+        string bomUtfDownloadFileName = $"JSON_{httpHostHeader}_{now._ToYymmddStr(yearTwoDigits: true)}_{now._ToHhmmssStr()}_{mi.Name}_API_Result"._MakeVerySafeAsciiOnlyNonSpaceFileName() + ".json";
+
+        w.WriteLine($"<h2 class='title is-4'>" + $"{mi.Name}() API returned the {bomUtfData.Length._ToString3()} bytes JSON data." + "</h2>");
+
+        w.WriteLine($"<p><b>The JSON result data are as follows.</b> You may see the <a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}' target='_blank'><b>API Reference Manual of the {mi.Name}() API</a></b> to interpret this result data.</p>");
+
+        w.WriteLine($"<a class='button is-primary' id='download' style='font-weight: bold' href='#' download='{bomUtfDownloadFileName}'><i class='far fa-folder-open'></i>&nbsp;Download Result JSON Data ({bomUtfData.Length._ToString3()} bytes)</a>");
+
+        w.Write("<pre><code class='language-json'>");
+
+        w.Write(callResults.ResultString._EncodeHtmlCodeBlock().ToString());
+
+        w.WriteLine("</code></pre>");
+
+        w.WriteLine("<p>　</p>");
+
+        w.WriteLine($"<p><b><a href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fas fa-caret-square-right'></i> API Web Form Index</a></b> > <b><a href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-caret-square-right'></i> {mi.Name}() API Web Form</a></b></p>");
+
+        if (this.Config.PrintHelp)
+        {
+            w.WriteLine($"<p><b><a href='{this.RpcBaseAbsoluteUrlPath}'><i class='fas fa-info-circle'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-info-circle'></i> {mi.Name}() API Document</a></b></p>");
+        }
+
+        w.WriteLine(@"
+        <p>　</p>
+        <hr />
+ ");
+
+        w.WriteLine(@"
+        </div>
+    </div>
+");
+
+        WebForm_WriteHtmlFooter(w);
+
+        return w.ToString();
     }
 
     string WebForm_GenerateApiInputFormPage(string methodName)
@@ -149,11 +255,11 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         w.WriteLine($"<h3 class='title is-5'>" + $"{mi.Name}() API: {mi.Description._EncodeHtml()}" + "</h3>");
 
-        w.WriteLine($"<p><b><a href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fas fa-caret-square-right'></i> API Web Form</a></b> > <b><a href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-caret-square-right'></i> {mi.Name}() API Web Form</a></b></p>");
+        w.WriteLine($"<p><b><a href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fas fa-caret-square-right'></i> API Web Form Index</a></b> > <b><a href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-caret-square-right'></i> {mi.Name}() API Web Form</a></b></p>");
 
         if (this.Config.PrintHelp)
         {
-            w.WriteLine($"<p><b><a href='{this.RpcBaseAbsoluteUrlPath}'><i class='fas fa-info-circle'></i> API Reference Document</a></b> > <b><a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-info-circle'></i> {mi.Name}() API Document</a></b></p>");
+            w.WriteLine($"<p><b><a href='{this.RpcBaseAbsoluteUrlPath}'><i class='fas fa-info-circle'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-info-circle'></i> {mi.Name}() API Document</a></b></p>");
         }
 
         int index = 0;
@@ -162,7 +268,7 @@ public class JsonRpcHttpServer : JsonRpcServer
         {
             index++;
 
-            string sampleStr = p.SampleValueOneLineStr._IsEmpty() ? "" : $"<p>Input Example: <code>{p.SampleValueOneLineStr._RemoveQuotation()}</code></p>";
+            string sampleStr = p.SampleValueOneLineStr._IsEmpty() ? "" : $"<p>Input Example: <code>{p.SampleValueOneLineStr._RemoveQuotation()._EncodeHtmlCodeBlock()}</code></p>";
 
             string controlStr = $@"
                     <div class='field'>
@@ -349,7 +455,7 @@ code[class*=""language-""], pre[class*=""language-""] {
     }
 
     // /rpc の GET ハンドラ
-    public virtual async Task GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+    public virtual async Task Rpc_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
         CancellationToken cancel = request._GetRequestCancellationToken();
 
@@ -410,7 +516,7 @@ code[class*=""language-""], pre[class*=""language-""] {
     }
 
     // /rpc の POST ハンドラ
-    public virtual async Task PostRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+    public virtual async Task Rpc_PostRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
         try
         {
@@ -520,7 +626,7 @@ code[class*=""language-""], pre[class*=""language-""] {
         await response._SendStringContentsAsync(retStr, responseContentsType, cancel: request._GetRequestCancellationToken(), statusCode: statusCode, normalizeCrlf: CrlfStyle.Lf);
     }
 
-    public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string rpcPath = "/rpc", string webFormPath = "/user")
+    public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string rpcPath = "/rpc", string webFormPath = "/webform")
     {
         rpcPath = rpcPath._NonNullTrim();
         if (rpcPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{rpcPath}'");
@@ -532,10 +638,10 @@ code[class*=""language-""], pre[class*=""language-""] {
 
         RouteBuilder rb = new RouteBuilder(appBuilder);
 
-        rb.MapGet(rpcPath, GetRequestHandler);
-        rb.MapGet(rpcPath + "/{rpc_method}", GetRequestHandler);
-        rb.MapGet(rpcPath + "/{rpc_method}/{rpc_param}", GetRequestHandler);
-        rb.MapPost(rpcPath, PostRequestHandler);
+        rb.MapGet(rpcPath, Rpc_GetRequestHandler);
+        rb.MapGet(rpcPath + "/{rpc_method}", Rpc_GetRequestHandler);
+        rb.MapGet(rpcPath + "/{rpc_method}/{rpc_param}", Rpc_GetRequestHandler);
+        rb.MapPost(rpcPath, Rpc_PostRequestHandler);
 
         rb.MapGet(webFormPath, WebForm_GetRequestHandler);
         rb.MapGet(webFormPath + "/{rpc_method}", WebForm_GetRequestHandler);
@@ -565,14 +671,14 @@ code[class*=""language-""], pre[class*=""language-""] {
         int methodIndex = 0;
 
 
-        WebForm_WriteHtmlHeader(w, $"{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - JSON-RPC Server API Reference");
+        WebForm_WriteHtmlHeader(w, $"{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - JSON-RPC Server API Reference Document Index");
 
         w.WriteLine($@"
     <div class='container is-fluid'>
 
 <div class='box'>
     <div class='content'>
-<h2 class='title is-4'>{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - JSON-RPC Server API Reference</h2>
+<h2 class='title is-4'>{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - JSON-RPC Server API Reference Document Index</h2>
         
 <h4 class='title is-5'>List of all {methodList.Count} RPC-API Methods:</h4>
 ");
@@ -664,7 +770,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                             }
                             enumWriter.WriteLine("}");
                             w.WriteLine($"<li>Input Data Type: Enumeration Value - {pp.TypeName}<BR>");
-                            w.Write($"<pre><code class='language-json'>{enumWriter.ToString()}</code></pre>");
+                            w.Write($"<pre><code class='language-json'>{enumWriter.ToString()._EncodeHtmlCodeBlock()}</code></pre>");
                             w.WriteLine($"</li>");
                         }
                     }
@@ -677,12 +783,12 @@ code[class*=""language-""], pre[class*=""language-""] {
                     {
                         if (pp.IsPrimitiveType)
                         {
-                            w.WriteLine($"<li>Input Data Example: <code>{pp.SampleValueOneLineStr}</code></li>");
+                            w.WriteLine($"<li>Input Data Example: <code>{pp.SampleValueOneLineStr._EncodeHtmlCodeBlock()}</code></li>");
                         }
                         else
                         {
                             w.WriteLine($"<li>Input Data Example (JSON):<BR>");
-                            w.Write($"<pre><code class='language-json'>{pp.SampleValueMultiLineStr}</code></pre>");
+                            w.Write($"<pre><code class='language-json'>{pp.SampleValueMultiLineStr._EncodeHtmlCodeBlock()}</code></pre>");
                             w.WriteLine($"</li>");
                         }
                         qsSampleOrDefaultValue = pp.SampleValueOneLineStr;
@@ -750,7 +856,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 {
                     w.WriteLine("<p>Sample Result Output Data:</p>");
 
-                    w.Write($"<pre><code class='language-json'>{m.RetValueSampleValueJsonMultilineStr}</code></pre>");
+                    w.Write($"<pre><code class='language-json'>{m.RetValueSampleValueJsonMultilineStr._EncodeHtmlCodeBlock()}</code></pre>");
                 }
 
                 w.WriteLine("");
@@ -783,7 +889,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 tmp.WriteLine($"curl --get --globoff --fail -k --raw --verbose {urlDir._EscapeBashArg()}");
                 tmp.WriteLine();
 
-                w.WriteLine($"<pre><code class='language-shell'>{tmp.ToString()}</code></pre>");
+                w.WriteLine($"<pre><code class='language-shell'>{tmp.ToString()._EncodeHtmlCodeBlock()}</code></pre>");
 
                 JsonRpcRequestForHelp reqSample = new JsonRpcRequestForHelp
                 {
@@ -804,7 +910,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 tmp.WriteLine("EOF");
                 tmp.WriteLine();
 
-                w.WriteLine($"<pre><code class='language-shell'>{tmp.ToString()}</code></pre>");
+                w.WriteLine($"<pre><code class='language-shell'>{tmp.ToString()._EncodeHtmlCodeBlock()}</code></pre>");
 
                 //w.WriteLine("# JSON-RPC call response sample (when successful):");
                 w.WriteLine($"<h5 class='title is-6'>JSON-RPC call response sample (when successful):</h5>");
@@ -815,7 +921,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 };
                 //w.WriteLine($"--------------------");
                 //w.Write(okSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
-                w.Write($"<pre><code class='language-json'>{okSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true)}</code></pre>");
+                w.Write($"<pre><code class='language-json'>{okSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true)._EncodeHtmlCodeBlock()}</code></pre>");
                 //w.WriteLine($"--------------------");
                 w.WriteLine();
 
@@ -831,7 +937,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                         Data = "Sample Error Detail Data\nThis is a sample error data.",
                     },
                 };
-                w.Write($"<pre><code class='language-json'>{errorSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true)}</code></pre>");
+                w.Write($"<pre><code class='language-json'>{errorSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true)._EncodeHtmlCodeBlock()}</code></pre>");
                 //w.WriteLine($"--------------------");
                 //w.Write(errorSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
                 //w.WriteLine($"--------------------");
@@ -887,7 +993,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 tmp.WriteLine($"curl --get --globoff --fail -k --raw --verbose --header 'X-RPC-Auth-Username: {Consts.Strings.DefaultAdminUsername}' --header 'X-RPC-Auth-Password: {Consts.Strings.DefaultAdminPassword}' {urlSimple._EscapeBashArg()}");
                 tmp.WriteLine();
 
-                w.WriteLine($"<pre><code class='language-shell'>{tmp.ToString()}</code></pre>");
+                w.WriteLine($"<pre><code class='language-shell'>{tmp.ToString()._EncodeHtmlCodeBlock()}</code></pre>");
 
                 JsonRpcRequestForHelp reqSample = new JsonRpcRequestForHelp
                 {
@@ -909,7 +1015,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 tmp.WriteLine("EOF");
                 tmp.WriteLine();
 
-                w.WriteLine($"<pre><code class='language-shell'>{tmp.ToString()}</code></pre>");
+                w.WriteLine($"<pre><code class='language-shell'>{tmp.ToString()._EncodeHtmlCodeBlock()}</code></pre>");
 
                 //w.WriteLine("# JSON-RPC call response sample (when successful):");
                 w.WriteLine($"<h5 class='title is-6'>JSON-RPC call response sample (when successful):</h5>");
@@ -920,7 +1026,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 };
                 //w.WriteLine($"--------------------");
                 //w.Write(okSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
-                w.Write($"<pre><code class='language-json'>{okSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true)}</code></pre>");
+                w.Write($"<pre><code class='language-json'>{okSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true)._EncodeHtmlCodeBlock()}</code></pre>");
                 //w.WriteLine($"--------------------");
                 w.WriteLine();
 
@@ -938,7 +1044,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 //w.WriteLine($"--------------------");
                 //w.Write(errorSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
                 //w.WriteLine($"--------------------");
-                w.Write($"<pre><code class='language-json'>{errorSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true)}</code></pre>");
+                w.Write($"<pre><code class='language-json'>{errorSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true)._EncodeHtmlCodeBlock()}</code></pre>");
                 w.WriteLine();
             }
 

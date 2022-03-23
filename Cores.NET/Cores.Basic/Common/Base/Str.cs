@@ -3458,6 +3458,11 @@ namespace IPA.Cores.Basic
             return false;
         }
 
+        // HTML のダウンロード用 JavaScript の作成
+        public static string GenerateHtmlDownloadJavaScript(string buttonId = "download", string functionName = "handleDownload", ReadOnlySpan<byte> data)
+        {
+        }
+
         // HTML デコード
         public static string DecodeHtml(string? str, bool normalizeMultiSpaces = false)
         {
@@ -3548,6 +3553,23 @@ namespace IPA.Cores.Basic
                     str = Str.HtmlSpacing;
                 }
             }
+
+            return str;
+        }
+
+        // HTML Code ブロックエンコード
+        public static string EncodeHtmlCodeBlock(string? str)
+        {
+            str = str._NonNull();
+
+            // 改行を正規化
+            str = NormalizeCrlf(str, CrlfStyle.CrLf);
+
+            // & を変換
+            str = str.Replace("&", HtmlAmp);
+
+            // タグを変換
+            str = str.Replace("<", HtmlLt).Replace(">", HtmlGt);
 
             return str;
         }
@@ -6296,6 +6318,25 @@ namespace IPA.Cores.Basic
             return Str.StrToInt(ret);
         }
 
+        public static string DateTimeToYymmddStr(DateTime dt, string zeroValue = "", bool yearTwoDigits = false)
+        {
+            zeroValue = zeroValue._NonNull();
+
+            if (dt._IsZeroDateTime())
+            {
+                return zeroValue;
+            }
+
+            string ret = dt.ToString("yyyyMMdd");
+
+            if (yearTwoDigits)
+            {
+                ret = ret.Substring(2);
+            }
+
+            return ret;
+        }
+
         public static int DateTimeToHhmmssInt(DateTime dt, int zeroValue = 0)
         {
             if (dt._IsZeroDateTime())
@@ -6306,6 +6347,20 @@ namespace IPA.Cores.Basic
             string ret = dt.ToString("HHmmss");
 
             return Str.StrToInt(ret);
+        }
+
+        public static string DateTimeToHhmmssStr(DateTime dt, string zeroValue = "")
+        {
+            zeroValue = zeroValue._NonNull();
+
+            if (dt._IsZeroDateTime())
+            {
+                return zeroValue;
+            }
+
+            string ret = dt.ToString("HHmmss");
+
+            return ret;
         }
 
         public static long DateTimeToYymmddHHmmssLong(DateTime dt, long zeroValue = 0, bool yearTwoDigits = false)

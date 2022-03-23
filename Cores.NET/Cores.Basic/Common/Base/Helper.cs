@@ -546,6 +546,7 @@ public static class BasicHelper
     public static string _DecodeUrlPath(this string? str, Encoding? e = null) => Str.DecodeUrlPath(str, e);
     public static string _EncodeHtml(this string? str, bool forceAllSpaceToTag = false, bool spaceIfEmpty = false) => Str.EncodeHtml(str, forceAllSpaceToTag, spaceIfEmpty);
     public static string _DecodeHtml(this string? str) => Str.DecodeHtml(str);
+    public static string _EncodeHtmlCodeBlock(this string? str) => Str.EncodeHtmlCodeBlock(str);
 
     public static string _EncodeEasy(this string? str) => Str.EncodeEasy(str);
     public static string _DecodeEasy(this string? str) => Str.DecodeEasy(str);
@@ -3148,6 +3149,11 @@ public static class BasicHelper
     public static int _ToYymmddInt(this DateTimeOffset dt, int zeroValue = 0, bool yearTwoDigits = false) => Str.DateTimeToYymmddInt(dt.DateTime, zeroValue, yearTwoDigits);
     public static int _ToHhmmssInt(this DateTimeOffset dt, int zeroValue = 0) => Str.DateTimeToHhmmssInt(dt.DateTime, zeroValue);
     public static long _ToYymmddHhmmssLong(this DateTimeOffset dt, long zeroValue = 0, bool yearTwoDigits = false) => Str.DateTimeToYymmddHHmmssLong(dt.DateTime, zeroValue, yearTwoDigits);
+
+    public static string _ToYymmddStr(this DateTime dt, string zeroValue = "", bool yearTwoDigits = false) => Str.DateTimeToYymmddStr(dt, zeroValue, yearTwoDigits);
+    public static string _ToHhmmssStr(this DateTime dt, string zeroValue = "") => Str.DateTimeToHhmmssStr(dt, zeroValue);
+    public static string _ToYymmddStr(this DateTimeOffset dt, string zeroValue = "", bool yearTwoDigits = false) => Str.DateTimeToYymmddStr(dt.DateTime, zeroValue, yearTwoDigits);
+    public static string _ToHhmmssStr(this DateTimeOffset dt, string zeroValue = "") => Str.DateTimeToHhmmssStr(dt.DateTime, zeroValue);
 
     public static PalX509Certificate AsPalX509Certificate(this X509Certificate cert) => new PalX509Certificate(cert);
     public static Certificate AsPkiCertificate(this X509Certificate cert) => new Certificate(new PalX509Certificate(cert));
