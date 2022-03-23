@@ -187,24 +187,44 @@ public class JsonRpcHttpServer : JsonRpcServer
         StringWriter w = new StringWriter();
         var mi = this.Api.GetMethodInfo(methodName);
 
-        WebForm_WriteHtmlHeader(w, $"{mi.Name} - {this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} Web API Result Data");
+        var bomUtfData = callResults.ResultString._GetBytes_UTF8(bom: true);
+
+        string title = $"{mi.Name}() API Result OK. Returned {bomUtfData.Length._ToString3()} bytes JSON Result Data.";
+
+        if (callResults.AllError && callResults.SingleErrorMessage._IsFilled())
+        {
+            title = $"{mi.Name}() API Returned An Error.";
+        }
+
+        WebForm_WriteHtmlHeader(w, title);
 
         w.WriteLine(@"
     <div class='box'>
         <div class='content'>
 ");
 
-        var bomUtfData = callResults.ResultString._GetBytes_UTF8(bom: true);
 
         var now = DtOffsetNow;
 
         string bomUtfDownloadFileName = $"JSON_{httpHostHeader}_{now._ToYymmddStr(yearTwoDigits: true)}_{now._ToHhmmssStr()}_{mi.Name}_API_Result"._MakeVerySafeAsciiOnlyNonSpaceFileName() + ".json";
 
-        w.WriteLine($"<h2 class='title is-4'>" + $"{mi.Name}() API returned the {bomUtfData.Length._ToString3()} bytes JSON data." + "</h2>");
+        w.WriteLine(Str.GenerateHtmlDownloadJavaScript(bomUtfData, Consts.MimeTypes.Json, bomUtfDownloadFileName));
+
+        w.WriteLine($"<h2 class='title is-4'>" + title._EncodeHtml() + "</h2>");
+
+        if (callResults.AllError)
+        {
+            w.WriteLine($@"
+<article class='message is-danger'>
+  <div class='message-body'>
+    <strong>Error Message:</strong><BR>{callResults.SingleErrorMessage._EncodeHtml()}
+  </div>
+</article>");
+        }
 
         w.WriteLine($"<p><b>The JSON result data are as follows.</b> You may see the <a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}' target='_blank'><b>API Reference Manual of the {mi.Name}() API</a></b> to interpret this result data.</p>");
 
-        w.WriteLine($"<a class='button is-primary' id='download' style='font-weight: bold' href='#' download='{bomUtfDownloadFileName}'><i class='far fa-folder-open'></i>&nbsp;Download Result JSON Data ({bomUtfData.Length._ToString3()} bytes)</a>");
+        w.WriteLine($"<a class='button is-primary' id='download' style='font-weight: bold' href='#' download='{bomUtfDownloadFileName}' onclick='handleDownload()'><i class='far fa-folder-open'></i>&nbsp;Download Result JSON Data ({bomUtfData.Length._ToString3()} bytes)</a>");
 
         w.Write("<pre><code class='language-json'>");
 
@@ -425,7 +445,7 @@ code[class*=""language-""], pre[class*=""language-""] {
 <head>
     <meta charset='utf-8' />
     <meta name='viewport' content='width=device-width, initial-scale=1.0' />
-    <title>{title}</title>
+    <title>{title._EncodeHtml()}</title>
 
     <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.css' integrity='sha256-ujE/ZUB6CMZmyJSgQjXGCF4sRRneOimQplBVLu8OU5w=' crossorigin='anonymous' />
     <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bulma-extensions@6.2.7/dist/css/bulma-extensions.min.css' integrity='sha256-RuPsE2zPsNWVhhvpOcFlMaZ1JrOYp2uxbFmOLBYtidc=' crossorigin='anonymous'>

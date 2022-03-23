@@ -704,14 +704,16 @@ public sealed class JsonRpcCallResult
     public bool Error_AuthRequired { get; }
     public string Error_AuthRequiredRealmName { get; }
     public string Error_AuthRequiredMethodName { get; }
+    public string SingleErrorMessage { get; }
 
-    public JsonRpcCallResult(string resultString, bool allError, bool errAuthRequired = false, string authRequiredMethodName = "", string authRequiredRealmName = "")
+    public JsonRpcCallResult(string resultString, bool allError, string singleErrorMessage = "", bool errAuthRequired = false, string authRequiredMethodName = "", string authRequiredRealmName = "")
     {
         this.ResultString = resultString._NonNull();
         this.AllError = allError;
         this.Error_AuthRequired = errAuthRequired;
         this.Error_AuthRequiredMethodName = authRequiredMethodName;
         this.Error_AuthRequiredRealmName = authRequiredRealmName;
+        this.SingleErrorMessage = singleErrorMessage._NonNull();
     }
 }
 
@@ -835,14 +837,15 @@ public abstract class JsonRpcServer
         if (anyAuthRequiredMethod && clientInfo.IsBasicAuthCredentialSupplied == false)
         {
             // Basic 認証が必要であるにもかかわらずクレデンシャルが提供されていない
+            string errMsg = $"Basic Authentication credential is required by method '{authRequestedMethodName}'. Retry HTTP request with a Basic Authentication header.";
             string retStr = new JsonRpcResponseError()
             {
-                Error = new JsonRpcError(-32600, $"Basic Authentication credential is required by method '{authRequestedMethodName}'. Retry HTTP request with a Basic Authentication header."),
+                Error = new JsonRpcError(-32600, errMsg),
                 Id = null,
                 Result = null,
             }._ObjectToJson();
 
-            return new JsonRpcCallResult(retStr, true, true, authRequestedMethodName);
+            return new JsonRpcCallResult(retStr, true, errMsg, true, authRequestedMethodName);
         }
 
         bool authError_WhenSingle = false;
@@ -966,11 +969,11 @@ public abstract class JsonRpcServer
 
                 if (resSingle.IsOk && simpleResultWhenOk)
                 {
-                    return new JsonRpcCallResult(resSingle.Result._ObjectToJson(), resSingle.IsError, authError_WhenSingle, authErrorMethodName_WhenSingle, authErrorRealm_WhenSingle);
+                    return new JsonRpcCallResult(resSingle.Result._ObjectToJson(), false, "", authError_WhenSingle, authErrorMethodName_WhenSingle, authErrorRealm_WhenSingle);
                 }
                 else
                 {
-                    return new JsonRpcCallResult(resSingle._ObjectToJson(), resSingle.IsError, authError_WhenSingle, authErrorMethodName_WhenSingle, authErrorRealm_WhenSingle);
+                    return new JsonRpcCallResult(resSingle._ObjectToJson(), resSingle.IsError, resSingle.Error?.Message ?? "Unknown Error", authError_WhenSingle, authErrorMethodName_WhenSingle, authErrorRealm_WhenSingle);
                 }
             }
             else

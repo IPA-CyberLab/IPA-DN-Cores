@@ -3459,8 +3459,35 @@ namespace IPA.Cores.Basic
         }
 
         // HTML のダウンロード用 JavaScript の作成
-        public static string GenerateHtmlDownloadJavaScript(string buttonId = "download", string functionName = "handleDownload", ReadOnlySpan<byte> data)
+        public static string GenerateHtmlDownloadJavaScript(ReadOnlySpan<byte> data, string mimeType, string filename, string buttonId = "download", string functionName = "handleDownload")
         {
+            // 参考元: https://qiita.com/wadahiro/items/eb50ac6bbe2e18cf8813
+
+            string src = @"
+        <script type='text/javascript'>
+            function ___FUNCTION___() {
+                var data = new Uint8Array([__HEX__]);
+                var blob = new Blob([data], { 'type' : '__MIME__' });
+
+                if (window.navigator.msSaveBlob) { 
+                    window.navigator.msSaveBlob(blob, '__FILENAME__'); 
+
+                    window.navigator.msSaveOrOpenBlob(blob, '__FILENAME__'); 
+                } else {
+                    document.getElementById('___ID___').href = window.URL.createObjectURL(blob);
+                }
+            }
+        </script>";
+
+
+            return src._ReplaceStrWithReplaceClass(new
+            {
+                __MIME__ = mimeType,
+                __FILENAME__ = filename,
+                ___ID___ = buttonId,
+                ___FUNCTION___ = functionName,
+                __HEX__ = Str.ByteToJavaScriptHexString(data),
+            });
         }
 
         // HTML デコード
@@ -6871,6 +6898,33 @@ namespace IPA.Cores.Basic
             {
                 return "";
             }
+        }
+
+        // バイト列を JavaScript 16 進数データ列に変換
+        public static string ByteToJavaScriptHexString(ReadOnlySpan<byte> data)
+        {
+            StringBuilder ret = new StringBuilder();
+
+            int i;
+            for (i = 0; i < data.Length; i++)
+            {
+                byte b = data[i];
+
+                string s = b.ToString("X");
+                if (s.Length == 1)
+                {
+                    s = "0" + s;
+                }
+
+                ret.Append("0x" + s);
+
+                if (i != (data.Length - 1))
+                {
+                    ret.Append(", ");
+                }
+            }
+
+            return ret.ToString();
         }
 
         // バイト列を 16 進数文字列に変換
