@@ -807,6 +807,19 @@ public class LogBrowser : AsyncService
                 string extension = RootFs.PathParser.GetExtension(physicalPath);
                 string mimeType = MasterData.ExtensionToMime.Get(extension);
 
+                if (this.Options.Flags.Bit(LogBrowserFlags.SecureJson))
+                {
+                    if (secureJson!.AuthRequired)
+                    {
+                        if (extension._IsSamei(".pdf"))
+                        {
+                            // 2022/3/23 Chrome の不具合により、Basic 認証中の PDF はバイナリファイルとしてダウンロードさせる
+                            // (そうしないと、うまく PDF ビューアで表示されない)
+                            mimeType = MasterData.ExtensionToMime.Get(".bin");
+                        }
+                    }
+                }
+
                 FileObject file;
                 IRandomAccess<byte> randomAccess;
                 Stream fileStream;
