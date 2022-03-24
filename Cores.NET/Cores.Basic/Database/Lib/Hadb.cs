@@ -88,6 +88,7 @@ using System.Reflection;
 using System.Data;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
+using Dapper;
 
 namespace IPA.Cores.Basic;
 
@@ -848,11 +849,16 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
             await dbReader.TranReadSnapshotIfNecessaryAsync(async () =>
             {
+                var dbParams = new DynamicParameters();
+
                 string sql = "select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0";
+
+                dbParams.Add("DATA_SYSTEMNAME", this.SystemName);
 
                 if (fullReloadMode == false)
                 {
                     sql += " and DATA_UPDATE_DT >= @DT_MIN";
+                    dbParams.Add("DT_MIN", partialReloadMinUpdateTime);
                 }
                 else
                 {
@@ -861,7 +867,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
                 Debug($"ReloadDataFromDatabaseImplAsync: Start DB Select.");
 
-                rows = await dbReader.EasySelectAsync<HadbSqlDataRow>("select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0", new { DATA_SYSTEMNAME = this.SystemName, DT_MIN = partialReloadMinUpdateTime });
+                rows = await dbReader.EasySelectAsync<HadbSqlDataRow>(sql, dbParams);
 
                 Debug($"ReloadDataFromDatabaseImplAsync: Finished DB Select. Rows = {rows.Count()._ToString3()}");
 
@@ -2155,6 +2161,7 @@ public abstract class HadbData : INormalizable
     public virtual HadbKeys GetKeys() => new HadbKeys("");
     public virtual HadbLabels GetLabels() => new HadbLabels("");
     public virtual int GetMaxArchivedCount() => int.MaxValue;
+    public virtual long GetStaleTimeSpanMsecs() => long.MaxValue;
 
     public abstract void Normalize();
 
