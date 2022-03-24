@@ -189,7 +189,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         var bomUtfData = callResults.ResultString._GetBytes_UTF8(bom: true);
 
-        string title = $"{mi.Name}() API Result OK. Returned {bomUtfData.Length._ToString3()} bytes JSON Result Data.";
+        string title = $"{mi.Name}() API Returned OK. Returned {bomUtfData.Length._ToString3()} bytes JSON Result Data.";
 
         if (callResults.AllError && callResults.SingleErrorMessage._IsFilled())
         {
@@ -198,17 +198,17 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         WebForm_WriteHtmlHeader(w, title);
 
-        w.WriteLine(@"
-    <div class='box'>
-        <div class='content'>
-");
-
 
         var now = DtOffsetNow;
 
         string bomUtfDownloadFileName = $"JSON_{httpHostHeader}_{now._ToYymmddStr(yearTwoDigits: true)}_{now._ToHhmmssStr()}_{mi.Name}_API_Result"._MakeVerySafeAsciiOnlyNonSpaceFileName() + ".json";
 
-        w.WriteLine(Str.GenerateHtmlDownloadJavaScript(bomUtfData, Consts.MimeTypes.Json, bomUtfDownloadFileName));
+        w.WriteLine(Str.GenerateHtmlDownloadJavaScript(bomUtfData, Consts.MimeTypes.Binary, bomUtfDownloadFileName));
+
+        w.WriteLine(@"
+    <div class='box'>
+        <div class='content'>
+");
 
         w.WriteLine($"<h2 class='title is-4'>" + title._EncodeHtml() + "</h2>");
 
@@ -232,7 +232,13 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         w.WriteLine("</code></pre>");
 
+        w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}'><i class='fas fa-caret-square-right'></i>&nbsp;Open New {mi.Name}() API Web Form</a>");
+        w.WriteLine($"<a class='button is-success' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fas fa-caret-square-right'></i>&nbsp;Return to Web Form API Index</a>");
+
         w.WriteLine("<p>　</p>");
+        
+
+        w.WriteLine("<hr />");
 
         w.WriteLine($"<p><b><a href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fas fa-caret-square-right'></i> API Web Form Index</a></b> > <b><a href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-caret-square-right'></i> {mi.Name}() API Web Form</a></b></p>");
 

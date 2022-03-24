@@ -273,6 +273,7 @@ public static partial class Consts
         public const string JoseJson = "application/jose+json";
         public const string FormUrlEncoded = "application/x-www-form-urlencoded";
         public const string OctetStream = "application/octet-stream";
+        public const string Binary = OctetStream;
         public const string Directory = "text/directory";
         public const string DirectoryOpening = "text/directory-open";
         public const string Html = "text/html";
