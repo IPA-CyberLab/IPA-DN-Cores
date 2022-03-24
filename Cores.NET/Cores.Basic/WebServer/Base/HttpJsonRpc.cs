@@ -81,14 +81,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                 // 目次ページの表示 (TODO)
                 var baseUri = request.GetEncodedUrl()._ParseUrl()._CombineUrl(this.RpcBaseAbsoluteUrlPath);
 
-                if (this.Config.PrintHelp)
-                {
-                    await response._SendStringContentsAsync(GenerateHtmlHelpString(baseUri), contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel, normalizeCrlf: CrlfStyle.CrLf);
-                }
-                else
-                {
-                    await response._SendStringContentsAsync($"This is a JSON-RPC server.\r\nAPI: {Api.GetType().AssemblyQualifiedName}\r\nNow: {DateTimeOffset.Now._ToDtStr(withNanoSecs: true)}\r\n", cancel: cancel, normalizeCrlf: CrlfStyle.Lf);
-                }
+                await response._SendStringContentsAsync(WebForm_GenerateHtmlHelpString(baseUri), contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel, normalizeCrlf: CrlfStyle.CrLf);
             }
             else
             {
@@ -220,6 +213,9 @@ public class JsonRpcHttpServer : JsonRpcServer
     <strong>Error Message:</strong><BR>{callResults.SingleErrorMessage._EncodeHtml()}
   </div>
 </article>");
+
+            w.WriteLine($"<a class='button is-danger is-rounded' style='font-weight: bold' href='javascript:history.go(-1)'><i class='fas fa-arrow-circle-left'></i>&nbsp;Back to the Previous Form Page and Try Again</a>");
+            w.WriteLine("<p>　</p>");
         }
 
         w.WriteLine($"<p><b>The JSON result data are as follows.</b> You may see the <a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}' target='_blank'><b>API Reference Manual of the {mi.Name}() API</a></b> to interpret this result data.</p>");
@@ -232,15 +228,15 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         w.WriteLine("</code></pre>");
 
-        w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}'><i class='fas fa-caret-square-right'></i>&nbsp;Open New {mi.Name}() API Web Form</a>");
-        w.WriteLine($"<a class='button is-success' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fas fa-caret-square-right'></i>&nbsp;Return to Web Form API Index</a>");
+        w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}'><i class='fab fa-wpforms'></i>&nbsp;Open Another {mi.Name}() API Web Form</a>");
+        w.WriteLine($"<a class='button is-success' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fab fa-wpforms'></i>&nbsp;Return to Web Form API Index</a>");
 
         w.WriteLine("<p>　</p>");
-        
+
 
         w.WriteLine("<hr />");
 
-        w.WriteLine($"<p><b><a href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fas fa-caret-square-right'></i> API Web Form Index</a></b> > <b><a href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-caret-square-right'></i> {mi.Name}() API Web Form</a></b></p>");
+        w.WriteLine($"<p><b><a href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fab fa-wpforms'></i> API Web Form Index</a></b> > <b><a href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fab fa-wpforms'></i> {mi.Name}() API Web Form</a></b></p>");
 
         if (this.Config.PrintHelp)
         {
@@ -281,12 +277,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         w.WriteLine($"<h3 class='title is-5'>" + $"{mi.Name}() API: {mi.Description._EncodeHtml()}" + "</h3>");
 
-        w.WriteLine($"<p><b><a href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fas fa-caret-square-right'></i> API Web Form Index</a></b> > <b><a href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-caret-square-right'></i> {mi.Name}() API Web Form</a></b></p>");
-
-        if (this.Config.PrintHelp)
-        {
-            w.WriteLine($"<p><b><a href='{this.RpcBaseAbsoluteUrlPath}'><i class='fas fa-info-circle'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-info-circle'></i> {mi.Name}() API Document</a></b></p>");
-        }
+        w.WriteLine($"<p><b><a href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fab fa-wpforms'></i> API Web Form Index</a></b> > <b><a href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fab fa-wpforms'></i> {mi.Name}() API Web Form</a></b></p>");
 
         int index = 0;
 
@@ -310,7 +301,7 @@ public class JsonRpcHttpServer : JsonRpcServer
             {
                 StringWriter optionsStr = new StringWriter();
 
-                optionsStr.WriteLine($"<option></option>");
+                optionsStr.WriteLine($"<option value='__Not_Selected__' selected>▼ Select Item</option>");
 
                 foreach (var kv in p.EnumValuesList!)
                 {
@@ -351,11 +342,24 @@ public class JsonRpcHttpServer : JsonRpcServer
                 <div class='field-body'>
                     <div class='field'>
                         <div class='control'>
-                            <input class='button is-link' type='submit' value='Call this API with Parameters'>
+                            <input class='button is-link' type='submit' style='font-weight: bold' value='Call this API with Parameters'>
+                            <p>　</p>
+");
+
+
+        if (this.Config.PrintHelp)
+        {
+            w.WriteLine("<p><b>You may see this API reference before calling the API.</b></p>");
+            w.WriteLine($"<p><b><a href='{this.RpcBaseAbsoluteUrlPath}'><i class='fas fa-info-circle'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-info-circle'></i> {mi.Name}() API Document</a></b></p>");
+        }
+
+        w.WriteLine(@"
                         </div>
                     </div>
                 </div>
             </div>");
+
+        w.WriteLine("<p>　</p>");
 
         w.WriteLine(@"
         </div>
@@ -494,7 +498,7 @@ code[class*=""language-""], pre[class*=""language-""] {
 
                 if (this.Config.PrintHelp)
                 {
-                    await response._SendStringContentsAsync(GenerateHtmlHelpString(baseUri), contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel, normalizeCrlf: CrlfStyle.CrLf);
+                    await response._SendStringContentsAsync(Rpc_GenerateHtmlHelpString(baseUri), contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel, normalizeCrlf: CrlfStyle.CrLf);
                 }
                 else
                 {
@@ -682,13 +686,73 @@ code[class*=""language-""], pre[class*=""language-""] {
         if (this.WebFormBaseAbsoluteUrlPath.EndsWith("/") == false) this.WebFormBaseAbsoluteUrlPath += "/";
     }
 
-    // ヘルプ文字列を生成する
-    readonly FastCache<Uri, string> helpStringCache = new FastCache<Uri, string>();
-    string GenerateHtmlHelpString(Uri rpcBaseUri)
+
+
+    // Web Form ヘルプ文字列を生成する
+    readonly FastCache<Uri, string> webFormHelpStringCache = new FastCache<Uri, string>();
+    string WebForm_GenerateHtmlHelpString(Uri webFormBaseUri)
     {
-        return helpStringCache.GetOrCreate(rpcBaseUri, x => GenerateHtmlHelpStringCore(x))!;
+        return webFormHelpStringCache.GetOrCreate(webFormBaseUri, x => WebForm_GenerateHtmlHelpStringCore(x))!;
     }
-    string GenerateHtmlHelpStringCore(Uri rpcBaseUri)
+    string WebForm_GenerateHtmlHelpStringCore(Uri webFormBaseUri)
+    {
+        var methodList = this.Api.EnumMethodsForHelp();
+
+        StringWriter w = new StringWriter();
+
+        int methodIndex = 0;
+
+
+        WebForm_WriteHtmlHeader(w, $"{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - JSON-RPC Server API Web Form Index");
+
+        w.WriteLine($@"
+    <div class='container is-fluid'>
+
+<div class='box'>
+    <div class='content'>
+<h2 class='title is-4'>{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - JSON-RPC Server API Web Form Index</h2>
+        
+<h4 class='title is-5'>List of all {methodList.Count} API Web Forms:</h4>
+");
+
+        w.WriteLine("<ul>");
+
+        foreach (var m in methodList)
+        {
+            methodIndex++;
+
+            string titleStr = $"<a href='./{m.Name}'><b><i class='fab fa-wpforms'></i> API Web Form #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? " < BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
+
+            //w.WriteLine();
+            //w.WriteLine($"- {helpStr}");
+            w.WriteLine($"<li>{titleStr}<BR><BR></li>");
+        }
+
+        w.WriteLine("</ul>");
+
+        w.WriteLine();
+        w.WriteLine();
+        w.WriteLine();
+
+        w.WriteLine(@"
+        <p>　</p>
+    </div>
+");
+
+        this.WebForm_WriteHtmlFooter(w);
+
+        return w.ToString();
+    }
+
+
+
+    // RPC API ヘルプ文字列を生成する
+    readonly FastCache<Uri, string> rpcHelpStringCache = new FastCache<Uri, string>();
+    string Rpc_GenerateHtmlHelpString(Uri rpcBaseUri)
+    {
+        return rpcHelpStringCache.GetOrCreate(rpcBaseUri, x => Rpc_GenerateHtmlHelpStringCore(x))!;
+    }
+    string Rpc_GenerateHtmlHelpStringCore(Uri rpcBaseUri)
     {
         var methodList = this.Api.EnumMethodsForHelp();
 
@@ -715,11 +779,11 @@ code[class*=""language-""], pre[class*=""language-""] {
         {
             methodIndex++;
 
-            string titleStr = $"<a href='#{m.Name}'><b>RPC Method #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? "<BR>" : "")} {m.Description._EncodeHtml()}".Trim();
+            string titleStr = $"<a href='#{m.Name}'><b>RPC Method #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? "<BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
 
             //w.WriteLine();
             //w.WriteLine($"- {helpStr}");
-            w.WriteLine($"<li>{titleStr}</li>");
+            w.WriteLine($"<li>{titleStr}<BR><BR></li>");
         }
 
         w.WriteLine("</ul>");
@@ -732,22 +796,27 @@ code[class*=""language-""], pre[class*=""language-""] {
 
         foreach (var m in methodList)
         {
+            var mi = m;
+
             methodIndex++;
 
             w.WriteLine($"<hr id={m.Name}>");
-            
+
             string titleStr = $"RPC Method #{methodIndex}: {m.Name}() API{(m.Description._IsFilled() ? ":" : "")} {m.Description._EncodeHtml()}".Trim();
 
             w.WriteLine($"<h4 class='title is-5'>{titleStr}</h4>");
 
+            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}'><i class='fab fa-wpforms'></i>&nbsp;Call this {mi.Name}() API with Web Form</a>");
+
             w.WriteLine();
-            w.WriteLine($"<p>RPC Method Name: <b>{m.Name}()</b></p>");
-            w.WriteLine($"<p>RPC Definition: <b>{m.Name}({(m.ParametersHelpList.Select(x => x.Name + ": " + x.TypeName + (x.Mandatory ? "" : " = " + x.DefaultValue._ObjectToJson(compact: true)))._Combine(", "))}): {m.RetValueTypeName};</b></p>");
+            w.WriteLine("<p>　</p>");
+            w.WriteLine($"<p>RPC Method Name: <b><code class='language-shell'>{m.Name}()</code></b></p>");
+            w.WriteLine($"<p>RPC Definition: <b><code class='language-shell'>{m.Name}({(m.ParametersHelpList.Select(x => x.Name + ": " + x.TypeName + (x.Mandatory ? "" : " = " + x.DefaultValue._ObjectToJson(compact: true)))._Combine(", "))}): {m.RetValueTypeName};</code></b></p>");
             w.WriteLine();
 
             if (m.Description._IsFilled())
             {
-                w.WriteLine($"<p>RPC Description: {m.Description._EncodeHtml()}</p>");
+                w.WriteLine($"<p>RPC Description: <b>{m.Description._EncodeHtml()}</b></p>");
                 w.WriteLine();
             }
 
@@ -774,7 +843,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                     var pp = pl[i];
                     string? qsSampleOrDefaultValue = null;
 
-                    w.WriteLine("<p>" + $"Parameter #{i + 1}: <b>{pp.Name}</b>".TrimEnd() + "</p>");
+                    w.WriteLine("<p>" + $"Parameter #{i + 1}: <b><code class='language-shell'>{pp.Name}</code></b>".TrimEnd() + "</p>");
                     w.WriteLine("<ul>");
                     if (pp.Description._IsFilled())
                     {
@@ -784,7 +853,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                     {
                         if (pp.IsEnumType == false)
                         {
-                            w.WriteLine($"<li>Input Data Type: Primitive Value - {pp.TypeName}</li>");
+                            w.WriteLine($"<li>Input Data Type: <code class='language-shell'>Primitive Value - {pp.TypeName}</code></li>");
                         }
                         else
                         {
@@ -802,7 +871,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                     }
                     else
                     {
-                        w.WriteLine($"<li>Input Data Type: JSON Data - {pp.TypeName}</li>");
+                        w.WriteLine($"<li>Input Data Type: JSON Data - <code class='language-shell'>{pp.TypeName}</code></li>");
                     }
 
                     if (pp.SampleValueOneLineStr._IsFilled())
@@ -1073,6 +1142,8 @@ code[class*=""language-""], pre[class*=""language-""] {
                 w.Write($"<pre><code class='language-json'>{errorSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true)._EncodeHtmlCodeBlock()}</code></pre>");
                 w.WriteLine();
             }
+
+            w.WriteLine($"<a href='#'><b><i class='fas fa-arrow-up'></i> Return to the API Index</b></a>");
 
             w.WriteLine();
             w.WriteLine();
