@@ -1375,9 +1375,11 @@ public class JsonRpcClientInfo
     public int LocalPort { get; }
     public string RemoteIP { get; }
     public int RemotePort { get; }
+    public string HttpProtocol { get; }
+    public string HttpHostHeader { get; }
+    public string HttpUrl { get; }
     public DateTimeOffset ConnectedDateTime { get; }
     public SortedDictionary<string, string> Headers { get; }
-    //public JsonRpcServer RpcServer { get; }
 
     [JsonIgnore]
     public object? Param1 { get; set; }
@@ -1391,16 +1393,18 @@ public class JsonRpcClientInfo
     public bool IsBasicAuthCredentialSupplied => BasicAuthUsername._IsFilled() && BasicAuthPassword._IsFilled();
     public bool IsLocalClient { get; }
 
-    public JsonRpcClientInfo(string localIp, int localPort, string remoteIp, int remotePort, SortedDictionary<string, string>? headers = null,
+    public JsonRpcClientInfo(string httpProtocol, string httpHostHeader, string httpUrl, string localIp, int localPort, string remoteIp, int remotePort, SortedDictionary<string, string>? headers = null,
         string? basicAuthUsername = null, string? basicAuthPassword = null, bool isLocalClient = false)
     {
-        //this.RpcServer = rpcServer;
         this.ConnectedDateTime = DateTimeOffset.Now;
         this.LocalIP = localIp._NonNull();
         this.LocalPort = localPort;
         this.RemoteIP = remoteIp._NonNull();
         this.RemotePort = remotePort;
         this.Headers = headers ?? new SortedDictionary<string, string>();
+        this.HttpProtocol = httpProtocol;
+        this.HttpHostHeader = httpHostHeader;
+        this.HttpUrl = httpUrl;
 
         this.BasicAuthUsername = basicAuthUsername._NonNull();
         this.BasicAuthPassword = basicAuthPassword._NonNull();

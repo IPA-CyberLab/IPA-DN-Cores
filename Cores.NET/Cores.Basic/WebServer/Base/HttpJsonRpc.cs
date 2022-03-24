@@ -145,6 +145,9 @@ public class JsonRpcHttpServer : JsonRpcServer
                 var conn = request.HttpContext.Connection;
 
                 JsonRpcClientInfo client_info = new JsonRpcClientInfo(
+                    request.Scheme,
+                    request.Host.ToString(),
+                    request.GetDisplayUrl(),
                     conn.LocalIpAddress!._UnmapIPv4().ToString(), conn.LocalPort,
                     conn.RemoteIpAddress!._UnmapIPv4().ToString(), conn.RemotePort,
                     requestHeaders,
@@ -160,6 +163,24 @@ public class JsonRpcHttpServer : JsonRpcServer
                 {
                     // JSON-RPC の実際の実行と結果の取得
                     var callResults = await this.CallMethods(in_str, client_info, true, StringComparison.OrdinalIgnoreCase);
+
+                    if (callResults.Error_AuthRequired)
+                    {
+                        // Basic 認証の要求
+                        KeyValueList<string, string> basicAuthResponseHeaders = new KeyValueList<string, string>();
+                        string realm = $"User Authentication for {this.RpcBaseAbsoluteUrlPath}";
+                        if (callResults.Error_AuthRequiredRealmName._IsFilled())
+                        {
+                            realm += $" ({realm._MakeVerySafeAsciiOnlyNonSpaceFileName()})";
+                        }
+                        basicAuthResponseHeaders.Add(Consts.HttpHeaders.WWWAuthenticate, $"Basic realm=\"{realm}\"");
+
+                        await using var basicAuthRequireResult = new HttpStringResult(callResults.ResultString, contentType: Consts.MimeTypes.TextUtf8, statusCode: Consts.HttpStatusCodes.Unauthorized, additionalHeaders: basicAuthResponseHeaders);
+
+                        await response._SendHttpResultAsync(basicAuthRequireResult, cancel: request._GetRequestCancellationToken());
+
+                        return;
+                    }
 
                     body = WebForm_GenerateApiResultPage(rpcMethod, callResults, request.Host.Host);
                 }
@@ -214,11 +235,11 @@ public class JsonRpcHttpServer : JsonRpcServer
   </div>
 </article>");
 
-            w.WriteLine($"<a class='button is-danger is-rounded' style='font-weight: bold' href='javascript:history.go(-1)'><i class='fas fa-arrow-circle-left'></i>&nbsp;Back to the Previous Form Page and Try Again</a>");
+            w.WriteLine($"<a class='button is-danger is-rounded' style='font-weight: bold' href='javascript:history.go(-1)'><i class='fas fa-arrow-circle-left'></i>&nbsp;Back to the Previous Web Form and Try Again</a>");
             w.WriteLine("<p>　</p>");
         }
 
-        w.WriteLine($"<p><b>The JSON result data are as follows.</b> You may see the <a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}' target='_blank'><b>API Reference Manual of the {mi.Name}() API</a></b> to interpret this result data.</p>");
+        w.WriteLine($"<p><b>The JSON result data are as follows.</b> You may see the <a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}' target='_blank'><b>API Reference Manual of the {mi.Name}() API</a></b>.</p>");
 
         w.WriteLine($"<a class='button is-primary' id='download' style='font-weight: bold' href='#' download='{bomUtfDownloadFileName}' onclick='handleDownload()'><i class='far fa-folder-open'></i>&nbsp;Download Result JSON Data ({bomUtfData.Length._ToString3()} bytes)</a>");
 
@@ -240,7 +261,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         if (this.Config.PrintHelp)
         {
-            w.WriteLine($"<p><b><a href='{this.RpcBaseAbsoluteUrlPath}'><i class='fas fa-info-circle'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-info-circle'></i> {mi.Name}() API Document</a></b></p>");
+            w.WriteLine($"<p><b><a href='{this.RpcBaseAbsoluteUrlPath}'><i class='fas fa-book-open'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-book-open'></i> {mi.Name}() API Document</a></b></p>");
         }
 
         w.WriteLine(@"
@@ -277,7 +298,14 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         w.WriteLine($"<h3 class='title is-5'>" + $"{mi.Name}() API: {mi.Description._EncodeHtml()}" + "</h3>");
 
-        w.WriteLine($"<p><b><a href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fab fa-wpforms'></i> API Web Form Index</a></b> > <b><a href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fab fa-wpforms'></i> {mi.Name}() API Web Form</a></b></p>");
+        string requireAuthStr = "";
+
+        if (mi.RequireAuth)
+        {
+            requireAuthStr = "<i class='fas fa-key'></i> ";
+        }
+
+        w.WriteLine($"<p><b><a href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fab fa-wpforms'></i> API Web Form Index</a></b> > <b><a href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fab fa-wpforms'></i> {requireAuthStr} {mi.Name}() API Web Form</a></b></p>");
 
         int index = 0;
 
@@ -326,7 +354,7 @@ public class JsonRpcHttpServer : JsonRpcServer
             w.WriteLine($@"
             <div class='field is-horizontal'>
                 <div class='field-label is-normal'>
-                    <label class='label'>#{index} {p.Name}:<BR>({p.TypeName})</label>
+                    <label class='label'><i class='fas fa-keyboard'></i> #{index} {p.Name}:<BR>({p.TypeName})</label>
                 </div>
                 <div class='field-body'>
                     {controlStr}
@@ -350,7 +378,7 @@ public class JsonRpcHttpServer : JsonRpcServer
         if (this.Config.PrintHelp)
         {
             w.WriteLine("<p><b>You may see this API reference before calling the API.</b></p>");
-            w.WriteLine($"<p><b><a href='{this.RpcBaseAbsoluteUrlPath}'><i class='fas fa-info-circle'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-info-circle'></i> {mi.Name}() API Document</a></b></p>");
+            w.WriteLine($"<p><b><a href='{this.RpcBaseAbsoluteUrlPath}'><i class='fas fa-book-open'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-book-open'></i> {mi.Name}() API Document</a></b></p>");
         }
 
         w.WriteLine(@"
@@ -604,6 +632,9 @@ code[class*=""language-""], pre[class*=""language-""] {
             var conn = request.HttpContext.Connection;
 
             JsonRpcClientInfo client_info = new JsonRpcClientInfo(
+                request.Scheme,
+                request.Host.ToString(),
+                request.GetDisplayUrl(),
                 conn.LocalIpAddress!._UnmapIPv4().ToString(), conn.LocalPort,
                 conn.RemoteIpAddress!._UnmapIPv4().ToString(), conn.RemotePort,
                 requestHeaders,
@@ -721,7 +752,14 @@ code[class*=""language-""], pre[class*=""language-""] {
         {
             methodIndex++;
 
-            string titleStr = $"<a href='./{m.Name}'><b><i class='fab fa-wpforms'></i> API Web Form #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? " < BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
+            string requireAuthStr = "";
+
+            if (m.RequireAuth)
+            {
+                requireAuthStr = "<i class='fas fa-key'></i> ";
+            }
+
+            string titleStr = $"<a href='./{m.Name}'><b><i class='fab fa-wpforms'></i> {requireAuthStr}API Web Form #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? " <BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
 
             //w.WriteLine();
             //w.WriteLine($"- {helpStr}");
@@ -806,7 +844,14 @@ code[class*=""language-""], pre[class*=""language-""] {
 
             w.WriteLine($"<h4 class='title is-5'>{titleStr}</h4>");
 
-            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}'><i class='fab fa-wpforms'></i>&nbsp;Call this {mi.Name}() API with Web Form</a>");
+            string requireAuthStr = "";
+
+            if (mi.RequireAuth)
+            {
+                requireAuthStr = "<i class='fas fa-key'></i> ";
+            }
+
+            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}'><i class='fab fa-wpforms'></i>&nbsp;{requireAuthStr}&nbsp;Call this {mi.Name}() API with Web Form</a>");
 
             w.WriteLine();
             w.WriteLine("<p>　</p>");

@@ -3400,7 +3400,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
 
             while (c.IsCancellationRequested == false)
             {
-                JsonRpcClientInfo info = new JsonRpcClientInfo("local", 0, "local", 0, null, "USERNAME_HERE", "PASSWORD_HERE", isLocalClient: true);
+                JsonRpcClientInfo info = new JsonRpcClientInfo("http", "local", "http://1.2.3.4/", "local", 0, "local", 0, null, "USERNAME_HERE", "PASSWORD_HERE", isLocalClient: true);
 
                 var localClient = new JsonRpcLocalClient<JsonRpcTest220129Interface>(svr, info);
 
@@ -3436,7 +3436,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             DenyRobots = true,
             DebugKestrelToConsole = true,
             DebugKestrelToLog = true,
-            HttpPortsList = new int[] { 80 }.ToList(),
+            HttpPortsList = new int[] { 80, 88 }.ToList(),
             HttpsPortsList = new int[] { 443 }.ToList(),
             UseKestrelWithIPACoreStack = false,
         };

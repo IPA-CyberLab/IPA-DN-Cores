@@ -219,6 +219,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             if (DDns_ProhibitedHostnamesStartWith._IsSamei("_initial_"))
                 DDns_ProhibitedHostnamesStartWith = new string[] {
                    "ddns",
+                   "api",
+                   "rpc",
                    "www",
                    "dns",
                    "register",
@@ -380,16 +382,21 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
         public string[] HostFqdn { get; }
 
+        public string HostEasyGetInfoUrl { get; }
+        public string HostEasyUpdateUrl { get; }
+
         public override Host Data { get; }
 
-        public Host_Return(Host data, HostApiResult apiResult, string[] hostFqdn)
+        public Host_Return(Host data, HostApiResult apiResult, string[] hostFqdn, string hostEasyGetInfoUrl, string hostEasyUpdateUrl)
         {
             ApiResult = apiResult;
             HostFqdn = hostFqdn;
             Data = data;
+            HostEasyGetInfoUrl = hostEasyGetInfoUrl;
+            HostEasyUpdateUrl = hostEasyUpdateUrl;
         }
 
-        public static Host_Return _Sample => new Host_Return(Host._Sample, HostApiResult.Created, new string[] { Host._Sample.HostLabel + ".ddns_example.org" });
+        public static Host_Return _Sample => new Host_Return(Host._Sample, HostApiResult.Created, new string[] { Host._Sample.HostLabel + ".ddns_example.org" }, "https://ddns_example.org/rpc/DDNS_Host/?secretKey=00112233445566778899AABBCCDDEEFF01020304", "https://ddns_example.org/rpc/DDNS_Host/?ip=myip&secretKey=00112233445566778899AABBCCDDEEFF01020304");
     }
 
     public class Host : HadbData
@@ -788,6 +795,10 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             secretKey = Str.GenRandStr();
         }
 
+        var uri = client.HttpUrl._ParseUrl();
+        string easyUpdateUrl = uri._CombineUrl($"/rpc/{nameof(DDNS_Host)}/?ip=myip&secretKey={secretKey}").ToString();
+        string easyGetInfoUrl = uri._CombineUrl($"/rpc/{nameof(DDNS_Host)}/?secretKey={secretKey}").ToString();
+
         label = label._NonNullTrim().ToLowerInvariant();
 
         if (label._IsFilled())
@@ -795,7 +806,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             label._CheckUseOnlyChars($"Specified {nameof(label)} contains invalid character", "0123456789abcdefghijklmnopqrstuvwxyz-");
 
             if (label.Length < Hadb.CurrentDynamicConfig.DDns_MinHostLabelLen)
-                throw new CoresException($"Specified {nameof(label)} is too long. {nameof(label)} must be longer or equal than {Hadb.CurrentDynamicConfig.DDns_MinHostLabelLen} letters.");
+                throw new CoresException($"Specified {nameof(label)} is too short. {nameof(label)} must be longer or equal than {Hadb.CurrentDynamicConfig.DDns_MinHostLabelLen} letters.");
 
             label._CheckStrLenException(Hadb.CurrentDynamicConfig.DDns_MaxHostLabelLen, $"Specified {nameof(label)} is too long. {nameof(label)} must be shorter or equal than {Hadb.CurrentDynamicConfig.DDns_MaxHostLabelLen} letters.");
 
@@ -916,6 +927,22 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
             ipv4str = ipv4?.ToString() ?? "";
             ipv6str = ipv6?.ToString() ?? "";
+
+            if (ipv4 != null)
+            {
+                if (this.CurrentDynamicConfig.DDns_Prohibit_IPv4AddressRegistration)
+                {
+                    throw new CoresException($"You specified the IPv4 address '{ipv4.ToString()}', however this DDNS server is prohibiting any IPv4 address registration.");
+                }
+            }
+
+            if (ipv6 != null)
+            {
+                if (this.CurrentDynamicConfig.DDns_Prohibit_IPv6AddressRegistration)
+                {
+                    throw new CoresException($"You specified the IPv6 address '{ipv6.ToString()}', however this DDNS server is prohibiting any IPv6 address registration.");
+                }
+            }
         }
 
         InitIpAddressVariable();
@@ -1025,6 +1052,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                     if (label._IsEmpty())
                     {
                         // 新しいホストを作成する場合で、newHostLabel が明示的に指定されていない場合は、prefix + 12 桁 (デフォルト) のランダムホスト名を使用する。
+                        int numTry = 0;
                         while (true)
                         {
                             string candidate = Hadb.CurrentDynamicConfig.DDns_NewHostnamePrefix + Str.GenerateRandomDigit(Hadb.CurrentDynamicConfig.DDns_NewHostnameRandomDigits);
@@ -1039,6 +1067,12 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                             }
 
                             // 既存のホストと一致する場合は、一致しなくなるまで乱数で新たに生成を試みる。
+                            numTry++;
+                            if (numTry >= 10)
+                            {
+                                // 10 回トライして失敗したら諦める。
+                                throw new CoresException("Failed to generate an unique hostname. Please try again later.");
+                            }
                         }
                     }
                 }
@@ -1134,7 +1168,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 {
                     throw new CoresException($"The host record registration quota (total) exceeded (Limitation type #1). Your IP address {clientIp} cannot create more host records on this DDNS server. Complaint should be submitted to the DDNS server administrator.");
                 }
-                if (existingHostsSameClientIpAddr.Where(x => x.CreateDt.Date == now.AddDays(1).Date).Count() >= Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreateClientIpAddress_Daily)
+                if (existingHostsSameClientIpAddr.Where(x => x.CreateDt.Date == now.Date).Count() >= Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreateClientIpAddress_Daily)
                 {
                     throw new CoresException($"The host record registration quota (daily) exceeded (Limitation type #2). Your IP address {clientIp} cannot create more host records on this DDNS server today. Please wait for one or more days and try again. Complaint should be submitted to the DDNS server administrator.");
                 }
@@ -1144,7 +1178,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 {
                     throw new CoresException($"The host record registration quota (total) exceeded (Limitation type #3). Your IP address {clientIp} cannot create more host records on this DDNS server. Complaint should be submitted to the DDNS server administrator.");
                 }
-                if (existingHostsSameClientIpNetwork.Where(x => x.CreateDt.Date == now.AddDays(1).Date).Count() >= Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreateClientIpNetwork_Daily)
+                if (existingHostsSameClientIpNetwork.Where(x => x.CreateDt.Date == now.Date).Count() >= Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreateClientIpNetwork_Daily)
                 {
                     throw new CoresException($"The host record registration quota (daily) exceeded (Limitation type #4). Your IP address {clientIp} cannot create more host records on this DDNS server today. Please wait for one or more days and try again. Complaint should be submitted to the DDNS server administrator.");
                 }
@@ -1237,7 +1271,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             clientName: clientNameStr);
 
             // 作成に成功したので、ホストオブジェクトを返却する。
-            return new Host_Return(newHost, HostApiResult.Created, GetDomainNamesList().Select(x => newHost.HostLabel + "." + x).ToArray());
+            return new Host_Return(newHost, HostApiResult.Created, GetDomainNamesList().Select(x => newHost.HostLabel + "." + x).ToArray(), easyGetInfoUrl, easyUpdateUrl);
         }
 
         if (anyChangePossibility)
@@ -1328,7 +1362,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             clientName: clientNameStr);
 
             // 変更に成功したので、ホストオブジェクトを返却する。
-            return new Host_Return(current, HostApiResult.Modified, GetDomainNamesList().Select(x => current.HostLabel + "." + x).ToArray());
+            return new Host_Return(current, HostApiResult.Modified, GetDomainNamesList().Select(x => current.HostLabel + "." + x).ToArray(), easyGetInfoUrl, easyUpdateUrl);
         }
 
         retCurrentHostObj._NullCheck(nameof(retCurrentHostObj));
@@ -1358,7 +1392,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
         // 現在のオブジェクト情報を返却する。
         retCurrentHost._NullCheck(nameof(retCurrentHost));
-        return new Host_Return(retCurrentHost, HostApiResult.NoChange, GetDomainNamesList().Select(x => retCurrentHost.HostLabel + "." + x).ToArray());
+        return new Host_Return(retCurrentHost, HostApiResult.NoChange, GetDomainNamesList().Select(x => retCurrentHost.HostLabel + "." + x).ToArray(), easyGetInfoUrl, easyUpdateUrl);
     }
 
     public async Task DDNS_HostDelete(string secretKey)
@@ -1573,7 +1607,11 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
                 await tran.AtomicAddAsync(k);
 
-                ret.Add(k);
+                var k2 = k._CloneDeep();
+
+                k2.Key = k2.Key._Slice(0, 6) + "-" + k2.Key._Slice(6, 6) + "-" + k2.Key._Slice(12, 6) + "-" + k2.Key._Slice(18, 6) + "-" + k2.Key._Slice(24, 6) + "-" + k2.Key._Slice(30, 6);
+
+                ret.Add(k2);
             }
 
             return true;
