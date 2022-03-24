@@ -241,7 +241,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         w.WriteLine($"<p><b>The JSON result data are as follows.</b> You may see the <a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}' target='_blank'><b>API Reference Manual of the {mi.Name}() API</a></b>.</p>");
 
-        w.WriteLine($"<a class='button is-primary' id='download' style='font-weight: bold' href='#' download='{bomUtfDownloadFileName}' onclick='handleDownload()'><i class='far fa-folder-open'></i>&nbsp;Download Result JSON Data ({bomUtfData.Length._ToString3()} bytes)</a>");
+        w.WriteLine($"<a class='button is-primary' id='download' style='font-weight: bold' href='#' download='{bomUtfDownloadFileName}' onclick='handleDownload()'><i class='far fa-folder-open'></i>&nbsp;Download JSON Result Data ({bomUtfData.Length._ToString3()} bytes)</a>");
 
         w.Write("<pre><code class='language-json'>");
 

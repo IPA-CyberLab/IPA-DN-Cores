@@ -285,7 +285,13 @@ public abstract class HadbBasedServiceHookBase
 {
 }
 
-public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, THook> : AsyncService
+[RpcInterface]
+public interface IHadbBasedServiceRpcBase
+{
+    public Task<EasyJsonStrAttributes> ServiceAdmin_GetHadbStat();
+}
+
+public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, THook> : AsyncService, IHadbBasedServiceRpcBase
     where TMemDb : HadbBasedServiceMemDb, new()
     where TDynConfig : HadbBasedServiceDynConfig
     where THiveSettings : HadbBasedServiceHiveSettingsBase, new()
@@ -506,6 +512,11 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
         {
             await base.CleanupImplAsync(ex);
         }
+    }
+
+    public Task<EasyJsonStrAttributes> ServiceAdmin_GetHadbStat()
+    {
+        return this.Hadb.LatestStatData!._TR();
     }
 }
 

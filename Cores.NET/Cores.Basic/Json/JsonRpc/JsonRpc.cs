@@ -346,9 +346,20 @@ public class RpcMethodInfo
     public bool IsRetValuePrimitiveType { get; }
     public bool RequireAuth { get; }
 
-    public RpcMethodInfo(Type targetClass, string methodName)
+    public RpcMethodInfo(IEnumerable<Type> targetClassList, string methodName)
     {
-        MethodInfo? methodInfo = targetClass.GetMethod(methodName);
+        MethodInfo? methodInfo = null;
+
+        foreach (var targetClass in targetClassList)
+        {
+            methodInfo = targetClass.GetMethod(methodName);
+
+            if (methodInfo != null)
+            {
+                break;
+            }
+        }
+
         if (methodInfo == null)
         {
             throw new JsonRpcException(new JsonRpcError(-32601, "Method not found"));
@@ -489,7 +500,7 @@ public class JsonRpcAuthErrorException : CoresException
 
 public class JsonRpcServerApi : AsyncService
 {
-    public Type RpcInterface { get; }
+    public List<Type> RpcInterface { get; }
     public object TargetObject { get; }
 
     public JsonRpcServerApi(CancellationToken cancel = default, object? targetObject = null) : base(cancel)
@@ -517,10 +528,10 @@ public class JsonRpcServerApi : AsyncService
     RpcMethodInfo GetMethodInfoMain(string methodName)
     {
         RpcMethodInfo mi = new RpcMethodInfo(this.RpcInterface, methodName);
-        if (this.RpcInterface.GetMethod(mi.Name) == null)
-        {
-            throw new ApplicationException($"The method '{methodName}' is not defined on the interface '{this.RpcInterface.Name}'.");
-        }
+        //if (this.RpcInterface.GetMethod(mi.Name) == null)
+        //{
+        //    throw new ApplicationException($"The method '{methodName}' is not defined on the interface '{this.RpcInterface.Name}'.");
+        //}
         return mi;
     }
 
@@ -530,21 +541,21 @@ public class JsonRpcServerApi : AsyncService
         return methodInfo!.InvokeMethod(this.TargetObject, methodName, param, paramsStrComparison);
     }
 
-    protected Type GetRpcInterface()
+    protected List<Type> GetRpcInterface()
     {
-        Type? ret = null;
+        List<Type> ret = new List<Type>();
         Type t = this.TargetObject.GetType();
         var ints = t.GetTypeInfo().GetInterfaces();
         int num = 0;
         foreach (var f in ints)
             if (f.GetCustomAttribute<RpcInterfaceAttribute>() != null)
             {
-                ret = f;
+                ret.Add(f);
                 num++;
             }
         if (num == 0) throw new ApplicationException($"The class '{t.Name}' has no interface with the RpcInterface attribute.");
-        if (num >= 2) throw new ApplicationException($"The class '{t.Name}' has two or mode interfaces with the RpcInterface attribute.");
-        return ret!;
+        //if (num >= 2) throw new ApplicationException($"The class '{t.Name}' has two or mode interfaces with the RpcInterface attribute.");
+        return ret;
     }
 
     public virtual object? StartCall(JsonRpcClientInfo clientInfo) { return null; }
@@ -559,7 +570,14 @@ public class JsonRpcServerApi : AsyncService
     {
         List<RpcMethodInfo> ret = new List<RpcMethodInfo>();
 
-        var methodInfoList = this.RpcInterface.GetMethods(BindingFlags.Instance | BindingFlags.Public);
+        List<MethodInfo> methodInfoList = new List<MethodInfo>();
+
+        foreach (var rpcInt in this.RpcInterface)
+        {
+            var tmp = rpcInt.GetMethods(BindingFlags.Instance | BindingFlags.Public);
+
+            tmp._DoForEach(x => methodInfoList.Add(x));
+        }
 
         HashSet<string> nameSet = new HashSet<string>();
 

@@ -163,6 +163,8 @@ public class HadbDynamicConfig : INormalizable
     public int HadbMaxDbConcurrentWriteTransactionsPerClient = Consts.HadbDynamicConfigDefaultValues.HadbMaxDbConcurrentWriteTransactionsPerClient;
     public int HadbMaxDbConcurrentReadTransactionsPerClient = Consts.HadbDynamicConfigDefaultValues.HadbMaxDbConcurrentReadTransactionsPerClient;
 
+    public string[] Hadb_ObjectStaleMarker_ObjNames_and_Seconds = new string[0];
+
     public HadbDynamicConfig()
     {
         this.Normalize();
@@ -857,12 +859,45 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
                 if (fullReloadMode == false)
                 {
+                    // 部分的なリロード
                     sql += " and DATA_UPDATE_DT >= @DT_MIN";
                     dbParams.Add("DT_MIN", partialReloadMinUpdateTime);
                 }
                 else
                 {
+                    // フルリロード
                     sql += " and DATA_DELETED = 0";
+
+                    var now = DtOffsetNow;
+
+                    int index = 0;
+
+                    foreach (var staleConfig in this.CurrentDynamicConfig.Hadb_ObjectStaleMarker_ObjNames_and_Seconds)
+                    {
+                        if (staleConfig._GetKeyAndValue(out string typeName, out string secsStr))
+                        {
+                            if (typeName._IsFilled() && secsStr._IsFilled())
+                            {
+                                int secsInt = secsStr._ToInt();
+                                if (secsInt >= 1 && secsInt < int.MaxValue)
+                                {
+                                    long msecs = secsInt * 1000L;
+                                    if (msecs >= 1)
+                                    {
+                                        var threshold = now.AddMilliseconds(-msecs);
+                                        if (threshold._IsZeroDateTime() == false)
+                                        {
+                                            index++;
+                                            sql += $" and (DATA_TYPE != @TYPE_{index} or DATA_UPDATE_DT >= @THRESHOLD_{index})";
+
+                                            dbParams.Add($"@TYPE_{index}", typeName);
+                                            dbParams.Add($"@THRESHOLD_{index}", threshold);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 Debug($"ReloadDataFromDatabaseImplAsync: Start DB Select.");
@@ -2161,7 +2196,6 @@ public abstract class HadbData : INormalizable
     public virtual HadbKeys GetKeys() => new HadbKeys("");
     public virtual HadbLabels GetLabels() => new HadbLabels("");
     public virtual int GetMaxArchivedCount() => int.MaxValue;
-    public virtual long GetStaleTimeSpanMsecs() => long.MaxValue;
 
     public abstract void Normalize();
 
@@ -3234,6 +3268,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     public int MemLastFullReloadTookMsecs { get; private set; } = 0;
     public int MemLastPartialReloadTookMsecs { get; private set; } = 0;
 
+    public long MemCurrentBackupFileSizeBytes { get; private set; } = 0;
+
     public int LastLazyUpdateTookMsecs { get; private set; } = 0;
     public bool IsDatabaseConnectedForReload { get; private set; } = false;
     public Exception LastDatabaseConnectForReloadError { get; private set; } = new CoresException("Unknown error.");
@@ -3320,6 +3356,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     public DeadlockRetryConfig DefaultDeadlockRetryConfig { get; set; }
 
     public HadbDebugFlags DebugFlags { get; set; } = HadbDebugFlags.None;
+
+    public EasyJsonStrAttributes? LatestStatData = null;
 
     public HadbBase(HadbSettingsBase settings, TDynamicConfig initialDynamicConfig)
     {
@@ -3589,6 +3627,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         stat.Set("Hadb/Sys/DbLastPartialReloadTookMsecs", this.DbLastPartialReloadTookMsecs);
         stat.Set("Hadb/Sys/IsDatabaseConnectedForLazyWrite", this.IsDatabaseConnectedForLazyWrite);
         stat.Set("Hadb/Sys/IsDatabaseConnectedForReload", this.IsDatabaseConnectedForReload);
+        stat.Set("Hadb/Sys/MemCurrentBackupFileSize_MBytes", (double)this.MemCurrentBackupFileSizeBytes / 1024.0 / 1024.0);
         stat.Set("Hadb/Sys/MemLastFullReloadTookMsecs", this.MemLastFullReloadTookMsecs);
         stat.Set("Hadb/Sys/MemLastPartialReloadTookMsecs", this.MemLastPartialReloadTookMsecs);
     }
@@ -3596,6 +3635,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     async Task<EasyJsonStrAttributes> GenerateStatInternalAsync(List<HadbObject> objectList, CancellationToken cancel = default)
     {
         EasyJsonStrAttributes stat = new EasyJsonStrAttributes();
+
+        stat.Set("Stat/TimeStamp", DtOffsetNow);
 
         Dictionary<string, long> dict = new Dictionary<string, long>(StrCmpi);
 
@@ -3741,6 +3782,9 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                             long size = await backupDatabasePath.FileSystem.WriteJsonToFileAsync(backupDatabasePath.PathString, backupData,
                                 backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
                                 cancel: cancel, withBackup: true);
+
+                            this.MemCurrentBackupFileSizeBytes = size;
+
                             Debug($"ReloadCoreAsync: Finished Local Backup Physical File Write. File Size: {size._ToString3()} bytes, Objects = {backupData.ObjectsList.Count._ToString3()}, File Path = '{backupDatabasePath.PathString}'");
                         }
                     }
@@ -3749,8 +3793,13 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
                     if (fullReloadMode)
                     {
-                        // stat を定期的に生成する
+                        // stat を定期的に保存する
                         bool saveStat = false;
+
+                        // stat のデータそのものは毎回生成する
+                        var statData = await this.GenerateStatInternalAsync(loadedObjectsList, cancel);
+
+                        this.LatestStatData = statData;
 
                         if (this._CurrentDynamicConfig.HadbAutomaticStatIntervalMsecs >= 1 && (lastStatWrittenTimeStamp.Value._IsZeroDateTime() || (DtOffsetNow >= (lastStatWrittenTimeStamp.Value + this._CurrentDynamicConfig.HadbAutomaticStatIntervalMsecs._ToTimeSpanMSecs()))))
                         {
@@ -3764,14 +3813,12 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
                         if (saveStat)
                         {
-                            var stat = await this.GenerateStatInternalAsync(loadedObjectsList, cancel);
-
                             // stat をデータベースに追記する
                             try
                             {
                                 await this.TranAsync(true, async tran =>
                                 {
-                                    await this.WriteStatImplAsync(tran, DtOffsetNow, Env.DnsFqdnHostName, stat.ToJsonString(), "", "", cancel);
+                                    await this.WriteStatImplAsync(tran, DtOffsetNow, Env.DnsFqdnHostName, statData.ToJsonString(), "", "", cancel);
 
                                     return true;
                                 },

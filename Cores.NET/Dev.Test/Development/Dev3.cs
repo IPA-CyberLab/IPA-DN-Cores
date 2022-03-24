@@ -78,6 +78,7 @@ public static partial class DevCoresConfig
     public static partial class MikakaDDnsServiceSettings
     {
         public static readonly Copenhagen<int> HostRecordMaxArchivedCount = 10;
+        public static readonly Copenhagen<int> HostRecord_StaleMarker_Secs = 3600 * 24 * 365 * 3;
     }
 }
 
@@ -170,6 +171,13 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
         protected override void NormalizeImpl()
         {
+            if (Hadb_ObjectStaleMarker_ObjNames_and_Seconds.Length == 0)
+            {
+                var tmpList = new List<string>();
+                tmpList.Add($"{typeof(MikakaDDnsService.Host).Name} {DevCoresConfig.MikakaDDnsServiceSettings.HostRecord_StaleMarker_Secs}");
+                this.Hadb_ObjectStaleMarker_ObjNames_and_Seconds = tmpList.ToArray();
+            }
+
             if (DDns_Enum_By_Email_MaxCount <= 0) DDns_Enum_By_Email_MaxCount = 3000;
             if (DDns_Enum_By_UserGroupSecretKey_MaxCount <= 0) DDns_Enum_By_UserGroupSecretKey_MaxCount = 5000;
 
@@ -575,7 +583,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
     }
 
     [RpcInterface]
-    public interface IRpc
+    public interface IRpc : IHadbBasedServiceRpcBase
     {
         [RpcMethodHelp("テスト関数。パラメータで int 型で指定された値を文字列に変換し、Hello という文字列を前置して返却します。RPC を呼び出すためのテストコードを実際に記述する際のテストとして便利です。", "Hello 123")]
         public Task<string> Test([RpcParamHelp("テスト入力整数値", 123)] int i);
@@ -984,6 +992,8 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
         if (memoryObj != null)
         {
+            retCurrentHostObj = memoryObj;
+
             // メモリデータベースを指定したホストキーで検索してみる。
             // すでにメモリデータベース上にあれば、変更点がありそうかどうか確認する。もしメモリデータベース上で変更点がないのに、物理データベース上へのクエリを発生させても、CPU 時間が無駄になるだけの可能性があるためである。
             // ※ メモリデータベース上になければ、変更点がありそうかどうかの検査を保留する。つまり、物理データベースを叩いてみなければ分からない。
@@ -1018,8 +1028,6 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             {
                 if (current.UserData._ObjectToJson(compact: true)._IsSame(userData._ObjectToJson(compact: true)) == false) anyChangePossibility = true;
             }
-
-            retCurrentHostObj = memoryObj;
         }
 
         if (anyChangePossibility)
@@ -1377,18 +1385,21 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             clientFqdn2 = await this.GetClientFqdnAsync();
         }
 
-        // 特に変更がないので、ステータスを Lazy 更新する。
-        retCurrentHost = retCurrentHostObj.FastUpdate(h =>
+        if (memoryObj != null)
         {
-            h.AuthLogin_Count++;
-            h.AuthLogin_LastIpAddress = clientIp.ToString();
-            if (clientFqdn2._IsFilled())
+            // 特に変更がないので、ステータスを Lazy 更新する。(Memory Object がメモリ上に存在する場合のみ)
+            retCurrentHost = retCurrentHostObj.FastUpdate(h =>
             {
-                h.AuthLogin_LastFqdn = clientFqdn2;
-            }
-            h.AuthLogin_LastTime = now;
-            return true;
-        });
+                h.AuthLogin_Count++;
+                h.AuthLogin_LastIpAddress = clientIp.ToString();
+                if (clientFqdn2._IsFilled())
+                {
+                    h.AuthLogin_LastFqdn = clientFqdn2;
+                }
+                h.AuthLogin_LastTime = now;
+                return true;
+            });
+        }
 
         // 現在のオブジェクト情報を返却する。
         retCurrentHost._NullCheck(nameof(retCurrentHost));
