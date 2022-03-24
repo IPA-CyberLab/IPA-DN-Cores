@@ -64,6 +64,8 @@ namespace IPA.Cores.Basic;
 
 public class JsonRpcHttpServer : JsonRpcServer
 {
+    public static bool HideErrorDetails = false; // 詳細エラーを隠すかどうかのフラグ。手抜きグローバル変数
+
     public string RpcBaseAbsoluteUrlPath = ""; // "/rpc/" のような絶対パス。末尾に / を含む。
     public string WebFormBaseAbsoluteUrlPath = ""; // "/webform/" のような絶対パス。末尾に / を含む。
 
@@ -85,6 +87,8 @@ public class JsonRpcHttpServer : JsonRpcServer
             }
             else
             {
+                var mi = this.Api.GetMethodInfo(rpcMethod);
+
                 // API ごとのページの表示
                 string suppliedUsername = "";
                 string suppliedPassword = "";
@@ -135,6 +139,15 @@ public class JsonRpcHttpServer : JsonRpcServer
                     }
                 }
 
+                if (isCall == false)
+                {
+                    if (mi.ParametersByIndex.Length == 0)
+                    {
+                        // 1 つもパラメータ指定がない場合は Web フォームを作成せず直接呼び出す
+                        isCall = true;
+                    }
+                }
+
                 string args = jObj._ObjectToJson(compact: true);
 
                 //string id = "GET-" + Str.NewGuid().ToUpperInvariant();
@@ -161,8 +174,18 @@ public class JsonRpcHttpServer : JsonRpcServer
                 }
                 else
                 {
+                    long tickStart = Time.HighResTick64;
+
+                    var timeStamp = DtOffsetNow;
+
                     // JSON-RPC の実際の実行と結果の取得
                     var callResults = await this.CallMethods(in_str, client_info, true, StringComparison.OrdinalIgnoreCase);
+
+                    if (HideErrorDetails) callResults.RemoveErrorDetailsFromResultString();
+
+                    long tickEnd = Time.HighResTick64;
+
+                    long tookTick = tickEnd - tickStart;
 
                     if (callResults.Error_AuthRequired)
                     {
@@ -182,7 +205,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                         return;
                     }
 
-                    body = WebForm_GenerateApiResultPage(rpcMethod, callResults, request.Host.Host);
+                    body = WebForm_GenerateApiResultPage(rpcMethod, callResults, request.Host.Host, timeStamp, tookTick);
                 }
 
                 await response._SendStringContentsAsync(body, contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel, normalizeCrlf: CrlfStyle.CrLf);
@@ -196,7 +219,7 @@ public class JsonRpcHttpServer : JsonRpcServer
         }
     }
 
-    string WebForm_GenerateApiResultPage(string methodName, JsonRpcCallResult callResults, string httpHostHeader)
+    string WebForm_GenerateApiResultPage(string methodName, JsonRpcCallResult callResults, string httpHostHeader, DateTimeOffset timeStamp, long tookTick)
     {
         StringWriter w = new StringWriter();
         var mi = this.Api.GetMethodInfo(methodName);
@@ -243,13 +266,31 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         w.WriteLine($"<a class='button is-primary' id='download' style='font-weight: bold' href='#' download='{bomUtfDownloadFileName}' onclick='handleDownload()'><i class='far fa-folder-open'></i>&nbsp;Download JSON Result Data ({bomUtfData.Length._ToString3()} bytes)</a>");
 
+        if (mi.ParametersByIndex.Length == 0)
+        {
+            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-sync'></i>&nbsp;Refresh {mi.Name}() API Result</a>");
+        }
+
+        w.WriteLine($"<a class='button is-success' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fab fa-wpforms'></i>&nbsp;Return to Web Form API Index</a>");
+
+
+        w.WriteLine($"<p><i>Timestamp: {timeStamp._ToDtStr(true)}, Took time: {TimeSpan.FromMilliseconds(tookTick)._ToTsStr(true)}.</i></p>");
+
         w.Write("<pre><code class='language-json'>");
 
         w.Write(callResults.ResultString._EncodeHtmlCodeBlock().ToString());
 
         w.WriteLine("</code></pre>");
 
-        w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}'><i class='fab fa-wpforms'></i>&nbsp;Open Another {mi.Name}() API Web Form</a>");
+        if (mi.ParametersByIndex.Length >= 1)
+        {
+            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fab fa-wpforms'></i>&nbsp;Open Another {mi.Name}() API Web Form</a>");
+        }
+        else
+        {
+            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-sync'></i>&nbsp;Refresh {mi.Name}() API Result</a>");
+        }
+
         w.WriteLine($"<a class='button is-success' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fab fa-wpforms'></i>&nbsp;Return to Web Form API Index</a>");
 
         w.WriteLine("<p>　</p>");
@@ -643,6 +684,8 @@ code[class*=""language-""], pre[class*=""language-""] {
 
             var callResults = await this.CallMethods(inStr, client_info, simpleResultWhenOk, paramsStrComparison);
 
+            if (HideErrorDetails) callResults.RemoveErrorDetailsFromResultString();
+
             retStr = callResults.ResultString;
 
             if (callResults.Error_AuthRequired)
@@ -759,7 +802,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 requireAuthStr = "<i class='fas fa-key'></i> ";
             }
 
-            string titleStr = $"<a href='./{m.Name}'><b><i class='fab fa-wpforms'></i> {requireAuthStr}API Web Form #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? " <BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
+            string titleStr = $"<a href='./{m.Name}/'><b><i class='fab fa-wpforms'></i> {requireAuthStr}API Web Form #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? " <BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
 
             //w.WriteLine();
             //w.WriteLine($"- {helpStr}");
@@ -851,7 +894,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 requireAuthStr = "<i class='fas fa-key'></i> ";
             }
 
-            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}'><i class='fab fa-wpforms'></i>&nbsp;{requireAuthStr}&nbsp;Call this {mi.Name}() API with Web Form</a>");
+            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fab fa-wpforms'></i>&nbsp;{requireAuthStr}&nbsp;Call this {mi.Name}() API with Web Form</a>");
 
             w.WriteLine();
             w.WriteLine("<p>　</p>");

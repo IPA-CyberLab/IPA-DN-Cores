@@ -189,6 +189,7 @@ public abstract class HadbBasedServiceMemDb : HadbMemDataBase
 
 public class HadbBasedServiceDynConfig : HadbDynamicConfig
 {
+    public bool Service_HideJsonRpcErrorDetails = false;
     public string Service_AdminBasicAuthUsername = "";
     public string Service_AdminBasicAuthPassword = "";
     public string Service_HeavyRequestRateLimiterAcl = "_initial_";
@@ -494,6 +495,24 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
         StartedFlag.FirstCallOrThrowException();
 
         StartImpl(); // HADB の開始前でなければならない！！
+
+        // HADB からの特殊なコールバック
+        this.HadbEventListenerList.RegisterCallback(async (caller, type, state, param) =>
+        {
+            switch (type)
+            {
+                case HadbEventType.DynamicConfigChanged: // DynamicConfig の設定が変更された
+                    break;
+            }
+
+            if (this.Hadb.IsDynamicConfigInited)
+            {
+                // JSON-RPC サーバーの詳細エラーを隠すかどうかのフラグ
+                JsonRpcHttpServer.HideErrorDetails = this.Hadb.CurrentDynamicConfig.Service_HideJsonRpcErrorDetails;
+            }
+
+            await Task.CompletedTask;
+        });
 
         this.Hadb.Start();
     }

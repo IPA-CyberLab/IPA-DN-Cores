@@ -3306,6 +3306,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         }
     }
 
+    public bool IsDynamicConfigInited => _IsDynamicConfigInited;
+
     public TMem? MemDb { get; private set; } = null;
 
     public int GetLazyUpdateQueueLength() => this.MemDb?.GetLazyUpdateQueueLength() ?? 0;

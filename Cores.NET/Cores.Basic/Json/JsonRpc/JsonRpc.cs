@@ -717,7 +717,7 @@ public class JsonRpcLocalClient<TInterface> where TInterface : class
 
 public sealed class JsonRpcCallResult
 {
-    public string ResultString { get; }
+    public string ResultString { get; private set; }
     public bool AllError { get; }
     public bool Error_AuthRequired { get; }
     public string Error_AuthRequiredRealmName { get; }
@@ -733,6 +733,14 @@ public sealed class JsonRpcCallResult
         this.Error_AuthRequiredRealmName = authRequiredRealmName;
         this.SingleErrorMessage = singleErrorMessage._NonNull();
     }
+
+    public void RemoveErrorDetailsFromResultString()
+    {
+        if (this.AllError)
+        {
+            ResultString = JsonRpcServer.HideJsonRpcResponseStringErrorDetails(ResultString);
+        }
+    }
 }
 
 public abstract class JsonRpcServer
@@ -745,6 +753,35 @@ public abstract class JsonRpcServer
     {
         this.Api = api;
         this.Config = cfg ?? new JsonRpcServerConfig();
+    }
+
+    public static string HideJsonRpcResponseStringErrorDetails(string str)
+    {
+        try
+        {
+            var jobj = str._JsonToObject<JObject>();
+
+            if (jobj != null)
+            {
+                if (jobj.ContainsKey("error") && jobj.ContainsKey("result") == false)
+                {
+                    var res = str._JsonToObject<JsonRpcResponseError>();
+
+                    if (res != null)
+                    {
+                        if (res.IsError && res.Error != null)
+                        {
+                            res.Error.Data = null;
+
+                            return res._ObjectToJson();
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+
+        return str;
     }
 
     public async Task<JsonRpcResponse> CallMethod(JsonRpcRequest req, Ref<Exception?> exception, StringComparison paramsStrComparison = StringComparison.Ordinal)
@@ -930,8 +967,14 @@ public abstract class JsonRpcServer
                         catch (Exception ex)
                         {
                             JsonRpcException jsonException;
-                            if (ex is JsonRpcException) jsonException = (JsonRpcException)ex;
-                            else jsonException = new JsonRpcException(new JsonRpcError(-32603, ex._GetSingleException().Message, ex.ToString()));
+                            if (ex is JsonRpcException)
+                            {
+                                jsonException = (JsonRpcException)ex;
+                            }
+                            else
+                            {
+                                jsonException = new JsonRpcException(new JsonRpcError(-32603, ex._GetSingleException().Message, ex.ToString()));
+                            }
                             JsonRpcResponseError res = new JsonRpcResponseError()
                             {
                                 Id = req.Id,
