@@ -3481,16 +3481,11 @@ cccadmin
 
     static void Test_220325()
     {
-        SSTest.Test_SearchableStr();
+        Str.Test_SearchableStr();
     }
 
     public static void Test_Generic()
     {
-        if (true)
-        {
-            Test_220325();
-            return;
-        }
 
         if (false)
         {
