@@ -3194,8 +3194,8 @@ public static class BasicHelper
         return null;
     }
 
-    public static string _NormalizeUid(this string? uid, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength) => Str.NormalizeUid(uid, maxStrLength);
-    public static string _NormalizeKey(this string? key, bool checkAsciiSafe = false, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength) => Str.NormalizeKey(key, checkAsciiSafe, maxStrLength);
+    public static string _NormalizeUid(this string? uid, int maxStrLength = Consts.Numbers.MaxKeyOrLabelStrLength) => Str.NormalizeUid(uid, maxStrLength);
+    public static string _NormalizeKey(this string? key, bool checkAsciiSafe = false, int maxStrLength = Consts.Numbers.MaxKeyOrLabelStrLength) => Str.NormalizeKey(key, checkAsciiSafe, maxStrLength);
 
     public static void _CheckAsciiPrintableOneLine(this string? str)
     {
@@ -3208,18 +3208,18 @@ public static class BasicHelper
 
     public static bool _IsAsciiOneLinePrintable(this string str) => Str.IsAsciiOneLinePrintable(str);
 
-    public static void _CheckSqlMaxSafeStrLength(this string? str, string? paramName = null, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength)
+    public static void _CheckSqlMaxSafeStrLength(this string? str, string? paramName = null, int maxStrLength = Consts.Numbers.MaxKeyOrLabelStrLength)
     {
         str = str._NonNull();
         if (str.Length > maxStrLength)
         {
             if (paramName._IsFilled())
             {
-                throw new ArgumentException($"str.Length too long: ({str.Length}) > {Consts.Numbers.SqlMaxSafeStrLength}", paramName);
+                throw new ArgumentException($"str.Length too long: {paramName}: ({str.Length}) > {maxStrLength}", paramName);
             }
             else
             {
-                throw new ArgumentException($"str.Length too long: ({str.Length}) > {Consts.Numbers.SqlMaxSafeStrLength}");
+                throw new ArgumentException($"str.Length too long: ({str.Length}) > {maxStrLength}");
             }
         }
     }

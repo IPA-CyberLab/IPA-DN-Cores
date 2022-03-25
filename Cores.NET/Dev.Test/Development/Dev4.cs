@@ -75,6 +75,7 @@ public enum SearchableStrFlag
     None = 0,
     IncludeBase64InBinary = 1,
     IncludePrintableAsciiStr = 2,
+    PrependFieldName = 4,
 
     Default = IncludeBase64InBinary | IncludePrintableAsciiStr,
 }
@@ -92,7 +93,7 @@ public static class SSTest
         return s;
     }
 
-    public static HashSet<string> GetSearchableStrListFromPrimitiveData(object? o, SearchableStrFlag flag)
+    public static List<string> GetSearchableStrListFromPrimitiveData(object? o, SearchableStrFlag flag, string prefix = "")
     {
         HashSet<string> tmp = new HashSet<string>();
 
@@ -207,7 +208,17 @@ public static class SSTest
             }
         }
 
-        return tmp;
+        List<string> ret = new List<string>();
+
+        foreach (var s in tmp)
+        {
+            if (s._IsFilled())
+            {
+                ret.Add((prefix + s).Trim());
+            }
+        }
+
+        return ret;
     }
 
     public static List<string> GetSearchableStrListFromObject(object? obj, SearchableStrFlag flag = SearchableStrFlag.Default)
@@ -218,7 +229,7 @@ public static class SSTest
 
         foreach (var item in walkList)
         {
-            var set = GetSearchableStrListFromPrimitiveData(item.Data, flag);
+            var set = GetSearchableStrListFromPrimitiveData(item.Data, flag, flag.Bit(SearchableStrFlag.PrependFieldName) ? item.Name.ToLower() + "=" : "");
 
             foreach (var s in set)
             {
@@ -260,7 +271,6 @@ public static class SSTest
             s64 = -9223372036854775123,
             u64 = 18446744073709550616,
             dt1 = "2022/03/25 01:23:45"._ToDateTime(),
-            dto1 = "2049/12/31 19:18:37"._ToDateTime()._AsDateTimeOffset(true, true),
             ts1 = TimeSpan.FromMilliseconds(3600 * 24 * 1000).Add(TimeSpan.FromSeconds(-1)),
             b1 = true,
             decimal1 = 89454141,
@@ -272,9 +282,39 @@ public static class SSTest
             data2 = "abcdefg"._GetBytes_UTF8(),
         };
 
-        string ss = GenerateSearchableStrFromObject(t1);
+        SSTest1 t2 = new SSTest1
+        {
+            str1 = "Super",
+            str2 = "Nekosan",
+            u8 = 134,
+            s8 = -104,
+            u16 = 53321,
+            s16 = -10345,
+            u32 = 3113456789,
+            s32 = -2019345678,
+            s64 = -9223311036854775123,
+            u64 = 10446744111119550616,
+            dt1 = "2099/03/25 01:23:45"._ToDateTime(),
+            ts1 = TimeSpan.FromMilliseconds(3600 * 24 * 1000).Add(TimeSpan.FromSeconds(-1)),
+            b1 = true,
+            decimal1 = 1689454141,
+            double1 = 3.1415926535897932D,
+            float1 = 2.718281828459F,
+            flag1 = SSTestFlag1.Microsoft | SSTestFlag1.Oracle,
+            ip1 = "2001:cafe:1:2:3::8931"._StrToIP()!,
+            data1 = "xxxx"._GetBytes_UTF8(),
+            data2 = "zzzz"._GetBytes_UTF8(),
+        };
 
-        ss._Print();
+        t1.Child = t2;
+
+        string ss = GenerateSearchableStrFromObject(t1, flag: SearchableStrFlag.Default | SearchableStrFlag.PrependFieldName);
+
+        //ss._Print();
+
+        string test = "| str2=carot | str1=banana | u8=234 | s8=-124 | u16=54321 | u16=54,321 | s16=-12345 | s16=-12,345 | u32=3123456789 | u32=3,123,456,789 | s32=-2012345678 | s32=-2,012,345,678 | u64=18446744073709550616 | u64=18,446,744,073,709,550,616 | s64=-9223372036854775123 | s64=-9,223,372,036,854,775,123 | dt1=2022/03/25 01:23:45.000 | dt1=20220325012345 | dt1=20220325 012345 | ts1=23:59:59.000 | ts1=86399000 | ts1=86399 | b1=true | b1=1 | b1=yes | double1=3.141592653589793 | double1=3.142 | double1=3.141593 | float1=2.718281745910645 | float1=2.718 | float1=2.718282 | flag1=microsoft oracle | flag1=3 | ip1=2001:af80:1:2:3::8931 | data1=41424344454647 | data1=qujdrevgrw== | data1=abcdefg | data2=61626364656667 | data2=ywjjzgvmzw== | data2=abcdefg | str2=nekosan | str1=super | u8=134 | s8=-104 | u16=53321 | u16=53,321 | s16=-10345 | s16=-10,345 | u32=3113456789 | u32=3,113,456,789 | s32=-2019345678 | s32=-2,019,345,678 | u64=10446744111119550616 | u64=10,446,744,111,119,550,616 | s64=-9223311036854775123 | s64=-9,223,311,036,854,775,123 | dt1=2099/03/25 01:23:45.000 | dt1=20990325012345 | dt1=20990325 012345 | ts1=23:59:59.000 | ts1=86399000 | ts1=86399 | b1=true | b1=1 | b1=yes | double1=3.141592653589793 | double1=3.142 | double1=3.141593 | float1=2.718281745910645 | float1=2.718 | float1=2.718282 | flag1=microsoft oracle | flag1=3 | ip1=2001:cafe:1:2:3::8931 | data1=78787878 | data1=ehh4ea== | data1=xxxx | data2=7a7a7a7a | data2=enp6eg== | data2=zzzz |";
+
+        Dbg.TestTrue(test == ss);
     }
 
     [Flags]
@@ -298,7 +338,6 @@ public static class SSTest
         public ulong u64;
         public long s64;
         public DateTime dt1;
-        public DateTimeOffset dto1;
         public TimeSpan ts1;
         public bool b1;
         public decimal decimal1;
@@ -308,6 +347,8 @@ public static class SSTest
         public IPAddress ip1 = null!;
         public byte[] data1 = null!;
         public Memory<byte> data2;
+
+        public SSTest1? Child;
     }
 }
 

@@ -1672,7 +1672,7 @@ namespace IPA.Cores.Basic
         }
 
         // UID を正規化する
-        public static string NormalizeUid(string? uid, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength)
+        public static string NormalizeUid(string? uid, int maxStrLength = Consts.Numbers.MaxKeyOrLabelStrLength)
         {
             string ret = uid._NonNullTrim().ToUpperInvariant();
 
@@ -1687,7 +1687,7 @@ namespace IPA.Cores.Basic
         }
 
         // 任意のキーを正規化する
-        public static string NormalizeKey(string? key, bool checkAsciiSafe = false, int maxStrLength = Consts.Numbers.SqlMaxSafeStrLength)
+        public static string NormalizeKey(string? key, bool checkAsciiSafe = false, int maxStrLength = Consts.Numbers.MaxKeyOrLabelStrLength)
         {
             string ret = key._NonNullTrim().ToUpperInvariant();
 

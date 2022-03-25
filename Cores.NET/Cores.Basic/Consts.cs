@@ -132,6 +132,7 @@ public static partial class Consts
         public const int MikakaDDns_MaxUnlockKeyCountOnce = 1000;
 
         // SQL Server その他の一般的なデータベースでインデックス可能な最大安全文字列長
+        public const int MaxKeyOrLabelStrLength = 130;
         public const int SqlMaxSafeStrLength = 300;
         public const int SqlMaxSafeStrLengthActual = 350;
 
