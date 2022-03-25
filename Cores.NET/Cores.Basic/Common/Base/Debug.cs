@@ -775,31 +775,38 @@ namespace IPA.Cores.Basic
                     //if (info.Name == "lockFile") Debugger.Break();
 
                     object? data = GetValueOfFieldOrProperty(info, obj!);
+
+                    obj._MarkNotNull();
+
                     Type? data_type = data?.GetType() ?? null;
 
                     if (!(data is MethodBase) && (data_type == null || data_type.MemberType.Bit(MemberTypes.TypeInfo) || data_type.MemberType.Bit(MemberTypes.NestedType)))
                     {
                         if (IsPrimitiveType(data_type))
                         {
-                            ret.Vars.Add((info, data, ++order));
+                            ret.Vars.Add((obj, info, data, ++order));
                         }
                         else
                         {
                             if (data == null)
                             {
-                                ret.Vars.Add((info, null, ++order));
+                                ret.Vars.Add((obj, info, null, ++order));
                             }
                             else
                             {
-                                if (data is IEnumerable)
+                                if (data is Memory<byte> ms1)
+                                {
+                                    ret.Vars.Add((obj, info, ms1.Span.ToArray(), ++order));
+                                }
+                                else if (data is ReadOnlyMemory<byte> ms2)
+                                {
+                                    ret.Vars.Add((obj, info, ms2.Span.ToArray(), ++order));
+                                }
+                                else if (data is IEnumerable)
                                 {
                                     if (data is byte[] byteArray)
                                     {
-                                        ret.Vars.Add((info, data, ++order));
-                                    }
-                                    else if (data is Memory<byte> byteMemory)
-                                    {
-                                        ret.Vars.Add((info, byteMemory.Span.ToArray(), ++order));
+                                        ret.Vars.Add((obj, info, data, ++order));
                                     }
                                     else
                                     {
@@ -812,11 +819,11 @@ namespace IPA.Cores.Basic
 
                                                 if (IsPrimitiveType(data_type2))
                                                 {
-                                                    ret.Vars.Add((info, item, ++order));
+                                                    ret.Vars.Add((obj, info, item, ++order));
                                                 }
                                                 else if (item == null)
                                                 {
-                                                    ret.Vars.Add((info, null, ++order));
+                                                    ret.Vars.Add((obj, info, null, ++order));
                                                 }
                                                 else
                                                 {
@@ -1187,7 +1194,7 @@ namespace IPA.Cores.Basic
             this.IsSimplePrimitive = isSimplePrimitive;
         }
 
-        public List<(MemberInfo memberInfo, object? data, int order)> Vars = new List<(MemberInfo, object?, int)>();
+        public List<(object targetObject, MemberInfo memberInfo, object? data, int order)> Vars = new List<(object, MemberInfo, object?, int)>();
         public List<(DebugVars child, int order)> Childlen = new List<(DebugVars, int)>();
 
         public void WriteToString(List<string> currentList, ImmutableList<string> parents, string stringClosure = "\"")

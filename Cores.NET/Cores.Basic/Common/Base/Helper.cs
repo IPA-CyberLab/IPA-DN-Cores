@@ -3494,6 +3494,42 @@ public static class BasicHelper
 
         return false;
     }
+
+    [MethodImpl(Inline)]
+    public static bool _IsIntegerObj(this object? o)
+    {
+        if (o == null) return false;
+        if (o is byte || o is sbyte || o is ushort || o is short ||
+            o is uint || o is int || o is ulong || o is long)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    [MethodImpl(Inline)]
+    public static bool _IsSignedIntegerObj(this object? o)
+    {
+        if (o == null) return false;
+        if (o is sbyte || o is short ||
+            o is int || o is long)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    [MethodImpl(Inline)]
+    public static bool _IsUnsignedIntegerObj(this object? o)
+    {
+        if (o == null) return false;
+        if (o is byte || o is ushort ||
+            o is uint || o is ulong)
+        {
+            return true;
+        }
+        return false;
+    }
 }
 
 

@@ -89,6 +89,8 @@ using IPA.Cores.Codes;
 using System.Net.Security;
 using Newtonsoft.Json.Linq;
 using System.Diagnostics.CodeAnalysis;
+using System.Collections.Immutable;
+using System.Globalization;
 
 
 #pragma warning disable CS0219
@@ -3477,8 +3479,19 @@ cccadmin
 
     }
 
+    static void Test_220325()
+    {
+        SSTest.Test_SearchableStr();
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_220325();
+            return;
+        }
+
         if (false)
         {
             Test_220315_BackupServer_CreateBatch_For_SetAcl();

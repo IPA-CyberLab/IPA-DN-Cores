@@ -598,6 +598,44 @@ namespace IPA.Cores.Basic
             }
         }
 
+        // オブジェクト内の public なフィールドとプロパティを再帰的に全部読み取る
+        public static List<WalkObjectItem> WalkObject(object? obj)
+        {
+            List<WalkObjectItem> ret = new List<WalkObjectItem>();
+
+            if (obj != null)
+            {
+                ImmutableHashSet<object> hashSet = ImmutableHashSet<object>.Empty;
+
+                var vars = Dbg.GetVarsFromClass(obj.GetType(), "", false, "", obj, hashSet);
+
+                Walk(vars);
+
+                void Walk(DebugVars targetVars)
+                {
+                    foreach (var v in targetVars.Vars.OrderBy(x => x.order))
+                    {
+                        WalkObjectItem item = new WalkObjectItem
+                        {
+                            Object = v.targetObject,
+                            Name = v.memberInfo.Name,
+                            MemberInfo = v.memberInfo,
+                            Data = v.data,
+                        };
+
+                        ret.Add(item);
+                    }
+
+                    foreach (var child in targetVars.Childlen.OrderBy(x => x.order))
+                    {
+                        Walk(child.child);
+                    }
+                }
+            }
+
+            return ret;
+        }
+
         // IEnumerable から Array List を作成
         public static T[] IEnumerableToArrayList<T>(IEnumerable<T> i) => i.ToArray();
 
@@ -8609,6 +8647,15 @@ namespace IPA.Cores.Basic
                 return null;
             });
         }
+    }
+
+
+    public class WalkObjectItem
+    {
+        public object? Object { get; init; }
+        public string Name { get; init; } = "";
+        public MemberInfo MemberInfo { get; init; } = null!;
+        public object? Data { get; init; }
     }
 
 

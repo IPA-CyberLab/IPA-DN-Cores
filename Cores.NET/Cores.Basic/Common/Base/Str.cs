@@ -3725,6 +3725,26 @@ namespace IPA.Cores.Basic
             return sb.ToString();
         }
 
+        // Ascii 文字として 1 行で表示可能な文字列に変換する
+        public static string MakeAsciiOneLinePrintableStr(ReadOnlySpan<byte> src, char alternativeChar = ' ')
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (byte c2 in src)
+            {
+                char c = (char)c2;
+                if (IsAsciiOneLinePrintable(c) == false)
+                {
+                    sb.Append(alternativeChar);
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+
+            return sb.ToString();
+        }
+
         public static int[] ParsePortsList(string str)
         {
             string[] tokens = str.Split(new char[] { ',', ' ', '　', '\t', '/', ';' }, StringSplitOptions.RemoveEmptyEntries);
