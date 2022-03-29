@@ -407,9 +407,12 @@ public sealed class HadbSqlLogRow : INormalizable
     public string LOG_LABEL2 { get; set; } = "";
     public string LOG_LABEL3 { get; set; } = "";
     public string LOG_LABEL4 { get; set; } = "";
+    public string LOG_LABEL5 { get; set; } = "";
     public string LOG_VALUE { get; set; } = "";
     public string LOG_EXT1 { get; set; } = "";
     public string LOG_EXT2 { get; set; } = "";
+    public string LOG_FT1 { get; set; } = "";
+    public string LOG_FT2 { get; set; } = "";
 
     public void Normalize()
     {
@@ -422,9 +425,12 @@ public sealed class HadbSqlLogRow : INormalizable
         this.LOG_LABEL2 = this.LOG_LABEL2._NormalizeKey(false);
         this.LOG_LABEL3 = this.LOG_LABEL3._NormalizeKey(false);
         this.LOG_LABEL4 = this.LOG_LABEL4._NormalizeKey(false);
+        this.LOG_LABEL5 = this.LOG_LABEL5._NormalizeKey(false);
         this.LOG_VALUE = this.LOG_VALUE._NonNull();
         this.LOG_EXT1 = this.LOG_EXT1._NonNull();
         this.LOG_EXT2 = this.LOG_EXT2._NonNull();
+        this.LOG_FT1 = this.LOG_FT1._NonNull();
+        this.LOG_FT2 = this.LOG_FT2._NonNull();
     }
 }
 
@@ -497,13 +503,17 @@ public sealed class HadbSqlDataRow : INormalizable
     public string DATA_KEY2 { get; set; } = "";
     public string DATA_KEY3 { get; set; } = "";
     public string DATA_KEY4 { get; set; } = "";
+    public string DATA_KEY5 { get; set; } = "";
     public string DATA_LABEL1 { get; set; } = "";
     public string DATA_LABEL2 { get; set; } = "";
     public string DATA_LABEL3 { get; set; } = "";
     public string DATA_LABEL4 { get; set; } = "";
+    public string DATA_LABEL5 { get; set; } = "";
     public string DATA_VALUE { get; set; } = "";
     public string DATA_EXT1 { get; set; } = "";
     public string DATA_EXT2 { get; set; } = "";
+    public string DATA_FT1 { get; set; } = "";
+    public string DATA_FT2 { get; set; } = "";
     public long DATA_LAZY_COUNT1 { get; set; } = 0;
     public long DATA_LAZY_COUNT2 { get; set; } = 0;
     public string DATA_UID_ORIGINAL { get; set; } = "";
@@ -521,13 +531,17 @@ public sealed class HadbSqlDataRow : INormalizable
         this.DATA_KEY2 = this.DATA_KEY2._NormalizeKey(true);
         this.DATA_KEY3 = this.DATA_KEY3._NormalizeKey(true);
         this.DATA_KEY4 = this.DATA_KEY4._NormalizeKey(true);
+        this.DATA_KEY5 = this.DATA_KEY5._NormalizeKey(true);
         this.DATA_LABEL1 = this.DATA_LABEL1._NormalizeKey(false);
         this.DATA_LABEL2 = this.DATA_LABEL2._NormalizeKey(false);
         this.DATA_LABEL3 = this.DATA_LABEL3._NormalizeKey(false);
         this.DATA_LABEL4 = this.DATA_LABEL4._NormalizeKey(false);
+        this.DATA_LABEL5 = this.DATA_LABEL5._NormalizeKey(false);
         this.DATA_VALUE = this.DATA_VALUE._NonNull();
         this.DATA_EXT1 = this.DATA_EXT1._NonNull();
         this.DATA_EXT2 = this.DATA_EXT2._NonNull();
+        this.DATA_FT1 = this.DATA_FT1._NonNull();
+        this.DATA_FT2 = this.DATA_FT2._NonNull();
         this.DATA_UID_ORIGINAL = this.DATA_UID_ORIGINAL._NormalizeUid();
     }
 }
@@ -759,13 +773,17 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                         DATA_KEY2 = keys.Key2,
                         DATA_KEY3 = keys.Key3,
                         DATA_KEY4 = keys.Key4,
+                        DATA_KEY5 = keys.Key5,
                         DATA_LABEL1 = labels.Label1,
                         DATA_LABEL2 = labels.Label2,
                         DATA_LABEL3 = labels.Label3,
                         DATA_LABEL4 = labels.Label4,
+                        DATA_LABEL5 = labels.Label5,
                         DATA_VALUE = obj.GetUserDataJsonString(),
                         DATA_EXT1 = obj.Ext1,
                         DATA_EXT2 = obj.Ext2,
+                        DATA_FT1 = obj.Ft1,
+                        DATA_FT2 = obj.Ft2,
                         DATA_UID_ORIGINAL = obj.Uid,
                     };
 
@@ -964,7 +982,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                         HadbData? data = (HadbData?)row.DATA_VALUE._JsonToObject(type);
                         if (data != null)
                         {
-                            HadbObject obj = new HadbObject(data, row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, false, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+                            HadbObject obj = new HadbObject(data, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, false, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
 
                             tmp.Add(obj);
 
@@ -1293,6 +1311,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         if (key.Key2._IsFilled()) conditions.Add("DATA_ARCHIVE = 0 and DATA_DELETED = 0 and DATA_KEY2 != '' and DATA_KEY2 = @DATA_KEY2 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
         if (key.Key3._IsFilled()) conditions.Add("DATA_ARCHIVE = 0 and DATA_DELETED = 0 and DATA_KEY3 != '' and DATA_KEY3 = @DATA_KEY3 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
         if (key.Key4._IsFilled()) conditions.Add("DATA_ARCHIVE = 0 and DATA_DELETED = 0 and DATA_KEY4 != '' and DATA_KEY4 = @DATA_KEY4 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
+        if (key.Key5._IsFilled()) conditions.Add("DATA_ARCHIVE = 0 and DATA_DELETED = 0 and DATA_KEY5 != '' and DATA_KEY5 = @DATA_KEY5 and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_NAMESPACE = @DATA_NAMESPACE and DATA_TYPE = @DATA_TYPE");
 
         if (conditions.Count == 0)
         {
@@ -1309,6 +1328,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 DATA_KEY2 = key.Key2,
                 DATA_KEY3 = key.Key3,
                 DATA_KEY4 = key.Key4,
+                DATA_KEY5 = key.Key5,
                 DATA_SYSTEMNAME = this.SystemName,
                 DATA_TYPE = typeName,
                 DATA_NAMESPACE = nameSpace,
@@ -1326,6 +1346,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         if (labels.Label2._IsFilled()) conditions.Add("DATA_LABEL2 != '' and DATA_DELETED = 0 and DATA_ARCHIVE = 0 and DATA_LABEL2 = @DATA_LABEL2");
         if (labels.Label3._IsFilled()) conditions.Add("DATA_LABEL3 != '' and DATA_DELETED = 0 and DATA_ARCHIVE = 0 and DATA_LABEL3 = @DATA_LABEL3");
         if (labels.Label4._IsFilled()) conditions.Add("DATA_LABEL4 != '' and DATA_DELETED = 0 and DATA_ARCHIVE = 0 and DATA_LABEL4 = @DATA_LABEL4");
+        if (labels.Label5._IsFilled()) conditions.Add("DATA_LABEL5 != '' and DATA_DELETED = 0 and DATA_ARCHIVE = 0 and DATA_LABEL5 = @DATA_LABEL5");
 
         if (conditions.Count == 0)
         {
@@ -1340,6 +1361,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 DATA_LABEL2 = labels.Label2,
                 DATA_LABEL3 = labels.Label3,
                 DATA_LABEL4 = labels.Label4,
+                DATA_LABEL5 = labels.Label5,
                 DATA_SYSTEMNAME = this.SystemName,
                 DATA_TYPE = typeName,
                 DATA_NAMESPACE = nameSpace,
@@ -1498,19 +1520,23 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 DATA_KEY2 = keys.Key2,
                 DATA_KEY3 = keys.Key3,
                 DATA_KEY4 = keys.Key4,
+                DATA_KEY5 = keys.Key5,
                 DATA_LABEL1 = labels.Label1,
                 DATA_LABEL2 = labels.Label2,
                 DATA_LABEL3 = labels.Label3,
                 DATA_LABEL4 = labels.Label4,
+                DATA_LABEL5 = labels.Label5,
                 DATA_VALUE = data.GetUserDataJsonString(),
                 DATA_EXT1 = data.Ext1,
                 DATA_EXT2 = data.Ext2,
+                DATA_FT1 = data.Ft1,
+                DATA_FT2 = data.Ft2,
                 DATA_LAZY_COUNT1 = 0,
                 DATA_LAZY_COUNT2 = 0,
                 DATA_UID_ORIGINAL = data.Uid,
             };
 
-            //// DB に書き込む前に DB 上で KEY1 ～ KEY4 の重複を検査する
+            //// DB に書き込む前に DB 上で KEY1 ～ KEY5 の重複を検査する
             //var existingRow = await GetRowByKeyAsync(dbWriter, row.DATA_TYPE, row.DATA_NAMESPACE, keys, cancel);
 
             //if (existingRow != null)
@@ -1523,7 +1549,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         }
     }
 
-    protected internal override async Task AtomicAddLogImplAsync(HadbTran tran, HadbLog log, string nameSpace, string ext1, string ext2, CancellationToken cancel = default)
+    protected internal override async Task AtomicAddLogImplAsync(HadbTran tran, HadbLog log, string nameSpace, string ext1, string ext2, string ft1, string ft2, CancellationToken cancel = default)
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
         tran.CheckIsWriteMode();
@@ -1548,9 +1574,12 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             LOG_LABEL2 = label.Label2,
             LOG_LABEL3 = label.Label3,
             LOG_LABEL4 = label.Label4,
+            LOG_LABEL5 = label.Label5,
             LOG_VALUE = log.GetLogDataJsonString(),
             LOG_EXT1 = ext1._NonNull(),
             LOG_EXT2 = ext2._NonNull(),
+            LOG_FT1 = ft1._NonNull(),
+            LOG_FT2 = ft2._NonNull(),
         };
 
         row.Normalize();
@@ -1578,12 +1607,14 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         if (labels.Label2._IsFilled()) conditions.Add("LOG_LABEL2 = @LOG_LABEL2");
         if (labels.Label3._IsFilled()) conditions.Add("LOG_LABEL3 = @LOG_LABEL3");
         if (labels.Label4._IsFilled()) conditions.Add("LOG_LABEL4 = @LOG_LABEL4");
+        if (labels.Label5._IsFilled()) conditions.Add("LOG_LABEL5 = @LOG_LABEL5");
 
         var labels2 = query.SearchTemplate?.GetLabels() ?? new HadbLabels("");
         if (labels2.Label1._IsFilled()) conditions.Add("LOG_LABEL1 = @LOG_LABEL1_02");
         if (labels2.Label2._IsFilled()) conditions.Add("LOG_LABEL2 = @LOG_LABEL2_02");
         if (labels2.Label3._IsFilled()) conditions.Add("LOG_LABEL3 = @LOG_LABEL3_02");
         if (labels2.Label4._IsFilled()) conditions.Add("LOG_LABEL4 = @LOG_LABEL4_02");
+        if (labels2.Label5._IsFilled()) conditions.Add("LOG_LABEL5 = @LOG_LABEL5_02");
 
         if (conditions.Count == 0) conditions.Add("1 = 1");
 
@@ -1602,11 +1633,13 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 LOG_LABEL2 = labels.Label2._NonNull(),
                 LOG_LABEL3 = labels.Label3._NonNull(),
                 LOG_LABEL4 = labels.Label4._NonNull(),
+                LOG_LABEL5 = labels.Label5._NonNull(),
 
                 LOG_LABEL1_02 = labels2.Label1._NonNull(),
                 LOG_LABEL2_02 = labels2.Label2._NonNull(),
                 LOG_LABEL3_02 = labels2.Label3._NonNull(),
                 LOG_LABEL4_02 = labels2.Label4._NonNull(),
+                LOG_LABEL5_02 = labels2.Label5._NonNull(),
 
                 LOG_SYSTEM_NAME = this.SystemName,
                 LOG_TYPE = typeName,
@@ -1638,8 +1671,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         string query = "update HADB_DATA with (ROWLOCK) set DATA_VALUE = @DATA_VALUE, DATA_UPDATE_DT = @DATA_UPDATE_DT, DATA_LAZY_COUNT1 = DATA_LAZY_COUNT1 + 1, DATA_LAZY_COUNT2 = DATA_LAZY_COUNT2 + 1 " +
             "where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_VER = @DATA_VER and DATA_UPDATE_DT < @DATA_UPDATE_DT and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE = 0 and DATA_DELETED = 0 and " +
-            "DATA_KEY1 = @DATA_KEY1 and DATA_KEY2 = @DATA_KEY2 and DATA_KEY3 = @DATA_KEY3 and DATA_KEY4 = @DATA_KEY4 and " +
-            "DATA_LABEL1 = @DATA_LABEL1 and DATA_LABEL2 = @DATA_LABEL2 and DATA_LABEL3 = @DATA_LABEL3 and DATA_LABEL4 = DATA_LABEL4";
+            "DATA_KEY1 = @DATA_KEY1 and DATA_KEY2 = @DATA_KEY2 and DATA_KEY3 = @DATA_KEY3 and DATA_KEY4 = @DATA_KEY4 and DATA_KEY5 = @DATA_KEY5 and " +
+            "DATA_LABEL1 = @DATA_LABEL1 and DATA_LABEL2 = @DATA_LABEL2 and DATA_LABEL3 = @DATA_LABEL3 and DATA_LABEL4 = DATA_LABEL4 and DATA_LABEL5 = DATA_LABEL5";
 
         // 毎回、大変短いトランザクションを実行したことにする
         query = "BEGIN TRANSACTION \n" + query + "\n COMMIT TRANSACTION\n";
@@ -1657,10 +1690,12 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 DATA_KEY2 = keys.Key2,
                 DATA_KEY3 = keys.Key3,
                 DATA_KEY4 = keys.Key4,
+                DATA_KEY5 = keys.Key5,
                 DATA_LABEL1 = labels.Label1,
                 DATA_LABEL2 = labels.Label2,
                 DATA_LABEL3 = labels.Label3,
                 DATA_LABEL4 = labels.Label4,
+                DATA_LABEL5 = labels.Label5,
             });
 
         return ret >= 1;
@@ -1768,13 +1803,17 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         row.DATA_KEY2 = keys.Key2;
         row.DATA_KEY3 = keys.Key3;
         row.DATA_KEY4 = keys.Key4;
+        row.DATA_KEY5 = keys.Key5;
         row.DATA_LABEL1 = labels.Label1;
         row.DATA_LABEL2 = labels.Label2;
         row.DATA_LABEL3 = labels.Label3;
         row.DATA_LABEL4 = labels.Label4;
+        row.DATA_LABEL5 = labels.Label5;
         row.DATA_VALUE = data.GetUserDataJsonString();
         row.DATA_EXT1 = data.Ext1;
         row.DATA_EXT2 = data.Ext2;
+        row.DATA_FT1 = data.Ft1;
+        row.DATA_FT2 = data.Ft2;
         row.DATA_LAZY_COUNT1 = 0;
         row.DATA_SNAPSHOT_NO = tran.CurrentSnapNoForWriteMode;
         row.DATA_NAMESPACE = data.NameSpace;
@@ -1784,9 +1823,9 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         // デッドロックを防ぐため、where 句が重要。手動で実行するのである。
         // READCOMMITTEDLOCK にしないと、パーティション分割している場合にデッドロックが頻発する。
         await dbWriter.EasyExecuteAsync("update HADB_DATA with (READCOMMITTEDLOCK, ROWLOCK) set DATA_VER = @DATA_VER, DATA_UPDATE_DT = @DATA_UPDATE_DT, " +
-            "DATA_KEY1 = @DATA_KEY1, DATA_KEY2 = @DATA_KEY2, DATA_KEY3 = @DATA_KEY3, DATA_KEY4 = @DATA_KEY4, " +
-            "DATA_LABEL1 = @DATA_LABEL1, DATA_LABEL2 = @DATA_LABEL2, DATA_LABEL3 = @DATA_LABEL3, DATA_LABEL4 = @DATA_LABEL4, " +
-            "DATA_VALUE = @DATA_VALUE, DATA_EXT1 = @DATA_EXT1, DATA_EXT2 = @DATA_EXT2, " +
+            "DATA_KEY1 = @DATA_KEY1, DATA_KEY2 = @DATA_KEY2, DATA_KEY3 = @DATA_KEY3, DATA_KEY4 = @DATA_KEY4, DATA_KEY5 = @DATA_KEY5, " +
+            "DATA_LABEL1 = @DATA_LABEL1, DATA_LABEL2 = @DATA_LABEL2, DATA_LABEL3 = @DATA_LABEL3, DATA_LABEL4 = @DATA_LABEL4, DATA_LABEL5 = @DATA_LABEL5, " +
+            "DATA_VALUE = @DATA_VALUE, DATA_EXT1 = @DATA_EXT1, DATA_EXT2 = @DATA_EXT2, DATA_FT1 = @DATA_FT1, DATA_FT2 = @DATA_FT2, " +
             "DATA_LAZY_COUNT1 = @DATA_LAZY_COUNT1, DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO, DATA_NAMESPACE = @DATA_NAMESPACE " +
             "where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE = 0 and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
             new
@@ -1797,13 +1836,17 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 DATA_KEY2 = row.DATA_KEY2,
                 DATA_KEY3 = row.DATA_KEY3,
                 DATA_KEY4 = row.DATA_KEY4,
+                DATA_KEY5 = row.DATA_KEY5,
                 DATA_LABEL1 = row.DATA_LABEL1,
                 DATA_LABEL2 = row.DATA_LABEL2,
                 DATA_LABEL3 = row.DATA_LABEL3,
                 DATA_LABEL4 = row.DATA_LABEL4,
+                DATA_LABEL5 = row.DATA_LABEL5,
                 DATA_VALUE = row.DATA_VALUE,
                 DATA_EXT1 = row.DATA_EXT1,
                 DATA_EXT2 = row.DATA_EXT2,
+                DATA_FT1 = row.DATA_FT1,
+                DATA_FT2 = row.DATA_FT2,
                 DATA_LAZY_COUNT1 = row.DATA_LAZY_COUNT1,
                 DATA_SNAPSHOT_NO = row.DATA_SNAPSHOT_NO,
 
@@ -1813,7 +1856,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 DATA_NAMESPACE = row.DATA_NAMESPACE,
             });
 
-        return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+        return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
     }
 
     protected internal override async Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, CancellationToken cancel = default)
@@ -1827,7 +1870,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         if (row == null) return null;
 
-        HadbObject ret = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+        HadbObject ret = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
 
         return ret;
     }
@@ -1862,7 +1905,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             List<HadbObject> tmp = new List<HadbObject>();
             foreach (var row in partOfRows)
             {
-                tmp.Add(new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT));
+                tmp.Add(new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT));
             }
             return TR(tmp);
         },
@@ -1880,7 +1923,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         if (row == null) return null;
 
-        HadbObject ret = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+        HadbObject ret = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
 
         return ret;
     }
@@ -1902,7 +1945,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             List<HadbObject> tmp = new List<HadbObject>();
             foreach (var row in partOfRows)
             {
-                tmp.Add(new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT));
+                tmp.Add(new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT));
             }
             return TR(tmp);
         },
@@ -2016,7 +2059,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             }
             );
 
-        return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+        return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
     }
 
 
@@ -2122,13 +2165,15 @@ public struct HadbKeys : IEquatable<HadbKeys>
     public string Key2 { get; }
     public string Key3 { get; }
     public string Key4 { get; }
+    public string Key5 { get; }
 
-    public HadbKeys(string key1, string? key2 = null, string? key3 = null, string? key4 = null)
+    public HadbKeys(string key1, string? key2 = null, string? key3 = null, string? key4 = null, string? key5 = null)
     {
         this.Key1 = key1._NormalizeKey(true);
         this.Key2 = key2._NormalizeKey(true);
         this.Key3 = key3._NormalizeKey(true);
         this.Key4 = key4._NormalizeKey(true);
+        this.Key5 = key5._NormalizeKey(true);
     }
 
     public bool Equals(HadbKeys other)
@@ -2137,6 +2182,7 @@ public struct HadbKeys : IEquatable<HadbKeys>
         if (this.Key2._IsSamei(other.Key2) == false) return false;
         if (this.Key3._IsSamei(other.Key3) == false) return false;
         if (this.Key4._IsSamei(other.Key4) == false) return false;
+        if (this.Key5._IsSamei(other.Key5) == false) return false;
         return true;
     }
 }
@@ -2147,13 +2193,15 @@ public struct HadbLabels : IEquatable<HadbLabels>
     public string Label2 { get; }
     public string Label3 { get; }
     public string Label4 { get; }
+    public string Label5 { get; }
 
-    public HadbLabels(string label1, string? label2 = null, string? label3 = null, string? label4 = null)
+    public HadbLabels(string label1, string? label2 = null, string? label3 = null, string? label4 = null, string? label5 = null)
     {
         this.Label1 = label1._NormalizeKey(false);
         this.Label2 = label2._NormalizeKey(false);
         this.Label3 = label3._NormalizeKey(false);
         this.Label4 = label4._NormalizeKey(false);
+        this.Label5 = label5._NormalizeKey(false);
     }
 
     public bool Equals(HadbLabels other)
@@ -2162,6 +2210,7 @@ public struct HadbLabels : IEquatable<HadbLabels>
         if (this.Label2._IsSamei(other.Label2) == false) return false;
         if (this.Label3._IsSamei(other.Label3) == false) return false;
         if (this.Label4._IsSamei(other.Label4) == false) return false;
+        if (this.Label5._IsSamei(other.Label5) == false) return false;
         return true;
     }
 }
@@ -2196,10 +2245,12 @@ public abstract class HadbData : INormalizable
     public virtual HadbKeys GetKeys() => new HadbKeys("");
     public virtual HadbLabels GetLabels() => new HadbLabels("");
     public virtual int GetMaxArchivedCount() => int.MaxValue;
+    public virtual string GenerateFt1() => Str.GenerateSearchableStrFromObject(this, SearchableStrFlag.Default);
+    public virtual string GenerateFt2() => Str.GenerateSearchableStrFromObject(this, SearchableStrFlag.Default | SearchableStrFlag.PrependFieldName);
 
     public abstract void Normalize();
 
-    public HadbObject ToNewObject(long snapshotNo, string nameSpace, bool prependAtoZHashChar, string ext1 = "", string ext2 = "") => new HadbObject(this, snapshotNo, nameSpace, prependAtoZHashChar, ext1, ext2);
+    public HadbObject ToNewObject(long snapshotNo, string nameSpace, bool prependAtoZHashChar, string ext1 = "", string ext2 = "", string ft1 = "", string ft2 = "") => new HadbObject(this, snapshotNo, nameSpace, prependAtoZHashChar, ext1, ext2, ft1, ft2);
 
     //public static implicit operator HadbObject(HadbData data) => data.ToNewObject();
 
@@ -2268,6 +2319,8 @@ public sealed class HadbObject<T> : INormalizable // 単なるラッパー
     public T UserData => (T)TargetObject.UserData;
     public string Ext1 { get => TargetObject.Ext1; set => TargetObject.Ext1 = value; }
     public string Ext2 { get => TargetObject.Ext2; set => TargetObject.Ext2 = value; }
+    public string Ft1 { get => TargetObject.Ft1; set => TargetObject.Ft1 = value; }
+    public string Ft2 { get => TargetObject.Ft2; set => TargetObject.Ft2 = value; }
     public long InternalFastUpdateVersion => TargetObject.InternalFastUpdateVersion;
     public string GetUserDataJsonString() => TargetObject.GetUserDataJsonString();
     public void CheckIsMemoryDbObject() => TargetObject.CheckIsMemoryDbObject();
@@ -2331,6 +2384,10 @@ public sealed class HadbSerializedObject
     public string Ext1 { get; set; } = "";
 
     public string Ext2 { get; set; } = "";
+
+    public string Ft1 { get; set; } = "";
+
+    public string Ft2 { get; set; } = "";
 
     public object UserData { get; set; } = null!;
 
@@ -2413,6 +2470,12 @@ public sealed class HadbObject : INormalizable
     public string Ext1 { get => this._Ext1; set { this.CheckIsNotMemoryDbObject(); this._Ext1 = value._NonNull(); } }
     public string Ext2 { get => this._Ext2; set { this.CheckIsNotMemoryDbObject(); this._Ext2 = value._NonNull(); } }
 
+    string _Ft1;
+    string _Ft2;
+
+    public string Ft1 { get => this._Ft1; set { this.CheckIsNotMemoryDbObject(); this._Ft1 = value._NonNull(); } }
+    public string Ft2 { get => this._Ft2; set { this.CheckIsNotMemoryDbObject(); this._Ft2 = value._NonNull(); } }
+
     public long InternalFastUpdateVersion { get; private set; }
 
     public string GetUserDataJsonString() => this.UserData.GetUserDataJsonString();
@@ -2420,9 +2483,9 @@ public sealed class HadbObject : INormalizable
     public Type UserDataType { get; }
     public string UserDataTypeName { get; }
 
-    public HadbObject(HadbData userData, long snapshotNo, string nameSpace, bool prependAtoZHashChar, string ext1 = "", string ext2 = "") : this(userData, ext1, ext2, Str.NewUid(userData.GetUserDataTypeName(), '_', prependAtoZHashChar), 1, false, snapshotNo, nameSpace, false, DtOffsetNow, DtOffsetNow, DtOffsetZero) { }
+    public HadbObject(HadbData userData, long snapshotNo, string nameSpace, bool prependAtoZHashChar, string ext1 = "", string ext2 = "", string ft1 = "", string ft2 = "") : this(userData, ext1, ext2, ft1, ft2, Str.NewUid(userData.GetUserDataTypeName(), '_', prependAtoZHashChar), 1, false, snapshotNo, nameSpace, false, DtOffsetNow, DtOffsetNow, DtOffsetZero) { }
 
-    public HadbObject(HadbData userData, string ext1, string ext2, string uid, long ver, bool archive, long snapshotNo, string nameSpace, bool deleted, DateTimeOffset createDt, DateTimeOffset updateDt, DateTimeOffset deleteDt, HadbMemDataBase? memDb = null)
+    public HadbObject(HadbData userData, string ext1, string ext2, string ft1, string ft2, string uid, long ver, bool archive, long snapshotNo, string nameSpace, bool deleted, DateTimeOffset createDt, DateTimeOffset updateDt, DateTimeOffset deleteDt, HadbMemDataBase? memDb = null)
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
 
@@ -2449,6 +2512,8 @@ public sealed class HadbObject : INormalizable
         this.DeleteDt = deleteDt._NormalizeDateTimeOffset();
         this._Ext1 = ext1._NonNull();
         this._Ext2 = ext2._NonNull();
+        this._Ft1 = ft1._NonNull();
+        this._Ft2 = ft2._NonNull();
 
         this.MemDb = memDb;
         if (this.MemDb != null)
@@ -2469,7 +2534,7 @@ public sealed class HadbObject : INormalizable
         CheckIsNotMemoryDbObject();
         if (this.Archive) throw new CoresLibException("this.Archive == true");
 
-        return new HadbObject(this.UserData, this.Ext1, this.Ext2, this.Uid, this.Ver, this.Archive, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt, memDb);
+        return new HadbObject(this.UserData, this.Ext1, this.Ext2, this.Ft1, this.Ft2, this.Uid, this.Ver, this.Archive, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt, memDb);
     }
 
     public HadbObject ToNonMemoryDbObject()
@@ -2478,7 +2543,7 @@ public sealed class HadbObject : INormalizable
 
         lock (this.Lock)
         {
-            var q = new HadbObject(this.UserData, this.Ext1, this.Ext2, this.Uid, this.Ver, this.Archive, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt);
+            var q = new HadbObject(this.UserData, this.Ext1, this.Ext2, this.Ft1, this.Ft2, this.Uid, this.Ver, this.Archive, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt);
 
             q.InternalFastUpdateVersion = this.InternalFastUpdateVersion;
 
@@ -2489,7 +2554,7 @@ public sealed class HadbObject : INormalizable
     public HadbObject CloneObject()
     {
         CheckIsNotMemoryDbObject();
-        return new HadbObject(this.UserData, this.Ext1, this.Ext2, this.Uid, this.Ver, this.Archive, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt);
+        return new HadbObject(this.UserData, this.Ext1, this.Ext2, this.Ft1, this.Ft2, this.Uid, this.Ver, this.Archive, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt);
     }
 
     public void CheckIsMemoryDbObject()
@@ -2620,6 +2685,8 @@ public sealed class HadbObject : INormalizable
                 this.UserData = newObj.UserData._CloneDeep();
                 this._Ext1 = newObj.Ext1;
                 this._Ext2 = newObj.Ext2;
+                this._Ft1 = newObj.Ft1;
+                this._Ft2 = newObj.Ft2;
                 this.Ver = newObj.Ver;
                 this.SnapshotNo = newObj.SnapshotNo;
             }
@@ -2675,6 +2742,8 @@ public sealed class HadbObject : INormalizable
             UserData = this.UserData,
             Ext1 = this.Ext1,
             Ext2 = this.Ext2,
+            Ft1 = this.Ft1,
+            Ft2 = this.Ft2,
             UserDataTypeName = this.UserDataTypeName,
         };
 
@@ -2689,10 +2758,12 @@ public enum HadbIndexColumn
     Key2,
     Key3,
     Key4,
+    Key5,
     Label1,
     Label2,
     Label3,
     Label4,
+    Label5,
 }
 
 public abstract class HadbMemDataBase
@@ -2715,11 +2786,13 @@ public abstract class HadbMemDataBase
             if (oldKeys.Key2._IsFilled()) IndexedKeysTable_DeleteInternal_Critical(oldKeys.Key2 + ":" + HadbIndexColumn.Key2.ToString() + ":" + typeName + ":" + obj.NameSpace);
             if (oldKeys.Key3._IsFilled()) IndexedKeysTable_DeleteInternal_Critical(oldKeys.Key3 + ":" + HadbIndexColumn.Key3.ToString() + ":" + typeName + ":" + obj.NameSpace);
             if (oldKeys.Key4._IsFilled()) IndexedKeysTable_DeleteInternal_Critical(oldKeys.Key4 + ":" + HadbIndexColumn.Key4.ToString() + ":" + typeName + ":" + obj.NameSpace);
+            if (oldKeys.Key5._IsFilled()) IndexedKeysTable_DeleteInternal_Critical(oldKeys.Key5 + ":" + HadbIndexColumn.Key5.ToString() + ":" + typeName + ":" + obj.NameSpace);
 
             if (oldLabels.Label1._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(oldLabels.Label1 + ":" + HadbIndexColumn.Label1.ToString() + ":" + typeName + ":" + obj.NameSpace, obj);
             if (oldLabels.Label2._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(oldLabels.Label2 + ":" + HadbIndexColumn.Label2.ToString() + ":" + typeName + ":" + obj.NameSpace, obj);
             if (oldLabels.Label3._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(oldLabels.Label3 + ":" + HadbIndexColumn.Label3.ToString() + ":" + typeName + ":" + obj.NameSpace, obj);
             if (oldLabels.Label4._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(oldLabels.Label4 + ":" + HadbIndexColumn.Label4.ToString() + ":" + typeName + ":" + obj.NameSpace, obj);
+            if (oldLabels.Label5._IsFilled()) IndexedLabelsTable_DeleteInternal_Critical(oldLabels.Label5 + ":" + HadbIndexColumn.Label5.ToString() + ":" + typeName + ":" + obj.NameSpace, obj);
         }
 
         public void IndexedTable_UpdateObject_Critical(HadbObject obj, HadbKeys oldKeys, HadbLabels oldLabels)
@@ -2733,11 +2806,13 @@ public abstract class HadbMemDataBase
             if (oldKeys.Key2._IsSamei(newKeys.Key2) == false) IndexedKeysTable_ReplaceObject_Critical(obj, HadbIndexColumn.Key2, oldKeys.Key2, newKeys.Key2);
             if (oldKeys.Key3._IsSamei(newKeys.Key3) == false) IndexedKeysTable_ReplaceObject_Critical(obj, HadbIndexColumn.Key3, oldKeys.Key3, newKeys.Key3);
             if (oldKeys.Key4._IsSamei(newKeys.Key4) == false) IndexedKeysTable_ReplaceObject_Critical(obj, HadbIndexColumn.Key4, oldKeys.Key4, newKeys.Key4);
+            if (oldKeys.Key5._IsSamei(newKeys.Key5) == false) IndexedKeysTable_ReplaceObject_Critical(obj, HadbIndexColumn.Key5, oldKeys.Key5, newKeys.Key5);
 
             if (oldLabels.Label1._IsSamei(newLabels.Label1) == false) IndexedLabelsTable_ReplaceObject_Critical(obj, HadbIndexColumn.Label1, oldLabels.Label1, newLabels.Label1);
             if (oldLabels.Label2._IsSamei(newLabels.Label2) == false) IndexedLabelsTable_ReplaceObject_Critical(obj, HadbIndexColumn.Label2, oldLabels.Label2, newLabels.Label2);
             if (oldLabels.Label3._IsSamei(newLabels.Label3) == false) IndexedLabelsTable_ReplaceObject_Critical(obj, HadbIndexColumn.Label3, oldLabels.Label3, newLabels.Label3);
             if (oldLabels.Label4._IsSamei(newLabels.Label4) == false) IndexedLabelsTable_ReplaceObject_Critical(obj, HadbIndexColumn.Label4, oldLabels.Label4, newLabels.Label4);
+            if (oldLabels.Label5._IsSamei(newLabels.Label5) == false) IndexedLabelsTable_ReplaceObject_Critical(obj, HadbIndexColumn.Label5, oldLabels.Label5, newLabels.Label5);
         }
 
         public void IndexedTable_AddObject_Critical(HadbObject obj)
@@ -2755,11 +2830,13 @@ public abstract class HadbMemDataBase
             if (newKeys.Key2._IsFilled()) IndexedKeysTable_AddOrUpdateInternal_Critical(newKeys.Key2 + ":" + HadbIndexColumn.Key2.ToString() + ":" + typeName + ":" + obj.NameSpace, obj);
             if (newKeys.Key3._IsFilled()) IndexedKeysTable_AddOrUpdateInternal_Critical(newKeys.Key3 + ":" + HadbIndexColumn.Key3.ToString() + ":" + typeName + ":" + obj.NameSpace, obj);
             if (newKeys.Key4._IsFilled()) IndexedKeysTable_AddOrUpdateInternal_Critical(newKeys.Key4 + ":" + HadbIndexColumn.Key4.ToString() + ":" + typeName + ":" + obj.NameSpace, obj);
+            if (newKeys.Key5._IsFilled()) IndexedKeysTable_AddOrUpdateInternal_Critical(newKeys.Key5 + ":" + HadbIndexColumn.Key5.ToString() + ":" + typeName + ":" + obj.NameSpace, obj);
 
             if (newLabels.Label1._IsFilled()) IndexedLabelsTable_AddInternal_Critical(newLabels.Label1 + ":" + HadbIndexColumn.Label1.ToString() + ":" + typeName + ":" + obj.NameSpace, obj);
             if (newLabels.Label2._IsFilled()) IndexedLabelsTable_AddInternal_Critical(newLabels.Label2 + ":" + HadbIndexColumn.Label2.ToString() + ":" + typeName + ":" + obj.NameSpace, obj);
             if (newLabels.Label3._IsFilled()) IndexedLabelsTable_AddInternal_Critical(newLabels.Label3 + ":" + HadbIndexColumn.Label3.ToString() + ":" + typeName + ":" + obj.NameSpace, obj);
             if (newLabels.Label4._IsFilled()) IndexedLabelsTable_AddInternal_Critical(newLabels.Label4 + ":" + HadbIndexColumn.Label4.ToString() + ":" + typeName + ":" + obj.NameSpace, obj);
+            if (newLabels.Label5._IsFilled()) IndexedLabelsTable_AddInternal_Critical(newLabels.Label5 + ":" + HadbIndexColumn.Label5.ToString() + ":" + typeName + ":" + obj.NameSpace, obj);
         }
 
         public void IndexedKeysTable_ReplaceObject_Critical(HadbObject obj, HadbIndexColumn column, string? oldKey, string? newKey)
@@ -3132,6 +3209,12 @@ public abstract class HadbMemDataBase
             if (obj != null) if (ret == null) ret = obj; else throw new CoresLibException($"Two or more objects match. Key4 = '{key.Key4}'");
         }
 
+        if (key.Key5._IsFilled())
+        {
+            var obj = data.IndexedKeysTable_SearchObject(HadbIndexColumn.Key5, typeName, key.Key5, nameSpace);
+            if (obj != null) if (ret == null) ret = obj; else throw new CoresLibException($"Two or more objects match. Key5 = '{key.Key5}'");
+        }
+
         return ret;
     }
 
@@ -3168,6 +3251,12 @@ public abstract class HadbMemDataBase
             if (obj != null) list.Add(obj);
         }
 
+        if (key.Key5._IsFilled())
+        {
+            var obj = data.IndexedKeysTable_SearchObject(HadbIndexColumn.Key5, typeName, key.Key5, nameSpace);
+            if (obj != null) list.Add(obj);
+        }
+
         return list;
     }
 
@@ -3182,6 +3271,7 @@ public abstract class HadbMemDataBase
         IEnumerable<HadbObject>? tmp2 = null;
         IEnumerable<HadbObject>? tmp3 = null;
         IEnumerable<HadbObject>? tmp4 = null;
+        IEnumerable<HadbObject>? tmp5 = null;
 
         var data = this.InternalData;
 
@@ -3209,12 +3299,19 @@ public abstract class HadbMemDataBase
             if (ret == null) ret = tmp4;
         }
 
+        if (labels.Label5._IsFilled())
+        {
+            tmp4 = data.IndexedLabelsTable_SearchObjects(HadbIndexColumn.Label5, typeName, labels.Label5, nameSpace);
+            if (ret == null) ret = tmp5;
+        }
+
         if (ret == null) return EmptyOf<HadbObject>();
 
         if (tmp1 != null && object.ReferenceEquals(ret, tmp1) == false) ret = ret.Intersect(tmp1);
         if (tmp2 != null && object.ReferenceEquals(ret, tmp2) == false) ret = ret.Intersect(tmp2);
         if (tmp3 != null && object.ReferenceEquals(ret, tmp3) == false) ret = ret.Intersect(tmp3);
         if (tmp4 != null && object.ReferenceEquals(ret, tmp4) == false) ret = ret.Intersect(tmp4);
+        if (tmp5 != null && object.ReferenceEquals(ret, tmp5) == false) ret = ret.Intersect(tmp5);
 
         return ret;
     }
@@ -3335,7 +3432,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     protected internal abstract Task<bool> AtomicDeleteQuickByUidOnDatabaseImplAsync<T>(HadbTran tran, string uid, string nameSpace, CancellationToken cancel = default);
     protected internal abstract Task<int> AtomicDeleteQuickByKeyOnDatabaseImplAsync<T>(HadbTran tran, string key, bool startWith, string nameSpace, CancellationToken cancel = default);
 
-    protected internal abstract Task AtomicAddLogImplAsync(HadbTran tran, HadbLog log, string nameSpace, string ext1, string ext2, CancellationToken cancel = default);
+    protected internal abstract Task AtomicAddLogImplAsync(HadbTran tran, HadbLog log, string nameSpace, string ext1, string ext2, string ft1, string ft2, CancellationToken cancel = default);
     protected internal abstract Task<IEnumerable<HadbLog>> AtomicSearchLogImplAsync(HadbTran tran, string typeName, HadbLogQuery query, string nameSpace, CancellationToken cancel = default);
 
     protected internal abstract Task<bool> LazyUpdateImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default);
@@ -3965,7 +4062,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                 JObject jo = (JObject)obj.UserData;
                 Type type = GetDataTypeByTypeName(obj.UserDataTypeName, EnsureSpecial.Yes);
                 HadbData data = (HadbData)jo.ToObject(type, serializer);
-                HadbObject a = new HadbObject(data, obj.Ext1, obj.Ext2, obj.Uid, obj.Ver, false, obj.SnapshotNo, obj.NameSpace, false, obj.CreateDt, obj.UpdateDt, obj.DeleteDt);
+                HadbObject a = new HadbObject(data, obj.Ext1, obj.Ext2, obj.Ft1, obj.Ft2, obj.Uid, obj.Ver, false, obj.SnapshotNo, obj.NameSpace, false, obj.CreateDt, obj.UpdateDt, obj.DeleteDt);
                 ret.Add(a);
             }
             return TR(ret);
@@ -4631,11 +4728,11 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             }
         }
 
-        public async Task<HadbObject<T>> AtomicAddAsync<T>(T data, string nameSpace = Consts.Strings.HadbDefaultNameSpace, string ext1 = "", string ext2 = "", CancellationToken cancel = default)
+        public async Task<HadbObject<T>> AtomicAddAsync<T>(T data, string nameSpace = Consts.Strings.HadbDefaultNameSpace, string ext1 = "", string ext2 = "", string ft1 = "", string ft2 = "", CancellationToken cancel = default)
             where T : HadbData
-            => (await AtomicAddAsync(data._SingleArray(), nameSpace, ext1, ext2, cancel)).Single();
+            => (await AtomicAddAsync(data._SingleArray(), nameSpace, ext1, ext2, ft1, ft2, cancel)).Single();
 
-        public async Task<List<HadbObject>> AtomicAddAsync(IEnumerable<HadbData> dataList, string nameSpace = Consts.Strings.HadbDefaultNameSpace, string ext1 = "", string ext2 = "", CancellationToken cancel = default)
+        public async Task<List<HadbObject>> AtomicAddAsync(IEnumerable<HadbData> dataList, string nameSpace = Consts.Strings.HadbDefaultNameSpace, string ext1 = "", string ext2 = "", string ft1 = "", string ft2 = "", CancellationToken cancel = default)
         {
             nameSpace = nameSpace._HadbNameSpaceNormalize();
 
@@ -4665,7 +4762,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                     }
                 }
 
-                objList.Add(data.ToNewObject(this.CurrentSnapNoForWriteMode, nameSpace, this.Hadb.Settings.OptionFlags.Bit(HadbOptionFlags.DataUidForPartitioningByUidOptimized), ext1, ext2));
+                objList.Add(data.ToNewObject(this.CurrentSnapNoForWriteMode, nameSpace, this.Hadb.Settings.OptionFlags.Bit(HadbOptionFlags.DataUidForPartitioningByUidOptimized), ext1, ext2, ft1, ft2));
             }
 
             await Hadb.AtomicAddDataListToDatabaseImplAsync(this, objList, cancel);
@@ -4862,13 +4959,13 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             await Hadb.AtomicAddSnapImplAsync(this, snap, cancel);
         }
 
-        public async Task AtomicAddLogAsync(HadbLog log, string nameSpace = Consts.Strings.HadbDefaultNameSpace, string ext1 = "", string ext2 = "", CancellationToken cancel = default)
+        public async Task AtomicAddLogAsync(HadbLog log, string nameSpace = Consts.Strings.HadbDefaultNameSpace, string ext1 = "", string ext2 = "", string ft1 = "", string ft2 = "", CancellationToken cancel = default)
         {
             nameSpace = nameSpace._HadbNameSpaceNormalize();
             CheckBegan();
             Hadb.CheckIfReady();
 
-            await Hadb.AtomicAddLogImplAsync(this, log, nameSpace, ext1, ext2, cancel);
+            await Hadb.AtomicAddLogImplAsync(this, log, nameSpace, ext1, ext2, ft1, ft2, cancel);
         }
 
         public async Task<IEnumerable<HadbLog>> AtomicSearchLogAsync<T>(HadbLogQuery query, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default) where T : HadbLog

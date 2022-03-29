@@ -994,6 +994,17 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [Flags]
+    public enum SearchableStrFlag
+    {
+        None = 0,
+        IncludeBase64InBinary = 1,
+        IncludePrintableAsciiStr = 2,
+        PrependFieldName = 4,
+
+        Default = IncludeBase64InBinary | IncludePrintableAsciiStr,
+    }
+
     // 文字列操作
     public static class Str
     {
@@ -1118,17 +1129,6 @@ namespace IPA.Cores.Basic
             }
 
             return Str.Utf8Encoding;
-        }
-
-        [Flags]
-        public enum SearchableStrFlag
-        {
-            None = 0,
-            IncludeBase64InBinary = 1,
-            IncludePrintableAsciiStr = 2,
-            PrependFieldName = 4,
-
-            Default = IncludeBase64InBinary | IncludePrintableAsciiStr,
         }
 
         public static string NormalizeStrForSearch(string s)
@@ -1272,22 +1272,30 @@ namespace IPA.Cores.Basic
 
         public static List<string> GetSearchableStrListFromObject(object? obj, SearchableStrFlag flag = SearchableStrFlag.Default)
         {
-            var walkList = Util.WalkObject(obj);
-
             List<string> tmp = new List<string>();
 
-            foreach (var item in walkList)
+            try
             {
-                var set = GetSearchableStrListFromPrimitiveData(item.Data, flag, flag.Bit(SearchableStrFlag.PrependFieldName) ? item.Name.ToLower() + "=" : "");
+                var walkList = Util.WalkObject(obj);
 
-                foreach (var s in set)
+                foreach (var item in walkList)
                 {
-                    if (s._IsFilled())
+                    try
                     {
-                        tmp.Add(s.Trim());
+                        var set = GetSearchableStrListFromPrimitiveData(item.Data, flag, flag.Bit(SearchableStrFlag.PrependFieldName) ? item.Name.ToLower() + "=" : "");
+
+                        foreach (var s in set)
+                        {
+                            if (s._IsFilled())
+                            {
+                                tmp.Add(s.Trim());
+                            }
+                        }
                     }
+                    catch { }
                 }
             }
+            catch { }
 
             return tmp;
         }
