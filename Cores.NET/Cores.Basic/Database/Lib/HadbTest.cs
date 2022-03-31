@@ -640,14 +640,23 @@ public static class HadbCodeTest
                 return true;
             }, takeSnapshot: true, snapshotNoRet: snapshot0);
 
+            var ftResults = sys1.FastSearchByFullText("a123:b456:1::c789", false, false, nameof(User), nameSpace);
+            Dbg.TestTrue(ftResults.Count == 1);
+
             var test2 = sys1.FastSearchByKey(new User() { Name = "User1" }, nameSpace);
             Dbg.TestNotNull(test2);
+            Dbg.TestTrue(test2.Ft1._InStr("a123:b456:1::c789"));
+            Dbg.TestTrue(test2.Ft1._InStr("tanaka"));
+            Dbg.TestTrue(test2.Ft1._InStr("a001"));
 
             {
                 await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
                 var test3 = sys2.FastSearchByKey(new User() { Name = "User1" }, nameSpace);
                 Dbg.TestNotNull(test2);
                 var obj = sys2.FastGet<User>(u1_uid, nameSpace);
+                Dbg.TestTrue(obj!.Ft1._InStr("a123:b456:1::c789"));
+                Dbg.TestTrue(obj.Ft1._InStr("tanaka"));
+                Dbg.TestTrue(obj.Ft1._InStr("a001"));
                 var u = obj!.GetData();
                 Dbg.TestTrue(u.Id == "u1");
                 Dbg.TestTrue(u.Name == "User1");
@@ -696,6 +705,9 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "c");
                 Dbg.TestTrue(obj.Ext2 == "3");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot1);
+                Dbg.TestTrue(obj.Ft1._InStr("a123:b456:1::c789"));
+                Dbg.TestTrue(obj.Ft1._InStr("unagi"));
+                Dbg.TestTrue(obj.Ft1._InStr("ipa"));
             }
 
             if (backupTest)
@@ -836,6 +848,9 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "a");
                 Dbg.TestTrue(obj.Ext2 == "1");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot0);
+                Dbg.TestTrue(obj.Ft1._InStr("a123:b456:1::c789"));
+                Dbg.TestTrue(obj.Ft1._InStr("a001"));
+                Dbg.TestTrue(obj.Ft1._InStr("ntt"));
                 return false;
             });
 
@@ -851,6 +866,9 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "b");
                 Dbg.TestTrue(obj.Ext2 == "2");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot0);
+                Dbg.TestTrue(obj.Ft1._InStr("af80:b456:1::c789"));
+                Dbg.TestTrue(obj.Ft1._InStr("a002"));
+                Dbg.TestTrue(obj.Ft1._InStr("ntt"));
                 return false;
             });
 
@@ -882,11 +900,13 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "c");
                 Dbg.TestTrue(obj.Ext2 == "3");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot1);
+                Dbg.TestTrue(obj.Ft1._InStr("| 300 |"));
                 obj.FastUpdate(x =>
                 {
                     x.Int1++;
                     return true;
                 });
+                Dbg.TestTrue(obj.Ft1._InStr("| 301 |"));
 
                 await sys2.LazyUpdateCoreAsync(EnsureSpecial.Yes);
             }
@@ -903,11 +923,13 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "a");
                 Dbg.TestTrue(obj.Ext2 == "1");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot0);
+                Dbg.TestTrue(obj.Ft1._InStr("| 100 |"));
                 obj.FastUpdate(x =>
                 {
                     x.Int1++;
                     return true;
                 });
+                Dbg.TestTrue(obj.Ft1._InStr("| 101 |"));
                 await sys2.LazyUpdateCoreAsync(EnsureSpecial.Yes);
             }
 
@@ -924,11 +946,13 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "c");
                 Dbg.TestTrue(obj.Ext2 == "3");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot1);
+                Dbg.TestTrue(obj.Ft1._InStr("| 301 |"));
                 obj.FastUpdate(x =>
                 {
                     x.Int1++;
                     return true;
                 });
+                Dbg.TestTrue(obj.Ft1._InStr("| 302 |"));
                 await sys1.LazyUpdateCoreAsync(EnsureSpecial.Yes);
             }
 
@@ -950,11 +974,13 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "a");
                 Dbg.TestTrue(obj.Ext2 == "1");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot0);
+                Dbg.TestTrue(obj.Ft1._InStr("| 101 |"));
                 obj.FastUpdate(x =>
                 {
                     x.Int1++;
                     return true;
                 });
+                Dbg.TestTrue(obj.Ft1._InStr("| 102 |"));
                 await sys1.LazyUpdateCoreAsync(EnsureSpecial.Yes);
             }
 
@@ -994,7 +1020,7 @@ public static class HadbCodeTest
             Dbg.TestTrue(sys2.MemDb!.InternalData.IndexedLabelsTable.Where(x => x.Key._InStri(nameSpace)).Sum(x => x.Value.Count) == (2 * 3));
 
             {
-                // AtomicSearchByKeyAsync を実行した結果 sys2 のメモリが更新されていないことを検査
+                // AtomicSearchByKeyAsync を実行後 abort した結果 sys2 のメモリが更新されていないことを検査
                 var obj = sys2.FastSearchByLabels(new User { Company = "ntt", LastIp = "A123:b456:0001:0000:0000:0000:0000:c789" }, nameSpace).Single();
                 var u = obj.GetData();
                 Dbg.TestTrue(u.Id == "u1");
@@ -1011,6 +1037,9 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "a");
                 Dbg.TestTrue(obj.Ext2 == "1");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot0);
+                Dbg.TestTrue(obj.Ft1._InStr("| 101 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| a001 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| ntt |"));
             }
 
             RefLong snapshot2 = new RefLong();
@@ -1027,6 +1056,9 @@ public static class HadbCodeTest
                     $"------ WRONG 1 ! ------\nuid = {obj.Uid}\nu = {u.GetUserDataJsonString()}\n"._Error();
                 }
                 Dbg.TestTrue(u.Int1 == 102);
+                Dbg.TestTrue(obj.Ft1._InStr("| 102 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| a001 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| ntt |"));
 
                 u.Company = "SoftEther";
                 u.AuthKey = "x001";
@@ -1040,6 +1072,11 @@ public static class HadbCodeTest
                 obj.Ext2 = "99";
 
                 var x = await tran.AtomicUpdateAsync(obj);
+
+                Dbg.TestTrue(u.Int1 == 103);
+                Dbg.TestTrue(obj.Ft1._InStr("| 103 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| x001 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| softether |"));
 
                 return true;
             }, takeSnapshot: true, snapshotNoRet: snapshot2);
@@ -1067,6 +1104,9 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "z");
                 Dbg.TestTrue(obj.Ext2 == "99");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot2);
+                Dbg.TestTrue(obj.Ft1._InStr("| 103 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| x001 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| softether |"));
             }
 
             Dbg.TestTrue(sys1.MemDb!.InternalData.IndexedKeysTable.Where(x => x.Key._InStri(nameSpace)).Count() == (4 * 3));
@@ -1092,12 +1132,20 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "z");
                 Dbg.TestTrue(obj.Ext2 == "99");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot2);
+                Dbg.TestTrue(obj.Ft1._InStr("| 103 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| x001 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| softether |"));
+
                 obj.FastUpdate(x =>
                 {
                     x.Int1++;
                     return true;
                 });
                 await sys1.LazyUpdateCoreAsync(EnsureSpecial.Yes);
+
+                Dbg.TestTrue(obj.Ft1._InStr("| 104 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| x001 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| softether |"));
             }
 
             await sys2.ReloadCoreAsync(EnsureSpecial.Yes);
@@ -1115,6 +1163,10 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "z");
                 Dbg.TestTrue(obj.Ext2 == "99");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot2);
+
+                Dbg.TestTrue(obj.Ft1._InStr("| 104 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| x001 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| softether |"));
 
                 // 追加テスト: キー値またはラベル値の変更でエラーが発生することを確認
                 obj.FastUpdate(x =>
@@ -1143,6 +1195,10 @@ public static class HadbCodeTest
                         return true;
                     });
                 });
+
+                Dbg.TestTrue(obj.Ft1._InStr("| 104 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| x001 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| softether |"));
             }
 
             await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
@@ -1163,6 +1219,10 @@ public static class HadbCodeTest
                 u.Int1++;
 
                 await tran.AtomicUpdateAsync(obj);
+
+                Dbg.TestTrue(obj.Ft1._InStr("| 105 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| x001 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| softether |"));
 
                 return true;
             }, takeSnapshot: true, snapshotNoRet: snapshot3);
@@ -1190,12 +1250,22 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "z");
                 Dbg.TestTrue(obj.Ext2 == "99");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot2);
+
+                Dbg.TestTrue(obj.Ft1._InStr("| 104 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| x001 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| softether |"));
+
                 obj.FastUpdate(x =>
                 {
                     x.Int1 = 555;
                     return true;
                 });
+
                 await sys1.LazyUpdateCoreAsync(EnsureSpecial.Yes);
+
+                Dbg.TestTrue(obj.Ft1._InStr("| 555 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| x001 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| softether |"));
             }
 
             await sys1.ReloadCoreAsync(EnsureSpecial.Yes);
@@ -1208,6 +1278,10 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "p");
                 Dbg.TestTrue(obj.Ext2 == "1234");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot3);
+
+                Dbg.TestTrue(obj.Ft1._InStr("| 105 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| x001 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| softether |"));
             }
 
             {
@@ -1217,6 +1291,10 @@ public static class HadbCodeTest
                 Dbg.TestTrue(obj.Ext1 == "p");
                 Dbg.TestTrue(obj.Ext2 == "1234");
                 Dbg.TestTrue(obj.SnapshotNo == snapshot3);
+
+                Dbg.TestTrue(obj.Ft1._InStr("| 105 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| x001 |"));
+                Dbg.TestTrue(obj.Ft1._InStr("| softether |"));
             }
 
             // キーが重複するような更新に失敗するかどうか (メモリデータベースの検査)

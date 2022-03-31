@@ -54,6 +54,196 @@ using static IPA.Cores.Globals.Basic;
 namespace IPA.Cores.Basic
 {
     [Flags]
+    public enum FullTextSearchFlags : long
+    {
+        None = 0,
+        WordMode = 1,
+        FieldNameMode = 2,
+    }
+
+    public class FullTextSearchQuery
+    {
+        public FullTextSearchFlags Flags = FullTextSearchFlags.None;
+        public bool AndMode = true;
+        public List<ValueTuple<bool, string>> WordList = new List<ValueTuple<bool, string>>();
+
+        [MethodImpl(Inline)]
+        public static bool IsWhiteSpace(char c)
+        {
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r') return true;
+            return false;
+        }
+
+        public bool IsMatch(string targetStrNormalized)
+        {
+            if (this.WordList.Any() == false)
+            {
+                return true;
+            }
+
+            if (this.AndMode == false && this.WordList.Any(x => x.Item1 == false)) return false; // OR モードでかつ否定単語が付いている場合は、絶対に一致しないものとする
+
+            foreach (var item in this.WordList)
+            {
+                string ss = item.Item2;
+
+                if (this.Flags.Bit(FullTextSearchFlags.WordMode))
+                {
+                    ss = "| " + ss + " |";
+                }
+
+                bool inStr = Str.InStr(targetStrNormalized, ss, true);
+
+                if (item.Item1 == false)
+                {
+                    inStr = !inStr;
+                }
+
+                if (this.AndMode)
+                {
+                    if (inStr == false)
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    if (inStr)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            if (this.AndMode)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public static FullTextSearchQuery ParseText(string queryStr, FullTextSearchFlags flags = FullTextSearchFlags.None)
+        {
+            queryStr = queryStr._NonNullTrim();
+
+            // aaa and "bbb ccc" and ddd  とかを入力したやつを、まず、"" を意識して単語分離します。
+            List<string> wordList = new List<string>();
+
+            int mode = 0;
+            bool isInWord = false;
+            char wordChar = (char)0;
+
+            StringBuilder currentToken = new StringBuilder();
+
+            foreach (char c in queryStr)
+            {
+                bool isWhiteSpace = IsWhiteSpace(c);
+
+                LABEL1:
+                if (mode == 0)
+                {
+                    if (isWhiteSpace == false || isInWord)
+                    {
+                        currentToken.Append(c);
+
+                        if (isInWord == false && (c == '\"' || c == '\''))
+                        {
+                            isInWord = true;
+                            wordChar = c;
+                        }
+                        else if (isInWord && c == wordChar)
+                        {
+                            wordChar = (char)0;
+                            isInWord = false;
+                        }
+                    }
+                    else
+                    {
+                        wordList.Add(currentToken.ToString());
+                        currentToken.Clear();
+                        mode = 1;
+                    }
+                }
+                else if (mode == 1)
+                {
+                    wordChar = (char)0;
+                    if (isWhiteSpace == false)
+                    {
+                        mode = 0;
+                        goto LABEL1;
+                    }
+                }
+            }
+
+            wordList.Add(currentToken.ToString());
+
+            int numAnd = 0;
+            int numOr = 0;
+
+            // 次に、各単語リストを分解します。
+            foreach (string word in wordList)
+            {
+                if (word._IsFilled())
+                {
+                    if (word._IsSamei("and"))
+                    {
+                        numAnd++;
+                    }
+                    else if (word._IsSamei("or"))
+                    {
+                        numOr++;
+                    }
+                }
+            }
+
+            if (numAnd != 0 && numOr != 0)
+            {
+                throw new CoresException($"The specified search query string '{queryStr}' contains both AND and OR operators. You can use either AND or OR in a single search query string.");
+            }
+
+            FullTextSearchQuery ret = new FullTextSearchQuery();
+
+            ret.AndMode = (numOr == 0); // true: AND モード、false: OR モード
+
+            ret.Flags = flags;
+
+            foreach (string word in wordList)
+            {
+                if (word._IsFilled() && word._IsDiffi("and") && word._IsDiffi("or"))
+                {
+                    string word2;
+                    bool wordFlag;
+
+                    if (word.StartsWith("-"))
+                    {
+                        word2 = word.Substring(1);
+                        wordFlag = false;
+                    }
+                    else
+                    {
+                        word2 = word;
+                        wordFlag = true;
+                    }
+
+                    word2 = word2._RemoveQuotation();
+
+                    word2 = Str.NormalizeStrForSearch(word2);
+
+                    if (word2._IsFilled())
+                    {
+                        ret.WordList.Add(new ValueTuple<bool, string>(wordFlag, word2));
+                    }
+                }
+            }
+
+            return ret;
+        }
+    }
+
+    [Flags]
     public enum CrlfStyle
     {
         LocalPlatform,
@@ -1133,7 +1323,7 @@ namespace IPA.Cores.Basic
 
         public static string NormalizeStrForSearch(string s)
         {
-            s = s.ToLowerInvariant();
+            s = s._NonNullTrim().ToLowerInvariant();
 
             Str.NormalizeString(ref s, false, true, false, true);
 

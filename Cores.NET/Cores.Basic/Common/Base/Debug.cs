@@ -1066,7 +1066,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static void TestNotNull(object? obj, string? message = "", [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
+        public static void TestNotNull([NotNull] object? obj, string? message = "", [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null)
         {
             if (obj == null)
             {

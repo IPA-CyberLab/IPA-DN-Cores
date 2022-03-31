@@ -1669,7 +1669,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         var labels = data.GetLabels();
         if (data.Deleted) throw new CoresLibException("data.Deleted == true");
 
-        string query = "update HADB_DATA with (ROWLOCK) set DATA_VALUE = @DATA_VALUE, DATA_UPDATE_DT = @DATA_UPDATE_DT, DATA_LAZY_COUNT1 = DATA_LAZY_COUNT1 + 1, DATA_LAZY_COUNT2 = DATA_LAZY_COUNT2 + 1 " +
+        string query = "update HADB_DATA with (ROWLOCK) set DATA_VALUE = @DATA_VALUE, DATA_FT1 = @DATA_FT1, DATA_FT2 = @DATA_FT2, DATA_UPDATE_DT = @DATA_UPDATE_DT, DATA_LAZY_COUNT1 = DATA_LAZY_COUNT1 + 1, DATA_LAZY_COUNT2 = DATA_LAZY_COUNT2 + 1 " +
             "where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_VER = @DATA_VER and DATA_UPDATE_DT < @DATA_UPDATE_DT and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE = 0 and DATA_DELETED = 0 and " +
             "DATA_KEY1 = @DATA_KEY1 and DATA_KEY2 = @DATA_KEY2 and DATA_KEY3 = @DATA_KEY3 and DATA_KEY4 = @DATA_KEY4 and DATA_KEY5 = @DATA_KEY5 and " +
             "DATA_LABEL1 = @DATA_LABEL1 and DATA_LABEL2 = @DATA_LABEL2 and DATA_LABEL3 = @DATA_LABEL3 and DATA_LABEL4 = DATA_LABEL4 and DATA_LABEL5 = DATA_LABEL5";
@@ -1696,6 +1696,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 DATA_LABEL3 = labels.Label3,
                 DATA_LABEL4 = labels.Label4,
                 DATA_LABEL5 = labels.Label5,
+                DATA_FT1 = data.Ft1,
+                DATA_FT2 = data.Ft2,
             });
 
         return ret >= 1;
@@ -2240,6 +2242,13 @@ public abstract class HadbLog : INormalizable
         => (T)this;
 }
 
+[Flags]
+public enum HadbDataFlags : long
+{
+    None = 0,
+    NoFullTextSearch = 1,
+}
+
 public abstract class HadbData : INormalizable
 {
     public virtual HadbKeys GetKeys() => new HadbKeys("");
@@ -2247,6 +2256,7 @@ public abstract class HadbData : INormalizable
     public virtual int GetMaxArchivedCount() => int.MaxValue;
     public virtual string GenerateFt1() => Str.GenerateSearchableStrFromObject(this, SearchableStrFlag.Default);
     public virtual string GenerateFt2() => Str.GenerateSearchableStrFromObject(this, SearchableStrFlag.Default | SearchableStrFlag.PrependFieldName);
+    public virtual HadbDataFlags GetDataFlags() => HadbDataFlags.None;
 
     public abstract void Normalize();
 
@@ -2333,6 +2343,7 @@ public sealed class HadbObject<T> : INormalizable // 単なるラッパー
     public HadbLabels GetLabels() => TargetObject.GetLabels();
     public T GetData() => TargetObject.GetData<T>();
     public T Data => GetData();
+    public void UpdateFullText() => TargetObject.UpdateFullText();
 
     public HadbObject<T> CloneObject() => new HadbObject<T>(TargetObject.CloneObject());
 
@@ -2623,8 +2634,20 @@ public sealed class HadbObject : INormalizable
                 throw new CoresLibException($"FastUpdate: updateFunc changed the label value. Old labels = {oldLabels._ObjectToJson(compact: true)}, New labels = {newLables._ObjectToJson(compact: true)}");
             }
 
+            string newFt1 = "";
+            string newFt2 = "";
+
+            if (this.UserData.GetDataFlags().Bit(HadbDataFlags.NoFullTextSearch) == false)
+            {
+                newFt1 = userData.GenerateFt1();
+                newFt2 = userData.GenerateFt2();
+            }
+
             this.UserData = userData._CloneDeep();
             this.UpdateDt = DtOffsetNow;
+
+            this._Ft1 = newFt1;
+            this._Ft2 = newFt2;
 
             this.InternalFastUpdateVersion++;
 
@@ -2712,6 +2735,21 @@ public sealed class HadbObject : INormalizable
 
     public HadbObject<T> GetGenerics<T>() where T : HadbData
         => new HadbObject<T>(this);
+
+    public void UpdateFullText()
+    {
+        string newFt1 = "";
+        string newFt2 = "";
+
+        if (this.UserData.GetDataFlags().Bit(HadbDataFlags.NoFullTextSearch) == false)
+        {
+            newFt1 = this.UserData.GenerateFt1();
+            newFt2 = this.UserData.GenerateFt2();
+        }
+
+        this._Ft1 = newFt1;
+        this._Ft2 = newFt2;
+    }
 
     public void Normalize()
     {
@@ -3348,6 +3386,13 @@ public enum HadbEventType
     DynamicConfigChanged = 0,
     ReloadDataFull,
     ReloadDataPartially,
+}
+
+[Flags]
+public enum HadbSearchFlags : long
+{
+    None = 0,
+    WordMode = 1,
 }
 
 public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
@@ -4439,6 +4484,91 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         return ret;
     }
 
+    public List<HadbObject> FastSearchByFullText(string queryString, bool wordMode, bool fieldMode, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace, FullTextSearchFlags optionalFlags = FullTextSearchFlags.None)
+    {
+        FullTextSearchFlags flags2 = FullTextSearchFlags.None;
+
+        if (wordMode)
+        {
+            flags2 |= FullTextSearchFlags.WordMode;
+        }
+
+        if (fieldMode)
+        {
+            flags2 |= FullTextSearchFlags.FieldNameMode;
+        }
+
+        flags2 |= optionalFlags;
+
+        FullTextSearchQuery q = FullTextSearchQuery.ParseText(queryString, flags2);
+
+        return FastSearchByFullText(q, typeName, nameSpace);
+    }
+
+    public List<HadbObject> FastSearchByFullText(FullTextSearchQuery query, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace)
+    {
+        nameSpace = nameSpace._HadbNameSpaceNormalize();
+        this.CheckIfReady(requireDatabaseConnected: false);
+        this.CheckMemDb();
+
+        var mem = this.MemDb!;
+
+        var allObjects = mem.GetAllObjects();
+
+        var objList = allObjects.Values.ToList();
+
+        int numCpus = 1;// Env.NumCpus;
+
+        var matchList = objList._ProcessParallelAndAggregateAsync((srcList, taskIndex) =>
+        {
+            List<HadbObject> tmp = new List<HadbObject>();
+
+            foreach (var item in srcList)
+            {
+                bool b2 = true;
+
+                if (typeName._IsFilled())
+                {
+                    if (item.UserDataTypeName._IsSamei(typeName) == false)
+                    {
+                        b2 = false;
+                    }
+                }
+
+                if (nameSpace._IsFilled())
+                {
+                    if (item.NameSpace != nameSpace)
+                    {
+                        b2 = false;
+                    }
+                }
+
+                if (b2)
+                {
+                    bool b;
+
+                    if (query.Flags.Bit(FullTextSearchFlags.FieldNameMode) == false)
+                    {
+                        b = query.IsMatch(item.Ft1);
+                    }
+                    else
+                    {
+                        b = query.IsMatch(item.Ft2);
+                    }
+
+                    if (b)
+                    {
+                        tmp.Add(item);
+                    }
+                }
+            }
+
+            return TR(tmp);
+        }, numCpus, MultitaskDivideOperation.Split, onlyIfMany: false)._GetResult();
+
+        return matchList;
+    }
+
     public IEnumerable<HadbObject<T>> FastSearchByLabels<T>(T model, string nameSpace = Consts.Strings.HadbDefaultNameSpace) where T : HadbData
     {
         model.Normalize();
@@ -4728,11 +4858,11 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             }
         }
 
-        public async Task<HadbObject<T>> AtomicAddAsync<T>(T data, string nameSpace = Consts.Strings.HadbDefaultNameSpace, string ext1 = "", string ext2 = "", string ft1 = "", string ft2 = "", CancellationToken cancel = default)
+        public async Task<HadbObject<T>> AtomicAddAsync<T>(T data, string nameSpace = Consts.Strings.HadbDefaultNameSpace, string ext1 = "", string ext2 = "", CancellationToken cancel = default)
             where T : HadbData
-            => (await AtomicAddAsync(data._SingleArray(), nameSpace, ext1, ext2, ft1, ft2, cancel)).Single();
+            => (await AtomicAddAsync(data._SingleArray(), nameSpace, ext1, ext2, cancel)).Single();
 
-        public async Task<List<HadbObject>> AtomicAddAsync(IEnumerable<HadbData> dataList, string nameSpace = Consts.Strings.HadbDefaultNameSpace, string ext1 = "", string ext2 = "", string ft1 = "", string ft2 = "", CancellationToken cancel = default)
+        public async Task<List<HadbObject>> AtomicAddAsync(IEnumerable<HadbData> dataList, string nameSpace = Consts.Strings.HadbDefaultNameSpace, string ext1 = "", string ext2 = "", CancellationToken cancel = default)
         {
             nameSpace = nameSpace._HadbNameSpaceNormalize();
 
@@ -4760,6 +4890,15 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                     {
                         throw new CoresLibException($"Duplicated key in the memory database. Namespace = {nameSpace}, Keys = {keys._ObjectToJson(compact: true)}");
                     }
+                }
+
+                string ft1 = "";
+                string ft2 = "";
+
+                if (data.GetDataFlags().Bit(HadbDataFlags.NoFullTextSearch) == false)
+                {
+                    ft1 = data.GenerateFt1();
+                    ft2 = data.GenerateFt2();
                 }
 
                 objList.Add(data.ToNewObject(this.CurrentSnapNoForWriteMode, nameSpace, this.Hadb.Settings.OptionFlags.Bit(HadbOptionFlags.DataUidForPartitioningByUidOptimized), ext1, ext2, ft1, ft2));
@@ -4815,6 +4954,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
             obj.CheckIsNotMemoryDbObject();
             obj.Normalize();
+
+            obj.UpdateFullText();
 
             var keys = obj.GetKeys();
 

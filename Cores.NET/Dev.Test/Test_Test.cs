@@ -3486,26 +3486,28 @@ cccadmin
 
     public static void Test_Generic()
     {
+        if (false)
+        {
+            Async(async () =>
+            {
+                await Task.CompletedTask;
+                while (true)
+                {
+                    string s = Con.ReadLine(" > ")._NonNullTrim();
+                    var q = FullTextSearchQuery.ParseText(s);
+                    foreach (var item in q.WordList)
+                    {
+                        $"{item.Item1}  {item.Item2}"._Print();
+                    }
+                }
+                return;
+            });
+        }
 
         if (false)
         {
             Test_220315_BackupServer_CreateBatch_For_SetAcl();
             return;
-        }
-
-        if (false)
-        {
-            Async(async () =>
-            {
-                while (true)
-                {
-                    string s = Con.ReadLine(" > ")._NonNullTrim();
-                    bool r = await IPUtil.CheckTcpPortAsync(s, 80);
-                    r._Print();
-                    ""._Print();
-                }
-                return;
-            });
         }
 
         if (true)
