@@ -1417,17 +1417,18 @@ namespace IPA.Cores.Basic
                 }
                 else if (o is DateTime dt)
                 {
+                    tmp.Add(dt._ToDtStr(true));
                     tmp.Add(dt._ToDtStr(true, withNanoSecs: true));
                     tmp.Add(dt._ToYymmddStr() + dt._ToHhmmssStr());
                     tmp.Add(dt._ToYymmddStr() + " " + dt._ToHhmmssStr());
                 }
                 else if (o is DateTimeOffset dto)
                 {
+                    tmp.Add(dto._ToDtStr(true));
                     tmp.Add(dto._ToDtStr(true, withNanoSecs: true));
+                    tmp.Add(dto.UtcDateTime._AsDateTimeOffset(false, true)._ToDtStr(true));
                     tmp.Add(dto.UtcDateTime._AsDateTimeOffset(false, true)._ToDtStr(true, withNanoSecs: true));
-                    tmp.Add(dto.UtcDateTime._AsDateTimeOffset(false, false)._ToDtStr(true, withNanoSecs: true));
-
-                    tmp.Add(dto.UtcDateTime._AsDateTimeOffset(false, true)._ToDtStr(true, withNanoSecs: true));
+                    tmp.Add(dto.UtcDateTime._AsDateTimeOffset(false, false)._ToDtStr(true));
                     tmp.Add(dto.UtcDateTime._AsDateTimeOffset(false, false)._ToDtStr(true, withNanoSecs: true));
 
                     tmp.Add(dto._ToYymmddStr() + dto._ToHhmmssStr());
