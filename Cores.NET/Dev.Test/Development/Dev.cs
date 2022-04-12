@@ -203,6 +203,10 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
     public string Service_SendMail_MailFromAddress = "";
     public int Service_BasicQuota_DurationSecs = 3600;
     public int Service_BasicQuota_LimitationCount = 10;
+    public int Service_FullTextSearchResultsCountMax = 0;
+    public int Service_FullTextSearchResultsCountStandard = 0;
+    public int Service_FullTextSearchResultsCountInternalMemory = 0;
+
 
     protected override void NormalizeImpl()
     {
@@ -224,6 +228,10 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
 
         if (Service_BasicQuota_DurationSecs <= 0) Service_BasicQuota_DurationSecs = 3600;
         if (Service_BasicQuota_LimitationCount <= 0) Service_BasicQuota_LimitationCount = 10;
+
+        if (this.Service_FullTextSearchResultsCountMax <= 0) Service_FullTextSearchResultsCountMax = Consts.Numbers.HadbFullTextSearchResultsMaxDefault;
+        if (this.Service_FullTextSearchResultsCountStandard <= 0) Service_FullTextSearchResultsCountStandard = Consts.Numbers.HadbFullTextSearchResultsStandardDefault;
+        if (this.Service_FullTextSearchResultsCountInternalMemory <= 0) Service_FullTextSearchResultsCountInternalMemory = Consts.Numbers.HadbFullTextSearchResultsInternalMemoryDefault;
 
         base.NormalizeImpl();
     }
@@ -286,10 +294,49 @@ public abstract class HadbBasedServiceHookBase
 {
 }
 
+public class HadbFullTextSearchResultObject
+{
+    public string Uid = "";
+    public long Ver;
+    public DateTimeOffset CreateDt;
+    public DateTimeOffset UpdateDt;
+    public bool Archived;
+    public string NameSpace = "";
+    public string TypeName = "";
+    public string? Ext1;
+    public string? Ext2;
+    public HadbData Data = null!;
+
+    public HadbFullTextSearchResultObject() { }
+
+    public HadbFullTextSearchResultObject(HadbObject src)
+    {
+        this.Uid = src.Uid;
+        this.Ver = src.Ver;
+        this.CreateDt = src.CreateDt;
+        this.UpdateDt = src.UpdateDt;
+        this.Archived = src.Archive;
+        this.NameSpace = src.NameSpace;
+        this.TypeName = src.UserDataTypeName;
+        this.Ext1 = src.Ext1._NullIfEmpty();
+        this.Ext2 = src.Ext2._NullIfEmpty();
+        this.Data = src.UserData;
+    }
+}
+
+public class HadbFullTextSearchResult
+{
+    public int NumResultObjects;
+    public int NumTotalObjects;
+    public bool HasMore;
+    public List<HadbFullTextSearchResultObject> ObjectsList = new List<HadbFullTextSearchResultObject>();
+}
+
 [RpcInterface]
 public interface IHadbBasedServiceRpcBase
 {
     public Task<EasyJsonStrAttributes> ServiceAdmin_GetHadbStat();
+    public Task<HadbFullTextSearchResult> ServiceAdmin_FullTextSearch(string queryText = "", string sortBy = "", bool wordMode = false, bool fieldNameMode = false, string typeName = "", string nameSpace = "", int maxResults = 0);
 }
 
 public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, THook> : AsyncService, IHadbBasedServiceRpcBase
@@ -536,6 +583,40 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
     public Task<EasyJsonStrAttributes> ServiceAdmin_GetHadbStat()
     {
         return this.Hadb.LatestStatData!._TR();
+    }
+
+    public Task<HadbFullTextSearchResult> ServiceAdmin_FullTextSearch(string queryText, string sortBy, bool wordMode, bool fieldNameMode, string typeName, string nameSpace, int maxResults)
+    {
+        if (maxResults <= 0 || maxResults == int.MaxValue)
+        {
+            maxResults = Hadb.CurrentDynamicConfig.Service_FullTextSearchResultsCountStandard;
+        }
+        else
+        {
+            if (maxResults > Hadb.CurrentDynamicConfig.Service_FullTextSearchResultsCountMax)
+            {
+                throw new CoresException($"FullTextSearch: {nameof(maxResults)} must be equal or less than {Hadb.CurrentDynamicConfig.Service_FullTextSearchResultsCountMax}.");
+            }
+        }
+
+        RefBool hasMore = new RefBool();
+
+        var objList = Hadb.FastSearchByFullText(queryText, sortBy, wordMode, fieldNameMode, typeName, nameSpace, maxResults, Hadb.CurrentDynamicConfig.Service_FullTextSearchResultsCountInternalMemory, hasMore: hasMore);
+        var metrics = Hadb.GetCurrentMetrics();
+
+        HadbFullTextSearchResult ret = new HadbFullTextSearchResult
+        {
+            NumTotalObjects = metrics.NumMemoryObjects,
+            NumResultObjects = objList.Count,
+            HasMore = hasMore,
+        };
+
+        foreach (var obj in objList)
+        {
+            ret.ObjectsList.Add(new HadbFullTextSearchResultObject(obj));
+        }
+
+        return ret._TR();
     }
 }
 

@@ -66,6 +66,9 @@ namespace IPA.Cores.Basic
         public FullTextSearchFlags Flags = FullTextSearchFlags.None;
         public bool AndMode = true;
         public List<ValueTuple<bool, string>> WordList = new List<ValueTuple<bool, string>>();
+        public int MaxResults = int.MaxValue;
+        public int MaxResultsBeforeSortInternal = int.MaxValue;
+        public string SortFields = "";
 
         [MethodImpl(Inline)]
         public static bool IsWhiteSpace(char c)
@@ -74,7 +77,7 @@ namespace IPA.Cores.Basic
             return false;
         }
 
-        public bool IsMatch(string targetStrNormalized)
+        public bool IsMatch(string targetStrNormalized, string? targetStrExactMatch = null)
         {
             if (this.WordList.Any() == false)
             {
@@ -93,6 +96,11 @@ namespace IPA.Cores.Basic
                 }
 
                 bool inStr = Str.InStr(targetStrNormalized, ss, true);
+
+                if (inStr == false && targetStrExactMatch._IsFilled())
+                {
+                    inStr = Str.StrCmpi(targetStrExactMatch, ss);
+                }
 
                 if (item.Item1 == false)
                 {
@@ -1409,15 +1417,18 @@ namespace IPA.Cores.Basic
                 }
                 else if (o is DateTime dt)
                 {
-                    tmp.Add(dt._ToDtStr(true));
+                    tmp.Add(dt._ToDtStr(true, withNanoSecs: true));
                     tmp.Add(dt._ToYymmddStr() + dt._ToHhmmssStr());
                     tmp.Add(dt._ToYymmddStr() + " " + dt._ToHhmmssStr());
                 }
                 else if (o is DateTimeOffset dto)
                 {
-                    tmp.Add(dto._ToDtStr(true));
-                    tmp.Add(dto.UtcDateTime._AsDateTimeOffset(false, true)._ToDtStr(true));
-                    tmp.Add(dto.UtcDateTime._AsDateTimeOffset(false, false)._ToDtStr(true));
+                    tmp.Add(dto._ToDtStr(true, withNanoSecs: true));
+                    tmp.Add(dto.UtcDateTime._AsDateTimeOffset(false, true)._ToDtStr(true, withNanoSecs: true));
+                    tmp.Add(dto.UtcDateTime._AsDateTimeOffset(false, false)._ToDtStr(true, withNanoSecs: true));
+
+                    tmp.Add(dto.UtcDateTime._AsDateTimeOffset(false, true)._ToDtStr(true, withNanoSecs: true));
+                    tmp.Add(dto.UtcDateTime._AsDateTimeOffset(false, false)._ToDtStr(true, withNanoSecs: true));
 
                     tmp.Add(dto._ToYymmddStr() + dto._ToHhmmssStr());
                     tmp.Add(dto._ToYymmddStr() + " " + dto._ToHhmmssStr());

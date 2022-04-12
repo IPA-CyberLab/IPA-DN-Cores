@@ -3235,18 +3235,11 @@ public static class BasicHelper
         return thisFamily >= targetFamily;
     }
 
-    public static void _DoSortBy<T>(this List<T> list, Func<List<T>, IOrderedEnumerable<T>> sortFunc)
-    {
-        var result = sortFunc(list).ToList();
+    public static void _DoSortBy<T>(this List<T> list, Func<List<T>, IEnumerable<T>> sortFunc)
+        => Util.DoSortBy(list, sortFunc);
 
-        if (result.Count != list.Count())
-        {
-            throw new CoresLibException("result.Count != list.Count()");
-        }
-
-        list.Clear();
-        list.AddRange(result);
-    }
+    public static void _DoSortBy<T>(this List<T> list, string fieldNames)
+        => Util.DoSortBy(list, fieldNames);
 
     public static IOrderedEnumerable<T> _OrderByValue<T>(this IEnumerable<T> list)
         => list.OrderBy(x => x);
@@ -3530,6 +3523,9 @@ public static class BasicHelper
         }
         return false;
     }
+
+    public static object? _GetValueByDottedFieldNames(this object? targetObject, string fieldName, bool ignoreCase = false, bool returnNullIfError = false, string? defaultFirstFieldName = null)
+        => FieldReaderWriter.GetFieldValueByDottedFieldNames(targetObject, fieldName, ignoreCase, returnNullIfError, defaultFirstFieldName);
 }
 
 

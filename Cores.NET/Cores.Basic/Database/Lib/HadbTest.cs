@@ -640,7 +640,7 @@ public static class HadbCodeTest
                 return true;
             }, takeSnapshot: true, snapshotNoRet: snapshot0);
 
-            var ftResults = sys1.FastSearchByFullText("a123:b456:1::c789", false, false, nameof(User), nameSpace);
+            var ftResults = sys1.FastSearchByFullText("a123:b456:1::c789", "", false, false, nameof(User), nameSpace);
             Dbg.TestTrue(ftResults.Count == 1);
 
             var test2 = sys1.FastSearchByKey(new User() { Name = "User1" }, nameSpace);

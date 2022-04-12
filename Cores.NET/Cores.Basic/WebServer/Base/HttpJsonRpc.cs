@@ -356,10 +356,13 @@ public class JsonRpcHttpServer : JsonRpcServer
 
             string sampleStr = p.SampleValueOneLineStr._IsEmpty() ? "" : $"<p>Input Example: <code>{p.SampleValueOneLineStr._RemoveQuotation()._EncodeHtmlCodeBlock()}</code></p>";
 
+            string defaultValueStr = p.DefaultValue._ObjectToJson(compact: true);
+            if (p.DefaultValue == null) defaultValueStr = "";
+
             string controlStr = $@"
                     <div class='field'>
                         <p class='control'>
-                            <input class='input is-info text-box single-line' name='{p.Name}' type='text' value='' />
+                            <input class='input is-info text-box single-line' name='{p.Name}' type='text' value='{defaultValueStr._RemoveQuotation()._EncodeHtml()}' />
                             {sampleStr}
 <p>{p.Description._EncodeHtml()}</p>
                         </p>
@@ -802,7 +805,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 requireAuthStr = "<i class='fas fa-key'></i> ";
             }
 
-            string titleStr = $"<a href='./{m.Name}/'><b><i class='fab fa-wpforms'></i> {requireAuthStr}API Web Form #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? " <BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
+            string titleStr = $"<a href='{this.WebFormBaseAbsoluteUrlPath}{m.Name}/'><b><i class='fab fa-wpforms'></i> {requireAuthStr}API Web Form #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? " <BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
 
             //w.WriteLine();
             //w.WriteLine($"- {helpStr}");

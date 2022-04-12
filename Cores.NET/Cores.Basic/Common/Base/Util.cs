@@ -3512,6 +3512,101 @@ namespace IPA.Cores.Basic
                 }
             }
         }
+
+        public static void DoSortBy<T>(List<T> list, Func<List<T>, IEnumerable<T>> sortFunc)
+        {
+            var result = sortFunc(list).ToList();
+
+            if (result.Count != list.Count())
+            {
+                throw new CoresLibException("result.Count != list.Count()");
+            }
+
+            list.Clear();
+            list.AddRange(result);
+        }
+
+        // fieldname1, fieldname2, obj.fieldname3 のような感じでソートする。
+        // + を付けると正順ソート、- または ! を付けると逆順ソートになる。
+        public static IEnumerable<T> OrderByFieldNames<T>(IEnumerable<T> obj, string fieldNames, int maxFields = 4)
+        {
+            var tokens = fieldNames._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', ',', '\t', '\r', '\n', '　');
+
+            IEnumerable<T> current = obj;
+
+            int num = 0;
+
+            foreach (var token in tokens)
+            {
+                bool asc = true;
+
+                string token2 = token;
+
+                if (token2.StartsWith("+"))
+                {
+                    token2 = token2.Substring(1);
+                }
+                else if (token.StartsWith("!") || token.StartsWith("-"))
+                {
+                    token2 = token2.Substring(1);
+                    asc = false;
+                }
+
+                if (token2._IsFilled())
+                {
+                    if (num >= maxFields)
+                    {
+                        throw new CoresLibException($"num ({num}) >= maxFields ({maxFields})");
+                    }
+
+                    if (num == 0)
+                    {
+                        if (asc)
+                        {
+                            current = current.OrderBy(x => GetFieldValueByDottedFieldNamesHelper_HadbSpecial(x, token2, true, true));
+                        }
+                        else
+                        {
+                            current = current.OrderByDescending(x => GetFieldValueByDottedFieldNamesHelper_HadbSpecial(x, token2, true, true));
+                        }
+                    }
+                    else
+                    {
+                        if (asc)
+                        {
+                            current = ((IOrderedEnumerable<T>)current).ThenBy(x => GetFieldValueByDottedFieldNamesHelper_HadbSpecial(x, token2, true, true));
+                        }
+                        else
+                        {
+                            current = ((IOrderedEnumerable<T>)current).ThenByDescending(x => GetFieldValueByDottedFieldNamesHelper_HadbSpecial(x, token2, true, true));
+                        }
+                    }
+
+                    num++;
+                }
+            }
+
+            static object? GetFieldValueByDottedFieldNamesHelper_HadbSpecial(object? targetObject, string fieldName, bool ignoreCase = false, bool returnNullIfError = false, string? defaultFirstFieldName = null)
+            {
+                fieldName = fieldName._NonNullTrim();
+
+                if (fieldName._TryTrimStartWith(out fieldName, ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal, ".meta.", "meta.", ".metadata.", "metadata.", "_.", "._.", ".obj.", "obj.", ".hadb.", "hadb."))
+                {
+                    return targetObject._GetValueByDottedFieldNames(fieldName, ignoreCase, returnNullIfError, "");
+                }
+                else
+                {
+                    return targetObject._GetValueByDottedFieldNames(fieldName, ignoreCase, returnNullIfError, nameof(HadbObject.UserData));
+                }
+            }
+
+            return current;
+        }
+
+        public static void DoSortBy<T>(List<T> list, string fieldNames, int maxFields = 4)
+        {
+            DoSortBy(list, a => OrderByFieldNames(a, fieldNames, maxFields));
+        }
     }
 
 
@@ -6144,6 +6239,9 @@ namespace IPA.Cores.Basic
         readonly Dictionary<string, MemberInfo> MetadataTableInternal = new Dictionary<string, MemberInfo>();
         public IReadOnlyDictionary<string, MemberInfo> MetadataTable => MetadataTableInternal;
 
+        readonly Dictionary<string, MemberInfo> MetadataTableIgnoreCaseInternal = new Dictionary<string, MemberInfo>();
+        public IReadOnlyDictionary<string, MemberInfo> MetadataTableIgnoreCase => MetadataTableIgnoreCaseInternal;
+
         public Type TargetType { get; }
 
         public IReadOnlyList<string> FieldOrPropertyNamesList { get; }
@@ -6186,6 +6284,10 @@ namespace IPA.Cores.Basic
                     if (info is MethodInfo)
                         methodNamesList.Add(info.Name);
                 }
+
+                string nameIgnoreCase = info.Name.ToLowerInvariant();
+
+                MetadataTableIgnoreCaseInternal.TryAdd(nameIgnoreCase, info);
             }
 
             this.FieldOrPropertyNamesList = fieldOrPropertyNamesList;
@@ -6228,35 +6330,109 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public object? GetValue(object targetObject, string name)
+        public object? GetValue(object targetObject, string name, bool ignoreCase = false, bool returnNullIfError = false)
         {
-            if (targetObject.GetType()._IsSubClassOfOrSame(this.TargetType) == false) throw new ArgumentException("Type of targetObject is different from TargetType.");
-
-            if (this.MetadataTable.TryGetValue(name, out MemberInfo? info) == false)
-                throw new ArgumentException($"The member \"{name}\" not found.");
-
-            switch (info)
+            try
             {
-                case FieldInfo field:
-                    return field.GetValue(targetObject);
+                if (targetObject.GetType()._IsSubClassOfOrSame(this.TargetType) == false)
+                {
+                    if (returnNullIfError == false)
+                    {
+                        throw new ArgumentException("Type of targetObject is different from TargetType.");
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
 
-                case PropertyInfo property:
-                    return property.GetValue(targetObject);
+                MemberInfo? info;
 
-                default:
-                    throw new ApplicationException($"The member \"{name}\" is not a field or a property.");
+                if (ignoreCase == false)
+                {
+                    if (this.MetadataTable.TryGetValue(name, out info) == false)
+                    {
+                        if (returnNullIfError == false)
+                        {
+                            throw new ArgumentException($"The member \"{name}\" not found.");
+                        }
+                        else
+                        {
+                            return null;
+                        }
+                    }
+                }
+                else
+                {
+                    if (this.MetadataTableIgnoreCase.TryGetValue(name.ToLowerInvariant(), out info) == false)
+                    {
+                        if (returnNullIfError == false)
+                        {
+                            throw new ArgumentException($"The member \"{name}\" not found.");
+                        }
+                        else
+                        {
+                            return null;
+                        }
+                    }
+                }
+
+                switch (info)
+                {
+                    case FieldInfo field:
+                        return field.GetValue(targetObject);
+
+                    case PropertyInfo property:
+                        return property.GetValue(targetObject);
+
+                    default:
+                        if (returnNullIfError == false)
+                        {
+                            throw new ApplicationException($"The member \"{name}\" is not a field or a property.");
+                        }
+                        else
+                        {
+                            return null;
+                        }
+                }
+            }
+            catch
+            {
+                if (returnNullIfError == false)
+                {
+                    throw;
+                }
+                else
+                {
+                    return null;
+                }
             }
         }
 
-        public void SetValue(object targetObject, string name, object? value)
+        public void SetValue(object targetObject, string name, object? value, bool ignoreCase = false)
         {
             if (targetObject.GetType()._IsSubClassOfOrSame(this.TargetType) == false) throw new ArgumentException("Type of targetObject is different from TargetType.");
 
-            if (this.MetadataTable.TryGetValue(name, out MemberInfo? info) == false || ((info as PropertyInfo)?.CanWrite ?? true) == false)
+            MemberInfo? info;
+
+            if (ignoreCase == false)
             {
-                if (this.MetadataTable.TryGetValue($"<{name}>k__BackingField", out info) == false)
+                if (this.MetadataTable.TryGetValue(name, out info) == false || ((info as PropertyInfo)?.CanWrite ?? true) == false)
                 {
-                    throw new ArgumentException($"The member \"{name}\" not found.");
+                    if (this.MetadataTable.TryGetValue($"<{name}>k__BackingField", out info) == false)
+                    {
+                        throw new ArgumentException($"The member \"{name}\" not found.");
+                    }
+                }
+            }
+            else
+            {
+                if (this.MetadataTableIgnoreCase.TryGetValue(name.ToLowerInvariant(), out info) == false || ((info as PropertyInfo)?.CanWrite ?? true) == false)
+                {
+                    if (this.MetadataTableIgnoreCase.TryGetValue($"<{name}>k__BackingField".ToLowerInvariant(), out info) == false)
+                    {
+                        throw new ArgumentException($"The member \"{name}\" not found.");
+                    }
                 }
             }
 
@@ -6335,6 +6511,41 @@ namespace IPA.Cores.Basic
         }
 
         public T CreateClone<T>([DisallowNull] T targetObject) => (T)CreateClone((object)targetObject!);
+
+        // object.str のような文字列でフィールドへのアクセスを許容する
+        public static object? GetFieldValueByDottedFieldNames(object? targetObject, string fieldName, bool ignoreCase = false, bool returnNullIfError = false, string? defaultFirstFieldName = null)
+        {
+            if (defaultFirstFieldName._IsFilled())
+            {
+                if (returnNullIfError) targetObject._NullCheck(nameof(targetObject));
+
+                if (targetObject == null) return null;
+
+                var rw = FieldReaderWriter.GetCached(targetObject.GetType());
+
+                var a = rw.GetValue(targetObject, defaultFirstFieldName, ignoreCase, true);
+
+                if (a != null)
+                {
+                    targetObject = a;
+                }
+            }
+
+            var namesList = fieldName._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, '.', '\t', '\r', '\n', ' ', '　');
+
+            foreach (string name in namesList)
+            {
+                if (returnNullIfError) targetObject._NullCheck(nameof(targetObject));
+
+                if (targetObject == null) return null;
+
+                var rw = FieldReaderWriter.GetCached(targetObject.GetType());
+
+                targetObject = rw.GetValue(targetObject, name, ignoreCase, returnNullIfError);
+            }
+
+            return targetObject;
+        }
     }
 
     [Flags]

@@ -3042,6 +3042,18 @@ public abstract class HadbMemDataBase
         return data.AllObjectsDict;
     }
 
+    public HadbCurrentMetrics GetCurrentMetrics()
+    {
+        DataSet data = this.InternalData;
+
+        HadbCurrentMetrics ret = new HadbCurrentMetrics
+        {
+            NumMemoryObjects = data.AllObjectsDict.Count,
+        };
+
+        return ret;
+    }
+
     public async Task ReloadFromDatabaseIntoMemoryDbAsync(IEnumerable<HadbObject> objectList, bool fullReloadMode, DateTimeOffset partialReloadMinUpdateTime, string dataSourceInfo, CancellationToken cancel = default)
     {
         int countInserted = 0;
@@ -3395,6 +3407,11 @@ public enum HadbSearchFlags : long
     WordMode = 1,
 }
 
+public class HadbCurrentMetrics
+{
+    public int NumMemoryObjects;
+}
+
 public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     where TMem : HadbMemDataBase, new()
     where TDynamicConfig : HadbDynamicConfig
@@ -3592,6 +3609,12 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     public void Start()
     {
         this.IsLoopStarted = true;
+    }
+
+    public HadbCurrentMetrics GetCurrentMetrics()
+    {
+        this.CheckIfReady(false);
+        return this.MemDb!.GetCurrentMetrics();
     }
 
     readonly AsyncLock Lock_ReloadDynamicConfigValuesAsync = new AsyncLock();
@@ -4484,7 +4507,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         return ret;
     }
 
-    public List<HadbObject> FastSearchByFullText(string queryString, bool wordMode, bool fieldMode, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace, FullTextSearchFlags optionalFlags = FullTextSearchFlags.None)
+    public List<HadbObject> FastSearchByFullText(string queryString, string sortFields, bool wordMode, bool fieldMode, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace, int maxResults = int.MaxValue, int maxResultsBeforeSortInternal = int.MaxValue, FullTextSearchFlags optionalFlags = FullTextSearchFlags.None, RefBool? hasMore = null)
     {
         FullTextSearchFlags flags2 = FullTextSearchFlags.None;
 
@@ -4502,11 +4525,17 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
         FullTextSearchQuery q = FullTextSearchQuery.ParseText(queryString, flags2);
 
-        return FastSearchByFullText(q, typeName, nameSpace);
+        q.MaxResults = maxResults;
+        q.MaxResultsBeforeSortInternal = maxResultsBeforeSortInternal;
+        q.SortFields = sortFields;
+
+        return this.FastSearchByFullText(q, typeName, nameSpace, hasMore);
     }
 
-    public List<HadbObject> FastSearchByFullText(FullTextSearchQuery query, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace)
+    public List<HadbObject> FastSearchByFullText(FullTextSearchQuery query, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace, RefBool? hasMore = null)
     {
+        hasMore?.Set(false);
+
         nameSpace = nameSpace._HadbNameSpaceNormalize();
         this.CheckIfReady(requireDatabaseConnected: false);
         this.CheckMemDb();
@@ -4517,7 +4546,9 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
         var objList = allObjects.Values.ToList();
 
-        int numCpus = 1;// Env.NumCpus;
+        int numCpus = Env.NumCpus;
+
+        RefInt currentCounter = new RefInt();
 
         var matchList = objList._ProcessParallelAndAggregateAsync((srcList, taskIndex) =>
         {
@@ -4549,22 +4580,59 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
                     if (query.Flags.Bit(FullTextSearchFlags.FieldNameMode) == false)
                     {
-                        b = query.IsMatch(item.Ft1);
+                        b = query.IsMatch(item.Ft1, item.Uid);
                     }
                     else
                     {
-                        b = query.IsMatch(item.Ft2);
+                        b = query.IsMatch(item.Ft2, item.Uid);
                     }
 
                     if (b)
                     {
                         tmp.Add(item);
+
+                        if (query.MaxResultsBeforeSortInternal > 0 && query.MaxResultsBeforeSortInternal != int.MaxValue)
+                        {
+                            if (currentCounter.Increment() >= query.MaxResultsBeforeSortInternal)
+                            {
+                                break;
+                            }
+                        }
                     }
                 }
             }
 
             return TR(tmp);
         }, numCpus, MultitaskDivideOperation.Split, onlyIfMany: false)._GetResult();
+
+        int count1 = matchList.Count;
+
+        // ソート前の件数足切り
+        if (query.MaxResultsBeforeSortInternal > 0 && query.MaxResultsBeforeSortInternal != int.MaxValue)
+        {
+            if (matchList.Count > query.MaxResultsBeforeSortInternal)
+            {
+                matchList = matchList.Take(query.MaxResultsBeforeSortInternal).ToList();
+            }
+        }
+
+        // ソートの実施
+        matchList._DoSortBy(x => x.OrderByDescending(z => z.UpdateDt));
+        matchList._DoSortBy(query.SortFields);
+
+        // ソートの実施結果を足切り
+        if (query.MaxResults > 0 && query.MaxResults != int.MaxValue)
+        {
+            if (matchList.Count > query.MaxResults)
+            {
+                matchList = matchList.Take(query.MaxResults).ToList();
+            }
+        }
+
+        if (matchList.Count != count1)
+        {
+            hasMore?.Set(true);
+        }
 
         return matchList;
     }

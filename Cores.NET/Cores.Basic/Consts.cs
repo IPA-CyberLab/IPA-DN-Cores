@@ -131,6 +131,10 @@ public static partial class Consts
 
         public const int MikakaDDns_MaxUnlockKeyCountOnce = 1000;
 
+        public const int HadbFullTextSearchResultsInternalMemoryDefault = 200000;
+        public const int HadbFullTextSearchResultsMaxDefault = 100000;
+        public const int HadbFullTextSearchResultsStandardDefault = 1000;
+
         // SQL Server その他の一般的なデータベースでインデックス可能な最大安全文字列長
         public const int MaxKeyOrLabelStrLength = 130;
         public const int SqlMaxSafeStrLength = 300;

@@ -3484,8 +3484,40 @@ cccadmin
         Str.Test_SearchableStr();
     }
 
+    public class TestX_b
+    {
+        public string C = "Neko";
+    }
+
+    public class TestX_a
+    {
+        public string A = "Hello";
+        public string b = "World";
+
+        public TestX_b Z = new TestX_b();
+    }
+
+    static void Test_220412()
+    {
+        TestX_a a = new TestX_a();
+        while (true)
+        {
+            string s = Con.ReadLine(" > ")._NonNullTrim();
+
+            var obj = FieldReaderWriter.GetFieldValueByDottedFieldNames(a, s, true, true);
+
+            obj._Debug();
+        }
+    }
+
     public static void Test_Generic()
     {
+        if (false)
+        {
+            Test_220412();
+            return;
+        }
+
         if (false)
         {
             Async(async () =>
