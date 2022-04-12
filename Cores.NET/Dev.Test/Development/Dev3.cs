@@ -386,22 +386,22 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
     public class Host_Return : JsonRpcSingleReturnWithMetaData<Host>
     {
         [JsonConverter(typeof(StringEnumConverter))]
-        public HostApiResult ApiResult { get; }
+        public HostApiResult _ApiResult { get; }
 
-        public string[] HostFqdn { get; }
+        public string[] _HostFqdn { get; }
 
-        public string HostEasyGetInfoUrl { get; }
-        public string HostEasyUpdateUrl { get; }
+        public string _HostEasyGetInfoUrl { get; }
+        public string _HostEasyUpdateUrl { get; }
 
         public override Host Data { get; }
 
         public Host_Return(Host data, HostApiResult apiResult, string[] hostFqdn, string hostEasyGetInfoUrl, string hostEasyUpdateUrl)
         {
-            ApiResult = apiResult;
-            HostFqdn = hostFqdn;
+            _ApiResult = apiResult;
+            _HostFqdn = hostFqdn;
             Data = data;
-            HostEasyGetInfoUrl = hostEasyGetInfoUrl;
-            HostEasyUpdateUrl = hostEasyUpdateUrl;
+            _HostEasyGetInfoUrl = hostEasyGetInfoUrl;
+            _HostEasyUpdateUrl = hostEasyUpdateUrl;
         }
 
         public static Host_Return _Sample => new Host_Return(Host._Sample, HostApiResult.Created, new string[] { Host._Sample.HostLabel + ".ddns_example.org" }, "https://ddns_example.org/rpc/DDNS_Host/?secretKey=00112233445566778899AABBCCDDEEFF01020304", "https://ddns_example.org/rpc/DDNS_Host/?ip=myip&secretKey=00112233445566778899AABBCCDDEEFF01020304");

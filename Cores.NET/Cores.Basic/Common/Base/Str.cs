@@ -1417,14 +1417,12 @@ namespace IPA.Cores.Basic
                 }
                 else if (o is DateTime dt)
                 {
-                    tmp.Add(dt._ToDtStr(true));
                     tmp.Add(dt._ToDtStr(true, withNanoSecs: true));
                     tmp.Add(dt._ToYymmddStr() + dt._ToHhmmssStr());
                     tmp.Add(dt._ToYymmddStr() + " " + dt._ToHhmmssStr());
                 }
                 else if (o is DateTimeOffset dto)
                 {
-                    tmp.Add(dto._ToDtStr(true));
                     tmp.Add(dto._ToDtStr(true, withNanoSecs: true));
                     tmp.Add(dto.UtcDateTime._AsDateTimeOffset(false, true)._ToDtStr(true));
                     tmp.Add(dto.UtcDateTime._AsDateTimeOffset(false, true)._ToDtStr(true, withNanoSecs: true));
@@ -1571,7 +1569,7 @@ namespace IPA.Cores.Basic
 
             //ss._Print();
 
-            string test = "| str2=carot | str1=banana | u8=234 | s8=-124 | u16=54321 | u16=54,321 | s16=-12345 | s16=-12,345 | u32=3123456789 | u32=3,123,456,789 | s32=-2012345678 | s32=-2,012,345,678 | u64=18446744073709550616 | u64=18,446,744,073,709,550,616 | s64=-9223372036854775123 | s64=-9,223,372,036,854,775,123 | dt1=2022/03/25 01:23:45.000 | dt1=20220325012345 | dt1=20220325 012345 | ts1=23:59:59.000 | ts1=86399000 | ts1=86399 | b1=true | b1=1 | b1=yes | double1=3.141592653589793 | double1=3.142 | double1=3.141593 | float1=2.718281745910645 | float1=2.718 | float1=2.718282 | flag1=microsoft oracle | flag1=3 | ip1=2001:af80:1:2:3::8931 | data1=41424344454647 | data1=qujdrevgrw== | data1=abcdefg | data2=61626364656667 | data2=ywjjzgvmzw== | data2=abcdefg | str2=nekosan | str1=super | u8=134 | s8=-104 | u16=53321 | u16=53,321 | s16=-10345 | s16=-10,345 | u32=3113456789 | u32=3,113,456,789 | s32=-2019345678 | s32=-2,019,345,678 | u64=10446744111119550616 | u64=10,446,744,111,119,550,616 | s64=-9223311036854775123 | s64=-9,223,311,036,854,775,123 | dt1=2099/03/25 01:23:45.000 | dt1=20990325012345 | dt1=20990325 012345 | ts1=23:59:59.000 | ts1=86399000 | ts1=86399 | b1=true | b1=1 | b1=yes | double1=3.141592653589793 | double1=3.142 | double1=3.141593 | float1=2.718281745910645 | float1=2.718 | float1=2.718282 | flag1=microsoft oracle | flag1=3 | ip1=2001:cafe:1:2:3::8931 | data1=78787878 | data1=ehh4ea== | data1=xxxx | data2=7a7a7a7a | data2=enp6eg== | data2=zzzz |";
+            string test = "| str2=carot | str1=banana | u8=234 | s8=-124 | u16=54321 | u16=54,321 | s16=-12345 | s16=-12,345 | u32=3123456789 | u32=3,123,456,789 | s32=-2012345678 | s32=-2,012,345,678 | u64=18446744073709550616 | u64=18,446,744,073,709,550,616 | s64=-9223372036854775123 | s64=-9,223,372,036,854,775,123 | dt1=2022/03/25 01:23:45.0000000 | dt1=20220325012345 | dt1=20220325 012345 | ts1=23:59:59.000 | ts1=86399000 | ts1=86399 | b1=true | b1=1 | b1=yes | double1=3.141592653589793 | double1=3.142 | double1=3.141593 | float1=2.718281745910645 | float1=2.718 | float1=2.718282 | flag1=microsoft oracle | flag1=3 | ip1=2001:af80:1:2:3::8931 | data1=41424344454647 | data1=qujdrevgrw== | data1=abcdefg | data2=61626364656667 | data2=ywjjzgvmzw== | data2=abcdefg | str2=nekosan | str1=super | u8=134 | s8=-104 | u16=53321 | u16=53,321 | s16=-10345 | s16=-10,345 | u32=3113456789 | u32=3,113,456,789 | s32=-2019345678 | s32=-2,019,345,678 | u64=10446744111119550616 | u64=10,446,744,111,119,550,616 | s64=-9223311036854775123 | s64=-9,223,311,036,854,775,123 | dt1=2099/03/25 01:23:45.0000000 | dt1=20990325012345 | dt1=20990325 012345 | ts1=23:59:59.000 | ts1=86399000 | ts1=86399 | b1=true | b1=1 | b1=yes | double1=3.141592653589793 | double1=3.142 | double1=3.141593 | float1=2.718281745910645 | float1=2.718 | float1=2.718282 | flag1=microsoft oracle | flag1=3 | ip1=2001:cafe:1:2:3::8931 | data1=78787878 | data1=ehh4ea== | data1=xxxx | data2=7a7a7a7a | data2=enp6eg== | data2=zzzz |";
 
             Dbg.TestTrue(test == ss);
         }
