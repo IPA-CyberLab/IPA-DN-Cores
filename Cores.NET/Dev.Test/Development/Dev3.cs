@@ -1585,7 +1585,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
     public async Task<UnlockKey[]> DDNSAdmin_UnlockKeyCreate(int count)
     {
-        this.Basic_Require_AdminBasicAuth();
+        await this.Basic_Require_AdminBasicAuthAsync();
 
         IPAddress clientIp = this.GetClientIpAddress();
         IPAddress clientNetwork = this.GetClientIpNetworkForRateLimit();

@@ -384,7 +384,7 @@ public sealed class HadbSqlKvRow : INormalizable
     public void Normalize()
     {
         this.KV_SYSTEM_NAME = this.KV_SYSTEM_NAME._NormalizeKey(true);
-        this.KV_KEY = this.KV_KEY._NormalizeKey(true, Consts.Numbers.SqlMaxSafeStrLengthActual);
+        this.KV_KEY = this.KV_KEY._NormalizeKey(true, Consts.Numbers.MaxKeyOrLabelStrLength);
         this.KV_VALUE = this.KV_VALUE._NonNull();
         this.KV_CREATE_DT = this.KV_CREATE_DT._NormalizeDateTimeOffset();
         this.KV_UPDATE_DT = this.KV_UPDATE_DT._NormalizeDateTimeOffset();
@@ -653,44 +653,77 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         await this.AtomicSetKvImplAsync(tran, "_HADB_SYS_LAST_STAT_WRITE_DT", dt._ToDtStr(withMSsecs: true, withNanoSecs: true));
     }
 
-    protected override async Task AppendMissingDynamicConfigToDatabaseImplAsync(KeyValueList<string, string> missingValues, CancellationToken cancel = default)
+    protected override async Task AppendMissingDynamicConfigToDatabaseImplAsync(KeyValueList<string, string> missingValues, bool replaceAll, CancellationToken cancel = default)
     {
         if (missingValues.Any() == false) return;
 
-        // DB にまだ存在しないが定義されるべき TDynamicConfig のフィールドがある場合は DB に初期値を書き込む
         await using var dbWriter = await this.OpenSqlDatabaseAsync(true, cancel);
 
-        foreach (var missingValueName in missingValues.Select(x => x.Key._NonNullTrim()).Distinct(StrComparer.IgnoreCaseComparer))
+        if (replaceAll == false)
         {
+            // DB にまだ存在しないが定義されるべき TDynamicConfig のフィールドがある場合は DB に初期値を書き込む
+            foreach (var missingValueName in missingValues.Select(x => x.Key._NonNullTrim()).Distinct(StrComparer.IgnoreCaseComparer))
+            {
+                await dbWriter.TranAsync(async () =>
+                {
+                    // DB にまだ値がない場合のみ書き込む。
+                    // すでにある場合は書き込みしない。
+
+                    var tmp = await dbWriter.EasySelectAsync<HadbSqlConfigRow>("select * from HADB_CONFIG where CONFIG_SYSTEMNAME = @CONFIG_SYSTEMNAME and CONFIG_NAME = @CONFIG_NAME",
+                        new
+                        {
+                            CONFIG_SYSTEMNAME = this.SystemName,
+                            CONFIG_NAME = missingValueName,
+                        },
+                        cancel: cancel);
+
+                    if (tmp.Any())
+                    {
+                        return false;
+                    }
+
+                    var valuesList = missingValues.Where(x => x.Key._IsSameiTrim(missingValueName)).Select(x => x.Value);
+
+                    foreach (var value in valuesList)
+                    {
+                        await dbWriter.EasyInsertAsync(new HadbSqlConfigRow
+                        {
+                            CONFIG_SYSTEMNAME = this.SystemName,
+                            CONFIG_NAME = missingValueName,
+                            CONFIG_VALUE = value,
+                            CONFIG_EXT = "",
+                        }, cancel);
+                    }
+
+                    return true;
+                });
+            }
+        }
+        else
+        {
+            // すべて一度削除して新規に追加する
             await dbWriter.TranAsync(async () =>
             {
-                // DB にまだ値がない場合のみ書き込む。
-                // すでにある場合は書き込みしない。
-
-                var tmp = await dbWriter.EasySelectAsync<HadbSqlConfigRow>("select * from HADB_CONFIG where CONFIG_SYSTEMNAME = @CONFIG_SYSTEMNAME and CONFIG_NAME = @CONFIG_NAME",
-                new
-                {
-                    CONFIG_SYSTEMNAME = this.SystemName,
-                    CONFIG_NAME = missingValueName,
-                },
-                cancel: cancel);
-
-                if (tmp.Any())
-                {
-                    return false;
-                }
-
-                var valuesList = missingValues.Where(x => x.Key._IsSameiTrim(missingValueName)).Select(x => x.Value);
-
-                foreach (var value in valuesList)
-                {
-                    await dbWriter.EasyInsertAsync(new HadbSqlConfigRow
+                // 既存のものを全部削除
+                await dbWriter.EasyExecuteAsync("delete from HADB_CONFIG where CONFIG_SYSTEMNAME = @CONFIG_SYSTEMNAME",
+                    new
                     {
                         CONFIG_SYSTEMNAME = this.SystemName,
-                        CONFIG_NAME = missingValueName,
-                        CONFIG_VALUE = value,
-                        CONFIG_EXT = "",
-                    }, cancel);
+                    });
+
+                // 追加
+                foreach (var kv in missingValues)
+                {
+                    if (kv.Key._IsFilled())
+                    {
+                        await dbWriter.EasyInsertAsync(new HadbSqlConfigRow
+                        {
+                            CONFIG_SYSTEMNAME = this.SystemName,
+                            CONFIG_NAME = kv.Key,
+                            CONFIG_VALUE = kv.Value,
+                            CONFIG_EXT = "",
+                        }, cancel);
+                    }
                 }
 
                 return true;
@@ -3500,7 +3533,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     protected internal abstract Task<bool> LazyUpdateImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default);
 
     protected abstract Task<KeyValueList<string, string>> LoadDynamicConfigFromDatabaseImplAsync(CancellationToken cancel = default);
-    protected abstract Task AppendMissingDynamicConfigToDatabaseImplAsync(KeyValueList<string, string> missingValues, CancellationToken cancel = default);
+    protected abstract Task AppendMissingDynamicConfigToDatabaseImplAsync(KeyValueList<string, string> missingValues, bool replaceAll, CancellationToken cancel = default);
     protected abstract Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(bool fullReloadMode, DateTimeOffset partialReloadMinUpdateTime, Ref<DateTimeOffset>? lastStatTimestamp, CancellationToken cancel = default);
     protected abstract Task RestoreDataFromHadbObjectListImplAsync(List<HadbObject> objectList, CancellationToken cancel = default);
 
@@ -3621,6 +3654,69 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
     Once ReloadDynamicConfigOnce;
 
+    public async Task SetDynamincConfigStringAsync(string newConfig, CancellationToken cancel = default)
+    {
+        var lines = newConfig._GetLines(true, true);
+
+        KeyValueList<string, string> configList = new KeyValueList<string, string>();
+
+        foreach (var line in lines)
+        {
+            string line2 = line.TrimStart();
+
+            if (line2._GetKeyAndValue(out string key, out string value))
+            {
+                if (key._IsFilled())
+                {
+                    configList.Add(key, value);
+                }
+            }
+        }
+
+        await this.AppendMissingDynamicConfigToDatabaseImplAsync(configList, true, cancel);
+    }
+
+    public async Task<string> GetDynamicConfigStringAsync(CancellationToken cancel = default)
+    {
+        await ReloadDynamicConfigValuesAsync(cancel);
+
+        var config = await this.LoadDynamicConfigFromDatabaseImplAsync(cancel);
+
+        StringWriter w = new StringWriter();
+
+        int keyStandardLength = 50;
+
+        w.WriteLine("# Configuration");
+
+        string lastKey = "";
+
+        foreach (var kv in config)
+        {
+            int len1 = kv.Key.Length;
+            string padding = "";
+
+            if (len1 < keyStandardLength)
+            {
+                padding = Str.MakeCharArray(' ', keyStandardLength - len1);
+            }
+
+            string line = $"{kv.Key}{padding} {kv.Value}";
+
+            if (lastKey._IsDiffi(kv.Key))
+            {
+                lastKey = kv.Key;
+                w.WriteLine();
+            }
+
+            w.WriteLine(line);
+        }
+
+        w.WriteLine();
+        w.WriteLine();
+
+        return w.ToString();
+    }
+
     async Task ReloadDynamicConfigValuesAsync(CancellationToken cancel)
     {
         string oldDynConfigJson = this._CurrentDynamicConfig._ObjectToJson();
@@ -3642,7 +3738,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                 {
                     if (this.Settings.OptionFlags.Bit(HadbOptionFlags.NoInitConfigDb) == false) // オプションで書き込まない設定になっていない限り
                     {
-                        await this.AppendMissingDynamicConfigToDatabaseImplAsync(missingDynamicConfigValues, cancel);
+                        await this.AppendMissingDynamicConfigToDatabaseImplAsync(missingDynamicConfigValues, false, cancel);
                     }
                 }
             }

@@ -339,7 +339,7 @@ public interface IHadbBasedServiceRpcBase
     public Task<HadbFullTextSearchResult> ServiceAdmin_FullTextSearch(string queryText = "", string sortBy = "", bool wordMode = false, bool fieldNameMode = false, string typeName = "", string nameSpace = "", int maxResults = 0);
 }
 
-public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, THook> : AsyncService, IHadbBasedServiceRpcBase
+public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, THook> : AsyncService, IHadbBasedServiceRpcBase, IHadbBasedServicePoint
     where TMemDb : HadbBasedServiceMemDb, new()
     where TDynConfig : HadbBasedServiceDynConfig
     where THiveSettings : HadbBasedServiceHiveSettingsBase, new()
@@ -434,7 +434,17 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
     protected Task<string> GetClientFqdnAsync(CancellationToken cancel = default, bool noCache = false)
         => this.DnsResolver.GetHostNameSingleOrIpAsync(GetClientIpAddress(), cancel, noCache);
 
-    protected void Basic_Require_AdminBasicAuth(string realm = "")
+    public async Task<string> AdminForm_GetDynamicConfigAsync(CancellationToken cancel = default)
+    {
+        return await this.Hadb.GetDynamicConfigStringAsync(cancel);
+    }
+
+    public async Task AdminForm_SetDynamicConfigAsync(string newConfig, CancellationToken cancel = default)
+    {
+        await this.Hadb.SetDynamincConfigStringAsync(newConfig, cancel);
+    }
+
+    public Task Basic_Require_AdminBasicAuthAsync(string realm = "")
     {
         if (realm._IsEmpty())
         {
@@ -447,6 +457,8 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
 
             return user._IsSamei(config.Service_AdminBasicAuthUsername) && pass._IsSame(config.Service_AdminBasicAuthPassword);
         }, realm);
+
+        return Task.CompletedTask;
     }
 
     protected void Basic_Check_HeavyRequestRateLimiter(double amount = 1.0)

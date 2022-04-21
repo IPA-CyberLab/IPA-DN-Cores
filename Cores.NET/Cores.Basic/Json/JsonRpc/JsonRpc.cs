@@ -1049,12 +1049,20 @@ public abstract class JsonRpcServer
     }
 }
 
+public interface IHadbBasedServicePoint
+{
+    public Task Basic_Require_AdminBasicAuthAsync(string realm = "");
+    public Task<string> AdminForm_GetDynamicConfigAsync(CancellationToken cancel = default);
+    public Task AdminForm_SetDynamicConfigAsync(string newConfig, CancellationToken cancel = default);
+}
+
 public class JsonRpcServerConfig
 {
     public int MaxRequestBodyLen { get; set; } = CoresConfig.JsonRpcServerSettings.DefaultMaxRequestBodyLen.Value;
     public bool MultiRequestAllowed { get; set; } = false;
     public bool PrintHelp { get; set; } = false;
     public string HelpServerFriendlyName { get; set; } = "";
+    public IHadbBasedServicePoint? HadbBasedServicePoint;
 }
 
 public abstract class JsonRpcClient

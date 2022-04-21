@@ -3447,16 +3447,18 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         {
         };
 
+        using MikakaDDnsService svc = new MikakaDDnsService(startup, new MikakaDDnsServiceHook());
+
         JsonRpcServerConfig rpcConfig = new JsonRpcServerConfig
         {
             MaxRequestBodyLen = 1_000_000,
             PrintHelp = true,
             HelpServerFriendlyName = startup.ServerProductName,
+            HadbBasedServicePoint = svc,
         };
 
-        using MikakaDDnsService svc = new MikakaDDnsService(startup, new MikakaDDnsServiceHook());
         using EasyJsonRpcServer<MikakaDDnsService.IRpc> rpc = new EasyJsonRpcServer<MikakaDDnsService.IRpc>(httpOpt, rpcCfg: rpcConfig, targetObject: svc);
-
+        
         svc.Start();
 
         Con.ReadLine("quit>");

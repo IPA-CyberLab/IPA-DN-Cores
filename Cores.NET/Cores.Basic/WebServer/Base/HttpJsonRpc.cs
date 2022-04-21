@@ -53,6 +53,7 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using Microsoft.Extensions.Hosting;
 using System.IO;
+using System.Web;
 
 #if CORES_BASIC_HTTPSERVER
 // ASP.NET Core 3.0 用の型名を無理やり ASP.NET Core 2.2 でコンパイルするための型エイリアスの設定
@@ -68,8 +69,176 @@ public class JsonRpcHttpServer : JsonRpcServer
 
     public string RpcBaseAbsoluteUrlPath = ""; // "/rpc/" のような絶対パス。末尾に / を含む。
     public string WebFormBaseAbsoluteUrlPath = ""; // "/webform/" のような絶対パス。末尾に / を含む。
+    public string ConfigFormBaseAbsoluteUrlPath = ""; // "/configform/" のような絶対パス。末尾に / を含む。
+    public string ObjEditBaseAbsoluteUrlPath = ""; // "/objedit/" のような絶対パス。末尾に / を含む。
+
+    readonly string WebFormSecretKey = Str.GenRandStr();
 
     public JsonRpcHttpServer(JsonRpcServerApi api, JsonRpcServerConfig? cfg = null) : base(api, cfg) { }
+
+    enum AdminFormsOperation
+    {
+        ConfigForm = 0,
+    }
+
+    // /configform の GET ハンドラ
+    public virtual async Task ConfigForm_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+    {
+        await ConfigForm_CommonRequestHandler(request, response, routeData, WebMethods.GET);
+    }
+
+    // /configform の POST ハンドラ
+    public virtual async Task ConfigForm_PostRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+    {
+        await ConfigForm_CommonRequestHandler(request, response, routeData, WebMethods.POST);
+    }
+
+    // /configform の共通ハンドラ
+    public virtual async Task ConfigForm_CommonRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData, WebMethods method)
+    {
+        await AdminForms_CommonAsync(request, response, routeData, "Admin Config Page", AdminFormsOperation.ConfigForm, method,
+            async (w, postData, c) =>
+            {
+                string configBody = "";
+
+                string msg = "";
+
+                if (method == WebMethods.POST)
+                {
+                    string str = postData._GetString_UTF8();
+                    var postCollection = HttpUtility.ParseQueryString(str);
+                    string secret = postCollection._GetStr("_secret");
+                    if (secret != this.WebFormSecretKey)
+                    {
+                        msg = "Error! Invalid web form update.";
+                    }
+                    else
+                    {
+                        configBody = postCollection._GetStr("configbody");
+                        await this.Config.HadbBasedServicePoint!.AdminForm_SetDynamicConfigAsync(configBody, c);
+
+                        msg = "The settings you specified have been properly applied to the server database.";
+                    }
+                }
+
+                configBody = await this.Config.HadbBasedServicePoint!.AdminForm_GetDynamicConfigAsync(c);
+
+                if (msg._IsFilled()) w.WriteLine($"<p><B><font color=green>{msg}</font></B></p>");
+
+                w.WriteLine($"<form action='{this.ConfigFormBaseAbsoluteUrlPath}' method='post'>");
+
+                w.WriteLine($"<input name='_secret' type='hidden' value='{this.WebFormSecretKey}'/>");
+
+                w.WriteLine("<p>");
+                w.WriteLine("<textarea name='configbody' spellcheck='false' rows='2' cols='20' id='configbody' style='color:#222222;font-family:Consolas;font-size:10pt;height:702px;width:95%;padding: 10px 10px 10px 10px;'>");
+                w.WriteLine(configBody._EncodeHtmlCodeBlock());
+                w.WriteLine("</textarea>");
+                w.WriteLine("</p>");
+
+                if (msg._IsFilled()) w.WriteLine($"<p><B><font color=green>{msg}</font></B></p>");
+
+                w.WriteLine("<input class='button is-link' type='submit' style='font-weight: bold' value='Update Now (Be Careful!)'>");
+
+                w.WriteLine("</form>");
+            });
+    }
+
+    async Task AdminForms_CommonAsync(HttpRequest request, HttpResponse response, RouteData routeData, string title, AdminFormsOperation operation, WebMethods method,
+        Func<StringWriter, ReadOnlyMemory<byte>, CancellationToken, Task> bodyWriter)
+    {
+        ReadOnlyMemory<byte> postData = default;
+        CancellationToken cancel = request._GetRequestCancellationToken();
+
+        if (method == WebMethods.POST)
+        {
+            postData = await request.Body._ReadToEndAsync(10_000_000, cancel);
+        }
+
+        // Basic 認証または Query String における認証クレデンシャルが提供されているかどうか調べる
+        string suppliedUsername = "";
+        string suppliedPassword = "";
+        var basicAuthHeader = BasicAuthImpl.ParseBasicAuthenticationHeader(request.Headers._GetStrFirst("Authorization"));
+        if (basicAuthHeader != null)
+        {
+            suppliedUsername = basicAuthHeader.Item1;
+            suppliedPassword = basicAuthHeader.Item2;
+        }
+        var conn = request.HttpContext.Connection;
+
+        SortedDictionary<string, string> requestHeaders = new SortedDictionary<string, string>();
+        foreach (string headerName in request.Headers.Keys)
+        {
+            if (request.Headers.TryGetValue(headerName, out var val))
+            {
+                requestHeaders.Add(headerName, val.ToString());
+            }
+        }
+
+        JsonRpcClientInfo clientInfo = new JsonRpcClientInfo(
+            request.Scheme,
+            request.Host.ToString(),
+            request.GetDisplayUrl(),
+            conn.LocalIpAddress!._UnmapIPv4().ToString(), conn.LocalPort,
+            conn.RemoteIpAddress!._UnmapIPv4().ToString(), conn.RemotePort,
+            requestHeaders,
+            suppliedUsername,
+            suppliedPassword);
+
+        string basicAuthRealm = "Auth for " + this.ConfigFormBaseAbsoluteUrlPath;
+
+        TaskVar.Set<JsonRpcClientInfo>(clientInfo);
+        try
+        {
+            if (this.Config.HadbBasedServicePoint == null)
+            {
+                throw new CoresException("this.Config.HadbBasedServicePoint is not set.");
+            }
+            else
+            {
+                await this.Config.HadbBasedServicePoint.Basic_Require_AdminBasicAuthAsync(basicAuthRealm);
+            }
+
+            StringWriter w = new StringWriter();
+
+            WebForm_WriteHtmlHeader(w, $"{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - {title}");
+
+            w.WriteLine(@"
+    <div class='box'>
+        <div class='content'>
+");
+
+            w.WriteLine($"<h2 class='title is-4'>" + $"{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - {title}" + "</h2>");
+
+            await bodyWriter(w, postData, cancel);
+
+            w.WriteLine(@"
+        </div>
+    </div>
+");
+
+            WebForm_WriteHtmlFooter(w);
+
+            await response._SendStringContentsAsync(w.ToString(), contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel, normalizeCrlf: CrlfStyle.CrLf);
+
+        }
+        catch (JsonRpcAuthErrorException)
+        {
+            // Basic 認証の要求
+            KeyValueList<string, string> basicAuthResponseHeaders = new KeyValueList<string, string>();
+            basicAuthResponseHeaders.Add(Consts.HttpHeaders.WWWAuthenticate, $"Basic realm=\"{basicAuthRealm}\"");
+
+            await using var basicAuthRequireResult = new HttpStringResult("Basic Auth Required", contentType: Consts.MimeTypes.TextUtf8, statusCode: Consts.HttpStatusCodes.Unauthorized, additionalHeaders: basicAuthResponseHeaders);
+
+            await response._SendHttpResultAsync(basicAuthRequireResult, cancel: request._GetRequestCancellationToken());
+
+            return;
+        }
+        finally
+        {
+            TaskVar.Set<JsonRpcClientInfo>(null);
+        }
+
+    }
 
     // /webform の GET ハンドラ
     public virtual async Task WebForm_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
@@ -733,7 +902,7 @@ code[class*=""language-""], pre[class*=""language-""] {
         await response._SendStringContentsAsync(retStr, responseContentsType, cancel: request._GetRequestCancellationToken(), statusCode: statusCode, normalizeCrlf: CrlfStyle.Lf);
     }
 
-    public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string rpcPath = "/rpc", string webFormPath = "/webform")
+    public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string rpcPath = "/rpc", string webFormPath = "/webform", string configFormPath = "/configform", string objEditPath = "/objedit")
     {
         rpcPath = rpcPath._NonNullTrim();
         if (rpcPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{rpcPath}'");
@@ -742,6 +911,14 @@ code[class*=""language-""], pre[class*=""language-""] {
         webFormPath = webFormPath._NonNullTrim();
         if (webFormPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{webFormPath}'");
         if (webFormPath.Length >= 2 && webFormPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
+
+        configFormPath = configFormPath._NonNullTrim();
+        if (configFormPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{configFormPath}'");
+        if (configFormPath.Length >= 2 && configFormPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
+
+        objEditPath = objEditPath._NonNullTrim();
+        if (objEditPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{objEditPath}'");
+        if (objEditPath.Length >= 2 && objEditPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
 
         RouteBuilder rb = new RouteBuilder(appBuilder);
 
@@ -753,6 +930,11 @@ code[class*=""language-""], pre[class*=""language-""] {
         rb.MapGet(webFormPath, WebForm_GetRequestHandler);
         rb.MapGet(webFormPath + "/{rpc_method}", WebForm_GetRequestHandler);
 
+        rb.MapGet(configFormPath, ConfigForm_GetRequestHandler);
+        rb.MapPost(configFormPath, ConfigForm_PostRequestHandler);
+
+        rb.MapGet(configFormPath + "/{rpc_method}", WebForm_GetRequestHandler);
+
         IRouter router = rb.Build();
         appBuilder.UseRouter(router);
 
@@ -761,6 +943,12 @@ code[class*=""language-""], pre[class*=""language-""] {
 
         this.WebFormBaseAbsoluteUrlPath = webFormPath;
         if (this.WebFormBaseAbsoluteUrlPath.EndsWith("/") == false) this.WebFormBaseAbsoluteUrlPath += "/";
+
+        this.ConfigFormBaseAbsoluteUrlPath = configFormPath;
+        if (this.ConfigFormBaseAbsoluteUrlPath.EndsWith("/") == false) this.ConfigFormBaseAbsoluteUrlPath += "/";
+
+        this.ObjEditBaseAbsoluteUrlPath = objEditPath;
+        if (this.ObjEditBaseAbsoluteUrlPath.EndsWith("/") == false) this.ObjEditBaseAbsoluteUrlPath += "/";
     }
 
 
