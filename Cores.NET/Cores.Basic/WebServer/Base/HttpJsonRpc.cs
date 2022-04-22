@@ -124,7 +124,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
                 configBody = await this.Config.HadbBasedServicePoint!.AdminForm_GetDynamicConfigAsync(c);
 
-                if (msg._IsFilled()) w.WriteLine($"<p><B><font color=green>{msg}</font></B></p>");
+                if (msg._IsFilled()) w.WriteLine($"<p><B><font color=green>{msg._EncodeHtml(true)}</font></B></p>");
 
                 w.WriteLine($"<form action='{this.ConfigFormBaseAbsoluteUrlPath}' method='post'>");
 
@@ -136,7 +136,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                 w.WriteLine("</textarea>");
                 w.WriteLine("</p>");
 
-                if (msg._IsFilled()) w.WriteLine($"<p><B><font color=green>{msg}</font></B></p>");
+                if (msg._IsFilled()) w.WriteLine($"<p><B><font color=green>{msg._EncodeHtml(true)}</font></B></p>");
 
                 w.WriteLine("<input class='button is-link' type='submit' style='font-weight: bold' value='Apply Now (Be Careful!)'>");
 
@@ -164,12 +164,110 @@ public class JsonRpcHttpServer : JsonRpcServer
             {
                 string objBody = "";
 
+                bool showUpdateButton = false;
+
                 // Query String において指定された UID
                 string qsUid = request.Query._GetStrFirst("uid");
                 qsUid = qsUid._NormalizeUid()._MakeVerySafeAsciiOnlyNonSpaceFileName();
 
                 bool qsMetadata = request.Query._GetStrFirst("metadata")._ToBool();
                 bool qsArchive = request.Query._GetStrFirst("archive")._ToBool();
+
+
+                HadbObject? currentObj = null;
+
+                string postMsg = "";
+                bool isPostError = false;
+
+                if (method == WebMethods.GET)
+                {
+                    if (qsUid._IsFilled())
+                    {
+                        // qsUid が指定されている場合はオブジェクトの内容を取得する
+                        if (qsMetadata || qsArchive)
+                        {
+                            try
+                            {
+                                objBody = await this.Config.HadbBasedServicePoint!.AdminForm_DirectGetObjectExAsync(qsUid, 100, qsArchive ? HadbObjectGetExFlag.WithArchive : HadbObjectGetExFlag.None);
+                            }
+                            catch (Exception ex)
+                            {
+                                objBody = "*** Error: " + ex.ToString();
+                            }
+                        }
+                        else
+                        {
+                            currentObj = await this.Config.HadbBasedServicePoint!.AdminForm_DirectGetObjectAsync(qsUid, c);
+                            if (currentObj == null)
+                            {
+                                objBody = $"Error: UID '{qsUid}' not found.";
+                            }
+                            else
+                            {
+                                objBody = currentObj.UserData._ObjectToJson(includeNull: true);
+
+                                showUpdateButton = true;
+                            }
+                        }
+                    }
+                }
+                else if (method == WebMethods.POST)
+                {
+                    // オブジェクトの内容を書き換える
+                    string str = postData._GetString_UTF8();
+                    var postCollection = HttpUtility.ParseQueryString(str);
+                    string secret = postCollection._GetStr("_secret");
+                    if (secret != this.WebFormSecretKey)
+                    {
+                        postMsg = "Error! Invalid web form update.";
+                        isPostError = true;
+                    }
+                    else
+                    {
+                        string objectBody = postCollection._GetStr("objectbody");
+                        string uid = postCollection._GetStr("uid");
+                        string type = postCollection._GetStr("type");
+                        string nameSpace = postCollection._GetStr("namespace");
+                        bool delete = postCollection._GetStr("delete")._ToBool();
+
+                        try
+                        {
+                            if (delete == false)
+                            {
+                                currentObj = await this.Config.HadbBasedServicePoint!.AdminForm_DirectSetObjectAsync(uid, objectBody, HadbObjectSetFlag.Update, type, nameSpace, c);
+
+                                postMsg = "OK! Your post data is written to the database.";
+
+                                showUpdateButton = true;
+
+                                objBody = currentObj.UserData._ObjectToJson(includeNull: true);
+
+                                qsUid = currentObj.Uid;
+                            }
+                            else
+                            {
+                                currentObj = await this.Config.HadbBasedServicePoint!.AdminForm_DirectSetObjectAsync(uid, "", HadbObjectSetFlag.Delete, type, nameSpace, c);
+                                postMsg = "OK! Your post data is deleted from the database.";
+
+                                showUpdateButton = false;
+
+
+                                qsUid = currentObj.Uid;
+                                qsArchive = true;
+                                objBody = "";
+                                currentObj = null;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            postMsg = ex.ToString();
+                            isPostError = true;
+                            qsUid = uid;
+                        }
+                    }
+
+                }
+
 
                 // UID 入力フォーム
                 string uidEditBoxStr = $@"
@@ -202,7 +300,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                 <div class='field-body'>
                     <div class='field'>
                         <div class='control'>
-                            <input class='button is-link' type='submit' style='font-weight: bold' value='Show Current Object by UID'>
+                            <input class='button is-link' type='submit' style='font-weight: bold' value='Search Current Object by UID'>
                             &nbsp;&nbsp;<input { qsMetadata._HtmlCheckedIfTrue() } id='metadata' name='metadata' type='checkbox' value='1' /><label for='metadata'>&nbsp;Show Object Metadata</label>
                             &nbsp;&nbsp;<input { qsArchive._HtmlCheckedIfTrue() } id='archive' name='archive' type='checkbox' value='1' /><label for='archive'>&nbsp;Show Archived Object History</label>
                             <p>　</p>
@@ -217,50 +315,44 @@ public class JsonRpcHttpServer : JsonRpcServer
 
                 w.WriteLine("</form>");
 
-                // qsUid が指定されている場合はオブジェクトの内容を取得する
-                if (method == WebMethods.GET)
+
+                if (postMsg._IsFilled())
                 {
-                    if (qsUid._IsFilled())
-                    {
-                        if (qsMetadata || qsArchive)
-                        {
-                            try
-                            {
-                                objBody = await this.Config.HadbBasedServicePoint!.AdminForm_DirectGetObjectExAsync(qsUid, 100, qsArchive ? HadbObjectGetExFlag.WithArchive : HadbObjectGetExFlag.None);
-                            }
-                            catch (Exception ex)
-                            {
-                                objBody = "***Error: " + ex.ToString();
-                            }
-                        }
-                        else
-                        {
-                            var currentObj = await this.Config.HadbBasedServicePoint!.AdminForm_DirectGetObjectAsync(qsUid, c);
-                            if (currentObj == null)
-                            {
-                                objBody = $"Error: UID '{qsUid}' not found.";
-                            }
-                            else
-                            {
-                                objBody = currentObj.UserData._ObjectToJson(includeNull: true);
-                            }
-                        }
-                    }
+                    w.WriteLine($"<p><font color={(isPostError ? "red" : "green")}><b>{postMsg._EncodeHtml(true)}</b></font></p>");
                 }
 
                 w.WriteLine($"<form action='{this.ObjEditBaseAbsoluteUrlPath}' method='post'>");
 
                 w.WriteLine($"<input name='_secret' type='hidden' value='{this.WebFormSecretKey}'/>");
+                w.WriteLine($"<input name='uid' type='hidden' value='{currentObj?.Uid ?? ""}'/>");
+                w.WriteLine($"<input name='type' type='hidden' value='{currentObj?.UserDataTypeName ?? ""}'/>");
+                w.WriteLine($"<input name='namespace' type='hidden' value='{currentObj?.NameSpace ?? ""}'/>");
 
-                w.WriteLine("<p>");
-                w.WriteLine("<textarea name='objectbody' spellcheck='false' rows='2' cols='20' id='configbody' style='color:#222222;font-family:Consolas;font-size:10pt;height:702px;width:95%;padding: 10px 10px 10px 10px;'>");
-                w.WriteLine(objBody._EncodeHtmlCodeBlock());
-                w.WriteLine("</textarea>");
-                w.WriteLine("</p>");
+                if (currentObj != null)
+                {
+                    w.WriteLine("<p>");
+                    w.WriteLine($"Object UID: <code><b>{currentObj.Uid}</b></code>, ");
+                    w.WriteLine($"Object Type: <code><b>{currentObj.UserDataTypeName}</b></code>, ");
+                    w.WriteLine($"Object NameSpace: <code><b>{currentObj.NameSpace}</b></code>");
+                    w.WriteLine("</p>");
+                }
+
+                if (objBody._IsFilled())
+                {
+                    w.WriteLine("<p>");
+                    w.WriteLine("<textarea name='objectbody' spellcheck='false' rows='2' cols='20' id='configbody' style='color:#222222;font-family:Consolas;font-size:10pt;height:702px;width:95%;padding: 10px 10px 10px 10px;'>");
+                    w.WriteLine(objBody._EncodeHtmlCodeBlock());
+                    w.WriteLine("</textarea>");
+                    w.WriteLine("</p>");
+                }
 
                 //if (msg._IsFilled()) w.WriteLine($"<p><B><font color=green>{msg}</font></B></p>");
 
-                w.WriteLine("<input class='button is-link' type='submit' style='font-weight: bold' value='Apply Now (Be Careful!)'>");
+                if (showUpdateButton)
+                {
+                    w.WriteLine("<input class='button is-link' type='submit' style='font-weight: bold' value='Update Object Now (Be Careful!)'>");
+                    w.WriteLine($"&nbsp;&nbsp;<input id='delete' name='delete' type='checkbox' value='1' /><label for='delete'>&nbsp;Delete This Object (Dangerous!)</label>");
+                }
 
                 w.WriteLine("</form>");
             });

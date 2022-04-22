@@ -92,12 +92,22 @@ using Dapper;
 
 namespace IPA.Cores.Basic;
 
+public static partial class CoresConfig
+{
+    public static partial class Hadb
+    {
+        public static readonly Copenhagen<int> DefaultMaxArchiveCount = 20;
+    }
+}
+
 public class HadbSearchResultJsonObject
 {
     public string Uid = "";
     public long Ver;
     public DateTimeOffset CreateDt;
     public DateTimeOffset UpdateDt;
+    public DateTimeOffset DeleteDt;
+    public bool Deleted;
     public bool Archived;
     public string NameSpace = "";
     public string TypeName = "";
@@ -113,7 +123,9 @@ public class HadbSearchResultJsonObject
         this.Ver = src.Ver;
         this.CreateDt = src.CreateDt;
         this.UpdateDt = src.UpdateDt;
+        this.DeleteDt = src.DeleteDt;
         this.Archived = src.Archive;
+        this.Deleted = src.Deleted;
         this.NameSpace = src.NameSpace;
         this.TypeName = src.UserDataTypeName;
         this.Ext1 = src.Ext1._NullIfEmpty();
@@ -2127,13 +2139,14 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         //await dbWriter.EasyUpdateAsync(row, true, cancel);
 
         // デッドロックを防ぐため、where 句が重要。手動で実行するのである。
-        await dbWriter.EasyExecuteAsync("update HADB_DATA with (ROWLOCK) set DATA_VER = @DATA_VER, DATA_UPDATE_DT = @DATA_UPDATE_DT, DATA_DELETED = @DATA_DELETED, " +
+        await dbWriter.EasyExecuteAsync("update HADB_DATA with (ROWLOCK) set DATA_VER = @DATA_VER, DATA_UPDATE_DT = @DATA_UPDATE_DT, DATA_DELETE_DT = @DATA_DELETE_DT, DATA_DELETED = @DATA_DELETED, " +
             "DATA_LAZY_COUNT1 = @DATA_LAZY_COUNT1, DATA_SNAPSHOT_NO = @DATA_SNAPSHOT_NO " +
             "where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE = 0 and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
             new
             {
                 DATA_VER = row.DATA_VER,
                 DATA_UPDATE_DT = row.DATA_UPDATE_DT,
+                DATA_DELETE_DT = row.DATA_DELETE_DT,
                 DATA_DELETED = row.DATA_DELETED,
                 DATA_LAZY_COUNT1 = row.DATA_LAZY_COUNT1,
                 DATA_SNAPSHOT_NO = row.DATA_SNAPSHOT_NO,
@@ -2346,7 +2359,7 @@ public abstract class HadbData : INormalizable
 {
     public virtual HadbKeys GetKeys() => new HadbKeys("");
     public virtual HadbLabels GetLabels() => new HadbLabels("");
-    public virtual int GetMaxArchivedCount() => int.MaxValue;
+    public virtual int GetMaxArchivedCount() => CoresConfig.Hadb.DefaultMaxArchiveCount;
     public virtual string GenerateFt1() => Str.GenerateSearchableStrFromObject(this, SearchableStrFlag.Default);
     public virtual string GenerateFt2() => Str.GenerateSearchableStrFromObject(this, SearchableStrFlag.Default | SearchableStrFlag.PrependFieldName);
     public virtual HadbDataFlags GetDataFlags() => HadbDataFlags.None;
@@ -4992,7 +5005,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
                     await tran.AtomicUpdateAsync(current, cancel);
 
-                    ret = current;
+                    // 更新結果を取得する
+                    ret = (await tran.AtomicGetAsync(current.Uid, current.UserDataTypeName, current.NameSpace, cancel))!;
 
                     return true;
                 }
