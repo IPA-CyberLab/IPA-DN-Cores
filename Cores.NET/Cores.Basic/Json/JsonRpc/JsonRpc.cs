@@ -1049,11 +1049,32 @@ public abstract class JsonRpcServer
     }
 }
 
+[Flags]
+public enum HadbObjectSetFlag
+{
+    New = 1,
+    Update = 2,
+    Delete = 4,
+}
+
+[Flags]
+public enum HadbObjectGetExFlag
+{
+    None = 0,
+    WithArchive = 1,
+}
+
+
 public interface IHadbBasedServicePoint
 {
     public Task Basic_Require_AdminBasicAuthAsync(string realm = "");
+
     public Task<string> AdminForm_GetDynamicConfigAsync(CancellationToken cancel = default);
     public Task AdminForm_SetDynamicConfigAsync(string newConfig, CancellationToken cancel = default);
+
+    public Task<HadbObject?> AdminForm_DirectGetObjectAsync(string uid, CancellationToken cancel = default);
+    public Task<HadbObject> AdminForm_DirectSetObjectAsync(string uid, string jsonData, HadbObjectSetFlag flag, string typeName, string nameSpace, CancellationToken cancel = default);
+    public Task<string> AdminForm_DirectGetObjectExAsync(string uid, int maxItems = int.MaxValue, HadbObjectGetExFlag flag = HadbObjectGetExFlag.None, CancellationToken cancel = default);
 }
 
 public class JsonRpcServerConfig

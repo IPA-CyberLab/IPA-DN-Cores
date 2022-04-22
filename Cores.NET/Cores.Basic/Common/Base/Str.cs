@@ -77,6 +77,53 @@ namespace IPA.Cores.Basic
             return false;
         }
 
+        public void GenerateSqlLikeConditions(string rowName, out string conditionStr, out KeyValueList<string, string> paramList)
+        {
+            var conditionList = new List<string>();
+            paramList = new KeyValueList<string, string>();
+
+            int index = 0;
+
+            string paramPrefix = "WORD_" + Str.GenRandStr() + "_";
+
+            foreach (var item in this.WordList)
+            {
+                string ss = item.Item2;
+
+                if (this.Flags.Bit(FullTextSearchFlags.WordMode))
+                {
+                    ss = "| " + ss + " |";
+                }
+
+                ss = "%" + Str.SqlServerEscapeLikeToken(ss, '?') + "%";
+
+                string paramName = $"{paramPrefix}{index}";
+
+                string cond = rowName + " ";
+
+                if (item.Item1 == false)
+                {
+                    cond += " not ";
+                }
+
+                cond += $" like @{paramName} escape '?' ";
+
+                conditionList.Add(cond);
+                paramList.Add(paramName, ss);
+
+                index++;
+            }
+
+            if (conditionList.Any())
+            {
+                conditionStr = " ( " + conditionList._Combine(this.AndMode ? " and " : " or ") + " ) ";
+            }
+            else
+            {
+                conditionStr = " ( 1 = 1 ) ";
+            }
+        }
+
         public bool IsMatch(string targetStrNormalized, string? targetStrExactMatch = null)
         {
             if (this.WordList.Any() == false)
@@ -225,7 +272,7 @@ namespace IPA.Cores.Basic
                     string word2;
                     bool wordFlag;
 
-                    if (word.StartsWith("-"))
+                    if (word.StartsWith("-") || word.StartsWith("!"))
                     {
                         word2 = word.Substring(1);
                         wordFlag = false;
@@ -1335,9 +1382,31 @@ namespace IPA.Cores.Basic
 
             Str.NormalizeString(ref s, false, true, false, true);
 
+            s = s._ReplaceStr("|", ",");
+
             s = s._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', '\t', '\r', '\n')._Combine(" ");
 
             return s;
+        }
+
+        public static string SqlServerEscapeLikeToken(string src, char escapeChar = '!')
+        {
+            src = src._NonNull();
+
+            if (escapeChar == '%' || escapeChar == '_' || escapeChar == '[' || escapeChar == ']' || escapeChar == '^' || escapeChar == '-')
+            {
+                throw new CoresLibException($"Invalid escape char: '{escapeChar}'");
+            }
+
+            src = src._ReplaceStr("" + escapeChar, "" + escapeChar + escapeChar);
+            src = src._ReplaceStr("%", "" + escapeChar + "%");
+            src = src._ReplaceStr("_", "" + escapeChar + "_");
+            src = src._ReplaceStr("[", "" + escapeChar + "[");
+            src = src._ReplaceStr("]", "" + escapeChar + "]");
+            src = src._ReplaceStr("^", "" + escapeChar + "^");
+            src = src._ReplaceStr("-", "" + escapeChar + "-");
+
+            return src;
         }
 
         public static List<string> GetSearchableStrListFromPrimitiveData(object? o, SearchableStrFlag flag, string prefix = "")

@@ -68,9 +68,9 @@ public class JsonRpcHttpServer : JsonRpcServer
     public static bool HideErrorDetails = false; // 詳細エラーを隠すかどうかのフラグ。手抜きグローバル変数
 
     public string RpcBaseAbsoluteUrlPath = ""; // "/rpc/" のような絶対パス。末尾に / を含む。
-    public string WebFormBaseAbsoluteUrlPath = ""; // "/webform/" のような絶対パス。末尾に / を含む。
-    public string ConfigFormBaseAbsoluteUrlPath = ""; // "/configform/" のような絶対パス。末尾に / を含む。
-    public string ObjEditBaseAbsoluteUrlPath = ""; // "/objedit/" のような絶対パス。末尾に / を含む。
+    public string WebFormBaseAbsoluteUrlPath = ""; // "/user/" のような絶対パス。末尾に / を含む。
+    public string ConfigFormBaseAbsoluteUrlPath = ""; // "/admin_config/" のような絶対パス。末尾に / を含む。
+    public string ObjEditBaseAbsoluteUrlPath = ""; // "/admin_objedit/" のような絶対パス。末尾に / を含む。
 
     readonly string WebFormSecretKey = Str.GenRandStr();
 
@@ -79,21 +79,22 @@ public class JsonRpcHttpServer : JsonRpcServer
     enum AdminFormsOperation
     {
         ConfigForm = 0,
+        ObjEdit,
     }
 
-    // /configform の GET ハンドラ
+    // /admin_config の GET ハンドラ
     public virtual async Task ConfigForm_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
         await ConfigForm_CommonRequestHandler(request, response, routeData, WebMethods.GET);
     }
 
-    // /configform の POST ハンドラ
+    // /admin_config の POST ハンドラ
     public virtual async Task ConfigForm_PostRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
         await ConfigForm_CommonRequestHandler(request, response, routeData, WebMethods.POST);
     }
 
-    // /configform の共通ハンドラ
+    // /admin_config の共通ハンドラ
     public virtual async Task ConfigForm_CommonRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData, WebMethods method)
     {
         await AdminForms_CommonAsync(request, response, routeData, "Admin Config Page", AdminFormsOperation.ConfigForm, method,
@@ -137,7 +138,129 @@ public class JsonRpcHttpServer : JsonRpcServer
 
                 if (msg._IsFilled()) w.WriteLine($"<p><B><font color=green>{msg}</font></B></p>");
 
-                w.WriteLine("<input class='button is-link' type='submit' style='font-weight: bold' value='Update Now (Be Careful!)'>");
+                w.WriteLine("<input class='button is-link' type='submit' style='font-weight: bold' value='Apply Now (Be Careful!)'>");
+
+                w.WriteLine("</form>");
+            });
+    }
+
+    // /admin_objedit の GET ハンドラ
+    public virtual async Task ObjEdit_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+    {
+        await ObjEdit_CommonRequestHandler(request, response, routeData, WebMethods.GET);
+    }
+
+    // /admin_objedit の POST ハンドラ
+    public virtual async Task ObjEdit_PostRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+    {
+        await ObjEdit_CommonRequestHandler(request, response, routeData, WebMethods.POST);
+    }
+
+    // /admin_objedit の共通ハンドラ
+    public virtual async Task ObjEdit_CommonRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData, WebMethods method)
+    {
+        await AdminForms_CommonAsync(request, response, routeData, "Database Object Low Level Viewer and Editor", AdminFormsOperation.ObjEdit, method,
+            async (w, postData, c) =>
+            {
+                string objBody = "";
+
+                // Query String において指定された UID
+                string qsUid = request.Query._GetStrFirst("uid");
+                qsUid = qsUid._NormalizeUid()._MakeVerySafeAsciiOnlyNonSpaceFileName();
+
+                bool qsMetadata = request.Query._GetStrFirst("metadata")._ToBool();
+                bool qsArchive = request.Query._GetStrFirst("archive")._ToBool();
+
+                // UID 入力フォーム
+                string uidEditBoxStr = $@"
+                    <div class='field'>
+                        <p class='control'>
+                            <input class='input is-info text-box single-line' name='uid' type='text' value='{qsUid}' />
+                            Example: DATA_0123456789_123_012345678901234_01234_01234
+                        </p>
+                    </div>
+";
+
+                w.WriteLine($"<form action='{this.ObjEditBaseAbsoluteUrlPath}' method='get'>");
+
+                w.WriteLine($@"
+                    <div class='field is-horizontal'>
+                        <div class='field-label is-normal'>
+                            <label class='label'><i class='fas fa-cubes'></i> Target Object UID:<BR>(Unique ID)</label>
+                        </div>
+                        <div class='field-body'>
+                            {uidEditBoxStr}
+                        </div>
+                    </div>");
+
+
+                w.WriteLine($@"
+            <div class='field is-horizontal'>
+                <div class='field-label'>
+                    <!-- Left empty for spacing -->
+                </div>
+                <div class='field-body'>
+                    <div class='field'>
+                        <div class='control'>
+                            <input class='button is-link' type='submit' style='font-weight: bold' value='Show Current Object by UID'>
+                            &nbsp;&nbsp;<input { qsMetadata._HtmlCheckedIfTrue() } id='metadata' name='metadata' type='checkbox' value='1' /><label for='metadata'>&nbsp;Show Object Metadata</label>
+                            &nbsp;&nbsp;<input { qsArchive._HtmlCheckedIfTrue() } id='archive' name='archive' type='checkbox' value='1' /><label for='archive'>&nbsp;Show Archived Object History</label>
+                            <p>　</p>
+");
+
+                w.WriteLine(@"
+                        </div>
+                    </div>
+                </div>
+            </div>");
+
+
+                w.WriteLine("</form>");
+
+                // qsUid が指定されている場合はオブジェクトの内容を取得する
+                if (method == WebMethods.GET)
+                {
+                    if (qsUid._IsFilled())
+                    {
+                        if (qsMetadata || qsArchive)
+                        {
+                            try
+                            {
+                                objBody = await this.Config.HadbBasedServicePoint!.AdminForm_DirectGetObjectExAsync(qsUid, 100, qsArchive ? HadbObjectGetExFlag.WithArchive : HadbObjectGetExFlag.None);
+                            }
+                            catch (Exception ex)
+                            {
+                                objBody = "***Error: " + ex.ToString();
+                            }
+                        }
+                        else
+                        {
+                            var currentObj = await this.Config.HadbBasedServicePoint!.AdminForm_DirectGetObjectAsync(qsUid, c);
+                            if (currentObj == null)
+                            {
+                                objBody = $"Error: UID '{qsUid}' not found.";
+                            }
+                            else
+                            {
+                                objBody = currentObj.UserData._ObjectToJson(includeNull: true);
+                            }
+                        }
+                    }
+                }
+
+                w.WriteLine($"<form action='{this.ObjEditBaseAbsoluteUrlPath}' method='post'>");
+
+                w.WriteLine($"<input name='_secret' type='hidden' value='{this.WebFormSecretKey}'/>");
+
+                w.WriteLine("<p>");
+                w.WriteLine("<textarea name='objectbody' spellcheck='false' rows='2' cols='20' id='configbody' style='color:#222222;font-family:Consolas;font-size:10pt;height:702px;width:95%;padding: 10px 10px 10px 10px;'>");
+                w.WriteLine(objBody._EncodeHtmlCodeBlock());
+                w.WriteLine("</textarea>");
+                w.WriteLine("</p>");
+
+                //if (msg._IsFilled()) w.WriteLine($"<p><B><font color=green>{msg}</font></B></p>");
+
+                w.WriteLine("<input class='button is-link' type='submit' style='font-weight: bold' value='Apply Now (Be Careful!)'>");
 
                 w.WriteLine("</form>");
             });
@@ -146,101 +269,108 @@ public class JsonRpcHttpServer : JsonRpcServer
     async Task AdminForms_CommonAsync(HttpRequest request, HttpResponse response, RouteData routeData, string title, AdminFormsOperation operation, WebMethods method,
         Func<StringWriter, ReadOnlyMemory<byte>, CancellationToken, Task> bodyWriter)
     {
-        ReadOnlyMemory<byte> postData = default;
-        CancellationToken cancel = request._GetRequestCancellationToken();
-
-        if (method == WebMethods.POST)
-        {
-            postData = await request.Body._ReadToEndAsync(10_000_000, cancel);
-        }
-
-        // Basic 認証または Query String における認証クレデンシャルが提供されているかどうか調べる
-        string suppliedUsername = "";
-        string suppliedPassword = "";
-        var basicAuthHeader = BasicAuthImpl.ParseBasicAuthenticationHeader(request.Headers._GetStrFirst("Authorization"));
-        if (basicAuthHeader != null)
-        {
-            suppliedUsername = basicAuthHeader.Item1;
-            suppliedPassword = basicAuthHeader.Item2;
-        }
-        var conn = request.HttpContext.Connection;
-
-        SortedDictionary<string, string> requestHeaders = new SortedDictionary<string, string>();
-        foreach (string headerName in request.Headers.Keys)
-        {
-            if (request.Headers.TryGetValue(headerName, out var val))
-            {
-                requestHeaders.Add(headerName, val.ToString());
-            }
-        }
-
-        JsonRpcClientInfo clientInfo = new JsonRpcClientInfo(
-            request.Scheme,
-            request.Host.ToString(),
-            request.GetDisplayUrl(),
-            conn.LocalIpAddress!._UnmapIPv4().ToString(), conn.LocalPort,
-            conn.RemoteIpAddress!._UnmapIPv4().ToString(), conn.RemotePort,
-            requestHeaders,
-            suppliedUsername,
-            suppliedPassword);
-
-        string basicAuthRealm = "Auth for " + this.ConfigFormBaseAbsoluteUrlPath;
-
-        TaskVar.Set<JsonRpcClientInfo>(clientInfo);
         try
         {
-            if (this.Config.HadbBasedServicePoint == null)
+            ReadOnlyMemory<byte> postData = default;
+            CancellationToken cancel = request._GetRequestCancellationToken();
+
+            if (method == WebMethods.POST)
             {
-                throw new CoresException("this.Config.HadbBasedServicePoint is not set.");
+                postData = await request.Body._ReadToEndAsync(10_000_000, cancel);
             }
-            else
+
+            // Basic 認証または Query String における認証クレデンシャルが提供されているかどうか調べる
+            string suppliedUsername = "";
+            string suppliedPassword = "";
+            var basicAuthHeader = BasicAuthImpl.ParseBasicAuthenticationHeader(request.Headers._GetStrFirst("Authorization"));
+            if (basicAuthHeader != null)
             {
-                await this.Config.HadbBasedServicePoint.Basic_Require_AdminBasicAuthAsync(basicAuthRealm);
+                suppliedUsername = basicAuthHeader.Item1;
+                suppliedPassword = basicAuthHeader.Item2;
+            }
+            var conn = request.HttpContext.Connection;
+
+            SortedDictionary<string, string> requestHeaders = new SortedDictionary<string, string>();
+            foreach (string headerName in request.Headers.Keys)
+            {
+                if (request.Headers.TryGetValue(headerName, out var val))
+                {
+                    requestHeaders.Add(headerName, val.ToString());
+                }
             }
 
-            StringWriter w = new StringWriter();
+            JsonRpcClientInfo clientInfo = new JsonRpcClientInfo(
+                request.Scheme,
+                request.Host.ToString(),
+                request.GetDisplayUrl(),
+                conn.LocalIpAddress!._UnmapIPv4().ToString(), conn.LocalPort,
+                conn.RemoteIpAddress!._UnmapIPv4().ToString(), conn.RemotePort,
+                requestHeaders,
+                suppliedUsername,
+                suppliedPassword);
 
-            WebForm_WriteHtmlHeader(w, $"{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - {title}");
+            string basicAuthRealm = "Auth for HADB Admin Page";
 
-            w.WriteLine(@"
+            TaskVar.Set<JsonRpcClientInfo>(clientInfo);
+            try
+            {
+                if (this.Config.HadbBasedServicePoint == null)
+                {
+                    throw new CoresException("this.Config.HadbBasedServicePoint is not set.");
+                }
+                else
+                {
+                    await this.Config.HadbBasedServicePoint.Basic_Require_AdminBasicAuthAsync(basicAuthRealm);
+                }
+
+                StringWriter w = new StringWriter();
+
+                WebForm_WriteHtmlHeader(w, $"{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - {title}");
+
+                w.WriteLine(@"
     <div class='box'>
         <div class='content'>
 ");
 
-            w.WriteLine($"<h2 class='title is-4'>" + $"{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - {title}" + "</h2>");
+                w.WriteLine($"<h2 class='title is-4'>" + $"{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - {title}" + "</h2>");
 
-            await bodyWriter(w, postData, cancel);
+                await bodyWriter(w, postData, cancel);
 
-            w.WriteLine(@"
+                w.WriteLine(@"
         </div>
     </div>
 ");
 
-            WebForm_WriteHtmlFooter(w);
+                WebForm_WriteHtmlFooter(w);
 
-            await response._SendStringContentsAsync(w.ToString(), contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel, normalizeCrlf: CrlfStyle.CrLf);
+                await response._SendStringContentsAsync(w.ToString(), contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel, normalizeCrlf: CrlfStyle.CrLf);
 
+            }
+            catch (JsonRpcAuthErrorException)
+            {
+                // Basic 認証の要求
+                KeyValueList<string, string> basicAuthResponseHeaders = new KeyValueList<string, string>();
+                basicAuthResponseHeaders.Add(Consts.HttpHeaders.WWWAuthenticate, $"Basic realm=\"{basicAuthRealm}\"");
+
+                await using var basicAuthRequireResult = new HttpStringResult("Basic Auth Required", contentType: Consts.MimeTypes.TextUtf8, statusCode: Consts.HttpStatusCodes.Unauthorized, additionalHeaders: basicAuthResponseHeaders);
+
+                await response._SendHttpResultAsync(basicAuthRequireResult, cancel: request._GetRequestCancellationToken());
+
+                return;
+            }
+            finally
+            {
+                TaskVar.Set<JsonRpcClientInfo>(null);
+            }
         }
-        catch (JsonRpcAuthErrorException)
+        catch (Exception ex)
         {
-            // Basic 認証の要求
-            KeyValueList<string, string> basicAuthResponseHeaders = new KeyValueList<string, string>();
-            basicAuthResponseHeaders.Add(Consts.HttpHeaders.WWWAuthenticate, $"Basic realm=\"{basicAuthRealm}\"");
-
-            await using var basicAuthRequireResult = new HttpStringResult("Basic Auth Required", contentType: Consts.MimeTypes.TextUtf8, statusCode: Consts.HttpStatusCodes.Unauthorized, additionalHeaders: basicAuthResponseHeaders);
-
-            await response._SendHttpResultAsync(basicAuthRequireResult, cancel: request._GetRequestCancellationToken());
-
-            return;
-        }
-        finally
-        {
-            TaskVar.Set<JsonRpcClientInfo>(null);
+            await response._SendStringContentsAsync(ex.ToString(), cancel: request._GetRequestCancellationToken(), normalizeCrlf: CrlfStyle.Lf);
         }
 
     }
 
-    // /webform の GET ハンドラ
+    // /user の GET ハンドラ
     public virtual async Task WebForm_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
         CancellationToken cancel = request._GetRequestCancellationToken();
@@ -902,7 +1032,7 @@ code[class*=""language-""], pre[class*=""language-""] {
         await response._SendStringContentsAsync(retStr, responseContentsType, cancel: request._GetRequestCancellationToken(), statusCode: statusCode, normalizeCrlf: CrlfStyle.Lf);
     }
 
-    public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string rpcPath = "/rpc", string webFormPath = "/webform", string configFormPath = "/configform", string objEditPath = "/objedit")
+    public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string rpcPath = "/rpc", string webFormPath = "/user", string configFormPath = "/admin_config", string objEditPath = "/admin_objedit")
     {
         rpcPath = rpcPath._NonNullTrim();
         if (rpcPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{rpcPath}'");
@@ -933,7 +1063,8 @@ code[class*=""language-""], pre[class*=""language-""] {
         rb.MapGet(configFormPath, ConfigForm_GetRequestHandler);
         rb.MapPost(configFormPath, ConfigForm_PostRequestHandler);
 
-        rb.MapGet(configFormPath + "/{rpc_method}", WebForm_GetRequestHandler);
+        rb.MapGet(objEditPath, ObjEdit_GetRequestHandler);
+        rb.MapPost(objEditPath, ObjEdit_PostRequestHandler);
 
         IRouter router = rb.Build();
         appBuilder.UseRouter(router);

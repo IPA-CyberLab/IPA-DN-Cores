@@ -576,11 +576,35 @@ public static class HadbCodeTest
 
             await sys1.TranAsync(false, async tran =>
             {
-                var logs = await tran.AtomicSearchLogAsync<Log>(new HadbLogQuery { /*SearchTemplate = new Log { Event = LogEvent.Cat } */ }, nameSpace: nameSpace);
+                IEnumerable<HadbLog> logs;
+
+                logs = await tran.AtomicSearchLogAsync<Log>(new HadbLogQuery { FullTextFlags = FullTextSearchFlags.None, FullTextQuery = "o and !mouse" }, nameSpace: nameSpace);
+                Dbg.TestTrue(logs.Count() == 3);
+
+                logs = await tran.AtomicSearchLogAsync<Log>(new HadbLogQuery { /*SearchTemplate = new Log { Event = LogEvent.Cat } */ }, nameSpace: nameSpace);
                 Dbg.TestTrue(logs.Count() == 4);
 
                 logs = await tran.AtomicSearchLogAsync<Log>(new HadbLogQuery { SearchTemplate = new Log { Event = LogEvent.Cat } }, nameSpace: nameSpace);
                 Dbg.TestTrue(logs.Count() == 2);
+
+                logs = await tran.AtomicSearchLogAsync<Log>(new HadbLogQuery { FullTextFlags = FullTextSearchFlags.None, FullTextQuery = "cat" }, nameSpace: nameSpace);
+                Dbg.TestTrue(logs.Count() == 2);
+
+                logs = await tran.AtomicSearchLogAsync<Log>(new HadbLogQuery { FullTextFlags = FullTextSearchFlags.None, FullTextQuery = "ca AND at" }, nameSpace: nameSpace);
+                Dbg.TestTrue(logs.Count() == 2);
+
+                logs = await tran.AtomicSearchLogAsync<Log>(new HadbLogQuery { FullTextFlags = FullTextSearchFlags.None, FullTextQuery = "ca OR do" }, nameSpace: nameSpace);
+                Dbg.TestTrue(logs.Count() == 3);
+
+                logs = await tran.AtomicSearchLogAsync<Log>(new HadbLogQuery { FullTextFlags = FullTextSearchFlags.None, FullTextQuery = "ouse" }, nameSpace: nameSpace);
+                Dbg.TestTrue(logs.Count() == 1);
+
+                logs = await tran.AtomicSearchLogAsync<Log>(new HadbLogQuery { FullTextFlags = FullTextSearchFlags.WordMode, FullTextQuery = "ouse" }, nameSpace: nameSpace);
+                Dbg.TestTrue(logs.Count() == 0);
+
+                logs = await tran.AtomicSearchLogAsync<Log>(new HadbLogQuery { FullTextFlags = FullTextSearchFlags.FieldNameMode, FullTextQuery = "Event=Cat" }, nameSpace: nameSpace);
+                Dbg.TestTrue(logs.Count() == 2);
+
                 return false;
             });
 

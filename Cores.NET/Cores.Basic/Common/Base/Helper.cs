@@ -3526,6 +3526,9 @@ public static class BasicHelper
 
     public static object? _GetValueByDottedFieldNames(this object? targetObject, string fieldName, bool ignoreCase = false, bool returnNullIfError = false, string? defaultFirstFieldName = null)
         => FieldReaderWriter.GetFieldValueByDottedFieldNames(targetObject, fieldName, ignoreCase, returnNullIfError, defaultFirstFieldName);
+
+    public static string _StrIfTTrue(this bool b, string str) => b ? str._NonNull() : "";
+    public static string _HtmlCheckedIfTrue(this bool b) => b._StrIfTTrue("checked");
 }
 
 

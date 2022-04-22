@@ -294,42 +294,12 @@ public abstract class HadbBasedServiceHookBase
 {
 }
 
-public class HadbFullTextSearchResultObject
-{
-    public string Uid = "";
-    public long Ver;
-    public DateTimeOffset CreateDt;
-    public DateTimeOffset UpdateDt;
-    public bool Archived;
-    public string NameSpace = "";
-    public string TypeName = "";
-    public string? Ext1;
-    public string? Ext2;
-    public HadbData Data = null!;
-
-    public HadbFullTextSearchResultObject() { }
-
-    public HadbFullTextSearchResultObject(HadbObject src)
-    {
-        this.Uid = src.Uid;
-        this.Ver = src.Ver;
-        this.CreateDt = src.CreateDt;
-        this.UpdateDt = src.UpdateDt;
-        this.Archived = src.Archive;
-        this.NameSpace = src.NameSpace;
-        this.TypeName = src.UserDataTypeName;
-        this.Ext1 = src.Ext1._NullIfEmpty();
-        this.Ext2 = src.Ext2._NullIfEmpty();
-        this.Data = src.UserData;
-    }
-}
-
 public class HadbFullTextSearchResult
 {
     public int NumResultObjects;
     public int NumTotalObjects;
     public bool HasMore;
-    public List<HadbFullTextSearchResultObject> ObjectsList = new List<HadbFullTextSearchResultObject>();
+    public List<HadbSearchResultJsonObject> ObjectsList = new List<HadbSearchResultJsonObject>();
 }
 
 [RpcInterface]
@@ -433,6 +403,15 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
 
     protected Task<string> GetClientFqdnAsync(CancellationToken cancel = default, bool noCache = false)
         => this.DnsResolver.GetHostNameSingleOrIpAsync(GetClientIpAddress(), cancel, noCache);
+
+    public async Task<HadbObject?> AdminForm_DirectGetObjectAsync(string uid, CancellationToken cancel = default)
+        => await this.Hadb.DirectGetObjectAsync(uid, cancel);
+
+    public async Task<HadbObject> AdminForm_DirectSetObjectAsync(string uid, string jsonData, HadbObjectSetFlag flag, string typeName, string nameSpace, CancellationToken cancel = default)
+        => await this.Hadb.DirectSetObjectAsync(uid, jsonData, flag, typeName, nameSpace, cancel);
+
+    public async Task<string> AdminForm_DirectGetObjectExAsync(string uid, int maxItems = int.MaxValue, HadbObjectGetExFlag flag = HadbObjectGetExFlag.None, CancellationToken cancel = default)
+        => await this.Hadb.AdminForm_DirectGetObjectExAsync(uid, maxItems, flag, cancel);
 
     public async Task<string> AdminForm_GetDynamicConfigAsync(CancellationToken cancel = default)
     {
@@ -625,7 +604,7 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
 
         foreach (var obj in objList)
         {
-            ret.ObjectsList.Add(new HadbFullTextSearchResultObject(obj));
+            ret.ObjectsList.Add(new HadbSearchResultJsonObject(obj));
         }
 
         return ret._TR();

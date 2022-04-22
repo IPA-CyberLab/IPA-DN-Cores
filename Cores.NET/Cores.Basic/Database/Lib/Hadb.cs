@@ -92,6 +92,36 @@ using Dapper;
 
 namespace IPA.Cores.Basic;
 
+public class HadbSearchResultJsonObject
+{
+    public string Uid = "";
+    public long Ver;
+    public DateTimeOffset CreateDt;
+    public DateTimeOffset UpdateDt;
+    public bool Archived;
+    public string NameSpace = "";
+    public string TypeName = "";
+    public string? Ext1;
+    public string? Ext2;
+    public HadbData Data = null!;
+
+    public HadbSearchResultJsonObject() { }
+
+    public HadbSearchResultJsonObject(HadbObject src)
+    {
+        this.Uid = src.Uid;
+        this.Ver = src.Ver;
+        this.CreateDt = src.CreateDt;
+        this.UpdateDt = src.UpdateDt;
+        this.Archived = src.Archive;
+        this.NameSpace = src.NameSpace;
+        this.TypeName = src.UserDataTypeName;
+        this.Ext1 = src.Ext1._NullIfEmpty();
+        this.Ext2 = src.Ext2._NullIfEmpty();
+        this.Data = src.UserData;
+    }
+}
+
 public class HadbTestData : HadbData
 {
     public string HostName = "";
@@ -1128,7 +1158,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         var rows = await db.EasySelectAsync<HadbSqlQuickRow>(query,
             new
             {
-                QUICK_KEY = (startWith ? EscapeLikeToken(key, '?') + "%" : key),
+                QUICK_KEY = (startWith ? Str.SqlServerEscapeLikeToken(key, '?') + "%" : key),
                 QUICK_SYSTEMNAME = this.SystemName,
                 QUICK_NAMESPACE = nameSpace,
                 QUICK_TYPE = typeName,
@@ -1306,32 +1336,13 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             new
             {
                 QUICK_DELETE_DT = DtOffsetNow,
-                QUICK_KEY = (startWith ? EscapeLikeToken(key, '?') + "%" : key),
+                QUICK_KEY = (startWith ? Str.SqlServerEscapeLikeToken(key, '?') + "%" : key),
                 QUICK_SYSTEMNAME = this.SystemName,
                 QUICK_NAMESPACE = nameSpace,
                 QUICK_TYPE = typeName,
             });
 
         return i;
-    }
-
-    string EscapeLikeToken(string src, char escapeChar = '!')
-    {
-        src = src._NonNull();
-
-        if (src.IndexOf(escapeChar, StrCmpi) != -1)
-        {
-            throw new CoresException("Source src string contains escape char '" + escapeChar + "'.");
-        }
-
-        src = src._ReplaceStr("%", "" + escapeChar + "%");
-        src = src._ReplaceStr("_", "" + escapeChar + "_");
-        src = src._ReplaceStr("[", "" + escapeChar + "[");
-        src = src._ReplaceStr("]", "" + escapeChar + "]");
-        src = src._ReplaceStr("^", "" + escapeChar + "^");
-        src = src._ReplaceStr("-", "" + escapeChar + "-");
-
-        return src;
     }
 
     protected async Task<HadbSqlDataRow?> GetRowByKeyAsync(Database db, string typeName, string nameSpace, HadbKeys key, bool lightLock, bool and, CancellationToken cancel = default)
@@ -1402,7 +1413,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             cancel: cancel);
     }
 
-    protected async Task<HadbSqlDataRow?> GetRowByUidAsync(Database db, string typeName, string nameSpace, string uid, bool lightLock, CancellationToken cancel = default)
+    protected async Task<HadbSqlDataRow?> GetRowByUidAsync(Database db, string typeName, string nameSpace, string uid, bool lightLock, CancellationToken cancel = default, bool noCheckTypeIdAndNameSpace = false)
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
 
@@ -1410,8 +1421,16 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         if (uid._IsEmpty()) return null;
 
+        string query =
+            $"select * from HADB_DATA { (lightLock ? "with(READCOMMITTEDLOCK, ROWLOCK)" : "") } where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE = 0 ";
+
+        if (noCheckTypeIdAndNameSpace == false)
+        {
+            query += " and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE";
+        }
+
         // READCOMMITTEDLOCK, ROWLOCK は、「トランザクション分離レベルが Snapshot かつ読み取り専用の場合」以外に付ける。
-        return await db.EasySelectSingleAsync<HadbSqlDataRow>($"select * from HADB_DATA { (lightLock ? "with(READCOMMITTEDLOCK, ROWLOCK)" : "") } where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE = 0 and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
+        return await db.EasySelectSingleAsync<HadbSqlDataRow>(query,
             new
             {
                 DATA_UID = uid,
@@ -1627,6 +1646,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         nameSpace = nameSpace._HadbNameSpaceNormalize();
         var db = ((HadbSqlTran)tran).Db;
 
+        var paramList = new KeyValueList<string, object>();
+
         List<string> conditions = new List<string>();
 
         if (query.Uid._IsFilled()) conditions.Add("LOG_UID = @LOG_UID");
@@ -1649,35 +1670,44 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         if (labels2.Label4._IsFilled()) conditions.Add("LOG_LABEL4 = @LOG_LABEL4_02");
         if (labels2.Label5._IsFilled()) conditions.Add("LOG_LABEL5 = @LOG_LABEL5_02");
 
+        paramList.Add("LOG_UID", query.Uid);
+        paramList.Add("DT_START", query.TimeStart);
+        paramList.Add("DT_END", query.TimeEnd);
+        paramList.Add("SNAP_START", query.SnapshotNoStart);
+        paramList.Add("SNAP_END", query.SnapshotNoEnd);
+
+        paramList.Add("LOG_LABEL1", labels.Label1._NonNull());
+        paramList.Add("LOG_LABEL2", labels.Label2._NonNull());
+        paramList.Add("LOG_LABEL3", labels.Label3._NonNull());
+        paramList.Add("LOG_LABEL4", labels.Label4._NonNull());
+        paramList.Add("LOG_LABEL5", labels.Label5._NonNull());
+
+        paramList.Add("LOG_LABEL1_02", labels2.Label1._NonNull());
+        paramList.Add("LOG_LABEL2_02", labels2.Label2._NonNull());
+        paramList.Add("LOG_LABEL3_02", labels2.Label3._NonNull());
+        paramList.Add("LOG_LABEL4_02", labels2.Label4._NonNull());
+        paramList.Add("LOG_LABEL5_02", labels2.Label5._NonNull());
+
+        paramList.Add("LOG_SYSTEM_NAME", this.SystemName);
+        paramList.Add("LOG_TYPE", typeName);
+        paramList.Add("LOG_NAMESPACE", nameSpace);
+
+        if (query.FullTextQuery._IsFilled())
+        {
+            var ft = FullTextSearchQuery.ParseText(query.FullTextQuery, query.FullTextFlags);
+
+            ft.GenerateSqlLikeConditions(query.FullTextFlags.Bit(FullTextSearchFlags.FieldNameMode) ? "LOG_FT2" : "LOG_FT1", out var ftConditionStr, out var ftParamList);
+
+            conditions.Add(ftConditionStr);
+            ftParamList.ForEach(x => paramList.Add(x.Key, x.Value));
+        }
+
         if (conditions.Count == 0) conditions.Add("1 = 1");
 
         string qstr = $"select {(query.MaxReturmItems >= 1 ? $"top {query.MaxReturmItems}" : "")} * from HADB_LOG where {conditions._Combine(" and ")} and LOG_SYSTEM_NAME = @LOG_SYSTEM_NAME and LOG_TYPE = @LOG_TYPE and LOG_NAMESPACE = @LOG_NAMESPACE and LOG_DELETED = 0 order by LOG_ID desc";
 
         var rows = await db.EasySelectAsync<HadbSqlLogRow>(qstr,
-            new
-            {
-                LOG_UID = query.Uid,
-                DT_START = query.TimeStart,
-                DT_END = query.TimeEnd,
-                SNAP_START = query.SnapshotNoStart,
-                SNAP_END = query.SnapshotNoEnd,
-
-                LOG_LABEL1 = labels.Label1._NonNull(),
-                LOG_LABEL2 = labels.Label2._NonNull(),
-                LOG_LABEL3 = labels.Label3._NonNull(),
-                LOG_LABEL4 = labels.Label4._NonNull(),
-                LOG_LABEL5 = labels.Label5._NonNull(),
-
-                LOG_LABEL1_02 = labels2.Label1._NonNull(),
-                LOG_LABEL2_02 = labels2.Label2._NonNull(),
-                LOG_LABEL3_02 = labels2.Label3._NonNull(),
-                LOG_LABEL4_02 = labels2.Label4._NonNull(),
-                LOG_LABEL5_02 = labels2.Label5._NonNull(),
-
-                LOG_SYSTEM_NAME = this.SystemName,
-                LOG_TYPE = typeName,
-                LOG_NAMESPACE = nameSpace,
-            },
+            paramList,
             cancel: cancel);
 
         List<HadbLog> ret = new List<HadbLog>();
@@ -1894,23 +1924,28 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
     }
 
-    protected internal override async Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, CancellationToken cancel = default)
+    protected internal override async Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, CancellationToken cancel = default, bool noCheckTypeIdAndNameSpace = false)
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
         typeName = typeName._NonNullTrim();
 
         var dbReader = ((HadbSqlTran)tran).Db;
 
-        HadbSqlDataRow? row = await GetRowByUidAsync(dbReader, typeName, nameSpace, uid, tran.ShouldUseLightLock, cancel);
+        HadbSqlDataRow? row = await GetRowByUidAsync(dbReader, typeName, nameSpace, uid, tran.ShouldUseLightLock, cancel, noCheckTypeIdAndNameSpace);
 
         if (row == null) return null;
+
+        if (noCheckTypeIdAndNameSpace && typeName._IsEmpty())
+        {
+            typeName = row.DATA_TYPE;
+        }
 
         HadbObject ret = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
 
         return ret;
     }
 
-    protected internal override async Task<IEnumerable<HadbObject>> AtomicGetArchivedDataFromDatabaseImplAsync(HadbTran tran, int maxItems, string uid, string typeName, string nameSpace, CancellationToken cancel = default)
+    protected internal override async Task<IEnumerable<HadbObject>> AtomicGetArchivedDataFromDatabaseImplAsync(HadbTran tran, int maxItems, string uid, string typeName, string nameSpace, CancellationToken cancel = default, bool noCheckTypeIdAndNameSpace = false)
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
         typeName = typeName._NonNullTrim();
@@ -1923,7 +1958,17 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         if (uid._IsEmpty()) return EmptyOf<HadbObject>();
 
-        var rows = await db.EasySelectAsync<HadbSqlDataRow>($"select top {maxItems} * from HADB_DATA where (DATA_UID = @DATA_UID or DATA_UID_ORIGINAL = @DATA_UID) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE order by DATA_VER desc",
+        string query =
+            $"select top {maxItems} * from HADB_DATA where (DATA_UID = @DATA_UID or DATA_UID_ORIGINAL = @DATA_UID) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME ";
+
+        if (noCheckTypeIdAndNameSpace == false)
+        {
+            query += " and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE ";
+        }
+
+        query += "order by DATA_VER desc";
+
+        var rows = await db.EasySelectAsync<HadbSqlDataRow>(query,
             new
             {
                 DATA_UID = uid,
@@ -1940,6 +1985,11 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             List<HadbObject> tmp = new List<HadbObject>();
             foreach (var row in partOfRows)
             {
+                if (typeName._IsEmpty() && noCheckTypeIdAndNameSpace)
+                {
+                    typeName = row.DATA_TYPE;
+                }
+
                 tmp.Add(new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT));
             }
             return TR(tmp);
@@ -2253,6 +2303,9 @@ public struct HadbLabels : IEquatable<HadbLabels>
 public abstract class HadbLog : INormalizable
 {
     public virtual HadbLabels GetLabels() => new HadbLabels("");
+    public virtual HadbLogFlags GetLogFlags() => HadbLogFlags.None;
+    public virtual string GenerateFt1() => Str.GenerateSearchableStrFromObject(this, SearchableStrFlag.Default);
+    public virtual string GenerateFt2() => Str.GenerateSearchableStrFromObject(this, SearchableStrFlag.Default | SearchableStrFlag.PrependFieldName);
 
     public abstract void Normalize();
 
@@ -2277,6 +2330,13 @@ public abstract class HadbLog : INormalizable
 
 [Flags]
 public enum HadbDataFlags : long
+{
+    None = 0,
+    NoFullTextSearch = 1,
+}
+
+[Flags]
+public enum HadbLogFlags : long
 {
     None = 0,
     NoFullTextSearch = 1,
@@ -2819,6 +2879,23 @@ public sealed class HadbObject : INormalizable
         };
 
         return ret;
+    }
+
+    public void ReplaceData(HadbData newData)
+    {
+        this.CheckIsNotMemoryDbObject();
+
+        if (this.UserDataType != newData.GetType())
+        {
+            throw new CoresLibException($"this.UserDataType ({this.UserDataType.ToString()}) != newData.GetType() ({newData.GetType().ToString()})");
+        }
+
+        newData = newData._CloneDeep();
+
+        this.UserData = newData;
+
+        this.Normalize();
+        this.UpdateFullText();
     }
 }
 
@@ -3410,12 +3487,15 @@ public class HadbLogQuery : INormalizable
     public long SnapshotNoEnd { get; set; } = 0;
     public HadbLabels Labels { get; set; } = new HadbLabels("");
     public HadbLog? SearchTemplate { get; set; } = null;
+    public FullTextSearchFlags FullTextFlags { get; set; } = FullTextSearchFlags.None;
+    public string FullTextQuery { get; set; } = "";
 
     public void Normalize()
     {
         this.Uid = this.Uid._NormalizeUid();
         this.TimeStart = this.TimeStart._NormalizeDateTimeOffset();
         this.TimeEnd = this.TimeEnd._NormalizeDateTimeOffset();
+        this.FullTextQuery = this.FullTextQuery._NonNull();
     }
 }
 
@@ -3509,8 +3589,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     protected abstract Task<HadbTran> BeginDatabaseTransactionImplAsync(bool writeMode, bool isTransaction, HadbTranOptions options, CancellationToken cancel = default);
 
     protected internal abstract Task AtomicAddDataListToDatabaseImplAsync(HadbTran tran, IEnumerable<HadbObject> dataList, CancellationToken cancel = default);
-    protected internal abstract Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, CancellationToken cancel = default);
-    protected internal abstract Task<IEnumerable<HadbObject>> AtomicGetArchivedDataFromDatabaseImplAsync(HadbTran tran, int maxItems, string uid, string typeName, string nameSpace, CancellationToken cancel = default);
+    protected internal abstract Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, CancellationToken cancel = default, bool noCheckTypeIdAndNameSpace = false);
+    protected internal abstract Task<IEnumerable<HadbObject>> AtomicGetArchivedDataFromDatabaseImplAsync(HadbTran tran, int maxItems, string uid, string typeName, string nameSpace, CancellationToken cancel = default, bool noCheckTypeIdAndNameSpace = false);
     protected internal abstract Task<HadbObject?> AtomicSearchDataByKeyFromDatabaseImplAsync(HadbTran tran, HadbKeys keys, string typeName, string nameSpace, bool and, CancellationToken cancel = default);
     protected internal abstract Task<IEnumerable<HadbObject>> AtomicSearchDataListByLabelsFromDatabaseImplAsync(HadbTran tran, HadbLabels labels, string typeName, string nameSpace, CancellationToken cancel = default);
     protected internal abstract Task<HadbObject> AtomicDeleteDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, int maxArchive, CancellationToken cancel = default);
@@ -3668,7 +3748,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             {
                 if (key._IsFilled())
                 {
-                    configList.Add(key, value);
+                    configList.Add(key, value.Trim());
                 }
             }
         }
@@ -4803,6 +4883,145 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         }
     }
 
+    public async Task<string> AdminForm_DirectGetObjectExAsync(string uid, int maxItems = int.MaxValue, HadbObjectGetExFlag flag = HadbObjectGetExFlag.None, CancellationToken cancel = default)
+    {
+        string ret = "";
+        uid = uid._NormalizeUid();
+
+        await this.TranAsync(false, async tran =>
+        {
+            if (flag.Bit(HadbObjectGetExFlag.WithArchive))
+            {
+                var objectList = await tran.AtomicGetArchivedAsync(uid, "", maxItems, "", cancel, noCheckTypeIdAndNameSpace: true);
+
+                if (objectList.Any() == false)
+                {
+                    throw new CoresException($"UID {uid} not found on the database.");
+                }
+
+                List<HadbSearchResultJsonObject> list = new List<HadbSearchResultJsonObject>();
+                objectList._DoForEach(x => list.Add(new HadbSearchResultJsonObject(x)));
+
+                ret = list._ObjectToJson(includeNull: true);
+            }
+            else
+            {
+                var obj = await tran.AtomicGetAsync(uid, "", "", cancel, noCheckTypeIdAndNameSpace: true);
+
+                if (obj == null)
+                {
+                    throw new CoresException($"UID {uid} not found on the database.");
+                }
+
+                var tmp = new HadbSearchResultJsonObject(obj);
+
+                ret = tmp._ObjectToJson(includeNull: true);
+            }
+
+            return false;
+        },
+        cancel: cancel);
+
+        return ret;
+    }
+
+    public async Task<HadbObject?> DirectGetObjectAsync(string uid, CancellationToken cancel = default)
+    {
+        uid = uid._NormalizeUid();
+        HadbObject? ret = null;
+
+        await this.TranAsync(false, async tran =>
+        {
+            ret = await tran.AtomicGetAsync(uid, "", "", cancel, noCheckTypeIdAndNameSpace: true);
+
+            return false;
+        },
+        cancel: cancel);
+
+        return ret;
+    }
+
+    public async Task<HadbObject> DirectSetObjectAsync(string uid, string jsonData, HadbObjectSetFlag flag, string typeName, string nameSpace, CancellationToken cancel = default)
+    {
+        HadbObject ret = null!;
+
+        uid = uid._NormalizeUid();
+        typeName = typeName._NonNull();
+        nameSpace = nameSpace._HadbNameSpaceNormalize();
+
+        await this.TranAsync(true, async tran =>
+        {
+            if (flag.Bit(HadbObjectSetFlag.New) == false)
+            {
+                // 新規作成以外の場合、現在のオブジェクトを取得する
+                var current = await tran.AtomicGetAsync(uid, "", "", cancel, noCheckTypeIdAndNameSpace: true);
+
+                if (current == null)
+                {
+                    throw new CoresLibException($"Object UID '{uid}' not found.");
+                }
+
+                if (typeName != current.UserDataTypeName)
+                {
+                    throw new CoresLibException($"TypeName is different. Specified: '{typeName}', realObject: '{current.UserDataTypeName}'");
+                }
+
+                if (nameSpace._IsSamei(current.NameSpace) == false)
+                {
+                    throw new CoresLibException($"NameSpace is different. Specified: '{nameSpace}', realObject: '{current.NameSpace}'");
+                }
+
+                typeName = current.UserDataTypeName;
+                nameSpace = current.NameSpace;
+
+                if (flag.Bit(HadbObjectSetFlag.Delete))
+                {
+                    // 削除する
+                    await tran.AtomicDeleteAsync(current.Uid, current.UserDataTypeName, current.NameSpace, cancel: cancel);
+
+                    ret = current;
+
+                    return true;
+                }
+                else if (flag.Bit(HadbObjectSetFlag.Update))
+                {
+                    // 更新する
+                    var newData = this.JsonToHadbData(jsonData, typeName);
+
+                    current.ReplaceData(newData);
+
+                    await tran.AtomicUpdateAsync(current, cancel);
+
+                    ret = current;
+
+                    return true;
+                }
+                else
+                {
+                    // フラグ不正
+                    throw new CoresLibException($"Invalid flag: {flag}");
+                }
+            }
+            else
+            {
+                // 新規作成する
+                var userType = this.GetDataTypeByTypeName(typeName, EnsureSpecial.Yes);
+                typeName = userType.ToString();
+
+                var newData = this.JsonToHadbData(jsonData, typeName);
+
+                var newObj = (await tran.AtomicAddAsync(newData._SingleList(), nameSpace, "", "", cancel)).Single();
+
+                ret = newObj;
+
+                return true;
+            }
+        },
+        cancel: cancel);
+
+        return ret;
+    }
+
     public abstract class HadbTran : AsyncService
     {
         public bool IsWriteMode { get; }
@@ -5075,17 +5294,17 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             return objList;
         }
 
-        public async Task<HadbObject<T>?> AtomicGetAsync<T>(string uid, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default) where T : HadbData
-            => await AtomicGetAsync(uid, typeof(T).Name, nameSpace, cancel);
+        public async Task<HadbObject<T>?> AtomicGetAsync<T>(string uid, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default, bool noCheckTypeIdAndNameSpace = false) where T : HadbData
+            => await AtomicGetAsync(uid, typeof(T).Name, nameSpace, cancel, noCheckTypeIdAndNameSpace);
 
-        public async Task<HadbObject?> AtomicGetAsync(string uid, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        public async Task<HadbObject?> AtomicGetAsync(string uid, string typeName, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default, bool noCheckTypeIdAndNameSpace = false)
         {
             nameSpace = nameSpace._HadbNameSpaceNormalize();
 
             CheckBegan();
             Hadb.CheckIfReady();
 
-            HadbObject? ret = await Hadb.AtomicGetDataFromDatabaseImplAsync(this, uid, typeName, nameSpace, cancel);
+            HadbObject? ret = await Hadb.AtomicGetDataFromDatabaseImplAsync(this, uid, typeName, nameSpace, cancel, noCheckTypeIdAndNameSpace);
 
             if (ret == null) return null;
 
@@ -5096,17 +5315,17 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             return ret;
         }
 
-        public async Task<IEnumerable<HadbObject<T>>> AtomicGetArchivedAsync<T>(string uid, int maxItems = int.MaxValue, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default) where T : HadbData
-            => (await AtomicGetArchivedAsync(uid, typeof(T).Name, maxItems, nameSpace, cancel)).Select(x => x.GetGenerics<T>());
+        public async Task<IEnumerable<HadbObject<T>>> AtomicGetArchivedAsync<T>(string uid, int maxItems = int.MaxValue, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default, bool noCheckTypeIdAndNameSpace = false) where T : HadbData
+            => (await AtomicGetArchivedAsync(uid, typeof(T).Name, maxItems, nameSpace, cancel, noCheckTypeIdAndNameSpace)).Select(x => x.GetGenerics<T>());
 
-        public async Task<IEnumerable<HadbObject>> AtomicGetArchivedAsync(string uid, string typeName, int maxItems = int.MaxValue, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        public async Task<IEnumerable<HadbObject>> AtomicGetArchivedAsync(string uid, string typeName, int maxItems = int.MaxValue, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default, bool noCheckTypeIdAndNameSpace = false)
         {
             nameSpace = nameSpace._HadbNameSpaceNormalize();
 
             CheckBegan();
             Hadb.CheckIfReady();
 
-            return await Hadb.AtomicGetArchivedDataFromDatabaseImplAsync(this, maxItems, uid, typeName, nameSpace, cancel);
+            return await Hadb.AtomicGetArchivedDataFromDatabaseImplAsync(this, maxItems, uid, typeName, nameSpace, cancel, noCheckTypeIdAndNameSpace);
         }
 
         public async Task<HadbObject> AtomicUpdateAsync(HadbObject obj, CancellationToken cancel = default)
@@ -5264,11 +5483,22 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             await Hadb.AtomicAddSnapImplAsync(this, snap, cancel);
         }
 
-        public async Task AtomicAddLogAsync(HadbLog log, string nameSpace = Consts.Strings.HadbDefaultNameSpace, string ext1 = "", string ext2 = "", string ft1 = "", string ft2 = "", CancellationToken cancel = default)
+        public async Task AtomicAddLogAsync(HadbLog log, string nameSpace = Consts.Strings.HadbDefaultNameSpace, string ext1 = "", string ext2 = "", CancellationToken cancel = default)
         {
             nameSpace = nameSpace._HadbNameSpaceNormalize();
             CheckBegan();
             Hadb.CheckIfReady();
+
+            string ft1 = "";
+            string ft2 = "";
+
+            var logFlags = log.GetLogFlags();
+
+            if (logFlags.Bit(HadbLogFlags.NoFullTextSearch) == false)
+            {
+                ft1 = log.GenerateFt1();
+                ft2 = log.GenerateFt2();
+            }
 
             await Hadb.AtomicAddLogImplAsync(this, log, nameSpace, ext1, ext2, ft1, ft2, cancel);
         }
