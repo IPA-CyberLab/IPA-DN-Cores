@@ -375,16 +375,38 @@ public class JsonRpcHttpServer : JsonRpcServer
     // /admin_search の共通ハンドラ
     public virtual async Task ObjSearch_CommonRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData, WebMethods method)
     {
-        await AdminForms_CommonAsync(request, response, routeData, "Database Object Full Text Search Engine", AdminFormsOperation.ObjSearch, method,
+        await AdminForms_CommonAsync(request, response, routeData, "Database Object Full Text Search Engine (Very Fast)", AdminFormsOperation.ObjSearch, method,
             async (w, postData, c) =>
             {
-                var queryString = request.Query;
+                var queryList = request.Query;
 
-                string q = queryString._GetStrFirst("q");
-                string sort = queryString._GetStrFirst("sort");
-                string type = queryString._GetStrFirst("type");
-                string ns = queryString._GetStrFirst("ns");
-                int max = queryString._GetIntFirst("max", this.Config.HadbBasedServicePoint!.AdminForm_GetCurrentDynamicConfig().Service_FullTextSearchResultsCountStandard);
+                string q = queryList._GetStrFirst("q");
+                string sort = queryList._GetStrFirst("sort");
+                string type = queryList._GetStrFirst("type");
+                string ns = queryList._GetStrFirst("ns");
+                int max = queryList._GetIntFirst("max", this.Config.HadbBasedServicePoint!.AdminForm_GetCurrentDynamicConfig().Service_FullTextSearchResultsCountStandard);
+                bool wordmode = queryList._GetBoolFirst("wordmode");
+                bool fieldnamemode = queryList._GetBoolFirst("fieldnamemode");
+                bool download = queryList._GetBoolFirst("download");
+
+                bool isQuery = request.QueryString.ToString()._IsFilled();
+
+                HadbFullTextSearchResult? result = null;
+
+                int tookTime = 0;
+
+                var timeStamp = DtOffsetNow;
+                var now = timeStamp;
+
+                // 検索の実施
+                if (isQuery)
+                {
+                    long startTick = Time.HighResTick64;
+                    result = await this.Config.HadbBasedServicePoint!.ServiceAdmin_FullTextSearch(q, sort, wordmode, fieldnamemode, type, ns, max);
+                    long endTick = Time.HighResTick64;
+
+                    tookTime = (int)(endTick - startTick);
+                }
 
                 // 検索フォーム
 
@@ -415,8 +437,9 @@ public class JsonRpcHttpServer : JsonRpcServer
                             <div class='field'>
                                 <div class='control'>
                                     <input class='button is-link' type='submit' style='font-weight: bold' value='Search Object'>
-                                    &nbsp;&nbsp;<input { false._HtmlCheckedIfTrue() } id='wordmode' name='wordmode' type='checkbox' value='1' /><label for='wordmode'>&nbsp;<b>Word Mode</b></label>
-                                    &nbsp;&nbsp;<input { false._HtmlCheckedIfTrue() } id='fieldnamemode' name='fieldnamemode' type='checkbox' value='1' /><label for='fieldnamemode'>&nbsp;<b>Field Name Mode</b> (e.g. 'Age=123')</label>
+                                    &nbsp;&nbsp;<input { wordmode._HtmlCheckedIfTrue() } id='wordmode' name='wordmode' type='checkbox' value='1' /><label for='wordmode'>&nbsp;<b>Word Mode</b></label>
+                                    &nbsp;&nbsp;<input { fieldnamemode._HtmlCheckedIfTrue() } id='fieldnamemode' name='fieldnamemode' type='checkbox' value='1' /><label for='fieldnamemode'>&nbsp;<b>Field Name Mode</b> (e.g. 'Age=123')</label>
+                                    &nbsp;&nbsp;<input { download._HtmlCheckedIfTrue() } id='download' name='download' type='checkbox' value='1' /><label for='download'>&nbsp;<b>Show Download Button (slow)</b></label>
                                     <p>　</p>
 ");
 
@@ -508,6 +531,30 @@ public class JsonRpcHttpServer : JsonRpcServer
 
 
                 w.WriteLine("</form>");
+
+                if (result != null)
+                {
+                    string jsonString = result._ObjectToJson(includeNull: true);
+
+                    string bomUtfDownloadFileName = $"JSON_{request.Host.Host}_{now._ToYymmddStr(yearTwoDigits: true)}_{now._ToHhmmssStr()}"._MakeVerySafeAsciiOnlyNonSpaceFileName() + ".json";
+
+                    w.WriteLine($"<h3 id='results' class='title is-5'>" + $"Search Results: {result.NumResultObjects} Objects" + "</h3>");
+
+                    if (download)
+                    {
+                        var bomUtfData = jsonString._GetBytes_UTF8(true);
+
+                        w.WriteLine(Str.GenerateHtmlDownloadJavaScript(bomUtfData, Consts.MimeTypes.Binary, bomUtfDownloadFileName, "download2"));
+
+                        w.WriteLine($"<a class='button is-primary' id='download2' style='font-weight: bold' href='#' download='{bomUtfDownloadFileName}' onclick='handleDownload()'><i class='far fa-folder-open'></i>&nbsp;Download JSON Result Data ({bomUtfData.Length._ToString3()} bytes)</a>");
+                    }
+
+                    w.Write("<pre><code class='language-json'>");
+
+                    w.Write(jsonString._EncodeHtmlCodeBlock().ToString());
+
+                    w.WriteLine("</code></pre>");
+                }
             });
     }
 

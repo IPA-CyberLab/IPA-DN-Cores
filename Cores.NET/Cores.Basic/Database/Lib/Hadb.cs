@@ -111,8 +111,8 @@ public class HadbSearchResultJsonObject
     public bool Archived;
     public string NameSpace = "";
     public string TypeName = "";
-    public string? Ext1;
-    public string? Ext2;
+    //public string? Ext1;
+    //public string? Ext2;
     public HadbData Data = null!;
 
     public HadbSearchResultJsonObject() { }
@@ -128,8 +128,8 @@ public class HadbSearchResultJsonObject
         this.Deleted = src.Deleted;
         this.NameSpace = src.NameSpace;
         this.TypeName = src.UserDataTypeName;
-        this.Ext1 = src.Ext1._NullIfEmpty();
-        this.Ext2 = src.Ext2._NullIfEmpty();
+        //this.Ext1 = src.Ext1._NullIfEmpty();
+        //this.Ext2 = src.Ext2._NullIfEmpty();
         this.Data = src.UserData;
     }
 }

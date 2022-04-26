@@ -292,6 +292,7 @@ public class HadbFullTextSearchResult
     public int NumResultObjects;
     public int NumTotalObjects;
     public bool HasMore;
+    public double TookTime_Secs;
     public List<HadbSearchResultJsonObject> ObjectsList = new List<HadbSearchResultJsonObject>();
 }
 
@@ -330,6 +331,8 @@ public interface IHadbBasedServicePoint
     public Task<HadbObject?> AdminForm_DirectGetObjectAsync(string uid, CancellationToken cancel = default);
     public Task<HadbObject> AdminForm_DirectSetObjectAsync(string uid, string jsonData, HadbObjectSetFlag flag, string typeName, string nameSpace, CancellationToken cancel = default);
     public Task<string> AdminForm_DirectGetObjectExAsync(string uid, int maxItems = int.MaxValue, HadbObjectGetExFlag flag = HadbObjectGetExFlag.None, CancellationToken cancel = default);
+
+    public Task<HadbFullTextSearchResult> ServiceAdmin_FullTextSearch(string queryText, string sortBy, bool wordMode, bool fieldNameMode, string typeName, string nameSpace, int maxResults);
 }
 
 public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, THook> : AsyncService, IHadbBasedServiceRpcBase, IHadbBasedServicePoint
@@ -620,7 +623,12 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
 
         RefBool hasMore = new RefBool();
 
+        long startTick = Time.NowHighResLong100Usecs;
         var objList = Hadb.FastSearchByFullText(queryText, sortBy, wordMode, fieldNameMode, typeName, nameSpace, maxResults, Hadb.CurrentDynamicConfig.Service_FullTextSearchResultsCountInternalMemory, hasMore: hasMore);
+        long endTick = Time.NowHighResLong100Usecs;
+
+        double tookTime = ((endTick - startTick) / 10) / 1000000.0;
+
         var metrics = Hadb.GetCurrentMetrics();
 
         HadbFullTextSearchResult ret = new HadbFullTextSearchResult
@@ -628,6 +636,7 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
             NumTotalObjects = metrics.NumMemoryObjects,
             NumResultObjects = objList.Count,
             HasMore = hasMore,
+            TookTime_Secs = tookTime,
         };
 
         foreach (var obj in objList)
@@ -648,142 +657,6 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
 
 
 
-
-
-
-
-[Flags]
-public enum PortRangeStyle
-{
-    Normal = 0,
-}
-
-public class PortRange
-{
-    readonly Memory<bool> PortArray = new bool[Consts.Numbers.PortMax + 1];
-
-    public PortRange()
-    {
-    }
-
-    public PortRange(string rangeString)
-    {
-        Add(rangeString);
-    }
-
-    public void Add(string rangeString)
-    {
-        var span = PortArray.Span;
-
-        string[] tokens = rangeString._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ',', ';', ' ', '　', '\t');
-
-        foreach (var token in tokens)
-        {
-            string[] tokens2 = token._Split(StringSplitOptions.TrimEntries, '-');
-            if (tokens2.Length == 1)
-            {
-                int number = tokens2[0]._ToInt();
-
-                if (number._IsValidPortNumber())
-                {
-                    span[number] = true;
-                }
-            }
-            else if (tokens2.Length == 2)
-            {
-                int number1 = tokens2[0]._ToInt();
-                int number2 = tokens2[1]._ToInt();
-                int start = Math.Min(number1, number2);
-                int end = Math.Max(number1, number2);
-                if (start._IsValidPortNumber() && end._IsValidPortNumber())
-                {
-                    for (int i = start; i <= end; i++)
-                    {
-                        span[i] = true;
-                    }
-                }
-            }
-        }
-    }
-
-    public List<int> ToArray()
-    {
-        List<int> ret = new List<int>();
-        var span = this.PortArray.Span;
-        for (int i = Consts.Numbers.PortMin; i <= Consts.Numbers.PortMax; i++)
-        {
-            if (span[i])
-            {
-                ret.Add(i);
-            }
-        }
-        return ret;
-    }
-
-    public override string ToString() => ToString(PortRangeStyle.Normal);
-
-    public string ToString(PortRangeStyle style)
-    {
-        var span = PortArray.Span;
-
-        List<WPair2<int, int>> segments = new List<WPair2<int, int>>();
-
-        WPair2<int, int>? current = null;
-
-        for (int i = Consts.Numbers.PortMin; i <= Consts.Numbers.PortMax; i++)
-        {
-            if (span[i])
-            {
-                if (current == null)
-                {
-                    current = new WPair2<int, int>(i, i);
-                    segments.Add(current);
-                }
-                else
-                {
-                    current.B = i;
-                }
-            }
-            else
-            {
-                if (current != null)
-                {
-                    current = null;
-                }
-            }
-        }
-
-        switch (style)
-        {
-            case PortRangeStyle.Normal:
-                {
-                    StringBuilder sb = new StringBuilder();
-                    foreach (var segment in segments)
-                    {
-                        string str;
-
-                        if (segment.A == segment.B)
-                        {
-                            str = segment.A.ToString();
-                        }
-                        else
-                        {
-                            str = $"{segment.A}-{segment.B}";
-                        }
-
-                        sb.Append(str);
-
-                        sb.Append(",");
-                    }
-
-                    return sb.ToString().TrimEnd(',');
-                }
-
-            default:
-                throw new ArgumentOutOfRangeException(nameof(style));
-        }
-    }
-}
 
 
 
