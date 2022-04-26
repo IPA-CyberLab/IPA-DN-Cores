@@ -69,9 +69,13 @@ public class JsonRpcHttpServer : JsonRpcServer
 
     public string RpcBaseAbsoluteUrlPath = ""; // "/rpc/" のような絶対パス。末尾に / を含む。
     public string WebFormBaseAbsoluteUrlPath = ""; // "/user/" のような絶対パス。末尾に / を含む。
-    public string ConfigFormBaseAbsoluteUrlPath = ""; // "/admin_config/" のような絶対パス。末尾に / を含む。
-    public string ObjEditBaseAbsoluteUrlPath = ""; // "/admin_objedit/" のような絶対パス。末尾に / を含む。
-    public string ObjSearchBaseAbsoluteUrlPath = ""; // "/admin_search/" のような絶対パス。末尾に / を含む。
+
+    public bool HasAdminPages => this.Config.HadbBasedServicePoint != null;
+
+    public string AdminConfigFormBaseAbsoluteUrlPath = ""; // "/admin_config/" のような絶対パス。末尾に / を含む。
+    public string AdminObjEditBaseAbsoluteUrlPath = ""; // "/admin_objedit/" のような絶対パス。末尾に / を含む。
+    public string AdminObjSearchBaseAbsoluteUrlPath = ""; // "/admin_search/" のような絶対パス。末尾に / を含む。
+    public string AdminLogBrowserBaseAbsoluteUrlPath = ""; // "/admin_logbrowser/" のような絶対パス。末尾に / を含む。
 
     readonly string WebFormSecretKey = Str.GenRandStr();
 
@@ -128,7 +132,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
                 if (msg._IsFilled()) w.WriteLine($"<p><B><font color=green>{msg._EncodeHtml(true)}</font></B></p>");
 
-                w.WriteLine($"<form action='{this.ConfigFormBaseAbsoluteUrlPath}' method='post'>");
+                w.WriteLine($"<form action='{this.AdminConfigFormBaseAbsoluteUrlPath}' method='post'>");
 
                 w.WriteLine($"<input name='_secret' type='hidden' value='{this.WebFormSecretKey}'/>");
 
@@ -281,7 +285,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                     </div>
 ";
 
-                w.WriteLine($"<form action='{this.ObjEditBaseAbsoluteUrlPath}' method='get'>");
+                w.WriteLine($"<form action='{this.AdminObjEditBaseAbsoluteUrlPath}' method='get'>");
 
                 w.WriteLine($@"
                     <div class='field is-horizontal'>
@@ -323,7 +327,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                     w.WriteLine($"<p><font color={(isPostError ? "red" : "green")}><b>{postMsg._EncodeHtml(true)}</b></font></p>");
                 }
 
-                w.WriteLine($"<form action='{this.ObjEditBaseAbsoluteUrlPath}' method='post'>");
+                w.WriteLine($"<form action='{this.AdminObjEditBaseAbsoluteUrlPath}' method='post'>");
 
                 w.WriteLine($"<input name='_secret' type='hidden' value='{this.WebFormSecretKey}'/>");
                 w.WriteLine($"<input name='uid' type='hidden' value='{currentObj?.Uid ?? ""}'/>");
@@ -410,12 +414,12 @@ public class JsonRpcHttpServer : JsonRpcServer
 
                 // 検索フォーム
 
-                w.WriteLine($"<form action='{this.ObjSearchBaseAbsoluteUrlPath}' method='get'>");
+                w.WriteLine($"<form action='{this.AdminObjSearchBaseAbsoluteUrlPath}' method='get'>");
 
                 w.WriteLine($@"
                     <div class='field is-horizontal'>
                         <div class='field-label is-normal'>
-                            <label class='label'><i class='fas fa-font'></i> Search String:</label>
+                            <label class='label'><i class='fas fa-search'></i> Search String:</label>
                         </div>
                         <div class='field-body'>
                             <div class='field'>
@@ -565,6 +569,11 @@ public class JsonRpcHttpServer : JsonRpcServer
     {
         try
         {
+            if (this.HasAdminPages == false)
+            {
+                throw new NotSupportedException("Admin Pages are not supported.");
+            }
+
             ReadOnlyMemory<byte> postData = default;
             CancellationToken cancel = request._GetRequestCancellationToken();
 
@@ -1326,7 +1335,9 @@ code[class*=""language-""], pre[class*=""language-""] {
         await response._SendStringContentsAsync(retStr, responseContentsType, cancel: request._GetRequestCancellationToken(), statusCode: statusCode, normalizeCrlf: CrlfStyle.Lf);
     }
 
-    public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string rpcPath = "/rpc", string webFormPath = "/user", string configFormPath = "/admin_config", string objEditPath = "/admin_objedit", string objSearchPath = "/admin_search")
+    LogBrowser? LogBrowser = null;
+
+    public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string rpcPath = "/rpc", string webFormPath = "/user", string configFormPath = "/admin_config", string objEditPath = "/admin_objedit", string objSearchPath = "/admin_search", string logBrowserPath = "/admin_logbrowser", LogBrowserOptions? logBrowserOptions = null)
     {
         rpcPath = rpcPath._NonNullTrim();
         if (rpcPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{rpcPath}'");
@@ -1348,6 +1359,11 @@ code[class*=""language-""], pre[class*=""language-""] {
         if (objSearchPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{objSearchPath}'");
         if (objSearchPath.Length >= 2 && objSearchPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
 
+        logBrowserPath = logBrowserPath._NonNullTrim();
+        if (logBrowserPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{logBrowserPath}'");
+        if (logBrowserPath.Length >= 2 && logBrowserPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
+
+
         RouteBuilder rb = new RouteBuilder(appBuilder);
 
         rb.MapGet(rpcPath, Rpc_GetRequestHandler);
@@ -1367,6 +1383,22 @@ code[class*=""language-""], pre[class*=""language-""] {
         rb.MapGet(objSearchPath, ObjSearch_GetRequestHandler);
         rb.MapPost(objSearchPath, ObjSearch_PostRequestHandler);
 
+        if (logBrowserOptions == null)
+        {
+            logBrowserOptions = new LogBrowserOptions(PP.Combine(Env.AppRootDir), $"Admin File System Browser for {this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)}");
+        }
+
+        if (LogBrowser == null && this.HasAdminPages)
+        {
+            LogBrowser = new LogBrowser(logBrowserOptions, logBrowserPath);
+        }
+
+        if (LogBrowser != null)
+        {
+            //rb.MapGet(logBrowserPath + "/{*path}", LogBrowser.GetRequestHandlerAsync);
+            // todo: danger
+        }
+
         IRouter router = rb.Build();
         appBuilder.UseRouter(router);
 
@@ -1376,17 +1408,18 @@ code[class*=""language-""], pre[class*=""language-""] {
         this.WebFormBaseAbsoluteUrlPath = webFormPath;
         if (this.WebFormBaseAbsoluteUrlPath.EndsWith("/") == false) this.WebFormBaseAbsoluteUrlPath += "/";
 
-        this.ConfigFormBaseAbsoluteUrlPath = configFormPath;
-        if (this.ConfigFormBaseAbsoluteUrlPath.EndsWith("/") == false) this.ConfigFormBaseAbsoluteUrlPath += "/";
+        this.AdminConfigFormBaseAbsoluteUrlPath = configFormPath;
+        if (this.AdminConfigFormBaseAbsoluteUrlPath.EndsWith("/") == false) this.AdminConfigFormBaseAbsoluteUrlPath += "/";
 
-        this.ObjEditBaseAbsoluteUrlPath = objEditPath;
-        if (this.ObjEditBaseAbsoluteUrlPath.EndsWith("/") == false) this.ObjEditBaseAbsoluteUrlPath += "/";
+        this.AdminObjEditBaseAbsoluteUrlPath = objEditPath;
+        if (this.AdminObjEditBaseAbsoluteUrlPath.EndsWith("/") == false) this.AdminObjEditBaseAbsoluteUrlPath += "/";
 
-        this.ObjSearchBaseAbsoluteUrlPath = objSearchPath;
-        if (this.ObjSearchBaseAbsoluteUrlPath.EndsWith("/") == false) this.ObjSearchBaseAbsoluteUrlPath += "/";
+        this.AdminObjSearchBaseAbsoluteUrlPath = objSearchPath;
+        if (this.AdminObjSearchBaseAbsoluteUrlPath.EndsWith("/") == false) this.AdminObjSearchBaseAbsoluteUrlPath += "/";
+
+        this.AdminLogBrowserBaseAbsoluteUrlPath = logBrowserPath;
+        if (this.AdminLogBrowserBaseAbsoluteUrlPath.EndsWith("/") == false) this.AdminLogBrowserBaseAbsoluteUrlPath += "/";
     }
-
-
 
     // Web Form ヘルプ文字列を生成する
     readonly FastCache<Uri, string> webFormHelpStringCache = new FastCache<Uri, string>();
