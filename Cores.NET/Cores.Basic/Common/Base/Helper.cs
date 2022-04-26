@@ -1081,6 +1081,15 @@ public static class BasicHelper
         catch { return defaultStr; }
     }
 
+    public static bool _GetBoolFirst<T>(this IEnumerable<KeyValuePair<string, T>> d, string key, bool defaultValue = false, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        => d._GetStrFirst(key, "", comparison)._ToBool(defaultValue);
+
+    public static int _GetIntFirst<T>(this IEnumerable<KeyValuePair<string, T>> d, string key, int defaultValue = 0, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        => d._GetStrFirst(key, defaultValue.ToString(), comparison)._ToInt();
+
+    public static long _GetLongFirst<T>(this IEnumerable<KeyValuePair<string, T>> d, string key, long defaultValue = 0, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        => d._GetStrFirst(key, defaultValue.ToString(), comparison)._ToLong();
+
     public static string _GetStrFirst<T>(this IEnumerable<KeyValuePair<string, T>> d, string key, string defaultStr = "", StringComparison comparison = StringComparison.OrdinalIgnoreCase, bool autoTrim = true)
     {
         if (key._IsEmpty()) throw new ArgumentNullException(nameof(key));

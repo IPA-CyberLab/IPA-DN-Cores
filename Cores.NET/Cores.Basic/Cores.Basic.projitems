@@ -158,6 +158,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Database\Base\Database.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Database\Lib\Hadb.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Database\Lib\HadbTest.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Database\Lib\HadbBasedService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Git\Base\Git.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Git\Base\GitFileSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Git\Base\GitGlobalFs.cs" />

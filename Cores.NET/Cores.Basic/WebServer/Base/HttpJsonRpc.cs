@@ -71,6 +71,7 @@ public class JsonRpcHttpServer : JsonRpcServer
     public string WebFormBaseAbsoluteUrlPath = ""; // "/user/" のような絶対パス。末尾に / を含む。
     public string ConfigFormBaseAbsoluteUrlPath = ""; // "/admin_config/" のような絶対パス。末尾に / を含む。
     public string ObjEditBaseAbsoluteUrlPath = ""; // "/admin_objedit/" のような絶対パス。末尾に / を含む。
+    public string ObjSearchBaseAbsoluteUrlPath = ""; // "/admin_search/" のような絶対パス。末尾に / を含む。
 
     readonly string WebFormSecretKey = Str.GenRandStr();
 
@@ -80,6 +81,7 @@ public class JsonRpcHttpServer : JsonRpcServer
     {
         ConfigForm = 0,
         ObjEdit,
+        ObjSearch,
     }
 
     // /admin_config の GET ハンドラ
@@ -116,13 +118,13 @@ public class JsonRpcHttpServer : JsonRpcServer
                     else
                     {
                         configBody = postCollection._GetStr("configbody");
-                        await this.Config.HadbBasedServicePoint!.AdminForm_SetDynamicConfigAsync(configBody, c);
+                        await this.Config.HadbBasedServicePoint!.AdminForm_SetDynamicConfigTextAsync(configBody, c);
 
                         msg = "The settings you specified have been properly applied to the server database.";
                     }
                 }
 
-                configBody = await this.Config.HadbBasedServicePoint!.AdminForm_GetDynamicConfigAsync(c);
+                configBody = await this.Config.HadbBasedServicePoint!.AdminForm_GetDynamicConfigTextAsync(c);
 
                 if (msg._IsFilled()) w.WriteLine($"<p><B><font color=green>{msg._EncodeHtml(true)}</font></B></p>");
 
@@ -293,24 +295,24 @@ public class JsonRpcHttpServer : JsonRpcServer
 
 
                 w.WriteLine($@"
-            <div class='field is-horizontal'>
-                <div class='field-label'>
-                    <!-- Left empty for spacing -->
-                </div>
-                <div class='field-body'>
-                    <div class='field'>
-                        <div class='control'>
-                            <input class='button is-link' type='submit' style='font-weight: bold' value='Search Current Object by UID'>
-                            &nbsp;&nbsp;<input { qsMetadata._HtmlCheckedIfTrue() } id='metadata' name='metadata' type='checkbox' value='1' /><label for='metadata'>&nbsp;Show Object Metadata</label>
-                            &nbsp;&nbsp;<input { qsArchive._HtmlCheckedIfTrue() } id='archive' name='archive' type='checkbox' value='1' /><label for='archive'>&nbsp;Show Archived Object History</label>
-                            <p>　</p>
+                    <div class='field is-horizontal'>
+                        <div class='field-label'>
+                            <!-- Left empty for spacing -->
+                        </div>
+                        <div class='field-body'>
+                            <div class='field'>
+                                <div class='control'>
+                                    <input class='button is-link' type='submit' style='font-weight: bold' value='Search Current Object by UID'>
+                                    &nbsp;&nbsp;<input { qsMetadata._HtmlCheckedIfTrue() } id='metadata' name='metadata' type='checkbox' value='1' /><label for='metadata'>&nbsp;Show Object Metadata</label>
+                                    &nbsp;&nbsp;<input { qsArchive._HtmlCheckedIfTrue() } id='archive' name='archive' type='checkbox' value='1' /><label for='archive'>&nbsp;Show Archived Object History</label>
+                                    <p>　</p>
 ");
 
                 w.WriteLine(@"
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-            </div>");
+                    </div>");
 
 
                 w.WriteLine("</form>");
@@ -358,6 +360,159 @@ public class JsonRpcHttpServer : JsonRpcServer
             });
     }
 
+    // /admin_search の GET ハンドラ
+    public virtual async Task ObjSearch_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+    {
+        await ObjSearch_CommonRequestHandler(request, response, routeData, WebMethods.GET);
+    }
+
+    // /admin_search の POST ハンドラ
+    public virtual async Task ObjSearch_PostRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+    {
+        await ObjSearch_CommonRequestHandler(request, response, routeData, WebMethods.POST);
+    }
+
+    // /admin_search の共通ハンドラ
+    public virtual async Task ObjSearch_CommonRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData, WebMethods method)
+    {
+        await AdminForms_CommonAsync(request, response, routeData, "Database Object Full Text Search Engine", AdminFormsOperation.ObjSearch, method,
+            async (w, postData, c) =>
+            {
+                var queryString = request.Query;
+
+                string q = queryString._GetStrFirst("q");
+                string sort = queryString._GetStrFirst("sort");
+                string type = queryString._GetStrFirst("type");
+                string ns = queryString._GetStrFirst("ns");
+                int max = queryString._GetIntFirst("max", this.Config.HadbBasedServicePoint!.AdminForm_GetCurrentDynamicConfig().Service_FullTextSearchResultsCountStandard);
+
+                // 検索フォーム
+
+                w.WriteLine($"<form action='{this.ObjSearchBaseAbsoluteUrlPath}' method='get'>");
+
+                w.WriteLine($@"
+                    <div class='field is-horizontal'>
+                        <div class='field-label is-normal'>
+                            <label class='label'><i class='fas fa-font'></i> Search String:</label>
+                        </div>
+                        <div class='field-body'>
+                            <div class='field'>
+                                <p class='control'>
+                                    <input class='input is-info text-box single-line' name='q' type='text' value='{q._EncodeHtml()}' />
+                                    Example: hello<BR><i>You can use 'AND' / 'OR' operators between words and a '!word' or '-word' negative operator before a word.</i>
+                                </p>
+                            </div>
+                        </div>
+                    </div>");
+
+
+                w.WriteLine($@"
+                    <div class='field is-horizontal'>
+                        <div class='field-label'>
+                            <!-- Left empty for spacing -->
+                        </div>
+                        <div class='field-body'>
+                            <div class='field'>
+                                <div class='control'>
+                                    <input class='button is-link' type='submit' style='font-weight: bold' value='Search Object'>
+                                    &nbsp;&nbsp;<input { false._HtmlCheckedIfTrue() } id='wordmode' name='wordmode' type='checkbox' value='1' /><label for='wordmode'>&nbsp;<b>Word Mode</b></label>
+                                    &nbsp;&nbsp;<input { false._HtmlCheckedIfTrue() } id='fieldnamemode' name='fieldnamemode' type='checkbox' value='1' /><label for='fieldnamemode'>&nbsp;<b>Field Name Mode</b> (e.g. 'Age=123')</label>
+                                    <p>　</p>
+");
+
+                w.WriteLine(@"
+                                </div>
+                            </div>
+                        </div>
+                    </div>");
+
+
+
+                w.WriteLine($@"
+                    <div class='field is-horizontal'>
+                        <div class='field-label'>
+                            <!-- Left empty for spacing -->
+                        </div>
+                        <div class='field-label is-normal'>
+                            <label class='label'><i class='fas fa-sort-amount-down'></i> Sort By Field:<BR>(Optional)</label>
+                        </div>
+                        <div class='field-body'>
+                            <div class='field'>
+                                <p class='control'>
+                                    <input class='input is-info text-box single-line' name='sort' type='text' value='{sort._EncodeHtml()}' />
+                                    Example: Age <i>(Specify JSON-based field name here.)</i>
+                                </p>
+                            </div>
+                        </div>
+                    </div>");
+
+
+
+
+                w.WriteLine($@"
+                    <div class='field is-horizontal'>
+                        <div class='field-label'>
+                            <!-- Left empty for spacing -->
+                        </div>
+                        <div class='field-label is-normal'>
+                            <label class='label'><i class='fas fa-code'></i> Type Name:<BR>(Optional)</label>
+                        </div>
+                        <div class='field-body'>
+                            <div class='field'>
+                                <p class='control'>
+                                    <input class='input is-info text-box single-line' name='type' type='text' value='{type._EncodeHtml()}' />
+                                    Example: User <i>(Specify JSON-based type name here.)</i>
+                                </p>
+                            </div>
+                        </div>
+                    </div>");
+
+
+
+
+                w.WriteLine($@"
+                    <div class='field is-horizontal'>
+                        <div class='field-label'>
+                            <!-- Left empty for spacing -->
+                        </div>
+                        <div class='field-label is-normal'>
+                            <label class='label'><i class='fas fa-stream'></i> Namespace String:<BR>(Optional)</label>
+                        </div>
+                        <div class='field-body'>
+                            <div class='field'>
+                                <p class='control'>
+                                    <input class='input is-info text-box single-line' name='ns' type='text' value='{ns._EncodeHtml()}' />
+                                    Example: NS_SYSTEM1 <i>(Specify namespace here.)</i>
+                                </p>
+                            </div>
+                        </div>
+                    </div>");
+
+
+                w.WriteLine($@"
+                    <div class='field is-horizontal'>
+                        <div class='field-label'>
+                            <!-- Left empty for spacing -->
+                        </div>
+                        <div class='field-label is-normal'>
+                            <label class='label'><i class='fas fa-list'></i> Max Results Count:<BR>(Optional)</label>
+                        </div>
+                        <div class='field-body'>
+                            <div class='field'>
+                                <p class='control'>
+                                    <input class='input is-info text-box single-line' name='max' type='text' value='{(max == 0 ? "" : max.ToString())}' />
+                                </p>
+                            </div>
+                        </div>
+                    </div>");
+
+
+                w.WriteLine("</form>");
+            });
+    }
+
+
+    // /admin_*** の共通ハンドラ
     async Task AdminForms_CommonAsync(HttpRequest request, HttpResponse response, RouteData routeData, string title, AdminFormsOperation operation, WebMethods method,
         Func<StringWriter, ReadOnlyMemory<byte>, CancellationToken, Task> bodyWriter)
     {
@@ -1124,7 +1279,7 @@ code[class*=""language-""], pre[class*=""language-""] {
         await response._SendStringContentsAsync(retStr, responseContentsType, cancel: request._GetRequestCancellationToken(), statusCode: statusCode, normalizeCrlf: CrlfStyle.Lf);
     }
 
-    public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string rpcPath = "/rpc", string webFormPath = "/user", string configFormPath = "/admin_config", string objEditPath = "/admin_objedit")
+    public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string rpcPath = "/rpc", string webFormPath = "/user", string configFormPath = "/admin_config", string objEditPath = "/admin_objedit", string objSearchPath = "/admin_search")
     {
         rpcPath = rpcPath._NonNullTrim();
         if (rpcPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{rpcPath}'");
@@ -1142,6 +1297,10 @@ code[class*=""language-""], pre[class*=""language-""] {
         if (objEditPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{objEditPath}'");
         if (objEditPath.Length >= 2 && objEditPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
 
+        objSearchPath = objSearchPath._NonNullTrim();
+        if (objSearchPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{objSearchPath}'");
+        if (objSearchPath.Length >= 2 && objSearchPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
+
         RouteBuilder rb = new RouteBuilder(appBuilder);
 
         rb.MapGet(rpcPath, Rpc_GetRequestHandler);
@@ -1158,6 +1317,9 @@ code[class*=""language-""], pre[class*=""language-""] {
         rb.MapGet(objEditPath, ObjEdit_GetRequestHandler);
         rb.MapPost(objEditPath, ObjEdit_PostRequestHandler);
 
+        rb.MapGet(objSearchPath, ObjSearch_GetRequestHandler);
+        rb.MapPost(objSearchPath, ObjSearch_PostRequestHandler);
+
         IRouter router = rb.Build();
         appBuilder.UseRouter(router);
 
@@ -1172,6 +1334,9 @@ code[class*=""language-""], pre[class*=""language-""] {
 
         this.ObjEditBaseAbsoluteUrlPath = objEditPath;
         if (this.ObjEditBaseAbsoluteUrlPath.EndsWith("/") == false) this.ObjEditBaseAbsoluteUrlPath += "/";
+
+        this.ObjSearchBaseAbsoluteUrlPath = objSearchPath;
+        if (this.ObjSearchBaseAbsoluteUrlPath.EndsWith("/") == false) this.ObjSearchBaseAbsoluteUrlPath += "/";
     }
 
 

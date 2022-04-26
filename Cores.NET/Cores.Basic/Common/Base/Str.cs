@@ -1382,9 +1382,7 @@ namespace IPA.Cores.Basic
 
             Str.NormalizeString(ref s, false, true, false, true);
 
-            s = s._ReplaceStr("|", ",");
-
-            s = s._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', '\t', '\r', '\n')._Combine(" ");
+            s = s._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', '\t', '\r', '\n', '|', '\'', '\"')._Combine(" ");
 
             return s;
         }
@@ -3744,6 +3742,8 @@ namespace IPA.Cores.Basic
         public const string HtmlLt = "&lt;";
         public const string HtmlGt = "&gt;";
         public const string HtmlAmp = "&amp;";
+        public const string HtmlDoubleQuote = "&quot;";
+        public const string HtmlSingleQuote = "&#039;";
         public const int HtmlNumTabChar = 8;
 
         public static string HtmlTab
@@ -4080,6 +4080,12 @@ namespace IPA.Cores.Basic
 
             // & を変換
             str = str.Replace("&", HtmlAmp);
+
+            // " を変換
+            str = str.Replace("\"", HtmlDoubleQuote);
+
+            // ' を変換
+            str = str.Replace("'", HtmlSingleQuote);
 
             // タグを変換
             str = str.Replace("<", HtmlLt).Replace(">", HtmlGt);
