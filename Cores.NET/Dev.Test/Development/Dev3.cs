@@ -752,6 +752,8 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 }
             }
 
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.Any, Name = "*", Contents = "ddns_ipv4", Attribute = EasyDnsResponderRecordAttribute.DynamicRecord });
+
             zone.RecordList.Add(new EasyDnsResponderRecord
             {
                 Type = EasyDnsResponderRecordType.SOA,
@@ -762,6 +764,55 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         }
 
         this.DnsServer.LoadSetting(settings);
+
+        this.DnsServer.DnsResponder.Callback = (req) =>
+        {
+            var config = this.Hadb.CurrentDynamicConfig;
+
+            var ret = new EasyDnsResponderDynamicRecordCallbackResult
+            {
+                IPAddressList = new List<IPAddress>(),
+                MxFqdnList = new List<DomainName>(),
+                MxPreferenceList = new List<ushort>(),
+            };
+
+            // ラベル名からレコードを解決
+            var host = this.Hadb.FastSearchByKey<Host>(new Host { HostLabel = req.RequestHostName });
+
+            if (host != null)
+            {
+                var data = host.Data;
+
+                if (data.HostAddress_IPv4._IsFilled())
+                {
+                    if (config.DDns_Prohibit_IPv4AddressRegistration == false)
+                    {
+                        var ip = data.HostAddress_IPv4._StrToIP(AllowedIPVersions.IPv4, true);
+                        if (ip != null)
+                        {
+                            ret.IPAddressList.Add(ip);
+                        }
+                    }
+                }
+
+                if (data.HostAddress_IPv6._IsFilled())
+                {
+                    if (config.DDns_Prohibit_IPv6AddressRegistration == false)
+                    {
+                        var ip = data.HostAddress_IPv6._StrToIP(AllowedIPVersions.IPv6, true);
+                        if (ip != null)
+                        {
+                            ret.IPAddressList.Add(ip);
+                        }
+                    }
+                }
+
+                ret.MxPreferenceList.Add(100);
+                ret.MxFqdnList.Add(DomainName.Parse(req.RequestFqdn));
+            }
+
+            return ret;
+        };
     }
 
     protected override DynConfig CreateInitialDynamicConfigImpl()

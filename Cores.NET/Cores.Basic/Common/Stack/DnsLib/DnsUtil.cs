@@ -520,11 +520,16 @@ public class EasyDnsResponderDynamicRecordCallbackRequest
 public class EasyDnsResponderDynamicRecordCallbackResult
 {
     public List<IPAddress>? IPAddressList { get; set; } // A, AAAA の場合
-    public List<DomainName>? DomainNameList { get; set; } // CNAME, MX, NS, PTR の場合
+    public List<DomainName>? MxFqdnList { get; set; } // MX の場合
     public List<ushort>? MxPreferenceList { get; set; } // MX の場合の Preference 値のリスト
+    public List<DomainName>? CNameFqdnList { get; set; } // CNAME の場合
+    public List<DomainName>? PtrFqdnList { get; set; } // PTR の場合
+    public List<DomainName>? NsFqdnList { get; set; } // NS の場合
     public List<string>? TextList { get; set; } // TXT の場合
 
     public EasyDnsResponderRecordSettings? Settings { get; set; } // TTL 等
+
+    public bool NotFound { get; set; } // 発見されず
 }
 
 public class EasyDnsResponder
@@ -772,6 +777,7 @@ public class EasyDnsResponder
         {
             switch (src.Type)
             {
+                case EasyDnsResponderRecordType.Any:
                 case EasyDnsResponderRecordType.A:
                 case EasyDnsResponderRecordType.AAAA:
                 case EasyDnsResponderRecordType.CNAME:
@@ -1375,7 +1381,7 @@ public class EasyDnsResponder
 
                         foreach (var r in ret.RecordList)
                         {
-                            if (r.Type == type)
+                            if (r.Type == type || (r.Type == EasyDnsResponderRecordType.Any && r is Record_Dynamic))
                             {
                                 tmpList.Add(r);
                             }
@@ -1395,16 +1401,32 @@ public class EasyDnsResponder
 
                 bool anyDynamicRecordExists = false;
 
+                bool allDynamicRecords = true;
+
+                bool notFound = false;
+
                 for (int i = 0; i < count; i++)
                 {
                     if (ret.RecordList[i] is Record_Dynamic dynRecord)
                     {
-                        ResolveDynamicRecord(solvedDynamicRecordResults, dynRecord, ret, request);
+                        if (ResolveDynamicRecord(solvedDynamicRecordResults, dynRecord, ret, request, type) == false)
+                        {
+                            notFound = true;
+                        }
 
                         anyDynamicRecordExists = true;
 
                         originalDynamicRecords.Add(dynRecord);
                     }
+                    else
+                    {
+                        allDynamicRecords = false;
+                    }
+                }
+
+                if (anyDynamicRecordExists == false)
+                {
+                    allDynamicRecords = false;
                 }
 
                 if (anyDynamicRecordExists)
@@ -1420,6 +1442,15 @@ public class EasyDnsResponder
                         ret.RecordList.Add(resultRecord);
                     }
                 }
+
+                if (allDynamicRecords)
+                {
+                    if (notFound)
+                    {
+                        // ダイナミックレコードリストを走査したが、1 つも見つからない場合は、NotFound ビットを返す
+                        ret.ResultFlags |= SearchResultFlags.NotFound;
+                    }
+                }
             }
         }
 
@@ -1427,13 +1458,13 @@ public class EasyDnsResponder
     }
 
     // ダイナミックレコードをコールバックを用いて実際に解決する
-    void ResolveDynamicRecord(List<Record> listToAdd, Record_Dynamic dynRecord, SearchResult result, SearchRequest request)
+    bool ResolveDynamicRecord(List<Record> listToAdd, Record_Dynamic dynRecord, SearchResult result, SearchRequest request, EasyDnsResponderRecordType expectedRecordType)
     {
         EasyDnsResponderDynamicRecordCallbackRequest req = new EasyDnsResponderDynamicRecordCallbackRequest
         {
             Zone = result.Zone.SrcZone,
             Record = dynRecord.SrcRecord!,
-            ExpectedRecordType = dynRecord.Type,
+            ExpectedRecordType = expectedRecordType,
             RequestFqdn = request.FqdnNormalized,
             RequestHostName = result.RequestHostName,
             CallbackId = dynRecord.CallbackId,
@@ -1450,96 +1481,107 @@ public class EasyDnsResponder
             throw new CoresLibException($"Callback delegate returns null for callback ID '{dynRecord.CallbackId}'.");
         }
 
+        if (callbackResult.NotFound)
+        {
+            return false;
+        }
+
         EasyDnsResponderRecordSettings? settings = callbackResult.Settings;
         if (settings == null)
         {
             settings = dynRecord.Settings;
         }
 
-        switch (dynRecord.Type)
+        if (expectedRecordType == EasyDnsResponderRecordType.A || expectedRecordType == EasyDnsResponderRecordType.Any)
         {
-            case EasyDnsResponderRecordType.A:
-                if (callbackResult.IPAddressList != null)
+            if (callbackResult.IPAddressList != null)
+            {
+                foreach (var ip in callbackResult.IPAddressList)
                 {
-                    foreach (var ip in callbackResult.IPAddressList)
+                    if (ip.AddressFamily == AddressFamily.InterNetwork)
                     {
-                        if (ip.AddressFamily == AddressFamily.InterNetwork)
-                        {
-                            listToAdd.Add(new Record_A(result.Zone, settings, result.RequestHostName, ip));
-                        }
+                        listToAdd.Add(new Record_A(result.Zone, settings, result.RequestHostName, ip));
                     }
                 }
-                break;
-
-            case EasyDnsResponderRecordType.AAAA:
-                if (callbackResult.IPAddressList != null)
-                {
-                    foreach (var ip in callbackResult.IPAddressList)
-                    {
-                        if (ip.AddressFamily == AddressFamily.InterNetworkV6)
-                        {
-                            listToAdd.Add(new Record_AAAA(result.Zone, settings, result.RequestHostName, ip));
-                        }
-                    }
-                }
-                break;
-
-            case EasyDnsResponderRecordType.CNAME:
-                if (callbackResult.DomainNameList != null)
-                {
-                    foreach (var domain in callbackResult.DomainNameList)
-                    {
-                        listToAdd.Add(new Record_CNAME(result.Zone, settings, result.RequestHostName, domain));
-                    }
-                }
-                break;
-
-            case EasyDnsResponderRecordType.MX:
-                if (callbackResult.DomainNameList != null)
-                {
-                    if (callbackResult.MxPreferenceList != null)
-                    {
-                        if (callbackResult.DomainNameList.Count == callbackResult.MxPreferenceList.Count)
-                        {
-                            for (int i = 0; i < callbackResult.DomainNameList.Count; i++)
-                            {
-                                listToAdd.Add(new Record_MX(result.Zone, settings, result.RequestHostName, callbackResult.DomainNameList[i], callbackResult.MxPreferenceList[i]));
-                            }
-                        }
-                    }
-                }
-                break;
-
-            case EasyDnsResponderRecordType.NS:
-                if (callbackResult.DomainNameList != null)
-                {
-                    foreach (var domain in callbackResult.DomainNameList)
-                    {
-                        listToAdd.Add(new Record_NS(result.Zone, settings, result.RequestHostName, domain));
-                    }
-                }
-                break;
-
-            case EasyDnsResponderRecordType.PTR:
-                if (callbackResult.DomainNameList != null)
-                {
-                    foreach (var domain in callbackResult.DomainNameList)
-                    {
-                        listToAdd.Add(new Record_PTR(result.Zone, settings, result.RequestHostName, domain));
-                    }
-                }
-                break;
-
-            case EasyDnsResponderRecordType.TXT:
-                if (callbackResult.TextList != null)
-                {
-                    foreach (var text in callbackResult.TextList)
-                    {
-                        listToAdd.Add(new Record_TXT(result.Zone, settings, result.RequestHostName, text));
-                    }
-                }
-                break;
+            }
         }
+
+        if (expectedRecordType == EasyDnsResponderRecordType.AAAA || expectedRecordType == EasyDnsResponderRecordType.Any)
+        {
+            if (callbackResult.IPAddressList != null)
+            {
+                foreach (var ip in callbackResult.IPAddressList)
+                {
+                    if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+                    {
+                        listToAdd.Add(new Record_AAAA(result.Zone, settings, result.RequestHostName, ip));
+                    }
+                }
+            }
+        }
+
+        if (expectedRecordType == EasyDnsResponderRecordType.CNAME || expectedRecordType == EasyDnsResponderRecordType.Any)
+        {
+            if (callbackResult.CNameFqdnList != null)
+            {
+                foreach (var domain in callbackResult.CNameFqdnList)
+                {
+                    listToAdd.Add(new Record_CNAME(result.Zone, settings, result.RequestHostName, domain));
+                }
+            }
+        }
+
+        if (expectedRecordType == EasyDnsResponderRecordType.MX || expectedRecordType == EasyDnsResponderRecordType.Any)
+        {
+            if (callbackResult.MxFqdnList != null)
+            {
+                if (callbackResult.MxPreferenceList != null)
+                {
+                    if (callbackResult.MxFqdnList.Count == callbackResult.MxPreferenceList.Count)
+                    {
+                        for (int i = 0; i < callbackResult.MxFqdnList.Count; i++)
+                        {
+                            listToAdd.Add(new Record_MX(result.Zone, settings, result.RequestHostName, callbackResult.MxFqdnList[i], callbackResult.MxPreferenceList[i]));
+                        }
+                    }
+                }
+            }
+        }
+
+        if (expectedRecordType == EasyDnsResponderRecordType.NS || expectedRecordType == EasyDnsResponderRecordType.Any)
+        {
+            if (callbackResult.NsFqdnList != null)
+            {
+                foreach (var domain in callbackResult.NsFqdnList)
+                {
+                    listToAdd.Add(new Record_NS(result.Zone, settings, result.RequestHostName, domain));
+                }
+            }
+        }
+
+        if (expectedRecordType == EasyDnsResponderRecordType.PTR || expectedRecordType == EasyDnsResponderRecordType.Any)
+        {
+            if (callbackResult.PtrFqdnList != null)
+            {
+                foreach (var domain in callbackResult.PtrFqdnList)
+                {
+                    listToAdd.Add(new Record_PTR(result.Zone, settings, result.RequestHostName, domain));
+                }
+            }
+        }
+
+        if (expectedRecordType == EasyDnsResponderRecordType.TXT || expectedRecordType == EasyDnsResponderRecordType.Any)
+        {
+            if (callbackResult.TextList != null)
+            {
+                foreach (var text in callbackResult.TextList)
+                {
+                    listToAdd.Add(new Record_TXT(result.Zone, settings, result.RequestHostName, text));
+                }
+            }
+        }
+
+        return true;
     }
 }
 
