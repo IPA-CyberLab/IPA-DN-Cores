@@ -203,6 +203,8 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
     public int Service_FullTextSearchResultsCountInternalMemory = 0;
     public string Service_FriendlyName = "";
 
+    public bool Service_Security_ProhibitCrossSiteRequest = true;
+
 
     protected override void NormalizeImpl()
     {
@@ -359,7 +361,7 @@ public interface IHadbBasedServicePoint
 {
     public Task Basic_Require_AdminBasicAuthAsync(string realm = "");
 
-    public HadbBasedServiceDynConfig AdminForm_GetCurrentDynamicConfig();
+    public HadbBasedServiceDynConfig? AdminForm_GetCurrentDynamicConfig();
 
     public Task<string> AdminForm_GetDynamicConfigTextAsync(CancellationToken cancel = default);
     public Task AdminForm_SetDynamicConfigTextAsync(string newConfig, CancellationToken cancel = default);
@@ -468,9 +470,16 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
     protected Task<string> GetClientFqdnAsync(CancellationToken cancel = default, bool noCache = false)
         => this.DnsResolver.GetHostNameSingleOrIpAsync(GetClientIpAddress(), cancel, noCache);
 
-    public HadbBasedServiceDynConfig AdminForm_GetCurrentDynamicConfig()
+    public HadbBasedServiceDynConfig? AdminForm_GetCurrentDynamicConfig()
     {
-        return this.CurrentDynamicConfig;
+        if (this.Hadb.IsDynamicConfigInited)
+        {
+            return this.CurrentDynamicConfig;
+        }
+        else
+        {
+            return null;
+        }
     }
 
     public async Task<HadbObject?> AdminForm_DirectGetObjectAsync(string uid, CancellationToken cancel = default)

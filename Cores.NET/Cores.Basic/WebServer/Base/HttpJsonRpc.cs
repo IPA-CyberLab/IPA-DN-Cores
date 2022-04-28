@@ -150,7 +150,27 @@ public class JsonRpcHttpServer : JsonRpcServer
     // /admin_config の POST ハンドラ
     public virtual async Task AdminConfig_PostRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
+        await this.CheckIsCrossSiteRefererAndDenyAsync(request, response);
+
         await AdminConfig_CommonRequestHandler(request, response, routeData, WebMethods.POST);
+    }
+
+    async Task CheckIsCrossSiteRefererAndDenyAsync(HttpRequest request, HttpResponse response)
+    {
+        if ((this.Config.HadbBasedServicePoint?.AdminForm_GetCurrentDynamicConfig()?.Service_Security_ProhibitCrossSiteRequest ?? true) == false)
+        {
+            return;
+        }
+
+        if (request._IsCrossSiteReferer() || request._IsCrossSiteFetch())
+        {
+            string err = "Cross site request is not allowed on this web server.";
+
+            await response._SendStringContentsAsync(err, cancel: request._GetRequestCancellationToken(),
+                statusCode: Consts.HttpStatusCodes.Forbidden);
+
+            throw new CoresException(err);
+        }
     }
 
     // /admin_config の共通ハンドラ
@@ -214,6 +234,8 @@ public class JsonRpcHttpServer : JsonRpcServer
     // /admin_objedit の POST ハンドラ
     public virtual async Task AdminObjEdit_PostRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
+        await this.CheckIsCrossSiteRefererAndDenyAsync(request, response);
+
         await AdminObjEdit_CommonRequestHandler(request, response, routeData, WebMethods.POST);
     }
 
@@ -443,7 +465,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                 string sort = queryList._GetStrFirst("sort");
                 string type = queryList._GetStrFirst("type");
                 string ns = queryList._GetStrFirst("ns");
-                int max = queryList._GetIntFirst("max", this.Config.HadbBasedServicePoint!.AdminForm_GetCurrentDynamicConfig().Service_FullTextSearchResultsCountStandard);
+                int max = queryList._GetIntFirst("max", this.Config.HadbBasedServicePoint!.AdminForm_GetCurrentDynamicConfig()!.Service_FullTextSearchResultsCountStandard);
                 bool wordmode = queryList._GetBoolFirst("wordmode");
                 bool fieldnamemode = queryList._GetBoolFirst("fieldnamemode");
                 bool download = queryList._GetBoolFirst("download");
@@ -460,6 +482,8 @@ public class JsonRpcHttpServer : JsonRpcServer
                 // 検索の実施
                 if (isQuery)
                 {
+                    await this.CheckIsCrossSiteRefererAndDenyAsync(request, response);
+
                     long startTick = Time.HighResTick64;
                     result = await this.Config.HadbBasedServicePoint!.ServiceAdmin_FullTextSearch(q, sort, wordmode, fieldnamemode, type, ns, max);
                     long endTick = Time.HighResTick64;
@@ -810,6 +834,11 @@ public class JsonRpcHttpServer : JsonRpcServer
                         // 1 つもパラメータ指定がない場合は Web フォームを作成せず直接呼び出す
                         isCall = true;
                     }
+                }
+
+                if (isCall)
+                {
+                    await this.CheckIsCrossSiteRefererAndDenyAsync(request, response);
                 }
 
                 string args = jObj._ObjectToJson(compact: true);
@@ -1251,6 +1280,8 @@ code[class*=""language-""], pre[class*=""language-""] {
             }
             else
             {
+                await this.CheckIsCrossSiteRefererAndDenyAsync(request, response);
+
                 string args = routeData.Values._GetStr("rpc_param");
 
                 if (args._IsEmpty())
@@ -1292,6 +1323,8 @@ code[class*=""language-""], pre[class*=""language-""] {
     // /rpc の POST ハンドラ
     public virtual async Task Rpc_PostRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
+        await this.CheckIsCrossSiteRefererAndDenyAsync(request, response);
+
         try
         {
             string in_str = await request._RecvStringContentsAsync(this.Config.MaxRequestBodyLen, cancel: request._GetRequestCancellationToken());
@@ -1405,127 +1438,6 @@ code[class*=""language-""], pre[class*=""language-""] {
         await response._SendStringContentsAsync(retStr, responseContentsType, cancel: request._GetRequestCancellationToken(), statusCode: statusCode, normalizeCrlf: CrlfStyle.Lf);
     }
 
-    LogBrowser? LogBrowser = null;
-
-    public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, 
-        string rpcPath = "/rpc", string controlPath = "/control", string configPath = "/admin_config", string objEditPath = "/admin_objedit", 
-        string objSearchPath = "/admin_search", string logBrowserPath = "/admin_logbrowser",
-        LogBrowserOptions? logBrowserOptions = null)
-    {
-        rpcPath = rpcPath._NonNullTrim();
-        if (rpcPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{rpcPath}'");
-        if (rpcPath.Length >= 2 && rpcPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
-
-        controlPath = controlPath._NonNullTrim();
-        if (controlPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{controlPath}'");
-        if (controlPath.Length >= 2 && controlPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
-
-        configPath = configPath._NonNullTrim();
-        if (configPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{configPath}'");
-        if (configPath.Length >= 2 && configPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
-
-        objEditPath = objEditPath._NonNullTrim();
-        if (objEditPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{objEditPath}'");
-        if (objEditPath.Length >= 2 && objEditPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
-
-        objSearchPath = objSearchPath._NonNullTrim();
-        if (objSearchPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{objSearchPath}'");
-        if (objSearchPath.Length >= 2 && objSearchPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
-
-        logBrowserPath = logBrowserPath._NonNullTrim();
-        if (logBrowserPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{logBrowserPath}'");
-        if (logBrowserPath.Length >= 2 && logBrowserPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
-
-
-        RouteBuilder rb = new RouteBuilder(appBuilder);
-
-        if (this.Config.TopPageRedirectToControlPanel && this.Config.EnableBuiltinRichWebPages)
-        {
-            rb.MapGet("/", async (req, res, route) =>
-            {
-                await res._SendRedirectAsync(controlPath + "/", cancel: req._GetRequestCancellationToken());
-            });
-        }
-
-        rb.MapGet(rpcPath, Rpc_GetRequestHandler);
-        rb.MapGet(rpcPath + "/{rpc_method}", Rpc_GetRequestHandler);
-        rb.MapGet(rpcPath + "/{rpc_method}/{rpc_param}", Rpc_GetRequestHandler);
-        rb.MapPost(rpcPath, Rpc_PostRequestHandler);
-
-        if (this.Config.EnableBuiltinRichWebPages)
-        {
-            rb.MapGet(controlPath, Control_GetRequestHandler);
-            rb.MapGet(controlPath + "/{rpc_method}", Control_GetRequestHandler);
-
-            rb.MapGet(configPath, AdminConfig_GetRequestHandler);
-            rb.MapPost(configPath, AdminConfig_PostRequestHandler);
-
-            rb.MapGet(objEditPath, AdminObjEdit_GetRequestHandler);
-            rb.MapPost(objEditPath, AdminObjEdit_PostRequestHandler);
-
-            rb.MapGet(objSearchPath, AdminObjSearch_GetRequestHandler);
-            rb.MapPost(objSearchPath, AdminObjSearch_PostRequestHandler);
-
-            if (logBrowserOptions == null)
-            {
-                logBrowserOptions = new LogBrowserOptions(PP.Combine(Env.AppRootDir, "Log"), $"Admin Log Browser");
-            }
-
-            if (LogBrowser == null && this.HasAdminPages)
-            {
-                LogBrowser = new LogBrowser(logBrowserOptions, logBrowserPath);
-            }
-
-            if (LogBrowser != null)
-            {
-                rb.MapGet(logBrowserPath + "/{*path}", async (req, res, route) =>
-                {
-                    var config = this.Config.HadbBasedServicePoint!.AdminForm_GetCurrentDynamicConfig();
-                    var remoteIp = req.HttpContext.Connection.RemoteIpAddress._UnmapIPv4()!;
-
-                    if (config.Service_AdminPageAcl._IsFilled())
-                    {
-                        if (EasyIpAcl.Evaluate(config.Service_AdminPageAcl, remoteIp, enableCache: true, permitLocalHost: true) != EasyIpAclAction.Permit)
-                        {
-                            string err = $"Client IP address '{remoteIp.ToString()}' is not allowed to access to the administration page by the server ACL settings.";
-                            await res._SendStringContentsAsync(err, statusCode: Consts.HttpStatusCodes.Forbidden);
-                        }
-                    }
-
-                    var authResult = await BasicAuthImpl.TryAuthenticateAsync(req, (username, password) => this.Config.HadbBasedServicePoint!.AdminForm_AdminPasswordAuthAsync(username, password));
-                    if (authResult.IsOk)
-                    {
-                        await LogBrowser.GetRequestHandlerAsync(req, res, route);
-                    }
-                    else
-                    {
-                        await BasicAuthImpl.SendAuthenticateHeaderAsync(res, "Admin Log Browser", req._GetRequestCancellationToken());
-                    }
-                });
-            }
-        }
-
-        IRouter router = rb.Build();
-        appBuilder.UseRouter(router);
-
-        this.RpcAbsoluteUrlPath = rpcPath;
-        if (this.RpcAbsoluteUrlPath.EndsWith("/") == false) this.RpcAbsoluteUrlPath += "/";
-
-        this.ControlAbsoluteUrlPath = controlPath;
-        if (this.ControlAbsoluteUrlPath.EndsWith("/") == false) this.ControlAbsoluteUrlPath += "/";
-
-        this.AdminConfigAbsoluteUrlPath = configPath;
-        if (this.AdminConfigAbsoluteUrlPath.EndsWith("/") == false) this.AdminConfigAbsoluteUrlPath += "/";
-
-        this.AdminObjEditAbsoluteUrlPath = objEditPath;
-        if (this.AdminObjEditAbsoluteUrlPath.EndsWith("/") == false) this.AdminObjEditAbsoluteUrlPath += "/";
-
-        this.AdminObjSearchAbsoluteUrlPath = objSearchPath;
-        if (this.AdminObjSearchAbsoluteUrlPath.EndsWith("/") == false) this.AdminObjSearchAbsoluteUrlPath += "/";
-
-        this.AdminLogBrowserAbsoluteUrlPath = logBrowserPath;
-        if (this.AdminLogBrowserAbsoluteUrlPath.EndsWith("/") == false) this.AdminLogBrowserAbsoluteUrlPath += "/";
-    }
 
     Once stopOnce;
     public void FreeRegisteredResources()
@@ -2030,6 +1942,130 @@ code[class*=""language-""], pre[class*=""language-""] {
         this.Control_WriteHtmlFooter(w);
 
         return w.ToString();
+    }
+
+    LogBrowser? LogBrowser = null;
+
+    public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder,
+        string rpcPath = "/rpc", string controlPath = "/control", string configPath = "/admin_config", string objEditPath = "/admin_objedit",
+        string objSearchPath = "/admin_search", string logBrowserPath = "/admin_logbrowser",
+        LogBrowserOptions? logBrowserOptions = null)
+    {
+        rpcPath = rpcPath._NonNullTrim();
+        if (rpcPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{rpcPath}'");
+        if (rpcPath.Length >= 2 && rpcPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
+
+        controlPath = controlPath._NonNullTrim();
+        if (controlPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{controlPath}'");
+        if (controlPath.Length >= 2 && controlPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
+
+        configPath = configPath._NonNullTrim();
+        if (configPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{configPath}'");
+        if (configPath.Length >= 2 && configPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
+
+        objEditPath = objEditPath._NonNullTrim();
+        if (objEditPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{objEditPath}'");
+        if (objEditPath.Length >= 2 && objEditPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
+
+        objSearchPath = objSearchPath._NonNullTrim();
+        if (objSearchPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{objSearchPath}'");
+        if (objSearchPath.Length >= 2 && objSearchPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
+
+        logBrowserPath = logBrowserPath._NonNullTrim();
+        if (logBrowserPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{logBrowserPath}'");
+        if (logBrowserPath.Length >= 2 && logBrowserPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
+
+
+        RouteBuilder rb = new RouteBuilder(appBuilder);
+
+        if (this.Config.TopPageRedirectToControlPanel && this.Config.EnableBuiltinRichWebPages)
+        {
+            rb.MapGet("/", async (req, res, route) =>
+            {
+                await res._SendRedirectAsync(controlPath + "/", cancel: req._GetRequestCancellationToken());
+            });
+        }
+
+        rb.MapGet(rpcPath, Rpc_GetRequestHandler);
+        rb.MapGet(rpcPath + "/{rpc_method}", Rpc_GetRequestHandler);
+        rb.MapGet(rpcPath + "/{rpc_method}/{rpc_param}", Rpc_GetRequestHandler);
+        rb.MapPost(rpcPath, Rpc_PostRequestHandler);
+
+        if (this.Config.EnableBuiltinRichWebPages)
+        {
+            rb.MapGet(controlPath, Control_GetRequestHandler);
+            rb.MapGet(controlPath + "/{rpc_method}", Control_GetRequestHandler);
+
+            rb.MapGet(configPath, AdminConfig_GetRequestHandler);
+            rb.MapPost(configPath, AdminConfig_PostRequestHandler);
+
+            rb.MapGet(objEditPath, AdminObjEdit_GetRequestHandler);
+            rb.MapPost(objEditPath, AdminObjEdit_PostRequestHandler);
+
+            rb.MapGet(objSearchPath, AdminObjSearch_GetRequestHandler);
+            rb.MapPost(objSearchPath, AdminObjSearch_PostRequestHandler);
+
+            if (logBrowserOptions == null)
+            {
+                logBrowserOptions = new LogBrowserOptions(PP.Combine(Env.AppRootDir, "Log"), $"Admin Log Browser");
+            }
+
+            if (LogBrowser == null && this.HasAdminPages)
+            {
+                LogBrowser = new LogBrowser(logBrowserOptions, logBrowserPath);
+            }
+
+            if (LogBrowser != null)
+            {
+                rb.MapGet(logBrowserPath + "/{*path}", async (req, res, route) =>
+                {
+                    await this.CheckIsCrossSiteRefererAndDenyAsync(req, res);
+
+                    var config = this.Config.HadbBasedServicePoint!.AdminForm_GetCurrentDynamicConfig();
+                    var remoteIp = req.HttpContext.Connection.RemoteIpAddress._UnmapIPv4()!;
+
+                    if (config!.Service_AdminPageAcl._IsFilled())
+                    {
+                        if (EasyIpAcl.Evaluate(config.Service_AdminPageAcl, remoteIp, enableCache: true, permitLocalHost: true) != EasyIpAclAction.Permit)
+                        {
+                            string err = $"Client IP address '{remoteIp.ToString()}' is not allowed to access to the administration page by the server ACL settings.";
+                            await res._SendStringContentsAsync(err, statusCode: Consts.HttpStatusCodes.Forbidden);
+                        }
+                    }
+
+                    var authResult = await BasicAuthImpl.TryAuthenticateAsync(req, (username, password) => this.Config.HadbBasedServicePoint!.AdminForm_AdminPasswordAuthAsync(username, password));
+                    if (authResult.IsOk)
+                    {
+                        await LogBrowser.GetRequestHandlerAsync(req, res, route);
+                    }
+                    else
+                    {
+                        await BasicAuthImpl.SendAuthenticateHeaderAsync(res, "Admin Log Browser", req._GetRequestCancellationToken());
+                    }
+                });
+            }
+        }
+
+        IRouter router = rb.Build();
+        appBuilder.UseRouter(router);
+
+        this.RpcAbsoluteUrlPath = rpcPath;
+        if (this.RpcAbsoluteUrlPath.EndsWith("/") == false) this.RpcAbsoluteUrlPath += "/";
+
+        this.ControlAbsoluteUrlPath = controlPath;
+        if (this.ControlAbsoluteUrlPath.EndsWith("/") == false) this.ControlAbsoluteUrlPath += "/";
+
+        this.AdminConfigAbsoluteUrlPath = configPath;
+        if (this.AdminConfigAbsoluteUrlPath.EndsWith("/") == false) this.AdminConfigAbsoluteUrlPath += "/";
+
+        this.AdminObjEditAbsoluteUrlPath = objEditPath;
+        if (this.AdminObjEditAbsoluteUrlPath.EndsWith("/") == false) this.AdminObjEditAbsoluteUrlPath += "/";
+
+        this.AdminObjSearchAbsoluteUrlPath = objSearchPath;
+        if (this.AdminObjSearchAbsoluteUrlPath.EndsWith("/") == false) this.AdminObjSearchAbsoluteUrlPath += "/";
+
+        this.AdminLogBrowserAbsoluteUrlPath = logBrowserPath;
+        if (this.AdminLogBrowserAbsoluteUrlPath.EndsWith("/") == false) this.AdminLogBrowserAbsoluteUrlPath += "/";
     }
 }
 

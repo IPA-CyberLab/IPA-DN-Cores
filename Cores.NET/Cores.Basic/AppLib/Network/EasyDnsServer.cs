@@ -177,7 +177,7 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
 
         try
         {
-            r = QueryToResponse(q);
+            r = QueryToResponse(q, request);
         }
         catch (Exception ex)
         {
@@ -196,7 +196,7 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
 
     // ある 1 つの DNS クエリメッセージに対して応答メッセージを作る関数
     // CPU 時間の節約のため、届いたクエリメッセージ構造体をそのまま応答メッセージ構造体として書き換えて応答する
-    DnsMessage? QueryToResponse(DnsMessage? q)
+    DnsMessage? QueryToResponse(DnsMessage? q, DnsUdpPacket? requestPacket = null)
     {
         if (q == null || q.IsQuery == false) return null;
 
@@ -232,6 +232,7 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
             var searchRequest = new EasyDnsResponder.SearchRequest
             {
                 FqdnNormalized = questionFqdn,
+                RequestPacket = requestPacket,
             };
 
             var searchResponse = this.DnsResponder.Query(searchRequest, questionType);

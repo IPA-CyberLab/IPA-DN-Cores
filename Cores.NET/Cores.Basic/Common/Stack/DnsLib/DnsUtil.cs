@@ -518,6 +518,7 @@ public class EasyDnsResponderDynamicRecordCallbackRequest
     public string RequestFqdn { init; get; } = null!;
     public string RequestHostName { init; get; } = null!;
     public string CallbackId { init; get; } = null!;
+    public DnsUdpPacket? RequestPacket { init; get; } = null;
 }
 
 // ダイナミックレコードのコールバック関数で返却すべきデータ
@@ -1357,6 +1358,7 @@ public class EasyDnsResponder
     public class SearchRequest
     {
         public string FqdnNormalized { init; get; } = null!;
+        public DnsUdpPacket? RequestPacket { init; get; } = null!;
     }
 
     [Flags]
@@ -1510,6 +1512,7 @@ public class EasyDnsResponder
             RequestFqdn = request.FqdnNormalized,
             RequestHostName = result.RequestHostName,
             CallbackId = dynRecord.CallbackId,
+            RequestPacket = request.RequestPacket,
         };
 
         EasyDnsResponderDynamicRecordCallbackResult? callbackResult = null;

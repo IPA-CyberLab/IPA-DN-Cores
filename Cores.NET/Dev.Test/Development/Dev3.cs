@@ -826,6 +826,35 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                     ret.CaaList.Add(new Tuple<byte, string, string>(0, "issue", ";"));
                     ret.CaaList.Add(new Tuple<byte, string, string>(0, "issuewild", ";"));
                 }
+
+                var now = DtOffsetNow;
+
+                host.FastUpdate(h =>
+                {
+                    h.DnsQuery_Count++;
+                    if (h.DnsQuery_FirstAccessTime._IsZeroDateTime())
+                    {
+                        h.DnsQuery_FirstAccessTime = now;
+                    }
+                    if (h.DnsQuery_LastAccessTime < now)
+                    {
+                        h.DnsQuery_LastAccessTime = now;
+                    }
+                    if (req.RequestPacket != null)
+                    {
+                        string ip = req.RequestPacket.RemoteEndPoint.Address._UnmapIPv4().ToString();
+                        if (h.DnsQuery_FirstAccessDnsClientIp._IsEmpty())
+                        {
+                            h.DnsQuery_FirstAccessDnsClientIp = ip;
+                        }
+                        h.DnsQuery_LastAccessDnsClientIp = ip;
+                    }
+                    return true;
+                });
+            }
+            else
+            {
+                ret.NotFound = true;
             }
 
             return ret;

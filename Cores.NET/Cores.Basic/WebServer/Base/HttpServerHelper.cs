@@ -57,6 +57,34 @@ public static class WebServerHelper
     public static CancellationToken _GetRequestCancellationToken(this HttpRequest h) => h.HttpContext.RequestAborted;
     public static CancellationToken _GetRequestCancellationToken(this HttpContext h) => h.RequestAborted;
 
+    public static bool _IsCrossSiteFetch(this HttpRequest r)
+    {
+        return r.Headers._GetStrFirst("sec-fetch-site")._IsSamei("cross-site");
+    }
+
+    public static bool _IsCrossSiteReferer(this HttpRequest r)
+    {
+        string host1 = r.Host.Host;
+        string referer = r.Headers.Referer.ToString();
+        if (host1._IsFilled() && referer._IsFilled())
+        {
+            if (r.Headers.Referer.ToString()._TryParseUrl(out Uri? uri, out _))
+            {
+                string host2 = uri!.Host;
+
+                if (host2._IsFilled())
+                {
+                    if (host1._IsSameiTrim(host2) == false)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
 #if CORES_BASIC_WEBAPP
     public static CancellationToken _GetRequestCancellationToken(this Microsoft.AspNetCore.Mvc.Controller c) => c.HttpContext._GetRequestCancellationToken();
 #endif
