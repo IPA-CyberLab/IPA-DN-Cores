@@ -143,21 +143,21 @@ public class JsonRpcHttpServer : JsonRpcServer
     }
 
     // /admin_config の GET ハンドラ
-    public virtual async Task ConfigForm_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+    public virtual async Task AdminConfig_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
-        await ConfigForm_CommonRequestHandler(request, response, routeData, WebMethods.GET);
+        await AdminConfig_CommonRequestHandler(request, response, routeData, WebMethods.GET);
     }
 
     // /admin_config の POST ハンドラ
-    public virtual async Task ConfigForm_PostRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+    public virtual async Task AdminConfig_PostRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
-        await ConfigForm_CommonRequestHandler(request, response, routeData, WebMethods.POST);
+        await AdminConfig_CommonRequestHandler(request, response, routeData, WebMethods.POST);
     }
 
     // /admin_config の共通ハンドラ
-    public virtual async Task ConfigForm_CommonRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData, WebMethods method)
+    public virtual async Task AdminConfig_CommonRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData, WebMethods method)
     {
-        await AdminForms_CommonAsync(request, response, routeData, "Admin Config Page", AdminFormsOperation.ConfigForm, method,
+        await Admin_CommonAsync(request, response, routeData, "Admin Config Page", AdminFormsOperation.ConfigForm, method,
             async (w, postData, c) =>
             {
                 string configBody = "";
@@ -205,21 +205,21 @@ public class JsonRpcHttpServer : JsonRpcServer
     }
 
     // /admin_objedit の GET ハンドラ
-    public virtual async Task ObjEdit_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+    public virtual async Task AdminObjEdit_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
-        await ObjEdit_CommonRequestHandler(request, response, routeData, WebMethods.GET);
+        await AdminObjEdit_CommonRequestHandler(request, response, routeData, WebMethods.GET);
     }
 
     // /admin_objedit の POST ハンドラ
-    public virtual async Task ObjEdit_PostRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+    public virtual async Task AdminObjEdit_PostRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
-        await ObjEdit_CommonRequestHandler(request, response, routeData, WebMethods.POST);
+        await AdminObjEdit_CommonRequestHandler(request, response, routeData, WebMethods.POST);
     }
 
     // /admin_objedit の共通ハンドラ
-    public virtual async Task ObjEdit_CommonRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData, WebMethods method)
+    public virtual async Task AdminObjEdit_CommonRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData, WebMethods method)
     {
-        await AdminForms_CommonAsync(request, response, routeData, "Database Object Low Level Viewer and Editor", AdminFormsOperation.ObjEdit, method,
+        await Admin_CommonAsync(request, response, routeData, "Database Object Low Level Viewer and Editor", AdminFormsOperation.ObjEdit, method,
             async (w, postData, c) =>
             {
                 string objBody = "";
@@ -419,21 +419,21 @@ public class JsonRpcHttpServer : JsonRpcServer
     }
 
     // /admin_search の GET ハンドラ
-    public virtual async Task ObjSearch_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+    public virtual async Task AdminObjSearch_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
-        await ObjSearch_CommonRequestHandler(request, response, routeData, WebMethods.GET);
+        await AdminObjSearch_CommonRequestHandler(request, response, routeData, WebMethods.GET);
     }
 
     // /admin_search の POST ハンドラ
-    public virtual async Task ObjSearch_PostRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+    public virtual async Task AdminObjSearch_PostRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
-        await ObjSearch_CommonRequestHandler(request, response, routeData, WebMethods.POST);
+        await AdminObjSearch_CommonRequestHandler(request, response, routeData, WebMethods.POST);
     }
 
     // /admin_search の共通ハンドラ
-    public virtual async Task ObjSearch_CommonRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData, WebMethods method)
+    public virtual async Task AdminObjSearch_CommonRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData, WebMethods method)
     {
-        await AdminForms_CommonAsync(request, response, routeData, "Database Object Full Text Search Engine (Very Fast)", AdminFormsOperation.ObjSearch, method,
+        await Admin_CommonAsync(request, response, routeData, "Database Object Full Text Search Engine (Very Fast)", AdminFormsOperation.ObjSearch, method,
             async (w, postData, c) =>
             {
                 var queryList = request.Query;
@@ -618,7 +618,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
 
     // /admin_*** の共通ハンドラ
-    async Task AdminForms_CommonAsync(HttpRequest request, HttpResponse response, RouteData routeData, string title, AdminFormsOperation operation, WebMethods method,
+    async Task Admin_CommonAsync(HttpRequest request, HttpResponse response, RouteData routeData, string title, AdminFormsOperation operation, WebMethods method,
         Func<StringWriter, ReadOnlyMemory<byte>, CancellationToken, Task> bodyWriter)
     {
         try
@@ -682,7 +682,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
                 StringWriter w = new StringWriter();
 
-                WebForm_WriteHtmlHeader(w, $"{this.ServerFriendlyNameHtml} - {title}");
+                Control_WriteHtmlHeader(w, $"{this.ServerFriendlyNameHtml} - {title}");
 
 
                 w.WriteLine(@"
@@ -705,7 +705,7 @@ public class JsonRpcHttpServer : JsonRpcServer
     </div>
 ");
 
-                WebForm_WriteHtmlFooter(w);
+                Control_WriteHtmlFooter(w);
 
                 await response._SendStringContentsAsync(w.ToString(), contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel, normalizeCrlf: CrlfStyle.CrLf);
 
@@ -735,7 +735,7 @@ public class JsonRpcHttpServer : JsonRpcServer
     }
 
     // /control の GET ハンドラ
-    public virtual async Task WebForm_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+    public virtual async Task Control_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
         CancellationToken cancel = request._GetRequestCancellationToken();
         try
@@ -743,10 +743,10 @@ public class JsonRpcHttpServer : JsonRpcServer
             string rpcMethod = routeData.Values._GetStr("rpc_method");
             if (rpcMethod._IsEmpty())
             {
-                // 目次ページの表示 (TODO)
+                // 目次ページの表示
                 var baseUri = request.GetEncodedUrl()._ParseUrl()._CombineUrl(this.RpcAbsoluteUrlPath);
 
-                await response._SendStringContentsAsync(WebForm_GenerateHtmlHelpString(baseUri), contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel, normalizeCrlf: CrlfStyle.CrLf);
+                await response._SendStringContentsAsync(Control_GenerateHtmlHelpString(baseUri), contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel, normalizeCrlf: CrlfStyle.CrLf);
             }
             else
             {
@@ -833,7 +833,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                 if (isCall == false)
                 {
                     // Web フォームの画面表示
-                    body = WebForm_GenerateApiInputFormPage(rpcMethod);
+                    body = Control_GenerateApiInputFormPage(rpcMethod);
                 }
                 else
                 {
@@ -868,7 +868,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                         return;
                     }
 
-                    body = WebForm_GenerateApiResultPage(rpcMethod, callResults, request.Host.Host, timeStamp, tookTick);
+                    body = Control_GenerateApiResultPage(rpcMethod, callResults, request.Host.Host, timeStamp, tookTick);
                 }
 
                 await response._SendStringContentsAsync(body, contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel, normalizeCrlf: CrlfStyle.CrLf);
@@ -882,7 +882,7 @@ public class JsonRpcHttpServer : JsonRpcServer
         }
     }
 
-    string WebForm_GenerateApiResultPage(string methodName, JsonRpcCallResult callResults, string httpHostHeader, DateTimeOffset timeStamp, long tookTick)
+    string Control_GenerateApiResultPage(string methodName, JsonRpcCallResult callResults, string httpHostHeader, DateTimeOffset timeStamp, long tookTick)
     {
         StringWriter w = new StringWriter();
         var mi = this.Api.GetMethodInfo(methodName);
@@ -896,7 +896,7 @@ public class JsonRpcHttpServer : JsonRpcServer
             title = $"{mi.Name}() API Returned An Error.";
         }
 
-        WebForm_WriteHtmlHeader(w, title);
+        Control_WriteHtmlHeader(w, title);
 
 
         var now = DtOffsetNow;
@@ -965,7 +965,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         w.WriteLine($"<p><b><a href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-keyboard'></i> API Control Panel Index</a></b> > <b><a href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-keyboard'></i> {mi.Name}() API Control Panel Web Form</a></b></p>");
 
-        if (this.Config.PrintHelp)
+        if (this.Config.EnableBuiltinRichWebPages)
         {
             w.WriteLine($"<p><b><a href='{this.RpcAbsoluteUrlPath}'><i class='fas fa-book-open'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-book-open'></i> {mi.Name}() API Document</a></b></p>");
         }
@@ -979,17 +979,17 @@ public class JsonRpcHttpServer : JsonRpcServer
     </div>
 ");
 
-        WebForm_WriteHtmlFooter(w);
+        Control_WriteHtmlFooter(w);
 
         return w.ToString();
     }
 
-    string WebForm_GenerateApiInputFormPage(string methodName)
+    string Control_GenerateApiInputFormPage(string methodName)
     {
         StringWriter w = new StringWriter();
         var mi = this.Api.GetMethodInfo(methodName);
 
-        WebForm_WriteHtmlHeader(w, $"{mi.Name} - {this.ServerFriendlyNameHtml} Web API Form");
+        Control_WriteHtmlHeader(w, $"{mi.Name} - {this.ServerFriendlyNameHtml} Web API Form");
 
         w.WriteLine($"<form action='{this.ControlAbsoluteUrlPath}{mi.Name}/' method='get'>");
         w.WriteLine($"<input name='_call' type='hidden' value='1'/>");
@@ -1085,7 +1085,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 ");
 
 
-        if (this.Config.PrintHelp)
+        if (this.Config.EnableBuiltinRichWebPages)
         {
             w.WriteLine("<p><b>You may see this API reference before calling the API.</b></p>");
             w.WriteLine($"<p><b><a href='{this.RpcAbsoluteUrlPath}'><i class='fas fa-book-open'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-book-open'></i> {mi.Name}() API Document</a></b></p>");
@@ -1111,12 +1111,12 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         w.WriteLine("</form>");
 
-        WebForm_WriteHtmlFooter(w);
+        Control_WriteHtmlFooter(w);
 
         return w.ToString();
     }
 
-    protected virtual void WebForm_WriteHtmlHeader(StringWriter w, string title)
+    protected virtual void Control_WriteHtmlHeader(StringWriter w, string title)
     {
         string additionalStyle = @"
 <style type='text/css'>
@@ -1209,7 +1209,7 @@ code[class*=""language-""], pre[class*=""language-""] {
 <body>");
     }
 
-    protected virtual void WebForm_WriteHtmlFooter(StringWriter w)
+    protected virtual void Control_WriteHtmlFooter(StringWriter w)
     {
         w.WriteLine(@"
 
@@ -1239,7 +1239,7 @@ code[class*=""language-""], pre[class*=""language-""] {
             {
                 var baseUri = request.GetEncodedUrl()._ParseUrl()._CombineUrl(this.RpcAbsoluteUrlPath);
 
-                if (this.Config.PrintHelp)
+                if (this.Config.EnableBuiltinRichWebPages)
                 {
                     await response._SendStringContentsAsync(Rpc_GenerateHtmlHelpString(baseUri), contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel, normalizeCrlf: CrlfStyle.CrLf);
                 }
@@ -1443,54 +1443,57 @@ code[class*=""language-""], pre[class*=""language-""] {
         rb.MapGet(rpcPath + "/{rpc_method}/{rpc_param}", Rpc_GetRequestHandler);
         rb.MapPost(rpcPath, Rpc_PostRequestHandler);
 
-        rb.MapGet(controlPath, WebForm_GetRequestHandler);
-        rb.MapGet(controlPath + "/{rpc_method}", WebForm_GetRequestHandler);
-
-        rb.MapGet(configPath, ConfigForm_GetRequestHandler);
-        rb.MapPost(configPath, ConfigForm_PostRequestHandler);
-
-        rb.MapGet(objEditPath, ObjEdit_GetRequestHandler);
-        rb.MapPost(objEditPath, ObjEdit_PostRequestHandler);
-
-        rb.MapGet(objSearchPath, ObjSearch_GetRequestHandler);
-        rb.MapPost(objSearchPath, ObjSearch_PostRequestHandler);
-
-        if (logBrowserOptions == null)
+        if (this.Config.EnableBuiltinRichWebPages)
         {
-            logBrowserOptions = new LogBrowserOptions(PP.Combine(Env.AppRootDir, "Log"), $"Admin Log Browser");
-        }
+            rb.MapGet(controlPath, Control_GetRequestHandler);
+            rb.MapGet(controlPath + "/{rpc_method}", Control_GetRequestHandler);
 
-        if (LogBrowser == null && this.HasAdminPages)
-        {
-            LogBrowser = new LogBrowser(logBrowserOptions, logBrowserPath);
-        }
+            rb.MapGet(configPath, AdminConfig_GetRequestHandler);
+            rb.MapPost(configPath, AdminConfig_PostRequestHandler);
 
-        if (LogBrowser != null)
-        {
-            rb.MapGet(logBrowserPath + "/{*path}", async (req, res, route) =>
+            rb.MapGet(objEditPath, AdminObjEdit_GetRequestHandler);
+            rb.MapPost(objEditPath, AdminObjEdit_PostRequestHandler);
+
+            rb.MapGet(objSearchPath, AdminObjSearch_GetRequestHandler);
+            rb.MapPost(objSearchPath, AdminObjSearch_PostRequestHandler);
+
+            if (logBrowserOptions == null)
             {
-                var config = this.Config.HadbBasedServicePoint!.AdminForm_GetCurrentDynamicConfig();
-                var remoteIp = req.HttpContext.Connection.RemoteIpAddress._UnmapIPv4()!;
+                logBrowserOptions = new LogBrowserOptions(PP.Combine(Env.AppRootDir, "Log"), $"Admin Log Browser");
+            }
 
-                if (config.Service_AdminPageAcl._IsFilled())
+            if (LogBrowser == null && this.HasAdminPages)
+            {
+                LogBrowser = new LogBrowser(logBrowserOptions, logBrowserPath);
+            }
+
+            if (LogBrowser != null)
+            {
+                rb.MapGet(logBrowserPath + "/{*path}", async (req, res, route) =>
                 {
-                    if (EasyIpAcl.Evaluate(config.Service_AdminPageAcl, remoteIp, enableCache: true, permitLocalHost: true) != EasyIpAclAction.Permit)
+                    var config = this.Config.HadbBasedServicePoint!.AdminForm_GetCurrentDynamicConfig();
+                    var remoteIp = req.HttpContext.Connection.RemoteIpAddress._UnmapIPv4()!;
+
+                    if (config.Service_AdminPageAcl._IsFilled())
                     {
-                        string err = $"Client IP address '{remoteIp.ToString()}' is not allowed to access to the administration page by the server ACL settings.";
-                        await res._SendStringContentsAsync(err, statusCode: Consts.HttpStatusCodes.Forbidden);
+                        if (EasyIpAcl.Evaluate(config.Service_AdminPageAcl, remoteIp, enableCache: true, permitLocalHost: true) != EasyIpAclAction.Permit)
+                        {
+                            string err = $"Client IP address '{remoteIp.ToString()}' is not allowed to access to the administration page by the server ACL settings.";
+                            await res._SendStringContentsAsync(err, statusCode: Consts.HttpStatusCodes.Forbidden);
+                        }
                     }
-                }
 
-                var authResult = await BasicAuthImpl.TryAuthenticateAsync(req, (username, password) => this.Config.HadbBasedServicePoint!.AdminForm_AdminPasswordAuthAsync(username, password));
-                if (authResult.IsOk)
-                {
-                    await LogBrowser.GetRequestHandlerAsync(req, res, route);
-                }
-                else
-                {
-                    await BasicAuthImpl.SendAuthenticateHeaderAsync(res, "Admin Log Browser", req._GetRequestCancellationToken());
-                }
-            });
+                    var authResult = await BasicAuthImpl.TryAuthenticateAsync(req, (username, password) => this.Config.HadbBasedServicePoint!.AdminForm_AdminPasswordAuthAsync(username, password));
+                    if (authResult.IsOk)
+                    {
+                        await LogBrowser.GetRequestHandlerAsync(req, res, route);
+                    }
+                    else
+                    {
+                        await BasicAuthImpl.SendAuthenticateHeaderAsync(res, "Admin Log Browser", req._GetRequestCancellationToken());
+                    }
+                });
+            }
         }
 
         IRouter router = rb.Build();
@@ -1526,11 +1529,11 @@ code[class*=""language-""], pre[class*=""language-""] {
 
     // Web Form ヘルプ文字列を生成する
     readonly FastCache<Uri, string> webFormHelpStringCache = new FastCache<Uri, string>();
-    string WebForm_GenerateHtmlHelpString(Uri webFormBaseUri)
+    string Control_GenerateHtmlHelpString(Uri webFormBaseUri)
     {
-        return webFormHelpStringCache.GetOrCreate(webFormBaseUri, x => WebForm_GenerateHtmlHelpStringCore(x))!;
+        return webFormHelpStringCache.GetOrCreate(webFormBaseUri, x => Control_GenerateHtmlHelpStringCore(x))!;
     }
-    string WebForm_GenerateHtmlHelpStringCore(Uri webFormBaseUri)
+    string Control_GenerateHtmlHelpStringCore(Uri webFormBaseUri)
     {
         var methodList = this.Api.EnumMethodsForHelp();
 
@@ -1539,7 +1542,7 @@ code[class*=""language-""], pre[class*=""language-""] {
         int methodIndex = 0;
 
 
-        WebForm_WriteHtmlHeader(w, $"{this.ServerFriendlyNameHtml} - JSON-RPC Server API Control Panel Index");
+        Control_WriteHtmlHeader(w, $"{this.ServerFriendlyNameHtml} - JSON-RPC Server API Control Panel Index");
 
         w.WriteLine($@"
     <div class='container is-fluid'>
@@ -1587,7 +1590,7 @@ code[class*=""language-""], pre[class*=""language-""] {
     </div>
 ");
 
-        this.WebForm_WriteHtmlFooter(w);
+        this.Control_WriteHtmlFooter(w);
 
         return w.ToString();
     }
@@ -1609,7 +1612,7 @@ code[class*=""language-""], pre[class*=""language-""] {
         int methodIndex = 0;
 
 
-        WebForm_WriteHtmlHeader(w, $"{this.ServerFriendlyNameHtml} - JSON-RPC Server API Reference Document Index");
+        Control_WriteHtmlHeader(w, $"{this.ServerFriendlyNameHtml} - JSON-RPC Server API Reference Document Index");
 
         w.WriteLine($@"
     <div class='container is-fluid'>
@@ -2015,7 +2018,7 @@ code[class*=""language-""], pre[class*=""language-""] {
    </div>
 ");
 
-        this.WebForm_WriteHtmlFooter(w);
+        this.Control_WriteHtmlFooter(w);
 
         return w.ToString();
     }

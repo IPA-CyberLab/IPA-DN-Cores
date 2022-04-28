@@ -3392,7 +3392,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             //UseKestrelWithIPACoreStack = false,
         };
 
-        using JsonRpcTest220129 svr = new JsonRpcTest220129(opt, rpcCfg: new JsonRpcServerConfig { PrintHelp = true, });
+        using JsonRpcTest220129 svr = new JsonRpcTest220129(opt, rpcCfg: new JsonRpcServerConfig { EnableBuiltinRichWebPages = true, });
 
         using CancelWatcher cancel = new CancelWatcher();
 
@@ -3452,7 +3452,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         JsonRpcServerConfig rpcConfig = new JsonRpcServerConfig
         {
             MaxRequestBodyLen = 1_000_000,
-            PrintHelp = true,
+            EnableBuiltinRichWebPages = true,
             HadbBasedServicePoint = svc,
         };
 
