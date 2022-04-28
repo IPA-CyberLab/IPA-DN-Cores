@@ -668,6 +668,54 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         return ret;
     }
 
+    protected override async Task<List<HadbStatJson>> EnumStatImplAsync(HadbTran tran, DateTimeOffset dtStart, DateTimeOffset dtEnd, int maxCount, CancellationToken cancel = default)
+    {
+        var dbReader = ((HadbSqlTran)tran).Db;
+
+        if (dtStart._IsZeroDateTime())
+        {
+            dtStart = Util.ZeroDateTimeOffsetValue;
+        }
+
+        if (dtEnd._IsZeroDateTime())
+        {
+            dtEnd = Util.MaxDateTimeOffsetValue;
+        }
+
+        string topStr = "";
+
+        if (maxCount >= 1 && maxCount < int.MaxValue)
+        {
+            topStr = $"top {maxCount}";
+        }
+
+        var rows = await dbReader.EasySelectAsync<HadbSqlStatRow>($"select {topStr} * from HADB_STAT where STAT_SYSTEMNAME = @STAT_SYSTEMNAME and STAT_DT >= @DT_START and STAT_DT <= @DT_END order by STAT_DT desc",
+            new
+            {
+                STAT_SYSTEMNAME = this.SystemName,
+                DT_START = dtStart,
+                DT_END = dtEnd,
+            },
+            cancel: cancel);
+
+        List<HadbStatJson> ret = new List<HadbStatJson>();
+
+        foreach (var row in rows)
+        {
+            ret.Add(new HadbStatJson
+            {
+                TimeStamp = row.STAT_DT,
+                SnapshotNo = row.STAT_SNAPSHOT_NO,
+                JsonData = row.STAT_VALUE,
+                Generator = row.STAT_GENERATOR,
+                Ext1 = row.STAT_EXT1,
+                Ext2 = row.STAT_EXT2,
+            });
+        }
+
+        return ret;
+    }
+
     protected override async Task WriteStatImplAsync(HadbTran tran, DateTimeOffset dt, string generator, string value, string ext1, string ext2, CancellationToken cancel = default)
     {
         var dbWriter = ((HadbSqlTran)tran).Db;
@@ -3538,6 +3586,36 @@ public class HadbCurrentMetrics
     public int NumMemoryObjects;
 }
 
+public class HadbStatJson
+{
+    public DateTimeOffset TimeStamp;
+    public long SnapshotNo;
+    public string JsonData = "";
+    public string Generator = "";
+    public string Ext1 = "";
+    public string Ext2 = "";
+}
+
+
+public class HadbStat
+{
+    public DateTimeOffset TimeStamp;
+    public long SnapshotNo;
+    public string Generator = "";
+    public JObject? UserData = null;
+
+    public HadbStat() { }
+
+    public HadbStat(HadbStatJson src)
+    {
+        this.TimeStamp = src.TimeStamp;
+        this.SnapshotNo = src.SnapshotNo;
+        this.Generator = src.Generator;
+        this.UserData = src.JsonData._JsonToJsonObject();
+    }
+}
+
+
 public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     where TMem : HadbMemDataBase, new()
     where TDynamicConfig : HadbDynamicConfig
@@ -3631,6 +3709,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     protected abstract Task RestoreDataFromHadbObjectListImplAsync(List<HadbObject> objectList, CancellationToken cancel = default);
 
     protected abstract Task WriteStatImplAsync(HadbTran tran, DateTimeOffset dt, string generator, string value, string ext1, string ext2, CancellationToken cancel = default);
+    protected abstract Task<List<HadbStatJson>> EnumStatImplAsync(HadbTran tran, DateTimeOffset dtStart, DateTimeOffset dtEnd, int maxCount, CancellationToken cancel = default);
 
     protected abstract bool IsDeadlockExceptionImpl(Exception ex);
 
@@ -3999,12 +4078,12 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         long totalCount = 0;
 
         // オブジェクトごとの個数のカウント
-        // hadb/count/NameSpace/TypeName
+        // hadb/objcount/NameSpace/TypeName
         foreach (var obj in objectList)
         {
             if (obj.Deleted == false && obj.Archive == false)
             {
-                string key = $"Hadb/Count/{obj.NameSpace}/{obj.GetUserDataTypeName()}";
+                string key = $"Hadb/ObjCount/{obj.NameSpace}/{obj.GetUserDataTypeName()}";
 
                 dict._Inc(key);
 
@@ -4013,7 +4092,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         }
 
         // すべてのオブジェクト総数
-        dict["Hadb/Count/_AllObjects"] = totalCount;
+        dict["Hadb/ObjCount/_AllObjects"] = totalCount;
 
         foreach (var kv in dict)
         {
@@ -5527,6 +5606,23 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             Hadb.CheckIfReady();
 
             return await Hadb.AtomicSearchLogImplAsync(this, typeName, query, nameSpace, cancel);
+        }
+
+        public async Task<IEnumerable<HadbStat>> EnumStatAsync(DateTimeOffset dtStart, DateTimeOffset dtEnd, int maxCount, CancellationToken cancel = default)
+        {
+            CheckBegan();
+            Hadb.CheckIfReady();
+
+            List<HadbStat> ret = new List<HadbStat>();
+
+            var list = await Hadb.EnumStatImplAsync(this, dtStart, dtEnd, maxCount, cancel);
+
+            foreach (var item in list)
+            {
+                ret.Add(new HadbStat(item));
+            }
+
+            return ret;
         }
 
         //public async Task<bool> LazyUpdateAsync(HadbObject obj, CancellationToken cancel = default)

@@ -308,8 +308,12 @@ public class HadbFullTextSearchResult
 public interface IHadbBasedServiceRpcBase
 {
     [RpcRequireAuth]
-    [RpcMethodHelp("Get current HADB system internal statistics.")]
-    public Task<EasyJsonStrAttributes> ServiceAdmin_GetHadbStat();
+    [RpcMethodHelp("Get the current HADB system internal statistics.")]
+    public Task<EasyJsonStrAttributes> ServiceAdmin_GetStatCurrent();
+
+    [RpcRequireAuth]
+    [RpcMethodHelp("Get the HADB system internal statistics history.")]
+    public Task<IEnumerable<HadbStat>> ServiceAdmin_GetStatHistory(int maxCount = Consts.Numbers.HadbHistoryMaxCount);
 
     [RpcRequireAuth]
     [RpcMethodHelp("Perform full text search from database objects.")]
@@ -493,6 +497,17 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
         return false;
     }
 
+    public async Task<IEnumerable<HadbStat>> ServiceAdmin_GetStatHistory(int maxCount)
+    {
+        IEnumerable<HadbStat> ret = null!;
+        await this.Hadb.TranAsync(false, async tran =>
+        {
+            ret = await tran.EnumStatAsync(default, default, maxCount);
+            return false;
+        });
+        return ret;
+    }
+
     public async Task AdminForm_SetDynamicConfigTextAsync(string newConfig, CancellationToken cancel = default)
     {
         await this.Hadb.SetDynamincConfigStringAsync(newConfig, cancel);
@@ -658,7 +673,7 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
         }
     }
 
-    public async Task<EasyJsonStrAttributes> ServiceAdmin_GetHadbStat()
+    public async Task<EasyJsonStrAttributes> ServiceAdmin_GetStatCurrent()
     {
         await this.Basic_Require_AdminBasicAuthAsync();
 

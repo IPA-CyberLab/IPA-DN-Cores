@@ -71,10 +71,9 @@ public class JsonRpcHttpServerHook
     {
         string title = Svr.ServerFriendlyNameHtml;
 
-        string note = $"<p><b>{title} Web/API Server.</b> This software is <a href='https://github.com/IPA-CyberLab' target='_blank'><b>open source software published in GitHub</b></a> licensed under <a href='https://www.apache.org/licenses/LICENSE-2.0' target='_blank'>Apache License 2.0</a> with ABSOLUTELY NO WARRANTY.<BR>Copyright &copy; 2018-{Env.BuildTimeStamp.Year} IPA CyberLab. All Rights Reserved.</p>";
+        string note = $"<p><b>{title} Web &amp; API Server.</b> This software is <a href='https://github.com/IPA-CyberLab' target='_blank'><b>open source software published in GitHub</b></a> licensed under <a href='https://www.apache.org/licenses/LICENSE-2.0' target='_blank'>Apache License 2.0</a> with ABSOLUTELY NO WARRANTY.<BR>Copyright &copy; 2018-{Env.BuildTimeStamp.Year} IPA CyberLab. All Rights Reserved.</p>";
 
         string menu = GetHeaderMenuText(includeAdminPages);
-
 
         return menu + "\r\n" + note;
     }
@@ -102,7 +101,7 @@ public class JsonRpcHttpServerHook
 
         foreach (var item in items)
         {
-            string tmp = $"<a href='{item.Item2}' {(item.Item3._IsFilled() ? "" : $"target='{item.Item3}'")}><b>{item.Item1}</b></a>";
+            string tmp = $"<a href='{item.Item2}' {(item.Item3._IsEmpty() ? "" : $"target='{item.Item3}'")}><b>{item.Item1}</b></a>";
 
             o.Add(tmp);
         }
@@ -1578,7 +1577,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 requireAuthStr = "<i class='fas fa-key'></i> ";
             }
 
-            string titleStr = $"<a href='{this.ControlAbsoluteUrlPath}{m.Name}/'><b><i class='fas fa-keyboard'></i> {requireAuthStr}API Control Panel Web Form #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? " <BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
+            string titleStr = $"<a href='{this.ControlAbsoluteUrlPath}{m.Name}/'><b><i class='fas fa-keyboard'></i> {requireAuthStr}Control Panel Web Form #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? " <BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
 
             //w.WriteLine();
             //w.WriteLine($"- {helpStr}");

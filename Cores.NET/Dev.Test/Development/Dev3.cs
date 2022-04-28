@@ -596,7 +596,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
     public interface IRpc : IHadbBasedServiceRpcBase
     {
         [RpcMethodHelp("テスト関数。パラメータで int 型で指定された値を文字列に変換し、Hello という文字列を前置して返却します。RPC を呼び出すためのテストコードを実際に記述する際のテストとして便利です。", "Hello 123")]
-        public Task<string> Test([RpcParamHelp("テスト入力整数値", 123)] int i);
+        public Task<string> Test_HelloWorld([RpcParamHelp("テスト入力整数値", 123)] int i);
 
         //[RpcMethodHelp("テスト関数2。")]
         //public Task<Test2Output> Test2([RpcParamHelp("テスト入力値1")] Test2Input in1, [RpcParamHelp("テスト入力値2")] string in2, [RpcParamHelp("テスト入力値3", HostApiResult.Modified)] HostApiResult in3);
@@ -702,6 +702,11 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 case HadbEventType.DynamicConfigChanged:
                     ReloadDnsServerSettingFromHadbDynamicConfig();
                     break;
+
+                case HadbEventType.ReloadDataFull:
+                case HadbEventType.ReloadDataPartially:
+                    this.DnsServer.LastDatabaseHealtyTimeStamp = DateTime.Now;
+                    break;
             }
             await Task.CompletedTask;
         });
@@ -787,7 +792,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         return ret;
     }
 
-    public Task<string> Test(int i) => $"Hello {i}"._TaskResult();
+    public Task<string> Test_HelloWorld(int i) => $"Hello {i}"._TaskResult();
 
     public async Task<Host_Return> DDNS_Host(string secretKey = "", string label = "", string unlockKey = "", string licenseString = "", string ip = "", string userGroupSecretKey = "", string email = "", JObject? userData = null)
     {
@@ -1596,6 +1601,11 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
     public async Task<UnlockKey[]> DDNSAdmin_UnlockKeyCreate(int count)
     {
         await this.Basic_Require_AdminBasicAuthAsync();
+
+        if (this.CurrentDynamicConfig.DDns_RequireUnlockKey == false)
+        {
+            throw new CoresException("The unlock key feature is not enabled in this DDNS system. You need not to create unlock keys.");
+        }
 
         IPAddress clientIp = this.GetClientIpAddress();
         IPAddress clientNetwork = this.GetClientIpNetworkForRateLimit();
