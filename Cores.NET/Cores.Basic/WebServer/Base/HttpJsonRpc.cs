@@ -71,7 +71,7 @@ public class JsonRpcHttpServerHook
     {
         string title = Svr.ServerFriendlyNameHtml;
 
-        string note = $"<p><b>{title} Web &amp; API Server.</b> This software is <a href='https://github.com/IPA-CyberLab' target='_blank'><b>open source software published in GitHub</b></a> licensed under <a href='https://www.apache.org/licenses/LICENSE-2.0' target='_blank'>Apache License 2.0</a> with ABSOLUTELY NO WARRANTY.<BR>Copyright &copy; 2018-{Env.BuildTimeStamp.Year} IPA CyberLab. All Rights Reserved.</p>";
+        string note = $"<p><b>{title} Web &amp; API Server.</b> This system is <a href='https://github.com/IPA-CyberLab' target='_blank'><b>open source software published in GitHub</b></a> licensed under <a href='https://www.apache.org/licenses/LICENSE-2.0' target='_blank'>Apache License 2.0</a> with ABSOLUTELY NO WARRANTY.<BR>Copyright &copy; 2018-{Env.BuildTimeStamp.Year} IPA CyberLab. All Rights Reserved.</p>";
 
         string menu = GetHeaderMenuText(includeAdminPages);
 
@@ -1476,6 +1476,8 @@ code[class*=""language-""], pre[class*=""language-""] {
 <h2 class='title is-4'><i class='fas fa-keyboard'></i> {this.ServerFriendlyNameHtml} - JSON-RPC Server API Control Panel Index</h2>
         
 <h4 class='title is-5'>List of all {methodList.Count} API Control Panel Web Forms:</h4>
+
+<p><a href='{this.RpcAbsoluteUrlPath}'><i class='fas fa-hand-point-right'></i> <b>Call JSON-RPC APIs directly from curl/wget or your application.</a></b></p>
 ");
 
         w.WriteLine("<ul>");
@@ -1546,6 +1548,9 @@ code[class*=""language-""], pre[class*=""language-""] {
 <h2 class='title is-4'><i class='fas fa-code'></i> {this.ServerFriendlyNameHtml} - JSON-RPC Server API Reference Document Index</h2>
         
 <h4 class='title is-5'>List of all {methodList.Count} RPC-API Methods:</h4>
+
+<p><a href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-home'></i> <b>Call JSON-RPC APIs easily from the control panel web forms.</a></b></p>
+
 ");
 
         w.WriteLine("<ul>");
