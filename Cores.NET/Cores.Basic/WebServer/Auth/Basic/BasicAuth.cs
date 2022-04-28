@@ -188,6 +188,19 @@ public static class BasicAuthImpl
             ok = await passwordAuthCallback(usernameAndPassword.Item1, usernameAndPassword.Item2);
         }
 
+        var log = new
+        {
+            BasicAuthUserName = usernameAndPassword.Item1,
+            BasicAuthPassword = usernameAndPassword.Item2._MaskPassword(),
+            ClientIpAddress = request.HttpContext.Connection.RemoteIpAddress._UnmapIPv4(),
+            ClientPort = request.HttpContext.Connection.RemotePort,
+            ServerIpAddresss = request.HttpContext.Connection.LocalIpAddress._UnmapIPv4(),
+            ServerPort = request.HttpContext.Connection.LocalPort,
+            AuthResult = ok,
+        };
+
+        log._PostAccessLog("TryAuthenticateAsync");
+
         return new ResultAndError<string>(usernameAndPassword.Item1, ok);
     }
 }

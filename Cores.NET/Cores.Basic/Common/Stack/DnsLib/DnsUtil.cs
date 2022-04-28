@@ -504,6 +504,8 @@ public class EasyDnsResponderSettings
     public List<EasyDnsResponderZone> ZoneList { get; set; } = new List<EasyDnsResponderZone>();
 
     public EasyDnsResponderRecordSettings? DefaultSettings { get; set; } = null;
+
+    public bool SaveAccessLogForDebug { get; set; } = false;
 }
 
 // ダイナミックレコードのコールバック関数に渡されるリクエストデータ

@@ -138,6 +138,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 {
     public class DynConfig : HadbBasedServiceDynConfig
     {
+        public bool DDns_SaveDnsQueryAccessLogForDebug = false;
         public int DDns_MaxHostPerCreateClientIpAddress_Total;
         public int DDns_MaxHostPerCreateClientIpNetwork_Total;
         public int DDns_MaxHostPerCreateClientIpAddress_Daily;
@@ -760,6 +761,8 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
             settings.ZoneList.Add(zone);
         }
+
+        settings.SaveAccessLogForDebug = config.DDns_SaveDnsQueryAccessLogForDebug;
 
         this.DnsServer.LoadSetting(settings);
 

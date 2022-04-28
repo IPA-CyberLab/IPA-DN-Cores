@@ -630,7 +630,35 @@ public class JsonRpcServerApi : AsyncService
                 if (ok)
                 {
                     // 認証成功
+                    var log = new
+                    {
+                        BasicAuthUserName = clientInfo.BasicAuthUsername,
+                        BasicAuthPassword = clientInfo.BasicAuthPassword._MaskPassword(),
+                        ClientIpAddress = clientInfo.RemoteIP.ToString(),
+                        ClientPort = clientInfo.RemotePort,
+                        ServerIpAddresss = clientInfo.LocalIP.ToString(),
+                        ServerPort = clientInfo.LocalPort,
+                        AuthResult = true,
+                    };
+
+                    log._PostAccessLog("TryAuth");
                     return;
+                }
+                else
+                {
+                    // 認証失敗
+                    var log = new
+                    {
+                        BasicAuthUserName = clientInfo.BasicAuthUsername,
+                        BasicAuthPassword = clientInfo.BasicAuthPassword._MaskPassword(),
+                        ClientIpAddress = clientInfo.RemoteIP.ToString(),
+                        ClientPort = clientInfo.RemotePort,
+                        ServerIpAddresss = clientInfo.LocalIP.ToString(),
+                        ServerPort = clientInfo.LocalPort,
+                        AuthResult = false,
+                    };
+
+                    log._PostAccessLog("TryAuth");
                 }
             }
         }
@@ -639,6 +667,7 @@ public class JsonRpcServerApi : AsyncService
             // ヘンなエラー発生
             ex._Debug();
         }
+
 
         // 認証失敗 例外発生させる
         throw new JsonRpcAuthErrorException(basicAuthErrorRealm);

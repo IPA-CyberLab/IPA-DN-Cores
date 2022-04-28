@@ -72,6 +72,8 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
     public EasyDnsResponder DnsResponder { get; }
     public DateTime LastDatabaseHealtyTimeStamp { get; set; }
 
+    public bool SaveAccessLogForDebug { get; private set; }
+
     public EasyDnsResponderBasedDnsServer(EasyDnsResponderBasedDnsServerSettings settings)
     {
         try
@@ -100,22 +102,59 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
     }
 
     public void LoadSetting(EasyDnsResponderSettings setting)
-        => this.DnsResponder.LoadSetting(setting);
+    {
+        this.DnsResponder.LoadSetting(setting);
+
+        this.SaveAccessLogForDebug = setting.SaveAccessLogForDebug;
+    }
+
+    public class DnsAccessLog
+    {
+        public DnsUdpPacket? RequestPacket;
+        public DnsUdpPacket? ResponsePacket;
+        public string TookSeconds = "";
+    }
 
     // DNS サーバーから呼ばれるコールバック関数。ここでクエリに対する応答を作る。
     List<DnsUdpPacket> DnsQueryResponseCallback(EasyDnsServer svr, List<DnsUdpPacket> requestPackets)
     {
         List<DnsUdpPacket> responsePackets = new List<DnsUdpPacket>(requestPackets.Count);
 
+        bool debug = this.SaveAccessLogForDebug;
+
         foreach (var request in requestPackets)
         {
             try
             {
-                var res = RequestPacketToResponsePacket(request);
+                long startTick = 0;
+                long endTick = 0;
 
-                if (res != null)
+                if (debug)
                 {
-                    responsePackets.Add(res);
+                    startTick = Time.NowHighResLong100Usecs;
+                }
+
+                var response = RequestPacketToResponsePacket(request);
+
+                if (debug)
+                {
+                    endTick = Time.NowHighResLong100Usecs;
+
+                    long timespan = endTick - startTick;
+
+                    DnsAccessLog log = new DnsAccessLog
+                    {
+                        TookSeconds = ((double)timespan / 10000000.0).ToString("F9"),
+                        RequestPacket = request,
+                        ResponsePacket = response,
+                    };
+
+                    log._PostAccessLog("DDnsAccessLogForDebug");
+                }
+
+                if (response != null)
+                {
+                    responsePackets.Add(response);
                 }
             }
             catch (Exception ex)

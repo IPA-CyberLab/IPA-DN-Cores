@@ -499,6 +499,8 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
 
     public async Task<IEnumerable<HadbStat>> ServiceAdmin_GetStatHistory(int maxCount)
     {
+        await this.Basic_Require_AdminBasicAuthAsync();
+
         IEnumerable<HadbStat> ret = null!;
         await this.Hadb.TranAsync(false, async tran =>
         {
