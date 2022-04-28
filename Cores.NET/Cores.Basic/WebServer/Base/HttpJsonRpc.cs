@@ -162,6 +162,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                 string configBody = "";
 
                 string msg = "";
+                string msgColor = "green";
 
                 if (method == WebMethods.POST)
                 {
@@ -171,6 +172,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                     if (secret != this.WebFormSecretKey)
                     {
                         msg = "Error! Invalid web form update.";
+                        msgColor = "red";
                     }
                     else
                     {
@@ -183,7 +185,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
                 configBody = await this.Config.HadbBasedServicePoint!.AdminForm_GetDynamicConfigTextAsync(c);
 
-                if (msg._IsFilled()) w.WriteLine($"<p><B><font color=green>{msg._EncodeHtml(true)}</font></B></p>");
+                if (msg._IsFilled()) w.WriteLine($"<p><B><font color={msgColor}>{msg._EncodeHtml(true)}</font></B></p>");
 
                 w.WriteLine($"<form action='{this.AdminConfigAbsoluteUrlPath}' method='post'>");
 
@@ -195,7 +197,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                 w.WriteLine("</textarea>");
                 w.WriteLine("</p>");
 
-                if (msg._IsFilled()) w.WriteLine($"<p><B><font color=green>{msg._EncodeHtml(true)}</font></B></p>");
+                if (msg._IsFilled()) w.WriteLine($"<p><B><font color={msgColor}>{msg._EncodeHtml(true)}</font></B></p>");
 
                 w.WriteLine("<input class='button is-link' type='submit' style='font-weight: bold' value='Apply Now (Be Careful!)'>");
 

@@ -128,6 +128,7 @@ public static class DnsUtil
             case RecordType.Ptr: return EasyDnsResponderRecordType.PTR;
             case RecordType.Mx: return EasyDnsResponderRecordType.MX;
             case RecordType.Txt: return EasyDnsResponderRecordType.TXT;
+            case RecordType.CAA: return EasyDnsResponderRecordType.CAA;
         }
 
         return EasyDnsResponderRecordType.None;
@@ -428,6 +429,7 @@ public enum EasyDnsResponderRecordType
     PTR,
     MX,
     TXT,
+    CAA,
 }
 
 [Flags]
@@ -526,6 +528,7 @@ public class EasyDnsResponderDynamicRecordCallbackResult
     public List<DomainName>? PtrFqdnList { get; set; } // PTR の場合
     public List<DomainName>? NsFqdnList { get; set; } // NS の場合
     public List<string>? TextList { get; set; } // TXT の場合
+    public List<Tuple<byte, string, string>>? CaaList { get; set; } // CAA の場合
 
     public EasyDnsResponderRecordSettings? Settings { get; set; } // TTL 等
 
@@ -749,6 +752,36 @@ public class EasyDnsResponder
         }
     }
 
+    public class Record_CAA : Record
+    {
+        public byte Flags;
+        public string Tag;
+        public string Value;
+
+        public Record_CAA(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
+        {
+            string[] tokens = src.Contents._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, '\t', ' ');
+
+            if (tokens.Length < 3) throw new CoresLibException("Contents must have <flag> <tag> <value>.");
+
+            this.Flags = (byte)tokens.ElementAt(0)._ToInt();
+            this.Tag = tokens.ElementAt(1);
+            this.Value = tokens.ElementAt(2);
+        }
+
+        public Record_CAA(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, byte flags, string tag, string value) : base(parent, EasyDnsResponderRecordType.CAA, settings, nameNormalized)
+        {
+            this.Flags = flags;
+            this.Tag = tag;
+            this.Value = value;
+        }
+
+        protected override string ToStringForCompareImpl()
+        {
+            return $"{this.Flags} {this.Tag} {this.Value}";
+        }
+    }
+
     public class Record_TXT : Record
     {
         public string TextData;
@@ -785,6 +818,7 @@ public class EasyDnsResponder
                 case EasyDnsResponderRecordType.NS:
                 case EasyDnsResponderRecordType.PTR:
                 case EasyDnsResponderRecordType.TXT:
+                case EasyDnsResponderRecordType.CAA:
                     this.CallbackId = src.Contents._NonNull();
 
                     if (this.CallbackId._IsEmpty()) throw new CoresLibException("Callback ID is empty.");
@@ -876,6 +910,9 @@ public class EasyDnsResponder
 
                 case EasyDnsResponderRecordType.TXT:
                     return new Record_TXT(parent, src);
+
+                case EasyDnsResponderRecordType.CAA:
+                    return new Record_CAA(parent, src);
             }
 
             throw new CoresLibException($"Unknown record type: {src.Type}");
@@ -915,6 +952,9 @@ public class EasyDnsResponder
 
                 case Record_TXT txt:
                     return new TxtRecord(domainName, ttl, txt.TextData);
+
+                case Record_CAA caa:
+                    return new CAARecord(domainName, ttl, caa.Flags, caa.Tag, caa.Value);
             }
 
             return null;
@@ -1577,6 +1617,17 @@ public class EasyDnsResponder
                 foreach (var text in callbackResult.TextList)
                 {
                     listToAdd.Add(new Record_TXT(result.Zone, settings, result.RequestHostName, text));
+                }
+            }
+        }
+
+        if (expectedRecordType == EasyDnsResponderRecordType.CAA || expectedRecordType == EasyDnsResponderRecordType.Any)
+        {
+            if (callbackResult.CaaList != null)
+            {
+                foreach (var caa in callbackResult.CaaList)
+                {
+                    listToAdd.Add(new Record_CAA(result.Zone, settings, result.RequestHostName, caa.Item1, caa.Item2, caa.Item3));
                 }
             }
         }

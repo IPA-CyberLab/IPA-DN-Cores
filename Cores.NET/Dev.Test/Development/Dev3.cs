@@ -149,10 +149,11 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         public int DDns_NewHostnameRandomDigits = 12;
         public bool DDns_Prohibit_IPv4AddressRegistration = false;
         public bool DDns_Prohibit_IPv6AddressRegistration = false;
+        public bool DDns_Prohibit_AcmeLetsEncrypt_CertIssue = false;
         public int DDns_MinHostLabelLen;
         public int DDns_MaxHostLabelLen;
         public int DDns_Protocol_Ttl_Secs;
-        public int DDns_Protocol_Ttl_Secs_NS_Record;
+        public int DDns_Protocol_Ttl_Secs_Static_Record;
         public string DDns_Protocol_SOA_MasterNsServerFqdn = "";
         public string DDns_Protocol_SOA_ResponsibleFieldFqdn = "";
         public int DDns_Protocol_SOA_NegativeCacheTtlSecs;
@@ -253,8 +254,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             if (DDns_Protocol_Ttl_Secs <= 0) DDns_Protocol_Ttl_Secs = 60;
             if (DDns_Protocol_Ttl_Secs >= 3600) DDns_Protocol_Ttl_Secs = 3600;
 
-            if (DDns_Protocol_Ttl_Secs_NS_Record <= 0) DDns_Protocol_Ttl_Secs_NS_Record = 15 * 60;
-            if (DDns_Protocol_Ttl_Secs_NS_Record >= 3600) DDns_Protocol_Ttl_Secs_NS_Record = 3600;
+            if (DDns_Protocol_Ttl_Secs_Static_Record <= 0) DDns_Protocol_Ttl_Secs_Static_Record = 15 * 60;
+            if (DDns_Protocol_Ttl_Secs_Static_Record >= 3600) DDns_Protocol_Ttl_Secs_Static_Record = 3600;
 
             if (DDns_Protocol_SOA_NegativeCacheTtlSecs <= 0) DDns_Protocol_SOA_NegativeCacheTtlSecs = 13;
             if (DDns_Protocol_SOA_NegativeCacheTtlSecs >= 3600) DDns_Protocol_SOA_NegativeCacheTtlSecs = 3600;
@@ -739,10 +740,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 {
                     EasyDnsResponderRecord rec = EasyDnsResponderRecord.FromString(staticRecord, domainFqdn);
 
-                    if (rec.Type == EasyDnsResponderRecordType.NS)
-                    {
-                        rec.Settings = new EasyDnsResponderRecordSettings { TtlSecs = config.DDns_Protocol_Ttl_Secs_NS_Record };
-                    }
+                    rec.Settings = new EasyDnsResponderRecordSettings { TtlSecs = config.DDns_Protocol_Ttl_Secs_Static_Record };
 
                     zone.RecordList.Add(rec);
                 }
@@ -774,6 +772,8 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 IPAddressList = new List<IPAddress>(),
                 MxFqdnList = new List<DomainName>(),
                 MxPreferenceList = new List<ushort>(),
+                TextList = new List<string>(),
+                CaaList = new List<Tuple<byte, string, string>>(),
             };
 
             // ラベル名からレコードを解決
@@ -783,6 +783,9 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             {
                 var data = host.Data;
 
+                List<string> spfText = new List<string>();
+                spfText.Add("v=spf1");
+
                 if (data.HostAddress_IPv4._IsFilled())
                 {
                     if (config.DDns_Prohibit_IPv4AddressRegistration == false)
@@ -791,6 +794,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                         if (ip != null)
                         {
                             ret.IPAddressList.Add(ip);
+                            spfText.Add($"ip4:{ip}/32");
                         }
                     }
                 }
@@ -803,12 +807,22 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                         if (ip != null)
                         {
                             ret.IPAddressList.Add(ip);
+                            spfText.Add($"ip6:{ip}/128");
                         }
                     }
                 }
 
+                spfText.Add("?all");
+
                 ret.MxPreferenceList.Add(100);
                 ret.MxFqdnList.Add(DomainName.Parse(req.RequestFqdn));
+                ret.TextList.Add(spfText._Combine(" "));
+
+                if (config.DDns_Prohibit_AcmeLetsEncrypt_CertIssue)
+                {
+                    ret.CaaList.Add(new Tuple<byte, string, string>(0, "issue", ";"));
+                    ret.CaaList.Add(new Tuple<byte, string, string>(0, "issuewild", ";"));
+                }
             }
 
             return ret;
