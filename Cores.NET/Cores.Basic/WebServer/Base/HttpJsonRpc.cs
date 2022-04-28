@@ -107,7 +107,7 @@ public class JsonRpcHttpServerHook
             o.Add(tmp);
         }
 
-        return "<p>| " + o._Combine(" | ") + " |</p>";
+        return "<p>" + o._Combine(" | ") + "</p>";
     }
 }
 
@@ -1437,6 +1437,14 @@ code[class*=""language-""], pre[class*=""language-""] {
 
 
         RouteBuilder rb = new RouteBuilder(appBuilder);
+
+        if (this.Config.TopPageRedirectToControlPanel && this.Config.EnableBuiltinRichWebPages)
+        {
+            rb.MapGet("/", async (req, res, route) =>
+            {
+                await res._SendRedirectAsync(controlPath + "/", cancel: req._GetRequestCancellationToken());
+            });
+        }
 
         rb.MapGet(rpcPath, Rpc_GetRequestHandler);
         rb.MapGet(rpcPath + "/{rpc_method}", Rpc_GetRequestHandler);
