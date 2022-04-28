@@ -598,8 +598,8 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         [RpcMethodHelp("テスト関数。パラメータで int 型で指定された値を文字列に変換し、Hello という文字列を前置して返却します。RPC を呼び出すためのテストコードを実際に記述する際のテストとして便利です。", "Hello 123")]
         public Task<string> Test([RpcParamHelp("テスト入力整数値", 123)] int i);
 
-        [RpcMethodHelp("テスト関数2。")]
-        public Task<Test2Output> Test2([RpcParamHelp("テスト入力値1")] Test2Input in1, [RpcParamHelp("テスト入力値2")] string in2, [RpcParamHelp("テスト入力値3", HostApiResult.Modified)] HostApiResult in3);
+        //[RpcMethodHelp("テスト関数2。")]
+        //public Task<Test2Output> Test2([RpcParamHelp("テスト入力値1")] Test2Input in1, [RpcParamHelp("テスト入力値2")] string in2, [RpcParamHelp("テスト入力値3", HostApiResult.Modified)] HostApiResult in3);
 
         [RpcMethodHelp("DDNS ホストレコードを作成、更新または取得します。DDNS ホストレコードに関連付けられている IP アドレスの更新も、この API を呼び出して行ないます。")]
         public Task<Host_Return> DDNS_Host(
@@ -1641,12 +1641,12 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         return ret.ToArray();
     }
 
-    public async Task<Test2Output> Test2(Test2Input in1, string in2, HostApiResult in3)
-    {
-        await Task.CompletedTask;
+    //public async Task<Test2Output> Test2(Test2Input in1, string in2, HostApiResult in3)
+    //{
+    //    await Task.CompletedTask;
 
-        return new Test2Output { IntParam = in1.IntParam * 2, StrParam = in1.StrParam + "_test_" + in2 + "_" + in3.ToString()};
-    }
+    //    return new Test2Output { IntParam = in1.IntParam * 2, StrParam = in1.StrParam + "_test_" + in2 + "_" + in3.ToString()};
+    //}
 }
 
 

@@ -307,8 +307,27 @@ public class HadbFullTextSearchResult
 [RpcInterface]
 public interface IHadbBasedServiceRpcBase
 {
+    [RpcRequireAuth]
+    [RpcMethodHelp("Get current HADB system internal statistics.")]
     public Task<EasyJsonStrAttributes> ServiceAdmin_GetHadbStat();
-    public Task<HadbFullTextSearchResult> ServiceAdmin_FullTextSearch(string queryText = "", string sortBy = "", bool wordMode = false, bool fieldNameMode = false, string typeName = "", string nameSpace = "", int maxResults = 0);
+
+    [RpcRequireAuth]
+    [RpcMethodHelp("Perform full text search from database objects.")]
+    public Task<HadbFullTextSearchResult> ServiceAdmin_FullTextSearch(
+        [RpcParamHelp("Query text string", "hello AND world")]
+        string queryText = "",
+        [RpcParamHelp("Sort by field name", "Age")]
+        string sortBy = "",
+        [RpcParamHelp("Word mode", false)]
+        bool wordMode = false,
+        [RpcParamHelp("Field name mode", false)]
+        bool fieldNameMode = false,
+        [RpcParamHelp("Type name", "User")]
+        string typeName = "",
+        [RpcParamHelp("Namespace", "NS_TEST1")]
+        string nameSpace = "",
+        [RpcParamHelp("Max result counts", 100)]
+        int maxResults = 0);
 }
 
 [Flags]
@@ -639,13 +658,17 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
         }
     }
 
-    public Task<EasyJsonStrAttributes> ServiceAdmin_GetHadbStat()
+    public async Task<EasyJsonStrAttributes> ServiceAdmin_GetHadbStat()
     {
-        return this.Hadb.LatestStatData!._TR();
+        await this.Basic_Require_AdminBasicAuthAsync();
+
+        return this.Hadb.LatestStatData!;
     }
 
-    public Task<HadbFullTextSearchResult> ServiceAdmin_FullTextSearch(string queryText, string sortBy, bool wordMode, bool fieldNameMode, string typeName, string nameSpace, int maxResults)
+    public async Task<HadbFullTextSearchResult> ServiceAdmin_FullTextSearch(string queryText, string sortBy, bool wordMode, bool fieldNameMode, string typeName, string nameSpace, int maxResults)
     {
+        await this.Basic_Require_AdminBasicAuthAsync();
+
         if (maxResults <= 0 || maxResults == int.MaxValue)
         {
             maxResults = Hadb.CurrentDynamicConfig.Service_FullTextSearchResultsCountStandard;
@@ -681,7 +704,7 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
             ret.ObjectsList.Add(new HadbSearchResultJsonObject(obj));
         }
 
-        return ret._TR();
+        return ret;
     }
 }
 

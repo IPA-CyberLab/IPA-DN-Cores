@@ -63,23 +63,77 @@ using IHostApplicationLifetime = Microsoft.AspNetCore.Hosting.IApplicationLifeti
 
 namespace IPA.Cores.Basic;
 
+public class JsonRpcHttpServerHook
+{
+    public JsonRpcHttpServer Svr = null!;
+
+    public virtual string GetFooterMenuText(bool includeAdminPages = true)
+    {
+        string title = Svr.ServerFriendlyNameHtml;
+
+        string note = $"<p><b>{title} Web/API Server.</b> This software is <a href='https://github.com/IPA-CyberLab' target='_blank'><b>open source software published in GitHub</b></a> licensed under <a href='https://www.apache.org/licenses/LICENSE-2.0' target='_blank'>Apache License 2.0</a> with ABSOLUTELY NO WARRANTY.<BR>Copyright &copy; 2018-{Env.BuildTimeStamp.Year} IPA CyberLab. All Rights Reserved.</p>";
+
+        string menu = GetHeaderMenuText(includeAdminPages);
+
+
+        return menu + "\r\n" + note;
+    }
+
+    public virtual string GetHeaderMenuText(bool includeAdminPages = false)
+    {
+        List<Tuple<string, string, string>> items = new List<Tuple<string, string, string>>();
+
+        string title = Svr.ServerFriendlyNameHtml;
+
+        string adminIcon = "<i class='fas fa-key'></i>";
+
+        items.Add(new Tuple<string, string, string>($"<i class='fas fa-keyboard'></i> {title} Control Panel", Svr.ControlAbsoluteUrlPath, ""));
+        items.Add(new Tuple<string, string, string>($"<i class='fas fa-code'></i> {title} JSON-RPC APIs", Svr.RpcAbsoluteUrlPath, ""));
+
+        if (includeAdminPages)
+        {
+            items.Add(new Tuple<string, string, string>($"{adminIcon} Admin Config Editor", Svr.AdminConfigAbsoluteUrlPath, ""));
+            items.Add(new Tuple<string, string, string>($"{adminIcon} Admin Object Editor", Svr.AdminObjEditAbsoluteUrlPath, ""));
+            items.Add(new Tuple<string, string, string>($"{adminIcon} Admin Full Text Search", Svr.AdminObjSearchAbsoluteUrlPath, ""));
+            items.Add(new Tuple<string, string, string>($"{adminIcon} Admin Log Browser", Svr.AdminLogBrowserAbsoluteUrlPath, "_blank"));
+        }
+
+        List<string> o = new List<string>();
+
+        foreach (var item in items)
+        {
+            string tmp = $"<a href='{item.Item2}' {(item.Item3._IsFilled() ? "" : $"target='{item.Item3}'")}><b>{item.Item1}</b></a>";
+
+            o.Add(tmp);
+        }
+
+        return "<p>| " + o._Combine(" | ") + " |</p>";
+    }
+}
+
 public class JsonRpcHttpServer : JsonRpcServer
 {
     public static bool HideErrorDetails = false; // 詳細エラーを隠すかどうかのフラグ。手抜きグローバル変数
 
-    public string RpcBaseAbsoluteUrlPath = ""; // "/rpc/" のような絶対パス。末尾に / を含む。
-    public string WebFormBaseAbsoluteUrlPath = ""; // "/user/" のような絶対パス。末尾に / を含む。
+    public string RpcAbsoluteUrlPath = ""; // "/rpc/" のような絶対パス。末尾に / を含む。
+    public string ControlAbsoluteUrlPath = ""; // "/control/" のような絶対パス。末尾に / を含む。
 
     public bool HasAdminPages => this.Config.HadbBasedServicePoint != null;
 
-    public string AdminConfigFormBaseAbsoluteUrlPath = ""; // "/admin_config/" のような絶対パス。末尾に / を含む。
-    public string AdminObjEditBaseAbsoluteUrlPath = ""; // "/admin_objedit/" のような絶対パス。末尾に / を含む。
-    public string AdminObjSearchBaseAbsoluteUrlPath = ""; // "/admin_search/" のような絶対パス。末尾に / を含む。
-    public string AdminLogBrowserBaseAbsoluteUrlPath = ""; // "/admin_logbrowser/" のような絶対パス。末尾に / を含む。
+    public JsonRpcHttpServerHook Hook { get; }
+
+    public string AdminConfigAbsoluteUrlPath = ""; // "/admin_config/" のような絶対パス。末尾に / を含む。
+    public string AdminObjEditAbsoluteUrlPath = ""; // "/admin_objedit/" のような絶対パス。末尾に / を含む。
+    public string AdminObjSearchAbsoluteUrlPath = ""; // "/admin_search/" のような絶対パス。末尾に / を含む。
+    public string AdminLogBrowserAbsoluteUrlPath = ""; // "/admin_logbrowser/" のような絶対パス。末尾に / を含む。
 
     readonly string WebFormSecretKey = Str.GenRandStr();
 
-    public JsonRpcHttpServer(JsonRpcServerApi api, JsonRpcServerConfig? cfg = null) : base(api, cfg) { }
+    public JsonRpcHttpServer(JsonRpcServerApi api, JsonRpcServerConfig? cfg = null) : base(api, cfg)
+    {
+        this.Hook = this.Config.Hook;
+        this.Hook.Svr = this;
+    }
 
     enum AdminFormsOperation
     {
@@ -132,7 +186,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
                 if (msg._IsFilled()) w.WriteLine($"<p><B><font color=green>{msg._EncodeHtml(true)}</font></B></p>");
 
-                w.WriteLine($"<form action='{this.AdminConfigFormBaseAbsoluteUrlPath}' method='post'>");
+                w.WriteLine($"<form action='{this.AdminConfigAbsoluteUrlPath}' method='post'>");
 
                 w.WriteLine($"<input name='_secret' type='hidden' value='{this.WebFormSecretKey}'/>");
 
@@ -285,7 +339,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                     </div>
 ";
 
-                w.WriteLine($"<form action='{this.AdminObjEditBaseAbsoluteUrlPath}' method='get'>");
+                w.WriteLine($"<form action='{this.AdminObjEditAbsoluteUrlPath}' method='get'>");
 
                 w.WriteLine($@"
                     <div class='field is-horizontal'>
@@ -327,7 +381,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                     w.WriteLine($"<p><font color={(isPostError ? "red" : "green")}><b>{postMsg._EncodeHtml(true)}</b></font></p>");
                 }
 
-                w.WriteLine($"<form action='{this.AdminObjEditBaseAbsoluteUrlPath}' method='post'>");
+                w.WriteLine($"<form action='{this.AdminObjEditAbsoluteUrlPath}' method='post'>");
 
                 w.WriteLine($"<input name='_secret' type='hidden' value='{this.WebFormSecretKey}'/>");
                 w.WriteLine($"<input name='uid' type='hidden' value='{currentObj?.Uid ?? ""}'/>");
@@ -414,7 +468,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
                 // 検索フォーム
 
-                w.WriteLine($"<form action='{this.AdminObjSearchBaseAbsoluteUrlPath}' method='get'>");
+                w.WriteLine($"<form action='{this.AdminObjSearchAbsoluteUrlPath}' method='get'>");
 
                 w.WriteLine($@"
                     <div class='field is-horizontal'>
@@ -628,16 +682,23 @@ public class JsonRpcHttpServer : JsonRpcServer
 
                 StringWriter w = new StringWriter();
 
-                WebForm_WriteHtmlHeader(w, $"{this.ServerFriendlyName} - {title}");
+                WebForm_WriteHtmlHeader(w, $"{this.ServerFriendlyNameHtml} - {title}");
+
 
                 w.WriteLine(@"
     <div class='box'>
         <div class='content'>
 ");
 
-                w.WriteLine($"<h2 class='title is-4'>" + $"{this.ServerFriendlyName} - {title}" + "</h2>");
+                w.WriteLine(this.Hook.GetHeaderMenuText());
 
+                w.WriteLine($"<h2 class='title is-4'>" + $"{this.ServerFriendlyNameHtml} - {title}" + "</h2>");
+                
                 await bodyWriter(w, postData, cancel);
+
+                w.WriteLine("<p>　</p><HR>");
+
+                w.WriteLine(this.Hook.GetFooterMenuText());
 
                 w.WriteLine(@"
         </div>
@@ -673,7 +734,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
     }
 
-    // /user の GET ハンドラ
+    // /control の GET ハンドラ
     public virtual async Task WebForm_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
     {
         CancellationToken cancel = request._GetRequestCancellationToken();
@@ -683,7 +744,7 @@ public class JsonRpcHttpServer : JsonRpcServer
             if (rpcMethod._IsEmpty())
             {
                 // 目次ページの表示 (TODO)
-                var baseUri = request.GetEncodedUrl()._ParseUrl()._CombineUrl(this.RpcBaseAbsoluteUrlPath);
+                var baseUri = request.GetEncodedUrl()._ParseUrl()._CombineUrl(this.RpcAbsoluteUrlPath);
 
                 await response._SendStringContentsAsync(WebForm_GenerateHtmlHelpString(baseUri), contentsType: Consts.MimeTypes.HtmlUtf8, cancel: cancel, normalizeCrlf: CrlfStyle.CrLf);
             }
@@ -793,7 +854,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                     {
                         // Basic 認証の要求
                         KeyValueList<string, string> basicAuthResponseHeaders = new KeyValueList<string, string>();
-                        string realm = $"User Authentication for {this.RpcBaseAbsoluteUrlPath}";
+                        string realm = $"User Authentication for {this.RpcAbsoluteUrlPath}";
                         if (callResults.Error_AuthRequiredRealmName._IsFilled())
                         {
                             realm += $" ({realm._MakeVerySafeAsciiOnlyNonSpaceFileName()})";
@@ -849,6 +910,8 @@ public class JsonRpcHttpServer : JsonRpcServer
         <div class='content'>
 ");
 
+        w.WriteLine(this.Hook.GetHeaderMenuText());
+
         w.WriteLine($"<h2 class='title is-4'>" + title._EncodeHtml() + "</h2>");
 
         if (callResults.AllError)
@@ -860,20 +923,20 @@ public class JsonRpcHttpServer : JsonRpcServer
   </div>
 </article>");
 
-            w.WriteLine($"<a class='button is-danger is-rounded' style='font-weight: bold' href='javascript:history.go(-1)'><i class='fas fa-arrow-circle-left'></i>&nbsp;Back to the Previous Web Form and Try Again</a>");
+            w.WriteLine($"<a class='button is-danger is-rounded' style='font-weight: bold' href='javascript:history.go(-1)'><i class='fas fa-arrow-circle-left'></i>&nbsp;Back to the Previous Control Panel Web Form and Try Again</a>");
             w.WriteLine("<p>　</p>");
         }
 
-        w.WriteLine($"<p><b>The JSON result data are as follows.</b> You may see the <a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}' target='_blank'><b>API Reference Manual of the {mi.Name}() API</a></b>.</p>");
+        w.WriteLine($"<p><b>The JSON result data are as follows.</b> You may see the <a href='{this.RpcAbsoluteUrlPath}#{mi.Name}' target='_blank'><b>API Reference Manual of the {mi.Name}() API</a></b>.</p>");
 
         w.WriteLine($"<a class='button is-primary' id='download' style='font-weight: bold' href='#' download='{bomUtfDownloadFileName}' onclick='handleDownload()'><i class='far fa-folder-open'></i>&nbsp;Download JSON Result Data ({bomUtfData.Length._ToString3()} bytes)</a>");
 
         if (mi.ParametersByIndex.Length == 0)
         {
-            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-sync'></i>&nbsp;Refresh {mi.Name}() API Result</a>");
+            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-sync'></i>&nbsp;Refresh {mi.Name}() API Result</a>");
         }
 
-        w.WriteLine($"<a class='button is-success' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fab fa-wpforms'></i>&nbsp;Return to Web Form API Index</a>");
+        w.WriteLine($"<a class='button is-success' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-keyboard'></i>&nbsp;Return to Control Panel Web Form API Index</a>");
 
 
         w.WriteLine($"<p><i>Timestamp: {timeStamp._ToDtStr(true)}, Took time: {TimeSpan.FromMilliseconds(tookTick)._ToTsStr(true)}.</i></p>");
@@ -886,31 +949,30 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         if (mi.ParametersByIndex.Length >= 1)
         {
-            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fab fa-wpforms'></i>&nbsp;Open Another {mi.Name}() API Web Form</a>");
+            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-keyboard'></i>&nbsp;Open Another {mi.Name}() API Control Panel Web Form</a>");
         }
         else
         {
-            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-sync'></i>&nbsp;Refresh {mi.Name}() API Result</a>");
+            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-sync'></i>&nbsp;Refresh {mi.Name}() API Result</a>");
         }
 
-        w.WriteLine($"<a class='button is-success' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fab fa-wpforms'></i>&nbsp;Return to Web Form API Index</a>");
+        w.WriteLine($"<a class='button is-success' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-keyboard'></i>&nbsp;Return to Control Panel Web Form API Index</a>");
 
         w.WriteLine("<p>　</p>");
 
 
         w.WriteLine("<hr />");
 
-        w.WriteLine($"<p><b><a href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fab fa-wpforms'></i> API Web Form Index</a></b> > <b><a href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fab fa-wpforms'></i> {mi.Name}() API Web Form</a></b></p>");
+        w.WriteLine($"<p><b><a href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-keyboard'></i> API Control Panel Index</a></b> > <b><a href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-keyboard'></i> {mi.Name}() API Control Panel Web Form</a></b></p>");
 
         if (this.Config.PrintHelp)
         {
-            w.WriteLine($"<p><b><a href='{this.RpcBaseAbsoluteUrlPath}'><i class='fas fa-book-open'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-book-open'></i> {mi.Name}() API Document</a></b></p>");
+            w.WriteLine($"<p><b><a href='{this.RpcAbsoluteUrlPath}'><i class='fas fa-book-open'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-book-open'></i> {mi.Name}() API Document</a></b></p>");
         }
 
-        w.WriteLine(@"
-        <p>　</p>
-        <hr />
- ");
+        w.WriteLine("<p>　</p><HR>");
+
+        w.WriteLine(this.Hook.GetFooterMenuText());
 
         w.WriteLine(@"
         </div>
@@ -927,9 +989,9 @@ public class JsonRpcHttpServer : JsonRpcServer
         StringWriter w = new StringWriter();
         var mi = this.Api.GetMethodInfo(methodName);
 
-        WebForm_WriteHtmlHeader(w, $"{mi.Name} - {this.ServerFriendlyName} Web API Form");
+        WebForm_WriteHtmlHeader(w, $"{mi.Name} - {this.ServerFriendlyNameHtml} Web API Form");
 
-        w.WriteLine($"<form action='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/' method='get'>");
+        w.WriteLine($"<form action='{this.ControlAbsoluteUrlPath}{mi.Name}/' method='get'>");
         w.WriteLine($"<input name='_call' type='hidden' value='1'/>");
 
         w.WriteLine(@"
@@ -937,7 +999,9 @@ public class JsonRpcHttpServer : JsonRpcServer
         <div class='content'>
 ");
 
-        w.WriteLine($"<h2 class='title is-4'>" + $"{this.ServerFriendlyName} Web API Form - {mi.Name}() API" + "</h2>");
+        w.WriteLine(this.Hook.GetHeaderMenuText());
+
+        w.WriteLine($"<h2 class='title is-4'>" + $"<i class='fas fa-keyboard'></i> {this.ServerFriendlyNameHtml} Web API Form - {mi.Name}() API" + "</h2>");
 
         w.WriteLine($"<h3 class='title is-5'>" + $"{mi.Name}() API: {mi.Description._EncodeHtml()}" + "</h3>");
 
@@ -948,7 +1012,7 @@ public class JsonRpcHttpServer : JsonRpcServer
             requireAuthStr = "<i class='fas fa-key'></i> ";
         }
 
-        w.WriteLine($"<p><b><a href='{this.WebFormBaseAbsoluteUrlPath}'><i class='fab fa-wpforms'></i> API Web Form Index</a></b> > <b><a href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fab fa-wpforms'></i> {requireAuthStr} {mi.Name}() API Web Form</a></b></p>");
+        w.WriteLine($"<p><b><a href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-keyboard'></i> API Control Panel Index</a></b> > <b><a href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-keyboard'></i> {requireAuthStr} {mi.Name}() API Control Panel Web Form</a></b></p>");
 
         int index = 0;
 
@@ -1024,16 +1088,21 @@ public class JsonRpcHttpServer : JsonRpcServer
         if (this.Config.PrintHelp)
         {
             w.WriteLine("<p><b>You may see this API reference before calling the API.</b></p>");
-            w.WriteLine($"<p><b><a href='{this.RpcBaseAbsoluteUrlPath}'><i class='fas fa-book-open'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcBaseAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-book-open'></i> {mi.Name}() API Document</a></b></p>");
+            w.WriteLine($"<p><b><a href='{this.RpcAbsoluteUrlPath}'><i class='fas fa-book-open'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-book-open'></i> {mi.Name}() API Document</a></b></p>");
         }
 
         w.WriteLine(@"
                         </div>
-                    </div>
+                    </div>");
+
+
+        w.WriteLine(@"
                 </div>
             </div>");
 
-        w.WriteLine("<p>　</p>");
+
+        w.WriteLine("<p>　</p><HR>");
+        w.WriteLine(this.Hook.GetFooterMenuText());
 
         w.WriteLine(@"
         </div>
@@ -1168,7 +1237,7 @@ code[class*=""language-""], pre[class*=""language-""] {
             string rpcMethod = routeData.Values._GetStr("rpc_method");
             if (rpcMethod._IsEmpty())
             {
-                var baseUri = request.GetEncodedUrl()._ParseUrl()._CombineUrl(this.RpcBaseAbsoluteUrlPath);
+                var baseUri = request.GetEncodedUrl()._ParseUrl()._CombineUrl(this.RpcAbsoluteUrlPath);
 
                 if (this.Config.PrintHelp)
                 {
@@ -1297,7 +1366,7 @@ code[class*=""language-""], pre[class*=""language-""] {
             {
                 // Basic 認証の要求
                 KeyValueList<string, string> basicAuthResponseHeaders = new KeyValueList<string, string>();
-                string realm = $"User Authentication for {this.RpcBaseAbsoluteUrlPath}";
+                string realm = $"User Authentication for {this.RpcAbsoluteUrlPath}";
                 if (callResults.Error_AuthRequiredRealmName._IsFilled())
                 {
                     realm += $" ({realm._MakeVerySafeAsciiOnlyNonSpaceFileName()})";
@@ -1338,7 +1407,7 @@ code[class*=""language-""], pre[class*=""language-""] {
     LogBrowser? LogBrowser = null;
 
     public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, 
-        string rpcPath = "/rpc", string webFormPath = "/user", string configFormPath = "/admin_config", string objEditPath = "/admin_objedit", 
+        string rpcPath = "/rpc", string controlPath = "/control", string configPath = "/admin_config", string objEditPath = "/admin_objedit", 
         string objSearchPath = "/admin_search", string logBrowserPath = "/admin_logbrowser",
         LogBrowserOptions? logBrowserOptions = null)
     {
@@ -1346,13 +1415,13 @@ code[class*=""language-""], pre[class*=""language-""] {
         if (rpcPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{rpcPath}'");
         if (rpcPath.Length >= 2 && rpcPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
 
-        webFormPath = webFormPath._NonNullTrim();
-        if (webFormPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{webFormPath}'");
-        if (webFormPath.Length >= 2 && webFormPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
+        controlPath = controlPath._NonNullTrim();
+        if (controlPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{controlPath}'");
+        if (controlPath.Length >= 2 && controlPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
 
-        configFormPath = configFormPath._NonNullTrim();
-        if (configFormPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{configFormPath}'");
-        if (configFormPath.Length >= 2 && configFormPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
+        configPath = configPath._NonNullTrim();
+        if (configPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{configPath}'");
+        if (configPath.Length >= 2 && configPath.EndsWith("/")) throw new CoresLibException($"Path must not end with '/'.");
 
         objEditPath = objEditPath._NonNullTrim();
         if (objEditPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{objEditPath}'");
@@ -1374,11 +1443,11 @@ code[class*=""language-""], pre[class*=""language-""] {
         rb.MapGet(rpcPath + "/{rpc_method}/{rpc_param}", Rpc_GetRequestHandler);
         rb.MapPost(rpcPath, Rpc_PostRequestHandler);
 
-        rb.MapGet(webFormPath, WebForm_GetRequestHandler);
-        rb.MapGet(webFormPath + "/{rpc_method}", WebForm_GetRequestHandler);
+        rb.MapGet(controlPath, WebForm_GetRequestHandler);
+        rb.MapGet(controlPath + "/{rpc_method}", WebForm_GetRequestHandler);
 
-        rb.MapGet(configFormPath, ConfigForm_GetRequestHandler);
-        rb.MapPost(configFormPath, ConfigForm_PostRequestHandler);
+        rb.MapGet(configPath, ConfigForm_GetRequestHandler);
+        rb.MapPost(configPath, ConfigForm_PostRequestHandler);
 
         rb.MapGet(objEditPath, ObjEdit_GetRequestHandler);
         rb.MapPost(objEditPath, ObjEdit_PostRequestHandler);
@@ -1427,23 +1496,23 @@ code[class*=""language-""], pre[class*=""language-""] {
         IRouter router = rb.Build();
         appBuilder.UseRouter(router);
 
-        this.RpcBaseAbsoluteUrlPath = rpcPath;
-        if (this.RpcBaseAbsoluteUrlPath.EndsWith("/") == false) this.RpcBaseAbsoluteUrlPath += "/";
+        this.RpcAbsoluteUrlPath = rpcPath;
+        if (this.RpcAbsoluteUrlPath.EndsWith("/") == false) this.RpcAbsoluteUrlPath += "/";
 
-        this.WebFormBaseAbsoluteUrlPath = webFormPath;
-        if (this.WebFormBaseAbsoluteUrlPath.EndsWith("/") == false) this.WebFormBaseAbsoluteUrlPath += "/";
+        this.ControlAbsoluteUrlPath = controlPath;
+        if (this.ControlAbsoluteUrlPath.EndsWith("/") == false) this.ControlAbsoluteUrlPath += "/";
 
-        this.AdminConfigFormBaseAbsoluteUrlPath = configFormPath;
-        if (this.AdminConfigFormBaseAbsoluteUrlPath.EndsWith("/") == false) this.AdminConfigFormBaseAbsoluteUrlPath += "/";
+        this.AdminConfigAbsoluteUrlPath = configPath;
+        if (this.AdminConfigAbsoluteUrlPath.EndsWith("/") == false) this.AdminConfigAbsoluteUrlPath += "/";
 
-        this.AdminObjEditBaseAbsoluteUrlPath = objEditPath;
-        if (this.AdminObjEditBaseAbsoluteUrlPath.EndsWith("/") == false) this.AdminObjEditBaseAbsoluteUrlPath += "/";
+        this.AdminObjEditAbsoluteUrlPath = objEditPath;
+        if (this.AdminObjEditAbsoluteUrlPath.EndsWith("/") == false) this.AdminObjEditAbsoluteUrlPath += "/";
 
-        this.AdminObjSearchBaseAbsoluteUrlPath = objSearchPath;
-        if (this.AdminObjSearchBaseAbsoluteUrlPath.EndsWith("/") == false) this.AdminObjSearchBaseAbsoluteUrlPath += "/";
+        this.AdminObjSearchAbsoluteUrlPath = objSearchPath;
+        if (this.AdminObjSearchAbsoluteUrlPath.EndsWith("/") == false) this.AdminObjSearchAbsoluteUrlPath += "/";
 
-        this.AdminLogBrowserBaseAbsoluteUrlPath = logBrowserPath;
-        if (this.AdminLogBrowserBaseAbsoluteUrlPath.EndsWith("/") == false) this.AdminLogBrowserBaseAbsoluteUrlPath += "/";
+        this.AdminLogBrowserAbsoluteUrlPath = logBrowserPath;
+        if (this.AdminLogBrowserAbsoluteUrlPath.EndsWith("/") == false) this.AdminLogBrowserAbsoluteUrlPath += "/";
     }
 
     Once stopOnce;
@@ -1470,16 +1539,19 @@ code[class*=""language-""], pre[class*=""language-""] {
         int methodIndex = 0;
 
 
-        WebForm_WriteHtmlHeader(w, $"{this.ServerFriendlyName} - JSON-RPC Server API Web Form Index");
+        WebForm_WriteHtmlHeader(w, $"{this.ServerFriendlyNameHtml} - JSON-RPC Server API Control Panel Index");
 
         w.WriteLine($@"
     <div class='container is-fluid'>
 
 <div class='box'>
     <div class='content'>
-<h2 class='title is-4'>{this.ServerFriendlyName} - JSON-RPC Server API Web Form Index</h2>
+
+        {this.Hook.GetHeaderMenuText()}
+
+<h2 class='title is-4'><i class='fas fa-keyboard'></i> {this.ServerFriendlyNameHtml} - JSON-RPC Server API Control Panel Index</h2>
         
-<h4 class='title is-5'>List of all {methodList.Count} API Web Forms:</h4>
+<h4 class='title is-5'>List of all {methodList.Count} API Control Panel Web Forms:</h4>
 ");
 
         w.WriteLine("<ul>");
@@ -1495,7 +1567,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 requireAuthStr = "<i class='fas fa-key'></i> ";
             }
 
-            string titleStr = $"<a href='{this.WebFormBaseAbsoluteUrlPath}{m.Name}/'><b><i class='fab fa-wpforms'></i> {requireAuthStr}API Web Form #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? " <BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
+            string titleStr = $"<a href='{this.ControlAbsoluteUrlPath}{m.Name}/'><b><i class='fas fa-keyboard'></i> {requireAuthStr}API Control Panel Web Form #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? " <BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
 
             //w.WriteLine();
             //w.WriteLine($"- {helpStr}");
@@ -1508,8 +1580,10 @@ code[class*=""language-""], pre[class*=""language-""] {
         w.WriteLine();
         w.WriteLine();
 
-        w.WriteLine(@"
-        <p>　</p>
+        w.WriteLine(@$"
+        <p>　</p><HR>
+        {this.Hook.GetFooterMenuText()}
+    </div>
     </div>
 ");
 
@@ -1535,14 +1609,17 @@ code[class*=""language-""], pre[class*=""language-""] {
         int methodIndex = 0;
 
 
-        WebForm_WriteHtmlHeader(w, $"{this.ServerFriendlyName} - JSON-RPC Server API Reference Document Index");
+        WebForm_WriteHtmlHeader(w, $"{this.ServerFriendlyNameHtml} - JSON-RPC Server API Reference Document Index");
 
         w.WriteLine($@"
     <div class='container is-fluid'>
 
 <div class='box'>
     <div class='content'>
-<h2 class='title is-4'>{this.ServerFriendlyName} - JSON-RPC Server API Reference Document Index</h2>
+
+        {this.Hook.GetHeaderMenuText()}
+
+<h2 class='title is-4'><i class='fas fa-code'></i> {this.ServerFriendlyNameHtml} - JSON-RPC Server API Reference Document Index</h2>
         
 <h4 class='title is-5'>List of all {methodList.Count} RPC-API Methods:</h4>
 ");
@@ -1553,7 +1630,7 @@ code[class*=""language-""], pre[class*=""language-""] {
         {
             methodIndex++;
 
-            string titleStr = $"<a href='#{m.Name}'><b>RPC Method #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? "<BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
+            string titleStr = $"<a href='#{m.Name}'><b><i class='fas fa-code'></i> RPC Method #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? "<BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
 
             //w.WriteLine();
             //w.WriteLine($"- {helpStr}");
@@ -1576,7 +1653,7 @@ code[class*=""language-""], pre[class*=""language-""] {
 
             w.WriteLine($"<hr id={m.Name}>");
 
-            string titleStr = $"RPC Method #{methodIndex}: {m.Name}() API{(m.Description._IsFilled() ? ":" : "")} {m.Description._EncodeHtml()}".Trim();
+            string titleStr = $"<i class='fas fa-code'></i> RPC Method #{methodIndex}: {m.Name}() API{(m.Description._IsFilled() ? ":" : "")} {m.Description._EncodeHtml()}".Trim();
 
             w.WriteLine($"<h4 class='title is-5'>{titleStr}</h4>");
 
@@ -1587,7 +1664,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 requireAuthStr = "<i class='fas fa-key'></i> ";
             }
 
-            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/'><i class='fab fa-wpforms'></i>&nbsp;{requireAuthStr}&nbsp;Call this {mi.Name}() API with Web Form</a>");
+            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-keyboard'></i>&nbsp;{requireAuthStr}&nbsp;Call this {mi.Name}() API with Control Panel Web Form</a>");
 
             w.WriteLine();
             w.WriteLine("<p>　</p>");
@@ -1931,9 +2008,11 @@ code[class*=""language-""], pre[class*=""language-""] {
             w.WriteLine();
         }
 
-        w.WriteLine(@"
-        <p>　</p>
+        w.WriteLine(@$"
+        <p>　</p><HR>
+            {this.Hook.GetFooterMenuText()}
     </div>
+   </div>
 ");
 
         this.WebForm_WriteHtmlFooter(w);

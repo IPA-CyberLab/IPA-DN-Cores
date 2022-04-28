@@ -748,7 +748,7 @@ public abstract class JsonRpcServer
     public JsonRpcServerApi Api { get; }
     public JsonRpcServerConfig Config { get; }
     public CancellationToken CancelToken { get => this.Api.GrandCancel; }
-    public virtual string ServerFriendlyName
+    public virtual string ServerFriendlyNameHtml
     {
         get
         {
@@ -762,7 +762,7 @@ public abstract class JsonRpcServer
             {
                 s = Env.ApplicationNameSupposed;
             }
-            return s;
+            return s._EncodeHtml();
         }
     }
 
@@ -1072,7 +1072,8 @@ public class JsonRpcServerConfig
     public int MaxRequestBodyLen { get; set; } = CoresConfig.JsonRpcServerSettings.DefaultMaxRequestBodyLen.Value;
     public bool MultiRequestAllowed { get; set; } = false;
     public bool PrintHelp { get; set; } = false;
-    public IHadbBasedServicePoint? HadbBasedServicePoint;
+    public IHadbBasedServicePoint? HadbBasedServicePoint { get; set; }
+    public JsonRpcHttpServerHook Hook { get; set; } = new JsonRpcHttpServerHook();
 }
 
 public abstract class JsonRpcClient
