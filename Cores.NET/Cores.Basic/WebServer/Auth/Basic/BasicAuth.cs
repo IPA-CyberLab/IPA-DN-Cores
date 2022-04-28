@@ -157,8 +157,20 @@ public static class BasicAuthImpl
         return null;
     }
 
-    public static async Task<ResultAndError<string>> TryAuthenticateAsync(HttpRequest request, Func<string, string, Task<bool>>? passwordAuthCallback)
+    public static async Task SendAuthenticateHeaderAsync(HttpResponse response, string realm, CancellationToken cancel = default)
     {
+        KeyValueList<string, string> basicAuthResponseHeaders = new KeyValueList<string, string>();
+        basicAuthResponseHeaders.Add(Consts.HttpHeaders.WWWAuthenticate, $"Basic realm=\"{realm}\"");
+
+        await using var basicAuthRequireResult = new HttpStringResult("Basic Auth Required", contentType: Consts.MimeTypes.TextUtf8, statusCode: Consts.HttpStatusCodes.Unauthorized, additionalHeaders: basicAuthResponseHeaders);
+
+        await response._SendHttpResultAsync(basicAuthRequireResult, cancel: cancel);
+    }
+
+    public static async Task<ResultAndError<string>> TryAuthenticateAsync(HttpRequest request, Func<string, string, Task<bool>>? passwordAuthCallback, CancellationToken cancel = default)
+    {
+        cancel.ThrowIfCancellationRequested();
+
         string header = request.Headers._GetStrFirst("Authorization");
 
         var usernameAndPassword = ParseBasicAuthenticationHeader(header);

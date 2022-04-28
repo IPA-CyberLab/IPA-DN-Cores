@@ -496,9 +496,19 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static EasyIpAclAction Evaluate(string? rules, string ipStr, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit, bool enableCache = false)
+        public static EasyIpAclAction Evaluate(string? rules, string ipStr, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit, bool enableCache = false, bool permitLocalHost = false)
         {
             if (rules._IsEmpty()) return defaultActionForEmpty;
+
+            if (permitLocalHost)
+            {
+                var ip = ipStr._ToIPAddress()!;
+                var type = ip._GetIPAddressType();
+                if (type.Bit(IPAddressType.Loopback))
+                {
+                    return EasyIpAclAction.Permit;
+                }
+            }
 
             if (enableCache == false)
             {
@@ -510,9 +520,18 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static EasyIpAclAction Evaluate(string? rules, IPAddress ip, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit, bool enableCache = false)
+        public static EasyIpAclAction Evaluate(string? rules, IPAddress ip, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit, bool enableCache = false, bool permitLocalHost = false)
         {
             if (rules._IsEmpty()) return defaultActionForEmpty;
+
+            if (permitLocalHost)
+            {
+                var type = ip._GetIPAddressType();
+                if (type.Bit(IPAddressType.Loopback))
+                {
+                    return EasyIpAclAction.Permit;
+                }
+            }
 
             if (enableCache == false)
             {

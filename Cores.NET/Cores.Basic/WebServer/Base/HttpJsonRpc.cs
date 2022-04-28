@@ -628,14 +628,14 @@ public class JsonRpcHttpServer : JsonRpcServer
 
                 StringWriter w = new StringWriter();
 
-                WebForm_WriteHtmlHeader(w, $"{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - {title}");
+                WebForm_WriteHtmlHeader(w, $"{this.ServerFriendlyName} - {title}");
 
                 w.WriteLine(@"
     <div class='box'>
         <div class='content'>
 ");
 
-                w.WriteLine($"<h2 class='title is-4'>" + $"{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - {title}" + "</h2>");
+                w.WriteLine($"<h2 class='title is-4'>" + $"{this.ServerFriendlyName} - {title}" + "</h2>");
 
                 await bodyWriter(w, postData, cancel);
 
@@ -927,7 +927,7 @@ public class JsonRpcHttpServer : JsonRpcServer
         StringWriter w = new StringWriter();
         var mi = this.Api.GetMethodInfo(methodName);
 
-        WebForm_WriteHtmlHeader(w, $"{mi.Name} - {this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} Web API Form");
+        WebForm_WriteHtmlHeader(w, $"{mi.Name} - {this.ServerFriendlyName} Web API Form");
 
         w.WriteLine($"<form action='{this.WebFormBaseAbsoluteUrlPath}{mi.Name}/' method='get'>");
         w.WriteLine($"<input name='_call' type='hidden' value='1'/>");
@@ -937,7 +937,7 @@ public class JsonRpcHttpServer : JsonRpcServer
         <div class='content'>
 ");
 
-        w.WriteLine($"<h2 class='title is-4'>" + $"{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} Web API Form - {mi.Name}() API" + "</h2>");
+        w.WriteLine($"<h2 class='title is-4'>" + $"{this.ServerFriendlyName} Web API Form - {mi.Name}() API" + "</h2>");
 
         w.WriteLine($"<h3 class='title is-5'>" + $"{mi.Name}() API: {mi.Description._EncodeHtml()}" + "</h3>");
 
@@ -1337,7 +1337,10 @@ code[class*=""language-""], pre[class*=""language-""] {
 
     LogBrowser? LogBrowser = null;
 
-    public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, string rpcPath = "/rpc", string webFormPath = "/user", string configFormPath = "/admin_config", string objEditPath = "/admin_objedit", string objSearchPath = "/admin_search", string logBrowserPath = "/admin_logbrowser", LogBrowserOptions? logBrowserOptions = null)
+    public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder, 
+        string rpcPath = "/rpc", string webFormPath = "/user", string configFormPath = "/admin_config", string objEditPath = "/admin_objedit", 
+        string objSearchPath = "/admin_search", string logBrowserPath = "/admin_logbrowser",
+        LogBrowserOptions? logBrowserOptions = null)
     {
         rpcPath = rpcPath._NonNullTrim();
         if (rpcPath.StartsWith("/") == false) throw new CoresLibException($"Invalid absolute path: '{rpcPath}'");
@@ -1385,7 +1388,7 @@ code[class*=""language-""], pre[class*=""language-""] {
 
         if (logBrowserOptions == null)
         {
-            logBrowserOptions = new LogBrowserOptions(PP.Combine(Env.AppRootDir), $"Admin File System Browser for {this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)}");
+            logBrowserOptions = new LogBrowserOptions(PP.Combine(Env.AppRootDir, "Log"), $"Admin Log Browser");
         }
 
         if (LogBrowser == null && this.HasAdminPages)
@@ -1395,8 +1398,30 @@ code[class*=""language-""], pre[class*=""language-""] {
 
         if (LogBrowser != null)
         {
-            //rb.MapGet(logBrowserPath + "/{*path}", LogBrowser.GetRequestHandlerAsync);
-            // todo: danger
+            rb.MapGet(logBrowserPath + "/{*path}", async (req, res, route) =>
+            {
+                var config = this.Config.HadbBasedServicePoint!.AdminForm_GetCurrentDynamicConfig();
+                var remoteIp = req.HttpContext.Connection.RemoteIpAddress._UnmapIPv4()!;
+
+                if (config.Service_AdminPageAcl._IsFilled())
+                {
+                    if (EasyIpAcl.Evaluate(config.Service_AdminPageAcl, remoteIp, enableCache: true, permitLocalHost: true) != EasyIpAclAction.Permit)
+                    {
+                        string err = $"Client IP address '{remoteIp.ToString()}' is not allowed to access to the administration page by the server ACL settings.";
+                        await res._SendStringContentsAsync(err, statusCode: Consts.HttpStatusCodes.Forbidden);
+                    }
+                }
+
+                var authResult = await BasicAuthImpl.TryAuthenticateAsync(req, (username, password) => this.Config.HadbBasedServicePoint!.AdminForm_AdminPasswordAuthAsync(username, password));
+                if (authResult.IsOk)
+                {
+                    await LogBrowser.GetRequestHandlerAsync(req, res, route);
+                }
+                else
+                {
+                    await BasicAuthImpl.SendAuthenticateHeaderAsync(res, "Admin Log Browser", req._GetRequestCancellationToken());
+                }
+            });
         }
 
         IRouter router = rb.Build();
@@ -1421,6 +1446,15 @@ code[class*=""language-""], pre[class*=""language-""] {
         if (this.AdminLogBrowserBaseAbsoluteUrlPath.EndsWith("/") == false) this.AdminLogBrowserBaseAbsoluteUrlPath += "/";
     }
 
+    Once stopOnce;
+    public void FreeRegisteredResources()
+    {
+        if (stopOnce.IsFirstCall())
+        {
+            this.LogBrowser._DisposeSafe();
+        }
+    }
+
     // Web Form ヘルプ文字列を生成する
     readonly FastCache<Uri, string> webFormHelpStringCache = new FastCache<Uri, string>();
     string WebForm_GenerateHtmlHelpString(Uri webFormBaseUri)
@@ -1436,14 +1470,14 @@ code[class*=""language-""], pre[class*=""language-""] {
         int methodIndex = 0;
 
 
-        WebForm_WriteHtmlHeader(w, $"{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - JSON-RPC Server API Web Form Index");
+        WebForm_WriteHtmlHeader(w, $"{this.ServerFriendlyName} - JSON-RPC Server API Web Form Index");
 
         w.WriteLine($@"
     <div class='container is-fluid'>
 
 <div class='box'>
     <div class='content'>
-<h2 class='title is-4'>{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - JSON-RPC Server API Web Form Index</h2>
+<h2 class='title is-4'>{this.ServerFriendlyName} - JSON-RPC Server API Web Form Index</h2>
         
 <h4 class='title is-5'>List of all {methodList.Count} API Web Forms:</h4>
 ");
@@ -1501,14 +1535,14 @@ code[class*=""language-""], pre[class*=""language-""] {
         int methodIndex = 0;
 
 
-        WebForm_WriteHtmlHeader(w, $"{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - JSON-RPC Server API Reference Document Index");
+        WebForm_WriteHtmlHeader(w, $"{this.ServerFriendlyName} - JSON-RPC Server API Reference Document Index");
 
         w.WriteLine($@"
     <div class='container is-fluid'>
 
 <div class='box'>
     <div class='content'>
-<h2 class='title is-4'>{this.Config.HelpServerFriendlyName._FilledOrDefault(Api.GetType().Name)} - JSON-RPC Server API Reference Document Index</h2>
+<h2 class='title is-4'>{this.ServerFriendlyName} - JSON-RPC Server API Reference Document Index</h2>
         
 <h4 class='title is-5'>List of all {methodList.Count} RPC-API Methods:</h4>
 ");
@@ -1929,6 +1963,11 @@ public class JsonRpcHttpServerBuilder : HttpServerStartupBase
     protected override void ConfigureImpl_AfterHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
     {
         this.JsonServer.RegisterRoutesToHttpServer(app);
+
+        lifetime.ApplicationStopping.Register(() =>
+        {
+            this.JsonServer.FreeRegisteredResources();
+        });
     }
 }
 

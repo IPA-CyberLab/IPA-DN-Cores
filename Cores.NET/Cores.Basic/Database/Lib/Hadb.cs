@@ -3779,7 +3779,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
         int keyStandardLength = 50;
 
-        w.WriteLine("# Configuration Editor");
+        w.WriteLine("# Configuration Text");
 
         string lastKey = "";
 

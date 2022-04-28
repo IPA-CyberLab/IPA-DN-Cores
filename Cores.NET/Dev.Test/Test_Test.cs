@@ -3453,7 +3453,6 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         {
             MaxRequestBodyLen = 1_000_000,
             PrintHelp = true,
-            HelpServerFriendlyName = startup.ServerProductName,
             HadbBasedServicePoint = svc,
         };
 

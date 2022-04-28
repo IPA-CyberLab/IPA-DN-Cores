@@ -73,7 +73,6 @@ public class HadbBasedServiceStartupParam : INormalizable
 {
     public string HiveDataName = "DefaultApp";
     public string HadbSystemName = "DEFAULT_HADB";
-    public string ServerProductName = "DefaultServerProduct";
     public double HeavyRequestRateLimiter_LimitPerSecond = 50.0;
     public double HeavyRequestRateLimiter_Burst = 5.0;
 
@@ -185,7 +184,8 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
     public bool Service_HideJsonRpcErrorDetails = false;
     public string Service_AdminBasicAuthUsername = "";
     public string Service_AdminBasicAuthPassword = "";
-    public string Service_HeavyRequestRateLimiterAcl = "_initial_";
+    public string Service_HeavyRequestRateLimiterExemptAcl = "_initial_";
+    public string Service_AdminPageAcl = "_initial_";
     public int Service_ClientIpRateLimit_SubnetLength_IPv4 = 0;
     public int Service_ClientIpRateLimit_SubnetLength_IPv6 = 0;
     public string Service_SendMail_SmtpServer_Hostname = "";
@@ -199,6 +199,7 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
     public int Service_FullTextSearchResultsCountMax = 0;
     public int Service_FullTextSearchResultsCountStandard = 0;
     public int Service_FullTextSearchResultsCountInternalMemory = 0;
+    public string Service_FriendlyName = "";
 
 
     protected override void NormalizeImpl()
@@ -209,9 +210,14 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
         if (Service_ClientIpRateLimit_SubnetLength_IPv4 <= 0 || Service_ClientIpRateLimit_SubnetLength_IPv4 > 32) Service_ClientIpRateLimit_SubnetLength_IPv4 = 24;
         if (Service_ClientIpRateLimit_SubnetLength_IPv6 <= 0 || Service_ClientIpRateLimit_SubnetLength_IPv6 > 128) Service_ClientIpRateLimit_SubnetLength_IPv6 = 56;
 
-        if (Service_HeavyRequestRateLimiterAcl == "_initial_")
+        if (Service_AdminPageAcl == "_initial_")
         {
-            Service_HeavyRequestRateLimiterAcl = "127.0.0.0/8; 192.168.0.0/16; 172.16.0.0/24; 10.0.0.0/8; 1.2.3.4/32; 2041:af80:1234::/48";
+            this.Service_AdminPageAcl = "0.0.0.0/0; ::/0";
+        }
+
+        if (Service_HeavyRequestRateLimiterExemptAcl == "_initial_")
+        {
+            Service_HeavyRequestRateLimiterExemptAcl = "127.0.0.0/8; 192.168.0.0/16; 172.16.0.0/24; 10.0.0.0/8; 1.2.3.4/32; 2041:af80:1234::/48";
         }
 
         if (Service_SendMail_SmtpServer_Port <= 0) Service_SendMail_SmtpServer_Port = Consts.Ports.Smtp;
@@ -225,6 +231,8 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
         if (this.Service_FullTextSearchResultsCountMax <= 0) Service_FullTextSearchResultsCountMax = Consts.Numbers.HadbFullTextSearchResultsMaxDefault;
         if (this.Service_FullTextSearchResultsCountStandard <= 0) Service_FullTextSearchResultsCountStandard = Consts.Numbers.HadbFullTextSearchResultsStandardDefault;
         if (this.Service_FullTextSearchResultsCountInternalMemory <= 0) Service_FullTextSearchResultsCountInternalMemory = Consts.Numbers.HadbFullTextSearchResultsInternalMemoryDefault;
+
+        if (this.Service_FriendlyName._IsEmpty()) this.Service_FriendlyName = Env.ApplicationNameSupposed;
 
         base.NormalizeImpl();
     }
@@ -333,6 +341,8 @@ public interface IHadbBasedServicePoint
     public Task<string> AdminForm_DirectGetObjectExAsync(string uid, int maxItems = int.MaxValue, HadbObjectGetExFlag flag = HadbObjectGetExFlag.None, CancellationToken cancel = default);
 
     public Task<HadbFullTextSearchResult> ServiceAdmin_FullTextSearch(string queryText, string sortBy, bool wordMode, bool fieldNameMode, string typeName, string nameSpace, int maxResults);
+
+    public Task<bool> AdminForm_AdminPasswordAuthAsync(string username, string password, CancellationToken cancel = default);
 }
 
 public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, THook> : AsyncService, IHadbBasedServiceRpcBase, IHadbBasedServicePoint
@@ -449,6 +459,21 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
         return await this.Hadb.GetDynamicConfigStringAsync(cancel);
     }
 
+    public async Task<bool> AdminForm_AdminPasswordAuthAsync(string username, string password, CancellationToken cancel = default)
+    {
+        if (this.CurrentDynamicConfig.Service_AdminBasicAuthUsername._IsSamei(username))
+        {
+            if (this.CurrentDynamicConfig.Service_AdminBasicAuthPassword._IsSame(password))
+            {
+                return true;
+            }
+        }
+
+        await Task.CompletedTask;
+
+        return false;
+    }
+
     public async Task AdminForm_SetDynamicConfigTextAsync(string newConfig, CancellationToken cancel = default)
     {
         await this.Hadb.SetDynamincConfigStringAsync(newConfig, cancel);
@@ -461,10 +486,22 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
             realm = "Basic auth for " + this.GetType().Name;
         }
 
+        var config = Hadb.CurrentDynamicConfig;
+
+        // クライアント IP アドレスに基づく ACL 認証
+        if (config.Service_AdminPageAcl._IsFilled())
+        {
+            var clientInfo = JsonRpcServerApi.GetCurrentRpcClientInfo();
+
+            if (EasyIpAcl.Evaluate(config.Service_AdminPageAcl, clientInfo.RemoteIP, enableCache: true, permitLocalHost: true) != EasyIpAclAction.Permit)
+            {
+                throw new CoresException($"Client IP address '{clientInfo.RemoteIP.ToString()}' is not allowed to access to the administration page by the server ACL settings.");
+            }
+        }
+
+        // ユーザー認証
         JsonRpcServerApi.TryAuth((user, pass) =>
         {
-            var config = Hadb.CurrentDynamicConfig;
-
             return user._IsSamei(config.Service_AdminBasicAuthUsername) && pass._IsSame(config.Service_AdminBasicAuthPassword);
         }, realm);
 
@@ -473,7 +510,7 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
 
     protected void Basic_Check_HeavyRequestRateLimiter(double amount = 1.0)
     {
-        if (EasyIpAcl.Evaluate(this.Hadb.CurrentDynamicConfig.Service_HeavyRequestRateLimiterAcl, this.GetClientIpAddress(), EasyIpAclAction.Deny, EasyIpAclAction.Deny, true) == EasyIpAclAction.Deny)
+        if (EasyIpAcl.Evaluate(this.Hadb.CurrentDynamicConfig.Service_HeavyRequestRateLimiterExemptAcl, this.GetClientIpAddress(), EasyIpAclAction.Deny, EasyIpAclAction.Deny, true) == EasyIpAclAction.Deny)
         {
             if (this.HeavyRequestRateLimiter.TryInput(this.GetClientIpNetworkForRateLimitStr(), out var e, amount) == false)
             {
@@ -486,7 +523,7 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
     {
         var ip = this.GetClientIpAddress();
 
-        if (EasyIpAcl.Evaluate(this.Hadb.CurrentDynamicConfig.Service_HeavyRequestRateLimiterAcl, ip, EasyIpAclAction.Deny, EasyIpAclAction.Deny, true) == EasyIpAclAction.Deny)
+        if (EasyIpAcl.Evaluate(this.Hadb.CurrentDynamicConfig.Service_HeavyRequestRateLimiterExemptAcl, ip, EasyIpAclAction.Deny, EasyIpAclAction.Deny, true) == EasyIpAclAction.Deny)
         {
             await Basic_CheckAndAddLogBasedQuotaAsync(quotaName, ip.ToString(), allowedMax, durationSecs, cancel);
         }

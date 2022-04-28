@@ -84,11 +84,10 @@ public static partial class DevCoresConfig
 
 public class MikakaDDnsServiceStartupParam : HadbBasedServiceStartupParam
 {
-    public MikakaDDnsServiceStartupParam(string productName = "MikakaDDnsService", string hiveDataName = "MikakaDDnsService", string hadbSystemName = "MIKAKA_DDNS")
+    public MikakaDDnsServiceStartupParam(string hiveDataName = "MikakaDDnsService", string hadbSystemName = "MIKAKA_DDNS")
     {
         this.HiveDataName = hiveDataName;
         this.HadbSystemName = hadbSystemName;
-        this.ServerProductName = productName;
     }
 }
 
@@ -188,7 +187,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
                 tmpList.Add("ddns_example.org");
                 tmpList.Add("ddns_example.com");
                 DDns_DomainName = tmpList.ToArray();
-                DDns_DomainNamePrimary = "ddns_example.org";
+                DDns_DomainNamePrimary = "ddns_example.net";
             }
 
             HashSet<string> tmp = new HashSet<string>();
@@ -278,8 +277,19 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             if (DDns_StaticRecord.Length == 0)
             {
                 string initialRecordsList = @"
-NS @ mikaka-ddns-ns01.your_company.com
-NS @ mikaka-ddns-ns02.your_company.org
+NS @ ns01.ddns_example.net
+NS @ ns02.ddns_example.net
+
+A ns01.ddns_example.net 1.2.3.4
+A ns02.ddns_example.net 1.2.3.4
+
+A @ 1.2.3.4
+A ddns-api-v4 1.2.3.4
+A ddns-api-v4-static 1.2.3.4
+
+AAAA @ 2401:af80::1234
+AAAA ddns-api-v6 2401:af80::1234
+AAAA ddns-api-v6-static 2401:af80::1234
 
 A sample1 1.2.3.4
 
@@ -1169,7 +1179,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             // したがって、API サーバーが複数ある場合で、各 API サーバーで一時期に大量にホストを作成した場合は、
             // 若干超過して作成に成功する場合もあるのである。
             // なお、明示的な ACL で除外されている場合は、このチェックを実施しない。
-            if (EasyIpAcl.Evaluate(Hadb.CurrentDynamicConfig.Service_HeavyRequestRateLimiterAcl, clientIp.ToString(), EasyIpAclAction.Deny, EasyIpAclAction.Deny, enableCache: true) == EasyIpAclAction.Deny)
+            if (EasyIpAcl.Evaluate(Hadb.CurrentDynamicConfig.Service_HeavyRequestRateLimiterExemptAcl, clientIp.ToString(), EasyIpAclAction.Deny, EasyIpAclAction.Deny, enableCache: true) == EasyIpAclAction.Deny)
             {
                 var existingHostsSameClientIpAddr = Hadb.FastSearchByLabels(new Host { CreateRequestedIpAddress = clientIp.ToString() });
                 if (existingHostsSameClientIpAddr.Count() >= Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreateClientIpAddress_Total)

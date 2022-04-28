@@ -70,6 +70,7 @@ public class EnvInfoSnapshot
     public string FrameworkVersion = Env.FrameworkVersion.ToString();
     public string AppRealProcessExeFileName = Env.AppRealProcessExeFileName;
     public string AppExecutableExeOrDllFileName = Env.AppExecutableExeOrDllFileName;
+    public string ApplicationNameSupposed = Env.ApplicationNameSupposed;
     public string BuildConfigurationName = Env.BuildConfigurationName;
     public string AppRootDir = Env.AppRootDir;
     public string UserName = Env.UserName;
@@ -225,6 +226,7 @@ public static class Env
     public static Assembly ExeAssembly { get; }
     public static string ExeAssemblySimpleName { get; }
     public static string ExeAssemblyFullName { get; }
+    public static string ApplicationNameSupposed { get; }
     public static Assembly CoresBasicLibAssembly { get; }
     public static bool IgnoreCaseInFileSystem => (IsWindows || IsMac);
     public static StrComparer FilePathStringComparer { get; }
@@ -592,6 +594,9 @@ public static class Env
         {
             MutantUnixImpl.DeleteUnusedMutantFiles();
         }
+
+        ApplicationNameSupposed = Path.GetFileNameWithoutExtension(AppExecutableExeOrDllFileName);
+        if (ApplicationNameSupposed._IsEmpty()) ApplicationNameSupposed = "_unknown_";
     }
 
     public static string MyLocalTempDir => CoresLocalDirs.MyLocalTempDir;
