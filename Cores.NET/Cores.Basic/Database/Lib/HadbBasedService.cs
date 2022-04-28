@@ -194,8 +194,10 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
     public string Service_SendMail_SmtpServer_Username = "";
     public string Service_SendMail_SmtpServer_Password = "";
     public string Service_SendMail_MailFromAddress = "";
-    public int Service_BasicQuota_DurationSecs = 3600;
-    public int Service_BasicQuota_LimitationCount = 10;
+    public int Service_BasicQuota_PerClientIpExact_DurationSecs = 3600;
+    public int Service_BasicQuota_PerClientIpExact_LimitationCount = 10;
+    public int Service_BasicQuota_PerClientIpSubnet_DurationSecs = 3600;
+    public int Service_BasicQuota_PerClientIpSubnet_LimitationCount = 300;
     public int Service_FullTextSearchResultsCountMax = 0;
     public int Service_FullTextSearchResultsCountStandard = 0;
     public int Service_FullTextSearchResultsCountInternalMemory = 0;
@@ -225,8 +227,11 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
 
         Service_SendMail_MailFromAddress = Service_SendMail_MailFromAddress._FilledOrDefault("noreply@your_company.org");
 
-        if (Service_BasicQuota_DurationSecs <= 0) Service_BasicQuota_DurationSecs = 3600;
-        if (Service_BasicQuota_LimitationCount <= 0) Service_BasicQuota_LimitationCount = 10;
+        if (Service_BasicQuota_PerClientIpExact_DurationSecs <= 0) Service_BasicQuota_PerClientIpExact_DurationSecs = 3600;
+        if (Service_BasicQuota_PerClientIpExact_LimitationCount <= 0) Service_BasicQuota_PerClientIpExact_LimitationCount = 10;
+
+        if (Service_BasicQuota_PerClientIpSubnet_DurationSecs <= 0) Service_BasicQuota_PerClientIpSubnet_DurationSecs = 3600;
+        if (Service_BasicQuota_PerClientIpSubnet_LimitationCount <= 0) Service_BasicQuota_PerClientIpSubnet_LimitationCount = 300;
 
         if (this.Service_FullTextSearchResultsCountMax <= 0) Service_FullTextSearchResultsCountMax = Consts.Numbers.HadbFullTextSearchResultsMaxDefault;
         if (this.Service_FullTextSearchResultsCountStandard <= 0) Service_FullTextSearchResultsCountStandard = Consts.Numbers.HadbFullTextSearchResultsStandardDefault;
@@ -555,20 +560,39 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
         }
     }
 
-    public async Task Basic_CheckAndAddLogBasedQuotaByClientIpAsync(string quotaName, int? allowedMax = null, int? durationSecs = null, CancellationToken cancel = default)
+    public async Task Basic_CheckAndAddLogBasedQuotaByClientIpAsync(string quotaName, int? allowedMax = null, int? durationSecs = null, bool subnetMode = false, CancellationToken cancel = default, object? reentrantTran = null)
     {
+        string key;
+
         var ip = this.GetClientIpAddress();
+
+        if (subnetMode == false)
+        {
+            key = ip.ToString();
+        }
+        else
+        {
+            key = this.GetClientIpNetworkForRateLimitStr();
+        }
 
         if (EasyIpAcl.Evaluate(this.Hadb.CurrentDynamicConfig.Service_HeavyRequestRateLimiterExemptAcl, ip, EasyIpAclAction.Deny, EasyIpAclAction.Deny, true) == EasyIpAclAction.Deny)
         {
-            await Basic_CheckAndAddLogBasedQuotaAsync(quotaName, ip.ToString(), allowedMax, durationSecs, cancel);
+            await Basic_CheckAndAddLogBasedQuotaAsync(quotaName, key, allowedMax, durationSecs, subnetMode, cancel, reentrantTran);
         }
     }
 
-    public async Task Basic_CheckAndAddLogBasedQuotaAsync(string quotaName, string matchKey, int? allowedMax = null, int? durationSecs = null, CancellationToken cancel = default)
+    public async Task Basic_CheckAndAddLogBasedQuotaAsync(string quotaName, string matchKey, int? allowedMax = null, int? durationSecs = null, bool subnetMode = false, CancellationToken cancel = default, object? reentrantTran = null)
     {
-        allowedMax ??= CurrentDynamicConfig.Service_BasicQuota_LimitationCount;
-        durationSecs ??= CurrentDynamicConfig.Service_BasicQuota_DurationSecs;
+        if (subnetMode == false)
+        {
+            allowedMax ??= CurrentDynamicConfig.Service_BasicQuota_PerClientIpExact_LimitationCount;
+            durationSecs ??= CurrentDynamicConfig.Service_BasicQuota_PerClientIpExact_DurationSecs;
+        }
+        else
+        {
+            allowedMax ??= CurrentDynamicConfig.Service_BasicQuota_PerClientIpSubnet_LimitationCount;
+            durationSecs ??= CurrentDynamicConfig.Service_BasicQuota_PerClientIpSubnet_DurationSecs;
+        }
 
         string quotaName2 = quotaName._NormalizeKey(true);
         matchKey = matchKey._NormalizeKey(true);
@@ -592,7 +616,7 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
             }
 
             return false;
-        });
+        }, reentrantTran: reentrantTran);
 
         if (ok == false)
         {
@@ -604,7 +628,7 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
             await tran.AtomicAddLogAsync(new HadbBasedService_BasicLogBasedQuota { QuotaName = quotaName2, MatchKey = matchKey }, cancel: cancel);
 
             return true;
-        }, options: HadbTranOptions.NoTransactionOnWrite);
+        }, options: HadbTranOptions.NoTransactionOnWrite, reentrantTran: reentrantTran);
     }
 
     public async Task Basic_SendMailAsync(string to, string subject, string body, string? from = null, CancellationToken cancel = default)

@@ -4619,8 +4619,34 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     readonly ConcurrentLimiter<string> DbConcurrentTranLimiterWritePerClient = new ConcurrentLimiter<string>();
     readonly ConcurrentLimiter<string> DbConcurrentTranLimiterReadPerClient = new ConcurrentLimiter<string>();
 
-    public async Task<bool> TranAsync(bool writeMode, Func<HadbTran, Task<bool>> task, HadbTranOptions options = HadbTranOptions.Default, bool takeSnapshot = false, RefLong? snapshotNoRet = null, CancellationToken cancel = default, DeadlockRetryConfig? retryConfig = null, bool ignoreQuota = false, string clientName = "")
+    public async Task<bool> TranAsync(bool writeMode, Func<HadbTran, Task<bool>> task, HadbTranOptions options = HadbTranOptions.Default, bool takeSnapshot = false, RefLong? snapshotNoRet = null, CancellationToken cancel = default, DeadlockRetryConfig? retryConfig = null, bool ignoreQuota = false, string clientName = "", object? reentrantTran = null)
     {
+        if (reentrantTran != null)
+        {
+            HadbTran reentrantTran2 = (HadbTran)reentrantTran;
+            // すでにトランザクションが開始されているので、その中で実行する
+            bool ret = await task(reentrantTran2);
+
+            if (writeMode)
+            {
+                if (reentrantTran2.IsWriteMode == false)
+                {
+                    throw new CoresLibException("Reentrant Transaction is not in write mode.");
+                }
+
+                if (ret == false)
+                {
+                    throw new CoresLibException("Reentrant Transaction Write Callback returned false.");
+                }
+
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
         if (options.Bit(HadbTranOptions.UseStrictLock) && options.Bit(HadbTranOptions.NoTransactionOnWrite))
         {
             throw new ArgumentException("options.Bit(HadbTranOptions.UseStrictLock) && options.Bit(HadbTranOptions.NoTransactionOnWrite)");
