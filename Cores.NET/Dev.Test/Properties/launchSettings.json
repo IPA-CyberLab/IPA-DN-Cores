@@ -11,6 +11,10 @@
       "commandName": "Project",
       "commandLineArgs": "/cmd:TestHadbSuite /THREADS:1 /LOOP1=2 /LOOP2=1"
     },
+    "TestDev /MikakaDDnsServer test": {
+      "commandName": "Project",
+      "commandLineArgs": "/cmd:MikakaDDnsServer test"
+    },
     "TestDev /MyIpServer test": {
       "commandName": "Project",
       "commandLineArgs": "/cmd:MyIpServer test"

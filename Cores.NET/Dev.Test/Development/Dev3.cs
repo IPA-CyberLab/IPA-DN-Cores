@@ -164,6 +164,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         public string DDns_RequiredLicenseString = "";
         public int DDns_Enum_By_Email_MaxCount;
         public int DDns_Enum_By_UserGroupSecretKey_MaxCount;
+        public int DDns_HostApi_RateLimit_Duration_Secs = 3600 * 24;
+        public int DDns_HostApi_RateLimit_MaxCounts_Per_Duration = 24;
 
         public string[] DDns_DomainName = new string[0];
         public string DDns_DomainNamePrimary = "";
@@ -435,6 +437,10 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
         public DateTimeOffset AuthLogin_FirstTime = DtOffsetZero;
         public DateTimeOffset AuthLogin_LastTime = DtOffsetZero;
+
+        public DateTimeOffset ApiRateLimit_StartTime = DtOffsetZero;
+        public long ApiRateLimit_CurrentCount = 0;
+        public bool ApiRateLimit_Disabled = false;
 
         public string CreateRequestedIpAddress = "";
         public string CreateRequestedFqdn = "";
@@ -1142,12 +1148,34 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             }
         }
 
+        DateTimeOffset newApiRateLimitStartDt = DtOffsetZero;
+
         if (memoryObj != null && anyChangePossibility)
         {
             // すでにオブジェクトが存在し、かつ、内容を変更することになる予定の場合、
             // これ以下の処理は DB への物理アクセスを伴いリソースを消費するため、
             // 1 時間あたりの変更の回数に制限を設ける。
-            // TODOTODO
+            if (this.CurrentDynamicConfig.DDns_HostApi_RateLimit_Duration_Secs >= 1 && this.CurrentDynamicConfig.DDns_HostApi_RateLimit_MaxCounts_Per_Duration >= 1)
+            {
+                var host = memoryObj.Data;
+
+                if (host.ApiRateLimit_Disabled == false)
+                {
+                    var expires = host.ApiRateLimit_StartTime.AddSeconds(this.CurrentDynamicConfig.DDns_HostApi_RateLimit_Duration_Secs);
+
+                    if (host.ApiRateLimit_StartTime._IsZeroDateTime() || expires <= now)
+                    {
+                        newApiRateLimitStartDt = now;
+                    }
+                    else
+                    {
+                        if (host.ApiRateLimit_CurrentCount >= this.CurrentDynamicConfig.DDns_HostApi_RateLimit_MaxCounts_Per_Duration)
+                        {
+                            throw new CoresException($"Host API rate limit reached. Please wait for {(long)((expires - now).TotalSeconds)} seconds for next retry.");
+                        }
+                    }
+                }
+            }
         }
 
         if (anyChangePossibility)
@@ -1484,6 +1512,16 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 current.AuthLogin_LastIpAddress = clientIp.ToString();
                 current.AuthLogin_LastTime = now;
                 current.AuthLogin_Count++;
+
+                if (newApiRateLimitStartDt._IsZeroDateTime() == false)
+                {
+                    current.ApiRateLimit_StartTime = newApiRateLimitStartDt;
+                    current.ApiRateLimit_CurrentCount = 1;
+                }
+                else
+                {
+                    current.ApiRateLimit_CurrentCount++;
+                }
 
                 // DB 上のデータを書き込みする。
                 await tran.AtomicUpdateAsync(currentObj);

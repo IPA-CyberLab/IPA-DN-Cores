@@ -3858,6 +3858,10 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
         int keyStandardLength = 50;
 
+        int keyStandardLength2 = config.Max(x => x.Key.Length);
+
+        keyStandardLength = Math.Max(keyStandardLength, keyStandardLength2);
+
         w.WriteLine("# Configuration Text");
 
         string lastKey = "";
