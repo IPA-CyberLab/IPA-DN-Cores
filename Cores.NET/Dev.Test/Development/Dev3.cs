@@ -841,7 +841,12 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             }
 
             // ラベル名からレコードを解決
-            var host = this.Hadb.FastSearchByKey<Host>(new Host { HostLabel = targetLabel });
+            HadbObject<Host>? host = null;
+
+            if (targetLabel._IsFilled())
+            {
+                host = this.Hadb.FastSearchByKey<Host>(new Host { HostLabel = targetLabel });
+            }
 
             if (host != null)
             {
