@@ -150,7 +150,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         public int DDns_NewHostnameRandomDigits = 12;
         public bool DDns_Prohibit_IPv4AddressRegistration = false;
         public bool DDns_Prohibit_IPv6AddressRegistration = false;
-        public bool DDns_Prohibit_Acme_CertIssue = false;
+        public bool DDns_Prohibit_Acme_CertIssue_For_Hosts = false;
         public int DDns_MinHostLabelLen;
         public int DDns_MaxHostLabelLen;
         public int DDns_Protocol_Ttl_Secs;
@@ -887,7 +887,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 ret.MxFqdnList.Add(DomainName.Parse(req.RequestFqdn));
                 ret.TextList.Add(spfText._Combine(" "));
 
-                if (config.DDns_Prohibit_Acme_CertIssue)
+                if (config.DDns_Prohibit_Acme_CertIssue_For_Hosts)
                 {
                     ret.CaaList.Add(new Tuple<byte, string, string>(0, "issue", ";"));
                     ret.CaaList.Add(new Tuple<byte, string, string>(0, "issuewild", ";"));
