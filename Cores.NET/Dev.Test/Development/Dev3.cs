@@ -166,6 +166,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         public int DDns_Enum_By_UserGroupSecretKey_MaxCount;
         public int DDns_HostApi_RateLimit_Duration_Secs = 3600 * 24;
         public int DDns_HostApi_RateLimit_MaxCounts_Per_Duration = 24;
+        public bool DDns_HostLabelLookup_IgnoreAfterDoubleHyphon = true;
+        public string DDns_HostLabelLookup_IgnorePrefixStrings = "_initial_";
 
         public string[] DDns_DomainName = new string[0];
         public string DDns_DomainNamePrimary = "";
@@ -241,11 +243,34 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
                    "subdomain",
                    "ws-",
                    "websocket-",
+                   "webapp-",
+                   "app-",
+                   "web-",
+                   "login-",
+                   "telework-",
                    "_acme",
                 }._Combine(",");
 
             DDns_ProhibitedHostnamesStartWith = DDns_ProhibitedHostnamesStartWith._NonNullTrim()
                 ._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', ';', ',', '/', '\t')._Combine(",").ToLowerInvariant();
+
+
+
+            if (DDns_HostLabelLookup_IgnorePrefixStrings._IsSamei("_initial_"))
+                DDns_HostLabelLookup_IgnorePrefixStrings = new string[] {
+                   "ws-",
+                   "websocket-",
+                   "webapp-",
+                   "app-",
+                   "web-",
+                   "login-",
+                   "telework-",
+                }._Combine(",");
+
+            DDns_HostLabelLookup_IgnorePrefixStrings = DDns_HostLabelLookup_IgnorePrefixStrings._NonNullTrim()
+                ._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', ';', ',', '/', '\t')._Combine(",").ToLowerInvariant();
+
+
 
             if (DDns_NewHostnamePrefix._IsEmpty()) DDns_NewHostnamePrefix = "neko";
             DDns_NewHostnamePrefix = DDns_NewHostnamePrefix._NonNullTrim().ToLowerInvariant()._MakeStringUseOnlyChars("0123456789abcdefghijklmnopqrstuvwxyz");
@@ -772,6 +797,14 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
         this.DnsServer.LoadSetting(settings);
 
+        string[]? prefixIgnoreList = null;
+
+        if (config.DDns_HostLabelLookup_IgnorePrefixStrings._IsFilled())
+        {
+            prefixIgnoreList = config.DDns_HostLabelLookup_IgnorePrefixStrings._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ',')
+                .OrderByDescending(x => x.Length).ToArray();
+        }
+
         this.DnsServer.DnsResponder.Callback = (req) =>
         {
             var config = this.Hadb.CurrentDynamicConfig;
@@ -785,8 +818,30 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 CaaList = new List<Tuple<byte, string, string>>(),
             };
 
+            string targetLabel = req.RequestHostName;
+
+            if (config.DDns_HostLabelLookup_IgnoreAfterDoubleHyphon)
+            {
+                int i = targetLabel.IndexOf("--");
+                if (i != -1)
+                {
+                    targetLabel = targetLabel.Substring(0, i);
+                }
+            }
+
+            if (prefixIgnoreList != null)
+            {
+                foreach (string ign in prefixIgnoreList)
+                {
+                    if (targetLabel.StartsWith(ign, StringComparison.OrdinalIgnoreCase))
+                    {
+                        targetLabel = targetLabel.Substring(ign.Length);
+                    }
+                }
+            }
+
             // ラベル名からレコードを解決
-            var host = this.Hadb.FastSearchByKey<Host>(new Host { HostLabel = req.RequestHostName });
+            var host = this.Hadb.FastSearchByKey<Host>(new Host { HostLabel = targetLabel });
 
             if (host != null)
             {
