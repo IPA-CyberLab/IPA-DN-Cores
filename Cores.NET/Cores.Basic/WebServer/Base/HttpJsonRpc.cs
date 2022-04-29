@@ -867,18 +867,18 @@ public class JsonRpcHttpServer : JsonRpcServer
                 }
                 else
                 {
-                    long tickStart = Time.HighResTick64;
-
                     var timeStamp = DtOffsetNow;
 
                     // JSON-RPC の実際の実行と結果の取得
+                    double tickStart = Time.NowHighResDouble;
                     var callResults = await this.CallMethods(in_str, client_info, true, StringComparison.OrdinalIgnoreCase);
+
+                    double tickEnd = Time.NowHighResDouble;
 
                     if (HideErrorDetails) callResults.RemoveErrorDetailsFromResultString();
 
-                    long tickEnd = Time.HighResTick64;
 
-                    long tookTick = tickEnd - tickStart;
+                    double tookTick = tickEnd - tickStart;
 
                     if (callResults.Error_AuthRequired)
                     {
@@ -912,7 +912,7 @@ public class JsonRpcHttpServer : JsonRpcServer
         }
     }
 
-    string Control_GenerateApiResultPage(string methodName, JsonRpcCallResult callResults, string httpHostHeader, DateTimeOffset timeStamp, long tookTick)
+    string Control_GenerateApiResultPage(string methodName, JsonRpcCallResult callResults, string httpHostHeader, DateTimeOffset timeStamp, double tookTick)
     {
         StringWriter w = new StringWriter();
         var mi = this.Api.GetMethodInfo(methodName);
@@ -969,7 +969,7 @@ public class JsonRpcHttpServer : JsonRpcServer
         w.WriteLine($"<a class='button is-success' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-keyboard'></i>&nbsp;Return to Control Panel Web Form API Index</a>");
 
 
-        w.WriteLine($"<p><i>Timestamp: {timeStamp._ToDtStr(true)}, Took time: {TimeSpan.FromMilliseconds(tookTick)._ToTsStr(true)}.</i></p>");
+        w.WriteLine($"<p><i>Timestamp: {timeStamp._ToDtStr(true)}, Took time: {TimeSpan.FromSeconds(tookTick)._ToTsStr(true, true)}.</i></p>");
 
         w.Write("<pre><code class='language-json'>");
 
