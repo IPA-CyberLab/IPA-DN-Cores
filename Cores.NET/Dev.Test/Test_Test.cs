@@ -3483,7 +3483,14 @@ cccadmin
 
     static void Test_220325()
     {
-        Str.Test_SearchableStr();
+        //ApiRateLimiter r = new ApiRateLimiter(new ApiRateLimiterOptions());
+        //while (true)
+        //{
+        //    Con.ReadLine();
+
+        //    var ret = r.TryInput("x");
+        //    ret._PrintAsJson();
+        //}
     }
 
     public class TestX_b
@@ -3514,7 +3521,7 @@ cccadmin
 
     public static void Test_Generic()
     {
-        if (false)
+        if (true)
         {
             Test_220325();
             return;

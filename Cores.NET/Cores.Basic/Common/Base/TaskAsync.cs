@@ -2647,6 +2647,9 @@ public struct FastReadList<T>
 
     public T[]? GetListFast() => InternalFastList;
 
+    [MethodImpl(Inline)]
+    public bool HasAnyListeners() => (this.InternalFastList?.Length ?? 0) >= 1;
+
     public int Add(T value)
     {
         lock (GlobalWriteLock)
@@ -2950,6 +2953,9 @@ public class FastEventListenerList<TCaller, TEventType>
 {
     FastReadList<FastEvent<TCaller, TEventType>> ListenerList;
     FastReadList<AsyncAutoResetEvent> AsyncEventList;
+
+    [MethodImpl(Inline)]
+    public bool HasAnyListeners() => ListenerList.HasAnyListeners() || AsyncEventList.HasAnyListeners();
 
     public int RegisterCallback(FastEventCallback<TCaller, TEventType> proc, object? userState = null)
     {
