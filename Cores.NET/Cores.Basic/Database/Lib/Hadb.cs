@@ -3846,6 +3846,9 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         }
 
         await this.AppendMissingDynamicConfigToDatabaseImplAsync(configList, true, cancel);
+
+        // 早速リロードして適用する
+        await this.ReloadDynamicConfigValuesAsync(cancel);
     }
 
     public async Task<string> GetDynamicConfigStringAsync(CancellationToken cancel = default)
