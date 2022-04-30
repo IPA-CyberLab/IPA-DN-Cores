@@ -548,7 +548,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                             <div class='field'>
                                 <p class='control'>
                                     <input class='input is-info text-box single-line' name='sort' type='text' value='{sort._EncodeHtml()}' />
-                                    Example: Age <i>(Specify JSON-based field name here.)</i>
+                                    Example: Age <i>(Specify JSON-based field name here. Prepend '!' before a field name means descending sort.)</i>
                                 </p>
                             </div>
                         </div>
