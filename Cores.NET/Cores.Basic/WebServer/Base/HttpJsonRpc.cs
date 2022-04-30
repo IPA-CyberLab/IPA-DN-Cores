@@ -200,6 +200,8 @@ public class JsonRpcHttpServer : JsonRpcServer
                         await this.Config.HadbBasedServicePoint!.AdminForm_SetDynamicConfigTextAsync(configBody, c);
 
                         msg = "The settings you specified have been properly applied to the server database.";
+
+                        this.FlushCache();
                     }
                 }
 
@@ -1449,10 +1451,10 @@ code[class*=""language-""], pre[class*=""language-""] {
     }
 
     // Web Form ヘルプ文字列を生成する
-    readonly FastCache<Uri, string> webFormHelpStringCache = new FastCache<Uri, string>();
+    readonly FastCache<Uri, string> WebFormHelpStringCache = new FastCache<Uri, string>();
     string Control_GenerateHtmlHelpString(Uri webFormBaseUri)
     {
-        return webFormHelpStringCache.GetOrCreate(webFormBaseUri, x => Control_GenerateHtmlHelpStringCore(x))!;
+        return WebFormHelpStringCache.GetOrCreate(webFormBaseUri, x => Control_GenerateHtmlHelpStringCore(x))!;
     }
     string Control_GenerateHtmlHelpStringCore(Uri webFormBaseUri)
     {
@@ -1519,12 +1521,19 @@ code[class*=""language-""], pre[class*=""language-""] {
     }
 
 
+    // Flush cache
+    void FlushCache()
+    {
+        this.WebFormHelpStringCache.Clear();
+
+        this.RpcHelpStringCache.Clear();
+    }
 
     // RPC API ヘルプ文字列を生成する
-    readonly FastCache<Uri, string> rpcHelpStringCache = new FastCache<Uri, string>();
+    readonly FastCache<Uri, string> RpcHelpStringCache = new FastCache<Uri, string>();
     string Rpc_GenerateHtmlHelpString(Uri rpcBaseUri)
     {
-        return rpcHelpStringCache.GetOrCreate(rpcBaseUri, x => Rpc_GenerateHtmlHelpStringCore(x))!;
+        return RpcHelpStringCache.GetOrCreate(rpcBaseUri, x => Rpc_GenerateHtmlHelpStringCore(x))!;
     }
     string Rpc_GenerateHtmlHelpStringCore(Uri rpcBaseUri)
     {
