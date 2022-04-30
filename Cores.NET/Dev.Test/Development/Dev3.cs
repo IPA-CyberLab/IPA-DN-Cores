@@ -144,6 +144,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         public int DDns_MaxHostPerCreateClientIpAddress_Daily;
         public int DDns_MaxHostPerCreateClientIpNetwork_Daily;
         public string DDns_ProhibitedHostnamesStartWith = "_initial_";
+        public string DDns_ProhibitedHostnamesEndsWith = "_initial_";
         public int DDns_MaxUserDataJsonStrLength = 10 * 1024;
         public bool DDns_RequireUnlockKey = false;
         public string DDns_NewHostnamePrefix = "";
@@ -168,6 +169,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         public int DDns_HostApi_RateLimit_MaxCounts_Per_Duration = 24;
         public bool DDns_HostLabelLookup_IgnoreAfterDoubleHyphon = true;
         public string DDns_HostLabelLookup_IgnorePrefixStrings = "_initial_";
+        public string DDns_HostLabelLookup_DummySuffixListForIPv4Only = "_initial_";
+        public string DDns_HostLabelLookup_DummySuffixListForIPv6Only = "_initial_";
 
         public string[] DDns_DomainName = new string[0];
         public string DDns_DomainNamePrimary = "";
@@ -260,6 +263,28 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
 
 
+
+            if (DDns_ProhibitedHostnamesEndsWith._IsSamei("_initial_"))
+                DDns_ProhibitedHostnamesEndsWith = new string[] {
+                   "-v4",
+                   "-v4only",
+                   "-v6",
+                   "-v6only",
+                   "-ipv4",
+                   "-ipv4only",
+                   "-ipv6",
+                   "-ipv6only",
+                   "-webapp",
+                   "-app",
+                   "-web",
+                   "-login",
+                   "-telework",
+                }._Combine(",");
+
+            DDns_ProhibitedHostnamesEndsWith = DDns_ProhibitedHostnamesEndsWith._NonNullTrim()
+                ._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', ';', ',', '/', '\t')._Combine(",").ToLowerInvariant();
+
+
             if (DDns_HostLabelLookup_IgnorePrefixStrings._IsSamei("_initial_"))
                 DDns_HostLabelLookup_IgnorePrefixStrings = new string[] {
                    "ws-",
@@ -272,6 +297,29 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
                 }._Combine(",");
 
             DDns_HostLabelLookup_IgnorePrefixStrings = DDns_HostLabelLookup_IgnorePrefixStrings._NonNullTrim()
+                ._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', ';', ',', '/', '\t')._Combine(",").ToLowerInvariant();
+
+
+            if (DDns_HostLabelLookup_DummySuffixListForIPv4Only._IsSamei("_initial_"))
+                DDns_HostLabelLookup_DummySuffixListForIPv4Only = new string[] {
+                   "-ipv4",
+                   "-ipv4only",
+                   "-v4",
+                   "-v4only",
+                }._Combine(",");
+
+            DDns_HostLabelLookup_DummySuffixListForIPv4Only = DDns_HostLabelLookup_DummySuffixListForIPv4Only._NonNullTrim()
+                ._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', ';', ',', '/', '\t')._Combine(",").ToLowerInvariant();
+
+            if (DDns_HostLabelLookup_DummySuffixListForIPv6Only._IsSamei("_initial_"))
+                DDns_HostLabelLookup_DummySuffixListForIPv6Only = new string[] {
+                   "-ipv6",
+                   "-ipv6only",
+                   "-v6",
+                   "-v6only",
+                }._Combine(",");
+
+            DDns_HostLabelLookup_DummySuffixListForIPv6Only = DDns_HostLabelLookup_DummySuffixListForIPv6Only._NonNullTrim()
                 ._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', ';', ',', '/', '\t')._Combine(",").ToLowerInvariant();
 
 
@@ -810,10 +858,23 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         this.DnsServer.LoadSetting(settings);
 
         string[]? prefixIgnoreList = null;
-
         if (config.DDns_HostLabelLookup_IgnorePrefixStrings._IsFilled())
         {
             prefixIgnoreList = config.DDns_HostLabelLookup_IgnorePrefixStrings._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ',')
+                .OrderByDescending(x => x.Length).ToArray();
+        }
+
+        string[]? v4onlySuffixList = null;
+        if (config.DDns_HostLabelLookup_DummySuffixListForIPv4Only._IsFilled())
+        {
+            v4onlySuffixList = config.DDns_HostLabelLookup_DummySuffixListForIPv4Only._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ',')
+                .OrderByDescending(x => x.Length).ToArray();
+        }
+
+        string[]? v6onlySuffixList = null;
+        if (config.DDns_HostLabelLookup_DummySuffixListForIPv6Only._IsFilled())
+        {
+            v6onlySuffixList = config.DDns_HostLabelLookup_DummySuffixListForIPv6Only._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ',')
                 .OrderByDescending(x => x.Length).ToArray();
         }
 
@@ -852,6 +913,37 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 }
             }
 
+            bool flag_v4only = false;
+            bool flag_v6only = false;
+
+            if (v4onlySuffixList != null)
+            {
+                foreach (string suffix in v4onlySuffixList)
+                {
+                    if (targetLabel.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        targetLabel = targetLabel.Substring(0, targetLabel.Length - suffix.Length);
+
+                        flag_v4only = true;
+                        break;
+                    }
+                }
+            }
+
+            if (v6onlySuffixList != null && flag_v4only == false)
+            {
+                foreach (string suffix in v6onlySuffixList)
+                {
+                    if (targetLabel.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        targetLabel = targetLabel.Substring(0, targetLabel.Length - suffix.Length);
+
+                        flag_v6only = true;
+                        break;
+                    }
+                }
+            }
+
             // ラベル名からレコードを解決
             HadbObject<Host>? host = null;
 
@@ -869,7 +961,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
                 if (data.HostAddress_IPv4._IsFilled())
                 {
-                    if (config.DDns_Prohibit_IPv4AddressRegistration == false)
+                    if (config.DDns_Prohibit_IPv4AddressRegistration == false && flag_v6only == false)
                     {
                         var ip = data.HostAddress_IPv4._StrToIP(AllowedIPVersions.IPv4, true);
                         if (ip != null)
@@ -882,7 +974,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
                 if (data.HostAddress_IPv6._IsFilled())
                 {
-                    if (config.DDns_Prohibit_IPv6AddressRegistration == false)
+                    if (config.DDns_Prohibit_IPv6AddressRegistration == false && flag_v4only == false)
                     {
                         var ip = data.HostAddress_IPv6._StrToIP(AllowedIPVersions.IPv6, true);
                         if (ip != null)
@@ -1020,6 +1112,20 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                     }
                 }
             }
+
+            foreach (var item in Hadb.CurrentDynamicConfig.DDns_ProhibitedHostnamesEndsWith._NonNullTrim()
+                ._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', ';', ',', '/', '\t'))
+            {
+                if (item._IsFilled())
+                {
+                    string tmp = item.ToLowerInvariant();
+                    if (label.EndsWith(tmp, StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new CoresException($"Specified {nameof(label)} contains prohibited strings. Please try to use another.");
+                    }
+                }
+            }
+
 
             if (label.StartsWith("-", StringComparison.OrdinalIgnoreCase) ||
                 label.EndsWith("-", StringComparison.OrdinalIgnoreCase))
