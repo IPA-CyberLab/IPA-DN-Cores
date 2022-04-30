@@ -205,7 +205,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
                     tmp.Add(domainName2);
                 }
             }
-            DDns_DomainName = tmp.OrderBy(x => x).ToArray();
+            DDns_DomainName = tmp.Distinct(StrCmpi).ToArray();
 
             DDns_DomainNamePrimary = DDns_DomainNamePrimary._NormalizeFqdn();
 

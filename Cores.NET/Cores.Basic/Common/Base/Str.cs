@@ -8628,14 +8628,25 @@ namespace IPA.Cores.Basic
             if (srcLine == null) return "";
             if (commentStartStrList == null) commentStartStrList = Consts.Strings.CommentStartString;
 
+            foreach (string keyword in commentStartStrList)
+            {
+                if (srcLine.Trim().StartsWith(keyword, StringComparison.OrdinalIgnoreCase))
+                {
+                    return "";
+                }
+            }
+
             int minStart = int.MaxValue;
 
             foreach (string keyword in commentStartStrList)
             {
-                int i = srcLine.IndexOf(keyword);
-                if (i != -1)
+                if (keyword != ";") // ; は頻繁に本文中で使われるので特別扱いする
                 {
-                    minStart = Math.Min(i, minStart);
+                    int i = srcLine.IndexOf(keyword, StringComparison.OrdinalIgnoreCase);
+                    if (i != -1)
+                    {
+                        minStart = Math.Min(i, minStart);
+                    }
                 }
             }
 
