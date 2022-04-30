@@ -349,10 +349,10 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             if (DDns_Protocol_SOA_ExpireIntervalSecs <= 0) DDns_Protocol_SOA_ExpireIntervalSecs = 3600 * 24 * 1024;
             if (DDns_Protocol_SOA_ExpireIntervalSecs >= 3600 * 24 * 365 * 5) DDns_Protocol_SOA_ExpireIntervalSecs = 3600 * 24 * 365 * 5;
 
-            if (DDns_Protocol_SOA_MasterNsServerFqdn._IsEmpty()) DDns_Protocol_SOA_MasterNsServerFqdn = "ns01.ddns_example.org";
+            if (DDns_Protocol_SOA_MasterNsServerFqdn._IsEmpty()) DDns_Protocol_SOA_MasterNsServerFqdn = "ns01.ddns_example.net";
             DDns_Protocol_SOA_MasterNsServerFqdn = DDns_Protocol_SOA_MasterNsServerFqdn._NormalizeFqdn();
 
-            if (DDns_Protocol_SOA_ResponsibleFieldFqdn._IsEmpty()) DDns_Protocol_SOA_ResponsibleFieldFqdn = "nobody.ddns_example.org";
+            if (DDns_Protocol_SOA_ResponsibleFieldFqdn._IsEmpty()) DDns_Protocol_SOA_ResponsibleFieldFqdn = "nobody.ddns_example.net";
             DDns_Protocol_SOA_ResponsibleFieldFqdn = DDns_Protocol_SOA_ResponsibleFieldFqdn._NormalizeFqdn();
 
             if (DDns_StaticRecord.Length == 0)
@@ -361,8 +361,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 NS @ ns01.ddns_example.net
 NS @ ns02.ddns_example.net
 
-A ns01.ddns_example.net 1.2.3.4
-A ns02.ddns_example.net 1.2.3.4
+A ns01 1.2.3.4
+A ns02 1.2.3.4
 
 A @ 1.2.3.4
 A v4 1.2.3.4
