@@ -1170,7 +1170,7 @@ namespace IPA.Cores.Basic
         [MethodImpl(Inline)]
         public static void BlockCopy(ReadOnlySpan<byte> src, int srcOffset, Span<byte> dst, int dstOffset, int count)
         {
-            src.Slice(srcOffset).CopyTo(dst.Slice(dstOffset, count));
+            src.Slice(srcOffset, count).CopyTo(dst.Slice(dstOffset, count));
         }
 
         public static DateTime NormalizeDateTime(DateTime dt)
