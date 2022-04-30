@@ -323,9 +323,13 @@ AAAA v6 1111:2222:3333::4444
 
 CNAME www @
 CNAME ipv4 v4.@
+CNAME api-v4 v4.@
+CNAME api-v4-static v4.@
 CNAME ddns-api-v4 v4.@
 CNAME ddns-api-v4-static v4.@
 CNAME ipv6 v6.@
+CNAME api-v6 v6.@
+CNAME api-v6-static v6.@
 CNAME ddns-api-v6 v6.@
 CNAME ddns-api-v6-static v6.@
 
