@@ -370,6 +370,7 @@ AAAA @ 1111:2222:3333::4444
 AAAA v6 1111:2222:3333::4444
 
 CNAME www @
+CNAME api @
 CNAME ipv4 v4.@
 CNAME api-v4 v4.@
 CNAME api-v4-static v4.@
