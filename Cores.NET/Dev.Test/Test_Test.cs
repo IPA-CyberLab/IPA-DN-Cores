@@ -3523,6 +3523,12 @@ cccadmin
     {
         if (true)
         {
+            EasyDnsTest.Test1();
+            return;
+        }
+
+        if (true)
+        {
             Test_220325();
             return;
         }
@@ -3554,12 +3560,6 @@ cccadmin
         if (true)
         {
             Test_220215_DDNSSvc();
-            return;
-        }
-
-        if (true)
-        {
-            EasyDnsTest.Test1();
             return;
         }
 

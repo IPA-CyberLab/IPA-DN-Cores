@@ -248,6 +248,10 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
                    "web-",
                    "login-",
                    "telework-",
+                   "ipv4",
+                   "ipv6",
+                   "v4",
+                   "v6",
                    "_acme",
                 }._Combine(",");
 
@@ -313,15 +317,19 @@ A ns01.ddns_example.net 1.2.3.4
 A ns02.ddns_example.net 1.2.3.4
 
 A @ 1.2.3.4
-A ddns-api-v4 1.2.3.4
-A ddns-api-v4-static 1.2.3.4
+A v4 1.2.3.4
+AAAA @ 1111:2222:3333::4444
+AAAA v6 1111:2222:3333::4444
 
-AAAA @ 2401:af80::1234
-AAAA ddns-api-v6 2401:af80::1234
-AAAA ddns-api-v6-static 2401:af80::1234
+CNAME www @
+CNAME ipv4 v4.@
+CNAME ddns-api-v4 v4.@
+CNAME ddns-api-v4-static v4.@
+CNAME ipv6 v6.@
+CNAME ddns-api-v6 v6.@
+CNAME ddns-api-v6-static v6.@
 
-A sample1 1.2.3.4
-
+A sample1 5.9.6.3
 A sample2 5.6.7.8
 AAAA sample2 2401:af80::1234
 

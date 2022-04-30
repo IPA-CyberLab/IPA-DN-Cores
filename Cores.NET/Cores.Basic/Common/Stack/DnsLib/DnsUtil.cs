@@ -1431,6 +1431,18 @@ public class EasyDnsResponder
                             }
                         }
 
+                        if (tmpList.Count == 0)
+                        {
+                            // フィルタ結果が 0 件の場合で、一致する CNAME があれば、それを追加する
+                            foreach (var r in ret.RecordList)
+                            {
+                                if (r.Type == EasyDnsResponderRecordType.CNAME)
+                                {
+                                    tmpList.Add(r);
+                                }
+                            }
+                        }
+
                         ret.RecordList = tmpList;
                     }
                 }
@@ -1666,6 +1678,8 @@ public static class EasyDnsTest
             zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.NS, Name = "subdomain1", Contents = "ns3.ipa.go.jp" });
             zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.NS, Name = "subdomain1", Contents = "ns4.ipa.go.jp" });
 
+            zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.CNAME, Name = "cnametest1", Contents = "www.google.com" });
+
             zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.NS, Name = "subdomain2.subdomain1", Contents = "ns5.ipa.go.jp" });
             zone.RecordList.Add(new EasyDnsResponderRecord { Type = EasyDnsResponderRecordType.NS, Name = "subdomain2.subdomain1", Contents = "ns6.ipa.go.jp" });
 
@@ -1738,6 +1752,12 @@ public static class EasyDnsTest
                 .Cast<EasyDnsResponder.Record_NS>().OrderBy(x => x.ServerName.ToString(), StrCmpi).ElementAt(0).ServerName.ToString() == "ns1.ipa.go.jp.");
             Dbg.TestTrue(res.RecordList!.Where(x => x.Name == "").Where(x => x.Type == EasyDnsResponderRecordType.NS)
                 .Cast<EasyDnsResponder.Record_NS>().OrderBy(x => x.ServerName.ToString(), StrCmpi).ElementAt(1).ServerName.ToString() == "ns2.ipa.go.jp.");
+        }
+
+        {
+            var res = r.Query(new EasyDnsResponder.SearchRequest { FqdnNormalized = "cnametest1.test1.com" }, EasyDnsResponderRecordType.A);
+            var record = res!.RecordList!.Single();
+            Dbg.TestTrue(record.Type == EasyDnsResponderRecordType.CNAME);
         }
 
         {

@@ -91,9 +91,9 @@ public class JsonRpcHttpServerHook
 
         if (includeAdminPages)
         {
-            items.Add(new Tuple<string, string, string>($"{adminIcon} Admin Config Editor", Svr.AdminConfigAbsoluteUrlPath, ""));
             items.Add(new Tuple<string, string, string>($"{adminIcon} Admin Object Editor", Svr.AdminObjEditAbsoluteUrlPath, ""));
             items.Add(new Tuple<string, string, string>($"{adminIcon} Admin Full Text Search", Svr.AdminObjSearchAbsoluteUrlPath, ""));
+            items.Add(new Tuple<string, string, string>($"{adminIcon} Admin Config Editor", Svr.AdminConfigAbsoluteUrlPath, ""));
             items.Add(new Tuple<string, string, string>($"{adminIcon} Admin Log Browser", Svr.AdminLogBrowserAbsoluteUrlPath, "_blank"));
         }
 
@@ -1451,7 +1451,7 @@ code[class*=""language-""], pre[class*=""language-""] {
     }
 
     // Web Form ヘルプ文字列を生成する
-    readonly FastCache<Uri, string> WebFormHelpStringCache = new FastCache<Uri, string>();
+    readonly FastCache<Uri, string> WebFormHelpStringCache = new FastCache<Uri, string>(10000);
     string Control_GenerateHtmlHelpString(Uri webFormBaseUri)
     {
         return WebFormHelpStringCache.GetOrCreate(webFormBaseUri, x => Control_GenerateHtmlHelpStringCore(x))!;
@@ -1530,7 +1530,7 @@ code[class*=""language-""], pre[class*=""language-""] {
     }
 
     // RPC API ヘルプ文字列を生成する
-    readonly FastCache<Uri, string> RpcHelpStringCache = new FastCache<Uri, string>();
+    readonly FastCache<Uri, string> RpcHelpStringCache = new FastCache<Uri, string>(10000);
     string Rpc_GenerateHtmlHelpString(Uri rpcBaseUri)
     {
         return RpcHelpStringCache.GetOrCreate(rpcBaseUri, x => Rpc_GenerateHtmlHelpStringCore(x))!;
