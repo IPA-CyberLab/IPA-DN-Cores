@@ -3553,7 +3553,7 @@ public struct ValueOrClosed<T>
 
 public class AsyncBulkReceiver<TUserReturnElement, TUserState>
 {
-    public delegate Task<ValueOrClosed<TUserReturnElement>> AsyncReceiveCallback([AllowNull] TUserState state, CancellationToken cancel);
+    public delegate Task<ValueOrClosed<TUserReturnElement>> AsyncReceiveCallback(TUserState state, CancellationToken cancel);
 
     public int DefaultMaxCount { get; }
 
@@ -3567,7 +3567,7 @@ public class AsyncBulkReceiver<TUserReturnElement, TUserState>
 
     Task<ValueOrClosed<TUserReturnElement>>? pushedUserTask = null;
 
-    public async Task<TUserReturnElement[]?> RecvAsync(CancellationToken cancel, [AllowNull] TUserState state = default(TUserState), int? maxCount = null)
+    public async Task<TUserReturnElement[]?> RecvAsync(CancellationToken cancel, TUserState state = default(TUserState)!, int? maxCount = null)
     {
         if (maxCount == null) maxCount = DefaultMaxCount;
         if (maxCount <= 0) maxCount = int.MaxValue;
