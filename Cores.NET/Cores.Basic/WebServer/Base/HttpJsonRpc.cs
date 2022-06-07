@@ -212,7 +212,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                     }
                     else
                     {
-                        hostname = await this.GetMyIpDnsResolver.GetHostNameSingleOrIpAsync(clientIp, cancel);
+                        hostname = await this.GetMyIpDnsResolver!.GetHostNameSingleOrIpAsync(clientIp, cancel);
 
                         if (verifyfqdn)
                         {
