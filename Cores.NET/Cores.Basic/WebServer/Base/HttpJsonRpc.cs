@@ -67,7 +67,6 @@ namespace IPA.Cores.Basic;
 public class JsonRpcHttpServerGetMyIpServerSettings : INormalizable
 {
     public List<string> DnsServerList { get; set; } = new List<string>();
-    public int HttpTimeoutMsecs { get; set; }
 
     public void Normalize()
     {
@@ -75,11 +74,6 @@ public class JsonRpcHttpServerGetMyIpServerSettings : INormalizable
         {
             this.DnsServerList.Add("8.8.8.8");
             this.DnsServerList.Add("1.1.1.1");
-        }
-
-        if (this.HttpTimeoutMsecs <= 0)
-        {
-            this.HttpTimeoutMsecs = 10 * 1000;
         }
     }
 }
