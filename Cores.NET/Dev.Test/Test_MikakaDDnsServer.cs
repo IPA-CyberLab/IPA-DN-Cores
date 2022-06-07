@@ -82,6 +82,7 @@ class MikakaDDnsServerDaemon : Daemon
         {
             MaxRequestBodyLen = 1_000_000,
             EnableBuiltinRichWebPages = true,
+            EnableGetMyIpServer = true,
             TopPageRedirectToControlPanel = true,
             HadbBasedServicePoint = SvcInstance,
         };

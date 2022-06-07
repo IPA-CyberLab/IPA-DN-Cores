@@ -1101,6 +1101,7 @@ public class JsonRpcServerConfig
     public int MaxRequestBodyLen { get; set; } = CoresConfig.JsonRpcServerSettings.DefaultMaxRequestBodyLen.Value;
     public bool MultiRequestAllowed { get; set; } = false;
     public bool EnableBuiltinRichWebPages { get; set; } = false;
+    public bool EnableGetMyIpServer { get; set; } = false;
     public bool TopPageRedirectToControlPanel { get; set; } = false;
     public IHadbBasedServicePoint? HadbBasedServicePoint { get; set; }
     public JsonRpcHttpServerHook Hook { get; set; } = new JsonRpcHttpServerHook();

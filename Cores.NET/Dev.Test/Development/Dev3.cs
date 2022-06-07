@@ -255,6 +255,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
                    "ipv6",
                    "v4",
                    "v6",
+                   "getmyip",
                    "_acme",
                 }._Combine(",");
 
@@ -381,6 +382,11 @@ CNAME api-v6 v6.@
 CNAME api-v6-static v6.@
 CNAME ddns-api-v6 v6.@
 CNAME ddns-api-v6-static v6.@
+CNAME getmyip @
+CNAME getmyip-v4 v4.@
+CNAME getmyip-v6 v6.@
+CNAME getmyip-v4-static v4.@
+CNAME getmyip-v6-static v6.@
 
 A sample1 5.9.6.3
 A sample2 5.6.7.8

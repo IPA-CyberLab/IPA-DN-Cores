@@ -124,7 +124,7 @@ public class MyIpServerHost : AsyncService
     {
         try
         {
-            // SnmpWorkSettings を読み込む
+            // Settings を読み込む
             this.SettingsHive = new HiveData<MyIpServerSettings>(Hive.SharedLocalConfigHive, $"MyIpServer", null, HiveSyncPolicy.AutoReadFromFile);
 
             List<IPEndPoint> dnsServers = new List<IPEndPoint>();

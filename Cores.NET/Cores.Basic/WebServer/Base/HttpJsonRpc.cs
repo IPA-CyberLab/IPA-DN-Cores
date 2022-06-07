@@ -54,6 +54,7 @@ using static IPA.Cores.Globals.Basic;
 using Microsoft.Extensions.Hosting;
 using System.IO;
 using System.Web;
+using System.Net;
 
 #if CORES_BASIC_HTTPSERVER
 // ASP.NET Core 3.0 用の型名を無理やり ASP.NET Core 2.2 でコンパイルするための型エイリアスの設定
@@ -62,6 +63,26 @@ using IHostApplicationLifetime = Microsoft.AspNetCore.Hosting.IApplicationLifeti
 #endif
 
 namespace IPA.Cores.Basic;
+
+public class JsonRpcHttpServerGetMyIpServerSettings : INormalizable
+{
+    public List<string> DnsServerList { get; set; } = new List<string>();
+    public int HttpTimeoutMsecs { get; set; }
+
+    public void Normalize()
+    {
+        if (this.DnsServerList.Count == 0)
+        {
+            this.DnsServerList.Add("8.8.8.8");
+            this.DnsServerList.Add("1.1.1.1");
+        }
+
+        if (this.HttpTimeoutMsecs <= 0)
+        {
+            this.HttpTimeoutMsecs = 10 * 1000;
+        }
+    }
+}
 
 public class JsonRpcHttpServerHook
 {
@@ -126,6 +147,12 @@ public class JsonRpcHttpServer : JsonRpcServer
     public string AdminObjSearchAbsoluteUrlPath = ""; // "/admin_search/" のような絶対パス。末尾に / を含む。
     public string AdminLogBrowserAbsoluteUrlPath = ""; // "/admin_logbrowser/" のような絶対パス。末尾に / を含む。
 
+    DnsResolver? GetMyIpDnsResolver;
+    HiveData<JsonRpcHttpServerGetMyIpServerSettings>? GetMyIpDnsServerSettingsHive;
+
+    // 'Config\HttpJsonRpcGetMyIpServer' のデータ
+    public JsonRpcHttpServerGetMyIpServerSettings? GetMyIpServerSettings => GetMyIpDnsServerSettingsHive?.GetManagedDataSnapshot() ?? null;
+
     readonly string WebFormSecretKey = Str.GenRandStr();
 
     public JsonRpcHttpServer(JsonRpcServerApi api, JsonRpcServerConfig? cfg = null) : base(api, cfg)
@@ -139,6 +166,92 @@ public class JsonRpcHttpServer : JsonRpcServer
         ConfigForm = 0,
         ObjEdit,
         ObjSearch,
+    }
+
+    // /getmyip の GET ハンドラ
+    public virtual async Task GetMyIp_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+    {
+        CancellationToken cancel = request._GetRequestCancellationToken();
+
+        try
+        {
+            StringWriter w = new StringWriter();
+
+            // Query string の解析
+            bool port = request._GetQueryStringFirst("port")._ToBool();
+            bool fqdn = request._GetQueryStringFirst("fqdn")._ToBool();
+            bool verifyfqdn = request._GetQueryStringFirst("verifyfqdn")._ToBool();
+
+            IPAddress clientIp = request.HttpContext.Connection.RemoteIpAddress._UnmapIPv4()!;
+
+            string proxySrcIpStr = request.Headers._GetStrFirst("x-proxy-srcip");
+            var proxySrcIp = proxySrcIpStr._ToIPAddress(noExceptionAndReturnNull: true);
+            if (proxySrcIp != null)
+            {
+                clientIp = proxySrcIp;
+            }
+
+            if (port == false && fqdn == false)
+            {
+                // 従来のサーバーとの互換性を維持するため改行を入れません !!
+                w.WriteLine($"IP={clientIp.ToString()}");
+            }
+            else
+            {
+                w.WriteLine($"IP={clientIp.ToString()}");
+            }
+
+            if (port)
+            {
+                w.WriteLine($"PORT={request.HttpContext.Connection.RemotePort}");
+            }
+
+            if (fqdn)
+            {
+                string hostname = clientIp.ToString();
+                try
+                {
+                    var ipType = clientIp._GetIPAddressType();
+                    if (ipType.BitAny(IPAddressType.IPv4_IspShared | IPAddressType.Loopback | IPAddressType.Zero | IPAddressType.Multicast | IPAddressType.LocalUnicast))
+                    {
+                        // ナーシ
+                    }
+                    else
+                    {
+                        hostname = await this.GetMyIpDnsResolver.GetHostNameSingleOrIpAsync(clientIp, cancel);
+
+                        if (verifyfqdn)
+                        {
+                            try
+                            {
+                                var ipList = await this.GetMyIpDnsResolver.GetIpAddressAsync(hostname,
+                                    clientIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 ? DnsResolverQueryType.AAAA : DnsResolverQueryType.A,
+                                    cancel: cancel);
+
+                                if ((ipList?.Any(x => IpComparer.Comparer.Equals(x, clientIp)) ?? false) == false)
+                                {
+                                    // NG
+                                    hostname = request.HttpContext.Connection.RemoteIpAddress._UnmapIPv4()!.ToString();
+                                }
+                            }
+                            catch
+                            {
+                                // NG
+                                hostname = request.HttpContext.Connection.RemoteIpAddress._UnmapIPv4()!.ToString();
+                            }
+                        }
+                    }
+                }
+                catch { }
+                w.WriteLine($"FQDN={hostname}");
+            }
+
+            await response._SendStringContentsAsync(w.ToString()._NormalizeCrlf(CrlfStyle.CrLf, true), cancel: cancel);
+        }
+        catch (Exception ex)
+        {
+            await response._SendStringContentsAsync("Request Error: " + ex.ToString(), cancel: cancel, statusCode: Consts.HttpStatusCodes.InternalServerError, normalizeCrlf: CrlfStyle.Lf);
+        }
     }
 
     // /admin_config の GET ハンドラ
@@ -1447,6 +1560,10 @@ code[class*=""language-""], pre[class*=""language-""] {
         if (stopOnce.IsFirstCall())
         {
             this.LogBrowser._DisposeSafe();
+
+            this.GetMyIpDnsResolver._DisposeSafe();
+
+            this.GetMyIpDnsServerSettingsHive._DisposeSafe();
         }
     }
 
@@ -1963,6 +2080,7 @@ code[class*=""language-""], pre[class*=""language-""] {
     public void RegisterRoutesToHttpServer(IApplicationBuilder appBuilder,
         string rpcPath = "/rpc", string controlPath = "/control", string configPath = "/admin_config", string objEditPath = "/admin_objedit",
         string objSearchPath = "/admin_search", string logBrowserPath = "/admin_logbrowser",
+        string getMyIpPath = "/getmyip",
         LogBrowserOptions? logBrowserOptions = null)
     {
         rpcPath = rpcPath._NonNullTrim();
@@ -2005,6 +2123,35 @@ code[class*=""language-""], pre[class*=""language-""] {
         rb.MapGet(rpcPath + "/{rpc_method}/{rpc_param}", Rpc_GetRequestHandler);
         rb.MapPost(rpcPath, Rpc_PostRequestHandler);
 
+        if (this.Config.EnableGetMyIpServer)
+        {
+            // Settings を読み込む
+            this.GetMyIpDnsServerSettingsHive = new HiveData<JsonRpcHttpServerGetMyIpServerSettings>(Hive.SharedLocalConfigHive, $"HttpJsonRpcGetMyIpServer", null, HiveSyncPolicy.AutoReadFromFile);
+
+            List<IPEndPoint> dnsServers = new List<IPEndPoint>();
+
+            foreach (var host in this.GetMyIpServerSettings!.DnsServerList)
+            {
+                var ep = host._ToIPEndPoint(53, allowed: AllowedIPVersions.IPv4, true);
+                if (ep != null)
+                {
+                    dnsServers.Add(ep);
+                }
+            }
+
+            if (dnsServers.Count == 0)
+                throw new CoresLibException("dnsServers.Count == 0");
+
+            this.GetMyIpDnsResolver = new DnsClientLibBasedDnsResolver(
+                new DnsResolverSettings(
+                    flags: DnsResolverFlags.RoundRobinServers | DnsResolverFlags.UdpOnly,
+                    dnsServersList: dnsServers
+                    )
+                );
+
+            rb.MapGet(getMyIpPath, GetMyIp_GetRequestHandler);
+        }
+
         if (this.Config.EnableBuiltinRichWebPages)
         {
             rb.MapGet(controlPath, Control_GetRequestHandler);
@@ -2018,6 +2165,7 @@ code[class*=""language-""], pre[class*=""language-""] {
 
             rb.MapGet(objSearchPath, AdminObjSearch_GetRequestHandler);
             rb.MapPost(objSearchPath, AdminObjSearch_PostRequestHandler);
+
 
             if (logBrowserOptions == null)
             {
