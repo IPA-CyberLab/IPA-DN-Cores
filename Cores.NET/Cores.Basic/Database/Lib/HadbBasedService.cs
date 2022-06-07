@@ -373,6 +373,8 @@ public interface IHadbBasedServicePoint
     public Task<HadbFullTextSearchResult> ServiceAdmin_FullTextSearch(string queryText, string sortBy, bool wordMode, bool fieldNameMode, string typeName, string nameSpace, int maxResults);
 
     public Task<bool> AdminForm_AdminPasswordAuthAsync(string username, string password, CancellationToken cancel = default);
+
+    public string AdminForm_GetWebFormSecretKey();
 }
 
 public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, THook> : AsyncService, IHadbBasedServiceRpcBase, IHadbBasedServicePoint
@@ -494,6 +496,13 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
     public async Task<string> AdminForm_GetDynamicConfigTextAsync(CancellationToken cancel = default)
     {
         return await this.Hadb.GetDynamicConfigStringAsync(cancel);
+    }
+
+    public string AdminForm_GetWebFormSecretKey()
+    {
+        string tmp = this.CurrentDynamicConfig.Service_AdminBasicAuthUsername + "---@---" + this.CurrentDynamicConfig.Service_AdminBasicAuthPassword;
+
+        return tmp._HashSHA256()._GetHexString();
     }
 
     public async Task<bool> AdminForm_AdminPasswordAuthAsync(string username, string password, CancellationToken cancel = default)

@@ -147,8 +147,8 @@ public class JsonRpcHttpServer : JsonRpcServer
     // 'Config\HttpJsonRpcGetMyIpServer' のデータ
     public JsonRpcHttpServerGetMyIpServerSettings? GetMyIpServerSettings => GetMyIpDnsServerSettingsHive?.GetManagedDataSnapshot() ?? null;
 
-    readonly string WebFormSecretKey = Str.GenRandStr();
-
+    string WebFormSecretKey => this.Config.HadbBasedServicePoint!.AdminForm_GetWebFormSecretKey();
+     
     public JsonRpcHttpServer(JsonRpcServerApi api, JsonRpcServerConfig? cfg = null) : base(api, cfg)
     {
         this.Hook = this.Config.Hook;
