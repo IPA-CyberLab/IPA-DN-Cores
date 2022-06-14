@@ -208,11 +208,11 @@ public class SslCertCollectorUtil
         TaskUtil.StartAsyncTaskAsync(async () =>
         {
             CancellationToken doneCancel = done.Token;
-
+            
             while (doneCancel.IsCancellationRequested == false)
             {
                 await doneCancel._WaitUntilCanceledAsync(250);
-
+                
                 int completed = totalCount - Queue.Count;
 
                 if (this.Settings.Silent == false)
