@@ -837,7 +837,7 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
             }
             this.Expires = expires ?? Util.MaxDateTimeOffsetValue;
             this.IssuedAt = issuedAt ?? DateTime.Now.AddDays(-1);
-            this.SubjectAlternativeNames.Add(this.CN);
+            this.SubjectAlternativeNames.Add(PkiUtil.MakeDnsAlternativeFqdnStrFromString(this.CN));
 
 
             if (keyUsages == 0)
@@ -858,7 +858,7 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
 
             if (subjectAltNames != null)
             {
-                subjectAltNames.Where(x => x._IsEmpty() == false)._DoForEach(x => this.SubjectAlternativeNames.Add(x.Trim()));
+                subjectAltNames.Where(x => x._IsEmpty() == false)._DoForEach(x => this.SubjectAlternativeNames.Add(PkiUtil.MakeDnsAlternativeFqdnStrFromString(x)));
             }
         }
 
@@ -910,7 +910,7 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
         public GeneralNames GenerateAltNames()
         {
             List<GeneralName> o = new List<GeneralName>();
-            this.SubjectAlternativeNames._DoForEach(x => o.Add(new GeneralName(GeneralName.DnsName, x)));
+            this.SubjectAlternativeNames.Where(x => x._IsFilled())._DoForEach(x => o.Add(new GeneralName(GeneralName.DnsName, x)));
             return new GeneralNames(o.ToArray());
         }
 
@@ -1123,7 +1123,7 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
             this.PublicKey = new PubKey(publicKeyBytes);
 
             HashSet<string> dnsNames = new HashSet<string>();
-            
+
             ICollection altNamesList = this.CertData.GetSubjectAlternativeNames();
 
             string? commonName = null;
@@ -1342,7 +1342,7 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
             string ret = $"{this.CommonNameOrFirstDnsName} (Start: {this.NotBefore.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, End: {this.NotAfter.LocalDateTime._ToDtStr(option: DtStrOption.DateOnly)}, SHA-1: {this.DigestSHA1Str}, Subject: '{this.SubjectName}', Issuer: '{this.IssuerName}')";
             if (this.HostNameList.Count >= 2)
             {
-                ret += $" Additional DNS names: [{this.HostNameList.Select(x=>x.HostName).OrderBy(x=>x, StrComparer.FqdnReverseStrComparer)._Combine(", ", true)}]";
+                ret += $" Additional DNS names: [{this.HostNameList.Select(x => x.HostName).OrderBy(x => x, StrComparer.FqdnReverseStrComparer)._Combine(", ", true)}]";
             }
             return ret;
         }
@@ -1578,6 +1578,11 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
     {
         public static SecureRandom NewSecureRandom() => SecureRandom.GetInstance("SHA1PRNG");
 
+        public static string MakeDnsAlternativeFqdnStrFromString(string src)
+        {
+            return src.Trim()._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', '　')._Combine("-");
+        }
+
         public static void GenerateKeyPair(PkiAlgorithm algorithm, int bits, out PrivKey privateKey, out PubKey publicKey)
         {
             switch (algorithm)
@@ -1789,7 +1794,7 @@ namespace IPA.Cores.Helper.Basic
         public static bool Verify(this ISigner signer, byte[] signature, byte[] data, int offset = 0, int size = DefaultSize)
         {
             size = size._DefaultSize(data.Length - offset);
-            
+
             signer.Reset();
 
             signer.BlockUpdate(data, offset, size);

@@ -720,6 +720,127 @@ static class TestClass
         }
     }
 
+    static void Test_MakeTestWebAppDefaultStaticCerts_220614()
+    {
+        string baseDir = @"C:\git\IPA-DN-Cores\Cores.NET\Misc\220614_TestWebAppDefaultStaticCerts\";
+        string password = "microsoft";
+
+        if (true)
+        {
+            PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "TestWebAppDefaultStaticCerts-Sample-Root-Cert", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
+
+            CertificateStore store = new CertificateStore(cert, priv);
+
+            Lfs.WriteStringToFile(baseDir + @"00_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_Master.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            Lfs.WriteDataToFile(baseDir + @"00_Master_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_Master.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_Master.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteStringToFile(baseDir + @"00_Master.txt", store.ExportCertInfo(), FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+        }
+
+        if (true)
+        {
+            CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(baseDir + @"00_Master.pfx").Span);
+
+            IssueCert("TestWebAppDefaultStaticCerts-Sample-Certificate-01", baseDir + @"01_SampleCert1", "sample-cert-01.example.org");
+            IssueCert("TestWebAppDefaultStaticCerts-Sample-Certificate-02", baseDir + @"02_SampleCert2", "sample-cert-02.example.org");
+            IssueCert("TestWebAppDefaultStaticCerts-Sample-Certificate-03", baseDir + @"03_SampleCert3", "sample-cert-03.example.org");
+
+        }
+
+        void IssueCert(string cn, string fileNameBase, string fqdn)
+        {
+            CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(baseDir + @"00_Master.pfx").Span);
+
+            PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
+
+            var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, cn, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256,
+                keyUsages: Org.BouncyCastle.Asn1.X509.KeyUsage.DigitalSignature | Org.BouncyCastle.Asn1.X509.KeyUsage.KeyEncipherment | Org.BouncyCastle.Asn1.X509.KeyUsage.DataEncipherment,
+                subjectAltNames: fqdn._SingleArray(),
+                extendedKeyUsages:
+                    new Org.BouncyCastle.Asn1.X509.KeyPurposeID[] {
+                                Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPServerAuth, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPClientAuth,
+                                Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecEndSystem, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecTunnel, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecUser }));
+
+            var store = new CertificateStore(cert, priv);
+            Lfs.WriteDataToFile(fileNameBase + ".pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            Lfs.WriteDataToFile(fileNameBase + "_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(fileNameBase + ".cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(fileNameBase + ".key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteStringToFile(fileNameBase + ".txt", store.ExportCertInfo(), FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+        }
+    }
+
+    static void Test_MakeMikakaDDnsServerSampleStaticCerts_220614()
+    {
+        string baseDir = @"C:\git\IPA-DN-Cores\Cores.NET\Misc\220614_MikakaDDnsServerSampleStaticCerts\";
+        string password = "microsoft";
+
+        if (true)
+        {
+            PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "MikakaDDnsServer-Sample-Root-Cert", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
+
+            CertificateStore store = new CertificateStore(cert, priv);
+
+            Lfs.WriteStringToFile(baseDir + @"00_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_Master.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            Lfs.WriteDataToFile(baseDir + @"00_Master_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_Master.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_Master.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteStringToFile(baseDir + @"00_Master.txt", store.ExportCertInfo(), FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+        }
+
+        if (true)
+        {
+            CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(baseDir + @"00_Master.pfx").Span);
+
+            IssueCert("MikakaDDnsServer-Sample-Default-Certificate-01", baseDir + @"01_SampleCert1", "sample-cert-01.example.org");
+            IssueCert("MikakaDDnsServer-Sample-Default-Certificate-02", baseDir + @"01_SampleCert2", "sample-cert-02.example.org");
+            IssueCert("MikakaDDnsServer-Sample-Default-Certificate-03", baseDir + @"01_SampleCert3", "sample-cert-03.example.org");
+
+        }
+
+        void IssueCert(string cn, string fileNameBase, string fqdn)
+        {
+            CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(baseDir + @"00_Master.pfx").Span);
+
+            PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
+
+            var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, cn, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256,
+                keyUsages: Org.BouncyCastle.Asn1.X509.KeyUsage.DigitalSignature | Org.BouncyCastle.Asn1.X509.KeyUsage.KeyEncipherment | Org.BouncyCastle.Asn1.X509.KeyUsage.DataEncipherment,
+                subjectAltNames: fqdn._SingleArray(),
+                extendedKeyUsages:
+                    new Org.BouncyCastle.Asn1.X509.KeyPurposeID[] {
+                                Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPServerAuth, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPClientAuth,
+                                Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecEndSystem, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecTunnel, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecUser }));
+
+            var store = new CertificateStore(cert, priv);
+            Lfs.WriteDataToFile(fileNameBase + ".pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            Lfs.WriteDataToFile(fileNameBase + "_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(fileNameBase + ".cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(fileNameBase + ".key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteStringToFile(fileNameBase + ".txt", store.ExportCertInfo(), FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+        }
+    }
     static void Test_MakeThinOssCerts_201120()
     {
         string baseDir = @"M:\\Projects\ThinTelework_OSS\Certs\201120_Certs\";
@@ -3521,6 +3642,13 @@ cccadmin
 
     public static void Test_Generic()
     {
+        if (true)
+        {
+            //Test_MakeTestWebAppDefaultStaticCerts_220614();
+            Test_MakeMikakaDDnsServerSampleStaticCerts_220614();
+            return;
+        }
+
         if (true)
         {
             EasyDnsTest.Test1();
