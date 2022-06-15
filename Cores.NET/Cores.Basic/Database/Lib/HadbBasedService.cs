@@ -205,6 +205,9 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
 
     public bool Service_Security_ProhibitCrossSiteRequest = true;
 
+    public string Service_CookieDomainName = "";
+    public string Service_CookieEncryptPassword = Consts.Strings.EasyEncryptDefaultPassword;
+
 
     protected override void NormalizeImpl()
     {
@@ -240,6 +243,9 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
         if (this.Service_FullTextSearchResultsCountInternalMemory <= 0) Service_FullTextSearchResultsCountInternalMemory = Consts.Numbers.HadbFullTextSearchResultsInternalMemoryDefault;
 
         if (this.Service_FriendlyName._IsEmpty()) this.Service_FriendlyName = Env.ApplicationNameSupposed;
+
+        this.Service_CookieDomainName = this.Service_CookieDomainName._NormalizeFqdn();
+        if (this.Service_CookieEncryptPassword._IsNullOrZeroLen()) this.Service_CookieEncryptPassword = Consts.Strings.EasyEncryptDefaultPassword;
 
         base.NormalizeImpl();
     }
@@ -375,6 +381,9 @@ public interface IHadbBasedServicePoint
     public Task<bool> AdminForm_AdminPasswordAuthAsync(string username, string password, CancellationToken cancel = default);
 
     public string AdminForm_GetWebFormSecretKey();
+
+    public StrTableLanguageList LanguageList { get; }
+    public HadbBasedServiceHiveSettingsBase SettingsFastSnapshotBase { get; }
 }
 
 public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, THook> : AsyncService, IHadbBasedServiceRpcBase, IHadbBasedServicePoint
@@ -398,11 +407,14 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
     CriticalSection ManagedSettingsLock => this._SettingsHive.DataLock;
     THiveSettings ManagedSettings => this._SettingsHive.ManagedData;
     public THiveSettings SettingsFastSnapshot => this._SettingsHive.CachedFastSnapshot;
+    public HadbBasedServiceHiveSettingsBase SettingsFastSnapshotBase => this.SettingsFastSnapshot;
 
     public RateLimiter<string> HeavyRequestRateLimiter { get; }
     public TDynConfig CurrentDynamicConfig => Hadb.CurrentDynamicConfig;
 
     public THook Hook { get; }
+
+    public StrTableLanguageList LanguageList { get; private set; } = null!;
 
     public HadbBasedServiceBase(HadbBasedServiceStartupParam startupParam, THook hook)
     {
@@ -471,6 +483,11 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
 
     protected Task<string> GetClientFqdnAsync(CancellationToken cancel = default, bool noCache = false)
         => this.DnsResolver.GetHostNameSingleOrIpAsync(GetClientIpAddress(), cancel, noCache);
+
+    public void SetLanguageList(StrTableLanguageList list)
+    {
+        this.LanguageList = list;
+    }
 
     public HadbBasedServiceDynConfig? AdminForm_GetCurrentDynamicConfig()
     {
