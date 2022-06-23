@@ -3644,6 +3644,12 @@ cccadmin
     {
         if (true)
         {
+            Env.BuildTimeStamp.ToString()._Print();
+            return;
+        }
+
+        if (true)
+        {
             //Test_MakeTestWebAppDefaultStaticCerts_220614();
             Test_MakeMikakaDDnsServerSampleStaticCerts_220614();
             return;
