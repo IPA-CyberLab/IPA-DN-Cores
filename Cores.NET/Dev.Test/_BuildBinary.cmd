@@ -2,22 +2,22 @@ rmdir /s /q bld\
 
 mkdir bld\
 
-rem dotnet clean -c Release
+dotnet clean -c Release
 
 dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:IncludeNativeLibrariesForSelfExtract=true --self-contained -o bld\win-x64\Dev.Test
 
-rem dotnet publish -c Release -r linux-x64 -p:PublishSingleFile=true -p:PublishReadyToRun=false -p:IncludeNativeLibrariesForSelfExtract=true --self-contained -o bld\linux-x64\Dev.Test
+dotnet publish -c Release -r linux-x64 -p:PublishSingleFile=true -p:PublishReadyToRun=false -p:IncludeNativeLibrariesForSelfExtract=true --self-contained -o bld\linux-x64\Dev.Test
 
-rem dotnet publish -c Release -r linux-arm64 -p:PublishSingleFile=true -p:PublishReadyToRun=false -p:IncludeNativeLibrariesForSelfExtract=true --self-contained -o bld\linux-arm64\Dev.Test
+dotnet publish -c Release -r linux-arm64 -p:PublishSingleFile=true -p:PublishReadyToRun=false -p:IncludeNativeLibrariesForSelfExtract=true --self-contained -o bld\linux-arm64\Dev.Test
 
 rmdir /s /q c:\tmp\cores_built_binary\
 mkdir c:\tmp\cores_built_binary\
 
 copy /y bld\win-x64\Dev.Test\Dev.Test.exe c:\tmp\cores_built_binary\Dev.Test.Win.x86_64.exe
-rem copy /y bld\linux-x64\Dev.Test\Dev.Test c:\tmp\cores_built_binary\Dev.Test.Linux.x86_64
-rem copy /y bld\linux-arm64\Dev.Test\Dev.Test c:\tmp\cores_built_binary\Dev.Test.Linux.aarch64
+copy /y bld\linux-x64\Dev.Test\Dev.Test c:\tmp\cores_built_binary\Dev.Test.Linux.x86_64
+copy /y bld\linux-arm64\Dev.Test\Dev.Test c:\tmp\cores_built_binary\Dev.Test.Linux.aarch64
 
-rem S:\CommomDev\SE-DNP-CodeSignClientApp\SE-DNP-CodeSignClientApp_signed.exe SignDir c:\tmp\cores_built_binary\ /CERT:SoftEtherEv /COMMENT:'Dev.Test.Win.x86_64'
+S:\CommomDev\SE-DNP-CodeSignClientApp\SE-DNP-CodeSignClientApp_signed.exe SignDir c:\tmp\cores_built_binary\ /CERT:SoftEtherEv /COMMENT:'Dev.Test.Win.x86_64'
 
 ..\Dev.Tools\CompiledBin\WriteTimeStamp.exe > c:\tmp\cores_built_binary\TimeStamp.txt
 

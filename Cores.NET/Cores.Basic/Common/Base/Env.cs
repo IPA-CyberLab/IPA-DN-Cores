@@ -584,7 +584,7 @@ public static class Env
         }
         MachineName = Environment.MachineName;
 
-        CommandLine = initCommandLine(Environment.CommandLine);
+        CommandLine = GetRealCommandLineArgsStrFromProcessCmdLineStr(Environment.CommandLine);
 
         IsLittleEndian = BitConverter.IsLittleEndian;
         ProcessId = System.Diagnostics.Process.GetCurrentProcess().Id;
@@ -621,7 +621,7 @@ public static class Env
         Env.CommandLine = cmdLine;
     }
 
-    static string initCommandLine(string src)
+    public static string GetRealCommandLineArgsStrFromProcessCmdLineStr(string src)
     {
         try
         {

@@ -74,7 +74,9 @@ public class CoresLibOptions : ICloneable
     public string SelfUpdateTimestampUrl { get; private set; } = "";
     public string SelfUpdateExeUrl { get; private set; } = "";
     public string SelfUpdateSslHash { get; private set; } = "";
-    public bool SelfUpdateInternalCopyMode { get; private set; } = "";
+    public bool SelfUpdateInternalCopyMode { get; private set; } = false;
+    public string SelfUpdateInternalCopyModeToken { get; private set; } = "";
+    public bool NoMoreUpdateMode { get; private set; } = false;
     public int SmtpMaxLines { get; private set; } = SmtpLogRouteSettings.DefaultMaxLines;
     public LogPriority SmtpLogLevel { get; private set; } = LogPriority.Debug;
 
@@ -119,7 +121,8 @@ public class CoresLibOptions : ICloneable
         procs.Add(("selfupdatetimestampurl", true, (name, next) => { this.SelfUpdateTimestampUrl = next; }));
         procs.Add(("selfupdateexeurl", true, (name, next) => { this.SelfUpdateExeUrl = next; }));
         procs.Add(("selfupdatesslhash", true, (name, next) => { this.SelfUpdateSslHash = next; }));
-        procs.Add(("selfupdateinternalcopymode", true, (name, next) => { this.SelfUpdateInternalCopyMode = true; }));
+        procs.Add(("selfupdateinternalcopymode", true, (name, next) => { this.SelfUpdateInternalCopyMode = true; SelfUpdateInternalCopyModeToken = next; }));
+        procs.Add(("nomoreupdatemode", false, (name, next) => { this.NoMoreUpdateMode = true; }));
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -429,8 +432,16 @@ public static class CoresLib
 
         var opt = CoresLib.Options;
 
+        if (opt.NoMoreUpdateMode)
+        {
+            // アップデート後の子プロセスの実行時にはさらなるアップデート試行をしない (無限アップデートループになってしまうため)
+            return;
+        }
+
         if (opt.SelfUpdateInternalCopyMode)
         {
+            Con.WriteLine("Hello. This is SelfUpdateInternalCopyMode.");
+            Con.WriteLine();
             try
             {
                 // --selfupdateinternalcopymode オプションが付けられて起動した。
@@ -443,14 +454,18 @@ public static class CoresLib
 
                 string targetExe = lines[0];
                 string args = lines[1];
+                string cd = lines[2];
 
                 Con.WriteLine($"targetExe: '{targetExe}'");
-                Con.WriteLine($"args: '{args}'");
+                //Con.WriteLine($"args: '{args}'"); // confidential
+                Con.WriteLine($"cd: '{cd}'");
 
                 if (targetExe._IsEmpty())
                 {
                     throw new CoresLibException($"Target EXE is empty.");
                 }
+
+                using var singleInstance = new SingleInstance(opt.SelfUpdateInternalCopyModeToken);
 
                 // 元の EXE ファイルに上書きをする。
                 // 元の EXE ファイルが実行中の場合があるので、60 秒間くらいリトライする。
@@ -469,11 +484,26 @@ public static class CoresLib
                 // コピーが完了したら元プロセスを起動する
                 Con.WriteLine("Copy completed. Starting the process...");
 
-                Kernel.Run(targetExe, args);
+                // EXE 本体を実行
+                ProcessStartInfo info = new ProcessStartInfo()
+                {
+                    FileName = targetExe,
+                    Arguments = "--nomoreupdatemode " + args,
+                    UseShellExecute = false,
+                    CreateNoWindow = false,
+                    WorkingDirectory = cd,
+                };
 
-                Con.WriteLine("Start OK. Terminating this process...");
+                var proc = Process.Start(info);
 
-                Kernel.SelfKill("SelfUpdateInternalCopyMode Start OK. Terminating this process.");
+                if (proc == null)
+                {
+                    throw new CoresLibException("Child process start failed.");
+                }
+
+                Con.WriteLine($"Child process Start OK. Pid = {proc.Id}. Terminating this process...");
+
+                Kernel.SelfKill($"SelfUpdateInternalCopyMode: Child Process Start OK. Pid = {proc.Id}. Terminating this process.");
             }
             catch (Exception ex)
             {
@@ -482,29 +512,39 @@ public static class CoresLib
                 Kernel.SelfKill("SelfUpdateInternalCopyMode error.");
             }
         }
-
-        //if (opt.SelfUpdateExeUrl._IsFilled() && opt.SelfUpdateTimestampUrl._IsFilled())
+        else
         {
-            string exePath = @"C:\Users\yagi\Desktop\test1\test.exe";
+            if (opt.SelfUpdateExeUrl._IsFilled() && opt.SelfUpdateTimestampUrl._IsFilled())
+            {
+                //string exePath = @"C:\Users\yagi\Desktop\test1\test.exe";
+                string exePath = Env.AppRealProcessExeFileName;
 
-            string randStr = Secure.Rand(8)._GetHexString().ToLowerInvariant();
+                string randStr = Secure.Rand(8)._GetHexString().ToLowerInvariant();
 
-            string tmpDir = Path.Combine(Env.MyGlobalTempDir, $"_update_tmp_{randStr}");
+                string tmpDir = Path.Combine(Env.MyGlobalTempDir, $"_update_tmp_{randStr}");
 
-            TryUpdateSelfMainAsync(exePath, tmpDir, Util.ZeroDateTimeOffsetValue,
-                "https://private.lts.dn.ipantt.net/d/210308_001_dev_test_81740/Dev.Test.Win.x86_64.exe",
-                "https://private.lts.dn.ipantt.net/d/210308_001_dev_test_81740/TimeStamp.txt",
-                "dd6668c8f3db6b53c593b83e9511ecfb5a9fdefd")._GetResult();
+                TryUpdateSelfMainAsync(exePath, tmpDir, Util.ZeroDateTimeOffsetValue,
+                    opt.SelfUpdateExeUrl,
+                    opt.SelfUpdateTimestampUrl,
+                    opt.SelfUpdateSslHash)._GetResult();
+            }
         }
     }
 
     static async Task TryUpdateSelfMainAsync(string currentExePath, string tmpDir, DateTimeOffset currentExeTimeStamp, string exeUrl, string timeStampUrl, string sslCertHash)
     {
+        string token = Str.GenRandStr();
+
         var webSettings = new WebApiSettings
         {
             MaxRecvSize = 2_000_000_000,
             SslAcceptCertSHAHashList = sslCertHash._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",", ";", "/", " ", "\t", "　").ToList(),
         };
+
+        if (webSettings.SslAcceptCertSHAHashList._IsEmpty())
+        {
+            webSettings.SslAcceptAnyCerts = true;
+        }
 
         var webOptions = new WebApiOptions(webSettings, doNotUseTcpStack: true);
 
@@ -540,6 +580,8 @@ public static class CoresLib
         {
             CoresLib.Report_CommandName = "UpdateSelf";
 
+            Con.WriteLine("--- Starting Auto Update: TryUpdateSelfMainAsync() ---");
+            Con.WriteLine();
             Con.WriteLine($"Current EXE Path: {currentExePath}");
             Con.WriteLine($"Temp Dir: {tmpDir}");
             Con.WriteLine($"New EXE URL: {exeUrl}");
@@ -556,9 +598,12 @@ public static class CoresLib
             w.WriteLine(currentExePath);
 
             // 2 行目はコマンドライン
-            w.WriteLine(Env.CommandLine);
+            w.WriteLine(Env.GetRealCommandLineArgsStrFromProcessCmdLineStr(Environment.CommandLine));
 
-            // 3 行目は空行
+            // 3 行目はカレントディレクトリ
+            w.WriteLine(Env.CurrentDir);
+
+            // 4 行目は空行
             w.WriteLine();
 
             await Lfs.WriteStringToFileAsync(copyDefFilePath, w.ToString());
@@ -567,7 +612,6 @@ public static class CoresLib
             FileDownloadOption downOpt = new FileDownloadOption(webApiOptions: webOptions);
 
             string exeNamePart = Path.GetFileNameWithoutExtension(Env.AppRealProcessExeFileName);
-
 
             string tmpExeFileName = Path.Combine(tmpDir, exeNamePart + $"_update.exe");
 
@@ -582,36 +626,72 @@ public static class CoresLib
                 Con.WriteLine($"Download completed. Filesize = {size._ToString3()} bytes.");
             }
 
-            // TODO: ダウンロードされた EXE ファイルのデジタル署名のチェック
+            // ダウンロードされた EXE ファイルのデジタル署名のチェック
             if (Env.IsWindows)
             {
                 Con.WriteLine($"Checking the new EXE file digital signagure...");
+
+                if (ExeSignChecker.CheckFileDigitalSignature(tmpExeFileName) == false)
+                {
+                    throw new CoresLibException($"Downloaded file '{exeUrl}' Authenticode check failed.");
+                }
             }
 
             Con.WriteLine($"Run new EXE file for update copy...");
 
             // EXE 本体を実行
-            await EasyExec.ExecAsync(tmpExeFileName, "--selfupdateinternalcopymode", tmpDir,
-                easyOneLineRecvCallbackAsync: async (line) =>
+            ProcessStartInfo info = new ProcessStartInfo()
+            {
+                FileName = tmpExeFileName,
+                Arguments = $"--selfupdateinternalcopymode {token}",
+                UseShellExecute = false,
+                CreateNoWindow = false,
+                WorkingDirectory = tmpDir,
+            };
+
+            var proc = Process.Start(info)!;
+
+            // 子プロセスの起動に成功したら、Mutex が作成されるまで待機する
+            Con.WriteLine($"Child process start OK. Process ID = {proc.Id}. Waiting for child process init...");
+            bool ok = true;
+
+            await RetryHelper.RunAsync(async () =>
+            {
+                if (proc.HasExited)
                 {
-                    if (line._InStri("*** Update Started ***"))
-                    {
-                        // 子プロセスが無事に起動しアップデートが開始された
-                        // このプロセスは自ら終了する
-                        Con.WriteLine($"OK. New EXE file is now running. It returns '*** Update Started ***' signature. It seems healthy. I decoded to kill myself. Hopefully new EXE will replace me. Bye bye.");
+                    ok = false;
+                    return;
+                }
 
-                        await LocalLogRouter.FlushAsync();
+                if (SingleInstance.IsExistsAndLocked(token) == false)
+                {
+                    throw new CoresException($"Child process is not inited yet. Still waiting...");
+                }
 
-                        Kernel.SelfKill("UpdateSelf: self kill");
-                    }
-                    await Task.CompletedTask;
-                    return true;
-                });
+                await Task.CompletedTask;
+            },
+            1000,
+            300,
+            randomInterval: true);
+
+            if (ok == false)
+            {
+                throw new CoresLibException("Child process exited abnormally.");
+            }
+
+            // 子プロセスの実行に成功したならば自らは終了する
+            Con.WriteLine($"OK. New EXE file is now running. It seems healthy. I decided to kill myself. Hopefully new EXE will replace me. Bye bye.");
+
+            await LocalLogRouter.FlushAsync();
+
+            Kernel.SelfKill("UpdateSelf: self kill");
         }
         catch (Exception ex)
         {
             // エラーが発生した
             ex._Print();
+
+            CoresLib.Report_HasError = true;
 
             // 何もせずに継続する
             return;

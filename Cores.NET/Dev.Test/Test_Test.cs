@@ -3642,6 +3642,23 @@ cccadmin
 
     static void Test_220623()
     {
+        ProcessStartInfo info = new ProcessStartInfo()
+        {
+            FileName = @"C:\Users\yagi\Desktop\test1\ntdll.exe",
+            Arguments = $"",
+            UseShellExecute = false,
+            CreateNoWindow = false,
+        };
+
+        var proc = Process.Start(info);
+
+        if (proc == null)
+        {
+            Con.WriteLine("Child process start failed.");
+        }
+
+
+        return;
         var data = Lfs.ReadDataFromFile(@"c:\users\yagi\Desktop\Hello.txt");
 
 
