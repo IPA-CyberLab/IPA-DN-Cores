@@ -468,7 +468,7 @@ public static class CoresLib
                 using var singleInstance = new SingleInstance(opt.SelfUpdateInternalCopyModeToken);
 
                 // 元の EXE ファイルに上書きをする。
-                // 元の EXE ファイルが実行中の場合があるので、60 秒間くらいリトライする。
+                // 元の EXE ファイルが実行中の場合があるので、300 秒間くらいリトライする。
                 RetryHelper.RunAsync(async () =>
                 {
                     // *** Update Started *** という文字列を表示する。
@@ -478,7 +478,7 @@ public static class CoresLib
                     await Lfs.CopyFileAsync(Env.AppRealProcessExeFileName, targetExe);
                 },
                 1000,
-                60,
+                300,
                 randomInterval: true)._GetResult();
 
                 // コピーが完了したら元プロセスを起動する
