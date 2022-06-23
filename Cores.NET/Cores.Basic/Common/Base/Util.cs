@@ -3176,7 +3176,7 @@ namespace IPA.Cores.Basic
                             }
                             else
                             {
-                                readSize = await src._ReadAsyncWithTimeout(thisTimeBuffer, readTimeout, cancel: cancel);
+                                readSize = await src._ReadAsyncWithTimeout(thisTimeBuffer, readTimeout, cancel: cancel, allowEof: true);
                             }
 
                             Debug.Assert(readSize <= thisTimeBuffer.Length);
@@ -3244,7 +3244,7 @@ namespace IPA.Cores.Basic
                                 }
                                 else
                                 {
-                                    readSize = await src._ReadAsyncWithTimeout(thisTimeBuffer, readTimeout, cancel: cancel);
+                                    readSize = await src._ReadAsyncWithTimeout(thisTimeBuffer, readTimeout, cancel: cancel, allowEof: true);
                                 }
 
                                 Debug.Assert(readSize <= buffer.Length);

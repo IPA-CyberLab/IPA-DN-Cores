@@ -110,6 +110,8 @@ namespace IPA.Cores.Basic
         {
             if (msg._IsFilled()) msg._Print();
             System.Diagnostics.Process.GetCurrentProcess().Kill();
+
+            Environment.Exit(-1); // 実行されないはずであるが念のため
         }
 
         // プログラムを起動する

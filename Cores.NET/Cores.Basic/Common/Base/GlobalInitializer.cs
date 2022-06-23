@@ -1,13 +1,22 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Text;
+using System.Buffers;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Collections.Concurrent;
+using System.Collections.Immutable;
+using System.Diagnostics;
+using System.IO;
+using System.Text;
+using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.Serialization;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using System.Diagnostics;
 
 namespace IPA.Cores.Basic;
 
@@ -62,6 +71,10 @@ public class CoresLibOptions : ICloneable
     public string SmtpPassword { get; private set; } = "";
     public string SmtpFrom { get; private set; } = "";
     public string SmtpTo { get; private set; } = "";
+    public string SelfUpdateTimestampUrl { get; private set; } = "";
+    public string SelfUpdateExeUrl { get; private set; } = "";
+    public string SelfUpdateSslHash { get; private set; } = "";
+    public bool SelfUpdateInternalCopyMode { get; private set; } = "";
     public int SmtpMaxLines { get; private set; } = SmtpLogRouteSettings.DefaultMaxLines;
     public LogPriority SmtpLogLevel { get; private set; } = LogPriority.Debug;
 
@@ -103,6 +116,10 @@ public class CoresLibOptions : ICloneable
         procs.Add(("smtpto", true, (name, next) => { this.SmtpTo = next; }));
         procs.Add(("smtpmaxlines", true, (name, next) => { this.SmtpMaxLines = next._ToInt(); }));
         procs.Add(("smtploglevel", true, (name, next) => { this.SmtpLogLevel = LogPriority.Debug.ParseAsDefault(next, true); }));
+        procs.Add(("selfupdatetimestampurl", true, (name, next) => { this.SelfUpdateTimestampUrl = next; }));
+        procs.Add(("selfupdateexeurl", true, (name, next) => { this.SelfUpdateExeUrl = next; }));
+        procs.Add(("selfupdatesslhash", true, (name, next) => { this.SelfUpdateSslHash = next; }));
+        procs.Add(("selfupdateinternalcopymode", true, (name, next) => { this.SelfUpdateInternalCopyMode = true; }));
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -399,4 +416,206 @@ public static class CoresLib
 
         return new CoresLibraryResult(leakCheckerResult);
     }
+
+    // EXE ファイル自体の更新を試行する
+    public static void TryUpdateSelfIfNewerVersionIsReleased()
+    {
+        if (Env.IsWindows == false)
+        {
+            // Windows 以外では対応していない。
+            // 将来対応させるときは nohup 等が必要であることに注意する。
+            return;
+        }
+
+        var opt = CoresLib.Options;
+
+        if (opt.SelfUpdateInternalCopyMode)
+        {
+            try
+            {
+                // --selfupdateinternalcopymode オプションが付けられて起動した。
+                // 同一ディレクトリに copydef.txt ファイルが存在するはずであるから、これを読み取る。
+                string copydefPath = Path.Combine(Path.GetDirectoryName(Env.AppRealProcessExeFileName!)!, "copydef.txt");
+
+                string body = Lfs.ReadStringFromFile(copydefPath);
+
+                string[] lines = body._GetLines();
+
+                string targetExe = lines[0];
+                string args = lines[1];
+
+                Con.WriteLine($"targetExe: '{targetExe}'");
+                Con.WriteLine($"args: '{args}'");
+
+                if (targetExe._IsEmpty())
+                {
+                    throw new CoresLibException($"Target EXE is empty.");
+                }
+
+                // 元の EXE ファイルに上書きをする。
+                // 元の EXE ファイルが実行中の場合があるので、60 秒間くらいリトライする。
+                RetryHelper.RunAsync(async () =>
+                {
+                    // *** Update Started *** という文字列を表示する。
+                    Con.WriteLine("*** Update Started ***");
+
+                    // コピーを試す
+                    await Lfs.CopyFileAsync(Env.AppRealProcessExeFileName, targetExe);
+                },
+                1000,
+                60,
+                randomInterval: true)._GetResult();
+
+                // コピーが完了したら元プロセスを起動する
+                Con.WriteLine("Copy completed. Starting the process...");
+
+                Kernel.Run(targetExe, args);
+
+                Con.WriteLine("Start OK. Terminating this process...");
+
+                Kernel.SelfKill("SelfUpdateInternalCopyMode Start OK. Terminating this process.");
+            }
+            catch (Exception ex)
+            {
+                ex._Print();
+
+                Kernel.SelfKill("SelfUpdateInternalCopyMode error.");
+            }
+        }
+
+        //if (opt.SelfUpdateExeUrl._IsFilled() && opt.SelfUpdateTimestampUrl._IsFilled())
+        {
+            string exePath = @"C:\Users\yagi\Desktop\test1\test.exe";
+
+            string randStr = Secure.Rand(8)._GetHexString().ToLowerInvariant();
+
+            string tmpDir = Path.Combine(Env.MyGlobalTempDir, $"_update_tmp_{randStr}");
+
+            TryUpdateSelfMainAsync(exePath, tmpDir, Util.ZeroDateTimeOffsetValue,
+                "https://private.lts.dn.ipantt.net/d/210308_001_dev_test_81740/Dev.Test.Win.x86_64.exe",
+                "https://private.lts.dn.ipantt.net/d/210308_001_dev_test_81740/TimeStamp.txt",
+                "dd6668c8f3db6b53c593b83e9511ecfb5a9fdefd")._GetResult();
+        }
+    }
+
+    static async Task TryUpdateSelfMainAsync(string currentExePath, string tmpDir, DateTimeOffset currentExeTimeStamp, string exeUrl, string timeStampUrl, string sslCertHash)
+    {
+        var webSettings = new WebApiSettings
+        {
+            MaxRecvSize = 2_000_000_000,
+            SslAcceptCertSHAHashList = sslCertHash._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",", ";", "/", " ", "\t", "　").ToList(),
+        };
+
+        var webOptions = new WebApiOptions(webSettings, doNotUseTcpStack: true);
+
+        string timeStampStr = "";
+        DateTimeOffset timeStampValue;
+
+        // Web 上のタイムスタンプを取得
+        try
+        {
+            var timeStampResult = await SimpleHttpDownloader.DownloadAsync(timeStampUrl, options: webOptions);
+
+            timeStampStr = timeStampResult.Data._GetString_UTF8()._GetFirstFilledLineFromLines();
+
+            timeStampValue = Str.DtstrToDateTimeOffset(timeStampStr);
+        }
+        catch (Exception ex)
+        {
+            // エラーが発生した
+            ex._Print();
+
+            // 何もせずに継続する
+            return;
+        }
+
+
+        if (timeStampValue <= currentExeTimeStamp || timeStampStr._IsEmpty() || timeStampValue._IsZeroDateTime())
+        {
+            // 更新なし
+            return;
+        }
+
+        try
+        {
+            CoresLib.Report_CommandName = "UpdateSelf";
+
+            Con.WriteLine($"Current EXE Path: {currentExePath}");
+            Con.WriteLine($"Temp Dir: {tmpDir}");
+            Con.WriteLine($"New EXE URL: {exeUrl}");
+            Con.WriteLine($"Local EXE TimeStamp: {currentExeTimeStamp._ToDtStr()}");
+            Con.WriteLine($"New EXE TimeStamp: {timeStampValue._ToDtStr()}");
+
+            await Lfs.CreateDirectoryAsync(tmpDir);
+
+            // コピー指示ファイルの保存
+            string copyDefFilePath = Path.Combine(tmpDir, "copydef.txt");
+            StringWriter w = new StringWriter();
+
+            // 1 行目は上書き対象の EXE ファイルパス
+            w.WriteLine(currentExePath);
+
+            // 2 行目はコマンドライン
+            w.WriteLine(Env.CommandLine);
+
+            // 3 行目は空行
+            w.WriteLine();
+
+            await Lfs.WriteStringToFileAsync(copyDefFilePath, w.ToString());
+
+            // EXE 本体をダウンロード
+            FileDownloadOption downOpt = new FileDownloadOption(webApiOptions: webOptions);
+
+            string exeNamePart = Path.GetFileNameWithoutExtension(Env.AppRealProcessExeFileName);
+
+
+            string tmpExeFileName = Path.Combine(tmpDir, exeNamePart + $"_update.exe");
+
+            tmpExeFileName._Print();
+
+            {
+                Con.WriteLine($"Downloading New EXE to {tmpExeFileName}...");
+                await using var destStream = new FileStream(tmpExeFileName, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read);
+
+                var size = await FileDownloader.DownloadFileParallelAsync(exeUrl, destStream, downOpt);
+
+                Con.WriteLine($"Download completed. Filesize = {size._ToString3()} bytes.");
+            }
+
+            // TODO: ダウンロードされた EXE ファイルのデジタル署名のチェック
+            if (Env.IsWindows)
+            {
+                Con.WriteLine($"Checking the new EXE file digital signagure...");
+            }
+
+            Con.WriteLine($"Run new EXE file for update copy...");
+
+            // EXE 本体を実行
+            await EasyExec.ExecAsync(tmpExeFileName, "--selfupdateinternalcopymode", tmpDir,
+                easyOneLineRecvCallbackAsync: async (line) =>
+                {
+                    if (line._InStri("*** Update Started ***"))
+                    {
+                        // 子プロセスが無事に起動しアップデートが開始された
+                        // このプロセスは自ら終了する
+                        Con.WriteLine($"OK. New EXE file is now running. It returns '*** Update Started ***' signature. It seems healthy. I decoded to kill myself. Hopefully new EXE will replace me. Bye bye.");
+
+                        await LocalLogRouter.FlushAsync();
+
+                        Kernel.SelfKill("UpdateSelf: self kill");
+                    }
+                    await Task.CompletedTask;
+                    return true;
+                });
+        }
+        catch (Exception ex)
+        {
+            // エラーが発生した
+            ex._Print();
+
+            // 何もせずに継続する
+            return;
+        }
+    }
 }
+

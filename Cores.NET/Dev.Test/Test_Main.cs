@@ -75,6 +75,8 @@ class TestDevAppMain
         CoresLib.Init(new CoresLibOptions(CoresMode.Application, "TestDev", DebugMode.Debug, defaultPrintStatToConsole: false, defaultRecordLeakFullStack: false), args);
         //CoresLib.Init(new CoresLibOptions(CoresMode.Library, "TestDevLib", DebugMode.ReleaseNoDebugLogs, defaultPrintStatToConsole: false, defaultRecordLeakFullStack: false), args);
 
+        CoresLib.TryUpdateSelfIfNewerVersionIsReleased();
+
         try
         {
             ret = ConsoleService.EntryPoint(Env.CommandLine, "TestDev", typeof(TestDevAppMain));

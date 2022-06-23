@@ -803,7 +803,7 @@ public class ConcurrentDownloadPartial
 public static class FileDownloader
 {
     // 指定されたファイルを分割ダウンロードする
-    public static async Task DownloadFileParallelAsync(string url, Stream destStream, FileDownloadOption? option = null, Ref<WebSendRecvResponse>? responseHeader = null, ProgressReporterBase? progressReporter = null, CancellationToken cancel = default)
+    public static async Task<long> DownloadFileParallelAsync(string url, Stream destStream, FileDownloadOption? option = null, Ref<WebSendRecvResponse>? responseHeader = null, ProgressReporterBase? progressReporter = null, CancellationToken cancel = default)
     {
         if (option == null) option = new FileDownloadOption();
         if (responseHeader == null) responseHeader = new Ref<WebSendRecvResponse>();
@@ -946,7 +946,7 @@ public static class FileDownloader
 
                                     Memory<byte> thisTimeBuffer = buffer;
 
-                                    int readSize = await src._ReadAsyncWithTimeout(thisTimeBuffer, timeout: option.WebApiOptions.Settings.Timeout, cancel: cancel2);
+                                    int readSize = await src._ReadAsyncWithTimeout(thisTimeBuffer, timeout: option.WebApiOptions.Settings.Timeout, cancel: cancel2, allowEof: true);
 
                                     Debug.Assert(readSize <= thisTimeBuffer.Length);
 
@@ -1031,17 +1031,21 @@ public static class FileDownloader
             }
 
             //$"File Size = {fileSize._ToString3()}, Total Down Size = {totalDownloadSize.Value._ToString3()}"._Debug();
+
+            return totalDownloadSize;
         }
         else
         {
             // 分割ダウンロード NG の場合は、通常の方法でダウンロードする
-            using var http = new WebApi(option.WebApiOptions);
+            await using var http = new WebApi(option.WebApiOptions);
 
-            using var res = await http.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, url, cancel));
+            await using var res = await http.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, url, cancel));
 
             long totalSize = await res.DownloadStream.CopyBetweenStreamAsync(destStream, reporter: progressReporter, cancel: cancel, readTimeout: option.WebApiOptions.Settings.Timeout);
 
             progressReporter.ReportProgress(new ProgressData(totalSize, isFinish: true));
+
+            return totalSize;
         }
     }
 

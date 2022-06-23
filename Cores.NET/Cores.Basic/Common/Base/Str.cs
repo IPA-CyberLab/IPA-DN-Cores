@@ -7602,6 +7602,22 @@ namespace IPA.Cores.Basic
                 {
                     break;
                 }
+
+                // BOM check (念のため)
+                for (int i = 0; i < 2; i++)
+                {
+                    if (s.Length >= 1)
+                    {
+                        char c = s[0];
+                        int cx = (int)c;
+                        if (cx == 0xFEFF)
+                        {
+                            // BOM
+                            s = s.Substring(1);
+                        }
+                    }
+                }
+
                 if (trim)
                 {
                     s = s.Trim();

@@ -1379,16 +1379,17 @@ public static class BasicHelper
         }
     }
 
-    public static async Task<Memory<byte>> _ReadAsyncWithTimeout(this Stream stream, int maxSize = 65536, int? timeout = null, bool? readAll = false, CancellationToken cancel = default)
+    public static async Task<Memory<byte>> _ReadAsyncWithTimeout(this Stream stream, int maxSize = 65536, int? timeout = null, bool readAll = false, bool allowEof = false, CancellationToken cancel = default)
     {
         Memory<byte> tmp = MemoryHelper.FastAllocMemory<byte>(maxSize);
         int ret = await stream._ReadAsyncWithTimeout(tmp, timeout,
             readAll: readAll,
+            allowEof: allowEof,
             cancel: cancel);
         return tmp.Slice(0, ret);
     }
 
-    public static async Task<int> _ReadAsyncWithTimeout(this Stream stream, Memory<byte> buffer, int? timeout = null, bool? readAll = false, CancellationToken cancel = default, params CancellationToken[] cancelTokens)
+    public static async Task<int> _ReadAsyncWithTimeout(this Stream stream, Memory<byte> buffer, int? timeout = null, bool readAll = false, bool allowEof = false, CancellationToken cancel = default, params CancellationToken[] cancelTokens)
     {
         if (timeout == null) timeout = stream.ReadTimeout;
         if (timeout <= 0) timeout = Timeout.Infinite;
@@ -1401,7 +1402,14 @@ public static class BasicHelper
                 if (readAll == false)
                 {
                     int a = await stream.ReadAsync(buffer, cancelLocal);
-                    if (a <= 0) throw new DisconnectedException();
+                    if (allowEof == false)
+                    {
+                        if (a <= 0) throw new DisconnectedException();
+                    }
+                    else
+                    {
+                        if (a < 0) throw new DisconnectedException();
+                    }
                     return a;
                 }
                 else
@@ -1411,9 +1419,19 @@ public static class BasicHelper
                     while (currentReadSize != buffer.Length)
                     {
                         int sz = await stream.ReadAsync(buffer.Slice(currentReadSize, buffer.Length - currentReadSize), cancelLocal);
-                        if (sz <= 0)
+
+                        if (allowEof == false)
                         {
-                            throw new DisconnectedException();
+                            if (sz <= 0) throw new DisconnectedException();
+                        }
+                        else
+                        {
+                            if (sz < 0) throw new DisconnectedException();
+
+                            if (sz == 0)
+                            {
+                                break;
+                            }
                         }
 
                         currentReadSize += sz;
@@ -1426,9 +1444,13 @@ public static class BasicHelper
             cancel: cancel,
             cancelTokens: cancelTokens);
 
-            if (ret <= 0)
+            if (allowEof == false)
             {
-                throw new EndOfStreamException("The NetworkStream is disconnected.");
+                if (ret <= 0) throw new EndOfStreamException("The NetworkStream is disconnected.");
+            }
+            else
+            {
+                if (ret < 0) throw new EndOfStreamException("The NetworkStream is disconnected.");
             }
 
             return ret;

@@ -3640,11 +3640,41 @@ cccadmin
         }
     }
 
+    static void Test_220623()
+    {
+        var data = Lfs.ReadDataFromFile(@"c:\users\yagi\Desktop\Hello.txt");
+
+
+
+        var utf8 = Str.Utf8Encoding;
+
+        string str = utf8.GetString(data.ToArray());
+
+        $"'{str._GetFirstFilledLineFromLines()}'"._Print();
+
+        var x = str.ToCharArray();
+
+        //Con.WriteLine($"'{str}'");
+
+        for (int i = 0; i < x.Length; i++)
+        {
+            int z = (int)x[i];
+            //Con.WriteLine($"{i}  {z:X}");
+        }
+    }
+
     public static void Test_Generic()
     {
         if (true)
         {
+            Test_220623();
+            return;
+        }
+
+        if (true)
+        {
             Env.BuildTimeStamp.ToString()._Print();
+            LeakChecker.IncrementLeakCounter(LeakCounterKind.AllocUnmanagedMemory);
             return;
         }
 
