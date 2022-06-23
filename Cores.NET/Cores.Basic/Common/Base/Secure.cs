@@ -540,10 +540,18 @@ namespace IPA.Cores.Basic
         }
 
         // PKCS 証明書の読み込み
-        public static X509Certificate2 LoadPkcs12(byte[] data, string? password = null)
+        public static X509Certificate2 LoadPkcs12(byte[] data, string? password = null, bool forWindowsCertStoreAdd = false)
         {
             password = password._NonNull();
-            return new X509Certificate2(data, password, X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable);
+
+            var flag = X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable;
+
+            if (forWindowsCertStoreAdd)
+            {
+                flag |= X509KeyStorageFlags.PersistKeySet;
+            }
+
+            return new X509Certificate2(data, password, flag);
         }
         public static X509Certificate2 LoadPkcs12(string filename, string? password = null, FileSystem? fileSystem = null)
         {

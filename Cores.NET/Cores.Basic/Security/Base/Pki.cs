@@ -437,6 +437,13 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
 
         public PalX509Certificate GetX509Certificate() => X509CertificateSingleton;
 
+        public System.Security.Cryptography.X509Certificates.X509Certificate2 GetX509Certificate2ForAddToWindowsCertStore()
+        {
+            var data = ExportPkcs12().Span;
+
+            return Secure.LoadPkcs12(data.ToArray(), null, true);
+        }
+
         public PalX509Certificate X509Certificate => GetX509Certificate();
 
         public SslStreamCertificateContext GetSslStreamCertificateContext() => this.SslStreamCertificateContextSingleton;

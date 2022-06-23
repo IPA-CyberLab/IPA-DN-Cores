@@ -85,15 +85,30 @@ public class IisAdmin : AsyncService
         }
     }
 
-    public Dictionary<string, Certificate> GetCurrentMachineCertificateList()
+    public Dictionary<string, Tuple<Certificate, bool>> GetCurrentMachineCertificateList()
     {
-        Dictionary<string, Certificate> ret = new Dictionary<string, Certificate>(StrComparer.IgnoreCaseComparer);
+        Dictionary<string, Tuple<Certificate, bool>> ret = new Dictionary<string, Tuple<Certificate, bool>>(StrComparer.IgnoreCaseComparer);
 
         foreach (var item in this.CertStore.Certificates)
         {
             var cert = item.AsPkiCertificate();
 
-            ret.Add(cert.DigestSHA1Str, cert);
+            // Is this certificate having a private key?
+            bool hasPrivateKey = false;
+
+            try
+            {
+                if (item.HasPrivateKey)
+                {
+                    if (item.GetRSAPrivateKey() != null)
+                    {
+                        hasPrivateKey = true;
+                    }
+                }
+            }
+            catch { }
+
+            ret.Add(cert.DigestSHA1Str, new Tuple<Certificate, bool>(cert, hasPrivateKey));
         }
 
         return ret;
@@ -105,10 +120,11 @@ public class IisAdmin : AsyncService
         public string BindingInfo = "";
         public string HostName = "";
         public Certificate Cert = null!;
+        public bool HasPrivateKey;
         public CertificateStore? NewCert;
     }
 
-    List<BindItem> GetIisCertBindings(Dictionary<string, Certificate> certs)
+    List<BindItem> GetIisCertBindings(Dictionary<string, Tuple<Certificate, bool>> certs)
     {
         List<BindItem> bindItems = new List<BindItem>();
 
@@ -123,14 +139,17 @@ public class IisAdmin : AsyncService
                     {
                         string hash = bind.CertificateHash._GetHexString();
 
-                        if (certs.TryGetValue(hash, out Certificate? cert))
+                        if (certs.TryGetValue(hash, out Tuple<Certificate, bool>? certTuple))
                         {
+                            var cert = certTuple.Item1;
+
                             BindItem item = new BindItem
                             {
                                 BindingInfo = bind.BindingInformation,
                                 Cert = cert,
                                 SiteName = site.Name,
                                 HostName = bind.Host._NormalizeFqdn()._NonNullTrim(),
+                                HasPrivateKey = certTuple.Item2,
                             };
 
                             bindItems.Add(item);
@@ -153,13 +172,16 @@ public class IisAdmin : AsyncService
                                 {
                                     hash = hash._NormalizeHexString();
 
-                                    if (certs.TryGetValue(hash, out Certificate? cert))
+                                    if (certs.TryGetValue(hash, out Tuple<Certificate, bool>? certTuple))
                                     {
+                                        var cert = certTuple.Item1;
+
                                         BindItem item = new BindItem
                                         {
                                             BindingInfo = "ftp",
                                             Cert = cert,
                                             SiteName = site.Name,
+                                            HasPrivateKey = certTuple.Item2,
                                         };
 
                                         bindItems.Add(item);
@@ -208,7 +230,7 @@ public class IisAdmin : AsyncService
         foreach (var bind in bindItems.OrderBy(x => x.SiteName, StrComparer.IgnoreCaseComparer).ThenBy(x => x.BindingInfo, StrComparer.IgnoreCaseComparer))
         {
             index++;
-            Con.WriteLine($"Binding #{index}/{bindItems.Count}: '{bind.SiteName}' - '{bind.BindingInfo}' (Hostname: '{bind.HostName._NonNull()}'): '{bind.Cert}'");
+            Con.WriteLine($"Binding #{index}/{bindItems.Count}: '{bind.SiteName}' - '{bind.BindingInfo}' (Hostname: '{bind.HostName._NonNull()}'): '{bind.Cert}' (hasPrivateKey: {bind.HasPrivateKey})");
         }
 
         Con.WriteLine();
@@ -218,6 +240,17 @@ public class IisAdmin : AsyncService
         foreach (var bind in bindItems.Where(x => x.Cert.ExpireSpan < Consts.Numbers.MaxCertExpireSpanTargetForUpdate))
         {
             var cert = bind.Cert;
+
+            bool forceUpdate = false;
+
+            if (bind.HasPrivateKey == false)
+            {
+                // Current binded certificate has no private key. It should be error. Therefore update this certificate forcefully.
+                forceUpdate = true;
+
+                numWarningTotal++;
+                Con.WriteLine($"Warning: the current binding '{bind.SiteName}' - '{bind.BindingInfo}': '{bind.Cert}' has no private key. Thus we update this binding forcefully.", flags: LogFlags.Heading);
+            }
 
             List<CertificateStore> newCandidateCerts = new List<CertificateStore>();
 
@@ -291,7 +324,7 @@ public class IisAdmin : AsyncService
             if (bestCert != null)
             {
                 // この最も有効期限が長い候補の証明書と、現在登録されている証明書との有効期限を比較し、候補証明書のほうが発行日が新しいか、または期限が長ければ、更新する
-                if (bestCert.NotBefore > cert.NotBefore || bestCert.NotAfter > cert.NotAfter  || (updateSameCert && bestCert.DigestSHA1Str._IsSameHex(cert.DigestSHA1Str)))
+                if (forceUpdate || bestCert.NotBefore > cert.NotBefore || bestCert.NotAfter > cert.NotAfter || (updateSameCert && bestCert.DigestSHA1Str._IsSameHex(cert.DigestSHA1Str)))
                 {
                     // 更新対象としてマーク
                     bind.NewCert = bestCert;
@@ -305,11 +338,11 @@ public class IisAdmin : AsyncService
 
         foreach (var hash in newCertsHashList.OrderBy(x => x))
         {
-            if (currentCertDict.ContainsKey(hash) == false)
+            if (currentCertDict.ContainsKey(hash) == false || currentCertDict[hash].Item2 == false)
             {
                 var certToWrite = certsList.Where(x => x.DigestSHA1Str._IsSamei(hash)).First();
 
-                X509Certificate2 certObj = certToWrite.X509Certificate;
+                X509Certificate2 certObj = certToWrite.GetX509Certificate2ForAddToWindowsCertStore();
 
 #pragma warning disable CA1416 // プラットフォームの互換性を検証
                 certObj.FriendlyName = certToWrite.GenerateFriendlyName();
@@ -324,10 +357,18 @@ public class IisAdmin : AsyncService
 
         foreach (var hash in newCertsHashList.OrderBy(x => x))
         {
-            var cert = certDict2[hash];
+            var certTuple = certDict2[hash];
+
+            var cert = certTuple.Item1;
+
             if (cert.DigestSHA1Str._IsSameHex(hash) == false)
             {
                 throw new CoresLibException("Invalid certificate status! hash: " + hash);
+            }
+
+            if (certTuple.Item2 == false)
+            {
+                throw new CoresLibException("Added certificate has no private key! hash: " + hash);
             }
         }
 
