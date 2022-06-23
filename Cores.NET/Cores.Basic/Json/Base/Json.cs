@@ -112,9 +112,9 @@ public static class Json
 
         public override bool CanConvert(Type objectType) => objectType._HasInterface(typeof(IToJsonString));
 
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         {
-            IToJsonString i = (IToJsonString)value;
+            IToJsonString i = (IToJsonString)value!;
 
             var jobject = i.ToJsonString()._JsonToObject<JObject>();
 
@@ -124,7 +124,7 @@ public static class Json
             }
         }
 
-        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
             => throw new NotImplementedException();
     }
 
@@ -134,11 +134,11 @@ public static class Json
 
         public override bool CanConvert(Type objectType) => objectType == typeof(IPAddress);
 
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-            => writer.WriteValue(value.ToString());
+        public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
+            => writer.WriteValue(value!.ToString());
 
-        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
-            => IPAddress.Parse((string)reader.Value);
+        public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
+            => IPAddress.Parse((string)reader.Value!);
     }
 
     static readonly StringEnumConverter JsonNet_StringEnumConverter = new StringEnumConverter();
@@ -411,7 +411,7 @@ public class EasyJsonStrAttributes
                 foreach (var item in obj)
                 {
                     string name = item.Key._NonNullTrim();
-                    string value = item.Value.ToString()._NonNullTrim();
+                    string value = item.Value!.ToString()._NonNullTrim();
 
                     Dict.TryAdd(name, value);
                 }
@@ -430,7 +430,7 @@ public class EasyJsonStrAttributes
             foreach (var item in obj)
             {
                 string name = item.Key._NonNullTrim();
-                string value = item.Value.ToString()._NonNullTrim();
+                string value = item.Value!.ToString()._NonNullTrim();
 
                 Dict.TryAdd(name, value);
             }

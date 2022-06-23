@@ -101,7 +101,7 @@ public class RichJsonHiveSerializer : HiveSerializer
     {
         string str = memory._GetString_UTF8();
 
-        return (T)JsonConvert.DeserializeObject(str, typeof(T), Options.JsonSettings);
+        return (T)JsonConvert.DeserializeObject(str, typeof(T), Options.JsonSettings)!;
     }
 }
 

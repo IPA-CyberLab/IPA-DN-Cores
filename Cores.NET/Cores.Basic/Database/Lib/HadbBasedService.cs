@@ -290,7 +290,7 @@ public abstract class JsonRpcSingleReturnWithMetaData<T> : IToJsonString
         {
             object? obj = rw.GetValue(this, name);
 
-            var jtoken = JToken.FromObject(obj, serializer);
+            var jtoken = JToken.FromObject(obj!, serializer);
 
             jobject.Add(name, jtoken);
         }

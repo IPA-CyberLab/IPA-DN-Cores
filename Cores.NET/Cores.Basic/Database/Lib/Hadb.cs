@@ -4411,7 +4411,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             {
                 JObject jo = (JObject)obj.UserData;
                 Type type = GetDataTypeByTypeName(obj.UserDataTypeName, EnsureSpecial.Yes);
-                HadbData data = (HadbData)jo.ToObject(type, serializer);
+                HadbData data = (HadbData)jo.ToObject(type, serializer)!;
                 HadbObject a = new HadbObject(data, obj.Ext1, obj.Ext2, obj.Ft1, obj.Ft2, obj.Uid, obj.Ver, false, obj.SnapshotNo, obj.NameSpace, false, obj.CreateDt, obj.UpdateDt, obj.DeleteDt);
                 ret.Add(a);
             }

@@ -446,7 +446,7 @@ public class RpcMethodInfo
             {
                 ParameterInfo pi = this.ParametersByIndex[i];
                 JToken? value;
-                if (param != null && (param.TryGetValue(pi.Name, out value) || param.TryGetValue(pi.Name, paramsStrComparison, out value)))
+                if (param != null && (param.TryGetValue(pi.Name!, out value) || param.TryGetValue(pi.Name!, paramsStrComparison, out value)))
                 {
                     if (pi.ParameterType._IsSubClassOfOrSame(typeof(JObject)) && value.Type == JTokenType.String && value.Value<string>() == "")
                     {
@@ -1340,7 +1340,7 @@ public abstract class JsonRpcClient
             for (int i = 0; i < inParams.Length; i++)
             {
                 var p = inParams[i];
-                o.Add(p.Name, JToken.FromObject(invocation.Arguments[i]));
+                o.Add(p.Name!, JToken.FromObject(invocation.Arguments[i]));
             }
             Task<JsonRpcResponse<object>> callRet = RpcClient.MT_Call<object>(invocation.Method.Name, o, true);
 

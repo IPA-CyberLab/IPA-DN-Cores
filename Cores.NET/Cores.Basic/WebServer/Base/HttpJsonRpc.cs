@@ -1829,7 +1829,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                     Json.AddStandardSettingsToJsonConverter(settings, JsonFlags.AllEnumToStr);
                     JsonSerializer serializer = JsonSerializer.Create(settings);
 
-                    sampleRequestJsonData.TryAdd(pp.Name, JToken.FromObject(pp.SampleValueObject, serializer));
+                    sampleRequestJsonData.TryAdd(pp.Name, JToken.FromObject(pp.SampleValueObject!, serializer));
 
                     w.WriteLine("</ul>");
                     w.WriteLine();
