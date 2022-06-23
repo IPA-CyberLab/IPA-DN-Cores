@@ -523,7 +523,8 @@ public static class CoresLib
 
                 string tmpDir = Path.Combine(Env.MyGlobalTempDir, $"_update_tmp_{randStr}");
 
-                TryUpdateSelfMainAsync(exePath, tmpDir, Util.ZeroDateTimeOffsetValue,
+                TryUpdateSelfMainAsync(exePath, tmpDir,
+                    Env.BuildTimeStamp,
                     opt.SelfUpdateExeUrl,
                     opt.SelfUpdateTimestampUrl,
                     opt.SelfUpdateSslHash)._GetResult();
