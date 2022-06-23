@@ -1816,7 +1816,7 @@ public class ThinController : AsyncService, IThinControllerRpcApi
             this.PaidServiceRpcServer = new JsonRpcHttpServer(new JsonRpcServerApi(targetObject: this),
                 new JsonRpcServerConfig
                 {
-                    PrintHelp = true,
+                    EnableBuiltinRichWebPages = true,
                 }
                 );
         }
