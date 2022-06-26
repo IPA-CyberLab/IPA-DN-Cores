@@ -3642,6 +3642,12 @@ cccadmin
 
     static void Test_220623()
     {
+        SqlDatabaseConnectionSetting s = new SqlDatabaseConnectionSetting("127.0.0.1", "abc", "sa", "micro");
+
+        s.ToString()._Print();
+
+        return;
+
         ProcessStartInfo info = new ProcessStartInfo()
         {
             FileName = @"C:\Users\yagi\Desktop\test1\ntdll.exe",

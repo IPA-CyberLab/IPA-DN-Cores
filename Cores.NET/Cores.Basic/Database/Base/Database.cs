@@ -99,7 +99,11 @@ public class SqlDatabaseConnectionSetting
     }
 
     public static implicit operator string(SqlDatabaseConnectionSetting config)
-        => $"Data Source={config.DataSource}{(config.Port == Consts.Ports.MsSqlServer ? "" : "," + config.Port.ToString()) };Initial Catalog={config.InitialDatalog};Persist Security Info=True;Pooling={config.Pooling._ToBoolStr()};User ID={config.UserId};Password={config.Password};Encrypt={config.Encrypt};TrustServerCertificate={config.TrustServerCertificate};";
+        => config.ToString();
+
+    public override string ToString()
+        => $"Data Source={this.DataSource}{(this.Port == Consts.Ports.MsSqlServer ? "" : "," + this.Port.ToString())};Initial Catalog={this.InitialDatalog};Persist Security Info=True;Pooling={this.Pooling._ToBoolStr()};User ID={this.UserId};Password={this.Password};Encrypt={this.Encrypt};TrustServerCertificate={this.TrustServerCertificate};";
+
 
     // SQL データベースライブラリのバージョンアップに伴い SQL 接続文字列を互換性を実現する目的で正規化する。
     // 参考: https://techcommunity.microsoft.com/t5/sql-server-blog/released-general-availability-of-microsoft-data-sqlclient-4-0/ba-p/2983346
