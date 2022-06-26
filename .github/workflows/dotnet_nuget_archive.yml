@@ -28,23 +28,41 @@ jobs:
         with:
           dotnet-version: ${{ matrix.dotnet-version }}
 
+
+
+
       - name: NuGet Restore Test with lts-nuget-archive1
         run: |
              dotnet nuget locals all --clear
-             dotnet restore Cores.NET/Dev.Test/Dev.Test.csproj --configfile Cores.NET/Misc/220626_LtsNugetArchiveConfig/lts-nuget-archive1.config
+             dotnet restore Cores.NET/Cores.NET-VS2022.sln --configfile ${NUGET_CONFIG}
         shell: bash
+        env:
+          NUGET_CONFIG: Cores.NET/Misc/220626_LtsNugetArchiveConfig/lts-nuget-archive1.config
+
+
+
 
       - name: NuGet Restore Test with lts-nuget-archive2
         run: |
              dotnet nuget locals all --clear
-             dotnet restore Cores.NET/Dev.Test/Dev.Test.csproj --configfile Cores.NET/Misc/220626_LtsNugetArchiveConfig/lts-nuget-archive2.config
+             dotnet restore Cores.NET/Cores.NET-VS2022.sln --configfile ${NUGET_CONFIG}
         shell: bash
+        env:
+          NUGET_CONFIG: Cores.NET/Misc/220626_LtsNugetArchiveConfig/lts-nuget-archive2.config
+
+
+
 
       - name: NuGet Restore Test with lts-nuget-archive3
         run: |
              dotnet nuget locals all --clear
-             dotnet restore Cores.NET/Dev.Test/Dev.Test.csproj --configfile Cores.NET/Misc/220626_LtsNugetArchiveConfig/lts-nuget-archive3.config
+             dotnet restore Cores.NET/Cores.NET-VS2022.sln --configfile ${NUGET_CONFIG}
         shell: bash
+        env:
+          NUGET_CONFIG: Cores.NET/Misc/220626_LtsNugetArchiveConfig/lts-nuget-archive3.config
+
+
+
 
       - name: Build Debug
         run: dotnet build -c Debug -v normal Cores.NET/Cores.NET-VS2022.sln
