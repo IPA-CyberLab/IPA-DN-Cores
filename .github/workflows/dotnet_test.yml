@@ -75,6 +75,7 @@ jobs:
 
       - name: PrintRegKeys for Windows SSL Settings
         run: dotnet run --project Cores.NET/Dev.Test/Dev.Test.csproj --configuration Debug PrintRegKeys LocalMachine /key:SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL
+        if: matrix.operating-system == 'windows-2022'
 
       - name: Test Debug
         run: dotnet test -c Debug -v normal --logger:"console;verbosity=detailed" Cores.NET/Cores.NET-VS2022.sln
@@ -91,25 +92,5 @@ jobs:
       - name: SslTestSuite Self Release
         run: dotnet run --project Cores.NET/Dev.Test/Dev.Test.csproj --configuration Release SslTestSuite self /parallel:64 /interval:1000 /ignore:default /expectedcertstr:default
 
-      - name: NuGet Restore Test with lts-nuget-archive1
-        run: |
-             dotnet nuget locals all --clear
-             dotnet restore Cores.NET/Dev.Test/Dev.Test.csproj --configfile Cores.NET/Misc/220626_LtsNugetArchiveConfig/lts-nuget-archive1.config
-        if: (${{ github.repository }} == 'IPA-CyberLab/IPA-DN-Cores') && (matrix.operating-system == 'windows-latest' || matrix.operating-system == 'ubuntu-latest' || matrix.operating-system == 'macos-latest')
-        shell: bash
-
-      - name: NuGet Restore Test with lts-nuget-archive2
-        run: |
-             dotnet nuget locals all --clear
-             dotnet restore Cores.NET/Dev.Test/Dev.Test.csproj --configfile Cores.NET/Misc/220626_LtsNugetArchiveConfig/lts-nuget-archive2.config
-        if: (${{ github.repository }} == 'IPA-CyberLab/IPA-DN-Cores') && (matrix.operating-system == 'windows-latest' || matrix.operating-system == 'ubuntu-latest' || matrix.operating-system == 'macos-latest')
-        shell: bash
-
-      - name: NuGet Restore Test with lts-nuget-archive3
-        run: |
-             dotnet nuget locals all --clear
-             dotnet restore Cores.NET/Dev.Test/Dev.Test.csproj --configfile Cores.NET/Misc/220626_LtsNugetArchiveConfig/lts-nuget-archive3.config
-        if: (${{ github.repository }} == 'IPA-CyberLab/IPA-DN-Cores') && (matrix.operating-system == 'windows-latest' || matrix.operating-system == 'ubuntu-latest' || matrix.operating-system == 'macos-latest')
-        shell: bash
 
 

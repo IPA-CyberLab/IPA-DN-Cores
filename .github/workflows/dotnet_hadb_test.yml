@@ -7,6 +7,7 @@ on:
 
 jobs:
   build:
+    if: github.repository == 'IPA-CyberLab/IPA-DN-Cores'
     runs-on: ${{ matrix.operating-system }}
     timeout-minutes: 60
 
