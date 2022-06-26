@@ -15,7 +15,7 @@ jobs:
       COVERITY_SCAN_PROJECT_NAME: "IPA-DN-Cores-210728"
       COVERITY_SCAN_BRANCH_PATTERN: "*"
       COVERITY_SCAN_NOTIFICATION_EMAIL: "coe.lab-coverity-scan@admin.coe.ad.jp"
-      COVERITY_SCAN_BUILD_COMMAND: "dotnet build -c Debug Cores.NET/Cores.NET-2022.sln"
+      COVERITY_SCAN_BUILD_COMMAND: "dotnet build -c Debug Cores.NET/Cores.NET-VS2022.sln"
 
     strategy:
       matrix:
