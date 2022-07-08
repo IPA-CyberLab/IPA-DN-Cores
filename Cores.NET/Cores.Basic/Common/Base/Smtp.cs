@@ -380,6 +380,36 @@ public class SmtpBody
     public void Send(SmtpConfig smtp, CancellationToken cancel = default) => SendAsync(smtp, cancel)._GetResult();
 }
 
+public class SmtpBassicSettings : INormalizable
+{
+    public string MailFrom = "";
+    public List<string> MailToList = new List<string>();
+
+    public void Normalize()
+    {
+        if (MailFrom._IsEmpty()) MailFrom = "from@example.org";
+        if (MailToList.Count == 0) MailToList.Add("to@example.org");
+    }
+}
+
+public class SmtpClientSettings : INormalizable
+{
+    public string SmtpServer = "";
+    public int SmtpPort = 0;
+    public bool UseSSL;
+    public string Username = "";
+    public string Password = "";
+
+    public SmtpConfig ToSmtpConfig() => new SmtpConfig(this.SmtpServer, this.SmtpPort, this.UseSSL, this.Username, this.Password);
+    public static implicit operator SmtpConfig(SmtpClientSettings r) => r.ToSmtpConfig();
+
+    public void Normalize()
+    {
+        if (this.SmtpServer._IsEmpty()) this.SmtpServer = "smtp-server-hostname-here";
+        if (this.SmtpPort == 0) this.SmtpPort = Consts.Ports.SmtpSubmission;
+    }
+}
+
 public class SmtpConfig
 {
     public string SmtpServer { get; }
@@ -431,12 +461,14 @@ public static class SmtpUtil
 
             return true;
         }
-        catch
+        catch (Exception ex)
         {
             if (noException == false)
             {
                 throw;
             }
+
+            ex._Debug();
 
             return false;
         }

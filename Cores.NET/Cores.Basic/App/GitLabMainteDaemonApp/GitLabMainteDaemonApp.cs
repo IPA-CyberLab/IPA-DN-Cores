@@ -212,14 +212,33 @@ public class GitLabMainteDaemonSettings : INormalizable
 {
     public GitLabMainteClientSettings GitLabClientSettings = null!;
 
+    public SmtpClientSettings SmtpSettings = null!;
+
+    public SmtpBassicSettings MailSettings = null!;
+
+    public List<string> DefaultGroupsAllUsersWillJoin = new List<string>();
+
+    public int UsersPollIntervalMsecs = 0;
+
     public void Normalize()
     {
-        if (this.GitLabClientSettings == null)
-        {
-            this.GitLabClientSettings = new GitLabMainteClientSettings();
-        }
-
+        this.GitLabClientSettings ??= new GitLabMainteClientSettings();
         this.GitLabClientSettings.Normalize();
+
+        this.SmtpSettings ??= new SmtpClientSettings();
+        this.SmtpSettings.Normalize();
+
+        this.MailSettings ??= new SmtpBassicSettings();
+        this.MailSettings.Normalize();
+
+        this.DefaultGroupsAllUsersWillJoin ??= new List<string>();
+        if (this.DefaultGroupsAllUsersWillJoin.Count == 0)
+        {
+            this.DefaultGroupsAllUsersWillJoin.Add("__default_groups_here__");
+        }
+        this.DefaultGroupsAllUsersWillJoin = this.DefaultGroupsAllUsersWillJoin.Distinct(StrCmpi).ToList();
+
+        if (this.UsersPollIntervalMsecs <= 0) this.UsersPollIntervalMsecs = 5 * 1000;
     }
 }
 
@@ -234,6 +253,8 @@ public class GitLabMainteDaemonApp : AsyncService
 
     readonly GitLabMainteClient GitLabClient;
 
+    Task MainLoop1Task;
+
     public GitLabMainteDaemonApp()
     {
         try
@@ -244,6 +265,8 @@ public class GitLabMainteDaemonApp : AsyncService
             this.GitLabClient = new GitLabMainteClient(this.Settings.GitLabClientSettings);
 
             // TODO: ここでサーバーを立ち上げるなどの初期化処理を行なう
+
+            this.MainLoop1Task = TaskUtil.StartAsyncTaskAsync(Loop1_MainteUsersAsync(this.GrandCancel));
         }
         catch
         {
@@ -258,6 +281,7 @@ public class GitLabMainteDaemonApp : AsyncService
         try
         {
             // TODO: ここでサーバーを終了するなどのクリーンアップ処理を行なう
+            await this.MainLoop1Task._TryWaitAsync();
 
             await this.GitLabClient._DisposeSafeAsync(ex);
 
@@ -266,6 +290,99 @@ public class GitLabMainteDaemonApp : AsyncService
         finally
         {
             await base.CleanupImplAsync(ex);
+        }
+    }
+
+    async Task Loop1_MainteUsersAsync(CancellationToken cancel = default)
+    {
+        List<GitLabMainteClient.User> lastPendingUsers = new List<GitLabMainteClient.User>();
+
+        while (cancel.IsCancellationRequested == false)
+        {
+            // 新規申請中のユーザーが増えたらメールで知らせる
+            try
+            {
+                // ユーザーの列挙
+                var users = await this.GitLabClient.EnumUsersAsync(cancel);
+
+                var pendingUsers = users.Where(x => x.IsSystemUser() == false && x.state == "blocked_pending_approval").OrderBy(x => x.id);
+
+                var newPendingUsers = pendingUsers.Where(u => lastPendingUsers.Where(a => a.id == u.id).Any() == false);
+
+                StringWriter w = new StringWriter();
+
+                string url = this.Settings.GitLabClientSettings.GitLabBaseUrl._CombineUrl("/admin/users?filter=blocked_pending_approval").ToString();
+
+                string subject = $"{url._ParseUrl().Host} にユーザー {newPendingUsers.Select(x => x.commit_email._NonNullTrim())._Combine(" ,")} の参加申請がありました";
+
+                w.WriteLine(subject + "。");
+                w.WriteLine();
+
+                w.WriteLine($"GitLab のアドレス: {url}");
+                w.WriteLine();
+
+                w.WriteLine($"現在時刻: {DtOffsetNow._ToDtStr()}");
+
+                w.WriteLine();
+
+                w.WriteLine($"新しい申請中のユーザー ({newPendingUsers.Count()}):");
+
+                int num = 0;
+
+                foreach (var user in newPendingUsers)
+                {
+                    lastPendingUsers.Add(user._CloneDeep());
+
+                    w.WriteLine("- " + user.name + " " + user.commit_email);
+
+                    num++;
+                }
+
+                w.WriteLine();
+
+                w.WriteLine($"現在申請中のユーザー一覧 ({pendingUsers.Count()})");
+
+                foreach (var user in pendingUsers)
+                {
+                    w.WriteLine("- " + user.name + " " + user.commit_email);
+                }
+
+                w.WriteLine();
+
+                w.WriteLine($"GitLab のアドレス: {url}");
+                w.WriteLine();
+                w.WriteLine();
+
+                //Dbg.Where();
+                if (num >= 1)
+                {
+                    await this.SendMailAsync(subject, w.ToString(), cancel);
+                }
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+
+            // すべてのユーザーをデフォルトグループに自動追加する
+            try
+            {
+                await this.JoinAllUsersToSpecificGroupAsync(this.Settings.DefaultGroupsAllUsersWillJoin, cancel);
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+
+            await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(this.Settings.UsersPollIntervalMsecs));
+        }
+    }
+
+    public async Task SendMailAsync(string subject, string body, CancellationToken cancel = default)
+    {
+        foreach (var dest in this.Settings.MailSettings.MailToList.Distinct(StrCmpi).OrderBy(x => x, StrCmpi))
+        {
+            await SmtpUtil.SendAsync(this.Settings.SmtpSettings, this.Settings.MailSettings.MailFrom, dest, subject, body, true, cancel);
         }
     }
 

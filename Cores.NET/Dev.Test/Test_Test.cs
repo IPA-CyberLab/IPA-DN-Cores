@@ -3690,7 +3690,7 @@ cccadmin
     {
         using GitLabMainteDaemonApp a = new GitLabMainteDaemonApp();
 
-        //Con.ReadLine("STOP>");
+        Con.ReadLine("STOP>");
 
         using GitLabMainteClient x = new GitLabMainteClient(new GitLabMainteClientSettings { GitLabBaseUrl = "https://dnt-gitlab-test1.sehosts.com/", PrivateToken = "zzz" });
 
@@ -3703,7 +3703,9 @@ cccadmin
 
             //await x.JoinUserToGroupAsync(11, 17);
 
-            await a.JoinAllUsersToSpecificGroupAsync(new string[] { "se01" });
+            //await a.JoinAllUsersToSpecificGroupAsync(new string[] { "se01" });
+
+            //await a.SendMailAsync("テストさん", "こんにちは テストです");
         });
     }
 
