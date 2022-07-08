@@ -1,6 +1,6 @@
 ﻿// IPA Cores.NET
 // 
-// Copyright (c) 2019- IPA CyberLab.
+// Copyright (c) 2018- IPA CyberLab.
 // Copyright (c) 2003-2018 Daiyuu Nobori.
 // Copyright (c) 2013-2018 SoftEther VPN Project, University of Tsukuba, Japan.
 // All Rights Reserved.
@@ -30,13 +30,6 @@
 // PROCESS MAY BE SERVED ON EITHER PARTY IN THE MANNER AUTHORIZED BY APPLICABLE
 // LAW OR COURT RULE.
 
-// Author: Daiyuu Nobori
-// Description
-
-#if CORES_BASIC_JSON && (CORES_BASIC_WEBAPP || CORES_BASIC_HTTPSERVER) && CORES_BASIC_SECURITY
-
-#pragma warning disable CA2235 // Mark all non-serializable fields
-
 using System;
 using System.Buffers;
 using System.Linq;
@@ -57,71 +50,74 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
-namespace IPA.Cores.Basic;
+namespace IPA.TestDev;
 
-public static partial class CoresConfig
+class GitLabMainteDaemon : Daemon
 {
-    public static partial class EmptyDaemonHost
+    GitLabMainteDaemonApp? host = null;
+
+    public GitLabMainteDaemon() : base(new DaemonOptions("GitLabMainteDaemon", "GitLabMainteDaemon Service", true))
     {
-        public static readonly Copenhagen<string> _Test = "Hello";
     }
-}
 
-public class EmptyDaemonSettings : INormalizable
-{
-    public string _TestStr = "";
-
-    public void Normalize()
+    protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
     {
-        if (this._TestStr._IsFilled() == false)
-        {
-            this._TestStr = "Hello";
-        }
-    }
-}
+        Con.WriteLine("GitLabMainteDaemon: Starting...");
 
+        host = new GitLabMainteDaemonApp();
 
-public class EmptyDaemonApp : AsyncService
-{
-    readonly HiveData<EmptyDaemonSettings> SettingsHive;
+        await Task.CompletedTask;
 
-    // 'Config\EmptyDaemon' のデータ
-    public EmptyDaemonSettings Settings => SettingsHive.GetManagedDataSnapshot();
-
-    readonly CriticalSection LockList = new CriticalSection<EmptyDaemonApp>();
-
-    public EmptyDaemonApp()
-    {
         try
         {
-            // Settings を読み込む
-            this.SettingsHive = new HiveData<EmptyDaemonSettings>(Hive.SharedLocalConfigHive, $"EmptyDaemon", null, HiveSyncPolicy.AutoReadFromFile);
-
-
-            // TODO: ここでサーバーを立ち上げるなどの初期化処理を行なう
+            Con.WriteLine("GitLabMainteDaemon: Started.");
         }
         catch
         {
-            this._DisposeSafe();
+            await host._DisposeSafeAsync();
+            host = null;
             throw;
         }
     }
 
-
-    protected override async Task CleanupImplAsync(Exception? ex)
+    protected override async Task StopImplAsync(object? param)
     {
-        try
-        {
-            // TODO: ここでサーバーを終了するなどのクリーンアップ処理を行なう
+        Con.WriteLine("GitLabMainteDaemon: Stopping...");
 
-            this.SettingsHive._DisposeSafe();
-        }
-        finally
+        if (host != null)
         {
-            await base.CleanupImplAsync(ex);
+            await host.DisposeWithCleanupAsync();
+
+            host = null;
         }
+
+        Con.WriteLine("GitLabMainteDaemon: Stopped.");
     }
 }
 
-#endif
+partial class TestDevCommands
+{
+    [ConsoleCommand(
+        "Start or stop the GitLabMainteDaemon daemon",
+        "GitLabMainteDaemon [command]",
+        "Start or stop the GitLabMainteDaemon daemon",
+        @"[command]:The control command.
+
+[UNIX / Windows common commands]
+start        - Start the daemon in the background mode.
+stop         - Stop the running daemon in the background mode.
+show         - Show the real-time log by the background daemon.
+test         - Start the daemon in the foreground testing mode.
+
+[Windows specific commands]
+winstart     - Start the daemon as a Windows service.
+winstop      - Stop the running daemon as a Windows service.
+wininstall   - Install the daemon as a Windows service.
+winuninstall - Uninstall the daemon as a Windows service.")]
+    static int GitLabMainteDaemon(ConsoleService c, string cmdName, string str)
+    {
+        return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new GitLabMainteDaemon(), new DaemonSettings());
+    }
+
+}
 

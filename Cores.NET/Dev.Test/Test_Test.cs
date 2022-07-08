@@ -3579,7 +3579,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
         };
 
         using EasyJsonRpcServer<MikakaDDnsService.IRpc> rpc = new EasyJsonRpcServer<MikakaDDnsService.IRpc>(httpOpt, rpcCfg: rpcConfig, targetObject: svc);
-        
+
         svc.Start();
 
         Con.ReadLine("quit>");
@@ -3686,8 +3686,35 @@ cccadmin
         }
     }
 
+    static void Test_220708()
+    {
+        using GitLabMainteDaemonApp a = new GitLabMainteDaemonApp();
+
+        //Con.ReadLine("STOP>");
+
+        using GitLabMainteClient x = new GitLabMainteClient(new GitLabMainteClientSettings { GitLabBaseUrl = "https://dnt-gitlab-test1.sehosts.com/", PrivateToken = "zzz" });
+
+        Async(async () =>
+        {
+
+            //(await x.EnumProjectsAsync())._PrintAsJson();
+
+            //(await x.EnumUsersAsync())._PrintAsJson();
+
+            //await x.JoinUserToGroupAsync(11, 17);
+
+            await a.JoinAllUsersToSpecificGroupAsync(new string[] { "se01" });
+        });
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_220708();
+            return;
+        }
+
         if (true)
         {
             Test_220623();
