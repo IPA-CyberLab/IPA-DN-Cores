@@ -152,6 +152,7 @@ public enum LogBrowserFlags
     NoRootDirectory = 2, // 最上位ディレクトリへのアクセス不可
     SecureJson = 4, // _secure.json ファイルを必要とし、色々なセキュリティ処理を実施する
     NoZipDownload = 8, // ZIP ダウンロードを禁止
+    SecureJson_FlatDir = 16, // SecureJson が ON の場合、通常は日付ごとの 2 階層ディレクトリ構造になるが、この構造をなくしてフラットにする
 }
 
 // LogBrowser のオプション
@@ -165,6 +166,7 @@ public class LogBrowserOptions
     public string ZipEncryptPassword { get; }
     public StatMan? Stat { get; }
     public bool RegardAllLogFilesUtf8 { get; }
+    public IEnumerable<string> ExtsAsMimeTypeUtf8 { get; }
 
     public LogBrowserOptions(DirectoryPath rootDir,
         string systemTitle = Consts.Strings.LogBrowserDefaultSystemTitle,
@@ -173,7 +175,8 @@ public class LogBrowserOptions
         LogBrowserFlags flags = LogBrowserFlags.None,
         string? zipEncryptPassword = null,
         StatMan? stat = null,
-        bool regardAllLogFilesUtfs = false
+        bool regardAllLogFilesUtfs = false,
+        IEnumerable<string>? extsAsMimeTypeUtf8 = null
         )
     {
         this.SystemTitle = systemTitle._FilledOrDefault(Consts.Strings.LogBrowserDefaultSystemTitle);
@@ -190,6 +193,15 @@ public class LogBrowserOptions
         this.ZipEncryptPassword = zipEncryptPassword._NonNull();
 
         this.Stat = stat;
+
+        if (extsAsMimeTypeUtf8 == null)
+        {
+            this.ExtsAsMimeTypeUtf8 = new List<string>();
+        }
+        else
+        {
+            this.ExtsAsMimeTypeUtf8 = extsAsMimeTypeUtf8;
+        }
     }
 
     public void SetSystemTitle(string title)
@@ -200,49 +212,74 @@ public class LogBrowserOptions
 
 class LogBrowserSecureJsonRewriteFileSystem : RewriteFileSystem
 {
-    public LogBrowserSecureJsonRewriteFileSystem(RewriteFileSystemParam param) : base(param)
+    public LogBrowserFlags Flags { get; }
+
+    public LogBrowserSecureJsonRewriteFileSystem(RewriteFileSystemParam param, LogBrowserFlags flags) : base(param)
     {
+        this.Flags = flags;
     }
 
     protected override string MapPathVirtualToPhysicalImpl(string relativeSafeUnderlayFsStyleVirtualPath)
     {
         if (relativeSafeUnderlayFsStyleVirtualPath == "") return "/";
 
-        // yymmdd_aaa を /yymmdd/yymmdd_aaa に変換する
-        if (relativeSafeUnderlayFsStyleVirtualPath.Length >= 7 && relativeSafeUnderlayFsStyleVirtualPath[6] == '_')
+        if (this.Flags.Bit(LogBrowserFlags.SecureJson_FlatDir) == false)
         {
-            var yymmdd = relativeSafeUnderlayFsStyleVirtualPath._SliceHead(6);
-
-            if (yymmdd.All(x => (x >= '0' && x <= '9')))
+            // yymmdd_aaa を /yymmdd/yymmdd_aaa に変換する
+            if (relativeSafeUnderlayFsStyleVirtualPath.Length >= 7 && relativeSafeUnderlayFsStyleVirtualPath[6] == '_')
             {
-                return "/" + yymmdd + "/" + relativeSafeUnderlayFsStyleVirtualPath;
-            }
-        }
+                var yymmdd = relativeSafeUnderlayFsStyleVirtualPath._SliceHead(6);
 
-        throw new CoresLibException($"relativeSafeUnderlayFsStyleVirtualPath is incorrect: '{relativeSafeUnderlayFsStyleVirtualPath}'");
+                if (yymmdd.All(x => (x >= '0' && x <= '9')))
+                {
+                    return "/" + yymmdd + "/" + relativeSafeUnderlayFsStyleVirtualPath;
+                }
+            }
+
+            throw new CoresLibException($"relativeSafeUnderlayFsStyleVirtualPath is incorrect: '{relativeSafeUnderlayFsStyleVirtualPath}'");
+        }
+        else
+        {
+            // フラット構造
+            return "/" + relativeSafeUnderlayFsStyleVirtualPath;
+        }
     }
 
     protected override string MapPathPhysicalToVirtualImpl(string underlayFsStylePhysicalPath)
     {
         if (underlayFsStylePhysicalPath == "/") return "";
 
-        // /yymmdd/yymmdd_aaa を yymmdd_aaa に変換する
-        if (underlayFsStylePhysicalPath[0] == '/')
+        if (this.Flags.Bit(LogBrowserFlags.SecureJson_FlatDir) == false)
         {
-            underlayFsStylePhysicalPath = underlayFsStylePhysicalPath._Slice(1);
-
-            if (underlayFsStylePhysicalPath.Length >= 7 && underlayFsStylePhysicalPath[6] == '/')
+            // /yymmdd/yymmdd_aaa を yymmdd_aaa に変換する
+            if (underlayFsStylePhysicalPath[0] == '/')
             {
-                var yymmdd = underlayFsStylePhysicalPath._SliceHead(6);
+                underlayFsStylePhysicalPath = underlayFsStylePhysicalPath._Slice(1);
 
-                if (yymmdd.All(x => (x >= '0' && x <= '9')))
+                if (underlayFsStylePhysicalPath.Length >= 7 && underlayFsStylePhysicalPath[6] == '/')
                 {
-                    return underlayFsStylePhysicalPath._Slice(7);
+                    var yymmdd = underlayFsStylePhysicalPath._SliceHead(6);
+
+                    if (yymmdd.All(x => (x >= '0' && x <= '9')))
+                    {
+                        return underlayFsStylePhysicalPath._Slice(7);
+                    }
                 }
             }
-        }
 
-        throw new CoresLibException($"underlayFsStylePhysicalPath is incorrect: '{underlayFsStylePhysicalPath}'");
+            throw new CoresLibException($"underlayFsStylePhysicalPath is incorrect: '{underlayFsStylePhysicalPath}'");
+        }
+        else
+        {
+            // フラット構造
+            if (underlayFsStylePhysicalPath[0] == '/')
+            {
+                underlayFsStylePhysicalPath = underlayFsStylePhysicalPath._Slice(1);
+
+                return underlayFsStylePhysicalPath;
+            }
+            throw new CoresLibException($"underlayFsStylePhysicalPath is incorrect: '{underlayFsStylePhysicalPath}'");
+        }
     }
 }
 
@@ -274,7 +311,7 @@ public class LogBrowser : AsyncService
 
         if (this.Options.Flags.Bit(LogBrowserFlags.SecureJson))
         {
-            this.RootFs = new LogBrowserSecureJsonRewriteFileSystem(new RewriteFileSystemParam(this.RootFs, disposeUnderlay: true));
+            this.RootFs = new LogBrowserSecureJsonRewriteFileSystem(new RewriteFileSystemParam(this.RootFs, disposeUnderlay: true), this.Options.Flags);
         }
     }
 
@@ -589,7 +626,7 @@ public class LogBrowser : AsyncService
                     }
                 }
 
-                if (isEncrypted && secureJson.IsInbox == false)
+                if (isEncrypted && secureJson.IsInbox == false && secureJson.AllowZipDownload == false)
                 {
                     // 暗号化されている案内を出す
                     footer += $@"
@@ -781,7 +818,8 @@ public class LogBrowser : AsyncService
 
                         await using ZipWriter zipWriter = new ZipWriter(new ZipContainerOptions(r), cancel);
 
-                        long totalSize = await zipWriter.ImportDirectoryAsync(new DirectoryPath(zipDownloadRoot, RootFs), new FileContainerEntityParam(flags: FileContainerEntityFlags.FileNameUseShiftJisIfPossible),
+                        long totalSize = await zipWriter.ImportDirectoryAsync(new DirectoryPath(zipDownloadRoot, RootFs),
+                            new FileContainerEntityParam(flags: FileContainerEntityFlags.FileNameUseShiftJisIfPossible),
                             fileFilter: e => !PPWin.SplitTokens(e.FullPath).Where(name => Consts.FileNames.IsSpecialFileNameForLogBrowser(name)).Any(),
                             exceptionHandler: (pathInfo, exception, cancel) =>
                             {
@@ -906,6 +944,14 @@ public class LogBrowser : AsyncService
                     if (tail != 0)
                     {
                         mimeType = Consts.MimeTypes.Text;
+                    }
+
+                    if (extension._IsExtensionMatch(this.Options.ExtsAsMimeTypeUtf8))
+                    {
+                        if (mimeType._InStr(";") == false)
+                        {
+                            mimeType += "; charset=UTF-8";
+                        }
                     }
 
                     ReadOnlyMemory<byte> preData = new byte[0];

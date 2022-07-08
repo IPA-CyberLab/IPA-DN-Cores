@@ -227,6 +227,14 @@ public abstract class CgiHandlerBase : AsyncService
     }
 
     protected abstract void InitActionListImpl(CgiActionList noAuth, CgiActionList reqAuth);
+
+    public virtual void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime, RouteBuilder rb)
+    {
+    }
+
+    public virtual void ConfigureImpl_AfterHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime, RouteBuilder rb)
+    {
+    }
 }
 
 // CGI 用簡易 HTTP サーバービルダー
@@ -248,6 +256,8 @@ public sealed class CgiHttpServerBuilder : HttpServerStartupBase
 
         Handler.InsertActionListNoAuthToRouteBuilder(rb);
 
+        Handler.ConfigureImpl_BeforeHelper(cfg, app, env, lifetime, rb);
+
         IRouter router = rb.Build();
         app.UseRouter(router);
     }
@@ -257,6 +267,8 @@ public sealed class CgiHttpServerBuilder : HttpServerStartupBase
         RouteBuilder rb = new RouteBuilder(app);
 
         Handler.InsertActionListReqAuthToRouteBuilder(rb);
+
+        Handler.ConfigureImpl_AfterHelper(cfg, app, env, lifetime, rb);
 
         IRouter router = rb.Build();
         app.UseRouter(router);

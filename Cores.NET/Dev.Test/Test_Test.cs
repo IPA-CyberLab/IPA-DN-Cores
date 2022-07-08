@@ -3706,8 +3706,8 @@ cccadmin
 
         using GitLabMainteDaemonApp a = new GitLabMainteDaemonApp();
 
-        Async(async () =>
-        {
+        //Async(async () =>
+        //{
             //await a.GitLabClient.GitPullFromRepositoryAsync("dnobori.pc/ahosan", @"c:\tmp2\220708\a\", "main");
 
             //await a.SyncGitLocalRepositoryDirToWebRootDirAsync(@"c:\tmp2\220708\a\", @"c:\tmp2\220708\b\");
@@ -3721,7 +3721,7 @@ cccadmin
             //await a.JoinAllUsersToSpecificGroupAsync(new string[] { "se01" });
 
             //await a.SendMailAsync("テストさん", "こんにちは テストです");
-        });
+        //});
 
         Con.ReadLine("STOP>");
     }

@@ -56,6 +56,10 @@ using System.Runtime.Serialization;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Routing;
 
 namespace IPA.Cores.Basic;
 
@@ -290,6 +294,12 @@ public class GitLabMainteDaemonSettings : INormalizable
     public string GitMirrorDataRootDir = "";
     public string GitWebDataRootDir = "";
 
+    public int HttpTimeoutMsecs = 0;
+
+    public List<string> ExtsAsMimeTypeUtf8 = new List<string>();
+
+    public string Title = "";
+
     public void Normalize()
     {
         this.GitLabClientSettings ??= new GitLabMainteClientSettings();
@@ -333,6 +343,23 @@ public class GitLabMainteDaemonSettings : INormalizable
                 GitWebDataRootDir = @"/data1/git_web_root/";
             }
         }
+
+        if (this.HttpTimeoutMsecs <= 0)
+        {
+            this.HttpTimeoutMsecs = 30 * 1000;
+        }
+
+        if (this.Title._IsEmpty())
+        {
+            this.Title = "GitLabMainteDaemon";
+        }
+
+        this.ExtsAsMimeTypeUtf8 ??= new List<string>();
+        this.ExtsAsMimeTypeUtf8.Add(".txt");
+        this.ExtsAsMimeTypeUtf8.Add(".cfg");
+        this.ExtsAsMimeTypeUtf8.Add(".config");
+        this.ExtsAsMimeTypeUtf8.Add(".dat");
+        this.ExtsAsMimeTypeUtf8.Add(".xml");
     }
 }
 
@@ -356,6 +383,10 @@ public class GitLabMainteDaemonApp : AsyncService
     Task MainLoop1Task;
     Task MainLoop2Task;
 
+    public CgiHttpServer Cgi { get; }
+
+    public LogBrowser LogBrowser {get;}
+
     public GitLabMainteDaemonApp()
     {
         try
@@ -370,6 +401,27 @@ public class GitLabMainteDaemonApp : AsyncService
             this.MainLoop1Task = TaskUtil.StartAsyncTaskAsync(Loop1_MainteUsersAsync(this.GrandCancel));
 
             this.MainLoop2Task = TaskUtil.StartAsyncTaskAsync(Loop2_MainteUsersAsync(this.GrandCancel));
+
+            // Log Browser を立ち上げる
+            var logBrowserOptions = new LogBrowserOptions(
+                this.Settings.GitWebDataRootDir, this.Settings.Title, flags: LogBrowserFlags.SecureJson | LogBrowserFlags.SecureJson_FlatDir | LogBrowserFlags.NoRootDirectory,
+                extsAsMimeTypeUtf8: this.Settings.ExtsAsMimeTypeUtf8);
+
+            this.LogBrowser = new LogBrowser(logBrowserOptions, "/d");
+
+            // HTTP サーバーを立ち上げる
+            this.Cgi = new CgiHttpServer(new CgiHandler(this), new HttpServerOptions()
+            {
+                AutomaticRedirectToHttpsIfPossible = false,
+                UseKestrelWithIPACoreStack = false,
+                HttpPortsList = new int[] { 80 }.ToList(),
+                HttpsPortsList = new int[] { 443 }.ToList(),
+                UseStaticFiles = false,
+                MaxRequestBodySize = 32 * 1024,
+                ReadTimeoutMsecs = this.Settings.HttpTimeoutMsecs,
+                DenyRobots = true,
+            },
+            true);
         }
         catch
         {
@@ -384,6 +436,9 @@ public class GitLabMainteDaemonApp : AsyncService
         try
         {
             // TODO: ここでサーバーを終了するなどのクリーンアップ処理を行なう
+            await this.LogBrowser._DisposeSafeAsync(ex);
+            await this.Cgi._DisposeSafeAsync(ex);
+
             await this.MainLoop1Task._TryWaitAsync();
             await this.MainLoop2Task._TryWaitAsync();
 
@@ -397,6 +452,59 @@ public class GitLabMainteDaemonApp : AsyncService
         }
     }
 
+    public class CgiHandler : CgiHandlerBase
+    {
+        public readonly GitLabMainteDaemonApp App;
+
+        public CgiHandler(GitLabMainteDaemonApp app)
+        {
+            this.App = app;
+        }
+
+        protected override void InitActionListImpl(CgiActionList noAuth, CgiActionList reqAuth)
+        {
+            try
+            {
+                noAuth.AddAction("/", WebMethodBits.GET | WebMethodBits.HEAD, async (ctx) =>
+                {
+                    await Task.CompletedTask;
+
+                    string password = ctx.QueryString.ToString();
+
+                    if (password._IsEmpty())
+                    {
+                        return new HttpStringResult("Hello");
+                    }
+                    else
+                    {
+                        PublishConfigData data = new PublishConfigData
+                        {
+                            Username = "user",
+                            Password = Secure.SaltPassword(password),
+                        };
+
+                        return new HttpStringResult(data._ObjectToJson(), Consts.MimeTypes.Json);
+                    }
+                });
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+        public override void ConfigureImpl_BeforeHelper(HttpServerStartupConfig cfg, IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime, RouteBuilder rb)
+        {
+            rb.MapGet("/d/{*path}", async (req, res, route) =>
+            {
+                await this.App.LogBrowser.GetRequestHandlerAsync(req, res, route);
+            });
+        }
+
+    }
+
+
     // Git リポジトリの自動ダウンロード
     async Task Loop2_MainteUsersAsync(CancellationToken cancel = default)
     {
@@ -407,13 +515,11 @@ public class GitLabMainteDaemonApp : AsyncService
                 // Git リポジトリを列挙
                 var projects = await this.GitLabClient.EnumProjectsAsync(cancel);
 
-                foreach (var proj in projects.Where(p => p.empty_repo == false && p.path_with_namespace._IsFilled() && p.default_branch._IsFilled() && p.visibility._IsDiffi("private")).OrderByDescending(x=>x.last_activity_at).ThenBy(x => x.path_with_namespace, StrCmpi))
+                foreach (var proj in projects.Where(p => p.empty_repo == false && p.path_with_namespace._IsFilled() && p.default_branch._IsFilled() && p.visibility._IsDiffi("private")).OrderByDescending(x => x.last_activity_at).ThenBy(x => x.path_with_namespace, StrCmpi))
                 {
                     cancel.ThrowIfCancellationRequested();
 
                     string dirname = proj.path_with_namespace!._ReplaceStr("/", "_")._MakeSafeFileName().ToLowerInvariant();
-
-                    dirname._Print();
 
                     string gitRoot = this.Settings.GitMirrorDataRootDir._CombinePath(dirname);
                     string webRoot = this.Settings.GitWebDataRootDir._CombinePath(dirname);
@@ -579,6 +685,7 @@ public class GitLabMainteDaemonApp : AsyncService
               {
                   if (e.IsFile && e.Name._IsSamei(Consts.FileNames.GitLabMainte_CommitIdFileName)) return false;
                   if (e.IsFile && e.Name._IsSamei(Consts.FileNames.LogBrowserSecureJson)) return false;
+                  if (e.IsDirectory && e.Name._IsSamei(Consts.FileNames.LogBrowserAccessLogDirName)) return false;
                   return true;
               }
               );

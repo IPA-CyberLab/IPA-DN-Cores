@@ -1019,17 +1019,32 @@ public class WriteOnlyStreamBasedRandomAccess : SequentialWritableBasedRandomAcc
     }
 
     Once DisposeFlag;
+    public override async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
+        finally
+        {
+            await base.DisposeAsync();
+        }
+    }
     protected override void Dispose(bool disposing)
     {
         try
         {
             if (!disposing || DisposeFlag.IsFirstCall() == false) return;
-
-            BaseWritable._DisposeSafe();
-
-            this.Leak._DisposeSafe();
+            DisposeInternalAsync()._GetResult();
         }
         finally { base.Dispose(disposing); }
+    }
+    async Task DisposeInternalAsync()
+    {
+        await BaseWritable._DisposeSafeAsync();
+
+        this.Leak._DisposeSafe();
     }
 }
 
