@@ -3688,14 +3688,29 @@ cccadmin
 
     static void Test_220708()
     {
+        //{
+        //    Lfs.CopyDir(@"C:\Users\yagi\Desktop\src",
+        //        @"C:\Users\yagi\Desktop\dst",
+        //        null,
+        //        new CopyDirectoryParams(CopyDirectoryFlags.Default | CopyDirectoryFlags.DeleteNotExistDirs | CopyDirectoryFlags.DeleteNotExistFiles,
+        //        copyFileFlags: FileFlags.WriteOnlyIfChanged,
+        //        determineToDeleteCallback: (f) => !f.Name._IsSamei("test.txt"),
+        //        determineToCopyCallback: (d, e) =>
+        //        {
+        //            if (e.IsDirectory && e.Name == "aaa_z") return false;
+        //            return true;
+        //        }
+        //        ));
+        //}
+        //return;
+
         using GitLabMainteDaemonApp a = new GitLabMainteDaemonApp();
-
-        Con.ReadLine("STOP>");
-
-        using GitLabMainteClient x = new GitLabMainteClient(new GitLabMainteClientSettings { GitLabBaseUrl = "https://dnt-gitlab-test1.sehosts.com/", PrivateToken = "zzz" });
 
         Async(async () =>
         {
+            await a.GitLabClient.GitPullFromRepositoryAsync("dnobori.pc/ahosan", @"c:\tmp2\220708\a\", "main");
+
+            await a.SyncGitLocalRepositoryDirToWebRootDirAsync(@"c:\tmp2\220708\a\", @"c:\tmp2\220708\b\");
 
             //(await x.EnumProjectsAsync())._PrintAsJson();
 

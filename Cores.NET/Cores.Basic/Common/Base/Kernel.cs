@@ -239,7 +239,7 @@ namespace IPA.Cores.Basic
             string printTag = "",
             Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null,
             Func<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, Task<bool>>? easyRealtimeRecvBufCallbackAsync = null,
-            int easyRealtimeRecvBufCallbackDelayTickMsecs = 0)
+            int easyRealtimeRecvBufCallbackDelayTickMsecs = 0, StrDictionary<string>? additionalEnvVars = null)
         {
             if (timeout <= 0) timeout = Timeout.Infinite;
 
@@ -249,7 +249,7 @@ namespace IPA.Cores.Basic
 
             ExecOptions opt = new ExecOptions(Lfs.UnixGetFullPathFromCommandName(Consts.LinuxCommands.Bash),
                 args, currentDirectory, flags, easyOutputMaxSize, easyInputStr, printTag,
-                easyOneLineRecvCallbackAsync, easyRealtimeRecvBufCallbackAsync, easyRealtimeRecvBufCallbackDelayTickMsecs);
+                easyOneLineRecvCallbackAsync, easyRealtimeRecvBufCallbackAsync, easyRealtimeRecvBufCallbackDelayTickMsecs, additionalEnvVars);
 
             if (debug)
             {
@@ -298,12 +298,12 @@ namespace IPA.Cores.Basic
             CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true, string printTag = "",
             Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null,
             Func<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, Task<bool>>? easyRealtimeRecvBufCallbackAsync = null,
-            int easyRealtimeRecvBufCallbackDelayTickMsecs = 0)
+            int easyRealtimeRecvBufCallbackDelayTickMsecs = 0, StrDictionary<string>? additionalEnvVars = null)
         {
             if (timeout <= 0) timeout = Timeout.Infinite;
 
             ExecOptions opt = new ExecOptions(cmdName, arguments, currentDirectory, flags, easyOutputMaxSize, easyInputStr, printTag,
-                easyOneLineRecvCallbackAsync, easyRealtimeRecvBufCallbackAsync, easyRealtimeRecvBufCallbackDelayTickMsecs);
+                easyOneLineRecvCallbackAsync, easyRealtimeRecvBufCallbackAsync, easyRealtimeRecvBufCallbackDelayTickMsecs, additionalEnvVars);
 
             if (debug)
             {
@@ -465,12 +465,14 @@ namespace IPA.Cores.Basic
         public Func<string, Task<bool>>? EasyOneLineRecvCallbackAsync { get; }
         public Func<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, Task<bool>>? EasyRealtimeRecvBufCallbackAsync { get; }
         public int EasyRealtimeRecvBufCallbackDelayTickMsecs { get; }
+        public StrDictionary<string>? AdditionalEnvVars { get; }
 
         public ExecOptions(string commandName, string? arguments = null, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default,
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, string printTag = "",
             Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null,
             Func<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, Task<bool>>? easyRealtimeRecvBufCallbackAsync = null,
-            int easyRealtimeRecvBufCallbackDelayTickMsecs = 0)
+            int easyRealtimeRecvBufCallbackDelayTickMsecs = 0,
+            StrDictionary<string>? additionalEnvVars = null)
         {
             this.CommandName = commandName._NullCheck();
             if (Env.IsUnix == false || flags.Bit(ExecFlags.UnixAutoFullPath) == false)
@@ -499,13 +501,14 @@ namespace IPA.Cores.Basic
             this.EasyOneLineRecvCallbackAsync = easyOneLineRecvCallbackAsync;
             this.EasyRealtimeRecvBufCallbackAsync = easyRealtimeRecvBufCallbackAsync;
             this.EasyRealtimeRecvBufCallbackDelayTickMsecs = easyRealtimeRecvBufCallbackDelayTickMsecs;
+            this.AdditionalEnvVars = additionalEnvVars;
         }
 
         public ExecOptions(string commandName, IEnumerable<string> argumentsList, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default,
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, string printTag = "",
             Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null,
             Func<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, Task<bool>>? easyRealtimeRecvBufCallbackAsync = null,
-            int easyRealtimeRecvBufCallbackDelayTickMsecs = 0)
+            int easyRealtimeRecvBufCallbackDelayTickMsecs = 0, StrDictionary<string>? additionalEnvVars = null)
         {
             this.CommandName = commandName._NullCheck();
             if (Env.IsUnix == false || flags.Bit(ExecFlags.UnixAutoFullPath) == false)
@@ -534,6 +537,7 @@ namespace IPA.Cores.Basic
             this.EasyOneLineRecvCallbackAsync = easyOneLineRecvCallbackAsync;
             this.EasyRealtimeRecvBufCallbackAsync = easyRealtimeRecvBufCallbackAsync;
             this.EasyRealtimeRecvBufCallbackDelayTickMsecs = easyRealtimeRecvBufCallbackDelayTickMsecs;
+            this.AdditionalEnvVars = additionalEnvVars;
         }
     }
 
@@ -697,6 +701,17 @@ namespace IPA.Cores.Basic
                     CreateNoWindow = true,
                     WorkingDirectory = options.CurrentDirectory._NullIfEmpty()!,
                 };
+
+                if (this.Options.AdditionalEnvVars != null)
+                {
+                    foreach (var kv in this.Options.AdditionalEnvVars)
+                    {
+                        if (kv.Key._IsFilled() && kv.Value._IsFilled())
+                        {
+                            info.EnvironmentVariables.Add(kv.Key, kv.Value);
+                        }
+                    }
+                }
 
                 if (options.ArgumentsList != null)
                 {

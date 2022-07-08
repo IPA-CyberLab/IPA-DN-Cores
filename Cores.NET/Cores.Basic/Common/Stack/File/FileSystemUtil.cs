@@ -61,6 +61,49 @@ public abstract partial class FileSystem
 {
     readonly NamedAsyncLocks ConcurrentAppendLock = new NamedAsyncLocks(StrComparer.IgnoreCaseComparer);
 
+    // Git コミット ID を取得する
+    public async Task<string> GetCurrentGitCommitIdAsync(string targetDir, CancellationToken cancel = default)
+    {
+        string tmpPath = targetDir;
+
+        // Get the HEAD contents
+        while (true)
+        {
+            string headFilename = this.PathParser.Combine(tmpPath, ".git/HEAD");
+
+            try
+            {
+                string headContents = await this.ReadStringFromFileAsync(headFilename, cancel: cancel);
+                foreach (string line in headContents._GetLines())
+                {
+                    if (Str.TryNormalizeGitCommitId(line, out string commitId))
+                    {
+                        return commitId;
+                    }
+
+                    if (line._GetKeyAndValue(out string key, out string value, ":"))
+                    {
+                        if (key._IsSamei("ref"))
+                        {
+                            string refFilename = value.Trim();
+                            string refFullPath = Path.Combine(Path.GetDirectoryName(headFilename)._NonNull(), refFilename);
+
+                            return (await this.ReadStringFromFileAsync(refFullPath, cancel: cancel))._GetLines().Where(x => x._IsFilled()).Single();
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            string? parentPath = this.PathParser.GetDirectoryName(tmpPath);
+            if (tmpPath._IsSamei(parentPath)) return "";
+
+            if (parentPath._IsEmpty()) return "";
+
+            tmpPath = parentPath;
+        }
+    }
+
     public async Task<int> ConcurrentSafeAppendDataToFileAsync(string path, ReadOnlyMemory<byte> data, FileFlags additionalFileFlags = FileFlags.None, CancellationToken cancel = default)
     {
         using (await ConcurrentAppendLock.LockWithAwait(path, cancel))
@@ -158,7 +201,17 @@ public abstract partial class FileSystem
 
     public async Task<long> WriteHugeMemoryBufferToFileAsync(string path, HugeMemoryBuffer<byte> hugeMemoryBuffer, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
     {
-        if (flags.Bit(FileFlags.WriteOnlyIfChanged)) throw new ArgumentException(nameof(flags));
+        if (flags.Bit(FileFlags.WriteOnlyIfChanged))
+        {
+            if (hugeMemoryBuffer.Length >= int.MaxValue)
+            {
+                throw new ArgumentException(nameof(flags));
+            }
+            else
+            {
+                return await this.WriteDataToFileAsync(path, hugeMemoryBuffer.ToArray(), flags, doNotOverwrite, cancel);
+            }
+        }
 
         long size = hugeMemoryBuffer.LongLength;
 
@@ -666,14 +719,14 @@ public abstract partial class FileSystem
 
                     if (partOfFileName._IsSamei(file.Name))
                     {
-                            // Exact match
-                            exactFile = file.FullPath;
+                        // Exact match
+                        exactFile = file.FullPath;
                         numExactMatch++;
                     }
                     else if (partOfFileNameContainsDirName && fullPathTmp.EndsWith(partOfFileName, StringComparison.OrdinalIgnoreCase))
                     {
-                            // Exact match
-                            exactFile = file.FullPath;
+                        // Exact match
+                        exactFile = file.FullPath;
                         numExactMatch++;
                     }
                     else if (fullPathTmp._Search(partOfFileName) != -1)
@@ -730,8 +783,11 @@ public abstract partial class FileSystem
                     await this.DeleteFileImplAsync(file.FullPath, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
                 }
 
+                return true;
+            },
+            async (info, entities, c) =>
+            {
                 await this.DeleteDirectoryImplAsync(info.FullPath, false, cancel);
-
                 return true;
             },
             cancel: cancel);
@@ -836,7 +892,8 @@ public class DirectoryWalker
         Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback,
         Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>>? callbackForDirectoryAgain,
         Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>>? exceptionHandler,
-        bool recursive, CancellationToken opCancel, FileSystemEntity? dirEntity = null)
+        bool recursive, CancellationToken opCancel, FileSystemEntity? dirEntity = null,
+        Func<DirectoryPathInfo, FileSystemEntity, bool>? entityFilter = null)
     {
         opCancel.ThrowIfCancellationRequested();
 
@@ -887,6 +944,21 @@ public class DirectoryWalker
             }
         }
 
+        if (entityFilter != null)
+        {
+            // フィルタ
+            List<FileSystemEntity> newEntityList = new List<FileSystemEntity>(entityList.Length);
+            foreach (var e in entityList)
+            {
+                if (e.IsCurrentOrParentDirectory || entityFilter(currentDirInfo, e))
+                {
+                    newEntityList.Add(e);
+                }
+            }
+
+            entityList = newEntityList.ToArray();
+        }
+
         if (isRootDir)
         {
             var rootDirEntry = entityList.Where(x => x.IsCurrentDirectory).Single();
@@ -931,13 +1003,15 @@ public class DirectoryWalker
         Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>>? callbackForDirectoryAgain = null,
         Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>>? exceptionHandler = null,
         bool recursive = true,
-        CancellationToken cancel = default)
+        CancellationToken cancel = default,
+        Func<DirectoryPathInfo, FileSystemEntity, bool>? entityFilter = null
+        )
     {
         cancel.ThrowIfCancellationRequested();
 
         rootDirectory = await FileSystem.NormalizePathAsync(rootDirectory, cancel: cancel);
 
-        return await WalkDirectoryInternalAsync(rootDirectory, "", callback, callbackForDirectoryAgain, exceptionHandler, recursive, cancel);
+        return await WalkDirectoryInternalAsync(rootDirectory, "", callback, callbackForDirectoryAgain, exceptionHandler, recursive, cancel, entityFilter: entityFilter);
     }
 
 #pragma warning disable CS1998
@@ -1532,8 +1606,8 @@ public class AutoArchiver : AsyncServiceWithMainLoop
                 {
                     if (Parser.NormalizeDirectorySeparator(entity.FullPath, true).StartsWith(Parser.NormalizeDirectorySeparator(Options.ArchiveDestDir, true), StringComparison.OrdinalIgnoreCase))
                     {
-                            // 出力先ディレクトリに含まれているファイルはバックアップいたしません (無限肥大が発生してしまうことを避けるため)
-                            return false;
+                        // 出力先ディレクトリに含まれているファイルはバックアップいたしません (無限肥大が発生してしまうことを避けるため)
+                        return false;
                     }
 
                     return true;

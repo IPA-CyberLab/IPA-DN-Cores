@@ -327,6 +327,9 @@ public static partial class Consts
         public const string HadbBackupDatabaseFileName = "Database.json";
         public const string HadbBackupDynamicConfigFileName = "DynamicConfig.json";
 
+        public const string GitLabMainte_CommitIdFileName = "_git_current_commit_id.txt";
+        public const string GitLabMainte_PublishFileName = "publish.config";
+
         public static readonly IEnumerable<string> StandardExcludeDirNames = new string[] { ".svn", "_vti_cnf", "_vti_pvt", "_private", ".git", ".vs" };
 
         public static bool IsSpecialFileNameForLogBrowser(string? fn)

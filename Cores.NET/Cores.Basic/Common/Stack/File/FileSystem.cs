@@ -2137,7 +2137,7 @@ public abstract partial class FileSystem : AsyncService
     public void CreateDirectory(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         => CreateDirectoryAsync(path, flags, cancel)._GetResult();
 
-    public async Task DeleteDirectoryAsync(string path, bool recursive = false, CancellationToken cancel = default)
+    public async Task DeleteDirectoryAsync(string path, bool recursive = false, CancellationToken cancel = default, bool forcefulUseInternalRecursiveDelete = false)
     {
         CheckWriteable(path);
 
@@ -2149,12 +2149,19 @@ public abstract partial class FileSystem : AsyncService
 
                 opCancel.ThrowIfCancellationRequested();
 
-                await DeleteDirectoryImplAsync(path, recursive, opCancel);
+                if (recursive && forcefulUseInternalRecursiveDelete)
+                {
+                    await this.DeleteDirectoryRecursiveInternalAsync(path, opCancel);
+                }
+                else
+                {
+                    await DeleteDirectoryImplAsync(path, recursive, opCancel);
+                }
             }
         }
     }
-    public void DeleteDirectory(string path, bool recursive = false, CancellationToken cancel = default)
-        => DeleteDirectoryAsync(path, recursive, cancel)._GetResult();
+    public void DeleteDirectory(string path, bool recursive = false, CancellationToken cancel = default, bool forcefulUseInternalRecursiveDelete = false)
+        => DeleteDirectoryAsync(path, recursive, cancel, forcefulUseInternalRecursiveDelete)._GetResult();
 
     async Task<FileSystemEntity[]> EnumDirectoryInternalAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken opCancel)
     {

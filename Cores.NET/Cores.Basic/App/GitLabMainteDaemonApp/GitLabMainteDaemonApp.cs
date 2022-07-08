@@ -129,12 +129,22 @@ public class GitLabMainteClient : AsyncService
 
     public GitLabMainteClientSettings Settings { get; }
     public WebApi Web { get; }
+    public string GitExe { get; }
 
     public GitLabMainteClient(GitLabMainteClientSettings settings)
     {
         try
         {
             this.Settings = settings;
+
+            if (Env.IsWindows)
+            {
+                this.GitExe = Util.GetGitForWindowsExeFileName();
+            }
+            else
+            {
+                this.GitExe = Lfs.UnixGetFullPathFromCommandName("git");
+            }
 
             this.Web = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true, }));
         }
@@ -205,6 +215,62 @@ public class GitLabMainteClient : AsyncService
             ("expires_at", "9931-12-21")
             );
     }
+
+    public async Task GitPullFromRepositoryAsync(string repositoryPath, string localDir, string branch, CancellationToken cancel = default)
+    {
+        string gitUrl = this.Settings.GitLabBaseUrl._CombineUrl(repositoryPath + ".git").ToString();
+
+        gitUrl = gitUrl._ReplaceStr("https://", $"https://oauth2:{this.Settings.PrivateToken}@");
+
+        await Lfs.CreateDirectoryAsync(localDir);
+
+        // localDir ディレクトリに .git ディレクトリは存在するか?
+        string dotgitDir = localDir._CombinePath(".git");
+
+        bool init = false;
+
+        StrDictionary<string> envVars = new StrDictionary<string>();
+
+        // empty config
+        string emptyCfgPath = Env.MyLocalTempDir._CombinePath("empty.txt");
+        if (await Lfs.IsFileExistsAsync(emptyCfgPath, cancel) == false)
+        {
+            await Lfs.WriteStringToFileAsync(emptyCfgPath, "\n\n", cancel: cancel);
+        }
+
+        envVars.Add("GIT_CONFIG_GLOBAL", emptyCfgPath);
+        envVars.Add("GIT_CONFIG_SYSTEM", emptyCfgPath);
+
+        if (await Lfs.IsDirectoryExistsAsync(dotgitDir, cancel))
+        {
+            try
+            {
+                // update を試みる
+                await EasyExec.ExecAsync(this.GitExe, $"pull origin {branch}", localDir, cancel: cancel, additionalEnvVars: envVars);
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+                init = true;
+            }
+        }
+        else
+        {
+            init = true;
+        }
+
+        if (init)
+        {
+            // 初期化する
+            await Lfs.DeleteDirectoryAsync(localDir, true, cancel: cancel, forcefulUseInternalRecursiveDelete: true);
+
+            // git clone をする
+            await EasyExec.ExecAsync(this.GitExe, $"clone {gitUrl} {localDir}", cancel: cancel, additionalEnvVars: envVars);
+
+            // update を試みる
+            await EasyExec.ExecAsync(this.GitExe, $"pull origin {branch}", localDir, cancel: cancel, additionalEnvVars: envVars);
+        }
+    }
 }
 
 
@@ -219,6 +285,9 @@ public class GitLabMainteDaemonSettings : INormalizable
     public List<string> DefaultGroupsAllUsersWillJoin = new List<string>();
 
     public int UsersPollIntervalMsecs = 0;
+
+    public string GitMirrorDataRootDir = "";
+    public string GitWebDataRootDir = "";
 
     public void Normalize()
     {
@@ -239,11 +308,41 @@ public class GitLabMainteDaemonSettings : INormalizable
         this.DefaultGroupsAllUsersWillJoin = this.DefaultGroupsAllUsersWillJoin.Distinct(StrCmpi).ToList();
 
         if (this.UsersPollIntervalMsecs <= 0) this.UsersPollIntervalMsecs = 5 * 1000;
+
+        if (GitMirrorDataRootDir._IsEmpty())
+        {
+            if (Env.IsWindows)
+            {
+                GitMirrorDataRootDir = @"c:\tmp2\git_mirror_root\";
+            }
+            else
+            {
+                GitMirrorDataRootDir = @"/data1/git_mirror_root/";
+            }
+        }
+
+        if (GitWebDataRootDir._IsEmpty())
+        {
+            if (Env.IsWindows)
+            {
+                GitWebDataRootDir = @"c:\tmp2\git_web_root\";
+            }
+            else
+            {
+                GitWebDataRootDir = @"/data1/git_web_root/";
+            }
+        }
     }
 }
 
 public class GitLabMainteDaemonApp : AsyncService
 {
+    public class PublishConfigData
+    {
+        public string Username = "";
+        public string Password = "";
+    }
+
     readonly HiveData<GitLabMainteDaemonSettings> SettingsHive;
 
     // 'Config\GitLabMainteDaemon' のデータ
@@ -251,7 +350,7 @@ public class GitLabMainteDaemonApp : AsyncService
 
     readonly CriticalSection LockList = new CriticalSection<GitLabMainteDaemonApp>();
 
-    readonly GitLabMainteClient GitLabClient;
+    public GitLabMainteClient GitLabClient { get; }
 
     Task MainLoop1Task;
 
@@ -417,6 +516,90 @@ public class GitLabMainteDaemonApp : AsyncService
                     ex._Error();
                 }
             }
+        }
+    }
+
+    public async Task SyncGitLocalRepositoryDirToWebRootDirAsync(string gitLocalRootDir, string webLocalRootDir, CancellationToken cancel = default)
+    {
+        string gitCommitId = await Lfs.GetCurrentGitCommitIdAsync(gitLocalRootDir, cancel);
+
+        var param = new CopyDirectoryParams(
+              CopyDirectoryFlags.AsyncCopy | CopyDirectoryFlags.Overwrite | CopyDirectoryFlags.Recursive | CopyDirectoryFlags.DeleteNotExistDirs | CopyDirectoryFlags.DeleteNotExistFiles | CopyDirectoryFlags.SilenceSuccessfulReport,
+              FileFlags.WriteOnlyIfChanged,
+              new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
+              new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
+              determineToCopyCallback: (d, e) =>
+              {
+                  if (e.IsFile && e.Name._IsSamei(Consts.FileNames.GitLabMainte_PublishFileName)) return false;
+                  if (e.IsDirectory && e.Name._IsSamei(".git")) return false;
+                  return true;
+              },
+              determineToDeleteCallback: (e) =>
+              {
+                  if (e.IsFile && e.Name._IsSamei(Consts.FileNames.GitLabMainte_CommitIdFileName)) return false;
+                  if (e.IsFile && e.Name._IsSamei(Consts.FileNames.LogBrowserSecureJson)) return false;
+                  return true;
+              }
+              );
+
+        string publishPath = gitLocalRootDir._CombinePath(Consts.FileNames.GitLabMainte_PublishFileName);
+
+        await Lfs.CopyDirAsync(gitLocalRootDir, webLocalRootDir, param: param, cancel: cancel);
+
+        await Lfs.WriteStringToFileAsync(webLocalRootDir._CombinePath(Consts.FileNames.GitLabMainte_CommitIdFileName),
+            gitCommitId + "\n",
+            FileFlags.WriteOnlyIfChanged,
+            cancel: cancel);
+
+        PublishConfigData? config = null;
+
+        try
+        {
+            config = await Lfs.ReadJsonFromFileAsync<PublishConfigData>(publishPath, cancel: cancel, nullIfError: true);
+        }
+        catch
+        {
+            if (await Lfs.IsFileExistsAsync(publishPath))
+            {
+                config = new PublishConfigData();
+            }
+            else
+            {
+                config = null;
+            }
+        }
+
+        string secureJsonPath = webLocalRootDir._CombinePath(Consts.FileNames.LogBrowserSecureJson);
+
+        if (config == null)
+        {
+            try
+            {
+                await Lfs.DeleteFileAsync(secureJsonPath, cancel: cancel);
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+        }
+        else
+        {
+            bool requireAuth = config.Username._IsFilled() && config.Password._IsFilled();
+
+            LogBrowserSecureJson sj = new LogBrowserSecureJson();
+
+            sj.AuthRequired = requireAuth;
+
+            if (requireAuth)
+            {
+                sj.AuthDatabase = new KeyValueList<string, string>();
+                sj.AuthDatabase.Add(config.Username, config.Password);
+                sj.AuthSubDirName = "auth";
+            }
+            sj.DisableAccessLog = false;
+            sj.AllowZipDownload = true;
+
+            await Lfs.WriteJsonToFileAsync(secureJsonPath, sj, FileFlags.WriteOnlyIfChanged, cancel: cancel);
         }
     }
 }

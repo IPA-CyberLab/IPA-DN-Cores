@@ -65,6 +65,8 @@ public enum CopyDirectoryFlags : long
     SetAclProtectionFlagOnRootDir = 128,
     IgnoreReadError = 256,
     SilenceSuccessfulReport = 512,
+    DeleteNotExistFiles = 1024,
+    DeleteNotExistDirs = 2048,
 
     Default = CopyDirectoryCompressionFlag | CopyFileCompressionFlag | CopyFileSparseFlag | AsyncCopy | Overwrite | Recursive | SetAclProtectionFlagOnRootDir,
 }
@@ -84,6 +86,8 @@ public class CopyDirectoryStatus
     public long NumDirectoriesTotal { get; set; }
     public long NumDirectoriesOk { get; set; }
     public long NumDirectoriesError => NumDirectoriesTotal - NumDirectoriesOk;
+    public long NumFilesDeleted { get; set; }
+    public long NumDirectoriesDeleted { get; set; }
     public List<string> IgnoreReadErrorFileNameList { get; } = new List<string>();
 
     public bool IsAllOk => (NumFilesTotal == NumFilesOk && NumDirectoriesTotal == NumDirectoriesOk);
@@ -131,6 +135,8 @@ public class CopyDirectoryParams
 
     public delegate Task<bool> ProgressCallback(CopyDirectoryStatus status, FileSystemEntity entity);
     public delegate Task<bool> ExceptionCallback(CopyDirectoryStatus status, FileSystemEntity entity, Exception exception);
+    public delegate bool DetermineToCopyCallback(DirectoryPathInfo dir, FileSystemEntity entity);
+    public delegate bool DetermineToDeleteCallback(FileSystemEntity entity);
 
     async Task<bool> DefaultProgressCallback(CopyDirectoryStatus status, FileSystemEntity entity)
     {
@@ -154,13 +160,17 @@ public class CopyDirectoryParams
 
     public ExceptionCallback ExceptionCallbackProc { get; }
     public ProgressCallback ProgressCallbackProc { get; }
+    public DetermineToCopyCallback? DetermineToCopyCallbackProc { get; }
+    public DetermineToDeleteCallback? DetermineToDeleteCallbackProc { get; }
 
     public CopyDirectoryParams(CopyDirectoryFlags copyDirFlags = CopyDirectoryFlags.Default, FileFlags copyFileFlags = FileFlags.None,
         FileMetadataCopier? dirMetadataCopier = null, FileMetadataCopier? fileMetadataCopier = null,
         int bufferSize = 0, int ignoreReadErrorSectorSize = 0,
         ProgressReporterFactoryBase? entireReporterFactory = null, ProgressReporterFactoryBase? fileReporterFactory = null,
         ProgressCallback? progressCallback = null,
-        ExceptionCallback? exceptionCallback = null)
+        ExceptionCallback? exceptionCallback = null,
+        DetermineToCopyCallback? determineToCopyCallback = null,
+        DetermineToDeleteCallback? determineToDeleteCallback = null)
     {
         if (dirMetadataCopier == null) dirMetadataCopier = CopyDirectoryParams.DefaultDirectoryMetadataCopier;
         if (fileMetadataCopier == null) fileMetadataCopier = CopyFileParams.DefaultFileMetadataCopier;
@@ -188,6 +198,8 @@ public class CopyDirectoryParams
 
         this.ExceptionCallbackProc = exceptionCallback;
         this.ProgressCallbackProc = progressCallback;
+        this.DetermineToCopyCallbackProc = determineToCopyCallback;
+        this.DetermineToDeleteCallbackProc = determineToDeleteCallback;
 
         this.IgnoreReadErrorSectorSize = ignoreReadErrorSectorSize;
     }
@@ -404,8 +416,8 @@ public static partial class FileUtil
 
                             if (entity.IsDirectory == false)
                             {
-                                    // Copy a file
-                                    lock (status.LockObj)
+                                // Copy a file
+                                lock (status.LockObj)
                                     status.NumFilesTotal++;
 
                                 FileMetadataGetFlags metadataGetFlags = FileMetadataCopier.CalcOptimizedMetadataGetFlags(param.FileMetadataCopier.Mode | FileMetadataCopyMode.Attributes);
@@ -446,8 +458,8 @@ public static partial class FileUtil
                             }
                             else
                             {
-                                    // Make a directory
-                                    lock (status.LockObj)
+                                // Make a directory
+                                lock (status.LockObj)
                                 {
                                     status.NumDirectoriesTotal++;
                                 }
@@ -517,8 +529,8 @@ public static partial class FileUtil
 
                         if (entity.IsDirectory)
                         {
-                                // Update the directory LastWriteTime metadata after placing all inside files into the directory
-                                if (param.DirectoryMetadataCopier.Mode.BitAny(FileMetadataCopyMode.TimeAll))
+                            // Update the directory LastWriteTime metadata after placing all inside files into the directory
+                            if (param.DirectoryMetadataCopier.Mode.BitAny(FileMetadataCopyMode.TimeAll))
                             {
                                 FileMetadataGetFlags metadataGetFlags = FileMetadataCopier.CalcOptimizedMetadataGetFlags(param.DirectoryMetadataCopier.Mode & (FileMetadataCopyMode.TimeAll));
                                 FileMetadata srcDirMetadata = await srcFileSystem.GetDirectoryMetadataAsync(srcFullPath, metadataGetFlags, cancel);
@@ -527,6 +539,70 @@ public static partial class FileUtil
                             }
                         }
                     }
+
+                    string destDirFullPath = destFileSystem.PathParser.Combine(destPath, srcFileSystem.PathParser.ConvertDirectorySeparatorToOtherSystem(dirInfo.RelativePath, destFileSystem.PathParser));
+
+                    FileSystemEntity[] filesAndDirsInDestDir = null!;
+
+                    if (param.CopyDirFlags.Bit(CopyDirectoryFlags.DeleteNotExistFiles) || param.CopyDirFlags.Bit(CopyDirectoryFlags.DeleteNotExistDirs))
+                    {
+                        filesAndDirsInDestDir = await destFileSystem.EnumDirectoryAsync(destDirFullPath, false, cancel: cancel);
+                    }
+
+                    if (param.CopyDirFlags.Bit(CopyDirectoryFlags.DeleteNotExistFiles))
+                    {
+                        // src に存在せず dest に存在するファイルをすべて削除する
+                        var srcFilesSet = new HashSet<string>(entries.Where(e => e.IsFile).Select(e => e.Name), destFileSystem.PathParser.PathStringComparer);
+
+                        var notExistFiles = filesAndDirsInDestDir.Where(x => x.IsFile && srcFilesSet.Contains(x.Name) == false);
+
+                        foreach (var f in notExistFiles)
+                        {
+                            if (param.DetermineToDeleteCallbackProc == null || param.DetermineToDeleteCallbackProc(f))
+                            {
+                                try
+                                {
+                                    await destFileSystem.DeleteFileAsync(f.FullPath, cancel: cancel);
+                                }
+                                catch (Exception ex)
+                                {
+                                    c.ThrowIfCancellationRequested();
+                                    if (await param.ExceptionCallbackProc(status, f, ex) == false)
+                                    {
+                                        throw;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (param.CopyDirFlags.Bit(CopyDirectoryFlags.DeleteNotExistDirs))
+                    {
+                        // src に存在せず dest に存在するディレクトリをすべて削除する
+                        var srcDirsSet = new HashSet<string>(entries.Where(e=>e.IsDirectory && e.IsCurrentOrParentDirectory == false).Select(e=>e.Name), destFileSystem.PathParser.PathStringComparer);
+
+                        var notExistDirs = filesAndDirsInDestDir.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false && srcDirsSet.Contains(x.Name) == false);
+
+                        foreach (var d in notExistDirs)
+                        {
+                            if (param.DetermineToDeleteCallbackProc == null || param.DetermineToDeleteCallbackProc(d))
+                            {
+                                try
+                                {
+                                    await destFileSystem.DeleteDirectoryAsync(d.FullPath, true, cancel, true);
+                                }
+                                catch (Exception ex)
+                                {
+                                    c.ThrowIfCancellationRequested();
+                                    if (await param.ExceptionCallbackProc(status, d, ex) == false)
+                                    {
+                                        throw;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     return true;
                 },
                 async (dirInfo, exception, c) =>
@@ -539,7 +615,8 @@ public static partial class FileUtil
                     return true;
                 },
                 param.CopyDirFlags.Bit(CopyDirectoryFlags.Recursive),
-                cancel
+                cancel,
+                param.DetermineToCopyCallbackProc != null ? (d, f) => param.DetermineToCopyCallbackProc(d, f) : null
                 );
         }
 

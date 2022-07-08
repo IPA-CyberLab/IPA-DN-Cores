@@ -2267,6 +2267,15 @@ public sealed class HugeMemoryBuffer<T> : IEmptyChecker, IBuffer<T>, IRandomAcce
         }
     }
 
+    public T[] ToArray()
+    {
+        T[] tmp = new T[this.Length];
+
+        this.ReadRandom(0, tmp);
+
+        return tmp;
+    }
+
     public IReadOnlyList<SparseChunk<T>> ReadRandomFast(long start, long size, out long readSize, bool allowPartial = false)
     {
         checked
