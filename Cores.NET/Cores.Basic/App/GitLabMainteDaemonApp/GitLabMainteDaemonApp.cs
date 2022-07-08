@@ -91,6 +91,7 @@ public class GitLabMainteClient : AsyncService
         public string? default_branch;
         public string? visibility;
         public bool empty_repo;
+        public DateTimeOffset last_activity_at;
     }
 
     public class User
@@ -353,6 +354,7 @@ public class GitLabMainteDaemonApp : AsyncService
     public GitLabMainteClient GitLabClient { get; }
 
     Task MainLoop1Task;
+    Task MainLoop2Task;
 
     public GitLabMainteDaemonApp()
     {
@@ -366,6 +368,8 @@ public class GitLabMainteDaemonApp : AsyncService
             // TODO: ここでサーバーを立ち上げるなどの初期化処理を行なう
 
             this.MainLoop1Task = TaskUtil.StartAsyncTaskAsync(Loop1_MainteUsersAsync(this.GrandCancel));
+
+            this.MainLoop2Task = TaskUtil.StartAsyncTaskAsync(Loop2_MainteUsersAsync(this.GrandCancel));
         }
         catch
         {
@@ -381,6 +385,7 @@ public class GitLabMainteDaemonApp : AsyncService
         {
             // TODO: ここでサーバーを終了するなどのクリーンアップ処理を行なう
             await this.MainLoop1Task._TryWaitAsync();
+            await this.MainLoop2Task._TryWaitAsync();
 
             await this.GitLabClient._DisposeSafeAsync(ex);
 
@@ -392,6 +397,42 @@ public class GitLabMainteDaemonApp : AsyncService
         }
     }
 
+    // Git リポジトリの自動ダウンロード
+    async Task Loop2_MainteUsersAsync(CancellationToken cancel = default)
+    {
+        while (cancel.IsCancellationRequested == false)
+        {
+            try
+            {
+                // Git リポジトリを列挙
+                var projects = await this.GitLabClient.EnumProjectsAsync(cancel);
+
+                foreach (var proj in projects.Where(p => p.empty_repo == false && p.path_with_namespace._IsFilled() && p.default_branch._IsFilled() && p.visibility._IsDiffi("private")).OrderByDescending(x=>x.last_activity_at).ThenBy(x => x.path_with_namespace, StrCmpi))
+                {
+                    cancel.ThrowIfCancellationRequested();
+
+                    string dirname = proj.path_with_namespace!._ReplaceStr("/", "_")._MakeSafeFileName().ToLowerInvariant();
+
+                    dirname._Print();
+
+                    string gitRoot = this.Settings.GitMirrorDataRootDir._CombinePath(dirname);
+                    string webRoot = this.Settings.GitWebDataRootDir._CombinePath(dirname);
+
+                    await this.GitLabClient.GitPullFromRepositoryAsync(proj.path_with_namespace!, gitRoot, proj.default_branch!, cancel);
+
+                    await this.SyncGitLocalRepositoryDirToWebRootDirAsync(gitRoot, webRoot, cancel);
+                }
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+
+            await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(this.Settings.UsersPollIntervalMsecs));
+        }
+    }
+
+    // GitLab のユーザーメンテナンス
     async Task Loop1_MainteUsersAsync(CancellationToken cancel = default)
     {
         List<GitLabMainteClient.User> lastPendingUsers = new List<GitLabMainteClient.User>();
