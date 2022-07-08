@@ -300,6 +300,8 @@ public class GitLabMainteDaemonSettings : INormalizable
 
     public string Title = "";
 
+    public long MaxAccessLogFileSizeInSpecificDir = 0;
+
     public void Normalize()
     {
         this.GitLabClientSettings ??= new GitLabMainteClientSettings();
@@ -355,11 +357,22 @@ public class GitLabMainteDaemonSettings : INormalizable
         }
 
         this.ExtsAsMimeTypeUtf8 ??= new List<string>();
-        this.ExtsAsMimeTypeUtf8.Add(".txt");
-        this.ExtsAsMimeTypeUtf8.Add(".cfg");
-        this.ExtsAsMimeTypeUtf8.Add(".config");
-        this.ExtsAsMimeTypeUtf8.Add(".dat");
-        this.ExtsAsMimeTypeUtf8.Add(".xml");
+
+        if (this.ExtsAsMimeTypeUtf8.Any() == false)
+        {
+            this.ExtsAsMimeTypeUtf8.Add(".txt");
+            this.ExtsAsMimeTypeUtf8.Add(".cfg");
+            this.ExtsAsMimeTypeUtf8.Add(".config");
+            this.ExtsAsMimeTypeUtf8.Add(".dat");
+            this.ExtsAsMimeTypeUtf8.Add(".xml");
+        }
+
+        this.ExtsAsMimeTypeUtf8 = this.ExtsAsMimeTypeUtf8.Distinct().OrderBy(x => x).ToList();
+
+        if (MaxAccessLogFileSizeInSpecificDir <= 0)
+        {
+            MaxAccessLogFileSizeInSpecificDir = 1000 * 1000 * 1000;
+        }
     }
 }
 
@@ -385,7 +398,7 @@ public class GitLabMainteDaemonApp : AsyncService
 
     public CgiHttpServer Cgi { get; }
 
-    public LogBrowser LogBrowser {get;}
+    public LogBrowser LogBrowser { get; }
 
     public GitLabMainteDaemonApp()
     {
@@ -405,7 +418,7 @@ public class GitLabMainteDaemonApp : AsyncService
             // Log Browser を立ち上げる
             var logBrowserOptions = new LogBrowserOptions(
                 this.Settings.GitWebDataRootDir, this.Settings.Title, flags: LogBrowserFlags.SecureJson | LogBrowserFlags.SecureJson_FlatDir | LogBrowserFlags.NoRootDirectory,
-                extsAsMimeTypeUtf8: this.Settings.ExtsAsMimeTypeUtf8);
+                extsAsMimeTypeUtf8: this.Settings.ExtsAsMimeTypeUtf8, logFileMaxSizePerDir: this.Settings.MaxAccessLogFileSizeInSpecificDir);
 
             this.LogBrowser = new LogBrowser(logBrowserOptions, "/d");
 

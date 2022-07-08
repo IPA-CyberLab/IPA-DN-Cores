@@ -3688,6 +3688,8 @@ cccadmin
 
     static void Test_220708()
     {
+        //Lfs.DeleteOldFilesAsync(@"C:\Users\yagi\Desktop\dst", ".txt", 100)._GetResult();
+        //return;
         //{
         //    Lfs.CopyDir(@"C:\Users\yagi\Desktop\src",
         //        @"C:\Users\yagi\Desktop\dst",

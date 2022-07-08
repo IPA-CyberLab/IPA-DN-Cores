@@ -167,6 +167,7 @@ public class LogBrowserOptions
     public StatMan? Stat { get; }
     public bool RegardAllLogFilesUtf8 { get; }
     public IEnumerable<string> ExtsAsMimeTypeUtf8 { get; }
+    public long LogFileMaxSizePerDir { get; }
 
     public LogBrowserOptions(DirectoryPath rootDir,
         string systemTitle = Consts.Strings.LogBrowserDefaultSystemTitle,
@@ -176,7 +177,8 @@ public class LogBrowserOptions
         string? zipEncryptPassword = null,
         StatMan? stat = null,
         bool regardAllLogFilesUtfs = false,
-        IEnumerable<string>? extsAsMimeTypeUtf8 = null
+        IEnumerable<string>? extsAsMimeTypeUtf8 = null,
+        long logFileMaxSizePerDir = 0
         )
     {
         this.SystemTitle = systemTitle._FilledOrDefault(Consts.Strings.LogBrowserDefaultSystemTitle);
@@ -202,6 +204,8 @@ public class LogBrowserOptions
         {
             this.ExtsAsMimeTypeUtf8 = extsAsMimeTypeUtf8;
         }
+
+        this.LogFileMaxSizePerDir = logFileMaxSizePerDir;
     }
 
     public void SetSystemTitle(string title)
@@ -379,8 +383,21 @@ public class LogBrowser : AsyncService
                 // アクセスログを JSON 文字列に変更
                 string json = alogData._ObjectToJson(compact: true) + "\r\n";
 
+                // すでにファイルが存在するか?
+                bool isFileExists = await RootFs.IsFileExistsAsync(filepath, cancel);
+
                 // 書き込み
                 await RootFs.AppendStringToFileAsync(filepath, json, FileFlags.AutoCreateDirectory, writeBom: true, cancel: cancel);
+
+                if (isFileExists == false)
+                {
+                    // 新しいファイルを作成したところである。
+                    // このディレクトリの古いログを自動消去する。
+                    if (this.Options.LogFileMaxSizePerDir > 0)
+                    {
+                        await RootFs.DeleteOldFilesAsync(alogDir, ".log", this.Options.LogFileMaxSizePerDir, cancel);
+                    }
+                }
             }
         }
     }

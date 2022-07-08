@@ -61,6 +61,63 @@ public abstract partial class FileSystem
 {
     readonly NamedAsyncLocks ConcurrentAppendLock = new NamedAsyncLocks(StrComparer.IgnoreCaseComparer);
 
+    // 古いログファイルを削除する
+    public async Task DeleteOldFilesAsync(string dirName, string extensionList, long maxTotalSize, CancellationToken cancel = default(CancellationToken))
+    {
+        try
+        {
+            // 列挙
+            var list = (await this.EnumDirectoryAsync(dirName, true, cancel: cancel)).Where(x => x.IsFile && x.Name._IsExtensionMatch(extensionList)).ToList();
+
+            // 更新日時でソート
+            list.Sort((x, y) => (x.LastWriteTime.CompareTo(y.LastWriteTime)));
+
+            // 合計サイズを取得
+            long totlSize = 0;
+            foreach (var v in list) if (v.IsDirectory == false) totlSize += v.Size;
+
+            List<FileSystemEntity> delete_files = new List<FileSystemEntity>();
+
+            // 削除をしていきます
+            long deleteSize = totlSize - maxTotalSize;
+            foreach (var v in list)
+            {
+                if (deleteSize <= 0) break;
+                if (v.IsFile)
+                {
+                    try
+                    {
+                        await this.DeleteFileAsync(v.FullPath);
+
+                        //Dbg.WriteLine($"OldFileEraser: File '{v.FullPath}' deleted.");
+
+                        // 削除に成功したら delete_size を減じる
+                        deleteSize -= v.Size;
+
+                        // 親ディレクトリが削除できる場合は削除する
+                        // (検索した対象ディレクトリは削除しない)
+                        string parentDir = this.PathParser.GetDirectoryName(v.FullPath);
+
+                        string parentDirRelative = this.PathParser.GetRelativeDirectoryName(parentDir, dirName);
+
+                        if (parentDirRelative._IsSamei("./") == false || parentDirRelative._IsSamei(@".\") == false)
+                        {
+                            await this.DeleteDirectoryAsync(parentDir);
+
+                            //Dbg.WriteLine($"OldFileEraser: Directory '{v.FullPath._GetDirectoryName()}' deleted.");
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+        }
+        catch
+        {
+        }
+    }
+
     // Git コミット ID を取得する
     public async Task<string> GetCurrentGitCommitIdAsync(string targetDir, CancellationToken cancel = default)
     {
