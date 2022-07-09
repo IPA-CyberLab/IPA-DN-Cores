@@ -251,7 +251,10 @@ public class SyslogClient : AsyncServiceWithMainLoop
                             await sock.SendDatagramAsync(new Datagram(dg.Data, new IPEndPoint(ip, this.Options.SyslogServerPort)), cancel, this.Options.SendTimeoutMsecs, true);
                         }
                     }
-                    catch { }
+                    catch
+                    {
+                        await cancel._WaitUntilCanceledAsync(256); // 念のため
+                    }
                 }
 
                 if (cancel.IsCancellationRequested) return;

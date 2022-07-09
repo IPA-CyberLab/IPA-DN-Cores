@@ -54,7 +54,7 @@ namespace IPA.TestDev;
 
 class GitLabMainteDaemon : Daemon
 {
-    GitLabMainteDaemonApp? host = null;
+    GitLabMainteDaemonApp? app = null;
 
     public GitLabMainteDaemon() : base(new DaemonOptions("GitLabMainteDaemon", "GitLabMainteDaemon Service", true))
     {
@@ -64,7 +64,7 @@ class GitLabMainteDaemon : Daemon
     {
         Con.WriteLine("GitLabMainteDaemon: Starting...");
 
-        host = new GitLabMainteDaemonApp();
+        app = new GitLabMainteDaemonApp();
 
         await Task.CompletedTask;
 
@@ -74,8 +74,8 @@ class GitLabMainteDaemon : Daemon
         }
         catch
         {
-            await host._DisposeSafeAsync();
-            host = null;
+            await app._DisposeSafeAsync();
+            app = null;
             throw;
         }
     }
@@ -84,11 +84,11 @@ class GitLabMainteDaemon : Daemon
     {
         Con.WriteLine("GitLabMainteDaemon: Stopping...");
 
-        if (host != null)
+        if (app != null)
         {
-            await host.DisposeWithCleanupAsync();
+            await app.DisposeWithCleanupAsync();
 
-            host = null;
+            app = null;
         }
 
         Con.WriteLine("GitLabMainteDaemon: Stopped.");

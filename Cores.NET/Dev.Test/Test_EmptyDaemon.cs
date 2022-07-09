@@ -54,7 +54,7 @@ namespace IPA.TestDev;
 
 class EmptyDaemon : Daemon
 {
-    EmptyDaemonApp? host = null;
+    EmptyDaemonApp? app = null;
 
     public EmptyDaemon() : base(new DaemonOptions("EmptyDaemon", "EmptyDaemon Service", true))
     {
@@ -64,7 +64,7 @@ class EmptyDaemon : Daemon
     {
         Con.WriteLine("EmptyDaemon: Starting...");
 
-        host = new EmptyDaemonApp();
+        app = new EmptyDaemonApp();
 
         await Task.CompletedTask;
 
@@ -74,8 +74,8 @@ class EmptyDaemon : Daemon
         }
         catch
         {
-            await host._DisposeSafeAsync();
-            host = null;
+            await app._DisposeSafeAsync();
+            app = null;
             throw;
         }
     }
@@ -84,11 +84,11 @@ class EmptyDaemon : Daemon
     {
         Con.WriteLine("EmptyDaemon: Stopping...");
 
-        if (host != null)
+        if (app != null)
         {
-            await host.DisposeWithCleanupAsync();
+            await app.DisposeWithCleanupAsync();
 
-            host = null;
+            app = null;
         }
 
         Con.WriteLine("EmptyDaemon: Stopped.");
