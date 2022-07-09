@@ -53,6 +53,8 @@ public static partial class CoresConfig
     {
         public static readonly Copenhagen<int> LocalHostPossibleGlobalIpAddressListCacheLifetime = 5 * 60 * 1000;
         public static readonly Copenhagen<int> LocalHostHostInfoCacheLifetime = 60 * 1000; // UNIX のみ
+        public static readonly Copenhagen<int> HostHostInfoCacheLifetime = 25 * 1000;
+        public static readonly Copenhagen<int> EasyHostNameToIpCacheLifetime = 30 * 1000;
     }
 
     public static partial class TcpIpStackDefaultSettings
@@ -401,14 +403,25 @@ public abstract partial class TcpIpSystem : NetworkSystemBase, ITcpConnectableSy
 
     AsyncCache<HashSet<IPAddress>> LocalHostPossibleGlobalIpAddressListCache;
 
+    readonly CachedProperty<TcpIpSystemHostInfo> HostInfoCache;
+
+    readonly AsyncCache<string, IPAddress> EasyHostNameToIpCache;
+
     public TcpIpSystem(TcpIpSystemParam param) : base(param)
     {
         LocalHostPossibleGlobalIpAddressListCache =
-            new AsyncCache<HashSet<IPAddress>>(CoresConfig.TcpIpSystemSettings.LocalHostPossibleGlobalIpAddressListCacheLifetime, CacheFlags.IgnoreUpdateError,
+            new AsyncCache<HashSet<IPAddress>>(CoresConfig.TcpIpSystemSettings.LocalHostPossibleGlobalIpAddressListCacheLifetime, CacheFlags.IgnoreUpdateError | CacheFlags.NoGc,
             GetLocalHostPossibleGlobalIpAddressListMainAsync);
 
         DnsResolverSingleton = new Singleton<DnsResolver>(() => CreateDnsResolverImpl());
+
+        this.HostInfoCache = new CachedProperty<TcpIpSystemHostInfo>(getter: () => this.GetHostInfo(true), expiresLifeTimeMsecs: CoresConfig.TcpIpSystemSettings.HostHostInfoCacheLifetime);
+
+        this.EasyHostNameToIpCache = new AsyncCache<string, IPAddress>(CoresConfig.TcpIpSystemSettings.EasyHostNameToIpCacheLifetime, CacheFlags.IgnoreUpdateError | CacheFlags.NoGc,
+            async (hostname, cancel) => await this.GetIpAsync(hostname, cancel: cancel, orderBy: ip => (long)ip.AddressFamily));
     }
+
+    public async Task< IPAddress> EasyHostnameToIpAsync(string hostname, CancellationToken cancel = default) => (await this.EasyHostNameToIpCache.GetAsync(hostname, cancel))!;
 
     protected override async Task CleanupImplAsync(Exception? ex)
     {
@@ -421,6 +434,8 @@ public abstract partial class TcpIpSystem : NetworkSystemBase, ITcpConnectableSy
             await base.CleanupImplAsync(ex);
         }
     }
+
+    public TcpIpSystemHostInfo GetHostInfoCached() => this.HostInfoCache;
 
     public TcpIpSystemHostInfo GetHostInfo(bool doNotStartBackground) => GetHostInfoImpl(doNotStartBackground);
 
@@ -556,18 +571,18 @@ public abstract partial class TcpIpSystem : NetworkSystemBase, ITcpConnectableSy
                 {
                     this.AddToOpenedSockList(sock, LogTag.SocketAccepted);
 
-                        // ソケットが Accept されたらここに飛ぶ。
-                        // この非同期 Callback はユーザーがソケットを閉じてもはや不要となるまで await しなければならない。
+                    // ソケットが Accept されたらここに飛ぶ。
+                    // この非同期 Callback はユーザーがソケットを閉じてもはや不要となるまで await しなければならない。
 
-                        if (param.AcceptCallback != null)
+                    if (param.AcceptCallback != null)
                     {
-                            // ユーザー指定の Callback が設定されている
-                            await param.AcceptCallback(listener, sock);
+                        // ユーザー指定の Callback が設定されている
+                        await param.AcceptCallback(listener, sock);
                     }
                     else
                     {
-                            // GenericAcceptQueueUtil ユーティリティでキューに登録する
-                            await acceptQueueUtil!.InjectAndWaitAsync(sock);
+                        // GenericAcceptQueueUtil ユーティリティでキューに登録する
+                        await acceptQueueUtil!.InjectAndWaitAsync(sock);
                     }
                 }, param.RateLimiterConfigName);
 

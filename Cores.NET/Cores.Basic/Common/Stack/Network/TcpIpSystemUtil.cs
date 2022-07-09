@@ -185,12 +185,19 @@ public class GetIpAddressFamilyMismatchException : ApplicationException
 
 public abstract partial class TcpIpSystem
 {
-    public async Task<IPAddress> GetIpAsync(string hostname, AddressFamily? addressFamily = null, int timeout = -1, CancellationToken cancel = default)
+    public async Task<IPAddress> GetIpAsync(string hostname, AddressFamily? addressFamily = null, int timeout = -1, CancellationToken cancel = default, Func<IPAddress, long>? orderBy = null)
     {
         DnsResponse res = await this.QueryDnsAsync(new DnsGetIpQueryParam(hostname, timeout: timeout));
 
-        IPAddress? ret = res.IPAddressList.Where(x => x.AddressFamily == AddressFamily.InterNetwork || x.AddressFamily == AddressFamily.InterNetworkV6)
-            .Where(x => addressFamily == null || x.AddressFamily == addressFamily).FirstOrDefault();
+        var tmp = res.IPAddressList.Where(x => x.AddressFamily == AddressFamily.InterNetwork || x.AddressFamily == AddressFamily.InterNetworkV6)
+            .Where(x => addressFamily == null || x.AddressFamily == addressFamily);
+
+        if (orderBy != null)
+        {
+            tmp = tmp.OrderBy(ip => orderBy(ip));
+        }
+
+        IPAddress? ret = tmp.FirstOrDefault();
 
         if (ret == null)
         {
@@ -200,8 +207,8 @@ public abstract partial class TcpIpSystem
         return ret;
     }
 
-    public IPAddress GetIp(string hostname, AddressFamily? addressFamily = null, int timeout = -1, CancellationToken cancel = default)
-        => GetIpAsync(hostname, addressFamily, timeout, cancel)._GetResult();
+    public IPAddress GetIp(string hostname, AddressFamily? addressFamily = null, int timeout = -1, CancellationToken cancel = default, Func<IPAddress, long>? orderBy = null)
+        => GetIpAsync(hostname, addressFamily, timeout, cancel, orderBy)._GetResult();
 
     public async Task<ConnSock> ConnectIPv4v6DualAsync(TcpConnectParam param, CancellationToken cancel = default)
     {

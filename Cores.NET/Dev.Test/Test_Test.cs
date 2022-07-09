@@ -3688,6 +3688,29 @@ cccadmin
 
     static void Test_220708()
     {
+        Async(async () =>
+        {
+            await using SyslogClient c = new SyslogClient(new SyslogClientOptions(null, "alive.sec.softether.co.jp"), "");
+
+            while (true)
+            {
+                string hostname = Con.ReadLine("HOST>")!;
+                if (hostname == "q") break;
+                //try
+                //{
+                //    IPAddress ip = await LocalNet.EasyHostnameToIpAsync(hostname);
+                //    ip.ToString()._Print();
+                //}
+                //catch (Exception ex)
+                //{
+                //    ex._Error();
+                //}
+                //Con.WriteLine();
+
+                c.SendLog(new LogRecord("Hello World !!"));
+            }
+        });
+        return;
         //Lfs.DeleteOldFilesAsync(@"C:\Users\yagi\Desktop\dst", ".txt", 100)._GetResult();
         //return;
         //{

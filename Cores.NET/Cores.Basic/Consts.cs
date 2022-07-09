@@ -201,6 +201,7 @@ public static partial class Consts
         public const int DataVaultServerDefaultServicePort = 7009;
         public const int StressMonServerPort = 7010;
         public const int SslTestSuitePort = 7011;
+        public const int SyslogServerPort = 514;
     }
 
     public static partial class DaemonArgKeys

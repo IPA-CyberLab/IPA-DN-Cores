@@ -358,6 +358,18 @@ namespace IPA.Cores.Basic
         [DataMember]
         public string LogServerMinimalPriority = "";
 
+        [DataMember]
+        public bool SyslogEnable = false;
+
+        [DataMember]
+        public string SyslogServerHost = "";
+
+        [DataMember]
+        public int SyslogServerPort = 0;
+
+        [DataMember]
+        public string SyslogServerFilter = "";
+
         public void Normalize()
         {
             this.DaemonCenterRpcUrl = this.DaemonCenterRpcUrl._NonNullTrim();
@@ -390,6 +402,18 @@ namespace IPA.Cores.Basic
             if (this.LogServerPort == 0)
             {
                 this.LogServerPort = Consts.Ports.LogServerDefaultServicePort;
+            }
+
+            if (this.SyslogServerPort == 0)
+            {
+                this.SyslogServerPort = Consts.Ports.SyslogServerPort;
+            }
+
+            this.SyslogServerHost = this.SyslogServerHost._NonNullTrim();
+
+            if (this.SyslogServerFilter._IsEmpty())
+            {
+                this.SyslogServerFilter = BufferedLogRoute.DefaultFilterForSyslog;
             }
         }
     }
@@ -441,6 +465,9 @@ namespace IPA.Cores.Basic
 
         // LogClient を有効化すべきかどうかのフラグ
         bool IsLogServerEnabled() => (this.Settings.LogServerEnable && this.Settings.DaemonPauseFlag != PauseFlag.Pause && this.Settings.LogServerHost._IsFilled());
+
+        // SyslogClient を有効化すべきかどうかのフラグ
+        bool IsSyslogEnabled() => (this.Settings.SyslogEnable && this.Settings.DaemonPauseFlag != PauseFlag.Pause && this.Settings.SyslogServerHost._IsFilled());
 
         IService? CurrentRunningService = null;
 
@@ -506,6 +533,7 @@ namespace IPA.Cores.Basic
             {
                 // LogClient を起動する
                 using (IDisposable logClient = StartLogClientInstallerIfEnabled())
+                using (IDisposable syslogClient = StartSyslogClientInstallerIfEnabled())
                 {
 #if (CORES_BASIC_WEBAPP || CORES_BASIC_HTTPSERVER)
                     using (DaemonUtil util = new DaemonUtil(this.Daemon.Name))
@@ -589,6 +617,7 @@ namespace IPA.Cores.Basic
 
             // LogClient を起動する
             using (IDisposable logClient = StartLogClientInstallerIfEnabled())
+            using (IDisposable syslogClient = StartSyslogClientInstallerIfEnabled())
             {
                 // DaemonUtil クラスを起動する
 #if (CORES_BASIC_WEBAPP || CORES_BASIC_HTTPSERVER)
@@ -663,6 +692,20 @@ namespace IPA.Cores.Basic
 
             return cli;
         }
+
+        // SyslogClient を起動する (有効な場合)
+        IDisposable StartSyslogClientInstallerIfEnabled()
+        {
+            if (IsSyslogEnabled() == false) return new EmptyDisposable();
+
+            SyslogClientInstaller installer = new SyslogClientInstaller(new SyslogClientOptions(null, Settings.SyslogServerHost, Settings.SyslogServerPort),
+                this.Daemon.Name,
+                Settings.SyslogServerFilter,
+                LogPriority.Debug.ParseAsDefault(Settings.LogServerMinimalPriority));
+
+            return installer;
+        }
+
 
         // LogClient を起動する (有効な場合)
         IDisposable StartLogClientInstallerIfEnabled()

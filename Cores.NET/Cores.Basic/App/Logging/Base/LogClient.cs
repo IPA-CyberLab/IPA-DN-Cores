@@ -36,6 +36,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net;
 using System.Linq;
@@ -57,6 +58,295 @@ public static partial class CoresConfig
 
         public static readonly Copenhagen<int> DefaultRetryIntervalMin = 1 * 1000;
         public static readonly Copenhagen<int> DefaultRetryIntervalMax = 15 * 1000;
+    }
+}
+
+
+// SyslogClient を用いてログを送付するための LogRoute
+public class SyslogClientLogRoute : LogRouteBase
+{
+    readonly SyslogClient Client;
+    readonly string AppName;
+
+    public SyslogClientLogRoute(SyslogClient client, string appName, string kind, LogPriority minimalPriority) : base(kind, minimalPriority)
+    {
+        this.AppName = appName._NullCheck();
+        this.Client = client;
+    }
+
+    public override Task FlushAsync(bool halfFlush = false, CancellationToken cancel = default)
+    {
+        return this.Client.FlushAsync(3000, cancel);
+    }
+
+    public override void ReceiveLog(LogRecord record, string kind)
+    {
+        Client.SendLog(record);
+    }
+}
+
+// SyslogClient の稼働を開始させた上で、ローカルのログのルーティングを SyslogClient に対して適切に設定するためのユーティリティクラス
+public class SyslogClientInstaller : IDisposable
+{
+    public SyslogClient Client { get; }
+    public SyslogClientLogRoute LogRoute { get; }
+
+    public SyslogClientInstaller(SyslogClientOptions options, string appName, string kind, LogPriority minimalPriority)
+    {
+        try
+        {
+            this.Client = new SyslogClient(options, appName);
+
+            this.LogRoute = new SyslogClientLogRoute(this.Client, appName, kind, minimalPriority);
+
+            LocalLogRouter.Router?.InstallLogRoute(this.LogRoute);
+        }
+        catch
+        {
+            this._DisposeSafe();
+
+            throw;
+        }
+    }
+
+    public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+    Once DisposeFlag;
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+
+        try
+        {
+            // アンインストールの実施
+            LocalLogRouter.Router?.UninstallLogRoute(this.LogRoute);
+        }
+        catch (Exception ex)
+        {
+            string str = ex.ToString();
+            lock (Con.ConsoleWriteLock)
+            {
+                Console.WriteLine(ex);
+            }
+        }
+
+        // クライアントの破棄
+        this.Client._DisposeSafe();
+    }
+}
+
+
+public class SyslogClientOptions
+{
+    public string SyslogServerHostname { get; }
+    public int SyslogServerPort { get; }
+    public TcpIpSystem TcpIp { get; }
+    public bool PreferIPv6 { get; }
+
+    public readonly Copenhagen<int> MaxQueueLength = 1024;
+    public readonly Copenhagen<int> SendTimeoutMsecs = 10 * 1000;
+
+    public SyslogClientOptions(TcpIpSystem? tcpIp, string syslogServerHostname, int syslogServerPort = Consts.Ports.SyslogServerPort, bool preferIPv6=false)
+    {
+        if (syslogServerPort <= 0) syslogServerPort = Consts.Ports.SyslogServerPort;
+        this.TcpIp = tcpIp ?? LocalNet;
+        this.SyslogServerHostname = syslogServerHostname._NonNullTrim();
+        this.SyslogServerPort = syslogServerPort;
+        this.PreferIPv6 = preferIPv6;
+    }
+}
+
+public class SyslogClient : AsyncServiceWithMainLoop
+{
+    public SyslogClientOptions Options { get; }
+    public TcpIpSystem TcpIp => Options.TcpIp;
+
+    readonly NetUdpListener UdpListener_IPv4;
+    readonly DatagramSock UdpSock_IPv4;
+
+    readonly NetUdpListener UdpListener_IPv6;
+    readonly DatagramSock UdpSock_IPv6;
+
+    readonly Task MainProcTask;
+
+    readonly AsyncAutoResetEvent EmptyEvent = new AsyncAutoResetEvent(true); // すべてのデータが送付されて空になるたびに発生する非同期イベント
+
+    readonly AsyncAutoResetEvent NewDataArrivedEvent = new AsyncAutoResetEvent(); // 新しいデータが届く度に叩かれるイベント
+
+    readonly AsyncAutoResetEvent FlushNowEvent = new AsyncAutoResetEvent(); // 今すぐ Flush するべき指示のイベント
+
+    readonly ConcurrentQueue<Datagram> SendQueue = new ConcurrentQueue<Datagram>();
+
+    public string AppName { get; }
+
+    public SyslogClient(SyslogClientOptions options, string appName)
+    {
+        try
+        {
+            this.AppName = appName._FilledOrDefault(Path.GetFileNameWithoutExtension(Env.AppExecutableExeOrDllFileName));
+
+            this.Options = options;
+
+            this.UdpListener_IPv4 = TcpIp.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Client, new IPEndPoint(IPAddress.Any, 0)));
+            this.UdpSock_IPv4 = this.UdpListener_IPv4.GetSocket(true);
+
+            this.UdpListener_IPv6 = TcpIp.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Client, new IPEndPoint(IPAddress.IPv6Any, 0)));
+            this.UdpSock_IPv6 = this.UdpListener_IPv6.GetSocket(true);
+
+            this.MainProcTask = this.StartMainLoop(MainLoopAsync);
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
+    }
+
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
+        {
+            await this.UdpSock_IPv4._DisposeSafeAsync(ex);
+            await this.UdpListener_IPv4._DisposeSafeAsync(ex);
+
+            await this.UdpSock_IPv6._DisposeSafeAsync(ex);
+            await this.UdpListener_IPv6._DisposeSafeAsync(ex);
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
+        }
+    }
+
+    async Task MainLoopAsync(CancellationToken cancel)
+    {
+        try
+        {
+            while (true)
+            {
+                if (cancel.IsCancellationRequested) return;
+
+                while (true)
+                {
+                    if (this.SendQueue.TryDequeue(out Datagram? dg) == false)
+                    {
+                        break;
+                    }
+
+                    try
+                    {
+                        IPAddress ip = await this.TcpIp.GetIpAsync(this.Options.SyslogServerHostname, cancel: cancel, orderBy: ip => (long)ip.AddressFamily * (this.Options.PreferIPv6 ? -1 : 1));
+
+                        DatagramSock? sock = null;
+
+                        if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                        {
+                            sock = this.UdpSock_IPv4;
+                        }
+                        else if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+                        {
+                            sock = this.UdpSock_IPv6;
+                        }
+                        if (sock != null)
+                        {
+                            await sock.SendDatagramAsync(new Datagram(dg.Data, new IPEndPoint(ip, this.Options.SyslogServerPort)), cancel, this.Options.SendTimeoutMsecs, true);
+                        }
+                    }
+                    catch { }
+                }
+
+                if (cancel.IsCancellationRequested) return;
+
+                EmptyEvent.Set(true);
+
+                await TaskUtil.WaitObjectsAsync(cancels: cancel._SingleList(), events: this.NewDataArrivedEvent._SingleList());
+            }
+        }
+        finally
+        {
+            EmptyEvent.Set(true);
+        }
+    }
+
+    public void SendLog(LogRecord record)
+    {
+        int severity = LogPriorityToSyslogSeverity(record.Priority);
+
+        string dtStr = GetSyslogDateTimeStr(record.TimeStamp.LocalDateTime);
+
+        string[] lines = record.ConsolePrintableString._GetLines(true, trim: true);
+
+        foreach (var line in lines)
+        {
+            string tmp = $"<{severity}>{dtStr} {Env.MachineName} {this.AppName}: {line}".Trim();
+
+            SendRaw(tmp._GetBytes_UTF8());
+        }
+    }
+
+    public void SendRaw(ReadOnlyMemory<byte> data)
+    {
+        if (this.SendQueue.Count >= this.Options.MaxQueueLength) return;
+
+        this.SendQueue.Enqueue(new Datagram(data._CloneMemory(), new IPEndPoint(IPAddress.Any, 123)));
+
+        this.NewDataArrivedEvent.Set(true);
+    }
+
+    public async Task FlushAsync(int timeout = -1, CancellationToken cancel = default)
+    {
+        if (timeout <= 0) timeout = int.MaxValue;
+        long giveupTick = TickNow + timeout;
+
+        while (true)
+        {
+            if (this.SendQueue.Count == 0) return;
+            if (cancel.IsCancellationRequested) return;
+            if (TickNow >= giveupTick) return;
+
+            this.NewDataArrivedEvent.Set(true);
+
+            await TaskUtil.WaitObjectsAsync(cancels: cancel._SingleList(), events: EmptyEvent._SingleList(), timeout: 256);
+        }
+    }
+
+    public static int LogPriorityToSyslogSeverity(LogPriority p)
+    {
+        switch (p)
+        {
+            case LogPriority.Trace:
+            case LogPriority.Debug:
+                return 7;
+
+            case LogPriority.Info:
+                return 6;
+
+            case LogPriority.Error:
+                return 3;
+        }
+
+        return 6;
+    }
+
+    public static string GetSyslogDateTimeStr(DateTime dt)
+    {
+        string month = "Jan";
+        switch (dt.Month)
+        {
+            case 1: month = "Jan"; break;
+            case 2: month = "Feb"; break;
+            case 3: month = "Mar"; break;
+            case 4: month = "Apr"; break;
+            case 5: month = "May"; break;
+            case 6: month = "Jun"; break;
+            case 7: month = "Jul"; break;
+            case 8: month = "Aug"; break;
+            case 9: month = "Sep"; break;
+            case 10: month = "Oct"; break;
+            case 11: month = "Nov"; break;
+            case 12: month = "Dec"; break;
+        }
+
+        return $"{month} {dt.Day:D2} {dt.Hour:D2}:{dt.Minute:D2}:{dt.Second:D2}";
     }
 }
 

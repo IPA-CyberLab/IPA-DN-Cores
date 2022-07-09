@@ -243,7 +243,7 @@ public class GitLabMainteClient : AsyncService
         // empty config
         string emptyCfgPath = Env.MyLocalTempDir._CombinePath("empty.txt");
 
-        using (await Lock1.LockWithAwait())
+        using (await Lock1.LockWithAwait(cancel))
         {
             if (await Lfs.IsFileExistsAsync(emptyCfgPath, cancel) == false)
             {

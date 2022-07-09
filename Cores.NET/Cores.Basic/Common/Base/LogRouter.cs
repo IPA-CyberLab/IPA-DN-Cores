@@ -56,6 +56,7 @@ public static partial class CoresConfig
 public class BufferedLogRoute : LogRouteBase
 {
     public static readonly string DefaultFilter = Str.CombineStringArray(",", LogKind.Default, LogKind.Access, LogKind.Data, LogKind.Socket, LogKind.Stat);
+    public static readonly string DefaultFilterForSyslog = Str.CombineStringArray(",", LogKind.Default);
 
     readonly LogInfoOptions LogInfoOptions;
     readonly int BufferSize;

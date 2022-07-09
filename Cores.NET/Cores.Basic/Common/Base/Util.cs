@@ -4549,6 +4549,7 @@ namespace IPA.Cores.Basic
     {
         None = 0,
         IgnoreUpdateError = 1,
+        NoGc = 2,
     }
 
 
@@ -4617,6 +4618,8 @@ namespace IPA.Cores.Basic
 
         void Gc(long now)
         {
+            if (this.Flags.Bit(CacheFlags.NoGc)) return;
+
             if (now > this.NextGcTime && this.LifeTime != long.MaxValue)
             {
                 // GC
@@ -4769,6 +4772,8 @@ namespace IPA.Cores.Basic
 
         void Gc(long now)
         {
+            if (this.Flags.Bit(CacheFlags.NoGc)) return;
+
             if (now > this.NextGcTime && this.LifeTime != long.MaxValue)
             {
                 // GC

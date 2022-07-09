@@ -101,7 +101,7 @@ public class Datagram
     }
 
     // For UDP
-    public Datagram(Memory<byte> data, EndPoint remoteEndPoint, EndPoint? localEndPoint, DatagramFlag flag = 0)
+    public Datagram(Memory<byte> data, EndPoint remoteEndPoint, EndPoint? localEndPoint = null, DatagramFlag flag = 0)
     {
         this.InternalBuffer = data;
         this.InternalStart = 0;
