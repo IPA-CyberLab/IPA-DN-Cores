@@ -650,7 +650,7 @@ public class GitLabMainteDaemonApp : AsyncService
 
                 string url = this.Settings.GitLabClientSettings.GitLabBaseUrl._CombineUrl("/admin/users?filter=blocked_pending_approval").ToString();
 
-                string subject = $"{url._ParseUrl().Host} にユーザー {newPendingUsers.Select(x => x.commit_email._NonNullTrim())._Combine(" ,")} の参加申請がありました";
+                string subject = $"{url._ParseUrl().Host} にユーザー {newPendingUsers.Select(x => ("[" + x.commit_email._NonNullTrim() + " " + x.name + " " + x.username + "]"))._Combine(" ,")} の参加申請がありました";
 
                 w.WriteLine(subject + "。");
                 w.WriteLine();
@@ -670,7 +670,7 @@ public class GitLabMainteDaemonApp : AsyncService
                 {
                     lastPendingUsers.Add(user._CloneDeep());
 
-                    w.WriteLine("- " + user.name + " " + user.commit_email);
+                    w.WriteLine("- " + user.name + " " + user.username + " " + user.commit_email);
 
                     num++;
                 }
@@ -681,7 +681,7 @@ public class GitLabMainteDaemonApp : AsyncService
 
                 foreach (var user in pendingUsers)
                 {
-                    w.WriteLine("- " + user.name + " " + user.commit_email);
+                    w.WriteLine("- " + user.name + " " + user.username + " " + user.commit_email);
                 }
 
                 w.WriteLine();
