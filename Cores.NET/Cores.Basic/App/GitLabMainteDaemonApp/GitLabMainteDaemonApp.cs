@@ -96,6 +96,8 @@ public class GitLabMainteClient : AsyncService
         public string? visibility;
         public bool empty_repo;
         public DateTimeOffset last_activity_at;
+
+        public string GenerateDirName() => path_with_namespace._NonNullTrim()._ReplaceStr("/", "_")._MakeSafeFileName().ToLowerInvariant();
     }
 
     public class User
@@ -221,6 +223,8 @@ public class GitLabMainteClient : AsyncService
             );
     }
 
+    readonly AsyncLock Lock1 = new AsyncLock();
+
     public async Task GitPullFromRepositoryAsync(string repositoryPath, string localDir, string branch, CancellationToken cancel = default)
     {
         string gitUrl = this.Settings.GitLabBaseUrl._CombineUrl(repositoryPath + ".git").ToString();
@@ -238,9 +242,13 @@ public class GitLabMainteClient : AsyncService
 
         // empty config
         string emptyCfgPath = Env.MyLocalTempDir._CombinePath("empty.txt");
-        if (await Lfs.IsFileExistsAsync(emptyCfgPath, cancel) == false)
+
+        using (await Lock1.LockWithAwait())
         {
-            await Lfs.WriteStringToFileAsync(emptyCfgPath, "\n\n", cancel: cancel);
+            if (await Lfs.IsFileExistsAsync(emptyCfgPath, cancel) == false)
+            {
+                await Lfs.WriteStringToFileAsync(emptyCfgPath, "\n\n", cancel: cancel);
+            }
         }
 
         envVars.Add("GIT_CONFIG_GLOBAL", emptyCfgPath);
@@ -289,7 +297,8 @@ public class GitLabMainteDaemonSettings : INormalizable
 
     public List<string> DefaultGroupsAllUsersWillJoin = new List<string>();
 
-    public int UsersPollIntervalMsecs = 0;
+    public int ForceRepositoryUpdateIntervalMsecs = 0;
+    public int UsersListMainteIntervalMsecs = 0;
 
     public string GitMirrorDataRootDir = "";
     public string GitWebDataRootDir = "";
@@ -320,7 +329,9 @@ public class GitLabMainteDaemonSettings : INormalizable
         }
         this.DefaultGroupsAllUsersWillJoin = this.DefaultGroupsAllUsersWillJoin.Distinct(StrCmpi).ToList();
 
-        if (this.UsersPollIntervalMsecs <= 0) this.UsersPollIntervalMsecs = 5 * 1000;
+        if (this.ForceRepositoryUpdateIntervalMsecs <= 0) this.ForceRepositoryUpdateIntervalMsecs = 3 * 60 * 1000;
+
+        if (this.UsersListMainteIntervalMsecs <= 0) this.UsersListMainteIntervalMsecs = 15 * 1000;
 
         if (GitMirrorDataRootDir._IsEmpty())
         {
@@ -399,6 +410,8 @@ public class GitLabMainteDaemonApp : AsyncService
     public CgiHttpServer Cgi { get; }
 
     public LogBrowser LogBrowser { get; }
+
+    public long HookFiredTick { get; set; } = 1;
 
     public GitLabMainteDaemonApp()
     {
@@ -499,6 +512,13 @@ public class GitLabMainteDaemonApp : AsyncService
                         return new HttpStringResult(data._ObjectToJson(), Consts.MimeTypes.Json);
                     }
                 });
+
+                noAuth.AddAction("/hook", WebMethodBits.GET | WebMethodBits.HEAD | WebMethodBits.POST, async (ctx) =>
+                {
+                    await Task.CompletedTask;
+                    this.App.HookFiredTick = TickNow;
+                    return new HttpStringResult("OK");
+                });
             }
             catch
             {
@@ -521,6 +541,8 @@ public class GitLabMainteDaemonApp : AsyncService
     // Git リポジトリの自動ダウンロード
     async Task Loop2_MainteUsersAsync(CancellationToken cancel = default)
     {
+        long lastHookTick = -1;
+
         while (cancel.IsCancellationRequested == false)
         {
             try
@@ -528,18 +550,59 @@ public class GitLabMainteDaemonApp : AsyncService
                 // Git リポジトリを列挙
                 var projects = await this.GitLabClient.EnumProjectsAsync(cancel);
 
-                foreach (var proj in projects.Where(p => p.empty_repo == false && p.path_with_namespace._IsFilled() && p.default_branch._IsFilled() && p.visibility._IsDiffi("private")).OrderByDescending(x => x.last_activity_at).ThenBy(x => x.path_with_namespace, StrCmpi))
+                ConcurrentHashSet<string> dirNames = new ConcurrentHashSet<string>(StrCmpi);
+
+                // メモ: last_activity_at の値を信用してはならない。これは GitLab がキャッシュしているので、なかなか更新されない。
+
+                var targetProjects = projects.Where(p => p.empty_repo == false && p.path_with_namespace._IsFilled() && p.default_branch._IsFilled() && p.visibility._IsDiffi("private")).OrderByDescending(x => x.last_activity_at).ThenBy(x => x.path_with_namespace, StrCmpi);
+
+                await TaskUtil.ForEachAsync(8, targetProjects, async (proj, index, cancel) =>
                 {
                     cancel.ThrowIfCancellationRequested();
 
-                    string dirname = proj.path_with_namespace!._ReplaceStr("/", "_")._MakeSafeFileName().ToLowerInvariant();
+                    try
+                    {
+                        string dirname = proj.GenerateDirName();
 
-                    string gitRoot = this.Settings.GitMirrorDataRootDir._CombinePath(dirname);
-                    string webRoot = this.Settings.GitWebDataRootDir._CombinePath(dirname);
+                        dirNames.Add(dirname);
 
-                    await this.GitLabClient.GitPullFromRepositoryAsync(proj.path_with_namespace!, gitRoot, proj.default_branch!, cancel);
+                        string gitRoot = this.Settings.GitMirrorDataRootDir._CombinePath(dirname);
+                        string webRoot = this.Settings.GitWebDataRootDir._CombinePath(dirname);
 
-                    await this.SyncGitLocalRepositoryDirToWebRootDirAsync(gitRoot, webRoot, cancel);
+                        await this.GitLabClient.GitPullFromRepositoryAsync(proj.path_with_namespace!, gitRoot, proj.default_branch!, cancel);
+
+                        await this.SyncGitLocalRepositoryDirToWebRootDirAsync(gitRoot, webRoot, cancel);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Error();
+                    }
+                }, cancel);
+
+                // GitLab 上に存在せず local に存在する gitRoot を列挙して削除する
+                var existingLocalGitDirs = await Lfs.EnumDirectoryAsync(this.Settings.GitMirrorDataRootDir, cancel: cancel);
+                foreach (var d in existingLocalGitDirs.Where(x => x.IsDirectory && dirNames.Contains(x.Name) == false))
+                {
+                    cancel.ThrowIfCancellationRequested();
+
+                    try
+                    {
+                        await Lfs.DeleteDirectoryAsync(d.FullPath, true, cancel, true);
+                    }
+                    catch { }
+                }
+
+                // GitLab 上に存在せず local に存在する webRoot を列挙して削除する
+                var existingLocalWebDirs = await Lfs.EnumDirectoryAsync(this.Settings.GitWebDataRootDir, cancel: cancel);
+                foreach (var d in existingLocalWebDirs.Where(x => x.IsDirectory && dirNames.Contains(x.Name) == false))
+                {
+                    cancel.ThrowIfCancellationRequested();
+
+                    try
+                    {
+                        await Lfs.DeleteFileAsync(d.FullPath._CombinePath(Consts.FileNames.LogBrowserSecureJson), cancel: cancel);
+                    }
+                    catch { }
                 }
             }
             catch (Exception ex)
@@ -547,13 +610,28 @@ public class GitLabMainteDaemonApp : AsyncService
                 ex._Error();
             }
 
-            await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(this.Settings.UsersPollIntervalMsecs));
+            await TaskUtil.AwaitWithPollAsync(this.Settings.ForceRepositoryUpdateIntervalMsecs, 500, () =>
+            {
+                long currentHookTick = this.HookFiredTick;
+
+                if (lastHookTick != currentHookTick)
+                {
+                    lastHookTick = currentHookTick;
+                    return true;
+                }
+
+                return false;
+            },
+            cancel,
+            true);
         }
     }
 
     // GitLab のユーザーメンテナンス
     async Task Loop1_MainteUsersAsync(CancellationToken cancel = default)
     {
+        long lastHookTick = -1;
+
         List<GitLabMainteClient.User> lastPendingUsers = new List<GitLabMainteClient.User>();
 
         while (cancel.IsCancellationRequested == false)
@@ -633,7 +711,20 @@ public class GitLabMainteDaemonApp : AsyncService
                 ex._Error();
             }
 
-            await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(this.Settings.UsersPollIntervalMsecs));
+            await TaskUtil.AwaitWithPollAsync(this.Settings.UsersListMainteIntervalMsecs, 500, () =>
+            {
+                long currentHookTick = this.HookFiredTick;
+
+                if (lastHookTick != currentHookTick)
+                {
+                    lastHookTick = currentHookTick;
+                    return true;
+                }
+
+                return false;
+            },
+            cancel,
+            true);
         }
     }
 
@@ -712,21 +803,13 @@ public class GitLabMainteDaemonApp : AsyncService
             FileFlags.WriteOnlyIfChanged,
             cancel: cancel);
 
-        PublishConfigData? config = null;
+        PublishConfigData ? config = await Lfs.ReadJsonFromFileAsync<PublishConfigData>(publishPath, cancel: cancel, nullIfError: true);
 
-        try
-        {
-            config = await Lfs.ReadJsonFromFileAsync<PublishConfigData>(publishPath, cancel: cancel, nullIfError: true);
-        }
-        catch
+        if (config == null)
         {
             if (await Lfs.IsFileExistsAsync(publishPath))
             {
                 config = new PublishConfigData();
-            }
-            else
-            {
-                config = null;
             }
         }
 
