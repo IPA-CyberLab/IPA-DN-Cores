@@ -1218,7 +1218,7 @@ public class CertVault : AsyncServiceWithMainLoop
             if (this.Settings.UseAcme && disableAcme == false)
             {
                 // ACME による証明書作成
-                if (hostname._IsEmpty() == false && matchType == CertificateHostnameType.DefaultCert && hostname.Split('.').Length >= 2 && Str.CheckFqdn(hostname))
+                if (hostname._IsEmpty() == false && matchType == CertificateHostnameType.DefaultCert && hostname.Split('.').Length >= 2 && Str.CheckFqdn(hostname) && CheckFqdnAllowedForAcme(hostname))
                 {
                     // Add the request hostname to the ACME queue
                     if (AcmeQueue.Count < CoresConfig.CertVaultSettings.MaxAcmeQueueLen)
