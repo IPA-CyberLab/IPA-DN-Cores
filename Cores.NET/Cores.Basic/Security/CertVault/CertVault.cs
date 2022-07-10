@@ -775,7 +775,8 @@ public class CertVault : AsyncServiceWithMainLoop
 
         lock (AcmeQueueLockObj)
         {
-            queue = AcmeQueue;
+            // キューに投入された FQDN で、かつ、Acme で処理されるべき一覧を取得する
+            queue = AcmeQueue.Where(fqdn => CheckFqdnAllowedForAcme(fqdn)).ToList();
             AcmeQueue = new List<string>();
         }
 

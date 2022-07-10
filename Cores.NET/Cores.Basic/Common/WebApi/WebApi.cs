@@ -549,6 +549,11 @@ public partial class WebApi : IDisposable, IAsyncDisposable
     {
         string qs = "";
 
+        if (url._InStri("encrypt"))
+        {
+            DoNothing();
+        }
+
         if (method == WebMethods.GET || method == WebMethods.DELETE || method == WebMethods.HEAD)
         {
             qs = BuildQueryString(queryList);
