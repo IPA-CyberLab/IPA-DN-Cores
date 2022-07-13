@@ -999,7 +999,7 @@ public static class BasicHelper
         return uri;
     }
     public static Uri _ParseUrl(this string urlString, Encoding? encoding = null) => _ParseUrl(urlString, out _, encoding);
-    public static bool _TryParseUrl(this string urlString, out Uri? uri, out QueryStringList queryString, Encoding? encoding = null) => Str.TryParseUrl(urlString, out uri, out queryString, encoding);
+    public static bool _TryParseUrl(this string urlString, out Uri uri, out QueryStringList queryString, Encoding? encoding = null) => Str.TryParseUrl(urlString, out uri, out queryString, encoding);
     public static QueryStringList _ParseQueryString(this string src, Encoding? encoding = null) => Str.ParseQueryString(src, encoding);
 
     public static Uri _CombineUrl(this string uri, string relativeUriOrAbsolutePath) => new Uri(uri._ParseUrl(), relativeUriOrAbsolutePath);

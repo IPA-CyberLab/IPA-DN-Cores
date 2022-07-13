@@ -3690,6 +3690,15 @@ cccadmin
     {
         Async(async () =>
         {
+            var ret = await SimpleHttpDownloader.DownloadAsync("https://user220713001:pass4Qu0CC7Yl7obDvYLM1oVfi59@[2409:11:c0c0:1b00:21:1ff:fe31:1]/d/220713_001_ac526zu6mpnfpkpx/auth8880514/test.txt!ssl=dd6668c8f3db6b53c593b83e9511ecfb5a9fdefc_,dd6668c8f3db6b53c593b83e9511ecfb5a9fdefd",
+                options: new WebApiOptions(new WebApiSettings {  }));
+
+            Con.WriteLine(ret.Data._GetString_UTF8());
+        });
+
+        return;
+        Async(async () =>
+        {
             await using SyslogClient c = new SyslogClient(new SyslogClientOptions(null, "alive.sec.softether.co.jp"), "");
 
             while (true)
@@ -3733,19 +3742,19 @@ cccadmin
 
         //Async(async () =>
         //{
-            //await a.GitLabClient.GitPullFromRepositoryAsync("dnobori.pc/ahosan", @"c:\tmp2\220708\a\", "main");
+        //await a.GitLabClient.GitPullFromRepositoryAsync("dnobori.pc/ahosan", @"c:\tmp2\220708\a\", "main");
 
-            //await a.SyncGitLocalRepositoryDirToWebRootDirAsync(@"c:\tmp2\220708\a\", @"c:\tmp2\220708\b\");
+        //await a.SyncGitLocalRepositoryDirToWebRootDirAsync(@"c:\tmp2\220708\a\", @"c:\tmp2\220708\b\");
 
-            //(await x.EnumProjectsAsync())._PrintAsJson();
+        //(await x.EnumProjectsAsync())._PrintAsJson();
 
-            //(await x.EnumUsersAsync())._PrintAsJson();
+        //(await x.EnumUsersAsync())._PrintAsJson();
 
-            //await x.JoinUserToGroupAsync(11, 17);
+        //await x.JoinUserToGroupAsync(11, 17);
 
-            //await a.JoinAllUsersToSpecificGroupAsync(new string[] { "se01" });
+        //await a.JoinAllUsersToSpecificGroupAsync(new string[] { "se01" });
 
-            //await a.SendMailAsync("テストさん", "こんにちは テストです");
+        //await a.SendMailAsync("テストさん", "こんにちは テストです");
         //});
 
         Con.ReadLine("STOP>");

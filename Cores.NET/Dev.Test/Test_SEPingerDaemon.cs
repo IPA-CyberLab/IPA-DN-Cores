@@ -57,6 +57,7 @@ namespace IPA.TestDev;
 class SEPingerDaemon : Daemon
 {
     Pinger pinger = null!;
+    Thread thread = null!;
     object lockObj = new object();
 
     public SEPingerDaemon() : base(new DaemonOptions("SEPingerDaemon", "SEPingerDaemon Service", true))
@@ -78,22 +79,28 @@ class SEPingerDaemon : Daemon
 
         pinger = new Pinger();
 
+        await Task.CompletedTask;
+
+        lock (lockObj)
+        {
+            if (thread == null)
+            {
+                thread = new Thread(new ThreadStart(threadProc));
+
+                thread.Start();
+            }
+        }
+
         Con.WriteLine("SEPingerDaemon: Started.");
     }
 
     protected override async Task StopImplAsync(object? param)
     {
-        Con.WriteLine("SEPingerDaemon: Stopping...");
+        Con.WriteLine("SEPingerDaemon: Stopping... This process will terminate.");
 
         await Task.CompletedTask;
 
-        lock (lockObj)
-        {
-            thread.Join();
-            thread = null!;
-        }
-
-        Con.WriteLine("SEPingerDaemon: Stopped.");
+        Environment.Exit(0);
     }
 }
 

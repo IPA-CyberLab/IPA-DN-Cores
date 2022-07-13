@@ -547,12 +547,29 @@ public partial class WebApi : IDisposable, IAsyncDisposable
 
     virtual protected HttpRequestMessage CreateWebRequest(WebMethods method, string url, params (string name, string? value)[]? queryList)
     {
+        string[]? embeddedSslCertHashList = null;
+
+        int sslHashStrIndex = url._Search("!ssl=");
+        if (sslHashStrIndex != -1)
+        {
+            string urlBody = url.Substring(0, sslHashStrIndex);
+            string sslCertStr = url.Substring(sslHashStrIndex + 5);
+
+            url = urlBody;
+
+            int i = sslCertStr._Search("!");
+            if (i != -1)
+            {
+                sslCertStr = sslCertStr.Substring(0, i);
+            }
+
+            embeddedSslCertHashList = sslCertStr._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ',');
+        }
+
         string qs = "";
 
-        if (url._InStri("encrypt"))
-        {
-            DoNothing();
-        }
+        string embeddedUsername = "";
+        string embeddedPassword = "";
 
         if (method == WebMethods.GET || method == WebMethods.DELETE || method == WebMethods.HEAD)
         {
@@ -560,6 +577,20 @@ public partial class WebApi : IDisposable, IAsyncDisposable
             if (qs._IsEmpty() == false)
             {
                 url = url + "?" + qs;
+            }
+        }
+
+        if (url._TryParseUrl(out Uri uri, out QueryStringList qs2))
+        {
+            if (uri.UserInfo._IsFilled())
+            {
+                var tokens = uri.UserInfo._Split(StringSplitOptions.None, ':');
+
+                if (tokens.Length >= 2)
+                {
+                    embeddedUsername = tokens[0];
+                    embeddedPassword = tokens[1];
+                }
             }
         }
 
@@ -572,7 +603,20 @@ public partial class WebApi : IDisposable, IAsyncDisposable
 
         try
         {
-            if (this.SslServerCertValicationCallback != null)
+            if (embeddedSslCertHashList != null)
+            {
+                this.ClientHandler.SslOptions.RemoteCertificateValidationCallback = (message, cert, chain, errors) =>
+                {
+                    foreach (var s in embeddedSslCertHashList.Select(x => x._NormalizeHexString()))
+                    {
+                        if (cert!.GetCertHashString(HashAlgorithmName.SHA1)._IsSamei(s)) return true;
+                        if (cert!.GetCertHashString(HashAlgorithmName.SHA256)._IsSamei(s)) return true;
+                        if (cert!.GetCertHashString(HashAlgorithmName.SHA512)._IsSamei(s)) return true;
+                    }
+                    return false;
+                };
+            }
+            else if (this.SslServerCertValicationCallback != null)
             {
                 this.ClientHandler.SslOptions.RemoteCertificateValidationCallback = this.SslServerCertValicationCallback;
             }
@@ -617,13 +661,35 @@ public partial class WebApi : IDisposable, IAsyncDisposable
         }
         catch { }
 
+        string embeddedAuthHeader = "";
+        if (embeddedUsername._IsFilled() || embeddedPassword._IsFilled())
+        {
+            string tmp = $"{embeddedUsername}:{embeddedPassword}";
+            embeddedAuthHeader = "Basic " + Str.Base64Encode(tmp._GetBytes_UTF8());
+        }
+
         lock (this.RequestHeaders)
         {
             foreach (string name in this.RequestHeaders.Keys)
             {
-                string value = this.RequestHeaders[name];
-                requestMessage.Headers.Add(name, value);
+                bool ok = true;
+
+                if (name._IsSamei("Authorization") && embeddedAuthHeader._IsFilled())
+                {
+                    ok = false;
+                }
+
+                if (ok)
+                {
+                    string value = this.RequestHeaders[name];
+                    requestMessage.Headers.Add(name, value);
+                }
             }
+        }
+
+        if (embeddedAuthHeader._IsFilled())
+        {
+            requestMessage.Headers.Add("Authorization", embeddedAuthHeader);
         }
 
         if (this.Settings.DisableKeepAlive)
