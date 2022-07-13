@@ -27,6 +27,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)App\Logging\LogServerApp\LogServerApp.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\MyIpServer\MyIpServer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\SENetDDnsServer\SENetDDnsServer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)App\SEPinger\SEPinger.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\SnmpWork\SnmpWork.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\SnmpWork\SnmpWorkFetchers.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\StressMon\StressMon.cs" />
