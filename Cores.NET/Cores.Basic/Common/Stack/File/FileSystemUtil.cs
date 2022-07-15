@@ -294,7 +294,7 @@ public abstract partial class FileSystem
     public long WriteHugeMemoryBufferToFile(string path, HugeMemoryBuffer<byte> hugeMemoryBuffer, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
         => WriteHugeMemoryBufferToFileAsync(path, hugeMemoryBuffer, flags, doNotOverwrite, cancel)._GetResult();
 
-    public async Task<int> WriteDataToFileAsync(string path, ReadOnlyMemory<byte> srcMemory, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+    public async Task<int> WriteDataToFileAsync(string path, ReadOnlyMemory<byte> srcMemory, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default, bool overwriteAndTruncate = false)
     {
         if (flags.Bit(FileFlags.WriteOnlyIfChanged))
         {
@@ -312,23 +312,51 @@ public abstract partial class FileSystem
             catch { }
         }
 
-        await using (var file = await CreateAsync(path, false, flags & ~FileFlags.WriteOnlyIfChanged, doNotOverwrite, cancel))
+        if (overwriteAndTruncate && await IsFileExistsAsync(path, cancel))
         {
-            try
+            await using (var file = await OpenAsync(path, true, false, false, flags & ~FileFlags.WriteOnlyIfChanged, cancel))
             {
-                await file.WriteAsync(srcMemory, cancel);
-                return srcMemory.Length;
+                try
+                {
+                    await file.SeekToBeginAsync(cancel);
+
+                    long fileSize = await file.GetFileSizeAsync(cancel: cancel);
+
+                    await file.WriteAsync(srcMemory, cancel);
+
+                    if (fileSize > srcMemory.Length)
+                    {
+                        //await file.SetFileSizeAsync(srcMemory.Length, cancel);
+                    }
+
+                    return srcMemory.Length;
+                }
+                finally
+                {
+                    await file.CloseAsync();
+                }
             }
-            finally
+        }
+        else
+        {
+            await using (var file = await CreateAsync(path, false, flags & ~FileFlags.WriteOnlyIfChanged, doNotOverwrite, cancel))
             {
-                await file.CloseAsync();
+                try
+                {
+                    await file.WriteAsync(srcMemory, cancel);
+                    return srcMemory.Length;
+                }
+                finally
+                {
+                    await file.CloseAsync();
+                }
             }
         }
     }
-    public int WriteDataToFile(string path, ReadOnlyMemory<byte> data, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
-        => WriteDataToFileAsync(path, data, flags, doNotOverwrite, cancel)._GetResult();
+    public int WriteDataToFile(string path, ReadOnlyMemory<byte> data, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default, bool overwriteAndTruncate = false)
+        => WriteDataToFileAsync(path, data, flags, doNotOverwrite, cancel, overwriteAndTruncate)._GetResult();
 
-    public Task<int> WriteStringToFileAsync(string path, string srcString, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default)
+    public Task<int> WriteStringToFileAsync(string path, string srcString, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default, bool overwriteAndTruncate = false)
     {
         checked
         {
@@ -346,11 +374,11 @@ public abstract partial class FileSystem
             int encodedSize = encoding.GetBytes(srcString, buf.Walk(sizeReserved));
             buf.SetLength(bomSpan.Length + encodedSize);
 
-            return WriteDataToFileAsync(path, buf.Memory, flags, doNotOverwrite, cancel);
+            return WriteDataToFileAsync(path, buf.Memory, flags, doNotOverwrite, cancel, overwriteAndTruncate);
         }
     }
-    public int WriteStringToFile(string path, string srcString, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default)
-        => WriteStringToFileAsync(path, srcString, flags, doNotOverwrite, encoding, writeBom, cancel)._GetResult();
+    public int WriteStringToFile(string path, string srcString, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default, bool overwriteAndTruncate = false)
+        => WriteStringToFileAsync(path, srcString, flags, doNotOverwrite, encoding, writeBom, cancel, overwriteAndTruncate)._GetResult();
 
 
     public Task<int> WriteStringToFileEncryptedAsync(string path, string srcString, string password, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default)
@@ -897,12 +925,12 @@ public abstract partial class FileSystem
     public virtual EasyFileAccess this[string name] => GetEasyAccess(name);
 
 
-    public async Task<int> WriteDataToFileEncryptedAsync(string path, ReadOnlyMemory<byte> srcMemory, string password, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
+    public async Task<int> WriteDataToFileEncryptedAsync(string path, ReadOnlyMemory<byte> srcMemory, string password, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default, bool overwriteAndTruncate = false)
     {
-        return await this.WriteDataToFileAsync(path, ChaChaPoly.EasyEncryptWithPassword(srcMemory, password), flags, doNotOverwrite, cancel);
+        return await this.WriteDataToFileAsync(path, ChaChaPoly.EasyEncryptWithPassword(srcMemory, password), flags, doNotOverwrite, cancel, overwriteAndTruncate);
     }
-    public int WriteDataToFileEncrypted(string path, ReadOnlyMemory<byte> data, string password, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
-        => WriteDataToFileEncryptedAsync(path, data, password, flags, doNotOverwrite, cancel)._GetResult();
+    public int WriteDataToFileEncrypted(string path, ReadOnlyMemory<byte> data, string password, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default, bool overwriteAndTruncate = false)
+        => WriteDataToFileEncryptedAsync(path, data, password, flags, doNotOverwrite, cancel, overwriteAndTruncate)._GetResult();
 
     public async Task<Memory<byte>> ReadDataFromFileEncryptedAsync(string path, string password, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
     {
@@ -1432,17 +1460,17 @@ public class FilePath : FileSystemPath // CloneDeep 禁止
     public Task<bool> TryAddOrRemoveAttributeFromExistingFile(FileAttributes attributesToAdd = 0, FileAttributes attributesToRemove = 0, CancellationToken cancel = default)
         => this.FileSystem.TryAddOrRemoveAttributeFromExistingFile(this.PathString, attributesToAdd, attributesToRemove, cancel);
 
-    public Task<int> WriteDataToFileAsync(ReadOnlyMemory<byte> srcMemory, FileFlags additionalFlags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
-        => this.FileSystem.WriteDataToFileAsync(this.PathString, srcMemory, this.Flags | additionalFlags, doNotOverwrite, cancel);
+    public Task<int> WriteDataToFileAsync(ReadOnlyMemory<byte> srcMemory, FileFlags additionalFlags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default, bool overwriteAndTruncate = false)
+        => this.FileSystem.WriteDataToFileAsync(this.PathString, srcMemory, this.Flags | additionalFlags, doNotOverwrite, cancel, overwriteAndTruncate);
 
-    public int WriteDataToFile(ReadOnlyMemory<byte> data, FileFlags additionalFlags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
-        => WriteDataToFileAsync(data, additionalFlags, doNotOverwrite, cancel)._GetResult();
+    public int WriteDataToFile(ReadOnlyMemory<byte> data, FileFlags additionalFlags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default, bool overwriteAndTruncate = false)
+        => WriteDataToFileAsync(data, additionalFlags, doNotOverwrite, cancel, overwriteAndTruncate)._GetResult();
 
-    public Task<int> WriteStringToFileAsync(string srcString, FileFlags additionalFlags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default)
-        => this.FileSystem.WriteStringToFileAsync(this.PathString, srcString, this.Flags | additionalFlags, doNotOverwrite, encoding, writeBom, cancel);
+    public Task<int> WriteStringToFileAsync(string srcString, FileFlags additionalFlags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default, bool overwriteAndTruncate = false)
+        => this.FileSystem.WriteStringToFileAsync(this.PathString, srcString, this.Flags | additionalFlags, doNotOverwrite, encoding, writeBom, cancel, overwriteAndTruncate);
 
-    public int WriteStringToFile(string srcString, FileFlags additionalFlags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default)
-        => WriteStringToFileAsync(srcString, additionalFlags, doNotOverwrite, encoding, writeBom, cancel)._GetResult();
+    public int WriteStringToFile(string srcString, FileFlags additionalFlags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default, bool overwriteAndTruncate = false)
+        => WriteStringToFileAsync(srcString, additionalFlags, doNotOverwrite, encoding, writeBom, cancel, overwriteAndTruncate)._GetResult();
 
     public Task AppendDataToFileAsync(Memory<byte> srcMemory, FileFlags additionalFlags = FileFlags.None, CancellationToken cancel = default)
         => this.FileSystem.AppendDataToFileAsync(this.PathString, srcMemory, this.Flags | additionalFlags, cancel);

@@ -3696,9 +3696,13 @@ cccadmin
             //Con.WriteLine(ret.FromCache);
             //Con.WriteLine(ret.Data._GetString_UTF8());
 
-            var ret = await Lfs.ReadStringFromFileAsync(@"C:\Users\yagi\Desktop\test\main.txt", flags: FileFlags.ReadStr_ExpandIncludes);
+            //var ret = await Lfs.ReadStringFromFileAsync(@"C:\Users\yagi\Desktop\test\main.txt", flags: FileFlags.ReadStr_ExpandIncludes);
 
-            ret._Print();
+            //ret._Print();
+
+            byte[] data = "66778899"._GetBytes_UTF8();
+
+            await Lfs.WriteDataToFileAsync(@"C:\Users\yagi\Desktop\test\1.txt", data, overwriteAndTruncate: true);
         });
 
         return;

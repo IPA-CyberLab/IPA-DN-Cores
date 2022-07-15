@@ -51,6 +51,31 @@ namespace IPA.TestDev;
 
 partial class TestDevCommands
 {
+    // 指定したディレクトリにあるすべてのファイルの SHA1 チェックサムを表示する
+    [ConsoleCommand(
+        "ExpandIncludes command",
+        "ExpandIncludes <src> /DST:<dst> [/BOM:true|false]",
+        "ExpandIncludes command")]
+    static int ExpandIncludes(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+            new ConsoleParam("[src]", ConsoleService.Prompt, "Src: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("DST", ConsoleService.Prompt, "Dst: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("BOM"),
+        };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string src = vl.DefaultParam.StrValue;
+        string dst = vl["DST"].StrValue;
+        bool bom = vl["BOM"].BoolValue;
+
+        MiscUtil.ExpandIncludesFileAsync(src, dst, writeBom: true)._GetResult();
+
+        return 0;
+    }
+    
     [ConsoleCommand(
         "WriteLargeRandFile command",
         "WriteLargeRandFile <path> /SIZE:<size> [/COUNT:<count=1>]",

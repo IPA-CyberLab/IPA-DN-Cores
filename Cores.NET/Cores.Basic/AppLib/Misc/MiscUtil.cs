@@ -243,6 +243,17 @@ public static partial class MiscUtil
         }
     }
 
+    public static async Task ExpandIncludesFileAsync(string srcFilePath, string destFilePath, ExpandIncludesSettings? settings = null, CancellationToken cancel = default, string? newLineStr = null, bool writeBom = false)
+    {
+        string srcBody = await Lfs.ReadStringFromFileAsync(srcFilePath, cancel: cancel);
+
+        string dstBody = await MiscUtil.ExpandIncludesAsync(srcBody, srcFilePath, settings, cancel, newLineStr);
+
+        byte[] data = dstBody._GetBytes_UTF8(writeBom);
+
+        await Lfs.WriteDataToFileAsync(destFilePath, data, FileFlags.WriteOnlyIfChanged, false, cancel, true);
+    }
+
     // バイナリファイルの内容をバイナリで置換する
     public static async Task<KeyValueList<string, int>> ReplaceBinaryFileAsync(FilePath srcFilePath, FilePath? destFilePath, KeyValueList<string, string> oldNewList, FileFlags additionalFlags = FileFlags.None, byte fillByte = 0x0A, int bufferSize = Consts.Numbers.DefaultVeryLargeBufferSize, CancellationToken cancel = default)
     {

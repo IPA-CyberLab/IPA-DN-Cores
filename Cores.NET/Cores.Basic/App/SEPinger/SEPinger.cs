@@ -1018,7 +1018,7 @@ public class Pinger
                 // メール送信
                 string mailStr = "報告日時: " + DateTime.Now.ToString() + "\n\n" + str;
                 mailStr = Str.NormalizeCrlf(mailStr);
-                Mail(config, config.SmtpFrom, string.Format(prefix + "障害発生 OK:{0} NG:{1}", res.NumOk, res.NumError), mailStr);
+                Mail(config, config.SmtpFrom, string.Format(prefix + "OK:{0} NG:{1}", res.NumOk, res.NumError), mailStr);
 
                 //Console.WriteLine("----------");
                 //Console.WriteLine(mailStr);
