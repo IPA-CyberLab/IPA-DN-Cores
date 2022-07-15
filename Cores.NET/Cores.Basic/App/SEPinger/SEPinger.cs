@@ -393,6 +393,13 @@ public class PingerTask
 
         IPAddress GetIpAddress(string hostname, bool ipv6)
         {
+            var ip = hostname._ToIPAddress(ipv6 ? AllowedIPVersions.IPv6 : AllowedIPVersions.IPv4, true);
+
+            if (ip != null)
+            {
+                return ip;
+            }
+
             return this.DnsClient.GetIpAddressSingleAsync(hostname, ipv6 ? DnsResolverQueryType.AAAA : DnsResolverQueryType.A, noCache: true)._GetResult();
         }
 
