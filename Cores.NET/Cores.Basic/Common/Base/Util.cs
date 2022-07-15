@@ -3981,12 +3981,14 @@ namespace IPA.Cores.Basic
         public int DefaultRetryInterval { get; set; }
         public int DefaultTryCount { get; set; }
         public bool RandomInterval { get; set; }
+        public bool NoDebugMessage { get; set; }
 
-        public RetryHelper(int defaultRetryInterval, int defaultTryCount, bool randomInterval = false)
+        public RetryHelper(int defaultRetryInterval, int defaultTryCount, bool randomInterval = false, bool noDebugMessage =false)
         {
             this.DefaultRetryInterval = defaultRetryInterval;
             this.DefaultTryCount = defaultTryCount;
             this.RandomInterval = randomInterval;
+            this.NoDebugMessage = noDebugMessage;
         }
 
         public async Task<T> RunAsync(Func<CancellationToken, Task<T>> proc, int? retryInterval = null, int? tryCount = null, CancellationToken cancel = default)
@@ -4003,7 +4005,10 @@ namespace IPA.Cores.Basic
                 cancel.ThrowIfCancellationRequested();
                 try
                 {
-                    if (i >= 1) Dbg.WriteLine("Retrying...");
+                    if (NoDebugMessage == false)
+                    {
+                        if (i >= 1) Dbg.WriteLine("Retrying...");
+                    }
                     T ret = await proc(cancel);
                     return ret;
                 }
@@ -4025,13 +4030,19 @@ namespace IPA.Cores.Basic
                             interval = Util.GenRandInterval(interval);
                         }
 
-                        Dbg.WriteLine($"RetryHelper: round {i} error. {ex._GetSingleException().Message} Retrying in {interval} msecs...");
+                        if (NoDebugMessage == false)
+                        {
+                            Dbg.WriteLine($"RetryHelper: round {i} error. {ex._GetSingleException().Message} Retrying in {interval} msecs...");
+                        }
 
                         await Task.Delay(interval);
                     }
                     else
                     {
-                        Dbg.WriteLine($"RetryHelper: round {i} error. {ex._GetSingleException().Message}");
+                        if (NoDebugMessage == false)
+                        {
+                            Dbg.WriteLine($"RetryHelper: round {i} error. {ex._GetSingleException().Message}");
+                        }
                     }
                 }
             }
@@ -4045,9 +4056,9 @@ namespace IPA.Cores.Basic
 
     public static class RetryHelper
     {
-        public static async Task RunAsync(Func<Task> proc, int retryInterval = 0, int tryCount = 1, CancellationToken cancel = default, bool randomInterval = false)
+        public static async Task RunAsync(Func<Task> proc, int retryInterval = 0, int tryCount = 1, CancellationToken cancel = default, bool randomInterval = false, bool noDebugMessage = false)
         {
-            RetryHelper<int> helper = new RetryHelper<int>(retryInterval, tryCount, randomInterval);
+            RetryHelper<int> helper = new RetryHelper<int>(retryInterval, tryCount, randomInterval, noDebugMessage);
 
             await helper.RunAsync(async () =>
             {
@@ -4056,9 +4067,9 @@ namespace IPA.Cores.Basic
             }, cancel: cancel);
         }
 
-        public static async Task<T> RunAsync<T>(Func<Task<T>> proc, int retryInterval = 0, int tryCount = 1, CancellationToken cancel = default, bool randomInterval = false)
+        public static async Task<T> RunAsync<T>(Func<Task<T>> proc, int retryInterval = 0, int tryCount = 1, CancellationToken cancel = default, bool randomInterval = false, bool noDebugMessage = false)
         {
-            RetryHelper<T> helper = new RetryHelper<T>(retryInterval, tryCount, randomInterval);
+            RetryHelper<T> helper = new RetryHelper<T>(retryInterval, tryCount, randomInterval, noDebugMessage);
 
             return await helper.RunAsync(proc, cancel: cancel);
         }

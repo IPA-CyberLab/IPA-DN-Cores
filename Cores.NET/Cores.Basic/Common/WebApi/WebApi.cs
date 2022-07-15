@@ -875,7 +875,7 @@ public static class SimpleHttpDownloader
         }
         catch (Exception ex)
         {
-            $"HTTP Result: error = {ex.Message}"._Print();
+            if (printStatus) $"HTTP Result: error = {ex.Message}"._Print();
 
             throw;
         }

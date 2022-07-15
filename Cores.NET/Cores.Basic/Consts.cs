@@ -157,6 +157,8 @@ public static partial class Consts
         public const int MaxCookieSize = 4093;
 
         public const int DataVaultPathElementMaxLen = 64;
+
+        public const int MaxCachedFileDownloadSizeDefault = 32 * 1024 * 1024;
     }
 
     public static partial class Ports

@@ -1858,5 +1858,189 @@ public static class CSharpConcatUtil
     }
 }
 
+
+public class SimpleHttpDownloaderMetaData
+{
+    public string Url { get; set; } = "";
+    public string ContentType { get; set; } = "";
+    public string MediaType { get; set; } = "";
+    public int Size { get; set; }
+    public string HashSha256 { get; set; } = "";
+    public DateTimeOffset TimeStamp { get; set; } = Util.ZeroDateTimeOffsetValue;
+}
+
+[Flags]
+public enum CachedDownloaderFlags
+{
+    None = 0,
+    AlwaysUseCacheIfExists,
+}
+
+// CloneDeep 禁止
+public class CachedDownloaderSettings
+{
+    public DirectoryPath CacheRootDirPath { get; }
+    public CachedDownloaderFlags Flags { get; }
+    public int MaxDownloadSize { get; }
+    public WebApiOptions WebOptions { get; }
+    public int MaxTry { get; }
+    public int RetryInterval { get; }
+
+    public CachedDownloaderSettings(DirectoryPath? cacheRootDirPath=null, CachedDownloaderFlags flags = CachedDownloaderFlags.None, int maxDownloadSize = Consts.MaxLens.MaxCachedFileDownloadSizeDefault,
+        WebApiOptions? webOptions = null, int maxTry = 1, int retryInterval = 1000)
+    {
+        this.CacheRootDirPath = cacheRootDirPath ?? new DirectoryPath(Lfs.PathParser.Combine(Env.AppLocalDir, "CachedDownloader"), Lfs);
+        this.Flags = flags;
+        this.MaxDownloadSize = maxDownloadSize;
+        this.WebOptions = webOptions ?? new WebApiOptions();
+        this.MaxTry = Math.Max(MaxTry, 1);
+        this.RetryInterval = Math.Max(retryInterval, 0);
+    }
+}
+
+public class CachedDownloaderResult
+{
+    public Memory<byte> Data { get; set; }
+
+    public SimpleHttpDownloaderMetaData MetaData;
+
+    public bool FromCache { get; set; }
+
+    public CachedDownloaderResult(Memory<byte> data, SimpleHttpDownloaderMetaData metaData, bool fromCache)
+    {
+        this.Data = data;
+        this.MetaData = metaData;
+        this.FromCache = fromCache;
+    }
+}
+
+public static class CachedDownloader
+{
+    public static async Task<CachedDownloaderResult> DownloadAsync(string url, CancellationToken cancel = default, CachedDownloaderSettings? settings = null)
+    {
+        settings ??= new CachedDownloaderSettings();
+
+        var fs = settings.CacheRootDirPath.FileSystem;
+
+        url = url.Trim();
+
+        var flags = settings.Flags;
+
+        // URL からハッシュを生成
+        string urlHashStr = url._HashSHA256()._GetHexString().ToLowerInvariant();
+
+        // URL ハッシュからサブディレクトリ名を生成
+        string dirPath = settings.CacheRootDirPath.Combine(urlHashStr.Substring(0, 2), urlHashStr);
+        string metaDataPath = fs.PathParser.Combine(dirPath, "metadata.json");
+        string contentsPath = fs.PathParser.Combine(dirPath, "contents.dat");
+
+        if (settings.Flags.Bit(CachedDownloaderFlags.AlwaysUseCacheIfExists))
+        {
+            // AlwaysUseCacheIfExists フラグが付いている場合は、キャッシュがもし存在すれば、ダウンロードはせずにキャッシュをすぐに返す
+            var cached = await TryLoadCacheFileAndMetaDataAsync();
+            if (cached != null)
+            {
+                return cached;
+            }
+        }
+
+        // 本家からダウンロードを試みる。
+        try
+        {
+            var downloaded = await DownloadRealAsync();
+
+            // ダウンロード成功。キャッシュに保存する。
+            await SaveCacheFileAndMetaDataAsync(downloaded.MetaData, downloaded.Data);
+
+            return downloaded;
+        }
+        catch
+        {
+            // ダウンロード失敗。すでにキャッシュされているデータがないかどうか調べる。もしあれば、それを返す。
+            var cached = await TryLoadCacheFileAndMetaDataAsync();
+
+            if (cached != null)
+            {
+                return cached;
+            }
+
+            // キャッシュがなければ、例外をそのまま返す
+            throw;
+        }
+
+        // ファイルキャッシュに書き込みする関数 (なお、全く同一のファイルがすでに存在する場合は、キャッシュへの書き込みはしない)
+        async Task SaveCacheFileAndMetaDataAsync(SimpleHttpDownloaderMetaData metaData, Memory<byte> data)
+        {
+            await fs.CreateDirectoryAsync(dirPath, cancel: cancel);
+
+            await fs.WriteDataToFileAsync(contentsPath, data, cancel: cancel, flags: FileFlags.WriteOnlyIfChanged);
+
+            await fs.WriteJsonToFileAsync(metaDataPath, metaData, cancel: cancel, flags: FileFlags.WriteOnlyIfChanged);
+        }
+
+        // キャッシュされているファイルとメタデータを読み込んでみて問題なければデータを返す関数
+        async Task<CachedDownloaderResult?> TryLoadCacheFileAndMetaDataAsync()
+        {
+            try
+            {
+                checked
+                {
+                    if (await fs.IsFileExistsAsync(metaDataPath, cancel) == false) return null;
+                    if (await fs.IsFileExistsAsync(contentsPath, cancel) == false) return null;
+
+                    var metaData = await fs.ReadJsonFromFileAsync<SimpleHttpDownloaderMetaData>(metaDataPath, 1_000_000, cancel: cancel);
+                    if (metaData == null) return null;
+
+                    var fileData = await fs.ReadDataFromFileAsync(contentsPath, metaData.Size + 8, cancel: cancel);
+                    if (fileData.Length != metaData.Size) return null;
+
+                    string sha256 = Secure.HashSHA256(fileData.Span)._GetHexString();
+                    if (Str.IsSameHex(sha256, metaData.HashSha256) == false) return null;
+
+                    return new CachedDownloaderResult(fileData, new SimpleHttpDownloaderMetaData
+                    {
+                        Size = fileData.Length,
+                        ContentType = metaData.ContentType,
+                        MediaType = metaData.MediaType,
+                        Url = metaData.Url,
+                        HashSha256 = sha256,
+                        TimeStamp = metaData.TimeStamp,
+                    }, true);
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        // 実際にサーバーからダウンロードを行なう関数
+        async Task<CachedDownloaderResult> DownloadRealAsync()
+        {
+            return await RetryHelper.RunAsync(async () =>
+            {
+                var r = await SimpleHttpDownloader.DownloadAsync(url, WebMethods.GET, options: settings.WebOptions, cancel: cancel);
+
+                CachedDownloaderResult ret = new CachedDownloaderResult(r.Data, new SimpleHttpDownloaderMetaData
+                {
+                    Size = r.Data.Length,
+                    ContentType = r.ContentType,
+                    MediaType = r.MediaType,
+                    Url = url,
+                    HashSha256 = Secure.HashSHA256(r.Data)._GetHexString(),
+                    TimeStamp = DtOffsetNow,
+                }, false);
+
+                return ret;
+            },
+            tryCount: settings.MaxTry,
+            retryInterval: settings.RetryInterval,
+            cancel: cancel,
+            randomInterval: true,
+            noDebugMessage: true);
+        }
+    }
+}
+
 #endif
 
