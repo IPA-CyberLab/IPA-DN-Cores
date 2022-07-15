@@ -1421,6 +1421,7 @@ namespace IPA.Cores.Basic
             long lenA = a.Length;
             long lenB = b.Length;
             if (lenA != lenB) return false;
+            if (lenA == 0) return True;
             return MemEquals(in a[0], in b[0], lenA);
         }
 

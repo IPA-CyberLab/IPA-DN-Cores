@@ -66,1123 +66,1187 @@ namespace IPA.Cores.Basic.SEPingerService;
 
 public class Target
 {
-	public readonly string HostName;
-	public readonly int[] Ports;
+    public readonly string HostName;
+    public readonly int[] Ports;
 
-	public Target(string str)
-	{
-		StrToken t = new StrToken(str);
+    public Target(string str)
+    {
+        StrToken t = new StrToken(str);
 
-		if (t.NumTokens >= 1)
-		{
-			HostName = t[0];
+        if (t.NumTokens >= 1)
+        {
+            HostName = t[0];
 
-			int numPorts = (int)t.NumTokens - 1;
-			int i;
+            int numPorts = (int)t.NumTokens - 1;
+            int i;
 
-			List<int> ports = new List<int>();
+            List<int> ports = new List<int>();
 
-			for (i = 0; i < numPorts; i++)
-			{
-				string s = t[(uint)i + 1];
-				bool tcp_check = false;
+            for (i = 0; i < numPorts; i++)
+            {
+                string s = t[(uint)i + 1];
+                bool tcp_check = false;
 
-				if (s.StartsWith("@"))
-				{
-					tcp_check = true;
-					s = s.Substring(1);
-				}
+                if (s.StartsWith("@"))
+                {
+                    tcp_check = true;
+                    s = s.Substring(1);
+                }
 
-				int port = Str.StrToInt(s);
+                int port = Str.StrToInt(s);
 
-				if (port != 0 && tcp_check)
-				{
-					port += 100000;
-				}
+                if (port != 0 && tcp_check)
+                {
+                    port += 100000;
+                }
 
-				ports.Add(port);
-			}
+                ports.Add(port);
+            }
 
-			ports.Sort();
+            ports.Sort();
 
-			Ports = ports.ToArray();
-		}
-		else
-		{
-			throw new FormatException();
-		}
-	}
+            Ports = ports.ToArray();
+        }
+        else
+        {
+            throw new FormatException();
+        }
+    }
 }
 
 // 設定
 public class Config
 {
-	public readonly string SmtpServerName;
-	public readonly int SmtpPort;
-	public readonly string SmtpUsername, SmtpPassword;
-	public readonly int SmtpNumTry;
+    public readonly string SmtpServerName;
+    public readonly int SmtpPort;
+    public readonly string SmtpUsername, SmtpPassword;
+    public readonly int SmtpNumTry;
 
-	public readonly string SmtpServerName2;
-	public readonly int SmtpPort2;
-	public readonly string SmtpUsername2, SmtpPassword2;
-	public readonly int SmtpNumTry2;
+    public readonly string SmtpServerName2;
+    public readonly int SmtpPort2;
+    public readonly string SmtpUsername2, SmtpPassword2;
+    public readonly int SmtpNumTry2;
 
-	public readonly string SmtpFrom;
-	public readonly string SmtpFromAlive;
-	public readonly string[] SmtpToList;
-	public readonly bool SaveLog;
-	public readonly int Interval;
-	public readonly int Timeout;
-	public readonly Target[] TargetList;
-	public readonly Target[] TargetListLastOkHost;
-	public readonly Target[] TargetListLastNgHost;
-	public readonly int NumErrors;
-	public readonly bool SendAliveMessage;
-	public readonly int TcpListen;
+    public readonly string SubjectPrefix;
 
-	public List<KeyValuePair<string, string>> SuffixReplaceList = new List<KeyValuePair<string, string>>();
+    public readonly string SmtpFrom;
+    public readonly string SmtpFromAlive;
+    public readonly string[] SmtpToList;
+    public readonly bool SaveLog;
+    public readonly int Interval;
+    public readonly int Timeout;
+    public readonly Target[] TargetList;
+    public readonly Target[] TargetListLastOkHost;
+    public readonly Target[] TargetListLastNgHost;
+    public readonly int NumErrors;
+    public readonly bool SendAliveMessage;
+    public readonly int TcpListen;
 
-	public readonly bool TcpSendData;
+    public readonly string DnsServer;
 
-	public const int MinInterval = 1000;
-	public const int MinTimeout = 1000;
+    public List<KeyValuePair<string, string>> SuffixReplaceList = new List<KeyValuePair<string, string>>();
 
-	public Config(string configFileName, List<string> last_ok_hosts)
-	{
-		ReadIni ini = new ReadIni(configFileName);
+    public readonly bool TcpSendData;
 
-		TcpListen = (int)ini["TcpListen"].IntValue;
+    public const int MinInterval = 1000;
+    public const int MinTimeout = 1000;
 
-		SmtpServerName = ini["SmtpServerName"].StrValue;
-		SmtpPort = (int)ini["SmtpPort"].IntValue;
-		if (SmtpPort == 0)
-		{
-			SmtpPort = 25;
-		}
-		SmtpNumTry = (int)ini["SmtpNumTry"].IntValue;
-		if (SmtpNumTry == 0)
-		{
-			SmtpNumTry = 1;
-		}
-		SmtpUsername = ini["SmtpUsername"].StrValue;
-		SmtpPassword = ini["SmtpPassword"].StrValue;
+    public Config(string configFileName, List<string> last_ok_hosts)
+    {
+        ReadIni ini = new ReadIni(configFileName, true);
 
-		SmtpServerName2 = ini["SmtpServerName2"].StrValue;
-		SmtpPort2 = (int)ini["SmtpPort2"].IntValue;
-		if (SmtpPort2 == 0)
-		{
-			SmtpPort2 = 25;
-		}
-		SmtpNumTry2 = (int)ini["SmtpNumTry2"].IntValue;
-		if (SmtpNumTry2 == 0)
-		{
-			SmtpNumTry2 = 1;
-		}
-		SmtpUsername2 = ini["SmtpUsername2"].StrValue;
-		SmtpPassword2 = ini["SmtpPassword2"].StrValue;
+        TcpListen = (int)ini["TcpListen"].IntValue;
 
-		SmtpFrom = ini["SmtpFrom"].StrValue;
-		SmtpFromAlive = ini["SmtpFromAlive"].StrValue;
+        SmtpServerName = ini["SmtpServerName"].StrValue;
+        SmtpPort = (int)ini["SmtpPort"].IntValue;
+        if (SmtpPort == 0)
+        {
+            SmtpPort = 25;
+        }
+        SmtpNumTry = (int)ini["SmtpNumTry"].IntValue;
+        if (SmtpNumTry == 0)
+        {
+            SmtpNumTry = 1;
+        }
+        SmtpUsername = ini["SmtpUsername"].StrValue;
+        SmtpPassword = ini["SmtpPassword"].StrValue;
 
-		string s = ini["SmtpTo"].StrValue;
-		SmtpToList = new StrToken(s).Tokens;
+        SmtpServerName2 = ini["SmtpServerName2"].StrValue;
+        SmtpPort2 = (int)ini["SmtpPort2"].IntValue;
+        if (SmtpPort2 == 0)
+        {
+            SmtpPort2 = 25;
+        }
+        SmtpNumTry2 = (int)ini["SmtpNumTry2"].IntValue;
+        if (SmtpNumTry2 == 0)
+        {
+            SmtpNumTry2 = 1;
+        }
+        SmtpUsername2 = ini["SmtpUsername2"].StrValue;
+        SmtpPassword2 = ini["SmtpPassword2"].StrValue;
 
-		SaveLog = ini["SaveLog"].BoolValue;
-		SendAliveMessage = ini["SendAliveMessage"].BoolValue;
-		TcpSendData = ini["TcpSendData"].BoolValue;
+        SmtpFrom = ini["SmtpFrom"].StrValue;
+        SmtpFromAlive = ini["SmtpFromAlive"].StrValue;
 
-		Interval = Math.Max(MinInterval, (int)ini["Interval"].IntValue * 1000);
-		Timeout = Math.Max(MinTimeout, (int)ini["Timeout"].IntValue * 1000);
-		NumErrors = Math.Max(1, (int)ini["NumErrors"].IntValue);
+        SubjectPrefix = ini["SubjectPrefix"].StrValue;
 
-		string[] keys = ini.GetKeys();
+        DnsServer = ini["DnsServer"].StrValue;
 
-		List<Target> o = new List<Target>();
-		List<Target> last_ok = new List<Target>();
-		List<Target> last_ng = new List<Target>();
+        string s = ini["SmtpTo"].StrValue;
+        SmtpToList = new StrToken(s).Tokens;
 
-		foreach (string key in keys)
-		{
-			if (key.StartsWith("Target", StringComparison.CurrentCultureIgnoreCase))
-			{
-				string str = ini[key].StrValue;
+        SaveLog = ini["SaveLog"].BoolValue;
+        SendAliveMessage = ini["SendAliveMessage"].BoolValue;
+        TcpSendData = ini["TcpSendData"].BoolValue;
 
-				Target t = new Target(str);
+        Interval = Math.Max(MinInterval, (int)ini["Interval"].IntValue * 1000);
+        Timeout = Math.Max(MinTimeout, (int)ini["Timeout"].IntValue * 1000);
+        NumErrors = Math.Max(1, (int)ini["NumErrors"].IntValue);
 
-				o.Add(t);
+        string[] keys = ini.GetKeys();
 
-				bool last_ok_flag = false;
+        List<Target> o = new List<Target>();
+        List<Target> last_ok = new List<Target>();
+        List<Target> last_ng = new List<Target>();
 
-				if (last_ok_hosts != null)
-				{
-					if (last_ok_hosts.Contains(t.HostName))
-					{
-						last_ok_flag = true;
-					}
-				}
+        foreach (string key in keys)
+        {
+            if (key.StartsWith("Target", StringComparison.CurrentCultureIgnoreCase))
+            {
+                string str = ini[key].StrValue;
 
-				if (last_ok_flag == false)
-				{
-					last_ng.Add(t);
-				}
-				else
-				{
-					last_ok.Add(t);
-				}
-			}
+                Target t = new Target(str);
 
-			if (key.StartsWith("SuffixReplace", StringComparison.CurrentCultureIgnoreCase))
-			{
-				string str = ini[key].StrValue;
+                o.Add(t);
 
-				char[] sps = { ' ', '\t' };
+                bool last_ok_flag = false;
 
-				string[] tokens = str.Split(sps, StringSplitOptions.RemoveEmptyEntries);
-				if (tokens.Length == 2)
-				{
-					this.SuffixReplaceList.Add(new KeyValuePair<string, string>(tokens[0], tokens[1]));
-				}
-			}
-		}
+                if (last_ok_hosts != null)
+                {
+                    if (last_ok_hosts.Contains(t.HostName))
+                    {
+                        last_ok_flag = true;
+                    }
+                }
 
-		TargetList = o.ToArray();
-		TargetListLastOkHost = last_ok.ToArray();
-		TargetListLastNgHost = last_ng.ToArray();
-	}
+                if (last_ok_flag == false)
+                {
+                    last_ng.Add(t);
+                }
+                else
+                {
+                    last_ok.Add(t);
+                }
+            }
 
-	public string ConvertHostnameToOkHostname(string str)
-	{
-		foreach (KeyValuePair<string, string> t in this.SuffixReplaceList)
-		{
-			if (str.EndsWith(t.Key, StringComparison.CurrentCultureIgnoreCase))
-			{
-				str = str.Substring(0, str.Length - t.Key.Length) + t.Value;
-			}
-		}
+            if (key.StartsWith("SuffixReplace", StringComparison.CurrentCultureIgnoreCase))
+            {
+                string str = ini[key].StrValue;
 
-		return str;
-	}
+                char[] sps = { ' ', '\t' };
 
-	public static string NormalizeHostNameForSort(string str)
-	{
-		str = str.Trim();
+                string[] tokens = str.Split(sps, StringSplitOptions.RemoveEmptyEntries);
+                if (tokens.Length == 2)
+                {
+                    this.SuffixReplaceList.Add(new KeyValuePair<string, string>(tokens[0], tokens[1]));
+                }
+            }
+        }
 
-		if (Domain.IsIPAddress(str) == false)
-		{
-			StrToken t = new StrToken(str, ".");
-			List<string> o = new List<string>();
-			string[] strs = t.Tokens;
-			Array.Reverse(strs);
+        TargetList = o.ToArray();
+        TargetListLastOkHost = last_ok.ToArray();
+        TargetListLastNgHost = last_ng.ToArray();
+    }
 
-			int i;
-			string ret = "";
-			for (i = 0; i < strs.Length; i++)
-			{
-				ret += strs[i];
+    public string ConvertHostnameToOkHostname(string str)
+    {
+        foreach (KeyValuePair<string, string> t in this.SuffixReplaceList)
+        {
+            if (str.EndsWith(t.Key, StringComparison.CurrentCultureIgnoreCase))
+            {
+                str = str.Substring(0, str.Length - t.Key.Length) + t.Value;
+            }
+        }
 
-				if (i != (strs.Length - 1))
-				{
-					ret += ".";
-				}
-			}
+        return str;
+    }
 
-			return ret;
-		}
-		else
-		{
-			return str;
-		}
-	}
+    public static string NormalizeHostNameForSort(string str)
+    {
+        str = str.Trim();
+
+        if (Domain.IsIPAddress(str) == false)
+        {
+            StrToken t = new StrToken(str, ".");
+            List<string> o = new List<string>();
+            string[] strs = t.Tokens;
+            Array.Reverse(strs);
+
+            int i;
+            string ret = "";
+            for (i = 0; i < strs.Length; i++)
+            {
+                ret += strs[i];
+
+                if (i != (strs.Length - 1))
+                {
+                    ret += ".";
+                }
+            }
+
+            return ret;
+        }
+        else
+        {
+            return str;
+        }
+    }
 }
 
 // 送信の実行
 public class PingerTask
 {
-	//public readonly Event EndEvent;
-	public readonly string TargetHost;
-	public readonly string TargetHostForOk;
-	public readonly string TargetHostNormalized;
-	public readonly int TargetPort;
-	public readonly int Timeout;
-	public readonly bool TcpSendData;
-	object lockObj;
+    //public readonly Event EndEvent;
+    public readonly string TargetHost;
+    public readonly string TargetHostForOk;
+    public readonly string TargetHostNormalized;
+    public readonly int TargetPort;
+    public readonly int Timeout;
+    public readonly bool TcpSendData;
+    public readonly DnsResolver DnsClient;
 
-	ThreadObj thread;
+    object lockObj;
 
-	bool finished;
-	public bool Finished
-	{
-		get
-		{
-			lock (lockObj)
-			{
-				return finished;
-			}
-		}
-	}
+    ThreadObj thread;
 
-	bool ok;
-	public bool Ok
-	{
-		get
-		{
-			lock (lockObj)
-			{
-				return ok;
-			}
-		}
+    bool finished;
+    public bool Finished
+    {
+        get
+        {
+            lock (lockObj)
+            {
+                return finished;
+            }
+        }
+    }
 
-		set
-		{
-			lock (lockObj)
-			{
-				ok = value;
-			}
-		}
-	}
+    bool ok;
+    public bool Ok
+    {
+        get
+        {
+            lock (lockObj)
+            {
+                return ok;
+            }
+        }
 
-	public bool TcpNg;
+        set
+        {
+            lock (lockObj)
+            {
+                ok = value;
+            }
+        }
+    }
 
-	// 実行開始
-	public PingerTask(string targetHost, string targetHostForOk, int targetPort, int timeout, bool tcp_send_data)
-	{
-		//EndEvent = new Event(true);
-		TargetHost = targetHost;
-		TargetHostForOk = targetHostForOk;
-		TargetHostNormalized = Config.NormalizeHostNameForSort(targetHost);
-		TargetPort = targetPort;
-		Timeout = timeout;
-		TcpSendData = tcp_send_data;
-		finished = false;
-		ok = false;
-		lockObj = new object();
+    public bool TcpNg;
 
-		ThreadObj t = new ThreadObj(new ThreadProc(pingerThreadProc), null);
+    // 実行開始
+    public PingerTask(DnsResolver dnsClient, string targetHost, string targetHostForOk, int targetPort, int timeout, bool tcp_send_data)
+    {
+        //EndEvent = new Event(true);
+        DnsClient = dnsClient;
+        TargetHost = targetHost;
+        TargetHostForOk = targetHostForOk;
+        TargetHostNormalized = Config.NormalizeHostNameForSort(targetHost);
+        TargetPort = targetPort;
+        Timeout = timeout;
+        TcpSendData = tcp_send_data;
+        finished = false;
+        ok = false;
+        lockObj = new object();
 
-		thread = t;
-	}
+        ThreadObj t = new ThreadObj(new ThreadProc(pingerThreadProc), null);
 
-	// 実行スレッド
-	void pingerThreadProc(object? param)
-	{
-		if (TargetPort == 0)
-		{
-			// ping の実行
-			try
-			{
-				IPAddress ip = LocalNet.GetIp(TargetHost, timeout: Timeout);
+        thread = t;
+    }
 
-				SendPingReply ret = SendPing.Send(ip, null, Timeout);
+    // 実行スレッド
+    void pingerThreadProc(object? param)
+    {
+        bool ipv6 = false;
 
-				lock (lockObj)
-				{
-					ok = ret.Ok;
-					finished = true;
-				}
-			}
-			catch
-			{
-				lock (lockObj)
-				{
-					ok = false;
-					finished = true;
-				}
-			}
+        string hostname = TargetHost;
+        if (hostname._InStri("@"))
+        {
+            if (hostname._GetKeyAndValue(out string hostname2, out string protocolName, "@"))
+            {
+                hostname = hostname2;
+                if (protocolName._InStri("v6"))
+                {
+                    ipv6 = true;
+                }
+            }
+        }
 
-			Console.Write(ok ? "+" : "-");
-		}
-		else
-		{
-			int port = TargetPort;
-			bool tcp_check = false;
+        IPAddress GetIpAddress(string hostname, bool ipv6)
+        {
+            return this.DnsClient.GetIpAddressSingleAsync(hostname, ipv6 ? DnsResolverQueryType.AAAA : DnsResolverQueryType.A, noCache: true)._GetResult();
+        }
 
-			if (port >= 100000)
-			{
-				port -= 100000;
-				tcp_check = true;
-			}
+        if (TargetPort == 0)
+        {
+            // ping の実行
+            try
+            {
+                IPAddress ip = GetIpAddress(hostname, ipv6);
 
-			// TCP Connect の実行
-			try
-			{
-				if (tcp_check == false)
-				{
-					Sock s = Sock.Connect(TargetHost, port, Timeout, true, true);
+                SendPingReply ret = SendPing.Send(ip, null, Timeout);
 
-					try
-					{
-						if (TcpSendData)
-						{
-							s.SetTimeout(Timeout);
+                lock (lockObj)
+                {
+                    ok = ret.Ok;
+                    finished = true;
+                }
+            }
+            catch
+            {
+                lock (lockObj)
+                {
+                    ok = false;
+                    finished = true;
+                }
+            }
 
-							long end_tick = Time.Tick64 + (long)Timeout;
-							int num_packets = 0;
+            Console.Write(ok ? "+" : "-");
+        }
+        else
+        {
+            int port = TargetPort;
+            bool tcp_check = false;
 
-							while (true)
-							{
-								if (Time.Tick64 > end_tick)
-								{
-									break;
-								}
+            if (port >= 100000)
+            {
+                port -= 100000;
+                tcp_check = true;
+            }
 
-								if (num_packets >= 16)
-								{
-									break;
-								}
+            // TCP Connect の実行
+            try
+            {
+                if (tcp_check == false)
+                {
+                    IPAddress ip = GetIpAddress(hostname, ipv6);
 
-								byte[] data = new byte[1];
-								data[0] = (byte)'a';
-								if (s.SendAll(data) == false)
-								{
-									break;
-								}
+                    Sock s = Sock.Connect(ip.ToString(), port, Timeout, true, true);
 
-								ThreadObj.Sleep(1);
-								num_packets++;
-							}
-						}
+                    try
+                    {
+                        if (TcpSendData)
+                        {
+                            s.SetTimeout(Timeout);
 
-						s.Disconnect();
-					}
-					catch
-					{
-					}
-				}
-				else
-				{
-					if (tcp_check_do(TargetHost, port, Timeout) == false)
-					{
-						throw new ApplicationException();
-					}
-				}
+                            long end_tick = Time.Tick64 + (long)Timeout;
+                            int num_packets = 0;
 
-				lock (lockObj)
-				{
-					ok = true;
-					finished = true;
-				}
-			}
-			catch
-			{
-				lock (lockObj)
-				{
-					ok = false;
-					finished = true;
-				}
-			}
+                            while (true)
+                            {
+                                if (Time.Tick64 > end_tick)
+                                {
+                                    break;
+                                }
 
-			Console.Write(ok ? "*" : "-");
-		}
+                                if (num_packets >= 16)
+                                {
+                                    break;
+                                }
 
-		//EndEvent.Set();
-	}
+                                byte[] data = new byte[1];
+                                data[0] = (byte)'a';
+                                if (s.SendAll(data) == false)
+                                {
+                                    break;
+                                }
 
-	static bool tcp_check_do(string host, int port, int timeout)
-	{
-		Sock s = Sock.Connect(host, port, timeout, true, true);
-		try
-		{
-			byte[] d = new byte[1];
-			d[0] = (byte)'a';
+                                ThreadObj.Sleep(1);
+                                num_packets++;
+                            }
+                        }
 
-			int i;
-			int num = 3;
+                        s.Disconnect();
+                    }
+                    catch
+                    {
+                    }
+                }
+                else
+                {
+                    IPAddress ip = GetIpAddress(hostname, ipv6);
 
-			for (i = 0; i < num; i++)
-			{
-				if (s.SendAll(d) == false)
-				{
-					return false;
-				}
+                    if (tcp_check_do(ip.ToString(), port, Timeout) == false)
+                    {
+                        throw new ApplicationException();
+                    }
+                }
 
-				if (i <= (num - 1))
-				{
-					ThreadObj.Sleep(300);
-				}
-			}
+                lock (lockObj)
+                {
+                    ok = true;
+                    finished = true;
+                }
+            }
+            catch
+            {
+                lock (lockObj)
+                {
+                    ok = false;
+                    finished = true;
+                }
+            }
 
-			return true;
-		}
-		finally
-		{
-			s.Disconnect();
-		}
-	}
+            Console.Write(ok ? "*" : "-");
+        }
 
-	// 終了待機
-	public void WaitForEnd()
-	{
-		thread.WaitForEnd();
-	}
+        //EndEvent.Set();
+    }
+
+    static bool tcp_check_do(string host, int port, int timeout)
+    {
+        Sock s = Sock.Connect(host, port, timeout, true, true);
+        try
+        {
+            byte[] d = new byte[1];
+            d[0] = (byte)'a';
+
+            int i;
+            int num = 3;
+
+            for (i = 0; i < num; i++)
+            {
+                if (s.SendAll(d) == false)
+                {
+                    return false;
+                }
+
+                if (i <= (num - 1))
+                {
+                    ThreadObj.Sleep(300);
+                }
+            }
+
+            return true;
+        }
+        finally
+        {
+            s.Disconnect();
+        }
+    }
+
+    // 終了待機
+    public void WaitForEnd()
+    {
+        thread.WaitForEnd();
+    }
 }
 
 // 結果クラス
 public class PingerResult
 {
-	public readonly string HostName;
-	public readonly string HostNameNormalized;
-	public readonly string HostNameForOk;
-	List<int> okPorts;
-	List<int> badPorts;
-	DateTime firstErrorTime;
-	public bool LastOkStatus = true;
+    public readonly string HostName;
+    public readonly string HostNameNormalized;
+    public readonly string HostNameForOk;
+    List<int> okPorts;
+    List<int> badPorts;
+    DateTime firstErrorTime;
+    public bool LastOkStatus = true;
 
-	public bool Ok
-	{
-		get
-		{
-			return (badPorts.Count == 0);
-		}
-	}
+    public bool Ok
+    {
+        get
+        {
+            return (badPorts.Count == 0);
+        }
+    }
 
-	public PingerResult(string hostName, string hostNameForOk)
-	{
-		HostName = hostName;
-		HostNameForOk = hostNameForOk;
-		HostNameNormalized = Config.NormalizeHostNameForSort(hostName);
-		okPorts = new List<int>();
-		badPorts = new List<int>();
-		firstErrorTime = new DateTime(0);
-	}
+    public PingerResult(string hostName, string hostNameForOk)
+    {
+        HostName = hostName;
+        HostNameForOk = hostNameForOk;
+        HostNameNormalized = Config.NormalizeHostNameForSort(hostName);
+        okPorts = new List<int>();
+        badPorts = new List<int>();
+        firstErrorTime = new DateTime(0);
+    }
 
-	public void ClearPort()
-	{
-		badPorts.Clear();
-		okPorts.Clear();
-	}
+    public void ClearPort()
+    {
+        badPorts.Clear();
+        okPorts.Clear();
+    }
 
-	public void AddPort(int port, bool ok)
-	{
-		if (ok == false)
-		{
-			badPorts.Add(port);
-		}
-		else
-		{
-			okPorts.Add(port);
-		}
-	}
+    public void AddPort(int port, bool ok)
+    {
+        if (ok == false)
+        {
+            badPorts.Add(port);
+        }
+        else
+        {
+            okPorts.Add(port);
+        }
+    }
 
-	public static string GetPortListString(int[] ports)
-	{
-		string ret = "";
-		int i;
-		for (i = 0; i < ports.Length; i++)
-		{
-			int port = ports[i];
-			bool tcp_check = false;
+    public static string GetPortListString(int[] ports)
+    {
+        string ret = "";
+        int i;
+        for (i = 0; i < ports.Length; i++)
+        {
+            int port = ports[i];
+            bool tcp_check = false;
 
-			if (port >= 100000)
-			{
-				port -= 100000;
-				tcp_check = true;
-			}
+            if (port >= 100000)
+            {
+                port -= 100000;
+                tcp_check = true;
+            }
 
-			string s = port.ToString();
+            string s = port.ToString();
 
-			if (ports[i] == 0)
-			{
-				s = "ping";
-			}
+            if (ports[i] == 0)
+            {
+                s = "ping";
+            }
 
-			if (tcp_check)
-			{
-				s = "@" + s;
-			}
+            if (tcp_check)
+            {
+                s = "@" + s;
+            }
 
-			ret += s;
+            ret += s;
 
-			if (i != (ports.Length - 1))
-			{
-				ret += ",";
-			}
-		}
-		return ret;
-	}
+            if (i != (ports.Length - 1))
+            {
+                ret += ",";
+            }
+        }
+        return ret;
+    }
 
-	public string GetString(bool ok_mode)
-	{
-		string hostname = HostName;
+    public string GetString(bool ok_mode)
+    {
+        string hostname = HostName;
 
-		if (ok_mode)
-		{
-			hostname = HostNameForOk;
-		}
+        if (ok_mode)
+        {
+            hostname = HostNameForOk;
+        }
 
-		string ret = "[" + hostname + "]\n";
-		okPorts.Sort();
-		badPorts.Sort();
+        string ret = "[" + hostname + "]\n";
+        okPorts.Sort();
+        badPorts.Sort();
 
-		if (badPorts.Count >= 1)
-		{
-			ret += "NG: " + GetPortListString(badPorts.ToArray()) + "\n";
+        if (badPorts.Count >= 1)
+        {
+            ret += "NG: " + GetPortListString(badPorts.ToArray()) + "\n";
 
-			if (firstErrorTime.Ticks == 0)
-			{
-				firstErrorTime = DateTime.Now;
-			}
-		}
-		else
-		{
-			firstErrorTime = new DateTime(0);
-		}
+            if (firstErrorTime.Ticks == 0)
+            {
+                firstErrorTime = DateTime.Now;
+            }
+        }
+        else
+        {
+            firstErrorTime = new DateTime(0);
+        }
 
-		if (okPorts.Count >= 1)
-		{
-			ret += "OK: " + GetPortListString(okPorts.ToArray()) + "\n";
-		}
+        if (okPorts.Count >= 1)
+        {
+            ret += "OK: " + GetPortListString(okPorts.ToArray()) + "\n";
+        }
 
-		if (firstErrorTime.Ticks != 0)
-		{
-			ret += "発生: " + firstErrorTime.ToString() + "\n";
-		}
+        if (firstErrorTime.Ticks != 0)
+        {
+            ret += "発生: " + firstErrorTime.ToString() + "\n";
+        }
 
-		return ret;
-	}
+        return ret;
+    }
 
-	public byte[] GetHash()
-	{
-		string s = "";
-		foreach (int p in okPorts)
-		{
-			s += p.ToString();
-		}
-		foreach (int p in badPorts)
-		{
-			s += p.ToString();
-		}
+    public byte[] GetHash()
+    {
+        string s = "";
+        foreach (int p in okPorts)
+        {
+            s += p.ToString();
+        }
+        foreach (int p in badPorts)
+        {
+            s += p.ToString();
+        }
 
-		return Str.HashStr(s);
-	}
+        return Str.HashStr(s);
+    }
 }
 
 // 結果一覧クラス
 public class PingerResults
 {
-	SortedList<string, PingerResult> o;
+    SortedList<string, PingerResult> o;
 
-	public PingerResults()
-	{
-		o = new SortedList<string, PingerResult>();
-	}
+    public PingerResults()
+    {
+        o = new SortedList<string, PingerResult>();
+    }
 
-	public void Merge(PingerTask[] tasks)
-	{
-		List<string> deleteList = new List<string>();
+    public void Merge(PingerTask[] tasks)
+    {
+        List<string> deleteList = new List<string>();
 
-		// 現在リストにあってタスク一覧にないものをすべて削除する
-		foreach (PingerResult res in o.Values)
-		{
-			bool b = false;
-			foreach (PingerTask t in tasks)
-			{
-				if (t.TargetHostNormalized == res.HostNameNormalized)
-				{
-					b = true;
-					break;
-				}
-			}
-			if (b == false)
-			{
-				deleteList.Add(res.HostNameNormalized);
-			}
-		}
-		foreach (string deleteStr in deleteList)
-		{
-			o.Remove(deleteStr);
-		}
+        // 現在リストにあってタスク一覧にないものをすべて削除する
+        foreach (PingerResult res in o.Values)
+        {
+            bool b = false;
+            foreach (PingerTask t in tasks)
+            {
+                if (t.TargetHostNormalized == res.HostNameNormalized)
+                {
+                    b = true;
+                    break;
+                }
+            }
+            if (b == false)
+            {
+                deleteList.Add(res.HostNameNormalized);
+            }
+        }
+        foreach (string deleteStr in deleteList)
+        {
+            o.Remove(deleteStr);
+        }
 
-		// すべてのポートをクリアする
-		foreach (PingerResult res in o.Values)
-		{
-			res.ClearPort();
-		}
+        // すべてのポートをクリアする
+        foreach (PingerResult res in o.Values)
+        {
+            res.ClearPort();
+        }
 
-		// 結果を追加する
-		foreach (PingerTask t in tasks)
-		{
-			PingerResult res;
-			if (o.ContainsKey(t.TargetHostNormalized) == false)
-			{
-				res = new PingerResult(t.TargetHost, t.TargetHostForOk);
+        // 結果を追加する
+        foreach (PingerTask t in tasks)
+        {
+            PingerResult res;
+            if (o.ContainsKey(t.TargetHostNormalized) == false)
+            {
+                res = new PingerResult(t.TargetHost, t.TargetHostForOk);
 
-				o.Add(t.TargetHostNormalized, res);
-			}
-			else
-			{
-				res = o[t.TargetHostNormalized];
-			}
+                o.Add(t.TargetHostNormalized, res);
+            }
+            else
+            {
+                res = o[t.TargetHostNormalized];
+            }
 
-			res.AddPort(t.TargetPort, t.Ok);
-		}
-	}
+            res.AddPort(t.TargetPort, t.Ok);
+        }
+    }
 
-	public int NumOk
-	{
-		get
-		{
-			int num = 0;
-			foreach (PingerResult res in o.Values)
-			{
-				if (res.Ok == true)
-				{
-					num++;
-				}
-			}
-			return num;
-		}
-	}
+    public int NumOk
+    {
+        get
+        {
+            int num = 0;
+            foreach (PingerResult res in o.Values)
+            {
+                if (res.Ok == true)
+                {
+                    num++;
+                }
+            }
+            return num;
+        }
+    }
 
-	public int NumErrorNew
-	{
-		get
-		{
-			int num = 0;
-			foreach (PingerResult res in o.Values)
-			{
-				if (res.Ok == false && res.LastOkStatus == true)
-				{
-					num++;
-				}
-			}
-			return num;
-		}
-	}
+    public int NumErrorNew
+    {
+        get
+        {
+            int num = 0;
+            foreach (PingerResult res in o.Values)
+            {
+                if (res.Ok == false && res.LastOkStatus == true)
+                {
+                    num++;
+                }
+            }
+            return num;
+        }
+    }
 
-	public int NumErrorOld
-	{
-		get
-		{
-			int num = 0;
-			foreach (PingerResult res in o.Values)
-			{
-				if (res.Ok == false && res.LastOkStatus == false)
-				{
-					num++;
-				}
-			}
-			return num;
-		}
-	}
+    public int NumErrorOld
+    {
+        get
+        {
+            int num = 0;
+            foreach (PingerResult res in o.Values)
+            {
+                if (res.Ok == false && res.LastOkStatus == false)
+                {
+                    num++;
+                }
+            }
+            return num;
+        }
+    }
 
-	public int NumError
-	{
-		get
-		{
-			int num = 0;
-			foreach (PingerResult res in o.Values)
-			{
-				if (res.Ok == false)
-				{
-					num++;
-				}
-			}
-			return num;
-		}
-	}
+    public int NumError
+    {
+        get
+        {
+            int num = 0;
+            foreach (PingerResult res in o.Values)
+            {
+                if (res.Ok == false)
+                {
+                    num++;
+                }
+            }
+            return num;
+        }
+    }
 
-	public string GetString()
-	{
-		string ret = "";
+    public string GetString()
+    {
+        string ret = "";
 
-		if (NumErrorNew >= 1)
-		{
-			ret += "■ 新規障害発生のホストの一覧\n";
-			foreach (PingerResult res in o.Values)
-			{
-				if (res.Ok == false && res.LastOkStatus)
-				{
-					ret += res.GetString(false) + "\n";
-				}
-			}
-		}
+        if (NumErrorNew >= 1)
+        {
+            ret += "■ 新規障害発生のホストの一覧\n";
+            foreach (PingerResult res in o.Values)
+            {
+                if (res.Ok == false && res.LastOkStatus)
+                {
+                    ret += res.GetString(false) + "\n";
+                }
+            }
+        }
 
-		if (NumErrorOld >= 1)
-		{
-			ret += "■ 障害継続中のホストの一覧\n";
-			foreach (PingerResult res in o.Values)
-			{
-				if (res.Ok == false && res.LastOkStatus == false)
-				{
-					ret += res.GetString(false) + "\n";
-				}
-			}
-		}
+        if (NumErrorOld >= 1)
+        {
+            ret += "■ 障害継続中のホストの一覧\n";
+            foreach (PingerResult res in o.Values)
+            {
+                if (res.Ok == false && res.LastOkStatus == false)
+                {
+                    ret += res.GetString(false) + "\n";
+                }
+            }
+        }
 
-		if (NumOk >= 1)
-		{
-			ret += "■ 正常なホストの一覧\n";
-			foreach (PingerResult res in o.Values)
-			{
-				if (res.Ok == true)
-				{
-					ret += res.GetString(true) + "\n";
-				}
-			}
-		}
+        if (NumOk >= 1)
+        {
+            ret += "■ 正常なホストの一覧\n";
+            foreach (PingerResult res in o.Values)
+            {
+                if (res.Ok == true)
+                {
+                    ret += res.GetString(true) + "\n";
+                }
+            }
+        }
 
-		foreach (PingerResult res in o.Values)
-		{
-			res.LastOkStatus = res.Ok;
-		}
+        foreach (PingerResult res in o.Values)
+        {
+            res.LastOkStatus = res.Ok;
+        }
 
-		return Str.NormalizeCrlf(ret);
-	}
+        return Str.NormalizeCrlf(ret);
+    }
 
-	public byte[] GetHash()
-	{
-		Buf b = new Buf();
+    public byte[] GetHash()
+    {
+        Buf b = new Buf();
 
-		foreach (PingerResult res in o.Values)
-		{
-			if (res.Ok == false)
-			{
-				b.Write(res.GetHash());
-			}
-		}
+        foreach (PingerResult res in o.Values)
+        {
+            if (res.Ok == false)
+            {
+                b.Write(res.GetHash());
+            }
+        }
 
-		return b.ByteData;
-	}
+        return b.ByteData;
+    }
 }
 
 // Pinger クラス
 public class Pinger
 {
-	public const string ConfigFileName = "@Pinger.config";
-	public const string LogDirName = "@Log";
-	PingerResults res;
-	byte[] lastHash;
-	FileLogger logger = null!;
-	DateTime lastDate = new DateTime();
-	Listener tl = null!;
+    public const string ConfigFileName = "@Pinger.config";
+    public const string LogDirName = "@Log";
+    PingerResults res;
+    byte[] lastHash;
+    FileLogger logger = null!;
+    DateTime lastDate = new DateTime();
+    Listener tl = null!;
 
-	void tcpListenerAcceptProc(Listener listener, Sock sock, object param)
-	{
-	}
+    void tcpListenerAcceptProc(Listener listener, Sock sock, object param)
+    {
+    }
 
-	// コンストラクタ
-	public Pinger()
-	{
-		res = new PingerResults();
-		lastHash = new byte[0];
+    // コンストラクタ
+    public Pinger()
+    {
+        res = new PingerResults();
+        lastHash = new byte[0];
 
-		Config cfg = new Config(ConfigFileName, null!);
+        Config cfg = new Config(ConfigFileName, null!);
 
-		int port = cfg.TcpListen;
-		if (port != 0)
-		{
-			tl = new Listener(port, tcpListenerAcceptProc, null!);
-		}
-	}
+        int port = cfg.TcpListen;
+        if (port != 0)
+        {
+            tl = new Listener(port, tcpListenerAcceptProc, null!);
+        }
+    }
 
-	// 前回何らかの応答があったホストの一覧
-	public List<string> LastOkHostList = new List<string>();
-	public List<string> CurrentOkHostList = new List<string>();
+    // 前回何らかの応答があったホストの一覧
+    public List<string> LastOkHostList = new List<string>();
+    public List<string> CurrentOkHostList = new List<string>();
 
-	// 継続実行
-	public void ExecEndless()
-	{
-		while (true)
-		{
-			try
-			{
-				CurrentOkHostList = new List<string>();
+    // 継続実行
+    public void ExecEndless()
+    {
+        while (true)
+        {
+            try
+            {
+                CurrentOkHostList = new List<string>();
 
-				ExecOnce();
+                ExecOnce();
 
-				LastOkHostList = CurrentOkHostList;
-			}
-			catch (Exception e)
-			{
-				Console.WriteLine(e.ToString());
-			}
-		}
-	}
+                LastOkHostList = CurrentOkHostList;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+                Kernel.SleepThread(10 * 1000);
+            }
+        }
+    }
 
-	// 1 回実行
-	public void ExecOnce()
-	{
-		Config config = new Config(ConfigFileName, this.LastOkHostList);
-		PingerTask[] tasks = ExecTasksMulti(config);
+    DnsResolver DnsClient = null!;
 
-		DateTime now = DateTime.Now;
-		if (lastDate.Day != now.Day)
-		{
-			if (lastDate.Ticks != 0)
-			{
-				if (config.SendAliveMessage)
-				{
-					string text = "報告日時: " + DateTime.Now.ToString() + "\n\n";
-					Mail(config, config.SmtpFromAlive, "生きています", text);
-				}
-			}
+    // 1 回実行
+    public void ExecOnce()
+    {
+        this.DnsClient = null;
 
-			lastDate = now;
-		}
+        Config config = new Config(ConfigFileName, this.LastOkHostList);
 
-		res.Merge(tasks);
+        if (config.DnsServer._IsEmpty())
+        {
+            this.DnsClient = DnsResolver.CreateDnsResolverIfSupported(
+                new DnsResolverSettings(null, DnsResolverFlags.DisableCache | DnsResolverFlags.UdpOnly | DnsResolverFlags.UseSystemDnsClientSettings, 3000, 2));
+        }
+        else
+        {
+            this.DnsClient = DnsResolver.CreateDnsResolverIfSupported(
+                new DnsResolverSettings(null, DnsResolverFlags.DisableCache | DnsResolverFlags.UdpOnly, 3000, 2,
+                dnsServersList: config.DnsServer._Split(StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries, ",", " ").Select(x => new IPEndPoint(x._ToIPAddress()!, Consts.Ports.Dns))));
+        }
 
-		byte[] hash = res.GetHash();
+        try
+        {
+            PingerTask[] tasks = ExecTasksMulti(config);
 
-		string str = res.GetString();
+            string prefix = config.SubjectPrefix + " ";
+            if (config.SubjectPrefix._IsEmpty()) prefix = "";
 
-		// ログ保存
-		if (config.SaveLog)
-		{
-			try
-			{
-				string saveStr = Str.NormalizeCrlf(str).Replace(Env.NewLine, "\\n");
+            DateTime now = DateTime.Now;
+            if (lastDate.Day != now.Day)
+            {
+                if (lastDate.Ticks != 0)
+                {
+                    if (config.SendAliveMessage)
+                    {
+                        string text = "報告日時: " + DateTime.Now.ToString() + "\n\n";
+                        Mail(config, config.SmtpFromAlive, prefix + "生きています", text);
+                    }
+                }
 
-				if (logger == null)
-				{
-					logger = new FileLogger(LogDirName);
-					logger.Flush = true;
-				}
+                lastDate = now;
+            }
 
-				logger.Write(saveStr);
-			}
-			catch
-			{
-			}
-		}
+            res.Merge(tasks);
 
-		if (Util.MemEquals(lastHash, hash) == false)
-		{
-			lastHash = hash;
+            byte[] hash = res.GetHash();
 
-			// メール送信
-			string mailStr = "報告日時: " + DateTime.Now.ToString() + "\n\n" + str;
-			mailStr = Str.NormalizeCrlf(mailStr);
-			Mail(config, config.SmtpFrom, string.Format("障害発生 OK:{0} NG:{1}", res.NumOk, res.NumError), mailStr);
+            string str = res.GetString();
 
-			//Console.WriteLine("----------");
-			//Console.WriteLine(mailStr);
+            // ログ保存
+            if (config.SaveLog)
+            {
+                try
+                {
+                    string saveStr = Str.NormalizeCrlf(str).Replace(Env.NewLine, "\\n");
 
-			Console.WriteLine("Mail Sent.");
-		}
-	}
+                    if (logger == null)
+                    {
+                        logger = new FileLogger(LogDirName);
+                        logger.Flush = true;
+                    }
 
-	// メール送信
-	public void Mail(Config config, string from, string subject, string body)
-	{
-		foreach (string to in config.SmtpToList)
-		{
-			int i;
+                    logger.Write(saveStr);
+                }
+                catch
+                {
+                }
+            }
 
-			bool ok = false;
+            if (Util.MemEquals(lastHash, hash) == false)
+            {
+                lastHash = hash;
 
-			for (i = 0; i < config.SmtpNumTry; i++)
-			{
-				SendMail sm = new SendMail(config.SmtpServerName, SendMailVersion.Ver2_With_NetMail, config.SmtpUsername, config.SmtpPassword);
+                // メール送信
+                string mailStr = "報告日時: " + DateTime.Now.ToString() + "\n\n" + str;
+                mailStr = Str.NormalizeCrlf(mailStr);
+                Mail(config, config.SmtpFrom, string.Format(prefix + "障害発生 OK:{0} NG:{1}", res.NumOk, res.NumError), mailStr);
 
-				sm.SmtpPort = config.SmtpPort;
+                //Console.WriteLine("----------");
+                //Console.WriteLine(mailStr);
 
-				if (sm.Send(from, to, subject, body))
-				{
-					ok = true;
-					break;
-				}
-			}
+                Console.WriteLine("Mail Sent.");
+            }
+        }
+        finally
+        {
+            this.DnsClient._DisposeSafe();
+            this.DnsClient = null!;
+        }
+    }
 
-			if (ok == false)
-			{
-				for (i = 0; i < config.SmtpNumTry2; i++)
-				{
-					SendMail sm = new SendMail(config.SmtpServerName2, SendMailVersion.Ver2_With_NetMail, config.SmtpUsername2, config.SmtpPassword2);
+    // メール送信
+    public void Mail(Config config, string from, string subject, string body)
+    {
+        foreach (string to in config.SmtpToList)
+        {
+            int i;
 
-					sm.SmtpPort = config.SmtpPort2;
+            bool ok = false;
 
-					if (sm.Send(from, to, subject, body))
-					{
-						break;
-					}
-				}
-			}
-		}
-	}
+            for (i = 0; i < config.SmtpNumTry; i++)
+            {
+                SendMail sm = new SendMail(config.SmtpServerName, SendMailVersion.Ver2_With_NetMail, config.SmtpUsername, config.SmtpPassword);
 
-	// タスクを実行
-	public PingerTask[] ExecTasks(Config config, PingerTask[] baseTaskList)
-	{
-		double startTime = Time.NowHighResDouble;
-		List<PingerTask> taskList = new List<PingerTask>();
-		List<PingerTask> taskList2 = new List<PingerTask>();
+                sm.SmtpPort = config.SmtpPort;
 
-		int num = 0;
+                if (sm.Send(from, to, subject, body))
+                {
+                    ok = true;
+                    break;
+                }
+            }
 
-		if (config.TcpSendData)
-		{
-			Con.WriteLine("\n  starting TCP send data...\n");
+            if (ok == false)
+            {
+                for (i = 0; i < config.SmtpNumTry2; i++)
+                {
+                    SendMail sm = new SendMail(config.SmtpServerName2, SendMailVersion.Ver2_With_NetMail, config.SmtpUsername2, config.SmtpPassword2);
 
-			foreach (Target target in config.TargetListLastOkHost)
-			{
-				foreach (int port in target.Ports)
-				{
-					if (port != 0)
-					{
-						PingerTask task = new PingerTask(target.HostName, config.ConvertHostnameToOkHostname(target.HostName), port, config.Timeout, true);
+                    sm.SmtpPort = config.SmtpPort2;
 
-						taskList2.Add(task);
-					}
-				}
-			}
-			foreach (Target target in config.TargetListLastNgHost)
-			{
-				foreach (int port in target.Ports)
-				{
-					if (port != 0)
-					{
-						PingerTask task = new PingerTask(target.HostName, config.ConvertHostnameToOkHostname(target.HostName), port, config.Timeout, true);
+                    if (sm.Send(from, to, subject, body))
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+    }
 
-						taskList2.Add(task);
-					}
-				}
-			}
-			foreach (PingerTask task in taskList2)
-			{
-				if (task != null)
-				{
-					task.WaitForEnd();
-				}
-			}
-			Con.WriteLine("\n  TCP send data ended.\n");
-		}
+    // タスクを実行
+    public PingerTask[] ExecTasks(Config config, PingerTask[] baseTaskList)
+    {
+        double startTime = Time.NowHighResDouble;
+        List<PingerTask> taskList = new List<PingerTask>();
+        List<PingerTask> taskList2 = new List<PingerTask>();
 
-		// 各タスクの開始
-		foreach (Target target in config.TargetListLastOkHost)
-		{
-			foreach (int port in target.Ports)
-			{
-				PingerTask task = null!;
-				bool ok = false;
-				if (baseTaskList != null)
-				{
-					if (baseTaskList[num].Ok)
-					{
-						if (config.TcpSendData == false || port == 0)
-						{
-							// すでに前回で Ok が出ている
-							ok = true;
-						}
-					}
-				}
+        int num = 0;
 
-				if (ok == false)
-				{
-					task = new PingerTask(target.HostName, config.ConvertHostnameToOkHostname(target.HostName), port, config.Timeout, config.TcpSendData);
-				}
+        if (config.TcpSendData)
+        {
+            Con.WriteLine("\n  starting TCP send data...\n");
 
-				taskList.Add(task);
+            foreach (Target target in config.TargetListLastOkHost)
+            {
+                foreach (int port in target.Ports)
+                {
+                    if (port != 0)
+                    {
+                        PingerTask task = new PingerTask(this.DnsClient, target.HostName, config.ConvertHostnameToOkHostname(target.HostName), port, config.Timeout, true);
 
-				num++;
-			}
-		}
-		ThreadObj.Sleep(1000);
-		foreach (Target target in config.TargetListLastNgHost)
-		{
-			foreach (int port in target.Ports)
-			{
-				PingerTask task = null!;
-				bool ok = false;
-				if (baseTaskList != null)
-				{
-					if (baseTaskList[num].Ok)
-					{
-						if (config.TcpSendData == false || port == 0)
-						{
-							// すでに前回で Ok が出ている
-							ok = true;
-						}
-					}
-				}
+                        taskList2.Add(task);
+                    }
+                }
+            }
+            foreach (Target target in config.TargetListLastNgHost)
+            {
+                foreach (int port in target.Ports)
+                {
+                    if (port != 0)
+                    {
+                        PingerTask task = new PingerTask(this.DnsClient, target.HostName, config.ConvertHostnameToOkHostname(target.HostName), port, config.Timeout, true);
 
-				if (ok == false)
-				{
-					task = new PingerTask(target.HostName, config.ConvertHostnameToOkHostname(target.HostName), port, config.Timeout, config.TcpSendData);
-				}
+                        taskList2.Add(task);
+                    }
+                }
+            }
+            foreach (PingerTask task in taskList2)
+            {
+                if (task != null)
+                {
+                    task.WaitForEnd();
+                }
+            }
+            Con.WriteLine("\n  TCP send data ended.\n");
+        }
 
-				taskList.Add(task);
+        // 各タスクの開始
+        foreach (Target target in config.TargetListLastOkHost)
+        {
+            foreach (int port in target.Ports)
+            {
+                PingerTask task = null!;
+                bool ok = false;
+                if (baseTaskList != null)
+                {
+                    if (baseTaskList[num].Ok)
+                    {
+                        if (config.TcpSendData == false || port == 0)
+                        {
+                            // すでに前回で Ok が出ている
+                            ok = true;
+                        }
+                    }
+                }
 
-				num++;
-			}
-		}
+                if (ok == false)
+                {
+                    task = new PingerTask(this.DnsClient, target.HostName, config.ConvertHostnameToOkHostname(target.HostName), port, config.Timeout, config.TcpSendData);
+                }
 
-		// タスクの完了の待機
-		foreach (PingerTask task in taskList)
-		{
-			if (task != null)
-			{
-				task.WaitForEnd();
+                taskList.Add(task);
 
-				if (config.TcpSendData)
-				{
-					if (task.TargetPort != 0)
-					{
-						task.TcpNg = !task.Ok;
-					}
-				}
+                num++;
+            }
+        }
+        ThreadObj.Sleep(1000);
+        foreach (Target target in config.TargetListLastNgHost)
+        {
+            foreach (int port in target.Ports)
+            {
+                PingerTask task = null!;
+                bool ok = false;
+                if (baseTaskList != null)
+                {
+                    if (baseTaskList[num].Ok)
+                    {
+                        if (config.TcpSendData == false || port == 0)
+                        {
+                            // すでに前回で Ok が出ている
+                            ok = true;
+                        }
+                    }
+                }
 
-				if (task.Ok)
-				{
-					CurrentOkHostList.Add(task.TargetHost);
-				}
-			}
-		}
+                if (ok == false)
+                {
+                    task = new PingerTask(this.DnsClient, target.HostName, config.ConvertHostnameToOkHostname(target.HostName), port, config.Timeout, config.TcpSendData);
+                }
 
-		double endTime = Time.NowHighResDouble;
+                taskList.Add(task);
 
-		return taskList.ToArray();
-	}
+                num++;
+            }
+        }
 
-	// タスクを複数回実行
-	public PingerTask[] ExecTasksMulti(Config config)
-	{
-		PingerTask[] baseTaskList = null!;
+        // タスクの完了の待機
+        foreach (PingerTask task in taskList)
+        {
+            if (task != null)
+            {
+                task.WaitForEnd();
 
-		Console.WriteLine(DateTime.Now.ToString() + " -----------------------");
-		Console.WriteLine(DateTime.Now.ToString() + " ExecTasksMulti Started.");
-		Console.WriteLine(DateTime.Now.ToString() + " LastOK Hosts: " + config.TargetListLastOkHost.Length);
-		Console.WriteLine(DateTime.Now.ToString() + " LastNG Hosts: " + config.TargetListLastNgHost.Length);
+                if (config.TcpSendData)
+                {
+                    if (task.TargetPort != 0)
+                    {
+                        task.TcpNg = !task.Ok;
+                    }
+                }
 
-		int i;
-		for (i = 0; i < config.NumErrors; i++)
-		{
-			Console.Write(DateTime.Now.ToString() + " ExecTasks {0} / {1} ...", i + 1, config.NumErrors);
-			PingerTask[] taskList = ExecTasks(config, baseTaskList);
-			Console.WriteLine("\nOk.");
+                if (task.Ok)
+                {
+                    CurrentOkHostList.Add(task.TargetHost);
+                }
+            }
+        }
 
-			if (baseTaskList == null)
-			{
-				baseTaskList = taskList;
-			}
-			else
-			{
-				int j;
+        double endTime = Time.NowHighResDouble;
 
-				for (j = 0; j < baseTaskList.Length; j++)
-				{
-					if (taskList[j] == null || taskList[j].Ok == true)
-					{
-						baseTaskList[j].Ok = true;
-					}
+        return taskList.ToArray();
+    }
 
-					if (taskList[j] != null && taskList[j].TargetPort != 0 && config.TcpSendData && taskList[j].TcpNg)
-					{
-						baseTaskList[j].TcpNg = true;
-					}
-				}
-			}
+    // タスクを複数回実行
+    public PingerTask[] ExecTasksMulti(Config config)
+    {
+        PingerTask[] baseTaskList = null!;
 
-			if (i != (config.NumErrors - 1))
-			{
-				Kernel.SleepThread(config.Interval);
-			}
-		}
+        Console.WriteLine(DateTime.Now.ToString() + " -----------------------");
+        Console.WriteLine(DateTime.Now.ToString() + " ExecTasksMulti Started.");
+        Console.WriteLine(DateTime.Now.ToString() + " LastOK Hosts: " + config.TargetListLastOkHost.Length);
+        Console.WriteLine(DateTime.Now.ToString() + " LastNG Hosts: " + config.TargetListLastNgHost.Length);
 
-		Console.WriteLine(DateTime.Now.ToString() + " ExecTasksMulti Finished.");
-		Console.WriteLine(DateTime.Now.ToString() + " -----------------------");
+        int i;
+        for (i = 0; i < config.NumErrors; i++)
+        {
+            Console.Write(DateTime.Now.ToString() + " ExecTasks {0} / {1} ...", i + 1, config.NumErrors);
+            PingerTask[] taskList = ExecTasks(config, baseTaskList);
+            Console.WriteLine("\nOk.");
 
-		/*
+            if (baseTaskList == null)
+            {
+                baseTaskList = taskList;
+            }
+            else
+            {
+                int j;
+
+                for (j = 0; j < baseTaskList.Length; j++)
+                {
+                    if (taskList[j] == null || taskList[j].Ok == true)
+                    {
+                        baseTaskList[j].Ok = true;
+                    }
+
+                    if (taskList[j] != null && taskList[j].TargetPort != 0 && config.TcpSendData && taskList[j].TcpNg)
+                    {
+                        baseTaskList[j].TcpNg = true;
+                    }
+                }
+            }
+
+            if (i != (config.NumErrors - 1))
+            {
+                Kernel.SleepThread(config.Interval);
+            }
+        }
+
+        Console.WriteLine(DateTime.Now.ToString() + " ExecTasksMulti Finished.");
+        Console.WriteLine(DateTime.Now.ToString() + " -----------------------");
+
+        /*
 		foreach (PingerTask task in baseTaskList)
 		{
 			if (task.TcpNg)
@@ -1192,10 +1256,10 @@ public class Pinger
 		}
 		 * */
 
-		Kernel.SleepThread(config.Interval);
+        Kernel.SleepThread(config.Interval);
 
-		return baseTaskList;
-	}
+        return baseTaskList;
+    }
 }
 
 

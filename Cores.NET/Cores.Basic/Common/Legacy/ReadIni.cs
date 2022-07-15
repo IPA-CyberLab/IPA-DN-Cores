@@ -138,9 +138,18 @@ public class ReadIni
         return ret.ToArray();
     }
 
-    public ReadIni(string filename)
+    public ReadIni(string filename, bool expandIncludes = false)
     {
-        init(null, filename);
+        if (expandIncludes == false)
+        {
+            init(null, filename);
+        }
+        else
+        {
+            string body = Lfs.ReadStringFromFile(IPA.Cores.Basic.Legacy.IO.InnerFilePath(filename), flags: FileFlags.ReadStr_ExpandIncludes);
+
+            init(body._GetBytes_UTF8(), null);
+        }
     }
 
     void init(byte[] data)
