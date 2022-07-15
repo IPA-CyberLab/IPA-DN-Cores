@@ -901,12 +901,19 @@ public class Pinger
         res = new PingerResults();
         lastHash = new byte[0];
 
-        Config cfg = new Config(ConfigFileName, null!);
-
-        int port = cfg.TcpListen;
-        if (port != 0)
+        try
         {
-            tl = new Listener(port, tcpListenerAcceptProc, null!);
+            Config cfg = new Config(ConfigFileName, null!);
+
+            int port = cfg.TcpListen;
+            if (port != 0)
+            {
+                tl = new Listener(port, tcpListenerAcceptProc, null!);
+            }
+        }
+        catch (Exception ex)
+        {
+            ex._Error();
         }
     }
 
