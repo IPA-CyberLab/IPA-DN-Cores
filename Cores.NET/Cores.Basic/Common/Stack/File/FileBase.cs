@@ -471,6 +471,7 @@ public enum FileFlags : ulong
     CopyFile_Verify = 16384,
     NoCheckFileSize = 32768,
     LargeFs_ProhibitWriteWithCrossBorder = 65536,
+    ReadStr_ExpandIncludes = 131072,
 }
 
 

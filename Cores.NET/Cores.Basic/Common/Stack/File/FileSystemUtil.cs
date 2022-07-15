@@ -660,7 +660,7 @@ public abstract partial class FileSystem
         }
     }
 
-    public async Task<string> ReadStringFromFileAsync(string path, Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
+    public async Task<string> ReadStringFromFileAsync(string path, Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default, ExpandIncludesSettings? expandIncludesSettings = null)
     {
         Memory<byte> data = await ReadDataFromFileAsync(path, maxSize, flags, cancel);
 
@@ -671,6 +671,11 @@ public abstract partial class FileSystem
         else
             str = Str.DecodeString(data.Span, encoding, out _);
 
+        if (flags.Bit(FileFlags.ReadStr_ExpandIncludes))
+        {
+            str = await MiscUtil.ExpandIncludesAsync(str, new FilePath(path, this, flags), expandIncludesSettings, cancel);
+        }
+
         if (oneLine)
         {
             str = str._OneLine("");
@@ -678,12 +683,14 @@ public abstract partial class FileSystem
 
         return str;
     }
-    public string ReadStringFromFile(string path, Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
-        => ReadStringFromFileAsync(path, encoding, maxSize, flags, oneLine, cancel)._GetResult();
+    public string ReadStringFromFile(string path, Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default, ExpandIncludesSettings? expandIncludesSettings = null)
+        => ReadStringFromFileAsync(path, encoding, maxSize, flags, oneLine, cancel, expandIncludesSettings)._GetResult();
 
 
     public async Task<string> ReadStringFromFileEncryptedAsync(string path, string password, Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
     {
+        if (flags.Bit(FileFlags.ReadStr_ExpandIncludes)) throw new CoresLibException("ReadStr_ExpandIncludes is not supported on encryped files.");
+
         Memory<byte> data = await ReadDataFromFileEncryptedAsync(path, password, maxSize, flags, cancel);
 
         string str;
@@ -738,10 +745,10 @@ public abstract partial class FileSystem
         }
     }
 
-    public async Task<string> EasyReadStringAsync(string partOfFileName, bool exact = false, string rootDir = "/", Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
-        => await ReadStringFromFileAsync(await EasyFindSingleFileAsync(partOfFileName, exact, rootDir, cancel), encoding, maxSize, flags, oneLine, cancel);
-    public string EasyReadString(string partOfFileName, bool exact = false, string rootDir = "/", Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
-        => EasyReadStringAsync(partOfFileName, exact, rootDir, encoding, maxSize, flags, oneLine, cancel)._GetResult();
+    public async Task<string> EasyReadStringAsync(string partOfFileName, bool exact = false, string rootDir = "/", Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default, ExpandIncludesSettings? expandIncludesSettings = null)
+        => await ReadStringFromFileAsync(await EasyFindSingleFileAsync(partOfFileName, exact, rootDir, cancel), encoding, maxSize, flags, oneLine, cancel, expandIncludesSettings);
+    public string EasyReadString(string partOfFileName, bool exact = false, string rootDir = "/", Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default, ExpandIncludesSettings? expandIncludesSettings = null)
+        => EasyReadStringAsync(partOfFileName, exact, rootDir, encoding, maxSize, flags, oneLine, cancel, expandIncludesSettings)._GetResult();
 
     public async Task<Memory<byte>> EasyReadDataAsync(string partOfFileName, bool exact = false, string rootDir = "/", int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         => await ReadDataFromFileAsync(await EasyFindSingleFileAsync(partOfFileName, exact, rootDir, cancel), maxSize, flags, cancel);
@@ -1455,8 +1462,8 @@ public class FilePath : FileSystemPath // CloneDeep 禁止
     public Memory<byte> ReadDataFromFile(int maxSize = int.MaxValue, FileFlags additionalFlags = FileFlags.None, CancellationToken cancel = default)
         => ReadDataFromFileAsync(maxSize, additionalFlags, cancel)._GetResult();
 
-    public Task<string> ReadStringFromFileAsync(Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags additionalFlags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
-        => this.FileSystem.ReadStringFromFileAsync(this.PathString, encoding, maxSize, this.Flags | additionalFlags, oneLine, cancel);
+    public Task<string> ReadStringFromFileAsync(Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags additionalFlags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default, ExpandIncludesSettings? expandIncludesSettings = null)
+        => this.FileSystem.ReadStringFromFileAsync(this.PathString, encoding, maxSize, this.Flags | additionalFlags, oneLine, cancel, expandIncludesSettings);
 
     public string ReadStringFromFile(Encoding? encoding = null, int maxSize = int.MaxValue, FileFlags additionalFlags = FileFlags.None, bool oneLine = false, CancellationToken cancel = default)
         => ReadStringFromFileAsync(encoding, maxSize, additionalFlags, oneLine, cancel)._GetResult();

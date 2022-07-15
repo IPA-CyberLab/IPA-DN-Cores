@@ -3690,11 +3690,15 @@ cccadmin
     {
         Async(async () =>
         {
-            var ret = await CachedDownloader.DownloadAsync("https://user220713001:pass4Qu0CC7Yl7obDvYLM1oVfi59@[2409:11:c0c0:1b00:21:1ff:fe31:1]/d/220713_001_ac526zu6mpnfpkpx/auth8880514/test.txt!ssl=dd6668c8f3db6b53c593b83e9511ecfb5a9fdefc_,dd6668c8f3db6b53c593b83e9511ecfb5a9fdefd",
-                settings: new CachedDownloaderSettings(flags: CachedDownloaderFlags.None));
+            //var ret = await CachedDownloader.DownloadAsync("https://user220713001:pass4Qu0CC7Yl7obDvYLM1oVfi59@[2409:11:c0c0:1b00:21:1ff:fe31:1]/d/220713_001_ac526zu6mpnfpkpx/auth8880514/test.txt!ssl=dd6668c8f3db6b53c593b83e9511ecfb5a9fdefc_,dd6668c8f3db6b53c593b83e9511ecfb5a9fdefd",
+            //    settings: new CachedDownloaderSettings(flags: CachedDownloaderFlags.None));
 
-            Con.WriteLine(ret.FromCache);
-            Con.WriteLine(ret.Data._GetString_UTF8());
+            //Con.WriteLine(ret.FromCache);
+            //Con.WriteLine(ret.Data._GetString_UTF8());
+
+            var ret = await Lfs.ReadStringFromFileAsync(@"C:\Users\yagi\Desktop\test\main.txt", flags: FileFlags.ReadStr_ExpandIncludes);
+
+            ret._Print();
         });
 
         return;

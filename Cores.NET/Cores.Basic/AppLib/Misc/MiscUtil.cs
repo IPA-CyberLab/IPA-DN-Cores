@@ -62,6 +62,16 @@ using System.Xml;
 
 namespace IPA.Cores.Basic;
 
+public static partial class CoresConfig
+{
+    public static partial class DefaultExpandIncludesSettings
+    {
+        public static readonly Copenhagen<int> WebTimeoutMsecs = 5 * 1000;
+        public static readonly Copenhagen<int> WebTryCount = 2;
+        public static readonly Copenhagen<int> WebRetryIntervalMsecs = 100;
+    }
+}
+
 public class PoderosaSettingsContents
 {
     public string? HostName;
@@ -123,9 +133,116 @@ public class BatchExecSshItem
     public string CommandLine = "";
 }
 
+public class ExpandIncludesSettings
+{
+    public int MaxIncludes { init; get; } = 16;
+    public CachedDownloaderSettings DownloaderSettings { init; get; } = new CachedDownloaderSettings();
+    public bool AllowIncludeLocalFileByLocalFile { init; get; } = true;
+    public bool AllowIncludeLocalFileByNetworkFile { init; get; } = false;
+    public Encoding? Encoding { init; get; } = null;
+    public int MaxReadFileSize { init; get; } = Consts.MaxLens.MaxCachedFileDownloadSizeDefault;
+}
+
 // 色々なおまけユーティリティ
 public static partial class MiscUtil
 {
+    // ファイルの #include を展開する
+    public static async Task<string> ExpandIncludesAsync(string srcFileBody, FilePath? srcFilePathIfPhysicalFile = null, ExpandIncludesSettings? settings = null, CancellationToken cancel = default, string? newLineStr = null)
+    {
+        settings ??= new ExpandIncludesSettings
+        {
+            DownloaderSettings = new CachedDownloaderSettings(flags: CachedDownloaderFlags.None,
+                webOptions: new WebApiOptions(new WebApiSettings { Timeout = CoresConfig.DefaultExpandIncludesSettings.WebTimeoutMsecs, MaxRecvSize = Consts.MaxLens.MaxCachedFileDownloadSizeDefault }),
+                maxTry: CoresConfig.DefaultExpandIncludesSettings.WebTryCount,
+                retryInterval: CoresConfig.DefaultExpandIncludesSettings.WebRetryIntervalMsecs),
+        };
+
+        List<string> destLines = new List<string>();
+
+        RefInt counter = new RefInt();
+
+        await ProcessAsync(destLines, srcFileBody, srcFilePathIfPhysicalFile, counter);
+
+        return destLines._LinesToStr(newLineStr);
+
+        async Task ProcessAsync(List<string> destLines, string srcFileBody, FilePath? srcFilePathIfPhysicalFile, RefInt includeCount)
+        {
+            includeCount.Increment();
+
+            var fs = srcFilePathIfPhysicalFile?.FileSystem ?? null;
+
+            var lines = srcFileBody._GetLines();
+
+            foreach (var line in lines)
+            {
+                string tmp = line.Trim(' ', '　', '\t');
+                bool consumed = false;
+
+                if (tmp.StartsWith("#include", StringComparison.InvariantCultureIgnoreCase) && tmp.Length >= 9)
+                {
+                    if (tmp[8] == ' ' || tmp[8] == '\t' || tmp[8] == '　')
+                    {
+                        string name = tmp.Substring(9);
+                        name = name._RemoveQuotation().Trim();
+
+                        if (name._IsFilled())
+                        {
+                            if (includeCount > settings!.MaxIncludes)
+                            {
+                                throw new CoresLibException($"'{line}': includeCount ({includeCount}) > settings.MaxIncludes ({settings.MaxIncludes})");
+                            }
+
+                            if (name.StartsWith("http://", StrCmpi) || name.StartsWith("https://", StrCmpi))
+                            {
+                                // HTTP URL
+                                var r = await CachedDownloader.DownloadAsync(name, cancel, settings!.DownloaderSettings);
+
+                                var encoding = settings.Encoding;
+
+                                string targetBody;
+
+                                if (encoding == null)
+                                    targetBody = Str.DecodeStringAutoDetect(r.Data.Span, out _);
+                                else
+                                    targetBody = Str.DecodeString(r.Data.Span, encoding, out _);
+
+                                await ProcessAsync(destLines, targetBody, null, includeCount);
+                            }
+                            else
+                            {
+                                // ローカルファイル
+                                if (fs == null)
+                                {
+                                    throw new CoresLibException($"'{line}': Current file is not a local file.");
+                                }
+
+                                if (settings!.AllowIncludeLocalFileByNetworkFile == false && srcFilePathIfPhysicalFile == null)
+                                {
+                                    throw new CoresLibException($"'{line}': AllowIncludeLocalFileByNetworkFile == false");
+                                }
+
+                                name = fs.PathParser.NormalizeDirectorySeparatorIncludeWindowsBackslash(name);
+
+                                string targetFilePath = srcFilePathIfPhysicalFile!.GetParentDirectory().Combine(name);
+
+                                var targetBody = await fs.ReadStringFromFileAsync(targetFilePath, settings.Encoding, settings.MaxReadFileSize, FileFlags.None, cancel: cancel);
+
+                                await ProcessAsync(destLines, targetBody, targetFilePath, includeCount);
+                            }
+
+                            consumed = true;
+                        }
+                    }
+                }
+
+                if (consumed == false)
+                {
+                    destLines.Add(tmp);
+                }
+            }
+        }
+    }
+
     // バイナリファイルの内容をバイナリで置換する
     public static async Task<KeyValueList<string, int>> ReplaceBinaryFileAsync(FilePath srcFilePath, FilePath? destFilePath, KeyValueList<string, string> oldNewList, FileFlags additionalFlags = FileFlags.None, byte fillByte = 0x0A, int bufferSize = Consts.Numbers.DefaultVeryLargeBufferSize, CancellationToken cancel = default)
     {
@@ -1881,18 +1998,16 @@ public class CachedDownloaderSettings
 {
     public DirectoryPath CacheRootDirPath { get; }
     public CachedDownloaderFlags Flags { get; }
-    public int MaxDownloadSize { get; }
     public WebApiOptions WebOptions { get; }
     public int MaxTry { get; }
     public int RetryInterval { get; }
 
-    public CachedDownloaderSettings(DirectoryPath? cacheRootDirPath=null, CachedDownloaderFlags flags = CachedDownloaderFlags.None, int maxDownloadSize = Consts.MaxLens.MaxCachedFileDownloadSizeDefault,
+    public CachedDownloaderSettings(DirectoryPath? cacheRootDirPath=null, CachedDownloaderFlags flags = CachedDownloaderFlags.None,
         WebApiOptions? webOptions = null, int maxTry = 1, int retryInterval = 1000)
     {
         this.CacheRootDirPath = cacheRootDirPath ?? new DirectoryPath(Lfs.PathParser.Combine(Env.AppLocalDir, "CachedDownloader"), Lfs);
         this.Flags = flags;
-        this.MaxDownloadSize = maxDownloadSize;
-        this.WebOptions = webOptions ?? new WebApiOptions();
+        this.WebOptions = webOptions ?? new WebApiOptions(new WebApiSettings { MaxRecvSize = Consts.MaxLens.MaxCachedFileDownloadSizeDefault });
         this.MaxTry = Math.Max(MaxTry, 1);
         this.RetryInterval = Math.Max(retryInterval, 0);
     }
