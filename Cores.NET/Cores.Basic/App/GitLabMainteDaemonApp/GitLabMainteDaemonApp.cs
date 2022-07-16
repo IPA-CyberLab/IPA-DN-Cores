@@ -547,6 +547,15 @@ public class GitLabMainteDaemonApp : AsyncService
         {
             try
             {
+                await Lfs.CreateDirectoryAsync(this.Settings.GitMirrorDataRootDir);
+                await Lfs.CreateDirectoryAsync(this.Settings.GitWebDataRootDir);
+            }
+            catch
+            {
+            }
+
+            try
+            {
                 // Git リポジトリを列挙
                 var projects = await this.GitLabClient.EnumProjectsAsync(cancel);
 
