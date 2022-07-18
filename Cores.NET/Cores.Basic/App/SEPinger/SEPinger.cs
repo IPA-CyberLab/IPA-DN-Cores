@@ -954,7 +954,7 @@ public class Pinger
     // 1 回実行
     public void ExecOnce()
     {
-        this.DnsClient = null;
+        this.DnsClient = null!;
 
         Config config = new Config(ConfigFileName, this.LastOkHostList);
 
