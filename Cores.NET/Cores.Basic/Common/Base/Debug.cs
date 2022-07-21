@@ -1679,6 +1679,7 @@ namespace IPA.Cores.Basic
         public long Mem;
         public int Gc, Gc0, Gc1, Gc2;
         public int Task2;
+        public long Tick;
 
         public static bool NextTimeCallGc { get; internal set; } = false;
 
@@ -1737,6 +1738,7 @@ namespace IPA.Cores.Basic
             this.Obj = LeakChecker.Count;
             this.IO = max_ports - avail_ports;
             this.Mem = mem / 1024;
+            this.Tick = Time.Tick64;
         }
     }
 
