@@ -169,6 +169,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         public int DDns_HostApi_RateLimit_MaxCounts_Per_Duration = 24;
         public bool DDns_HostLabelLookup_IgnoreAfterDoubleHyphon = true;
         public string DDns_HostLabelLookup_IgnorePrefixStrings = "_initial_";
+        public string DDns_HostLabelLookup_IgnoreSuffixStrings = "_initial_";
         public string DDns_HostLabelLookup_DummySuffixListForIPv4Only = "_initial_";
         public string DDns_HostLabelLookup_DummySuffixListForIPv6Only = "_initial_";
 
@@ -276,6 +277,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
                    "-ipv4only",
                    "-ipv6",
                    "-ipv6only",
+                   "-ws",
+                   "-websocket",
                    "-webapp",
                    "-app",
                    "-web",
@@ -300,6 +303,26 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
             DDns_HostLabelLookup_IgnorePrefixStrings = DDns_HostLabelLookup_IgnorePrefixStrings._NonNullTrim()
                 ._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', ';', ',', '/', '\t')._Combine(",").ToLowerInvariant();
+
+
+
+
+
+            if (DDns_HostLabelLookup_IgnoreSuffixStrings._IsSamei("_initial_"))
+                DDns_HostLabelLookup_IgnoreSuffixStrings = new string[] {
+                   "-ws",
+                   "-websocket",
+                   "-webapp",
+                   "-app",
+                   "-web",
+                   "-login",
+                   "-telework",
+                }._Combine(",");
+
+            DDns_HostLabelLookup_IgnoreSuffixStrings = DDns_HostLabelLookup_IgnoreSuffixStrings._NonNullTrim()
+                ._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', ';', ',', '/', '\t')._Combine(",").ToLowerInvariant();
+
+
 
 
             if (DDns_HostLabelLookup_DummySuffixListForIPv4Only._IsSamei("_initial_"))
@@ -877,6 +900,13 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 .OrderByDescending(x => x.Length).ToArray();
         }
 
+        string[]? suffixIgnoreList = null;
+        if (config.DDns_HostLabelLookup_IgnoreSuffixStrings._IsFilled())
+        {
+            suffixIgnoreList = config.DDns_HostLabelLookup_IgnoreSuffixStrings._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ',')
+                .OrderByDescending(x => x.Length).ToArray();
+        }
+
         string[]? v4onlySuffixList = null;
         if (config.DDns_HostLabelLookup_DummySuffixListForIPv4Only._IsFilled())
         {
@@ -922,6 +952,17 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                     if (targetLabel.StartsWith(ign, StringComparison.OrdinalIgnoreCase))
                     {
                         targetLabel = targetLabel.Substring(ign.Length);
+                    }
+                }
+            }
+
+            if (suffixIgnoreList != null)
+            {
+                foreach (string ign in suffixIgnoreList)
+                {
+                    if (targetLabel.EndsWith(ign, StringComparison.OrdinalIgnoreCase))
+                    {
+                        targetLabel = targetLabel.Substring(0, targetLabel.Length - ign.Length);
                     }
                 }
             }
