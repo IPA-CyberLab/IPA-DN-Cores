@@ -952,6 +952,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                     if (targetLabel.StartsWith(ign, StringComparison.OrdinalIgnoreCase))
                     {
                         targetLabel = targetLabel.Substring(ign.Length);
+                        break; // 省略は 1 回限り
                     }
                 }
             }
@@ -963,6 +964,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                     if (targetLabel.EndsWith(ign, StringComparison.OrdinalIgnoreCase))
                     {
                         targetLabel = targetLabel.Substring(0, targetLabel.Length - ign.Length);
+                        break; // 省略は 1 回限り
                     }
                 }
             }
