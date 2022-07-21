@@ -256,6 +256,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
                    "v4",
                    "v6",
                    "getmyip",
+                   "cert-server",
                    "_acme",
                 }._Combine(",");
 
@@ -370,6 +371,11 @@ A v4 1.2.3.4
 AAAA @ 1111:2222:3333::4444
 AAAA v6 1111:2222:3333::4444
 
+A cert-server 4.3.2.2
+A cert-server-v4 4.3.2.1
+AAAA cert-server 2001:af80::4321
+AAAA cert-server-v6 2001:af80::4321
+
 CNAME www @
 CNAME api @
 CNAME ipv4 v4.@
@@ -420,7 +426,7 @@ NS subdomain1 subdomain_ns2.your_company.net
 NS subdomain2 subdomain_ns3.your_company.co.jp
 NS subdomain2 subdomain_ns4.your_company.ad.jp
 
-NS _acme-challenge your-ssl-cert-server.your_company.net
+NS _acme-challenge cert-server-v4.@
 
 MX @ mail1.your_company.net 100
 MX @ mail2.your_company.net 200
