@@ -1093,6 +1093,8 @@ public class LogBrowser : AsyncService
             .ThenByDescending(x => x.IsDirectory)
             .ThenBy(x => x.Name, StrComparer.IgnoreCaseComparer);
 
+        long totalSize = fileListSorted.Where(x => x.IsFile).Sum(x => x.Size);
+
         foreach (FileSystemEntity e in fileListSorted)
         {
             // ルートディレクトリへのリンクは消します
@@ -1189,7 +1191,14 @@ public class LogBrowser : AsyncService
             string sizeStr = Str.GetFileSizeStr(printSize);
             if (e.IsDirectory)
             {
-                sizeStr = "<Dir>";
+                if (e.IsParentDirectory)
+                {
+                    sizeStr = $"Total: {Str.GetFileSizeStr(totalSize)}";
+                }
+                else
+                {
+                    sizeStr = "<Dir>";
+                }
             }
 
             dirHtml.WriteLine($"<td align=\"right\">{sizeStr._EncodeHtml()}</td>");
