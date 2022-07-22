@@ -1185,7 +1185,7 @@ public class CertVault : AsyncServiceWithMainLoop
                 if (pc.CertificateList.Count >= 1)
                 {
                     var cert2 = pc.CertificateList[0];
-                    if (cert2.IsMatchForHost(hostname, out CertificateHostnameType mt) || cert.CertType == CertVaultCertType.DefaultCert)
+                    if ((cert2.IsMatchForHost(hostname, out CertificateHostnameType mt) && this.CheckFqdnMatchForForceUseDefaultCertFqdnList(hostname) == false) || cert.CertType == CertVaultCertType.DefaultCert)
                     {
                         if (cert.CertType == CertVaultCertType.DefaultCert) mt = CertificateHostnameType.DefaultCert;
 
