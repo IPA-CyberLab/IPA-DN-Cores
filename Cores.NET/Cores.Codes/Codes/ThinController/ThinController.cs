@@ -2742,14 +2742,14 @@ public interface IThinControllerRpcApi
     [RpcMethodHelp("1 台のサーバーオブジェクトの固有 ID を指定して、サーバーオブジェクトをアクティベーション (有効化) します。また、有効化された後のサーバーオブジェクトの情報を取得します。")]
     public Task<ThinControllerRpcServerObjectInfo?> ServerObject_Activate(
         [RpcParamHelp("サーバーオブジェクトの固有 ID。空白文字列は省略可能。半角英数字。大文字・小文字を個別しない。", "00112233445566778899AABBCCDDEEFF00112233")] string uniqueId,
-        [RpcParamHelp("任意のタグ文字列。このタグ文字列は、サーバーオブジェクトと一緒にデータベースに保存され、GetServerObjectInfoByUniqueId() API で返却される情報に含まれます。", "Hello East Telecom")] string tag
+        [RpcParamHelp("任意のタグ文字列。このタグ文字列は、サーバーオブジェクトと一緒にデータベースに保存され、GetServerObjectInfoByUniqueId API で返却される情報に含まれます。", "Hello East Telecom")] string tag
         );
 
     [RpcRequireAuth]
     [RpcMethodHelp("1 台のサーバーオブジェクトの固有 ID を指定して、サーバーオブジェクトをアクティベーション解除 (無効化) します。また、無効化された後のサーバーオブジェクトの情報を取得します。")]
     public Task<ThinControllerRpcServerObjectInfo?> ServerObject_Deactivate(
         [RpcParamHelp("サーバーオブジェクトの固有 ID。空白文字列は省略可能。半角英数字。大文字・小文字を個別しない。", "00112233445566778899AABBCCDDEEFF00112233")] string uniqueId,
-        [RpcParamHelp("任意のタグ文字列。このタグ文字列は、サーバーオブジェクトと一緒にデータベースに保存され、GetServerObjectInfoByUniqueId() API で返却される情報に含まれます。", "Hello East Telecom")] string tag
+        [RpcParamHelp("任意のタグ文字列。このタグ文字列は、サーバーオブジェクトと一緒にデータベースに保存され、GetServerObjectInfoByUniqueId API で返却される情報に含まれます。", "Hello East Telecom")] string tag
         );
 }
 

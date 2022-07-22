@@ -1028,11 +1028,11 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         var bomUtfData = callResults.ResultString._GetBytes_UTF8(bom: true);
 
-        string title = $"{mi.Name}() API Returned OK. Returned {bomUtfData.Length._ToString3()} bytes JSON Result Data.";
+        string title = $"{mi.Name} API Returned OK. Returned {bomUtfData.Length._ToString3()} bytes JSON Result Data.";
 
         if (callResults.AllError && callResults.SingleErrorMessage._IsFilled())
         {
-            title = $"{mi.Name}() API Returned An Error.";
+            title = $"{mi.Name} API Returned An Error.";
         }
 
         Control_WriteHtmlHeader(w, title);
@@ -1066,13 +1066,13 @@ public class JsonRpcHttpServer : JsonRpcServer
             w.WriteLine("<p>　</p>");
         }
 
-        w.WriteLine($"<p><b>The JSON result data are as follows.</b> You may see the <a href='{this.RpcAbsoluteUrlPath}#{mi.Name}' target='_blank'><b>API Reference Manual of the {mi.Name}() API</a></b>.</p>");
+        w.WriteLine($"<p><b>The JSON result data are as follows.</b> You may see the <a href='{this.RpcAbsoluteUrlPath}#{mi.Name}' target='_blank'><b>API Reference Manual of the {mi.Name} API</a></b>.</p>");
 
         w.WriteLine($"<a class='button is-primary' id='download' style='font-weight: bold' href='#' download='{bomUtfDownloadFileName}' onclick='handleDownload()'><i class='far fa-folder-open'></i>&nbsp;Download JSON Result Data ({bomUtfData.Length._ToString3()} bytes)</a>");
 
         if (mi.ParametersByIndex.Length == 0)
         {
-            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-sync'></i>&nbsp;Refresh {mi.Name}() API Result</a>");
+            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-sync'></i>&nbsp;Refresh {mi.Name} API Result</a>");
         }
 
         w.WriteLine($"<a class='button is-success' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-user'></i>&nbsp;Return to Control Panel Web Form API Index</a>");
@@ -1088,11 +1088,11 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         if (mi.ParametersByIndex.Length >= 1)
         {
-            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-user'></i>&nbsp;Open Another {mi.Name}() API Control Panel Web Form</a>");
+            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-user'></i>&nbsp;Open Another {mi.Name} API Control Panel Web Form</a>");
         }
         else
         {
-            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-sync'></i>&nbsp;Refresh {mi.Name}() API Result</a>");
+            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-sync'></i>&nbsp;Refresh {mi.Name} API Result</a>");
         }
 
         w.WriteLine($"<a class='button is-success' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-user'></i>&nbsp;Return to Control Panel Web Form API Index</a>");
@@ -1102,11 +1102,11 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         w.WriteLine("<hr />");
 
-        w.WriteLine($"<p><b><a href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-user'></i> API Control Panel Index</a></b> > <b><a href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-user'></i> {mi.Name}() API Control Panel Web Form</a></b></p>");
+        w.WriteLine($"<p><b><a href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-user'></i> API Control Panel Index</a></b> > <b><a href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-user'></i> {mi.Name} API Control Panel Web Form</a></b></p>");
 
         if (this.Config.EnableBuiltinRichWebPages)
         {
-            w.WriteLine($"<p><b><a href='{this.RpcAbsoluteUrlPath}'><i class='fas fa-book-open'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-book-open'></i> {mi.Name}() API Document</a></b></p>");
+            w.WriteLine($"<p><b><a href='{this.RpcAbsoluteUrlPath}'><i class='fas fa-book-open'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-book-open'></i> {mi.Name} API Document</a></b></p>");
         }
 
         w.WriteLine("<p>　</p><HR>");
@@ -1140,9 +1140,9 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         w.WriteLine(this.Hook.GetHeaderMenuText());
 
-        w.WriteLine($"<h2 class='title is-4'>" + $"<i class='fas fa-user'></i> {this.ServerFriendlyNameHtml} Web API Form - {mi.Name}() API" + "</h2>");
+        w.WriteLine($"<h2 class='title is-4'>" + $"<i class='fas fa-user'></i> {this.ServerFriendlyNameHtml} Web API Form - {mi.Name} API" + "</h2>");
 
-        w.WriteLine($"<h3 class='title is-5'>" + $"{mi.Name}() API: {mi.Description._EncodeHtml()}" + "</h3>");
+        w.WriteLine($"<h3 class='title is-5'>" + $"{mi.Name} API: {mi.Description._EncodeHtml()}" + "</h3>");
 
         string requireAuthStr = "";
 
@@ -1151,7 +1151,7 @@ public class JsonRpcHttpServer : JsonRpcServer
             requireAuthStr = "<i class='fas fa-key'></i> ";
         }
 
-        w.WriteLine($"<p><b><a href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-user'></i> API Control Panel Index</a></b> > <b><a href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-user'></i> {requireAuthStr} {mi.Name}() API Control Panel Web Form</a></b></p>");
+        w.WriteLine($"<p><b><a href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-user'></i> API Control Panel Index</a></b> > <b><a href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-user'></i> {requireAuthStr} {mi.Name} API Control Panel Web Form</a></b></p>");
 
         int index = 0;
 
@@ -1227,7 +1227,7 @@ public class JsonRpcHttpServer : JsonRpcServer
         if (this.Config.EnableBuiltinRichWebPages)
         {
             w.WriteLine("<p><b>You may see this API reference before calling the API.</b></p>");
-            w.WriteLine($"<p><b><a href='{this.RpcAbsoluteUrlPath}'><i class='fas fa-book-open'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-book-open'></i> {mi.Name}() API Document</a></b></p>");
+            w.WriteLine($"<p><b><a href='{this.RpcAbsoluteUrlPath}'><i class='fas fa-book-open'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-book-open'></i> {mi.Name} API Document</a></b></p>");
         }
 
         w.WriteLine(@"
@@ -1606,7 +1606,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 requireAuthStr = "<i class='fas fa-key'></i> ";
             }
 
-            string titleStr = $"<a href='{this.ControlAbsoluteUrlPath}{m.Name}/'><b><i class='fas fa-user'></i> {requireAuthStr}Control Panel Web Form #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? " <BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
+            string titleStr = $"<a href='{this.ControlAbsoluteUrlPath}{m.Name}/'><b><i class='fas fa-user'></i> {requireAuthStr}Control Panel Web Form #{methodIndex}: {m.Name} API</b></a>{(m.Description._IsFilled() ? " <BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
 
             //w.WriteLine();
             //w.WriteLine($"- {helpStr}");
@@ -1679,7 +1679,7 @@ code[class*=""language-""], pre[class*=""language-""] {
         {
             methodIndex++;
 
-            string titleStr = $"<a href='#{m.Name}'><b><i class='fas fa-dice-d6'></i> RPC Method #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? "<BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
+            string titleStr = $"<a href='#{m.Name}'><b><i class='fas fa-dice-d6'></i> RPC Method #{methodIndex}: {m.Name} API</b></a>{(m.Description._IsFilled() ? "<BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
 
             //w.WriteLine();
             //w.WriteLine($"- {helpStr}");
@@ -1702,7 +1702,7 @@ code[class*=""language-""], pre[class*=""language-""] {
 
             w.WriteLine($"<hr id={m.Name}>");
 
-            string titleStr = $"<i class='fas fa-dice-d6'></i> RPC Method #{methodIndex}: {m.Name}() API{(m.Description._IsFilled() ? ":" : "")} {m.Description._EncodeHtml()}".Trim();
+            string titleStr = $"<i class='fas fa-dice-d6'></i> RPC Method #{methodIndex}: {m.Name} API{(m.Description._IsFilled() ? ":" : "")} {m.Description._EncodeHtml()}".Trim();
 
             w.WriteLine($"<h4 class='title is-5'>{titleStr}</h4>");
 
@@ -1713,7 +1713,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 requireAuthStr = "<i class='fas fa-key'></i> ";
             }
 
-            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-user'></i>&nbsp;{requireAuthStr}&nbsp;Call this {mi.Name}() API with Control Panel Web Form</a>");
+            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-user'></i>&nbsp;{requireAuthStr}&nbsp;Call this {mi.Name} API with Control Panel Web Form</a>");
 
             w.WriteLine();
             w.WriteLine("<p>　</p>");
