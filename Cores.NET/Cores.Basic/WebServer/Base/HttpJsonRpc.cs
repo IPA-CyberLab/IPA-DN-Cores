@@ -102,7 +102,7 @@ public class JsonRpcHttpServerHook
         string adminIcon = "<i class='fas fa-key'></i>";
 
         items.Add(new Tuple<string, string, string>($"<i class='fas fa-keyboard'></i> {title} Control Panel", Svr.ControlAbsoluteUrlPath, ""));
-        items.Add(new Tuple<string, string, string>($"<i class='fas fa-code'></i> {title} JSON-RPC APIs", Svr.RpcAbsoluteUrlPath, ""));
+        items.Add(new Tuple<string, string, string>($"<i class='fas fa-cogs'></i> {title} JSON-RPC APIs", Svr.RpcAbsoluteUrlPath, ""));
 
         if (includeAdminPages)
         {
@@ -670,7 +670,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                             <!-- Left empty for spacing -->
                         </div>
                         <div class='field-label is-normal'>
-                            <label class='label'><i class='fas fa-code'></i> Type Name:<BR>(Optional)</label>
+                            <label class='label'><i class='fas fa-cogs'></i> Type Name:<BR>(Optional)</label>
                         </div>
                         <div class='field-body'>
                             <div class='field'>
@@ -1665,7 +1665,7 @@ code[class*=""language-""], pre[class*=""language-""] {
 
         {this.Hook.GetHeaderMenuText()}
 
-<h2 class='title is-4'><i class='fas fa-code'></i> {this.ServerFriendlyNameHtml} - JSON-RPC Server API Reference Document Index</h2>
+<h2 class='title is-4'><i class='fas fa-cogs'></i> {this.ServerFriendlyNameHtml} - JSON-RPC Server API Reference Document Index</h2>
         
 <h4 class='title is-5'>List of all {methodList.Count} RPC-API Methods:</h4>
 
@@ -1679,7 +1679,7 @@ code[class*=""language-""], pre[class*=""language-""] {
         {
             methodIndex++;
 
-            string titleStr = $"<a href='#{m.Name}'><b><i class='fas fa-code'></i> RPC Method #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? "<BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
+            string titleStr = $"<a href='#{m.Name}'><b><i class='fas fa-cogs'></i> RPC Method #{methodIndex}: {m.Name}() API</b></a>{(m.Description._IsFilled() ? "<BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
 
             //w.WriteLine();
             //w.WriteLine($"- {helpStr}");
@@ -1702,7 +1702,7 @@ code[class*=""language-""], pre[class*=""language-""] {
 
             w.WriteLine($"<hr id={m.Name}>");
 
-            string titleStr = $"<i class='fas fa-code'></i> RPC Method #{methodIndex}: {m.Name}() API{(m.Description._IsFilled() ? ":" : "")} {m.Description._EncodeHtml()}".Trim();
+            string titleStr = $"<i class='fas fa-cogs'></i> RPC Method #{methodIndex}: {m.Name}() API{(m.Description._IsFilled() ? ":" : "")} {m.Description._EncodeHtml()}".Trim();
 
             w.WriteLine($"<h4 class='title is-5'>{titleStr}</h4>");
 
