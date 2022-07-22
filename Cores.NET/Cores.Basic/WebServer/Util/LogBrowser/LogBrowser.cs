@@ -1194,7 +1194,7 @@ public class LogBrowser : AsyncService
             {
                 if (e.IsParentDirectory)
                 {
-                    sizeStr = $"<Total {totalFileCount._ToString3()} files: {Str.GetFileSizeStr(totalSize)}>";
+                    sizeStr = $"Total {totalFileCount._ToString3()} files: {Str.GetFileSizeStr(totalSize)}";
                 }
                 else
                 {
