@@ -53,13 +53,15 @@ class MikakaDDnsServerDaemon : Daemon
     MikakaDDnsService? SvcInstance = null;
     EasyJsonRpcServer<MikakaDDnsService.IRpc>? RpcInstance = null;
 
-    public MikakaDDnsServerDaemon() : base(new DaemonOptions("MikakaDDnsServer", "SENet DDNS Server Service", true))
+    public MikakaDDnsServerDaemon() : base(new DaemonOptions("MikakaDDnsServer", "Mikaka DDNS Server Service", true))
     {
     }
 
     protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
     {
         Con.WriteLine("MikakaDDnsServerDaemon: Starting...");
+
+        MikakaDDnsServiceGlobal.Init();
 
         HttpServerOptions httpOpt = new HttpServerOptions
         {

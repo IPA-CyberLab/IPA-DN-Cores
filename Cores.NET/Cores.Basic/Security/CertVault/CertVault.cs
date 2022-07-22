@@ -232,6 +232,8 @@ public class CertVaultSettings : INormalizable, ICloneable
 
     public string[]? AutoGenerateNonAcmeSubjectNameCertFqdnList;
 
+    public string[]? ForceUseDefaultCertFqdnList;
+
     public bool CertServerUse;
     public CertVaultCertServerUrl[] CertServerUrlList = new List<CertVaultCertServerUrl>().ToArray();
 
@@ -269,6 +271,7 @@ public class CertVaultSettings : INormalizable, ICloneable
         this.ReloadIntervalMsecs = Math.Max(this.ReloadIntervalMsecs, 1000);
         if (AcmeAllowedFqdnList == null) AcmeAllowedFqdnList = new string[1] { "*" };
         if (AutoGenerateNonAcmeSubjectNameCertFqdnList == null) AutoGenerateNonAcmeSubjectNameCertFqdnList = new string[0] { };
+        if (ForceUseDefaultCertFqdnList == null) ForceUseDefaultCertFqdnList = new string[0] { };
         if (this.MaxAcmeCerts <= 0) this.MaxAcmeCerts = CoresConfig.CertVaultSettings.DefaultMaxAcmeCerts;
 
         if (this.CertServerUrlList == null || this.CertServerUrlList.Length == 0)
@@ -325,6 +328,8 @@ public class CertVault : AsyncServiceWithMainLoop
 
     readonly CertificateStore? DefaultCertificate;
 
+    readonly Func<CertVault, CertificateStore>? DefaultCertificateGenerator;
+
     CertificateStore AutoGeneratingRootCA;
     CertificateStore AutoGeneratingRootCA2;
 
@@ -337,7 +342,7 @@ public class CertVault : AsyncServiceWithMainLoop
 
     readonly SyncCache<string, CertificateStore> CertificateSelectorCache_NoAcme;
 
-    public CertVault(DirectoryPath baseDir, CertVaultSettings? defaultSettings = null, CertificateStore? defaultCertificate = null, TcpIpSystem? tcpIp = null, bool isGlobalVault = false)
+    public CertVault(DirectoryPath baseDir, CertVaultSettings? defaultSettings = null, CertificateStore? defaultCertificate = null, TcpIpSystem? tcpIp = null, bool isGlobalVault = false, Func<CertVault, CertificateStore>? defaultCertificateGenerator = null)
     {
         try
         {
@@ -348,6 +353,8 @@ public class CertVault : AsyncServiceWithMainLoop
             this.AutoGeneratingRootCA2 = DevTools.CoresDebugCACert.PkiCertificateStore;
 
             this.DefaultCertificate = defaultCertificate;
+
+            this.DefaultCertificateGenerator = defaultCertificateGenerator;
 
             this.TcpIp = tcpIp ?? LocalNet;
 
@@ -728,6 +735,11 @@ public class CertVault : AsyncServiceWithMainLoop
 
     bool CheckFqdnAllowedForAcme(string hostname)
     {
+        if (CheckFqdnMatchForForceUseDefaultCertFqdnList(hostname))
+        {
+            return false;
+        }
+
         try
         {
             var hosts = this.Settings.AcmeAllowedFqdnList;
@@ -749,9 +761,36 @@ public class CertVault : AsyncServiceWithMainLoop
 
     bool CheckFqdnAllowedForAutoGenerateNonAcmeSubjectNameCertFqdnList(string hostname)
     {
+        if (CheckFqdnMatchForForceUseDefaultCertFqdnList(hostname))
+        {
+            return false;
+        }
+
         try
         {
             var hosts = this.Settings.AutoGenerateNonAcmeSubjectNameCertFqdnList;
+
+            if (hosts != null)
+            {
+                foreach (string host in hosts)
+                {
+                    if (hostname._WildcardMatch(host, true))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        catch { }
+
+        return false;
+    }
+
+    bool CheckFqdnMatchForForceUseDefaultCertFqdnList(string hostname)
+    {
+        try
+        {
+            var hosts = this.Settings.ForceUseDefaultCertFqdnList;
 
             if (hosts != null)
             {
@@ -1028,9 +1067,19 @@ public class CertVault : AsyncServiceWithMainLoop
                     }
                     else
                     {
-                        PkiUtil.GenerateRsaKeyPair(2048, out PrivKey key, out _);
-                        Certificate cert = new Certificate(key, new CertificateOptions(PkiAlgorithm.RSA, cn: Consts.Strings.DefaultCertCN + "_" + Env.MachineName, c: "US", expires: Util.MaxDateTimeOffsetValue));
-                        CertificateStore store = new CertificateStore(cert, key);
+                        CertificateStore store;
+
+                        if (this.DefaultCertificateGenerator == null)
+                        {
+                            PkiUtil.GenerateRsaKeyPair(2048, out PrivKey key, out _);
+                            Certificate cert = new Certificate(key, new CertificateOptions(PkiAlgorithm.RSA, cn: Consts.Strings.DefaultCertCN + "_" + Env.MachineName, c: "US", expires: Util.MaxDateTimeOffsetValue));
+                            store = new CertificateStore(cert, key);
+                        }
+                        else
+                        {
+                            store = this.DefaultCertificateGenerator(this);
+                        }
+
                         defaultCertPath.Concat(Consts.Extensions.Text).WriteStringToFile(store.ExportCertInfo(), FileFlags.AutoCreateDirectory);
                         return store.ExportPkcs12();
                     }
@@ -1242,7 +1291,7 @@ public class CertVault : AsyncServiceWithMainLoop
             if (this.Settings.UseAcme == false && this.Settings.NonAcmeEnableAutoGenerateSubjectNameCert)
             {
                 // 内部 CA による自動証明書作成
-                if (hostname._IsEmpty() == false && matchType == CertificateHostnameType.DefaultCert)
+                if (hostname._IsEmpty() == false && matchType == CertificateHostnameType.DefaultCert && CheckFqdnMatchForForceUseDefaultCertFqdnList(hostname) == false)
                 {
                     if (PathParser.Windows.IsSafeFileName(hostname))
                     {
@@ -1359,6 +1408,10 @@ public static class GlobalCertVault
 
     static CertificateStore? DefaultCertificate = null;
 
+    static Func<CertVault, CertificateStore>? DefaultCertificateGenerator = null;
+
+    static Func<CertVaultSettings>? DefaultSettingsGenerator = null;
+
     static Singleton<CertVault> Singleton = null!;
 
     public static DirectoryPath BaseDir { get; private set; } = null!;
@@ -1379,7 +1432,15 @@ public static class GlobalCertVault
             }
             catch { }
 
-            CertVault vault = new CertVault(BaseDir, isGlobalVault: true, defaultCertificate: DefaultCertificate);
+            CertVaultSettings? settings = null;
+
+            if (DefaultSettingsGenerator != null)
+            {
+                settings = DefaultSettingsGenerator();
+                settings._TryNormalize();
+            }
+
+            CertVault vault = new CertVault(BaseDir, isGlobalVault: true, defaultCertificate: DefaultCertificate, defaultCertificateGenerator: DefaultCertificateGenerator, defaultSettings: settings);
 
             return vault;
         });
@@ -1395,6 +1456,16 @@ public static class GlobalCertVault
     public static void SetDefaultCertificate(CertificateStore cert)
     {
         DefaultCertificate = cert;
+    }
+
+    public static void SetDefaultCertificateGenerator(Func<CertVault, CertificateStore> proc)
+    {
+        DefaultCertificateGenerator = proc;
+    }
+
+    public static void SetDefaultSettingsGenerator(Func<CertVaultSettings> proc)
+    {
+        DefaultSettingsGenerator = proc;
     }
 
     public static AcmeAccount? GetAcmeAccountForChallengeResponse() => AcmeAccountForChallengeResponse;

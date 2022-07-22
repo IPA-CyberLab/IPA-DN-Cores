@@ -82,6 +82,31 @@ public static partial class DevCoresConfig
     }
 }
 
+public static class MikakaDDnsServiceGlobal
+{
+    // デフォルトの static 証明書
+    // SHA1: 69D3C5EBB86180C29412F3AC5AC76C1CE72D626B
+    // SHA256: 323EF7CBEF89EB0C4E2A9BE76E61A57529F2D53AA65D176A462A22AF4D8D715F
+    static readonly Singleton<PalX509Certificate> MikakaDDnsServerSampleStaticCert_Singleton = new Singleton<PalX509Certificate>(() => new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert/220722MikakaDDnsServerSampleStaticCert.pfx")));
+    public static PalX509Certificate MikakaDDnsServerSampleStaticCert => MikakaDDnsServerSampleStaticCert_Singleton;
+
+    public static void Init()
+    {
+        GlobalCertVault.SetDefaultCertificateGenerator(_ => MikakaDDnsServiceGlobal.MikakaDDnsServerSampleStaticCert);
+
+        GlobalCertVault.SetDefaultSettingsGenerator(() =>
+        {
+            var s = new CertVaultSettings(EnsureSpecial.Yes);
+
+            s.MaxAcmeCerts = 16;
+            s.NonAcmeEnableAutoGenerateSubjectNameCert = false;
+            s.ForceUseDefaultCertFqdnList = new string[] { "*-static.*", "*-static-v4.*", "*-static-v6.*" };
+
+            return s;
+        });
+    }
+}
+
 public class MikakaDDnsServiceStartupParam : HadbBasedServiceStartupParam
 {
     public MikakaDDnsServiceStartupParam(string hiveDataName = "MikakaDDnsService", string hadbSystemName = "MIKAKA_DDNS")
