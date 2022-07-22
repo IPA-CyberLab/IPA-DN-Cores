@@ -1094,6 +1094,7 @@ public class LogBrowser : AsyncService
             .ThenBy(x => x.Name, StrComparer.IgnoreCaseComparer);
 
         long totalSize = fileListSorted.Where(x => x.IsFile).Sum(x => x.Size);
+        int totalFileCount = fileListSorted.Where(x => x.IsFile).Count();
 
         foreach (FileSystemEntity e in fileListSorted)
         {
@@ -1193,7 +1194,7 @@ public class LogBrowser : AsyncService
             {
                 if (e.IsParentDirectory)
                 {
-                    sizeStr = $"Total: {Str.GetFileSizeStr(totalSize)}";
+                    sizeStr = $"Total {totalFileCount._ToString3()} files: {Str.GetFileSizeStr(totalSize)}";
                 }
                 else
                 {
