@@ -763,7 +763,8 @@ public static partial class FileUtil
 
                                     // Verify を実施する
                                     // キャッシュを無効にするため、一度ファイルを閉じて再度開く
-                                    await using (var destFile2 = await destFileSystem.OpenAsync(destPath, flags: param.Flags, cancel: cancel))
+                                    // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
+                                    await using (var destFile2 = await destFileSystem.OpenAsync(destPath, flags: param.Flags | FileFlags.NoCheckFileSize, cancel: cancel))
                                     {
                                         try
                                         {
@@ -817,7 +818,8 @@ public static partial class FileUtil
 
                                     await destFile.CloseAsync();
 
-                                    await using (var destFile2 = await destFileSystem.OpenAsync(destPath, flags: param.Flags, cancel: cancel))
+                                    // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
+                                    await using (var destFile2 = await destFileSystem.OpenAsync(destPath, flags: param.Flags | FileFlags.NoCheckFileSize, cancel: cancel))
                                     {
                                         uint destZipCrc = await CalcZipCrc32HandleAsync(destFile2, param, cancel);
 

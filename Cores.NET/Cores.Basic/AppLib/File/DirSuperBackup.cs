@@ -83,9 +83,11 @@ public enum DirSuperBackupFlags
     RestoreDoNotSkipExactSame = 2,
     RestoreMakeBackup = 4,
     RestoreNoAcl = 8,
+    RestoreNoVerify = 16,
 
     BackupMakeHistory = 65536,
     BackupSync = 131072,
+    BackupNoVerify = 262144,
 }
 
 public class DirSuperBackupOptions
@@ -528,9 +530,16 @@ public class DirSuperBackup : AsyncService
                         // 復元メイン
                         await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileCopy", srcFilePath, destFilePath));
 
+                        FileFlags flags = FileFlags.BackupMode | FileFlags.Async;
+
+                        if (this.Options.Flags.Bit(DirSuperBackupFlags.RestoreNoVerify) == false)
+                        {
+                            flags |= FileFlags.CopyFile_Verify;
+                        }
+
                         // ファイルをコピーする
                         await Fs.CopyFileAsync(srcFilePath, destFilePath,
-                        new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify | FileFlags.Async,
+                        new CopyFileParams(flags: flags,
                         metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
                         encryptOption: isEncrypted ? EncryptOption.Decrypt | EncryptOption.Compress : EncryptOption.None,
                         encryptPassword: encryptPassword),
@@ -862,18 +871,25 @@ public class DirSuperBackup : AsyncService
                         // 属性は、ファイルの日付情報のみコピーする
                         await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileCopy", srcFile.FullPath, destFilePath));
 
+                        FileFlags flags = FileFlags.BackupMode | FileFlags.Async;
+
+                        if (this.Options.Flags.Bit(DirSuperBackupFlags.BackupNoVerify) == false)
+                        {
+                            flags |= FileFlags.CopyFile_Verify;
+                        }
+
                         await Fs.CopyFileAsync(srcFile.FullPath, destFilePath,
-                            new CopyFileParams(flags: FileFlags.BackupMode | FileFlags.CopyFile_Verify | FileFlags.Async, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
+                            new CopyFileParams(flags: flags, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
                             encryptOption: Options.EncryptPassword._IsNullOrZeroLen() ? EncryptOption.None : EncryptOption.Encrypt | EncryptOption.Compress,
                             encryptPassword: Options.EncryptPassword),
                             cancel: cancel); ;
 
                         try
                         {
-                            var newFileMetadata = await Fs.GetFileMetadataAsync(destFilePath, FileMetadataGetFlags.NoPhysicalFileSize, cancel);
-
                             if (Options.EncryptPassword._IsNullOrZeroLen() == false)
                             {
+                                var newFileMetadata = await Fs.GetFileMetadataAsync(destFilePath, FileMetadataGetFlags.NoPhysicalFileSize, cancel);
+
                                 encryptedPhysicalSize = newFileMetadata.Size;
                             }
                         }

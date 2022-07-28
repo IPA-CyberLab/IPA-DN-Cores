@@ -145,13 +145,13 @@ public abstract class FileObject : FileBase
             this.InternalFileSize = initialFileSize;
 
             if (this.InternalPosition > this.InternalFileSize)
-                throw new FileException(this.FileParams.Path, $"Current position is out of range. Current position: {this.InternalPosition}, File size: {this.InternalFileSize}.");
+                throw new FileException(this.FileParams.Path, $"Current position is out of range. Current position: {this.InternalPosition}, File size: {this.InternalFileSize}. (InitAndCheckFileSizeAndPosition)");
 
             if (this.InternalPosition < 0)
-                throw new FileException(this.FileParams.Path, $"Current position is invalid. Current position: {this.InternalPosition}.");
+                throw new FileException(this.FileParams.Path, $"Current position is invalid. Current position: {this.InternalPosition}. (InitAndCheckFileSizeAndPosition)");
 
             if (this.InternalFileSize < 0)
-                throw new FileException(this.FileParams.Path, $"Current filesize is invalid. Current filesize: {this.InternalFileSize}.");
+                throw new FileException(this.FileParams.Path, $"Current filesize is invalid. Current filesize: {this.InternalFileSize}. (InitAndCheckFileSizeAndPosition)");
         }
     }
 
@@ -192,7 +192,7 @@ public abstract class FileObject : FileBase
                                 if (this.InternalFileSize < this.InternalPosition)
                                 {
                                     await GetFileSizeInternalAsync(true, operationCancel);
-                                    throw new FileException(this.FileParams.Path, $"Current position is out of range. Current position: {this.InternalPosition}, File size: {this.InternalFileSize}.");
+                                    throw new FileException(this.FileParams.Path, $"Current position is out of range. Current position: {this.InternalPosition}, File size: {this.InternalFileSize}. (ReadAsync)");
                                 }
                             }
                         }
@@ -340,7 +340,7 @@ public abstract class FileObject : FileBase
                         {
                             await GetFileSizeInternalAsync(true, operationCancel);
                             if (this.InternalFileSize < this.InternalPosition)
-                                throw new FileException(this.FileParams.Path, $"Current position is out of range. Current position: {this.InternalPosition}, File size: {this.InternalFileSize}.");
+                                throw new FileException(this.FileParams.Path, $"Current position is out of range. Current position: {this.InternalPosition}, File size: {this.InternalFileSize}. (WriteAsync)");
                         }
 
                         operationCancel.ThrowIfCancellationRequested();
