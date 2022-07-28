@@ -622,7 +622,7 @@ public class DirSuperBackup : AsyncService
                 Stat.Error_Dir++;
 
                 // ディレクトリ単位のエラー発生
-                await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError", srcDir, destDir, ex.Message));
+                await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError1", srcDir, destDir, ex.Message));
             }
 
             // 再度 宛先ディレクトリの日付情報のみ属性書き込みする (Linux の場合、中のファイルを更新するとディレクトリの日時が変ってしまうため)
@@ -643,7 +643,7 @@ public class DirSuperBackup : AsyncService
             Stat.Error_Dir++;
 
             // ディレクトリ単位のエラー発生
-            await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError", srcDir, destDir, ex.Message));
+            await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError2", srcDir, destDir, ex.Message));
         }
     }
 
@@ -991,7 +991,7 @@ public class DirSuperBackup : AsyncService
             noError = false;
 
             // ディレクトリ単位のエラー発生
-            await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError", srcDir, destDir, ex.Message));
+            await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError1", srcDir, destDir, ex.Message));
         }
 
         // 再度 宛先ディレクトリの日付情報のみ属性書き込みする (Linux の場合、中のファイルを更新するとディレクトリの日時が変ってしまうため)
@@ -1035,7 +1035,7 @@ public class DirSuperBackup : AsyncService
                 Stat.Error_Dir++;
 
                 // ディレクトリ単位のエラー発生
-                await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError", srcDir, destDir, ex.Message));
+                await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError2", srcDir, destDir, ex.Message));
             }
 
             if (ok)
