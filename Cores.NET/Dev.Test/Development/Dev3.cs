@@ -408,8 +408,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             if (DDns_StaticRecord.Length == 0)
             {
                 string initialRecordsList = @"
-NS @ ns01.ddns_example.net
-NS @ ns02.ddns_example.net
+NS @ ns01.@
+NS @ ns02.@
 
 A ns01 1.2.3.4
 A ns02 1.2.3.4
