@@ -228,6 +228,7 @@ public class CopyFileParams
     public int IgnoreReadErrorSectorSize { get; }
     public EncryptOption EncryptOption { get; }
     public string EncryptPassword { get; }
+    public bool DeleteFileIfVerifyFailed { get; }
 
     public ProgressReporterFactoryBase ProgressReporterFactory { get; }
 
@@ -237,7 +238,8 @@ public class CopyFileParams
 
     public CopyFileParams(bool overwrite = true, FileFlags flags = FileFlags.None, FileMetadataCopier? metadataCopier = null, int bufferSize = 0, bool asyncCopy = true,
         bool ignoreReadError = false, int ignoreReadErrorSectorSize = 0,
-        ProgressReporterFactoryBase? reporterFactory = null, EncryptOption encryptOption = EncryptOption.None, string encryptPassword = "")
+        ProgressReporterFactoryBase? reporterFactory = null, EncryptOption encryptOption = EncryptOption.None, string encryptPassword = "",
+        bool deleteFileIfVerifyFailed = false)
     {
         if (metadataCopier == null) metadataCopier = DefaultFileMetadataCopier;
         if (bufferSize <= 0) bufferSize = CoresConfig.FileUtilSettings.FileCopyBufferSize;
@@ -255,6 +257,7 @@ public class CopyFileParams
 
         this.EncryptOption = encryptOption;
         this.EncryptPassword = encryptPassword._NonNull();
+        this.DeleteFileIfVerifyFailed = deleteFileIfVerifyFailed;
     }
 }
 
@@ -761,46 +764,68 @@ public static partial class FileUtil
                                 {
                                     await using var srcFile2 = await srcFileSystem.OpenAsync(srcPath, flags: param.Flags, cancel: cancel);
 
-                                    // Verify を実施する
-                                    // キャッシュを無効にするため、一度ファイルを閉じて再度開く
-                                    // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
-                                    await using (var destFile2 = await destFileSystem.OpenAsync(destPath, flags: param.Flags | FileFlags.NoCheckFileSize, cancel: cancel))
-                                    {
-                                        try
-                                        {
-                                            if (param.EncryptOption.Bit(EncryptOption.Encrypt))
-                                            {
-                                                // Encryption
-                                                xts = new XtsAesRandomAccess(destFile2, param.EncryptPassword, disposeObject: true);
+                                    bool verityError = false;
 
-                                                if (param.EncryptOption.Bit(EncryptOption.Compress) == false)
+                                    try
+                                    {
+                                        // Verify を実施する
+                                        // キャッシュを無効にするため、一度ファイルを閉じて再度開く
+                                        // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
+
+                                        await using (var destFile2 = await destFileSystem.OpenAsync(destPath, flags: param.Flags | FileFlags.NoCheckFileSize, cancel: cancel))
+                                        {
+
+                                            try
+                                            {
+                                                if (param.EncryptOption.Bit(EncryptOption.Encrypt))
                                                 {
-                                                    destStream = xts.GetStream(disposeTarget: true);
+                                                    // Encryption
+                                                    xts = new XtsAesRandomAccess(destFile2, param.EncryptPassword, disposeObject: true);
+
+                                                    if (param.EncryptOption.Bit(EncryptOption.Compress) == false)
+                                                    {
+                                                        destStream = xts.GetStream(disposeTarget: true);
+                                                    }
+                                                    else
+                                                    {
+                                                        destStream = await xts.GetDecompressStreamAsync();
+                                                    }
                                                 }
                                                 else
                                                 {
-                                                    destStream = await xts.GetDecompressStreamAsync();
+                                                    // Decryption
+                                                    destStream = destFile2.GetStream(disposeTarget: true);
+                                                }
+
+                                                uint destZipCrc = await CalcZipCrc32HandleAsync(destStream, param, cancel);
+
+                                                if (srcZipCrc.Value != destZipCrc)
+                                                {
+                                                    // なんと Verify に失敗したぞ
+                                                    verityError = true;
+                                                    throw new CoresException($"CopyFile_Verify error. Src file: '{srcPath}', Dest file: '{destPath}', srcCrc: {srcZipCrc.Value}, destCrc = {destZipCrc}");
                                                 }
                                             }
-                                            else
+                                            finally
                                             {
-                                                // Decryption
-                                                destStream = destFile2.GetStream(disposeTarget: true);
-                                            }
-
-                                            uint destZipCrc = await CalcZipCrc32HandleAsync(destStream, param, cancel);
-
-                                            if (srcZipCrc.Value != destZipCrc)
-                                            {
-                                                // なんと Verify に失敗したぞ
-                                                throw new CoresException($"CopyFile_Verify error. Src file: '{srcPath}', Dest file: '{destPath}', srcCrc: {srcZipCrc.Value}, destCrc = {destZipCrc}");
+                                                await xts._DisposeSafeAsync();
+                                                await srcStream._DisposeSafeAsync();
+                                                await destStream._DisposeSafeAsync();
                                             }
                                         }
-                                        finally
+                                    }
+                                    finally
+                                    {
+                                        if (verityError)
                                         {
-                                            await xts._DisposeSafeAsync();
-                                            await srcStream._DisposeSafeAsync();
-                                            await destStream._DisposeSafeAsync();
+                                            if (param.DeleteFileIfVerifyFailed)
+                                            {
+                                                try
+                                                {
+                                                    await destFileSystem.DeleteFileAsync(destPath, flags: param.Flags, cancel: cancel);
+                                                }
+                                                catch { }
+                                            }
                                         }
                                     }
                                 }
@@ -818,15 +843,35 @@ public static partial class FileUtil
 
                                     await destFile.CloseAsync();
 
-                                    // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
-                                    await using (var destFile2 = await destFileSystem.OpenAsync(destPath, flags: param.Flags | FileFlags.NoCheckFileSize, cancel: cancel))
-                                    {
-                                        uint destZipCrc = await CalcZipCrc32HandleAsync(destFile2, param, cancel);
+                                    bool verityError = false;
 
-                                        if (srcZipCrc.Value != destZipCrc)
+                                    try
+                                    {
+                                        // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
+                                        await using (var destFile2 = await destFileSystem.OpenAsync(destPath, flags: param.Flags | FileFlags.NoCheckFileSize, cancel: cancel))
                                         {
-                                            // なんと Verify に失敗したぞ
-                                            throw new CoresException($"CopyFile_Verify error. Src file: '{srcPath}', Dest file: '{destPath}', srcCrc: {srcZipCrc.Value}, destCrc = {destZipCrc}");
+                                            uint destZipCrc = await CalcZipCrc32HandleAsync(destFile2, param, cancel);
+
+                                            if (srcZipCrc.Value != destZipCrc)
+                                            {
+                                                // なんと Verify に失敗したぞ
+                                                verityError = true;
+                                                throw new CoresException($"CopyFile_Verify error. Src file: '{srcPath}', Dest file: '{destPath}', srcCrc: {srcZipCrc.Value}, destCrc = {destZipCrc}");
+                                            }
+                                        }
+                                    }
+                                    finally
+                                    {
+                                        if (verityError)
+                                        {
+                                            if (param.DeleteFileIfVerifyFailed)
+                                            {
+                                                try
+                                                {
+                                                    await destFileSystem.DeleteFileAsync(destPath, flags: param.Flags, cancel: cancel);
+                                                }
+                                                catch { }
+                                            }
                                         }
                                     }
                                 }

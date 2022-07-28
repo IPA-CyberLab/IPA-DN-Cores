@@ -881,8 +881,8 @@ public class DirSuperBackup : AsyncService
                         await Fs.CopyFileAsync(srcFile.FullPath, destFilePath,
                             new CopyFileParams(flags: flags, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
                             encryptOption: Options.EncryptPassword._IsNullOrZeroLen() ? EncryptOption.None : EncryptOption.Encrypt | EncryptOption.Compress,
-                            encryptPassword: Options.EncryptPassword),
-                            cancel: cancel); ;
+                            encryptPassword: Options.EncryptPassword, deleteFileIfVerifyFailed: true),
+                            cancel: cancel);
 
                         try
                         {
