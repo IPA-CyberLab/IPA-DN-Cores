@@ -65,6 +65,36 @@ public static class Json
 {
     public const int DefaultMaxDepth = 8;
 
+    public class InternalTestClass
+    {
+        public int A;
+        public string B = "";
+    }
+
+    public static void RunTest()
+    {
+        try
+        {
+            InternalTestClass c = new InternalTestClass();
+
+            c.A = 123;
+            c.B = "Hello";
+
+            string s = c._ObjectToJson();
+
+            if (s._InStri("Hello") == false)
+            {
+                throw new CoresException("s._InStri(\"Hello\") == false");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Json.RunTest Fatal Error: " + ex.ToString());
+            ThreadObj.Sleep(1000);
+            Environment.Exit(-1);
+        }
+    }
+
     public static string SerializeLog(IEnumerable itemArray, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, JsonFlags jsonFlags = JsonFlags.None)
     {
         StringWriter w = new StringWriter();

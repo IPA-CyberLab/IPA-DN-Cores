@@ -991,7 +991,7 @@ public class DirSuperBackup : AsyncService
             noError = false;
 
             // ディレクトリ単位のエラー発生
-            await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError1", srcDir, destDir, ex.Message));
+            await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError1", srcDir, destDir, "errorstr=" + ex.Message, "detail=" + ex.ToString()._OneLine()));
         }
 
         // 再度 宛先ディレクトリの日付情報のみ属性書き込みする (Linux の場合、中のファイルを更新するとディレクトリの日時が変ってしまうため)

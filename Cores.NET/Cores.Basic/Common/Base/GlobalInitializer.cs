@@ -289,6 +289,11 @@ public static class CoresLib
 
             CoresLib.Options = options;
 
+#if CORES_BASIC_JSON
+            // Test JSON.NET
+            Json.RunTest();
+#endif // CORES_BASIC_JSON
+
             return newArgs;
         }
     }
