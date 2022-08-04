@@ -9372,10 +9372,14 @@ namespace IPA.Cores.Basic
 
     public class QueryStringList : KeyValueList<string, string>
     {
+        public char SplitChar;
+
         public QueryStringList() { }
 
-        public QueryStringList(string queryString, Encoding? encoding = null)
+        public QueryStringList(string queryString, Encoding? encoding = null, char splitChar = '&', bool trimKeyAndValue = false)
         {
+            this.SplitChar = splitChar;
+
             if (encoding == null) encoding = Str.Utf8Encoding;
 
             queryString = queryString._NonNull();
@@ -9388,7 +9392,7 @@ namespace IPA.Cores.Basic
             if (i != -1) queryString = queryString.Substring(0, i);
 
             // & で分離する
-            string[] tokens = queryString.Split('&', StringSplitOptions.RemoveEmptyEntries);
+            string[] tokens = queryString.Split(this.SplitChar, StringSplitOptions.RemoveEmptyEntries);
 
             foreach (string token in tokens)
             {
@@ -9411,6 +9415,12 @@ namespace IPA.Cores.Basic
                 // key と value を URL デコードする
                 key = Str.DecodeUrl(key, encoding);
                 value = Str.DecodeUrl(value, encoding);
+
+                if (trimKeyAndValue)
+                {
+                    key = key.Trim();
+                    value = value.Trim();
+                }
 
                 this.Add(key, value);
             }
@@ -9452,7 +9462,7 @@ namespace IPA.Cores.Basic
 
                     if (isLast == false)
                     {
-                        sb.Append('&');
+                        sb.Append(this.SplitChar);
                     }
                 }
             }

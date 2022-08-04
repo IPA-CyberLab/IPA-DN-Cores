@@ -72,7 +72,6 @@ using Newtonsoft.Json.Linq;
 
 namespace IPA.Cores.Basic;
 
-
 public static partial class DevCoresConfig
 {
     public static partial class MikakaDDnsServiceSettings
@@ -163,45 +162,125 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 {
     public class DynConfig : HadbBasedServiceDynConfig
     {
+        [SimpleComment("Set true to make DDNS server to write DNS debug access logs to the Log/Access directory")]
         public bool DDns_SaveDnsQueryAccessLogForDebug = false;
+
+        [SimpleComment("Cumulative quota of the DDNS host count per specific client IP address (Host address exact match)")]
         public int DDns_MaxHostPerCreateClientIpAddress_Total;
+
+        [SimpleComment("Cumulative quota of the DDNS host count per specific client IP address (Subnet address match)")]
         public int DDns_MaxHostPerCreateClientIpNetwork_Total;
+
+        [SimpleComment("Daily quota of the DDNS host count per specific client IP address (Host address exact match)")]
         public int DDns_MaxHostPerCreateClientIpAddress_Daily;
+
+        [SimpleComment("Daily quota of the DDNS host count per specific client IP address (Subnet address match)")] 
         public int DDns_MaxHostPerCreateClientIpNetwork_Daily;
+
+        [SimpleComment("List of prohibited hostnames starts with (split multiple items with ',' character)")]
         public string DDns_ProhibitedHostnamesStartWith = "_initial_";
+
+        [SimpleComment("List of prohibited hostnames ends with (split multiple items with ',' character)")]
         public string DDns_ProhibitedHostnamesEndsWith = "_initial_";
+
+        [SimpleComment("'userData' DDNS record field max size limitation")]
         public int DDns_MaxUserDataJsonStrLength = 10 * 1024;
+
+        [SimpleComment("Set true to enable the 'Unlock Key' feature (Described in the API help)")]
         public bool DDns_RequireUnlockKey = false;
+
+        [SimpleComment("New hostname prefix")]
         public string DDns_NewHostnamePrefix = "";
+
+        [SimpleComment("How many digits in new hostname prefix")]
         public int DDns_NewHostnameRandomDigits = 12;
+
+        [SimpleComment("Set true to disallow IPv4 address regisitration")]
         public bool DDns_Prohibit_IPv4AddressRegistration = false;
+
+        [SimpleComment("Set true to disallow IPv6 address regisitration")]
         public bool DDns_Prohibit_IPv6AddressRegistration = false;
+
+        [SimpleComment("Set true to disallow any Let's Encrypt (or other ACME protocol-based) certificate issue on any DDNS host records")]
         public bool DDns_Prohibit_Acme_CertIssue_For_Hosts = false;
+
+        [SimpleComment("Min DDNS host label length")]
         public int DDns_MinHostLabelLen;
+
+        [SimpleComment("Max DDNS host label length")]
         public int DDns_MaxHostLabelLen;
+
+        [SimpleComment("TTL seconds for DDNS dynamic host records")]
         public int DDns_Protocol_Ttl_Secs;
+
+        [SimpleComment("TTL seconds for DDNS static host records")]
         public int DDns_Protocol_Ttl_Secs_Static_Record;
+
+        [SimpleComment("Master NS record FQDN in DNS SOA response")]
         public string DDns_Protocol_SOA_MasterNsServerFqdn = "";
+
+        [SimpleComment("Responsible field record FQDN in DNS SOA response")]
         public string DDns_Protocol_SOA_ResponsibleFieldFqdn = "";
+
+        [SimpleComment("Negative cache TTL seconds in DNS SOA response")]
         public int DDns_Protocol_SOA_NegativeCacheTtlSecs;
+
+        [SimpleComment("Refresh interval seconds in DNS SOA response")]
         public int DDns_Protocol_SOA_RefreshIntervalSecs;
+
+        [SimpleComment("Retry interval seconds in DNS SOA response")]
         public int DDns_Protocol_SOA_RetryIntervalSecs;
+
+        [SimpleComment("Expire interval seconds in DNS SOA response")]
         public int DDns_Protocol_SOA_ExpireIntervalSecs;
+
+        [SimpleComment("Set a specific secret string to enable the 'License String' feature (Described in the API help)")]
         public string DDns_RequiredLicenseString = "";
+
+        [SimpleComment("Max DDNS host count per email recovery request")]
         public int DDns_Enum_By_Email_MaxCount;
+
+        [SimpleComment("Max DDNS host count per a specific userGroupSecretKey")]
         public int DDns_Enum_By_UserGroupSecretKey_MaxCount;
+
+        [SimpleComment("DDNS_Host API rate limit: duration seconds")]
         public int DDns_HostApi_RateLimit_Duration_Secs = 3600 * 24;
+
+        [SimpleComment("DDNS_Host API rate limit: max counter per duration")]
         public int DDns_HostApi_RateLimit_MaxCounts_Per_Duration = 24;
+
+        [SimpleComment("Set true to ignore any string after double hyphon '--' in the host label at DNS request packets")]
         public bool DDns_HostLabelLookup_IgnoreAfterDoubleHyphon = true;
+
+        [SimpleComment("Ignore these prefix strings in the host label at DNS request packets (split multiple items with ',' character)")]
         public string DDns_HostLabelLookup_IgnorePrefixStrings = "_initial_";
+
+        [SimpleComment("Ignore these suffix strings in the host label at DNS request packets (split multiple items with ',' character)")]
         public string DDns_HostLabelLookup_IgnoreSuffixStrings = "_initial_";
+
+        [SimpleComment("Suffix list to recognize that the DNS client prefers just A (IPv4) records in the response. A suffix is ignored in parsing of host label. (split multiple items with ',' character)")]
         public string DDns_HostLabelLookup_DummySuffixListForIPv4Only = "_initial_";
+
+        [SimpleComment("Suffix list to recognize that the DNS client prefers just AAAA (IPv6) records in the response. A suffix is ignored in parsing of host label. (split multiple items with ',' character)")]
         public string DDns_HostLabelLookup_DummySuffixListForIPv6Only = "_initial_";
 
+        [SimpleComment("The base (parent) domain name of this DDNS server. You can define multiple items")]
         public string[] DDns_DomainName = new string[0];
+
+        [SimpleComment("The primary base (parent) domain name of this DDNS server. You have to choose one specific domain in the DDns_DomainName lists")]
         public string DDns_DomainNamePrimary = "";
 
+        [SimpleComment("DNS static (pre-defined, fixed) records in this DDNS server. Static records have higher priority than DDNS dynamic records, and always be responsed. You can define multiple items")]
         public string[] DDns_StaticRecord = new string[0];
+
+        [SimpleComment("Health check interval count for defined static records in seconds")]
+        public int DDns_HealthCheck_IntervalSecs = 0;
+
+        [SimpleComment("Health check try count for defined static records")]
+        public int DDns_HealthCheck_NumTry = 0;
+
+        [SimpleComment("Health check TCP and SSL connection giveup timeout for defined static records in milliseconds")]
+        public int DDns_HealthCheck_TimeoutMsecs = 0;
 
         protected override void NormalizeImpl()
         {
@@ -407,22 +486,50 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
             if (DDns_StaticRecord.Length == 0)
             {
-                string initialRecordsList = @"
+                string myGlobalIPv4 = "";
+                string myGlobalIPv6 = "";
+
+                string healthCheckIPv4 = " ! health_check_url=https://<THIS_IP>/health_check/, health_check_timeout_msecs=5000, health_check_try_count=3";
+                string healthCheckIPv6 = " ! health_check_url=https://[<THIS_IP>]/health_check/, health_check_timeout_msecs=5000, health_check_try_count=3";
+
+                try
+                {
+                    myGlobalIPv4 = GetMyIpClient.GetMyIpSimpleAsync(IPVersion.IPv4)._GetResult().ToString();
+                }
+                catch { }
+
+                try
+                {
+                    myGlobalIPv6 = GetMyIpClient.GetMyIpSimpleAsync(IPVersion.IPv6)._GetResult().ToString();
+                }
+                catch { }
+
+                if (myGlobalIPv4._IsEmpty())
+                {
+                    myGlobalIPv4 = "1.2.3.4 ! this is default sample IP. change it.";
+                }
+
+                if (myGlobalIPv6._IsEmpty())
+                {
+                    myGlobalIPv6 = "1111:2222:3333::4444 ! this is default sample IP. change it.";
+                }
+
+                string initialRecordsList = $@"
 NS @ ns01.@
 NS @ ns02.@
 
-A ns01 1.2.3.4
-A ns02 1.2.3.4
+A ns01 {myGlobalIPv4}
+A ns02 {myGlobalIPv4}
 
-A @ 1.2.3.4
-A v4 1.2.3.4
-AAAA @ 1111:2222:3333::4444
-AAAA v6 1111:2222:3333::4444
+A @ {myGlobalIPv4}{healthCheckIPv4}
+A v4 {myGlobalIPv4}{healthCheckIPv4}
+AAAA @ {myGlobalIPv6}{healthCheckIPv6}
+AAAA v6 {myGlobalIPv6}{healthCheckIPv6}
 
-A ssl-cert-server 4.3.2.2
-A ssl-cert-server-v4 4.3.2.1
-AAAA ssl-cert-server 2001:af80::4321
-AAAA ssl-cert-server-v6 2001:af80::4321
+A ssl-cert-server 4.3.2.2 ! this is default sample IP. change it.
+A ssl-cert-server-v4 4.3.2.1 ! this is default sample IP. change it.
+AAAA ssl-cert-server 2001:af80::4321 ! this is default sample IP. change it.
+AAAA ssl-cert-server-v6 2001:af80::4321 ! this is default sample IP. change it.
 
 CNAME www @
 CNAME api @
@@ -503,6 +610,14 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
                 this.DDns_StaticRecord = records.ToArray();
             }
+
+            if (DDns_HealthCheck_IntervalSecs <= 0) DDns_HealthCheck_IntervalSecs = 60;
+
+            if (DDns_HealthCheck_TimeoutMsecs <= 0) DDns_HealthCheck_TimeoutMsecs = 5 * 1000;
+            if (DDns_HealthCheck_TimeoutMsecs >= 60 * 1000) DDns_HealthCheck_TimeoutMsecs = 60 * 1000;
+
+            if (DDns_HealthCheck_NumTry <= 0) DDns_HealthCheck_NumTry = 3;
+            if (DDns_HealthCheck_NumTry >= 10) DDns_HealthCheck_NumTry = 10;
 
             base.NormalizeImpl();
         }
@@ -816,6 +931,8 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
     public EasyDnsResponderBasedDnsServer DnsServer { get; private set; } = null!;
 
+    AsyncLoopManager LoopManager = null!;
+
     public MikakaDDnsService(MikakaDDnsServiceStartupParam startupParam, MikakaDDnsServiceHook hook) : base(startupParam, hook)
     {
         try
@@ -828,18 +945,6 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         }
     }
 
-    protected override async Task CleanupImplAsync(Exception? ex)
-    {
-        try
-        {
-            await this.DnsServer._DisposeSafeAsync();
-        }
-        finally
-        {
-            await base.CleanupImplAsync(ex);
-        }
-    }
-
     protected override void StartImpl()
     {
         this.DnsServer = new EasyDnsResponderBasedDnsServer(
@@ -849,12 +954,14 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             }
             );
 
+        this.LoopManager = new AsyncLoopManager(new AsyncLoopManagerSettings(this.ReloadLoopTaskAsync));
+
         this.HadbEventListenerList.RegisterCallback(async (caller, type, state, param) =>
         {
             switch (type)
             {
                 case HadbEventType.DynamicConfigChanged:
-                    ReloadDnsServerSettingFromHadbDynamicConfig();
+                    this.LoopManager.Fire();
                     break;
 
                 case HadbEventType.ReloadDataFull:
@@ -866,9 +973,34 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         });
     }
 
-    // HADB の DynamicConfig を元に DDNS サーバーの設定を構築してリロードする
-    void ReloadDnsServerSettingFromHadbDynamicConfig()
+    protected override async Task StopImplAsync(Exception? ex)
     {
+        await this.LoopManager._DisposeSafeAsync(ex);
+
+        await this.DnsServer._DisposeSafeAsync(ex);
+    }
+
+    string MyGlobalIPv4 = "";
+    string MyGlobalIPv6 = "";
+
+    // HADB の DynamicConfig を元に DDNS サーバーの設定を構築してリロードする
+    async Task ReloadLoopTaskAsync(AsyncLoopManager manager, CancellationToken cancel)
+    {
+        try
+        {
+            this.MyGlobalIPv4 = (await GetMyIpClient.GetMyIpSimpleAsync(IPVersion.IPv4)).ToString();
+        }
+        catch { }
+
+        try
+        {
+            this.MyGlobalIPv6 = (await GetMyIpClient.GetMyIpSimpleAsync(IPVersion.IPv6)).ToString();
+        }
+        catch { }
+
+        Where("--------------");
+        await Task.CompletedTask;
+
         var config = this.Hadb.CurrentDynamicConfig;
 
         EasyDnsResponderSettings settings = new EasyDnsResponderSettings
@@ -891,7 +1023,20 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             {
                 try
                 {
-                    EasyDnsResponderRecord rec = EasyDnsResponderRecord.FromString(staticRecord, domainFqdn);
+                    string staticRecordStr;
+
+                    int commentCharIndex = staticRecord._Search("!");
+                    if (commentCharIndex != -1)
+                    {
+                        string commentChar = staticRecord.Substring(commentCharIndex + 1).Trim();
+                        staticRecordStr = staticRecord.Substring(0, commentCharIndex).Trim();
+                    }
+                    else
+                    {
+                        staticRecordStr = staticRecord.Trim();
+                    }
+
+                    EasyDnsResponderRecord rec = EasyDnsResponderRecord.FromString(staticRecordStr, domainFqdn);
 
                     rec.Settings = new EasyDnsResponderRecordSettings { TtlSecs = config.DDns_Protocol_Ttl_Secs_Static_Record };
 
@@ -916,7 +1061,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
         settings.SaveAccessLogForDebug = config.DDns_SaveDnsQueryAccessLogForDebug;
 
-        this.DnsServer.LoadSetting(settings);
+        this.DnsServer.ApplySetting(settings);
 
         string[]? prefixIgnoreList = null;
         if (config.DDns_HostLabelLookup_IgnorePrefixStrings._IsFilled())
@@ -1110,6 +1255,11 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
             return ret;
         };
+
+        if (config.DDns_HealthCheck_IntervalSecs >= 1)
+        {
+            manager.LoopIntervalMsecs = config.DDns_HealthCheck_IntervalSecs * 1000;
+        }
     }
 
     protected override DynConfig CreateInitialDynamicConfigImpl()

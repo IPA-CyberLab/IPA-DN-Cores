@@ -9020,3 +9020,15 @@ namespace IPA.Cores.Basic
     }
 }
 
+
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+public class SimpleCommentAttribute : Attribute
+{
+    public string Comment { get; }
+
+    public SimpleCommentAttribute(string comment)
+    {
+        this.Comment = comment._NonNullTrim();
+    }
+}
+

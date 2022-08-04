@@ -101,9 +101,9 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
         }
     }
 
-    public void LoadSetting(EasyDnsResponderSettings setting)
+    public void ApplySetting(EasyDnsResponderSettings setting)
     {
-        this.DnsResponder.LoadSetting(setting);
+        this.DnsResponder.ApplySetting(setting);
 
         this.SaveAccessLogForDebug = setting.SaveAccessLogForDebug;
     }

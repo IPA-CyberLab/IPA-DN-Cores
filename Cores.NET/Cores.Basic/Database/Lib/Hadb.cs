@@ -191,20 +191,40 @@ public class HadbDynamicConfig : INormalizable
 {
     protected virtual void NormalizeImpl() { }
 
+    [SimpleComment("Database partial reload interval when last load was OK (milliseconds)")]
     public int HadbReloadIntervalMsecsLastOk = Consts.HadbDynamicConfigDefaultValues.HadbReloadIntervalMsecsLastOk;
+
+    [SimpleComment("Database partial reload interval when last load was ERROR (milliseconds)")]
     public int HadbReloadIntervalMsecsLastError = Consts.HadbDynamicConfigDefaultValues.HadbReloadIntervalMsecsLastError;
+
+    [SimpleComment("Database partial reload time-shift margin (milliseconds)")]
     public int HadbReloadTimeShiftMarginMsecs = Consts.HadbDynamicConfigDefaultValues.HadbReloadTimeShiftMarginMsecs;
+
+    [SimpleComment("Database full reload interval (milliseconds)")]
     public int HadbFullReloadIntervalMsecs = Consts.HadbDynamicConfigDefaultValues.HadbFullReloadIntervalMsecs;
+
+    [SimpleComment("Database lazy update routine interval (milliseconds)")]
     public int HadbLazyUpdateIntervalMsecs = Consts.HadbDynamicConfigDefaultValues.HadbLazyUpdateIntervalMsecs;
 
+    [SimpleComment("Database snapshot interval (milliseconds)")]
     public int HadbAutomaticSnapshotIntervalMsecs = Consts.HadbDynamicConfigDefaultValues.HadbAutomaticSnapshotIntervalMsecs;
+
+    [SimpleComment("Database statistics interval (milliseconds)")]
     public int HadbAutomaticStatIntervalMsecs = Consts.HadbDynamicConfigDefaultValues.HadbAutomaticStatIntervalMsecs;
 
+    [SimpleComment("Database concurrent write transations limitation (total)")]
     public int HadbMaxDbConcurrentWriteTransactionsTotal = Consts.HadbDynamicConfigDefaultValues.HadbMaxDbConcurrentWriteTransactionsTotal;
+
+    [SimpleComment("Database concurrent read transations limitation (total)")]
     public int HadbMaxDbConcurrentReadTransactionsTotal = Consts.HadbDynamicConfigDefaultValues.HadbMaxDbConcurrentReadTransactionsTotal;
+
+    [SimpleComment("Database concurrent write transations limitation (per client IP address)")]
     public int HadbMaxDbConcurrentWriteTransactionsPerClient = Consts.HadbDynamicConfigDefaultValues.HadbMaxDbConcurrentWriteTransactionsPerClient;
+
+    [SimpleComment("Database concurrent read transations limitation (per client IP address)")]
     public int HadbMaxDbConcurrentReadTransactionsPerClient = Consts.HadbDynamicConfigDefaultValues.HadbMaxDbConcurrentReadTransactionsPerClient;
 
+    [SimpleComment("Threshold (in seconds) to regard object as stale (format: ObjectName + ' ' + seconds). You can define multiple fields of this line")]
     public string[] Hadb_ObjectStaleMarker_ObjNames_and_Seconds = new string[0];
 
     public HadbDynamicConfig()
@@ -229,6 +249,27 @@ public class HadbDynamicConfig : INormalizable
         this.HadbMaxDbConcurrentReadTransactionsPerClient = this.HadbMaxDbConcurrentReadTransactionsPerClient._ZeroToDefault(Consts.HadbDynamicConfigDefaultValues.HadbMaxDbConcurrentReadTransactionsPerClient);
 
         this.NormalizeImpl();
+    }
+
+    public StrDictionary<string> GetValuesAndComments()
+    {
+        StrDictionary<string> ret = new StrDictionary<string>();
+
+        var rw = this.GetType()._GetFieldReaderWriter();
+
+        var fields = rw.MetadataTable.Where(x => x.Value.MemberType.IsAnyOfThem(MemberTypes.Field, MemberTypes.Property));
+
+        foreach (var field in fields)
+        {
+            string name = field.Key;
+            var metaInfo = field.Value;
+            Type? type = metaInfo.GetFieldOrPropertyInfo();
+            var commentAttribute = metaInfo.GetCustomAttribute<SimpleCommentAttribute>();
+            string commentStr = commentAttribute?.Comment._NonNullTrim() ?? "";
+            ret[name] = commentStr;
+        }
+
+        return ret;
     }
 
     public KeyValueList<string, string> UpdateFromDatabaseAndReturnMissingValues(KeyValueList<string, string> dataListFromDb)
@@ -600,7 +641,7 @@ public enum HadbTranOptions : long
 
 public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynamicConfig>
     where TMem : HadbMemDataBase, new()
-    where TDynamicConfig : HadbDynamicConfig
+    where TDynamicConfig : HadbDynamicConfig, new()
 {
     public new HadbSqlSettings Settings => (HadbSqlSettings)base.Settings;
 
@@ -3618,7 +3659,7 @@ public class HadbStat
 
 public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     where TMem : HadbMemDataBase, new()
-    where TDynamicConfig : HadbDynamicConfig
+    where TDynamicConfig : HadbDynamicConfig, new()
 {
     Task ReloadMainLoopTask;
     Task LazyUpdateMainLoopTask;
@@ -3858,9 +3899,14 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         }
     }
 
+    readonly Singleton<TDynamicConfig> DynamicConfigSampleObjectSingleton = new Singleton<TDynamicConfig>(() => new TDynamicConfig());
+    public TDynamicConfig DynamicConfigSampleObject => DynamicConfigSampleObjectSingleton;
+
     public async Task<string> GetDynamicConfigStringAsync(CancellationToken cancel = default)
     {
         await ReloadDynamicConfigValuesAsync(cancel);
+
+        var commentsDict = DynamicConfigSampleObject.GetValuesAndComments();
 
         var config = await this.LoadDynamicConfigFromDatabaseImplAsync(cancel);
 
@@ -3872,7 +3918,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
         keyStandardLength = Math.Max(keyStandardLength, keyStandardLength2);
 
-        w.WriteLine("# Configuration Text");
+        w.WriteLine("### Configuration Text");
 
         string lastKey = "";
 
@@ -3892,6 +3938,18 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             {
                 lastKey = kv.Key;
                 w.WriteLine();
+
+                string? commentStr = commentsDict._GetOrDefault(kv.Key, "");
+                if (commentStr._IsFilled())
+                {
+                    foreach (string commentLine in commentStr._GetLines())
+                    {
+                        if (commentLine._IsFilled())
+                        {
+                            w.WriteLine("# " + commentLine.TrimEnd());
+                        }
+                    }
+                }
             }
 
             w.WriteLine(line);

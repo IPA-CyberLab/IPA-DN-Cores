@@ -1386,7 +1386,7 @@ public class EasyDnsResponder
 
     DataSet? CurrentDataSet = null;
 
-    public void LoadSetting(EasyDnsResponderSettings setting)
+    public void ApplySetting(EasyDnsResponderSettings setting)
     {
         var dataSet = new DataSet(setting);
 
@@ -1710,7 +1710,7 @@ public static class EasyDnsTest
 
         EasyDnsResponder r = new EasyDnsResponder();
 
-        r.LoadSetting(st);
+        r.ApplySetting(st);
 
         r.Callback = (req) =>
         {

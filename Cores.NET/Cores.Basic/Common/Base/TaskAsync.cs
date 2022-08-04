@@ -5864,3 +5864,138 @@ public class DialogSessionManager : AsyncService
         }
     }
 }
+
+
+
+public class AsyncLoopManagerSettings
+{
+    public Func<AsyncLoopManager, CancellationToken, Task> ProcAsync { get; }
+    public AsyncPulse Pulse { get; }
+    public AsyncPulseWaiter PulseWaiter { get; }
+    public bool RunAfterInitialize { get; }
+    public int InitialLoopIntervalMsecs { get; }
+
+    public AsyncLoopManagerSettings(Func<AsyncLoopManager, CancellationToken, Task> proc, AsyncPulse? pulse = null, bool runAfterInitialize = true, int initialLoopIntervalMsecs = -1)
+    {
+        if (initialLoopIntervalMsecs <= 0) initialLoopIntervalMsecs = -1;
+
+        this.ProcAsync = proc;
+        this.Pulse = pulse ?? new AsyncPulse();
+        this.PulseWaiter = this.Pulse.GetPulseWaiter();
+        this.RunAfterInitialize = runAfterInitialize;
+        this.InitialLoopIntervalMsecs = initialLoopIntervalMsecs;
+    }
+}
+
+public class AsyncLoopManager : AsyncServiceWithMainLoop
+{
+    public AsyncLoopManagerSettings Settings { get; }
+
+    public LocalTimer Timer { get; }
+
+    private int LoopIntervalMsecs_Internal;
+
+    public bool IsInLoop { get; private set; } = false;
+
+    public int LoopIntervalMsecs
+    {
+        get => LoopIntervalMsecs_Internal;
+        set
+        {
+            if (value <= 0) value = -1;
+
+            if (this.LoopIntervalMsecs_Internal != value)
+            {
+                this.LoopIntervalMsecs_Internal = value;
+
+                if (this.IsInLoop == false)
+                {
+                    this.Fire();
+                }
+            }
+        }
+    }
+
+    public AsyncLoopManager(AsyncLoopManagerSettings settings)
+    {
+        try
+        {
+            this.Settings = settings;
+            this.Timer = new LocalTimer();
+
+            if (this.Settings.RunAfterInitialize)
+            {
+                this.Timer.AddTimeout(0);
+            }
+
+            this.LoopIntervalMsecs_Internal = this.Settings.InitialLoopIntervalMsecs;
+
+            this.StartMainLoop(MainLoopAsync);
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
+    }
+
+    public void Fire()
+    {
+        this.Settings.Pulse.FirePulse(true);
+    }
+
+    async Task MainLoopAsync(CancellationToken cancel)
+    {
+        await Task.Yield();
+
+        while (cancel.IsCancellationRequested == false)
+        {
+            await Task.Yield();
+
+            int waitTick = this.Timer.GetNextInterval();
+
+            int tmp = this.LoopIntervalMsecs_Internal;
+
+            if (tmp > 0)
+            {
+                if (waitTick < 0 || waitTick > tmp)
+                {
+                    waitTick = tmp;
+                }
+            }
+
+            await this.Settings.PulseWaiter.WaitAsync(waitTick, cancel);
+
+            await Task.Yield();
+
+            if (cancel.IsCancellationRequested) break;
+
+            try
+            {
+                IsInLoop = true;
+                await this.Settings.ProcAsync(this, cancel);
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+            finally
+            {
+                IsInLoop = false;
+            }
+        }
+    }
+
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
+        {
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
+        }
+    }
+}
+
+

@@ -181,31 +181,76 @@ public abstract class HadbBasedServiceMemDb : HadbMemDataBase
 
 public class HadbBasedServiceDynConfig : HadbDynamicConfig
 {
+    [SimpleComment("Set true to hide error details (e.g. source code call stacks and filenames) in error details")]
     public bool Service_HideJsonRpcErrorDetails = false;
+
+    [SimpleComment("Administration config pages username for HTTP basic authentication")]
     public string Service_AdminBasicAuthUsername = "";
+
+    [SimpleComment("Administration config pages password for HTTP basic authentication")]
     public string Service_AdminBasicAuthPassword = "";
+
+    [SimpleComment("IP address ACL rule to exempt heavy request rate limit (You can specify multiple items. e.g. 127.0.0.0/8,1.2.3.0/24)")]
     public string Service_HeavyRequestRateLimiterExemptAcl = "_initial_";
+
+    [SimpleComment("IP address ACL rule to allow accessing to the administration config pages (You can specify multiple items. e.g. 127.0.0.0/8,1.2.3.0/24)")]
     public string Service_AdminPageAcl = "_initial_";
+
+    [SimpleComment("Client IP address subnet length for rate limit calculation (IPv4)")]
     public int Service_ClientIpRateLimit_SubnetLength_IPv4 = 0;
+
+    [SimpleComment("Client IP address subnet length for rate limit calculation (IPv6)")]
     public int Service_ClientIpRateLimit_SubnetLength_IPv6 = 0;
+
+    [SimpleComment("SMTP server hostname for email submission")]
     public string Service_SendMail_SmtpServer_Hostname = "";
+
+    [SimpleComment("SMTP server TCP port number for email submission")]
     public int Service_SendMail_SmtpServer_Port = 0;
+
+    [SimpleComment("Set true to enable SSL when connecting to the SMTP server")]
     public bool Service_SendMail_SmtpServer_EnableSsl;
+
+    [SimpleComment("SMTP server user authentication username")]
     public string Service_SendMail_SmtpServer_Username = "";
+
+    [SimpleComment("SMTP server user authentication password")]
     public string Service_SendMail_SmtpServer_Password = "";
+
+    [SimpleComment("SMTP server email sending 'From:' address")]
     public string Service_SendMail_MailFromAddress = "";
+
+    [SimpleComment("Duration seconds for basic rate limit quota per IP address exact match")]
     public int Service_BasicQuota_PerClientIpExact_DurationSecs = 3600;
+
+    [SimpleComment("Limitation count for basic rate limit quota per IP address exact match per duration")]
     public int Service_BasicQuota_PerClientIpExact_LimitationCount = 10;
+
+    [SimpleComment("Duration seconds for basic rate limit quota per IP subnet exact match")]
     public int Service_BasicQuota_PerClientIpSubnet_DurationSecs = 3600;
+
+    [SimpleComment("Limitation count for basic rate limit quota per IP subnet exact match per duration")]
     public int Service_BasicQuota_PerClientIpSubnet_LimitationCount = 300;
+
+    [SimpleComment("Full text search results count limitation (hard limit)")]
     public int Service_FullTextSearchResultsCountMax = 0;
+
+    [SimpleComment("Full text search results count limitation (default limit)")]
     public int Service_FullTextSearchResultsCountStandard = 0;
+
+    [SimpleComment("Full text search results count limitation (internal limitation)")]
     public int Service_FullTextSearchResultsCountInternalMemory = 0;
+
+    [SimpleComment("Service frieldly name")]
     public string Service_FriendlyName = "";
 
+    [SimpleComment("Set true to disallow cross site requesting")]
     public bool Service_Security_ProhibitCrossSiteRequest = true;
 
+    [SimpleComment("Cookie domain name")]
     public string Service_CookieDomainName = "";
+
+    [SimpleComment("Cookie encryption password")]
     public string Service_CookieEncryptPassword = Consts.Strings.EasyEncryptDefaultPassword;
 
 
@@ -388,7 +433,7 @@ public interface IHadbBasedServicePoint
 
 public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, THook> : AsyncService, IHadbBasedServiceRpcBase, IHadbBasedServicePoint
     where TMemDb : HadbBasedServiceMemDb, new()
-    where TDynConfig : HadbBasedServiceDynConfig
+    where TDynConfig : HadbBasedServiceDynConfig, new()
     where THiveSettings : HadbBasedServiceHiveSettingsBase, new()
     where THook : HadbBasedServiceHookBase
 {
@@ -473,6 +518,7 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
     Once StartedFlag;
 
     protected abstract void StartImpl();
+    protected abstract Task StopImplAsync(Exception? ex);
 
     protected JsonRpcClientInfo GetClientInfo() => JsonRpcServerApi.GetCurrentRpcClientInfo();
     protected IPAddress GetClientIpAddress() => GetClientInfo().RemoteIP._ToIPAddress()!._RemoveScopeId();
@@ -722,6 +768,16 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
     {
         try
         {
+            try
+            {
+                // HADB の終了前でなければならない！！
+                await this.StopImplAsync(ex);
+            }
+            catch (Exception ex2)
+            {
+                ex2._Error();
+            }
+
             await this.Hadb._DisposeSafeAsync(ex);
 
             await this._SettingsHive._DisposeSafeAsync2();

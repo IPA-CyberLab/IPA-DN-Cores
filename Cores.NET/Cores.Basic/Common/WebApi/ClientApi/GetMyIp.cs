@@ -265,4 +265,11 @@ public class GetMyIpClient : AsyncService
             await base.CleanupImplAsync(ex);
         }
     }
+
+    public static async Task<IPAddress> GetMyIpSimpleAsync(IPVersion ver = IPVersion.IPv4, CancellationToken cancel = default)
+    {
+        await using GetMyIpClient client = new GetMyIpClient(null, true);
+
+        return await client.GetMyIpAsync(ver, cancel);
+    }
 }
