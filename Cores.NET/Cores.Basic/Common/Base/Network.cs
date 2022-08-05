@@ -1156,7 +1156,7 @@ namespace IPA.Cores.Basic
                 // ipv6
                 string lastToken = t[t.Length - 1];
                 int p = lastToken._ToInt();
-                if ((p >= 1 && p <= 65535) && lastToken.All(x=> x >= '0' && x <= '9'))
+                if ((p >= 1 && p <= 65535) && lastToken.All(x => x >= '0' && x <= '9'))
                 {
                     // ipv6:port
                     char[] tmp = src.Reverse().ToArray();
@@ -1651,7 +1651,7 @@ namespace IPA.Cores.Basic
         }
 
         static readonly IPAddress DummyIPv4ForIPv6 = IPAddress.Parse("223.255.255.254");
-        
+
         // IPv4 を uint に変換する
         public static uint IPToUINT(IPAddress? ip)
         {
@@ -2049,9 +2049,17 @@ namespace IPA.Cores.Basic
         }
 
         // IP アドレス同士を比較する
-        public static bool CompareIPAddress(string? a, string? b)
+        public static bool CompareIPAddress(string? a, string? b, AllowedIPVersions allowed = AllowedIPVersions.All, bool noException = false)
         {
-            return CompareIPAddress(StrToIP(a), StrToIP(b));
+            try
+            {
+                return CompareIPAddress(StrToIP(a, allowed, noException), StrToIP(b, allowed, noException));
+            }
+            catch
+            {
+                if (noException) return false; // 念のため
+                throw;
+            }
         }
         public static bool CompareIPAddress(IPAddress? a, IPAddress? b)
         {

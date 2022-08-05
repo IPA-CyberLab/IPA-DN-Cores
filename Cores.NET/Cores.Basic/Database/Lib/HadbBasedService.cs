@@ -113,7 +113,7 @@ public abstract class HadbBasedServiceHiveSettingsBase : INormalizable
 
         this.HadbSystemName = this.HadbSystemName._FilledOrDefault(this.GetType().Name);
 
-        this.HadbSqlServerHostname = this.HadbSqlServerHostname._FilledOrDefault("__SQL_SERVER_HOSTNAME_HERE__"); ;
+        this.HadbSqlServerHostname = this.HadbSqlServerHostname._FilledOrDefault("127.0.0.1"); ;
 
         if (this.HadbSqlServerPort <= 0) this.HadbSqlServerPort = Consts.Ports.MsSqlServer;
 
@@ -425,6 +425,8 @@ public interface IHadbBasedServicePoint
 
     public Task<bool> AdminForm_AdminPasswordAuthAsync(string username, string password, CancellationToken cancel = default);
 
+    public Task<OkOrExeption> HealthCheck_GetCurrentHealthStatus(CancellationToken cancel = default);
+
     public string AdminForm_GetWebFormSecretKey();
 
     public StrTableLanguageList LanguageList { get; }
@@ -519,6 +521,7 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
 
     protected abstract void StartImpl();
     protected abstract Task StopImplAsync(Exception? ex);
+    protected abstract Task<OkOrExeption> HealthCheckImplAsync(CancellationToken cancel);
 
     protected JsonRpcClientInfo GetClientInfo() => JsonRpcServerApi.GetCurrentRpcClientInfo();
     protected IPAddress GetClientIpAddress() => GetClientInfo().RemoteIP._ToIPAddress()!._RemoveScopeId();
@@ -795,6 +798,11 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
         await this.Basic_Require_AdminBasicAuthAsync();
 
         return this.Hadb.LatestStatData!;
+    }
+
+    public async Task<OkOrExeption> HealthCheck_GetCurrentHealthStatus(CancellationToken cancel = default)
+    {
+        return await this.HealthCheckImplAsync(cancel);
     }
 
     public async Task<HadbFullTextSearchResult> ServiceAdmin_FullTextSearch(string queryText, string sortBy, bool wordMode, bool fieldNameMode, string typeName, string nameSpace, int maxResults)

@@ -409,7 +409,7 @@ public static class BasicHelper
     public static int _Cmp(this string? s, string? t, StringComparison comparison) => ((s == null && t == null) ? 0 : ((s == null ? 1 : t == null ? -1 : string.Compare(s, t, comparison))));
     public static int _Cmpi(this string? s, string? t) => _Cmp(s, t, true);
 
-    public static bool _IsSameIPAddress(this string? ip1, string? ip2) => IPUtil.CompareIPAddress(ip1, ip2);
+    public static bool _IsSameIPAddress(this string? ip1, string? ip2, AllowedIPVersions allowed = AllowedIPVersions.All, bool noException = false) => IPUtil.CompareIPAddress(ip1, ip2, allowed, noException);
     public static int _CmpIPAddress(this string? ip1, string? ip2) => IPUtil.CompareIPAddressRetInt(ip1, ip2);
 
     public static bool _StartWithi(this string? str, string value) => str?.StartsWith(value, StringComparison.OrdinalIgnoreCase) ?? false;
@@ -3487,6 +3487,18 @@ public static class BasicHelper
             ret.Add(a);
         }
         return ret;
+    }
+
+    public static string _RemoveQuotation(this string str, char startChar, char endChar)
+    {
+        str = str._NonNull();
+
+        if (str.Length >= 2 && str.StartsWith(startChar) && str.EndsWith(endChar))
+        {
+            str = str.Substring(1, str.Length - 2);
+        }
+
+        return str;
     }
 
     public static string _RemoveQuotation(this string str)

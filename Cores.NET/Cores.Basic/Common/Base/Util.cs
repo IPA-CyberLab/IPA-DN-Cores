@@ -7621,6 +7621,21 @@ namespace IPA.Cores.Basic
         public static implicit operator bool(ResultOrError<T>? resultOrException) => resultOrException != null && resultOrException.IsOk;
     }
 
+    public class OkOrExeption : ResultOrExeption<bool>
+    {
+        public OkOrExeption() : base(true)
+        {
+        }
+
+        public OkOrExeption(Exception ex) : base(ex)
+        {
+        }
+
+        public static implicit operator OkOrExeption(Exception ex) => new OkOrExeption(ex);
+
+        public static implicit operator bool(OkOrExeption? resultOrException) => resultOrException != null && resultOrException.IsOk;
+    }
+
     public class ResultOrExeption<T> : IHasError
     {
         [AllowNull]

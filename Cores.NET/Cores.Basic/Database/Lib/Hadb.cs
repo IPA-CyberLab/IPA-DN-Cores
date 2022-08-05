@@ -3613,6 +3613,8 @@ public enum HadbEventType
     DynamicConfigChanged = 0,
     ReloadDataFull,
     ReloadDataPartially,
+    DatabaseStateChangedToRecovery,
+    DatabaseStateChangedToFailure,
 }
 
 [Flags]
@@ -4259,40 +4261,48 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                     {
                         if (this.Settings.OptionFlags.Bit(HadbOptionFlags.NoLocalBackup) == false)
                         {
-                            // DB のデータをローカルバックアップファイルに書き込む
-                            await backupDynamicConfigPath.FileSystem.WriteJsonToFileAsync(backupDynamicConfigPath.PathString, this._CurrentDynamicConfig,
-                                backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
-                                cancel: cancel, withBackup: true);
-
-                            Debug($"ReloadCoreAsync: Start Local Backup Memory Processing. Objects = {loadedObjectsList.Count._ToString3()}");
-
-                            HadbBackupDatabase backupData = new HadbBackupDatabase
+                            try
                             {
-                                ObjectsList = await loadedObjectsList._ProcessParallelAndAggregateAsync((x, taskIndex) =>
+                                // DB のデータをローカルバックアップファイルに書き込む
+                                await backupDynamicConfigPath.FileSystem.WriteJsonToFileAsync(backupDynamicConfigPath.PathString, this._CurrentDynamicConfig,
+                                    backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
+                                    cancel: cancel, withBackup: true);
+
+                                Debug($"ReloadCoreAsync: Start Local Backup Memory Processing. Objects = {loadedObjectsList.Count._ToString3()}");
+
+                                HadbBackupDatabase backupData = new HadbBackupDatabase
                                 {
-                                    List<HadbSerializedObject> ret = new List<HadbSerializedObject>();
-
-                                    foreach (var obj in x)
+                                    ObjectsList = await loadedObjectsList._ProcessParallelAndAggregateAsync((x, taskIndex) =>
                                     {
-                                        if (obj.Archive == false && obj.Deleted == false)
+                                        List<HadbSerializedObject> ret = new List<HadbSerializedObject>();
+
+                                        foreach (var obj in x)
                                         {
-                                            ret.Add(obj.ToSerializedObject());
+                                            if (obj.Archive == false && obj.Deleted == false)
+                                            {
+                                                ret.Add(obj.ToSerializedObject());
+                                            }
                                         }
-                                    }
 
-                                    return TR(ret);
-                                }, cancel: cancel),
-                                TimeStamp = nowTime,
-                            };
+                                        return TR(ret);
+                                    }, cancel: cancel),
+                                    TimeStamp = nowTime,
+                                };
 
-                            Debug($"ReloadCoreAsync: Start Local Backup Physical File Write. Objects = {backupData.ObjectsList.Count._ToString3()}");
-                            long size = await backupDatabasePath.FileSystem.WriteJsonToFileAsync(backupDatabasePath.PathString, backupData,
-                                backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
-                                cancel: cancel, withBackup: true);
+                                Debug($"ReloadCoreAsync: Start Local Backup Physical File Write. Objects = {backupData.ObjectsList.Count._ToString3()}");
+                                long size = await backupDatabasePath.FileSystem.WriteJsonToFileAsync(backupDatabasePath.PathString, backupData,
+                                    backupDynamicConfigPath.Flags | FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag,
+                                    cancel: cancel, withBackup: true);
 
-                            this.MemCurrentBackupFileSizeBytes = size;
+                                this.MemCurrentBackupFileSizeBytes = size;
 
-                            Debug($"ReloadCoreAsync: Finished Local Backup Physical File Write. File Size: {size._ToString3()} bytes, Objects = {backupData.ObjectsList.Count._ToString3()}, File Path = '{backupDatabasePath.PathString}'");
+                                Debug($"ReloadCoreAsync: Finished Local Backup Physical File Write. File Size: {size._ToString3()} bytes, Objects = {backupData.ObjectsList.Count._ToString3()}, File Path = '{backupDatabasePath.PathString}'");
+                            }
+                            catch (Exception ex)
+                            {
+                                // ローカルバックアップへの書き込みに失敗してもサービスは続行する
+                                ex._Error();
+                            }
                         }
                     }
 
@@ -4498,6 +4508,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         await TaskUtil.AwaitWithPollAsync(Timeout.Infinite, 100, () => this.IsLoopStarted, cancel, true);
         Debug($"ReloadMainLoopAsync: Started.");
 
+        bool lastOkState = false;
+
         while (cancel.IsCancellationRequested == false)
         {
             numCycle++;
@@ -4526,6 +4538,17 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             catch (Exception ex)
             {
                 ex._Error();
+            }
+
+            if (lastOkState != ok)
+            {
+                lastOkState = ok;
+                try
+                {
+                    // DB 接続状態が変化した (エラー → 正常 または 正常 → エラー)
+                    await this.EventListenerList.FireAsync(this, ok ? HadbEventType.DatabaseStateChangedToRecovery : HadbEventType.DatabaseStateChangedToFailure, debugLog: true);
+                }
+                catch { }
             }
 
             if (this.DebugFlags.Bit(HadbDebugFlags.NoDbLoadAndUseOnlyLocalBackup)) return;
@@ -4623,7 +4646,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         if (this.IsEnabled_NoMemDb) throw new CoresLibException("NoMemDB option is enabled.");
     }
 
-    public ResultOrExeption<bool> CheckIfReady(bool requireDatabaseConnected, EnsureSpecial doNotThrowError)
+    public OkOrExeption CheckIfReady(bool requireDatabaseConnected, EnsureSpecial doNotThrowError)
     {
         if (requireDatabaseConnected)
         {
@@ -4638,7 +4661,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             return new CoresLibException("MemDb is not loaded yet.");
         }
 
-        return true;
+        return new OkOrExeption();
     }
 
     public async Task WaitUntilReadyForAtomicAsync(int maxDbTryCountError = 1, CancellationToken cancel = default)

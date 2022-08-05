@@ -148,7 +148,7 @@ public class JsonRpcHttpServer : JsonRpcServer
     public JsonRpcHttpServerGetMyIpServerSettings? GetMyIpServerSettings => GetMyIpDnsServerSettingsHive?.GetManagedDataSnapshot() ?? null;
 
     string WebFormSecretKey => this.Config.HadbBasedServicePoint!.AdminForm_GetWebFormSecretKey();
-     
+
     public JsonRpcHttpServer(JsonRpcServerApi api, JsonRpcServerConfig? cfg = null) : base(api, cfg)
     {
         this.Hook = this.Config.Hook;
@@ -160,6 +160,25 @@ public class JsonRpcHttpServer : JsonRpcServer
         ConfigForm = 0,
         ObjEdit,
         ObjSearch,
+    }
+
+    // health check の GET ハンドラ
+    public virtual async Task HealthCheck_GetRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData)
+    {
+        CancellationToken cancel = request._GetRequestCancellationToken();
+
+        try
+        {
+            var result = await this.Config.HadbBasedServicePoint!.HealthCheck_GetCurrentHealthStatus(cancel);
+
+            result.ThrowIfException();
+
+            await response._SendStringContentsAsync("OK\n"._NormalizeCrlf(CrlfStyle.CrLf, true), cancel: cancel);
+        }
+        catch (Exception ex)
+        {
+            await response._SendStringContentsAsync("Request Error: " + ex.ToString(), cancel: cancel, statusCode: Consts.HttpStatusCodes.InternalServerError, normalizeCrlf: CrlfStyle.Lf);
+        }
     }
 
     // /getmyip の GET ハンドラ
@@ -493,8 +512,8 @@ public class JsonRpcHttpServer : JsonRpcServer
                             <div class='field'>
                                 <div class='control'>
                                     <input class='button is-link' type='submit' style='font-weight: bold' value='Search Current Object by UID'>
-                                    &nbsp;&nbsp;<input { qsMetadata._HtmlCheckedIfTrue() } id='metadata' name='metadata' type='checkbox' value='1' /><label for='metadata'>&nbsp;Show Object Metadata</label>
-                                    &nbsp;&nbsp;<input { qsArchive._HtmlCheckedIfTrue() } id='archive' name='archive' type='checkbox' value='1' /><label for='archive'>&nbsp;Show Archived Object History</label>
+                                    &nbsp;&nbsp;<input {qsMetadata._HtmlCheckedIfTrue()} id='metadata' name='metadata' type='checkbox' value='1' /><label for='metadata'>&nbsp;Show Object Metadata</label>
+                                    &nbsp;&nbsp;<input {qsArchive._HtmlCheckedIfTrue()} id='archive' name='archive' type='checkbox' value='1' /><label for='archive'>&nbsp;Show Archived Object History</label>
                                     <p>　</p>
 ");
 
@@ -629,9 +648,9 @@ public class JsonRpcHttpServer : JsonRpcServer
                             <div class='field'>
                                 <div class='control'>
                                     <input class='button is-link' type='submit' style='font-weight: bold' value='Search Object'>
-                                    &nbsp;&nbsp;<input { wordmode._HtmlCheckedIfTrue() } id='wordmode' name='wordmode' type='checkbox' value='1' /><label for='wordmode'>&nbsp;<b>Word Mode</b></label>
-                                    &nbsp;&nbsp;<input { fieldnamemode._HtmlCheckedIfTrue() } id='fieldnamemode' name='fieldnamemode' type='checkbox' value='1' /><label for='fieldnamemode'>&nbsp;<b>Field Name Mode</b> (e.g. 'Age=123')</label>
-                                    &nbsp;&nbsp;<input { download._HtmlCheckedIfTrue() } id='download' name='download' type='checkbox' value='1' /><label for='download'>&nbsp;<b>Show Download Button (slow)</b></label>
+                                    &nbsp;&nbsp;<input {wordmode._HtmlCheckedIfTrue()} id='wordmode' name='wordmode' type='checkbox' value='1' /><label for='wordmode'>&nbsp;<b>Word Mode</b></label>
+                                    &nbsp;&nbsp;<input {fieldnamemode._HtmlCheckedIfTrue()} id='fieldnamemode' name='fieldnamemode' type='checkbox' value='1' /><label for='fieldnamemode'>&nbsp;<b>Field Name Mode</b> (e.g. 'Age=123')</label>
+                                    &nbsp;&nbsp;<input {download._HtmlCheckedIfTrue()} id='download' name='download' type='checkbox' value='1' /><label for='download'>&nbsp;<b>Show Download Button (slow)</b></label>
                                     <p>　</p>
 ");
 
@@ -827,7 +846,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                 w.WriteLine(this.Hook.GetHeaderMenuText());
 
                 w.WriteLine($"<h2 class='title is-4'>" + $"{this.ServerFriendlyNameHtml} - {title}" + "</h2>");
-                
+
                 await bodyWriter(w, postData, cancel);
 
                 w.WriteLine("<p>　</p><HR>");
@@ -2075,6 +2094,7 @@ code[class*=""language-""], pre[class*=""language-""] {
         string rpcPath = "/rpc", string controlPath = "/control", string configPath = "/admin_config", string objEditPath = "/admin_objedit",
         string objSearchPath = "/admin_search", string logBrowserPath = "/admin_logbrowser",
         string getMyIpPath = "/getmyip",
+        string healthCheckPath = "/health_check",
         LogBrowserOptions? logBrowserOptions = null)
     {
         rpcPath = rpcPath._NonNullTrim();
@@ -2144,6 +2164,11 @@ code[class*=""language-""], pre[class*=""language-""] {
                 );
 
             rb.MapGet(getMyIpPath, GetMyIp_GetRequestHandler);
+        }
+
+        if (this.Config.EnableHealthCheckServer)
+        {
+            rb.MapGet(healthCheckPath, HealthCheck_GetRequestHandler);
         }
 
         if (this.Config.EnableBuiltinRichWebPages)

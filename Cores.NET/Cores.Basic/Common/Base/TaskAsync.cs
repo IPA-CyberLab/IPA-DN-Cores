@@ -1781,8 +1781,8 @@ public static partial class TaskUtil
         return await retry.RunAsync(proc, cancel: cancel);
     }
 
-    public static async Task ForEachAsync<T>(IEnumerable<T> targetList, Func<T, CancellationToken, Task> eachProc, int maxConcurrent = int.MaxValue,
-        ForEachAsyncFlags flags = ForEachAsyncFlags.None, CancellationToken cancel = default)
+    public static async Task ForEachExAsync<T>(IEnumerable<T> targetList, Func<T, CancellationToken, Task> eachProc, int maxConcurrent = int.MaxValue,
+        ForEachExAsyncFlags flags = ForEachExAsyncFlags.None, CancellationToken cancel = default)
     {
         maxConcurrent = Math.Max(maxConcurrent, 1);
 
@@ -1809,7 +1809,7 @@ public static partial class TaskUtil
                         }
                         catch
                         {
-                            if (flags.Bit(ForEachAsyncFlags.CancelAllIfOneFail))
+                            if (flags.Bit(ForEachExAsyncFlags.CancelAllIfOneFail))
                             {
                                 ctsOnError._TryCancelNoBlock();
                             }
@@ -1833,7 +1833,7 @@ public static partial class TaskUtil
 }
 
 [Flags]
-public enum ForEachAsyncFlags
+public enum ForEachExAsyncFlags
 {
     None = 0,
     CancelAllIfOneFail = 1,

@@ -147,23 +147,21 @@ public class ExpandIncludesSettings
 public static partial class MiscUtil
 {
     // Web server health check
-    public static async Task<ResultOrExeption<int>> HttpHealthCheckAsync(string url, int numTry = 3, int timeoutMsecs = 5 * 1000, CancellationToken cancel = default, WebApiOptions ?options = null)
+    public static async Task<OkOrExeption> HttpHealthCheckAsync(string url, int numTry = 3, int timeoutMsecs = 5 * 1000, CancellationToken cancel = default, WebApiOptions ?options = null)
     {
-        options ??= new WebApiOptions(new WebApiSettings { Timeout = timeoutMsecs, SslAcceptAnyCerts = true });
+        options ??= new WebApiOptions(new WebApiSettings { Timeout = timeoutMsecs, SslAcceptAnyCerts = true }, doNotUseTcpStack: true);
 
         try
         {
-            return await RetryHelper.RunAsync(async () =>
+            await RetryHelper.RunAsync(async () =>
             {
                 await using WebApi api = new WebApi(options);
 
-                long tick1 = Time.HighResTick64;
-                var ret = await api.SimpleQueryAsync(WebMethods.GET, url, cancel);
-                long tick2 = Time.HighResTick64;
-
-                return (int)(tick2 - tick1);
+                await api.SimpleQueryAsync(WebMethods.GET, url, cancel);
             },
             0, numTry, cancel, false, true);
+
+            return new OkOrExeption();
         }
         catch (Exception ex)
         {

@@ -174,7 +174,7 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         [SimpleComment("Daily quota of the DDNS host count per specific client IP address (Host address exact match)")]
         public int DDns_MaxHostPerCreateClientIpAddress_Daily;
 
-        [SimpleComment("Daily quota of the DDNS host count per specific client IP address (Subnet address match)")] 
+        [SimpleComment("Daily quota of the DDNS host count per specific client IP address (Subnet address match)")]
         public int DDns_MaxHostPerCreateClientIpNetwork_Daily;
 
         [SimpleComment("List of prohibited hostnames starts with (split multiple items with ',' character)")]
@@ -281,6 +281,9 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
         [SimpleComment("Health check TCP and SSL connection giveup timeout for defined static records in milliseconds")]
         public int DDns_HealthCheck_TimeoutMsecs = 0;
+
+        [SimpleComment("Health check max allowed concurrent connections")]
+        public int DDns_HealthCheck_NumConcurrentConnections = 0;
 
         protected override void NormalizeImpl()
         {
@@ -489,8 +492,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
                 string myGlobalIPv4 = "";
                 string myGlobalIPv6 = "";
 
-                string healthCheckIPv4 = " ! health_check_url=https://<THIS_IP>/health_check/, health_check_timeout_msecs=5000, health_check_try_count=3";
-                string healthCheckIPv6 = " ! health_check_url=https://[<THIS_IP>]/health_check/, health_check_timeout_msecs=5000, health_check_try_count=3";
+                string healthCheckIPv4 = " ! health_check_url=https://<THIS_IP>/health_check/";
+                string healthCheckIPv6 = " ! health_check_url=https://[<THIS_IP>]/health_check/";
 
                 try
                 {
@@ -509,22 +512,32 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
                     myGlobalIPv4 = "1.2.3.4 ! this is default sample IP. change it.";
                 }
 
-                if (myGlobalIPv6._IsEmpty())
-                {
-                    myGlobalIPv6 = "1111:2222:3333::4444 ! this is default sample IP. change it.";
-                }
-
                 string initialRecordsList = $@"
 NS @ ns01.@
 NS @ ns02.@
 
-A ns01 {myGlobalIPv4}
-A ns02 {myGlobalIPv4}
+A ns01 {myGlobalIPv4} ! do not specify health check in this record.
+A ns02 {myGlobalIPv4} ! do not specify health check in this record.
 
 A @ {myGlobalIPv4}{healthCheckIPv4}
 A v4 {myGlobalIPv4}{healthCheckIPv4}
+
+"
+
++
+
+(myGlobalIPv6._IsFilled() ?
+
+$@"
+
 AAAA @ {myGlobalIPv6}{healthCheckIPv6}
 AAAA v6 {myGlobalIPv6}{healthCheckIPv6}
+
+" : "")
+
++
+
+$@"
 
 A ssl-cert-server 4.3.2.2 ! this is default sample IP. change it.
 A ssl-cert-server-v4 4.3.2.1 ! this is default sample IP. change it.
@@ -618,6 +631,9 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
             if (DDns_HealthCheck_NumTry <= 0) DDns_HealthCheck_NumTry = 3;
             if (DDns_HealthCheck_NumTry >= 10) DDns_HealthCheck_NumTry = 10;
+
+            if (DDns_HealthCheck_NumConcurrentConnections <= 0) DDns_HealthCheck_NumConcurrentConnections = 8;
+            if (DDns_HealthCheck_NumConcurrentConnections >= 256) DDns_HealthCheck_NumConcurrentConnections = 256;
 
             base.NormalizeImpl();
         }
@@ -966,9 +982,17 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
                 case HadbEventType.ReloadDataFull:
                 case HadbEventType.ReloadDataPartially:
+                case HadbEventType.DatabaseStateChangedToRecovery:
                     this.DnsServer.LastDatabaseHealtyTimeStamp = DateTime.Now;
                     break;
             }
+
+            if (type == HadbEventType.DatabaseStateChangedToFailure || type == HadbEventType.DatabaseStateChangedToRecovery)
+            {
+                // DB への接続状態が変化した (エラー → 成功 / 成功 → エラー) の場合は直ちに LoopManager を Fire して Config を Reload する
+                this.LoopManager.Fire();
+            }
+
             await Task.CompletedTask;
         });
     }
@@ -978,6 +1002,15 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         await this.LoopManager._DisposeSafeAsync(ex);
 
         await this.DnsServer._DisposeSafeAsync(ex);
+    }
+
+    protected override async Task<OkOrExeption> HealthCheckImplAsync(CancellationToken cancel)
+    {
+        await Task.CompletedTask;
+
+        this.Hadb.CheckIfReady(true);
+
+        return new OkOrExeption();
     }
 
     string MyGlobalIPv4 = "";
@@ -1011,6 +1044,142 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             },
         };
 
+        // DDns_StaticRecord に付いている ! のコメント文により Health Check 等の条件分岐を行なう
+        var staticRecordsList_Original = config.DDns_StaticRecord.ToList();
+
+        List<string> staticRecordsList = new();
+
+        HashSetDictionary<string, string> healthCheckTargetUrlDict = new();
+
+        foreach (var item in staticRecordsList_Original)
+        {
+            staticRecordsList.Add(item);
+
+            string comment = "";
+            string staticRecordStr;
+
+            int commentCharIndex = item._Search("!");
+            if (commentCharIndex != -1)
+            {
+                comment = item.Substring(commentCharIndex + 1).Trim();
+                staticRecordStr = item.Substring(0, commentCharIndex).Trim();
+            }
+            else
+            {
+                staticRecordStr = item.Trim();
+            }
+
+            if (comment._IsFilled())
+            {
+                QueryStringList qs = new QueryStringList(comment, splitChar: ',', trimKeyAndValue: true);
+
+                string url = qs._GetFirstValueOrDefault("health_check_url", StrCmpi);
+
+                if (url._IsFilled())
+                {
+                    EasyDnsResponderRecord tmp = EasyDnsResponderRecord.FromString(staticRecordStr, config.DDns_DomainNamePrimary);
+
+                    var ip = tmp.Contents._ToIPAddress(noExceptionAndReturnNull: true);
+                    if (ip != null)
+                    {
+                        string ipstr = (ip.AddressFamily == AddressFamily.InterNetworkV6 ? "[" + ip.ToString() + "]" : ip.ToString());
+
+                        url = url._ReplaceStr("[<THIS_IP>]", ipstr, false);
+                        url = url._ReplaceStr("<THIS_IP>", ipstr, false);
+
+                        healthCheckTargetUrlDict.Add(url, item);
+                    }
+                }
+            }
+        }
+
+        if (healthCheckTargetUrlDict.Any())
+        {
+            ConcurrentDictionary<string, ResultOrExeption<string>> healthCheckResults = new();
+
+            var isThisServerReady = this.Hadb.CheckIfReady(true, EnsureSpecial.Yes);
+
+            // Health Check を実施する
+            await TaskUtil.ForEachAsync(config.DDns_HealthCheck_NumConcurrentConnections, healthCheckTargetUrlDict.Keys,
+                async (targetUrl, index, cancel) =>
+                {
+                    try
+                    {
+                        if (targetUrl._TryParseUrl(out Uri uri, out _))
+                        {
+                            string ip = uri.Host._RemoveQuotation('[', ']');
+                            if ((MyGlobalIPv4._IsFilled() && ip._IsSameIPAddress(MyGlobalIPv4, noException: true)) || (MyGlobalIPv6._IsFilled() && ip._IsSameIPAddress(MyGlobalIPv6, noException: true)))
+                            {
+                                if (isThisServerReady.IsOk)
+                                {
+                                    healthCheckResults[targetUrl] = "Skip (regard as OK because the target IP address is this host's global IP address)";
+                                }
+                                else
+                                {
+                                    healthCheckResults[targetUrl] = isThisServerReady.Exception;
+                                }
+                                return;
+                            }
+                        }
+
+                        var result = await MiscUtil.HttpHealthCheckAsync(targetUrl, config.DDns_HealthCheck_NumTry, config.DDns_HealthCheck_TimeoutMsecs, cancel);
+
+                        if (result.IsError)
+                        {
+                            healthCheckResults[targetUrl] = result.Exception;
+                        }
+                        else
+                        {
+                            healthCheckResults[targetUrl] = "OK";
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // 本来ここには到達しないはずだか念のため例外キャッチする
+                        healthCheckResults[targetUrl] = ex;
+                    }
+                },
+                cancel);
+
+            // Health check の結果をデバッグログまたはエラーログに出力する
+            StringWriter w = new StringWriter();
+            w.WriteLine($"--- Health check results: OK = {healthCheckResults.Values.Where(x => x.IsOk).Count()}, Error = {healthCheckResults.Values.Where(x => x.IsError).Count()}");
+            int index = 0;
+            bool hasAnyError = false;
+            foreach (var kv in healthCheckResults.OrderBy(x => x.Key, StrCmpi))
+            {
+                index++;
+                if (kv.Value.IsOk)
+                {
+                    w.WriteLine($"URL {index} ( {kv.Key} ): Result = {kv.Value.Value}.");
+                }
+                else
+                {
+                    w.WriteLine($"URL {index} ( {kv.Key} ): Result = Error. Details = {kv.Value.Exception.ToString()._OneLine()}");
+
+                    var tmp = healthCheckTargetUrlDict._GetOrDefault(kv.Key, null);
+                    if (tmp != null)
+                    {
+                        // Health check が失敗したものと関連する項目を staticRecordsList から削除する
+                        tmp._DoForEach(x => staticRecordsList.Remove(x));
+                    }
+
+                    hasAnyError = true;
+                }
+            }
+            w.WriteLine("--- Health check results end");
+
+            // ログに出力
+            if (hasAnyError == false)
+            {
+                w.ToString()._Debug();
+            }
+            else
+            {
+                w.ToString()._Error();
+            }
+        }
+
         foreach (var domainFqdn in config.DDns_DomainName)
         {
             var zone = new EasyDnsResponderZone
@@ -1019,23 +1188,25 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 DomainName = domainFqdn,
             };
 
-            foreach (var staticRecord in config.DDns_StaticRecord)
+            foreach (var item in staticRecordsList)
             {
+                // 再度コメント除去
+                string comment = "";
+                string staticRecordStr;
+
+                int commentCharIndex = item._Search("!");
+                if (commentCharIndex != -1)
+                {
+                    comment = item.Substring(commentCharIndex + 1).Trim();
+                    staticRecordStr = item.Substring(0, commentCharIndex).Trim();
+                }
+                else
+                {
+                    staticRecordStr = item.Trim();
+                }
+
                 try
                 {
-                    string staticRecordStr;
-
-                    int commentCharIndex = staticRecord._Search("!");
-                    if (commentCharIndex != -1)
-                    {
-                        string commentChar = staticRecord.Substring(commentCharIndex + 1).Trim();
-                        staticRecordStr = staticRecord.Substring(0, commentCharIndex).Trim();
-                    }
-                    else
-                    {
-                        staticRecordStr = staticRecord.Trim();
-                    }
-
                     EasyDnsResponderRecord rec = EasyDnsResponderRecord.FromString(staticRecordStr, domainFqdn);
 
                     rec.Settings = new EasyDnsResponderRecordSettings { TtlSecs = config.DDns_Protocol_Ttl_Secs_Static_Record };

@@ -8658,7 +8658,18 @@ namespace IPA.Cores.Basic
             {
                 if (keyword != ";") // ; は頻繁に本文中で使われるので特別扱いする
                 {
-                    int i = srcLine.IndexOf(keyword, StringComparison.OrdinalIgnoreCase);
+                    int startIndex = 0;
+
+                    LOOP_START:
+                    int i = srcLine.IndexOf(keyword, startIndex, StringComparison.OrdinalIgnoreCase);
+
+                    // 「//」 は 「https://」 等にも使用される。そこで、 :// は無視する。。
+                    if (keyword == "//" && i >= 1 && srcLine.Substring(i - 1, 3) == "://")
+                    {
+                        startIndex = i + 2;
+                        goto LOOP_START;
+                    }
+
                     if (i != -1)
                     {
                         minStart = Math.Min(i, minStart);

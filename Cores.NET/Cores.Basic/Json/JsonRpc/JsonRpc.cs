@@ -1102,6 +1102,7 @@ public class JsonRpcServerConfig
     public bool MultiRequestAllowed { get; set; } = false;
     public bool EnableBuiltinRichWebPages { get; set; } = false;
     public bool EnableGetMyIpServer { get; set; } = false;
+    public bool EnableHealthCheckServer { get; set; } = false;
     public bool TopPageRedirectToControlPanel { get; set; } = false;
     public IHadbBasedServicePoint? HadbBasedServicePoint { get; set; }
     public JsonRpcHttpServerHook Hook { get; set; } = new JsonRpcHttpServerHook();
