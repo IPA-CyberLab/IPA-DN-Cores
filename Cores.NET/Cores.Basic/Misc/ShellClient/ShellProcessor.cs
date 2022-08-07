@@ -55,7 +55,7 @@ using System.Runtime.Serialization;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using Microsoft.EntityFrameworkCore.Metadata.Conventions;
+//using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 
 namespace IPA.Cores.Basic;
 

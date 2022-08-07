@@ -57,7 +57,7 @@ using IPA.Cores.Basic.Internal;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using Microsoft.AspNetCore.Server.IIS.Core;
-using Microsoft.EntityFrameworkCore.Query.Internal;
+//using Microsoft.EntityFrameworkCore.Query.Internal;
 using System.Net.Sockets;
 
 using static IPA.Cores.Globals.FromCHelper;

@@ -58,7 +58,7 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.IO.Pipelines;
 using System.Text;
-using Microsoft.EntityFrameworkCore.Internal;
+//using Microsoft.EntityFrameworkCore.Internal;
 
 namespace IPA.Cores.Basic
 {
