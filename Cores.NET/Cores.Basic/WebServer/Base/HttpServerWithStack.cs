@@ -313,7 +313,7 @@ public class HttpEasyContextBox
 
         if (resolver == null) resolver = LocalNet.DnsResolver;
 
-        string hostname = await resolver.GetHostNameSingleOrIpAsync(this.RemoteEndpoint.Address, cancel);
+        string hostname = await resolver.GetHostNameOrIpAsync(this.RemoteEndpoint.Address, cancel);
 
         if (hostname._IsEmpty() == false)
         {

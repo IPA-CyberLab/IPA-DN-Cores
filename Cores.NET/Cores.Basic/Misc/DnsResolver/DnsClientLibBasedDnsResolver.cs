@@ -119,7 +119,7 @@ public class DnsClientLibBasedDnsResolver : DnsResolver
         }
     }
 
-    protected override async Task<IEnumerable<string>?> GetHostNameImplAsync(IPAddress ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
+    protected override async Task<IEnumerable<string>?> GetHostNameListImplAsync(IPAddress ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
     {
         DnsAdditionalResults additionalData = new DnsAdditionalResults(true, false);
 
@@ -146,7 +146,7 @@ public class DnsClientLibBasedDnsResolver : DnsResolver
         }
     }
 
-    protected override async Task<IEnumerable<IPAddress>?> GetIpAddressImplAsync(string hostname, DnsResolverQueryType queryType, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
+    protected override async Task<IEnumerable<IPAddress>?> GetIpAddressListImplAsync(string hostname, DnsResolverQueryType queryType, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
     {
         DnsAdditionalResults additionalData = new DnsAdditionalResults(true, false);
 

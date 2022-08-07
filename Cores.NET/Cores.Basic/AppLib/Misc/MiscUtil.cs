@@ -1696,7 +1696,7 @@ public class DnsHostNameScanner : AsyncService
 
                         Ref<DnsAdditionalResults> additional = new Ref<DnsAdditionalResults>();
 
-                        List<string>? ret = await Dr.GetHostNameAsync(target.Ip, additional, cancel);
+                        List<string>? ret = await Dr.GetHostNameListAsync(target.Ip, additional, cancel);
 
                         string portsStr = "TCP Ports: " + (anyPortOk ? okPorts.Select(x => x.ToString())._Combine(" / ") : "None");
                         if (usePortScan == false) portsStr = "";

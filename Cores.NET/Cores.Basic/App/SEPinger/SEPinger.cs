@@ -141,6 +141,7 @@ public class Config
     public readonly int NumErrors;
     public readonly bool SendAliveMessage;
     public readonly int TcpListen;
+    public readonly string DefaultOptions;
 
     public readonly string DnsServer;
 
@@ -202,6 +203,8 @@ public class Config
         Interval = Math.Max(MinInterval, (int)ini["Interval"].IntValue * 1000);
         Timeout = Math.Max(MinTimeout, (int)ini["Timeout"].IntValue * 1000);
         NumErrors = Math.Max(1, (int)ini["NumErrors"].IntValue);
+
+        DefaultOptions = ini["DefaultOptions"].StrValue;
 
         string[] keys = ini.GetKeys();
 
@@ -313,6 +316,7 @@ public class PingerTask
     public readonly int TargetPort;
     public readonly int Timeout;
     public readonly bool TcpSendData;
+    public readonly string DefaultOptions;
     public readonly DnsResolver DnsClient;
 
     object lockObj;
@@ -354,7 +358,7 @@ public class PingerTask
     public bool TcpNg;
 
     // 実行開始
-    public PingerTask(DnsResolver dnsClient, string targetHost, string targetHostForOk, int targetPort, int timeout, bool tcp_send_data)
+    public PingerTask(DnsResolver dnsClient, string targetHost, string targetHostForOk, int targetPort, int timeout, bool tcp_send_data, string defaultOptions)
     {
         //EndEvent = new Event(true);
         DnsClient = dnsClient;
@@ -364,6 +368,8 @@ public class PingerTask
         TargetPort = targetPort;
         Timeout = timeout;
         TcpSendData = tcp_send_data;
+        DefaultOptions = defaultOptions._NonNull();
+
         finished = false;
         ok = false;
         lockObj = new object();
@@ -376,31 +382,54 @@ public class PingerTask
     // 実行スレッド
     void pingerThreadProc(object? param)
     {
-        bool ipv6 = false;
+        string optionsStr = this.DefaultOptions; // まずデフォルトのオプション文字列を読む
 
         string hostname = TargetHost;
         if (hostname._InStri("@"))
         {
-            if (hostname._GetKeyAndValue(out string hostname2, out string protocolName, "@"))
+            if (hostname._GetKeyAndValue(out string hostname2, out string tmp, "@"))
             {
                 hostname = hostname2;
-                if (protocolName._InStri("v6"))
-                {
-                    ipv6 = true;
-                }
+
+                // オプション文字列が個別に指定されていた場合は、それを先に付ける。同じ項目について上書きをすることになる、
+                optionsStr = tmp._NonNull() + "," + optionsStr;
             }
         }
 
-        IPAddress GetIpAddress(string hostname, bool ipv6)
+        // オプション文字列のパース
+        var options = QueryStringList.Parse(optionsStr, splitChar: ',', trimKeyAndValue: true);
+
+        // IP アドレスバージョンの決定
+        AllowedIPVersions allowedIPVersions = AllowedIPVersions.All;
+
+        string ipVerStr = options._GetStrFirst("ipver");
+        if (ipVerStr._InStr("4") && ipVerStr._InStr("6") == false)
         {
-            var ip = hostname._ToIPAddress(ipv6 ? AllowedIPVersions.IPv6 : AllowedIPVersions.IPv4, true);
+            allowedIPVersions = AllowedIPVersions.IPv4;
+        }
+        else if (ipVerStr._InStr("6") && ipVerStr._InStr("4") == false)
+        {
+            allowedIPVersions = AllowedIPVersions.IPv6;
+        }
+
+        bool preferV6 = false;
+
+        string ipperfer = options._GetStrFirst("ipprefer");
+        if (ipperfer._InStri("6"))
+        {
+            preferV6 = true;
+        }
+
+        IPAddress GetIpAddress(string hostname, AllowedIPVersions allowedIPVersions)
+        {
+            var ip = hostname._ToIPAddress(allowedIPVersions, true);
 
             if (ip != null)
             {
                 return ip;
             }
 
-            return this.DnsClient.GetIpAddressSingleAsync(hostname, ipv6 ? DnsResolverQueryType.AAAA : DnsResolverQueryType.A, noCache: true)._GetResult();
+            return this.DnsClient.GetIpAddressAsync(hostname, allowedIPVersions, preferV6, noCache: true)._GetResult();
         }
 
         if (TargetPort == 0)
@@ -408,7 +437,7 @@ public class PingerTask
             // ping の実行
             try
             {
-                IPAddress ip = GetIpAddress(hostname, ipv6);
+                IPAddress ip = GetIpAddress(hostname, allowedIPVersions);
 
                 SendPingReply ret = SendPing.Send(ip, null, Timeout);
 
@@ -445,7 +474,7 @@ public class PingerTask
             {
                 if (tcp_check == false)
                 {
-                    IPAddress ip = GetIpAddress(hostname, ipv6);
+                    IPAddress ip = GetIpAddress(hostname, allowedIPVersions);
 
                     Sock s = Sock.Connect(ip.ToString(), port, Timeout, true, true);
 
@@ -490,7 +519,7 @@ public class PingerTask
                 }
                 else
                 {
-                    IPAddress ip = GetIpAddress(hostname, ipv6);
+                    IPAddress ip = GetIpAddress(hostname, allowedIPVersions);
 
                     if (tcp_check_do(ip.ToString(), port, Timeout) == false)
                     {
@@ -1110,7 +1139,7 @@ public class Pinger
                 {
                     if (port != 0)
                     {
-                        PingerTask task = new PingerTask(this.DnsClient, target.HostName, config.ConvertHostnameToOkHostname(target.HostName), port, config.Timeout, true);
+                        PingerTask task = new PingerTask(this.DnsClient, target.HostName, config.ConvertHostnameToOkHostname(target.HostName), port, config.Timeout, true, config.DefaultOptions);
 
                         taskList2.Add(task);
                     }
@@ -1122,7 +1151,7 @@ public class Pinger
                 {
                     if (port != 0)
                     {
-                        PingerTask task = new PingerTask(this.DnsClient, target.HostName, config.ConvertHostnameToOkHostname(target.HostName), port, config.Timeout, true);
+                        PingerTask task = new PingerTask(this.DnsClient, target.HostName, config.ConvertHostnameToOkHostname(target.HostName), port, config.Timeout, true, config.DefaultOptions);
 
                         taskList2.Add(task);
                     }
@@ -1159,7 +1188,7 @@ public class Pinger
 
                 if (ok == false)
                 {
-                    task = new PingerTask(this.DnsClient, target.HostName, config.ConvertHostnameToOkHostname(target.HostName), port, config.Timeout, config.TcpSendData);
+                    task = new PingerTask(this.DnsClient, target.HostName, config.ConvertHostnameToOkHostname(target.HostName), port, config.Timeout, config.TcpSendData, config.DefaultOptions);
                 }
 
                 taskList.Add(task);
@@ -1188,7 +1217,7 @@ public class Pinger
 
                 if (ok == false)
                 {
-                    task = new PingerTask(this.DnsClient, target.HostName, config.ConvertHostnameToOkHostname(target.HostName), port, config.Timeout, config.TcpSendData);
+                    task = new PingerTask(this.DnsClient, target.HostName, config.ConvertHostnameToOkHostname(target.HostName), port, config.Timeout, config.TcpSendData, config.DefaultOptions);
                 }
 
                 taskList.Add(task);

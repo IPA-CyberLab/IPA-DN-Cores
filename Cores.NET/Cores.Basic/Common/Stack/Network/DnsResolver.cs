@@ -164,9 +164,9 @@ public abstract class DnsResolver : AsyncService
 
     public DnsResolverSettings Settings { get; }
 
-    protected abstract Task<IEnumerable<string>?> GetHostNameImplAsync(IPAddress ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default);
+    protected abstract Task<IEnumerable<string>?> GetHostNameListImplAsync(IPAddress ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default);
 
-    protected abstract Task<IEnumerable<IPAddress>?> GetIpAddressImplAsync(string hostname, DnsResolverQueryType queryType, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default);
+    protected abstract Task<IEnumerable<IPAddress>?> GetIpAddressListImplAsync(string hostname, DnsResolverQueryType queryType, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default);
 
     class ForwardLookupCacheItem
     {
@@ -214,11 +214,11 @@ public abstract class DnsResolver : AsyncService
     }
 
     // 逆引き
-    public async Task<List<string>?> GetHostNameAsync(string ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default, bool noCache = false)
+    public async Task<List<string>?> GetHostNameListAsync(string ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default, bool noCache = false)
     {
         try
         {
-            return await GetHostNameAsync(ip._ToIPAddress(), additional, cancel, noCache);
+            return await GetHostNameListAsync(ip._ToIPAddress(), additional, cancel, noCache);
         }
         catch
         {
@@ -226,9 +226,9 @@ public abstract class DnsResolver : AsyncService
         }
     }
 
-    public async Task<List<string>?> GetHostNameAsync(IPAddress? ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default, bool noCache = false)
+    public async Task<List<string>?> GetHostNameListAsync(IPAddress? ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default, bool noCache = false)
     {
-        if (noCache) return await GetHostNameCoreAsync(ip, additional, cancel);
+        if (noCache) return await GetHostNameListCoreAsync(ip, additional, cancel);
 
         if (ip == null) return null;
 
@@ -247,7 +247,7 @@ public abstract class DnsResolver : AsyncService
         {
             Ref<DnsAdditionalResults> additionals = new Ref<DnsAdditionalResults>();
 
-            List<string>? value = await GetHostNameCoreAsync(ip, additionals, cancel);
+            List<string>? value = await GetHostNameListCoreAsync(ip, additionals, cancel);
 
             return new ReverseLookupCacheItem(value, additionals.Value ?? new DnsAdditionalResults(true, false));
         }, found);
@@ -263,7 +263,7 @@ public abstract class DnsResolver : AsyncService
         return item.Value;
     }
 
-    async Task<List<string>?> GetHostNameCoreAsync(IPAddress? ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
+    async Task<List<string>?> GetHostNameListCoreAsync(IPAddress? ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
     {
         try
         {
@@ -280,7 +280,7 @@ public abstract class DnsResolver : AsyncService
 
             IEnumerable<string>? tmp = null;
 
-            tmp = await GetHostNameImplAsync(ip, additional, cancel);
+            tmp = await GetHostNameListImplAsync(ip, additional, cancel);
 
             if (tmp != null)
             {
@@ -311,13 +311,13 @@ public abstract class DnsResolver : AsyncService
         }
     }
 
-    public async Task<string> GetHostNameSingleOrIpAsync(IPAddress? ip, CancellationToken cancel = default, bool noCache = false)
+    public async Task<string> GetHostNameOrIpAsync(IPAddress? ip, CancellationToken cancel = default, bool noCache = false)
     {
         if (ip == null) return "";
 
         try
         {
-            var res = await GetHostNameAsync(ip, null, cancel, noCache);
+            var res = await GetHostNameListAsync(ip, null, cancel, noCache);
 
             if (res._IsEmpty())
             {
@@ -331,12 +331,59 @@ public abstract class DnsResolver : AsyncService
             return ip.ToString();
         }
     }
-    public Task<string> GetHostNameSingleOrIpAsync(string? ip, CancellationToken cancel = default, bool noCache = false)
-        => GetHostNameSingleOrIpAsync(ip._ToIPAddress(noExceptionAndReturnNull: true), cancel, noCache);
+    public Task<string> GetHostNameOrIpAsync(string? ip, CancellationToken cancel = default, bool noCache = false)
+        => GetHostNameOrIpAsync(ip._ToIPAddress(noExceptionAndReturnNull: true), cancel, noCache);
 
+
+    // 正引き v4/v6 Dual Stack 対応
+    public async Task<List<IPAddress>> GetIpAddressListDualStackAsync(string hostname, bool preferV6 = false, CancellationToken cancel = default, bool noCache = false)
+    {
+        try
+        {
+            ConcurrentBag<Tuple<IPAddress, int>> list = new();
+
+            var queryTypeList = new DnsResolverQueryType[] { DnsResolverQueryType.A, DnsResolverQueryType.AAAA };
+
+            await TaskUtil.ForEachAsync(int.MaxValue, queryTypeList, async (item, index, cancel) =>
+            {
+                var resultsList = await GetIpAddressListSingleStackAsync(hostname, item, null, cancel, noCache);
+
+                if (resultsList != null)
+                {
+                    int i = 0;
+                    foreach (var ip in resultsList.Distinct(IpComparer.Comparer))
+                    {
+                        list.Add(new Tuple<IPAddress, int>(ip, i));
+
+                        i++;
+                    }
+                }
+            }, cancel, 0);
+
+            return list.OrderBy(x => (int)x.Item1.AddressFamily * (preferV6 ? -1 : 1)).Select(x => x.Item1).Distinct().ToList();
+        }
+        catch
+        {
+            return new List<IPAddress>(0);
+        }
+    }
+
+    public async Task<IPAddress> GetIpAddressDualStackAsync(string hostname, bool preferV6 = false, CancellationToken cancel = default, bool noCache = false)
+    {
+        var res = await GetIpAddressListDualStackAsync(hostname, preferV6, cancel, noCache);
+
+        if ((res?.Count ?? 0) >= 1)
+        {
+            return res![0];
+        }
+        else
+        {
+            throw new CoresException($"Hostname '{hostname}': DNS record not found.");
+        }
+    }
 
     // 正引き
-    public async Task<List<IPAddress>?> GetIpAddressAsync(string hostname, DnsResolverQueryType queryType, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default, bool noCache = false)
+    public async Task<List<IPAddress>?> GetIpAddressListSingleStackAsync(string hostname, DnsResolverQueryType queryType, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default, bool noCache = false)
     {
         hostname = Str.NormalizeFqdn(hostname);
 
@@ -348,7 +395,7 @@ public abstract class DnsResolver : AsyncService
                 return IPAddress.Loopback._SingleList();
         }
 
-        if (noCache) return await GetIpAddressCoreAsync(hostname, queryType, additional, cancel);
+        if (noCache) return await GetIpAddressListSingleStackCoreAsync(hostname, queryType, additional, cancel);
 
         if (hostname._IsEmpty()) return null;
 
@@ -369,7 +416,7 @@ public abstract class DnsResolver : AsyncService
         {
             Ref<DnsAdditionalResults> additionals = new Ref<DnsAdditionalResults>();
 
-            List<IPAddress>? value = await GetIpAddressCoreAsync(hostname, queryType, additionals, cancel);
+            List<IPAddress>? value = await GetIpAddressListSingleStackCoreAsync(hostname, queryType, additionals, cancel);
 
             return new ForwardLookupCacheItem(value, additionals.Value ?? new DnsAdditionalResults(true, false));
         }, found);
@@ -385,7 +432,7 @@ public abstract class DnsResolver : AsyncService
         return item.Value;
     }
 
-    async Task<List<IPAddress>?> GetIpAddressCoreAsync(string hostname, DnsResolverQueryType queryType, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
+    async Task<List<IPAddress>?> GetIpAddressListSingleStackCoreAsync(string hostname, DnsResolverQueryType queryType, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
     {
         try
         {
@@ -395,7 +442,7 @@ public abstract class DnsResolver : AsyncService
 
             HashSet<string> ipDuplicateChecker = new HashSet<string>(StrComparer.IpAddressStrComparer);
 
-            tmp = await GetIpAddressImplAsync(hostname, queryType, additional, cancel);
+            tmp = await GetIpAddressListImplAsync(hostname, queryType, additional, cancel);
 
             if (tmp != null)
             {
@@ -421,9 +468,9 @@ public abstract class DnsResolver : AsyncService
         }
     }
 
-    public async Task<IPAddress> GetIpAddressSingleAsync(string hostname, DnsResolverQueryType queryType, CancellationToken cancel = default, bool noCache = false)
+    public async Task<IPAddress> GetIpAddressSingleStackAsync(string hostname, DnsResolverQueryType queryType, CancellationToken cancel = default, bool noCache = false)
     {
-        var res = await GetIpAddressAsync(hostname, queryType, null, cancel, noCache);
+        var res = await GetIpAddressListSingleStackAsync(hostname, queryType, null, cancel, noCache);
 
         if ((res?.Count ?? 0) >= 1)
         {
@@ -432,6 +479,29 @@ public abstract class DnsResolver : AsyncService
         else
         {
             throw new CoresException($"Hostname '{hostname}': DNS record for type '{queryType.ToString()}' not found.");
+        }
+    }
+
+    public async Task<IPAddress> GetIpAddressAsync(string hostname, AllowedIPVersions ver = AllowedIPVersions.All, bool preferV6 = false, CancellationToken cancel = default, bool noCache = false)
+    {
+        if (!ver.Bit(AllowedIPVersions.IPv4) && !ver.Bit(AllowedIPVersions.IPv6))
+        {
+            throw new CoresException($"{nameof(ver)} must have either IPv4 or IPv6.");
+        }
+
+        if (ver.Bit(AllowedIPVersions.IPv4) && ver.Bit(AllowedIPVersions.IPv6))
+        {
+            return await this.GetIpAddressDualStackAsync(hostname, preferV6, cancel, noCache);
+        }
+        else
+        {
+            DnsResolverQueryType qtype = DnsResolverQueryType.A;
+            if (ver.Bit(AllowedIPVersions.IPv6))
+            {
+                qtype = DnsResolverQueryType.AAAA;
+            }
+
+            return await this.GetIpAddressSingleStackAsync(hostname, qtype, cancel, noCache);
         }
     }
 
@@ -450,12 +520,12 @@ public class UnimplementedDnsResolver : DnsResolver
 {
     public override bool IsAvailable => false;
 
-    protected override Task<IEnumerable<string>?> GetHostNameImplAsync(IPAddress ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
+    protected override Task<IEnumerable<string>?> GetHostNameListImplAsync(IPAddress ip, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
     {
         throw new NotImplementedException();
     }
 
-    protected override Task<IEnumerable<IPAddress>?> GetIpAddressImplAsync(string hostname, DnsResolverQueryType queryType, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
+    protected override Task<IEnumerable<IPAddress>?> GetIpAddressListImplAsync(string hostname, DnsResolverQueryType queryType, Ref<DnsAdditionalResults>? additional = null, CancellationToken cancel = default)
     {
         throw new NotImplementedException();
     }

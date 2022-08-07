@@ -1270,7 +1270,7 @@ static class TestClass
         while (true)
         {
             long stat = TickHighresNow;
-            var fqdn = await dns.GetHostNameSingleOrIpAsync("8.8.8.8", noCache: true);
+            var fqdn = await dns.GetHostNameOrIpAsync("8.8.8.8", noCache: true);
             long end = TickHighresNow;
 
             $"{fqdn}   {end - stat}"._Print();
@@ -3690,19 +3690,17 @@ cccadmin
     {
         Async(async () =>
         {
-            //var ret = await CachedDownloader.DownloadAsync("https://user220713001:pass4Qu0CC7Yl7obDvYLM1oVfi59@[2409:11:c0c0:1b00:21:1ff:fe31:1]/d/220713_001_ac526zu6mpnfpkpx/auth8880514/test.txt!ssl=dd6668c8f3db6b53c593b83e9511ecfb5a9fdefc_,dd6668c8f3db6b53c593b83e9511ecfb5a9fdefd",
-            //    settings: new CachedDownloaderSettings(flags: CachedDownloaderFlags.None));
+            await using var dns = DnsResolver.CreateDnsResolverIfSupported(new DnsResolverSettings(null, DnsResolverFlags.DisableCache | DnsResolverFlags.UdpOnly | DnsResolverFlags.UseSystemDnsClientSettings, 3000, 2));
+            while (true)
+            {
+                string hostname = Con.ReadLine("HOST>")!;
+                if (hostname == "q") break;
 
-            //Con.WriteLine(ret.FromCache);
-            //Con.WriteLine(ret.Data._GetString_UTF8());
+                var ip = await LocalNet.DnsResolver.GetIpAddressAsync(hostname, preferV6: true);
+                ip._PrintAsJson();
 
-            //var ret = await Lfs.ReadStringFromFileAsync(@"C:\Users\yagi\Desktop\test\main.txt", flags: FileFlags.ReadStr_ExpandIncludes);
 
-            //ret._Print();
-
-            byte[] data = "66778899"._GetBytes_UTF8();
-
-            await Lfs.WriteDataToFileAsync(@"C:\Users\yagi\Desktop\test\1.txt", data, overwriteAndTruncate: true);
+            }
         });
 
         return;
@@ -3771,11 +3769,6 @@ cccadmin
 
     public static void Test_Generic()
     {
-        if (true)
-        {
-            CoresLib.RunAllEssentialLibraryHealthCheckTest();
-            return;
-        }
 
         if (true)
         {
@@ -4027,7 +4020,7 @@ cccadmin
 
                     try
                     {
-                        IPAddress ip = await LocalNet.DnsResolver.GetIpAddressSingleAsync(line, DnsResolverQueryType.AAAA);
+                        IPAddress ip = await LocalNet.DnsResolver.GetIpAddressSingleStackAsync(line, DnsResolverQueryType.AAAA);
 
                         ip.ToString()._Print();
                     }
@@ -4655,7 +4648,7 @@ cccadmin
         if (true)
         {
             //DnsTest2();
-            LocalNet.DnsResolver.GetHostNameAsync("1.2.3.4")._GetResult();
+            LocalNet.DnsResolver.GetHostNameListAsync("1.2.3.4")._GetResult();
             return;
         }
 

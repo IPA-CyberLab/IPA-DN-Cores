@@ -211,13 +211,13 @@ public class MyIpServerHost : AsyncService
                 }
                 else
                 {
-                    hostname = await this.Dns.GetHostNameSingleOrIpAsync(clientIp, cancel);
+                    hostname = await this.Dns.GetHostNameOrIpAsync(clientIp, cancel);
 
                     if (verifyfqdn)
                     {
                         try
                         {
-                            var ipList = await this.Dns.GetIpAddressAsync(hostname,
+                            var ipList = await this.Dns.GetIpAddressListSingleStackAsync(hostname,
                                 clientIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 ? DnsResolverQueryType.AAAA : DnsResolverQueryType.A,
                                 cancel: cancel);
 

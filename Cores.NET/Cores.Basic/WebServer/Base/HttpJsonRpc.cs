@@ -231,13 +231,13 @@ public class JsonRpcHttpServer : JsonRpcServer
                     }
                     else
                     {
-                        hostname = await this.GetMyIpDnsResolver!.GetHostNameSingleOrIpAsync(clientIp, cancel);
+                        hostname = await this.GetMyIpDnsResolver!.GetHostNameOrIpAsync(clientIp, cancel);
 
                         if (verifyfqdn)
                         {
                             try
                             {
-                                var ipList = await this.GetMyIpDnsResolver.GetIpAddressAsync(hostname,
+                                var ipList = await this.GetMyIpDnsResolver.GetIpAddressListSingleStackAsync(hostname,
                                     clientIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 ? DnsResolverQueryType.AAAA : DnsResolverQueryType.A,
                                     cancel: cancel);
 

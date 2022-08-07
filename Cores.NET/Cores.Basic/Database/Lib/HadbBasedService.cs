@@ -531,7 +531,7 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
     protected string GetClientIpNetworkForRateLimitStr() => GetClientIpNetworkForRateLimit().ToString();
 
     protected Task<string> GetClientFqdnAsync(CancellationToken cancel = default, bool noCache = false)
-        => this.DnsResolver.GetHostNameSingleOrIpAsync(GetClientIpAddress(), cancel, noCache);
+        => this.DnsResolver.GetHostNameOrIpAsync(GetClientIpAddress(), cancel, noCache);
 
     public void SetLanguageList(StrTableLanguageList list)
     {

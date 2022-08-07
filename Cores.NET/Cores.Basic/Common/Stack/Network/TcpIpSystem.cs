@@ -700,7 +700,7 @@ public abstract partial class TcpIpSystem : NetworkSystemBase, ITcpConnectableSy
         }
         else
         {
-            return await this.DnsResolver.GetHostNameAsync(ip, additional, cancel);
+            return await this.DnsResolver.GetHostNameListAsync(ip, additional, cancel);
         }
     }
 
