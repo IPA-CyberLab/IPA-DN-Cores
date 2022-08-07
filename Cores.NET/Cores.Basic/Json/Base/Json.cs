@@ -71,7 +71,7 @@ public static class Json
         public string B = "";
     }
 
-    public static void RunTest()
+    public static void RunStartupTest()
     {
         try
         {

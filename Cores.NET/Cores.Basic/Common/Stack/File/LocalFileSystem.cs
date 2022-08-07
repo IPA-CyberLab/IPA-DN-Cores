@@ -366,7 +366,7 @@ public partial class LocalFileSystem : FileSystem
         }
     }
 
-    string? Win32GetFileOrDirectorySecuritySddlInternal(string path, bool isDirectory, AccessControlSections section)
+    static string? Win32GetFileOrDirectorySecuritySddlInternal(string path, bool isDirectory, AccessControlSections section)
     {
         if (Env.IsWindows == false) return null;
         try
@@ -534,6 +534,15 @@ public partial class LocalFileSystem : FileSystem
         ret.Items = itemList.ToArray();
 
         return ret;
+    }
+
+    public static void RunStartupTest()
+    {
+        if (Env.IsWindows)
+        {
+            var sddl = Win32GetFileOrDirectorySecuritySddlInternal(Path.Combine(Env.Win32_SystemDir, "ntoskrnl.exe"), false, AccessControlSections.Access);
+            Dbg.TestTrue(sddl!._InStri(":"));
+        }
     }
 
     FileSecurityMetadata? GetFileOrDirectorySecurityMetadata(string path, bool isDirectory)

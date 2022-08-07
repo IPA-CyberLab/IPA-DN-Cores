@@ -1676,6 +1676,18 @@ namespace IPA.Cores.Basic
         }
 
 
+        public static void RunStartupTest()
+        {
+            string s0 = "こんにちは　独立行政法人 情報処理推進機構";
+            string s1 = Res.Cores.EasyReadString("CoresInternal/220807_strtest_01_utf8.txt", encoding: Str.Utf8Encoding)._GetFirstFilledLineFromLines();
+            string s2 = Res.Cores.EasyReadString("CoresInternal/220807_strtest_02_sjis.txt", encoding: Str.ShiftJisEncoding)._GetFirstFilledLineFromLines();
+            string s3 = Res.Cores.EasyReadString("CoresInternal/220807_strtest_03_unicode.txt", encoding: Str.UniEncoding)._GetFirstFilledLineFromLines();
+
+            Dbg.TestTrue(s0 == s1);
+            Dbg.TestTrue(s0 == s2);
+            Dbg.TestTrue(s0 == s3);
+        }
+
         // Web Linking (RFC 8288) のパース
         public static Tuple<string, KeyValueList<string, string>> ParseWebLinkStr(string src)
         {

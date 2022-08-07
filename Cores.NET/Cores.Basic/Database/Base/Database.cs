@@ -491,6 +491,15 @@ public sealed class Database : AsyncService
 
     public int OpenTryCount = CoresConfig.Database.DefaultOpenTryCount;
 
+    public static void RunStartupTest()
+    {
+        SqlDatabaseConnectionSetting sqlSettings = new SqlDatabaseConnectionSetting("127.0.0.1", "abc", "sa", "1234");
+
+        using var conn = new SqlConnection(sqlSettings);
+
+        using var conn2 = new SqliteConnection(@"Data Source=/tmp/1.sqlite");
+    }
+
     // コンストラクタ
     public Database(string dbServerConnectionString, IsolationLevel? defaultIsolationLevel = null, DeadlockRetryConfig? deadlockRetryConfig = null, DatabaseServerType serverType = DatabaseServerType.SQLServer,
         int openTryCount = 0)

@@ -1390,6 +1390,51 @@ public abstract class JsonRpcClient
     }
 }
 
+public class CastleCoreStartupTester
+{
+    public interface ITestInterface
+    {
+        public string Hello(int a);
+    }
+
+    class ProxyInterceptor : IInterceptor
+    {
+        public void Intercept(IInvocation invocation)
+        {
+            var inParams = invocation.Method.GetParameters();
+            var returnType = invocation.Method.ReturnType;
+            string methodName = invocation.Method.Name;
+
+            if (methodName == "Hello")
+            {
+                if (inParams.Length == 1)
+                {
+                    if (returnType == typeof(string))
+                    {
+                        int a = (int)invocation.Arguments[0];
+
+                        string ret = $"Hello {a}";
+
+                        invocation.ReturnValue = ret;
+                    }
+                }
+            }
+        }
+    }
+
+    public static void Test()
+    {
+        ProxyGenerator g = new ProxyGenerator();
+        ProxyInterceptor ic = new ProxyInterceptor();
+
+        ITestInterface obj = g.CreateInterfaceProxyWithoutTarget<ITestInterface>(ic);
+
+        string tmp = obj.Hello(123);
+
+        Dbg.TestTrue(tmp == "Hello 123");
+    }
+}
+
 public class JsonRpcHttpClient : JsonRpcClient, IDisposable, IAsyncDisposable
 {
     public WebApi WebApi { get; private set; }

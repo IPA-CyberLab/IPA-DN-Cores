@@ -1918,6 +1918,12 @@ public class PipePointDuplexPipeWrapper : PipePointAsyncObjectWrapperBase
             await base.CleanupImplAsync(ex);
         }
     }
+
+    public static void RunStartupTest()
+    {
+        using MemoryStream ms = new MemoryStream(Str.MakeCharArray('x', 100)._GetBytes());
+        PipeReader r = PipeReader.Create(ms);
+    }
 }
 
 public class StreamImplBaseOptions

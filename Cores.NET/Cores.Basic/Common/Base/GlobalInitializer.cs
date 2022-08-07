@@ -289,13 +289,31 @@ public static class CoresLib
 
             CoresLib.Options = options;
 
-#if CORES_BASIC_JSON
-            // Test JSON.NET
-            Json.RunTest();
-#endif // CORES_BASIC_JSON
+            RunStartupTests();
 
             return newArgs;
         }
+    }
+
+    public static void RunStartupTests()
+    {
+        Str.RunStartupTest();
+
+        LocalFileSystem.RunStartupTest();
+
+        PipePointDuplexPipeWrapper.RunStartupTest();
+
+#if CORES_BASIC_DATABASE
+
+        Database.RunStartupTest();
+
+#endif // CORES_BASIC_DATABASE
+
+#if CORES_BASIC_JSON
+        Json.RunStartupTest();
+
+        CastleCoreStartupTester.Test();
+#endif // CORES_BASIC_JSON
     }
 
     public static bool CheckInited()

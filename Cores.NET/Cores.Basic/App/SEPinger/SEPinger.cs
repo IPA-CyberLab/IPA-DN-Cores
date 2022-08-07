@@ -910,7 +910,19 @@ public class Pinger
 
         try
         {
-            Config cfg = new Config(ConfigFileName, null!);
+            Config cfg;
+
+            try
+            {
+                cfg = new Config(ConfigFileName, null!);
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+
+                Environment.Exit(-1);
+                throw;
+            }
 
             int port = cfg.TcpListen;
             if (port != 0)
