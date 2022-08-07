@@ -289,13 +289,68 @@ public static class CoresLib
 
             CoresLib.Options = options;
 
-            RunStartupTests();
+            RunAllEssentialLibraryHealthCheckTestIfNeeded();
 
             return newArgs;
         }
     }
 
-    public static void RunStartupTests()
+    // Release ビルドの場合のみ、新しいバイナリの初回起動時にライブラリ動作テストを実施する
+    static void RunAllEssentialLibraryHealthCheckTestIfNeeded()
+    {
+        if (Env.BuildConfigurationName._InStri("release") == false)
+        {
+            return;
+        }
+
+        string path = Path.Combine(Env.AppLocalDir, "Config", "CoresLibInternal", "RunLibHealthCheckHistory.txt");
+
+        string tag = $"\"{Env.AppExecutableExeOrDllFileName}\" {Env.BuildConfigurationName} {Env.BuildTimeStamp}";
+        
+        string body = "";
+
+        try
+        {
+            if (Lfs.IsFileExists(path))
+            {
+                body = Lfs.ReadStringFromFile(path);
+            }
+        }
+        catch { }
+
+        var lines = body._GetLines();
+
+        foreach (var line in lines)
+        {
+            if (line._IsSamei(tag))
+            {
+                return;
+            }
+        }
+
+        RunAllEssentialLibraryHealthCheckTest();
+
+        body = tag + "\r\n" + body;
+
+        try
+        {
+            Lfs.WriteStringToFile(path, body, flags: FileFlags.AutoCreateDirectory);
+        }
+        catch { }
+    }
+
+    static Once OnceFlag_RunAllEssentialLibraryHealthCheckTest;
+
+    public static void RunAllEssentialLibraryHealthCheckTest()
+    {
+        if (OnceFlag_RunAllEssentialLibraryHealthCheckTest.IsFirstCall())
+        {
+            RunAllEssentialLibraryHealthCheckTest_Internal();
+        }
+    }
+
+    // プロジェクトに含まれているすべての必須ライブラリの一応の動作テストを実施する。これは若干重い処理なので、Daemon モードの場合等のみで実行するのである。
+    static void RunAllEssentialLibraryHealthCheckTest_Internal()
     {
         Str.RunStartupTest();
 
@@ -463,8 +518,13 @@ public static class CoresLib
 
         if (opt.SelfUpdateInternalCopyMode)
         {
+            // 我が輩は、ダウンロードされた新しいバージョンの EXE ファイルであるぞ。
             Con.WriteLine("Hello. This is SelfUpdateInternalCopyMode.");
             Con.WriteLine();
+
+            // 関係ライブラリをひととおりテストする。
+            CoresLib.RunAllEssentialLibraryHealthCheckTest();
+
             try
             {
                 // --selfupdateinternalcopymode オプションが付けられて起動した。
@@ -488,6 +548,8 @@ public static class CoresLib
                     throw new CoresLibException($"Target EXE is empty.");
                 }
 
+                // Mutex を作成する。これにより親プロセスは自ら終了する。つまり、この地点が後戻り不能地点。
+                // アップデートするべきかどうかの懐疑がある場合は、この時点までに本プロセスを終了すること。
                 using var singleInstance = new SingleInstance(opt.SelfUpdateInternalCopyModeToken);
 
                 // 元の EXE ファイルに上書きをする。
@@ -700,6 +762,12 @@ public static class CoresLib
 
             if (ok == false)
             {
+                try
+                {
+                    proc.Kill();
+                }
+                catch { }
+
                 throw new CoresLibException("Child process exited abnormally.");
             }
 

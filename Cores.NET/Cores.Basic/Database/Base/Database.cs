@@ -498,6 +498,8 @@ public sealed class Database : AsyncService
         using var conn = new SqlConnection(sqlSettings);
 
         using var conn2 = new SqliteConnection(@"Data Source=/tmp/1.sqlite");
+
+        Dapper.Contrib.Extensions.TableAttribute test1 = new TableAttribute("abc");
     }
 
     // コンストラクタ

@@ -3773,6 +3773,12 @@ cccadmin
     {
         if (true)
         {
+            CoresLib.RunAllEssentialLibraryHealthCheckTest();
+            return;
+        }
+
+        if (true)
+        {
             Test_220708();
             return;
         }

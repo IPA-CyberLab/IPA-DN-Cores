@@ -595,6 +595,8 @@ namespace IPA.Cores.Basic
         // 子プロセスとして起動させられた自らを Daemon としてサービス機能を動作させる
         public void ExecMain(DaemonMode mode)
         {
+            CoresLib.RunAllEssentialLibraryHealthCheckTest(); // 各種ライブラリの動作チェック (デーモンとして動作を開始する前にテストする)
+
             if (Env.IsWindows == false && mode == DaemonMode.WindowsServiceMode)
                 throw new ArgumentException("Env.IsWindows == false && mode == DaemonMode.WindowsServiceMode");
 
@@ -981,6 +983,11 @@ namespace IPA.Cores.Basic
                             }
                             else
                             {
+                                if (cmdType == DaemonCmdType.Install)
+                                {
+                                    CoresLib.RunAllEssentialLibraryHealthCheckTest(); // 各種ライブラリの動作チェック
+                                }
+
                                 // 定義ファイル名
                                 string defFileName = PP.Combine(Consts.FileNames.SystemdConfigDirName, $"{daemon.Name}.service");
 
@@ -1142,6 +1149,8 @@ namespace IPA.Cores.Basic
 
                         if (Env.IsUnix)
                         {
+                            CoresLib.RunAllEssentialLibraryHealthCheckTest(); // 各種ライブラリの動作チェック
+
                             // UNIX の場合はシェルスクリプトを起動する
                             exe = "nohup";
                             arguments = (Env.IsHostedByDotNetProcess ? Env.DotNetHostProcessExeName : $"\"{Env.AppRealProcessExeFileName}\"") + " " + (Env.IsHostedByDotNetProcess ? $"exec \"{Env.AppExecutableExeOrDllFileName}\" /cmd:{cmdName} {DaemonCmdType.ExecMain}" : $"/cmd:{cmdName} {DaemonCmdType.ExecMain}");
@@ -1314,6 +1323,8 @@ namespace IPA.Cores.Basic
                 case DaemonCmdType.WinInstall: // Windows サービスプロセスとして自分自身をレジストリにインストールする
                     {
                         if (Env.IsWindows == false) throw new PlatformNotSupportedException();
+
+                        CoresLib.RunAllEssentialLibraryHealthCheckTest(); // 各種ライブラリの動作チェック
 
                         string exe;
                         string arguments;
