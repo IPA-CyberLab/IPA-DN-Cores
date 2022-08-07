@@ -1073,7 +1073,13 @@ public class Pinger
                     progamInfo._ObjectToJson() +  "\r\n";
 
                 mailStr = Str.NormalizeCrlf(mailStr);
-                Mail(config, config.SmtpFrom, string.Format(prefix + "OK:{0} NG:{1}", res.NumOk, res.NumError), mailStr);
+                string okngStr = $"NG:{res.NumError} OK:{res.NumOk}";
+                if (res.NumError == 0)
+                {
+                    okngStr = $"ALL OK:{res.NumOk}";
+                }
+
+                Mail(config, config.SmtpFrom, prefix + okngStr, mailStr);
 
                 //Console.WriteLine("----------");
                 //Console.WriteLine(mailStr);
