@@ -1068,7 +1068,7 @@ public class Pinger
                 // メール送信
                 string mailStr = "報告日時: " + DateTime.Now.ToString() + "\n\n" + str + "\r\n\r\n" +
                     $"Pinger version: {Env.BuildTimeStamp._ToDtStr()}\r\n" +
-                    $"Pinger machine: {Env.DnsFqdnHostName}\r\n" + "\r\n\r\n" +
+                    $"Pinger machine: {Env.DnsFqdnHostName}\r\n\r\n" +
                     $"Program Info:\r\n" +
                     progamInfo._ObjectToJson() +  "\r\n";
 
