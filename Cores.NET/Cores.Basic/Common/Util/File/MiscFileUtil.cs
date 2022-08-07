@@ -101,6 +101,11 @@ public class ExcelFile : AsyncService
             await base.CleanupImplAsync(ex);
         }
     }
+
+    public static void RunTestStartup()
+    {
+        Limbo.ObjectVolatileSlow = OfficeOpenXml.FontSize.FontHeights;
+    }
 }
 
 #endif

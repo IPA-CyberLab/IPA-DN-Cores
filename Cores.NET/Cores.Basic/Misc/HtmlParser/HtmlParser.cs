@@ -174,6 +174,11 @@ public static class HtmlParser
 
         return doc;
     }
+
+    public static void RunStartupTest()
+    {
+        new HtmlAgilityPack.HtmlDocument();
+    }
 }
 
 public partial class EasyHttpClient

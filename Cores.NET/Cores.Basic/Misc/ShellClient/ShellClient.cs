@@ -436,6 +436,11 @@ public class SecureShellClient : ShellClientBase
         //this.Stream = null;
         //this.Ssh = null;
     }
+
+    public static void RunStartupTest()
+    {
+        using var c = new SshClient("127.0.0.1", 22, "root", "test");
+    }
 }
 
 
@@ -633,6 +638,11 @@ public class ComPortClient : ShellClientBase
         this.PipePointMySide = null;
         this.PipePointWrapper = null;
         this.SerialPort = null;
+    }
+
+    public static void RunStartupTest()
+    {
+        using var x = new SerialPort("test", 9600);
     }
 }
 

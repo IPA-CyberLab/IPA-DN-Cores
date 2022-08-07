@@ -195,6 +195,11 @@ public class DnsClientLibBasedDnsResolver : DnsResolver
             additional?.Set(additionalData);
         }
     }
+
+    public static void RunTestStartup()
+    {
+        new LookupClientOptions();
+    }
 }
 
 #endif

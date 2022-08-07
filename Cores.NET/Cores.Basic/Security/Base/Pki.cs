@@ -1845,6 +1845,11 @@ namespace IPA.Cores.Helper.Basic
 
             return null;
         }
+
+        public static void RunStartupTest()
+        {
+            Dbg.TestTrue(DevTools.TestSampleCert.HashSHA256._IsSameHex("8A18D75E4702CC5138F54DAC4C8C88B49C9D1A9E2B556C8B10A6C779658E0026"));
+        }
     }
 }
 

@@ -369,13 +369,26 @@ public static class CoresLib
 
         Database.RunStartupTest();
 
-#endif // CORES_BASIC_DATABASE
+#endif
 
 #if CORES_BASIC_JSON
         Json.RunStartupTest();
 
         CastleCoreStartupTester.Test();
-#endif // CORES_BASIC_JSON
+#endif
+
+#if CORES_BASIC_SECURITY
+        PkiHelper.RunStartupTest();
+#endif
+
+#if CORES_BASIC_MISC
+        HtmlParser.RunStartupTest();
+        SecureShellClient.RunStartupTest();
+        ComPortClient.RunStartupTest();
+        DnsClientLibBasedDnsResolver.RunTestStartup();
+        ExcelFile.RunTestStartup();
+#endif
+
     }
 
     public static bool CheckInited()
