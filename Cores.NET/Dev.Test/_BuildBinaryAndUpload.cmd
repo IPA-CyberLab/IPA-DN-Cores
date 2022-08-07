@@ -23,10 +23,16 @@ S:\CommomDev\SE-DNP-CodeSignClientApp\SE-DNP-CodeSignClientApp_signed.exe SignDi
 
 cd /d c:\tmp\cores_built_binary\
 
+c:\tmp\cores_built_binary\Dev.Test.Win.x86_64.exe Hello
+
+IF NOT "%ERRORLEVEL%" == "0" GOTO L_END
+
 call H:\Secure\220623_Upload_CoresLib_DevTest\lts_upload_url_with_password.cmd
 
 c:\windows\system32\curl.exe --insecure %lts_upload_url_with_password% -k -f -F "json=false" -F "getfile=false" -F "getdir=true" -F "file=@Dev.Test.Win.x86_64.exe" -F "file=@Dev.Test.Linux.x86_64" -F "file=@Dev.Test.Linux.aarch64" -F "file=@TimeStamp.txt"
 
+
+:L_END
 pause
 
 

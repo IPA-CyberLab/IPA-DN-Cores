@@ -472,6 +472,26 @@ __IMG__
 
 partial class TestDevCommands
 {
+
+    [ConsoleCommand(
+  "HelloWorld",
+  "HelloWorld",
+  "HelloWorld"
+  )]
+    static int HelloWorld(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+            };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        Console.WriteLine("Hello, World!");
+
+        return 0;
+    }
+
+
     [ConsoleCommand(
   "IIS 証明書更新",
   "CertUpdateIis [cert_server_base_url,url2,...] [/USERNAME:username,username2,...] [/PASSWORD:password,password2,...] [/UPDATESAME:updatesame] [/EMPTYSITEAS:aaa.example.org]",

@@ -289,14 +289,14 @@ public static class CoresLib
 
             CoresLib.Options = options;
 
-            RunAllEssentialLibraryHealthCheckTestIfNeeded();
+            RunAllEssentialLibraryHealthCheckTestIfNeeded(options);
 
             return newArgs;
         }
     }
 
     // Release ビルドの場合のみ、新しいバイナリの初回起動時にライブラリ動作テストを実施する
-    static void RunAllEssentialLibraryHealthCheckTestIfNeeded()
+    static void RunAllEssentialLibraryHealthCheckTestIfNeeded(CoresLibOptions options)
     {
         if (Env.BuildConfigurationName._InStri("release") == false)
         {
@@ -305,7 +305,7 @@ public static class CoresLib
 
         string path = Path.Combine(Env.AppLocalDir, "Config", "CoresLibInternal", "RunLibHealthCheckHistory.txt");
 
-        string tag = $"\"{Env.AppExecutableExeOrDllFileName}\" {Env.BuildConfigurationName} {Env.BuildTimeStamp}";
+        string tag = $"\"{Env.AppExecutableExeOrDllFileName}\" {Env.BuildConfigurationName} {Env.BuildTimeStamp.ToUniversalTime()._ToDtStr()}";
         
         string body = "";
 
@@ -332,11 +332,18 @@ public static class CoresLib
 
         body = tag + "\r\n" + body;
 
-        try
+        if (options.DebugMode == DebugMode.ReleaseNoDebugLogs || options.DebugMode == DebugMode.ReleaseNoLogs)
         {
-            Lfs.WriteStringToFile(path, body, flags: FileFlags.AutoCreateDirectory);
+            // Do not write a file
         }
-        catch { }
+        else
+        {
+            try
+            {
+                Lfs.WriteStringToFile(path, body, flags: FileFlags.AutoCreateDirectory);
+            }
+            catch { }
+        }
     }
 
     static Once OnceFlag_RunAllEssentialLibraryHealthCheckTest;
