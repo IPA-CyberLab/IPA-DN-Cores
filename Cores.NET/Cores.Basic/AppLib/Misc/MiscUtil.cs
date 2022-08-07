@@ -2120,6 +2120,13 @@ public static class CachedDownloader
         // ファイルキャッシュに書き込みする関数 (なお、全く同一のファイルがすでに存在する場合は、キャッシュへの書き込みはしない)
         async Task SaveCacheFileAndMetaDataAsync(SimpleHttpDownloaderMetaData metaData, Memory<byte> data)
         {
+            try
+            {
+                // ルートディレクトリがまだない場合は作成する。NTFS 圧縮フラグを有効にする。
+                await fs.CreateDirectoryAsync(settings.CacheRootDirPath, FileFlags.OnCreateSetCompressionFlag, cancel);
+            }
+            catch { }
+
             await fs.CreateDirectoryAsync(dirPath, cancel: cancel);
 
             await fs.WriteDataToFileAsync(contentsPath, data, cancel: cancel, flags: FileFlags.WriteOnlyIfChanged);
