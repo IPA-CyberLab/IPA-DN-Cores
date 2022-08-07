@@ -45,6 +45,7 @@ using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Collections;
 
 namespace IPA.Cores.Basic;
@@ -106,6 +107,8 @@ public class EnvInfoSnapshot
     public string GcLatencyMode = Env.GcLatencyMode;
     public string WindowsFamily = Env.WindowsFamily.ToString();
     public bool IsOnGitHubActions = Env.IsOnGitHubActions;
+    public string GitCoresLibCommitId = Env.GitCoresLibCommitId;
+    public string GitAppCommitId = Env.GitAppCommitId;
 }
 
 [Flags]
@@ -257,6 +260,9 @@ public static class Env
     public static string DnsFqdnHostName { get; }
 
     public static DateTimeOffset BootTime { get; }
+
+    public static string GitCoresLibCommitId { get; }
+    public static string GitAppCommitId { get; }
 
     // 初期化
     static Env()
@@ -597,6 +603,9 @@ public static class Env
 
         ApplicationNameSupposed = Path.GetFileNameWithoutExtension(AppExecutableExeOrDllFileName);
         if (ApplicationNameSupposed._IsEmpty()) ApplicationNameSupposed = "_unknown_";
+
+        GitCoresLibCommitId = Dbg.GetCurrentCoresLibGitCommitId();
+        GitAppCommitId = Dbg.GetCurrentGitCommitId();
     }
 
     public static string MyLocalTempDir => CoresLocalDirs.MyLocalTempDir;
@@ -764,6 +773,13 @@ public static class Env
 
         return Util.ZeroDateTimeOffsetValue;
     }
+
+    public static async Task<MyProgramAndEnvironmentReport> GenerateMyProgramAndEnvironmentReport(CancellationToken cancel = default)
+    {
+        MyProgramAndEnvironmentReport ret = new MyProgramAndEnvironmentReport();
+        await ret.UpdateAsync(cancel);
+        return ret;
+    }
 }
 
 public static class CoresLocalDirs
@@ -833,5 +849,68 @@ public static class CoresLocalDirs
                 return _MyLocalTempDir;
             }
         }
+    }
+}
+
+
+public class MyProgramAndEnvironmentReport
+{
+    public string? ProgramName;
+    public string? ProgramExePath;
+    public DateTimeOffset BuildTimeStamp;
+    public string? LocalFQDN;
+    public string? GlobalIPv4;
+    public string? GlobalFQDNv4;
+    public string? GlobalIPv6;
+    public string? GlobalFQDNv6;
+    public string? LocalIPv4;
+    public string? OsInfo;
+    public string? DotNetVersion;
+    public string? CoresLibGitCommitId;
+    public string? AppGitCommitId;
+
+    public MyProgramAndEnvironmentReport()
+    {
+    }
+
+    public async Task UpdateAsync(CancellationToken cancel = default)
+    {
+        this.ProgramName = CoresLib.AppName._NullIfEmpty(); ;
+        this.ProgramExePath = Env.AppExecutableExeOrDllFileName._NullIfEmpty();
+        this.BuildTimeStamp = Env.BuildTimeStamp;
+        this.LocalFQDN = Env.DnsFqdnHostName._NullIfEmpty();
+
+        try
+        {
+            this.LocalIPv4 = (await GetMyPrivateIpNativeUtil.GetMyPrivateIpAsync(IPVersion.IPv4)).ToString();
+        }
+        catch { }
+
+        await using GetMyIpClient c = new GetMyIpClient();
+
+        try
+        {
+            var v4info = await c.GetMyIpInfoAsync(IPVersion.IPv4, cancel);
+            GlobalIPv4 = v4info.GlobalIpAddress.ToString()._NullIfEmpty();
+            GlobalFQDNv4 = v4info.GlobalFqdn.ToString()._NullIfEmpty();
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            var v6info = await c.GetMyIpInfoAsync(IPVersion.IPv6, cancel);
+            GlobalIPv6 = v6info.GlobalIpAddress.ToString()._NullIfEmpty();
+            GlobalFQDNv6 = v6info.GlobalFqdn.ToString()._NullIfEmpty();
+        }
+        catch
+        {
+        }
+
+        CoresLibGitCommitId = Env.GitCoresLibCommitId._NullIfEmpty();
+        AppGitCommitId = Env.GitAppCommitId._NullIfEmpty();
+        OsInfo = Env.OsInfoString._NullIfEmpty();
+        DotNetVersion = Env.FrameworkInfoString._NullIfEmpty();
     }
 }

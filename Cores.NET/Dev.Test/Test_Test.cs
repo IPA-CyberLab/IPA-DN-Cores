@@ -3688,6 +3688,10 @@ cccadmin
 
     static void Test_220708()
     {
+        var progamInfo = Env.GenerateMyProgramAndEnvironmentReport()._GetResult();
+        progamInfo._ObjectToJson()._Print();
+        return;
+
         Async(async () =>
         {
             await using var dns = DnsResolver.CreateDnsResolverIfSupported(new DnsResolverSettings(null, DnsResolverFlags.DisableCache | DnsResolverFlags.UdpOnly | DnsResolverFlags.UseSystemDnsClientSettings, 3000, 2));
