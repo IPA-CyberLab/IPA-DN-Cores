@@ -266,11 +266,25 @@ public static partial class MiscUtil
         }
     }
 
-    public static async Task ExpandIncludesFileAsync(string srcFilePath, string destFilePath, ExpandIncludesSettings? settings = null, CancellationToken cancel = default, string? newLineStr = null, bool writeBom = false)
+    public static async Task ExpandIncludesFileAsync(string srcFilePathOrUrl, string destFilePath, ExpandIncludesSettings? settings = null, CancellationToken cancel = default, string? newLineStr = null, bool writeBom = false)
     {
-        string srcBody = await Lfs.ReadStringFromFileAsync(srcFilePath, cancel: cancel);
+        string srcBody;
+        FilePath? srcFilePathIfPhysicalFile;
 
-        string dstBody = await MiscUtil.ExpandIncludesAsync(srcBody, srcFilePath, settings, cancel, newLineStr);
+        if (srcFilePathOrUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || srcFilePathOrUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            // URL
+            srcBody = "#include " + srcFilePathOrUrl + "\n";
+            srcFilePathIfPhysicalFile = null;
+        }
+        else
+        {
+            // Local file
+            srcBody = await Lfs.ReadStringFromFileAsync(srcFilePathOrUrl, cancel: cancel);
+            srcFilePathIfPhysicalFile = srcFilePathOrUrl;
+        }
+
+        string dstBody = await MiscUtil.ExpandIncludesAsync(srcBody, srcFilePathIfPhysicalFile, settings, cancel, newLineStr);
 
         byte[] data = dstBody._GetBytes_UTF8(writeBom);
 

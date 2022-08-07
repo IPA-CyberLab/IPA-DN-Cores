@@ -3688,23 +3688,9 @@ cccadmin
 
     static void Test_220708()
     {
-        var progamInfo = Env.GenerateMyProgramAndEnvironmentReport()._GetResult();
-        progamInfo._ObjectToJson()._Print();
-        return;
-
         Async(async () =>
         {
-            await using var dns = DnsResolver.CreateDnsResolverIfSupported(new DnsResolverSettings(null, DnsResolverFlags.DisableCache | DnsResolverFlags.UdpOnly | DnsResolverFlags.UseSystemDnsClientSettings, 3000, 2));
-            while (true)
-            {
-                string hostname = Con.ReadLine("HOST>")!;
-                if (hostname == "q") break;
-
-                var ip = await LocalNet.DnsResolver.GetIpAddressAsync(hostname, preferV6: true);
-                ip._PrintAsJson();
-
-
-            }
+            await MiscUtil.ExpandIncludesAsync("#include https://open_se:xqwZ5MdqDHVbgcvv@git-cloudmirror-static.fed.open.ad.jp/d/fed_share_fed-open-se-netadmin/auth/Pinger/11_OPEN_v4v6.config!18E6D1233CC1983884FAAC1F3F9FE146B15751E3C9E4D53CF67622AC357A7517");
         });
 
         return;

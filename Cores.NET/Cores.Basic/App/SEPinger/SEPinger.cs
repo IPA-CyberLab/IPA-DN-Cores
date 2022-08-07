@@ -145,6 +145,8 @@ public class Config
 
     public readonly string DnsServer;
 
+    public readonly string Footer;
+
     public List<KeyValuePair<string, string>> SuffixReplaceList = new List<KeyValuePair<string, string>>();
 
     public readonly bool TcpSendData;
@@ -205,6 +207,7 @@ public class Config
         NumErrors = Math.Max(1, (int)ini["NumErrors"].IntValue);
 
         DefaultOptions = ini["DefaultOptions"].StrValue;
+        Footer = ini["Footer"].StrValue;
 
         string[] keys = ini.GetKeys();
 
@@ -705,7 +708,7 @@ public class PingerResult
 
         if (firstErrorTime.Ticks != 0)
         {
-            ret += "発生: " + firstErrorTime.ToString() + "\n";
+            ret += "発生: " + firstErrorTime._ToDtStr() + "\n";
         }
 
         return ret;
@@ -1068,11 +1071,12 @@ public class Pinger
                 var progamInfo = Env.GenerateMyProgramAndEnvironmentReport()._GetResult();
 
                 // メール送信
-                string mailStr = "報告日時: " + DateTime.Now.ToString() + "\n\n" + okngStr + "\r\n" + str + "\r\n\r\n" +
+                string mailStr = "【" + okngStr + "】\r\n" + "報告日時: " + DateTime.Now._ToDtStr() + "\r\n\r\n" + str + "\r\n\r\n" +
                     $"Pinger version: {Env.BuildTimeStamp._ToDtStr()}\r\n" +
                     $"Pinger machine: {Env.DnsFqdnHostName}\r\n\r\n" +
                     $"Program Info:\r\n" +
-                    progamInfo._ObjectToJson() +  "\r\n";
+                    progamInfo._ObjectToJson() + "\r\n" +
+                    config.Footer._NonNull()._DecodeCEscape() + "\r\n";
 
                 mailStr = Str.NormalizeCrlf(mailStr);
 
