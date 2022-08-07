@@ -1063,21 +1063,18 @@ public class Pinger
             {
                 lastHash = hash;
 
+                string okngStr = $"NG:{res.NumError} OK:{res.NumOk}";
+
                 var progamInfo = Env.GenerateMyProgramAndEnvironmentReport()._GetResult();
 
                 // メール送信
-                string mailStr = "報告日時: " + DateTime.Now.ToString() + "\n\n" + str + "\r\n\r\n" +
+                string mailStr = "報告日時: " + DateTime.Now.ToString() + "\n\n" + okngStr + "\r\n" + str + "\r\n\r\n" +
                     $"Pinger version: {Env.BuildTimeStamp._ToDtStr()}\r\n" +
                     $"Pinger machine: {Env.DnsFqdnHostName}\r\n\r\n" +
                     $"Program Info:\r\n" +
                     progamInfo._ObjectToJson() +  "\r\n";
 
                 mailStr = Str.NormalizeCrlf(mailStr);
-                string okngStr = $"NG:{res.NumError} OK:{res.NumOk}";
-                if (res.NumError == 0)
-                {
-                    okngStr = $"ALL OK:{res.NumOk}";
-                }
 
                 Mail(config, config.SmtpFrom, prefix + okngStr, mailStr);
 
