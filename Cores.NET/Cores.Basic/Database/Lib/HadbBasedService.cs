@@ -64,8 +64,13 @@ using System.Net;
 namespace IPA.Cores.Basic;
 
 
-
-
+public static partial class CoresConfig
+{
+    public static partial class Hadb
+    {
+        public static readonly Copenhagen<int> DefaultHadbDatabaseCommandTimeoutSecs = 3 * 60;
+    }
+}
 
 
 
@@ -88,6 +93,7 @@ public abstract class HadbBasedServiceHiveSettingsBase : INormalizable
 
     public string HadbSqlServerHostname = "";
     public int HadbSqlServerPort = 0;
+    public int HadbDatabaseCommandTimeoutSecs = 0;
     public bool HadbSqlServerDisableConnectionPooling = false;
 
     public string HadbSqlDatabaseName = "";
@@ -116,6 +122,8 @@ public abstract class HadbBasedServiceHiveSettingsBase : INormalizable
         this.HadbSqlServerHostname = this.HadbSqlServerHostname._FilledOrDefault("127.0.0.1"); ;
 
         if (this.HadbSqlServerPort <= 0) this.HadbSqlServerPort = Consts.Ports.MsSqlServer;
+
+        if (this.HadbDatabaseCommandTimeoutSecs <= 0) this.HadbDatabaseCommandTimeoutSecs = CoresConfig.Hadb.DefaultHadbDatabaseCommandTimeoutSecs;
 
         this.HadbSqlDatabaseName = this.HadbSqlDatabaseName._FilledOrDefault("HADB001");
 
@@ -511,7 +519,8 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
             optionFlags: s.HadbOptionFlags,
             backupDataFile: s.HadbBackupFilePathOverride._IsFilled() ? new FilePath(s.HadbBackupFilePathOverride) : null,
             backupDynamicConfigFile: s.HadbBackupDynamicConfigFilePathOverride._IsFilled() ? new FilePath(s.HadbBackupDynamicConfigFilePathOverride) : null,
-            lazyUpdateParallelQueueCount: s.LazyUpdateParallelQueueCount
+            lazyUpdateParallelQueueCount: s.LazyUpdateParallelQueueCount,
+            commandTimeoutSecs: s.HadbDatabaseCommandTimeoutSecs
             );
 
         return new HadbSys(sqlSettings, CreateInitialDynamicConfigImpl());

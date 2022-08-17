@@ -393,8 +393,8 @@ public class HadbSqlSettings : HadbSettingsBase
     public IsolationLevel IsolationLevelForRead { get; }
     public IsolationLevel IsolationLevelForWrite { get; }
 
-    public HadbSqlSettings(string systemName, string sqlConnectStringForRead, string sqlConnectStringForWrite, IsolationLevel isoLevelForRead = IsolationLevel.Snapshot, IsolationLevel isoLevelForWrite = IsolationLevel.Serializable, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null, int lazyUpdateParallelQueueCount = Consts.Numbers.HadbDefaultLazyUpdateParallelQueueCount)
-        : base(systemName, optionFlags, backupDataFile, backupDynamicConfigFile, lazyUpdateParallelQueueCount)
+    public HadbSqlSettings(string systemName, string sqlConnectStringForRead, string sqlConnectStringForWrite, IsolationLevel isoLevelForRead = IsolationLevel.Snapshot, IsolationLevel isoLevelForWrite = IsolationLevel.Serializable, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null, int lazyUpdateParallelQueueCount = Consts.Numbers.HadbDefaultLazyUpdateParallelQueueCount, int commandTimeoutSecs = 0)
+        : base(systemName, optionFlags, backupDataFile, backupDynamicConfigFile, lazyUpdateParallelQueueCount, commandTimeoutSecs)
     {
         this.SqlConnectStringForRead = sqlConnectStringForRead;
         this.SqlConnectStringForWrite = sqlConnectStringForWrite;
@@ -668,6 +668,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         try
         {
+            db.CommandTimeoutSecs = this.Settings.CommandTimeoutSecs;
+
             await db.EnsureOpenAsync(cancel);
 
             return db;
@@ -2319,8 +2321,9 @@ public abstract class HadbSettingsBase // CloneDeep 禁止
     public FilePath BackupDataFile { get; }
     public FilePath BackupDynamicConfigFile { get; }
     public int LazyUpdateParallelQueueCount { get; }
+    public int CommandTimeoutSecs { get; }
 
-    public HadbSettingsBase(string systemName, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null, int lazyUpdateParallelQueueCount = Consts.Numbers.HadbDefaultLazyUpdateParallelQueueCount)
+    public HadbSettingsBase(string systemName, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null, int lazyUpdateParallelQueueCount = Consts.Numbers.HadbDefaultLazyUpdateParallelQueueCount, int commandTimeoutSecs = 0)
     {
         if (systemName._IsEmpty()) throw new CoresLibException("systemName is empty.");
         this.SystemName = systemName._NonNullTrim().ToUpperInvariant();
@@ -2343,6 +2346,8 @@ public abstract class HadbSettingsBase // CloneDeep 禁止
 
         this.BackupDataFile = backupDataFile;
         this.BackupDynamicConfigFile = backupDynamicConfigFile;
+
+        this.CommandTimeoutSecs = (commandTimeoutSecs <= 0 ? CoresConfig.Hadb.DefaultHadbDatabaseCommandTimeoutSecs : commandTimeoutSecs);
     }
 }
 

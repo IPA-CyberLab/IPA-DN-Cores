@@ -119,7 +119,7 @@ public class HostsCache : AsyncServiceWithMainLoop
     readonly TimeSpan interval_full_update_on_error = new TimeSpan(0, 5, 0);
     readonly TimeSpan interval_diff_update = new TimeSpan(0, 0, 1);
     readonly TimeSpan interval_clock_margin = new TimeSpan(0, 5, 0);
-    const int SqlTimeout = 3 * 60 * 1000;
+    const int SqlTimeoutSecs = 3 * 60;
 
     public bool IsEmpty = true;
 
@@ -298,7 +298,7 @@ public class HostsCache : AsyncServiceWithMainLoop
                 {
                     await using var db = await OpenDbAsync(cancel);
 
-                    db.CommandTimeoutSecs = SqlTimeout;
+                    db.CommandTimeoutSecs = SqlTimeoutSecs;
 
                     var table = await db.EasySelectAsync<Hosts2Table>(@"
 SELECT                    HOST_ID, HOST_NAME, HOST_LAST_IPV4, HOST_LAST_IPV6, HOST_UPDATE_DATE, HOST_AZURE_IP
@@ -376,7 +376,7 @@ cancel: cancel);
 
                     await using var db = await OpenDbAsync(cancel);
 
-                    db.CommandTimeoutSecs = SqlTimeout;
+                    db.CommandTimeoutSecs = SqlTimeoutSecs;
 
                     var table = await db.EasySelectAsync<Hosts2Table>(@"
 SELECT HOST_AZURE_IP, HOST_ID, HOST_LAST_IPV4, HOST_LAST_IPV6, HOST_NAME, HOST_UPDATE_DATE FROM HOSTS WITH (NOLOCK) WHERE (HOST_UPDATE_DATE >= @DT)",
@@ -474,7 +474,7 @@ FROM                       BAN");
                     //HOSTSTableAdapter ta = new HOSTSTableAdapter();
 
                     //SetSqlTimeout(ta, SqlTimeout);
-                    db.CommandTimeoutSecs = SqlTimeout;
+                    db.CommandTimeoutSecs = SqlTimeoutSecs;
 
                     Dictionary<string, LastAccess> a2 = null!;
 
