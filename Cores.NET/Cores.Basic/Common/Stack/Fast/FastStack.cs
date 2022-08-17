@@ -1020,7 +1020,7 @@ public class NetPalUdpProtocolStub : NetUdpProtocolStubBase
 
         await Task.Yield();
 
-        while (cancel.IsCancellationRequested == false)
+        while (this.IsCanceled == false)
         {
             try
             {
@@ -1041,7 +1041,7 @@ public class NetPalUdpProtocolStub : NetUdpProtocolStubBase
         });
         UdpRecvInstanceList.Clear();
 
-        // すべての受信タスクを終了する
+        // すべての送信タスクを終了する
         if (this._UdpSendInstanceList != null)
         {
             await _UdpSendInstanceList._DoForEachAsync(async x => await x._DisposeSafeAsync());
