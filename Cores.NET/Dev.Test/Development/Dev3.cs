@@ -234,6 +234,9 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         [SimpleComment("Expire interval seconds in DNS SOA response")]
         public int DDns_Protocol_SOA_ExpireIntervalSecs;
 
+        [SimpleComment("Copy query packet's Additional Records field to the response packet (including EDNS fields). This might confuse DNS cache server like dnsdist.")]
+        public bool DDns_Protocol_CopyQueryAdditionalRecordsToResponse;
+
         [SimpleComment("Set a specific secret string to enable the 'License String' feature (Described in the API help)")]
         public string DDns_RequiredLicenseString = "";
 
@@ -539,7 +542,7 @@ AAAA v6 {myGlobalIPv6}{healthCheckIPv6}
 
 $@"
 
-A ssl-cert-server 4.3.2.2 ! this is default sample IP. change it.
+A ssl-cert-server 4.3.2.1 ! this is default sample IP. change it.
 A ssl-cert-server-v4 4.3.2.1 ! this is default sample IP. change it.
 AAAA ssl-cert-server 2001:af80::4321 ! this is default sample IP. change it.
 AAAA ssl-cert-server-v6 2001:af80::4321 ! this is default sample IP. change it.
@@ -1031,9 +1034,6 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         }
         catch { }
 
-        Where("--------------");
-        await Task.CompletedTask;
-
         var config = this.Hadb.CurrentDynamicConfig;
 
         EasyDnsResponderSettings settings = new EasyDnsResponderSettings
@@ -1231,6 +1231,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         }
 
         settings.SaveAccessLogForDebug = config.DDns_SaveDnsQueryAccessLogForDebug;
+        settings.CopyQueryAdditionalRecordsToResponse = config.DDns_Protocol_CopyQueryAdditionalRecordsToResponse;
 
         this.DnsServer.ApplySetting(settings);
 

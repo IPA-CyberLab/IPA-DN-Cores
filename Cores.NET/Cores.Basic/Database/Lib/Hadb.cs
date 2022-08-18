@@ -4150,7 +4150,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     {
         EasyJsonStrAttributes stat = new EasyJsonStrAttributes();
 
-        stat.Set("Stat/TimeStamp", DtOffsetNow);
+        stat.Set("Stat/TimeStamp", DtOffsetNow._ToDtStr(true));
 
         Dictionary<string, long> dict = new Dictionary<string, long>(StrCmpi);
 

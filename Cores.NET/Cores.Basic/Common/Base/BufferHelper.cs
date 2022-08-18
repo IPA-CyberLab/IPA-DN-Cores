@@ -1090,6 +1090,62 @@ public static class MemoryExtHelper
         return original.Slice(0, size);
     }
 
+    public static ReadOnlySpan<T> _TryWalk<T>(ref this ReadOnlySpan<T> span, int size)
+    {
+        if (span.Length < size) return default;
+        return _Walk(ref span, size);
+    }
+
+    public static unsafe bool _TryWalkAsStruct<T>(ref this ReadOnlySpan<byte> span, out T dst) where T : unmanaged
+    {
+        int structSize = sizeof(T);
+        if (structSize == 0)
+        {
+            dst = default;
+            return default;
+        }
+
+        ReadOnlySpan<byte> structSpan = _TryWalk(ref span, structSize);
+        if (structSpan.IsEmpty)
+        {
+            dst = default;
+            return false;
+        }
+
+        dst = structSpan._AsStruct<T>(); // コピー発生
+
+        return true;
+    }
+
+
+    public static Span<T> _TryWalk<T>(ref this Span<T> span, int size)
+    {
+        if (span.Length < size) return default;
+        return _Walk(ref span, size);
+    }
+
+    public static unsafe bool _TryWalkAsStruct<T>(ref this Span<byte> span, out T dst) where T : unmanaged
+    {
+        int structSize = sizeof(T);
+        if (structSize == 0)
+        {
+            dst = default;
+            return default;
+        }
+
+        Span<byte> structSpan = _TryWalk(ref span, structSize);
+        if (structSpan.IsEmpty)
+        {
+            dst = default;
+            return false;
+        }
+
+        dst = structSpan._AsStruct<T>(); // コピー発生
+
+        return true;
+    }
+
+
     public static Span<T> _Walk<T>(ref this Span<T> span, int size)
     {
         if (size == 0) return Span<T>.Empty;

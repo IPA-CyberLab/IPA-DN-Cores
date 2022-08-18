@@ -2013,6 +2013,18 @@ namespace IPA.Cores.Basic
         public static unsafe int SizeOfStruct<T>() where T : unmanaged
             => sizeof(T);
 
+        [MethodImpl(Inline)]
+        public static unsafe ReadOnlySpan<byte> BytePtrToReadOnlySpan(byte* ptr, int size)
+        {
+            return new ReadOnlySpan<byte>(ptr, size);
+        }
+
+        [MethodImpl(Inline)]
+        public static unsafe Span<byte> BytePtrToSpan(byte* ptr, int size)
+        {
+            return new Span<byte>(ptr, size);
+        }
+
         // オブジェクトから XML とスキーマを生成
         public static XmlAndXsd GenerateXmlAndXsd(object obj)
         {

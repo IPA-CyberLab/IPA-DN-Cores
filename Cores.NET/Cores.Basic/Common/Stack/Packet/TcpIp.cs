@@ -40,6 +40,7 @@ using System.Net.Sockets;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Diagnostics.CodeAnalysis;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -188,6 +189,168 @@ public enum IPv4Flags : byte
     MoreFragments = 1,
     DontFragment = 2,
     Reserved = 4,
+}
+
+
+// Proxy Protocol Ver 2.0: https://www.haproxy.org/download/2.2/doc/proxy-protocol.txt
+
+[Flags]
+public enum ProxyProtocolVersion : byte
+{
+    V2 = 2,
+}
+
+[Flags]
+public enum ProxyProtocolCommand : byte
+{
+    Local = 0,
+    Proxy = 1,
+}
+
+[Flags]
+public enum ProxyProtocolAddressFamily : byte
+{
+    AF_UNSPEC = 0,
+    AF_INET = 1,
+    AF_INET6 = 2,
+    AF_UNIX = 3,
+}
+
+[Flags]
+public enum ProxyProtocolProtocol : byte
+{
+    UNSPEC = 0,
+    TCP_over_IPv4 = 0x11,
+    UDP_over_IPv4 = 0x12,
+    TCP_over_IPv6 = 0x21,
+    UDP_over_IPv6 = 0x22,
+    UNIX_Stream = 0x31,
+    UNIX_Datagram = 0x32,
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
+public unsafe struct ProxyProtocolV2Header
+{
+    public static readonly ReadOnlyMemory<byte> ProxyProtocolSignatureConst12Bytes = "0D0A0D0A000D0A515549540A"._GetHexBytes();
+
+    public fixed byte ProxyProcotolSignature[12]; // 0x0D,0x0A,0x0D,0x0A,0x00,0x0D,0x0A,0x51,0x55,0x49,0x54,0x0A
+    public byte VersionAndCommand;
+    public byte AddressFamilyAndProtocol;
+    public ushort AdditionalDataLength;
+
+    public ProxyProtocolVersion Version
+    {
+        get => (ProxyProtocolVersion)(this.VersionAndCommand >> 4 & 0x0f);
+        set => VersionAndCommand |= (byte)((((byte)value) & 0x0f) << 4);
+    }
+
+    public ProxyProtocolCommand Command
+    {
+        get => (ProxyProtocolCommand)(VersionAndCommand & 0x0f);
+        set => VersionAndCommand |= (byte)(((byte)value) & 0x0f);
+    }
+
+    public ProxyProtocolAddressFamily AddressFamily
+    {
+        get => (ProxyProtocolAddressFamily)(this.AddressFamilyAndProtocol >> 4 & 0x0f);
+        set => AddressFamilyAndProtocol |= (byte)((((byte)value) & 0x0f) << 4);
+    }
+
+    public ProxyProtocolProtocol Protocol
+    {
+        get => (ProxyProtocolProtocol)(AddressFamilyAndProtocol & 0x0f);
+        set => AddressFamilyAndProtocol |= (byte)(((byte)value) & 0x0f);
+    }
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
+public unsafe struct ProxyProtocolAdditionalDataForIPv4
+{
+    public uint SrcIPv4Address;
+    public uint DstIPv4Address;
+    public ushort SrcPort;
+    public ushort DstPort;
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
+public unsafe struct ProxyProtocolAdditionalDataForIPv6
+{
+    public fixed byte SrcIPv6Address[16];
+    public fixed byte DstIPv6Address[16];
+    public ushort SrcPort;
+    public ushort DstPort;
+}
+
+public class ProxyProtocolV2Parsed
+{
+    public ProxyProtocolVersion Version;
+    public ProxyProtocolCommand Command;
+    public ProxyProtocolProtocol Protocol;
+    public IPEndPoint? SrcEndPoint;
+    public IPEndPoint? DstEndPoint;
+
+    public static unsafe bool TryParse(ref Span<byte> bufWalk, [NotNullWhen(true)] out ProxyProtocolV2Parsed? ret)
+    {
+        var current = bufWalk;
+        ret = null;
+
+        // ヘッダ
+        if (current._TryWalkAsStruct(out ProxyProtocolV2Header header) == false)
+        {
+            return false;
+        }
+
+        if (header.Version != ProxyProtocolVersion.V2)
+        {
+            return false;
+        }
+
+        // 付加データ
+        int additionalDataSize = header.AdditionalDataLength._Endian16_U();
+
+        ret = new ProxyProtocolV2Parsed();
+
+        ret.Version = header.Version;
+        ret.Command = header.Command;
+        ret.Protocol = header.Protocol;
+
+        if (additionalDataSize != 0)
+        {
+            var additionalDataBuf = current._TryWalk(additionalDataSize);
+
+            if (additionalDataBuf.IsEmpty)
+            {
+                return false;
+            }
+
+            switch (header.Protocol)
+            {
+                case ProxyProtocolProtocol.TCP_over_IPv4:
+                case ProxyProtocolProtocol.UDP_over_IPv4:
+                    if (additionalDataBuf._TryWalkAsStruct(out ProxyProtocolAdditionalDataForIPv4 v4))
+                    {
+                        ret.SrcEndPoint = new IPEndPoint(new IPAddress(v4.SrcIPv4Address), v4.SrcPort);
+                        ret.DstEndPoint = new IPEndPoint(new IPAddress(v4.DstIPv4Address), v4.DstPort);
+                    }
+                    break;
+
+                case ProxyProtocolProtocol.TCP_over_IPv6:
+                case ProxyProtocolProtocol.UDP_over_IPv6:
+                    if (additionalDataBuf._TryWalkAsStruct(out ProxyProtocolAdditionalDataForIPv6 v6))
+                    {
+                        ret.SrcEndPoint = new IPEndPoint(new IPAddress(Util.BytePtrToReadOnlySpan(v6.SrcIPv6Address, 16)), v6.SrcPort);
+                        ret.DstEndPoint = new IPEndPoint(new IPAddress(Util.BytePtrToReadOnlySpan(v6.DstIPv6Address, 16)), v6.DstPort);
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        bufWalk = current;
+        return true;
+    }
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]

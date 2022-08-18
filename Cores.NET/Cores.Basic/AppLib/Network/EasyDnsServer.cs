@@ -73,6 +73,7 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
     public DateTime LastDatabaseHealtyTimeStamp { get; set; }
 
     public bool SaveAccessLogForDebug { get; private set; }
+    public bool CopyQueryAdditionalRecordsToResponse { get; set; } = false;
 
     public EasyDnsResponderBasedDnsServer(EasyDnsResponderBasedDnsServerSettings settings)
     {
@@ -106,6 +107,7 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
         this.DnsResponder.ApplySetting(setting);
 
         this.SaveAccessLogForDebug = setting.SaveAccessLogForDebug;
+        this.CopyQueryAdditionalRecordsToResponse = setting.CopyQueryAdditionalRecordsToResponse;
     }
 
     public class DnsAccessLog
@@ -202,6 +204,12 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
 
         q.IsQuery = false;
         q.ReturnCode = ReturnCode.NoError;
+
+        if (this.CopyQueryAdditionalRecordsToResponse == false)
+        {
+            // クエリに付いてきた Additional Records を削除 (dnsdist キャッシュ対策)
+            q.AdditionalRecords.Clear();
+        }
 
         if (q.Questions.Count == 0)
         {

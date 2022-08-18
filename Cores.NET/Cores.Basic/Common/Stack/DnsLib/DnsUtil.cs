@@ -135,14 +135,25 @@ public static class DnsUtil
     }
 }
 
+[Flags]
+public enum DnsUdpPacketFlags
+{
+    None = 0,
+    ViaDnsProxy = 1,
+}
+
 public class DnsUdpPacket
 {
-    public IPEndPoint RemoteEndPoint { get; }
+    [JsonConverter(typeof(StringEnumConverter))]
+    public DnsUdpPacketFlags Flags { get; }
+
+    public IPEndPoint RemoteEndPoint { get; } // UDP パケット送付元の DNS クライアントの情報 (dnsdist 等の DNS プロキシ経由の場合はプロキシの情報)
     public IPEndPoint LocalEndPoint { get; }
-    public IPEndPoint OriginalRemoteEndPoint { get; } // プロキシを経由してきた場合の元の DNS クライアントの情報
+    public IPEndPoint OriginalRemoteEndPoint { get; } // dnsdist 等の DNS プロキシを経由してきた場合の元の DNS クライアントの情報
+
     public DnsMessageBase Message { get; }
 
-    public DnsUdpPacket(IPEndPoint remoteEndPoint, IPEndPoint localEndPoint, DnsMessageBase message, IPEndPoint? originalRemoteEndPoint = null)
+    public DnsUdpPacket(IPEndPoint remoteEndPoint, IPEndPoint localEndPoint, DnsMessageBase message, IPEndPoint? originalRemoteEndPoint = null, DnsUdpPacketFlags flags = DnsUdpPacketFlags.None)
     {
         originalRemoteEndPoint ??= remoteEndPoint;
 
@@ -155,6 +166,13 @@ public class DnsUdpPacket
         this.LocalEndPoint = localEndPoint;
         this.OriginalRemoteEndPoint = originalRemoteEndPoint;
         this.Message = message;
+
+        if (this.OriginalRemoteEndPoint.Equals(this.RemoteEndPoint) == false)
+        {
+            flags |= DnsUdpPacketFlags.ViaDnsProxy;
+        }
+
+        this.Flags = flags;
     }
 }
 
@@ -166,6 +184,7 @@ public class EasyDnsServerDynOptions : INormalizable
     public int UdpRecvLoopPollingIntervalMsecs { get; set; } = 0;
     public int UdpDelayedProcessTaskQueueLength { get; set; } = 0;
     public int UdpDelayedResponsePacketQueueLength { get; set; } = 0;
+    public string DnsProxyProtocolSrcIpAcl { get; set; } = "0.0.0.0/0; ::/0";
 
     public EasyDnsServerDynOptions()
     {
@@ -182,6 +201,11 @@ public class EasyDnsServerDynOptions : INormalizable
 
         if (UdpDelayedResponsePacketQueueLength <= 0)
             UdpDelayedResponsePacketQueueLength = 4096;
+
+        if (this.DnsProxyProtocolSrcIpAcl._IsEmpty())
+        {
+            this.DnsProxyProtocolSrcIpAcl = "0.0.0.0/0; ::/0";
+        }
     }
 }
 
@@ -244,6 +268,8 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
                 // UDP パケットを受信するまで待機して受信を実行 (タイムアウトが発生した場合も抜ける)
                 var allRecvList = await udpSock.ReceiveDatagramsListAsync(cancel: cancel, timeout: this._DynOptions.UdpRecvLoopPollingIntervalMsecs, noTimeoutException: true, cancelEvent: UdpRecvCancelEvent);
 
+                var proxyAcl = new EasyIpAcl(this._DynOptions.DnsProxyProtocolSrcIpAcl, EasyIpAclAction.Deny, EasyIpAclAction.Deny, false);
+
                 // 受信した UDP パケットを複数の CPU で処理
                 var allSendList = await allRecvList._ProcessParallelAndAggregateAsync((perTaskRecvList, taskIndex) =>
                 {
@@ -257,9 +283,26 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
                         {
                             try
                             {
-                                var request = DnsUtil.ParsePacket(item.Data.Span);
+                                DnsUdpPacketFlags flags = DnsUdpPacketFlags.None;
 
-                                DnsUdpPacket pkt = new DnsUdpPacket(item.RemoteIPEndPoint!, item.LocalIPEndPoint!, request);
+                                IPEndPoint? originalRemoteEndPoint = null;
+
+                                var dnsPacketData = item.Data.Span;
+
+                                // Proxy Protocol のパースを試行
+                                if (ProxyProtocolV2Parsed.TryParse(ref dnsPacketData, out var proxyProtocolParsed))
+                                {
+                                    // パースに成功した場合 ACL を確認
+                                    if (proxyAcl.Evaluate(item.RemoteIPEndPoint!.Address) == EasyIpAclAction.Permit)
+                                    {
+                                        originalRemoteEndPoint = proxyProtocolParsed.SrcEndPoint;
+                                        flags |= DnsUdpPacketFlags.ViaDnsProxy;
+                                    }
+                                }
+
+                                var request = DnsUtil.ParsePacket(dnsPacketData);
+
+                                DnsUdpPacket pkt = new DnsUdpPacket(item.RemoteIPEndPoint!, item.LocalIPEndPoint!, request, originalRemoteEndPoint, flags);
 
                                 perTaskRequestPacketsList.Add(pkt);
                             }
@@ -506,6 +549,8 @@ public class EasyDnsResponderSettings
     public EasyDnsResponderRecordSettings? DefaultSettings { get; set; } = null;
 
     public bool SaveAccessLogForDebug { get; set; } = false;
+
+    public bool CopyQueryAdditionalRecordsToResponse { get; set; } = false;
 }
 
 // ダイナミックレコードのコールバック関数に渡されるリクエストデータ

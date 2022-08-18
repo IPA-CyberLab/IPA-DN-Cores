@@ -1039,6 +1039,12 @@ public class DDNSServer : AsyncService
             q.IsQuery = false;
             q.ReturnCode = ReturnCode.ServerFailure;
 
+            // 2022.8.18 dnsdist のキャッシュを効かせるためすべての AdditionalRecords を無視
+            if (Ini["CopyQueryAdditionalRecordsToResponse"].BoolValue == false)
+            {
+                q.AdditionalRecords.Clear();
+            }
+
             List<DnsRecordBase> answers = new List<DnsRecordBase>();
             int num_match = 0;
 
