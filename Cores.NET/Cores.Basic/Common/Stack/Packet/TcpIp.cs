@@ -210,22 +210,18 @@ public enum ProxyProtocolCommand : byte
 [Flags]
 public enum ProxyProtocolAddressFamily : byte
 {
-    AF_UNSPEC = 0,
-    AF_INET = 1,
-    AF_INET6 = 2,
-    AF_UNIX = 3,
+    None = 0,
+    IPv4 = 1,
+    IPv6 = 2,
+    Unix = 3,
 }
 
 [Flags]
 public enum ProxyProtocolProtocol : byte
 {
-    UNSPEC = 0,
-    TCP_over_IPv4 = 0x11,
-    UDP_over_IPv4 = 0x12,
-    TCP_over_IPv6 = 0x21,
-    UDP_over_IPv6 = 0x22,
-    UNIX_Stream = 0x31,
-    UNIX_Datagram = 0x32,
+    None = 0,
+    Stream = 0x11,
+    Datagram = 0x22,
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -285,6 +281,7 @@ public class ProxyProtocolV2Parsed
 {
     public ProxyProtocolVersion Version;
     public ProxyProtocolCommand Command;
+    public ProxyProtocolAddressFamily AddressFamily;
     public ProxyProtocolProtocol Protocol;
     public IPEndPoint? SrcEndPoint;
     public IPEndPoint? DstEndPoint;
@@ -305,6 +302,11 @@ public class ProxyProtocolV2Parsed
             return false;
         }
 
+        if (Util.MemEquals(new ReadOnlySpan<byte>(header.ProxyProcotolSignature, 12), ProxyProtocolV2Header.ProxyProtocolSignatureConst12Bytes.Span) == false)
+        {
+            return false;
+        }
+
         // 付加データ
         int additionalDataSize = header.AdditionalDataLength._Endian16_U();
 
@@ -312,6 +314,7 @@ public class ProxyProtocolV2Parsed
 
         ret.Version = header.Version;
         ret.Command = header.Command;
+        ret.AddressFamily = header.AddressFamily;
         ret.Protocol = header.Protocol;
 
         if (additionalDataSize != 0)
@@ -323,10 +326,9 @@ public class ProxyProtocolV2Parsed
                 return false;
             }
 
-            switch (header.Protocol)
+            switch (header.AddressFamily)
             {
-                case ProxyProtocolProtocol.TCP_over_IPv4:
-                case ProxyProtocolProtocol.UDP_over_IPv4:
+                case ProxyProtocolAddressFamily.IPv4:
                     if (additionalDataBuf._TryWalkAsStruct(out ProxyProtocolAdditionalDataForIPv4 v4))
                     {
                         ret.SrcEndPoint = new IPEndPoint(new IPAddress(v4.SrcIPv4Address), v4.SrcPort);
@@ -334,8 +336,7 @@ public class ProxyProtocolV2Parsed
                     }
                     break;
 
-                case ProxyProtocolProtocol.TCP_over_IPv6:
-                case ProxyProtocolProtocol.UDP_over_IPv6:
+                case ProxyProtocolAddressFamily.IPv6:
                     if (additionalDataBuf._TryWalkAsStruct(out ProxyProtocolAdditionalDataForIPv6 v6))
                     {
                         ret.SrcEndPoint = new IPEndPoint(new IPAddress(Util.BytePtrToReadOnlySpan(v6.SrcIPv6Address, 16)), v6.SrcPort);

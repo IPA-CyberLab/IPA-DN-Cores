@@ -447,6 +447,8 @@ namespace IPA.Cores.Basic
         readonly FastCache<IPAddress, EasyIpAclAction>? CacheByIp = null;
         readonly FastCache<string, EasyIpAclAction>? CacheByStr = null;
 
+        public bool IsEmpty => this.RuleListInternal.Count == 0;
+
         static readonly FastCache<string, EasyIpAcl> GlobalAclObjectCache = new FastCache<string, EasyIpAcl>(CoresConfig.EasyIpAclConfig.CachedAclObjectsExpires, 0, CacheType.UpdateExpiresWhenAccess);
 
         public EasyIpAcl(string? body, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit, bool enableCache = false)
@@ -480,7 +482,7 @@ namespace IPA.Cores.Basic
             this.DefaultActionForEmpty = defaultActionForEmpty;
         }
 
-        public static string NormalizeRules(string? rules, bool multiLines = false)
+        public static string NormalizeRules(string? rules, bool multiLines = false, bool allowAllIfEmptyOrError = false)
         {
             rules = rules._NonNullTrim();
 
@@ -488,11 +490,23 @@ namespace IPA.Cores.Basic
             {
                 EasyIpAcl a = new EasyIpAcl(rules);
 
+                if (a.IsEmpty && allowAllIfEmptyOrError)
+                {
+                    return Consts.Strings.EasyAclAllowAllRule;
+                }
+
                 return a.ToString(multiLines);
             }
             catch
             {
-                return "";
+                if (allowAllIfEmptyOrError == false)
+                {
+                    return "";
+                }
+                else
+                {
+                    return Consts.Strings.EasyAclAllowAllRule;
+                }
             }
         }
 
@@ -689,7 +703,7 @@ namespace IPA.Cores.Basic
 
             this.Action = EasyIpAclAction.Permit;
 
-            if (ruleStr.StartsWith("!"))
+            if (ruleStr.StartsWith("!") || ruleStr.StartsWith("-"))
             {
                 ruleStr = ruleStr.Substring(1);
                 this.Action = EasyIpAclAction.Deny;
@@ -746,7 +760,7 @@ namespace IPA.Cores.Basic
 
             if (this.Action == EasyIpAclAction.Deny)
             {
-                sb.Append("!");
+                sb.Append("-");
             }
 
             sb.Append(this.Network);

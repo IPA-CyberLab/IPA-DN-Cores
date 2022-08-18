@@ -2774,11 +2774,37 @@ public static class BasicHelper
     }
 
 
+    public static KeyValueList<TKey, TValue> _ToKeyValueList<TKey, TValue>(this IEnumerable<KeyValuePair<TKey, TValue>> target)
+    {
+        KeyValueList<TKey, TValue> ret = new KeyValueList<TKey, TValue>();
+        foreach (var kv in target)
+        {
+            ret.Add(kv);
+        }
+        return ret;
+    }
+
     public static bool _HasKey<TKey, TValue>(this IList<KeyValuePair<TKey, TValue>> target, TKey key, IEqualityComparer<TKey>? comparer = null)
     {
         if (comparer == null) comparer = EqualityComparer<TKey>.Default;
 
         return target.Where(x => comparer.Equals(x.Key, key)).Any();
+    }
+
+    public static int _IndexOfKey<TKey, TValue>(this IList<KeyValuePair<TKey, TValue>> target, TKey key, IEqualityComparer<TKey>? comparer = null)
+    {
+        if (comparer == null) comparer = EqualityComparer<TKey>.Default;
+
+        int count = target.Count;
+        for (int i = 0; i < count; i++)
+        {
+            if (comparer.Equals(target[i].Key, key))
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     public static bool _TryGetFirstValue<TKey, TValue>(this IList<KeyValuePair<TKey, TValue>> target, TKey key, [NotNullWhen(true)] out TValue value, IEqualityComparer<TKey>? comparer = null)

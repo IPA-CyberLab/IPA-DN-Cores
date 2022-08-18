@@ -237,6 +237,12 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         [SimpleComment("Copy query packet's Additional Records field to the response packet (including EDNS fields). This might confuse DNS cache server like dnsdist.")]
         public bool DDns_Protocol_CopyQueryAdditionalRecordsToResponse;
 
+        [SimpleComment("Set true if you want this DDNS server to accept UDP Proxy Protocol Version 2.0 (defined by haproxy and supported by some DNS proxies such as dnsdist)")]
+        public bool DDns_Protocol_ParseUdpProxyProtocolV2;
+
+        [SimpleComment("If DDns_Protocol_AcceptUdpProxyProtocolV2 is true you can specify the source IP address ACL to accept UDP Proxy Protocol (You can specify multiple items. e.g. 127.0.0.0/8,1.2.3.0/24)")]
+        public string DDns_Protocol_ProxyProtocolAcceptSrcIpAcl = "";
+
         [SimpleComment("Set a specific secret string to enable the 'License String' feature (Described in the API help)")]
         public string DDns_RequiredLicenseString = "";
 
@@ -290,6 +296,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
         protected override void NormalizeImpl()
         {
+            DDns_Protocol_ProxyProtocolAcceptSrcIpAcl = EasyIpAcl.NormalizeRules(DDns_Protocol_ProxyProtocolAcceptSrcIpAcl, false, true);
+
             if (Hadb_ObjectStaleMarker_ObjNames_and_Seconds.Length == 0)
             {
                 var tmpList = new List<string>();
@@ -739,9 +747,12 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
         public DateTimeOffset DnsQuery_FirstAccessTime = DtOffsetZero;
         public DateTimeOffset DnsQuery_LastAccessTime = DtOffsetZero;
+        public DateTimeOffset DnsQuery_LastAccessWithEDnsClientSubnetInfoTime = DtOffsetZero;
         public long DnsQuery_Count = 0;
-        public string DnsQuery_FirstAccessDnsClientIp = "";
-        public string DnsQuery_LastAccessDnsClientIp = "";
+        public string DnsQuery_FirstAccessDnsResolver = "";
+        public string DnsQuery_FirstAccessEDnsClientSubnetInfo = "";
+        public string DnsQuery_LastAccessDnsResolver = "";
+        public string DnsQuery_LastAccessEDnsClientSubnetInfo = "";
 
         public string UsedUnlockKey = "";
 
@@ -784,9 +795,12 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
             this.DnsQuery_FirstAccessTime = this.DnsQuery_FirstAccessTime._NormalizeDateTimeOffset();
             this.DnsQuery_LastAccessTime = this.DnsQuery_LastAccessTime._NormalizeDateTimeOffset();
+            this.DnsQuery_LastAccessWithEDnsClientSubnetInfoTime = this.DnsQuery_LastAccessWithEDnsClientSubnetInfoTime._NormalizeDateTimeOffset();
 
-            this.DnsQuery_FirstAccessDnsClientIp = this.DnsQuery_FirstAccessDnsClientIp._NormalizeIp();
-            this.DnsQuery_LastAccessDnsClientIp = this.DnsQuery_LastAccessDnsClientIp._NormalizeIp();
+            this.DnsQuery_FirstAccessDnsResolver = this.DnsQuery_FirstAccessDnsResolver._NonNullTrim();
+            this.DnsQuery_FirstAccessEDnsClientSubnetInfo = this.DnsQuery_FirstAccessEDnsClientSubnetInfo._NonNullTrim();
+            this.DnsQuery_LastAccessDnsResolver = this.DnsQuery_LastAccessDnsResolver._NonNullTrim();
+            this.DnsQuery_LastAccessEDnsClientSubnetInfo = this.DnsQuery_LastAccessEDnsClientSubnetInfo._NonNullTrim();
 
             this.AuthLogin_FirstTime = this.AuthLogin_FirstTime._NormalizeDateTimeOffset();
             this.AuthLogin_LastTime = this.AuthLogin_LastTime._NormalizeDateTimeOffset();
@@ -817,8 +831,13 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             DnsQuery_FirstAccessTime = DtOffsetSample(0.1),
             DnsQuery_LastAccessTime = DtOffsetSample(0.5),
             DnsQuery_Count = 12345,
-            DnsQuery_FirstAccessDnsClientIp = "1.9.8.4",
-            DnsQuery_LastAccessDnsClientIp = "5.9.6.3",
+            DnsQuery_FirstAccessDnsResolver = "1.9.8.4:1234",
+            DnsQuery_LastAccessDnsResolver = "5.9.6.3:5678",
+            DnsQuery_FirstAccessEDnsClientSubnetInfo = "5.6.7.0/24",
+            DnsQuery_LastAccessEDnsClientSubnetInfo = "130.158.6.0/24",
+            ApiRateLimit_CurrentCount = 123,
+            ApiRateLimit_StartTime = DtOffsetSample(0.45),
+            DnsQuery_LastAccessWithEDnsClientSubnetInfoTime = DtOffsetSample(0.48),
             UsedUnlockKey = "012345-678901-234567-890123-456789-012345",
             AuthLogin_Count = 121,
             AuthLogin_FirstTime = DtOffsetSample(0.05),
@@ -1235,6 +1254,13 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
         this.DnsServer.ApplySetting(settings);
 
+        var currentDynOptions = this.DnsServer.DnsServer.GetCurrentDynOptions();
+
+        currentDynOptions.ParseUdpProxyProtocolV2 = config.DDns_Protocol_ParseUdpProxyProtocolV2;
+        currentDynOptions.DnsProxyProtocolAcceptSrcIpAcl = config.DDns_Protocol_ProxyProtocolAcceptSrcIpAcl;
+
+        this.DnsServer.DnsServer.SetCurrentDynOptions(currentDynOptions);
+
         string[]? prefixIgnoreList = null;
         if (config.DDns_HostLabelLookup_IgnorePrefixStrings._IsFilled())
         {
@@ -1410,12 +1436,27 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                     }
                     if (req.RequestPacket != null)
                     {
-                        string ip = req.RequestPacket.RemoteEndPoint.Address._UnmapIPv4().ToString();
-                        if (h.DnsQuery_FirstAccessDnsClientIp._IsEmpty())
+                        string dnsResolver = req.RequestPacket.DnsResolver._NonNullTrim();
+                        if (h.DnsQuery_FirstAccessDnsResolver._IsEmpty())
                         {
-                            h.DnsQuery_FirstAccessDnsClientIp = ip;
+                            h.DnsQuery_FirstAccessDnsResolver = dnsResolver;
                         }
-                        h.DnsQuery_LastAccessDnsClientIp = ip;
+                        h.DnsQuery_LastAccessDnsResolver = dnsResolver;
+
+                        string? subnetInfo = req.RequestPacket.EdnsClientSubnet;
+                        if (subnetInfo._IsFilled())
+                        {
+                            if (h.DnsQuery_FirstAccessEDnsClientSubnetInfo._IsEmpty())
+                            {
+                                h.DnsQuery_FirstAccessEDnsClientSubnetInfo = subnetInfo;
+                            }
+                            h.DnsQuery_LastAccessEDnsClientSubnetInfo = subnetInfo;
+
+                            if (h.DnsQuery_LastAccessWithEDnsClientSubnetInfoTime < now)
+                            {
+                                h.DnsQuery_LastAccessWithEDnsClientSubnetInfoTime = now;
+                            }
+                        }
                     }
                     return true;
                 });

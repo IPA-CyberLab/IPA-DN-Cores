@@ -632,6 +632,10 @@ public class DDNSServer : AsyncService
             this.hc = new HostsCache(dbConnectStr);
 
             this.server = new EasyDnsServer(new EasyDnsServerSetting(ProcessQueryList, portNumber));
+
+            var opt = this.server.GetCurrentDynOptions();
+            opt.ParseUdpProxyProtocolV2 = true;
+            this.server.SetCurrentDynOptions(opt);
         }
         catch
         {

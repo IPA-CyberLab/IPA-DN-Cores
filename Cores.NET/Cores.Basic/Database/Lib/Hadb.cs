@@ -272,13 +272,13 @@ public class HadbDynamicConfig : INormalizable
         return ret;
     }
 
-    public KeyValueList<string, string> UpdateFromDatabaseAndReturnMissingValues(KeyValueList<string, string> dataListFromDb)
+    public KeyValueList<string, string> UpdateFromKeyValueListAndReturnKeyValueList(KeyValueList<string, string> dataListFromDb, bool returnOnlyMissing)
     {
         var rw = this.GetType()._GetFieldReaderWriter();
 
         var fields = rw.MetadataTable.Where(x => x.Value.MemberType.IsAnyOfThem(MemberTypes.Field, MemberTypes.Property));
 
-        HashSet<string> suppliedList = new HashSet<string>(StrComparer.IgnoreCaseTrimComparer);
+        HashSet<string> consumedList = new HashSet<string>(StrComparer.IgnoreCaseTrimComparer);
 
         foreach (var field in fields)
         {
@@ -286,22 +286,22 @@ public class HadbDynamicConfig : INormalizable
             var metaInfo = field.Value;
             Type? type = metaInfo.GetFieldOrPropertyInfo();
 
-            bool updated = false;
+            bool consumed = false;
 
             if (type == typeof(int))
             {
                 if (dataListFromDb._TryGetFirstValue(name, out string valueStr, StrComparer.IgnoreCaseTrimComparer))
                 {
                     rw.SetValue(this, name, valueStr._ToInt());
-                    updated = true;
+                    consumed = true;
                 }
             }
-            if (type == typeof(bool))
+            else if (type == typeof(bool))
             {
                 if (dataListFromDb._TryGetFirstValue(name, out string valueStr, StrComparer.IgnoreCaseTrimComparer))
                 {
                     rw.SetValue(this, name, valueStr._ToBool());
-                    updated = true;
+                    consumed = true;
                 }
             }
             else if (type == typeof(string))
@@ -309,7 +309,7 @@ public class HadbDynamicConfig : INormalizable
                 if (dataListFromDb._TryGetFirstValue(name, out string valueStr, StrComparer.IgnoreCaseTrimComparer))
                 {
                     rw.SetValue(this, name, valueStr._NonNullTrim());
-                    updated = true;
+                    consumed = true;
                 }
             }
             else if (type == typeof(string[]))
@@ -318,7 +318,7 @@ public class HadbDynamicConfig : INormalizable
                 if (newArray.Any())
                 {
                     rw.SetValue(this, name, newArray);
-                    updated = true;
+                    consumed = true;
                 }
             }
             else
@@ -326,9 +326,9 @@ public class HadbDynamicConfig : INormalizable
                 continue;
             }
 
-            if (updated)
+            if (consumed)
             {
-                suppliedList.Add(name);
+                consumedList.Add(name);
             }
         }
 
@@ -336,13 +336,23 @@ public class HadbDynamicConfig : INormalizable
 
         KeyValueList<string, string> ret = new KeyValueList<string, string>();
 
+        int newIndex = 0;
+
+        StrDictionary<int> orderList = new StrDictionary<int>(StrCmpi);
+
         foreach (var field in fields)
         {
+            newIndex++;
+
             string name = field.Key;
             var metaInfo = field.Value;
             Type? type = metaInfo.GetFieldOrPropertyInfo();
 
-            if (suppliedList.Contains(name) == false)
+            int originalIndex = dataListFromDb._IndexOfKey(name, StrCmpi);
+            if (originalIndex < 0) originalIndex = 1000000000 + newIndex;
+            orderList[name] = originalIndex;
+
+            if (returnOnlyMissing == false || consumedList.Contains(name) == false)
             {
                 if (type == typeof(int))
                 {
@@ -380,6 +390,25 @@ public class HadbDynamicConfig : INormalizable
                 }
             }
         }
+
+        if (returnOnlyMissing == false)
+        {
+            int index = 0;
+
+            foreach (var kv in dataListFromDb)
+            {
+                if (fields.Where(x => x.Key._IsSamei(kv.Key)).Any() == false)
+                {
+                    ret.Add(kv.Key, kv.Value);
+
+                    orderList[kv.Key] = index;
+                }
+
+                index++;
+            }
+        }
+
+        ret = ret.OrderBy(x => orderList._GetOrDefault(x.Key, int.MaxValue))._ToKeyValueList();
 
         return ret;
     }
@@ -1214,7 +1243,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         var db = ((HadbSqlTran)tran).Db;
 
         // READCOMMITTEDLOCK, ROWLOCK は、「トランザクション分離レベルが Snapshot かつ読み取り専用の場合」以外に付ける。
-        string query = $"select * from HADB_QUICK { (tran.ShouldUseLightLock ? "with (READCOMMITTEDLOCK, ROWLOCK)" : "") } where QUICK_UID = @QUICK_UID and QUICK_SYSTEMNAME = @QUICK_SYSTEMNAME and QUICK_NAMESPACE = @QUICK_NAMESPACE and QUICK_TYPE = @QUICK_TYPE and QUICK_DELETED = 0";
+        string query = $"select * from HADB_QUICK {(tran.ShouldUseLightLock ? "with (READCOMMITTEDLOCK, ROWLOCK)" : "")} where QUICK_UID = @QUICK_UID and QUICK_SYSTEMNAME = @QUICK_SYSTEMNAME and QUICK_NAMESPACE = @QUICK_NAMESPACE and QUICK_TYPE = @QUICK_TYPE and QUICK_DELETED = 0";
 
         var row = await db.EasySelectSingleAsync<HadbSqlQuickRow>(query,
             new
@@ -1254,7 +1283,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         var db = ((HadbSqlTran)tran).Db;
 
         // READCOMMITTEDLOCK, ROWLOCK は、「トランザクション分離レベルが Snapshot かつ読み取り専用の場合」以外に付ける。
-        string query = $"select * from HADB_QUICK  { (tran.ShouldUseLightLock ? "with (READCOMMITTEDLOCK, ROWLOCK)" : "") } " +
+        string query = $"select * from HADB_QUICK  {(tran.ShouldUseLightLock ? "with (READCOMMITTEDLOCK, ROWLOCK)" : "")} " +
             $"where {(key._IsEmpty() ? "" : (startWith ? "QUICK_KEY like @QUICK_KEY escape '?' and" : "QUICK_KEY = @QUICK_KEY and"))} " +
             "QUICK_SYSTEMNAME = @QUICK_SYSTEMNAME and QUICK_NAMESPACE = @QUICK_NAMESPACE and QUICK_TYPE = @QUICK_TYPE and QUICK_DELETED = 0";
 
@@ -1466,7 +1495,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         }
 
         // READCOMMITTEDLOCK, ROWLOCK は、「トランザクション分離レベルが Snapshot かつ読み取り専用の場合」以外に付ける。
-        string query = $"select * from HADB_DATA  { (lightLock ? "with (READCOMMITTEDLOCK, ROWLOCK)" : "") } where {conditions.Select(x => $" ( {x} )")._Combine(and ? " and " : " or ")}";
+        string query = $"select * from HADB_DATA  {(lightLock ? "with (READCOMMITTEDLOCK, ROWLOCK)" : "")} where {conditions.Select(x => $" ( {x} )")._Combine(and ? " and " : " or ")}";
 
         return await db.EasySelectSingleAsync<HadbSqlDataRow>(query,
             new
@@ -1501,7 +1530,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         }
 
         // READCOMMITTEDLOCK, ROWLOCK は、「トランザクション分離レベルが Snapshot かつ読み取り専用の場合」以外に付ける。
-        return await db.EasySelectAsync<HadbSqlDataRow>($"select * from HADB_DATA { (lightLock ? "with (READCOMMITTEDLOCK, ROWLOCK)" : "") } where ({conditions._Combine(" and ")}) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
+        return await db.EasySelectAsync<HadbSqlDataRow>($"select * from HADB_DATA {(lightLock ? "with (READCOMMITTEDLOCK, ROWLOCK)" : "")} where ({conditions._Combine(" and ")}) and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_TYPE = @DATA_TYPE and DATA_NAMESPACE = @DATA_NAMESPACE",
             new
             {
                 DATA_LABEL1 = labels.Label1,
@@ -1525,7 +1554,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         if (uid._IsEmpty()) return null;
 
         string query =
-            $"select * from HADB_DATA { (lightLock ? "with(READCOMMITTEDLOCK, ROWLOCK)" : "") } where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE = 0 ";
+            $"select * from HADB_DATA {(lightLock ? "with(READCOMMITTEDLOCK, ROWLOCK)" : "")} where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_DELETED = 0 and DATA_ARCHIVE = 0 ";
 
         if (noCheckTypeIdAndNameSpace == false)
         {
@@ -3893,6 +3922,10 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             }
         }
 
+        // 正規化
+        TDynamicConfig dynConfig = new TDynamicConfig();
+        configList = dynConfig.UpdateFromKeyValueListAndReturnKeyValueList(configList, false);
+
         await this.AppendMissingDynamicConfigToDatabaseImplAsync(configList, true, cancel);
 
         // 早速リロードして適用する
@@ -3980,7 +4013,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                 var loadedDynamicConfigValues = await this.LoadDynamicConfigFromDatabaseImplAsync(cancel);
 
                 // 読み込んだ DynamicConfig の最新値を適用する
-                var missingDynamicConfigValues = this._CurrentDynamicConfig.UpdateFromDatabaseAndReturnMissingValues(loadedDynamicConfigValues);
+                var missingDynamicConfigValues = this._CurrentDynamicConfig.UpdateFromKeyValueListAndReturnKeyValueList(loadedDynamicConfigValues, true);
 
                 this._IsDynamicConfigInited = true;
 

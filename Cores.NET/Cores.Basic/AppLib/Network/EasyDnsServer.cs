@@ -130,10 +130,12 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
             {
                 long startTick = 0;
                 long endTick = 0;
+                DnsUdpPacket? requestCopy = null;
 
                 if (debug)
                 {
                     startTick = Time.NowHighResLong100Usecs;
+                    requestCopy = request._CloneDeep();
                 }
 
                 var response = RequestPacketToResponsePacket(request);
@@ -147,7 +149,7 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
                     DnsAccessLog log = new DnsAccessLog
                     {
                         TookSeconds = ((double)timespan / 10000000.0).ToString("F9"),
-                        RequestPacket = request,
+                        RequestPacket = requestCopy,
                         ResponsePacket = response,
                     };
 

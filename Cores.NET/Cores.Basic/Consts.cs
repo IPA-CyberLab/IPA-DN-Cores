@@ -268,6 +268,8 @@ public static partial class Consts
         public const string DefaultAdminPassword = "PASSWORD_HERE";
 
         public const string None = "none";
+
+        public const string EasyAclAllowAllRule = "0.0.0.0/0; ::/0";
     }
 
     public static partial class HiveNames
