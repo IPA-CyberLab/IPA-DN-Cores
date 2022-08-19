@@ -1810,6 +1810,8 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
             await Hadb.TranAsync(false, async tran =>
             {
+                dbObj = null;
+
                 dbObj = await tran.AtomicSearchByKeyAsync(new Host { HostSecretKey = secretKey });
 
                 bool checkNewHostKey = false;
@@ -1821,7 +1823,6 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                     {
                         checkNewHostKey = true;
                     }
-                    retCurrentHostObj = dbObj;
                 }
                 else
                 {
@@ -1908,6 +1909,11 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 if (userData != null)
                 {
                     if (current.UserData._ObjectToJson(compact: true)._IsSame(userData._ObjectToJson(compact: true)) == false) anyChangePossibility = true;
+                }
+
+                if (anyChangePossibility)
+                {
+                    retCurrentHostObj = dbObj;
                 }
             }
         }
