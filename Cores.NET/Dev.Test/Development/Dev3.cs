@@ -216,6 +216,9 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         [SimpleComment("TTL seconds for DDNS static host records")]
         public int DDns_Protocol_Ttl_Secs_Static_Record;
 
+        [SimpleComment("TTL seconds for DDNS static host records (applied to only records where health_check_url is specified)")]
+        public int DDns_Protocol_Ttl_Secs_Static_Record_With_HealthCheck;
+
         [SimpleComment("Master NS record FQDN in DNS SOA response")]
         public string DDns_Protocol_SOA_MasterNsServerFqdn = "";
 
@@ -479,6 +482,9 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
 
             if (DDns_Protocol_Ttl_Secs_Static_Record <= 0) DDns_Protocol_Ttl_Secs_Static_Record = 15 * 60;
             if (DDns_Protocol_Ttl_Secs_Static_Record >= 3600) DDns_Protocol_Ttl_Secs_Static_Record = 3600;
+
+            if (DDns_Protocol_Ttl_Secs_Static_Record_With_HealthCheck <= 0) DDns_Protocol_Ttl_Secs_Static_Record_With_HealthCheck = 2 * 60;
+            if (DDns_Protocol_Ttl_Secs_Static_Record_With_HealthCheck >= 3600) DDns_Protocol_Ttl_Secs_Static_Record_With_HealthCheck = 3600;
 
             if (DDns_Protocol_SOA_NegativeCacheTtlSecs <= 0) DDns_Protocol_SOA_NegativeCacheTtlSecs = 13;
             if (DDns_Protocol_SOA_NegativeCacheTtlSecs >= 3600) DDns_Protocol_SOA_NegativeCacheTtlSecs = 3600;
@@ -1212,12 +1218,26 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 // 再度コメント除去
                 string comment = "";
                 string staticRecordStr;
+                int ttl = config.DDns_Protocol_Ttl_Secs_Static_Record;
 
                 int commentCharIndex = item._Search("!");
                 if (commentCharIndex != -1)
                 {
                     comment = item.Substring(commentCharIndex + 1).Trim();
                     staticRecordStr = item.Substring(0, commentCharIndex).Trim();
+
+                    if (comment._IsFilled())
+                    {
+                        QueryStringList qs = new QueryStringList(comment, splitChar: ',', trimKeyAndValue: true);
+
+                        string url = qs._GetFirstValueOrDefault("health_check_url", StrCmpi);
+
+                        if (url._IsFilled())
+                        {
+                            // health_check が記載されている場合は TTL を短くする
+                            ttl = config.DDns_Protocol_Ttl_Secs_Static_Record_With_HealthCheck;
+                        }
+                    }
                 }
                 else
                 {
@@ -1228,7 +1248,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 {
                     EasyDnsResponderRecord rec = EasyDnsResponderRecord.FromString(staticRecordStr, domainFqdn);
 
-                    rec.Settings = new EasyDnsResponderRecordSettings { TtlSecs = config.DDns_Protocol_Ttl_Secs_Static_Record };
+                    rec.Settings = new EasyDnsResponderRecordSettings { TtlSecs = ttl };
 
                     zone.RecordList.Add(rec);
                 }
