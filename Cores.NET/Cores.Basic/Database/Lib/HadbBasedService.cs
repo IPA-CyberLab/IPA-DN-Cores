@@ -653,7 +653,13 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
         }
     }
 
-    public async Task Basic_CheckAndAddLogBasedQuotaByClientIpAsync(string quotaName, int? allowedMax = null, int? durationSecs = null, bool subnetMode = false, CancellationToken cancel = default, object? reentrantTran = null)
+    public async Task Basic_CheckAndAddLogBasedQuotaByClientIpAndSubnetEasyAsync(string quotaName, CancellationToken cancel = default, object? reentrantTran = null)
+    {
+        await Basic_CheckAndAddLogBasedQuotaByClientIpOrSubnetAsync(quotaName + "@by_ip", subnetMode: false, cancel: cancel, reentrantTran: reentrantTran);
+        await Basic_CheckAndAddLogBasedQuotaByClientIpOrSubnetAsync(quotaName + "@by_subnet", subnetMode: true, cancel: cancel, reentrantTran: reentrantTran);
+    }
+
+    public async Task Basic_CheckAndAddLogBasedQuotaByClientIpOrSubnetAsync(string quotaName, int? allowedMax = null, int? durationSecs = null, bool subnetMode = false, CancellationToken cancel = default, object? reentrantTran = null)
     {
         string key;
 

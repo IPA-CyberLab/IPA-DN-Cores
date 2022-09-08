@@ -2040,7 +2040,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             await Hadb.TranAsync(true, async tran =>
             {
                 // クォータ制限をいたします
-                await this.Basic_CheckAndAddLogBasedQuotaByClientIpAsync("HostAdd_by_ip", subnetMode: true, reentrantTran: tran);
+                await this.Basic_CheckAndAddLogBasedQuotaByClientIpAndSubnetEasyAsync("HostAdd", reentrantTran: tran);
 
                 newHost = new Host
                 {
@@ -2296,7 +2296,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             throw new CoresException($"Specified email address '{email}' has no registered DNS records on this DDNS server.");
         }
 
-        await this.Basic_CheckAndAddLogBasedQuotaByClientIpAsync("HostRecovery_by_ip_subnet", subnetMode: true);
+        await this.Basic_CheckAndAddLogBasedQuotaByClientIpAndSubnetEasyAsync("HostRecovery_by_ip");
         await this.Basic_CheckAndAddLogBasedQuotaAsync("HostRecovery_by_email", email);
 
         await this.Hook.DDNS_SendRecoveryMailAsync(this, list, email, this.GetClientIpStr(), await this.GetClientFqdnAsync());
