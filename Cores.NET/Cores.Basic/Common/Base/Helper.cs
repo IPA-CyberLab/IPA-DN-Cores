@@ -2187,14 +2187,14 @@ public static class BasicHelper
         list.ToList().ForEach(action);
     }
 
-    public static void _DoForEach<T>(this IEnumerable<T> list, Action<T, int> action)
+    public static void _DoForEach<T>(this IEnumerable<T> list, Action<T, int> action, int taskIndex)
     {
         list._NullCheck();
         List<T> list2 = list.ToList();
         for (int i = 0; i < list2.Count; i++)
         {
             T t = list2[i];
-            action(t, i);
+            action(t, taskIndex);
         }
     }
 
@@ -2209,14 +2209,14 @@ public static class BasicHelper
         }
     }
 
-    public static async Task _DoForEachAsync<T>(this IEnumerable<T> list, Func<T, int, Task> action, CancellationToken cancel = default)
+    public static async Task _DoForEachAsync<T>(this IEnumerable<T> list, Func<T, int, Task> action, int taskIndex, CancellationToken cancel = default)
     {
         list._NullCheck();
         List<T> list2 = list.ToList();
         for (int i = 0; i < list2.Count; i++)
         {
             T t = list2[i];
-            await action(t, i);
+            await action(t, taskIndex);
         }
     }
 
@@ -2225,9 +2225,9 @@ public static class BasicHelper
         list._NullCheck();
         List<T> list2 = list.ToList();
 
-        await _ProcessParallelAsync(list2, async (src, taskIndex) =>
+        await _ProcessParallelAsync(list2, async (partialList, taskIndex) =>
         {
-            await list2._DoForEachAsync(action, cancel);
+            await partialList._DoForEachAsync(action, taskIndex, cancel);
         },
         numCpus,
         operation,
@@ -2239,9 +2239,9 @@ public static class BasicHelper
         list._NullCheck();
         List<T> list2 = list.ToList();
 
-        await _ProcessParallelAsync(list2, async (src, taskIndex) =>
+        await _ProcessParallelAsync(list2, async (partialList, taskIndex) =>
         {
-            await list2._DoForEachAsync(action, cancel);
+            await partialList._DoForEachAsync(action, cancel);
         },
         numCpus,
         operation,
@@ -2253,9 +2253,9 @@ public static class BasicHelper
         list._NullCheck();
         List<T> list2 = list.ToList();
 
-        await _ProcessParallelAsync(list2, (src, taskIndex) =>
+        await _ProcessParallelAsync(list2, (partialList, taskIndex) =>
         {
-            list2._DoForEach(action);
+            partialList._DoForEach(action, taskIndex);
             return TR();
         },
         numCpus,
@@ -2268,9 +2268,9 @@ public static class BasicHelper
         list._NullCheck();
         List<T> list2 = list.ToList();
 
-        await _ProcessParallelAsync(list2, (src, taskIndex) =>
+        await _ProcessParallelAsync(list2, (partialList, taskIndex) =>
         {
-            list2._DoForEach(action);
+            partialList._DoForEach(action);
             return TR();
         },
         numCpus,

@@ -1026,12 +1026,12 @@ public static partial class TaskUtil
 
         foreach (var item in items)
         {
-            var task = await at.StartTaskAsync<int, int>(async (x, c) =>
+            var task = await at.StartTaskAsync<int, int>(async (taskIndex2, c) =>
              {
                  try
                  {
                      await Task.Yield();
-                     await func(item, taskIndex, c);
+                     await func(item, taskIndex2, c);
                      if (intervalBetweenTasks >= 1)
                      {
                          await cancel2.CancelToken._WaitUntilCanceledAsync(intervalBetweenTasks);
@@ -1047,7 +1047,7 @@ public static partial class TaskUtil
                  }
                  return 0;
              },
-            0,
+            taskIndex,
             cancel2);
 
             if (hasError)

@@ -493,6 +493,43 @@ partial class TestDevCommands
 
 
     [ConsoleCommand(
+  "MikakaDDnsStressTest",
+  "MikakaDDnsStressTest",
+  "MikakaDDnsStressTest"
+  )]
+    static int MikakaDDnsStressTest(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {};
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string prefix = ""; Str.GenRandStr().ToLowerInvariant().Substring(0, 8);
+
+        Async(async () =>
+        {
+            await using var api = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true }, doNotUseTcpStack: true));
+
+            for (int i = 451294; i < 100_0000; i++)
+            {
+                string secretKey = $"key{i:D9}" + prefix;
+                string label = $"host{i:D9}" + prefix;
+                string ip = IPAddr.FromString("1.0.0.0").Add(i).ToString();
+
+                string url = $"https://127.0.0.1/rpc/DDNS_Host/?secretKey={secretKey}&label={label}&ip={ip}";
+
+                url._Print();
+
+                await api.SimpleQueryAsync(WebMethods.GET, url);
+            }
+        });
+
+        return 0;
+    }
+
+
+
+    [ConsoleCommand(
   "IIS 証明書更新",
   "CertUpdateIis [cert_server_base_url,url2,...] [/USERNAME:username,username2,...] [/PASSWORD:password,password2,...] [/UPDATESAME:updatesame] [/EMPTYSITEAS:aaa.example.org]",
   "IIS 証明書更新"

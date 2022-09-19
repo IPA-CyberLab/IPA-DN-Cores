@@ -1771,7 +1771,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         await dbWriter.EasyInsertAsync(row, cancel);
     }
 
-    protected internal override async Task<IEnumerable<HadbLog>> AtomicSearchLogImplAsync(HadbTran tran, string typeName, HadbLogQuery query, string nameSpace, CancellationToken cancel = default)
+    protected internal override async Task<HadbLogQueryResponse> AtomicSearchLogImplAsync(HadbTran tran, string typeName, HadbLogQuery query, string nameSpace, CancellationToken cancel = default)
     {
         typeName = typeName._NonNullTrim();
         query.Normalize();
@@ -1836,20 +1836,29 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         if (conditions.Count == 0) conditions.Add("1 = 1");
 
-        string qstr = $"select {(query.MaxReturmItems >= 1 ? $"top {query.MaxReturmItems}" : "")} * from HADB_LOG where {conditions._Combine(" and ")} and LOG_SYSTEM_NAME = @LOG_SYSTEM_NAME and LOG_TYPE = @LOG_TYPE and LOG_NAMESPACE = @LOG_NAMESPACE and LOG_DELETED = 0 order by LOG_ID desc";
+        string qstr = $"select {(query.MaxReturmItems >= 1 ? $"top {query.MaxReturmItems}" : "")} {(query.RetOnlyCount ? "count(LOG_ID) as RET_COUNT" : "*")} from HADB_LOG where {conditions._Combine(" and ")} and LOG_SYSTEM_NAME = @LOG_SYSTEM_NAME and LOG_TYPE = @LOG_TYPE and LOG_NAMESPACE = @LOG_NAMESPACE and LOG_DELETED = 0 {(query.RetOnlyCount ? " " : "order by LOG_ID desc")}";
 
-        var rows = await db.EasySelectAsync<HadbSqlLogRow>(qstr,
-            paramList,
-            cancel: cancel);
-
-        List<HadbLog> ret = new List<HadbLog>();
-
-        foreach (var row in rows)
+        if (query.RetOnlyCount == false)
         {
-            ret.Add(this.JsonToHadbLog(row.LOG_VALUE, typeName));
-        }
+            var rows = await db.EasySelectAsync<HadbSqlLogRow>(qstr,
+                paramList,
+                cancel: cancel);
 
-        return ret;
+            List<HadbLog> ret = new List<HadbLog>();
+
+            foreach (var row in rows)
+            {
+                ret.Add(this.JsonToHadbLog(row.LOG_VALUE, typeName));
+            }
+
+            return new HadbLogQueryResponse(ret);
+        }
+        else
+        {
+            int count = await db.ExecuteScalarAsync<int>(qstr, paramList);
+
+            return new HadbLogQueryResponse(count);
+        }
     }
 
     protected internal override async Task<bool> LazyUpdateImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default)
@@ -1867,7 +1876,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         string query = "update HADB_DATA with (ROWLOCK) set DATA_VALUE = @DATA_VALUE, DATA_FT1 = @DATA_FT1, DATA_FT2 = @DATA_FT2, DATA_UPDATE_DT = @DATA_UPDATE_DT, DATA_LAZY_COUNT1 = DATA_LAZY_COUNT1 + 1, DATA_LAZY_COUNT2 = DATA_LAZY_COUNT2 + 1 " +
             "where DATA_UID = @DATA_UID and DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_VER = @DATA_VER and DATA_UPDATE_DT < @DATA_UPDATE_DT and DATA_TYPE = @DATA_TYPE and DATA_ARCHIVE = 0 and DATA_DELETED = 0 and " +
             "DATA_KEY1 = @DATA_KEY1 and DATA_KEY2 = @DATA_KEY2 and DATA_KEY3 = @DATA_KEY3 and DATA_KEY4 = @DATA_KEY4 and DATA_KEY5 = @DATA_KEY5 and " +
-            "DATA_LABEL1 = @DATA_LABEL1 and DATA_LABEL2 = @DATA_LABEL2 and DATA_LABEL3 = @DATA_LABEL3 and DATA_LABEL4 = DATA_LABEL4 and DATA_LABEL5 = DATA_LABEL5";
+            "DATA_LABEL1 = @DATA_LABEL1 and DATA_LABEL2 = @DATA_LABEL2 and DATA_LABEL3 = @DATA_LABEL3 and DATA_LABEL4 = @DATA_LABEL4 and DATA_LABEL5 = @DATA_LABEL5";
 
         // 毎回、大変短いトランザクションを実行したことにする
         query = "BEGIN TRANSACTION \n" + query + "\n COMMIT TRANSACTION\n";
@@ -3613,6 +3622,24 @@ public abstract class HadbMemDataBase
     }
 }
 
+public class HadbLogQueryResponse
+{
+    public IEnumerable<HadbLog> Data;
+    public int Count;
+
+    public HadbLogQueryResponse(IEnumerable<HadbLog> data)
+    {
+        this.Data = data;
+        this.Count = data.Count();
+    }
+
+    public HadbLogQueryResponse(int count)
+    {
+        this.Data = null!;
+        this.Count = count;
+    }
+}
+
 public class HadbLogQuery : INormalizable
 {
     public int MaxReturmItems { get; set; } = 0;
@@ -3625,6 +3652,7 @@ public class HadbLogQuery : INormalizable
     public HadbLog? SearchTemplate { get; set; } = null;
     public FullTextSearchFlags FullTextFlags { get; set; } = FullTextSearchFlags.None;
     public string FullTextQuery { get; set; } = "";
+    public bool RetOnlyCount { get; set; } = false;
 
     public void Normalize()
     {
@@ -3776,7 +3804,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     protected internal abstract Task<int> AtomicDeleteQuickByKeyOnDatabaseImplAsync<T>(HadbTran tran, string key, bool startWith, string nameSpace, CancellationToken cancel = default);
 
     protected internal abstract Task AtomicAddLogImplAsync(HadbTran tran, HadbLog log, string nameSpace, string ext1, string ext2, string ft1, string ft2, CancellationToken cancel = default);
-    protected internal abstract Task<IEnumerable<HadbLog>> AtomicSearchLogImplAsync(HadbTran tran, string typeName, HadbLogQuery query, string nameSpace, CancellationToken cancel = default);
+    protected internal abstract Task<HadbLogQueryResponse> AtomicSearchLogImplAsync(HadbTran tran, string typeName, HadbLogQuery query, string nameSpace, CancellationToken cancel = default);
 
     protected internal abstract Task<bool> LazyUpdateImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default);
 
@@ -4054,7 +4082,11 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                 var queuedObjectsList = queue.Keys.ToList();
 
                 // 非トランザクションの SQL 接続のリスト
-                HadbTran?[] tranArray = new HadbTran[this.Settings.LazyUpdateParallelQueueCount];
+                int numTasks = this.Settings.LazyUpdateParallelQueueCount;
+                if (numTasks <= 0) numTasks = 1;
+
+                HadbTran?[] tranArray = new HadbTran[numTasks];
+
                 try
                 {
                     await queuedObjectsList._DoForEachParallelAsync(async (q, taskIndex) =>
@@ -4108,7 +4140,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                             }
                         }
                     },
-                    this.Settings.LazyUpdateParallelQueueCount,
+                    numTasks,
                     MultitaskDivideOperation.RoundRobin,
                     cancel: cancel);
                 }
@@ -5755,10 +5787,10 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
             await Hadb.AtomicAddLogImplAsync(this, log, nameSpace, ext1, ext2, ft1, ft2, cancel);
         }
 
-        public async Task<IEnumerable<HadbLog>> AtomicSearchLogAsync<T>(HadbLogQuery query, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default) where T : HadbLog
+        public async Task<HadbLogQueryResponse> AtomicSearchLogAsync<T>(HadbLogQuery query, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default) where T : HadbLog
             => await AtomicSearchLogAsync(typeof(T).Name, query, nameSpace, cancel);
 
-        public async Task<IEnumerable<HadbLog>> AtomicSearchLogAsync(string typeName, HadbLogQuery query, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
+        public async Task<HadbLogQueryResponse> AtomicSearchLogAsync(string typeName, HadbLogQuery query, string nameSpace = Consts.Strings.HadbDefaultNameSpace, CancellationToken cancel = default)
         {
             nameSpace = nameSpace._HadbNameSpaceNormalize();
             CheckBegan();

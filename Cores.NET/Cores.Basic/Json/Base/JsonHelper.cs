@@ -239,7 +239,7 @@ namespace IPA.Cores.Basic
                         // 元ファイルが存在する場合、その元ファイルが JSON 形式として破損していないかどうかチェックする
                         try
                         {
-                            var x = await this.ReadJsonFromFileAsync<object>(path, cancel: cancel);
+                            var x = await this.ReadJsonFromFileAsync<object>(path, cancel: cancel, maxSize: Consts.Numbers.LocalDatabaseJsonFileMaxSize);
                             isExistingFileOkAsJson = true;
                         }
                         catch (Exception ex)

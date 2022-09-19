@@ -9395,7 +9395,7 @@ namespace IPA.Cores.Basic
 
     public class QueryStringList : KeyValueList<string, string>
     {
-        public char SplitChar;
+        public char SplitChar = '&';
 
         public static QueryStringList Parse(string queryString, Encoding? encoding = null, char splitChar = '&', bool trimKeyAndValue = false)
         {
