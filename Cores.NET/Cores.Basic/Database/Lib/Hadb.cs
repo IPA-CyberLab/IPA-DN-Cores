@@ -5131,14 +5131,32 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                 {
                     bool b;
 
-                    if (query.Flags.Bit(FullTextSearchFlags.FieldNameMode) == false)
+                    string ft;
+
+                    if (this.Settings.OptionFlags.Bit(HadbOptionFlags.NoFullTextSearch) == false)
                     {
-                        b = query.IsMatch(item.Ft1, item.Uid);
+                        if (query.Flags.Bit(FullTextSearchFlags.FieldNameMode) == false)
+                        {
+                            ft = item.Ft1;
+                        }
+                        else
+                        {
+                            ft = item.Ft2;
+                        }
                     }
                     else
                     {
-                        b = query.IsMatch(item.Ft2, item.Uid);
+                        if (query.Flags.Bit(FullTextSearchFlags.FieldNameMode) == false)
+                        {
+                            ft = item.UserData.GenerateFt1();
+                        }
+                        else
+                        {
+                            ft = item.UserData.GenerateFt2();
+                        }
                     }
+
+                    b = query.IsMatch(ft, item.Uid);
 
                     if (b)
                     {
