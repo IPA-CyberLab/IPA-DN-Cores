@@ -4927,6 +4927,8 @@ namespace IPA.Cores.Basic
                         return false;
                     }
 
+                    table.Remove(token!);
+
                     return true;
                 }
             }
