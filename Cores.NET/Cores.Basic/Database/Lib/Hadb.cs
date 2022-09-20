@@ -624,8 +624,8 @@ public sealed class HadbSqlDataRow : INormalizable
     public string DATA_VALUE { get; set; } = "";
     public string DATA_EXT1 { get; set; } = "";
     public string DATA_EXT2 { get; set; } = "";
-    public string DATA_FT1_test { get; set; } = "";
-    public string DATA_FT2_test { get; set; } = "";
+    public string DATA_FT1 { get; set; } = "";
+    public string DATA_FT2 { get; set; } = "";
     public long DATA_LAZY_COUNT1 { get; set; } = 0;
     public long DATA_LAZY_COUNT2 { get; set; } = 0;
     public string DATA_UID_ORIGINAL { get; set; } = "";
@@ -652,8 +652,8 @@ public sealed class HadbSqlDataRow : INormalizable
         this.DATA_VALUE = this.DATA_VALUE._NonNull();
         this.DATA_EXT1 = this.DATA_EXT1._NonNull();
         this.DATA_EXT2 = this.DATA_EXT2._NonNull();
-        this.DATA_FT1_test = this.DATA_FT1_test._NonNull();
-        this.DATA_FT2_test = this.DATA_FT2_test._NonNull();
+        this.DATA_FT1 = this.DATA_FT1._NonNull();
+        this.DATA_FT2 = this.DATA_FT2._NonNull();
         this.DATA_UID_ORIGINAL = this.DATA_UID_ORIGINAL._NormalizeUid();
     }
 }
@@ -1001,8 +1001,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                         DATA_VALUE = obj.GetUserDataJsonString(),
                         DATA_EXT1 = obj.Ext1,
                         DATA_EXT2 = obj.Ext2,
-                        DATA_FT1_test = obj.Ft1,
-                        DATA_FT2_test = obj.Ft2,
+                        DATA_FT1 = obj.Ft1,
+                        DATA_FT2 = obj.Ft2,
                         DATA_UID_ORIGINAL = obj.Uid,
                     };
 
@@ -1201,7 +1201,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                         HadbData? data = (HadbData?)row.DATA_VALUE._JsonToObject(type);
                         if (data != null)
                         {
-                            HadbObject obj = new HadbObject(data, this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1_test, row.DATA_FT2_test, row.DATA_UID, row.DATA_VER, false, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+                            HadbObject obj = new HadbObject(data, this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, false, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
 
                             tmp.Add(obj);
 
@@ -1737,8 +1737,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 DATA_VALUE = data.GetUserDataJsonString(),
                 DATA_EXT1 = data.Ext1,
                 DATA_EXT2 = data.Ext2,
-                DATA_FT1_test = data.Ft1,
-                DATA_FT2_test = data.Ft2,
+                DATA_FT1 = data.Ft1,
+                DATA_FT2 = data.Ft2,
                 DATA_LAZY_COUNT1 = 0,
                 DATA_LAZY_COUNT2 = 0,
                 DATA_UID_ORIGINAL = data.Uid,
@@ -2042,8 +2042,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         row.DATA_VALUE = data.GetUserDataJsonString();
         row.DATA_EXT1 = data.Ext1;
         row.DATA_EXT2 = data.Ext2;
-        row.DATA_FT1_test = data.Ft1;
-        row.DATA_FT2_test = data.Ft2;
+        row.DATA_FT1 = data.Ft1;
+        row.DATA_FT2 = data.Ft2;
         row.DATA_LAZY_COUNT1 = 0;
         row.DATA_SNAPSHOT_NO = tran.CurrentSnapNoForWriteMode;
         row.DATA_NAMESPACE = data.NameSpace;
@@ -2075,8 +2075,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 DATA_VALUE = row.DATA_VALUE,
                 DATA_EXT1 = row.DATA_EXT1,
                 DATA_EXT2 = row.DATA_EXT2,
-                DATA_FT1 = row.DATA_FT1_test,
-                DATA_FT2 = row.DATA_FT2_test,
+                DATA_FT1 = row.DATA_FT1,
+                DATA_FT2 = row.DATA_FT2,
                 DATA_LAZY_COUNT1 = row.DATA_LAZY_COUNT1,
                 DATA_SNAPSHOT_NO = row.DATA_SNAPSHOT_NO,
 
@@ -2086,7 +2086,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 DATA_NAMESPACE = row.DATA_NAMESPACE,
             });
 
-        return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1_test, row.DATA_FT2_test, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+        return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
     }
 
     protected internal override async Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, CancellationToken cancel = default, bool noCheckTypeIdAndNameSpace = false)
@@ -2105,7 +2105,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             typeName = row.DATA_TYPE;
         }
 
-        HadbObject ret = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1_test, row.DATA_FT2_test, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+        HadbObject ret = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
 
         return ret;
     }
@@ -2155,7 +2155,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                     typeName = row.DATA_TYPE;
                 }
 
-                tmp.Add(new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1_test, row.DATA_FT2_test, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT));
+                tmp.Add(new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT));
             }
             return TR(tmp);
         },
@@ -2173,7 +2173,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         if (row == null) return null;
 
-        HadbObject ret = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1_test, row.DATA_FT2_test, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+        HadbObject ret = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
 
         return ret;
     }
@@ -2195,7 +2195,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             List<HadbObject> tmp = new List<HadbObject>();
             foreach (var row in partOfRows)
             {
-                tmp.Add(new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1_test, row.DATA_FT2_test, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT));
+                tmp.Add(new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT));
             }
             return TR(tmp);
         },
@@ -2310,7 +2310,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             }
             );
 
-        return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1_test, row.DATA_FT2_test, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+        return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
     }
 
 
