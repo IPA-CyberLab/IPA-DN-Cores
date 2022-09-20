@@ -173,7 +173,7 @@ public static class Json
 
     static readonly StringEnumConverter JsonNet_StringEnumConverter = new StringEnumConverter();
 
-    public static void AddStandardSettingsToJsonConverter(JsonSerializerSettings settings, JsonFlags flags = JsonFlags.None)
+    public static void AddStandardSettingsToJsonConverter(JsonSerializerSettings settings, JsonFlags flags = JsonFlags.None, IList<JsonConverter>? converters = null)
     {
         settings.Converters.Add(IPAddressJsonConverter.Singleton);
         settings.Converters.Add(ClassWithIToJsonJsonConverter.Singleton);
@@ -181,6 +181,14 @@ public static class Json
         if (flags.Bit(JsonFlags.AllEnumToStr))
         {
             settings.Converters.Add(JsonNet_StringEnumConverter);
+        }
+
+        if (converters != null)
+        {
+            foreach (var c in converters)
+            {
+                settings.Converters.Add(c);
+            }
         }
     }
 
@@ -201,7 +209,7 @@ public static class Json
             Formatting = compact ? Formatting.None : Formatting.Indented,
         };
 
-        AddStandardSettingsToJsonConverter(setting, jsonFlags);
+        AddStandardSettingsToJsonConverter(setting, jsonFlags, null);
 
         if (type != null)
         {
@@ -242,7 +250,7 @@ public static class Json
             Formatting = compact ? Formatting.None : Formatting.Indented,
         };
 
-        AddStandardSettingsToJsonConverter(setting, jsonFlags);
+        AddStandardSettingsToJsonConverter(setting, jsonFlags, null);
 
         if (type != null)
         {
@@ -269,7 +277,7 @@ public static class Json
             Formatting = compact ? Formatting.None : Formatting.Indented,
         };
 
-        AddStandardSettingsToJsonConverter(setting, jsonFlags);
+        AddStandardSettingsToJsonConverter(setting, jsonFlags, null);
 
         return JsonSerializer.Create(setting);
     }
@@ -297,10 +305,10 @@ public static class Json
     }
 
     [return: MaybeNull]
-    public static T Deserialize<T>(string str, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false, JsonFlags jsonFlags = JsonFlags.None)
-        => (T)Deserialize(str, typeof(T), includeNull, maxDepth, base64url, jsonFlags)!;
+    public static T Deserialize<T>(string str, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false, JsonFlags jsonFlags = JsonFlags.None, IList<JsonConverter>? converters = null)
+        => (T)Deserialize(str, typeof(T), includeNull, maxDepth, base64url, jsonFlags, converters)!;
 
-    public static object? Deserialize(string str, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false, JsonFlags jsonFlags = JsonFlags.None)
+    public static object? Deserialize(string str, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool base64url = false, JsonFlags jsonFlags = JsonFlags.None, IList<JsonConverter>? converters = null)
     {
         if (base64url)
         {
@@ -315,12 +323,12 @@ public static class Json
             ReferenceLoopHandling = ReferenceLoopHandling.Error,
         };
 
-        AddStandardSettingsToJsonConverter(setting, jsonFlags);
+        AddStandardSettingsToJsonConverter(setting, jsonFlags, converters);
 
         return JsonConvert.DeserializeObject(str, type, setting);
     }
 
-    public static object? Deserialize(TextReader srcTextReader, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, JsonFlags jsonFlags = JsonFlags.None)
+    public static object? Deserialize(TextReader srcTextReader, Type type, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, JsonFlags jsonFlags = JsonFlags.None, IList<JsonConverter>? converters = null)
     {
         JsonSerializerSettings setting = new JsonSerializerSettings()
         {
@@ -330,18 +338,18 @@ public static class Json
             ReferenceLoopHandling = ReferenceLoopHandling.Error,
         };
 
-        AddStandardSettingsToJsonConverter(setting, jsonFlags);
+        AddStandardSettingsToJsonConverter(setting, jsonFlags, converters);
 
         return JsonSerializer.Create(setting).Deserialize(srcTextReader, type);
     }
 
-    public static bool IsJsonText(TextReader srcTextReader)
+    public static async Task<bool> IsJsonTextAsync(TextReader srcTextReader)
     {
         try
         {
             JsonTextReader reader = new JsonTextReader(srcTextReader);
 
-            while (reader.Read())
+            while (await reader.ReadAsync())
             {
             }
 
@@ -354,8 +362,8 @@ public static class Json
     }
 
     [return: MaybeNull]
-    public static T Deserialize<T>(TextReader srcTextReader, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, JsonFlags jsonFlags = JsonFlags.None)
-        => (T)Deserialize(srcTextReader, typeof(T), includeNull, maxDepth, jsonFlags)!;
+    public static T Deserialize<T>(TextReader srcTextReader, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, JsonFlags jsonFlags = JsonFlags.None, IList<JsonConverter>? converters = null)
+        => (T)Deserialize(srcTextReader, typeof(T), includeNull, maxDepth, jsonFlags, converters)!;
 
     [return: MaybeNull]
     public static T ConvertObject<T>(object? src, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool referenceHandling = false, JsonFlags jsonFlags = JsonFlags.None)

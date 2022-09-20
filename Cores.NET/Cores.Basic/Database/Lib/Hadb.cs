@@ -668,11 +668,20 @@ public enum HadbTranOptions : long
     Default = None,
 }
 
+[Flags]
+public enum HadbSqlDbCaps : long
+{
+    None = 0,
+    HadbLog_HasLogDtIndex = 1,
+}
+
 public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynamicConfig>
     where TMem : HadbMemDataBase, new()
     where TDynamicConfig : HadbDynamicConfig, new()
 {
     public new HadbSqlSettings Settings => (HadbSqlSettings)base.Settings;
+
+    public HadbSqlDbCaps SqlDbCaps { get; private set; } = HadbSqlDbCaps.None;
 
     public HadbSqlBase(HadbSqlSettings settings, TDynamicConfig initialDynamicConfig) : base(settings, initialDynamicConfig)
     {
@@ -722,6 +731,21 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             {
                 configList = await dbReader.EasySelectAsync<HadbSqlConfigRow>("select * from HADB_CONFIG where CONFIG_SYSTEMNAME = @CONFIG_SYSTEMNAME", new { CONFIG_SYSTEMNAME = this.SystemName });
             });
+
+            // DB の Caps の取得
+            HadbSqlDbCaps caps = HadbSqlDbCaps.None;
+
+            try
+            {
+                int hasIndex = await dbReader.ExecuteScalarAsync<int>("(SELECT COUNT(*) as HAS_INDEX FROM sys.indexes WHERE object_id = OBJECT_ID('HADB_LOG') AND name='LOG_DT')");
+                if (hasIndex >= 1)
+                {
+                    caps |= HadbSqlDbCaps.HadbLog_HasLogDtIndex;
+                }
+            }
+            catch { }
+
+            this.SqlDbCaps = caps;
         }
         catch (Exception ex)
         {
@@ -1066,7 +1090,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             {
                 var dbParams = new DynamicParameters();
 
-                string sql = "select top 100000 * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0";
+                string sql = "select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0";
 
                 dbParams.Add("DATA_SYSTEMNAME", this.SystemName);
 
@@ -1836,7 +1860,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         if (conditions.Count == 0) conditions.Add("1 = 1");
 
-        string qstr = $"select {(query.MaxReturmItems >= 1 ? $"top {query.MaxReturmItems}" : "")} {(query.RetOnlyCount ? "count(LOG_ID) as RET_COUNT" : "*")} from HADB_LOG {(query.Flags.Bit(HadbLogQueryFlags.UseIndexTime) ? "with(index(LOG_DT))" : "")} where {conditions._Combine(" and ")} and LOG_SYSTEM_NAME = @LOG_SYSTEM_NAME and LOG_TYPE = @LOG_TYPE and LOG_NAMESPACE = @LOG_NAMESPACE and LOG_DELETED = 0 {(query.RetOnlyCount ? " " : "order by LOG_ID desc")}";
+        string qstr = $"select {(query.MaxReturmItems >= 1 ? $"top {query.MaxReturmItems}" : "")} {(query.RetOnlyCount ? "count(LOG_ID) as RET_COUNT" : "*")} from HADB_LOG {(query.Flags.Bit(HadbLogQueryFlags.UseIndexTime) && this.SqlDbCaps.Bit(HadbSqlDbCaps.HadbLog_HasLogDtIndex) ? "with(index(LOG_DT))" : "")} where {conditions._Combine(" and ")} and LOG_SYSTEM_NAME = @LOG_SYSTEM_NAME and LOG_TYPE = @LOG_TYPE and LOG_NAMESPACE = @LOG_NAMESPACE and LOG_DELETED = 0 {(query.RetOnlyCount ? " " : "order by LOG_ID desc")}";
 
         if (query.RetOnlyCount == false)
         {
@@ -4536,6 +4560,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                         // ローカルファイルからのデータベース読み込みに失敗
                         LastMemDbBackupLocalLoadError = ex3;
                     }
+
                 }
                 else
                 {
@@ -4552,33 +4577,81 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         }
     }
 
+
+    // JSON のデシリアイズ時に型ごとに適切な変換を行なうクラス
+    public class HadbSerializedObjectJsonReadConverter : JsonConverter
+    {
+        JsonSerializerSettings Settings;
+        JsonSerializer Serializer = Json.CreateSerializer();
+
+        public HadbBase<TMem, TDynamicConfig> Hadb { get; }
+        public HadbSerializedObjectJsonReadConverter(HadbBase<TMem, TDynamicConfig> hadb) : base()
+        {
+            this.Hadb = hadb;
+
+            this.Settings = new JsonSerializerSettings()
+            {
+                MaxDepth = Json.DefaultMaxDepth,
+                NullValueHandling = NullValueHandling.Ignore,
+                ObjectCreationHandling = ObjectCreationHandling.Replace,
+                ReferenceLoopHandling = ReferenceLoopHandling.Error,
+            };
+
+            Json.AddStandardSettingsToJsonConverter(this.Settings);
+        }
+
+        public override bool CanConvert(Type objectType) => objectType == typeof(HadbSerializedObject);
+
+        public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
+            => throw new NotImplementedException();
+
+        public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
+        {
+            var jobject = JObject.ReadFrom(reader);
+
+            if (jobject != null)
+            {
+                var obj = (HadbSerializedObject?)jobject.ToObject(typeof(HadbSerializedObject), this.Serializer);
+
+                if (obj != null)
+                {
+                    Type type = this.Hadb.GetDataTypeByTypeName(obj.UserDataTypeName, EnsureSpecial.Yes);
+
+                    var userData = (JObject)obj.UserData;
+
+                    HadbData data = (HadbData)userData.ToObject(type, serializer)!;
+
+                    obj.UserData = data;
+
+                    return obj;
+                }
+            }
+
+            throw new CoresLibException();
+        }
+    }
+
+
     // JSON 形式のローカルバックアップデータから HadbObject のリストを読み込む
     async Task<List<HadbObject>> LoadLocalBackupDataAsync(FilePath backupDatabasePath, CancellationToken cancel = default)
     {
+        // 型ごとに適切な変換を行なう
+        JsonConverter conv = new HadbSerializedObjectJsonReadConverter(this);
+
         HadbBackupDatabase loadData = await backupDatabasePath.FileSystem.ReadJsonFromFileAsync<HadbBackupDatabase>(backupDatabasePath.PathString,
-            maxSize: Consts.Numbers.LocalDatabaseJsonFileMaxSize,
             cancel: cancel,
-            withBackup: true);
+            withBackup: true,
+            converters: conv._SingleList());
 
-        // マルチスレッド並列処理による高速化
-        List<HadbObject> loadedObjectsList = await loadData.ObjectsList._ProcessParallelAndAggregateAsync((x, taskIndex) =>
+        List<HadbObject> ret = new List<HadbObject>();
+
+        foreach (var obj in loadData.ObjectsList)
         {
-            List<HadbObject> ret = new List<HadbObject>();
-            var serializer = Json.CreateSerializer();
+            HadbObject a = new HadbObject((HadbData)obj.UserData, this.Settings.OptionFlags, obj.Ext1, obj.Ext2, obj.Ft1, obj.Ft2, obj.Uid, obj.Ver, false, obj.SnapshotNo, obj.NameSpace, false, obj.CreateDt, obj.UpdateDt, obj.DeleteDt);
+            ret.Add(a);
+        }
 
-            foreach (var obj in x)
-            {
-                JObject jo = (JObject)obj.UserData;
-                Type type = GetDataTypeByTypeName(obj.UserDataTypeName, EnsureSpecial.Yes);
-                HadbData data = (HadbData)jo.ToObject(type, serializer)!;
-                HadbObject a = new HadbObject(data, this.Settings.OptionFlags, obj.Ext1, obj.Ext2, obj.Ft1, obj.Ft2, obj.Uid, obj.Ver, false, obj.SnapshotNo, obj.NameSpace, false, obj.CreateDt, obj.UpdateDt, obj.DeleteDt);
-                ret.Add(a);
-            }
-            return TR(ret);
-        },
-        cancel: cancel);
-
-        return loadedObjectsList;
+        return ret;
     }
 
     // JSON 形式のローカルバックアップデータからデータベースに書き戻しをする

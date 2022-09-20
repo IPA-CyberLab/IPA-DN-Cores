@@ -2158,7 +2158,7 @@ public static class CachedDownloader
                     if (await fs.IsFileExistsAsync(metaDataPath, cancel) == false) return null;
                     if (await fs.IsFileExistsAsync(contentsPath, cancel) == false) return null;
 
-                    var metaData = await fs.ReadJsonFromFileAsync<SimpleHttpDownloaderMetaData>(metaDataPath, 1_000_000, cancel: cancel);
+                    var metaData = await fs.ReadJsonFromFileAsync<SimpleHttpDownloaderMetaData>(metaDataPath, cancel: cancel);
                     if (metaData == null) return null;
 
                     var fileData = await fs.ReadDataFromFileAsync(contentsPath, metaData.Size + 8, cancel: cancel);

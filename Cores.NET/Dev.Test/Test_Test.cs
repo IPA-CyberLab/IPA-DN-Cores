@@ -3395,7 +3395,7 @@ RC4-SHA@tls1_2@lts_openssl_exesuite_3.0.0";
             ""._Print();
 
             "Loading..."._Print();
-            var z2 = await Lfs.ReadJsonFromFileAsync<TestCls1>(path, long.MaxValue);
+            var z2 = await Lfs.ReadJsonFromFileAsync<TestCls1>(path);
             "Done."._Print();
 
             ""._Print();
@@ -3690,13 +3690,24 @@ cccadmin
     {
         if (true)
         {
+            Async(async () =>
             {
-                //Lfs.IsJsonFileAsync(@"C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\Local\App_TestDev\HadbBackup\MIKAKA_DDNS31\Database.json")._GetResult()._Print();
-                Lfs.CopyFile(@"C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\Local\App_TestDev\HadbBackup\MIKAKA_DDNS31\Database.json",
-                    @"C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\Local\App_TestDev\HadbBackup\MIKAKA_DDNS31\Database.json2", new CopyFileParams(flags: FileFlags.AutoCreateDirectory | FileFlags.WriteOnlyIfChanged));
-            }
+                //var x = Lfs.ReadJsonFromFile<HadbBackupDatabase>(@"C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\Local\App_TestDev\HadbBackup\MIKAKA_DDNS31\Database.json");
 
-            Dbg.GcCollect();
+                await using var file = await Lfs.OpenAsync(@"C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\Local\App_TestDev\HadbBackup\MIKAKA_DDNS31\Database.json");
+                await using var stream = file.GetStream();
+                await using var bufStream = new BufferedStream(stream);
+                using var reader = new StreamReader(bufStream, true);
+
+                using var j = new JsonTextReader(reader);
+
+
+                var x = JToken.ReadFrom(j);
+
+                
+
+                DoNothing();
+            });
 
             return;
         }
@@ -6058,7 +6069,7 @@ cccadmin
             string fn1 = @"c:\tmp\200125\json.txt";
             string fn2 = @"c:\tmp\200125\json2.txt";
 
-            DirSuperBackupMetadata o = Lfs.ReadJsonFromFile<DirSuperBackupMetadata>(fn1, maxSize: long.MaxValue);
+            DirSuperBackupMetadata o = Lfs.ReadJsonFromFile<DirSuperBackupMetadata>(fn1);
 
             Lfs.WriteJsonToFile(fn2, o, flags: FileFlags.AutoCreateDirectory);
 

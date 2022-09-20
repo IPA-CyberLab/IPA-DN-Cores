@@ -1151,7 +1151,7 @@ public class DirSuperBackup : AsyncService
         {
             string fullPath = Fs.PathParser.Combine(dirPath, fileName);
 
-            DirSuperBackupMetadata? ret = await Fs.ReadJsonFromFileAsync<DirSuperBackupMetadata>(fullPath, nullIfError: !throwJsonParseError, flags: FileFlags.BackupMode, maxSize: long.MaxValue);
+            DirSuperBackupMetadata? ret = await Fs.ReadJsonFromFileAsync<DirSuperBackupMetadata>(fullPath, nullIfError: !throwJsonParseError, flags: FileFlags.BackupMode);
 
             if (ret != null) return ret;
         }

@@ -1507,9 +1507,9 @@ public class FilePath : FileSystemPath // CloneDeep 禁止
     public string GetFileName() => PathParser.GetFileName(this.PathString);
     public void SepareteDirectoryAndFileName(out string dirPath, out string fileName) => PathParser.SepareteDirectoryAndFileName(this.PathString, out dirPath, out fileName);
 
-    public Task<T> ReadJsonFromFileAsync<T>(long maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default,
+    public Task<T> ReadJsonFromFileAsync<T>(FileFlags flags = FileFlags.None, CancellationToken cancel = default,
         bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool nullIfError = false, JsonFlags jsonFlags = JsonFlags.None)
-        => this.FileSystem.ReadJsonFromFileAsync<T>(this.PathString, maxSize, flags, cancel, includeNull, maxDepth, nullIfError, false, jsonFlags);
+        => this.FileSystem.ReadJsonFromFileAsync<T>(this.PathString, flags, cancel, includeNull, maxDepth, nullIfError, false, jsonFlags);
 
     public Task<long> WriteJsonToFileAsync<T>([AllowNull] T obj, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
         bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, JsonFlags jsonFlags = JsonFlags.None)
@@ -1523,9 +1523,9 @@ public class FilePath : FileSystemPath // CloneDeep 禁止
         bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, JsonFlags jsonFlags = JsonFlags.None)
         => this.FileSystem.WriteJsonToFileEncryptedAsync<T>(this.PathString, obj, password, flags, doNotOverwrite, cancel, includeNull, escapeHtml, maxDepth, compact, referenceHandling, jsonFlags);
 
-    public T ReadJsonFromFile<T>(long maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default,
+    public T ReadJsonFromFile<T>(FileFlags flags = FileFlags.None, CancellationToken cancel = default,
         bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool nullIfError = false, JsonFlags jsonFlags = JsonFlags.None)
-        => ReadJsonFromFileAsync<T>(maxSize, flags, cancel, includeNull, maxDepth, nullIfError, jsonFlags)._GetResult();
+        => ReadJsonFromFileAsync<T>(flags, cancel, includeNull, maxDepth, nullIfError, jsonFlags)._GetResult();
 
     public long WriteJsonToFile<T>([AllowNull] T obj, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
         bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, JsonFlags jsonFlags = JsonFlags.None)

@@ -125,8 +125,6 @@ public static partial class Consts
 
         public static readonly TimeSpan JapanStandardTimeOffset = new TimeSpan(9, 0, 0);
 
-        public const long LocalDatabaseJsonFileMaxSize = 256L * 1024L * 1024L * 1024L; // 256GB (とりあえず)
-
         public const uint MagicNumber_u32 = 0x7eadbeef;
 
         public const int MikakaDDns_MaxUnlockKeyCountOnce = 1000;

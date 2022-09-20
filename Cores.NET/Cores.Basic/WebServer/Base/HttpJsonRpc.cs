@@ -1845,7 +1845,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                     qsList.Add(pp.Name, qsSampleOrDefaultValue);
 
                     JsonSerializerSettings settings = new JsonSerializerSettings();
-                    Json.AddStandardSettingsToJsonConverter(settings, JsonFlags.AllEnumToStr);
+                    Json.AddStandardSettingsToJsonConverter(settings, JsonFlags.AllEnumToStr, null);
                     JsonSerializer serializer = JsonSerializer.Create(settings);
 
                     sampleRequestJsonData.TryAdd(pp.Name, JToken.FromObject(pp.SampleValueObject!, serializer));

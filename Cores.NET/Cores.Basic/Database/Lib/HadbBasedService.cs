@@ -327,7 +327,7 @@ public abstract class JsonRpcSingleReturnWithMetaData<T> : IToJsonString
             Formatting = compact ? Formatting.None : Formatting.Indented,
         };
 
-        Json.AddStandardSettingsToJsonConverter(setting, jsonFlags);
+        Json.AddStandardSettingsToJsonConverter(setting, jsonFlags, null);
 
         setting.Converters.Add(new StringEnumConverter());
 

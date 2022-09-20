@@ -493,7 +493,7 @@ public class LogBrowser : AsyncService
                 secureJsonPath = PathParser.Linux.Combine(firstDirName, Consts.FileNames.LogBrowserSecureJson);
 
                 // このファイルはあるかな?
-                secureJson = secureJsonPath._FileToObject<LogBrowserSecureJson>(RootFs, Consts.Numbers.NormalJsonMaxSize, cancel: cancel, nullIfError: true);
+                secureJson = secureJsonPath._FileToObject<LogBrowserSecureJson>(RootFs, cancel: cancel, nullIfError: true);
 
                 if (secureJson == null)
                 {
