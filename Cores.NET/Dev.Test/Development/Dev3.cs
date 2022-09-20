@@ -171,6 +171,9 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         [SimpleComment("Cumulative quota of the DDNS host count per specific client IP address (Subnet address match)")]
         public int DDns_MaxHostPerCreateClientIpNetwork_Total;
 
+        [SimpleComment("Disable all quotas of the DDNS host count per specific client IP address / network")]
+        public bool DDns_DisableMaxHostPerCreateClientIpQuota = false;
+
         [SimpleComment("Daily quota of the DDNS host count per specific client IP address (Host address exact match)")]
         public int DDns_MaxHostPerCreateClientIpAddress_Daily;
 
@@ -1965,7 +1968,8 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             // したがって、API サーバーが複数ある場合で、各 API サーバーで一時期に大量にホストを作成した場合は、
             // 若干超過して作成に成功する場合もあるのである。
             // なお、明示的な ACL で除外されている場合は、このチェックを実施しない。
-            if (EasyIpAcl.Evaluate(Hadb.CurrentDynamicConfig.Service_HeavyRequestRateLimiterExemptAcl, clientIp.ToString(), EasyIpAclAction.Deny, EasyIpAclAction.Deny, enableCache: true) == EasyIpAclAction.Deny)
+            if (Hadb.CurrentDynamicConfig.DDns_DisableMaxHostPerCreateClientIpQuota == false &&
+                EasyIpAcl.Evaluate(Hadb.CurrentDynamicConfig.Service_HeavyRequestRateLimiterExemptAcl, clientIp.ToString(), EasyIpAclAction.Deny, EasyIpAclAction.Deny, enableCache: true) == EasyIpAclAction.Deny)
             {
                 var existingHostsSameClientIpAddr = Hadb.FastSearchByLabels(new Host { CreateRequestedIpAddress = clientIp.ToString() });
                 if (existingHostsSameClientIpAddr.Count() >= Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreateClientIpAddress_Total)

@@ -210,63 +210,68 @@ namespace IPA.Cores.Basic
             bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool nullIfError = false, JsonFlags jsonFlags = JsonFlags.None)
             => ReadJsonFromFileEncryptedAsync<T>(path, password, maxSize, flags, cancel, includeNull, maxDepth, nullIfError, jsonFlags)._GetResult();
 
+        public async Task<bool> IsJsonFileAsync(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+        {
+            try
+            {
+                if (await this.IsFileExistsAsync(path, cancel) == false)
+                {
+                    return false;
+                }
+
+                await using var file = await this.OpenAsync(path, flags: flags, cancel: cancel);
+
+                await using var stream = file.GetStream();
+
+                await using var bufReader = new BufferedStream(stream);
+
+                using var reader = new StreamReader(bufReader, true);
+
+                return Json.IsJsonText(reader);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         public async Task<long> WriteJsonToFileAsync<T>(string path, [AllowNull] T obj, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
             bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool withBackup = false, JsonFlags jsonFlags = JsonFlags.None)
         {
-            //string jsonStr = obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling);
-
-            //return this.WriteStringToFileAsync(path, jsonStr, flags, doNotOverwrite, writeBom: true, cancel: cancel);
-
-            HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
-
-            await using (BufferBasedStream stream = new BufferBasedStream(mem))
-            {
-                await using (StreamWriter w = new StreamWriter(stream, new UTF8Encoding(true), Consts.Numbers.DefaultVeryLargeBufferSize))
-                {
-                    obj._ObjectToJsonTextWriter(w, includeNull, escapeHtml, maxDepth, compact, referenceHandling, jsonFlags);
-                }
-            }
-
             if (withBackup)
             {
                 string backupFilePath = path + Consts.Extensions.Backup;
-                bool isExistingFileOkAsJson = false;
 
-                try
-                {
-                    if (await this.IsFileExistsAsync(path, cancel))
-                    {
-                        // 元ファイルが存在する場合、その元ファイルが JSON 形式として破損していないかどうかチェックする
-                        try
-                        {
-                            var x = await this.ReadJsonFromFileAsync<object>(path, cancel: cancel, maxSize: Consts.Numbers.LocalDatabaseJsonFileMaxSize);
-                            isExistingFileOkAsJson = true;
-                        }
-                        catch (Exception ex)
-                        {
-                            $"Exiting file '{path}' is invalid as JSON format. The file may be corrupted."._Error();
-                            ex._Error();
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    ex._Error();
-                }
-
-                if (isExistingFileOkAsJson)
+                // 元ファイルが存在する場合、その元ファイルが JSON 形式として破損していないかどうかチェックする
+                if (await this.IsJsonFileAsync(path, flags, cancel))
                 {
                     // 元ファイルが JSON 形式として正しい場合だけ、バックアップファイルに元ファイルの内容をコピーする。
                     // この場合、このコピー作業に失敗したら、この WriteJsonToFileAsync メソッドの処理は直ちに終了する。
                     // (コピー作業に失敗したということは、ファイルシステムの空き容量不足が主原因として考えられる。
                     //  この場合、このコピー作業の失敗エラーを無視して、メインファイルへの書き込みも実施してしまうと、
                     //  メインファイルも空き容量不足で破損した状態となり、データ喪失が発生するおそれがある。
-                    //  これを防止するため、このようなケースにおいては、バックアップファイルへの書き込みは実施してはならない。)
+                    //  これを防止するため、このようなケースにおいては、ここで例外を発生させることにより (キャッチしない)、バックアップファイルへの書き込みは実施してはならない。)
                     await this.CopyFileAsync(path, backupFilePath, new CopyFileParams(flags: flags | FileFlags.AutoCreateDirectory | FileFlags.WriteOnlyIfChanged), cancel: cancel);
                 }
             }
 
-            return await this.WriteHugeMemoryBufferToFileAsync(path, mem, flags, doNotOverwrite, cancel);
+            await using var file = await Lfs.CreateAsync(path, flags: flags, doNotOverwrite: doNotOverwrite, cancel: cancel);
+
+            await using var stream = file.GetStream();
+
+            await using var bufStream = new BufferedStream(stream);
+
+            await using var writer = new StreamWriter(bufStream);
+
+            obj._ObjectToJsonTextWriter(writer, includeNull, escapeHtml, maxDepth, compact, referenceHandling, jsonFlags);
+
+            await writer.FlushAsync();
+
+            await bufStream.FlushAsync(cancel);
+
+            await stream.FlushAsync(cancel);
+
+            return stream.Position;
         }
         public long WriteJsonToFile<T>(string path, [AllowNull] T obj, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
             bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool withBackup = false, JsonFlags jsonFlags = JsonFlags.None)

@@ -1241,6 +1241,7 @@ public class ConsoleService
 
                 if (str != null && Str.IsEmptyStr(str))
                 {
+                    Dbg.GcCollect();
                     goto RETRY;
                 }
             }
@@ -1398,7 +1399,7 @@ public class ConsoleService
 
                             try
                             {
-                                GC.Collect();
+                                Dbg.GcCollect();
 
                                 var methodInfo = cmdList.Values[j].methodInfo;
 
@@ -1408,6 +1409,8 @@ public class ConsoleService
                                     paramList = new object[1] { cmd_param! };
 
                                 object? retobj = methodInfo.Invoke(srcObject, BindingFlags.DoNotWrapExceptions, null, paramList, null);
+
+                                Dbg.GcCollect();
 
                                 if (retobj is int)
                                 {
@@ -1435,7 +1438,7 @@ public class ConsoleService
                                 this.write!("", LogPriority.Error);
                                 this.retCode = ConsoleErrorCode.ERR_USER_CANCELED;
 
-                                GC.Collect();
+                                Dbg.GcCollect();
                                 return true;
                             }
                             catch (Exception ex2) when (Env.IsDebuggerAttached == false)
@@ -1455,7 +1458,7 @@ public class ConsoleService
                                     CoresLib.Report_SimpleResult = ex2.Message._OneLine();
                                 }
 
-                                GC.Collect();
+                                Dbg.GcCollect();
                                 return true;
                             }
 

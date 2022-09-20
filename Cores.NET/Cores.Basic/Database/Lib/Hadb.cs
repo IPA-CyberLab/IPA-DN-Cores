@@ -624,8 +624,8 @@ public sealed class HadbSqlDataRow : INormalizable
     public string DATA_VALUE { get; set; } = "";
     public string DATA_EXT1 { get; set; } = "";
     public string DATA_EXT2 { get; set; } = "";
-    public string DATA_FT1 { get; set; } = "";
-    public string DATA_FT2 { get; set; } = "";
+    public string DATA_FT1_test { get; set; } = "";
+    public string DATA_FT2_test { get; set; } = "";
     public long DATA_LAZY_COUNT1 { get; set; } = 0;
     public long DATA_LAZY_COUNT2 { get; set; } = 0;
     public string DATA_UID_ORIGINAL { get; set; } = "";
@@ -652,8 +652,8 @@ public sealed class HadbSqlDataRow : INormalizable
         this.DATA_VALUE = this.DATA_VALUE._NonNull();
         this.DATA_EXT1 = this.DATA_EXT1._NonNull();
         this.DATA_EXT2 = this.DATA_EXT2._NonNull();
-        this.DATA_FT1 = this.DATA_FT1._NonNull();
-        this.DATA_FT2 = this.DATA_FT2._NonNull();
+        this.DATA_FT1_test = this.DATA_FT1_test._NonNull();
+        this.DATA_FT2_test = this.DATA_FT2_test._NonNull();
         this.DATA_UID_ORIGINAL = this.DATA_UID_ORIGINAL._NormalizeUid();
     }
 }
@@ -977,8 +977,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                         DATA_VALUE = obj.GetUserDataJsonString(),
                         DATA_EXT1 = obj.Ext1,
                         DATA_EXT2 = obj.Ext2,
-                        DATA_FT1 = obj.Ft1,
-                        DATA_FT2 = obj.Ft2,
+                        DATA_FT1_test = obj.Ft1,
+                        DATA_FT2_test = obj.Ft2,
                         DATA_UID_ORIGINAL = obj.Uid,
                     };
 
@@ -1177,7 +1177,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                         HadbData? data = (HadbData?)row.DATA_VALUE._JsonToObject(type);
                         if (data != null)
                         {
-                            HadbObject obj = new HadbObject(data, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, false, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+                            HadbObject obj = new HadbObject(data, this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1_test, row.DATA_FT2_test, row.DATA_UID, row.DATA_VER, false, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
 
                             tmp.Add(obj);
 
@@ -1713,8 +1713,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 DATA_VALUE = data.GetUserDataJsonString(),
                 DATA_EXT1 = data.Ext1,
                 DATA_EXT2 = data.Ext2,
-                DATA_FT1 = data.Ft1,
-                DATA_FT2 = data.Ft2,
+                DATA_FT1_test = data.Ft1,
+                DATA_FT2_test = data.Ft2,
                 DATA_LAZY_COUNT1 = 0,
                 DATA_LAZY_COUNT2 = 0,
                 DATA_UID_ORIGINAL = data.Uid,
@@ -1836,7 +1836,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         if (conditions.Count == 0) conditions.Add("1 = 1");
 
-        string qstr = $"select {(query.MaxReturmItems >= 1 ? $"top {query.MaxReturmItems}" : "")} {(query.RetOnlyCount ? "count(LOG_ID) as RET_COUNT" : "*")} from HADB_LOG where {conditions._Combine(" and ")} and LOG_SYSTEM_NAME = @LOG_SYSTEM_NAME and LOG_TYPE = @LOG_TYPE and LOG_NAMESPACE = @LOG_NAMESPACE and LOG_DELETED = 0 {(query.RetOnlyCount ? " " : "order by LOG_ID desc")}";
+        string qstr = $"select {(query.MaxReturmItems >= 1 ? $"top {query.MaxReturmItems}" : "")} {(query.RetOnlyCount ? "count(LOG_ID) as RET_COUNT" : "*")} from HADB_LOG {(query.Flags.Bit(HadbLogQueryFlags.UseIndexTime) ? "with(index(LOG_DT))" : "")} where {conditions._Combine(" and ")} and LOG_SYSTEM_NAME = @LOG_SYSTEM_NAME and LOG_TYPE = @LOG_TYPE and LOG_NAMESPACE = @LOG_NAMESPACE and LOG_DELETED = 0 {(query.RetOnlyCount ? " " : "order by LOG_ID desc")}";
 
         if (query.RetOnlyCount == false)
         {
@@ -2018,8 +2018,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
         row.DATA_VALUE = data.GetUserDataJsonString();
         row.DATA_EXT1 = data.Ext1;
         row.DATA_EXT2 = data.Ext2;
-        row.DATA_FT1 = data.Ft1;
-        row.DATA_FT2 = data.Ft2;
+        row.DATA_FT1_test = data.Ft1;
+        row.DATA_FT2_test = data.Ft2;
         row.DATA_LAZY_COUNT1 = 0;
         row.DATA_SNAPSHOT_NO = tran.CurrentSnapNoForWriteMode;
         row.DATA_NAMESPACE = data.NameSpace;
@@ -2051,8 +2051,8 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 DATA_VALUE = row.DATA_VALUE,
                 DATA_EXT1 = row.DATA_EXT1,
                 DATA_EXT2 = row.DATA_EXT2,
-                DATA_FT1 = row.DATA_FT1,
-                DATA_FT2 = row.DATA_FT2,
+                DATA_FT1 = row.DATA_FT1_test,
+                DATA_FT2 = row.DATA_FT2_test,
                 DATA_LAZY_COUNT1 = row.DATA_LAZY_COUNT1,
                 DATA_SNAPSHOT_NO = row.DATA_SNAPSHOT_NO,
 
@@ -2062,7 +2062,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                 DATA_NAMESPACE = row.DATA_NAMESPACE,
             });
 
-        return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+        return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1_test, row.DATA_FT2_test, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
     }
 
     protected internal override async Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, CancellationToken cancel = default, bool noCheckTypeIdAndNameSpace = false)
@@ -2081,7 +2081,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             typeName = row.DATA_TYPE;
         }
 
-        HadbObject ret = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+        HadbObject ret = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1_test, row.DATA_FT2_test, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
 
         return ret;
     }
@@ -2131,7 +2131,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                     typeName = row.DATA_TYPE;
                 }
 
-                tmp.Add(new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT));
+                tmp.Add(new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1_test, row.DATA_FT2_test, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT));
             }
             return TR(tmp);
         },
@@ -2149,7 +2149,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         if (row == null) return null;
 
-        HadbObject ret = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+        HadbObject ret = new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1_test, row.DATA_FT2_test, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
 
         return ret;
     }
@@ -2171,7 +2171,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             List<HadbObject> tmp = new List<HadbObject>();
             foreach (var row in partOfRows)
             {
-                tmp.Add(new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT));
+                tmp.Add(new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1_test, row.DATA_FT2_test, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT));
             }
             return TR(tmp);
         },
@@ -2286,7 +2286,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             }
             );
 
-        return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1, row.DATA_FT2, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
+        return new HadbObject(this.JsonToHadbData(row.DATA_VALUE, typeName), this.Settings.OptionFlags, row.DATA_EXT1, row.DATA_EXT2, row.DATA_FT1_test, row.DATA_FT2_test, row.DATA_UID, row.DATA_VER, row.DATA_ARCHIVE, row.DATA_SNAPSHOT_NO, row.DATA_NAMESPACE, row.DATA_DELETED, row.DATA_CREATE_DT, row.DATA_UPDATE_DT, row.DATA_DELETE_DT);
     }
 
 
@@ -2341,6 +2341,7 @@ public enum HadbOptionFlags : long
     DoNotSaveStat = 32,
     NoLocalBackup = 64,
     DataUidForPartitioningByUidOptimized = 128,
+    NoFullTextSearch = 256,
 }
 
 [Flags]
@@ -2498,7 +2499,7 @@ public abstract class HadbData : INormalizable
 
     public abstract void Normalize();
 
-    public HadbObject ToNewObject(long snapshotNo, string nameSpace, bool prependAtoZHashChar, string ext1 = "", string ext2 = "", string ft1 = "", string ft2 = "") => new HadbObject(this, snapshotNo, nameSpace, prependAtoZHashChar, ext1, ext2, ft1, ft2);
+    public HadbObject ToNewObject(long snapshotNo, string nameSpace, bool prependAtoZHashChar, HadbOptionFlags hadbOptions, string ext1 = "", string ext2 = "", string ft1 = "", string ft2 = "") => new HadbObject(this, snapshotNo, nameSpace, prependAtoZHashChar, hadbOptions, ext1, ext2, ft1, ft2);
 
     //public static implicit operator HadbObject(HadbData data) => data.ToNewObject();
 
@@ -2695,6 +2696,8 @@ public sealed class HadbObject : INormalizable
 
     public string Uid { get; }
 
+    public HadbOptionFlags HadbOptions { get; }
+
     public long Ver { get; private set; }
 
     public bool Deleted { get; private set; }
@@ -2732,9 +2735,9 @@ public sealed class HadbObject : INormalizable
     public Type UserDataType { get; }
     public string UserDataTypeName { get; }
 
-    public HadbObject(HadbData userData, long snapshotNo, string nameSpace, bool prependAtoZHashChar, string ext1 = "", string ext2 = "", string ft1 = "", string ft2 = "") : this(userData, ext1, ext2, ft1, ft2, Str.NewUid(userData.GetUserDataTypeName(), '_', prependAtoZHashChar), 1, false, snapshotNo, nameSpace, false, DtOffsetNow, DtOffsetNow, DtOffsetZero) { }
+    public HadbObject(HadbData userData, long snapshotNo, string nameSpace, bool prependAtoZHashChar, HadbOptionFlags hadbOptions, string ext1 = "", string ext2 = "", string ft1 = "", string ft2 = "") : this(userData, hadbOptions, ext1, ext2, ft1, ft2, Str.NewUid(userData.GetUserDataTypeName(), '_', prependAtoZHashChar), 1, false, snapshotNo, nameSpace, false, DtOffsetNow, DtOffsetNow, DtOffsetZero) { }
 
-    public HadbObject(HadbData userData, string ext1, string ext2, string ft1, string ft2, string uid, long ver, bool archive, long snapshotNo, string nameSpace, bool deleted, DateTimeOffset createDt, DateTimeOffset updateDt, DateTimeOffset deleteDt, HadbMemDataBase? memDb = null)
+    public HadbObject(HadbData userData, HadbOptionFlags hadbOptions, string ext1, string ext2, string ft1, string ft2, string uid, long ver, bool archive, long snapshotNo, string nameSpace, bool deleted, DateTimeOffset createDt, DateTimeOffset updateDt, DateTimeOffset deleteDt, HadbMemDataBase? memDb = null)
     {
         nameSpace = nameSpace._HadbNameSpaceNormalize();
 
@@ -2761,8 +2764,18 @@ public sealed class HadbObject : INormalizable
         this.DeleteDt = deleteDt._NormalizeDateTimeOffset();
         this._Ext1 = ext1._NonNull();
         this._Ext2 = ext2._NonNull();
-        this._Ft1 = ft1._NonNull();
-        this._Ft2 = ft2._NonNull();
+        this.HadbOptions = hadbOptions;
+
+        if (this.HadbOptions.Bit(HadbOptionFlags.NoFullTextSearch) == false)
+        {
+            this._Ft1 = ft1._NonNull();
+            this._Ft2 = ft2._NonNull();
+        }
+        else
+        {
+            this._Ft1 = "";
+            this._Ft2 = "";
+        }
 
         this.MemDb = memDb;
         if (this.MemDb != null)
@@ -2783,7 +2796,7 @@ public sealed class HadbObject : INormalizable
         CheckIsNotMemoryDbObject();
         if (this.Archive) throw new CoresLibException("this.Archive == true");
 
-        return new HadbObject(this.UserData, this.Ext1, this.Ext2, this.Ft1, this.Ft2, this.Uid, this.Ver, this.Archive, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt, memDb);
+        return new HadbObject(this.UserData, this.HadbOptions, this.Ext1, this.Ext2, this.Ft1, this.Ft2, this.Uid, this.Ver, this.Archive, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt, memDb);
     }
 
     public HadbObject ToNonMemoryDbObject()
@@ -2792,7 +2805,7 @@ public sealed class HadbObject : INormalizable
 
         lock (this.Lock)
         {
-            var q = new HadbObject(this.UserData, this.Ext1, this.Ext2, this.Ft1, this.Ft2, this.Uid, this.Ver, this.Archive, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt);
+            var q = new HadbObject(this.UserData, this.HadbOptions, this.Ext1, this.Ext2, this.Ft1, this.Ft2, this.Uid, this.Ver, this.Archive, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt);
 
             q.InternalFastUpdateVersion = this.InternalFastUpdateVersion;
 
@@ -2803,7 +2816,7 @@ public sealed class HadbObject : INormalizable
     public HadbObject CloneObject()
     {
         CheckIsNotMemoryDbObject();
-        return new HadbObject(this.UserData, this.Ext1, this.Ext2, this.Ft1, this.Ft2, this.Uid, this.Ver, this.Archive, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt);
+        return new HadbObject(this.UserData, this.HadbOptions, this.Ext1, this.Ext2, this.Ft1, this.Ft2, this.Uid, this.Ver, this.Archive, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt);
     }
 
     public void CheckIsMemoryDbObject()
@@ -2875,7 +2888,7 @@ public sealed class HadbObject : INormalizable
             string newFt1 = "";
             string newFt2 = "";
 
-            if (this.UserData.GetDataFlags().Bit(HadbDataFlags.NoFullTextSearch) == false)
+            if (this.UserData.GetDataFlags().Bit(HadbDataFlags.NoFullTextSearch) == false && this.HadbOptions.Bit(HadbOptionFlags.NoFullTextSearch) == false)
             {
                 newFt1 = userData.GenerateFt1();
                 newFt2 = userData.GenerateFt2();
@@ -2979,7 +2992,7 @@ public sealed class HadbObject : INormalizable
         string newFt1 = "";
         string newFt2 = "";
 
-        if (this.UserData.GetDataFlags().Bit(HadbDataFlags.NoFullTextSearch) == false)
+        if (this.UserData.GetDataFlags().Bit(HadbDataFlags.NoFullTextSearch) == false && this.HadbOptions.Bit(HadbOptionFlags.NoFullTextSearch) == false)
         {
             newFt1 = this.UserData.GenerateFt1();
             newFt2 = this.UserData.GenerateFt2();
@@ -3640,6 +3653,13 @@ public class HadbLogQueryResponse
     }
 }
 
+[Flags]
+public enum HadbLogQueryFlags : long
+{
+    None = 0,
+    UseIndexTime = 1,
+}
+
 public class HadbLogQuery : INormalizable
 {
     public int MaxReturmItems { get; set; } = 0;
@@ -3653,6 +3673,7 @@ public class HadbLogQuery : INormalizable
     public FullTextSearchFlags FullTextFlags { get; set; } = FullTextSearchFlags.None;
     public string FullTextQuery { get; set; } = "";
     public bool RetOnlyCount { get; set; } = false;
+    public HadbLogQueryFlags Flags { get; set; } = HadbLogQueryFlags.None;
 
     public void Normalize()
     {
@@ -4550,7 +4571,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                 JObject jo = (JObject)obj.UserData;
                 Type type = GetDataTypeByTypeName(obj.UserDataTypeName, EnsureSpecial.Yes);
                 HadbData data = (HadbData)jo.ToObject(type, serializer)!;
-                HadbObject a = new HadbObject(data, obj.Ext1, obj.Ext2, obj.Ft1, obj.Ft2, obj.Uid, obj.Ver, false, obj.SnapshotNo, obj.NameSpace, false, obj.CreateDt, obj.UpdateDt, obj.DeleteDt);
+                HadbObject a = new HadbObject(data, this.Settings.OptionFlags, obj.Ext1, obj.Ext2, obj.Ft1, obj.Ft2, obj.Uid, obj.Ver, false, obj.SnapshotNo, obj.NameSpace, false, obj.CreateDt, obj.UpdateDt, obj.DeleteDt);
                 ret.Add(a);
             }
             return TR(ret);
@@ -5562,13 +5583,13 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                 string ft1 = "";
                 string ft2 = "";
 
-                if (data.GetDataFlags().Bit(HadbDataFlags.NoFullTextSearch) == false)
+                if (data.GetDataFlags().Bit(HadbDataFlags.NoFullTextSearch) == false && this.Hadb.Settings.OptionFlags.Bit(HadbOptionFlags.NoFullTextSearch) == false)
                 {
                     ft1 = data.GenerateFt1();
                     ft2 = data.GenerateFt2();
                 }
 
-                objList.Add(data.ToNewObject(this.CurrentSnapNoForWriteMode, nameSpace, this.Hadb.Settings.OptionFlags.Bit(HadbOptionFlags.DataUidForPartitioningByUidOptimized), ext1, ext2, ft1, ft2));
+                objList.Add(data.ToNewObject(this.CurrentSnapNoForWriteMode, nameSpace, this.Hadb.Settings.OptionFlags.Bit(HadbOptionFlags.DataUidForPartitioningByUidOptimized), this.Hadb.Settings.OptionFlags, ext1, ext2, ft1, ft2));
             }
 
             await Hadb.AtomicAddDataListToDatabaseImplAsync(this, objList, cancel);
@@ -5778,7 +5799,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
             var logFlags = log.GetLogFlags();
 
-            if (logFlags.Bit(HadbLogFlags.NoFullTextSearch) == false)
+            if (logFlags.Bit(HadbLogFlags.NoFullTextSearch) == false && this.Hadb.Settings.OptionFlags.Bit(HadbOptionFlags.NoFullTextSearch) == false)
             {
                 ft1 = log.GenerateFt1();
                 ft2 = log.GenerateFt2();

@@ -335,6 +335,24 @@ public static class Json
         return JsonSerializer.Create(setting).Deserialize(srcTextReader, type);
     }
 
+    public static bool IsJsonText(TextReader srcTextReader)
+    {
+        try
+        {
+            JsonTextReader reader = new JsonTextReader(srcTextReader);
+
+            while (reader.Read())
+            {
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     [return: MaybeNull]
     public static T Deserialize<T>(TextReader srcTextReader, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, JsonFlags jsonFlags = JsonFlags.None)
         => (T)Deserialize(srcTextReader, typeof(T), includeNull, maxDepth, jsonFlags)!;

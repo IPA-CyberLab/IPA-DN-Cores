@@ -3688,6 +3688,19 @@ cccadmin
 
     static void Test_220708()
     {
+        if (true)
+        {
+            {
+                //Lfs.IsJsonFileAsync(@"C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\Local\App_TestDev\HadbBackup\MIKAKA_DDNS31\Database.json")._GetResult()._Print();
+                Lfs.CopyFile(@"C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\Local\App_TestDev\HadbBackup\MIKAKA_DDNS31\Database.json",
+                    @"C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\Local\App_TestDev\HadbBackup\MIKAKA_DDNS31\Database.json2", new CopyFileParams(flags: FileFlags.AutoCreateDirectory | FileFlags.WriteOnlyIfChanged));
+            }
+
+            Dbg.GcCollect();
+
+            return;
+        }
+
         Async(async () =>
         {
             await MiscUtil.ExpandIncludesAsync("#include https://open_se:xqwZ5MdqDHVbgcvv@git-cloudmirror-static.fed.open.ad.jp/d/fed_share_fed-open-se-netadmin/auth/Pinger/11_OPEN_v4v6.config!18E6D1233CC1983884FAAC1F3F9FE146B15751E3C9E4D53CF67622AC357A7517");
