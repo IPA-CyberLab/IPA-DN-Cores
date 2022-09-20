@@ -1022,12 +1022,12 @@ public sealed class HttpServer<THttpServerBuilder> : AsyncService
             {
                 await HostTask;
             }
-
-            GlobalObjectExchange.TryWithdraw(ParamToken, out _);
-            GlobalObjectExchange.TryWithdraw(CancelToken, out _);
         }
         finally
         {
+            GlobalObjectExchange.TryWithdraw(ParamToken, out _);
+            GlobalObjectExchange.TryWithdraw(CancelToken, out _);
+
             await base.CleanupImplAsync(ex);
         }
     }

@@ -1066,7 +1066,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             {
                 var dbParams = new DynamicParameters();
 
-                string sql = "select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0";
+                string sql = "select top 100000 * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0";
 
                 dbParams.Add("DATA_SYSTEMNAME", this.SystemName);
 

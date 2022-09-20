@@ -4912,20 +4912,28 @@ namespace IPA.Cores.Basic
 
         public static bool TryWithdraw(string? token, out object? ret)
         {
-            if (token._IsEmpty())
+            try
             {
-                ret = null;
-                return false;
-            }
-
-            lock (table)
-            {
-                if (table.TryGetValue(token!, out ret) == false)
+                if (token._IsEmpty())
                 {
+                    ret = null;
                     return false;
                 }
 
-                return true;
+                lock (table)
+                {
+                    if (table.TryGetValue(token!, out ret) == false)
+                    {
+                        return false;
+                    }
+
+                    return true;
+                }
+            }
+            catch
+            {
+                ret = null;
+                return false;
             }
         }
 
