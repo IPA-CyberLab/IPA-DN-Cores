@@ -876,12 +876,6 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
     {
         public int DDns_UdpListenPort;
 
-        public HiveSettings()
-        {
-            // デフォルトで Full Text Index を OFF に
-            this.HadbOptionFlags = HadbOptionFlags.NoFullTextSearch;
-        }
-
         public override void NormalizeImpl()
         {
             if (DDns_UdpListenPort <= 0) DDns_UdpListenPort = Consts.Ports.Dns;

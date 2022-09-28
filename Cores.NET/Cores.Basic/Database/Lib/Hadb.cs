@@ -2378,7 +2378,7 @@ public enum HadbOptionFlags : long
     DoNotSaveStat = 32,
     NoLocalBackup = 64,
     DataUidForPartitioningByUidOptimized = 128,
-    NoFullTextSearch = 256,
+    BuildFullTextSearchText = 256,
 }
 
 [Flags]
@@ -2803,7 +2803,7 @@ public sealed class HadbObject : INormalizable
         this._Ext2 = ext2._NonNull();
         this.HadbOptions = hadbOptions;
 
-        if (this.HadbOptions.Bit(HadbOptionFlags.NoFullTextSearch) == false)
+        if (this.HadbOptions.Bit(HadbOptionFlags.BuildFullTextSearchText))
         {
             this._Ft1 = ft1._NonNull();
             this._Ft2 = ft2._NonNull();
@@ -2925,7 +2925,7 @@ public sealed class HadbObject : INormalizable
             string newFt1 = "";
             string newFt2 = "";
 
-            if (this.UserData.GetDataFlags().Bit(HadbDataFlags.NoFullTextSearch) == false && this.HadbOptions.Bit(HadbOptionFlags.NoFullTextSearch) == false)
+            if (this.UserData.GetDataFlags().Bit(HadbDataFlags.NoFullTextSearch) == false && this.HadbOptions.Bit(HadbOptionFlags.BuildFullTextSearchText))
             {
                 newFt1 = userData.GenerateFt1();
                 newFt2 = userData.GenerateFt2();
@@ -3029,7 +3029,7 @@ public sealed class HadbObject : INormalizable
         string newFt1 = "";
         string newFt2 = "";
 
-        if (this.UserData.GetDataFlags().Bit(HadbDataFlags.NoFullTextSearch) == false && this.HadbOptions.Bit(HadbOptionFlags.NoFullTextSearch) == false)
+        if (this.UserData.GetDataFlags().Bit(HadbDataFlags.NoFullTextSearch) == false && this.HadbOptions.Bit(HadbOptionFlags.BuildFullTextSearchText))
         {
             newFt1 = this.UserData.GenerateFt1();
             newFt2 = this.UserData.GenerateFt2();
@@ -5146,7 +5146,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
                     string ft;
 
-                    if (this.Settings.OptionFlags.Bit(HadbOptionFlags.NoFullTextSearch) == false)
+                    if (this.Settings.OptionFlags.Bit(HadbOptionFlags.BuildFullTextSearchText))
                     {
                         if (query.Flags.Bit(FullTextSearchFlags.FieldNameMode) == false)
                         {
@@ -5687,7 +5687,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                 string ft1 = "";
                 string ft2 = "";
 
-                if (data.GetDataFlags().Bit(HadbDataFlags.NoFullTextSearch) == false && this.Hadb.Settings.OptionFlags.Bit(HadbOptionFlags.NoFullTextSearch) == false)
+                if (data.GetDataFlags().Bit(HadbDataFlags.NoFullTextSearch) == false && this.Hadb.Settings.OptionFlags.Bit(HadbOptionFlags.BuildFullTextSearchText))
                 {
                     ft1 = data.GenerateFt1();
                     ft2 = data.GenerateFt2();
@@ -5903,7 +5903,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
 
             var logFlags = log.GetLogFlags();
 
-            if (logFlags.Bit(HadbLogFlags.NoFullTextSearch) == false && this.Hadb.Settings.OptionFlags.Bit(HadbOptionFlags.NoFullTextSearch) == false)
+            if (logFlags.Bit(HadbLogFlags.NoFullTextSearch) == false && this.Hadb.Settings.OptionFlags.Bit(HadbOptionFlags.BuildFullTextSearchText))
             {
                 ft1 = log.GenerateFt1();
                 ft2 = log.GenerateFt2();
