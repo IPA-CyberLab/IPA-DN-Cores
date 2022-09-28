@@ -212,7 +212,7 @@ partial class TestDevCommands
 
                                     systemName = "" + (char)('A' + Secure.RandSInt31() % 26) + "_" + systemName;
 
-                                    var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate;
+                                    var flags = HadbOptionFlags.NoAutoDbReloadAndUpdate | HadbOptionFlags.BuildFullTextSearchText;
 
                                     flags |= HadbOptionFlags.NoLocalBackup;
 
