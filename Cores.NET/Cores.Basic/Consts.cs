@@ -131,7 +131,7 @@ public static partial class Consts
 
         public const int HadbFullTextSearchResultsInternalMemoryDefault = 200000;
         public const int HadbFullTextSearchResultsMaxDefault = 100000;
-        public const int HadbFullTextSearchResultsStandardDefault = 1000;
+        public const int HadbFullTextSearchResultsStandardDefault = 100;
 
         public const int HadbHistoryMaxCount = 1000;
 
