@@ -1125,7 +1125,7 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                                         if (threshold._IsZeroDateTime() == false)
                                         {
                                             index++;
-                                            sql += $" and (DATA_TYPE != @TYPE_{index} or DATA_UPDATE_DT >= @THRESHOLD_{index})";
+                                            sql += $" and (DATA_UPDATE_DT >= @THRESHOLD_{index} or DATA_TYPE != @TYPE_{index})";
 
                                             dbParams.Add($"@TYPE_{index}", typeName);
                                             dbParams.Add($"@THRESHOLD_{index}", threshold);
