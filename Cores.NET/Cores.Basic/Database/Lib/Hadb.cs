@@ -898,19 +898,32 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
                     });
 
                 // 追加
+                var bulkInsertTable = new DataTable("HADB_CONFIG");
+
+                // 注意: Bulk Insert の API には癖がある。カラムの順番は物理的 DB が優先され、プログラム上の名前はあまり意味がない。なんとひどいことだ。
+                bulkInsertTable.Columns.Add("CONFIG_ID");
+                bulkInsertTable.Columns.Add("CONFIG_SYSTEMNAME");
+                bulkInsertTable.Columns.Add("CONFIG_NAME");
+                bulkInsertTable.Columns.Add("CONFIG_VALUE");
+                bulkInsertTable.Columns.Add("CONFIG_EXT");
+
                 foreach (var kv in missingValues)
                 {
                     if (kv.Key._IsFilled())
                     {
-                        await dbWriter.EasyInsertAsync(new HadbSqlConfigRow
-                        {
-                            CONFIG_SYSTEMNAME = this.SystemName,
-                            CONFIG_NAME = kv.Key,
-                            CONFIG_VALUE = kv.Value,
-                            CONFIG_EXT = "",
-                        }, cancel);
+                        var row = bulkInsertTable.NewRow();
+
+                        row["CONFIG_ID"] = DBNull.Value;
+                        row["CONFIG_SYSTEMNAME"] = this.SystemName;
+                        row["CONFIG_NAME"] = kv.Key;
+                        row["CONFIG_VALUE"] = kv.Value;
+                        row["CONFIG_EXT"] = "";
+
+                        bulkInsertTable.Rows.Add(row);
                     }
                 }
+
+                await dbWriter.SqlBulkWriteAsync("HADB_CONFIG", bulkInsertTable, cancel);
 
                 return true;
             });
