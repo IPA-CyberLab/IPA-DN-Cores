@@ -694,6 +694,45 @@ partial class TestDevCommands
         var randCompressedSmallestSize = rand1mb._EasyCompress(System.IO.Compression.CompressionLevel.SmallestSize);
 
 
+        MikakaDDnsService.Host ddnsHost = new MikakaDDnsService.Host()
+        {
+            HostLabel = "tanaka001",
+            HostSecretKey = "00112233445566778899AABBCCDDEEFF01020304",
+            AuthLogin_LastIpAddress = "10.20.30.40",
+            AuthLogin_LastFqdn = "host1.example.org",
+            CreateRequestedIpAddress = "3.4.5.6",
+            CreateRequestedIpNetwork = "3.4.5.0",
+            HostLabel_NumUpdates = 123,
+            HostLabel_LastUpdateTime = DtOffsetSample(0.5),
+            HostAddress_IPv4 = "8.9.3.1",
+            HostAddress_IPv4_FirstUpdateTime = DtOffsetSample(0.1),
+            HostAddress_IPv4_LastUpdateTime = DtOffsetSample(0.3),
+            HostAddress_IPv4_NumUpdates = 384,
+            HostAddress_IPv6 = "2401:AF80:1234:5678:dead:beef:cafe:8945",
+            HostAddress_IPv6_FirstUpdateTime = DtOffsetSample(0.1),
+            HostAddress_IPv6_LastUpdateTime = DtOffsetSample(0.3),
+            HostAddress_IPv6_NumUpdates = 5963,
+            DnsQuery_FirstAccessTime = DtOffsetSample(0.1),
+            DnsQuery_LastAccessTime = DtOffsetSample(0.5),
+            DnsQuery_Count = 12345,
+            DnsQuery_FirstAccessDnsResolver = "1.9.8.4:1234",
+            DnsQuery_LastAccessDnsResolver = "5.9.6.3:5678",
+            DnsQuery_FirstAccessEDnsClientSubnetInfo = "5.6.7.0/24",
+            DnsQuery_LastAccessEDnsClientSubnetInfo = "130.158.6.0/24",
+            ApiRateLimit_CurrentCount = 123,
+            ApiRateLimit_StartTime = DtOffsetSample(0.45),
+            DnsQuery_LastAccessWithEDnsClientSubnetInfoTime = DtOffsetSample(0.48),
+            UsedUnlockKey = "012345-678901-234567-890123-456789-012345",
+            AuthLogin_Count = 121,
+            AuthLogin_FirstTime = DtOffsetSample(0.05),
+            AuthLogin_LastTime = DtOffsetSample(0.6),
+            Email = "optos@example.org",
+            UserGroupSecretKey = "33884422AAFFCCBB66992244AAAABBBBCCCCDDDD",
+            UserData = "{'key1' : 'value1', 'key2' : 'value2'}"._JsonToJsonObject()!,
+            CreatedTime = DtOffsetSample(0.1),
+            CreateRequestedFqdn = "abc123.pppoe.example.org",
+        };
+
         var queue = new MicroBenchmarkQueue()
 
 

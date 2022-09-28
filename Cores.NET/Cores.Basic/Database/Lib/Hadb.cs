@@ -2517,8 +2517,8 @@ public abstract class HadbData : INormalizable
     public virtual HadbKeys GetKeys() => new HadbKeys("");
     public virtual HadbLabels GetLabels() => new HadbLabels("");
     public virtual int GetMaxArchivedCount() => CoresConfig.Hadb.DefaultMaxArchiveCount;
-    public virtual string GenerateFt1() => Str.GenerateSearchableStrFromObject(this, SearchableStrFlag.Default);
-    public virtual string GenerateFt2() => Str.GenerateSearchableStrFromObject(this, SearchableStrFlag.Default | SearchableStrFlag.PrependFieldName);
+    public virtual string GenerateFt1(bool fastMode = false) => Str.GenerateSearchableStrFromObject(this, SearchableStrFlag.Default | (fastMode ? SearchableStrFlag.FastMode : SearchableStrFlag.None));
+    public virtual string GenerateFt2(bool fastMode = false) => Str.GenerateSearchableStrFromObject(this, SearchableStrFlag.Default | SearchableStrFlag.PrependFieldName | (fastMode ? SearchableStrFlag.FastMode : SearchableStrFlag.None));
     public virtual HadbDataFlags GetDataFlags() => HadbDataFlags.None;
 
     public abstract void Normalize();
@@ -5148,11 +5148,11 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                     {
                         if (query.Flags.Bit(FullTextSearchFlags.FieldNameMode) == false)
                         {
-                            ft = item.UserData.GenerateFt1();
+                            ft = item.UserData.GenerateFt1(true);
                         }
                         else
                         {
-                            ft = item.UserData.GenerateFt2();
+                            ft = item.UserData.GenerateFt2(true);
                         }
                     }
 

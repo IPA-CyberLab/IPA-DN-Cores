@@ -1246,6 +1246,7 @@ namespace IPA.Cores.Basic
         IncludeBase64InBinary = 1,
         IncludePrintableAsciiStr = 2,
         PrependFieldName = 4,
+        FastMode = 8,
 
         Default = IncludeBase64InBinary | IncludePrintableAsciiStr,
     }
@@ -1543,13 +1544,13 @@ namespace IPA.Cores.Basic
 
             try
             {
-                var walkList = Util.WalkObject(obj);
+                var walkList = Util.WalkObject(obj, flag.Bit(SearchableStrFlag.FastMode));
 
                 foreach (var item in walkList)
                 {
                     try
                     {
-                        var set = GetSearchableStrListFromPrimitiveData(item.Data, flag, flag.Bit(SearchableStrFlag.PrependFieldName) ? item.Name.ToLower() + "=" : "");
+                        var set = GetSearchableStrListFromPrimitiveData(item.Data, flag, flag.Bit(SearchableStrFlag.PrependFieldName) ? item.Name.ToLowerInvariant() + "=" : "");
 
                         foreach (var s in set)
                         {

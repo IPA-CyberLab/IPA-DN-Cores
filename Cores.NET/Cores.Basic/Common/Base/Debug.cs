@@ -728,12 +728,19 @@ namespace IPA.Cores.Basic
             LocalLogRouter.PrintConsole(obj, priority: LogPriority.Debug);
         }
 
-        public static DebugVars GetVarsFromClass(Type? t, string separatorStr, bool hideEmpty, string? instanceBaseName, object? obj, ImmutableHashSet<object>? duplicateCheck = null)
+        public static DebugVars GetVarsFromClass(Type? t, string separatorStr, bool hideEmpty, string? instanceBaseName, object? obj, ImmutableHashSet<object>? duplicateCheck = null, int depth = 0)
         {
+            depth++;
+
+            if (depth >= 20)
+            {
+                DoNothing();
+            }
+
             if (obj == null || IsPrimitiveType(t) || t.IsArray)
             {
                 ObjectContainerForDebugVars container = new ObjectContainerForDebugVars(obj);
-                return GetVarsFromClass(container.GetType(), separatorStr, hideEmpty, instanceBaseName, container, duplicateCheck);
+                return GetVarsFromClass(container.GetType(), separatorStr, hideEmpty, instanceBaseName, container, duplicateCheck, depth);
             }
 
             if (duplicateCheck == null) duplicateCheck = ImmutableHashSet<object>.Empty;
@@ -794,7 +801,12 @@ namespace IPA.Cores.Basic
                             }
                             else
                             {
-                                if (data is Memory<byte> ms1)
+                                if (data is Newtonsoft.Json.Linq.JObject)
+                                {
+                                    var jobj = (Newtonsoft.Json.Linq.JObject)data;
+                                    ret.Vars.Add((obj, info, jobj._ObjectToJson(compact: true, jsonFlags: JsonFlags.AllEnumToStr), ++order));
+                                }
+                                else if (data is Memory<byte> ms1)
                                 {
                                     ret.Vars.Add((obj, info, ms1.Span.ToArray(), ++order));
                                 }
@@ -827,7 +839,7 @@ namespace IPA.Cores.Basic
                                                 }
                                                 else
                                                 {
-                                                    ret.Childlen.Add((GetVarsFromClass(data_type2, separatorStr, hideEmpty, info.Name, item, duplicateCheck.Add(data)), ++order));
+                                                    ret.Childlen.Add((GetVarsFromClass(data_type2, separatorStr, hideEmpty, info.Name, item, duplicateCheck.Add(data), depth), ++order));
                                                 }
                                             }
 
@@ -839,7 +851,7 @@ namespace IPA.Cores.Basic
                                 {
                                     if (duplicateCheck.Contains(data) == false)
                                     {
-                                        ret.Childlen.Add((GetVarsFromClass(data_type, separatorStr, hideEmpty, info.Name, data, duplicateCheck.Add(data)), ++order));
+                                        ret.Childlen.Add((GetVarsFromClass(data_type, separatorStr, hideEmpty, info.Name, data, duplicateCheck.Add(data), depth), ++order));
                                     }
                                 }
                             }

@@ -599,36 +599,63 @@ namespace IPA.Cores.Basic
         }
 
         // オブジェクト内の public なフィールドとプロパティを再帰的に全部読み取る
-        public static List<WalkObjectItem> WalkObject(object? obj)
+        public static List<WalkObjectItem> WalkObject(object? obj, bool fastMode = false)
         {
             List<WalkObjectItem> ret = new List<WalkObjectItem>();
 
             if (obj != null)
             {
-                ImmutableHashSet<object> hashSet = ImmutableHashSet<object>.Empty;
-
-                var vars = Dbg.GetVarsFromClass(obj.GetType(), "", false, "", obj, hashSet);
-
-                Walk(vars);
-
-                void Walk(DebugVars targetVars)
+                if (fastMode == False)
                 {
-                    foreach (var v in targetVars.Vars.OrderBy(x => x.order))
+                    // 通常モード (遅い)
+                    ImmutableHashSet<object> hashSet = ImmutableHashSet<object>.Empty;
+
+                    var vars = Dbg.GetVarsFromClass(obj.GetType(), "", false, "", obj, hashSet);
+
+                    Walk(vars);
+
+                    void Walk(DebugVars targetVars)
                     {
-                        WalkObjectItem item = new WalkObjectItem
+                        foreach (var v in targetVars.Vars.OrderBy(x => x.order))
                         {
-                            Object = v.targetObject,
-                            Name = v.memberInfo.Name,
-                            MemberInfo = v.memberInfo,
-                            Data = v.data,
-                        };
+                            WalkObjectItem item = new WalkObjectItem
+                            {
+                                Object = v.targetObject,
+                                Name = v.memberInfo.Name,
+                                MemberInfo = v.memberInfo,
+                                Data = v.data,
+                            };
+                            
+                            ret.Add(item);
+                        }
 
-                        ret.Add(item);
+                        foreach (var child in targetVars.Childlen.OrderBy(x => x.order))
+                        {
+                            Walk(child.child);
+                        }
                     }
+                }
+                else
+                {
+                    // 高速モード (階層構造を考慮しない)
+                    var rw = obj.GetType()._GetFieldReaderWriter();
 
-                    foreach (var child in targetVars.Childlen.OrderBy(x => x.order))
+                    foreach (var name in rw.OrderedPublicFieldOrPropertyNamesList)
                     {
-                        Walk(child.child);
+                        {
+                            var data = rw.GetValue(obj, name);
+
+                            WalkObjectItem item = new WalkObjectItem
+                            {
+                                Object = obj,
+                                Name = name,
+                                MemberInfo = null,
+                                Data = data,
+                            };
+
+                            ret.Add(item);
+                        }
+
                     }
                 }
             }
@@ -6334,7 +6361,9 @@ namespace IPA.Cores.Basic
 
             // 登場順に並べられたフィールドおよびプロパティのリストを生成
             List<string> orderedFieldOrPropertyNamesList = new List<string>();
-            TargetType.GetMembers().Where(x => x.MemberType.BitAny(MemberTypes.Field | MemberTypes.Property))._DoForEach(x => orderedFieldOrPropertyNamesList.Add(x.Name));
+            TargetType.GetMembers().Where(x => x.MemberType.BitAny(MemberTypes.Field | MemberTypes.Property))
+                .Where(x => FieldOrPropertyNamesList.Contains(x.Name))
+                ._DoForEach(x => orderedFieldOrPropertyNamesList.Add(x.Name));
             this.OrderedPublicFieldOrPropertyNamesList = orderedFieldOrPropertyNamesList;
         }
 
@@ -8919,7 +8948,7 @@ namespace IPA.Cores.Basic
     {
         public object? Object { get; init; }
         public string Name { get; init; } = "";
-        public MemberInfo MemberInfo { get; init; } = null!;
+        public MemberInfo? MemberInfo { get; init; } = null;
         public object? Data { get; init; }
     }
 
