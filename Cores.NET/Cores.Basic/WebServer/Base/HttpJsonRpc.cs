@@ -584,7 +584,7 @@ public class JsonRpcHttpServer : JsonRpcServer
     // /admin_search の共通ハンドラ
     public virtual async Task AdminObjSearch_CommonRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData, WebMethods method)
     {
-        await Admin_CommonAsync(request, response, routeData, "Database Object Full Text Search Engine (Very Fast)", AdminFormsOperation.ObjSearch, method,
+        await Admin_CommonAsync(request, response, routeData, "Database Object Full Text Search Engine", AdminFormsOperation.ObjSearch, method,
             async (w, postData, c) =>
             {
                 var queryList = request.Query;
