@@ -500,9 +500,15 @@ partial class TestDevCommands
     static int MikakaDDnsStressTest(ConsoleService c, string cmdName, string str)
     {
         ConsoleParam[] args =
-        {};
+        {
+            new ConsoleParam("[start]"),
+        };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        int start = vl.DefaultParam.IntValue;
+
+        start = Math.Max(start, 1);
 
         string prefix = ""; Str.GenRandStr().ToLowerInvariant().Substring(0, 8);
 
@@ -510,17 +516,20 @@ partial class TestDevCommands
         {
             await using var api = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true }, doNotUseTcpStack: true));
 
-            for (int i = 568626; i < 100_0000; i++)
+            for (int i = start; ; i++)
             {
-                string secretKey = $"key{i:D9}" + prefix;
-                string label = $"host{i:D9}" + prefix;
+                string secretKey = $"key{i:D10}" + prefix;
+                string label = $"host{i:D10}" + prefix;
                 string ip = IPAddr.FromString("1.0.0.0").Add(i).ToString();
 
-                string url = $"https://127.0.0.1/rpc/DDNS_Host/?secretKey={secretKey}&label={label}&ip={ip}";
+                string url = $"http://127.0.0.1/rpc/DDNS_Host/?secretKey={secretKey}&label={label}&ip={ip}";
 
                 url._Print();
 
-                await api.SimpleQueryAsync(WebMethods.GET, url);
+                await RetryHelper.RunAsync(async () =>
+                {
+                    await api.SimpleQueryAsync(WebMethods.GET, url);
+                }, tryCount: 10);
             }
         });
 
