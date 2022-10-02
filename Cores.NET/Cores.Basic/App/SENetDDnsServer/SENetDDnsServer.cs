@@ -1137,6 +1137,30 @@ public class DDNSServer : AsyncService
                 }
                 else
                 {
+                    if (question.RecordType == RecordType.A || question.RecordType == RecordType.Any)
+                    {
+                        if (ret.Count == 0)
+                        {
+                            if (Ini["DisableReturnRandomWhenNotFound"].BoolValue == false)
+                            {
+                                // 約 6% の確率でランダム IP アドレスを返す
+                                string name = queryDomainName.ToLowerInvariant().Split('.')[0];
+
+                                ulong t1 = Str.HashStrToLong(name + "0") % 100;
+
+                                if (t1 <= 6)
+                                {
+                                    byte b1 = (byte)(Str.HashStrToLong(name + "1") % 221 + 1);
+                                    byte b2 = (byte)(Str.HashStrToLong(name + "2") & (ulong)0xff);
+                                    byte b3 = (byte)(Str.HashStrToLong(name + "3") & (ulong)0xff);
+                                    byte b4 = (byte)(Str.HashStrToLong(name + "4") & (ulong)0xff);
+                                    IPAddress randIp = new IPAddress(new byte[] { b1, b2, b3, b4, });
+                                    ret.Add(randIp);
+                                }
+                            }
+                        }
+                    }
+
                     if (Str.IsEmptyStr(tmp) == false)
                     {
                         domainname = tmp;
