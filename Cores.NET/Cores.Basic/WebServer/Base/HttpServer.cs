@@ -334,7 +334,7 @@ public class HttpServerStartupHelper : IDisposable
             provider._DoForEach(x => AddStaticFileProvider(x));
     }
 
-    public virtual void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+    public virtual void ConfigurePre(IApplicationBuilder app, IWebHostEnvironment env)
     {
         if (ServerOptions.ReverseProxyOverride_Enable)
         {
@@ -395,7 +395,10 @@ public class HttpServerStartupHelper : IDisposable
                 }
             });
         }
+    }
 
+    public virtual void ConfigureAuth(IApplicationBuilder app, IWebHostEnvironment env)
+    {
         if (this.ServerOptions.ClientCertficateMode != ClientCertificateMode.NoCertificate)
         {
             // ここで証明書の検証を行なう
@@ -604,9 +607,11 @@ public abstract class HttpServerStartupBase
 
     public virtual void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
     {
+        Helper.ConfigurePre(app, env);
+
         ConfigureImpl_BeforeHelper(Helper.StartupConfig, app, env, lifetime);
 
-        Helper.Configure(app, env);
+        Helper.ConfigureAuth(app, env);
 
         ConfigureImpl_AfterHelper(Helper.StartupConfig, app, env, lifetime);
     }
