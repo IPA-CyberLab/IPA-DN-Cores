@@ -340,13 +340,13 @@ public static class CoresLib
         {
             try
             {
-                Env.PutGitIgnoreFileOnAppLocalDirectory();
+                Lfs.WriteStringToFile(path, body, flags: FileFlags.AutoCreateDirectory);
             }
             catch { }
 
             try
             {
-                Lfs.WriteStringToFile(path, body, flags: FileFlags.AutoCreateDirectory);
+                Env.PutGitIgnoreFileOnAppLocalDirectory();
             }
             catch { }
         }
