@@ -262,8 +262,8 @@ public static partial class Consts
 
         public const string HadbDefaultNameSpace = "DEFAULT_NS";
 
-        public const string DefaultAdminUsername = "USERNAME_HERE";
-        public const string DefaultAdminPassword = "PASSWORD_HERE";
+        public const string DefaultAdminUsername = "admin";
+        public const string DefaultAdminPassword = "password";
 
         public const string None = "none";
 
