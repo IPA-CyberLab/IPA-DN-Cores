@@ -3786,6 +3786,12 @@ cccadmin
 
         if (true)
         {
+            Test_210901_EasyDnsServer();
+            return;
+        }
+
+        if (true)
+        {
             Test_220708();
             return;
         }
@@ -3867,12 +3873,6 @@ cccadmin
         if (false)
         {
             Test_220116();
-            return;
-        }
-
-        if (true)
-        {
-            Test_210901_EasyDnsServer();
             return;
         }
 
