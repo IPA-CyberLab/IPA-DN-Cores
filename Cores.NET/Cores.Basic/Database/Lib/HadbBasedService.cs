@@ -707,7 +707,7 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
                 SearchTemplate = new HadbBasedService_BasicLogBasedQuota { QuotaName = quotaName2, MatchKey = matchKey },
                 TimeStart = DtOffsetNow.AddSeconds(-durationSecs.Value),
                 RetOnlyCount = true,
-                Flags = HadbLogQueryFlags.UseIndexTime,
+                Flags = HadbLogQueryFlags.UseIndexTime | HadbLogQueryFlags.WithNoLock,
             };
 
             var logs = await tran.AtomicSearchLogAsync<HadbBasedService_BasicLogBasedQuota>(query, cancel: cancel);

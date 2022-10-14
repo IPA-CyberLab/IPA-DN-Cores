@@ -1873,7 +1873,25 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
 
         if (conditions.Count == 0) conditions.Add("1 = 1");
 
-        string qstr = $"select {(query.MaxReturmItems >= 1 ? $"top {query.MaxReturmItems}" : "")} {(query.RetOnlyCount ? "count(LOG_ID) as RET_COUNT" : "*")} from HADB_LOG {(query.Flags.Bit(HadbLogQueryFlags.UseIndexTime) && this.SqlDbCaps.Bit(HadbSqlDbCaps.HadbLog_HasLogDtIndex) ? "with(index(LOG_DT))" : "")} where {conditions._Combine(" and ")} and LOG_SYSTEM_NAME = @LOG_SYSTEM_NAME and LOG_TYPE = @LOG_TYPE and LOG_NAMESPACE = @LOG_NAMESPACE and LOG_DELETED = 0 {(query.RetOnlyCount ? " " : "order by LOG_ID desc")}";
+        List<string> sqlWithStrList = new List<string>();
+
+        if (query.Flags.Bit(HadbLogQueryFlags.UseIndexTime) && this.SqlDbCaps.Bit(HadbSqlDbCaps.HadbLog_HasLogDtIndex))
+        {
+            sqlWithStrList.Add("index(LOG_DT)");
+        }
+
+        if (query.Flags.Bit(HadbLogQueryFlags.WithNoLock))
+        {
+            sqlWithStrList.Add("nolock");
+        }
+
+        string sqlWithStr = "";
+        if (sqlWithStrList.Any())
+        {
+            sqlWithStr = $"with({sqlWithStrList._Combine(",")})";
+        }
+
+        string qstr = $"select {(query.MaxReturmItems >= 1 ? $"top {query.MaxReturmItems}" : "")} {(query.RetOnlyCount ? "count(LOG_ID) as RET_COUNT" : "*")} from HADB_LOG {sqlWithStr} where {conditions._Combine(" and ")} and LOG_SYSTEM_NAME = @LOG_SYSTEM_NAME and LOG_TYPE = @LOG_TYPE and LOG_NAMESPACE = @LOG_NAMESPACE and LOG_DELETED = 0 {(query.RetOnlyCount ? " " : "order by LOG_ID desc")}";
 
         if (query.RetOnlyCount == false)
         {
@@ -3695,6 +3713,7 @@ public enum HadbLogQueryFlags : long
 {
     None = 0,
     UseIndexTime = 1,
+    WithNoLock = 2,
 }
 
 public class HadbLogQuery : INormalizable
