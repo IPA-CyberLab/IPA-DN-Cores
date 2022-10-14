@@ -458,7 +458,10 @@ namespace IPA.Cores.Basic
                 {
                     throw;
                 }
-                await Task.Yield();
+                if (numRetry >= 1 && (numRetry % 100) == 0)
+                {
+                    await Task.Yield();
+                }
                 goto LABEL_RETRY;
             }
         }
