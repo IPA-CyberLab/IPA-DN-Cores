@@ -300,8 +300,17 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         [SimpleComment("Health check max allowed concurrent connections")]
         public int DDns_HealthCheck_NumConcurrentConnections = 0;
 
+        [SimpleComment("DDNS host record statistics rapid update quota for read-only query: duration in milliseconds")]
+        public int DDns_HostFastUpdateQuota_DurationMsecs = 5000;
+
+        [SimpleComment("DDNS host record statistics rapid update quota for read-only query: max update count in duration")]
+        public int DDns_HostFastUpdateQuota_MaxFastUpdateCountPerDuration = 20;
+
+
         protected override void NormalizeImpl()
         {
+            DDns_HostFastUpdateQuota_DurationMsecs = Math.Min(DDns_HostFastUpdateQuota_DurationMsecs, 60 * 60 * 1000);
+
             DDns_Protocol_ProxyProtocolAcceptSrcIpAcl = EasyIpAcl.NormalizeRules(DDns_Protocol_ProxyProtocolAcceptSrcIpAcl, false, true);
 
             if (Hadb_ObjectStaleMarker_ObjNames_and_Seconds.Length == 0)
@@ -1482,7 +1491,9 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                         }
                     }
                     return true;
-                }, true, new HadbFastUpdateOptions {QuotaDurationMsecs = 5000, QuotaMaxFastUpdateCountPerDuration = 3 });
+                },
+                true,
+                new HadbFastUpdateOptions { QuotaDurationMsecs = config.DDns_HostFastUpdateQuota_DurationMsecs, QuotaMaxFastUpdateCountPerDuration = config.DDns_HostFastUpdateQuota_MaxFastUpdateCountPerDuration });
             }
             else
             {
@@ -1530,6 +1541,8 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
     public async Task<Host_Return> DDNS_Host(string secretKey = "", string label = "", string unlockKey = "", string licenseString = "", string ip = "", string userGroupSecretKey = "", string email = "", JObject? userData = null)
     {
+        var config = Hadb.CurrentDynamicConfig;
+
         var client = this.GetClientInfo();
 
         var now = DtOffsetNow;
@@ -1562,12 +1575,12 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         {
             label._CheckUseOnlyChars($"Specified {nameof(label)} contains invalid character", "0123456789abcdefghijklmnopqrstuvwxyz-");
 
-            if (label.Length < Hadb.CurrentDynamicConfig.DDns_MinHostLabelLen)
-                throw new CoresException($"Specified {nameof(label)} is too short. {nameof(label)} must be longer or equal than {Hadb.CurrentDynamicConfig.DDns_MinHostLabelLen} letters.");
+            if (label.Length < config.DDns_MinHostLabelLen)
+                throw new CoresException($"Specified {nameof(label)} is too short. {nameof(label)} must be longer or equal than {config.DDns_MinHostLabelLen} letters.");
 
-            label._CheckStrLenException(Hadb.CurrentDynamicConfig.DDns_MaxHostLabelLen, $"Specified {nameof(label)} is too long. {nameof(label)} must be shorter or equal than {Hadb.CurrentDynamicConfig.DDns_MaxHostLabelLen} letters.");
+            label._CheckStrLenException(config.DDns_MaxHostLabelLen, $"Specified {nameof(label)} is too long. {nameof(label)} must be shorter or equal than {config.DDns_MaxHostLabelLen} letters.");
 
-            foreach (var item in Hadb.CurrentDynamicConfig.DDns_ProhibitedHostnamesStartWith._NonNullTrim()
+            foreach (var item in config.DDns_ProhibitedHostnamesStartWith._NonNullTrim()
                 ._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', ';', ',', '/', '\t'))
             {
                 if (item._IsFilled())
@@ -1580,7 +1593,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 }
             }
 
-            foreach (var item in Hadb.CurrentDynamicConfig.DDns_ProhibitedHostnamesEndsWith._NonNullTrim()
+            foreach (var item in config.DDns_ProhibitedHostnamesEndsWith._NonNullTrim()
                 ._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', ';', ',', '/', '\t'))
             {
                 if (item._IsFilled())
@@ -1607,7 +1620,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         unlockKey = unlockKey._MakeStringUseOnlyChars("0123456789");
         licenseString = licenseString._NonNull();
 
-        bool requireUnlockKey = Hadb.CurrentDynamicConfig.DDns_RequireUnlockKey;
+        bool requireUnlockKey = config.DDns_RequireUnlockKey;
         if (requireUnlockKey == false)
         {
             unlockKey = "";
@@ -1701,7 +1714,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
             if (ipv4 != null)
             {
-                if (this.CurrentDynamicConfig.DDns_Prohibit_IPv4AddressRegistration)
+                if (config.DDns_Prohibit_IPv4AddressRegistration)
                 {
                     throw new CoresException($"You specified the IPv4 address '{ipv4.ToString()}', however this DDNS server is prohibiting any IPv4 address registration.");
                 }
@@ -1709,7 +1722,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
 
             if (ipv6 != null)
             {
-                if (this.CurrentDynamicConfig.DDns_Prohibit_IPv6AddressRegistration)
+                if (config.DDns_Prohibit_IPv6AddressRegistration)
                 {
                     throw new CoresException($"You specified the IPv6 address '{ipv6.ToString()}', however this DDNS server is prohibiting any IPv6 address registration.");
                 }
@@ -1740,7 +1753,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
         if (userData != null) userData = userData._NormalizeEasyJsonStrAttributes();
 
         string testJsonStr = userData._ObjectToJson(compact: true);
-        if (testJsonStr.Length > Hadb.CurrentDynamicConfig.DDns_MaxUserDataJsonStrLength)
+        if (testJsonStr.Length > config.DDns_MaxUserDataJsonStrLength)
         {
             throw new CoresException($"{nameof(userData)} is too large.");
         }
@@ -1800,13 +1813,13 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             // すでにオブジェクトが存在し、かつ、内容を変更することになる予定の場合、
             // これ以下の処理は DB への物理アクセスを伴いリソースを消費するため、
             // 1 時間あたりの変更の回数に制限を設ける。
-            if (this.CurrentDynamicConfig.DDns_HostApi_RateLimit_Duration_Secs >= 1 && this.CurrentDynamicConfig.DDns_HostApi_RateLimit_MaxCounts_Per_Duration >= 1)
+            if (config.DDns_HostApi_RateLimit_Duration_Secs >= 1 && config.DDns_HostApi_RateLimit_MaxCounts_Per_Duration >= 1)
             {
                 var host = memoryObj.Data;
 
                 if (host.ApiRateLimit_Disabled == false)
                 {
-                    var expires = host.ApiRateLimit_StartTime.AddSeconds(this.CurrentDynamicConfig.DDns_HostApi_RateLimit_Duration_Secs);
+                    var expires = host.ApiRateLimit_StartTime.AddSeconds(config.DDns_HostApi_RateLimit_Duration_Secs);
 
                     if (host.ApiRateLimit_StartTime._IsZeroDateTime() || expires <= now)
                     {
@@ -1814,7 +1827,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                     }
                     else
                     {
-                        if (host.ApiRateLimit_CurrentCount >= this.CurrentDynamicConfig.DDns_HostApi_RateLimit_MaxCounts_Per_Duration)
+                        if (host.ApiRateLimit_CurrentCount >= config.DDns_HostApi_RateLimit_MaxCounts_Per_Duration)
                         {
                             throw new CoresException($"Host API rate limit reached. Please wait for {(long)((expires - now).TotalSeconds)} seconds for next retry.");
                         }
@@ -1857,7 +1870,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                         int numTry = 0;
                         while (true)
                         {
-                            string candidate = Hadb.CurrentDynamicConfig.DDns_NewHostnamePrefix + Str.GenerateRandomDigit(Hadb.CurrentDynamicConfig.DDns_NewHostnameRandomDigits);
+                            string candidate = config.DDns_NewHostnamePrefix + Str.GenerateRandomDigit(config.DDns_NewHostnameRandomDigits);
 
                             var existing = await tran.AtomicSearchByKeyAsync(new Host { HostLabel = candidate });
 
@@ -1951,14 +1964,14 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             }
 
             // 固有使用許諾文字列のチェック
-            if (Hadb.CurrentDynamicConfig.DDns_RequiredLicenseString._IsFilled())
+            if (config.DDns_RequiredLicenseString._IsFilled())
             {
                 if (licenseString._IsEmpty())
                 {
                     throw new CoresException($"The parameter {nameof(licenseString)} is not specified. This DDNS server requires the {nameof(licenseString)} parameter. Please add this parameter.");
                 }
 
-                if (licenseString._IsDiff(Hadb.CurrentDynamicConfig.DDns_RequiredLicenseString))
+                if (licenseString._IsDiff(config.DDns_RequiredLicenseString))
                 {
                     throw new CoresException($"The sepcified value of {nameof(licenseString)} is invalid. Please check the string and try again.");
                 }
@@ -1968,25 +1981,25 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
             // したがって、API サーバーが複数ある場合で、各 API サーバーで一時期に大量にホストを作成した場合は、
             // 若干超過して作成に成功する場合もあるのである。
             // なお、明示的な ACL で除外されている場合は、このチェックを実施しない。
-            if (Hadb.CurrentDynamicConfig.DDns_DisableMaxHostPerCreateClientIpQuota == false &&
-                EasyIpAcl.Evaluate(Hadb.CurrentDynamicConfig.Service_HeavyRequestRateLimiterExemptAcl, clientIp.ToString(), EasyIpAclAction.Deny, EasyIpAclAction.Deny, enableCache: true) == EasyIpAclAction.Deny)
+            if (config.DDns_DisableMaxHostPerCreateClientIpQuota == false &&
+                EasyIpAcl.Evaluate(config.Service_HeavyRequestRateLimiterExemptAcl, clientIp.ToString(), EasyIpAclAction.Deny, EasyIpAclAction.Deny, enableCache: true) == EasyIpAclAction.Deny)
             {
                 var existingHostsSameClientIpAddr = Hadb.FastSearchByLabels(new Host { CreateRequestedIpAddress = clientIp.ToString() });
-                if (existingHostsSameClientIpAddr.Count() >= Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreateClientIpAddress_Total)
+                if (existingHostsSameClientIpAddr.Count() >= config.DDns_MaxHostPerCreateClientIpAddress_Total)
                 {
                     throw new CoresException($"The host record registration quota (total) exceeded (Limitation type #1). Your IP address {clientIp} cannot create more host records on this DDNS server. Complaint should be submitted to the DDNS server administrator.");
                 }
-                if (existingHostsSameClientIpAddr.Where(x => x.CreateDt.Date == now.Date).Count() >= Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreateClientIpAddress_Daily)
+                if (existingHostsSameClientIpAddr.Where(x => x.CreateDt.Date == now.Date).Count() >= config.DDns_MaxHostPerCreateClientIpAddress_Daily)
                 {
                     throw new CoresException($"The host record registration quota (daily) exceeded (Limitation type #2). Your IP address {clientIp} cannot create more host records on this DDNS server today. Please wait for one or more days and try again. Complaint should be submitted to the DDNS server administrator.");
                 }
 
                 var existingHostsSameClientIpNetwork = Hadb.FastSearchByLabels(new Host { CreateRequestedIpNetwork = clientNetwork.ToString() });
-                if (existingHostsSameClientIpNetwork.Count() >= Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreateClientIpNetwork_Total)
+                if (existingHostsSameClientIpNetwork.Count() >= config.DDns_MaxHostPerCreateClientIpNetwork_Total)
                 {
                     throw new CoresException($"The host record registration quota (total) exceeded (Limitation type #3). Your IP address {clientIp} cannot create more host records on this DDNS server. Complaint should be submitted to the DDNS server administrator.");
                 }
-                if (existingHostsSameClientIpNetwork.Where(x => x.CreateDt.Date == now.Date).Count() >= Hadb.CurrentDynamicConfig.DDns_MaxHostPerCreateClientIpNetwork_Daily)
+                if (existingHostsSameClientIpNetwork.Where(x => x.CreateDt.Date == now.Date).Count() >= config.DDns_MaxHostPerCreateClientIpNetwork_Daily)
                 {
                     throw new CoresException($"The host record registration quota (daily) exceeded (Limitation type #4). Your IP address {clientIp} cannot create more host records on this DDNS server today. Please wait for one or more days and try again. Complaint should be submitted to the DDNS server administrator.");
                 }
@@ -2211,7 +2224,9 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                 }
                 h.AuthLogin_LastTime = now;
                 return true;
-            });
+            },
+            true,
+            new HadbFastUpdateOptions { QuotaDurationMsecs = config.DDns_HostFastUpdateQuota_DurationMsecs, QuotaMaxFastUpdateCountPerDuration = config.DDns_HostFastUpdateQuota_MaxFastUpdateCountPerDuration });
         }
 
         // 現在のオブジェクト情報を返却する。
