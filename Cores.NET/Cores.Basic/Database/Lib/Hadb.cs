@@ -2629,7 +2629,7 @@ public sealed class HadbObject<T> : INormalizable // 単なるラッパー
     public string GetUserDataJsonString() => TargetObject.GetUserDataJsonString();
     public void CheckIsMemoryDbObject() => TargetObject.CheckIsMemoryDbObject();
     public void CheckIsNotMemoryDbObject() => TargetObject.CheckIsNotMemoryDbObject();
-    public T FastUpdate(Func<T, bool> updateFunc) => TargetObject.FastUpdate(updateFunc);
+    public T FastUpdate(Func<T, bool> updateFunc, bool noReturn = false, HadbFastUpdateOptions option = default) => TargetObject.FastUpdate(updateFunc, noReturn, option);
     public Type GetUserDataType() => TargetObject.GetUserDataType();
     public string GetUserDataTypeName() => TargetObject.GetUserDataTypeName();
     public string GetUidPrefix() => TargetObject.GetUidPrefix();
@@ -2741,6 +2741,12 @@ public sealed class HadbQuick<T>
     }
 }
 
+public struct HadbFastUpdateOptions
+{
+    public int QuotaDurationMsecs;
+    public int QuotaMaxFastUpdateCountPerDuration;
+}
+
 public sealed class HadbObject : INormalizable
 {
     public readonly CriticalSection<HadbObject> Lock = new CriticalSection<HadbObject>();
@@ -2770,6 +2776,9 @@ public sealed class HadbObject : INormalizable
     public string NameSpace { get; }
 
     public HadbData UserData { get; private set; }
+
+    long FastUpdate_QuotaCounterStartTick;
+    int FastUpdate_CurrentQuota;
 
     string _Ext1;
     string _Ext2;
@@ -2874,6 +2883,7 @@ public sealed class HadbObject : INormalizable
         return new HadbObject(this.UserData, this.HadbOptions, this.Ext1, this.Ext2, this.Ft1, this.Ft2, this.Uid, this.Ver, this.Archive, this.SnapshotNo, this.NameSpace, this.Deleted, this.CreateDt, this.UpdateDt, this.DeleteDt);
     }
 
+    [MethodImpl(Inline)]
     public void CheckIsMemoryDbObject()
     {
         if (this.IsMemoryDbObject == false) throw new CoresLibException("this.IsMemoryDbObject == false");
@@ -2884,9 +2894,61 @@ public sealed class HadbObject : INormalizable
         if (this.IsMemoryDbObject) throw new CoresLibException("this.IsMemoryDbObject == true");
     }
 
-    public T FastUpdate<T>(Func<T, bool> updateFunc) where T : HadbData
+    public T FastUpdate<T>(Func<T, bool> updateFunc, bool noReturn = false, HadbFastUpdateOptions option = default) where T : HadbData
     {
         CheckIsMemoryDbObject();
+
+        if (option.QuotaMaxFastUpdateCountPerDuration >= 1 && option.QuotaDurationMsecs >= 1)
+        {
+            if (this.Deleted) throw new CoresLibException($"this.Deleted == true");
+            if (this.Archive) throw new CoresLibException("this.Archive == true");
+
+            // 頻繁に高速な Update が行なわれた場合に無視する
+            long now = Time.Tick64;
+
+            long currentStartTick = this.FastUpdate_QuotaCounterStartTick;
+
+            bool reset = false;
+
+            if (currentStartTick == 0)
+            {
+                currentStartTick = now;
+                reset = true;
+            }
+            else
+            {
+                if (now > (currentStartTick + option.QuotaDurationMsecs))
+                {
+                    currentStartTick = now;
+                    reset = true;
+                }
+            }
+
+            if (reset)
+            {
+                this.FastUpdate_QuotaCounterStartTick = currentStartTick;
+                this.FastUpdate_CurrentQuota = 0;
+            }
+
+            this.FastUpdate_CurrentQuota++;
+
+            if (this.FastUpdate_CurrentQuota > option.QuotaMaxFastUpdateCountPerDuration)
+            {
+                if (noReturn)
+                {
+                    return default!;
+                }
+                else
+                {
+                    T ret;
+                    lock (this.Lock)
+                    {
+                        ret = this.UserData._CloneDeep().GetData<T>();
+                    }
+                    return ret;
+                }
+            }
+        }
 
         T retNewObj;
 
@@ -2921,7 +2983,7 @@ public sealed class HadbObject : INormalizable
 
             string newJson = userData.GetUserDataJsonString();
 
-            if (oldJson._IsSamei(newJson))
+            if (oldJson._IsSame(newJson))
             {
                 // 変更なし
                 return this.UserData._CloneDeep().GetData<T>();

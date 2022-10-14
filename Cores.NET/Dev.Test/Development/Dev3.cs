@@ -1482,7 +1482,7 @@ TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
                         }
                     }
                     return true;
-                });
+                }, true, new HadbFastUpdateOptions {QuotaDurationMsecs = 5000, QuotaMaxFastUpdateCountPerDuration = 3 });
             }
             else
             {
