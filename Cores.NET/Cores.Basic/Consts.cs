@@ -357,7 +357,7 @@ public static partial class Consts
         public const int HadbReloadIntervalMsecsLastOk = 5 * 1000;
         public const int HadbReloadIntervalMsecsLastError = 1 * 1000;
         public const int HadbReloadTimeShiftMarginMsecs = 60 * 1000;
-        public const int HadbFullReloadIntervalMsecs = 10 * 60 * 1000;
+        public const int HadbFullReloadIntervalMsecs = 30 * 60 * 1000;
         public const int HadbLazyUpdateIntervalMsecs = 1 * 1000;
 
         public const int HadbAutomaticSnapshotIntervalMsecs = 12 * 60 * 60 * 1000;
