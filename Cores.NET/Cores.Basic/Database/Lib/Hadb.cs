@@ -422,8 +422,8 @@ public class HadbSqlSettings : HadbSettingsBase
     public IsolationLevel IsolationLevelForRead { get; }
     public IsolationLevel IsolationLevelForWrite { get; }
 
-    public HadbSqlSettings(string systemName, string sqlConnectStringForRead, string sqlConnectStringForWrite, IsolationLevel isoLevelForRead = IsolationLevel.Snapshot, IsolationLevel isoLevelForWrite = IsolationLevel.Serializable, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null, int lazyUpdateParallelQueueCount = Consts.Numbers.HadbDefaultLazyUpdateParallelQueueCount, int commandTimeoutSecs = 0)
-        : base(systemName, optionFlags, backupDataFile, backupDynamicConfigFile, lazyUpdateParallelQueueCount, commandTimeoutSecs)
+    public HadbSqlSettings(string systemName, string sqlConnectStringForRead, string sqlConnectStringForWrite, IsolationLevel isoLevelForRead = IsolationLevel.Snapshot, IsolationLevel isoLevelForWrite = IsolationLevel.Serializable, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null, int lazyUpdateParallelQueueCount = Consts.Numbers.HadbDefaultLazyUpdateParallelQueueCount, int commandTimeoutSecs = 0, int debugMaxFetchItems = 0)
+        : base(systemName, optionFlags, backupDataFile, backupDynamicConfigFile, lazyUpdateParallelQueueCount, commandTimeoutSecs, debugMaxFetchItems)
     {
         this.SqlConnectStringForRead = sqlConnectStringForRead;
         this.SqlConnectStringForWrite = sqlConnectStringForWrite;
@@ -1103,7 +1103,13 @@ public abstract class HadbSqlBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynami
             {
                 var dbParams = new DynamicParameters();
 
-                string sql = "select * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0";
+                string topStr = "";
+                if (this.Settings.DebugMaxFetchItems >= 1)
+                {
+                    topStr = $"top {this.Settings.DebugMaxFetchItems}";
+                }
+
+                string sql = $"select {topStr} * from HADB_DATA where DATA_SYSTEMNAME = @DATA_SYSTEMNAME and DATA_ARCHIVE = 0";
 
                 dbParams.Add("DATA_SYSTEMNAME", this.SystemName);
 
@@ -2416,8 +2422,9 @@ public abstract class HadbSettingsBase // CloneDeep 禁止
     public FilePath BackupDynamicConfigFile { get; }
     public int LazyUpdateParallelQueueCount { get; }
     public int CommandTimeoutSecs { get; }
+    public int DebugMaxFetchItems { get; }
 
-    public HadbSettingsBase(string systemName, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null, int lazyUpdateParallelQueueCount = Consts.Numbers.HadbDefaultLazyUpdateParallelQueueCount, int commandTimeoutSecs = 0)
+    public HadbSettingsBase(string systemName, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null, int lazyUpdateParallelQueueCount = Consts.Numbers.HadbDefaultLazyUpdateParallelQueueCount, int commandTimeoutSecs = 0, int debugMaxFetchItems = 0)
     {
         if (systemName._IsEmpty()) throw new CoresLibException("systemName is empty.");
         this.SystemName = systemName._NonNullTrim().ToUpperInvariant();
@@ -2442,6 +2449,9 @@ public abstract class HadbSettingsBase // CloneDeep 禁止
         this.BackupDynamicConfigFile = backupDynamicConfigFile;
 
         this.CommandTimeoutSecs = (commandTimeoutSecs <= 0 ? CoresConfig.Hadb.DefaultHadbDatabaseCommandTimeoutSecs : commandTimeoutSecs);
+
+        this.DebugMaxFetchItems = debugMaxFetchItems;
+        if (this.DebugMaxFetchItems < 0) this.DebugMaxFetchItems = 0;
     }
 }
 

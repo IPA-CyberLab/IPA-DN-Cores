@@ -91,6 +91,8 @@ public abstract class HadbBasedServiceHiveSettingsBase : INormalizable
     [JsonConverter(typeof(StringEnumConverter))]
     public HadbOptionFlags HadbOptionFlags = HadbOptionFlags.None;
 
+    public int HadbDebugMaxFetchItems = 0;
+
     public string HadbSqlServerHostname = "";
     public int HadbSqlServerPort = 0;
     public int HadbDatabaseCommandTimeoutSecs = 0;
@@ -520,7 +522,8 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
             backupDataFile: s.HadbBackupFilePathOverride._IsFilled() ? new FilePath(s.HadbBackupFilePathOverride) : null,
             backupDynamicConfigFile: s.HadbBackupDynamicConfigFilePathOverride._IsFilled() ? new FilePath(s.HadbBackupDynamicConfigFilePathOverride) : null,
             lazyUpdateParallelQueueCount: s.LazyUpdateParallelQueueCount,
-            commandTimeoutSecs: s.HadbDatabaseCommandTimeoutSecs
+            commandTimeoutSecs: s.HadbDatabaseCommandTimeoutSecs,
+            debugMaxFetchItems: s.HadbDebugMaxFetchItems
             );
 
         return new HadbSys(sqlSettings, CreateInitialDynamicConfigImpl());
