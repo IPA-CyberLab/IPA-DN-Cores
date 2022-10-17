@@ -3781,8 +3781,34 @@ cccadmin
         Con.ReadLine("STOP>");
     }
 
+    static void Test_221017()
+    {
+        string srcDir = @"aaa";
+        string dstDir = @"bbb";
+
+        var srcFiles = Lfs.EnumDirectory(srcDir).Where(x => x.IsFile).Where(x => PP.GetExtension(x.Name)._IsSamei(".png")).OrderBy(x => x.Name, StrCmpi);
+
+        foreach (var src in srcFiles)
+        {
+            var tokens = src.Name._Split(StringSplitOptions.None, "-");
+            if (tokens.Length >= 7)
+            {
+                string tmp = tokens.Take(7)._Combine("-") + ".png";
+
+                Con.WriteLine(tmp);
+
+                Lfs.CopyFile(src.FullPath, dstDir._CombinePath(tmp), new CopyFileParams(flags: FileFlags.AutoCreateDirectory));
+            }
+        }
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_221017();
+            return;
+        }
 
         if (true)
         {
