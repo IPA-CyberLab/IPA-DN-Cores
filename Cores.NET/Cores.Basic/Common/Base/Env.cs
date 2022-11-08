@@ -94,6 +94,7 @@ public class EnvInfoSnapshot
     public string CpuInfoStr = Env.CpuInfo.ToString();
     public string FrameworkInfoString = Env.FrameworkInfoString;
     public string OsInfoString = Env.OsInfoString;
+    public string SslLibInfoString = Env.SslLibInfoStr;
     public bool IsCoresLibraryDebugBuild = Env.IsCoresLibraryDebugBuild;
     public bool IsHostedByDotNetProcess = Env.IsHostedByDotNetProcess;
     public string DotNetHostProcessExeName = Env.DotNetHostProcessExeName;
@@ -109,6 +110,13 @@ public class EnvInfoSnapshot
     public bool IsOnGitHubActions = Env.IsOnGitHubActions;
     public string GitCoresLibCommitId = Env.GitCoresLibCommitId;
     public string GitAppCommitId = Env.GitAppCommitId;
+}
+
+[Flags]
+public enum SslLibFamily
+{
+    OpenSSL = 0,
+    Win32_Schannel,
 }
 
 [Flags]
@@ -135,8 +143,10 @@ public enum WindowsFamily : long
     Windows10_20H2 = 19042,
     Windows10_21H1 = 19043,
     Windows10_21H2 = 19044,
+    Windows10_22H2 = 19045,
     WindowsServer2022 = 20348,
     Windows11_21H2 = 22000,
+    Windows11_22H2 = 22621,
 }
 
 public static class EnvFastOsInfo
@@ -213,6 +223,9 @@ public static class Env
     public static string CommandLine { get; private set; }
     public static OperatingSystem OsInfo { get; }
     public static WindowsFamily WindowsFamily { get; }
+    public static SslLibFamily SslLibFamily { get; }
+    public static string SslLibVersion { get; }
+    public static string SslLibInfoStr => (SslLibFamily.ToString() + " " + SslLibVersion).Trim();
     public static bool IsWindows { get; }
     public static bool IsUnix => !IsWindows;
     public static bool IsMac { get; }
@@ -252,7 +265,7 @@ public static class Env
     public static bool IsWow64 => Kernel.InternalCheckIsWow64();
 
     public static Architecture CpuInfo { get; } = RuntimeInformation.ProcessArchitecture;
-    public static string FrameworkInfoString = RuntimeInformation.FrameworkDescription.Trim();
+    public static string FrameworkInfoString => RuntimeInformation.FrameworkDescription.Trim() + " with " + SslLibInfoStr;
     public static string OsInfoString = RuntimeInformation.OSDescription.Trim();
 
     public static string DnsHostName { get; }
@@ -302,6 +315,25 @@ public static class Env
             UnixApi.InitUnixLimitsValue(IsMac, (IntPtr.Size == 8));
         }
         WindowsFamily = EnvFastOsInfo.WindowsFamily;
+
+        // SSL ライブラリのバージョン番号の取得の試行
+        long openSslVersion = 0;
+        try
+        {
+            openSslVersion = UnixApi.OpenSslVersionNumber();
+        }
+        catch { }
+
+        if (openSslVersion == 0)
+        {
+            SslLibFamily = SslLibFamily.Win32_Schannel;
+            SslLibVersion = "";
+        }
+        else
+        {
+            SslLibFamily = SslLibFamily.OpenSSL;
+            SslLibVersion = GenerateOpenSslVerStrFromNumber(openSslVersion);
+        }
 
         IsOnGitHubActions = Environment.GetEnvironmentVariable("GITHUB_WORKFLOW")._IsFilled();
 
@@ -606,6 +638,30 @@ public static class Env
 
         GitCoresLibCommitId = Dbg.GetCurrentCoresLibGitCommitId();
         GitAppCommitId = Dbg.GetCurrentGitCommitId();
+    }
+
+    public static string GenerateOpenSslVerStrFromNumber(long ver)
+    {
+        uint verint = (uint)ver;
+
+        uint ver_major = (verint >> 28) & 0x0F;
+        uint ver_minor = (verint >> 20) & 0xFF;
+        uint ver_fix = (verint >> 12) & 0xFF;
+        uint ver_patch = (verint >> 4) & 0xFF;
+
+        if (ver_major >= 3)
+        {
+            return $"{ver_major}.{ver_minor}.{ver_patch}";
+        }
+        else
+        {
+            char c = ' ';
+            if (ver_patch >= 1)
+            {
+                c = (char)('a' + (ver_patch - 1));
+            }
+            return $"{ver_major}.{ver_minor}.{ver_fix}{c}".Trim();
+        }
     }
 
     public static string MyLocalTempDir => CoresLocalDirs.MyLocalTempDir;

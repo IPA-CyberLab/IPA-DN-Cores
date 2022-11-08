@@ -3806,9 +3806,9 @@ cccadmin
     {
         if (true)
         {
-            long ver = UnixApi.OpenSslVersionNumber();
-
-            ver.ToString("X")._Print();
+            Env.SslLibInfoStr._Print();
+            Env.FrameworkInfoString._Print();
+            Env.OsInfoString._Print();
             return;
         }
 
