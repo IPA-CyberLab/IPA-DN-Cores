@@ -3806,6 +3806,14 @@ cccadmin
     {
         if (true)
         {
+            long ver = UnixApi.OpenSslVersionNumber();
+
+            ver.ToString("X")._Print();
+            return;
+        }
+
+        if (true)
+        {
             Test_221017();
             return;
         }

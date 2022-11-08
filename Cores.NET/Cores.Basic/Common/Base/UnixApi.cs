@@ -103,6 +103,7 @@ public static class UnixApi
     static class Libraries
     {
         public const string SystemNative = "libSystem.Native";
+        public const string CryptoNative_OpenSsl = "libSystem.Security.Cryptography.Native.OpenSsl";
     }
 
     public enum Signals : int
@@ -134,6 +135,9 @@ public static class UnixApi
         O_TRUNC = 0x0080,
         O_SYNC = 0x0100,
     }
+
+    [DllImport(Libraries.CryptoNative_OpenSsl, EntryPoint = "CryptoNative_OpenSslVersionNumber")]
+    public static extern long OpenSslVersionNumber();
 
     [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_ChMod", SetLastError = true)]
     internal static extern int ChMod(string path, int mode);
