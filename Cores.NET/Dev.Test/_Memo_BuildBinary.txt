@@ -12,6 +12,20 @@ C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bld\win-x64\
 
 
 
+■ Win32 - arm64
+
+cd /d C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\
+
+dotnet clean -c Release
+
+dotnet publish -c Release -r win-arm64 -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:IncludeNativeLibrariesForSelfExtract=true --self-contained -o bld\win-arm64\Dev.Test
+
+---
+C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bld\win-arm64\
+に生成される
+
+
+
 
 
 
