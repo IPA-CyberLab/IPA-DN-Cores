@@ -32,6 +32,7 @@
 
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.IO.Enumeration;
 using System.Threading;
 using System.Threading.Tasks;
@@ -75,7 +76,7 @@ partial class TestDevCommands
 
         return 0;
     }
-    
+
     [ConsoleCommand(
         "WriteLargeRandFile command",
         "WriteLargeRandFile <path> /SIZE:<size> [/COUNT:<count=1>]",
@@ -143,7 +144,7 @@ partial class TestDevCommands
 
                     if (targetOneFileSize <= initialFileSize)
                     {
-                        Con.WriteLine($"{fn}: Data already exists. CurrentSize: { initialFileSize._ToString3()} bytes");
+                        Con.WriteLine($"{fn}: Data already exists. CurrentSize: {initialFileSize._ToString3()} bytes");
                         estimatedRemainSize -= targetOneFileSize;
                         reporter.ReportProgress(new ProgressData(initialTotalSize - estimatedRemainSize, initialTotalSize, additionalInfo: fn));
                         return;
@@ -974,6 +975,7 @@ partial class TestDevCommands
                 new ConsoleParam("[diskName]", ConsoleService.Prompt, "Physical disk name: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("dst", ConsoleService.Prompt, "Destination file name: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("truncate"),
+                new ConsoleParam("gzip"),
             };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
@@ -981,6 +983,7 @@ partial class TestDevCommands
         string diskName = vl.DefaultParam.StrValue;
         string dstFileName = vl["dst"].StrValue;
         long truncate = vl["truncate"].StrValue._ToLong();
+        bool gzip = vl["gzip"].BoolValue;
         if (truncate <= 0)
         {
             truncate = -1;
@@ -990,15 +993,44 @@ partial class TestDevCommands
             truncate = (truncate + 4095L) / 4096L * 4096L;
         }
 
-        using (var rawFs = new LocalRawDiskFileSystem())
+        if (gzip == false)
         {
-            using (var disk = rawFs.Open($"/{diskName}"))
+            // Plain
+            using (var rawFs = new LocalRawDiskFileSystem())
             {
-                using (var file = Lfs.Create(dstFileName, flags: FileFlags.AutoCreateDirectory))
+                using (var disk = rawFs.Open($"/{diskName}"))
                 {
-                    using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
+                    using (var file = Lfs.Create(dstFileName, flags: FileFlags.AutoCreateDirectory))
                     {
-                        FileUtil.CopyBetweenFileBaseAsync(disk, file, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024), reporter: reporter)._GetResult();
+                        using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
+                        {
+                            FileUtil.CopyBetweenFileBaseAsync(disk, file, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024), reporter: reporter)._GetResult();
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Gzip
+            using (var rawFs = new LocalRawDiskFileSystem())
+            {
+                using (var disk = rawFs.Open($"/{diskName}"))
+                {
+                    using var diskStream = disk.GetStream(true);
+
+                    using (var file = Lfs.Create(dstFileName, flags: FileFlags.AutoCreateDirectory))
+                    {
+                        using var fileStream = file.GetStream(true);
+                        using var gzipStream = new GZipStream(fileStream, CompressionLevel.Fastest, false);
+
+                        using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
+                        {
+                            FileUtil.CopyBetweenStreamAsync(diskStream, gzipStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024), reporter: reporter)._GetResult();
+                        }
+
+                        gzipStream.Flush();
+                        fileStream.Flush();
                     }
                 }
             }
@@ -1016,10 +1048,10 @@ partial class TestDevCommands
     {
         ConsoleParam[] args =
         {
-                new ConsoleParam("[diskName]", ConsoleService.Prompt, "Physical disk name: ", ConsoleService.EvalNotEmpty, null),
-                new ConsoleParam("src", ConsoleService.Prompt, "Source file name: ", ConsoleService.EvalNotEmpty, null),
-                new ConsoleParam("truncate"),
-            };
+            new ConsoleParam("[diskName]", ConsoleService.Prompt, "Physical disk name: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("src", ConsoleService.Prompt, "Source file name: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("truncate"),
+        };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
@@ -1039,13 +1071,50 @@ partial class TestDevCommands
         {
             using (var disk = rawFs.Open($"/{diskName}", writeMode: true))
             {
-                using (var file = Lfs.Open(dstFileName, flags: FileFlags.AutoCreateDirectory))
+                bool isGZip = false;
+
+                Con.WriteLine("Determining the source file format...");
+
+                using (var file = Lfs.Open(dstFileName))
                 {
-                    using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
+                    using var fileStream = file.GetStream(true);
+
+                    isGZip = IPA.Cores.Basic.Legacy.GZipUtil.IsGZipStreamAsync(fileStream)._GetResult();
+                }
+
+                Con.WriteLine($"isGZip = {0}", isGZip._ToBoolStrLower());
+
+                if (isGZip == false)
+                {
+                    // Plain
+                    using (var file = Lfs.Open(dstFileName))
                     {
-                        FileUtil.CopyBetweenFileBaseAsync(file, disk, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024), reporter: reporter)._GetResult();
+                        using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
+                        {
+                            FileUtil.CopyBetweenFileBaseAsync(file, disk, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024), reporter: reporter)._GetResult();
+                        }
                     }
                 }
+                else
+                {
+                    // GZip
+                    using (var file = Lfs.Open(dstFileName))
+                    {
+                        using var fileStream = file.GetStream(true);
+                        using var gzipStream = new GZipStream(fileStream, CompressionMode.Decompress, false);
+
+                        using var diskStream = disk.GetStream(true);
+
+                        using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
+                        {
+                            FileUtil.CopyBetweenStreamAsync(gzipStream, diskStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024), reporter: reporter)._GetResult();
+                        }
+
+                        diskStream.Flush();
+                    }
+                }
+
+                disk.Flush();
             }
         }
 

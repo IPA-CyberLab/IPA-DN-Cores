@@ -3802,8 +3802,27 @@ cccadmin
         }
     }
 
+    static void Test_221116()
+    {
+        var fn = @"C:\Downloads\221115_Win11_Pro_ARM64_22H2_Win11DevKit_PreInstalled_Shrink.img.gz";
+
+        using var f = Lfs.Open(fn);
+
+        using var s = f.GetStream();
+
+        IPA.Cores.Basic.Legacy.GZipUtil.IsGZipStreamAsync(s)._GetResult()._Print();
+
+        s._Read(8)._GetHexString(" ")._Print();
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_221116();
+            return;
+        }
+
         if (true)
         {
             Env.SslLibInfoStr._Print();

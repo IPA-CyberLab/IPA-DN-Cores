@@ -33,6 +33,8 @@
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 
 using IPA.Cores.Basic;
@@ -87,6 +89,41 @@ public static class GZipUtil
         GZipPacker p = new GZipPacker();
         p.Write(data, 0, data.Length, true);
         return p.GeneratedData.Read();
+    }
+
+    public static bool IsGZipHeader(in GZipHeader header)
+    {
+        return (header.ID1 == 0x1f && header.ID2 == 0x8b && header.CM == 0x08);
+    }
+
+    public static async Task<bool> IsGZipStreamAsync(Stream st, CancellationToken cancel=default)
+    {
+        if (st.CanSeek == false)
+        {
+            throw new CoresLibException("Stream cannot seek");
+        }
+
+        long position = st.Position;
+
+        try
+        {
+            int size = Util.SizeOfStruct<GZipHeader>();
+            Memory<byte> buf = new byte[size];
+
+            int readSize = await st.ReadAsync(buf, cancel);
+            if (readSize < size)
+            {
+                return false;
+            }
+
+            var header = buf._AsStructSafe<GZipHeader>();
+
+            return IsGZipHeader(in header);
+        }
+        finally
+        {
+            st.Seek(position, SeekOrigin.Begin);
+        }
     }
 }
 
