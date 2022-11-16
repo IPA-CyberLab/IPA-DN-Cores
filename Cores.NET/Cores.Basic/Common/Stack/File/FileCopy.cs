@@ -229,6 +229,7 @@ public class CopyFileParams
     public EncryptOption EncryptOption { get; }
     public string EncryptPassword { get; }
     public bool DeleteFileIfVerifyFailed { get; }
+    public bool EnsureBufferSize { get; }
 
     public ProgressReporterFactoryBase ProgressReporterFactory { get; }
 
@@ -239,7 +240,7 @@ public class CopyFileParams
     public CopyFileParams(bool overwrite = true, FileFlags flags = FileFlags.None, FileMetadataCopier? metadataCopier = null, int bufferSize = 0, bool asyncCopy = true,
         bool ignoreReadError = false, int ignoreReadErrorSectorSize = 0,
         ProgressReporterFactoryBase? reporterFactory = null, EncryptOption encryptOption = EncryptOption.None, string encryptPassword = "",
-        bool deleteFileIfVerifyFailed = false)
+        bool deleteFileIfVerifyFailed = false, bool ensureBufferSize = false)
     {
         if (metadataCopier == null) metadataCopier = DefaultFileMetadataCopier;
         if (bufferSize <= 0) bufferSize = CoresConfig.FileUtilSettings.FileCopyBufferSize;
@@ -258,6 +259,7 @@ public class CopyFileParams
         this.EncryptOption = encryptOption;
         this.EncryptPassword = encryptPassword._NonNull();
         this.DeleteFileIfVerifyFailed = deleteFileIfVerifyFailed;
+        this.EnsureBufferSize = ensureBufferSize;
     }
 }
 
@@ -1172,7 +1174,19 @@ public static partial class FileUtil
         if (reporter == null) reporter = new NullProgressReporter(null);
         if (readErrorIgnored == null) readErrorIgnored = new RefBool();
         if (srcZipCrc == null) srcZipCrc = new Ref<uint>();
-        if (estimatedSize < 0) estimatedSize = src.Length;
+
+        if (estimatedSize < 0)
+        {
+            try
+            {
+                estimatedSize = src.Length;
+            }
+            catch
+            {
+                // Gzip 等の圧縮ストリーム等でサイズ取得に失敗するものも存在する
+                estimatedSize = -1;
+            }
+        }
 
         if (truncateSize >= 0)
         {
@@ -1209,7 +1223,15 @@ public static partial class FileUtil
                             if (remainSize == 0) break;
                         }
 
-                        int readSize = await src.ReadAsync(thisTimeBuffer, cancel);
+                        int readSize;
+                        if (param.EnsureBufferSize == false)
+                        {
+                            readSize = await src.ReadAsync(thisTimeBuffer, cancel);
+                        }
+                        else
+                        {
+                            readSize = await src._ReadAllAsync(thisTimeBuffer, cancel, true);
+                        }
 
                         Debug.Assert(readSize <= thisTimeBuffer.Length);
 
@@ -1261,7 +1283,15 @@ public static partial class FileUtil
                                 }
                             }
 
-                            int readSize = await src.ReadAsync(thisTimeBuffer, cancel);
+                            int readSize;
+                            if (param.EnsureBufferSize == false)
+                            {
+                                readSize = await src.ReadAsync(thisTimeBuffer, cancel);
+                            }
+                            else
+                            {
+                                readSize = await src._ReadAllAsync(thisTimeBuffer, cancel, true);
+                            }
 
                             Debug.Assert(readSize <= buffer.Length);
 

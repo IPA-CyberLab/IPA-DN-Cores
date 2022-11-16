@@ -1348,35 +1348,50 @@ public static class BasicHelper
         return buffer.Memory;
     }
 
-    public static async Task<Memory<byte>> _ReadAllAsync(this Stream stream, int size, CancellationToken cancel = default)
+    public static async Task<Memory<byte>> _ReadAllAsync(this Stream stream, int size, CancellationToken cancel = default, bool allowPartial = false)
     {
         if (stream is PipeStream ps)
         {
+            if (allowPartial) throw new CoresLibException("allowPartial is not allowed");
             return await ps.ReceiveAllAsync(size, cancel);
         }
         Memory<byte> tmp = MemoryHelper.FastAllocMemory<byte>(size);
-        await _ReadAllAsync(stream, tmp, cancel);
+        await _ReadAllAsync(stream, tmp, cancel, allowPartial);
         return tmp;
     }
 
-    public static async Task _ReadAllAsync(this Stream stream, Memory<byte> buffer, CancellationToken cancel = default)
+    public static async Task<int> _ReadAllAsync(this Stream stream, Memory<byte> buffer, CancellationToken cancel = default, bool allowPartial = false)
     {
         if (stream is PipeStream ps)
         {
+            if (allowPartial) throw new CoresLibException("allowPartial is not allowed");
             await ps.ReceiveAllAsync(buffer, cancel);
-            return;
+            return buffer.Length;
         }
 
-        if (buffer.Length == 0) return;
+        if (buffer.Length == 0) return 0;
         int currentReadSize = 0;
 
         while (currentReadSize != buffer.Length)
         {
             int sz = await stream.ReadAsync(buffer.Slice(currentReadSize, buffer.Length - currentReadSize), cancel);
-            if (sz == 0) throw new DisconnectedException();
+
+            if (sz == 0)
+            {
+                if (allowPartial == false)
+                {
+                    throw new DisconnectedException();
+                }
+                else
+                {
+                    break;
+                }
+            }
 
             currentReadSize += sz;
         }
+
+        return currentReadSize;
     }
 
     public static async Task<Memory<byte>> _ReadAsyncWithTimeout(this Stream stream, int maxSize = 65536, int? timeout = null, bool readAll = false, bool allowEof = false, CancellationToken cancel = default)

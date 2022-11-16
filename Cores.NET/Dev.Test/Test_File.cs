@@ -1004,7 +1004,7 @@ partial class TestDevCommands
                     {
                         using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
                         {
-                            FileUtil.CopyBetweenFileBaseAsync(disk, file, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024), reporter: reporter)._GetResult();
+                            FileUtil.CopyBetweenFileBaseAsync(disk, file, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true), reporter: reporter)._GetResult();
                         }
                     }
                 }
@@ -1026,11 +1026,13 @@ partial class TestDevCommands
 
                         using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
                         {
-                            FileUtil.CopyBetweenStreamAsync(diskStream, gzipStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024), reporter: reporter)._GetResult();
-                        }
+                            FileUtil.CopyBetweenStreamAsync(diskStream, gzipStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true), reporter: reporter)._GetResult();
 
-                        gzipStream.Flush();
-                        fileStream.Flush();
+                            gzipStream.Flush();
+                            fileStream.Flush();
+
+                            gzipStream.Close();
+                        }
                     }
                 }
             }
@@ -1082,7 +1084,7 @@ partial class TestDevCommands
                     isGZip = IPA.Cores.Basic.Legacy.GZipUtil.IsGZipStreamAsync(fileStream)._GetResult();
                 }
 
-                Con.WriteLine($"isGZip = {0}", isGZip._ToBoolStrLower());
+                Con.WriteLine($"isGZip = {isGZip._ToBoolStrLower()}");
 
                 if (isGZip == false)
                 {
@@ -1091,7 +1093,9 @@ partial class TestDevCommands
                     {
                         using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
                         {
-                            FileUtil.CopyBetweenFileBaseAsync(file, disk, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024), reporter: reporter)._GetResult();
+                            FileUtil.CopyBetweenFileBaseAsync(file, disk, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true), reporter: reporter)._GetResult();
+
+                            disk.Flush();
                         }
                     }
                 }
@@ -1107,14 +1111,13 @@ partial class TestDevCommands
 
                         using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
                         {
-                            FileUtil.CopyBetweenStreamAsync(gzipStream, diskStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024), reporter: reporter)._GetResult();
-                        }
+                            FileUtil.CopyBetweenStreamAsync(gzipStream, diskStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true), reporter: reporter)._GetResult();
 
-                        diskStream.Flush();
+                            diskStream.Flush();
+                            disk.Flush();
+                        }
                     }
                 }
-
-                disk.Flush();
             }
         }
 

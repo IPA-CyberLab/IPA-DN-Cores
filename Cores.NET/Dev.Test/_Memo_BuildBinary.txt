@@ -7,7 +7,7 @@ dotnet clean -c Release
 dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:IncludeNativeLibrariesForSelfExtract=true --self-contained -o bld\win-x64\Dev.Test
 
 ---
-C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bld\win-x64\
+C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bld\win-x64\Dev.Test\
 に生成される
 
 
@@ -21,7 +21,7 @@ dotnet clean -c Release
 dotnet publish -c Release -r win-arm64 -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:IncludeNativeLibrariesForSelfExtract=true --self-contained -o bld\win-arm64\Dev.Test
 
 ---
-C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bld\win-arm64\
+C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bld\win-arm64\Dev.Test\
 に生成される
 
 
