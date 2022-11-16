@@ -18,7 +18,7 @@ jobs:
         # これが原因で SslSelfTest の TLS 1.0, TLS 1.1 系 + 一部のアルゴリズムのテストが失敗してしまうようである。
         # "Enable TLS 1.0 and 1.1 (disabled since windows-2022 GitHub custom images) " のレジストリ変更を実装したが、
         # Windows の再起動が必要なようであり、GitHub Actions ではうまく利用できなかった。
-        operating-system: [ubuntu-latest, windows-latest, macos-latest]
+        operating-system: [ubuntu-latest, windows-latest]
         dotnet-version: ["6.0"]
 
     steps:
