@@ -1124,6 +1124,55 @@ partial class TestDevCommands
         return 0;
     }
 
+    // Zero Clear Physical Disk
+    [ConsoleCommand(
+        "RawDiskZeroClear command",
+        "RawDiskZeroClear [diskName] [/size:size]",
+        "RawDiskZeroClear command")]
+    static int RawDiskZeroClear(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+            new ConsoleParam("[diskName]", ConsoleService.Prompt, "Physical disk name: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("size"),
+        };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string diskName = vl.DefaultParam.StrValue;
+        long size = vl["size"].StrValue._ToLong();
+        if (size <= 0)
+        {
+            size = -1;
+        }
+        else
+        {
+            size = (size + 4095L) / 4096L * 4096L;
+        }
+
+        using (var rawFs = new LocalRawDiskFileSystem())
+        {
+            using (var disk = rawFs.Open($"/{diskName}", writeMode: true))
+            {
+                long diskSize = disk.GetFileSize();
+
+                if (size < 0) size = diskSize;
+
+                size = Math.Min(size, diskSize);
+
+                // Plain
+                using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
+                {
+                    FileUtil.EraseFileBaseAsync(disk, totalSize: size, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true), reporter: reporter)._GetResult();
+
+                    disk.Flush();
+                }
+            }
+        }
+
+        return 0;
+    }
+
     // Enum Physical Disks
     [ConsoleCommand(
         "RawDiskEnum command",

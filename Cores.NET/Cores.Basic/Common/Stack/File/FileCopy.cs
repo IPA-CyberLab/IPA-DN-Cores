@@ -584,7 +584,7 @@ public static partial class FileUtil
                     if (param.CopyDirFlags.Bit(CopyDirectoryFlags.DeleteNotExistDirs))
                     {
                         // src に存在せず dest に存在するディレクトリをすべて削除する
-                        var srcDirsSet = new HashSet<string>(entries.Where(e=>e.IsDirectory && e.IsCurrentOrParentDirectory == false).Select(e=>e.Name), destFileSystem.PathParser.PathStringComparer);
+                        var srcDirsSet = new HashSet<string>(entries.Where(e => e.IsDirectory && e.IsCurrentOrParentDirectory == false).Select(e => e.Name), destFileSystem.PathParser.PathStringComparer);
 
                         var notExistDirs = filesAndDirsInDestDir.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false && srcDirsSet.Contains(x.Name) == false);
 
@@ -979,6 +979,57 @@ public static partial class FileUtil
         }
 
         return srcCrc.Value;
+    }
+
+    public static async Task<long> EraseFileBaseAsync(FileBase dest, CopyFileParams? param = null, ProgressReporterBase? reporter = null,
+        long totalSize = -1, CancellationToken cancel = default, RefBool? readErrorIgnored = null, Ref<uint>? srcZipCrc = null)
+    {
+        if (param == null) param = new CopyFileParams();
+        if (reporter == null) reporter = new NullProgressReporter(null);
+        if (readErrorIgnored == null) readErrorIgnored = new RefBool();
+        if (srcZipCrc == null) srcZipCrc = new Ref<uint>();
+
+        long destSize = dest.Size;
+
+        if (totalSize < 0) totalSize = destSize;
+
+        totalSize = Math.Min(totalSize, destSize);
+
+        ZipCrc32 srcCrc = new ZipCrc32();
+
+        readErrorIgnored.Set(false);
+
+        checked
+        {
+            long currentPosition = 0;
+
+            using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer))
+            {
+                while (true)
+                {
+                    Memory<byte> thisTimeBuffer = buffer;
+
+                    // Truncate
+                    long remainSize = Math.Max(totalSize - currentPosition, 0);
+
+                    if (thisTimeBuffer.Length > remainSize)
+                    {
+                        thisTimeBuffer = thisTimeBuffer.Slice(0, (int)remainSize);
+                    }
+
+                    if (remainSize == 0) break;
+
+                    await dest.WriteAsync(thisTimeBuffer, cancel);
+
+                    currentPosition += thisTimeBuffer.Length;
+                    reporter.ReportProgress(new ProgressData(currentPosition, totalSize));
+                }
+            }
+
+            srcZipCrc.Set(srcCrc.Value);
+
+            return currentPosition;
+        }
     }
 
     public static async Task<long> CopyBetweenFileBaseAsync(FileBase src, FileBase dest, CopyFileParams? param = null, ProgressReporterBase? reporter = null,
