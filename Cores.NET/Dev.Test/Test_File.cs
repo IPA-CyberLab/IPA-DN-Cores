@@ -1138,7 +1138,7 @@ partial class TestDevCommands
         };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
-
+        
         string diskName = vl.DefaultParam.StrValue;
         long size = vl["size"].StrValue._ToLong();
         if (size <= 0)

@@ -180,6 +180,40 @@ partial class TestDevCommands
     }
 
     [ConsoleCommand(
+    "指定された URL のファイルをダウンロードする",
+    "DownloadFile [url] [/dest:dir] [/ext:tar.gz,zip,exe,...]",
+    "指定された URL (のテキストファイル) をダウンロードし、その URL に記載されているすべてのファイルをダウンロードする")]
+    static int DownloadFile(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+                new ConsoleParam("[url]", ConsoleService.Prompt, "Input URL: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("dest", ConsoleService.Prompt, "Input dest file name: ", ConsoleService.EvalNotEmpty, null),
+            };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string url = vl.DefaultParam.StrValue;
+
+        string destFileName = vl["dest"].StrValue;
+
+        Async(async () =>
+        {
+            var option = new FileDownloadOption();
+            var reporterFactory = new ProgressFileDownloadingReporterFactory(ProgressReporterOutputs.ConsoleAndDebug, options: ProgressReporterOptions.EnableThroughput | ProgressReporterOptions.ShowThroughputBps);
+
+            using var reporter = reporterFactory.CreateNewReporter(destFileName);
+
+            await using var file = await Lfs.CreateAsync(destFileName, false, FileFlags.AutoCreateDirectory);
+            await using var fileStream = file.GetStream();
+
+            await FileDownloader.DownloadFileParallelAsync(url, fileStream, option, progressReporter: reporter);
+        });
+
+        return 0;
+    }
+
+    [ConsoleCommand(
         "SslCertListCollector command",
         "SslCertListCollector [dnsZonesDir] [/OUT:outDir]",
         "SslCertListCollector command")]
