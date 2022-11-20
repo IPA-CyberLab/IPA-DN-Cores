@@ -1220,14 +1220,26 @@ public static class FileDownloader
         if (option == null) option = new FileDownloadOption();
         if (reporterFactory == null) reporterFactory = new NullReporterFactory();
 
-        // ファイル一覧のファイルをダウンロードする
-        using var web = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true }));
+        string body;
+
+        if (urlListedFileUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            urlListedFileUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            // ファイル一覧のファイルをダウンロードする
+            using var web = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true }));
+
+            var urlFileBody = await web.SimpleQueryAsync(WebMethods.GET, urlListedFileUrl, cancel);
+            body = urlFileBody.Data._GetString_UTF8();
+        }
+        else
+        {
+            // ローカルのテキストファイルを読み込む
+            body = Lfs.ReadStringFromFile(urlListedFileUrl);
+        }
+
+        int currentPos = 0;
 
         List<string> fileUrlList = new List<string>();
-
-        var urlFileBody = await web.SimpleQueryAsync(WebMethods.GET, urlListedFileUrl, cancel);
-        string body = urlFileBody.Data._GetString_UTF8();
-        int currentPos = 0;
 
         while (true)
         {
