@@ -290,7 +290,7 @@ public class ThinControllerSessionClientInfo
     {
         if (this.ClientIpFqdn != this.ClientIp) return;
 
-        this.ClientIpFqdn = await resolver.GetHostNameSingleOrIpAsync(this.ClientIp, cancel);
+        this.ClientIpFqdn = await resolver.GetHostNameOrIpAsync(this.ClientIp, cancel);
     }
 
     public async Task SetAuthedAsync(ThinControllerSession session, ThinDbMachine machine, CancellationToken cancel)
@@ -781,7 +781,7 @@ public class ThinControllerSession : IDisposable, IAsyncDisposable
             return NewWpcResult(VpnError.ERR_TEMP_ERROR);
         }
 
-        string fqdn = await Controller.DnsResolver.GetHostNameSingleOrIpAsync(this.ClientInfo.ClientIp, cancel);
+        string fqdn = await Controller.DnsResolver.GetHostNameOrIpAsync(this.ClientInfo.ClientIp, cancel);
         string machineName = q["MachineName"].StrValueNonNull;
         string computerName = q["ComputerName"].StrValueNonNull;
         string userName = q["UserName"].StrValueNonNull;
