@@ -424,7 +424,7 @@ public class ThinWebClientController : Controller
 
                 var clientIp = Request.HttpContext.Connection.RemoteIpAddress._UnmapIPv4()!;
                 var clientPort = Request.HttpContext.Connection.RemotePort;
-                string clientFqdn = await Client.DnsResolver.GetHostNameSingleOrIpAsync(clientIp);
+                string clientFqdn = await Client.DnsResolver.GetHostNameOrIpAsync(clientIp);
 
                 // Rate limit
                 if (this.Client.RateLimit.TryInput(clientIp.ToString(), out _) == false)
