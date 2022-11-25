@@ -70,10 +70,16 @@ public static partial class DevTools
     static readonly Singleton<PalX509Certificate> TestSampleCert_Singleton = new Singleton<PalX509Certificate>(() => new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert/SampleDefaultCert.p12")));
     public static PalX509Certificate TestSampleCert => TestSampleCert_Singleton;
 
-    // デバッグ用 CA
+    // デバッグ用 CA (旧)
     // SHA256: D9413D2F2E278BCDB277CD9321E5B9F0CB5EC468AF645C3EFD4942F9238FCE8F
     static readonly Singleton<PalX509Certificate> CoresDebugCACert_Singleton = new Singleton<PalX509Certificate>(() => new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert/190804CoresDebugCA.p12")));
+    [Obsolete("Please use " + nameof(CoresDebugCACert_20221125))]
     public static PalX509Certificate CoresDebugCACert => CoresDebugCACert_Singleton;
+    
+    // デバッグ用 CA (新)
+    // SHA256: 61C9901598E38228EC02B3DCC7A4BF9FE2BE610EC7FC0DA2E87898E69C6E797D
+    static readonly Singleton<PalX509Certificate> CoresDebugCACert_20221125_Singleton = new Singleton<PalX509Certificate>(() => new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert/221125CoresDebugCA_20221125.p12")));
+    public static PalX509Certificate CoresDebugCACert_20221125 => CoresDebugCACert_20221125_Singleton;
 
     // .h ファイルの定数一覧を読み込む
     public static Dictionary<string, int> ParseHeaderConstants(string body)

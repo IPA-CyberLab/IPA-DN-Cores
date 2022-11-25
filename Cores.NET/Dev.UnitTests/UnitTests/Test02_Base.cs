@@ -176,7 +176,7 @@ public class Test02_Base : IClassFixture<CoresLibUnitTestFixtureInstance>
     {
         Secure.CreateSslCreateCertificateContextWithFullChain(
             DevTools.TestSampleCert,
-            new System.Security.Cryptography.X509Certificates.X509Certificate2Collection(DevTools.CoresDebugCACert.NativeCertificate2._SingleArray()),
+            new System.Security.Cryptography.X509Certificates.X509Certificate2Collection(DevTools.CoresDebugCACert_20221125.NativeCertificate2._SingleArray()),
             offline: true,
             errorWhenFailed: true);
     }

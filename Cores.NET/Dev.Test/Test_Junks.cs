@@ -1366,7 +1366,7 @@ partial class TestDevCommands
 
         PkiUtil.GenerateRsaKeyPair(2048, out PrivKey newKey, out _);
 
-        Certificate newCert = new Certificate(newKey, new CertificateOptions(PkiAlgorithm.RSA, cn: cn.Trim(), c: "JP"));
+        Certificate newCert = new Certificate(newKey, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, cn: cn.Trim(), c: "JP"));
         CertificateStore newCertStore = new CertificateStore(newCert, newKey);
 
         newCertStore.ExportPkcs12()._Save(path, FileFlags.AutoCreateDirectory);
@@ -1393,7 +1393,7 @@ partial class TestDevCommands
 
         PkiUtil.GenerateRsaKeyPair(2048, out PrivKey newKey, out _);
 
-        Certificate newCert = new Certificate(newKey, DevTools.CoresDebugCACert.PkiCertificateStore, new CertificateOptions(PkiAlgorithm.RSA, cn: cn.Trim(), c: "JP"));
+        Certificate newCert = new Certificate(newKey, DevTools.CoresDebugCACert_20221125.PkiCertificateStore, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn: cn.Trim(), c: "JP"));
         CertificateStore newCertStore = new CertificateStore(newCert, newKey);
 
         newCertStore.ExportPkcs12()._Save(path, FileFlags.AutoCreateDirectory);

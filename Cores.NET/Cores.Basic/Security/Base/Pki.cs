@@ -66,6 +66,7 @@ using System.Collections.Generic;
 using Org.BouncyCastle.Utilities.Encoders;
 using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Crypto.Signers;
+using Org.BouncyCastle.X509.Extension;
 
 namespace IPA.Cores.Basic
 {
@@ -804,6 +805,13 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
         }
     }
 
+    [Flags]
+    public enum CertificateOptionsType
+    {
+        RootCertiticate = 0,
+        ServerCertificate,
+    }
+
     public class CertificateOptions
     {
         public string CN;
@@ -822,7 +830,7 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
         public int KeyUsages;
         public KeyPurposeID[] ExtendedKeyUsages;
 
-        public CertificateOptions(PkiAlgorithm algorithm, string? cn = null, string? o = null, string? ou = null, string? c = null,
+        public CertificateOptions(PkiAlgorithm algorithm, CertificateOptionsType type, string ? cn = null, string? o = null, string? ou = null, string? c = null,
             string? st = null, string? l = null, string? e = null,
             Memory<byte> serial = default, DateTimeOffset? expires = null, string[]? subjectAltNames = null, PkiShaSize shaSize = PkiShaSize.SHA256,
             int keyUsages = 0, KeyPurposeID[]? extendedKeyUsages = null, DateTimeOffset? issuedAt = null)
@@ -844,12 +852,24 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
             }
             this.Expires = expires ?? Util.MaxDateTimeOffsetValue;
             this.IssuedAt = issuedAt ?? DateTime.Now.AddDays(-1);
-            this.SubjectAlternativeNames.Add(PkiUtil.MakeDnsAlternativeFqdnStrFromString(this.CN));
 
+            if (type != CertificateOptionsType.RootCertiticate)
+            {
+                this.SubjectAlternativeNames.Add(PkiUtil.MakeDnsAlternativeFqdnStrFromString(this.CN));
+            }
 
             if (keyUsages == 0)
             {
-                keyUsages = KeyUsage.DigitalSignature | KeyUsage.NonRepudiation | KeyUsage.KeyEncipherment | KeyUsage.DataEncipherment | KeyUsage.KeyCertSign | KeyUsage.CrlSign;
+                if (type == CertificateOptionsType.RootCertiticate)
+                {
+                    // ルート証明書
+                    keyUsages = KeyUsage.DigitalSignature | KeyUsage.NonRepudiation | KeyUsage.KeyEncipherment | KeyUsage.KeyCertSign | KeyUsage.CrlSign;
+                }
+                else
+                {
+                    // サーバー証明書
+                    keyUsages = KeyUsage.DigitalSignature | KeyUsage.KeyEncipherment;
+                }
             }
 
             this.KeyUsages = keyUsages;
@@ -857,15 +877,28 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
 
             if (extendedKeyUsages == null)
             {
-                extendedKeyUsages = new KeyPurposeID[] { KeyPurposeID.IdKPServerAuth, KeyPurposeID.IdKPClientAuth, KeyPurposeID.IdKPCodeSigning, KeyPurposeID.IdKPEmailProtection,
-                    KeyPurposeID.IdKPIpsecEndSystem, KeyPurposeID.IdKPIpsecTunnel, KeyPurposeID.IdKPIpsecUser, KeyPurposeID.IdKPTimeStamping, KeyPurposeID.IdKPOcspSigning };
+                if (type == CertificateOptionsType.RootCertiticate)
+                {
+                    // ルート証明書
+                    extendedKeyUsages = new KeyPurposeID[] { KeyPurposeID.IdKPServerAuth, KeyPurposeID.IdKPClientAuth, KeyPurposeID.IdKPCodeSigning, KeyPurposeID.IdKPEmailProtection,
+                        KeyPurposeID.IdKPIpsecEndSystem, KeyPurposeID.IdKPIpsecTunnel, KeyPurposeID.IdKPIpsecUser, KeyPurposeID.IdKPTimeStamping, KeyPurposeID.IdKPOcspSigning };
+                }
+                else
+                {
+                    // サーバー証明書
+                    extendedKeyUsages = new KeyPurposeID[] { KeyPurposeID.IdKPServerAuth, KeyPurposeID.IdKPClientAuth };
+                }
             }
             this.ExtendedKeyUsages = extendedKeyUsages;
 
 
             if (subjectAltNames != null)
             {
-                subjectAltNames.Where(x => x._IsEmpty() == false)._DoForEach(x => this.SubjectAlternativeNames.Add(PkiUtil.MakeDnsAlternativeFqdnStrFromString(x)));
+                if (type != CertificateOptionsType.RootCertiticate)
+                {
+                    // サーバー証明書の場合 DNS Alt Name を入れる
+                    subjectAltNames.Where(x => x._IsEmpty() == false)._DoForEach(x => this.SubjectAlternativeNames.Add(PkiUtil.MakeDnsAlternativeFqdnStrFromString(x)));
+                }
             }
         }
 
@@ -1084,7 +1117,13 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
             gen.AddExtension(X509Extensions.ExtendedKeyUsage, false, extExtendedUsage.GetParsedValue());
 
             X509Extension altName = new X509Extension(false, new DerOctetString(options.GenerateAltNames()));
-            gen.AddExtension(X509Extensions.SubjectAlternativeName, false, altName.GetParsedValue());
+            if (options.GenerateAltNames().GetNames().Any())
+            {
+                gen.AddExtension(X509Extensions.SubjectAlternativeName, false, altName.GetParsedValue());
+            }
+
+            gen.AddExtension(X509Extensions.SubjectKeyIdentifier, false, new SubjectKeyIdentifierStructure(thisCertPrivateKey.PublicKey.PublicKeyData));
+            gen.AddExtension(X509Extensions.AuthorityKeyIdentifier, false, new AuthorityKeyIdentifierStructure(parentCertificate.PrimaryCertificate.PublicKey.PublicKeyData));
 
             this.CertData = gen.Generate(new Asn1SignatureFactory(options.GetSignatureAlgorithmOid(), parentCertificate.PrimaryPrivateKey.PrivateKeyData.Private, PkiUtil.NewSecureRandom()));
 
@@ -1114,7 +1153,12 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
             gen.AddExtension(X509Extensions.ExtendedKeyUsage, false, extExtendedUsage.GetParsedValue());
 
             X509Extension altName = new X509Extension(false, new DerOctetString(options.GenerateAltNames()));
-            gen.AddExtension(X509Extensions.SubjectAlternativeName, false, altName.GetParsedValue());
+            if (options.GenerateAltNames().GetNames().Any())
+            {
+                gen.AddExtension(X509Extensions.SubjectAlternativeName, false, altName.GetParsedValue());
+            }
+
+            gen.AddExtension(X509Extensions.SubjectKeyIdentifier, false, new SubjectKeyIdentifierStructure(selfSignKey.PublicKey.PublicKeyData));
 
             this.CertData = gen.Generate(new Asn1SignatureFactory(options.GetSignatureAlgorithmOid(), selfSignKey.PrivateKeyData.Private, PkiUtil.NewSecureRandom()));
 
@@ -1421,10 +1465,12 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
                 X509Extensions.SubjectAlternativeName,
             };
 
-            List<object> values = new List<object>()
+            List<object> values = new List<object>();
+
+            if (alt.GetNames().Any())
             {
-                altName,
-            };
+                values.Add(altName);
+            }
 
             X509Extensions x509exts = new X509Extensions(oids, values);
             X509Attribute attr = new X509Attribute(PkcsObjectIdentifiers.Pkcs9AtExtensionRequest.Id, new DerSet(x509exts));

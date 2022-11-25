@@ -415,7 +415,7 @@ namespace IPA.Cores.ClientApi.Acme
                 else if (this.Info.status == AcmeOrderStatus.ready)
                 {
                     // Create a CSR
-                    Csr csr = new Csr(certPrivateKey, new CertificateOptions(certPrivateKey.Algorithm, this.Info.identifiers![0]!.value));
+                    Csr csr = new Csr(certPrivateKey, new CertificateOptions(certPrivateKey.Algorithm, CertificateOptionsType.ServerCertificate, this.Info.identifiers![0]!.value));
 
                     AcmeFinalizePayload payload = new AcmeFinalizePayload
                     {

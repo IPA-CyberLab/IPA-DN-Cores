@@ -613,7 +613,7 @@ static class TestClass
             DateTime start = new DateTime(2019, 1, 1, 18, 0, 0);
             DateTime end = new DateTime(2020, 1, 1, 19, 59, 59);
 
-            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "dummycert-expired.example.org", c: "JP", expires: end, shaSize: PkiShaSize.SHA512, issuedAt: start));
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "dummycert-expired.example.org", c: "JP", expires: end, shaSize: PkiShaSize.SHA512, issuedAt: start));
 
             CertificateStore store = new CertificateStore(cert, priv);
 
@@ -633,7 +633,7 @@ static class TestClass
             DateTime start = new DateTime(2019, 1, 1, 18, 0, 0);
             DateTime end = new DateTime(2020, 1, 1, 19, 59, 59);
 
-            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "*.dummycert-expired.example.org", c: "JP", expires: end, shaSize: PkiShaSize.SHA512, issuedAt: start));
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "*.dummycert-expired.example.org", c: "JP", expires: end, shaSize: PkiShaSize.SHA512, issuedAt: start));
 
             CertificateStore store = new CertificateStore(cert, priv);
 
@@ -662,7 +662,7 @@ static class TestClass
             fqdns.Add("e.multiple-dummycert-2.example.org");
             fqdns.Add("f.multiple-dummycert-2.example.org");
 
-            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "*.multiple-dummycert.example.org", subjectAltNames: fqdns.ToArray(), c: "JP", expires: end, shaSize: PkiShaSize.SHA512, issuedAt: start));
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "*.multiple-dummycert.example.org", subjectAltNames: fqdns.ToArray(), c: "JP", expires: end, shaSize: PkiShaSize.SHA512, issuedAt: start));
 
             CertificateStore store = new CertificateStore(cert, priv);
 
@@ -684,7 +684,7 @@ static class TestClass
         {
             PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
 
-            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "dummycert.example.org", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "dummycert.example.org", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
 
             CertificateStore store = new CertificateStore(cert, priv);
 
@@ -706,7 +706,7 @@ static class TestClass
         {
             PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
 
-            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "dummycert2.softether.com", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "dummycert2.softether.com", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
 
             CertificateStore store = new CertificateStore(cert, priv);
 
@@ -722,14 +722,14 @@ static class TestClass
 
     static void Test_MakeTestWebAppDefaultStaticCerts_220614()
     {
-        string baseDir = @"C:\git\IPA-DN-Cores\Cores.NET\Misc\220614_TestWebAppDefaultStaticCerts\";
+        string baseDir = @"C:\git\IPA-DN-Cores\Cores.NET\Misc\221125_TestWebAppDefaultStaticCerts-20221125\";
         string password = "microsoft";
 
         if (true)
         {
             PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
 
-            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "TestWebAppDefaultStaticCerts-Sample-Root-Cert", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "TestWebAppDefaultStaticCerts-Sample-Root-Cert-20221125", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
 
             CertificateStore store = new CertificateStore(cert, priv);
 
@@ -749,9 +749,9 @@ static class TestClass
         {
             CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(baseDir + @"00_Master.pfx").Span);
 
-            IssueCert("TestWebAppDefaultStaticCerts-Sample-Certificate-01", baseDir + @"01_SampleCert1", "sample-cert-01.example.org");
-            IssueCert("TestWebAppDefaultStaticCerts-Sample-Certificate-02", baseDir + @"02_SampleCert2", "sample-cert-02.example.org");
-            IssueCert("TestWebAppDefaultStaticCerts-Sample-Certificate-03", baseDir + @"03_SampleCert3", "sample-cert-03.example.org");
+            IssueCert("TestWebAppDefaultStaticCerts-Sample-Certificate-20221125-01", baseDir + @"01_SampleCert1", "sample-cert-01.example.org");
+            IssueCert("TestWebAppDefaultStaticCerts-Sample-Certificate-20221125-02", baseDir + @"02_SampleCert2", "sample-cert-02.example.org");
+            IssueCert("TestWebAppDefaultStaticCerts-Sample-Certificate-20221125-03", baseDir + @"03_SampleCert3", "sample-cert-03.example.org");
 
         }
 
@@ -761,7 +761,7 @@ static class TestClass
 
             PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
 
-            var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, cn, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256,
+            var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256,
                 keyUsages: Org.BouncyCastle.Asn1.X509.KeyUsage.DigitalSignature | Org.BouncyCastle.Asn1.X509.KeyUsage.KeyEncipherment | Org.BouncyCastle.Asn1.X509.KeyUsage.DataEncipherment,
                 subjectAltNames: fqdn._SingleArray(),
                 extendedKeyUsages:
@@ -783,14 +783,14 @@ static class TestClass
 
     static void Test_MakeMikakaDDnsServerSampleStaticCerts_220614()
     {
-        string baseDir = @"C:\git\IPA-DN-Cores\Cores.NET\Misc\220614_MikakaDDnsServerSampleStaticCerts\";
+        string baseDir = @"C:\git\IPA-DN-Cores\Cores.NET\Misc\221125_MikakaDDnsServerSampleStaticCerts_20221125\";
         string password = "microsoft";
 
         if (true)
         {
             PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
 
-            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "MikakaDDnsServer-Sample-Root-Cert", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "MikakaDDnsServer-Sample-Root-Cert-20221125", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
 
             CertificateStore store = new CertificateStore(cert, priv);
 
@@ -810,9 +810,9 @@ static class TestClass
         {
             CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(baseDir + @"00_Master.pfx").Span);
 
-            IssueCert("MikakaDDnsServer-Sample-Default-Certificate-01", baseDir + @"01_SampleCert1", "sample-cert-01.example.org");
-            IssueCert("MikakaDDnsServer-Sample-Default-Certificate-02", baseDir + @"01_SampleCert2", "sample-cert-02.example.org");
-            IssueCert("MikakaDDnsServer-Sample-Default-Certificate-03", baseDir + @"01_SampleCert3", "sample-cert-03.example.org");
+            IssueCert("MikakaDDnsServer-Sample-Default-Certificate-20221125-01", baseDir + @"01_SampleCert1", "sample-cert-01.example.org");
+            IssueCert("MikakaDDnsServer-Sample-Default-Certificate-20221125-02", baseDir + @"01_SampleCert2", "sample-cert-02.example.org");
+            IssueCert("MikakaDDnsServer-Sample-Default-Certificate-20221125-03", baseDir + @"01_SampleCert3", "sample-cert-03.example.org");
 
         }
 
@@ -822,7 +822,7 @@ static class TestClass
 
             PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
 
-            var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, cn, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256,
+            var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256,
                 keyUsages: Org.BouncyCastle.Asn1.X509.KeyUsage.DigitalSignature | Org.BouncyCastle.Asn1.X509.KeyUsage.KeyEncipherment | Org.BouncyCastle.Asn1.X509.KeyUsage.DataEncipherment,
                 subjectAltNames: fqdn._SingleArray(),
                 extendedKeyUsages:
@@ -851,7 +851,7 @@ static class TestClass
 
             PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
 
-            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "Thin Telework System Open Source Version Sample Gateway Root Cert", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "Thin Telework System Open Source Version Sample Gateway Root Cert", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
 
             CertificateStore store = new CertificateStore(cert, priv);
 
@@ -877,7 +877,7 @@ static class TestClass
             {
                 PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
 
-                var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, cn, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256,
+                var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256,
                     keyUsages: Org.BouncyCastle.Asn1.X509.KeyUsage.DigitalSignature | Org.BouncyCastle.Asn1.X509.KeyUsage.KeyEncipherment | Org.BouncyCastle.Asn1.X509.KeyUsage.DataEncipherment,
                     extendedKeyUsages:
                         new Org.BouncyCastle.Asn1.X509.KeyPurposeID[] {
@@ -906,7 +906,7 @@ static class TestClass
             {
                 PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
 
-                var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, cn, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256,
+                var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256,
                     keyUsages: Org.BouncyCastle.Asn1.X509.KeyUsage.DigitalSignature | Org.BouncyCastle.Asn1.X509.KeyUsage.KeyEncipherment | Org.BouncyCastle.Asn1.X509.KeyUsage.DataEncipherment,
                     extendedKeyUsages:
                         new Org.BouncyCastle.Asn1.X509.KeyPurposeID[] {
@@ -929,7 +929,7 @@ static class TestClass
 
             PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
 
-            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "*.thinwebclient.example.org", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256));
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "*.thinwebclient.example.org", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256));
 
             CertificateStore store = new CertificateStore(cert, priv);
 
@@ -958,7 +958,7 @@ static class TestClass
             {
                 PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
 
-                var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, cn, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256,
+                var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256,
                     keyUsages: Org.BouncyCastle.Asn1.X509.KeyUsage.DigitalSignature | Org.BouncyCastle.Asn1.X509.KeyUsage.KeyEncipherment | Org.BouncyCastle.Asn1.X509.KeyUsage.DataEncipherment,
                     extendedKeyUsages:
                         new Org.BouncyCastle.Asn1.X509.KeyPurposeID[] {
@@ -986,7 +986,7 @@ static class TestClass
 
             PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
 
-            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "IPA Telework System for LGWAN Root Certificate", c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA512));
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "IPA Telework System for LGWAN Root Certificate", c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA512));
 
             CertificateStore store = new CertificateStore(cert, priv);
 
@@ -1013,7 +1013,7 @@ static class TestClass
             {
                 PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
 
-                var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, cn, c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA256,
+                var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn, c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA256,
                     keyUsages: Org.BouncyCastle.Asn1.X509.KeyUsage.DigitalSignature | Org.BouncyCastle.Asn1.X509.KeyUsage.KeyEncipherment | Org.BouncyCastle.Asn1.X509.KeyUsage.DataEncipherment,
                     extendedKeyUsages:
                         new Org.BouncyCastle.Asn1.X509.KeyPurposeID[] {
@@ -3819,6 +3819,27 @@ cccadmin
     {
         if (true)
         {
+            Test_MakeTestWebAppDefaultStaticCerts_220614();
+            Test_MakeMikakaDDnsServerSampleStaticCerts_220614();
+            return;
+        }
+
+        if (true)
+        {
+            PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+            string str = "Cores.NET Debug Public CA 20221125";
+
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, cn: str, o: str, c: "US", expires: Util.MaxDateTimeOffsetValue));
+
+            CertificateStore store = new CertificateStore(cert, priv);
+
+            Lfs.WriteDataToFile(@"c:\tmp\ca221125.p12", store.ExportPkcs12());
+            return;
+        }
+
+        if (true)
+        {
             Test_221116();
             return;
         }
@@ -3859,13 +3880,6 @@ cccadmin
         {
             Env.BuildTimeStamp.ToString()._Print();
             LeakChecker.IncrementLeakCounter(LeakCounterKind.AllocUnmanagedMemory);
-            return;
-        }
-
-        if (true)
-        {
-            //Test_MakeTestWebAppDefaultStaticCerts_220614();
-            Test_MakeMikakaDDnsServerSampleStaticCerts_220614();
             return;
         }
 
@@ -4185,7 +4199,7 @@ cccadmin
             {
                 PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
 
-                var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, cn, c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA256,
+                var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn, c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA256,
                     keyUsages: Org.BouncyCastle.Asn1.X509.KeyUsage.DigitalSignature | Org.BouncyCastle.Asn1.X509.KeyUsage.KeyEncipherment | Org.BouncyCastle.Asn1.X509.KeyUsage.DataEncipherment,
                     extendedKeyUsages:
                         new Org.BouncyCastle.Asn1.X509.KeyPurposeID[] {
@@ -5925,7 +5939,7 @@ cccadmin
             // 2020/4/13 NTTVPN Master Cert
             PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
 
-            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "Thin Telework System Root Certificate", c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA512));
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "Thin Telework System Root Certificate", c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA512));
 
             CertificateStore store = new CertificateStore(cert, priv);
 
@@ -5955,7 +5969,7 @@ cccadmin
             {
                 PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
 
-                var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, cn, c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA256,
+                var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn, c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA256,
                     keyUsages: Org.BouncyCastle.Asn1.X509.KeyUsage.DigitalSignature | Org.BouncyCastle.Asn1.X509.KeyUsage.KeyEncipherment | Org.BouncyCastle.Asn1.X509.KeyUsage.DataEncipherment,
                     extendedKeyUsages:
                         new Org.BouncyCastle.Asn1.X509.KeyPurposeID[] {
@@ -5988,14 +6002,14 @@ cccadmin
             {
                 PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
 
-                var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, cn, c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA256,
+                var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn, c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA256,
                     keyUsages: Org.BouncyCastle.Asn1.X509.KeyUsage.DigitalSignature | Org.BouncyCastle.Asn1.X509.KeyUsage.KeyEncipherment | Org.BouncyCastle.Asn1.X509.KeyUsage.DataEncipherment,
                     extendedKeyUsages:
                         new Org.BouncyCastle.Asn1.X509.KeyPurposeID[] {
                                 Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPServerAuth, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPClientAuth,
                                 Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecEndSystem, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecTunnel, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecUser }),
 
-                            new CertificateOptions(PkiAlgorithm.RSA, cn: issuerName, c: "JP"));
+                            new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn: issuerName, c: "JP"));
 
                 var store = new CertificateStore(cert, priv);
                 Lfs.WriteDataToFile(fileNameBase + ".pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
@@ -6023,7 +6037,7 @@ cccadmin
             {
                 PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
 
-                var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, cn, c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA256,
+                var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn, c: "JP", expires: new DateTime(2037, 12, 31), shaSize: PkiShaSize.SHA256,
                     keyUsages: Org.BouncyCastle.Asn1.X509.KeyUsage.DigitalSignature | Org.BouncyCastle.Asn1.X509.KeyUsage.KeyEncipherment | Org.BouncyCastle.Asn1.X509.KeyUsage.DataEncipherment,
                     extendedKeyUsages:
                         new Org.BouncyCastle.Asn1.X509.KeyPurposeID[] {
@@ -6802,7 +6816,7 @@ ZIP ファイルのパスワード:
 
         if (true)
         {
-            var ca = DevTools.CoresDebugCACert;
+            var ca = DevTools.CoresDebugCACert_20221125;
 
             CertificateStore x = ca.PkiCertificateStore;
 
@@ -6811,7 +6825,7 @@ ZIP ファイルのパスワード:
 
         if (true)
         {
-            var ca = DevTools.CoresDebugCACert;
+            var ca = DevTools.CoresDebugCACert_20221125;
 
             var mem = ca.ExportCertificateAndKeyAsP12();
 
@@ -6906,28 +6920,16 @@ ZIP ファイルのパスワード:
         {
             PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
 
-            CertificateStore parent = DevTools.CoresDebugCACert.PkiCertificateStore;
+            CertificateStore parent = DevTools.CoresDebugCACert_20221125.PkiCertificateStore;
 
-            Certificate cert = new Certificate(priv, parent, new CertificateOptions(PkiAlgorithm.RSA, cn: "test"));
+            Certificate cert = new Certificate(priv, parent, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn: "test"));
             Lfs.WriteDataToFile(@"c:\tmp\test.cer", cert.Export());
             return;
         }
 
         if (true)
         {
-            DevTools.CoresDebugCACert.HashSHA256._Print();
-            return;
-        }
-
-        if (true)
-        {
-            PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
-
-            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, "Cores.NET Debug Public CA", c: "US", expires: Util.MaxDateTimeOffsetValue));
-
-            CertificateStore store = new CertificateStore(cert, priv);
-
-            Lfs.WriteDataToFile(@"c:\tmp\ca.p12", store.ExportPkcs12());
+            DevTools.CoresDebugCACert_20221125.HashSHA256._Print();
             return;
         }
 
@@ -7471,7 +7473,7 @@ ZIP ファイルのパスワード:
 
         if (true)
         {
-            cert = new Certificate(privateKey, new CertificateOptions(PkiAlgorithm.ECDSA, "www.abc", serial: new byte[] { 1, 2, 3 }, shaSize: PkiShaSize.SHA512));
+            cert = new Certificate(privateKey, new CertificateOptions(PkiAlgorithm.ECDSA, CertificateOptionsType.RootCertiticate, "www.abc", serial: new byte[] { 1, 2, 3 }, shaSize: PkiShaSize.SHA512));
 
             Lfs.WriteDataToFile(tmpDir._CombinePath("root_cert.crt"), cert.Export());
         }
@@ -7510,7 +7512,7 @@ ZIP ファイルのパスワード:
 
         if (true)
         {
-            cert = new Certificate(privateKey, new CertificateOptions(PkiAlgorithm.RSA, "www.abc", serial: new byte[] { 1, 2, 3 }));
+            cert = new Certificate(privateKey, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "www.abc", serial: new byte[] { 1, 2, 3 }));
 
             Lfs.WriteDataToFile(tmpDir._CombinePath("root_cert.crt"), cert.Export());
         }
