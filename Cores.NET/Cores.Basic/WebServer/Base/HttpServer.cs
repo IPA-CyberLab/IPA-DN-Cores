@@ -334,6 +334,13 @@ public class HttpServerStartupHelper : IDisposable
             provider._DoForEach(x => AddStaticFileProvider(x));
     }
 
+    [Obsolete("Use ConfigurePre and ConfigureAuth instead.")]
+    public virtual void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+    {
+        this.ConfigurePre(app, env);
+        this.ConfigureAuth(app, env);
+    }
+
     public virtual void ConfigurePre(IApplicationBuilder app, IWebHostEnvironment env)
     {
         if (ServerOptions.ReverseProxyOverride_Enable)

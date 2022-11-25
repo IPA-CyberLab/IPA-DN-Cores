@@ -311,6 +311,14 @@ public abstract class DnsResolver : AsyncService
         }
     }
 
+    [Obsolete("Use GetHostNameOrIpAsync instead.")]
+    public Task<string> GetHostNameSingleOrIpAsync(IPAddress? ip, CancellationToken cancel = default, bool noCache = false)
+        => GetHostNameOrIpAsync(ip, cancel, noCache);
+
+    [Obsolete("Use GetHostNameOrIpAsync instead.")]
+    public Task<string> GetHostNameSingleOrIpAsync(string? ip, CancellationToken cancel = default, bool noCache = false)
+        => GetHostNameOrIpAsync(ip, cancel, noCache);
+
     public async Task<string> GetHostNameOrIpAsync(IPAddress? ip, CancellationToken cancel = default, bool noCache = false)
     {
         if (ip == null) return "";
