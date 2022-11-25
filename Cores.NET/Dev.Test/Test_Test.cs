@@ -762,12 +762,43 @@ static class TestClass
             PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
 
             var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256,
-                keyUsages: Org.BouncyCastle.Asn1.X509.KeyUsage.DigitalSignature | Org.BouncyCastle.Asn1.X509.KeyUsage.KeyEncipherment | Org.BouncyCastle.Asn1.X509.KeyUsage.DataEncipherment,
-                subjectAltNames: fqdn._SingleArray(),
-                extendedKeyUsages:
-                    new Org.BouncyCastle.Asn1.X509.KeyPurposeID[] {
-                                Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPServerAuth, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPClientAuth,
-                                Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecEndSystem, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecTunnel, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecUser }));
+                subjectAltNames: fqdn._SingleArray()));
+
+            var store = new CertificateStore(cert, priv);
+            Lfs.WriteDataToFile(fileNameBase + ".pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            Lfs.WriteDataToFile(fileNameBase + "_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(fileNameBase + ".cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(fileNameBase + ".key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteStringToFile(fileNameBase + ".txt", store.ExportCertInfo(), FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+        }
+    }
+
+    static void Test_MakeStatic2LtsDnIpaNttNetCert()
+    {
+        string baseDir = @"H:\Crypto\static.lts.dn.ipantt.net\221125_Chromeでエラーにならない新しい証明書_static2\";
+        string password = "microsoft";
+
+        if (true)
+        {
+            IssueCert("static2.lts.dn.ipantt.net", baseDir + @"static2.lts.dn.ipantt.net", "static2.lts.dn.ipantt.net *.lts.dn.ipantt.net *.lts.dn.ngn.open.ad.jp *.dn.ngn.open.ad.jp *.private.lts.dn.ipantt.net *.v4.lts.dn.ipantt.net *.v6.lts.dn.ipantt.net *.lts.dn.cyber.ipa.go.jp *.v4.lts.dn.cyber.ipa.go.jp *.v6.lts.dn.cyber.ipa.go.jp *.lts.dnobori.jp *.lts.open.ad.jp *.lts.mg.open.ad.jp *.lts.v6.open.ad.jp *.lts.v4.open.ad.jp *.lts.lab.coe.ad.jp *.lts.sec.softether.co.jp *.lts.mg.mikaka.ntt-east.co.jp *.lts.mikaka.ntt-east.co.jp *.lts.mg.sp.ntt-east.co.jp *.lts.sp.ntt-east.co.jp *.lts.ntt-east.co.jp *.lts.local lts private private-lts  static2.lts2.dn.ipantt.net *.lts2.dn.ipantt.net *.lts2.dn.ngn.open.ad.jp *.dn.ngn.open.ad.jp *.private.lts2.dn.ipantt.net *.v4.lts2.dn.ipantt.net *.v6.lts2.dn.ipantt.net *.lts2.dn.cyber.ipa.go.jp *.v4.lts2.dn.cyber.ipa.go.jp *.v6.lts2.dn.cyber.ipa.go.jp *.lts2.dnobori.jp *.lts2.open.ad.jp *.lts2.mg.open.ad.jp *.lts2.v6.open.ad.jp *.lts2.v4.open.ad.jp *.lts2.lab.coe.ad.jp *.lts2.sec.softether.co.jp *.lts2.mg.mikaka.ntt-east.co.jp *.lts2.mikaka.ntt-east.co.jp *.lts2.mg.sp.ntt-east.co.jp *.lts2.sp.ntt-east.co.jp *.lts2.ntt-east.co.jp *.lts2.local lts2 private private-lts2  static2.lts3.dn.ipantt.net *.lts3.dn.ipantt.net *.lts3.dn.ngn.open.ad.jp *.dn.ngn.open.ad.jp *.private.lts3.dn.ipantt.net *.v4.lts3.dn.ipantt.net *.v6.lts3.dn.ipantt.net *.lts3.dn.cyber.ipa.go.jp *.v4.lts3.dn.cyber.ipa.go.jp *.v6.lts3.dn.cyber.ipa.go.jp *.lts3.dnobori.jp *.lts3.open.ad.jp *.lts3.mg.open.ad.jp *.lts3.v6.open.ad.jp *.lts3.v4.open.ad.jp *.lts3.lab.coe.ad.jp *.lts3.sec.softether.co.jp *.lts3.mg.mikaka.ntt-east.co.jp *.lts3.mikaka.ntt-east.co.jp *.lts3.mg.sp.ntt-east.co.jp *.lts3.sp.ntt-east.co.jp *.lts3.ntt-east.co.jp *.lts3.local lts3 private private-lts3");
+
+        }
+
+        void IssueCert(string cn, string fileNameBase, string fqdn)
+        {
+            CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(@"H:\Crypto\DN_Private_Debug_CA_Secret_20221124\DN_Private_Debug_CA_Secret_20221124.p12").Span);
+
+            var oldKey = new CertificateStore(Lfs.ReadDataFromFile(@"H:\Crypto\static.lts.dn.ipantt.net\static.lts.dn.ipantt.net.pfx").Span);
+
+            //PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
+
+            var priv = oldKey.PrimaryPrivateKey;
+
+            var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn, c: "JP", expires: (new DateTime(2099, 12, 30))._AsDateTimeOffset(true), shaSize: PkiShaSize.SHA256,
+                subjectAltNames: fqdn._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",", " ")));
 
             var store = new CertificateStore(cert, priv);
             Lfs.WriteDataToFile(fileNameBase + ".pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
@@ -822,13 +853,7 @@ static class TestClass
 
             PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
 
-            var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256,
-                keyUsages: Org.BouncyCastle.Asn1.X509.KeyUsage.DigitalSignature | Org.BouncyCastle.Asn1.X509.KeyUsage.KeyEncipherment | Org.BouncyCastle.Asn1.X509.KeyUsage.DataEncipherment,
-                subjectAltNames: fqdn._SingleArray(),
-                extendedKeyUsages:
-                    new Org.BouncyCastle.Asn1.X509.KeyPurposeID[] {
-                                Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPServerAuth, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPClientAuth,
-                                Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecEndSystem, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecTunnel, Org.BouncyCastle.Asn1.X509.KeyPurposeID.IdKPIpsecUser }));
+            var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256));
 
             var store = new CertificateStore(cert, priv);
             Lfs.WriteDataToFile(fileNameBase + ".pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
@@ -3704,7 +3729,7 @@ cccadmin
 
                 var x = JToken.ReadFrom(j);
 
-                
+
 
                 DoNothing();
             });
@@ -3819,8 +3844,23 @@ cccadmin
     {
         if (true)
         {
-            Test_MakeTestWebAppDefaultStaticCerts_220614();
-            Test_MakeMikakaDDnsServerSampleStaticCerts_220614();
+            Test_MakeStatic2LtsDnIpaNttNetCert();
+            //Test_MakeTestWebAppDefaultStaticCerts_220614();
+            //Test_MakeMikakaDDnsServerSampleStaticCerts_220614();
+            return;
+        }
+
+        if (false)
+        {
+            PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+            string str = "DN Private Debug CA Secret 20221124";
+
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, cn: str, o: str, c: "US", expires: (new DateTime(2099, 12, 31))._AsDateTimeOffset(true)));
+
+            CertificateStore store = new CertificateStore(cert, priv);
+
+            Lfs.WriteDataToFile(@"H:\Crypto\DN_Private_Debug_CA_Secret_20221124\DN_Private_Debug_CA_Secret_20221124.p12", store.ExportPkcs12());
             return;
         }
 

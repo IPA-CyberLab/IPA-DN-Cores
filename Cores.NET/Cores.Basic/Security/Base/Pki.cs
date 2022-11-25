@@ -897,7 +897,7 @@ LEL2TxyJeN4mTvVvk0wVaydWTQBUbHq3tw==
                 if (type != CertificateOptionsType.RootCertiticate)
                 {
                     // サーバー証明書の場合 DNS Alt Name を入れる
-                    subjectAltNames.Where(x => x._IsEmpty() == false)._DoForEach(x => this.SubjectAlternativeNames.Add(PkiUtil.MakeDnsAlternativeFqdnStrFromString(x)));
+                    subjectAltNames.Where(x => x._IsEmpty() == false).Distinct(StrCmpi)._DoForEach(x => this.SubjectAlternativeNames.Add(PkiUtil.MakeDnsAlternativeFqdnStrFromString(x)));
                 }
             }
         }
