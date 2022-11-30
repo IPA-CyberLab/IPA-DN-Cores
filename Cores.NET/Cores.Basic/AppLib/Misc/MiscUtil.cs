@@ -976,7 +976,7 @@ public static class FileDownloader
         AsyncLock streamLock = new AsyncLock();
 
         // まずファイルサイズを取得してみる
-        RetryHelper<int> h = new RetryHelper<int>(option.RetryIntervalMsecs, option.TryCount);
+        RetryHelper<long> h = new RetryHelper<long>(option.RetryIntervalMsecs, option.TryCount);
 
         long fileSize = -1;
         bool supportPartialDownload = false;
@@ -1000,218 +1000,225 @@ public static class FileDownloader
             return 0;
         }, retryInterval: option.RetryIntervalMsecs, tryCount: option.TryCount, cancel: cancel);
 
-        if (fileSize >= 0 && supportPartialDownload)
+        return await h.RunAsync(async cancel =>
         {
-            // 分割ダウンロードが可能な場合は、分割ダウンロードを開始する
-            destStream.SetLength(fileSize);
+            destStream.Seek(0, SeekOrigin.Begin);
+            destStream.SetLength(0);
+            await destStream.FlushAsync(cancel);
 
-            ConcurrentDownloadPartialMaps maps = new ConcurrentDownloadPartialMaps(fileSize);
-
-            AsyncConcurrentTask concurrent = new AsyncConcurrentTask(option.MaxConcurrentThreads);
-
-            //List<Task<bool>> runningTasks = new List<Task<bool>>();
-
-            RefBool noMoreNeedNewTask = false;
-            AsyncManualResetEvent noMoreNeedNewTaskEvent = new AsyncManualResetEvent();
-
-            RefInt taskIdSeed = 0;
-            RefLong totalDownloadSize = 0;
-
-            RefInt currentNumConcurrentTasks = new RefInt();
-
-            Ref<Exception?> lastException = new Ref<Exception?>(null);
-
-            await using var cancel2 = new CancelWatcher(cancel);
-            AsyncManualResetEvent finishedEvent = new AsyncManualResetEvent();
-            //bool isTimeout = false;
-
-            // 一定時間経ってもダウンロードサイズが全く増えないことを検知するタスク
-            Task monitorTask = AsyncAwait(async () =>
+            if (fileSize >= 0 && supportPartialDownload)
             {
-                if (option.WebApiOptions.Settings.Timeout == Timeout.Infinite)
+                // 分割ダウンロードが可能な場合は、分割ダウンロードを開始する
+                destStream.SetLength(fileSize);
+
+                ConcurrentDownloadPartialMaps maps = new ConcurrentDownloadPartialMaps(fileSize);
+
+                AsyncConcurrentTask concurrent = new AsyncConcurrentTask(option.MaxConcurrentThreads);
+
+                //List<Task<bool>> runningTasks = new List<Task<bool>>();
+
+                RefBool noMoreNeedNewTask = false;
+                AsyncManualResetEvent noMoreNeedNewTaskEvent = new AsyncManualResetEvent();
+
+                RefInt taskIdSeed = 0;
+                RefLong totalDownloadSize = 0;
+
+                RefInt currentNumConcurrentTasks = new RefInt();
+
+                Ref<Exception?> lastException = new Ref<Exception?>(null);
+
+                await using var cancel2 = new CancelWatcher(cancel);
+                AsyncManualResetEvent finishedEvent = new AsyncManualResetEvent();
+                //bool isTimeout = false;
+
+                // 一定時間経ってもダウンロードサイズが全く増えないことを検知するタスク
+                Task monitorTask = AsyncAwait(async () =>
                 {
-                    return;
-                }
-
-                long lastSize = 0;
-                long lastChangedTick = Time.Tick64;
-
-                while (finishedEvent.IsSet == false && cancel2.IsCancellationRequested == false)
-                {
-                    long now = Time.Tick64;
-                    long currentSize = totalDownloadSize;
-
-                    if (lastSize != currentSize)
+                    if (option.WebApiOptions.Settings.Timeout == Timeout.Infinite)
                     {
-                        lastSize = currentSize;
-                        lastChangedTick = now;
+                        return;
                     }
 
-                    if (now > (lastChangedTick + option.WebApiOptions.Settings.Timeout))
+                    long lastSize = 0;
+                    long lastChangedTick = Time.Tick64;
+
+                    while (finishedEvent.IsSet == false && cancel2.IsCancellationRequested == false)
                     {
-                        // タイムアウト発生
-                        cancel2.Cancel();
-                        Dbg.Where();
-                        //isTimeout = true;
-                        lastException.Set(new TimeoutException());
+                        long now = Time.Tick64;
+                        long currentSize = totalDownloadSize;
 
-                        break;
-                    }
-
-                    await TaskUtil.WaitObjectsAsync(cancels: cancel2.CancelToken._SingleArray(), manualEvents: finishedEvent._SingleArray(), timeout: 100);
-                }
-            });
-
-            while (noMoreNeedNewTask == false)
-            {
-                cancel2.CancelToken.ThrowIfCancellationRequested();
-
-                // 同時に一定数までタスクを作成する
-                var newTask = await concurrent.StartTaskAsync<int, bool>(async (p1, c1) =>
-                {
-                    //maps.CalcUnfinishedTotalSize()._Debug();
-                    bool started = false;
-                    int taskId = taskIdSeed.Increment();
-
-                    try
-                    {
-                        // 新しい部分を開始
-                        var partial = maps.StartPartial();
-                        if (partial == null)
+                        if (lastSize != currentSize)
                         {
-                            // もう新しい部分を開始する必要がない
-                            //$"Task {taskId}: No more partial"._Debug();
-                            if (maps.IsAllFinished())
-                            {
-                                // IsAllFinished() は必ずチェックする。
-                                // そうしないと、1 バイトの空白領域が残っているときに取得未了になるおそれがあるためである。
-                                noMoreNeedNewTask.Set(true);
-                                noMoreNeedNewTaskEvent.Set(true);
-                            }
-                            return false;
+                            lastSize = currentSize;
+                            lastChangedTick = now;
                         }
+
+                        if (now > (lastChangedTick + option.WebApiOptions.Settings.Timeout))
+                        {
+                            // タイムアウト発生
+                            cancel2.Cancel();
+                            Dbg.Where();
+                            //isTimeout = true;
+                            lastException.Set(new TimeoutException());
+
+                            break;
+                        }
+
+                        await TaskUtil.WaitObjectsAsync(cancels: cancel2.CancelToken._SingleArray(), manualEvents: finishedEvent._SingleArray(), timeout: 100);
+                    }
+                });
+
+                while (noMoreNeedNewTask == false)
+                {
+                    cancel2.CancelToken.ThrowIfCancellationRequested();
+
+                    // 同時に一定数までタスクを作成する
+                    var newTask = await concurrent.StartTaskAsync<int, bool>(async (p1, c1) =>
+                    {
+                        //maps.CalcUnfinishedTotalSize()._Debug();
+                        bool started = false;
+                        int taskId = taskIdSeed.Increment();
 
                         try
                         {
-                            currentNumConcurrentTasks.Increment();
-
-                            //$"Task {taskId}: Start from {partial.StartPosition}"._Debug();
-
-                            // ダウンロードの実施
-                            using var http = new WebApi(option.WebApiOptions);
-                            using var res = await http.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, url + "", cancel2, rangeStart: partial.StartPosition));
-                            using var src = res.DownloadStream;
-
-                            // Normal copy
-                            using (MemoryHelper.FastAllocMemoryWithUsing(option.BufferSize, out Memory<byte> buffer))
+                            // 新しい部分を開始
+                            var partial = maps.StartPartial();
+                            if (partial == null)
                             {
-                                while (true)
+                                // もう新しい部分を開始する必要がない
+                                //$"Task {taskId}: No more partial"._Debug();
+                                if (maps.IsAllFinished())
                                 {
-                                    cancel2.ThrowIfCancellationRequested();
-
-                                    Memory<byte> thisTimeBuffer = buffer;
-
-                                    int readSize = await src._ReadAsyncWithTimeout(thisTimeBuffer, timeout: option.WebApiOptions.Settings.Timeout, cancel: cancel2, allowEof: true);
-
-                                    Debug.Assert(readSize <= thisTimeBuffer.Length);
-
-                                    if (readSize <= 0)
-                                    {
-                                        //$"Task {taskId}: No more recv data"._Debug();
-                                        break;
-                                    }
-
-                                    started = true;
-
-                                    ReadOnlyMemory<byte> sliced = thisTimeBuffer.Slice(0, readSize);
-
-                                    using (await streamLock.LockWithAwait(cancel2))
-                                    {
-                                        destStream.Position = partial.StartPosition + partial.CurrentLength;
-                                        await destStream.WriteAsync(sliced, cancel2);
-                                        totalDownloadSize.Add(sliced.Length);
-                                    }
-
-                                    progressReporter.ReportProgress(new ProgressData(maps.CalcFinishedTotalSize(), maps.TotalSize, false, $"{currentNumConcurrentTasks} connections"));
-
-                                    if (partial.AdvanceCurrentLength(sliced.Length) == false)
-                                    {
-                                        // 次の partial または末尾にぶつかった
-                                        //$"Task {taskId}: Reached to the next partial"._Debug();
-                                        break;
-                                    }
+                                    // IsAllFinished() は必ずチェックする。
+                                    // そうしないと、1 バイトの空白領域が残っているときに取得未了になるおそれがあるためである。
+                                    noMoreNeedNewTask.Set(true);
+                                    noMoreNeedNewTaskEvent.Set(true);
                                 }
+                                return false;
                             }
 
-                            //$"Task {taskId}: Finished. Position: {partial.StartPosition + partial.CurrentLength}, size: {partial.CurrentLength}"._Debug();
+                            try
+                            {
+                                currentNumConcurrentTasks.Increment();
+
+                                //$"Task {taskId}: Start from {partial.StartPosition}"._Debug();
+
+                                // ダウンロードの実施
+                                await using var http = new WebApi(option.WebApiOptions);
+                                await using var res = await http.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, url + "", cancel2, rangeStart: partial.StartPosition));
+                                await using var src = res.DownloadStream;
+
+                                // Normal copy
+                                using (MemoryHelper.FastAllocMemoryWithUsing(option.BufferSize, out Memory<byte> buffer))
+                                {
+                                    while (true)
+                                    {
+                                        cancel2.ThrowIfCancellationRequested();
+
+                                        Memory<byte> thisTimeBuffer = buffer;
+
+                                        int readSize = await src._ReadAsyncWithTimeout(thisTimeBuffer, timeout: option.WebApiOptions.Settings.Timeout, cancel: cancel2, allowEof: true);
+
+                                        Debug.Assert(readSize <= thisTimeBuffer.Length);
+
+                                        if (readSize <= 0)
+                                        {
+                                            //$"Task {taskId}: No more recv data"._Debug();
+                                            break;
+                                        }
+
+                                        started = true;
+
+                                        ReadOnlyMemory<byte> sliced = thisTimeBuffer.Slice(0, readSize);
+
+                                        using (await streamLock.LockWithAwait(cancel2))
+                                        {
+                                            destStream.Position = partial.StartPosition + partial.CurrentLength;
+                                            await destStream.WriteAsync(sliced, cancel2);
+                                            totalDownloadSize.Add(sliced.Length);
+                                        }
+
+                                        progressReporter.ReportProgress(new ProgressData(maps.CalcFinishedTotalSize(), maps.TotalSize, false, $"{currentNumConcurrentTasks} connections"));
+
+                                        if (partial.AdvanceCurrentLength(sliced.Length) == false)
+                                        {
+                                            // 次の partial または末尾にぶつかった
+                                            //$"Task {taskId}: Reached to the next partial"._Debug();
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                //$"Task {taskId}: Finished. Position: {partial.StartPosition + partial.CurrentLength}, size: {partial.CurrentLength}"._Debug();
+                                return false;
+                            }
+                            finally
+                            {
+                                currentNumConcurrentTasks.Decrement();
+                                partial.FinishOrCancelPartial();
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            if (started == false)
+                            {
+                                //$"Task {taskId}: error. {ex._GetSingleException().Message}"._Debug();
+                            }
+                            lastException.Set(ex);
                             return false;
                         }
-                        finally
-                        {
-                            currentNumConcurrentTasks.Decrement();
-                            partial.FinishOrCancelPartial();
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        if (started == false)
-                        {
-                            //$"Task {taskId}: error. {ex._GetSingleException().Message}"._Debug();
-                        }
-                        lastException.Set(ex);
-                        return false;
-                    }
-                },
-                0,
-                cancel2.CancelToken);
+                    },
+                    0,
+                    cancel2.CancelToken);
 
-                await noMoreNeedNewTaskEvent.WaitAsync(option.AdditionalConnectionIntervalMsecs, cancel2);
-            }
+                    await noMoreNeedNewTaskEvent.WaitAsync(option.AdditionalConnectionIntervalMsecs, cancel2);
+                }
 
-            //Dbg.Where();
-            await concurrent.WaitAllTasksFinishAsync();
-            //Dbg.Where();
+                //Dbg.Where();
+                await concurrent.WaitAllTasksFinishAsync();
+                //Dbg.Where();
 
-            finishedEvent.Set(true);
+                finishedEvent.Set(true);
 
-            await monitorTask._TryAwait(false);
+                await monitorTask._TryAwait(false);
 
-            //if (isTimeout) lastException.Set(new TimeoutException());
+                //if (isTimeout) lastException.Set(new TimeoutException());
 
-            if (maps.IsAllFinished() == false)
-            {
-                if (lastException.Value != null)
+                if (maps.IsAllFinished() == false)
                 {
-                    // エラーが発生していた
-                    lastException.Value._ReThrow();
+                    if (lastException.Value != null)
+                    {
+                        // エラーが発生していた
+                        lastException.Value._ReThrow();
+                    }
+                    else
+                    {
+                        throw new CoresException("maps.IsAllFinished() == false");
+                    }
                 }
                 else
                 {
-                    throw new CoresException("maps.IsAllFinished() == false");
+                    progressReporter.ReportProgress(new ProgressData(maps.TotalSize, maps.TotalSize, true));
                 }
+
+                //$"File Size = {fileSize._ToString3()}, Total Down Size = {totalDownloadSize.Value._ToString3()}"._Debug();
+
+                return totalDownloadSize;
             }
             else
             {
-                progressReporter.ReportProgress(new ProgressData(maps.TotalSize, maps.TotalSize, true));
+                // 分割ダウンロード NG の場合は、通常の方法でダウンロードする
+                await using var http = new WebApi(option.WebApiOptions);
+
+                await using var res = await http.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, url, cancel));
+
+                long totalSize = await res.DownloadStream.CopyBetweenStreamAsync(destStream, reporter: progressReporter, cancel: cancel, readTimeout: option.WebApiOptions.Settings.Timeout);
+
+                progressReporter.ReportProgress(new ProgressData(totalSize, isFinish: true));
+
+                return totalSize;
             }
-
-            //$"File Size = {fileSize._ToString3()}, Total Down Size = {totalDownloadSize.Value._ToString3()}"._Debug();
-
-            return totalDownloadSize;
-        }
-        else
-        {
-            // 分割ダウンロード NG の場合は、通常の方法でダウンロードする
-            await using var http = new WebApi(option.WebApiOptions);
-
-            await using var res = await http.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, url, cancel));
-
-            long totalSize = await res.DownloadStream.CopyBetweenStreamAsync(destStream, reporter: progressReporter, cancel: cancel, readTimeout: option.WebApiOptions.Settings.Timeout);
-
-            progressReporter.ReportProgress(new ProgressData(totalSize, isFinish: true));
-
-            return totalSize;
-        }
+        }, retryInterval: option.RetryIntervalMsecs, tryCount: option.TryCount, cancel: cancel);
     }
 
     // 指定された URL (のテキストファイル) をダウンロードし、その URL に記載されているすべてのファイルをダウンロードする
