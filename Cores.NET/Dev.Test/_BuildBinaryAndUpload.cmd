@@ -1,3 +1,5 @@
+cd /D "%~dp0"
+
 rmdir /s /q bld\
 
 rmdir /s /q c:\tmp\cores_built_binary\
