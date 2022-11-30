@@ -834,7 +834,7 @@ namespace IPA.Cores.Basic
 
                 // git のローカルリポジトリの update を試みる
                 // Prepare update_daemon_git.sh
-                string body = CoresRes["CoresInternal/190816_update_daemon_git.sh.txt"].String._NormalizeCrlf(CrlfStyle.Lf);
+                string body = CoresRes["CoresInternal/190816_update_daemon_git_sh.txt"].String._NormalizeCrlf(CrlfStyle.Lf);
                 string fn = Env.AppLocalDir._CombinePath("daemon_helper", "update_daemon_git.sh");
                 Lfs.WriteStringToFile(fn, body, FileFlags.AutoCreateDirectory);
 
@@ -1156,7 +1156,7 @@ namespace IPA.Cores.Basic
                             arguments = (Env.IsHostedByDotNetProcess ? Env.DotNetHostProcessExeName : $"\"{Env.AppRealProcessExeFileName}\"") + " " + (Env.IsHostedByDotNetProcess ? $"exec \"{Env.AppExecutableExeOrDllFileName}\" /cmd:{cmdName} {DaemonCmdType.ExecMain}" : $"/cmd:{cmdName} {DaemonCmdType.ExecMain}");
 
                             // Prepare run_daemon.sh
-                            string body = CoresRes["CoresInternal/190714_run_daemon.sh.txt"].String._NormalizeCrlf(CrlfStyle.Lf);
+                            string body = CoresRes["CoresInternal/190714_run_daemon_sh.txt"].String._NormalizeCrlf(CrlfStyle.Lf);
                             string fn = Env.AppLocalDir._CombinePath("daemon_helper", "run_daemon.sh");
                             Lfs.WriteStringToFile(fn, body, FileFlags.AutoCreateDirectory);
 
