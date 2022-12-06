@@ -698,6 +698,28 @@ static class TestClass
         }
     }
 
+    static void Test_MakeDummyCerts_221206()
+    {
+        string baseDir = @"c:\tmp\221206_dummy_certs\";
+
+        if (true)
+        {
+            PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "dummycert.example.org", c: "JP", expires:  (new DateTime(2099, 12, 30))._AsDateTimeOffset(true) , shaSize: PkiShaSize.SHA512));
+
+            CertificateStore store = new CertificateStore(cert, priv);
+
+            Lfs.WriteStringToFile(baseDir + @"00_DummyCert_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_DummyCert.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_DummyCert.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_DummyCert.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+        }
+    }
+
     static void Test_MakeDummyCerts_211115()
     {
         string baseDir = @"c:\tmp\211115_dummy_certs2\";
@@ -3844,7 +3866,8 @@ cccadmin
     {
         if (true)
         {
-            Test_MakeStatic2LtsDnIpaNttNetCert();
+            Test_MakeDummyCerts_221206();
+            //Test_MakeStatic2LtsDnIpaNttNetCert();
             //Test_MakeTestWebAppDefaultStaticCerts_220614();
             //Test_MakeMikakaDDnsServerSampleStaticCerts_220614();
             return;
